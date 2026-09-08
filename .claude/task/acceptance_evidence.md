@@ -1,212 +1,191 @@
-# Acceptance evidence — bound the deserved-points fit to the range it is allowed to occupy
+# Acceptance evidence — a team id that did not play the match
 
-Branch `fix/deserved-points-clamped-to-legal-range`, from main `4ba3011`.
+Branch `fix/fixture-team-id-overrides-all-sources`, from main `448ef77`.
 
-Everything below is measured against **LIVE PROD DATA** by compiling the model and running it
-read-only. The ban is on `dbt build`, which writes and bills a materialisation; a SELECT over the
-compiled SQL is neither. Same approach `!145` and `!153` used.
+Everything below is measured against **LIVE PROD DATA** by compiling the changed models and running
+them read-only. The ban is on `dbt build`, which writes and bills a materialisation; a SELECT over
+the compiled SQL is neither.
 ⚠ The compiled SQL exceeds Windows' command-line limit, so every query is fed to `bq` on **stdin**.
-⚠ `dbt compile` resolves refs against the DEV target, so each query rewrites `dev_intermediate` →
-`intermediate` and `dev_scratch` → `dbt_analytics` (seeds ride the profile `dataset:`, which is
-`dbt_analytics` on prod). Recorded because reading the compiled file as-is would silently query
-datasets that do not exist.
+⚠ `dbt compile` resolves refs against the DEV target, so each query rewrites `dev_staging` →
+`staging` and `dev_scratch` → `dbt_analytics`. The renamed seed does not exist in prod at all, so
+its relation is replaced with an inline four-row literal — the CSV's contents, transcribed.
 
 criteria_demonstrated:
 
-  - **Nothing outside the legal range, where there was one row.** New model over prod: **1,125
-    fitted rows, 0 out of range, 1 capped.** The live table it replaces has exactly one row
-    outside — LP 2026, `team_sk` 211, four games played, `deserved_points` 12.0259 against a
-    ceiling of 12.
+  - **Both mis-attributions move, and only they do.** Composed against prod:
 
-  - **⭐ Exactly one row moves, and this is a TWO-SIDED result rather than an absence.** A naive
-    old-vs-new diff reports **253** rows differing, which looks alarming and is not:
+        base_apif__fixture_players      21 moved   1,875,217 unmoved   0 added   0 removed
+        base_apif__fixture_statistics    1 moved      99,139 unmoved   0 added   0 removed
+        base_apif__teams                 2 keys removed   4,618 unchanged   0 added
 
-        new model  vs live table    253 rows differ exactly,   1 beyond 1e-9,  max delta 0.0259092103
-        UNCHANGED  vs live table    252 rows differ exactly,   0 beyond 1e-9,  max delta 0.000000000000
+    Row for row, the only movements in the entire warehouse:
 
-    The second line is main's own model re-run against the same inputs that built the live table.
-    **BigQuery's parallel window aggregates (`avg`, `stddev`, `corr` over a partition) are not
-    bit-deterministic**, so 252 rows already disagree at the twelfth decimal on main, with this
-    change nowhere near them. Subtracting the baseline, this change moves **one** row, by 0.0259
-    points, which is the cap. Had I only run the HEAD side I would have reported 253 changed rows
-    and been wrong about 252 of them.
+        BSA   fixture 1492362   21 player rows   22722 -> 132   (Chapecoense-sc)
+        WCQAS fixture 1100382    1 stats row      4767 -> 1544  (Macau)
 
-  - **`deserved_rank` and `deserved_points_gap` stay consistent with the capped value.** Measured
-    on prod: **0 rank changes** across all 1,125 fitted rows; **0 gap-contract violations**; and
-    **0 rank/value disagreements** — every pair of teams in a league-season where one has more
-    deserved points also has the better rank, and equal points implies equal rank. That last one is
-    the reason the rank is computed from the capped number rather than the raw fit.
+  - **⭐ THE CONTROLLED BASELINE SAYS THE CODE MOVES NOTHING; THE SEED ROW DOES.** The same new SQL
+    run with **main's seed contents** — the three rows that exist today, without the 22722 row —
+    reports `0 moved, 1,875,238 unmoved`. Every one of the 21 moves is attributable to the seed row
+    a human wrote, not to a side effect of wiring the override into a new model. The two totals
+    reconcile exactly: 1,875,217 + 21 = 1,875,238.
 
-  - **The flag is true for exactly the rows the cap moved.** 1 true, 1,124 false, **0 null among
-    fitted rows**; null only where there is no fit at all (1,399 of the 2,524 rows).
+  - **The second key removed was not predicted, and it is the same gap.** `base_apif__teams` drops
+    `(BSA, 22722)` as intended and also `(UEL, 2263)` — Riga FC's duplicate provider id, an `alias`
+    row that has been in the seed since **#526**. The alias was reaching events only, so the entity
+    dimension has been minting a team key for a provider id the corrections retired years ago.
+    Applying the override to the key union is what finally removes it. Mação **4767 stays** a team,
+    correctly: it is a real club and only its rows in two WCQAS fixtures were mis-attributed, so
+    only those rows move.
 
-  - **`int_team_season_deserved_points_in_legal_range` is green on prod and RED without the cap.**
-    It can no longer discover the condition, by construction — what it now pins is that the cap is
-    wired in, and the mutation matrix below shows it doing that job.
+  - **⛔ ZERO ORPHANS, CHECKED ACROSS EVERY FACT — because this was the reason the approved fix
+    could not be built as approved.** 41 error-severity `relationships` tests point at `dim_team`,
+    none filtered. Every distinct `team_sk` in every fact, against the new key set:
 
-  - **The warn detector reports rather than errors.** Its predicate returns **1** on the healthy
-    model today — the LP row — at `severity: warn`, so the build proceeds and the ~620 downstream
-    nodes an error-severity failure would skip are not skipped. That is the whole difference between
-    this and the failure that stopped the prod warehouse on 2026-09-06.
+        | fact                | distinct team keys | orphaned |
+        |---------------------|--------------------|----------|
+        | fct_fixture_event   | 2,653              | 0        |
+        | fct_fixture (home)  | 3,165              | 0        |
+        | fct_fixture (away)  | 2,846              | 0        |
+        | fct_fixture_player_stats | 1,513         | 0        |
+        | fct_fixture_team_stats   | 1,695         | 0        |
+        | fct_standings       | 968                | 0        |
 
-  - **`dbt parse` exits 0; SQLFluff exits 0** under the dbt templater CI uses, run from
-    `dbt_project/` with the venv's Python. Both codes read BARE, never through a pipe.
-    `check_description_hygiene.py`, `check_layer_contract.py`, `check_registry_var_sync.py` and
-    `sync_metric_docs_blocks.py --check` all exit 0, and `pytest tests/` is 1,011 passed / 1 skipped.
-    ⚠ **A NEW TRAP, because it cost a false alarm here: redirecting SQLFluff's stdout on this machine
-    makes it exit 1 ON SUCCESS.** Its completion message contains emoji, the console encoding is
-    CP1252, and `... > /dev/null` sends it down a path that raises `UnicodeEncodeError` after the lint
-    has already finished clean. The repo's "read the exit code bare" rule is what saves you — but
-    bare means *unredirected*, not merely unpiped. Set `PYTHONIOENCODING=utf-8` or do not redirect.
+    Removing 22722 from `dim_team` **without** moving the 21 rows off it would have put 1 orphan in
+    `fct_fixture_player_stats` and broken the build in a different place. That is measured, not
+    argued.
 
-  - **The metric definition lives in the SEED, and the generated file is generated.** The
-    `deserved_points` description is edited at `dbt_project/seeds/metric_catalogue.csv:78` and
-    `dbt_project/models/docs/metric_columns.md` is rebuilt by `scripts/sync_metric_docs_blocks.py`
-    (163 blocks). Rendered lengths against BigQuery's 1,024-character column limit, re-measured at
-    the FINAL text rather than quoted from an earlier round: `deserved_points` **961** (margin 63),
-    `deserved_points_gap` **976** (margin 48), `deserved_rank` 430. ⚠ This line previously read
-    "962 / 936 / 430" — the 936 was measured before round 3 lengthened `deserved_points_gap` and was
-    left standing. That is `feedback_corrections_replace`: I re-checked the number I remembered
-    changing and not the one I did not. Every figure here is now re-derived, not carried forward.
-    See the round-1 failure below.
+  - **`dbt parse` exits 0. SQLFluff exits 0** on all three changed models and both new tests, run
+    from the repo root under the full rule set, exit code read BARE. `check_layer_contract.py`,
+    `check_registry_var_sync.py`, `check_description_hygiene.py` and `check_competition_type_seed.py`
+    all exit 0.
 
-## ⛔ Mutation testing changed the shipped tests, and one mutation still survives
+  - **No team's slug moves.** The whole slug ladder in `base_apif__teams_global` recomputed over the
+    corrected key set, compared against `dim_team` row by row: **0 slugs changed, 3,329 unchanged,
+    0 rows added, 0 nameless rows**. The only two rows that disappear take their own slugs with
+    them — `riga-fc` (2263) and `team-22722`. A slug is assigned once and is a URL (#852), so a key
+    removal that reshuffled a surviving team's slug would be a much larger change than this MR is
+    entitled to make. Checked because the removal of `(UEL, 2263)` was not predicted, not because
+    anything suggested it had happened.
+    ⭐ **Why nothing moves, rather than just the number.** "0 changed" invites the obvious objection:
+    2263 owns `riga-fc` today, so when it disappears the canonical club should claim that slug at
+    level 1. It does not, because the two rows do not share a name — the canonical 10124 is
+    `Riga` / Latvia and already holds the uncontested slug `riga`; only the duplicate was ever
+    called `Riga FC`. `riga-fc` is therefore freed and taken by nobody, which is the outcome #526's
+    alias row was written to produce. Same shape on the other pair: 4767 is `Mação` / Portugal at
+    `macao` and 1544 is `Macau` at `macau`, two different slugs for two different entities, and
+    neither is removed — only one statistics row moves between them.
 
-Every cell is the number of rows each test's own predicate returns, run against prod.
+## ⛔ THE CORRECTION DOES NOT REACH PROD ON A BARE BUILD, AND A REVIEWER FOUND THAT, NOT I
 
-| mutation | legal_range (error) | cap_did_not_bind (warn) | flag_matches_value (error) |
-|---|---|---|---|
-| **healthy** | 0 | 1 — intended | 0 |
-| `no_cap` — remove the cap | **1 RED** | 1 | **1 RED** |
-| `flag_false` — hardwire the flag FALSE | 0 | 1 | **1 RED** |
-| `flag_true` — hardwire the flag TRUE | 0 | 1 | **1,124 RED** |
-| `upper_only` — drop the floor half of the cap | 0 | 1 | 0 |
+Everything above is a read-only SELECT over the compiled model SQL. It proves what the corrected
+LOGIC computes. It does not prove what the incremental TABLES will contain after a nightly run, and
+those are different things:
 
-**1. A surviving mutation rewrote the detector.** The warn test was first written as
-`not deserved_points_was_capped`. Hardwiring that column to FALSE then **silenced it with every
-test still green** — the detector I had just added to replace the detection the legal-range test
-lost could itself be switched off unnoticed. It now reads the VALUE (`deserved_points` strictly
-inside its bounds) rather than the boolean, because a capped row sits exactly on its bound and the
-value carries the evidence with nothing to trust. The flag is pinned separately by
-`flag_matches_value`, which is what turns `flag_false` and `flag_true` red.
+  - `fct_fixture_player_stats` and `fct_fixture_team_stats` are **both** `materialized='incremental'`
+    with a bare `raw_ingested_at > max(target)` filter and **no self-heal clause**. A finished
+    fixture's stats never get a newer `raw_ingested_at`, so neither corrected fixture is
+    re-processed on a bare `dbt build` — which is what the nightly runs.
+  - The failure that produces is precisely the one this MR exists to remove: `base_apif__teams` is a
+    table and drops 22722 every night, while the fact keeps 21 rows carrying it. Orphan, and
+    `relationships` at `core.yml:725` stops the build. Both new guards go red too.
+  - ⚠ **Copying the events self-heal would not have fixed it**, which is the part I would have got
+    wrong on my own. `fixture_player_stat_sk` hashes `(fixture_id, league_code, team_id, player_id)`
+    and `fixture_team_stat_sk` hashes `(fixture_id, league_code, team_id)`. Correcting `team_id`
+    CHANGES the unique key, so a merge inserts the corrected row and strands the old one — dbt never
+    deletes. `fct_fixture_event`'s self-heal works only because `event_sk` excludes `team_id`.
 
-**2. ⛔ `upper_only` SURVIVES, and it is a data limitation, not a test I can write.** Removing
-`greatest(…, 0)` — the floor half of the cap — is caught by nothing. The reason is measured: no
-fitted rate in prod is below zero, the minimum is **0.1944**, so there is no row on which the floor
-can bind and therefore none on which its removal can show. The floor is there because the outcome is
-bounded below as well as above, not because today's data exercises it. Stated rather than left for a
-reviewer to find; closing it would need a synthetic fixture for a dbt model, which this repo has no
-mechanism for and which is not this MR's to invent.
+**The deploy therefore requires one command, once, at merge:**
 
-⭐ Same lesson as `!151` and `!153`, now applied BEFORE a reviewer had to: the mutations worth
-running are the ones the design is defended against. `flag_false` is not an accident anyone would
-commit — it is the question "what is this detector actually resting on?", and the answer was "a
-boolean nothing checked".
+    dbt build --full-refresh --select fct_fixture_player_stats fct_fixture_team_stats
 
-## ⛔ ROUND 1 FAILED, and five green gates had nothing to say about why
+**A full refresh of these two is safe, and that is measured, not assumed:**
 
-I wrote the new metric definition into `dbt_project/models/docs/metric_columns.md`, whose own first
-line is `GENERATED FILE - DO NOT EDIT BY HAND`. It is produced from
-`dbt_project/seeds/metric_catalogue.csv` by `scripts/sync_metric_docs_blocks.py`, and I left the seed
-row untouched — so the seed and the generated file disagreed about what `deserved_points` means,
-which is the precise drift that rule exists to prevent, and the next sync run would have overwritten
-my text with the stale description. `.gitlab-ci.yml:411` runs `sync_metric_docs_blocks.py --check` in
-`validate:governance`, so this was a live CI break rather than a latent one.
+    fct_fixture_player_stats  1,875,238   base_apif__fixture_players      1,875,238   equal
+    fct_fixture_team_stats       99,140   base_apif__fixture_statistics      99,140   equal
+    fct_fixture_event           858,032   base_apif__fixture_events         858,015   +17
 
-⚠ **`dbt parse`, SQLFluff, `check_description_hygiene.py`, `check_layer_contract.py` and
-`check_registry_var_sync.py` ALL EXITED 0 over the hand-edited generated file.** Two things caught
-it, independently and at almost the same moment: `tests/test_sync_metric_docs_blocks.py::
-test_the_real_seed_and_the_real_file_are_in_sync`, and `analytics-engineer-reviewer` reading the
-file's own header. That is the fourth branch running where every defect came from the blinded review
-or the suite and none from the gates.
+Nothing has accumulated in the two target facts that their base tables do not still produce, so
+rebuilding them loses nothing. ⭐ The third line is why they stay incremental rather than becoming
+tables: the events fact **does** retain 17 rows base no longer produces, so a fanout fact genuinely
+does accumulate, and dropping these two to tables would trade a loud one-off deploy step for silent
+data loss the first time the provider stops returning a fixture. Combined rebuild size 0.39 GiB —
+about 0.3% of one night's measured pipeline volume — so cost was never the argument either way.
 
-⭐ The reviewer also caught a stale claim in the model header — *"It sums to exactly 0 across a
-balanced (completed) league-season"* — which the cap can break, by exactly the amount it shaves. The
-comment now carries the qualifier and says plainly that "no completed season carries a capped row"
-is a fact about today's data, not a property of the model. Nothing in the repo asserted the identity,
-so nothing went red; a reader would simply have been told something untrue.
+⛔ **The contract asserted the opposite before this round.** Its `impact_map` said `fct_fixture_event`
+was the only incremental model in the chain. I wrote that from memory instead of opening the two
+files, and every offline gate, `dbt parse` and the whole prod verification above accepted it,
+because none of them reads a `config()` block looking for a claim to contradict.
 
-## ⛔ ROUND 2 FAILED because I patched THAT claim where it was named and nowhere else
+## ⛔ A SAFETY NET I ASSERTED DID NOT EXIST — so it was built
 
-`football-analytics-expert-reviewer` FAILed round 2: the sums-to-zero correction went into the SQL
-comment only, while `metric_catalogue.csv:79` (`deserved_points_gap`) still asserted it flatly — and
-the seed is the copy that actually reaches readers. `persist_docs` attaches it to the BigQuery
-column, `dbt docs generate --static` publishes it, and `scripts/export_site_data.py`'s
-`fetch_glossary` ships it into `metrics.json`. Nobody reading any of those cross-references a
-model's inline SQL comment.
+The contract claimed the seed already carried a `relationships` test from `correct_team_api_id` to
+`dim_team.team_api_id`. It never did, under either name. I had misread a `relationships` block that
+belongs to the NEXT seed in the same file, `team_name_overrides`, whose column is also an id
+pointing at `dim_team`.
 
-⛔ **That is `feedback_fix_the_class_not_the_instance`, occurring INSIDE the fix for a finding about
-a claim left standing in a sibling artifact.** So round 3 swept the tree rather than patching the
-line it named. **Two-sided count: THREE live instances, TWO sources.**
+The hole that leaves is not cosmetic. `correct_team_api_id` is hand typed, this seed is explicitly
+the registry for the NEXT mis-attribution, and a typo does not fail — it silently re-points a
+fixture's rows at whichever real team the mistyped id happens to name. Neither participant guard
+catches it: they ask whether the team played the fixture, not whether the id is the right team.
 
-| where | how it was handled |
+The test is now added, registered by dbt as
+`relationships_fixture_team_id_overrides_correct_team_api_id__team_api_id__ref_dim_team_`, and
+mutation-tested against the corrected key set:
+
+| variant | rows returned |
 |---|---|
-| the SQL comment in `int_team_season__deserved_vs_actual.sql` | fixed at round 2 |
-| `dbt_project/seeds/metric_catalogue.csv:79` | **the reviewer's finding** |
-| `dbt_project/models/4_intermediate/.../int_team_season.yml:309` | **the reviewer did NOT name this one** |
-| `dbt_project/models/docs/metric_columns.md:306` | generated from the seed; regenerated |
+| the four shipped `correct_team_api_id` values (132, 1544, 10124, 25274) | **0** |
+| the same four plus one typo'd id | **1 RED** |
 
-Fixing only what was named would have shipped the third. Rendered lengths after the edit:
-`deserved_points` 962 (margin 62), `deserved_points_gap` **976 (margin 48)** against the
-1,024-character column limit.
+⚠ No cycle: the seed feeds `base_apif__teams` and the test points back at `dim_team`, but a dbt test
+is a leaf node rather than part of the model DAG. `dbt parse` and `dbt ls --resource-type test`
+both confirm it.
 
-## ⛔ ROUND 3 FAILED TWICE, and the second sweep missed by the same method as the first
+## ⛔ Mutation testing — both guards watched RED
 
-**1. `scope-auditor` — I decided something that was not mine.** I kept `severity: warn` and justified
-it by analogy after conceding it matched none of `engineering_standards.md` §3's three rows. It
-quoted the rule I had broken while breaking it, `docs/working_agreement.md:328`: *"when a new case
-does not clearly match a written rule, the classification itself is a CPO decision. 'It's analogous
-to X' is not a license."* ⚠ The two reviewers had reached OPPOSITE conclusions on the same question,
-which is itself the argument that it was not mine. Escalated; ruled **"warn"**; recorded in
-`escalations.log`.
+Each cell is the number of rows the guard's own predicate returns, run against prod.
 
-**2. `analytics-engineer-reviewer` — a now-false formula sentence, THREE LINES from the one I had
-just patched.** `int_team_season.yml:305-307` still said *"deserved_points is that rate times the
-team's games played"*, which is false today for the LP row where the served value is the capped rate
-times games.
+| variant | `player_stats_guard` | `team_stats_guard` |
+|---|---|---|
+| **shipped** (corrections applied) | **0** | **0** |
+| corrections reverted | **21 RED** | **1 RED** |
 
-⛔ **Both sweeps missed the same way, and the method is the fault.** I grepped the phrase a reviewer
-named. That finds instances of that phrase; it does not find the other statements the change
-falsified. **Sweeping INVERTED — enumerate every claim about the quantity, ask whether each is still
-true — found the yml sentence AND a second one no reviewer reached:**
+The reverted variant is not a hypothetical: it is main, today. Both guards fail on the warehouse as
+it currently stands, which is the whole point — `assert_team_stats_team_in_fixture_participants`
+fails on a defect that was diagnosed and registered under **#53** and then left in prod, because the
+override was wired to events and nobody checked the other two feeds.
 
-`site_v2/src/components/team/DeservedHero.astro:97` says deserved totals are colinear in `sotd`
-"only when every team has played the same number of games". The cap makes that insufficient, and the
-comment is LOAD-BEARING: it justifies drawing the trend as a segment between **the two extreme-`sotd`
-dots' served values**. The cap binds precisely at the extremes — the capped team is by construction
-the one with the most extreme signal — so for a capped league-season the line is drawn through a
-capped endpoint and is no longer the model's line. My own impact map called this tolerable on the
-grounds that "the component plots dots and the trend independently"; the dots are independent, the
-segment endpoints are not. Corrected there, and out of scope here.
+⭐ **The guard found the second bug before the code did.** Running the existing event guard's
+predicate against the other two facts was the first thing done after reading the bug report, and it
+returned two offenders rather than one. Writing the fix for only the reported fixture would have
+shipped a new error-severity test that fails on prod the night it lands.
 
-## ⭐ A WRONG DECISION OF MINE THAT PASSED REVIEW, overruled by the CPO
+## ⛔ What the approved plan could not have known, and why it changed
 
-`decisions_taken` asserted *"the integer domain is a display property, and stays one"*, citing that
-`DeservedHero.astro:79` already renders `integer(...)`. His ruling: **"Rounding is business logic."**
-He is right, and the rule was already written — the consumption layer may select, filter and order,
-never derive. I was pointing at a defect and calling it a design, and **two blinded reviewers passed
-it**. A sweep of `site_v2/src` found three places deriving a number the reader sees; two-sided, four
-more were checked and CLEARED as presentation. Filed as **GitLab #108**. Not fixed here: serving the
-integer changes what reaches the frontend, so it touches the mart, the export and the trend line.
+The CPO approved *"go with A"* — stop `base_apif__teams` admitting a key no source can name. It is
+the natural reading of the defect and it does not work, for a reason only measurement shows: the
+rows that carry the bad id are in a fact with an error-severity `relationships` test on that column.
+A is not too small a fix, it is the wrong end of the pipe. The id has to stop being emitted, not
+stop being resolvable.
 
-⚠ Also this round: `deserved_points_was_clamped` → **`deserved_points_was_capped`**, and the test
-`..._deserved_clamped_flag_matches_value` → `..._deserved_capped_flag_matches_value`, so the column
-and test match the word the ruling used and all four prose copies use.
-`football-analytics-expert-reviewer` raised the inconsistency without failing it. The mutation matrix
-was re-run after the rename and is byte-identical to the table above.
+⚠ There is also a trap in the ORDER of the correction that reading the SQL does not make obvious.
+Both target models dedupe on a key containing `team_id`, and both carry a uniqueness test on that
+grain. Correcting after the dedup emits two rows for one `(fixture, team)` whenever the correct id
+already has one; correcting before it lets the model's existing latest-ingest-wins rule resolve the
+collision. Neither live case collides today — fixture 1492362 has no rows for 132, fixture 1100382
+none for 1544 — so the wrong order would have passed every test in this MR and broken on the next
+mis-attribution. Checked, then written into the model as a comment rather than left as folklore.
 
 ## What this does NOT do
 
-- **It does not change when the read is SHOWN.** The two open CPO questions on this hero — how to
-  render the fitted line mid-season, and from which matchday to show it at all — are untouched, and
-  raising a matchday threshold later is still fully available.
-- **It does not round the stored value.** The integer domain is honoured at the page
-  (`DeservedHero.astro:79`), and moving it into the warehouse was rejected on measurement: rows tied
-  on `deserved_points` would go from 75 of 1,125 to **252 of 1,125**, making a fifth of
-  `deserved_rank` an artifact of rounding, and it would scatter the hero's dots off the trend line
-  they are colinear with.
-- **It does not touch the freshness guard.** `assert_fct_fixture_no_stale_live` uses a 3-hour window
-  against a once-daily ingest and has been failing the nightly roughly one night in three (9 of the
-  last 29 executions). Diagnosed in the same session, deliberately left to its own contract.
-- **It does not fix the handover's claim** that the nightly put `is_current_season` in prod. It was
-  `data:build:main` on the !153 merge. Left for the next handover MR rather than smuggled in here.
+- **It does not touch `not_null` on `dim_team.team_name`.** The backstop caught this, loudly, at
+  the worst possible moment — which is what a backstop is for. The new guards catch the class
+  earlier and name the fixture; the last line stays where it is.
+- **It does not re-attribute anything automatically.** A non-participant block is never reassigned
+  to "whichever participant has no rows", which would have fixed both cases with no seed row at
+  all. That is a derivation that invents attribution from an absence and fires silently.
+- **It does not fix `base_apif__players`**, which has the identical latent exposure — three name
+  sources, nobody dropped when all three are null, and the same error-severity `not_null` on
+  `dim_player.player_name`. Recorded in `decisions_reserved`.
+- **It does not fix the freshness guard.** That is the OTHER nightly failure, and it is what let
+  this one hide for three nights: a permanently red test is not one broken check, it is cover.

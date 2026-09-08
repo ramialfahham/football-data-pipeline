@@ -1,121 +1,114 @@
-# Review — fix/deserved-points-clamped-to-legal-range — 2026-09-06
+# Review — fix/fixture-team-id-overrides-all-sources — 2026-09-08
 
-diff_sha256: 5e0a4f826b2c4c8acb588c72acacebf7491fbc5f95d8b8200e86a1c0a17addf6
+diff_sha256: 1b2fe6e3a88697b435116b1754cf0761b39d2acdda9b0082698edf4ffb15594e
 
-rounds: 5
+rounds: 3
 
-rounds_cap_override: >
-  CPO, 2026-09-06. Round 3 hit the cap with TWO open FAILs and I stopped and brought them, as the
-  rule requires. One of them — the `severity: warn` classification — could not be fixed by me at all,
-  because `scope-auditor` had correctly identified it as a §10 decision. He was given both options
-  with their consequences, told "Say 'warn' and I'll finish. Two smaller things I'll fold in without
-  asking further," and answered **"warn"**. Recorded in `escalations.log`, entry
-  `2026-09-06 — fix/deserved-points-clamped-to-legal-range — TEST SEVERITY: WARN`.
-  ⚠ What the extra rounds were spent on, because the cap exists to test exactly this distinction —
-  looping versus fixing. Nothing was re-argued and no reviewer verdict was disputed:
-    round 1  FAIL — a metric definition hand-written into a GENERATED file (also caught by the suite)
-    round 2  FAIL — the same stale claim left standing in the sibling artifact readers actually see
-    round 3  FAIL x2 — a §10 decision I took myself, and a now-false formula sentence
-    round 4  FAIL — my own blanket find-and-replace corrupted a citation to the ruling record
-    round 5  PASS
-  Every round accepted its finding in full. Round 3's pair is what justifies the budget: one was a
-  live falsehood about a row in prod, the other was a decision that was never mine.
+⚠ **WHAT THE ROUNDS BOUGHT.** Two FAILs, three defects, all mine, and **both FAILs were claims I
+wrote from memory instead of opening the file**:
 
-⚠ **VERDICTS WERE OBTAINED AT TWO HASHES AND THAT IS RECORDED, NOT IMPLIED.**
-`analytics-engineer-reviewer` and `football-analytics-expert-reviewer` PASSed at `ed557267…`.
-The only change since is `contract.md` prose plus two lines of `acceptance_evidence.md` — the
-citation fix `scope-auditor` itself raised — and `scope-auditor`, which is the reviewer that judges
-`contract.md`, re-read the whole diff at `5e0a4f82…` afterwards. No code, yml, seed or generated file
-differs between the two hashes; `scope-auditor` verified that independently.
+    round 1  FAIL x2  the contract said fct_fixture_event was the only INCREMENTAL model in the
+                      chain (false — both target facts are too, so the fix would never have
+                      reached prod); and an acceptance criterion said only one team key was
+                      removed (false — two are)
+    round 2  FAIL     the contract claimed a `relationships` test on the seed that has never
+                      existed under either name
+    round 3  PASS x2
 
-## scope-auditor
-VERDICT: PASS
-risks_checked:
-- Both cited escalation-log strings searched VERBATIM against the log: found character for character
-  at `escalations.log:8012` and `:8059`. The corrupted variant it had FAILed on
-  (`fix/deserved-points-capped-to-legal-range`) has zero hits in either file.
-- ⭐ It did not stop at the two citations. It cross-checked EVERY other quoted string in the contract
-  — the four verbatim CPO quotes, the `docs/working_agreement.md:322,328` rule references, the test
-  names, the file:line refs — against the log and the diff, looking for a second instance of the same
-  blanket-replace corruption. None found.
-- ⭐ It confirmed the `escalations.log` hunk is APPEND-ONLY past line 8007, ruling out the possibility
-  that the citations now match because the log was edited to fit the contract rather than the other
-  way round. That is the check that makes the whole attribution mechanism worth having.
-- Code diff re-confirmed unchanged from round 4's substance; this round touched contract prose only.
-- `scope_paths` unchanged and covering every touched path; nothing smuggled in with the fix.
-- The amendment's account of the cause matches what it verified independently and does not overclaim
-  — it names both files fixed and claims nothing beyond the citation, branch-name and
-  stale-measurement corrections.
+⭐ Every one of the three passed `dbt parse`, SQLFluff, four offline gates, `pytest` and a full
+read-only verification against live prod. None of them is the kind of defect those instruments look
+for: two were false sentences about code, and one was an asserted safety net.
 
 ## analytics-engineer-reviewer
-VERDICT: PASS (at `ed557267…`)
+VERDICT: PASS (round 3)
 risks_checked:
-- Rename completeness across SQL alias, final `select`, yml column entry, BOTH test expressions, BOTH
-  test names, the seed row and the regenerated markdown. A repo-wide case-insensitive `clamp` grep
-  returns only two unrelated hits (a different metric's comment, a CSS property) plus task paperwork
-  narrating the rename as history. No orphaned identifier.
-- The corrected formula sentence checked AGAINST THE SQL rather than for plausibility, including the
-  null case: `GREATEST`/`LEAST` propagate NULL, so both `deserved_points` and
-  `deserved_points_was_capped` are NULL for an unfittable league-season, matching the column doc's
-  explicit "NULL, not FALSE" claim.
-- Seed vs regenerated markdown for both changed rows: identical word for word. Rendered lengths
-  ~963 and ~977 against the 1,024 limit — reported as a hand count and explicitly flagged as an
-  approximation rather than a certified pass, which is the honest form.
-- ⭐ **It ran the inverted sweep I should have run two rounds earlier**, enumerating every prose claim
-  about `deserved_points` / `_gap` / `_rank` / `_was_capped` across the SQL docstring, yml, column
-  descriptions, test comments, seed and markdown, and reported that it found no third false statement.
-- Mutation reasoning re-derived with the new names: `deserved_rank` ranks on the POST-cap value, so no
-  wrong-rank mutation survives silently; both error-severity tests read served columns directly.
-- Structural checks after the edits: CTE chain resolves, `season_games_played` exists on the model,
-  the CSV row still has its 15 fields, no project-level severity default overrides the warn/error split.
-- The `DeservedHero.astro:79` rounding confirmed unchanged, out of scope, and correctly deferred to
-  #108 rather than re-raised as this diff's defect.
+- ⛔ **ROUND 1: it found that the fix could not reach prod at all.** `fct_fixture_player_stats` and
+  `fct_fixture_team_stats` are both `materialized='incremental'` on a bare `raw_ingested_at`
+  high-water mark that a finished fixture never advances, so the corrected rows are never
+  re-processed on the nightly's bare `dbt build` — `base_apif__teams` would drop 22722 while the
+  fact kept 21 rows carrying it, producing the exact orphan this MR exists to prevent, plus both new
+  guards red in prod. My contract asserted the opposite.
+- ⭐ And it closed the obvious escape before I could take it: copying the events self-heal does not
+  work, because `fixture_player_stat_sk` hashes `(fixture_id, league_code, team_id, player_id)` and
+  `fixture_team_stat_sk` hashes `(fixture_id, league_code, team_id)` — correcting `team_id` CHANGES
+  the unique key, so a merge inserts the corrected row and strands the old one, which dbt never
+  deletes. `event_sk` excludes `team_id`, which is the only reason its self-heal works. It then
+  checked that a key REDEFINITION is not an escape either, since that itself forces a full refresh.
+- **ROUND 2: it found a safety net that does not exist.** The contract claimed the seed carried a
+  `relationships` test from `correct_team_api_id` to `dim_team.team_api_id`. It never did, under
+  either name — I had misattributed a block belonging to `team_name_overrides`, the next seed in the
+  same file. It argued the hole rather than just the wording: the value is hand typed, this seed is
+  the registry for the NEXT mis-attribution, and a typo silently re-points a fixture's rows at
+  whichever real team the mistyped id names — which neither participant guard can catch, because
+  they only ask whether the team played the fixture.
+- **ROUND 3** verified the added test is non-cyclic by finding the identical pattern already live on
+  `team_name_overrides` in the same file, rather than reasoning about dbt's DAG; confirmed
+  `team_api_id` is a real column on `dim_team`; and confirmed `wrong_team_api_id` correctly gets NO
+  such test, because two of its four values are precisely the keys this MR retires — a test there
+  would be red by design.
+- It swept INVERTED as asked and reported two-sided: roughly a dozen statically checkable claims
+  re-read against the tree, zero false this round. It was explicit that the prod row counts and the
+  slug ladder are not independently re-runnable from its tool set, rather than implying it had
+  checked them.
+- Across the rounds it also verified: all four copies of the override join condition by condition
+  with no drift; that the correction precedes each dedup and the collision guard reads post-override
+  ids; that `base_apif__fixtures_next` carries a uniqueness test on `fixture_id` so the participant
+  join cannot fan out; that adding `fixture_id` to `stg_fixture_level` is inert for
+  `fixture_level_team_names`; and that base→base `ref()` is permitted by `layering.md:196`.
+- ⚠ It named the key/name asymmetry under `alias` mode without failing on it — a folded key takes
+  its name from the canonical id's sources, never the duplicate's. Written into the model as a
+  comment rather than left implicit.
 
-## football-analytics-expert-reviewer
-VERDICT: PASS (at `ed557267…`)
+## scope-auditor
+VERDICT: PASS (round 2)
 risks_checked:
-- The renamed column and test read correctly to a football audience and use the word the CPO's own
-  ruling used. Checked that the column name, the comment prose and the SQL alias agree.
-- The seed states the cap in FOOTBALL terms — "capped into the [0, 3] a match can yield" cites what a
-  single match can actually produce (0/1/3), not a statistical "clamped to interval" phrasing.
-- The corrected model description checked against the SQL it describes: literally true, not merely
-  plausible.
-- All FOUR copies of the sums-to-zero claim compared for a consistent story; none asserts an
-  unconditional zero-sum that another denies.
-- `direction` / `interpretation` / `format` / `lower_is_better` re-derived fresh on all three deserved
-  rows rather than assumed settled by its two earlier passes, and cross-checked against the
-  catalogue's existing convention for other `neutral` rows.
-- ⚠ It named a real tension and correctly declined to fail on it: `format: integer` on a column the
-  warehouse stores as a continuous float. That is exactly what GitLab **#108** now carries, disclosed
-  in `decisions_reserved` with the CPO's ruling quoted.
-- Checked that no composite or fabricated-probability metric is introduced — the cap is a transparent,
-  disclosed bound on a described OLS fit.
+- ⛔ **ROUND 1: it caught a false acceptance criterion and the undisclosed consequence behind it.**
+  The contract said `base_apif__teams` "emits the same key set as main otherwise". It does not: the
+  new key CTE applies the seed's pre-existing Riga FC `alias` row unconditionally, so `(UEL, 2263)`
+  is removed too — a live team-identity change disclosed nowhere in `blast_radius`.
+- **ROUND 2** it then RULED on the §10 question rather than deferring it: the `alias` semantics were
+  CPO-approved under #526 and already documented in the seed's own `schema.yml` as "replace
+  unconditionally", so wiring them to the key-minting logic completes an approved rule rather than
+  taking a new decision — *"requiring approval for every consequence of a rule already approved in
+  general form"* is what it declined to do. It required the disclosure AND the measurement, and got
+  both.
+- It swept every number in both artifacts INVERTED rather than grepping the phrase it had flagged,
+  and reported them cross-consistent and arithmetically reconciling (1,875,217 + 21 = 1,875,238).
+- Judged the new `deploy_order` legitimate: a one-off ~0.39 GiB command, disclosed with its reason
+  and its safety measurement, presented as a recipe for the CPO to run rather than a decision taken
+  on his behalf, and not crossing the recurring-cost line.
+- Confirmed the seed rename is complete — no live `ref()` anywhere still names the old seed — that
+  every diffed path is in `scope_paths`, that `decisions_reserved` still defers three genuinely
+  unrelated items, that no guard was loosened or deleted, and no credentials.
 
 ## escalations
-- **RULED: `severity: warn`.** `escalations.log`, entry
-  `2026-09-06 — fix/deserved-points-clamped-to-legal-range — TEST SEVERITY: WARN`. Reached the CPO
-  because `scope-auditor` FAILed my analogy-based classification under §10, and because the two
-  reviewers had reached opposite conclusions on the same question.
-- **RULED EARLIER, and it overturned a decision of mine that had already passed review:**
-  *"Rounding is business logic."* Consequence filed as GitLab **#108**; not fixed here.
+- **RULED: fix the nameless team, approach A** — *"go with A"*, `escalations.log:8098`.
+  ⛔ A alone was then MEASURED insufficient and he was told before anything was built; the enlarged
+  plan was approved in plan mode.
+- **RULED: the seed's new name** — `fixture_team_id_overrides`, `escalations.log:8124`. The columns
+  and the two modes were not put to him: those are form, and the transformation layer decides form.
+- **OWED, and it is his to run:** one command at merge,
+  `dbt build --full-refresh --select fct_fixture_player_stats fct_fixture_team_stats`. Not a
+  decision — a step, with its reason and its safety measurement in `acceptance_evidence.md`.
 
 ## ⛔ WHAT THIS BRANCH SHOULD BE REMEMBERED FOR
 
-**1. Every defect came from the blinded review or the test suite. None came from a gate.** At round 1,
-`dbt parse`, SQLFluff, `check_description_hygiene.py`, `check_layer_contract.py` and
-`check_registry_var_sync.py` all exited 0 over a hand-edited GENERATED file that would have broken
-`validate:governance` in CI.
+**1. The bug report named one team; the guard found three.** Running the existing event guard's
+predicate against the other two fanout facts BEFORE writing any code returned two offenders, not
+one — and applying the seed uniformly retired a third id. The reported defect was the newest and
+least interesting of them: Mação's team-statistics row had been wrong in prod since #53 diagnosed
+and registered it, because the correction was wired to one feed of three.
 
-**2. Two sweeps missed by the same method, and the method is the fault.** Grepping the phrase a
-reviewer named finds instances of that phrase. It does not find the other statements the change
-falsified. Sweeping INVERTED — enumerate every claim about the quantity, ask whether each is still
-true — found what two reviewer-named sweeps had left, including one defect no reviewer reached
-(`DeservedHero.astro:97`, corrected in the impact map).
+**2. A correction that cannot reach the table it corrects is not a fix.** The whole verification
+method here — compile the model, run it read-only against prod — measures what the LOGIC computes.
+It is blind to what an incremental TABLE will contain, and both target facts are incremental. Every
+number in the evidence was right and the change would still have broken the nightly.
 
-**3. A blanket find-and-replace edits quoted strings too.** Twice on this branch: once corrupting
-meaning I had to strike, once corrupting the citation to the ruling record itself.
+**3. Three defects, three sentences I wrote from memory.** Which model is incremental, how many keys
+move, which test exists. Each was checkable in seconds by opening the file, and each survived every
+automated instrument the repo has, because none of them reads prose looking for a claim to falsify.
 
-**4. A wrong decision of mine passed two blinded reviewers and was caught only by the CPO.** I wrote
-"the integer domain is a display property, and stays one" while pointing at a frontend defect as the
-evidence for it. Reviewers check the diff against the contract; they do not check whether the
-contract's own premise is right.
+**4. The reviewer that found the §10 problem also ruled it discharged.** It did not escalate the
+Riga FC key removal upward for a fresh ruling; it traced the `alias` semantics to their existing
+CPO approval, demanded the disclosure and the slug measurement, and then decided. Escalating every
+consequence of an approved rule is its own failure mode.
