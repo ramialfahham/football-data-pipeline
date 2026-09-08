@@ -46,7 +46,7 @@ src as (
         )
         -- Self-heal (#526): also re-process any fixture whose committed events violate the
         -- team-in-participants rule, so seed-driven team-id corrections
-        -- (fixture_event_team_overrides) reach rows committed before the fix (no --full-refresh).
+        -- (fixture_team_id_overrides) reach rows committed before the fix (no --full-refresh).
         -- Self-limiting: once the attribution is corrected the violation is gone and the fixture
         -- no longer matches.
         or base.fixture_id in (

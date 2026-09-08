@@ -8093,3 +8093,52 @@ further," and answered "warn". That is the authority for `rounds_cap_override:` 
 follow-on edits (the false formula sentence at int_team_season.yml:305-307, and the
 `_was_clamped` -> `_was_capped` rename). It is NOT authority for anything else; the DeservedHero
 trend-line defect found while stopping is filed as its own issue, not pulled into this MR.
+
+================================================================================
+2026-09-08 — fix/fixture-team-id-overrides-all-sources — FIX THE NAMELESS TEAM, APPROACH A
+================================================================================
+
+WHAT HE WAS TOLD. `not_null_dim_team_team_name` is failing the prod build and MR !156's pipeline.
+One row: team_sk 22722, league_code BSA, every field null. Traced to the provider's own bytes — the
+away lineup of fixture 1492362 (Corinthians vs Chapecoense-sc) filed under a phantom id, sent as
+`{"id":22722,"logo":".../teams/22722.png","name":null,"update":"1970-01-01T00:00:00+00:00"}`.
+Nothing is mis-parsed. The structural hole is that `base_apif__teams` mints a team KEY from any
+fixture-level source on `team_id is not null` while drawing the NAME only from rows that have one,
+so an unnameable key becomes a dim_team row and a bare `dbt build` then skips everything below it.
+
+Three options were given: (A) stop admitting a key no source can name, in its own MR that merges
+before !156; (B) fold it into !156, outside that MR's scope_paths; (C) wait and see whether a
+re-ingest heals it. Recommendation given: A.
+
+HIS RULING, verbatim: "go with A"
+
+⛔ WHAT HAPPENED NEXT, AND WHY THE PLAN IS LARGER THAN WHAT HE APPROVED. Exploration proved A
+insufficient on its own and he was told before anything was built: `fct_fixture_player_stats` holds
+21 rows carrying team_sk 22722, and `core.yml:725` has an error-severity `relationships` test on
+that column — one of 41 pointing at dim_team, none filtered. Removing the key trades a not_null
+failure for a relationships failure. The rows have to stop carrying the id. The enlarged plan —
+generalise the existing event-override mechanism to all three fanout sources, correct both live
+instances, add two participant guards — was put to him in plan mode and approved there.
+
+================================================================================
+2026-09-08 — fix/fixture-team-id-overrides-all-sources — SEED NAME: fixture_team_id_overrides
+================================================================================
+
+WHAT HE WAS TOLD. `seeds/fixture_event_team_overrides.csv` is the registry of provider team-id
+mis-attributions, but the override join that consumes it exists only in `base_apif__fixture_events`.
+Wiring it to fixture statistics and fixture players makes the word "event" in its name false. A seed
+rename is permanent — it renames the BigQuery table — so the name is the CPO's, not mine. Three
+options with their costs:
+  · rename to `fixture_team_id_overrides` — one registry for all three sources; touches the CSV,
+    seeds/schema.yml, the ref() in base_apif__fixture_events, and renames the seed table.
+  · keep the name, widen the description — no churn, but every future reader finds a seed called
+    `fixture_event_team_overrides` joined inside the player-stats and team-stats models.
+  · one seed per source — most explicit, but the same mis-attribution is then registered by hand up
+    to three times and the staleness tests triple.
+Recommendation given: rename.
+
+HIS RULING: "Rename to fixture_team_id_overrides"
+
+⚠ WHAT THIS DOES NOT DO. It rules on the NAME. The columns, the two modes (`alias`,
+`reattribute_if_cohabiting`) and their semantics are unchanged and were not put to him — they are
+form, not name, and the transformation layer decides form.

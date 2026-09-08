@@ -423,15 +423,18 @@ seeds:
             - as_of_date
             - source_code
 
-  - name: fixture_event_team_overrides
+  - name: fixture_team_id_overrides
     description: >
-      Corrections for known API-Football fixture-event team-id defects. Hand-authored, one row per
-      wrong source team id: what it should resolve to, and how to apply it.
+      Corrections for known API-Football fixture-level team-id defects. Hand-authored, one row per
+      wrong source team id: what it should resolve to, and how to apply it. Applied to all three
+      fixture-level feeds — events, team statistics and player statistics — and to the team keys
+      the entity dimension takes from them, so one row corrects a mis-attribution everywhere it
+      appears rather than in whichever feed happened to be looked at.
 
       `alias` replaces the id unconditionally — the provider holds two ids for one club.
       `reattribute_if_cohabiting` replaces it only in fixtures where the correct team is a
       participant and the wrong one is not: a mis-attribution between two DISTINCT clubs, so the
-      wrong club's own events are never touched.
+      wrong club's own rows are never touched.
 
       Add a row only with EXTERNALLY verified evidence; never infer a duplicate from name
       similarity within our own data.
@@ -443,14 +446,21 @@ seeds:
         note: string
     columns:
       - name: wrong_team_api_id
-        description: "The team_api_id the provider's event feed wrongly emits."
+        description: "The team_api_id the provider's fixture-level feeds wrongly emit."
         tests:
           - not_null
           - unique
       - name: correct_team_api_id
-        description: "The team_api_id the event should resolve to."
+        description: >
+          The team_api_id the row should resolve to. Must exist in dim_team: this value is hand
+          typed, and a wrong one does not fail loudly — it silently re-points a fixture's rows at
+          whichever real team the mistyped id happens to name. The participant guards cannot catch
+          that, because they only ask whether the team played the fixture.
         tests:
           - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_api_id
       - name: mode
         description: "alias = unconditional duplicate-id replacement; reattribute_if_cohabiting = participant-gated mis-attribution fix."
         tests:

@@ -76,7 +76,7 @@ fixture_participants as (
 ),
 
 -- CPO-owned corrections for known provider team-id defects (#526), from
--- seeds/fixture_event_team_overrides.csv. `alias` = unconditional duplicate-id replacement (one
+-- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one
 -- club under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is
 -- a fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so
 -- a club's own legitimate events are never touched).
@@ -85,7 +85,7 @@ overrides as (
         cast(wrong_team_api_id as int64) as wrong_team_api_id,
         cast(correct_team_api_id as int64) as correct_team_api_id,
         mode
-    from {{ ref('fixture_event_team_overrides') }}
+    from {{ ref('fixture_team_id_overrides') }}
 )
 
 select

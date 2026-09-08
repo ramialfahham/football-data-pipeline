@@ -10,6 +10,10 @@ models:
       standings, per-fixture statistics, player stats and events. A team that appears in a
       competition's matches is therefore present even when the provider's /teams call never
       returned it, which is common on newly onboarded competitions.
+
+      The ids taken from the three fixture-level feeds pass through the fixture_team_id_overrides
+      seed first, so a team id the corrections have retired is never minted as an entity here. Only
+      the keys are corrected; the display name still comes from whichever source carries one.
     config:
       tags: ["base", "api_football", "team_context"]
     tests:
@@ -155,6 +159,9 @@ models:
       One row per team per fixture with that team's match statistics, from the generic
       stg_apif__fixture_statistics model, deduplicated on the grain.
       Grain: (league_code, fixture_id, team_id).
+
+      Known provider team-id defects are corrected from the fixture_team_id_overrides seed before
+      the deduplication, so a corrected row cannot collide with one the correct team already has.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -176,6 +183,10 @@ models:
 
       Many competitions supply no player statistics at all, so a fixture missing from here has
       none rather than zeroes.
+
+      Known provider team-id defects are corrected from the fixture_team_id_overrides seed before
+      the deduplication and before the cross-team collision guard, so a lineup the provider filed
+      under the wrong team id is attributed to the team that actually played it.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -237,7 +248,7 @@ models:
 
       team_id is then resolved. A null one is recovered from the same team's other events in that
       fixture, matched by name, and known provider team-id defects are corrected from the
-      fixture_event_team_overrides seed.
+      fixture_team_id_overrides seed.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:

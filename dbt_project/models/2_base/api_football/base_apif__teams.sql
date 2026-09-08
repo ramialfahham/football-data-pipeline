@@ -53,6 +53,7 @@ stg_standings as (
 stg_fixture_level as (
     select
         league_code,
+        fixture_id,
         team_id as team_api_id,
         team_name,
         raw_ingested_at
@@ -63,6 +64,7 @@ stg_fixture_level as (
 
     select
         league_code,
+        fixture_id,
         team_id as team_api_id,
         team_name,
         raw_ingested_at
@@ -73,11 +75,77 @@ stg_fixture_level as (
 
     select
         league_code,
+        fixture_id,
         team_id as team_api_id,
         team_name,
         raw_ingested_at
     from {{ ref('stg_apif__fixture_events') }}
     where team_id is not null
+),
+
+-- Fixture participants and the CPO-owned team-id corrections, exactly as the three fixture-level
+-- base models apply them (seeds/fixture_team_id_overrides.csv). Only fixtures whose two
+-- participants are BOTH known are kept, so the participant checks never hit the
+-- NOT IN (value, NULL) -> UNKNOWN trap.
+fixture_participants as (
+    select
+        fixture_id,
+        cast(home_team_id as int64) as home_team_id,
+        cast(away_team_id as int64) as away_team_id
+    from {{ ref('base_apif__fixtures_next') }}
+    where
+        home_team_id is not null
+        and away_team_id is not null
+),
+
+overrides as (
+    select
+        cast(wrong_team_api_id as int64) as wrong_team_api_id,
+        cast(correct_team_api_id as int64) as correct_team_api_id,
+        mode
+    from {{ ref('fixture_team_id_overrides') }}
+),
+
+-- ⛔ THE KEYS MUST GO THROUGH THE OVERRIDE HERE TOO, and this model is the reason it is not enough
+-- to correct the three fixture-level base models. It reads the fixture feeds from STAGING, so a
+-- correction applied in base does not reach it: a retired id would still be minted as a team key,
+-- and if no source can name it -- which is the whole shape of the defect -- dim_team gets a row
+-- with a null team_name, its not_null test stops the build, and a bare `dbt build` then skips
+-- every model below it. One stub team block from the provider halts the nightly.
+-- Only the KEYS are corrected. The name CTEs below deliberately keep reading staging: a wrong id
+-- can carry a perfectly correct name of its own (Mação 4767 is a real team; only its rows in two
+-- WCQAS fixtures are mis-attributed), and base_apif__fixture_players / _statistics drop team_name
+-- at the base layer, so re-pointing the name sources would silently remove a name path.
+-- ⚠ That asymmetry has one consequence worth stating, and it only arises under `alias` mode: a key
+-- folded into its canonical id takes its name from the CANONICAL id's own sources, never from the
+-- duplicate's. If the canonical id is named nowhere, the result is a row with no name rather than
+-- one borrowed from the duplicate — which is correct (a duplicate's label is not evidence about
+-- the canonical entity) and is caught loudly by not_null on dim_team.team_name rather than shipped.
+fixture_level_keys as (
+    select
+        stg_fixture_level.league_code,
+        coalesce(
+            alias_override.correct_team_api_id,
+            reattribute_override.correct_team_api_id,
+            stg_fixture_level.team_api_id
+        ) as team_api_id
+    from stg_fixture_level
+    left join overrides as alias_override
+        on
+            stg_fixture_level.team_api_id = alias_override.wrong_team_api_id
+            and alias_override.mode = 'alias'
+    left join fixture_participants
+        on stg_fixture_level.fixture_id = fixture_participants.fixture_id
+    left join overrides as reattribute_override
+        on
+            stg_fixture_level.team_api_id = reattribute_override.wrong_team_api_id
+            and reattribute_override.mode = 'reattribute_if_cohabiting'
+            and reattribute_override.correct_team_api_id in (
+                fixture_participants.home_team_id, fixture_participants.away_team_id
+            )
+            and reattribute_override.wrong_team_api_id not in (
+                fixture_participants.home_team_id, fixture_participants.away_team_id
+            )
 ),
 
 team_keys as (
@@ -114,7 +182,7 @@ team_keys as (
     select
         league_code,
         team_api_id
-    from stg_fixture_level
+    from fixture_level_keys
 ),
 
 distinct_team_keys as (
