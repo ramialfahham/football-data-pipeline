@@ -1,257 +1,451 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e020bbe..be94d13 100644
+index be94d13..a4e5b72 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,26 +1,15 @@
--# Task contract — a suspended match is information, not an alarm
-+# Task contract — the freshness guard is fixed; point the handover at what is left
+@@ -1,15 +1,25 @@
+-# Task contract — the freshness guard is fixed; point the handover at what is left
++# Task contract — restructure docs/metric_layer.md and correct what is false in it
  
  objective: >
--  `assert_fct_fixture_no_stale_live` fails if a fixture is still in a live status more than 3 hours
--  after kickoff, and it lists `SUSP` and `INT` among those statuses. It has failed the nightly
--  repeatedly. Remove those two from it entirely — they are valid status information, not a data
--  defect — keep an error for the statuses that genuinely mean OUR ingest missed an update, and widen
--  the reconciliation that catches what actually matters from one league to all 46.
-+  `.claude/active_work.md` says the next action is one of two candidates, the first being
-+  *"THE FRESHNESS GUARD, still unfixed, still failing the nightly intermittently"*. `!159` merged and
-+  fixed it. Update the handover so a cold session is not sent to do work that is already done, and
-+  point it at the one decision that now blocks product work.
+-  `.claude/active_work.md` says the next action is one of two candidates, the first being
+-  *"THE FRESHNESS GUARD, still unfixed, still failing the nightly intermittently"*. `!159` merged and
+-  fixed it. Update the handover so a cold session is not sent to do work that is already done, and
+-  point it at the one decision that now blocks product work.
++  The rule *"we cannot calculate anything on incomplete data"* was decided 2026-06-25 and lived only
++  in `escalations.log`, so I re-opened it today as a question. Stating it in `docs/metric_layer.md`
++  exposed that the document is structurally inverted and factually stale: an independent structural
++  review found the router table buried below a rule that has to point backwards at it, and SIX
++  verified factual errors — including one that sends an engineer to the wrong model. Restructure it
++  and fix what is false. Link it from `CLAUDE.md`, which does not reference it at all.
  
  refs: >
--  The CPO's instruction, verbatim: *"fix the freshness guard"*.
--  ⛔ **AND HE REJECTED MY FIRST DESIGN, WHICH WAS MECHANICAL RATHER THAN REASONED.** I proposed
--  keeping `SUSP`/`INT` in the guard at `severity: warn` on a 3-hour window. He asked
--  *"Why and when should susp or int throw a warning at all??"* and then ruled:
--  *"it's a valid status info and we should be able to handle it the right way"*.
--  He is right and the first design had no answer: a suspended match is a true fact about the world
--  that can hold for days, nothing we do changes it, and there is nothing actionable to report at
--  3 hours or 6. I had preserved the old window instead of asking what the check was for.
--  ⭐ **WHAT THE INCIDENT WAS ACTUALLY ABOUT.** The Eredivisie fixture that stuck at `INT` mattered
--  because **FC Utrecht was a game short of its league**, not because a status string was unusual.
--  That question has a proper detector — reconciling our game count against the standings' own
--  `played` — and it was scoped to `league_code = 'BL1'`, so it did not run on ED.
--  Approved: *"yes, rebuild it that way"*.
-+  Bookkeeping. Triggered by the handover write-out gate after `!159` merged. No issue.
-+  The CPO's standing instruction on volume, which this edit obeys rather than ignores:
-+  *"you all constantly flooding the zone with shot"* — the file gets SHORTER, not longer.
+-  Bookkeeping. Triggered by the handover write-out gate after `!159` merged. No issue.
+-  The CPO's standing instruction on volume, which this edit obeys rather than ignores:
+-  *"you all constantly flooding the zone with shot"* — the file gets SHORTER, not longer.
++  The CPO, verbatim, this session: *"We can not calculate anything on incomplete data. It is as
++  simple as that."*; *"If I have metric definitins that calculate averages and i don't have the data
++  to calculate them consistently then I will not show them. We know that this can happen for leagues
++  beyond uefa etc."*; and on my first attempt at the doc — *"So you're panicking and spitting a
++  wallpaper of text into this impoetant document??? You keep adding timestamps here?"* — then
++  *"I want you to review the structure of the document. Let a professional do it. Starting with the
++  'Incoplete data is not calculated' is really crap. You ar too heavily influenced by the recent
++  conversation."* and *"restructure it properly"*.
++  ⛔ **HE IS RIGHT ABOUT THE CAUSE.** I put my section first because it was what I had just been
++  arguing about, not because a reader needs it first. The structural review was commissioned with an
++  explicit instruction not to treat any section as recent or protected.
  
  scope_paths:
    - .claude/task/contract.md
-@@ -28,128 +17,54 @@ scope_paths:
+@@ -17,54 +27,88 @@ scope_paths:
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/escalations.log
--  - dbt_project/tests/assert_fct_fixture_no_stale_live.sql
--  - dbt_project/tests/assert_mart_team_season_insights_games_match_played.sql
--  - dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
-+  - .claude/active_work.md
+-  - .claude/active_work.md
++  - docs/metric_layer.md
++  - CLAUDE.md
++  - docs/wireframes/metrics_display.md
  
  impact_map: >
--  writers: none. No model, seed, macro, script, workflow or site file is touched — two singular
--  tests change and no new test is added.
--  layer_rules: `check_layer_contract.py`. Both are singular tests; no layer moves.
--  ⛔ **WHERE THE FRESHNESS TEST RUNS, because it decides how it can be verified.** It carries
--  `tags=['freshness_check']`, and that tag is EXCLUDED everywhere except the real nightly:
--  `selectors.yml`'s `downstream` selector excludes it (the exclusion must live in the selector,
--  because dbt ignores a CLI `--exclude` when `--selector` is supplied), `data:build:mr` excludes it,
--  and `data:build:main` excludes it again on its final `dbt test`. The ONLY place it executes is
--  `fdp-nightly` — the Cloud Run job whose `dbt build --target prod` takes no selector.
--  ⚠ **So CI CANNOT EXERCISE IT, and a green MR pipeline is not evidence about that file.**
--  ⭐ The reconciliation test is the opposite: it carries `tags=["dq","mart","season_insights"]`, no
--  `freshness_check`, so it DOES run in `data:build:mr` and `data:build:main`. Widening it from one
--  league to 46 is therefore exercised by CI on this very MR.
--  downstream: dbt marks dependents of an ERROR-severity test as skipped. Removing two statuses from
--  the freshness guard removes the only cause that has ever fired it, so the nightly stops being
--  taken down by a fact about the world. Widening the reconciliation ADDS coverage on a test that
--  already runs; it is measured green on all 46 leagues before shipping.
-+  writers: none. One tracked document, no model, script, seed, test or site file.
-+  layer_rules: not applicable.
-+  downstream: read by a fresh session at start and by `handover_in.py`, which enforces a
-+  16,000-CHARACTER cap — measured with Python `len()`, never `wc -c`, which counts BYTES and reads
-+  high on this file's marks.
+-  writers: none. One tracked document, no model, script, seed, test or site file.
++  writers: none. Documentation only — no model, seed, test, script or site file, and no computed
++  number moves.
+   layer_rules: not applicable.
+-  downstream: read by a fresh session at start and by `handover_in.py`, which enforces a
+-  16,000-CHARACTER cap — measured with Python `len()`, never `wc -c`, which counts BYTES and reads
+-  high on this file's marks.
++  downstream: `docs/metrics_context_model.md:4` defers here "for the map of where each thing lives",
++  which is the argument for the map being first. `CLAUDE.md` gains one row in its authoritative-docs
++  table — verified absent today (`grep -c metric_layer CLAUDE.md` = 0), so the map is currently
++  unreachable from the front door.
    deploy_order: none.
--  blast_radius: zero rows today on both tests. The change is to what happens on a future night.
-+  blast_radius: one document. The risk is sending the next session to redo finished work, or
-+  dropping a trap that cost time to learn.
+-  blast_radius: one document. The risk is sending the next session to redo finished work, or
+-  dropping a trap that cost time to learn.
++  blast_radius: none in data. The risk is a doc that states something false with authority — which is
++  what is being fixed, so the bar is that every claim is verified against the tree before it is
++  written.
  
  acceptance_criteria:
--  - The freshness guard no longer names `SUSP` or `INT` in any form, and no replacement test carries
--    them. They are simply not a freshness question.
--  - The freshness predicate returns 0 rows against live prod, reported TWO-SIDED — the row count in
--    each status class and how many sit inside the window — because a broken query also returns zero.
--  - The freshness predicate is mutation-tested **RED** on a synthesised population: a genuinely
--    playing status past 6 hours is caught, one inside 6 hours is not, and `SUSP`/`INT` are caught at
--    no age at all.
--  - **The new reconciliation returns EXACTLY THREE rows against live prod, and every one is a real
--    shortfall.** ⚠ These two bullets previously read "returns 0 rows across all 46 leagues... measured
--    on the mart" — written for the WIDENED-MART design of round 2, which was a tautology, and left
--    standing when the design was rebuilt in round 3. Both were therefore false against the shipped
--    code: it is red by design pending GitLab #110, and it touches no mart at all. Corrected rather
--    than deleted, because the criterion is still the right one to state — only its expected value and
--    its subject changed. Found by `analytics-engineer-reviewer`; it is the same class of stale claim
--    that reviewer caught twice on `!156`.
--  - **The three rows have TWO DIFFERENT CAUSES, and that is the case for the test rather than an
--    embarrassment.** Trabzonspor and Gaziantep FK (TSL 2022, one game each) are the earthquake
--    forfeit filed as `CANC` — a match we HOLD and do not count, GitLab #110's class. Al Wehda Club
--    (AFCCL 2021, five games) is NOT that: we hold exactly ONE AFCCL 2021 fixture for them, so those
--    five were never ingested. One detector, two unrelated causes, no status enumeration.
--    ⛔ Al Wehda must NOT be cited as a #110 instance; it is an ingest coverage gap.
--  - **The standings collapse is deterministic.** `fct_standings` can hold several rows per
--    team-season (group, play-off, relegation tables): 299 team-seasons do, and **204 of those
--    disagree on `played` by up to 13 games**, frequently sharing a `raw_ingested_at` so a
--    latest-ingest tiebreak is not even stable. `max(played)` is used instead, and returns the same 3
--    rows as the arbitrary pick today — so the change alters no current result and removes a
--    non-determinism that could have invented a shortfall or hidden one.
--  - `dbt parse` exits 0; SQLFluff passes from the repo root with the exit code read BARE and
--    UNREDIRECTED; `check_layer_contract.py` and `check_description_hygiene.py` pass.
--  - ⛔ No claim that CI validated the FRESHNESS test. It does validate the reconciliation test.
-+  - The freshness guard is no longer listed as a next action or as unfixed anywhere in the file.
-+  - The remaining next action and the open decision are each stated in one sentence, at the top, with
-+    no process detail — the CPO has said twice today that the volume is the problem.
-+  - Every trap in the previous version is carried or deliberately dropped, and nothing is dropped for
-+    space.
-+  - Under 16,000 characters with real headroom, measured with `len()`.
-+    ⚠ **This criterion first read "the file is SHORTER than the version it replaces", and I could not
-+    meet it honestly.** The file went 12,198 → 14,492. History WAS compressed — the `!156`/`!157`
-+    paragraphs are cut to two sentences each and the lessons section merged — but this update adds
-+    real state that did not exist before: `!159`'s outcome, `#110` written out properly so a cold
-+    session does not have to reconstruct it, and the communication warning. Getting under 12,198
-+    would have meant deleting warnings, which `decisions_taken` in this same contract forbids.
-+    Corrected rather than met by mutilating the file, and recorded because a criterion I quietly
-+    dropped would be exactly what reviewers caught twice on `!159`.
-+  - Header facts re-derived, not carried: `main` SHA, which MRs merged, whether any MR is open.
+-  - The freshness guard is no longer listed as a next action or as unfixed anywhere in the file.
+-  - The remaining next action and the open decision are each stated in one sentence, at the top, with
+-    no process detail — the CPO has said twice today that the volume is the problem.
+-  - Every trap in the previous version is carried or deliberately dropped, and nothing is dropped for
+-    space.
+-  - Under 16,000 characters with real headroom, measured with `len()`.
+-    ⚠ **This criterion first read "the file is SHORTER than the version it replaces", and I could not
+-    meet it honestly.** The file went 12,198 → 14,492. History WAS compressed — the `!156`/`!157`
+-    paragraphs are cut to two sentences each and the lessons section merged — but this update adds
+-    real state that did not exist before: `!159`'s outcome, `#110` written out properly so a cold
+-    session does not have to reconstruct it, and the communication warning. Getting under 12,198
+-    would have meant deleting warnings, which `decisions_taken` in this same contract forbids.
+-    Corrected rather than met by mutilating the file, and recorded because a criterion I quietly
+-    dropped would be exactly what reviewers caught twice on `!159`.
+-  - Header facts re-derived, not carried: `main` SHA, which MRs merged, whether any MR is open.
++  - **The lookup table is first**, with no prose above it, and every row points at a file or an
++    in-document anchor. No row points "above".
++  - **The incomplete-data rule is second** — still above every mechanism section, reached by a named
++    router row rather than by physical position.
++  - **`## Adding or changing a metric` moves above the guard reference.** It is the reader's primary
++    action and sits 6th of 7 today.
++  - **Every factual error below is corrected, each verified against the tree by me, not taken from
++    the review:**
++      the three canonical models and the compose chain (`int_player_club_season__metrics` is the
++      atoms source that `int_player_season__metrics` composes) — today's text names two and sends a
++      player-count change to the wrong one;
++      the seed's real columns, stated ONCE (today it is stated twice, the two lists disagree, and
++      both are wrong — `group_display_order` does not exist in the seed);
++      `computation_kind` exists, so "no `metric_kind` taxonomy" is false;
++      `base_relation` + `numerator_expr`/`denominator_expr` with
++      `assert_metric_catalogue_expr_resolvable` checking every token IS a binding map with a CI
++      guard, so "no binding-map" is false;
++      all FIVE catalogue guards named, not one;
++      the `#500` / `#480` references are stale — the guard's own docstring says #500 Stage 2 shipped;
++      `finishing_efficiency_pct` IS range-tested 0–1 (`int_team_season.yml:53`), so "uncapped" is
++      false;
++      `points_won` IS in the model (`int_team_season__metrics_cumulative.sql:47`) and clears the
++      guard by the `_sum_season` exemption, not by absence.
++  - **`## Scope / follow-ups` is cut.** Issue status belongs in the tracker.
++  - **`CLAUDE.md` gains a row** pointing at this document.
++  - **It stays short and carries no provenance** — no dates, no CPO quotes, no history, no lectures.
++    That is what the first attempt got wrong.
  
  decisions_taken: >
--  ⭐ **A VALID STATUS IS NOT AN ALARM.** `SUSP` and `INT` are the provider correctly reporting that a
--  match was suspended or interrupted. That state can hold for days pending a replay decision, no
--  re-ingest changes it, and there is no action anyone takes on being told about it. It is therefore
--  neither an error nor a warning — it is removed from the guard, not downgraded within it. ⛔ The
--  version of this MR that made it a `warn` was preserving the old window rather than answering the
--  question *what is this check for*, and the CPO caught that.
--  ⭐ **RECONCILE AGAINST AN INDEPENDENT AUTHORITY INSTEAD OF ENUMERATING STATUSES.** A status list can
--  only catch the causes somebody thought to list — and today's evidence is that the provider's status
--  is the least reliable field it has. The standings' `played` count is produced independently of the
--  fixture status, so it catches a team being a game short whatever the cause: suspended, interrupted,
--  mislabelled `CANC`, or simply never published. That is the systematic form of this fix and the
--  reason it is not an ad-hoc patch.
--  ⛔ **AND MY FIRST ATTEMPT AT IT WAS A TAUTOLOGY — the single worst error of this branch.** I widened
--  `assert_mart_team_season_insights_games_match_played` from BL1 to 46 leagues and reported
--  "0 mismatches over 1,826 rows" as evidence of reconciliation. It is 0 by CONSTRUCTION:
--  `mart_team_season.sql:34` is `m.season_games_played as played` — the mart's `played` is an ALIAS OF
--  OUR OWN COUNT, not the standings figure. Both sides of that predicate resolve to the same row of
--  `int_team_season__metrics` through the `team_season_sk` join, so it cannot fail on any data, ever.
--  I read the column NAME and asserted its provenance instead of reading the SQL — the exact failure
--  `feedback_shared_definition_widest_call_site` names. Found by `analytics-engineer-reviewer`.
--  ⭐ **THE GENUINE COUNT EXISTS AND WAS BEING DROPPED.** `fct_standings.sql:30` carries
--  `cs.played_all as played` from the provider's standings feed, and
--  `int_team_season__standings_primary.sql` reads `fct_standings` but projects only `standing_rank`,
--  `form` and `group_description` — `played` never reaches the marts. So the new test joins
--  `int_team_season__metrics` to `fct_standings` directly.
--  ⛔ **ONE DIRECTION ONLY, and the measurement is what decides that.** Comparing the two over 4,082
--  team-seasons: 2,515 agree, **1,564 have OUR count HIGHER by 1 to 30 games**, and **3 have ours
--  LOWER**. The "higher" population is a stale standings snapshot — we keep counting fixtures after
--  the standings were last ingested — and is not a defect. Only `ours < standings` means we are
--  missing a match a governing body says was played. A two-sided test would be red on 38% of rows and
--  useless; the one-sided test is red on 3 and every one is a real finding.
--  ⭐ **IT REDISCOVERED A DEFECT I HAD FOUND BY HAND, FROM FIRST PRINCIPLES.** Two of its three rows
--  are Trabzonspor and Gaziantep FK in TSL 2022, each one game short — that is fixture 884568, the
--  earthquake forfeit filed as `CANC`, which I only found this morning by reading a status label and
--  then searching the web. The test finds it with no status list and no external research. The third,
--  Al Wehda Club in AFCCL 2021 missing five games, was not previously known.
--  ⭐ **SEVERITY: WARN, and it is the CPO's — quoted, not inferred.** *"do it that way, warn severity
--  for now"*. It is red on real data today, so error severity would stop the warehouse over defects
--  whose fix is GitLab #110's open rule; warn reports them while that is decided.
--  ⛔ **THE TAUTOLOGY TEST IS DELETED RATHER THAN KEPT ALONGSIDE.** Retaining a test that is provably
--  incapable of failing is not caution, it is false assurance — it appears in every green run as
--  evidence of a reconciliation that never happened. Its intent is carried, correctly, by the new test.
--  ⭐ **THE WINDOW MOVES 3h → 6h ON WHAT REMAINS.** The condition detected — a status never updated —
--  persists indefinitely, so on a once-nightly run any threshold from about 3h to 20h detects it
--  equally; the threshold only controls FALSE alarms on a match still legitimately in play, and a
--  match with extra time and penalties approaches 2h50 before any delay. The sibling
--  `assert_fct_fixture_no_stale_ns.sql` made exactly this argument first, at 30 hours, so tuning a
--  freshness window to the run cadence is the established pattern here rather than a new idea.
--  ⛔ **THE BL1 RESTRICTION IS DROPPED, NOT WIDENED TO A LONGER LEAGUE LIST.** `played is not null` is
--  the guard instead: a competition that publishes no standings has nothing to reconcile against and
--  is skipped for a reason visible in the data, rather than by a hardcoded code that has to be
--  maintained. This also respects the repo's no-hardcoded-competition rule.
--  ⚠ **NO NEW TEST IS ADDED.** The first design added one; this one removes a concern from an existing
--  test and widens another. Fewer moving parts is the point.
-+  ⭐ **THE TOP OF THE FILE BECOMES TWO SENTENCES.** The previous version opened with two candidate
-+  next actions and a paragraph of reasoning for each. One is now done, and the CPO's complaint today
-+  was specifically that he is handed more than he can hold. What a cold session needs first is: the
-+  one thing to build, and the one thing that is blocked on him. Everything else is reference and
-+  moves below it.
-+  ⛔ **WHAT DOES NOT GET SHORTENED: the traps.** They are the part that cost real time — the
-+  incremental-fact trap, the diff3 fourth marker, the CP1252 encoding, the `--review-patch` redirect,
-+  the push guard on main. Brevity at the top is paid for by deleting HISTORY, not by deleting
-+  warnings.
-+  ⭐ **THE FRESHNESS ENTRY IS REPLACED BY ITS RESULT, not annotated as done.** A struck-through "was
-+  the next action" line is still a line the next reader has to process. What survives is one sentence
-+  of what changed in prod, in the section that already exists for that.
+-  ⭐ **THE TOP OF THE FILE BECOMES TWO SENTENCES.** The previous version opened with two candidate
+-  next actions and a paragraph of reasoning for each. One is now done, and the CPO's complaint today
+-  was specifically that he is handed more than he can hold. What a cold session needs first is: the
+-  one thing to build, and the one thing that is blocked on him. Everything else is reference and
+-  moves below it.
+-  ⛔ **WHAT DOES NOT GET SHORTENED: the traps.** They are the part that cost real time — the
+-  incremental-fact trap, the diff3 fourth marker, the CP1252 encoding, the `--review-patch` redirect,
+-  the push guard on main. Brevity at the top is paid for by deleting HISTORY, not by deleting
+-  warnings.
+-  ⭐ **THE FRESHNESS ENTRY IS REPLACED BY ITS RESULT, not annotated as done.** A struck-through "was
+-  the next action" line is still a line the next reader has to process. What survives is one sentence
+-  of what changed in prod, in the section that already exists for that.
++  ⭐ **THE MAP GOES FIRST, THE RULE SECOND — and the reader decides that, not the rule's importance.**
++  Of the questions a reader arrives with (where is this defined · how do I add one · why is this
++  column NULL · what will CI fail on), exactly one is the NULL rule. Opening with it makes the other
++  three scroll past it. The rule loses nothing: it is still above every mechanism section AND now
++  reachable by a router row that names it, which is more discoverable than a section whose only
++  pointer said "above".
++  ⛔ **THE RULE STAYS IN THIS DOCUMENT.** It is metric semantics — what a computed value means and
++  when it must not exist. Not `metrics_context_model.md`, which owns WHICH matches form a window;
++  not `engineering_standards.md`, which owns testing policy. The correction runs the other way:
++  `metrics_context_model.md` §8.1 restates the player half in its own words and should defer here.
++  ⚠ NOT done in this MR — that file is outside `scope_paths` and it is a second document's edit.
++  ⭐ **FACTS ARE RE-VERIFIED, NOT COPIED FROM THE REVIEW.** Every correction above was checked against
++  the tree or prod first: the seed header, the guard list, the three models scanned by the drift
++  guard, `CLAUDE.md`'s missing row, and `finishing_efficiency_pct` (0 of 4,999 rows above 1, max
++  exactly 1.0, because the model NULLs a value over 1 rather than serving it). Taking a reviewer's
++  facts on trust is what produced half of today's defects.
++  ⛔ **THE FINISHING-EFFICIENCY CAVEAT IS CORRECTED, ON THE CPO'S INSTRUCTION — *"fix it"*.**
++  `metrics_display.md:238-241` said finishing efficiency *"can exceed 100% (penalties/own goals
++  counted as goals but not always as shots); the true value is always shown, never capped"*. Two
++  things make that false, and neither is a judgement call:
++    · since `!156` the numerator is OPEN-PLAY goals — `goals_for - goals_penalty - goals_own` — so
++      the penalties-and-own-goals mechanism the caveat names is gone from the formula;
++    · the model never showed a value above 1 anyway. `int_team_season__metrics_cumulative.sql:147`
++      NULLs it when `goals_open_play_in_sot_games > shots_on_goal`, and
++      `int_team_season.yml:53` asserts `between 0 and 1`. Measured on prod: 0 of 4,999 non-null rows
++      above 1, maximum exactly 1.0.
++  ⭐ **The SEED already states it correctly** — *"In [0, 1] - penalties and own goals are excluded
++  because they are not finishing the team's own on-target shots"* — and the seed is the SSoT for
++  glossary text. So this is not a new claim; it is `metrics_display.md`'s rationale paragraph left
++  behind when the formula changed. Corrected to match the seed and the test, nothing more.
++  ⚠ The section is marked LOCKED by CPO ruling. What is locked is the DESIGN — the shooting funnel
++  and its row order — and neither moves. Only a factual sentence about the formula's range changes,
++  on his explicit instruction this session.
  
  decisions_reserved: >
--  - **GitLab #110 — awarded results filed as `FT` with no stat line.** 463 team-seasons in
--    well-covered competitions show no statistics because a handful of fixtures lack a stat line, 28
--    of them Süper Lig forfeits the provider labelled `FT`. The rule for deciding a match could never
--    have had statistics is the CPO's and is filed, not attempted here. ⚠ It is the same principle as
--    this MR — prefer an independent signal over the status field — so the two should stay consistent.
--  - **`kickoff_datetime` carries no `not_null` test**, so a NULL would silently drop a row from every
--    freshness predicate. Pre-existing, present identically in the untouched `NS` sibling, and not
--    introduced here. Worth its own issue.
--  - **`assert_fct_fixture_no_stale_ns.sql`'s closing line still cites `dbt-scheduled.yml`**, a
--    GitHub-era workflow that has run nothing since the 2026-08 migration. Corrected in the file this
--    MR owns; left alone in that one.
-+  - **GitLab #110** — whether a finished match with no statistics should count as one that could
-+    never have had them. 463 team-seasons blanked. The CPO's, unanswered, and now the only thing
-+    between him and product work.
-+  - **The round cap precedent** — unresolved on `!156` and again on `!159`, where I recorded an
-+    override that explicitly does not claim he ruled. Carried, not decided here.
-+  - **The three rows the new reconciliation warns on** — two are the Turkish forfeit awaiting #110's
-+    rule, one is an AFCCL ingest gap. Neither is fixed here.
+-  - **GitLab #110** — whether a finished match with no statistics should count as one that could
+-    never have had them. 463 team-seasons blanked. The CPO's, unanswered, and now the only thing
+-    between him and product work.
+-  - **The round cap precedent** — unresolved on `!156` and again on `!159`, where I recorded an
+-    override that explicitly does not claim he ruled. Carried, not decided here.
+-  - **The three rows the new reconciliation warns on** — two are the Turkish forfeit awaiting #110's
+-    rule, one is an AFCCL ingest gap. Neither is fixed here.
++  - **`metrics_context_model.md` §8.1** duplicating the player half of the NULL rule. Should defer
++    here; not touched.
++  - **GitLab #110** — forfeits the provider labels `FT`. Unchanged by this MR.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 4efb369..846fab5 100644
+index 846fab5..907e409 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -8351,3 +8351,39 @@ reading the nightly log. Recorded in decisions_reserved, not built here.
- ⚠ WHAT THIS DOES NOT RULE. Nothing about GitLab #110 — awarded results filed as FT with no stat line,
- which blanks 463 team-seasons in well-covered competitions. That rule is still open and still his,
- and it rests on the same principle as this one: prefer an independent signal over the status field.
+@@ -8387,3 +8387,89 @@ acceptance evidence, review and this log all stay exactly as they are, because t
+ work checkable. It changes what goes in a CHAT MESSAGE, not what goes in the repo. It is also not
+ licence to hide a problem: a defect, a red test or a blocked decision still gets said, in one
+ sentence, immediately.
 +
 +================================================================================
-+2026-09-08 — chore/handover-freshness-done — STOP FLOODING HIM
++2026-09-08 — docs/incomplete-data-rule-in-the-metric-doc — THIS LOG IS A LEDGER, NOT A LOOKUP
 +================================================================================
 +
-+⛔ THIRD INSTANCE OF THE SAME FAILURE IN ONE DAY, AND THE SECOND IN THIS EXACT FILE. I quoted him in
-+`active_work.md` as standing guidance and logged nothing, hours after being FAILed for precisely that
-+and after writing the DO NOT ASK FOR MECHANICS entry above, which says in terms that a quote must be
-+in this file before it is presented as his instruction. `scope-auditor` caught it again. The rule is
-+not hard to state; what keeps failing is that I write the guidance where I am working and never open
-+this file. Logged now, verbatim.
++⛔ THE RULE WAS ALREADY DECIDED AND I RE-OPENED IT. On 2026-06-25 the CPO ruled (recorded at line 213
++and locked at line 215 of this file) that "the incomplete-data->NULL rule is UNIVERSAL — every metric,
++team and player, is NULL when its inputs are not 100% available", explicitly reversing the older
++average-over-covered-games design. Today I found the models nulling metrics for 463 team-seasons,
++treated it as an undecided policy question, filed GitLab #110 asking him to decide it, and put a
++three-option table in front of him.
 +
-+WHAT HE WAS RESPONDING TO, FIRST QUOTE. I had just reported, unprompted, four paragraphs about a
-+review-round cap: which gate blocked, what an override is, why two of four rounds counted, and what I
-+had written into the record. None of it was actionable and none of it was asked for.
++HIS WORDS, verbatim:
++  "We can not calculate anything on incomplete data. It is as simple as that."
++  "If I have metric definitins that calculate averages and i don't have the data to calculate them
++   consistently then I will not show them. We know that this can happen for leagues beyond uefa etc."
 +
-+HIS WORDS, verbatim: "you expecting me to remember that? or even understand what it is about?"
++AND THE PROCESS FAULT HE NAMED, which is the real subject of this entry:
++  "Now you come up with the same issues again and again because you burried decisions in some
++   scalations and never looked into it anymore. Maybe the escalations is not the right place for it."
++  "You just produce documents somewhere and i am the one who is supposed to remember it? it is YOUR
++   job to remember it. you are a machine!!!"
 +
-+WHAT HE WAS RESPONDING TO, SECOND QUOTE. The same thing, said more generally, about the volume across
-+the whole session — status reports carrying round counts, hash rebinds, gate mechanics and process
-+narration alongside the one or two facts that mattered.
++⭐ HE IS RIGHT AND THE SPLIT IS NOW EXPLICIT. This file is a LEDGER: when a thing was decided, by
++whom, on what evidence, and what it does not license. It is append-only, 8,300+ lines and ordered by
++DATE — so it answers "was this decided?" and cannot answer "what is the rule?". A standing rule must
++live in the document that governs its SUBJECT, with a pointer back to the ledger entry.
 +
-+HIS WORDS, verbatim: "you all constantly flooding the zone with shot"
++WHAT WAS DONE: the incomplete-data rule is now stated at the TOP of `docs/metric_layer.md`, with the
++consequence (a thinly-covered competition shows blank, and that is correct), the one exception
++(AWD/WO is a match with no data to miss, not missing data), and an explicit "do not re-open this".
++GitLab #110 was rewritten to say the question is settled and to state the actual narrow defect.
 +
-+WHAT IT MEANS IN PRACTICE. Give him the decision and its consequence, in two sentences. Process
-+detail — review rounds, gate mechanics, hash rebinding, stash dances, contract amendments — goes in
-+the repo, where it belongs, and never into a message to him. If a paragraph explains HOW the work was
-+governed rather than WHAT is true or WHAT he must decide, delete it before sending.
-+⚠ A useful test before sending: could he act on this, or is it me showing my work? He does not need
-+to know that a gate blocked, only what is now true.
++⚠ WHAT THIS DOES NOT FIX. A document makes the habit cheap; it does not create the habit. The
++requirement is to READ `docs/metric_layer.md` before touching metric behaviour — his second sentence
++was that remembering is my job, not his, and no file discharges that.
++⚠ IT IS ALSO NOT A LICENCE TO STOP LOGGING. Rulings still land here the moment they are given; what
++changes is that a rule with standing force gets restated in its subject's doc as well.
 +
-+⚠ WHAT IT DOES NOT LICENSE. It is not permission to stop recording any of it — the contract,
-+acceptance evidence, review and this log all stay exactly as they are, because that is what makes the
-+work checkable. It changes what goes in a CHAT MESSAGE, not what goes in the repo. It is also not
-+licence to hide a problem: a defect, a red test or a blocked decision still gets said, in one
-+sentence, immediately.
++================================================================================
++2026-09-08 — docs/incomplete-data-rule-in-the-metric-doc — RESTRUCTURE THE DOC; FIX THE LOCKED CAVEAT
++================================================================================
++
++⛔ FOURTH INSTANCE OF THE UNLOGGED-QUOTE FAILURE IN ONE DAY, AND THE SECOND ON THIS BRANCH. The entry
++above — written hours ago — says a quote goes in this file BEFORE the sentence that cites it exists.
++I then cited four more instructions in contract.md and logged none of them. scope-auditor FAILed it,
++correctly, and noted that an edit to a CPO-LOCKED document rested on authority no reviewer could
++check. Logged now, verbatim.
++
++WHAT HE WAS RESPONDING TO, FIRST. I had stated the incomplete-data rule at the top of
++docs/metric_layer.md — a document whose own subtitle is "Short by design" — as six paragraphs with a
++date, a CPO quote, provenance and a warning to future readers.
++
++HIS WORDS, verbatim: "So you're panicking and spitting a wallpaper of text into this impoetant
++document??? You keep adding timestamps here? Next time you keep adding history agin and agian????"
++and "This looks like the document of a bloddy amateur!!!"
++
++SECOND. After I trimmed it to ten lines but left it as the opening section:
++
++HIS WORDS, verbatim, one clause per line so a grep for any of them hits:
++  "I want you to review the structure of the document. Let a professional do it."
++  "Starting with the "Incoplete data is not calculated" is really crap."
++  "You ar too heavily influenced by the recent conversation."
++  "You have no structure."
++
++Then, on being shown the independent structural review: "restructure it properly"
++
++⭐ HE WAS RIGHT ABOUT THE CAUSE, WHICH IS THE REUSABLE PART. I put the section first because it was
++what I had just been arguing about — recency, not information architecture. An independent review,
++briefed not to treat any section as recent or protected, put the router table first and the rule
++second, and found EIGHT pre-existing factual errors in the document nobody had noticed.
++
++THIRD — AND THIS IS THE AUTHORITY FOR EDITING A LOCKED DOCUMENT. I reported that
++docs/wireframes/metrics_display.md claims finishing efficiency "can exceed 100% ... never capped",
++that the model NULLs such a value instead, and that since !156 the numerator is open-play goals so
++the penalties/own-goals cause the caveat names is gone. I said it was CPO-locked and flagged rather
++than fixed.
++
++HIS WORDS, verbatim: "fix it"
++
++⚠ WHAT "fix it" DOES AND DOES NOT AUTHORISE. It authorises correcting that factual paragraph inside a
++section marked LOCKED (CPO, 2026-06-11). It does NOT authorise touching what the lock protects — the
++shooting funnel, the row order, the block sequence — none of which moved. And it is not a general
++licence to edit locked documents: the next one needs its own instruction.
++⚠ The seed already carried the correct text ("In [0, 1] - penalties and own goals are excluded"), so
++this was a stale rationale paragraph, not a new claim about the metric.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 717ad56..7237537 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -39,6 +39,7 @@ Next: player insights chain (#153 → #156).
+ | Agent role briefs | [docs/roles/](docs/roles/) — one file per role |
+ | Data contract (raw landing, merge model, endpoints) | [docs/data_contract.md](docs/data_contract.md) |
+ | dbt layer rules (what belongs where) | [dbt_project/docs/layering.md](dbt_project/docs/layering.md) |
++| Metric layer — where a metric is defined and computed, what makes it NULL | [docs/metric_layer.md](docs/metric_layer.md) |
+ | Engineering standards (naming, testing policy) | [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md) |
+ | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
+ | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
+diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+index 07f81ae..e8ec257 100644
+--- a/docs/metric_layer.md
++++ b/docs/metric_layer.md
+@@ -1,60 +1,92 @@
+ # Metric layer
+ 
+-> How the platform keeps its metrics consistent — the dbt-idiomatic way. Short by design.
++> The map of the metric layer: where a metric is defined, where it is computed, what makes it NULL,
++> and what CI will stop you doing. Short by design.
+ 
+-## Where each thing lives (read this first)
+-
+-**The `dbt_project/seeds/metric_catalogue.csv` seed is the single source of truth for every metric
+-definition** — `metric_id`, formula (`numerator` / `denominator`), `description`, display `format`,
+-and the display taxonomy (`metric_group`, `importance_tier`, `group_display_order`, `direction`,
+-`interpretation`). No prose document defines a metric; docs *reference* the seed, never redefine it.
++## Where each thing lives
+ 
+ | You need… | Go to |
+ |---|---|
+-| a metric's definition / formula / units | **the `metric_catalogue.csv` seed** (the SSoT) |
++| a metric's definition / formula / units | **`dbt_project/seeds/metric_catalogue.csv`** — the single source of truth |
++| why a metric column is NULL | [Incomplete data is not calculated](#incomplete-data-is-not-calculated) |
++| how to add or change a metric | [Adding or changing a metric](#adding-or-changing-a-metric) |
++| what CI will fail you on | [What the guards enforce](#what-the-guards-enforce) |
++| which model computes it | [How the layer works](#how-the-layer-works) |
+ | how a metric is **displayed** (group, tier, order, row patterns) | `docs/wireframes/metrics_display.md` |
+-| which past matches form a window + how it's labelled | `docs/metrics_context_model.md` |
+-| how the layer stays consistent (compute-once + the drift guard) | this document (below) |
+-
+-## The three parts
+-
+-1. **Each metric is computed in exactly one place.** The canonical per-grain model
+-   (`int_player_season__metrics` for player-season; `int_team_season__metrics` for team-season)
+-   computes it once. Consolidating onto one model (#480 for player; #500 for team) is what prevents
+-   *implementation* drift — the same metric computed three different ways. (The *definition* lives in
+-   the seed, above; the model is where it is computed.)
+-2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
+-   of every metric: `metric_id`, label (i18n key), definition, formula (numerator / denominator), display
+-   format, and grouping. The UI glossary (`metrics.json`) is built from it. It documents; it does not compute.
+-3. **Tests verify and guard.**
+-   - **No-drift guard** — `tests/assert_no_uncatalogued_season_metric.sql`: every metric-bearing column in a
+-     canonical season model must be a `metric_catalogue` row, so a computed metric can't be added without
+-     registering it (CI fails otherwise). Keys, coverage counts, `*_sum_season` intermediates and the
+-     playing-time facts are excluded; the `_season` suffix and the `goals_saves`→`saves` quirk are normalised
+-     (pending #500's name alignment).
+-   - **Correctness** — standard dbt tests on the models: ratios in 0–1 (per-match rates and
+-     finishing-efficiency are uncapped), not-null + relationships on keys, unique on the grain.
+-
+-## What it is NOT
+-
+-There is no bespoke "metric engine": no binding-map, no `metric_kind` taxonomy, no test that re-derives a
+-metric from the raw legs to cross-check the model. The model computes it once; the catalogue documents it;
+-the drift test stops uncatalogued metrics creeping in. That is the whole mechanism.
+-
+-## Adding a metric
+-
+-1. Add the computation to the canonical model (one place).
+-2. Add the `metric_catalogue` row (id, label, definition, format, group).
+-3. The drift test passes once both exist; add a 0–1 range test if it is a ratio.
+-
+-## Non-metrics
+-
+-`league_rank` (a standings lookup) and `points_won` (a window-header tally) are catalogue rows for the
+-glossary but are not computed metrics; they are not in the canonical season models, so the drift guard does
+-not involve them. Playing-time facts (appearances, minutes, starts, subs) are dimensions, not metrics, and
+-are excluded from the guard.
+-
+-## Scope / follow-ups
+-
+-- Phase 1 covers the two **season** grains. The form-window grains are a later phase (same pattern).
+-- Model / column naming consistency + the team-season model consolidation: **#500**.
++| which past matches form a window, and how it is labelled | `docs/metrics_context_model.md` |
++| what a metric is called on screen | the i18n layer — the seed holds only `label_i18n_key` and `label_en` |
++
++No prose document defines a metric. Docs *reference* the seed; they never redefine it.
++
++## Incomplete data is not calculated
++
++**A metric is NULL unless its inputs are available for every match in the window.** We never average
++over the matches we happen to have, so a thinly covered competition shows no per-match metrics —
++that is the correct output, not a gap.
++
++What counts as *available* differs by entity: a blank **player** stat is a zero (the player did
++nothing), so it is available; a blank **team** stat means we do not know, so it is not.
++
++A forfeit or walkover (`AWD`/`WO`) is the one thing that does not count against a season's coverage:
++the match was never played, so there are no statistics to be missing. `games_expecting_team_stats`
++is the team-side match count that leaves them out.
++
++## How the layer works
++
++**The seed defines; one model computes.** `metric_catalogue.csv` carries `metric_id`, `entity`,
++`label_i18n_key`, `label_en`, `description`, `base_relation`, `numerator_expr`, `denominator_expr`,
++`computation_kind`, `lower_is_better`, `format`, `metric_group`, `importance_tier`, `direction` and
++`interpretation`. It is the registry and the glossary — the UI glossary (`metrics.json`) is built
++from it.
++
++Each metric is computed in exactly one place, so the same metric cannot be derived three different
++ways. The canonical models are:
++
++| grain | model |
++|---|---|
++| player, per club-season | `int_player_club_season__metrics` — the **atoms** source |
++| player, per competition-season | `int_player_season__metrics` — **composes** the atoms |
++| team, per season | `int_team_season__metrics` |
++
++⚠ **Which player model depends on whether the metric is summable.** A COUNT that adds up across
++clubs — goals, assists, passes, saves — goes in the **atoms** model, because both consumers sum it.
++A ratio, a per-90 or a count composite does **not** add up, so it is derived where it is consumed:
++in `int_player_season__metrics`, and in `mart_player_career` for the career log. That is the COMPOSE
++pattern, and putting a ratio in the atoms model breaks it.
++
++## Adding or changing a metric
++
++1. Add the computation to the canonical model for its grain (see the table above).
++2. Add the `metric_catalogue.csv` row. `description`, `direction` and `interpretation` are required —
++   a row without them fails a guard, not a review.
++3. Run `python scripts/sync_metric_docs_blocks.py` and commit the result.
++   `models/docs/metric_columns.md` is **generated** from the seed; hand-editing it fails CI
++   (`--check` runs in `validate:governance`).
++4. Keep the `description` inside BigQuery's 1,024-character column limit —
++   `scripts/check_description_hygiene.py` measures the RENDERED text.
++5. Add a 0–1 range test if it is a ratio.
++
++## What the guards enforce
++
++| Guard | Fails when |
++|---|---|
++| `assert_no_uncatalogued_season_metric` | a canonical model computes a metric with no catalogue row |
++| `assert_metric_catalogue_expr_resolvable` | a formula references a column its `base_relation` does not have |
++| `assert_metric_meaning_complete` | a row is missing the fields that make it mean something |
++| `assert_metric_direction_lower_is_better_agree` | `direction` and `lower_is_better` contradict each other |
++| `assert_metric_catalogue_unique_by_entity` | one `metric_id` is defined twice for an entity |
++
++Plus the standard model tests: ratios asserted in 0–1, `not_null` and `relationships` on keys,
++`unique` on the grain.
++
++**Exempt from the drift guard**, because they are not metrics: surrogate and foreign keys, the
++coverage counts, the `*_sum_season` raw intermediates, and the playing-time facts (appearances,
++starts, substitute appearances, minutes) which are dimensions. ⚠ Exempt is not the same as absent —
++`points_won` *is* in the team model and clears the guard through the `_sum_season` exemption.
++`league_rank` is a standings lookup and is a catalogue row for the glossary only.
++
++## What this is NOT
++
++There is no bespoke metric engine, and no test that re-derives a metric from the raw legs to
++cross-check the model. The model computes it once, the catalogue defines it, and the guards stop the
++two diverging. That is the whole mechanism.
+diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+index 47f8104..87aa9aa 100644
+--- a/docs/wireframes/metrics_display.md
++++ b/docs/wireframes/metrics_display.md
+@@ -235,11 +235,14 @@ comparison): `shots_on_goal_pct` (% shots on goal — superseded by the Ø-shots
+ ### The shooting funnel (rationale, ruled with fix "a")
+ 
+ Volume (Ø shots) → location quality (% from box) → on-target volume (Ø shots on
+-goal) → finishing (% goals per shot on goal). The finishing metric keeps its
+-formula (goals ÷ shots on goal, coverage-aligned) — the old label "% Conversion
+-rate" was the misnomer and is replaced. Glossary carries the caveat that finishing
+-can exceed 100% (penalties/own goals counted as goals but not always as shots);
+-the true value is always shown, never capped.
++goal) → finishing (% goals per shot on goal). The old label "% Conversion rate"
++was the misnomer and is replaced.
++
++The numerator is OPEN-PLAY goals — penalties and own goals are excluded, because
++they do not finish the team's own on-target shots — over the same games as the
++denominator. The value is therefore in [0, 1] and is asserted so; a value outside
++it means the two sides disagree, and the model serves NULL rather than a figure it
++cannot stand behind.
+ 
+ ## Player rows — LOCKED (CPO, 2026-06-11)
+ 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -265,8 +459,7 @@ index 4efb369..846fab5 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |  94 ++++--
-#    .claude/task/acceptance_evidence.md | 159 ++--------
-#    .claude/task/review_input.patch     | 615 +++++++++++-------------------------
-#    3 files changed, 287 insertions(+), 581 deletions(-)
+#   .claude/task/acceptance_evidence.md | 119 +++++--
+#    .claude/task/review_input.patch     | 648 +++++++++++++++++++++++-------------
+#    2 files changed, 503 insertions(+), 264 deletions(-)
 # ============================================================================

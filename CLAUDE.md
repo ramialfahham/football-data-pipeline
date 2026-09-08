@@ -39,6 +39,7 @@ Next: player insights chain (#153 → #156).
 | Agent role briefs | [docs/roles/](docs/roles/) — one file per role |
 | Data contract (raw landing, merge model, endpoints) | [docs/data_contract.md](docs/data_contract.md) |
 | dbt layer rules (what belongs where) | [dbt_project/docs/layering.md](dbt_project/docs/layering.md) |
+| Metric layer — where a metric is defined and computed, what makes it NULL | [docs/metric_layer.md](docs/metric_layer.md) |
 | Engineering standards (naming, testing policy) | [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md) |
 | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
 | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
