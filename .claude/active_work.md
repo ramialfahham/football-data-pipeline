@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-08**. **main `6ae4031`**, clean, **no open MRs** — !154 through **!159** all
+_Last updated **2026-09-08**. **main `b29f2e0`**, clean, **no open MRs** — !154 through **!161** all
 merged today. **GITLAB** (`glab`, MRs)._
 ⛔ **THE POST-COMMIT HOOK PUSHES TO `main` IF THE BRANCH TRACKS `main`.**
 `git checkout -b <branch> gitlab/main` sets `main` as upstream. **Run `git branch --unset-upstream`
@@ -22,8 +22,13 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 ## ⛔ NEXT ACTION
 
 **BUILD: #40 MR B — the Top players block.** It is written and parked; unstash it and finish it.
-**BLOCKED ON THE CPO: GitLab #110** — one question, and until it is answered 463 team-seasons show
-no statistics. Do not start it, do not redesign around it, and do not ask him about anything else.
+**Nothing is blocked on the CPO.**
+
+⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`.** It is short and it is the map: where a
+metric is defined, which model computes it, what makes it NULL, what CI will fail you on. The
+incomplete-data rule lives there now — a metric is NULL unless its inputs cover every match in the
+window, and a thinly covered competition showing blank is correct output. That rule was decided long
+ago and re-opened twice by builders who found models nulling metrics and assumed an oversight.
 
 ⚠ **HE HAS SAID TWICE, ANGRILY, THAT THE VOLUME IS THE PROBLEM** (*"you all constantly flooding the
 zone with shot"*; *"you expecting me to remember that? or even understand what it is about?"*). Give
@@ -31,7 +36,7 @@ him the decision and the consequence, in two sentences. Process detail, round co
 and hash rebinding go in the repo — never in a message to him. And per `escalations.log`
 `DO NOT ASK FOR MECHANICS`: commit, push, retry, rebase and regenerate WITHOUT asking.
 
-**#40 MR B — unstash and finish the Top players block.** The warehouse
+**#40 MR B, in detail.** The warehouse
 half shipped in !153. The block is **WRITTEN AND PARKED** in stash **`TEMP-40-mrB`** — export shaper
 `shape_home_top_players` (15 unit tests), `TopPlayers.astro`, `.board`/`.brow` CSS, `LandingBoard`
 types, copy in three locales.
@@ -59,7 +64,7 @@ information, not a defect, and one stuck fixture was skipping 672 models a night
 error severity on the seven genuinely-playing statuses at 6h. A dead test that compared a column to
 itself was deleted, and `assert_team_season_games_not_short_of_standings` replaces it — it warns when
 we hold FEWER games than the league's own table records, whatever the cause. It is WARN and RED on
-**3 rows** by design: Trabzonspor + Gaziantep FK (the Turkish forfeit, waiting on #110) and Al Wehda
+**3 rows** by design: Trabzonspor + Gaziantep FK (the Turkish forfeit — #110) and Al Wehda
 AFCCL 2021 (5 fixtures never ingested — a different problem, do not file it under #110).
 ⭐ **PROD WAS REPAIRED BY HAND and is CORRECT**: `data:build:main` re-run to green and the two
 incremental facts `--full-refresh`ed. **Nothing is owed operationally.**
@@ -107,18 +112,22 @@ absence is the safety mechanism. A prod target needs `dataset: dbt_analytics` to
 models, which is exactly the line that overwrites prod's base tables and seeds if a build ever
 selects one — so it is only ever safe with an explicit `--select` naming core models.
 
-## ⛔ OPEN, AND THE CPO'S
+## ⛔ OPEN — DEFECTS TO FIX (not decisions to wait on)
 
-  - ⛔ **#110 — THE ONE THAT BLOCKS PRODUCT WORK.** An awarded result (forfeit, withdrawal,
-    disqualification) is official and counts — his ruling. But the provider often files one as `FT`
-    with a score and NO stat line, `!156`'s counter keys on the STATUS so it does not subtract them,
-    and the all-or-nothing coverage gate then blanks the whole team-season. **463 team-seasons in
-    well-covered competitions show no statistics**; 18 of 19 Turkish teams in 2022 is one cluster.
-    The question is whether "finished, scored, zero stat rows" may mean "could never have had stats"
-    — ⚠ it is indistinguishable from the provider simply not covering a match, which is why it is his
-    and not mine. Everything measured is on the issue.
+  - **#110 — a forfeit the provider labels `FT`.** An awarded result is official and counts, and
+    `!156` already stops one destroying a season via `games_expecting_team_stats`. But that column
+    keys on `status_short`, and the provider often files a forfeit as `FT` with a score and no stat
+    line — so 18 of 19 Süper Lig 2022 team-seasons are blank. ⚠ **Not the same as the other 435**
+    blanked team-seasons, which are correct: measured, of 9,515 fixtures with no team statistics,
+    ZERO have statistics in the raw payload that our models discard. The provider supplied nothing
+    and the rule applies. The fix needs a competition-relative signal (a fixture with no stats in a
+    league where 90%+ have them), not a blanket rule. Everything measured is on the issue.
+  - **#111 — no test compares a metric to its own formula.** The catalogue publishes
+    `base_relation` + `numerator_expr` + `denominator_expr`; the models compute the same metric in
+    SQL; nothing checks they agree. `assert_metric_catalogue_expr_resolvable` already parses those
+    expressions and binds them — it just never evaluates them. No dbt unit tests exist either.
   - **#109** — no end-to-end dbt test strategy, and no rule for when a NULL is a defect rather than
-    the honest answer. Filed at his instruction; not attempted.
+    the honest answer. Filed at the CPO's instruction; #111 is one concrete piece of it.
   - **#108** — rounding is business logic and `DeservedHero.astro:79` does it in the browser.
   - **The mid-season deserved-vs-actual line and its start matchday** — both open, and they gate
     showing that hero on live data.
