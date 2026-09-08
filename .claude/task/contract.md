@@ -42,6 +42,9 @@ scope_paths:
   - dbt_project/models/5_marts/shared/mart_team_momentum.sql
   - dbt_project/models/5_marts/shared/shared.yml
   - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+  - dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
+  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
   - dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
   - dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
 
@@ -117,6 +120,53 @@ decisions_taken: >
   no consumer reads, and the form follows a convention already set in the same file.
   THRESHOLD DECLARATIONS: no new mechanism, no new dependency, no recurring cost. No guard loosened —
   the coverage gate is made MORE precise, and one test is added to pin it.
+  ⛔ **AMENDMENT — A THIRD INSTANCE OF THE SAME CLASS, AND THE MR PIPELINE FOUND IT.**
+  `assert_mart_team_season_insights_metric_consistency` failed the rebased build. It asserts
+  `shots_per_match * season_games_played = total_shots_sum_season`, and that identity is now FALSE
+  by exactly the number of awarded matches: `shots_per_match` divides by `games_with_team_stats`
+  (`int_team_season__metrics_cumulative.sql:99`), which was equal to `games_played` only while the
+  gate demanded coverage of every played game. The test multiplies by the wrong denominator, and it
+  is the same defect rounds 1 and 2 found in the model — a gate moved, a divisor did not — in the
+  one place nobody swept, because round 3's sweep enumerated every RATE in the two gate files and
+  not the TESTS that encode invariants about those rates.
+  THE FIX is to multiply by the denominator the metric actually uses. That requires the mart to
+  expose `games_with_team_stats`, which it does not — it carries `stat_coverage_season_games`, a
+  different counter (`games_with_sot_stats`). Serving a rate whose denominator the consumer cannot
+  see is precisely why a false identity could be written about it, so the column is added.
+  ⛔ **NOT a loosening.** ⚠ The test ends this MR with FIVE checks, not four — this paragraph said
+  "four" until round 8, having been written before the fifth was added below, and `scope-auditor`
+  caught the stale count. Three are UNCHANGED and still multiply by
+  `season_games_played` — `goals_per_match`, `goals_against_per_match` and `points_capture_pct` are
+  scoreline metrics over played games, and an awarded match is a real played game with a real
+  scoreline. Exactly one existing check moves, three stay, and one is ADDED. The test becomes true
+  and strictly stronger rather than weaker; under the old
+  multiplier it would have to be deleted or made to pass by breaking the metric.
+  SWEPT TWO-SIDED for other instances: `dbt_project/tests/` and `dbt_project/models/` contain
+  exactly ONE test multiplying a rate back by a game count, this one. The only other hits are
+  `int_team_season.yml`'s three `3 * season_games_played` bounds on `deserved_points` — points are a
+  scoreline quantity over played games, so those are correct and untouched — and
+  `points_capture_pct`'s own `3 * games_played` divisor, which matches its check.
+  **Of the rate×games multiplications in the repo: 1 moves, 4 stay.** (That count is about the SWEEP
+  for other instances of the class, not about how many checks this test has — the two were easy to
+  confuse and `scope-auditor` did, so they are now stated apart.)
+  SCOPE: three paths added above. All three are the mechanical consequence of a change already
+  authorised by the CPO's *"same MR"*, not new work — the same reasoning `scope-auditor` accepted
+  for the drift-guard exemption in round 6.
+  ⭐ **AND THE FIX COST A CROSS-CHECK, SO A FIFTH CHECK PUTS ONE BACK.**
+  `analytics-engineer-reviewer` flagged this without failing on it: multiplying by
+  `games_with_team_stats` makes the identity true, and also makes it blind to an error in
+  `games_with_team_stats` itself, because numerator and multiplier now come from the same value.
+  Under the OLD multiplier an overcount in that column on a team-season with no awarded match would
+  have been caught by `season_games_played`, an independently sourced number that is itself checked
+  against the standings' played count. The reviewer judged the loss unavoidable within the test's
+  scope. It is not: a game can carry a team stat line only if it was played, so
+  `games_with_team_stats <= season_games_played` is a true bound against that same independent
+  column, and it is added as a fifth check. Measured on prod through the composed chain:
+  **0 violations in 13,669 rows, maximum excess 0**.
+  ⚠ It must be bounded by `season_games_played` and NOT by `games_expecting_team_stats`, which 2
+  rows legitimately exceed — the AFCON walkover that does carry a stat line.
+  A reviewer's flagged-but-not-failed trade-off is still a trade-off; accepting it because the
+  reviewer declined to insist is exactly the quiet loosening that rule exists to stop.
 
 decisions_reserved:
   - ⛔ **A NAMELESS TEAM IS FAILING THE PROD BUILD, AND IT IS NOT THIS MR'S.**

@@ -1,6 +1,6 @@
 # Review — feat/awarded-and-walkover-count-as-played — 2026-09-08
 
-diff_sha256: 4bdc39ed6aca4dec1e4fa15e8a94c4324d1e1df58f543d8d828ec6cb18228d5c
+diff_sha256: 404a05bfc2710ed916520f617c6a8cc95d5c0e3cf90a2f30cee6e321591c86c7
 
 rebased_onto: >
   **main `809041a`, 2026-09-08, after `!157` merged.** A bare retry of this MR's pipeline could not
@@ -12,7 +12,19 @@ rebased_onto: >
   sibling-MR hazard in its usual shape — the code merges cleanly and the paperwork is what collides.
   Resolved: the four task documents take THIS branch's version; `escalations.log` is a UNION, so
   `!157`'s two entries and this branch's three all survive — dropping either set would break a
-  citation the reviewers check verbatim. Verified: six entry headers present after the resolve.
+  citation the reviewers check verbatim.
+  ⛔ **AND I BOTCHED THAT RESOLUTION, LEAVING A CONFLICT MARKER IN THE RULING RECORD.** I deleted the
+  three marker lines I grepped for — `<<<<<<<`, `=======`, `>>>>>>>` — and git had written the
+  conflict in **diff3** style, which has a fourth: `|||||||`. It sat at line 8145, immediately above
+  the three CPO rulings `contract.md` cites as authority, and I then wrote "verified: six entry
+  headers present" — a check that passes straight through a stray marker, because I verified the
+  thing I had thought to check. `git add` marks a file resolved without reading it, `dbt parse`,
+  SQLFluff, four offline gates and CI's `validate:governance` ALL passed with it committed. Found by
+  `scope-auditor` at round 7.
+  ⭐ **Re-verified properly, and structurally rather than by eye:** main's 8,144 lines are
+  byte-identical to the head of the resolved file (`diff -q`), this branch's 111 added lines are
+  byte-identical to its tail, and 8,144 + 111 = 8,255 = the resolved length exactly. A repo-wide
+  sweep for all FOUR marker styles returns nothing.
   ⚠ The hash moved (`d216584…` → the value above) and is rebound here, as `!155` established a
   rebase requires.
   ⚠ **What `!157` did to the data this branch measured, stated rather than assumed:** it moved 21
@@ -28,7 +40,25 @@ rebased_onto: >
   task artifacts. What changed is the base commit, `escalations.log` (a union that only ADDS
   entries), the regenerated `review_input.patch`, and this file.
 
-rounds: 6
+rounds: 9
+
+⛔ **THE CAP IS NOT CLEARED. The `rounds_cap_override` below is the CPO's, given at round 3, and its
+text covers rounds 1-4 only.** `scope-auditor` ruled at round 8 that rounds 5-9 need a current
+ruling from him and that no reviewer can supply it. He was asked, in plain terms, and has not
+answered. **This branch does not merge until he does**, whatever the verdicts say.
+⚠ What rounds 5-9 bought, so the question can be answered on evidence rather than on a count:
+    round 5  the delta re-review after two schema files changed
+    round 6  PASS x2  the MR pipeline's drift-guard failure — a coverage counter read as an
+                      uncatalogued metric; unreachable by any pre-build check
+    round 7  FAIL x2  BOTH reviewers independently found a diff3 conflict marker I had committed
+                      into escalations.log, above the rulings the contract cites as authority; plus
+                      the MR pipeline's THIRD instance of the divisor class, in the mart consistency
+                      test
+    round 8  PASS / FAIL  the fifth check restoring a cross-check the fix had cost; the FAIL was a
+                      stale-diff race of my own making, and a genuinely stale "four checks" count
+    round 9  PASS x2
+  Nothing was re-argued and no verdict was disputed. Every round after 4 was opened by a defect
+  found by CI or by a reviewer, not by me relitigating one.
 
 rounds_cap_override: >
   CPO, 2026-09-08: **"go ahead, add the not_null tests"**, given after round 3 was brought to him with

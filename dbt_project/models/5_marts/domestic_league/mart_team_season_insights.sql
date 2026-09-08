@@ -61,6 +61,7 @@ select
     m.season_games_played,
     m.season_matchdays_used,
     m.stat_coverage_season_games,
+    m.games_with_team_stats,
     m.points_won_sum_season,
     m.goals_for_sum_season,
     m.goals_against_sum_season,

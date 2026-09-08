@@ -23,6 +23,52 @@ single query over identical inputs at the same instant, so a change to the share
 sides equally. Recorded because "it should not have changed" and "it did not change" are different
 claims, and this MR has already twice reported a difference that was really a moving baseline.
 
+## ⛔ THE MR PIPELINE FOUND A THIRD INSTANCE OF THE CLASS THAT FAILED ROUNDS 1 AND 2
+
+`assert_mart_team_season_insights_metric_consistency` failed the rebased build. It asserts
+`shots_per_match * season_games_played = total_shots_sum_season`, and that identity is now false:
+`shots_per_match` divides by `games_with_team_stats`, which equalled played games only while the
+gate demanded a stat line for every one. Measured on prod through the composed chain:
+
+    fails with the old multiplier   15
+    fails with the new multiplier    0
+    rows checked                13,669
+
+The same 15 team-seasons round 1's divisor bug touched. It is the same defect a third time — a gate
+moved and something depending on it did not — in the one place nobody had swept, because round 3
+enumerated every RATE in the two gate files and not the TESTS that encode invariants about them.
+
+**Two-sided sweep: 1 check moves, 4 stay.** `goals_per_match`, `goals_against_per_match` and
+`points_capture_pct` keep `season_games_played` — scoreline metrics, and an awarded match is a real
+played game with a real scoreline. The only other multiplications of a rate by a game count anywhere
+in `dbt_project/` are `int_team_season.yml`'s three `3 * season_games_played` bounds on
+`deserved_points`, which are correct.
+
+## ⭐ THE FIX COST A CROSS-CHECK, AND A FIFTH CHECK PUTS ONE BACK
+
+`analytics-engineer-reviewer` flagged this and explicitly declined to fail on it: once the multiplier
+is the same column the rate divides by, the identity is true **and blind to an error in
+`games_with_team_stats` itself** — numerator and multiplier come from one value, so they cannot
+disagree. Under the old multiplier, an overcount in that column on a team-season with no awarded
+match would have been caught by `season_games_played`, which is independently sourced and itself
+checked against the standings' played count. It judged the loss unavoidable within the test's scope.
+
+It is avoidable. A game can carry a team stat line only if it was played, so
+`games_with_team_stats <= season_games_played` is a true bound against that same independent column.
+Added as a fifth check and mutation-tested on prod:
+
+| variant | rows returned |
+|---|---|
+| shipped | **0** |
+| `games_with_team_stats` overcounts by one | **5,143 RED** |
+
+⚠ The bound must be `season_games_played`, NOT `games_expecting_team_stats` — 2 rows legitimately
+exceed the latter, the AFCON walkover that does carry a stat line. Measured before writing it: 0
+rows exceed played, maximum excess 0.
+
+⭐ A reviewer's flagged-but-not-failed trade-off is still a trade-off. Taking it because the reviewer
+declined to insist is the quiet loosening the rule exists to stop.
+
 criteria_demonstrated:
 
   - **⭐ NO TEAM-SEASON LOSES A STATISTICAL METRIC. This is the criterion the first design failed**,
