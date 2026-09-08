@@ -41,6 +41,7 @@ scope_paths:
   - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
   - dbt_project/models/5_marts/shared/mart_team_momentum.sql
   - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
   - dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
   - dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
 
@@ -118,6 +119,41 @@ decisions_taken: >
   the coverage gate is made MORE precise, and one test is added to pin it.
 
 decisions_reserved:
+  - ⛔ **A NAMELESS TEAM IS FAILING THE PROD BUILD, AND IT IS NOT THIS MR'S.**
+    `not_null_dim_team_team_name` fails on one row: `team_sk` 22722, league_code BSA, EVERY field null
+    — name, country, founded year, logo, even `raw_ingested_at` — with only the fallback slug
+    `team-22722`. It is referenced by nothing: 0 fixtures, 0 standings, 0 player-season mappings.
+    ⭐ **It has been failing the NIGHTLY since at least 2026-09-07**, alongside the freshness guard:
+        Done. PASS=405 WARN=1 ERROR=2 SKIP=672
+        Failure in test not_null_dim_team_team_name
+        Failure in test assert_fct_fixture_no_stale_live
+    The nightly has now failed three nights running (09-06, 09-07, 09-08; last success 09-05), and
+    because everyone knows WHY it fails, a second unrelated defect rode along unnoticed. That is the
+    real cost of leaving the freshness guard unfixed: it is not one broken night, it is cover.
+    ⭐ **ROOT CAUSE, traced to the provider's own bytes.** 22722 enters through exactly ONE source —
+    `stg_apif__fixture_players`, 22 rows, all on fixture **1492362** (Corinthians vs Chapecoense-sc,
+    BSA, kickoff 2026-09-06 22:30 UTC). It appears in no other staging model: 0 rows in
+    `stg_apif__teams`, `stg_apif__standings`, `stg_apif__fixture_statistics`,
+    `stg_apif__fixture_events` and `stg_apif__fixtures_next` on either side. In the raw payload the
+    fixture's own `teams.away.id` is **132**, Chapecoense-sc — so 22722 is not either team playing.
+    The lineup block for it reads, verbatim from `RAW_APIF_FIXTURE_DETAILS`:
+        {"id":22722,"logo":".../teams/22722.png","name":null,"update":"1970-01-01T00:00:00+00:00"}
+    A `name` of `null` and an `update` of the epoch: API-Football emitted a stub team block.
+    **Nothing is mis-parsed** — `stg_apif__fixture_players` reads `$.team.name` and gets the null the
+    provider sent.
+    ⚠ **The structural hole is ours, though.** `base_apif__teams` admits a team KEY from the
+    fixture-level sources on `team_id is not null`, while the name `coalesce` only draws from rows
+    `where team_name is not null`. An id-only source can therefore mint a `dim_team` row that no
+    source can ever name, and `not_null` on `dim_team.team_name` then breaks the whole build —
+    which, on a bare `dbt build`, skips every downstream model. One stub object from the provider
+    stops the pipeline.
+    The narrow fix is to stop admitting a key that no source can name; the alternative is to wait
+    and see whether a re-ingest heals it, since the stub may be transient. Either is a `dim_team` /
+    `base_apif__teams` change, still outside these `scope_paths`.
+    ⛔ NOT fixed here. `dim_team` and the teams base model are outside these `scope_paths`, it is an
+    ingestion-side entity defect rather than a metric one, and folding it in would put an unrelated
+    fix inside an MR about awarded matches. It does block `!156` from going green, so it needs a
+    decision rather than silence.
   - **The freshness guard.** `assert_fct_fixture_no_stale_live` uses a 3-hour wall-clock window
     against a once-daily ingest and has failed the nightly 9 of the last 29 nights. Diagnosed, a fix
     designed (measure from the last observation, not the wall clock — which clears 3 of today's 4
@@ -258,6 +294,19 @@ amendments:
     It does not — `engineering_standards.md` §3 states per-layer minimums but no rule for when a NULL
     is a defect versus the honest answer, no severity principle, and no projection check. Filed as
     **GitLab #109** at his instruction, deliberately NOT attempted here.
+  - ⛔ **2026-09-08, post-commit: CI FAILED, and one of the two failures is mine.**
+    `data:build:mr` on `!156` reported two errors out of 779 tests.
+    **MINE:** `assert_no_uncatalogued_season_metric` — a drift guard that enumerates every column of
+    `int_team_season__metrics` and requires each to be a registered metric unless exempt. Its exempt
+    list names the coverage counters explicitly (`games_with_team_stats`, `stat_coverage_season_games`,
+    `season_games_played`) and its own docstring says "Non-metric columns are excluded: … the coverage
+    counts". `games_expecting_team_stats` is exactly such a counter and was not added to the list, so
+    the guard correctly read it as an uncatalogued metric. Adding it to the exemption is not a
+    loosening: it is registering a new column as the kind the exemption already exists for.
+    ⚠ I could not have caught this locally — the guard uses `adapter.get_columns_in_relation`, so it
+    only fires against a built relation, which is precisely what `dbt build` (banned here) would do.
+    It is the one class of defect this MR's verification method structurally cannot reach.
+    **NOT MINE:** `not_null_dim_team_team_name` — see `decisions_reserved`.
   - ⚠ **2026-09-07: the verification METHOD changed, not the scope.** `acceptance_criteria` now
     requires a CONTROLLED baseline rather than a diff against the live tables, because both live
     surfaces move on their own — the intermediate layer is stale whenever the nightly fails (it did,

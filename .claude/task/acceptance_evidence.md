@@ -272,3 +272,32 @@ the code, because the code was fine and the measurement was not.
   investigation, which still counts nowhere and still leaves FC Utrecht a game short of its league.
 - **It does not fix the freshness guard**, which is what the investigation was originally about and
   which is still failing the nightly roughly one night in three.
+
+## ⛔ THE MR PIPELINE CAUGHT A DEFECT NO OFFLINE CHECK COULD REACH
+
+`data:build:mr` on pipeline **#410** returned `PASS=471 WARN=0 ERROR=2 SKIP=306 TOTAL=779`. One of
+the two errors is this branch's, and nothing available offline could have found it:
+
+  - `assert_no_uncatalogued_season_metric` failed. It is the metric-layer drift guard: every
+    metric-bearing column of the three canonical season models must exist in `metric_catalogue`,
+    and anything not catalogued and not explicitly exempted is read as a metric that crept in.
+  - `games_expecting_team_stats` is a COVERAGE COUNT, not a metric — it is the denominator the
+    gates compare against, it has no `direction` and no `interpretation`, and its four siblings
+    (`games_with_team_stats`, `stat_coverage_season_games`, `player_stat_coverage_season_games`,
+    `season_games_played`) are all already exempt. The guard's own docstring says the coverage
+    counts are excluded. The list simply had not been told about the new one.
+  - It reaches the guarded model invisibly: `int_team_season_record` → explicit projection in
+    `int_team_season__metrics_cumulative` → `sf.* except (match_number)` in
+    `int_team_season__metrics`. No file in the guard's own directory mentions it.
+  - ⚠ **Unreachable by every check this branch ran.** The guard calls
+    `adapter.get_columns_in_relation`, so it reads a BUILT relation's schema. `dbt parse` does not
+    build. The composed-chain verification queries prod, whose relation does not have the column
+    yet. The five offline gates never execute dbt. Only building the model on a real warehouse
+    surfaces it — which is precisely what `data:build:mr` is for.
+  - Fix: one literal added to the guard's `exempt` list. Confirmed by
+    `analytics-engineer-reviewer` as the only new column this branch projects into any of the three
+    scanned models — `goals_open_play_in_sot_games` is consumed only inside expressions and never
+    given an output column, so no second failure is hiding behind this one.
+
+**The second error is NOT this branch's** — `not_null_dim_team_team_name`, diagnosed in
+`decisions_reserved` and left there deliberately.

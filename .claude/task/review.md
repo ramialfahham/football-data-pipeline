@@ -1,8 +1,8 @@
 # Review — feat/awarded-and-walkover-count-as-played — 2026-09-08
 
-diff_sha256: c3fe6393f2126a2a7574628bdeb385518eccd4de6a8c306f6be697bdfa329e83
+diff_sha256: d21658469db4a537c2ca6c6fda3179826d7ee32550590cb144519c88d57a9d2f
 
-rounds: 5
+rounds: 6
 
 rounds_cap_override: >
   CPO, 2026-09-08: **"go ahead, add the not_null tests"**, given after round 3 was brought to him with
@@ -16,6 +16,7 @@ rounds_cap_override: >
     round 3  FAIL  every rate enumerated, NO third instance; one missing not_null
     round 4  PASS  ×2 — and a noted asymmetry whose fix exposed a phantom column
     round 5  the delta re-review
+    round 6  PASS ×2 — the CI fix, forced by a defect no offline check could reach
   ⭐ Rounds 1 and 2 each found a defect that would have shipped a wrong number to a live elite
   competition, and neither pointed at the other: their victims are DISJOINT, because Ligue 1's
   awarded fixture is the 0-0. Round 3's clean sweep is what actually closed the class.
@@ -25,9 +26,33 @@ rounds_cap_override: >
 a phantom column entry that addition exposed — so both were re-run on the delta at `c3fe639…` rather
 than carried forward. Recorded rather than implied.
 
+⚠ **ROUND 6 IS THE MR PIPELINE'S FINDING, NOT A READER'S.** `data:build:mr` on pipeline #410 came
+back `PASS=471 WARN=0 ERROR=2 SKIP=306`. One error was this branch's: the metric drift guard
+`assert_no_uncatalogued_season_metric` read the new coverage counter `games_expecting_team_stats` as
+an uncatalogued metric, because its `exempt` list had not been told about it. ⭐ **No check this
+branch ran could have found it** — the guard calls `adapter.get_columns_in_relation`, so it needs a
+BUILT relation; `dbt parse` does not build, the composed-chain verification queries prod where the
+column does not exist yet, and the five offline gates never execute dbt. Both reviewers were re-run
+on that delta. The other error is `not_null_dim_team_team_name`, which is not this branch's — see
+`escalations` below.
+
 ## analytics-engineer-reviewer
 VERDICT: PASS (round 4 at `438ceec…`; delta re-reviewed at the hash above)
 risks_checked:
+- **Round 6, the CI fix.** Traced the counter from `int_team_season__metrics_cumulative.sql:45`
+  through `int_team_season__metrics.sql`'s `sf.* except (match_number)` and confirmed it is the ONLY
+  column this branch projects into any of the three models the guard scans — the two player models
+  are untouched. ⭐ It specifically checked `goals_open_play_in_sot_games`, the other column this
+  branch added upstream, and established it appears only inside `case`/`safe_divide` expressions and
+  is never given an output column, so no second guard failure is hiding behind the first.
+- Ruled on exempting vs cataloguing from evidence rather than convenience: none of the five coverage
+  counters appears in `metric_catalogue.csv`, the column has no `direction` and no `interpretation`,
+  and the guard's docstring excludes "the coverage counts" by name. Confirmed the edit adds one
+  literal and introduces no prefix, suffix or wildcard matching that would widen the exemption.
+- Swept all 40 files in `dbt_project/tests/` for `get_columns_in_relation`: two use it, and the other
+  (`assert_metric_catalogue_expr_resolvable`) runs in the opposite direction — catalogue tokens must
+  resolve to leg-model columns, so a NEW column can never fail it. No sibling guard carries the same
+  gap. Two-sided, as required.
 - Confirmed the DECLINED half of its own round-3 finding was correct SQL semantics, not a convenient
   measurement: a `SUM` over an all-NULL set is NULL, so `not_null` on `goals_open_play_in_sot_games`
   would fail on real, honest nulls — measured 18,301 of 118,180. It verified the cited precedent
@@ -62,6 +87,18 @@ risks_checked:
 ## scope-auditor
 VERDICT: PASS (round 4 at `438ceec…`; delta re-reviewed at the hash above)
 risks_checked:
+- **Round 6, the CI fix.** Held the scope-path addition legitimate rather than self-authorising: the
+  column that broke the guard is produced by a model already in `scope_paths` and already covered by
+  the CPO's *"same MR"* ruling, so registering it in an exemption list is a mechanical consequence of
+  authorised work, not a new scope decision.
+- Checked the edit against the A6 pattern — loosening a guard to dodge a defect. The guard's purpose
+  is to catch uncatalogued METRICS; adding one coverage counter to an existing, already-justified
+  exemption category narrows nothing and silences no real metric gap.
+- Re-read `decisions_reserved` in full at the delta: the freshness guard, the `INT`-match question
+  and the handover correction are all still open, and the new `dim_team` entry is a reservation with
+  falsifiable evidence rather than a parked defect — a team with zero fixtures cannot be reached by
+  this branch's fixture-status logic or by any model in scope.
+- Confirmed the delta quotes no NEW CPO ruling, so it needs no `escalations.log` backing.
 - All five CPO rulings quoted across the contract verified verbatim against `escalations.log`
   (lines 8098-8207): "let's do it", "another input to standardize", "same MR", "As simple Google
   search says it was a 0:0", "go ahead, add the not_null tests".
@@ -88,6 +125,11 @@ risks_checked:
 - **RULED: the round-cap override** — *"go ahead, add the not_null tests"*.
 - **FILED, not fixed:** GitLab **#109**, the end-to-end test strategy, at his instruction
   (*"do we have a consistent test strategy? … If not file it first"*).
+- **⛔ OPEN, needs a ruling:** `not_null_dim_team_team_name` fails the MR pipeline and is NOT this
+  branch's. API-Football sent a stub team block — `{"id":22722,…,"name":null}` — inside one BSA
+  fixture's lineups, and `base_apif__teams` mints a `dim_team` key from an id-only source while only
+  drawing the name from rows that have one. Traced in full in `decisions_reserved`. Fixing it here
+  would put an unrelated entity fix inside an MR about awarded matches; leaving it keeps `!156` red.
 
 ## ⛔ WHAT THIS BRANCH SHOULD BE REMEMBERED FOR
 
@@ -106,6 +148,13 @@ second set to the CPO before catching it.
 `int_team_season_record` uses `is_awarded_result` internally and never emits it. Only a verification
 query failed. The checker the handover names for this class does not exist.
 
-**4. Two reviewer findings were accepted in part, not whole.** The `not_null` on the restricted sum
+**4. The MR pipeline found a defect that five offline gates, `dbt parse`, a composed-chain
+verification against prod and five review rounds all missed** — and it could not have been otherwise.
+The guard reads a BUILT relation's schema, so it exists in a layer none of those checks occupies. The
+lesson is not "check harder"; it is that a guard keyed on `adapter.get_columns_in_relation` is
+invisible to every pre-build check by construction, and a branch that adds a column to a scanned
+model must go and read that guard's exemption list on purpose.
+
+**5. Two reviewer findings were accepted in part, not whole.** The `not_null` on the restricted sum
 would have broken the build on 15% of rows. A finding is accepted on its reasoning, not its
 authorship — and the measurement is what settles which half is right.
