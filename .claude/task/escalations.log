@@ -8279,3 +8279,75 @@ pipeline, regenerating an artifact, rebasing onto a merged sibling. Those are mi
 to skip a review round, and not a reason to stop asking about the genuine §10 classes. The same
 session had a real ask outstanding — the round cap at round 9 — and that one was correct to raise.
 He merged !156 without answering it, so that question remains OPEN and is recorded as open.
+
+================================================================================
+2026-09-08 — fix/freshness-guard-severity-by-cause — A VALID STATUS IS NOT AN ALARM
+================================================================================
+
+⭐ THIS ENTRY EXISTS BECAUSE scope-auditor FAILED THE BRANCH FOR ITS ABSENCE. The rulings below were
+quoted in contract.md's `refs` and recorded nowhere checkable — the same failure class as
+feedback_dont_attribute_repo_practice_to_cpo, and one I had written up in the handover MR earlier the
+same day. Logged now, verbatim.
+
+THE INSTRUCTION: "fix the freshness guard"
+
+WHAT HE WAS FIRST OFFERED, AND REJECTED. I proposed splitting assert_fct_fixture_no_stale_live by
+cause — error for the statuses that mean our ingest missed an update, and a NEW test at
+severity: warn carrying SUSP and INT on a 3-hour window — and justified the warn against
+engineering_standards.md §3's "source data quality issue" row.
+
+HIS CHALLENGE, verbatim: "Why and when should susp or int throw a warning at all??"
+
+⛔ THERE IS NO GOOD ANSWER, AND THE FIRST DESIGN HAD NOT ASKED THE QUESTION. A suspended or
+interrupted match is a true fact about the world that can hold for days pending a replay decision.
+No re-ingest changes it and nobody takes an action on being told about it. I had preserved the old
+3-hour window and merely changed its severity, then written several paragraphs defending the result.
+scope-auditor had independently FAILed the same paragraph, for classifying it against a §3 row that
+is literally about grain violations.
+
+HIS RULING, verbatim: "it's a valid status info and we should be able to handle it the right way"
+
+WHAT THAT MEANT IN PRACTICE, and the measurement that followed it. The Eredivisie fixture that stuck
+at INT mattered because FC UTRECHT WAS A GAME SHORT OF ITS LEAGUE — not because a status string was
+unusual. That question already had a detector: assert_mart_team_season_insights_games_match_played,
+which reconciles our season_games_played against the standings' own `played`. It was scoped to
+`league_code = 'BL1'` — one league of 46 — so it never ran on ED. Measured: `played` is non-null on
+all 1,826 rows across all 46 leagues, and the widened test is green today.
+
+APPROVAL, verbatim: "yes, rebuild it that way"
+
+So: SUSP and INT are removed from the freshness guard entirely — not error, not warn — the warn test
+is deleted (dbt test count 983 -> 982), and the reconciliation goes from 1 league to 46.
+
+--------------------------------------------------------------------------------
+FOLLOW-ON RULING, same branch, same day — SEVERITY OF THE NEW RECONCILIATION
+--------------------------------------------------------------------------------
+
+⭐ LOGGED SEPARATELY BECAUSE scope-auditor FAILED THE BRANCH A SECOND TIME FOR ITS ABSENCE. Round 2
+FAILed because none of this branch's rulings were logged; I then logged four of them and left this
+one out, because it was given after I wrote the entry and I never went back. It is the quote that
+authorises the highest-stakes call here, so leaving it in contract prose was the worst one to miss.
+
+WHAT HE WAS TOLD. My widened reconciliation turned out to be a TAUTOLOGY — mart_team_season.sql:34
+aliases our own count as `played`, so the test compared a column to itself and its "0 mismatches over
+1,826 rows" was 0 by construction. Rebuilt against fct_standings.played, the genuine provider count,
+it is RED on real data: 3 team-seasons where we hold FEWER games than the governing body records.
+Two of them are the Gaziantep/Trabzonspor earthquake forfeit filed as CANC; one, Al Wehda in AFCCL
+2021 missing five games, was unknown. Measured: one-directional is essential — two-sided would be red
+on 1,567 of 4,082 rows, because standings are a snapshot and we keep counting fixtures after it.
+He was told the test cannot ship at error severity while those 3 rows stand, because their fix is
+GitLab #110's still-open rule, and that the choice was his.
+
+HIS RULING, verbatim: "do it that way, warn severity for now"
+
+⚠ WHAT "FOR NOW" MEANS AND WHAT IT DOES NOT LICENSE. It authorises landing a check that warns on
+three known-real defects rather than blocking the warehouse on them. It is NOT a decision that they
+are acceptable, NOT authority to close #110, and NOT a general licence to downgrade a red test to
+warn — the severity is provisional on those rows being fixed under #110's rule.
+⛔ It also does not fix the standing gap that NOTHING ALERTS ON A dbt WARNING: fdp-freshness watches
+raw table AGE and knows nothing about test results, so this warning is only as useful as someone
+reading the nightly log. Recorded in decisions_reserved, not built here.
+
+⚠ WHAT THIS DOES NOT RULE. Nothing about GitLab #110 — awarded results filed as FT with no stat line,
+which blanks 463 team-seasons in well-covered competitions. That rule is still open and still his,
+and it rests on the same principle as this one: prefer an independent signal over the status field.
