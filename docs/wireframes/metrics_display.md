@@ -235,11 +235,14 @@ comparison): `shots_on_goal_pct` (% shots on goal — superseded by the Ø-shots
 ### The shooting funnel (rationale, ruled with fix "a")
 
 Volume (Ø shots) → location quality (% from box) → on-target volume (Ø shots on
-goal) → finishing (% goals per shot on goal). The finishing metric keeps its
-formula (goals ÷ shots on goal, coverage-aligned) — the old label "% Conversion
-rate" was the misnomer and is replaced. Glossary carries the caveat that finishing
-can exceed 100% (penalties/own goals counted as goals but not always as shots);
-the true value is always shown, never capped.
+goal) → finishing (% goals per shot on goal). The old label "% Conversion rate"
+was the misnomer and is replaced.
+
+The numerator is OPEN-PLAY goals — penalties and own goals are excluded, because
+they do not finish the team's own on-target shots — over the same games as the
+denominator. The value is therefore in [0, 1] and is asserted so; a value outside
+it means the two sides disagree, and the model serves NULL rather than a figure it
+cannot stand behind.
 
 ## Player rows — LOCKED (CPO, 2026-06-11)
 

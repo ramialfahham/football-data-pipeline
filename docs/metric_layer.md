@@ -1,60 +1,92 @@
 # Metric layer
 
-> How the platform keeps its metrics consistent — the dbt-idiomatic way. Short by design.
+> The map of the metric layer: where a metric is defined, where it is computed, what makes it NULL,
+> and what CI will stop you doing. Short by design.
 
-## Where each thing lives (read this first)
-
-**The `dbt_project/seeds/metric_catalogue.csv` seed is the single source of truth for every metric
-definition** — `metric_id`, formula (`numerator` / `denominator`), `description`, display `format`,
-and the display taxonomy (`metric_group`, `importance_tier`, `group_display_order`, `direction`,
-`interpretation`). No prose document defines a metric; docs *reference* the seed, never redefine it.
+## Where each thing lives
 
 | You need… | Go to |
 |---|---|
-| a metric's definition / formula / units | **the `metric_catalogue.csv` seed** (the SSoT) |
+| a metric's definition / formula / units | **`dbt_project/seeds/metric_catalogue.csv`** — the single source of truth |
+| why a metric column is NULL | [Incomplete data is not calculated](#incomplete-data-is-not-calculated) |
+| how to add or change a metric | [Adding or changing a metric](#adding-or-changing-a-metric) |
+| what CI will fail you on | [What the guards enforce](#what-the-guards-enforce) |
+| which model computes it | [How the layer works](#how-the-layer-works) |
 | how a metric is **displayed** (group, tier, order, row patterns) | `docs/wireframes/metrics_display.md` |
-| which past matches form a window + how it's labelled | `docs/metrics_context_model.md` |
-| how the layer stays consistent (compute-once + the drift guard) | this document (below) |
+| which past matches form a window, and how it is labelled | `docs/metrics_context_model.md` |
+| what a metric is called on screen | the i18n layer — the seed holds only `label_i18n_key` and `label_en` |
 
-## The three parts
+No prose document defines a metric. Docs *reference* the seed; they never redefine it.
 
-1. **Each metric is computed in exactly one place.** The canonical per-grain model
-   (`int_player_season__metrics` for player-season; `int_team_season__metrics` for team-season)
-   computes it once. Consolidating onto one model (#480 for player; #500 for team) is what prevents
-   *implementation* drift — the same metric computed three different ways. (The *definition* lives in
-   the seed, above; the model is where it is computed.)
-2. **The catalogue is the registry + glossary.** `dbt_project/seeds/metric_catalogue.csv` is the single list
-   of every metric: `metric_id`, label (i18n key), definition, formula (numerator / denominator), display
-   format, and grouping. The UI glossary (`metrics.json`) is built from it. It documents; it does not compute.
-3. **Tests verify and guard.**
-   - **No-drift guard** — `tests/assert_no_uncatalogued_season_metric.sql`: every metric-bearing column in a
-     canonical season model must be a `metric_catalogue` row, so a computed metric can't be added without
-     registering it (CI fails otherwise). Keys, coverage counts, `*_sum_season` intermediates and the
-     playing-time facts are excluded; the `_season` suffix and the `goals_saves`→`saves` quirk are normalised
-     (pending #500's name alignment).
-   - **Correctness** — standard dbt tests on the models: ratios in 0–1 (per-match rates and
-     finishing-efficiency are uncapped), not-null + relationships on keys, unique on the grain.
+## Incomplete data is not calculated
 
-## What it is NOT
+**A metric is NULL unless its inputs are available for every match in the window.** We never average
+over the matches we happen to have, so a thinly covered competition shows no per-match metrics —
+that is the correct output, not a gap.
 
-There is no bespoke "metric engine": no binding-map, no `metric_kind` taxonomy, no test that re-derives a
-metric from the raw legs to cross-check the model. The model computes it once; the catalogue documents it;
-the drift test stops uncatalogued metrics creeping in. That is the whole mechanism.
+What counts as *available* differs by entity: a blank **player** stat is a zero (the player did
+nothing), so it is available; a blank **team** stat means we do not know, so it is not.
 
-## Adding a metric
+A forfeit or walkover (`AWD`/`WO`) is the one thing that does not count against a season's coverage:
+the match was never played, so there are no statistics to be missing. `games_expecting_team_stats`
+is the team-side match count that leaves them out.
 
-1. Add the computation to the canonical model (one place).
-2. Add the `metric_catalogue` row (id, label, definition, format, group).
-3. The drift test passes once both exist; add a 0–1 range test if it is a ratio.
+## How the layer works
 
-## Non-metrics
+**The seed defines; one model computes.** `metric_catalogue.csv` carries `metric_id`, `entity`,
+`label_i18n_key`, `label_en`, `description`, `base_relation`, `numerator_expr`, `denominator_expr`,
+`computation_kind`, `lower_is_better`, `format`, `metric_group`, `importance_tier`, `direction` and
+`interpretation`. It is the registry and the glossary — the UI glossary (`metrics.json`) is built
+from it.
 
-`league_rank` (a standings lookup) and `points_won` (a window-header tally) are catalogue rows for the
-glossary but are not computed metrics; they are not in the canonical season models, so the drift guard does
-not involve them. Playing-time facts (appearances, minutes, starts, subs) are dimensions, not metrics, and
-are excluded from the guard.
+Each metric is computed in exactly one place, so the same metric cannot be derived three different
+ways. The canonical models are:
 
-## Scope / follow-ups
+| grain | model |
+|---|---|
+| player, per club-season | `int_player_club_season__metrics` — the **atoms** source |
+| player, per competition-season | `int_player_season__metrics` — **composes** the atoms |
+| team, per season | `int_team_season__metrics` |
 
-- Phase 1 covers the two **season** grains. The form-window grains are a later phase (same pattern).
-- Model / column naming consistency + the team-season model consolidation: **#500**.
+⚠ **Which player model depends on whether the metric is summable.** A COUNT that adds up across
+clubs — goals, assists, passes, saves — goes in the **atoms** model, because both consumers sum it.
+A ratio, a per-90 or a count composite does **not** add up, so it is derived where it is consumed:
+in `int_player_season__metrics`, and in `mart_player_career` for the career log. That is the COMPOSE
+pattern, and putting a ratio in the atoms model breaks it.
+
+## Adding or changing a metric
+
+1. Add the computation to the canonical model for its grain (see the table above).
+2. Add the `metric_catalogue.csv` row. `description`, `direction` and `interpretation` are required —
+   a row without them fails a guard, not a review.
+3. Run `python scripts/sync_metric_docs_blocks.py` and commit the result.
+   `models/docs/metric_columns.md` is **generated** from the seed; hand-editing it fails CI
+   (`--check` runs in `validate:governance`).
+4. Keep the `description` inside BigQuery's 1,024-character column limit —
+   `scripts/check_description_hygiene.py` measures the RENDERED text.
+5. Add a 0–1 range test if it is a ratio.
+
+## What the guards enforce
+
+| Guard | Fails when |
+|---|---|
+| `assert_no_uncatalogued_season_metric` | a canonical model computes a metric with no catalogue row |
+| `assert_metric_catalogue_expr_resolvable` | a formula references a column its `base_relation` does not have |
+| `assert_metric_meaning_complete` | a row is missing the fields that make it mean something |
+| `assert_metric_direction_lower_is_better_agree` | `direction` and `lower_is_better` contradict each other |
+| `assert_metric_catalogue_unique_by_entity` | one `metric_id` is defined twice for an entity |
+
+Plus the standard model tests: ratios asserted in 0–1, `not_null` and `relationships` on keys,
+`unique` on the grain.
+
+**Exempt from the drift guard**, because they are not metrics: surrogate and foreign keys, the
+coverage counts, the `*_sum_season` raw intermediates, and the playing-time facts (appearances,
+starts, substitute appearances, minutes) which are dimensions. ⚠ Exempt is not the same as absent —
+`points_won` *is* in the team model and clears the guard through the `_sum_season` exemption.
+`league_rank` is a standings lookup and is a catalogue row for the glossary only.
+
+## What this is NOT
+
+There is no bespoke metric engine, and no test that re-derives a metric from the raw legs to
+cross-check the model. The model computes it once, the catalogue defines it, and the guards stop the
+two diverging. That is the whole mechanism.
