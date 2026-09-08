@@ -1,45 +1,57 @@
-# Acceptance evidence — product work is no longer blocked; say so in the handover
+# Acceptance evidence — the handover header names the commit before its own merge
 
-Branch `chore/handover-after-161`, from main `b29f2e0`.
+Branch `chore/handover-header`, from main `6f296f5`.
 
 criteria_demonstrated:
 
-  - **The "BLOCKED ON THE CPO" line is gone**, verified by string search on the final file. It said
-    *"one question, and until it is answered 463 team-seasons show no statistics. Do not start it."*
-    A cold session would have stood still waiting for an answer that is not owed — the rule was
-    settled on 2026-06-25 and `!161` states it in `docs/metric_layer.md`. The next action now reads
-    as one line with no precondition, followed by *"Nothing is blocked on the CPO."*
+  - **The header no longer pins a SHA, so it cannot be wrong on arrival.** It said
+    `main b29f2e0` — accurate when written, and stale the instant `!162` merged, because a file that
+    merges as a commit can only ever name its own parent. What replaces it is what a reader actually
+    uses and what survives the merge: the date, the merged MR range, that nothing was open, and the
+    platform.
 
-  - **#110 is retyped, not deleted.** It is still a real defect — forfeits the provider labels `FT`
-    blank 18 of 19 Süper Lig 2022 team-seasons — but it is a defect to fix, not a question to answer.
-    ⚠ The entry now also carries the boundary that stops the next reader over-fixing it: of 9,515
-    fixtures with no team statistics, **ZERO have statistics in the raw payload our models discard**
-    (3,405 carry an empty array, 6,110 have no statistics section). The other 435 blanked
-    team-seasons are correct output, and a blanket rule would silently convert genuine coverage gaps
-    into complete-looking seasons.
+  - **Verified against the failure it fixes.** Three consecutive handover MRs shipped a header that
+    was true at write time and false at read time:
 
-  - **#111 is recorded** — no test compares a metric's value to the formula its own catalogue
-    publishes, and no dbt unit tests exist. It did not exist when the handover was last written.
+        !158  header said main 4bef954   -> merged as 81117ae
+        !160  header said main 6ae4031   -> merged as 2708dff
+        !162  header said main b29f2e0   -> merged as 6f296f5
 
-  - **A session touching metric behaviour is pointed at `docs/metric_layer.md` first**, with the rule
-    stated in one sentence and the fact that it has been re-opened twice by builders who assumed the
-    nulling was an oversight — which is why the pointer is in the next-action block rather than
-    buried in reference material.
+    Each was correct when typed. The field is self-invalidating by construction, which is why the
+    fix removes it rather than adding a reminder to update it.
 
-  - **Header facts re-derived**: `main b29f2e0` from `git log gitlab/main`, "no open MRs" from
-    `glab mr list` after `!161` merged, range `!154`–`!161` from the merge commits.
+  - **The range states its own bound honestly.** `!154`–`!162` are the MERGED ones; the MR carrying
+    this change is not counted, because a range including its own MR is a claim about the future.
 
-  - **15,221 of 16,000 characters**, measured with Python `len()`. No trap dropped: the
-    incremental-fact trap, the diff3 fourth marker, CP1252, the `--review-patch` redirect, the push
-    guard on main and the column-0 parser all survive.
+  - **⛔ AND THE REPLACEMENT INTRODUCED ITS OWN FALSE CLAIM, WHICH THE REVIEW CAUGHT.** I wrote
+    *"nothing was open"* meaning no open MRs. Read plainly it says nothing is outstanding — and the
+    same file, unchanged by this branch, has four sections saying otherwise: the unresolved round
+    cap, the parked dbt profile MR with two open FAILs, the open-defects list (#110, #111, #109,
+    #108 and more), and the DE/FI labels awaiting confirmation. It failed this contract's own bar —
+    *"what it states must still be TRUE"* — in the two lines written to satisfy it.
+    Corrected to *"no MR was open. Open WORK there is — see the defects and parked items below."*
+    ⚠ The lesson is small and exact: I removed one self-invalidating claim and replaced it with an
+    ambiguous one, in a file whose whole job is to be unambiguous to a stranger.
 
-  - ⚠ **A duplication introduced by my own earlier edit was caught and removed.** The next action was
-    stated twice — once as the new two-line summary and once as the old heading below it — leaving an
-    orphaned sentence starting mid-clause. Found by reading the rendered section rather than the
-    diff.
+  - **The header now says where to look instead.** `git log -1` and `glab mr list` answer "where is
+    main" and "what is open" correctly and instantly — the two questions the removed fields were
+    trying to answer and could not.
+
+  - **Two lines changed, nothing else.** No section moved, no trap touched, no content rewritten.
+    15,445 of 16,000 characters, measured with Python `len()`.
+
+## Why this is a class, not a typo
+
+The header records state at WRITE time; the file is READ after its own MR merges. Any fact about the
+repository's current position is therefore guaranteed stale by one commit. A rule that asks the
+author to predict the hash they are about to create is the wrong shape — the durable fix is to stop
+recording the field and point at the command that is always right.
+
+⚠ The date, the merged range and "nothing was open" are all safe: each is a statement about a moment
+that has already passed, not about the state the reader arrives in.
 
 ## What this does NOT do
 
-- **It does not fix #110 or build #111.** Both are recorded as defects with their measurements.
-- **It does not resolve the round cap**, which stays unsettled and unchanged.
-- **It touches no code.** One tracked document plus the task artifacts.
+- **It does not touch anything below the header.** The next action, the traps, the open defects and
+  the reserved decisions are all unchanged.
+- **It does not fix `#110` or build `#111`.**

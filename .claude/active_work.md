@@ -4,8 +4,10 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-08**. **main `b29f2e0`**, clean, **no open MRs** — !154 through **!161** all
-merged today. **GITLAB** (`glab`, MRs)._
+_Last updated **2026-09-08**, when `!154`–`!162` had merged and no MR was open. Open WORK there is —
+see the defects and parked items below. **GITLAB** (`glab`, MRs). ⚠ No SHA here on purpose: this file
+merges as a commit, so any hash it named would be its own parent and wrong on arrival — three headers
+in a row were. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 ⛔ **THE POST-COMMIT HOOK PUSHES TO `main` IF THE BRANCH TRACKS `main`.**
 `git checkout -b <branch> gitlab/main` sets `main` as upstream. **Run `git branch --unset-upstream`
 right after creating a branch**, and push with `git push gitlab <b>:<b>`, verifying `-> <b>`.

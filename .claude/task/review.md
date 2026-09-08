@@ -1,49 +1,44 @@
-# Review — chore/handover-after-161 — 2026-09-08
+# Review — chore/handover-header — 2026-09-08
 
-diff_sha256: 5bdd0467e0c94951dcfeb2bc8e4b58173bc16554a1e1e3e2094e2bc56b4b295f
+diff_sha256: 60f79af64d49efaab11328122424aee7c78c2a06a9d3e203e6566d8b29c4dd6a
 
-rounds: 1
+rounds: 2
 
-⚠ **BOOKKEEPING MR, reviewed proportionately** (`feedback_review_cost_discipline`): one tracked
+⚠ **BOOKKEEPING MR, reviewed proportionately** (`feedback_review_cost_discipline`): two lines of one
 document plus task artifacts, no code. `scope-auditor` is the only routed reviewer.
 
 ## scope-auditor
-VERDICT: PASS (round 1)
+VERDICT: PASS (round 2)
 risks_checked:
-- ⭐ **The attribution check, which has failed FOUR times today**, was clean here: both CPO quotes
-  carried into the next-action block resolve verbatim in `escalations.log` (lines 8370 and 8376), and
-  `contract.md`'s two cited entry headers match real headers at 8258 and 8392. Nothing new is
-  attributed without backing.
-- Verified the metric-layer pointer against the actual file rather than the commit message —
-  `docs/metric_layer.md` does carry `## Incomplete data is not calculated`, so the handover's claim
-  that the rule now lives there is true of the tree.
-- Checked the arithmetic in the #110 measurement: 3,405 empty-array + 6,110 no-statistics-section =
-  9,515, matching the stated total. That figure is load-bearing — it is why 435 of the 463 blanked
-  team-seasons are correct output rather than a bug, and it is what stops the next reader
-  over-fixing #110.
-- Confirmed `decisions_reserved` is honest: #110, #111, `metrics_context_model.md` §8.1 and the
-  round-cap precedent are all listed as open, and none is decided inside the diff. The diff only
-  re-types #110 and records #111's existence, both citing the prior 2026-06-25 ruling rather than
-  making a new one.
-- Scope and credentials clean; every diffed path is in `scope_paths`.
-- ⚠ **It declared what it could NOT verify rather than implying coverage.** It had no Bash or git
-  tool in that session, so the header facts — `main b29f2e0`, "no open MRs", the `!154`–`!161` range
-  — could not be re-derived from `git log` / `glab mr list`. It found no internal contradiction but
-  flagged the class as unverifiable with its tools. Those three were re-derived by me before writing
-  them, and the flag is recorded rather than glossed.
+- ⛔ **ROUND 1 FAILED ON A CLAIM I INTRODUCED WHILE REMOVING ANOTHER ONE.** The replacement header
+  said *"nothing was open"* — I meant no open MRs; it reads as nothing outstanding. It cited four
+  sections of the same file, unchanged by this branch, that say otherwise: the unresolved round cap,
+  the parked dbt profile MR with two open FAILs, the open-defects list, and the DE/FI labels
+  awaiting confirmation. ⭐ It failed it against **this contract's own bar** — *"what it states must
+  still be TRUE"* — rather than against an external rule, which is the sharpest form of the finding.
+- **ROUND 2** re-checked the corrected text against all four of those sections and found the
+  contradiction resolved rather than papered over: *"no MR was open"* is narrower and checkable (the
+  profile work is a stash on an unpushed branch, not an open MR), and *"Open WORK there is"* now
+  matches the file's own open-items sections.
+- Confirmed the durability bar: the header is phrased as a dated historical claim, so it survives
+  its own merge — which the removed SHA could not, by construction.
+- ⭐ **It refused the delta shortcut.** Because round 1 was a FAIL rather than a PASS, it re-read the
+  contract in full instead of treating its earlier clearances as given, and re-derived the
+  SHA-removal argument, the MR range, the scope and the attribution question.
+- ⚠ It tested the one thing that could still have been false — whether *"see the defects and parked
+  items below"* is wrong because the DE/FI caveat sits under NEXT ACTION rather than under those
+  headings — and ruled it an orientation pointer, not a claim of exhaustive coverage.
+- Scope, credentials and `scope_paths` clean.
 
 ## ⛔ WHAT THIS BRANCH SHOULD BE REMEMBERED FOR
 
-**1. A handover that says "blocked, do not start" when nothing is blocked costs a whole session.**
-The line was true when I wrote it this morning and false eight hours later, because `!161` settled
-the thing it was waiting on. A stale instruction is more expensive than a stale fact: a reader can
-correct a number, but they obey an instruction.
+**1. The header field was self-invalidating, not mistyped.** It records state at WRITE time and is
+read after its own merge, so the SHA it names is always its own parent. Three consecutive handover
+MRs proved it: `!158` said `4bef954` and merged as `81117ae`; `!160` said `6ae4031` and merged as
+`2708dff`; `!162` said `b29f2e0` and merged as `6f296f5`. Each correct when typed. The fix is to
+delete the field and point at `git log -1`, not to remember harder.
 
-**2. `#110` changed TYPE, not existence.** It went from a decision the CPO owed an answer on to a
-defect somebody has to fix. Deleting it would have lost a measured finding; leaving it as "blocked"
-would have kept the stall. The entry now also carries the boundary that stops it being over-fixed —
-of 9,515 fixtures with no team statistics, zero have statistics we discard.
-
-**3. I introduced a duplication and found it by reading the rendered section, not the diff.** The
-next action ended up stated twice, leaving an orphaned sentence starting mid-clause. The diff looked
-fine; the document did not.
+**2. I replaced a wrong claim with an ambiguous one, inside the two lines written to fix it.**
+"Nothing was open" was shorter than "no MR was open" and meant something else. In the one file whose
+job is to be unambiguous to a stranger who has no context, brevity that costs precision is not
+brevity.
