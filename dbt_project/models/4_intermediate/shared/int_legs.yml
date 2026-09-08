@@ -33,6 +33,13 @@ models:
           - not_null
           - accepted_values:
               values: ["W", "D", "L"]
+      - name: is_awarded_result
+        description: "TRUE where the match was decided off the pitch — a technical loss or walkover. It counts for points, goals and games played, and can never carry a stat line, which is why the coverage counters downstream subtract it rather than reading it as missing data."
+        # not_null for the same reason as games_expecting_team_stats, which is derived FROM it:
+        # a NULL here would make countif(not is_awarded_result) undercount and every gate compare
+        # against a denominator that is quietly too small. It cannot be NULL today — the leg filter
+        # already restricts status_short to five non-null codes — so this guards a future change.
+        tests: [not_null]
       - name: home_away
         description: "{{ doc('home_away') }}"
         tests:

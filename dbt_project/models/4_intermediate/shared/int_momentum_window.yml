@@ -45,6 +45,13 @@ models:
           - not_null
           - accepted_values:
               values: ["club", "national"]
+      - name: is_awarded_result
+        description: "TRUE where the selected match was decided off the pitch — a technical loss or walkover. Carried through from the leg so the form-window aggregate can subtract it from the games expected to have a stat line."
+        # not_null for the same reason as games_expecting_team_stats, which is derived FROM it:
+        # a NULL here would make countif(not is_awarded_result) undercount and every gate compare
+        # against a denominator that is quietly too small. It cannot be NULL today — the leg filter
+        # already restricts status_short to five non-null codes — so this guards a future change.
+        tests: [not_null]
       - name: result
         tests:
           - not_null

@@ -1,29 +1,24 @@
-# Task contract — a team id that did not play the match
+# Task contract — an awarded match is a RESULT without a STAT LINE
 
 objective: >
-  `not_null_dim_team_team_name` is FAILING the prod build and has been since 2026-09-07. It is an
-  error-severity test inside the nightly's bare `dbt build`, so every model below `dim_team` is
-  marked skipped and prod stops refreshing. The cause is one provider stub: API-Football filed the
-  away lineup of BSA fixture 1492362 under a team id that did not play, with a null name, and
-  `base_apif__teams` minted a `dim_team` row from it that nothing can ever name.
-  This generalises the correction mechanism that already exists for fixture EVENTS to the other two
-  fixture-level sources, corrects both live mis-attributions, and adds the two guards that would
-  have caught them at their origin.
+  Count `AWD` (technical loss) and `WO` (walkover) as played matches for RESULTS — points, W/D/L,
+  goals, games played — while leaving every statistical rate untouched, because those matches have no
+  stat line and never will. Normalise `status_short` casing at staging so matching on the code is
+  safe at all.
 
 refs: >
-  Not an issue — a live prod-build failure found while diagnosing MR !156's pipeline (#410,
-  job 16358273358). It is the SECOND error in that run; the first was !156's own and is fixed there.
-  ⭐ **THE APPROVED FIX WAS NOT SUFFICIENT AND I SAID SO BEFORE BUILDING IT.** The CPO approved
-  *"go with A"* — `base_apif__teams` stops admitting a team key that no source can name. Measured
-  against prod, that alone trades one failure for another: `fct_fixture_player_stats` carries 21 rows
-  with `team_sk = 22722` and `core.yml:725` has an error-severity `relationships` test on that
-  column. 41 such tests point at `dim_team`, none filtered, all at error severity. The rows have to
-  stop carrying the id; deleting the key is not a fix. Put back to him with the measurement, and the
-  enlarged approach was approved in plan mode.
-  ⭐ **The one decision that was his and not mine — the seed's NAME.** Generalising an overrides seed
-  from one source to three makes `fixture_event_team_overrides` a lie, and a seed rename is permanent
-  (it renames the BigQuery table). Asked with three options and a recommendation; he ruled
-  **`fixture_team_id_overrides`**. Recorded in `escalations.log`.
+  Not an issue — found while diagnosing the freshness guard that has been failing the nightly.
+  ⭐ **THE DECISION IS THE CPO'S**, taken on measured evidence put to him: 24 past fixtures carry
+  `AWD`/`WO`, 23 of them with a score, and NONE of them counts anywhere today because every
+  downstream model filters `status_short in ('FT','AET','PEN')`. Recorded in
+  `.claude/task/escalations.log`, entry
+  `2026-09-06 — feat/awarded-and-walkover-count-as-played — AWARDED MATCHES COUNT AS PLAYED`.
+  ⛔ **AND HE APPROVED A SECOND, LARGER CHANGE AFTER MY FIRST PLAN WAS SHOWN TO BE WRONG.** The plan
+  I put to him — "add AWD/WO to the played filter" — would have NULLED every statistical metric for
+  ~16 team-seasons and withheld an entire competition's deserved-vs-actual read. That is in the same
+  escalation entry, with the measurement. He answered "same MR".
+  ⚠ The casing standardisation is his too, unprompted: *"another input to standardize"*, on being
+  shown `Canc`/`CANC`, `Abd`, `WalkOver`/`Walkover`.
 
 scope_paths:
   - .claude/task/contract.md
@@ -31,162 +26,340 @@ scope_paths:
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/escalations.log
-  - dbt_project/seeds/fixture_event_team_overrides.csv
-  - dbt_project/seeds/fixture_team_id_overrides.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-  - dbt_project/models/2_base/api_football/base_apif__teams.sql
-  - dbt_project/models/2_base/api_football/base.yml
-  - dbt_project/models/3_core/fct_fixture_event.sql
-  - dbt_project/tests/assert_event_team_in_fixture_participants.sql
-  - dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql
-  - dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
+  - dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+  - dbt_project/models/1_staging/api_football/sources.yml
+  - dbt_project/models/1_staging/api_football/staging.yml
+  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+  - dbt_project/models/4_intermediate/shared/int_legs.yml
+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+  - dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
+  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+  - dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
+  - dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
 
 impact_map: >
-  writers: no ingestion code touched. The raw tables are unchanged — the provider's bytes stay
-  exactly as received, and the correction is applied in BASE, which is where this repo has ruled
-  entity corrections belong (CPO, 2026-07-27: base prepares, the dim propagates).
-  layer_rules: `check_layer_contract.py`. A provider id mis-attribution is a correction to the
-  entity, not a metric, so it belongs in base and not in core, a mart or the export. Staging keeps
-  parsing what the provider sent; nothing here rewrites raw.
-  ⛔ **THE OVERRIDE MUST BE APPLIED BEFORE EACH MODEL'S DEDUP, NOT AFTER.** Both target models
-  dedupe on a key containing `team_id` — statistics on `(league_code, fixture_id, team_id)`, players
-  on `(league_code, fixture_id, team_id, player_id)` — and both carry a uniqueness test on that
-  grain. Remapping after the dedup can emit two rows for one `(fixture, team)` if the correct id
-  already has one; remapping before it lets the model's existing "latest ingest wins" rule resolve
-  the collision. Neither live case collides today (checked: fixture 1492362 has no rows for 132,
-  fixture 1100382 none for 1544), so this is a rule for the next one, not a fix for these.
-  ⚠ `base_apif__fixture_players`' cross-team collision guard (`min(team_id) = max(team_id)` over the
-  fixture and player) reads `team_id`, so it now sees corrected ids. That is the intended direction:
-  a player appearing under both a wrong id and its correct one was never a real collision.
-  downstream of the two corrected base models:
-      base_apif__fixture_players     -> fct_fixture_player_stats -> int_legs__player_match,
-                                        int_player_* , mart_player_* , mart_roster
-      base_apif__fixture_statistics  -> fct_fixture_team_stats   -> int_legs__team_match,
-                                        int_team_* , mart_team_*
-  None of them is EDITED. They see 22 rows change their `team_sk` and nothing else; no column is
-  added, renamed or retyped anywhere in the chain.
-  ⚠ `base_apif__teams` also reads the fixture-level sources, but from STAGING, so a correction
-  applied in base would not reach it and the nameless key would be minted again. Its KEY union takes
-  the corrected ids. Its four NAME sources are left reading staging deliberately —
-  `base_apif__fixture_players` and `base_apif__fixture_statistics` drop `team_name` at base, so
-  re-pointing the name CTEs would silently remove a name path other teams may depend on.
-  ⛔ **deploy_order: A ONE-OFF `--full-refresh` OF THE TWO FACTS IS REQUIRED, AND WITHOUT IT THIS
-  MR BREAKS THE NIGHTLY.** An earlier version of this paragraph said `fct_fixture_event` was the
-  only incremental model in the chain. That was written from memory and is FALSE.
-  `fct_fixture_player_stats` and `fct_fixture_team_stats` are BOTH `materialized='incremental'`,
-  both filtered on a bare `raw_ingested_at` high-water mark, and neither has the self-heal clause
-  #526 added to the events model. A finished fixture's stats never get a newer `raw_ingested_at`,
-  so on a bare `dbt build` the corrected rows are never re-processed: `base_apif__teams` (a table,
-  rebuilt nightly) would stop emitting 22722 while the fact kept 21 rows carrying it — the exact
-  orphan this MR exists to prevent, plus both new guards red in prod.
-  ⚠ **Copying the events self-heal would NOT fix it**, and that is a property of the keys rather
-  than of the predicate. `fixture_player_stat_sk` is hashed on
-  `(fixture_id, league_code, team_id, player_id)` and `fixture_team_stat_sk` on
-  `(fixture_id, league_code, team_id)` — correcting `team_id` CHANGES the unique key, so an
-  incremental merge inserts the corrected row and strands the old one, which dbt never deletes.
-  The events self-heal works only because `event_sk` is hashed on `(fixture_id, event_index)` and
-  excludes `team_id`.
-  ⭐ A full refresh of these two is SAFE, and that is measured rather than assumed: both facts have
-  exactly the row count of their base tables (1,875,238 and 99,140), so nothing accumulated there is
-  absent from base. `fct_fixture_event` does NOT have that property — 858,032 against 858,015, 17
-  rows it retains that base no longer produces — which is why its incrementality is load-bearing and
-  why this MR does not touch it. Combined size to rebuild: 0.39 GiB, about 0.3% of one night's
-  measured pipeline volume.
-  The command is the CPO's to run, once, at merge; `dbt build` is banned here.
-  blast_radius: 22 rows across two facts, in two fixtures, in two competitions, plus TWO team keys
-  removed from `base_apif__teams` — `(BSA, 22722)` and, unforeseen when this contract was first
-  written, `(UEL, 2263)`. The second is Riga FC's duplicate provider id, an `alias` row in the seed
-  since #526 whose correction had never reached the entity dimension because the override was wired
-  to events only. ⭐ **No team's slug moves**: recomputing the whole slug ladder over the corrected
-  key set gives 0 slugs changed across 3,329 teams, 0 rows added, 0 nameless rows. The two removed
-  rows take their own slugs (`riga-fc`, `team-22722`) with them and no surviving team's URL changes.
-  Asserted by running both chains against prod, not by reading the SQL.
+  ⛔ **THIS IS THE MAP THAT MATTERS, because my first plan was wrong precisely for missing it.**
+  The statistical rates are gated ALL-OR-NOTHING: `when games_with_team_stats < games_played then
+  null`. One played match without a stat line nulls EVERY rate for that team's whole season. An
+  awarded match has no stat line by nature, so counting it as played — the change the CPO asked for —
+  would silently destroy the stats it was never meant to touch.
+  MEASURED, on prod, before writing a line: Toulouse and FC Nantes (L1 2025) both sit at
+  33 played / 33 with stats today, so both have working metrics and everything to lose. Same for
+  Flamengo and Independiente Medellín (LIBER 2026), Senegal and Morocco (AFCON 2025), plus UEL 2021,
+  BPL 2022 and CAFCL 2020 — ~16 team-seasons.
+  ⛔ And it CASCADES: `int_team_season__deserved_vs_actual` withholds the read unless EVERY team in a
+  league-season has a computable shots-on-target figure, so two nulled teams would withhold the
+  entire **Ligue 1 2025** deserved-vs-actual read — all 18 teams.
+  THE FIX: gate on `games_expecting_team_stats` (played minus awarded/walkover) instead of
+  `games_played`. An awarded match is then not "missing" data; it is a match that could never have
+  had any.
+  gate census, two-sided and counted rather than estimated: **35 sites in 2 files** —
+  `int_team_season__metrics_cumulative.sql` 25 (`< games_played`), `mart_team_momentum.sql` 10
+  (`< games_in_window`). Both surfaces are changed; fixing one and not the other would leave the
+  season figures and the form figures disagreeing about the same match.
+  NOT gated and therefore NOT touched: `games_with_player_stats`. Player-derived metrics use their
+  own denominators under the player-null-is-zero ruling, so no gate reads it.
+  writers: no ingestion change. The staging edit is a cast of an existing field, not a new read.
+  consumers NOT edited, deliberately: `mart_team_fixture_stats` and every player-side filter. Those
+  are STAT surfaces — an awarded match has no stat line, so adding it would add empty rows for
+  nobody. The change is confined to the RESULT path.
+  ⚠ `int_legs__team_match` already carries `and goals_home is not null and goals_away is not null`,
+  so the ONE walkover with no score (CAFCL 2020, fixture 649441) is excluded with no extra guard.
+  blast_radius: 24 fixtures, 12 (competition, season) groups, of which 3 are in a 2025+ season and
+  exactly ONE is in an elite competition (L1 2025). Season figures move for the teams involved:
+  games played +1, so per-match averages shift. That is the intended effect.
 
 acceptance_criteria:
-  - The 21 `fct_fixture_player_stats` rows on BSA fixture 1492362 move from `team_sk` 22722 to 132,
-    and the 1 `fct_fixture_team_stats` row on WCQAS fixture 1100382 moves from 4767 to 1544.
-    Measured against LIVE PROD by composing the changed chain, not asserted from the seed.
-  - **No other row in either fact changes its `team_sk`.** Reported two-sided — the count that
-    moves AND the count that does not — over the full tables, not as a spot check.
-  - `base_apif__teams` emits EXACTLY TWO fewer keys than main and no new ones: `(BSA, 22722)` and
-    `(UEL, 2263)`, with 4,618 unchanged. ⚠ This criterion originally read "no longer emits 22722,
-    and emits the same key set as main otherwise" — written before the measurement and false once
-    the measurement existed, because applying the seed's `alias` mode to the key union also retires
-    Riga FC's duplicate id. Corrected rather than reworded: the second removal is a real
-    consequence and it belongs in the criterion, not in a footnote.
-  - **No team's slug changes.** The slug ladder is recomputed over the corrected key set and
-    compared against `dim_team` row by row: 0 changed, 3,329 unchanged, 0 added. A slug is assigned
-    once and is a URL (#852), so a key removal that reshuffled a surviving team's slug would be a
-    far bigger change than this MR is entitled to make.
-  - **The corrected rows actually reach prod.** Both target facts are incremental on a
-    `raw_ingested_at` high-water mark that a finished fixture never advances, so the deploy REQUIRES
-    a one-off `--full-refresh` of `fct_fixture_player_stats` and `fct_fixture_team_stats`. Shown
-    safe by both facts having exactly their base tables' row counts, so a rebuild loses nothing.
-  - No orphan is created: every `team_sk` in both facts still resolves to a `dim_team` row, so the
-    41 error-severity `relationships` tests pointing at `dim_team` stay green.
-  - `assert_player_stats_team_in_fixture_participants` and
-    `assert_team_stats_team_in_fixture_participants` return 0 rows on the corrected chain, and
-    return 21 and 1 rows respectively when the corrections are reverted. **Watched RED**, not
-    assumed — a passing test proves nothing until it has failed.
-  - The renamed seed keeps its `not_null` / `unique` / `accepted_values` tests, and **GAINS a
-    `relationships` test** from `correct_team_api_id` to `dim_team.team_api_id`. ⚠ This criterion
-    first claimed the seed already HAD that test. It never did, under either name — I misattributed
-    a `relationships` block belonging to `team_name_overrides` and asserted a safety net that did
-    not exist. The hole is real: `correct_team_api_id` is hand typed, and a typo does not fail
-    loudly, it silently re-points a fixture's rows at whichever real team the mistyped id names.
-    The participant guards cannot catch that — they only ask whether the team played the fixture.
-    Written rather than deleted, because the criterion described the right check.
-  - `dbt parse` exits 0; SQLFluff passes from the repo root on every changed model, exit code read
-    BARE and unredirected; `check_layer_contract.py`, `check_registry_var_sync.py`,
-    `check_description_hygiene.py` and `check_competition_type_seed.py` all pass.
+  - `status_short` is UPPERCASE for every row after the staging change, measured on prod: the
+    `Canc` / `Abd` variants are gone and the `accepted_values` warning that has fired in every build
+    goes to zero.
+  - `AWD` and `WO` fixtures contribute to results: for a named affected team, `season_games_played`
+    increases by exactly 1 and points/W-D-L move by the awarded outcome. Measured, not asserted.
+  - ⭐ **No statistical metric that works today becomes NULL.** Compared team-season by team-season
+    over the whole warehouse — not sampled, and not just for the affected teams.
+    ⛔ **AGAINST A CONTROLLED BASELINE, NOT THE LIVE TABLE.** The live intermediate tables are a day
+    older than the `fct_fixture` they derive from whenever the nightly fails, which it did on
+    2026-09-07; and the momentum chain filters on `current_date()`, so its live mart is a moving
+    target regardless. Both were measured naively first and both produced large phantom differences
+    in competitions holding no awarded fixture at all. The comparison that counts is main's chain and
+    this one composed into ONE query over identical inputs.
+  - The Ligue 1 2025 deserved-vs-actual read still exists after the change. This is the cascade my
+    first plan would have broken, so it is checked explicitly rather than inferred.
+  - `games_expecting_team_stats` equals `season_games_played` for every team-season with no awarded
+    or walkover match, and is exactly 1 lower for each such match. Measured.
+  - A new test fails when the gate is reverted to `games_played`. Watched RED under that mutation —
+    the mutation is the whole reason this column exists.
+  - `dbt parse` exits 0 and SQLFluff passes under the templater CI uses, exit codes read BARE and
+    UNREDIRECTED (a redirect makes SQLFluff exit 1 on success on this machine — see the evidence).
+  - `check_description_hygiene.py`, `check_layer_contract.py`, `sync_metric_docs_blocks.py --check`
+    and `pytest tests/` all pass.
 
 decisions_taken: >
-  ⭐ **GENERALISE THE MECHANISM, REGISTER THE INSTANCE.** The seed is the correction registry and a
-  new mis-attribution is one hand-written row in it, reviewed once, with a staleness test — the
-  pattern every other override seed in this repo already follows (`team_name_overrides`,
-  `country_name_overrides`, `league_name_overrides`). What was missing was not a smarter rule, it was
-  the same rule wired to all three fanout sources instead of one.
-  ⛔ **NO AUTOMATIC RE-ATTRIBUTION.** It is tempting to reassign a non-participant block to
-  "whichever participant has no rows", which would have fixed both cases with no seed row at all.
-  Rejected: it is a derivation that invents attribution from an absence, it fires silently, and the
-  first time the provider sends a genuinely unknown team it would launder junk into a real club's
-  record. A correction a human has not looked at is not a correction.
-  ⛔ **INLINE SQL, NOT A MACRO.** The override join is now repeated in three base models. A macro is
-  the obvious DRY move and is deliberately not taken — the recorded preference in this repo is
-  inline SQL and the COMPOSE pattern over Jinja macros, because a macro hides the join condition
-  from the reader of the model that depends on it. The three copies are near-identical by design and
-  the two new guards are what keeps them honest.
-  ⛔ **`not_null` ON `dim_team.team_name` IS NOT TOUCHED.** It is the backstop and it did its job —
-  loudly, and at the worst possible moment, which is what a backstop is for. The new guards catch
-  the class earlier and name the fixture; loosening the last line because a better check now exists
-  upstream is exactly the move that ships a silent hole.
-  ⛔ **KEEP BOTH FACTS INCREMENTAL AND PAY A ONE-OFF FULL REFRESH — the alternative was measured and
-  is worse.** Making them tables would guarantee every future seed correction lands with no manual
-  step, and it would cost about 0.39 GiB a night, which is nothing. It was rejected on evidence:
-  `fct_fixture_event` holds 17 rows its base table no longer produces, so an incremental fanout fact
-  DOES accumulate rows that staging has stopped returning. These two match their bases exactly today,
-  but that is a fact about today's payloads, not a property of the design — dropping them to tables
-  would trade a loud, one-off deploy step for silent data loss the first time the provider stops
-  returning a fixture. A manual step that fails LOUDLY beats an automatic one that fails quietly.
-  ⭐ **THE SECOND INSTANCE WAS FOUND BY THE GUARD, NOT BY THE BUG REPORT.** Running the
-  event guard's predicate against the other two facts before writing anything turned up Mação 4767
-  on WCQAS fixture 1100382 — a mis-attribution already diagnosed under #53, already written into the
-  seed, and never applied to team statistics because the override join existed only for events. It
-  is wrong in prod today. Fixed here because it is the same class and the same mechanism, and
-  leaving it would mean shipping the guard that fails on it.
+  ⭐ **THE CASING FIX GOES IN STAGING, and that is the layer contract, not a preference.** Staging is
+  raw cleanup; normalising a provider field's casing is exactly that. Doing it downstream would leave
+  every other consumer matching on raw strings.
+  ⭐ **`upper()` YIELDS THE CANONICAL CODES, so this is a repair rather than a re-coding.**
+  API-Football's own codes are uppercase (`CANC`, `ABD`, `WO`); the lowercase spellings are provider
+  noise. The `accepted_values` list already enumerates the uppercase set, which is why it warns.
+  ⭐ **GATE ON "COULD THIS MATCH HAVE HAD STATS", NOT "DID IT".** The existing gate conflates a
+  missing stat line with an impossible one. `games_expecting_team_stats` separates them, and it is
+  the minimum change that lets a result count without a phantom coverage gap.
+  ⚠ NAME: `games_expecting_team_stats` follows the file's existing `games_played` /
+  `games_with_team_stats` pattern. Flagged rather than escalated — it is an internal warehouse column
+  no consumer reads, and the form follows a convention already set in the same file.
+  THRESHOLD DECLARATIONS: no new mechanism, no new dependency, no recurring cost. No guard loosened —
+  the coverage gate is made MORE precise, and one test is added to pin it.
+  ⛔ **AMENDMENT — A THIRD INSTANCE OF THE SAME CLASS, AND THE MR PIPELINE FOUND IT.**
+  `assert_mart_team_season_insights_metric_consistency` failed the rebased build. It asserts
+  `shots_per_match * season_games_played = total_shots_sum_season`, and that identity is now FALSE
+  by exactly the number of awarded matches: `shots_per_match` divides by `games_with_team_stats`
+  (`int_team_season__metrics_cumulative.sql:99`), which was equal to `games_played` only while the
+  gate demanded coverage of every played game. The test multiplies by the wrong denominator, and it
+  is the same defect rounds 1 and 2 found in the model — a gate moved, a divisor did not — in the
+  one place nobody swept, because round 3's sweep enumerated every RATE in the two gate files and
+  not the TESTS that encode invariants about those rates.
+  THE FIX is to multiply by the denominator the metric actually uses. That requires the mart to
+  expose `games_with_team_stats`, which it does not — it carries `stat_coverage_season_games`, a
+  different counter (`games_with_sot_stats`). Serving a rate whose denominator the consumer cannot
+  see is precisely why a false identity could be written about it, so the column is added.
+  ⛔ **NOT a loosening.** ⚠ The test ends this MR with FIVE checks, not four — this paragraph said
+  "four" until round 8, having been written before the fifth was added below, and `scope-auditor`
+  caught the stale count. Three are UNCHANGED and still multiply by
+  `season_games_played` — `goals_per_match`, `goals_against_per_match` and `points_capture_pct` are
+  scoreline metrics over played games, and an awarded match is a real played game with a real
+  scoreline. Exactly one existing check moves, three stay, and one is ADDED. The test becomes true
+  and strictly stronger rather than weaker; under the old
+  multiplier it would have to be deleted or made to pass by breaking the metric.
+  SWEPT TWO-SIDED for other instances: `dbt_project/tests/` and `dbt_project/models/` contain
+  exactly ONE test multiplying a rate back by a game count, this one. The only other hits are
+  `int_team_season.yml`'s three `3 * season_games_played` bounds on `deserved_points` — points are a
+  scoreline quantity over played games, so those are correct and untouched — and
+  `points_capture_pct`'s own `3 * games_played` divisor, which matches its check.
+  **Of the rate×games multiplications in the repo: 1 moves, 4 stay.** (That count is about the SWEEP
+  for other instances of the class, not about how many checks this test has — the two were easy to
+  confuse and `scope-auditor` did, so they are now stated apart.)
+  SCOPE: three paths added above. All three are the mechanical consequence of a change already
+  authorised by the CPO's *"same MR"*, not new work — the same reasoning `scope-auditor` accepted
+  for the drift-guard exemption in round 6.
+  ⭐ **AND THE FIX COST A CROSS-CHECK, SO A FIFTH CHECK PUTS ONE BACK.**
+  `analytics-engineer-reviewer` flagged this without failing on it: multiplying by
+  `games_with_team_stats` makes the identity true, and also makes it blind to an error in
+  `games_with_team_stats` itself, because numerator and multiplier now come from the same value.
+  Under the OLD multiplier an overcount in that column on a team-season with no awarded match would
+  have been caught by `season_games_played`, an independently sourced number that is itself checked
+  against the standings' played count. The reviewer judged the loss unavoidable within the test's
+  scope. It is not: a game can carry a team stat line only if it was played, so
+  `games_with_team_stats <= season_games_played` is a true bound against that same independent
+  column, and it is added as a fifth check. Measured on prod through the composed chain:
+  **0 violations in 13,669 rows, maximum excess 0**.
+  ⚠ It must be bounded by `season_games_played` and NOT by `games_expecting_team_stats`, which 2
+  rows legitimately exceed — the AFCON walkover that does carry a stat line.
+  A reviewer's flagged-but-not-failed trade-off is still a trade-off; accepting it because the
+  reviewer declined to insist is exactly the quiet loosening that rule exists to stop.
 
-decisions_reserved: >
-  - **The freshness guard.** `assert_fct_fixture_no_stale_live` is the OTHER nightly failure and
-    stays open. ⭐ It is not an unrelated coincidence: because everyone knew why the nightly was red,
-    this defect rode along unnoticed for three nights. A permanently red test is not one broken
-    check, it is cover for the next one.
-  - **`base_apif__players` has the identical latent exposure.** It unions three name sources,
-    prefers the most authoritative NAMED one, and drops nobody whose name is null everywhere — while
-    `dim_player.player_name` carries the same error-severity `not_null`. The player line has simply
-    not been unlucky yet. Not fixed here: it is a different entity, a different set of sources, and
-    folding it in would double an MR that is already correcting two facts.
-  - **The handover correction.** `.claude/active_work.md` still says the nightly put
-    `is_current_season` in prod; it was `data:build:main`. Unrelated to this branch, still owed.
+decisions_reserved:
+  - ⛔ **A NAMELESS TEAM IS FAILING THE PROD BUILD, AND IT IS NOT THIS MR'S.**
+    `not_null_dim_team_team_name` fails on one row: `team_sk` 22722, league_code BSA, EVERY field null
+    — name, country, founded year, logo, even `raw_ingested_at` — with only the fallback slug
+    `team-22722`. It is referenced by nothing: 0 fixtures, 0 standings, 0 player-season mappings.
+    ⭐ **It has been failing the NIGHTLY since at least 2026-09-07**, alongside the freshness guard:
+        Done. PASS=405 WARN=1 ERROR=2 SKIP=672
+        Failure in test not_null_dim_team_team_name
+        Failure in test assert_fct_fixture_no_stale_live
+    The nightly has now failed three nights running (09-06, 09-07, 09-08; last success 09-05), and
+    because everyone knows WHY it fails, a second unrelated defect rode along unnoticed. That is the
+    real cost of leaving the freshness guard unfixed: it is not one broken night, it is cover.
+    ⭐ **ROOT CAUSE, traced to the provider's own bytes.** 22722 enters through exactly ONE source —
+    `stg_apif__fixture_players`, 22 rows, all on fixture **1492362** (Corinthians vs Chapecoense-sc,
+    BSA, kickoff 2026-09-06 22:30 UTC). It appears in no other staging model: 0 rows in
+    `stg_apif__teams`, `stg_apif__standings`, `stg_apif__fixture_statistics`,
+    `stg_apif__fixture_events` and `stg_apif__fixtures_next` on either side. In the raw payload the
+    fixture's own `teams.away.id` is **132**, Chapecoense-sc — so 22722 is not either team playing.
+    The lineup block for it reads, verbatim from `RAW_APIF_FIXTURE_DETAILS`:
+        {"id":22722,"logo":".../teams/22722.png","name":null,"update":"1970-01-01T00:00:00+00:00"}
+    A `name` of `null` and an `update` of the epoch: API-Football emitted a stub team block.
+    **Nothing is mis-parsed** — `stg_apif__fixture_players` reads `$.team.name` and gets the null the
+    provider sent.
+    ⚠ **The structural hole is ours, though.** `base_apif__teams` admits a team KEY from the
+    fixture-level sources on `team_id is not null`, while the name `coalesce` only draws from rows
+    `where team_name is not null`. An id-only source can therefore mint a `dim_team` row that no
+    source can ever name, and `not_null` on `dim_team.team_name` then breaks the whole build —
+    which, on a bare `dbt build`, skips every downstream model. One stub object from the provider
+    stops the pipeline.
+    The narrow fix is to stop admitting a key that no source can name; the alternative is to wait
+    and see whether a re-ingest heals it, since the stub may be transient. Either is a `dim_team` /
+    `base_apif__teams` change, still outside these `scope_paths`.
+    ⛔ NOT fixed here. `dim_team` and the teams base model are outside these `scope_paths`, it is an
+    ingestion-side entity defect rather than a metric one, and folding it in would put an unrelated
+    fix inside an MR about awarded matches. It does block `!156` from going green, so it needs a
+    decision rather than silence.
+  - **The freshness guard.** `assert_fct_fixture_no_stale_live` uses a 3-hour wall-clock window
+    against a once-daily ingest and has failed the nightly 9 of the last 29 nights. Diagnosed, a fix
+    designed (measure from the last observation, not the wall clock — which clears 3 of today's 4
+    flagged rows), NOT built here. Its own MR.
+  - **Whether an interrupted match should ever count.** The Utrecht fixture that started this is
+    `INT`, has a partial score, and counts nowhere — leaving FC Utrecht a game short of its league.
+    `INT`/`ABD`/`PST`/`CANC` produced no result, so excluding them is correct; what is unresolved is
+    that we cannot tell "not finished yet" from "never will be".
+  - **The handover** still says `is_current_season` reached prod via the nightly; it was
+    `data:build:main` on the !153 merge. Not fixed here.
+
+done_when:
+  - `.venv/Scripts/dbt.exe parse` exits 0.
+  - SQLFluff passes on every changed model, exit code read bare and unredirected.
+  - The compiled models run against prod read-only; old-vs-new compared team-season by team-season.
+  - The new test measured on prod: green as built, RED under the reverted gate.
+  - `python -m pytest tests/ -q` passes.
+
+rounds_cap_override: >
+  CPO, 2026-09-08: **"go ahead, add the not_null tests"**, given after round 3 was brought to him with
+  the finding, my partial acceptance and the reason for the part I declined.
+  ⚠ What the four rounds were spent on, because the cap exists to separate LOOPING from FIXING.
+  Nothing was re-argued and no verdict was disputed:
+    round 1  FAIL — a correctness bug: the sotd gate moved, its divisor did not (15 team-seasons)
+    round 2  FAIL — the SAME class in finishing_efficiency_pct (up to +60%), plus missing descriptions
+    round 3  FAIL — no third instance found; a missing not_null on the new denominator
+    round 4  the two-line fix
+  ⭐ Rounds 1 and 2 each found a real defect that would have shipped a wrong number to a live elite
+  competition, and neither pointed at the other — their victims are disjoint, because Ligue 1's
+  awarded match is a 0-0. Round 3's clean ratio sweep is what closed the class.
+
+amendments:
+  - **2026-09-06: `int_team_momentum_window.sql` added to `scope_paths`.** Not new work and not a
+    wider decision — the model I had listed, `int_team_momentum__metrics.sql`, does not read the legs
+    directly. It reads `int_team_momentum_window`, which projects columns EXPLICITLY rather than
+    `select *`, so `is_awarded_result` reaches the form-window aggregation only if that model carries
+    it through. Without the edit the new counter is silently always equal to `games_in_window` and the
+    form-window half of this change does nothing.
+    ⭐ Caught by the contract gate on the edit itself, not by me: I traced the season chain to its
+    source and assumed the momentum chain had the same shape. Authority is the CPO's "same MR" on the
+    enlarged gate change, which explicitly covered both surfaces — this is a link in the surface he
+    approved, not an addition to it.
+  - ⭐ **2026-09-07: the 0-0 "Technical loss" — my recommendation was WRONG and no exclusion rule was
+    added.** Verifying on prod I found the one awarded fixture that is not 3-0: FC Nantes vs Toulouse
+    FC, L1 2025 matchday 34, `AWD` with goals 0-0, which under this change credits BOTH teams a draw
+    (their 23→24 and 44→45). I recommended excluding awarded matches that record no winner, arguing a
+    technical loss must have one and that inventing a point in an elite league is exactly the silent
+    wrong number the DQ rules exist to stop. **The CPO checked the actual match**: *"As simple Google
+    search says it was a 0:0"*. It finished 0-0, both teams earned that point, and counting it as a
+    draw is correct. Recorded in `escalations.log`, entry
+    `2026-09-07 — feat/awarded-and-walkover-count-as-played — THE 0-0 TECHNICAL LOSS`.
+    ⚠ The lesson is the logged `feedback_verify_real_world_identity`: I inferred what the data MUST
+    say from what a status label MEANS, and never checked what happened. One search settled it, and
+    the objection had already cost a design detour.
+  - ⛔ **2026-09-07: a CORRECTNESS BUG I introduced, found by `analytics-engineer-reviewer`.**
+    `int_team_season__metrics_cumulative.sql`'s `shots_on_goal_difference_per_match` had its GATE
+    moved to `games_expecting_team_stats` and its DIVISOR left on `games_played`. Those were equal
+    while the gate demanded full coverage; once awarded matches count as played they diverge by
+    exactly the number of awarded matches, so a numerator spanning the stat-covered games was divided
+    by one more game and quietly diluted.
+    ⚠ **It is the worst possible one to get wrong**: this is the regression input to
+    `int_team_season__deserved_vs_actual`, so a diluted value moves an entire league-season's
+    deserved-points fit — including the Ligue 1 2025 case this MR is built around — rather than one
+    cell. Nothing tested it, and the sibling `int_team_momentum__metrics` docstring states the very
+    rule it broke ("we never divide a full-window numerator by a partial-window denominator").
+    Fixed to `least(games_with_sot_stats, games_with_opp_sot_stats)` — the games BOTH sides of the
+    subtraction cover, byte-identical to the old behaviour wherever the old gate passed.
+    ⭐ Two-sided check of the other divisors: four still use `games_played`
+    (`points_capture_pct`, `clean_sheets_pct`, `goals_per_match`, `goals_against_per_match`) and all
+    four are CORRECT — they are scoreline metrics, and an awarded match really is a played game with
+    a real scoreline. One moved, four stay.
+  - ⛔ **2026-09-07: the test this contract PROMISED and I never wrote**, also from
+    `analytics-engineer-reviewer`. `acceptance_criteria` says "A new test fails when the gate is
+    reverted to `games_played`. Watched RED under that mutation — the mutation is the whole reason
+    this column exists." No such test existed: a plain reversion at any of the 35 sites would have
+    passed CI. Two singular tests added, one per surface, and `games_expecting_team_stats` is now
+    projected out of `mart_team_momentum` because without it no test on that surface can tell a
+    correct gate from a reverted one. Declaring a criterion and not meeting it is worse than not
+    declaring it — the contract asserted coverage that did not exist.
+  - ⛔ **2026-09-07, round 2: A SECOND CORRECTNESS BUG OF THE SAME CLASS, and the model documented
+    the invariant I broke.** `analytics-engineer-reviewer` FAILed again on `finishing_efficiency_pct`
+    — open-play goals over shots-on-target. The goal sums are UNGATED window totals and now include
+    an awarded match's goals; `shots_on_goal` is a null-skipping sum that never can. So a 3-0
+    technical win adds three real goals with no shot behind them. Measured by re-introducing it:
+
+        LIBER 2025 team 154   correct 0.1724   bugged 0.2759     (+60%)
+        LIBER 2026 team 127   correct 0.2241   bugged 0.2759
+        BPL   2022 team 266   correct 0.2667   bugged 0.3
+        WCQAS 2026 team 12    correct 0.4706   bugged 0.5
+
+    ⛔ Both builders CARRIED A COMMENT stating the property my change invalidated — "finishing is NULL
+    unless the window is fully shot-covered, so no coverage-restricted goals sum is needed" — and I
+    changed what the gate compares against without reading either. The fix is the pattern sitting
+    three lines below it in the same file: a coverage-restricted sum,
+    `goals_open_play_in_sot_games`, exactly as `goals_against_in_save_games` already does for
+    `saves_pct`. Both comments are now corrected rather than left contradicting the code.
+    ⚠ Ligue 1 does NOT appear above, correctly: its awarded match is the 0-0, so there are no phantom
+    goals to add. The two bugs have disjoint victims, which is why finding the first did not surface
+    the second.
+  - ⛔ **2026-09-07, round 2: the new columns had NO descriptions**, also from the reviewer.
+    `dbt_project/docs/engineering_standards.md:82` requires a `description` on business-facing
+    columns in core, intermediate and marts; `is_awarded_result` and `games_expecting_team_stats` had
+    none, and `check_description_hygiene.py` polices model-level coverage only, so CI was silent.
+    Four schema files added to `scope_paths` for it. ⚠ `scope-auditor` had checked this at round 1 and
+    called it consistent with existing convention — which it was; the convention itself violates the
+    standard. A precedent is not a permission.
+  - ⭐ **2026-09-08, round 3 → 4: a `not_null` on the new denominator, and HALF the finding declined.**
+    `analytics-engineer-reviewer`'s ratio sweep came back CLEAN — every rate in both builders and both
+    consumers enumerated, no third instance of the same-window class, and the round-2 fixes confirmed
+    including that the window-function references resolve to leg columns rather than sibling aliases.
+    Its finding: `games_expecting_team_stats` carried no `not_null` test in the two intermediate
+    schema files though its siblings and the mart copy do. Reasoning exact — every gate reads
+    `x < games_expecting_team_stats`, and a NULL there is not FALSE; the comparison yields NULL, the
+    CASE falls to its ELSE, and an UNGATED RATE is served instead of an honest NULL. Added.
+    ⚠ Severity stated rather than inflated: it cannot be NULL today, since a `countif` / `sum(case …)`
+    never is. The test guards a future change to how it is derived.
+    ⛔ **The same finding asked for `not_null` on `goals_open_play_in_sot_games` too, and that was
+    DECLINED.** It is a coverage-RESTRICTED sum: with no shots-on-target data it sums nothing and is
+    legitimately NULL, which is what makes `finishing_efficiency_pct` null out honestly. Measured on
+    prod over the 118,180 season-record rows: `games_expecting_team_stats` 0 nulls,
+    `goals_open_play_in_sot_games` **18,301** — the requested test would have gone red on 15% of rows
+    immediately. Its precedent sibling `goals_against_in_save_games` is untested for the same reason.
+    A reviewer finding is accepted on its reasoning, not its authorship.
+  - ⛔ **2026-09-08, round 4: I DOCUMENTED AND TESTED A COLUMN THE MODEL DOES NOT EMIT.**
+    `analytics-engineer-reviewer` PASSed round 4 but named an asymmetry: `is_awarded_result` carried
+    no `not_null` while the reasoning used to justify one on `games_expecting_team_stats` applied
+    equally. Adding it revealed that `int_team_season_record` USES the flag internally — inside its
+    `legs` CTE, to derive the counter — and never projects it. So the `is_awarded_result` entry I had
+    added to `int_season_record.yml` at round 2 described a column that does not exist, and the new
+    test would have failed only when it reached BigQuery. Entry removed; the test stands on the two
+    models that genuinely emit it (`int_legs__team_match`, `int_team_momentum_window`), where it is
+    measured non-null across all 118,180 legs.
+    ⚠ **`dbt parse` is happy with a documented phantom column, and so is every offline gate.** The
+    handover names a checker for exactly this class, `check_yml_vs_projection` — there is no such
+    script in `scripts/` today, and `declare_missing_columns.py` covers only the reverse direction.
+    Found because a verification query failed, not by any guard.
+    ⭐ Raised with the CPO, who asked whether a consistent end-to-end test strategy exists at all.
+    It does not — `engineering_standards.md` §3 states per-layer minimums but no rule for when a NULL
+    is a defect versus the honest answer, no severity principle, and no projection check. Filed as
+    **GitLab #109** at his instruction, deliberately NOT attempted here.
+  - ⛔ **2026-09-08, post-commit: CI FAILED, and one of the two failures is mine.**
+    `data:build:mr` on `!156` reported two errors out of 779 tests.
+    **MINE:** `assert_no_uncatalogued_season_metric` — a drift guard that enumerates every column of
+    `int_team_season__metrics` and requires each to be a registered metric unless exempt. Its exempt
+    list names the coverage counters explicitly (`games_with_team_stats`, `stat_coverage_season_games`,
+    `season_games_played`) and its own docstring says "Non-metric columns are excluded: … the coverage
+    counts". `games_expecting_team_stats` is exactly such a counter and was not added to the list, so
+    the guard correctly read it as an uncatalogued metric. Adding it to the exemption is not a
+    loosening: it is registering a new column as the kind the exemption already exists for.
+    ⚠ I could not have caught this locally — the guard uses `adapter.get_columns_in_relation`, so it
+    only fires against a built relation, which is precisely what `dbt build` (banned here) would do.
+    It is the one class of defect this MR's verification method structurally cannot reach.
+    **NOT MINE:** `not_null_dim_team_team_name` — see `decisions_reserved`.
+  - ⚠ **2026-09-07: the verification METHOD changed, not the scope.** `acceptance_criteria` now
+    requires a CONTROLLED baseline rather than a diff against the live tables, because both live
+    surfaces move on their own — the intermediate layer is stale whenever the nightly fails (it did,
+    2026-09-07 05:11), and the momentum window filters on `current_date()`. Measured naively first,
+    both produced large phantom differences in competitions holding no awarded fixture, and the
+    numbers I reported from them were wrong. No path was added or removed.

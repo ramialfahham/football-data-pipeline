@@ -151,6 +151,9 @@ models:
               values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
         tests: [not_null]
+      - name: games_expecting_team_stats
+        description: "Window legs that COULD carry a team stat line — the window size minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat rate below is NULL unless its coverage count reaches this, so an awarded match is not read as a missing stat and does not blank a team's form figures."
+        tests: [not_null]
       - name: games_with_team_stats
         description: "Window legs with team stats present; denominator for per-match team-stat rates."
         tests: [not_null]

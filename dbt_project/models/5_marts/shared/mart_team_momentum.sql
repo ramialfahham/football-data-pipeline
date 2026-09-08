@@ -36,6 +36,11 @@ select
     b.season_api_year,
     b.window_type,
     b.games_in_window,
+    -- the window's games that COULD carry a stat line — games_in_window minus any awarded result,
+    -- which is decided off the pitch and never has one. Emitted beside games_with_team_stats, which
+    -- this mart already exposes, because it is the denominator the gates below compare against and
+    -- without it no test can tell a correct gate from one reverted to games_in_window.
+    b.games_expecting_team_stats,
     b.games_with_team_stats,
     b.contributing_competitions,
     b.games_with_player_stats,
@@ -50,53 +55,57 @@ select
     -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shots_on_goal_pct / danger_zone
     -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
     case
-        when b.games_with_team_stats < b.games_in_window then null
+        when b.games_with_team_stats < b.games_expecting_team_stats then null
         else safe_divide(b.shots_total, b.games_with_team_stats)
     end as shots_per_match,
     case
-        when b.games_with_sot_stats < b.games_in_window then null
+        when b.games_with_sot_stats < b.games_expecting_team_stats then null
         else safe_divide(b.shots_on_goal, b.shots_total)
     end as shots_on_goal_pct,
     case
-        when b.games_with_team_stats < b.games_in_window then null
+        when b.games_with_team_stats < b.games_expecting_team_stats then null
         else safe_divide(b.shots_inside_box, b.shots_total)
     end as shots_inside_box_pct,
     case
-        when b.games_with_sot_stats < b.games_in_window then null
+        when b.games_with_sot_stats < b.games_expecting_team_stats then null
         else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end
         as shots_on_goal_per_match,
     -- finishing efficiency (CPO Option A): open-play conversion =
     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the window is
     -- fully shot-covered AND the numerator is valid [0, shots_on_goal] — never a partial-window
     -- value and never >100% (penalties + own goals removed; a stray inconsistency nulls out).
+    -- ⚠ SAME-WINDOW NUMERATOR, for the reason the season surface carries the identical note: the
+    -- full goal sum includes an awarded result's goals, which have no shots behind them, against a
+    -- denominator that can never count them. `goals_open_play_in_sot_games` restricts the numerator
+    -- to the games the denominator covers.
     case
-        when b.games_with_sot_stats < b.games_in_window then null
-        when (b.goals_for - b.goals_penalty - b.goals_own) < 0 then null
-        when (b.goals_for - b.goals_penalty - b.goals_own) > b.shots_on_goal then null
-        else safe_divide(b.goals_for - b.goals_penalty - b.goals_own, b.shots_on_goal)
+        when b.games_with_sot_stats < b.games_expecting_team_stats then null
+        when b.goals_open_play_in_sot_games < 0 then null
+        when b.goals_open_play_in_sot_games > b.shots_on_goal then null
+        else safe_divide(b.goals_open_play_in_sot_games, b.shots_on_goal)
     end as finishing_efficiency_pct,
     -- passing (team-stat window): NULL on partial coverage
     case
-        when b.games_with_team_stats < b.games_in_window then null
+        when b.games_with_team_stats < b.games_expecting_team_stats then null
         else safe_divide(b.passes_total, b.games_with_team_stats)
     end as passes_per_match,
     case
-        when b.games_with_team_stats < b.games_in_window then null
+        when b.games_with_team_stats < b.games_expecting_team_stats then null
         else safe_divide(b.passes_accurate, b.passes_total)
     end as passes_accuracy_pct,
     -- set pieces (team-stat window; conceded uses opponent-stat coverage): NULL on partial coverage
     case
-        when b.games_with_team_stats < b.games_in_window then null
+        when b.games_with_team_stats < b.games_expecting_team_stats then null
         else safe_divide(b.corner_kicks, b.games_with_team_stats)
     end as corners_per_match,
     case
-        when b.games_with_opp_stats < b.games_in_window then null
+        when b.games_with_opp_stats < b.games_expecting_team_stats then null
         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
         as corners_against_per_match,
     -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded.
     -- NULL on partial save coverage (the new games_with_save_stats).
     case
-        when b.games_with_save_stats < b.games_in_window then null
+        when b.games_with_save_stats < b.games_expecting_team_stats then null
         else safe_divide(
             b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
         )

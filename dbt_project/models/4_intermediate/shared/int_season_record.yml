@@ -39,6 +39,14 @@ models:
       - name: games_played
         description: "Cumulative count of the team's finished matches through this one (1..N)."
         tests: [not_null]
+      - name: games_expecting_team_stats
+        description: "Games in the season so far that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate divides against this rather than games played, so an awarded match is not read as missing data and does not blank the season's statistics."
+        # not_null because every coverage gate downstream reads `x < games_expecting_team_stats`, and
+        # a NULL there is not FALSE — the comparison yields NULL, the CASE falls to its ELSE, and an
+        # ungated rate is served instead of the honest NULL. A silent wrong number rather than a loud
+        # failure. It cannot be NULL today (a countif/sum over a CASE never is), so this guards a
+        # future change to how it is derived rather than a live defect.
+        tests: [not_null]
       - name: games_with_team_stats
         description: "Cumulative count of those matches with team stats present; denominator for per-match team-stat rates."
         tests: [not_null]
@@ -83,6 +91,9 @@ models:
       - name: goals_own
         description: "{{ doc('goals_own') }}"
       - name: goals_against_in_save_games
+        description: "Goals conceded summed only over the legs whose goalkeeper-save data exists, so saves_pct divides a numerator and denominator that cover the same games."
+      - name: goals_open_play_in_sot_games
+        description: "Open-play goals (goals minus penalties minus own goals) summed ONLY over the legs that have shots-on-target data, so finishing_efficiency_pct divides over the games its denominator can see. Required because awarded results (technical loss, walkover) count as played: their goals are real and enter the full goal sums, but they carry no shots-on-target, so a full-sum numerator would credit goals no shot could explain."
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on_goal

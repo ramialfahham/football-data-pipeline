@@ -94,6 +94,14 @@ models:
         description: "{{ doc('standings_group_description') }}"
       - name: season_matchdays_used
       - name: stat_coverage_season_games
+      - name: games_with_team_stats
+        description: >
+          Games in the season that carry a team statistics line. It is the denominator of every
+          team-feed rate served here — shots per match and the rest divide by this, not by games
+          played — so it is exposed rather than left implicit: a consumer that multiplies a rate
+          back out needs the number the rate was actually divided by. It is at most games played,
+          and strictly fewer whenever a team has an awarded result (technical loss or walkover),
+          which is a played match that has no stat line and never will.
       - name: points_won_sum_season
         description: "{{ doc('points_won_sum_season__team') }}"
       - name: goals_for_sum_season

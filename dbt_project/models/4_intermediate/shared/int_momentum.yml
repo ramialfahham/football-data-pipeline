@@ -41,6 +41,19 @@ models:
       - name: games_in_window
         description: "Finished matches in the window: 1–5 for last_5, the cumulative count for tournament windows."
         tests: [not_null]
+      - name: games_expecting_team_stats
+        description: "Games in this form window that COULD carry a team stat line — games in the window minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. The mart's team-stat gates divide against this rather than the window size, so an awarded match is not mistaken for missing data. The season surface carries the identical counter; if the two ever disagree, the same match would be treated differently in a team's form and its season."
+        # See the twin in int_season_record.yml: a NULL here would not fail a gate, it would bypass
+        # one, because `x < NULL` is NULL and the CASE falls through to its ELSE.
+        tests: [not_null]
+      - name: goals_open_play_in_sot_games
+        description: "Open-play goals (goals minus penalties minus own goals) summed ONLY over the window legs that have shots-on-target data, so finishing_efficiency_pct divides over the games its denominator can see. An awarded result's goals are real and enter the full goal sums but carry no shots, so a full-sum numerator would credit goals no shot could explain."
+        # ⚠ DELIBERATELY NOT not_null, unlike the counter above. This is a coverage-RESTRICTED sum:
+        # where a window has no shots-on-target data at all it sums nothing and is legitimately NULL,
+        # which is the honest answer and what makes finishing_efficiency_pct null out. Its precedent
+        # sibling `goals_against_in_save_games` is untested for the same reason. A not_null here was
+        # asked for in review and declined: it would fail on real data
+        # (analytics-engineer-reviewer, round 3).
       - name: games_with_team_stats
         description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency_pct."
         tests: [not_null]

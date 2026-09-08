@@ -44,6 +44,11 @@ team_agg as (
         entity_type,
         window_type,
         count(*) as games_in_window,
+        -- the form window's equivalent of games_expecting_team_stats: an awarded result (AWD / WO)
+        -- has no stat line and never will, so the gates below subtract it instead of reading it as
+        -- a coverage gap. The season surface makes the same distinction; leaving it out here would
+        -- have the form figures and the season figures disagree about the same match.
+        countif(not is_awarded_result) as games_expecting_team_stats,
         -- per-input coverage: stats are sparse in lower leagues, so each rate
         -- must divide over the games where its inputs actually exist
         countif(shots_total is not null) as games_with_team_stats,
@@ -63,11 +68,17 @@ team_agg as (
         -- scoreline-based, full window (clean sheets display as x of games)
         countif(goals_against = 0) as clean_sheet_games,
         -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
-        -- − goals_own (computed in the mart). Full-window sums — finishing is NULL unless the
-        -- window is fully shot-covered (games_with_sot_stats = games_in_window), so there is no
-        -- coverage-restricted goals sum to keep.
+        -- − goals_own (computed in the mart). Full-window sums, for display.
         sum(goals_penalty) as goals_penalty,
         sum(goals_own) as goals_own,
+        -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS — the season builder's twin, and required for the
+        -- same reason. This comment used to say finishing is NULL unless the window is fully
+        -- shot-covered "so there is no coverage-restricted goals sum to keep"; that stopped being
+        -- true when awarded results (AWD/WO) became legs. Their goals are real and enter the full
+        -- sums; their shots-on-target do not exist. Same-window pattern as
+        -- goals_against_in_save_games just below.
+        sum(if(shots_on_goal is not null, goals_for - goals_penalty - goals_own, null))
+            as goals_open_play_in_sot_games,
         -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
         sum(if(goalkeeper_saves is not null, goals_against, null))
             as goals_against_in_save_games,
@@ -117,6 +128,7 @@ select
     ta.entity_type,
     ta.window_type,
     ta.games_in_window,
+    ta.games_expecting_team_stats,
     ta.games_with_team_stats,
     ta.games_with_sot_stats,
     ta.games_with_opp_stats,
@@ -129,6 +141,7 @@ select
     ta.goals_penalty,
     ta.goals_own,
     ta.goals_against_in_save_games,
+    ta.goals_open_play_in_sot_games,
     ta.shots_total,
     ta.shots_on_goal,
     ta.shots_inside_box,
