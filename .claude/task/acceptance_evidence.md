@@ -9,6 +9,20 @@ bills); a SELECT over compiled SQL is not.
 compiled model is nested as a CTE and every dev reference rewritten either to the CTE now holding it
 or to the live prod table. Recorded because "I ran the compiled model" would be untrue here.
 
+⭐ **RE-MEASURED AFTER THE REBASE ONTO `!157` (main `809041a`), because the shared input moved.**
+`!157` reattributed 21 player-stat rows and 1 team-stat row between teams. It changed no fixture's
+status and touched no awarded match, but it did change data this branch measures, so the headline
+comparison was run again rather than argued about:
+
+    pairs   lost_shots  lost_passes  lost_sotd  lost_saves  games_moved  points_moved
+    13,664  0           0            0          0           32           23
+
+Byte-identical to the pre-rebase result below. That is the expected outcome and the reason is
+structural: every number here is a DIFFERENCE between main's chain and this one composed into a
+single query over identical inputs at the same instant, so a change to the shared input moves both
+sides equally. Recorded because "it should not have changed" and "it did not change" are different
+claims, and this MR has already twice reported a difference that was really a moving baseline.
+
 criteria_demonstrated:
 
   - **⭐ NO TEAM-SEASON LOSES A STATISTICAL METRIC. This is the criterion the first design failed**,

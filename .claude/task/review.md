@@ -1,6 +1,32 @@
 # Review — feat/awarded-and-walkover-count-as-played — 2026-09-08
 
-diff_sha256: d21658469db4a537c2ca6c6fda3179826d7ee32550590cb144519c88d57a9d2f
+diff_sha256: 4bdc39ed6aca4dec1e4fa15e8a94c4324d1e1df58f543d8d828ec6cb18228d5c
+
+rebased_onto: >
+  **main `809041a`, 2026-09-08, after `!157` merged.** A bare retry of this MR's pipeline could not
+  have passed: `data:build:mr` selects `state:modified+`, this branch modifies
+  `stg_apif__fixtures_next`, and `base_apif__teams` reads it — so `dim_team` is rebuilt in the CI
+  datasets from THIS branch's code, which lacked `!157`'s override, and the nameless BSA team
+  `22722` would have come straight back.
+  ⭐ **Every conflict was in the task artifacts; not one line of model SQL conflicted.** That is the
+  sibling-MR hazard in its usual shape — the code merges cleanly and the paperwork is what collides.
+  Resolved: the four task documents take THIS branch's version; `escalations.log` is a UNION, so
+  `!157`'s two entries and this branch's three all survive — dropping either set would break a
+  citation the reviewers check verbatim. Verified: six entry headers present after the resolve.
+  ⚠ The hash moved (`d216584…` → the value above) and is rebound here, as `!155` established a
+  rebase requires.
+  ⚠ **What `!157` did to the data this branch measured, stated rather than assumed:** it moved 21
+  player-stat rows and 1 team-stat row between teams. It changed no fixture's status and touched no
+  awarded match, and every claim in `acceptance_evidence.md` is a DIFFERENCE between two chains
+  composed into one query over identical inputs at the same instant — so a change to the shared
+  input moves both sides equally and the deltas hold. Re-measured after the rebase rather than
+  argued — `13,664 pairs, 0 lost metrics, 32 games moved, 23 points moved`, byte-identical to the
+  pre-rebase run; recorded in the acceptance evidence.
+  ⚠ **The verdicts below were obtained BEFORE the rebase and are carried forward, which is a claim
+  worth being precise about.** Not one line of model SQL, yml, seed or test differs from the state
+  both reviewers PASSed — the rebase replayed those commits unchanged and every conflict was in the
+  task artifacts. What changed is the base commit, `escalations.log` (a union that only ADDS
+  entries), the regenerated `review_input.patch`, and this file.
 
 rounds: 6
 
