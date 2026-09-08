@@ -1,114 +1,111 @@
-# Review — fix/fixture-team-id-overrides-all-sources — 2026-09-08
+# Review — feat/awarded-and-walkover-count-as-played — 2026-09-08
 
-diff_sha256: 1b2fe6e3a88697b435116b1754cf0761b39d2acdda9b0082698edf4ffb15594e
+diff_sha256: c3fe6393f2126a2a7574628bdeb385518eccd4de6a8c306f6be697bdfa329e83
 
-rounds: 3
+rounds: 5
 
-⚠ **WHAT THE ROUNDS BOUGHT.** Two FAILs, three defects, all mine, and **both FAILs were claims I
-wrote from memory instead of opening the file**:
+rounds_cap_override: >
+  CPO, 2026-09-08: **"go ahead, add the not_null tests"**, given after round 3 was brought to him with
+  the finding, my partial acceptance, and the measured reason for the half I declined. Recorded in
+  `escalations.log`, entry `2026-09-08 — … — ROUND CAP OVERRIDE`.
+  ⚠ What the rounds bought, because the cap exists to tell LOOPING from FIXING. Nothing was
+  re-argued and no verdict was disputed:
+    round 1  FAIL  the sotd gate moved to the new counter, its DIVISOR did not — 15 team-seasons
+                   diluted on the metric that feeds the deserved-points regression
+    round 2  FAIL  the same class in finishing_efficiency_pct, up to +60%; plus no column descriptions
+    round 3  FAIL  every rate enumerated, NO third instance; one missing not_null
+    round 4  PASS  ×2 — and a noted asymmetry whose fix exposed a phantom column
+    round 5  the delta re-review
+  ⭐ Rounds 1 and 2 each found a defect that would have shipped a wrong number to a live elite
+  competition, and neither pointed at the other: their victims are DISJOINT, because Ligue 1's
+  awarded fixture is the 0-0. Round 3's clean sweep is what actually closed the class.
 
-    round 1  FAIL x2  the contract said fct_fixture_event was the only INCREMENTAL model in the
-                      chain (false — both target facts are too, so the fix would never have
-                      reached prod); and an acceptance criterion said only one team key was
-                      removed (false — two are)
-    round 2  FAIL     the contract claimed a `relationships` test on the seed that has never
-                      existed under either name
-    round 3  PASS x2
-
-⭐ Every one of the three passed `dbt parse`, SQLFluff, four offline gates, `pytest` and a full
-read-only verification against live prod. None of them is the kind of defect those instruments look
-for: two were false sentences about code, and one was an asserted safety net.
+⚠ **VERDICTS AND HASHES.** `scope-auditor` and `analytics-engineer-reviewer` both PASSed round 4 at
+`438ceec…`. Schema files then changed — a `not_null` added on `is_awarded_result`, and the removal of
+a phantom column entry that addition exposed — so both were re-run on the delta at `c3fe639…` rather
+than carried forward. Recorded rather than implied.
 
 ## analytics-engineer-reviewer
-VERDICT: PASS (round 3)
+VERDICT: PASS (round 4 at `438ceec…`; delta re-reviewed at the hash above)
 risks_checked:
-- ⛔ **ROUND 1: it found that the fix could not reach prod at all.** `fct_fixture_player_stats` and
-  `fct_fixture_team_stats` are both `materialized='incremental'` on a bare `raw_ingested_at`
-  high-water mark that a finished fixture never advances, so the corrected rows are never
-  re-processed on the nightly's bare `dbt build` — `base_apif__teams` would drop 22722 while the
-  fact kept 21 rows carrying it, producing the exact orphan this MR exists to prevent, plus both new
-  guards red in prod. My contract asserted the opposite.
-- ⭐ And it closed the obvious escape before I could take it: copying the events self-heal does not
-  work, because `fixture_player_stat_sk` hashes `(fixture_id, league_code, team_id, player_id)` and
-  `fixture_team_stat_sk` hashes `(fixture_id, league_code, team_id)` — correcting `team_id` CHANGES
-  the unique key, so a merge inserts the corrected row and strands the old one, which dbt never
-  deletes. `event_sk` excludes `team_id`, which is the only reason its self-heal works. It then
-  checked that a key REDEFINITION is not an escape either, since that itself forces a full refresh.
-- **ROUND 2: it found a safety net that does not exist.** The contract claimed the seed carried a
-  `relationships` test from `correct_team_api_id` to `dim_team.team_api_id`. It never did, under
-  either name — I had misattributed a block belonging to `team_name_overrides`, the next seed in the
-  same file. It argued the hole rather than just the wording: the value is hand typed, this seed is
-  the registry for the NEXT mis-attribution, and a typo silently re-points a fixture's rows at
-  whichever real team the mistyped id names — which neither participant guard can catch, because
-  they only ask whether the team played the fixture.
-- **ROUND 3** verified the added test is non-cyclic by finding the identical pattern already live on
-  `team_name_overrides` in the same file, rather than reasoning about dbt's DAG; confirmed
-  `team_api_id` is a real column on `dim_team`; and confirmed `wrong_team_api_id` correctly gets NO
-  such test, because two of its four values are precisely the keys this MR retires — a test there
-  would be red by design.
-- It swept INVERTED as asked and reported two-sided: roughly a dozen statically checkable claims
-  re-read against the tree, zero false this round. It was explicit that the prod row counts and the
-  slug ladder are not independently re-runnable from its tool set, rather than implying it had
-  checked them.
-- Across the rounds it also verified: all four copies of the override join condition by condition
-  with no drift; that the correction precedes each dedup and the collision guard reads post-override
-  ids; that `base_apif__fixtures_next` carries a uniqueness test on `fixture_id` so the participant
-  join cannot fan out; that adding `fixture_id` to `stg_fixture_level` is inert for
-  `fixture_level_team_names`; and that base→base `ref()` is permitted by `layering.md:196`.
-- ⚠ It named the key/name asymmetry under `alias` mode without failing on it — a folded key takes
-  its name from the canonical id's sources, never the duplicate's. Written into the model as a
-  comment rather than left implicit.
+- Confirmed the DECLINED half of its own round-3 finding was correct SQL semantics, not a convenient
+  measurement: a `SUM` over an all-NULL set is NULL, so `not_null` on `goals_open_play_in_sot_games`
+  would fail on real, honest nulls — measured 18,301 of 118,180. It verified the cited precedent
+  (`goals_against_in_save_games` untested) is true in the file rather than asserted.
+- ⭐ It offered a better alternative rather than just accepting: a CONDITIONAL test
+  (`when games_with_sot_stats > 0, the sum is not null`) would hold by construction. Judged worth
+  having but not mandated by `engineering_standards.md` §3, and not a shipped defect. Recorded in
+  **#109** rather than bolted on here.
+- Re-swept both gate files two-sided: exactly 25 `< games_expecting_team_stats` in the cumulative
+  model and 10 in the momentum mart, with only the six correct scoreline exceptions still on
+  `games_played` / `games_in_window`. No stray unconverted gate.
+- Traced every `status_short` reader across `dbt_project/models`, `scripts/export_site_data.py` and
+  `site_v2/src` independently, confirming the staging `upper()` cannot regress an unlisted consumer —
+  it reproduced the impact-map claim rather than trusting it.
+- Verified the three-valued-logic comments on the new tests are actually true: `x < NULL` is NULL, the
+  `CASE` takes its `ELSE`, and an ungated rate would be served instead of an honest NULL.
+- ⚠ Named an asymmetry without failing on it — `is_awarded_result` untested while the same reasoning
+  justified testing its derivative. Acting on that is what exposed the phantom column below.
+- **Delta re-review**: verified from the model SQL rather than my claim that `is_awarded_result` is
+  consumed in `int_team_season_record`'s `legs` CTE and never reaches its outer select, that the yml
+  entry is genuinely gone from the file rather than net-cancelled in the diff, and that both models
+  carrying the new `not_null` really do project the column.
+- ⭐ It then swept EVERY column this branch added across all six schema files against each model's
+  actual select list, looking for another instance of the same phantom-projection defect, and found
+  none. That is the check I should have run before documenting anything.
+- Confirmed the flag cannot be NULL under the leg filter's five-value `status_short` restriction, so
+  the new tests are sound rather than assumed.
+- ⚠ Noted without reopening: `int_team_season.yml`'s two `games_expecting_team_stats` entries carry no
+  `not_null`. It is a passthrough of a column already guarded at its origin, predates this delta, and
+  was in scope at its earlier PASS.
 
 ## scope-auditor
-VERDICT: PASS (round 2)
+VERDICT: PASS (round 4 at `438ceec…`; delta re-reviewed at the hash above)
 risks_checked:
-- ⛔ **ROUND 1: it caught a false acceptance criterion and the undisclosed consequence behind it.**
-  The contract said `base_apif__teams` "emits the same key set as main otherwise". It does not: the
-  new key CTE applies the seed's pre-existing Riga FC `alias` row unconditionally, so `(UEL, 2263)`
-  is removed too — a live team-identity change disclosed nowhere in `blast_radius`.
-- **ROUND 2** it then RULED on the §10 question rather than deferring it: the `alias` semantics were
-  CPO-approved under #526 and already documented in the seed's own `schema.yml` as "replace
-  unconditionally", so wiring them to the key-minting logic completes an approved rule rather than
-  taking a new decision — *"requiring approval for every consequence of a rule already approved in
-  general form"* is what it declined to do. It required the disclosure AND the measurement, and got
-  both.
-- It swept every number in both artifacts INVERTED rather than grepping the phrase it had flagged,
-  and reported them cross-consistent and arithmetically reconciling (1,875,217 + 21 = 1,875,238).
-- Judged the new `deploy_order` legitimate: a one-off ~0.39 GiB command, disclosed with its reason
-  and its safety measurement, presented as a recipe for the CPO to run rather than a decision taken
-  on his behalf, and not crossing the recurring-cost line.
-- Confirmed the seed rename is complete — no live `ref()` anywhere still names the old seed — that
-  every diffed path is in `scope_paths`, that `decisions_reserved` still defers three genuinely
-  unrelated items, that no guard was loosened or deleted, and no credentials.
+- All five CPO rulings quoted across the contract verified verbatim against `escalations.log`
+  (lines 8098-8207): "let's do it", "another input to standardize", "same MR", "As simple Google
+  search says it was a 0:0", "go ahead, add the not_null tests".
+- Every path in the diff checked against `scope_paths` — all 16 non-task files listed, none edited
+  outside it, across five rounds of growth.
+- ⭐ **Scope creep across four rounds, checked specifically**: each addition — the counter, the
+  coverage-restricted sum, two singular tests, a mart column, five schema files — traced to a
+  reviewer finding or a CPO ruling, and each round's fix confirmed present in the diff and DISJOINT
+  from the others, supporting the override's claim that nothing was re-argued.
+- The DECLINED half of round 3 confirmed recorded as a decision with its evidence, in the contract
+  AND as an inline comment in the schema files — not quietly dropped.
+- `decisions_reserved` untouched: the freshness guard, the INT-match question and the handover
+  correction are all still open and none is silently resolved.
+- Credential sweep of the full diff: none.
 
 ## escalations
-- **RULED: fix the nameless team, approach A** — *"go with A"*, `escalations.log:8098`.
-  ⛔ A alone was then MEASURED insufficient and he was told before anything was built; the enlarged
-  plan was approved in plan mode.
-- **RULED: the seed's new name** — `fixture_team_id_overrides`, `escalations.log:8124`. The columns
-  and the two modes were not put to him: those are form, and the transformation layer decides form.
-- **OWED, and it is his to run:** one command at merge,
-  `dbt build --full-refresh --select fct_fixture_player_stats fct_fixture_team_stats`. Not a
-  decision — a step, with its reason and its safety measurement in `acceptance_evidence.md`.
+- **RULED: count `AWD` and `WO` as played for results** — *"let's do it"*, on the measured table of
+  24 fixtures that count nowhere today.
+- **RULED: normalise the status casing** — *"another input to standardize"*, unprompted.
+- **RULED: the enlarged gate change stays in one MR** — *"same MR"*, after my first plan was shown to
+  destroy ~16 team-seasons' statistics.
+- **RULED: the 0-0 technical loss counts as a draw** — *"As simple Google search says it was a 0:0"*.
+  ⛔ My recommendation to exclude it was WRONG and no exclusion was built.
+- **RULED: the round-cap override** — *"go ahead, add the not_null tests"*.
+- **FILED, not fixed:** GitLab **#109**, the end-to-end test strategy, at his instruction
+  (*"do we have a consistent test strategy? … If not file it first"*).
 
 ## ⛔ WHAT THIS BRANCH SHOULD BE REMEMBERED FOR
 
-**1. The bug report named one team; the guard found three.** Running the existing event guard's
-predicate against the other two fanout facts BEFORE writing any code returned two offenders, not
-one — and applying the seed uniformly retired a third id. The reported defect was the newest and
-least interesting of them: Mação's team-statistics row had been wrong in prod since #53 diagnosed
-and registered it, because the correction was wired to one feed of three.
+**1. Two bugs of the same class with disjoint victims.** The divisor bug hit teams whose awarded
+match has NO stat line; the finishing bug hit teams whose awarded match SCORED. Ligue 1 is in the
+first set only, because its awarded fixture is a 0-0. Fixing one told me nothing about the other, and
+"I fixed the same-window problem" was never the same claim as "I checked every same-window formula".
 
-**2. A correction that cannot reach the table it corrects is not a fix.** The whole verification
-method here — compile the model, run it read-only against prod — measures what the LOGIC computes.
-It is blind to what an incremental TABLE will contain, and both target facts are incremental. Every
-number in the evidence was right and the change would still have broken the nightly.
+**2. I compared against a moving baseline twice, in one MR.** The form window because
+`int_team_momentum_window` filters on `current_date()`; the season chain because the nightly failed
+and left the intermediate layer a day behind `fct_fixture`. Both produced large phantom differences
+in competitions containing no awarded fixture at all — 2,917 rows and 39 rows — and I reported the
+second set to the CPO before catching it.
 
-**3. Three defects, three sentences I wrote from memory.** Which model is incremental, how many keys
-move, which test exists. Each was checkable in seconds by opening the file, and each survived every
-automated instrument the repo has, because none of them reads prose looking for a claim to falsify.
+**3. A documented phantom column passed `dbt parse`, five offline gates and two full reviews.**
+`int_team_season_record` uses `is_awarded_result` internally and never emits it. Only a verification
+query failed. The checker the handover names for this class does not exist.
 
-**4. The reviewer that found the §10 problem also ruled it discharged.** It did not escalate the
-Riga FC key removal upward for a fresh ruling; it traced the `alias` semantics to their existing
-CPO approval, demanded the disclosure and the slug measurement, and then decided. Escalating every
-consequence of an approved rule is its own failure mode.
+**4. Two reviewer findings were accepted in part, not whole.** The `not_null` on the restricted sum
+would have broken the build on 15% of rows. A finding is accepted on its reasoning, not its
+authorship — and the measurement is what settles which half is right.

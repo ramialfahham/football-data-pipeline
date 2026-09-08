@@ -5,6 +5,12 @@
   raw stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
   competition's type/entity classification and the dimensions windows need.
 
+  "Finished" includes AWD (technical loss) and WO (walkover) since 2026-09-06 (CPO, escalations.log):
+  those are official results the league table counts, and excluding them left 24 fixtures
+  contributing nothing — FC Utrecht showing 4 games where its league had played 5. They carry a
+  scoreline and NO stat line, which is what `is_awarded_result` exists to say; the coverage gates
+  downstream must subtract them rather than treat them as missing data.
+
   Cross-competition and cross-type — the shared foundation every team performance metric
   aggregates over (a metric = a filter + aggregate of these rows). Grain: (fixture_sk, team_sk).
 
@@ -64,10 +70,15 @@ legs as (
             when f.goals_home > f.goals_away then 'W'
             when f.goals_home < f.goals_away then 'L'
             else 'D'
-        end as result
+        end as result,
+        -- an AWARDED result: the match was decided off the pitch (technical loss / walkover), so it
+        -- counts for points and goals and can NEVER have a stat line. Emitted so the coverage gates
+        -- downstream can tell "the stats are missing" from "there were never any to have" — without
+        -- it, counting these as played nulls every rate for the whole season.
+        f.status_short in ('AWD', 'WO') as is_awarded_result
     from fixtures as f
     where
-        f.status_short in ('FT', 'AET', 'PEN')
+        f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
         and f.goals_home is not null
         and f.goals_away is not null
     union all
@@ -89,10 +100,15 @@ legs as (
             when f.goals_away > f.goals_home then 'W'
             when f.goals_away < f.goals_home then 'L'
             else 'D'
-        end as result
+        end as result,
+        -- an AWARDED result: the match was decided off the pitch (technical loss / walkover), so it
+        -- counts for points and goals and can NEVER have a stat line. Emitted so the coverage gates
+        -- downstream can tell "the stats are missing" from "there were never any to have" — without
+        -- it, counting these as played nulls every rate for the whole season.
+        f.status_short in ('AWD', 'WO') as is_awarded_result
     from fixtures as f
     where
-        f.status_short in ('FT', 'AET', 'PEN')
+        f.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
         and f.goals_home is not null
         and f.goals_away is not null
 ),
@@ -113,6 +129,7 @@ with_stats as (
         l.goals_for,
         l.goals_against,
         l.result,
+        l.is_awarded_result,
         own.shots_on_goal,
         own.shots_total,
         own.shots_inside_box,

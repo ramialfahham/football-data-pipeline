@@ -70,6 +70,7 @@ legs as (
         pl.duels_total,
         pl.duels_won,
         tl.result,
+        tl.is_awarded_result,
         case tl.result when 'W' then 3 when 'D' then 1 else 0 end as points,
         pl.fixture_sk is not null as has_player_stats
     from team_legs as tl
@@ -100,6 +101,14 @@ select
     sum(goals_for) over w as goals_for,
     sum(goals_against) over w as goals_against,
     sum(case when goals_against = 0 then 1 else 0 end) over w as clean_sheet_games,
+    -- THE DENOMINATOR THE COVERAGE GATES COMPARE AGAINST, and it is deliberately not games_played.
+    -- An awarded result (AWD / WO) is decided off the pitch, so it has no stat line and never will.
+    -- Gating on games_played would read that as a coverage gap and NULL every rate for the whole
+    -- season: measured on prod before this existed, Toulouse and FC Nantes (L1 2025) sat at
+    -- 33 played / 33 with stats, and adding their awarded match would have nulled both — which
+    -- cascades, since int_team_season__deserved_vs_actual withholds a league-season unless EVERY
+    -- team has a computable SoT figure. Ligue 1 2025's whole deserved read, from one fixture.
+    sum(case when is_awarded_result then 0 else 1 end) over w as games_expecting_team_stats,
     -- team-stat coverage (cumulative)
     sum(case when shots_total is not null then 1 else 0 end) over w
         as games_with_team_stats,
@@ -117,10 +126,21 @@ select
     sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
         as games_with_save_stats,
     -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
-    -- − goals_own (computed in the mart). Full cumulative sums — finishing is NULL unless the
-    -- window is fully shot-covered, so no coverage-restricted goals sum is needed.
+    -- − goals_own (computed in the mart). Full cumulative sums, for display.
     sum(goals_penalty) over w as goals_penalty,
     sum(goals_own) over w as goals_own,
+    -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS, and it is now REQUIRED where it was not before.
+    -- The comment here used to say "finishing is NULL unless the window is fully shot-covered, so no
+    -- coverage-restricted goals sum is needed". That held only while every leg was a played match
+    -- with a stat line. Since 2026-09-07 an awarded result (AWD/WO) is a leg too: its GOALS are real
+    -- and land in the full sums above, but it has no shots-on-target, so a finishing ratio built from
+    -- the full goal sum over the SoT-covered shot sum counts goals from a match the denominator can
+    -- never see — a 3-0 technical win adds three goals against zero shots.
+    -- Restricting the numerator to the games the denominator covers is the same-window pattern this
+    -- model already applies to saves_pct via goals_against_in_save_games
+    -- (analytics-engineer-reviewer, 2026-09-07).
+    sum(if(shots_on_goal is not null, goals_for - goals_penalty - goals_own, null)) over w
+        as goals_open_play_in_sot_games,
     -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
     sum(if(goalkeeper_saves is not null, goals_against, null)) over w
         as goals_against_in_save_games,

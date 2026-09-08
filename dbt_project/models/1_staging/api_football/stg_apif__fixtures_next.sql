@@ -28,7 +28,14 @@ select
     safe_cast(json_value(match_json, '$.fixture.date') as timestamp) as kickoff_datetime,
     json_value(match_json, '$.fixture.timezone') as kickoff_timezone,
     json_value(match_json, '$.fixture.status.long') as status_long,
-    json_value(match_json, '$.fixture.status.short') as status_short,
+    -- UPPERCASED because the provider is inconsistent about it and the code is matched on
+    -- EXACTLY. Measured on prod before the change: `Canc` alongside `CANC` (12 rows against 150),
+    -- and `Abd` where the API's own code is `ABD` — which is why the accepted_values test on
+    -- fct_fixture.status_short has been warning "Got 2 results" in every build. `upper()` yields the
+    -- provider's own canonical codes, so this repairs the field rather than re-coding it.
+    -- Casing normalisation is raw cleanup, so it belongs here and nowhere downstream (CPO,
+    -- 2026-09-06: "another input to standardize").
+    upper(json_value(match_json, '$.fixture.status.short')) as status_short,
     safe_cast(json_value(match_json, '$.fixture.status.elapsed') as int64) as status_elapsed,
     safe_cast(json_value(match_json, '$.league.season') as int64) as season,
     safe_cast(json_value(match_json, '$.league.id') as int64) as league_api_id,

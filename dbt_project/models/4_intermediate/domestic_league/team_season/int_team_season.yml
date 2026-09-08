@@ -88,6 +88,8 @@ models:
       - name: entity_type
       - name: stat_coverage_season_games
       - name: player_stat_coverage_season_games
+      - name: games_expecting_team_stats
+        description: "Games that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate compares against this rather than games played, so an awarded match is not read as missing data and does not blank the statistics."
       - name: games_with_team_stats
       - name: points_won_sum_season
         description: "{{ doc('points_won_sum_season__team') }}"
@@ -224,6 +226,8 @@ models:
       - name: entity_type
       - name: stat_coverage_season_games
       - name: player_stat_coverage_season_games
+      - name: games_expecting_team_stats
+        description: "Games that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate compares against this rather than games played, so an awarded match is not read as missing data and does not blank the statistics."
       - name: games_with_team_stats
       - name: points_won_sum_season
         description: "{{ doc('points_won_sum_season__team') }}"

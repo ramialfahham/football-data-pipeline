@@ -8142,3 +8142,115 @@ HIS RULING: "Rename to fixture_team_id_overrides"
 ⚠ WHAT THIS DOES NOT DO. It rules on the NAME. The columns, the two modes (`alias`,
 `reattribute_if_cohabiting`) and their semantics are unchanged and were not put to him — they are
 form, not name, and the transformation layer decides form.
+||||||| parent of 09ae90a (feat(intermediate): an awarded match is a result without a stat line)
+
+================================================================================
+2026-09-06 — feat/awarded-and-walkover-count-as-played — AWARDED MATCHES COUNT AS PLAYED
+================================================================================
+
+HOW IT CAME UP. Diagnosing why the nightly keeps failing, I found one Eredivisie fixture stuck at
+INT (Match Interrupted) — Utrecht 1-3, matchday 5. It counts nowhere, because every downstream model
+filters `status_short in ('FT','AET','PEN')`, so FC Utrecht shows 4 games played while Feyenoord,
+PSV and Sparta show 5. He asked the right question, which was not about the guard:
+  "We need to decide how we treat these games in our stats."
+
+THE EVIDENCE PUT TO HIM, measured on prod over all past fixtures:
+    status  fixtures  with a score  with match stats
+    AWD           12            12                 0     technical loss
+    WO            12            11                 1     walkover
+    INT            1             1                 0
+    ABD            1             0                 0
+    PST           14             0                 0
+    CANC         162             2                 0
+AWD and WO are OFFICIAL RESULTS — the league table counts them — and all 24 contribute nothing
+today. INT/ABD/PST/CANC produced no result, so excluding those is correct.
+
+MY RECOMMENDATION: count AWD and WO as played for RESULTS, leave everything else excluded, and fix
+the provider's inconsistent casing.
+
+HIS RULING, verbatim: "let's do it"
+and, unprompted, on being shown `Canc`/`CANC`, `Abd`, `WalkOver`/`Walkover`:
+  "another input to standardize"
+
+⛔ THE SECOND RULING, AND THE ONE THAT MATTERS. The plan I then gave him was WRONG, and I found it
+before writing any code rather than after. Adding AWD/WO to the played filter would have tripped the
+all-or-nothing coverage gate — `when games_with_team_stats < games_played then null` — because an
+awarded match has no stat line. Measured on prod: Toulouse and FC Nantes (L1 2025) are both at
+33 played / 33 with stats, so both would have lost EVERY statistical metric for the season; and
+because `int_team_season__deserved_vs_actual` needs full SoT coverage for every team in a
+league-season, the ENTIRE Ligue 1 2025 deserved-vs-actual read would have been withheld. About 16
+team-seasons across L1, LIBER, AFCON, UEL, BPL and CAFCL.
+
+The fix is to gate on whether a match COULD have had stats, not whether it did — a new
+`games_expecting_team_stats` counter, replacing `games_played` at 35 gate sites across two files.
+That is materially more than the plan he approved, so it was put back to him with the measurement.
+
+HIS RULING on the enlarged scope, verbatim: "same MR"
+
+⚠ WHAT HE DID NOT RULE. Nothing about INT. The Utrecht match still counts nowhere and FC Utrecht is
+still a game short; whether an interrupted match should ever count, and how we tell "not finished
+yet" from "never will be", is untouched and open. Nor did he rule on the freshness guard itself,
+which is what the whole investigation started from and is still unfixed.
+
+--------------------------------------------------------------------------------
+2026-09-07 — feat/awarded-and-walkover-count-as-played — THE 0-0 TECHNICAL LOSS
+--------------------------------------------------------------------------------
+
+WHAT I BROUGHT HIM. Verifying the change on prod, one awarded fixture stood out. Every other AWD/WO
+in the warehouse carries a 3-0; this one is 0-0:
+
+    FC Nantes vs Toulouse FC   Ligue 1 2025, matchday 34, 2026-05-17
+    status AWD "Technical loss", goals 0-0
+
+Because both sides are level, my change credits BOTH teams a draw — which is exactly the 23→24 and
+44→45 in their season points. I checked there was no replay (the reverse fixture in matchday 6 is a
+normal 2-2), and RECOMMENDED excluding awarded matches whose scoreline records no winner, plus a test
+to flag them, on the reasoning that a "technical loss" by definition has a winner and crediting a
+phantom point in an elite league is exactly the silent wrong number the DQ rules exist to stop.
+
+HIS ANSWER, verbatim: "As simple Google search says it was a 0:0"
+
+⛔ SO THE RECOMMENDATION WAS WRONG AND NO EXCLUSION WAS ADDED. The match really did finish 0-0, both
+teams really did earn a point, and counting it as a draw is correct. The provider's status label is
+the odd part, not the scoreline.
+
+⭐ THE LESSON, and it is a logged one — `feedback_verify_real_world_identity`, "check EXTERNAL ground
+truth before calling two records the same club". I inferred what the data MUST say from what a status
+label MEANS, and never checked what happened. The whole objection rested on the assumption that
+"Technical loss" implies a winner. One search settled it. Where a claim is about the real world, the
+real world is checkable and cheaper than the argument.
+
+--------------------------------------------------------------------------------
+2026-09-08 — feat/awarded-and-walkover-count-as-played — ROUND CAP OVERRIDE
+--------------------------------------------------------------------------------
+
+Round 3 hit the cap. The position was put to him: the ratio sweep had come back CLEAN (no third
+instance of the same-window class), and the one finding left was a missing `not_null` on
+`games_expecting_team_stats` — with the note that I would accept it only in part, because the same
+finding asked for the same test on `goals_open_play_in_sot_games`, where it would fail on real data.
+
+HIS RULING, verbatim: "go ahead, add the not_null tests"
+
+WHAT THE FOUR ROUNDS WERE SPENT ON, since the cap exists to tell LOOPING from FIXING. Nothing was
+re-argued and no reviewer verdict was disputed:
+
+  round 1  FAIL  the sotd coverage gate moved to the new counter and its DIVISOR did not — 15
+                 team-seasons diluted, including both Ligue 1 sides, on the metric that feeds the
+                 deserved-points regression
+  round 2  FAIL  the same class again in finishing_efficiency_pct: goals from an awarded match over
+                 a shots-on-target denominator that can never see them, up to +60%. Plus the new
+                 columns having no descriptions.
+  round 3  FAIL  every rate in both builders enumerated, NO third instance found; one missing
+                 not_null on the new denominator
+  round 4        the two-line fix
+
+⭐ THE REASON ROUNDS 1 AND 2 DID NOT FIND EACH OTHER, recorded because it is the useful part: their
+victims are DISJOINT. The divisor bug hits teams whose awarded match has no stat line; the finishing
+bug hits teams whose awarded match SCORED. Ligue 1's awarded fixture is the 0-0, so it appears in the
+first list and not the second. Fixing one told me nothing about the other, and "I have fixed the
+same-window problem" was not the same claim as "I have checked every same-window formula". Only the
+exhaustive sweep at round 3 closed the class.
+
+⚠ WHAT HE DID NOT RULE. Nothing about the freshness guard, which is what this whole investigation
+started from, is still unfixed, and failed the nightly again on 2026-09-07 — leaving the intermediate
+layer a day behind fct_fixture and corrupting the first set of numbers measured for this MR.
