@@ -1,17 +1,16 @@
-# Task contract — product work is no longer blocked; say so in the handover
+# Task contract — the handover header names the commit before its own merge
 
 objective: >
-  `.claude/active_work.md` says *"BLOCKED ON THE CPO: GitLab #110 — one question, and until it is
-  answered 463 team-seasons show no statistics. Do not start it."* That is now false. The rule was
-  already decided on 2026-06-25 and `!161` states it in `docs/metric_layer.md`; #110 is a narrow
-  defect, not a decision. A cold session reading the handover today would stand still waiting for an
-  answer that is not owed. Correct it, and record the two new issues.
+  `.claude/active_work.md`'s header says **main `b29f2e0`** and "!154 through !161". Both were true
+  when the file was written and stale the moment it merged: main is now `6f296f5` and the range runs
+  to `!162`. A header that names the wrong commit is the one line a fresh session cannot sanity-check
+  the rest of the file against. Fix it, and make the class not recur.
 
 refs: >
-  Bookkeeping. Triggered by the handover write-out gate after `!161` merged. No issue.
-  Standing instruction on volume, already logged in `escalations.log`
-  (`DO NOT ASK FOR MECHANICS`, and `THIS LOG IS A LEDGER, NOT A LOOKUP`): the top of the file stays
-  two sentences and process detail stays out of it.
+  The CPO, verbatim, this session: *"fix the handover header"*.
+  ⚠ Structural, not a slip. The header records the state at WRITE time; the file is READ after its
+  own MR merges, so the SHA it names is always one commit behind by construction. This has now been
+  wrong on three consecutive handover MRs.
 
 scope_paths:
   - .claude/task/contract.md
@@ -22,40 +21,29 @@ scope_paths:
   - .claude/active_work.md
 
 impact_map: >
-  writers: none. One tracked document.
+  writers: none. One header line in one tracked document.
   layer_rules: not applicable.
-  downstream: read by a fresh session at start and by `handover_in.py`, which enforces a
-  16,000-CHARACTER cap — Python `len()`, never `wc -c`.
+  downstream: read by a fresh session at start and by `handover_in.py` (16,000-CHARACTER cap,
+  Python `len()`).
   deploy_order: none.
-  blast_radius: one document. The risk is a session standing still because the handover says it is
-  blocked when it is not.
+  blast_radius: two lines. The risk is a session trusting a stale SHA and concluding the rest of the
+  file is stale too — or worse, that work it can see on main is unrecorded.
 
 acceptance_criteria:
-  - The "BLOCKED ON THE CPO" line is gone. #40 MR B is stated as the next action with no
-    precondition attached to it.
-  - #110 is described as what it now is — a narrow defect where the provider labels a forfeit `FT` —
-    not a decision anyone is waiting on.
-  - **GitLab #111 is recorded**: no test checks a metric's value against the formula the catalogue
-    publishes. It did not exist when the handover was last written.
-  - A session about to touch metric behaviour is pointed at `docs/metric_layer.md` first, which is
-    where the incomplete-data rule now lives.
-  - Header facts re-derived: `main` SHA, MR range, whether anything is open.
-  - Under 16,000 characters, and no trap dropped for space.
+  - The header no longer pins a SHA that will be wrong on merge. What it states must still be TRUE
+    after this branch merges, which is the test the previous three headers failed.
+  - The MR range is current, and stated so it does not need editing for the merge that carries it.
+  - Everything else in the file is untouched — this is a two-line change, not another rewrite.
+  - Under 16,000 characters.
 
 decisions_taken: >
-  ⭐ **THE CORRECTION IS THE POINT, NOT THE BOOKKEEPING.** A handover that says "blocked, do not
-  start" when nothing is blocked costs a whole session. I wrote that line this morning in good faith
-  and `!161` made it false — which is exactly the failure the handover exists to prevent, so it is
-  fixed the same day rather than left for the next reader to trip over.
-  ⛔ **#110 IS RESTATED, NOT DELETED.** It is still real: forfeits the provider labels `FT` blank 18
-  of 19 Süper Lig team-seasons. What changed is its TYPE — a defect to fix, not a question to answer.
-  Deleting it would lose a measured finding; leaving it as "blocked on the CPO" would keep the stall.
-  ⚠ **NO PROVENANCE IN THE FILE.** No dates, no quotes, no round counts. Settled; not relitigated.
-
-decisions_reserved: >
-  - **GitLab #110** — the forfeit-labelled-`FT` defect. Unchanged, unfixed, now correctly typed.
-  - **GitLab #111** — no test compares a metric to its catalogue formula. Filed, not built; the
-    scope questions are on the issue.
-  - **`metrics_context_model.md` §8.1** still restates the player half of the NULL rule and should
-    defer to `docs/metric_layer.md`. Outside scope here.
-  - **The round-cap precedent** — still unresolved, unchanged by this MR.
+  ⭐ **DROP THE SHA, KEEP WHAT IS CHECKABLE.** A commit hash in a file that merges as a commit is
+  self-invalidating: the header can only ever name its own parent. It bought nothing a reader uses —
+  `git log -1` answers "where is main" instantly and correctly, which the file cannot. What a reader
+  actually needs from the header is the date, that the tree is clean, whether anything is open, and
+  which platform. Those survive their own merge.
+  ⛔ **NOT SOLVED BY REMEMBERING TO UPDATE IT.** Three handover MRs in one day each carried a header
+  that was accurate when written and wrong when read. A rule that requires the author to predict the
+  commit they are about to create is the wrong shape; removing the field removes the class.
+  ⚠ The MR range keeps its upper bound as the last MERGED one and says so, rather than naming the MR
+  in flight — a range that includes its own MR is a claim about the future.
