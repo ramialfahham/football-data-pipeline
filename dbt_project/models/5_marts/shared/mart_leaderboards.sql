@@ -165,8 +165,34 @@ ranked as (
     union all
     {% endif %}
     {% endfor %}
-)
+),
 
+-- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
+-- a single served column and compares nothing itself. `league_leader_order` above answers "who
+-- represents this league"; this answers "in what order do those leaders appear".
+-- CPO 2026-09-09 (escalations.log): "All ranking and ordering lives in the warehouse. The page
+-- renders the order it is served." Same three ruled keys as the within-league order, for the same
+-- reason — fewer minutes for the same tally is the better performance, and player_sk is a stable
+-- last resort that means nothing (GitLab #112 is open to find a better one).
+--
+-- ⭐ PARTITIONED BY metric_key ALONE, AND THAT IS THE WHOLE POINT. An earlier attempt argued this
+-- could not live here because the row order is scoped to a POOL of leagues (`competition_group`,
+-- rotating nightly under #101) and the mart knows nothing about pools. That was wrong: the ruled
+-- order is TOTAL, and restricting a total order to a subset preserves the relative order of what
+-- survives. So ranking every league leader globally lets ANY pool filter inherit the right order
+-- for free, and the pool never has to be known here.
+-- ⚠ CONSEQUENCE, INTENDED AND VISIBLE: filtered to seven leagues the values come out SPARSE
+-- (17, 18, 21, 31, 36, 40, 41 on the assists board). Sparse is the tell that this is a global
+-- position. Contiguity is not something a consumer needs, and producing it would require knowing
+-- the pool — the mistake above.
+-- ⚠ NO SEASON in the partition, deliberately: `is_current_season` is per LEAGUE, so leagues shown
+-- side by side can sit in different `season_api_year` values and partitioning by season would split
+-- them.
+-- ⚠ COMPUTED IN THE FINAL SELECT, NOT IN A CTE JOINED BACK. The obvious shape — rank the leaders in
+-- their own CTE and left join — needs a USING or forty qualified column references, and SQLFluff
+-- rejects the first (ST07) and demands the second (RF02). Sorting the leaders to the FRONT of the
+-- window instead gives them positions 1..N in the ruled order with no join at all; the CASE then
+-- keeps those and discards the numbers the non-leaders picked up.
 select
     {{ dbt_utils.generate_surrogate_key(['player_sk', 'season_sk', 'metric_key']) }}
         as player_leaderboard_sk,
@@ -222,6 +248,18 @@ select
     rank() over (
         partition by league_code
         order by season_api_year desc
-    ) = 1 as is_current_season
+    ) = 1 as is_current_season,
+    -- NULL on every row that is not a league leader: the position is only defined among leaders, and
+    -- a number here would invite a consumer to order by a sequence the row is not part of.
+    case
+        when league_leader_order = 1 then row_number() over (
+            partition by metric_key
+            order by
+                case when league_leader_order = 1 then 0 else 1 end,
+                sort_value desc,
+                minutes asc nulls last,
+                player_sk asc
+        )
+    end as board_leader_order
 from ranked
 where board_rank <= 10

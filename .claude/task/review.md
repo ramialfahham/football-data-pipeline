@@ -1,71 +1,70 @@
-# Review — feat/rank-in-the-warehouse — 2026-09-09
+# Review — feat/board-leader-order — 2026-09-09
 
-diff_sha256: 20a9ee291d599f40d97070821b699310a8638c124c5a2fe63b6b2f50b477561b
+diff_sha256: 2d3e0b4d3c6bd8d69ed1a24c56374d53c93bed4412a0ba584f22dfd552a4ad66
 
 rounds: 2
 
-Round 1: both reviewers PASSED. Round 2 was NOT forced by a FAIL — `analytics-engineer-reviewer`
-flagged a coverage gap without failing it, and a flagged trade-off is still a trade-off in this
-repo, so the gap was closed and the delta re-reviewed rather than the pass banked.
+Round 1: both reviewers PASSED. Round 2 was not forced by a FAIL — `scope-auditor` flagged, without
+failing, that the contract's RECURRING COST paragraph still described a self-join the shipped SQL
+does not contain. A flagged trade-off is still a trade-off, and a contract that misdescribes its own
+change is wrong even when it overstates rather than hides. Corrected and re-reviewed as a delta;
+`analytics-engineer-reviewer`'s round-1 pass stands because the delta touched no SQL.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 — verified both CPO rulings quoted in `contract.md` (RULING 1 and RULING 2, 2026-09-09)
-  appear VERBATIM in `.claude/task/escalations.log` as added by this same diff, including the "yes,
-  that's the rule" line and the fewer-minutes reasoning. No attribution without citation.
-- Round 1 — every touched file (`mart_leaderboards.sql`, `shared.yml`, the new singular test,
-  `layering.md`, `contract.md`, `escalations.log`) is listed in `scope_paths`; nothing outside it.
-- Round 1 — `decisions_reserved` genuinely leaves the cross-league ordering, `mart_team_leaderboards`
-  and `competitionOrder.mjs` open rather than smuggling them in as decided.
-- Round 1 — the impact_map is evidenced with actual `dbt ls --select mart_leaderboards+` output
-  (27 nodes, zero downstream models), not asserted from memory; A6 satisfied.
-- Round 1 — the new singular test adds a stricter invariant rather than narrowing an existing one;
-  checked specifically for a coverage-cut dodge.
-- Round 1 — scanned the whole diff for credential-shaped content and for an undeclared NEW MECHANISM
-  or RECURRING COST threshold; none found, and both thresholds are declared in `decisions_taken`.
-- Round 2 delta — the added `wrong_leader` clause is additive only: the two pre-existing conditions
-  are untouched and still OR'd, so this is a strict widening of the detection surface and not a
-  loosened guard. Verified line by line rather than accepted from the brief.
-- Round 2 delta — the reworded `layering.md` sentence claims no authority beyond what round 1
-  already checked against `escalations.log`; the rule content itself is unchanged.
+- Round 1 — verified both 2026-09-09 CPO rulings against `escalations.log` verbatim: "All ranking
+  and ordering lives in the warehouse. The page renders the order it is served", and the
+  fewer-minutes tie-break with the `player_sk` fallback. Both match the contract's quotes exactly;
+  no fabricated authority.
+- Round 1 — checked the contract's admission that two EARLIER contracts were wrong ("the cross-league
+  order could not live in the mart") against the removed text in the diff. The prior claim is quoted
+  accurately and the correction is sound: restricting a total order to a subset preserves relative
+  order. The admission narrows scope back to implementing an existing unconditional ruling rather
+  than covering a new unauthorised decision.
+- Round 1 — `decisions_reserved` (the `player_sk` last resort, `mart_team_leaderboards` parity,
+  `competitionOrder.mjs`) are each untouched in the diff; nothing reserved is silently decided.
+- Round 1 — every changed file is in `scope_paths`. `layering.md` needed no edit because MR A
+  already carries the rule wording.
+- Round 1 — impact_map is evidenced with a real `dbt ls --select mart_leaderboards+` run against
+  THIS checkout (29 nodes, 0 downstream models), not carried over from MR A, and the prod comparison
+  of rendered league order is measured rather than asserted.
+- Round 1 — no credentials anywhere in the diff; the CTO thresholds are declared and hold against
+  the actual SQL.
+- Round 2 delta — compared the corrected paragraph against the shipped SQL and confirmed no
+  self-join exists (one `ranked` CTE feeding the final select, two window functions), so the
+  correction is accurate and agrees with the file's own inline comment about the abandoned form. The
+  NEW MECHANISM and RECURRING COST conclusions are unchanged; no new authority is invoked.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 — window-function generality: both `dense_rank()` and the new `row_number()` partition on
-  `(league_code, season_api_year)` with no per-competition branching and no hardcoded league
-  identifier; checked against every board in `count_boards` and `rate_boards`.
-- Round 1 — the `rank` consumer contract is genuinely untouched: `board_rank as rank` and
-  `where board_rank <= 10` are unchanged and the `rank` description is byte-identical. Also
-  confirmed the `league_leader_order = 1` row can never fall outside the top-10 cut, because it
-  shares the same primary sort key as `board_rank`.
-- Round 1 — the new test is not tautological: its second invariant recomputes `max(sort_value)` and
-  `min(minutes)` from raw rows instead of re-deriving the model's own window expression, so dropping
-  the `minutes` leg makes it fire. It can fail for the reason it exists.
-- Round 1 — catalogue governance: `assert_no_uncatalogued_season_metric` scopes only to the three
-  `int_*` canonical models (confirmed via its `depends_on` refs), so an ordinal column on a mart
-  needs no catalogue row.
-- Round 1 — independently grepped `dbt_project/` for `mart_leaderboards`: the only real
-  `ref('mart_leaderboards')` calls are two tests; every other hit is prose. The "LEAF, zero
-  downstream models" claim in the impact map is corroborated, not taken on trust.
-- Round 1 — `layering.md` internal consistency: the "Allowed in the frontend" list contains no
-  sorting allowance that would contradict the new unconditional ban, and no other section permits
-  page-side ordering.
-- Round 2 delta — traced the new third clause through the `leaders`/`best` CTEs.
-  `fewest_minutes_at_best` is `min(minutes)` over rows sharing the leader's own `sort_value`,
-  computed independently of the `is not null` gate the first two clauses use, so it fires exactly on
-  the nulls-first regression and stays correctly silent both for an untied leader with unknown
-  minutes and for a wholly-NULL tie group. No false positive or negative found.
-- Round 2 delta — the `layering.md` pointer now resolves forward to the section's own test sentence
-  rather than to a bullet that had itself been rewritten; the round-1 ambiguity is gone and no new
-  one is introduced.
-- Round 2 delta — confirmed no model SQL, seed, `dbt_project.yml` or export file moved, so round 1's
-  impact-map and consumption-layer conclusions still stand unmodified.
+- Window generality: `board_leader_order` partitions by `metric_key` alone and `league_leader_order`
+  by `(league_code, season_api_year)`. Neither references a league or competition literal — generic
+  across every `league_code`.
+- Equivalence of the shipped form to the obvious one, worked by hand: sorting leaders to the front of
+  the window (`case when league_leader_order = 1 then 0 else 1 end` first) and discarding the
+  non-leaders' numbers with a CASE assigns leaders exactly the integers a leaders-only filtered CTE
+  would. Non-leaders sitting after them in the same partition cannot perturb their relative order or
+  their values. Confirmed equivalent, not a defect.
+- NULL and uniqueness are STRUCTURAL, not merely asserted: `where board_rank <= 10` filters before
+  the window runs, and a league leader always carries `board_rank = 1`, so no leader is ever excluded
+  from the partition; `row_number()` cannot repeat a value within it.
+- The new test is falsifiable and not a tautology: its third invariant walks consecutive pairs with
+  `lead()` and asserts the later row is not strictly better on the ruled keys, rather than
+  re-deriving `row_number()` with the same ORDER BY — which would pass for any ordering.
+- `rank` and `league_leader_order` are byte-for-byte unchanged; read the full `ranked` CTE and the
+  outer select across the diff hunk boundaries to confirm it.
+- Catalogue governance: `assert_no_uncatalogued_season_metric` scopes to the three canonical `int_*`
+  models, not this mart, and `board_leader_order` derives no value — it orders already-catalogued
+  ones. Consistent with the existing precedent for `rank` and `league_leader_order`.
+- Description hygiene: the new column's description is well within BigQuery's 1,024-character limit,
+  which matters because `persist_docs` is on and a breach fails the prod build.
+- Scope: no `scripts/export_*.py` or `site_v2` file is in this patch, so the consumption-layer
+  trigger is not engaged — the export change is #40 MR B's.
 
 ## escalations
 (none)
 
-The two §10 questions this branch rests on were put to the CPO and ANSWERED before any code was
-written — they are rulings recorded in `escalations.log`, not open escalations. The questions this
-branch deliberately does NOT answer are in `contract.md`'s `decisions_reserved`.
+The two §10 questions this work rests on were ruled on before any of it was written and are recorded
+in `escalations.log`. What this MR deliberately does NOT answer is in `decisions_reserved`.
