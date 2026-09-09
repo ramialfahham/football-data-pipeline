@@ -1780,6 +1780,17 @@ models:
           player_sk. Fewer minutes wins because the same tally in less time is the better
           performance; player_sk is a stable last resort and means nothing on its own.
         tests: [not_null]
+      - name: board_leader_order
+        description: >
+          The order the league leaders appear in on this board, across every league, by the same
+          rule: best value, then fewer minutes, then player_sk. league_leader_order says WHO
+          represents a league; this says in what ORDER those representatives are shown, so a
+          consumer orders by one served column and compares nothing itself. NULL on any row that is
+          not a league leader. It is a GLOBAL position, not a position within whatever set a
+          consumer shows, so filtered to a handful of leagues the values are sparse - that is
+          expected, because the order is total and any subset of a total order keeps its relative
+          sequence. Not partitioned by season: is_current_season is per league, so leagues shown
+          side by side can sit in different season years.
       - name: sort_value
         description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
         tests: [not_null]
