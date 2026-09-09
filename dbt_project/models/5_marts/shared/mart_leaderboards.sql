@@ -137,7 +137,28 @@ ranked as (
         dense_rank() over (
             partition by league_code, season_api_year
             order by {{ board.key }} desc
-        ) as board_rank
+        ) as board_rank,
+        -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
+        -- ties SHARING a rank is a documented consumer contract here, and the top-10 cut is
+        -- inclusive of them. But a consumer that must show ONE player per league cannot use it —
+        -- measured against prod 2026-09-09, 12 of the 28 league-boards the Home block renders have
+        -- more than one rank-1 player. Deciding which of them is shown is ranking, so it belongs
+        -- here and not in the export (CPO 2026-09-09, escalations.log: "All ranking and ordering
+        -- lives in the warehouse. The page renders the order it is served.").
+        -- ⭐ FEWER MINUTES WINS (CPO, same day): the same tally in less time is the better
+        -- performance, and that reads identically on every board — fewer minutes for the same
+        -- passes or assists is also the better return. It settles 11 of those 12 ties.
+        -- ⚠ `player_sk` last is MEANINGLESS AND SAID TO BE. It exists so the one tie that survives
+        -- minutes has a stable answer; it makes no claim about the players. Player NAME was offered
+        -- as the fallback and NOT taken, because a name correction would then reorder a board.
+        -- ⚠ `nulls last` is load-bearing. BigQuery sorts NULLs FIRST ascending, so without it an
+        -- unknown minutes total would beat every known one and win the tie. Prod currently has no
+        -- NULL `minutes` among elite leaders; this is the guard for the general case, not the
+        -- measured one.
+        row_number() over (
+            partition by league_code, season_api_year
+            order by {{ board.key }} desc, minutes asc nulls last, player_sk asc
+        ) as league_leader_order
     from base
     where {{ board.where }}
     {% if not loop.last %}
@@ -151,6 +172,7 @@ select
         as player_leaderboard_sk,
     metric_key,
     board_rank as rank,
+    league_leader_order,
     sort_value,
     league_code,
     season_api_year,

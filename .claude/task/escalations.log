@@ -8473,3 +8473,82 @@ shooting funnel, the row order, the block sequence — none of which moved. And 
 licence to edit locked documents: the next one needs its own instruction.
 ⚠ The seed already carried the correct text ("In [0, 1] - penalties and own goals are excluded"), so
 this was a stale rationale paragraph, not a new claim about the metric.
+
+2026-09-08 feat/40-top-players-block — CPO RULING: the DE/FI board labels for Top players (#40 MR B).
+
+  HOW IT SURFACED. The block was parked in stash TEMP-40-mrB with its four DE and four FI board
+  labels flagged "NEEDS CPO CONFIRMATION" rather than presented as settled, because `metricLabel()`
+  falls back to English and then to EMPTY — so a missing Finnish label renders a BLANK board title,
+  not a visible error. Before asking, the CPO-validated legacy corpus in `site/i18n/` was checked:
+  it already carries `Ø Tore` / `Ø Pässe` (de) and `Ø Maalit` / `Ø Syötöt` (fi), so those four stems
+  were already his and only ASSISTS and KEY PASSES were genuinely new in each locale. The question
+  put to him was therefore four words, not eight.
+
+  HIS WORDS, verbatim: "Then in German it would be Torvorlagen (more precise than just Vorlagen),
+  Schlüsselpässe"
+
+  WHAT IT DECIDES. The German assists label is **Torvorlagen**, not the bare "Vorlagen" the parked
+  draft carried, and German key passes is **Schlüsselpässe**. "Assists" — current in German football
+  media and offered as the alternative — was not taken. The four Finnish labels (Maalit,
+  Maalisyötöt, Syötöt, Avainsyötöt) and the German Tore / Pässe stand as drafted; he changed one
+  word and let the rest through.
+
+  WHAT IT DOES NOT DECIDE. Nothing about any other metric's label in any locale, and nothing about
+  the `Ø` sigil, which these four omit because they are season TOTALS (catalogue `format: integer`)
+  rather than per-match rates.
+
+  ⚠ RECORDED HERE BECAUSE OF WHERE IT WAS *NOT* RECORDED. Round 1 of this branch, scope-auditor
+  FAILed it: the ruling was narrated in `contract.md` and shipped into `strings.ts` on that
+  authority, and a full-text grep of this log for "Torvorlagen", "Schlüsselpässe", "scorerPoints"
+  and "keyPasses" returned nothing. That is the third recorded instance of the same failure
+  (2026-07-31, 2026-09-02, and this) and the standing rule it breaks is
+  `feedback_dont_attribute_repo_practice_to_cpo`: "you ruled" needs a quote from `escalations.log`.
+  A contract is overwritten by the next task; this file is not. The lesson is not "ask more" — the
+  ruling was real and correctly obtained — it is that the write-down happens in the same breath as
+  the answer, not at the end of the branch.
+
+2026-09-09 feat/40-top-players-block — TWO CPO RULINGS that close a question open since 2026-08-18:
+  WHERE ranking lives, and HOW a tie is broken.
+
+  HOW IT SURFACED. Building #40 MR B, `analytics-engineer-reviewer` FAILed round 1: the export was
+  picking which of several joint league leaders to show, and that is ranking in the consumption
+  layer. The 2026-08-18 entry (`chore/record-top-players-ruling`) had already reserved the question
+  — "NOT DECIDED, do not assume either way: whether ordering the seven winners by value lives in the
+  mart or the page" — so neither the builder nor a reviewer could settle it.
+
+  ⚠ THE PREMISE OF THE 2026-08-18 RULING WAS FALSE, WHICH IS WHY THIS CAME BACK. That entry says
+  "`mart_leaderboards` already ranks within (league_code, season_api_year), so each league's number
+  one already exists". It does not: the mart ranks with DENSE_RANK, so joint leaders SHARE rank 1.
+  Measured against prod 2026-09-08, the four Home boards across the seven elite leagues:
+    · 57 rank-1 rows for 28 league-boards — 29 surplus rows
+    · 12 of the 28 league-boards (43%) carry a tie. This is not an edge case.
+
+  RULING 1 — ALL RANKING AND ORDERING LIVES IN THE WAREHOUSE. CPO: "yes, that's the rule", to:
+  *"All ranking and ordering lives in the warehouse. The page renders the order it is served."*
+  This is `dbt_project/docs/layering.md`'s existing consumption-layer rule applied without
+  exception, not a new one. What it costs, stated to him before he ruled: a block needing a new
+  ordering waits on a mart column. What it buys: no per-block argument, and two frontends cannot
+  disagree about who is top.
+
+  ⛔ I ARGUED FOR A SPLIT RULE ("which rows are shown is the warehouse's, what order they appear in
+  is the page's") AND THE EVIDENCE FOR IT WAS BAD. I cited `site_v2/src/lib/competitionOrder.mjs`, a
+  shipped module that applies a five-key frontend sort, as precedent. CPO: *"I don't even know what
+  it is. Definitely no authoritative document for business logic."* He is right and the correction
+  is general: A FILE'S EXISTENCE IS NOT AUTHORITY, and neither is the justification an agent wrote
+  in its own header. Only this log and the docs the working agreement names are authority. Under
+  Ruling 1 that module is a VIOLATION, not a precedent — filed as its own task, not fixed here.
+
+  RULING 2 — A TIE IS BROKEN BY FEWER MINUTES PLAYED. CPO chose it over an alphabetical fallback and
+  over "no sporting criterion, just an id". The reasoning offered and accepted: the same tally in
+  less time is the better performance, and it reads the same way on all four boards — fewer minutes
+  for the same passes or assists is also the better return.
+  Measured before asking: fewer minutes resolves 11 of the 12 live ties; 1 survives; 0 league-boards
+  have a NULL `minutes`, so the criterion is always available.
+  ⚠ THE LAST RESORT IS MEANINGLESS AND IS LABELLED AS SUCH. Where minutes are also equal the order
+  falls to `player_sk` — stable, invisible, and carrying no claim about the players. Player NAME was
+  offered and not taken; names in this pipeline are a known-unreliable identity surface, so an
+  alphabetical fallback would reorder the board when a name is corrected.
+
+  WHAT THIS COSTS #40 MR B, and it is not small: the pick becomes a served column on
+  `mart_leaderboards`, and the export cannot query a column that is not in prod. So the block splits
+  into two merge requests — the mart column and the layering rule first, the block on top of it.

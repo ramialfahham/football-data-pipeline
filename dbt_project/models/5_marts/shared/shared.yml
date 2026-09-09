@@ -1712,6 +1712,10 @@ models:
       DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
       share a rank and the top 10 includes them. Only a positive value is ranked.
 
+      Because ties share a rank, a league can hold several rank-1 players. league_leader_order is
+      the tie-broken order in the same partition, so a consumer that must show one player per league
+      filters on it instead of choosing between the joint leaders itself. Fewer minutes wins a tie.
+
       Each row also carries the club the player belonged to that competition-season, so a row
       identifies a team as well as a player. The club is null when the player has no finished
       match in that competition-season.
@@ -1766,6 +1770,15 @@ models:
               values: ["goals_player", "assists_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
+        tests: [not_null]
+      - name: league_leader_order
+        description: >
+          The tie-broken position within (league_code, season_api_year) on this board. 1 is the
+          league's leader, and exactly one row per league-board carries it. Use this and not rank
+          when a consumer must show ONE player per league: rank is a DENSE_RANK, so joint leaders
+          share it and a league can hold several 1s. Ties break by fewer minutes played, then by
+          player_sk. Fewer minutes wins because the same tally in less time is the better
+          performance; player_sk is a stable last resort and means nothing on its own.
         tests: [not_null]
       - name: sort_value
         description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
