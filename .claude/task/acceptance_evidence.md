@@ -1,57 +1,51 @@
-# Acceptance evidence — the handover header names the commit before its own merge
+# Evidence — ranking in the warehouse: the layering rule + `league_leader_order`
 
-Branch `chore/handover-header`, from main `6f296f5`.
+Measured in this session against PROD (`football-data-pipeline-gcp.marts.mart_leaderboards`,
+189,986 rows) and the local toolchain. No acceptance_criteria block is required here — the diff
+touches no `site_v2/src/` path — so this demonstrates the contract's `done_when` instead.
 
 criteria_demonstrated:
+  - THE DEFECT IS REAL AND MEASURED, NOT ARGUED. `rank` is a DENSE_RANK, so joint leaders share it.
+    Of the 28 league-boards the Home block renders (4 boards x 7 elite leagues), 57 rows carry
+    rank 1 — 29 surplus. 12 of the 28 league-boards hold a tie. 0 have a NULL `minutes`.
+  - THE NEW COLUMN PICKS EXACTLY ONE ROW, AND THE RIGHT ONE. Running the ruled window over prod:
+    28 league-boards produce 28 leaders; all 28 carry the board's best value, so minutes never
+    outrank the metric; 12 of the 28 came from a tie and all 12 were won by fewest minutes played.
+  - THE TEST IS MUTATION-PROVEN, TWO-SIDED, OVER THE WHOLE MART. With the ruled order
+    (`sort_value desc, minutes asc nulls last, player_sk asc`) the test's two checks return
+    **0 and 0**. With the `minutes` leg dropped it returns **443 rows** — a dbt singular test fails
+    on any row, so it goes RED. The count check alone would NOT have caught that mutation: removing
+    the minutes leg still yields exactly one leader per league-board, just the wrong player. That is
+    why the test asserts the rule and not only the count.
+  - NULLS LAST IS LOAD-BEARING, AND THE TEST NOW COVERS IT. BigQuery sorts NULLs FIRST ascending, so
+    without it an unknown minutes total would beat every known one and win every tie it appeared in.
+    Round 1 flagged — without failing — that the tie check was gated on the leader's own minutes
+    being known, so a `nulls last` -> `nulls first` regression could not fire it. A flagged
+    trade-off is still a trade-off, so a third clause was added rather than banking the pass.
+    ⚠ IT IS NOT DEAD CODE: `minutes` carries NO `not_null` test on `mart_leaderboards` or on
+    `int_player_season__metrics` (checked both ymls), so a NULL is permitted by the schema.
+    ⚠ AND IT CANNOT BE MUTATION-TESTED ON PROD, WHICH IS SAID PLAINLY RATHER THAN GLOSSED: all
+    189,986 mart rows have a non-NULL `minutes`, so flipping to `nulls first` against prod returns
+    0 — because there is nothing to trigger it, not because the clause works. Proven on a synthetic
+    three-row case instead: with `nulls first`, the NULL-minutes player takes the league over one
+    with 900 minutes at the same value, and the new clause returns 1 row, so the test goes RED.
+  - THE TOOLCHAIN IS GREEN. `dbt parse` clean apart from the pre-existing unused-snapshots warning.
+    `check_layer_contract.py` exit 0. `check_description_hygiene.py` exit 0 — 1,643 descriptions,
+    rendered lengths within BigQuery's 1,024/16,384 limits, which matters because `persist_docs` is
+    on and an over-long column description fails the prod build.
+    SQLFluff on the new test: `All Finished!`, exit 0, full rule set from the repo root.
+    SQLFluff on the changed model: 4 findings, ALL on the pre-existing
+    `dbt_utils.generate_surrogate_key` line, which is the templater noise CLAUDE.md documents
+    (`dbt_utils` is unresolvable under the jinja templater). Zero findings on any added line.
+  - NOTHING EXISTING MOVED. `rank` keeps its DENSE_RANK definition, so ties still share a rank and
+    the top-10 cut stays inclusive of them — a documented consumer contract this MR deliberately
+    leaves alone. One column is added; no column changes; no number changes.
 
-  - **The header no longer pins a SHA, so it cannot be wrong on arrival.** It said
-    `main b29f2e0` — accurate when written, and stale the instant `!162` merged, because a file that
-    merges as a commit can only ever name its own parent. What replaces it is what a reader actually
-    uses and what survives the merge: the date, the merged MR range, that nothing was open, and the
-    platform.
+## What is NOT demonstrated here, stated rather than implied
 
-  - **Verified against the failure it fixes.** Three consecutive handover MRs shipped a header that
-    was true at write time and false at read time:
-
-        !158  header said main 4bef954   -> merged as 81117ae
-        !160  header said main 6ae4031   -> merged as 2708dff
-        !162  header said main b29f2e0   -> merged as 6f296f5
-
-    Each was correct when typed. The field is self-invalidating by construction, which is why the
-    fix removes it rather than adding a reminder to update it.
-
-  - **The range states its own bound honestly.** `!154`–`!162` are the MERGED ones; the MR carrying
-    this change is not counted, because a range including its own MR is a claim about the future.
-
-  - **⛔ AND THE REPLACEMENT INTRODUCED ITS OWN FALSE CLAIM, WHICH THE REVIEW CAUGHT.** I wrote
-    *"nothing was open"* meaning no open MRs. Read plainly it says nothing is outstanding — and the
-    same file, unchanged by this branch, has four sections saying otherwise: the unresolved round
-    cap, the parked dbt profile MR with two open FAILs, the open-defects list (#110, #111, #109,
-    #108 and more), and the DE/FI labels awaiting confirmation. It failed this contract's own bar —
-    *"what it states must still be TRUE"* — in the two lines written to satisfy it.
-    Corrected to *"no MR was open. Open WORK there is — see the defects and parked items below."*
-    ⚠ The lesson is small and exact: I removed one self-invalidating claim and replaced it with an
-    ambiguous one, in a file whose whole job is to be unambiguous to a stranger.
-
-  - **The header now says where to look instead.** `git log -1` and `glab mr list` answer "where is
-    main" and "what is open" correctly and instantly — the two questions the removed fields were
-    trying to answer and could not.
-
-  - **Two lines changed, nothing else.** No section moved, no trap touched, no content rewritten.
-    15,445 of 16,000 characters, measured with Python `len()`.
-
-## Why this is a class, not a typo
-
-The header records state at WRITE time; the file is READ after its own MR merges. Any fact about the
-repository's current position is therefore guaranteed stale by one commit. A rule that asks the
-author to predict the hash they are about to create is the wrong shape — the durable fix is to stop
-recording the field and point at the command that is always right.
-
-⚠ The date, the merged range and "nothing was open" are all safe: each is a statement about a moment
-that has already passed, not about the state the reader arrives in.
-
-## What this does NOT do
-
-- **It does not touch anything below the header.** The next action, the traps, the open defects and
-  the reserved decisions are all unchanged.
-- **It does not fix `#110` or build `#111`.**
+- The dbt test has not been RUN by dbt, because `dbt build` is banned in this repo and the column is
+  not in prod until this merges. What is shown above is the test's own SQL executed against prod
+  with the window inlined, both correct and mutated. `data:build:mr` runs it for real on the MR.
+- The consumer side is not here. #40 MR B switches the export to `league_leader_order = 1` and
+  re-exports `landing.json`; it is parked in stash `TEMP-40-mrB-block` on `feat/40-top-players-block`
+  and rebases onto this once it merges and `data:build:main` recreates the view.

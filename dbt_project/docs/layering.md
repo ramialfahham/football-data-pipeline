@@ -371,8 +371,24 @@ Allowed in the frontend:
 **Never allowed in the frontend** (each of these has produced or nearly produced a
 drift bug):
 - Metric math, window selection, result/perspective computation.
-- Ranking or ordering that encodes a business rule (leaderboard ranks live in marts —
-  `mart_leaderboards.rank` is the pattern).
+- **ALL ranking and ordering. The page renders the order it is served.** CPO ruling 2026-09-09
+  (`escalations.log`), in his words *"yes, that's the rule"* to that sentence. This is not new — it
+  is the section's own test at the foot of this list ("would this value deserve a DQ test, or need
+  to be byte-identical across two frontends?") applied without exception. It is spelled out because
+  the wording it replaces — "ordering that encodes a business rule" — let every case be argued
+  individually, and that argument was had once per block. There is no
+  ordering that does not encode one: even a tie-break decides who a reader sees, so it is the
+  warehouse's. Leaderboard ranks live in marts; `mart_leaderboards.rank` and its tie-broken sibling
+  `league_leader_order` are the pattern.
+  What it costs, put to the CPO before he ruled and accepted: a block needing a new ordering waits
+  on a mart column. What it buys: no per-block argument, and two frontends cannot disagree about
+  who is top.
+  ⚠ **A SHIPPED FILE IS NOT A PRECEDENT FOR BREAKING THIS.** The rule was nearly weakened by citing
+  `site_v2/src/lib/competitionOrder.mjs`, a frontend module that sorts on five keys, as evidence
+  that ordering belongs on the page. CPO: *"I don't even know what it is. Definitely no
+  authoritative document for business logic."* Under this rule that module is a violation awaiting
+  its own task. Authority is this document, the working agreement, and `escalations.log` — never
+  the existence of code, and never the justification an agent wrote in its own header.
 - Entity derivation (e.g. player→team affiliation) or identity generation (slugs are
   published URL identity — they must come from the warehouse so every frontend links
   identically).

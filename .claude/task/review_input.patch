@@ -1,96 +1,478 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 40819c8..5b45ffc 100644
+index 5b45ffc..21be313 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,17 +1,16 @@
--# Task contract — product work is no longer blocked; say so in the handover
-+# Task contract — the handover header names the commit before its own merge
+@@ -1,49 +1,130 @@
+-# Task contract — the handover header names the commit before its own merge
++# Task contract — ranking lives in the warehouse: the layering rule + the tie-broken league leader
  
  objective: >
--  `.claude/active_work.md` says *"BLOCKED ON THE CPO: GitLab #110 — one question, and until it is
--  answered 463 team-seasons show no statistics. Do not start it."* That is now false. The rule was
--  already decided on 2026-06-25 and `!161` states it in `docs/metric_layer.md`; #110 is a narrow
--  defect, not a decision. A cold session reading the handover today would stand still waiting for an
--  answer that is not owed. Correct it, and record the two new issues.
-+  `.claude/active_work.md`'s header says **main `b29f2e0`** and "!154 through !161". Both were true
-+  when the file was written and stale the moment it merged: main is now `6f296f5` and the range runs
-+  to `!162`. A header that names the wrong commit is the one line a fresh session cannot sanity-check
-+  the rest of the file against. Fix it, and make the class not recur.
- 
+-  `.claude/active_work.md`'s header says **main `b29f2e0`** and "!154 through !161". Both were true
+-  when the file was written and stale the moment it merged: main is now `6f296f5` and the range runs
+-  to `!162`. A header that names the wrong commit is the one line a fresh session cannot sanity-check
+-  the rest of the file against. Fix it, and make the class not recur.
+-
++  Write the CPO's 2026-09-09 rulings into the places that enforce them, and give `mart_leaderboards`
++  the column they require. Two rulings, both recorded in `.claude/task/escalations.log` on the day:
++  (1) ALL RANKING AND ORDERING LIVES IN THE WAREHOUSE — the page renders the order it is served;
++  (2) A TIE IS BROKEN BY FEWER MINUTES PLAYED, falling back to `player_sk` where minutes are equal.
++  This is MR A of two. It stands alone and merges first; #40 MR B (the Home Top players block,
++  parked in stash `TEMP-40-mrB-block` on `feat/40-top-players-block`) rebases onto it, because an
++  export cannot query a column that is not yet in prod.
  refs: >
--  Bookkeeping. Triggered by the handover write-out gate after `!161` merged. No issue.
--  Standing instruction on volume, already logged in `escalations.log`
--  (`DO NOT ASK FOR MECHANICS`, and `THIS LOG IS A LEDGER, NOT A LOOKUP`): the top of the file stays
--  two sentences and process detail stays out of it.
-+  The CPO, verbatim, this session: *"fix the handover header"*.
-+  ⚠ Structural, not a slip. The header records the state at WRITE time; the file is READ after its
-+  own MR merges, so the SHA it names is always one commit behind by construction. This has now been
-+  wrong on three consecutive handover MRs.
+-  The CPO, verbatim, this session: *"fix the handover header"*.
+-  ⚠ Structural, not a slip. The header records the state at WRITE time; the file is READ after its
+-  own MR merges, so the SHA it names is always one commit behind by construction. This has now been
+-  wrong on three consecutive handover MRs.
++  `.claude/task/escalations.log`, 2026-09-09 `feat/40-top-players-block` — both rulings, with the
++  measurements behind them. It supersedes the 2026-08-18 `chore/record-top-players-ruling` entry's
++  reservation ("NOT DECIDED, do not assume either way: whether ordering the seven winners by value
++  lives in the mart or the page") and corrects that entry's false premise — it says each league's
++  number one already exists, and DENSE_RANK means it does not.
++  `dbt_project/docs/layering.md` (the consumption-layer contract this sharpens),
++  `docs/metric_layer.md` (read before touching anything metric-related; no metric changes here).
++  GitLab #40. Round-1 FAIL from `analytics-engineer-reviewer` on `feat/40-top-players-block` is what
++  surfaced it.
  
  scope_paths:
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
++  - dbt_project/docs/layering.md
    - .claude/task/contract.md
-@@ -22,40 +21,29 @@ scope_paths:
+-  - .claude/task/acceptance_evidence.md
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
+   - .claude/task/escalations.log
    - .claude/active_work.md
  
  impact_map: >
--  writers: none. One tracked document.
-+  writers: none. One header line in one tracked document.
-   layer_rules: not applicable.
--  downstream: read by a fresh session at start and by `handover_in.py`, which enforces a
--  16,000-CHARACTER cap — Python `len()`, never `wc -c`.
-+  downstream: read by a fresh session at start and by `handover_in.py` (16,000-CHARACTER cap,
-+  Python `len()`).
-   deploy_order: none.
--  blast_radius: one document. The risk is a session standing still because the handover says it is
--  blocked when it is not.
-+  blast_radius: two lines. The risk is a session trusting a stale SHA and concluding the rest of the
-+  file is stale too — or worse, that work it can see on main is unrecorded.
- 
- acceptance_criteria:
--  - The "BLOCKED ON THE CPO" line is gone. #40 MR B is stated as the next action with no
--    precondition attached to it.
--  - #110 is described as what it now is — a narrow defect where the provider labels a forfeit `FT` —
--    not a decision anyone is waiting on.
--  - **GitLab #111 is recorded**: no test checks a metric's value against the formula the catalogue
--    publishes. It did not exist when the handover was last written.
--  - A session about to touch metric behaviour is pointed at `docs/metric_layer.md` first, which is
--    where the incomplete-data rule now lives.
--  - Header facts re-derived: `main` SHA, MR range, whether anything is open.
--  - Under 16,000 characters, and no trap dropped for space.
-+  - The header no longer pins a SHA that will be wrong on merge. What it states must still be TRUE
-+    after this branch merges, which is the test the previous three headers failed.
-+  - The MR range is current, and stated so it does not need editing for the merge that carries it.
-+  - Everything else in the file is untouched — this is a two-line change, not another rewrite.
-+  - Under 16,000 characters.
+-  writers: none. One header line in one tracked document.
+-  layer_rules: not applicable.
+-  downstream: read by a fresh session at start and by `handover_in.py` (16,000-CHARACTER cap,
+-  Python `len()`).
+-  deploy_order: none.
+-  blast_radius: two lines. The risk is a session trusting a stale SHA and concluding the rest of the
+-  file is stale too — or worse, that work it can see on main is unrecorded.
+-
+-acceptance_criteria:
+-  - The header no longer pins a SHA that will be wrong on merge. What it states must still be TRUE
+-    after this branch merges, which is the test the previous three headers failed.
+-  - The MR range is current, and stated so it does not need editing for the merge that carries it.
+-  - Everything else in the file is untouched — this is a two-line change, not another rewrite.
+-  - Under 16,000 characters.
++  writers: `mart_leaderboards` is written only by the dbt build — nightly `fdp-nightly` /
++    `data:build:main`, and per-MR `data:build:mr`. No ingestion path touches it. It is
++    `materialized='view'`, so "writing" it is a view redefinition, not a table rebuild.
++
++  downstream: LEAF. Evidence, run in this session against this checkout
++    (`.venv/Scripts/dbt.exe ls --select mart_leaderboards+`, dbt 1.7.19 / bigquery 1.7.2,
++    DBT_PROFILES_DIR pointed at a scratchpad profile carrying only a `dev`/`dev_scratch` target —
++    `~/.dbt/profiles.yml` on this machine holds ANOTHER project's `dbt_analytics` profile and was
++    not touched):
++      `--resource-type model` -> football_data_pipeline.5_marts.shared.mart_leaderboards  (itself, only)
++      `--resource-type all`   -> 27 nodes = the model + 26 tests, ZERO downstream models
++    The only non-dbt consumer is `scripts/export_site_data.py`, which SELECTs named columns; adding
++    a column cannot break it. `assert_mart_leaderboards_every_home_board_has_a_leader` (shipped in
++    !153) already asserts a rank-1 row exists per elite league per Home board and is unaffected —
++    the new column is an ordering within that same partition.
++
++  layer_rules: `check_layer_contract.py` applies (a `dbt_project/models/**` path is in scope); no
++    per-competition subdirectory is created and no `+materialized` is overridden per model, so it
++    passes unchanged. The new column is computed in the MART, which is where a leaderboard rank
++    already lives — this moves logic INTO the layer the contract names, not out of it.
++
++  deploy_order: this MR must merge and `data:build:main` must run before #40 MR B can re-export
++    `landing.json`, because that export queries prod `marts.mart_leaderboards`. Cheap: the model is
++    a VIEW, so the column exists the moment the view is recreated — no table rebuild, no
++    `--full-refresh`, and none of the three incremental facts is touched. Nothing is owed
++    operationally if this merges between nightlies; the next `data:build:main` picks it up.
++
++  blast_radius: NO existing column changes and NO number moves. `rank` keeps its DENSE_RANK
++    definition, so ties still share a rank and the top-10 cut stays inclusive of ties — that is a
++    documented consumer contract and this MR deliberately does not touch it. One column is ADDED.
++    ⚠ `mart_team_leaderboards` has the same DENSE_RANK shape and therefore the same latent tie, and
++    it is NOT fixed here: Top teams (#41) is unbuilt, and widening this MR to a second mart would
++    put an unreviewed change in a model nothing consumes yet. Flagged, not folded in.
  
  decisions_taken: >
--  ⭐ **THE CORRECTION IS THE POINT, NOT THE BOOKKEEPING.** A handover that says "blocked, do not
--  start" when nothing is blocked costs a whole session. I wrote that line this morning in good faith
--  and `!161` made it false — which is exactly the failure the handover exists to prevent, so it is
--  fixed the same day rather than left for the next reader to trip over.
--  ⛔ **#110 IS RESTATED, NOT DELETED.** It is still real: forfeits the provider labels `FT` blank 18
--  of 19 Süper Lig team-seasons. What changed is its TYPE — a defect to fix, not a question to answer.
--  Deleting it would lose a measured finding; leaving it as "blocked on the CPO" would keep the stall.
--  ⚠ **NO PROVENANCE IN THE FILE.** No dates, no quotes, no round counts. Settled; not relitigated.
--
--decisions_reserved: >
--  - **GitLab #110** — the forfeit-labelled-`FT` defect. Unchanged, unfixed, now correctly typed.
--  - **GitLab #111** — no test compares a metric to its catalogue formula. Filed, not built; the
--    scope questions are on the issue.
--  - **`metrics_context_model.md` §8.1** still restates the player half of the NULL rule and should
--    defer to `docs/metric_layer.md`. Outside scope here.
--  - **The round-cap precedent** — still unresolved, unchanged by this MR.
-+  ⭐ **DROP THE SHA, KEEP WHAT IS CHECKABLE.** A commit hash in a file that merges as a commit is
-+  self-invalidating: the header can only ever name its own parent. It bought nothing a reader uses —
-+  `git log -1` answers "where is main" instantly and correctly, which the file cannot. What a reader
-+  actually needs from the header is the date, that the tree is clean, whether anything is open, and
-+  which platform. Those survive their own merge.
-+  ⛔ **NOT SOLVED BY REMEMBERING TO UPDATE IT.** Three handover MRs in one day each carried a header
-+  that was accurate when written and wrong when read. A rule that requires the author to predict the
-+  commit they are about to create is the wrong shape; removing the field removes the class.
-+  ⚠ The MR range keeps its upper bound as the last MERGED one and says so, rather than naming the MR
-+  in flight — a range that includes its own MR is a claim about the future.
+-  ⭐ **DROP THE SHA, KEEP WHAT IS CHECKABLE.** A commit hash in a file that merges as a commit is
+-  self-invalidating: the header can only ever name its own parent. It bought nothing a reader uses —
+-  `git log -1` answers "where is main" instantly and correctly, which the file cannot. What a reader
+-  actually needs from the header is the date, that the tree is clean, whether anything is open, and
+-  which platform. Those survive their own merge.
+-  ⛔ **NOT SOLVED BY REMEMBERING TO UPDATE IT.** Three handover MRs in one day each carried a header
+-  that was accurate when written and wrong when read. A rule that requires the author to predict the
+-  commit they are about to create is the wrong shape; removing the field removes the class.
+-  ⚠ The MR range keeps its upper bound as the last MERGED one and says so, rather than naming the MR
+-  in flight — a range that includes its own MR is a claim about the future.
 \ No newline at end of file
++  RULING 1, verbatim and quotable: the CPO answered "yes, that's the rule" to *"All ranking and
++  ordering lives in the warehouse. The page renders the order it is served."* This is
++  `layering.md`'s existing consumption-layer rule applied without exception rather than a new rule,
++  so this MR SHARPENS the wording rather than inventing a mechanism. The cost was put to him before
++  he ruled: a block needing a new ordering waits on a mart column.
++
++  RULING 2, and the reasoning he accepted: a tie is broken by FEWER MINUTES PLAYED — the same tally
++  in less time is the better performance, and it reads identically on all four Home boards. Measured
++  against prod 2026-09-08/09 before asking: of the 28 league-boards the Home block renders, 12 carry
++  a tie, minutes resolves 11 of the 12, one survives, and 0 have a NULL `minutes`.
++  The survivor falls to `player_sk`, which is MEANINGLESS AND SAID TO BE — stable, invisible, and
++  making no claim about the players. Player NAME was offered as the fallback and NOT taken, because
++  names in this pipeline are a known-unreliable identity surface and an alphabetical fallback would
++  reorder a board when a name is corrected.
++
++  ⛔ A FILE'S EXISTENCE IS NOT AUTHORITY. Arguing the previous round I cited
++  `site_v2/src/lib/competitionOrder.mjs` — a shipped frontend module with a five-key sort — as
++  precedent for keeping ordering on the page. CPO: *"I don't even know what it is. Definitely no
++  authoritative document for business logic."* Under Ruling 1 that module is a VIOLATION, not a
++  precedent. It is NOT fixed here — it is a separate task, and folding it in would put an unrelated
++  frontend rewrite inside a warehouse MR.
++
++  THRESHOLD — NEW MECHANISM: none. `row_number()` beside an existing `dense_rank()` in a model that
++  already ranks; no new model, macro, seed, dependency, job or gate. The singular test added is the
++  standard dbt shape and sits beside the sibling this mart already has.
++
++  THRESHOLD — RECURRING COST: negligible and stated rather than assumed. `mart_leaderboards` is a
++  VIEW, so nothing is stored; the added cost is one more window function over the same scan when a
++  consumer queries it, and one extra singular test per build. Measured neighbour for scale: the
++  export's whole Home query over this view is 29.8 MB by dry run, against ~129 GB/day for the two
++  scheduled jobs.
++
++decisions_reserved:
++  - THE ORDER OF THE ROWS ACROSS LEAGUES, which this column does not settle and cannot. A board
++    shows one leader per league ordered by value, and that ordering ties too (measured: two leagues
++    level on 4 assists). The tie RULE is now settled — value, then fewer minutes, then `player_sk` —
++    but the ordering is pool-scoped, and the pool (`competition_group = 'elite'`, rotating nightly
++    under #101) is not a concept `mart_leaderboards` knows. So MR B applies those three ruled keys
++    as an ORDER BY over served columns. Making even that live in the warehouse needs a pool-aware
++    mart, which is exactly what the CPO questioned on 2026-08-18 ("do we really need a separate mart
++    for it ... it's repetitive work, not sure about it"). Stated here so MR B's reviewer sees it
++    declared rather than discovering it.
++  - Whether `mart_team_leaderboards` gets the same column, and when. Same latent defect, no consumer
++    yet. Not decided here.
++  - Whether `competitionOrder.mjs` is rewritten or deleted. It is a violation under Ruling 1; which
++    it is depends on what the competitions index is supposed to order by, which is not this MR's.
++
++done_when:
++  - `dbt parse` clean, and SQLFluff passes on the changed model from the REPO ROOT with the full rule
++    set (`python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, exit code read bare
++    and unredirected — it exits 1 on success when stdout is redirected).
++  - `python scripts/check_layer_contract.py` and `python scripts/check_description_hygiene.py` exit 0
++    (the new column carries a description and `persist_docs` is on, so BigQuery's 1,024-character
++    column limit applies and a breach fails the prod build).
++  - The new singular test is MUTATION-TESTED, not merely green: dropping the `minutes` leg from the
++    window's ORDER BY must turn it RED, and the evidence must show it red.
++  - Measured against prod through a compiled query: exactly one row per (league_code,
++    season_api_year, metric_key) has the new column = 1, and for the 12 tied Home league-boards the
++    row it picks is the one with fewer minutes.
++
++amendments: (none)
+diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
+index 907e409..f64037f 100644
+--- a/.claude/task/escalations.log
++++ b/.claude/task/escalations.log
+@@ -8473,3 +8473,82 @@ shooting funnel, the row order, the block sequence — none of which moved. And
+ licence to edit locked documents: the next one needs its own instruction.
+ ⚠ The seed already carried the correct text ("In [0, 1] - penalties and own goals are excluded"), so
+ this was a stale rationale paragraph, not a new claim about the metric.
++
++2026-09-08 feat/40-top-players-block — CPO RULING: the DE/FI board labels for Top players (#40 MR B).
++
++  HOW IT SURFACED. The block was parked in stash TEMP-40-mrB with its four DE and four FI board
++  labels flagged "NEEDS CPO CONFIRMATION" rather than presented as settled, because `metricLabel()`
++  falls back to English and then to EMPTY — so a missing Finnish label renders a BLANK board title,
++  not a visible error. Before asking, the CPO-validated legacy corpus in `site/i18n/` was checked:
++  it already carries `Ø Tore` / `Ø Pässe` (de) and `Ø Maalit` / `Ø Syötöt` (fi), so those four stems
++  were already his and only ASSISTS and KEY PASSES were genuinely new in each locale. The question
++  put to him was therefore four words, not eight.
++
++  HIS WORDS, verbatim: "Then in German it would be Torvorlagen (more precise than just Vorlagen),
++  Schlüsselpässe"
++
++  WHAT IT DECIDES. The German assists label is **Torvorlagen**, not the bare "Vorlagen" the parked
++  draft carried, and German key passes is **Schlüsselpässe**. "Assists" — current in German football
++  media and offered as the alternative — was not taken. The four Finnish labels (Maalit,
++  Maalisyötöt, Syötöt, Avainsyötöt) and the German Tore / Pässe stand as drafted; he changed one
++  word and let the rest through.
++
++  WHAT IT DOES NOT DECIDE. Nothing about any other metric's label in any locale, and nothing about
++  the `Ø` sigil, which these four omit because they are season TOTALS (catalogue `format: integer`)
++  rather than per-match rates.
++
++  ⚠ RECORDED HERE BECAUSE OF WHERE IT WAS *NOT* RECORDED. Round 1 of this branch, scope-auditor
++  FAILed it: the ruling was narrated in `contract.md` and shipped into `strings.ts` on that
++  authority, and a full-text grep of this log for "Torvorlagen", "Schlüsselpässe", "scorerPoints"
++  and "keyPasses" returned nothing. That is the third recorded instance of the same failure
++  (2026-07-31, 2026-09-02, and this) and the standing rule it breaks is
++  `feedback_dont_attribute_repo_practice_to_cpo`: "you ruled" needs a quote from `escalations.log`.
++  A contract is overwritten by the next task; this file is not. The lesson is not "ask more" — the
++  ruling was real and correctly obtained — it is that the write-down happens in the same breath as
++  the answer, not at the end of the branch.
++
++2026-09-09 feat/40-top-players-block — TWO CPO RULINGS that close a question open since 2026-08-18:
++  WHERE ranking lives, and HOW a tie is broken.
++
++  HOW IT SURFACED. Building #40 MR B, `analytics-engineer-reviewer` FAILed round 1: the export was
++  picking which of several joint league leaders to show, and that is ranking in the consumption
++  layer. The 2026-08-18 entry (`chore/record-top-players-ruling`) had already reserved the question
++  — "NOT DECIDED, do not assume either way: whether ordering the seven winners by value lives in the
++  mart or the page" — so neither the builder nor a reviewer could settle it.
++
++  ⚠ THE PREMISE OF THE 2026-08-18 RULING WAS FALSE, WHICH IS WHY THIS CAME BACK. That entry says
++  "`mart_leaderboards` already ranks within (league_code, season_api_year), so each league's number
++  one already exists". It does not: the mart ranks with DENSE_RANK, so joint leaders SHARE rank 1.
++  Measured against prod 2026-09-08, the four Home boards across the seven elite leagues:
++    · 57 rank-1 rows for 28 league-boards — 29 surplus rows
++    · 12 of the 28 league-boards (43%) carry a tie. This is not an edge case.
++
++  RULING 1 — ALL RANKING AND ORDERING LIVES IN THE WAREHOUSE. CPO: "yes, that's the rule", to:
++  *"All ranking and ordering lives in the warehouse. The page renders the order it is served."*
++  This is `dbt_project/docs/layering.md`'s existing consumption-layer rule applied without
++  exception, not a new one. What it costs, stated to him before he ruled: a block needing a new
++  ordering waits on a mart column. What it buys: no per-block argument, and two frontends cannot
++  disagree about who is top.
++
++  ⛔ I ARGUED FOR A SPLIT RULE ("which rows are shown is the warehouse's, what order they appear in
++  is the page's") AND THE EVIDENCE FOR IT WAS BAD. I cited `site_v2/src/lib/competitionOrder.mjs`, a
++  shipped module that applies a five-key frontend sort, as precedent. CPO: *"I don't even know what
++  it is. Definitely no authoritative document for business logic."* He is right and the correction
++  is general: A FILE'S EXISTENCE IS NOT AUTHORITY, and neither is the justification an agent wrote
++  in its own header. Only this log and the docs the working agreement names are authority. Under
++  Ruling 1 that module is a VIOLATION, not a precedent — filed as its own task, not fixed here.
++
++  RULING 2 — A TIE IS BROKEN BY FEWER MINUTES PLAYED. CPO chose it over an alphabetical fallback and
++  over "no sporting criterion, just an id". The reasoning offered and accepted: the same tally in
++  less time is the better performance, and it reads the same way on all four boards — fewer minutes
++  for the same passes or assists is also the better return.
++  Measured before asking: fewer minutes resolves 11 of the 12 live ties; 1 survives; 0 league-boards
++  have a NULL `minutes`, so the criterion is always available.
++  ⚠ THE LAST RESORT IS MEANINGLESS AND IS LABELLED AS SUCH. Where minutes are also equal the order
++  falls to `player_sk` — stable, invisible, and carrying no claim about the players. Player NAME was
++  offered and not taken; names in this pipeline are a known-unreliable identity surface, so an
++  alphabetical fallback would reorder the board when a name is corrected.
++
++  WHAT THIS COSTS #40 MR B, and it is not small: the pick becomes a served column on
++  `mart_leaderboards`, and the export cannot query a column that is not in prod. So the block splits
++  into two merge requests — the mart column and the layering rule first, the block on top of it.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 30342c1..a658c73 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -371,8 +371,24 @@ Allowed in the frontend:
+ **Never allowed in the frontend** (each of these has produced or nearly produced a
+ drift bug):
+ - Metric math, window selection, result/perspective computation.
+-- Ranking or ordering that encodes a business rule (leaderboard ranks live in marts —
+-  `mart_leaderboards.rank` is the pattern).
++- **ALL ranking and ordering. The page renders the order it is served.** CPO ruling 2026-09-09
++  (`escalations.log`), in his words *"yes, that's the rule"* to that sentence. This is not new — it
++  is the section's own test at the foot of this list ("would this value deserve a DQ test, or need
++  to be byte-identical across two frontends?") applied without exception. It is spelled out because
++  the wording it replaces — "ordering that encodes a business rule" — let every case be argued
++  individually, and that argument was had once per block. There is no
++  ordering that does not encode one: even a tie-break decides who a reader sees, so it is the
++  warehouse's. Leaderboard ranks live in marts; `mart_leaderboards.rank` and its tie-broken sibling
++  `league_leader_order` are the pattern.
++  What it costs, put to the CPO before he ruled and accepted: a block needing a new ordering waits
++  on a mart column. What it buys: no per-block argument, and two frontends cannot disagree about
++  who is top.
++  ⚠ **A SHIPPED FILE IS NOT A PRECEDENT FOR BREAKING THIS.** The rule was nearly weakened by citing
++  `site_v2/src/lib/competitionOrder.mjs`, a frontend module that sorts on five keys, as evidence
++  that ordering belongs on the page. CPO: *"I don't even know what it is. Definitely no
++  authoritative document for business logic."* Under this rule that module is a violation awaiting
++  its own task. Authority is this document, the working agreement, and `escalations.log` — never
++  the existence of code, and never the justification an agent wrote in its own header.
+ - Entity derivation (e.g. player→team affiliation) or identity generation (slugs are
+   published URL identity — they must come from the warehouse so every frontend links
+   identically).
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index 3abf8f2..331166c 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -137,7 +137,28 @@ ranked as (
+         dense_rank() over (
+             partition by league_code, season_api_year
+             order by {{ board.key }} desc
+-        ) as board_rank
++        ) as board_rank,
++        -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
++        -- ties SHARING a rank is a documented consumer contract here, and the top-10 cut is
++        -- inclusive of them. But a consumer that must show ONE player per league cannot use it —
++        -- measured against prod 2026-09-09, 12 of the 28 league-boards the Home block renders have
++        -- more than one rank-1 player. Deciding which of them is shown is ranking, so it belongs
++        -- here and not in the export (CPO 2026-09-09, escalations.log: "All ranking and ordering
++        -- lives in the warehouse. The page renders the order it is served.").
++        -- ⭐ FEWER MINUTES WINS (CPO, same day): the same tally in less time is the better
++        -- performance, and that reads identically on every board — fewer minutes for the same
++        -- passes or assists is also the better return. It settles 11 of those 12 ties.
++        -- ⚠ `player_sk` last is MEANINGLESS AND SAID TO BE. It exists so the one tie that survives
++        -- minutes has a stable answer; it makes no claim about the players. Player NAME was offered
++        -- as the fallback and NOT taken, because a name correction would then reorder a board.
++        -- ⚠ `nulls last` is load-bearing. BigQuery sorts NULLs FIRST ascending, so without it an
++        -- unknown minutes total would beat every known one and win the tie. Prod currently has no
++        -- NULL `minutes` among elite leaders; this is the guard for the general case, not the
++        -- measured one.
++        row_number() over (
++            partition by league_code, season_api_year
++            order by {{ board.key }} desc, minutes asc nulls last, player_sk asc
++        ) as league_leader_order
+     from base
+     where {{ board.where }}
+     {% if not loop.last %}
+@@ -151,6 +172,7 @@ select
+         as player_leaderboard_sk,
+     metric_key,
+     board_rank as rank,
++    league_leader_order,
+     sort_value,
+     league_code,
+     season_api_year,
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index e0c4624..de971f2 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1712,6 +1712,10 @@ models:
+       DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
+       share a rank and the top 10 includes them. Only a positive value is ranked.
+ 
++      Because ties share a rank, a league can hold several rank-1 players. league_leader_order is
++      the tie-broken order in the same partition, so a consumer that must show one player per league
++      filters on it instead of choosing between the joint leaders itself. Fewer minutes wins a tie.
++
+       Each row also carries the club the player belonged to that competition-season, so a row
+       identifies a team as well as a player. The club is null when the player has no finished
+       match in that competition-season.
+@@ -1767,6 +1771,15 @@ models:
+       - name: rank
+         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
+         tests: [not_null]
++      - name: league_leader_order
++        description: >
++          The tie-broken position within (league_code, season_api_year) on this board. 1 is the
++          league's leader, and exactly one row per league-board carries it. Use this and not rank
++          when a consumer must show ONE player per league: rank is a DENSE_RANK, so joint leaders
++          share it and a league can hold several 1s. Ties break by fewer minutes played, then by
++          player_sk. Fewer minutes wins because the same tally in less time is the better
++          performance; player_sk is a stable last resort and means nothing on its own.
++        tests: [not_null]
+       - name: sort_value
+         description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
+         tests: [not_null]
+diff --git a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
+new file mode 100644
+index 0000000..5a51231
+--- /dev/null
++++ b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
+@@ -0,0 +1,107 @@
++-- league_leader_order must be a TOTAL order within a league-board, and its 1 must be the right row.
++--
++-- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod on
++-- 2026-09-09, 12 of the 28 league-boards the Home page renders had more than one rank-1 player, and
++-- one board returned 24 rank-1 rows across 7 leagues. A consumer showing ONE player per league
++-- cannot use `rank`, which is why `league_leader_order` exists (CPO 2026-09-09, escalations.log:
++-- "All ranking and ordering lives in the warehouse. The page renders the order it is served").
++--
++-- TWO INVARIANTS, and the second is the one that would rot silently. The first — exactly one row
++-- per league-board carries 1 — is structural and a broken window function would break it loudly.
++-- The second — that the row carrying 1 is the one the RULE picks — is what a wrong ORDER BY breaks
++-- while leaving the count perfectly correct. Dropping the `minutes` leg still yields exactly one
++-- leader per league-board; it is just the wrong player. So the count alone would be a test that
++-- cannot fail for the reason the column was written.
++--
++-- ⚠ NOT scoped to the elite group or the current season, unlike
++-- assert_mart_leaderboards_every_home_board_has_a_leader. That test asks whether the Home block has
++-- something to show, which is a question about the pool it renders. This one asks whether a column
++-- means what it says, which is true of every row or the column is broken.
++
++with import_mart_leaderboards as (
++    select * from {{ ref('mart_leaderboards') }}
++),
++
++-- 1. The order is total: one and only one leader per league-board.
++not_exactly_one_leader as (
++    select
++        league_code,
++        season_api_year,
++        metric_key,
++        countif(league_leader_order = 1) as leaders
++    from import_mart_leaderboards
++    group by league_code, season_api_year, metric_key
++    having leaders != 1
++),
++
++-- 2. The leader is the row the RULE picks: best value, then fewest minutes.
++--    `min(minutes)` is taken only among the rows that share the league-board's best value, because
++--    a lower-scoring player with fewer minutes must NOT win — minutes break a tie, they do not
++--    outrank the metric. Nulls are excluded from the comparison the same way `nulls last` excludes
++--    them from winning one.
++leaders as (
++    select
++        league_code,
++        season_api_year,
++        metric_key,
++        sort_value,
++        minutes
++    from import_mart_leaderboards
++    where league_leader_order = 1
++),
++
++best as (
++    select
++        l.league_code,
++        l.season_api_year,
++        l.metric_key,
++        max(m.sort_value) as best_value,
++        min(if(m.sort_value = l.sort_value, m.minutes, null)) as fewest_minutes_at_best
++    from leaders as l
++    inner join import_mart_leaderboards as m
++        on
++            l.league_code = m.league_code
++            and l.season_api_year = m.season_api_year
++            and l.metric_key = m.metric_key
++    group by l.league_code, l.season_api_year, l.metric_key
++),
++
++wrong_leader as (
++    select
++        leaders.league_code,
++        leaders.season_api_year,
++        leaders.metric_key
++    from leaders
++    inner join best
++        on
++            leaders.league_code = best.league_code
++            and leaders.season_api_year = best.season_api_year
++            and leaders.metric_key = best.metric_key
++    where
++        leaders.sort_value != best.best_value
++        or (leaders.minutes is not null and leaders.minutes != best.fewest_minutes_at_best)
++        -- ⚠ THE NULLS-FIRST REGRESSION, which the two clauses above cannot see. Both are gated on
++        -- the leader's own minutes being known, so flipping the model's `nulls last` to `nulls
++        -- first` would hand the league to a player with UNKNOWN minutes and neither would fire.
++        -- This clause is the one that catches it: the leader has no minutes while a player tied
++        -- with it on the same best value does. `min()` ignores nulls, so `fewest_minutes_at_best`
++        -- is null only when NO tied row has minutes — in which case there is nothing to compare and
++        -- this correctly stays silent.
++        or (leaders.minutes is null and best.fewest_minutes_at_best is not null)
++)
++
++select
++    league_code,
++    season_api_year,
++    metric_key,
++    'not exactly one leader' as failure
++from not_exactly_one_leader
++
++union all
++
++select
++    league_code,
++    season_api_year,
++    metric_key,
++    'leader is not the ruled pick' as failure
++from wrong_leader
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -104,8 +486,7 @@ index 40819c8..5b45ffc 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |   6 +-
-#    .claude/task/acceptance_evidence.md |  76 ++++++------
-#    .claude/task/review_input.patch     | 222 +++++++++++++-----------------------
-#    3 files changed, 126 insertions(+), 178 deletions(-)
+#   .claude/task/acceptance_evidence.md | 102 ++++---
+#    .claude/task/review_input.patch     | 534 ++++++++++++++++++++++++++++++------
+#    2 files changed, 500 insertions(+), 136 deletions(-)
 # ============================================================================
