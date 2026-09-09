@@ -1,77 +1,70 @@
-# Acceptance evidence — #40 MR B, the Top players block
+# Evidence — the three served columns the Top teams block needs
 
-Read from BUILT output (`site_v2/dist`, the dev server at 375px and 1280px, and the committed
-`site_v2/src/data/landing.json`), not from source. Every number below was measured in this session.
+Measured against PROD (`football-data-pipeline-gcp.marts.mart_team_leaderboards`) and the local
+toolchain. No acceptance_criteria block is required — the diff touches no `site_v2/src/` path — so
+this demonstrates the contract's `done_when`.
 
 criteria_demonstrated:
-  - ONE ROW PER LEAGUE, ALL SEVEN, AND THE WAREHOUSE DECIDES IT. The committed `landing.json` carries
-    4 boards x 7 rows = 28 rows, and every board lists BL1, ED, L1, LP, PD, PL, SA exactly once.
-    That is now a filter on `league_leader_order = 1`, a column `mart_leaderboards` serves since MR
-    A (`!164`, merged `943c9f2`); confirmed live in prod before re-exporting — 28 rows carry it
-    across the four Home boards and seven elite leagues.
-    ⚠ `rank = 1` alone is NOT one per league and never was: the mart ranks with DENSE_RANK, and
-    measured the same week, assists returned 24 rank-1 rows whose top 7 covered 5 leagues with two
-    of them twice; goals showed ED three times; key passes covered 4 of 7.
-    ⚠ THE RULING CHANGED WHO IS SHOWN, VISIBLY. Under the old Python tie-break (lowest player id)
-    the Goals board showed Haaland for PL and Daal for ED; under the ruled one (fewer minutes) it
-    shows A. Isak and S. Tengstedt. Same data, different and better-justified rows.
-  - THE INTRO SENTENCE IS TRUE AGAINST WHAT RENDERS. `dist/{de,en,fi}/index.html`, comments stripped
-    and whitespace collapsed, gives one `.tt-intro` naming exactly seven leagues — La Liga, Serie A,
-    Liga Portugal, Ligue 1, Eredivisie, Premier League, 1. Fussball-Bundesliga — which is exactly the
-    set every board shows. It is read from the rendered rows, so it cannot drift from them.
-  - THE EXPORT IS DETERMINISTIC AND COMPARES NOTHING AT ALL. `--entities landing` was run twice
-    against live BigQuery after MR C landed and the two outputs compared with `cmp`: IDENTICAL.
-    The query is now `order by l.board_leader_order` — ONE served column. `_board_order` is deleted,
-    the shaper only groups, preserves and caps, and the three-key ORDER BY that replaced it is gone
-    too. Mutation-tested from the other side: putting a value sort back into the shaper turns
-    `test_top_players_does_not_reorder_what_it_is_given` RED (1 failed, 15 passed). That test hands
-    the shaper rows in an order no sort would produce, so it cannot pass by luck.
-  - ⭐ THE SERVED COLUMN REPRODUCES THE PREVIOUS PAYLOAD EXACTLY, which is the check that the column
-    encodes the rule the export used to apply rather than some other order. The payload built by the
-    three-key ORDER BY and the payload built by `order by l.board_leader_order` are IDENTICAL.
-    ⚠ Stated precisely rather than rounded up: `cmp` on the raw files reported a difference at
-    byte 2, and the cause was line endings, not content — the "before" copy came from the working
-    tree, which git had converted to CRLF, while the export writes LF. With CRs stripped the two are
-    byte-identical, and `python -m json.tool` diffs to nothing. Git's own view of the change is
-    `334 insertions(+), 0 deletions(-)` against main, i.e. `upcoming` untouched and only
-    `top_players` added — the same figure as before the switch.
-    Board order after the switch, unchanged: goals PD,SA,LP,L1,ED,BL1,PL / assists PD,SA,ED,PL,LP,
-    L1,BL1 / passes LP,ED,PL,PD,SA,L1,BL1 / key passes PD,ED,SA,LP,L1,PL,BL1.
-  - EVERY BOARD TITLE IS LOCALISED AND NON-EMPTY IN ALL THREE LOCALES. From the built HTML:
-    EN Goals / Assists / Passes / Key passes; DE Tore / Torvorlagen / Paesse / Schluesselpaesse;
-    FI Maalit / Maalisyoetoet / Syoetoet / Avainsyoetoet. Blank-title count is 0 in each locale. The
-    German assists label is the CPO's 2026-09-08 ruling; the draft carried "Vorlagen".
-  - THE BUILD IS GREEN AND NO PLAYER LINK IS DEAD. `npm run build` completes: "audit-seo: 250 built
-    page(s) checked. OK." Page-count driver reports `/[lang]/players/[player] -> 84`, i.e. the 28
-    distinct players the 28 board rows link to x 3 locales. (It was 81 before MR A: the old
-    tie-break happened to put Dybala on two boards, the ruled one does not — the page count follows
-    the data, which is why it is read from the build rather than asserted.) Before the scaffold
-    existed, check 8 would have failed on every one of those hrefs.
-  - TAP TARGETS AND PER-BOARD STACKING HOLD AT 375px, RE-MEASURED AFTER THE DATA CHANGED. On the dev
-    server at 375x812 with the post-MR-A payload: row heights 55.8-73px, minimum 55.8px, against the
-    44px floor. Within every board `.ent` resolves to a SINGLE computed display value (`block` at
-    375px, `flex` at 1280px), so a board stacks as a whole and never row-by-row. The value column's
-    right edge is one value per board (359 at 375px, 945 at 1280px), so the numbers stay aligned
-    down the board. No console errors on the home page or a player stub.
-    ⚠ Re-measured rather than carried over: the ruling changed which players are shown, and name
-    length is what drives row height and wrapping.
-  - THE FOCUS RING NO LONGER CROSSES A DIVIDER. Measured with real keyboard focus at 375px, row 3 of
-    the Goals board: BEFORE, `outline-offset: 2px` + `outline-width: 2px` put the ring at
-    y=373.5..438.3 against dividers at 377.5 and 434.3 — 4px through the line at both ends, the
-    defect !151 shipped. AFTER `a.brow:focus-visible { outline-offset: -2px }`: ring reach beyond the
-    border box is 0, `crossesUpperDivider` and `crossesLowerDivider` both false.
-  - A MISSING FINNISH BOARD LABEL NOW FAILS, WHERE IT PREVIOUSLY PASSED SILENTLY. Deleting
-    `playerMetrics.keyPasses.label` from `METRIC_LABELS_FI`: `check_copy_gate.py` exits 1 with "key
-    missing from fi", and `check-metric-labels.test.mjs` fails with "FI has no label for". Both were
-    blind to the whole `playerMetrics.*` namespace before this branch widened their parsers, so a
-    blank board title would have shipped with nothing red.
-  - AND THE WIDENING ITSELF IS PINNED, which round 1 correctly found it was not. Narrowing
-    `_METRIC_ENTRY_RE` back to the `metrics.*.label` anchor makes
-    `test_copy_gate_sees_the_player_metric_namespace_too` RED, naming all four keys. The same
-    mutation leaves the gate printing `COPY GATE ok: 453 strings across 3 locales (396 chrome + 57
-    metric labels)` and exiting 0 — 57 against 69, i.e. the twelve board-label strings silently
-    invisible again. That 69-vs-57 gap is the hole, measured from both sides.
-  - THE WHOLE OFFLINE GATE SET IS GREEN. `pytest tests/` 1020 passed / 1 skipped; `npm test` 81
-    passed; `check_layer_contract`, `check_registry_var_sync`, `check_competition_type_seed`,
-    `check_copy_gate`, `check_description_hygiene` and `sync_metric_docs_blocks --check` all exit 0;
-    `dbt parse` clean apart from the pre-existing unused-snapshots warning.
+  - THE MART WAS MISSING ALL THREE, READ NOT ASSUMED. `INFORMATION_SCHEMA.COLUMNS` on prod returns
+    13 columns for this mart: no `is_current_season`, no `league_leader_order`, no
+    `board_leader_order`. Without them the Top teams export would have to pick a season and compute
+    an order for itself, which is the pair of defects that cost the player block four failed rounds.
+  - ALL FOUR INVARIANTS HOLD OVER PROD. Running the new expressions across the whole mart, 877
+    league leaders: **0** league-board-seasons with other than exactly one leader, **0** duplicate
+    board positions, **0** rows where `board_leader_order` is defined on the wrong side of the
+    leader flag, **0** consecutive pairs contradicting the ruled order.
+  - THE TEST IS MUTATION-PROVEN, TWO-SIDED, ON EVERY INVARIANT. With the ruled order the checks
+    return 0/0/0/0. Dropping the `team_sk` leg from the board order returns **89 rows** — a dbt
+    singular test fails on any row, so it goes RED.
+  - ⛔ THE `is_current_season` CHECK WAS TOO WEAK AND REVIEW CAUGHT IT. I shipped a cardinality-only
+    guard — "exactly one distinct season flagged per league" — on the identical column whose player
+    mart sibling (`assert_one_current_season_per_league.sql`) already carries three checks, its
+    header recording why the first alone is insufficient. That is the already-rejected shape,
+    repeated in the mirror mart. Now strengthened to cardinality AND recency AND row completeness,
+    and mutation-proven three ways against prod:
+        correct                                      ->  0 leagues failing
+        ORDER BY season_api_year ASC (oldest flagged) -> 33 leagues failing
+        rank() reverted to row_number() (one row)     -> 44 leagues failing
+    Both mutations are ones the cardinality-only version passes green: the first still flags exactly
+    one season, the second still flags one season that is still the latest.
+    ⚠ The adjacency check is what catches that, and it is deliberately NOT a re-computation of the
+    window: re-running `row_number()` inside the test with the same ORDER BY would pass for any
+    ordering. It walks consecutive pairs with `lead()` and asserts the later row is not strictly
+    better on the ruled keys.
+  - ⭐ THE COMPILED MODEL WAS DRY-RUN AGAINST PROD BEFORE PUSHING, which is the lesson `!165` paid
+    for. `dbt compile --select mart_team_leaderboards`, dev dataset identifiers rewritten to the
+    prod ones, piped to `bq query --dry_run`: **Query successfully validated … 1508922 bytes**.
+    A dry run bills zero and checks syntax AND every column reference against the real schema.
+    On `!165` a trailing comma reached CI precisely because this step did not exist: `dbt parse`
+    does not compile SQL, and SQLFluff cannot see past this file's `dbt_utils` line.
+  - THE TOOLCHAIN IS GREEN. `dbt parse` clean apart from the pre-existing unused-snapshots warning.
+    `check_layer_contract.py` exit 0. `check_description_hygiene.py` exit 0 over 1,647 descriptions.
+    SQLFluff on the new test: `All Finished!`, exit 0, full rule set from the repo root. SQLFluff on
+    the changed model: 4 findings, ALL on the pre-existing `dbt_utils.generate_surrogate_key` line —
+    the templater noise CLAUDE.md documents. Zero on any added line.
+    ⚠ `check_description_hygiene.py` FAILED first, on two real findings in my own text: an issue
+    reference (`#114`) and a severity emoji inside a column description. Both are banned because a
+    description states what the data means rather than arguing a case. Rewritten plainly; the
+    argument stays in the model comment, where it belongs.
+  - NOTHING EXISTING MOVED. `rank` keeps its DENSE_RANK definition and every other column is
+    untouched. Three columns are ADDED, and NOTHING reads this mart yet —
+    `scripts/export_site_data.py` does not query it at all today — so the blast radius outside the
+    model is empty.
+
+## The ruling this implements, and what it is not
+
+The CPO ruled on 2026-09-09 that there is NO sporting tie-break for the team boards. The player
+rule — fewer minutes played — does not transfer, because teams have no minutes, and the analogue I
+proposed (`season_games_played`) was rejected: *"will not work most of the time"*. Measured, he is
+right twice over: it barely discriminates (3.6 distinct game counts per league-season on average; in
+72 of 235 every team is level), and for a RATE fewer games is less evidence rather than better
+performance. So `team_sk` is the whole tie-break and the model says plainly that it means nothing.
+GitLab #114 is open at LOW priority to find something better.
+
+## What is NOT demonstrated here
+
+- The dbt test has not been run BY dbt: `dbt build` is banned and the columns are not in prod until
+  this merges. What is shown is the test's own logic executed against prod with the windows inlined,
+  both correct and mutated. `data:build:mr` runs it for real on the MR.
+- The consumer is not here. The Top teams block follows in its own MR once this merges and
+  `data:build:main` recreates the view.

@@ -8552,3 +8552,31 @@ this was a stale rationale paragraph, not a new claim about the metric.
   WHAT THIS COSTS #40 MR B, and it is not small: the pick becomes a served column on
   `mart_leaderboards`, and the export cannot query a column that is not in prod. So the block splits
   into two merge requests — the mart column and the layering rule first, the block on top of it.
+
+2026-09-09 feat/team-board-order — CPO RULING: the TEAM boards get NO sporting tie-break.
+
+  HOW IT SURFACED. Starting Top teams, `mart_team_leaderboards` turned out to have the same
+  DENSE_RANK shape as the player mart, so "one team per league" needs the same tie-broken column.
+  I asked what breaks the tie and proposed the direct analogue of the player rule.
+
+  ⛔ THE PLAYER RULE DOES NOT TRANSFER, AND I NEARLY EXTENDED IT ANYWAY. The player boards break a
+  tie on FEWER MINUTES PLAYED. Teams have no minutes. I offered `season_games_played` as the
+  equivalent and he rejected it in four words: *"will not work most of the time"*.
+
+  HE IS RIGHT TWICE, AND THE SECOND REASON IS THE REAL ONE:
+    · It barely discriminates. Measured over 235 league-seasons: 3.6 distinct game counts per
+      league-season on average, and in 72 of them EVERY team has played exactly the same number.
+    · It asserts the wrong thing. For a RATE, fewer games is not better — it is LESS EVIDENCE for
+      the same rate. Fewer minutes for an equal goal tally is efficiency; fewer games for an equal
+      goals-per-match is a smaller sample. I was pattern-matching the shape of the player rule
+      instead of asking what it CLAIMS.
+
+  THE RULING. No criterion. Equal rate is equal performance and there is nothing on these four
+  boards left to separate them by. The order falls straight to `team_sk` — stable, meaningless, and
+  labelled as meaningless in the model exactly as `player_sk` is. On the disposition, his words:
+  *"yes, let's a separate issue to build something smarter at some later point"* — filed as #114.
+
+  SCALE: 2 of 259 league-board-seasons currently tie, against 12 of 28 on the player boards. Rates
+  tie far less than integer counts, which is also why the player answer mattered more.
+
+  ⚠ WHAT THIS DOES NOT DECIDE: anything about the player boards. #112 stays open on its own terms.
