@@ -35,6 +35,11 @@ from datetime import datetime, timezone
 
 GCP_PROJECT = "football-data-pipeline-gcp"
 MARTS_DATASET = "marts"
+# Seeds carry no `+schema`, so they ride the profile's own `dataset:` rather than a layer dataset —
+# prod's is `dbt_analytics` (CLAUDE.md). Verified, not assumed: a dry run against
+# `marts.competition_registry` fails "not found", against `dbt_analytics.competition_registry` it
+# validates at 260 bytes.
+SEEDS_DATASET = "dbt_analytics"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "leaderboards", "matchstats", "glossary", "landing", "competition_index")
@@ -48,6 +53,17 @@ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 _LEADERBOARD_METRICS = ("goals_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player",
                         "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player",
                         "cards_player")
+# The HOME page's Top players boards (#40): four boards, one metric each, in display order.
+# ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
+# different consumer with a different board set. Sharing one list would couple two surfaces that
+# the CPO has changed independently (the home set was cut from nine boards to four on 2026-08-10
+# while the leaderboards set was not).
+# ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
+# the mart suffixes them `_player`. The board's NAME still comes from the catalogue's `label_en`.
+_HOME_PLAYER_BOARDS = ("goals_player", "assists_player", "passes_player", "passes_key_player")
+# Top 7 per board, raised from 5 by the CPO on 2026-08-10 and applying to Top teams as well.
+_HOME_BOARD_ROWS = 7
+
 _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
             "appearances", "minutes", "rank", "sort_value",
             "goals_player", "assists_player", "shots_on_goal_player", "dribbles_success_player", "dribbles_attempts_player",
@@ -1155,7 +1171,100 @@ def _landing_side(team: dict | None) -> dict:
     }
 
 
-def shape_landing_payload(upcoming: list[dict]) -> dict:
+def _board_label_keys(seed_path: str = CATALOGUE_SEED_PATH) -> dict[str, str]:
+    """metric_id -> label_i18n_key for the home boards, read from the catalogue seed.
+
+    The board's NAME is the metric's label, and the catalogue is the only source of metric labels
+    (#327). Carrying the KEY rather than the words keeps it that way: the export ships an
+    identifier, the frontend resolves it per locale through `metricLabel()`, and nothing hand-types
+    a board name in either place.
+
+    ⚠ Keyed on (metric_id, entity='player'). Two of the ids here also carry a TEAM row, and keying
+    on metric_id alone silently takes the wrong label — the bug `!27` fixed in
+    export_metric_definitions_json.py.
+    """
+    import csv
+
+    with open(seed_path, encoding="utf-8") as f:
+        rows = [r for r in csv.DictReader(f) if r.get("entity") == "player"]
+    by_id = {r["metric_id"]: r.get("label_i18n_key") for r in rows}
+    missing = [k for k in _HOME_PLAYER_BOARDS if not by_id.get(k)]
+    if missing:
+        raise KeyError(
+            f"no player label_i18n_key in {seed_path} for: {', '.join(missing)}. "
+            "A board name is a governed value; it is never defaulted to the metric id."
+        )
+    return {k: by_id[k] for k in _HOME_PLAYER_BOARDS}
+
+
+def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, str]) -> list[dict]:
+    """The home page's Top players block: four boards, one metric each, one player per league.
+
+    ⚠ NOT `shape_top_players` above — that is the FIXTURE page's players-to-watch list. Different
+    block, different mart, different shape; the names are one word apart on purpose because they
+    are both "top players" to a reader and nothing else about them is shared.
+
+    Design: GitLab #40, which `design-mocks/README.md` names as the authority. Four boards in a
+    fixed order, ranked descending, top 7. The board is a `metric_key` in `mart_leaderboards`; the
+    board's NAME is the catalogue's `label_en` and is resolved by the frontend, not here.
+
+    ONE PLAYER PER LEAGUE, not a pooled ranking (CPO 2026-08-18, GAP-31 withdrawn). The warehouse
+    decides which player that is, via `league_leader_order`; this function only groups the rows it
+    is handed into boards, keeps their order, and cuts each at 7. It sorts nothing.
+    ⚠ #40's text still says "a pooled board ranks across seven leagues"; that sentence is
+    superseded, though the rule it justified (every row shows club AND league) stands.
+    ⚠ `rank == 1` is NOT one per league and was the defect here: the mart ranks with DENSE_RANK, so
+    ties share rank 1. Fixing it in Python was ALSO wrong — CPO 2026-09-09, "All ranking and
+    ordering lives in the warehouse. The page renders the order it is served."
+
+    A BOARD WITH NO ROWS IS OMITTED ENTIRELY (CPO 2026-08-10: *"if a board is missing, the user may
+    not even notice, so don't show"*) — no placeholder, no empty state — and the survivors keep
+    their order. An empty result here means the block does not render at all.
+    ⚠ That is invisible to the reader BY DESIGN, so it is invisible to us too:
+    `assert_mart_leaderboards_every_home_board_has_a_leader` is what notices, not the page.
+
+    Selection only: `elite`, current season, rank 1. `is_current_season` is a SERVED column —
+    picking the season here would be the window selection #846 moved out of this file.
+    """
+    by_board: dict[str, list[dict]] = {key: [] for key in _HOME_PLAYER_BOARDS}
+    for row in rows:
+        key = row.get("metric_key")
+        if key not in by_board:
+            continue
+        league_code = row.get("league_code")
+        by_board[key].append({
+            "player_id": row.get("player_sk"),
+            "slug": player_slug_with_id(row.get("player_name"), row.get("player_sk")),
+            "name": row.get("player_name"),
+            "club": row.get("team_name"),
+            "club_slug": row.get("team_slug"),
+            "crest": row.get("team_logo_url"),
+            "league_code": league_code,
+            "league_name": (meta.get(league_code) or {}).get("name"),
+            "value": row.get("sort_value"),
+        })
+
+    boards = []
+    for key in _HOME_PLAYER_BOARDS:
+        # NO SORTING HERE, DELIBERATELY. The rows arrive in the order the query asked the warehouse
+        # for, and this preserves it — "the page renders the order it is served" (CPO 2026-09-09,
+        # escalations.log). An earlier version of this file deduped and sorted in Python; that was
+        # ranking in the consumption layer and analytics-engineer-reviewer FAILed it.
+        # One row per league is now a WAREHOUSE fact too: `league_leader_order = 1` in the query
+        # below, a column whose tie rule (fewer minutes, then player_sk) lives in
+        # `mart_leaderboards` and is asserted by `assert_mart_leaderboards_one_leader_per_league`.
+        entries = by_board[key]
+        if not entries:
+            continue
+        boards.append({
+            "metric_key": key,
+            "label_i18n_key": label_keys[key],
+            "rows": entries[:_HOME_BOARD_ROWS],
+        })
+    return boards
+
+
+def shape_landing_payload(upcoming: list[dict], top_players: list[dict] | None = None) -> dict:
     """landing.json — the home modules, in the order the CPO composed them.
 
     Pure assembly of already-shaped parts, so the whole payload is unit-testable without
@@ -1184,10 +1293,16 @@ def shape_landing_payload(upcoming: list[dict]) -> dict:
       are NOT removed with it: `nav.json` is an independently-selectable export target
       (`--entities nav`), untouched by this change.
     """
-    return {
+    payload = {
         "type": "landing",
         "upcoming": upcoming,
     }
+    # Present only when a board survived. #40: a board with no data is not rendered, and if no
+    # board has data the block itself does not render — so an EMPTY list must not reach the page as
+    # a key it then has to guard against. Absent means absent.
+    if top_players:
+        payload["top_players"] = top_players
+    return payload
 
 
 def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
@@ -1250,7 +1365,46 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     }
     upcoming = group_upcoming_fixtures(fixtures, teams, meta)
 
-    return shape_landing_payload(upcoming)
+    # Top players (#40). One player per league across the `elite` group, current season only.
+    # ⚠ Every part of the selection AND the order is a SERVED column: `competition_group` from the
+    # registry seed, `is_current_season` and `league_leader_order` from the mart. The WHERE filters
+    # facts and the ORDER BY reads them back in the ruled order; neither computes anything. Picking
+    # the season in Python is what #846 moved out of this file, and picking the league's
+    # representative is what the 2026-09-09 ruling moved out of it.
+    # ⚠ `league_leader_order = 1`, NOT `rank = 1`. `rank` is a DENSE_RANK, so joint leaders share it
+    # and a league returns several rows — measured, 12 of the 28 league-boards this renders are tied.
+    # ⚠ THE ORDER BY IS ONE SERVED COLUMN AND NOTHING ELSE. `board_leader_order` is the position of
+    # a league's leader among ALL league leaders on that board, computed in `mart_leaderboards` from
+    # the ruled keys. This file compares nothing — CPO 2026-09-09: "the page renders the order it is
+    # served".
+    # ⚠ An earlier version restated the three ruled keys here instead, and it was FAILed: it was the
+    # same ranking rule, relocated from Python into SQL that still lives in the frontend. The claim
+    # that it HAD to live here — because the row order is scoped to a POOL of leagues and the mart
+    # knows nothing about pools — was simply wrong. The ruled order is TOTAL, and a total order
+    # restricted to a subset keeps its sequence, so ranking every leader globally lets this pool
+    # filter inherit the right order for free.
+    # ⚠ No `metric_key` leg is needed: the rows arrive interleaved across boards and the shaper
+    # buckets them, so each board still receives its own rows in the served order.
+    # ⚠ `competition_group = 'elite'` is a LITERAL, and deliberately temporary: #101 decided the
+    # group is chosen per nightly build by weighted random over the in-season groups, and wiring
+    # that is its own MR. Until then the block renders the group the CPO named as the default.
+    top_player_rows = _query(client, f"""
+        select l.metric_key, l.league_code, l.sort_value,
+               l.player_sk, l.player_name,
+               l.team_name, l.team_slug, l.team_logo_url
+        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` as l
+        join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
+            on l.league_code = r.league_code
+        where l.is_current_season
+          and l.league_leader_order = 1
+          and r.competition_group = 'elite'
+          and l.metric_key in ({", ".join(f"'{k}'" for k in _HOME_PLAYER_BOARDS)})
+        order by l.board_leader_order
+    """)
+
+    return shape_landing_payload(
+        upcoming, shape_home_top_players(top_player_rows, meta, _board_label_keys())
+    )
 
 
 def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:

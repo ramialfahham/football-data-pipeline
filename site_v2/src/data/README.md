@@ -52,14 +52,25 @@ Tracked today, 9 files:
   `nav.json` / `slug_map.json`.
 - `landing.json` — the home page's payload, produced verbatim by
   `python scripts/export_site_data.py --entities landing` (#367). ⚠ It is NOT hand-reduced, and this
-  line used to say it was — `shape_landing_payload` returns `{"type", "upcoming"}` and nothing else,
-  so there is nothing left to trim, and the instruction three paragraphs down is never hand-edit a
+  line used to say it was — `shape_landing_payload` returns only the keys the built blocks need, so
+  there is nothing left to trim, and the instruction three paragraphs down is never hand-edit a
   payload. Real export output, not a fixture: **4** upcoming matches across **3**
   competitions, the 2026-09-01 matchday — the same 4 the `fixtures/` allowlist pins, which is what
   makes the set self-consistent.
   The `trending` key it carried earlier is gone with the block (2026-08-08), as is the `stats`
   key removed the same day, and the `browse` key ("the full registry browse axes") removed
-  2026-08-19 with the Browse block. `landing.json` today carries `type`/`upcoming` only.
+  2026-08-19 with the Browse block. `landing.json` today carries `type`, `upcoming` and
+  `top_players`.
+  ⚠ **IT CARRIES TWO SNAPSHOT DATES, on purpose (#40 MR B, 2026-09-08).** `upcoming` is still the
+  2026-09-01 matchday; `top_players` is the 2026-09-08 export. Both halves are real export output,
+  spliced with the export's own `_payload_bytes` so the bytes are what a single run would have
+  written — nothing is hand-typed. The reason is the set rule above: a wholesale rerun moves
+  `upcoming` to whatever matchday is next, and on 2026-09-08 that was **49 fixtures across 7
+  competitions** against the committed **4 across 3**, so refreshing the whole file to add one key
+  would have grown the tracked sample twelvefold. Rolling the set forward is the maintenance below;
+  it is not something a block should do on its way past. **`top_players` has no such coupling** —
+  the player pages it links to are generated FROM this file (`pages/[lang]/players/[player].astro`),
+  so that half is self-consistent whenever it is regenerated.
 
 ## Refreshing the sample
 

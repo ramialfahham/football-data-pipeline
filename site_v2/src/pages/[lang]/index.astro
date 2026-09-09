@@ -6,10 +6,11 @@
 // unblocks go-live. `INDEXABLE` itself stays `false`: flipping it is #377, gated on #799, #852/#843,
 // #845 and #861, none of which this PR touches.
 //
-// ONE module today, of the THREE the CPO composed on 2026-08-08 (10_home.md §0, that spec's stated
-// authority): next matches -> Top players -> Top teams. The other two are specified and NOT built —
-// they need six pieces of warehouse work (GAP-24..GAP-29) and a layout the CPO reviewed and did not
-// approve — so they arrive in their own PR.
+// TWO modules today, of the THREE the CPO composed on 2026-08-08 (10_home.md §0, that spec's
+// stated authority): next matches -> Top players -> Top teams. Top players lands here with #40 MR B;
+// its warehouse half shipped in !153 and its four registered gaps (GAP-27..GAP-30) are all closed.
+// Top teams is specified and NOT built — GAP-29's `mart_team_leaderboards` landed 2026-09-02, so
+// what it still needs is the block, its export payload and the render wiring, in its own MR.
 //
 // Browse (the fourth module in the original 2026-06-10 composition) is DROPPED, not deferred (CPO,
 // 2026-08-19): its only real value was reachability into the long-tail team/player pages, and those
@@ -32,6 +33,7 @@
 // the warehouse decided.
 import Layout from "../../layouts/Layout.astro";
 import HeroFixtures from "../../components/home/HeroFixtures.astro";
+import TopPlayers from "../../components/home/TopPlayers.astro";
 import { t } from "../../i18n/strings";
 import type { Lang } from "../../lib/format";
 import type { Landing } from "../../lib/types";
@@ -66,7 +68,10 @@ const entity = {
 
 <Layout lang={lang} title={title} description={description} entity={entity}>
   <div class="inner">
-    {/* Top players and Top teams land here, between the hero and end of page, once built. */}
     <HeroFixtures groups={data.upcoming} lang={lang} />
+    {/* The KEY IS ABSENT, not empty, when no board had data (#40) — the export omits it, so this
+        guard is the whole "block does not render" rule and there is no empty state below it.
+        Top teams lands after this, once built. */}
+    {data.top_players && <TopPlayers boards={data.top_players} lang={lang} />}
   </div>
 </Layout>

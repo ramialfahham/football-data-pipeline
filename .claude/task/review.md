@@ -1,93 +1,110 @@
-# Review — feat/board-leader-order — 2026-09-09
+# Review — feat/40-top-players-block — 2026-09-09
 
-diff_sha256: 384205d242538fd1acee79ebb3a2f56eb17ba76663c5f63f1172156702c6a731
+diff_sha256: bdd80cb092f37208702f13d9a7e9ca318e4e96922c2667f557e9e66660452c06
 
 rounds: 3
 
-Round 1: both reviewers PASSED. Round 2 was not forced by a FAIL — `scope-auditor` flagged, without
-failing, that the contract's RECURRING COST paragraph still described a self-join the shipped SQL
-does not contain. A flagged trade-off is still a trade-off, and a contract that misdescribes its own
-change is wrong even when it overstates rather than hides.
-
-⛔ ROUND 3 WAS FORCED BY CI, NOT BY A REVIEWER, AND THAT IS THE FINDING. The round-2 commit shipped
-and `data:build:mr` failed: `Syntax error: Trailing comma after the WITH clause before the main
-query is not allowed`. Removing the abandoned `board_leaders` CTE left the comma behind. NO LOCAL
-GATE COULD HAVE CAUGHT IT — `dbt parse` builds the manifest from Jinja and never compiles SQL
-against BigQuery, and SQLFluff already reports an unparseable section on this file's
-`dbt_utils.generate_surrogate_key` line, so a genuine syntax error below it is invisible inside
-noise the repo teaches you to dismiss as pre-existing. Round 3 is the one-character fix plus the
-compile-and-dry-run recipe that does catch this class, recorded in `acceptance_evidence.md`.
+Round 1: FOUR FAILS, one from every reviewer. Round 2: two PASS, two FAIL. Round 3: all four PASS.
 This is round 3 of a cap of 3. No `rounds_cap_override` is needed and none is claimed.
+
+⛔ TWO OF THE THREE ROUNDS WENT ON A QUESTION THE BUILDER GOT WRONG TWICE, and that is the honest
+summary. `analytics-engineer-reviewer` failed rounds 1 and 2 on the same underlying defect — ranking
+in the consumption layer — and both times the response was a partial fix resting on a false premise
+(that the cross-league order could not live in the mart because it is pool-scoped). It was escalated
+after round 1, the CPO ruled that all ranking and ordering lives in the warehouse, and the reasoning
+that survived round 2 then turned out to be wrong on the merits: a total order restricted to a
+subset keeps its sequence, so the pool never mattered. Two separate warehouse MRs (`!164`, `!165`)
+came out of it, and this branch now compares nothing at all.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 — verified both 2026-09-09 CPO rulings against `escalations.log` verbatim: "All ranking
-  and ordering lives in the warehouse. The page renders the order it is served", and the
-  fewer-minutes tie-break with the `player_sk` fallback. Both match the contract's quotes exactly;
-  no fabricated authority.
-- Round 1 — checked the contract's admission that two EARLIER contracts were wrong ("the cross-league
-  order could not live in the mart") against the removed text in the diff. The prior claim is quoted
-  accurately and the correction is sound: restricting a total order to a subset preserves relative
-  order. The admission narrows scope back to implementing an existing unconditional ruling rather
-  than covering a new unauthorised decision.
-- Round 1 — `decisions_reserved` (the `player_sk` last resort, `mart_team_leaderboards` parity,
-  `competitionOrder.mjs`) are each untouched in the diff; nothing reserved is silently decided.
-- Round 1 — every changed file is in `scope_paths`. `layering.md` needed no edit because MR A
-  already carries the rule wording.
-- Round 1 — impact_map is evidenced with a real `dbt ls --select mart_leaderboards+` run against
-  THIS checkout (29 nodes, 0 downstream models), not carried over from MR A, and the prod comparison
-  of rendered league order is measured rather than asserted.
-- Round 1 — no credentials anywhere in the diff; the CTO thresholds are declared and hold against
-  the actual SQL.
-- Round 2 delta — compared the corrected paragraph against the shipped SQL and confirmed no
-  self-join exists (one `ranked` CTE feeding the final select, two window functions), so the
-  correction is accurate and agrees with the file's own inline comment about the abandoned form. The
-  NEW MECHANISM and RECURRING COST conclusions are unchanged; no new authority is invoked.
-- Round 3 delta — confirmed the SQL delta is exactly the trailing-comma removal, in `scope_paths`,
-  with no other model logic touched. Read `acceptance_evidence.md` (granted for this round only,
-  because it was half the delta) specifically for overclaim: it separates what was verified from
-  what was not, and it does NOT claim the new compile-and-dry-run check is installed as a gate
-  anywhere — it is offered as a recipe, not as enforcement that does not exist.
+- Round 1 FAIL, now fixed — the German board labels shipped on a ruling narrated in `contract.md`
+  and present nowhere in `escalations.log`. Verified this round that the ruling is in the log
+  verbatim and matches both the contract and the strings `strings.ts` actually ships. Confirmed the
+  unrelated `assists: "Vorlagen"` elsewhere in that file is a different key (the fixture-preview
+  short label), not a collision.
+- Verified both 2026-09-09 rulings against `escalations.log` line by line rather than by paraphrase,
+  guarding the repo's recorded `feedback_dont_attribute_repo_practice_to_cpo` failure class.
+- Checked the struck `decisions_reserved` entry on the cross-league order: it cites a real merged MR
+  (`!165`, `7cac157`) and gives a sound reason, so it is resolved rather than silently dropped.
+- Checked each amendment records real authority and labels a STANDING RULE as such rather than
+  dressing it up as a CPO answer.
+- Confirmed every file in the cumulative patch is inside `scope_paths`, and that no
+  `dbt_project/**` file appears here — the model work genuinely lives in the two merged MRs.
+- Swept the whole patch for credential-shaped strings across all rounds: none.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Window generality: `board_leader_order` partitions by `metric_key` alone and `league_leader_order`
-  by `(league_code, season_api_year)`. Neither references a league or competition literal — generic
-  across every `league_code`.
-- Equivalence of the shipped form to the obvious one, worked by hand: sorting leaders to the front of
-  the window (`case when league_leader_order = 1 then 0 else 1 end` first) and discarding the
-  non-leaders' numbers with a CASE assigns leaders exactly the integers a leaders-only filtered CTE
-  would. Non-leaders sitting after them in the same partition cannot perturb their relative order or
-  their values. Confirmed equivalent, not a defect.
-- NULL and uniqueness are STRUCTURAL, not merely asserted: `where board_rank <= 10` filters before
-  the window runs, and a league leader always carries `board_rank = 1`, so no leader is ever excluded
-  from the partition; `row_number()` cannot repeat a value within it.
-- The new test is falsifiable and not a tautology: its third invariant walks consecutive pairs with
-  `lead()` and asserts the later row is not strictly better on the ruled keys, rather than
-  re-deriving `row_number()` with the same ORDER BY — which would pass for any ordering.
-- `rank` and `league_leader_order` are byte-for-byte unchanged; read the full `ranked` CTE and the
-  outer select across the diff hunk boundaries to confirm it.
-- Catalogue governance: `assert_no_uncatalogued_season_metric` scopes to the three canonical `int_*`
-  models, not this mart, and `board_leader_order` derives no value — it orders already-catalogued
-  ones. Consistent with the existing precedent for `rank` and `league_leader_order`.
-- Description hygiene: the new column's description is well within BigQuery's 1,024-character limit,
-  which matters because `persist_docs` is on and a breach fails the prod build.
-- Scope: no `scripts/export_*.py` or `site_v2` file is in this patch, so the consumption-layer
-  trigger is not engaged — the export change is #40 MR B's.
-- Round 3 delta — re-read the model in full: the `ranked` CTE now closes on a bare `)` with no
-  trailing comma and no leftover fragment of the removed CTE, and the round-1 window logic is
-  byte-identical (same partitions, same tie-break chain `minutes asc nulls last, player_sk asc`,
-  same gating condition). Nothing else in the file moved.
-- Round 3 delta — did NOT rely on `review_input.patch` for the comma, reading the live file instead.
-  ⚠ Recorded because the reviewer read the patch's cumulative form as staleness: the patch is
-  cumulative from the base by design, so it shows the whole column addition rather than a
-  round-3-only hunk. Confirmed afterwards that it does carry the fixed state — the CTE close appears
-  as an unchanged context line, which it could not if the comma were still there.
+- Round 1 FAIL — `_board_order` picked between joint rank-1 players using a key that existed nowhere
+  in the warehouse. Round 2 FAIL — the fix left the same rule as a three-key `ORDER BY` in the
+  export. Both are gone: the query is `order by l.board_leader_order`, one served column.
+- Confirmed no ranking, comparison, tie-break or ordering computation remains anywhere in the
+  consumption layer — checked `scripts/export_site_data.py`, `TopPlayers.astro` (its `{i + 1}` is a
+  display ordinal over an already-ordered array, not a computed rank) and the player route's
+  `getStaticPaths` (slug dedup for routing, not a ranking).
+- Confirmed the shaper only groups, preserves and caps, and that its "does not reorder" contract is
+  pinned by a test fed rows in an order no sort would produce.
+- Confirmed the two deleted Python tests were replaced by warehouse coverage rather than dropped,
+  and that the note left in their place names both dbt tests by path.
+- Read the merged mart for context: `league_leader_order` and `board_leader_order` use the same
+  ruled keys, and the latter is NULL on non-leaders so a consumer cannot order by a sequence a row
+  is not part of.
+- Spot-checked the committed `landing.json` for monotonic value order consistent with the served
+  order.
+- Confirmed `decisions_reserved` names the prior justification as FALSE rather than asserting some
+  new authority in its place.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL, now fixed — the widened `_METRIC_ENTRY_RE` had no test pinning it. Hand-traced the
+  mutation: narrowing it back leaves `parsed[loc]` without the `playerMetrics.*` keys and reds the
+  new test, while `check_copy_gate.main()` still prints a clean pass — exactly the hole named.
+- Confirmed all three widened parsers have independent trip-wires, not only the Python one: the
+  pre-existing "the two metric-key parsers disagree" test now compares on `k.includes(".")`, so
+  reverting either JS regex alone desyncs the sets and reds it.
+- Confirmed the two deleted Python tests' invariants are LIVE, not promised — read
+  `assert_mart_leaderboards_one_leader_per_league.sql` in full in the merged tree.
+- Re-run and idempotence: the export is a read-only SELECT plus a JSON write with no incremental
+  state. The one new determinism risk the changed ORDER BY raises is whether `board_leader_order`
+  can tie; the merged dbt test's uniqueness invariant is exactly what forecloses that.
+- Coverage division for the changed SQL line, examined rather than waved through: no pytest
+  exercises the literal ORDER BY, because this codebase has no BigQuery mock layer — and that was
+  equally true of the three-key form it replaces, and of the `league_leader_order = 1` and
+  `is_current_season` filters beside it. The behaviour that changed moved INTO the warehouse, where
+  it is pinned. Not a fresh coverage hole introduced by this delta.
+- Third-party asset fetch, dependency changes, guard mechanics, hosting config and build page count:
+  checked across rounds; nothing in scope changed, and the player route dedupes by slug before
+  fanning out over locales.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL — `rendered_page_evidence.md` documented a different branch. Round 2 FAIL — its §5
+  carried counts from a build captured before the payload was re-exported. Both fixed, the second by
+  re-deriving EVERY figure in the file rather than only the one that was caught.
+- Re-derived the round-2 defect independently rather than trusting the fix: hand-counted all 28
+  player slugs across the four boards in the committed `landing.json` — 28 distinct, no repeats, so
+  84 player pages, matching the corrected evidence.
+- Independently summed the page-count driver line to 251 against a stated 250, then traced
+  `audit-seo.mjs`'s `walkDist` and confirmed only `.html` files count as pages, so `robots.txt` is
+  correctly excluded. Not a defect; recorded because the arithmetic looks wrong until you check it.
+- Binding rule: traced every field the component, the player page and the TypeScript types declare
+  back to the shaper and the mart query. No fabricated field, nothing sourced only from the sample.
+- Locked board order matches `10_home.md`; board labels come from the catalogue seed rather than
+  being hand-typed; the DE/FI strings match the rulings quoted in the contract.
+- Checked the rendering claims in the evidence against `system.css` itself — the
+  `@container (max-width: 480px)` rule blockifies `.ent`/`.nm`/`.sub` together (per-board stacking,
+  not per-row) and `a.brow:focus-visible { outline-offset: -2px }` matches the claimed ring fix.
+- Home-page wiring guards the block on the key being ABSENT rather than empty, matching the export
+  which omits it entirely when no board survives. No empty state, no metric creep, no naked
+  percentage.
 
 ## escalations
-(none)
+(none open)
 
-The two §10 questions this work rests on were ruled on before any of it was written and are recorded
-in `escalations.log`. What this MR deliberately does NOT answer is in `decisions_reserved`.
+The §10 questions this branch raised were escalated after round 1 and ANSWERED — the two 2026-09-09
+rulings recorded in `escalations.log`. What it deliberately does not answer is in
+`decisions_reserved`, and the last-resort tie-break is GitLab #112 at minor priority.

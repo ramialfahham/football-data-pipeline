@@ -107,7 +107,14 @@ _ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
 # catch exactly those defects.
 _METRIC_DICT_RE = re.compile(
     r"^const\s+METRIC_LABELS_([A-Z]{2}):\s*MetricLabels\s*=\s*\{(.*?)^\};", re.S | re.M)
-_METRIC_ENTRY_RE = re.compile(r'^\s*"(metrics\.[A-Za-z0-9_]+\.label)":\s*"((?:[^"\\]|\\.)*)"', re.M)
+# ANY quoted dotted key, not just `metrics.*.label`. The catalogue's PLAYER metrics live in a
+# second namespace (`playerMetrics.scorerPoints.goals`), and while this was anchored on `metrics\.`
+# those labels skipped all four checks below — a Finnish board title missing from the map would have
+# rendered BLANK (metricLabel falls back to English, then to "") and this gate would have printed a
+# clean pass. Widened with #40 MR B, the change that first rendered one, in step with the two JS
+# parsers named in the comment above.
+_METRIC_ENTRY_RE = re.compile(
+    r'^\s*"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"((?:[^"\\]|\\.)*)"', re.M)
 
 
 def _dicts(text: str) -> dict[str, dict[str, str]]:
