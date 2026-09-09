@@ -235,15 +235,12 @@ index 21be313..d0da3ec 100644
  
  amendments: (none)
 diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-index 331166c..fc9eae3 100644
+index 331166c..f8ba6f5 100644
 --- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
 +++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-@@ -165,8 +165,34 @@ ranked as (
-     union all
-     {% endif %}
+@@ -167,6 +167,32 @@ ranked as (
      {% endfor %}
--)
-+),
+ )
  
 +-- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
 +-- a single served column and compares nothing itself. `league_leader_order` above answers "who
@@ -457,7 +454,8 @@ index 0000000..e60be8d
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  92 +++--
-#    .claude/task/review_input.patch     | 791 +++++++++++++++++-------------------
-#    2 files changed, 426 insertions(+), 457 deletions(-)
+#   .claude/task/acceptance_evidence.md | 129 ++++--
+#    .claude/task/review.md              | 109 +++--
+#    .claude/task/review_input.patch     | 799 +++++++++++++++++-------------------
+#    3 files changed, 523 insertions(+), 514 deletions(-)
 # ============================================================================

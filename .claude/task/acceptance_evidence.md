@@ -38,6 +38,39 @@ criteria_demonstrated:
     `dbt_utils.generate_surrogate_key` line — the templater noise CLAUDE.md documents. Zero on any
     added line.
 
+## ⛔ CI CAUGHT A SYNTAX ERROR THAT EVERY LOCAL GATE MISSED, AND THAT IS THE REUSABLE PART
+
+Round 2 shipped and `data:build:mr` FAILED:
+
+```
+1 of 30 ERROR creating sql view model ci_mr165_marts.mart_leaderboards
+  Database Error in model mart_leaderboards
+  Syntax error: Trailing comma after the WITH clause before the main query is not allowed at [682:1]
+```
+
+Removing the abandoned `board_leaders` CTE left the comma after `ranked as (…)`. Why nothing local
+saw it, which is the point worth keeping:
+
+- **`dbt parse` does not compile SQL against BigQuery.** It parses Jinja and builds the manifest. A
+  syntactically invalid query parses fine.
+- **SQLFluff cannot catch a syntax error in THIS file at all.** It already reports `TMP`/`PRS` on the
+  `dbt_utils.generate_surrogate_key` line — `dbt_utils` is unresolvable under the jinja templater —
+  so the file is unparseable to it from line 197 onward, and a real error downstream hides inside
+  noise that CLAUDE.md teaches you to ignore. "4 findings, all pre-existing" was true and useless.
+
+**The check that does work, and that now backs this evidence:** compile the model, repoint its dev
+schemas at prod, and let BigQuery parse it without running it —
+
+```
+dbt compile --select mart_leaderboards
+sed 's/`dev_intermediate`/`intermediate`/g; s/`dev_core`/`core`/g' \
+  target/compiled/.../mart_leaderboards.sql | bq query --use_legacy_sql=false --dry_run
+```
+
+`Query successfully validated. … will process 58945370 bytes of data.` It costs nothing (a dry run
+bills zero) and it validates syntax AND every column reference against the real prod schema. Run
+against the fix, it passes; run against the broken version it reproduces the CI error exactly.
+
 ## Why the implementation is shaped the way it is
 
 The obvious form — rank the leaders in their own CTE and left join — was written first and

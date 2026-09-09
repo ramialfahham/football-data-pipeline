@@ -165,7 +165,7 @@ ranked as (
     union all
     {% endif %}
     {% endfor %}
-),
+)
 
 -- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
 -- a single served column and compares nothing itself. `league_leader_order` above answers "who
