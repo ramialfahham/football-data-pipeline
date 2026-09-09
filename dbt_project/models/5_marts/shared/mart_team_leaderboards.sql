@@ -102,7 +102,27 @@ ranked as (
         dense_rank() over (
             partition by league_code, season_api_year, metric_key
             order by metric_value desc
-        ) as board_rank
+        ) as board_rank,
+        -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
+        -- ties sharing a rank, and the top-10 cut being inclusive of them, are a documented consumer
+        -- contract. But a consumer that must show ONE team per league cannot use it — measured
+        -- against prod 2026-09-09, 2 of 259 league-board-seasons have more than one rank-1 team.
+        -- Rare, but the block claims one team per league, and deciding WHICH is ranking, so it
+        -- belongs here (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page
+        -- renders the order it is served.").
+        -- ⛔ NO SPORTING TIE-BREAK EXISTS HERE, AND THAT IS RULED, NOT AN OVERSIGHT. The player mart
+        -- breaks a tie on fewer MINUTES played, and teams have no minutes. `season_games_played` was
+        -- proposed as the analogue and the CPO rejected it — "will not work most of the time" — for
+        -- two reasons, the second being the real one: it barely discriminates (3.6 distinct game
+        -- counts per league-season on average, and in 72 of 235 every team is level), and for a RATE
+        -- fewer games is not better, it is LESS EVIDENCE for the same rate.
+        -- So `team_sk` is the whole tie-break, and it is MEANINGLESS. It exists only so the order is
+        -- stable and the committed payload does not churn between exports. GitLab #114 is open to
+        -- find something that means anything.
+        row_number() over (
+            partition by league_code, season_api_year, metric_key
+            order by metric_value desc, team_sk asc
+        ) as league_leader_order
     from base
     where metric_value > 0
 )
@@ -112,6 +132,7 @@ select
         as team_leaderboard_sk,
     metric_key,
     board_rank as rank,
+    league_leader_order,
     metric_value as sort_value,
     league_code,
     season_api_year,
@@ -121,6 +142,37 @@ select
     team_name,
     team_slug,
     team_logo_url,
-    season_games_played
+    season_games_played,
+    -- WHICH SEASON a consumer should show, served as a fact rather than chosen downstream. Without
+    -- it the export would pick a season itself, which is the window selection #846 moved out of that
+    -- file and that reviewers failed twice. Same definition as mart_leaderboards: latest season per
+    -- LEAGUE, not per team, so every row of a league agrees on the answer.
+    rank() over (
+        partition by league_code
+        order by season_api_year desc
+    ) = 1 as is_current_season,
+    -- The order the league leaders appear in on a board, across every league, by the same rule.
+    -- `league_leader_order` says WHICH team represents a league; this says in what ORDER those
+    -- representatives are shown, so a consumer orders by one served column and compares nothing.
+    -- NULL on any row that is not a league leader: the position is only defined among leaders, and a
+    -- number here would invite ordering by a sequence the row is not part of.
+    -- ⭐ PARTITIONED BY metric_key ALONE. The order is TOTAL, and restricting a total order to a
+    -- subset preserves the relative sequence of what survives — so ranking every league leader
+    -- globally lets any pool of leagues inherit the right order without this mart knowing which pool
+    -- a consumer will show. Filtered to a handful of leagues the values are therefore SPARSE, which
+    -- is the tell that the position is global. No season in the partition: `is_current_season` is
+    -- per league, so leagues shown side by side can sit in different season years.
+    -- ⚠ Computed here rather than in a CTE joined back, because SQLFluff rejects USING (ST07) and
+    -- without it demands every column in this select be qualified (RF02). Sorting the leaders to the
+    -- front of the window gives identical positions with no join.
+    case
+        when league_leader_order = 1 then row_number() over (
+            partition by metric_key
+            order by
+                case when league_leader_order = 1 then 0 else 1 end,
+                metric_value desc,
+                team_sk asc
+        )
+    end as board_leader_order
 from ranked
 where board_rank <= 10

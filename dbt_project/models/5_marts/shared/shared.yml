@@ -1960,6 +1960,33 @@ models:
       - name: sort_value
         description: "The board's own value the rank is computed from (always > 0). The four boards are all per-match rates."
         tests: [not_null]
+      - name: league_leader_order
+        description: >
+          The tie-broken position within (league_code, season_api_year) on this board. 1 is the
+          league's leading team, and exactly one row per league-board-season carries it. Use this and
+          not rank when a consumer must show ONE team per league: rank is a DENSE_RANK, so joint
+          leaders share it and a league can hold several 1s. Ties break on team_sk, which carries no
+          sporting meaning and exists only to make the order stable; there is no criterion that
+          separates two teams on an equal per-match rate.
+        tests: [not_null]
+      - name: board_leader_order
+        description: >
+          The order the league leaders appear in on this board, across every league, by the same
+          rule: best rate, then team_sk. league_leader_order says WHICH team represents a league;
+          this says in what ORDER those representatives are shown, so a consumer orders by one served
+          column and compares nothing itself. NULL on any row that is not a league leader. It is a
+          GLOBAL position, not a position within whatever set a consumer shows, so filtered to a
+          handful of leagues the values are sparse - expected, because the order is total and any
+          subset of a total order keeps its relative sequence. Not partitioned by season:
+          is_current_season is per league, so leagues shown side by side can sit in different season
+          years.
+      - name: is_current_season
+        description: >
+          True on every row of a competition's latest season, false on earlier ones. It answers
+          "is this the season the site is currently showing for this competition" as a served fact,
+          so a consumer filters on it instead of choosing a season itself. Per LEAGUE, not per team,
+          so every row of a league agrees.
+        tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
         tests:
