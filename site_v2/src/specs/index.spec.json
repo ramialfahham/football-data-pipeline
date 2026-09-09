@@ -10,7 +10,7 @@
     "schema_org": "WebSite",
     "links": {
       "inbound_hub": "none",
-      "outbound": ["fixture"]
+      "outbound": ["fixture", "player"]
     },
     "minimum_data": "None by design, and this is the one page where that is correct rather than a waiver. The home page's block count does not depend on any entity's data depth: the fixtures hero is the only block today and is omitted whole when it has nothing to say — in the all-competition off-season case (practically unreached, per 10_home.md §6) the page would render zero blocks. #845's minimum-data gate governs the entity pages it generates thousands of, not the three locale roots.",
     "page_count_driver": "count(locales)",
@@ -22,6 +22,18 @@
       "block": "Fixtures hero",
       "mart": "core:fct_fixture",
       "i18n_keys": ["homeNext", "homeNoFixtures"]
+    },
+    {
+      "block": "Top players",
+      "mart": "mart_leaderboards",
+      "i18n_keys": [
+        "homeTopPlayers",
+        "homeTopPlayersIntro",
+        "playerMetrics.scorerPoints.goals",
+        "playerMetrics.scorerPoints.assists",
+        "playerMetrics.passAccuracy.total",
+        "playerMetrics.keyPasses.label"
+      ]
     }
   ]
 }

@@ -289,9 +289,39 @@ export interface LandingUpcomingGroup {
  *  and BrowseCompetition / LandingBrowse, cut 2026-08-19 (CPO: "drop the browse section". Its
  *  only value was reachability into the long-tail team/player pages, both already blocked on
  *  data-quality work, so a competitions-only version had nothing left to solve). */
+/** One row of a Top players board: a league's rank-1 player on that board (#40).
+ *
+ *  `league_name` is carried even though the board has one row per league, because the reader
+ *  cannot infer the competition from the club alone. */
+export interface LandingBoardRow {
+  player_id: number | null;
+  slug: string;
+  name: string | null;
+  club: string | null;
+  club_slug: string | null;
+  crest: string | null;
+  league_code: string | null;
+  league_name: string | null;
+  value: number | null;
+}
+
+/** One board: a single metric, its rows already ordered by value, at most 7 of them.
+ *
+ *  ⚠ `label_i18n_key` and NOT a name: the board is titled by the metric catalogue, which is the
+ *  single source of metric labels (#327). The component resolves it through `metricLabel()`.
+ *  A board with no data never reaches here — the export omits it entirely (#40), so this type
+ *  has no empty state to model. */
+export interface LandingBoard {
+  metric_key: string;
+  label_i18n_key: string;
+  rows: LandingBoardRow[];
+}
+
 export interface Landing {
   type: string;
   upcoming: LandingUpcomingGroup[];
+  /** Absent when no board had data — the block then does not render at all (#40). */
+  top_players?: LandingBoard[];
 }
 
 /** One row of competition_index.json, mart_competition_index verbatim (#62 step 5). Ordering

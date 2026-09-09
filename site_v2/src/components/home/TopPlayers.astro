@@ -1,0 +1,67 @@
+---
+// Top players — the home page's second block (GitLab #40, the authority for this design;
+// design-mocks/top_players_mock.html is its rendering).
+//
+// Four boards, ONE metric each, top 7, all ranked descending, one column at full content width.
+// With one metric there is no column-header row: the board title is the only label the number
+// carries, which is why the title must never truncate either.
+//
+// ONE PLAYER PER LEAGUE (CPO 2026-08-18) — each league's rank-1 player, collected and ordered by
+// value. The warehouse ranks within (league_code, season_api_year) and the export filters and
+// orders; nothing here computes a position. The rank shown is the row's index in an already
+// ordered list, which is why it is a display ordinal and not a served `rank` column: a served rank
+// would be the player's rank WITHIN their league, which is 1 on every row.
+//
+// The block COMPOSES and derives nothing: every value is a served payload field, and the board's
+// name is resolved from the metric catalogue through metricLabel(), never hand-typed here.
+//
+// A board with no data never arrives — the export omits it (#40: "if a board is missing, the user
+// may not even notice, so don't show"). So there is no empty state in this file, deliberately.
+// The block itself is not rendered when no board survived; index.astro guards that.
+import Crest from "../ui/Crest.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { integer } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t, metricLabel } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import type { LandingBoard } from "../../lib/types";
+
+interface Props {
+  boards: LandingBoard[];
+  lang: Lang;
+}
+const { boards, lang } = Astro.props;
+
+// The leagues named in the intro line are the ones actually on the boards, in the order they are
+// shown — read from the DATA rather than restated as a list, so the sentence cannot drift from
+// what the block renders when the group changes (#101 will change it nightly).
+const leagueNames = [
+  ...new Map(
+    boards.flatMap((b) => b.rows).map((r) => [r.league_code, r.league_name]),
+  ).values(),
+].filter(Boolean);
+---
+
+<section>
+  <SectionHead label={t(lang, "homeTopPlayers")} />
+  <p class="tt-intro">{t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })}</p>
+
+  {boards.map((board) => (
+    <div class="board">
+      <div class="bhd"><span class="bt">{metricLabel(lang, board.label_i18n_key)}</span></div>
+      <div class="bgrid">
+        {board.rows.map((row, i) => (
+          <a class="brow" href={localeHref(lang, `players/${row.slug}/`)}>
+            <span class="rk num">{i + 1}</span>
+            <Crest name={row.club} crest={row.crest} size="xs" />
+            <span class="ent">
+              <span class="nm">{row.name}</span>
+              <span class="sub">{[row.club, row.league_name].filter(Boolean).join(" · ")}</span>
+            </span>
+            <span class="v"><b>{integer(row.value, lang)}</b></span>
+          </a>
+        ))}
+      </div>
+    </div>
+  ))}
+</section>

@@ -21,13 +21,21 @@ const strings = readFileSync(join(SITE, "src/i18n/strings.ts"), "utf8");
 const rowsSrc = readFileSync(join(SITE, "src/lib/metricRows.ts"), "utf8");
 const LOCALES = ["EN", "DE", "FI"];
 
-/** The `metrics.*.label` keys inside one METRIC_LABELS_<loc> block. */
+/** The quoted-dotted label keys inside one METRIC_LABELS_<loc> block.
+ *
+ * ⚠ ANY dotted key, not just `metrics.*.label`. The catalogue uses a SECOND namespace for player
+ * metrics — `playerMetrics.scorerPoints.goals` and friends — and while this regex was anchored on
+ * `metrics\.` those four labels were invisible to every parser that polices metric names: this
+ * one, `check-page-specs.mjs`'s, and `scripts/check_copy_gate.py`'s. A missing Finnish label would
+ * have shipped a BLANK board title (metricLabel falls back to English, then to "") with nothing
+ * red. Widened with #40 MR B, which is the change that first rendered one.
+ */
 function labelBlock(loc) {
   const m = strings.match(
     new RegExp(`const METRIC_LABELS_${loc}: MetricLabels = \\{([\\s\\S]*?)\\n\\};`));
   assert.ok(m, `METRIC_LABELS_${loc} not found in strings.ts`);
   const out = new Map();
-  for (const [, key, val] of m[1].matchAll(/"(metrics\.[A-Za-z0-9_]+\.label)":\s*"((?:[^"\\]|\\.)*)"/g)) {
+  for (const [, key, val] of m[1].matchAll(/"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"((?:[^"\\]|\\.)*)"/g)) {
     out.set(key, val);
   }
   return out;
@@ -38,9 +46,44 @@ const rowKeys = [...rowsSrc.matchAll(/labelKey:\s*"(metrics\.[A-Za-z0-9_]+\.labe
 const heroKeys = [...readFileSync(join(SITE, "src/components/team/DeservedHero.astro"), "utf8")
   .matchAll(/metricLabel\(lang,\s*"(metrics\.[A-Za-z0-9_]+\.label)"\)/g)].map((m) => m[1]);
 
+/** The catalogue rows, as {metric_id, entity, label_i18n_key}. Naive comma split, which is safe
+ * for exactly these three columns: they are the first three, and `description` — the only field
+ * that carries commas — comes after them. */
+function catalogueRows() {
+  const lines = readFileSync(join(REPO, "dbt_project/seeds/metric_catalogue.csv"), "utf8")
+    .split(/\r?\n/);
+  const header = lines[0].split(",");
+  const [id, entity, key] = ["metric_id", "entity", "label_i18n_key"].map((c) => header.indexOf(c));
+  assert.ok(id >= 0 && entity > 0 && key > 0, "metric_catalogue.csv is missing a required column");
+  return lines.slice(1).filter(Boolean).map((l) => l.split(","))
+    .map((c) => ({ metric_id: c[id], entity: c[entity], label_i18n_key: c[key] }));
+}
+
+/** The Home Top players board label keys (#40), derived from the two places that already own them:
+ * the board list in the export and the catalogue's own `label_i18n_key`.
+ *
+ * ⚠ NOT read from `src/data/landing.json`, and that is deliberate. A board with no data is omitted
+ * from the payload by design (#40: "if a board is missing, the user may not even notice, so don't
+ * show"), so a payload-derived list would make a legitimately empty board turn this test red — a
+ * build failure over something the DESIGN says is silent. `assert_mart_leaderboards_every_home_
+ * board_has_a_leader` is what notices a vanished board. This list must not move with the data. */
+const boardKeys = (() => {
+  const src = readFileSync(join(REPO, "scripts/export_site_data.py"), "utf8");
+  const block = src.match(/_HOME_PLAYER_BOARDS\s*=\s*\(([^)]*)\)/);
+  assert.ok(block, "could not find _HOME_PLAYER_BOARDS in scripts/export_site_data.py");
+  const ids = [...block[1].matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]);
+  assert.ok(ids.length >= 4, `parsed only ${ids.length} home board ids — the tuple regex broke`);
+  const players = catalogueRows().filter((r) => r.entity === "player");
+  return ids.map((id) => {
+    const row = players.find((r) => r.metric_id === id);
+    assert.ok(row?.label_i18n_key, `no player catalogue row with a label_i18n_key for board ${id}`);
+    return row.label_i18n_key;
+  });
+})();
+
 test("every metric name the page asks for resolves in all three locales", () => {
-  const asked = [...new Set([...rowKeys, ...heroKeys])];
-  assert.ok(asked.length >= 18, `expected >=18 metric names in use, found ${asked.length}`);
+  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys])];
+  assert.ok(asked.length >= 22, `expected >=22 metric names in use, found ${asked.length}`);
   for (const loc of LOCALES) {
     const missing = asked.filter((k) => !labels[loc].get(k));
     assert.deepEqual(missing, [],
@@ -50,7 +93,7 @@ test("every metric name the page asks for resolves in all three locales", () => 
 });
 
 test("no locale carries a label nothing renders, and none is empty", () => {
-  const asked = new Set([...rowKeys, ...heroKeys]);
+  const asked = new Set([...rowKeys, ...heroKeys, ...boardKeys]);
   for (const loc of LOCALES) {
     for (const [key, val] of labels[loc]) {
       assert.ok(asked.has(key), `${loc}.${key} is defined but no component asks for it`);
@@ -78,7 +121,7 @@ test("every labelKey is a label_i18n_key the catalogue actually declares", () =>
   assert.ok(declared.size >= 50,
     `parsed only ${declared.size} label_i18n_key values — the CSV column split broke, and a set that ` +
     `small would make every key look undeclared`);
-  const asked = [...new Set([...rowKeys, ...heroKeys])];
+  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys])];
   const bad = asked.filter((k) => !declared.has(k));
   assert.deepEqual(bad, [],
     `label keys the catalogue does not declare in label_i18n_key: ${bad.join(", ")}. ` +
@@ -124,7 +167,10 @@ test("the page-spec checker's parser and this one see the SAME metric keys", asy
   const { collectEnI18nKeys } = await import("./check-page-specs.mjs");
   const { keys, error } = collectEnI18nKeys();
   assert.equal(error, null);
-  const theirs = new Set([...keys].filter((k) => /^metrics\./.test(k)));
+  // Dotted keys, both namespaces. Anchoring this filter on `metrics\.` while `labelBlock` above
+  // reads any dotted key would make the two sets disagree by construction on every playerMetrics
+  // entry — the drift this test exists to catch, manufactured by the test itself.
+  const theirs = new Set([...keys].filter((k) => k.includes(".")));
   const mine = new Set(labels.EN.keys());
   assert.deepEqual([...theirs].sort(), [...mine].sort(),
     "the two metric-key parsers disagree; one of the regexes has drifted");

@@ -217,7 +217,12 @@ export function collectEnI18nKeys() {
     return { keys: null, error: `could not locate "const METRIC_LABELS_EN: MetricLabels = {...};" block in ${rel(STRINGS_FILE)}` };
   }
   const metricKeys = new Set();
-  for (const k of mm[1].matchAll(/"(metrics\.[A-Za-z0-9_]+\.label)":\s*"/g)) metricKeys.add(k[1]);
+  // ANY quoted dotted key, not just `metrics.*.label`: the catalogue's player metrics live in a
+  // second namespace (`playerMetrics.scorerPoints.goals`), and while this was anchored on
+  // `metrics\.` a spec could not DECLARE a board label it renders. Widened with #40 MR B, in step
+  // with check-metric-labels.test.mjs's labelBlock and check_copy_gate.py's _METRIC_ENTRY_RE — the
+  // three parsers are pinned to each other by a test in that file.
+  for (const k of mm[1].matchAll(/"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"/g)) metricKeys.add(k[1]);
   // Its own floor, for the same reason as the one above: a quoted-dotted-key reformat must fail
   // loudly rather than make every declared metric label look missing.
   const MIN_EXPECTED_METRIC_KEYS = 15;

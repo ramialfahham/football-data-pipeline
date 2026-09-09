@@ -917,6 +917,58 @@ def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
             "either the regex drifted or a label is genuinely absent")
 
 
+def test_copy_gate_sees_the_player_metric_namespace_too():
+    """`_METRIC_ENTRY_RE` must see `playerMetrics.*`, not only the `metrics.*.label` shape.
+
+    ⛔ WHAT THIS PINS, AND WHY NO OTHER TEST IN THIS FILE CAN. #40's Home boards are titled from the
+    catalogue's PLAYER namespace — `playerMetrics.scorerPoints.goals` and three more — and while the
+    regex was anchored on the `metrics.` prefix those four labels were invisible to this gate. They
+    skipped the em dash, locale-completeness, terminology and untranslated checks entirely, so a
+    Finnish label missing from the map would have rendered a BLANK board title (`metricLabel()`
+    falls back to English, then to "") while the gate printed `COPY GATE ok`.
+
+    Every fixture in `_strings_fixture()` emits `metrics.mN.label` keys only, and `MIN_METRIC_KEYS`
+    (15) still clears at the 18 `metrics.*` labels, so reverting the widening leaves every other
+    test here green — which is exactly the hole platform-reviewer FAILed round 1 of that branch for.
+
+    The board list is read from the export and its labels from the catalogue, the two places that
+    already own them, rather than copied into this file: the same anchor the JS side uses in
+    `site_v2/scripts/check-metric-labels.test.mjs`.
+    """
+    import csv
+    import pathlib
+    import re as _re
+
+    gate = _copy_gate()
+    root = pathlib.Path(__file__).resolve().parents[1]
+
+    block = _re.search(
+        r"_HOME_PLAYER_BOARDS\s*=\s*\(([^)]*)\)",
+        (root / "scripts" / "export_site_data.py").read_text(encoding="utf-8"))
+    assert block, "could not find _HOME_PLAYER_BOARDS in scripts/export_site_data.py"
+    board_ids = _re.findall(r'"([a-z0-9_]+)"', block.group(1))
+    assert len(board_ids) >= 4, f"parsed only {len(board_ids)} board ids — the tuple regex broke"
+
+    with open(root / "dbt_project" / "seeds" / "metric_catalogue.csv", encoding="utf-8") as f:
+        catalogue = [r for r in csv.DictReader(f) if r.get("entity") == "player"]
+    by_id = {r["metric_id"]: r.get("label_i18n_key") for r in catalogue}
+    asked = []
+    for metric_id in board_ids:
+        key = by_id.get(metric_id)
+        assert key, f"no player catalogue row with a label_i18n_key for board {metric_id}"
+        asked.append(key)
+    assert any(not k.startswith("metrics.") for k in asked), (
+        "this test proves nothing unless at least one board label sits OUTSIDE the metrics.* "
+        "namespace — that is the case the widening exists for")
+
+    parsed = gate._metric_labels(gate.STRINGS.read_text(encoding="utf-8"))
+    for loc in ("en", "de", "fi"):
+        missing = sorted(set(asked) - set(parsed[loc]))
+        assert not missing, (
+            f"the gate does not see {missing} for {loc}, but the Home page titles a board with it — "
+            "either _METRIC_ENTRY_RE narrowed again or the label is genuinely absent")
+
+
 def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
     """The point of merging the metric labels into `dicts`: an em dash in a metric NAME
     is still an em dash. Without the merge these 54 strings would be parsed and then

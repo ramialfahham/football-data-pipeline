@@ -47,8 +47,18 @@ export const INDEXABLE = false;
  * its locale-distinct title are all true today; only the CONTENT is missing, and **#47** owns it.
  * Every competition in `mart_competition_index` gets one, so this array grows no entries as the
  * registry grows — the page count does, the stub list does not.
+ *
+ * `[lang]/players/[player].astro` — the player profile, added with the Home page's Top players
+ * block (**#40**), whose every board row links to its player. `audit-seo.mjs` check 8 fails the
+ * build on an internal href that resolves to no emitted page, so the block cannot ship without
+ * this route; it was green before only because no page in the site emitted a player href at all.
+ * **#845** owns the real Player Overview. Its page count is driven by the players the Home block
+ * happens to link to, so like the competition entry above it is ONE row however many pages emit.
  */
-export const STUB_PAGES = ["[lang]/[competition]/index.astro"];
+export const STUB_PAGES = [
+  "[lang]/[competition]/index.astro",
+  "[lang]/players/[player].astro",
+];
 
 /**
  * Emitted paths kept OUT of the sitemap even when indexable.

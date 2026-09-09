@@ -541,6 +541,93 @@ a.cnm .nm { text-decoration: none; }
 /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
 .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
 
+/* ============================================================ *
+ *  RANKED BOARD — the Home page's Top players (#40) and, when   *
+ *  it lands, Top teams (#41). ONE metric per board, so there is  *
+ *  no column-header row: the board title is the only label the   *
+ *  number carries. Transcribed from the approved mock            *
+ *  (design-mocks/gen_top_players.py), which is #40's rendering.  *
+ * ============================================================ */
+
+/* Each board is its OWN container, so every measurement below resolves against the BOARD's width
+   and not the page's. Sizing to the page is what broke when the content column was capped
+   narrower than the viewport. */
+.board { margin-top: 26px; container-type: inline-size; }
+.board:first-of-type { margin-top: 10px; }
+
+/* The board head mirrors .fxgroup > .gh, which Next matches already uses on this page, so the two
+   blocks read as siblings rather than introducing a per-page treatment. */
+.bhd { padding-bottom: 7px; border-bottom: 1px solid var(--div); }
+.bt { font-size: 14px; font-weight: 700; color: var(--ink); }
+
+/* ⚠ The track list is written out WHOLE and read with a single var() as the ENTIRE value:
+   `repeat(var(--n), …)` is invalid CSS, because the repeat count must be a literal integer and a
+   custom property there silently invalidates the whole grid-template-columns declaration.
+   ⚠ The value column is a FIXED width, never auto: auto would let a 3-digit value size its track
+   differently from a 2-digit one, so the numbers would stop aligning down the board. */
+.bgrid { --vw: 64px; --gap: 12px; --cols: 18px 24px minmax(0, 1fr) var(--vw); }
+@container (max-width: 430px) { .bgrid { --vw: 56px; --gap: 10px; } }
+
+.brow {
+  display: grid; grid-template-columns: var(--cols);
+  align-items: center; gap: var(--gap);
+  padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.brow:last-child { border-bottom: 0; }
+.brow .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; }
+
+/* ONE LINE IF IT FITS, STACKED IF NOT — decided PER BOARD, never per row (CPO 2026-08-10: "they
+   all stack together or not"). flex-wrap decides it per ROW, which rendered one board with rows
+   1/5/6 inline and 2/3/4/7 stacked: right for each row, ragged as a block. CSS cannot ask whether
+   a SIBLING wrapped, so the trigger must be something every row shares — the board's own width.
+   `nowrap` is what enforces it: without it one over-long row could still wrap alone. */
+.brow .ent { min-width: 0; display: flex; flex-wrap: nowrap; align-items: baseline; column-gap: 8px; }
+@container (max-width: 480px) {
+  /* ⚠ Blockify the CHILDREN, not just the container: .nm/.sub carry no `display` of their own
+     (flex blockifies them in the branch above), so setting only `.ent { display: block }` leaves
+     two INLINE spans that run together — "Bayern MünchenBundesliga". */
+  .brow .ent { display: block; }
+  .board .nm,
+  .board .sub { display: block; }
+  .board .sub { margin-top: 1px; }
+}
+
+/* ⚠ THE NAME MUST NEVER TRUNCATE. `.fxrow .side .nm` ellipsises, which is right on a fixture card
+   and wrong here: a clipped name defeats a block whose whole purpose is to send people to the
+   player's page. The name wraps and the row grows. `min-width: 0` matters — a flex item refuses to
+   shrink below its min-content width, so without it a long name widens the row instead of
+   wrapping inside it. */
+.board .nm {
+  min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink);
+  white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word;
+  line-height: 1.25;
+}
+.board .sub { min-width: 0; font-size: 11.5px; color: var(--muted); overflow-wrap: break-word; }
+/* Right-aligned, matching .pstat. */
+.brow .v { font-size: 15px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.brow .v b { color: var(--ink); font-weight: 700; }
+
+/* ROW TARGET (site_architecture.md §3 "Navigation"): the whole row is the link, so the whole row
+   responds — never the name inside it. ⚠ The mock underlined .nm on hover; that predates the
+   navigation rule and is deliberately NOT carried, because it points the affordance at a word
+   inside a target that is the entire row. Neutral ramp only; --accent is reserved. */
+a.brow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; }
+a.brow .nm { text-decoration: none; }
+@media (hover: hover) { a.brow:hover { background: var(--surface); } }
+a.brow:active { background: var(--sunk); }
+/* ⚠ THE RING IS DRAWN INSIDE, and the reason is measured, not stylistic — same defect class as
+   `a.cnm` above. `.fx a:focus-visible` draws `outline: 2px solid` at `outline-offset: 2px`, so it
+   reaches 4px BEYOND the border box; a `.brow`'s border-box bottom IS the divider, and the next row
+   sits flush against it. Measured at 375px, focusing row 3 of the Goals board: the ring spanned
+   y=373.5..438.3 against dividers at 377.5 and 434.3 — 4px straight through the line at BOTH ends
+   and into both neighbouring rows. !151 shipped exactly this, invisible at desktop width.
+   ⭐ A negative offset rather than padding, and that is DERIVED: `a.cnm` could spend room outward
+   because it had unused space around it, and a row has none — its neighbour is flush, and giving it
+   padding would move the divider it is measured against. So the ring goes inward instead. At -2px
+   the outline occupies 2px to 4px INSIDE the border box, which cannot reach either divider at any
+   row height, so this does not have to be re-derived when a name wraps and the row grows. */
+a.brow:focus-visible { outline-offset: -2px; }
+
 /* Competitions index (#62 step 5, GitLab #54). Two independent single-select filter axes reuse
    the shared .seg-in/.seg-btn radio pattern; each hides ROWS that don't match the active value
    via a plain sibling selector. The "all" state of each group has no rule (nothing hides), so

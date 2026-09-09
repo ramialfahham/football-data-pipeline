@@ -1,0 +1,97 @@
+---
+// Player page — SCAFFOLD (spec: src/specs/players/player.spec.json, "stub": true).
+//
+// This ships the URL section 3 of docs/site_architecture.md already reserves for a player
+// (/{locale}/players/{player-slug}/), with a real canonical, a real hreflang set and a
+// locale-distinct title — all true facts about a URL that exists — and NO content blocks. The
+// Player Overview owns the real content (#845) and its open design decisions are untouched here.
+//
+// WHY IT EXISTS NOW: the Top players block (#40) makes every board row a link to its player, and
+// audit-seo.mjs check 8 fails the build on an internal href that resolves to no emitted page. No
+// page in site_v2 emitted a player href before this one, which is why check 8 was green without a
+// player route. A destination that does not exist yet is BUILT, not routed around — 10_home.md
+// section 0: "do not reorder the build because a destination page does not exist yet."
+//
+// Listed in STUB_PAGES (src/config/indexability.mjs), which is the expiry trigger: the SEO audit
+// refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
+// page in the index.
+//
+// SOURCE IS landing.json, and deliberately so: the set of players with a page is exactly the set
+// the Home page links to, which is exactly what check 8 requires and nothing more. It adds no
+// export entity and no committed payload — `--entities players` exists but is not run by
+// deploy:export, and inventing a players/ payload to feed a page with no content would be building
+// #845's plumbing without #845's design. Every value here is a served payload field; nothing on
+// this page is derived, the slug least of all (the export assigns it).
+import Layout from "../../../layouts/Layout.astro";
+import { t } from "../../../i18n/strings";
+import { localeHref, LOCALES } from "../../../lib/href";
+import type { Lang } from "../../../lib/format";
+import type { Landing, LandingBoardRow } from "../../../lib/types";
+import landing from "../../../data/landing.json";
+
+export function getStaticPaths() {
+  // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
+  // leaders changes this set on the next export with no code change here.
+  // Deduped by slug, because a player can lead more than one board — Dybala held rank 1 on both
+  // assists and key passes in the 2026-09-08 data — and two identical params would be a duplicate
+  // route, not two pages.
+  const data = landing as unknown as Landing;
+  const rows = new Map<string, LandingBoardRow>();
+  for (const board of data.top_players ?? []) {
+    for (const row of board.rows) if (!rows.has(row.slug)) rows.set(row.slug, row);
+  }
+  return [...rows.values()].flatMap((player) =>
+    LOCALES.map((lang) => ({
+      params: { lang, player: player.slug },
+      props: { player, lang },
+    })),
+  );
+}
+
+interface Props {
+  player: LandingBoardRow;
+  lang: Lang;
+}
+const { player, lang } = Astro.props;
+
+const name = player.name ?? "";
+const club = player.club ?? "";
+
+// Through t() with the served fields as parameters, never concatenated: a concatenated title is
+// locale-independent, which is how all three locales came to ship byte-identical titles before
+// #844's gate existed. The descriptive words are the entire locale signal.
+// The CLUB is in the title for UNIQUENESS, not decoration — audit check 5 requires titles unique
+// within a locale and 1.6% of provider full names collide (site_architecture.md:93).
+const title = t(lang, "seoPlayerTitle", { player: name, club });
+const description = t(lang, "seoPlayerDesc", { player: name, club });
+
+// schema.org/Person — a footballer is a person, and there is no narrower type for one. Selection
+// only; every value is a served payload field. Undefined rather than null on a missing value: the
+// audit fails a JSON-LD node carrying empty or placeholder values, and an absent key is honest
+// where an empty string is not.
+const entity = {
+  "@type": "Person",
+  name: name || undefined,
+  affiliation: club || undefined,
+};
+
+// Two items, not three. The competition stub's trail passes through the competitions index because
+// that page is its hub; there is no player hub to pass through, and inventing one in a breadcrumb
+// would point at a URL the build does not emit.
+const crumbs = [
+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+  { name },
+];
+---
+
+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+  <div class="inner">
+    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+      <span class="sep">›</span>
+      <span class="here">{name}</span>
+    </nav>
+
+    <h1>{name}</h1>
+  </div>
+</Layout>

@@ -1,446 +1,1604 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 21be313..d0da3ec 100644
+index d0da3ec..9d4e639 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,29 +1,23 @@
--# Task contract — ranking lives in the warehouse: the layering rule + the tie-broken league leader
-+# Task contract — `board_leader_order`: the last ordering rule leaves the frontend
+@@ -1,128 +1,270 @@
+-# Task contract — `board_leader_order`: the last ordering rule leaves the frontend
++# Task contract — #40 MR B: the Top players block on the Home page
  
  objective: >
--  Write the CPO's 2026-09-09 rulings into the places that enforce them, and give `mart_leaderboards`
--  the column they require. Two rulings, both recorded in `.claude/task/escalations.log` on the day:
--  (1) ALL RANKING AND ORDERING LIVES IN THE WAREHOUSE — the page renders the order it is served;
--  (2) A TIE IS BROKEN BY FEWER MINUTES PLAYED, falling back to `player_sk` where minutes are equal.
--  This is MR A of two. It stands alone and merges first; #40 MR B (the Home Top players block,
--  parked in stash `TEMP-40-mrB-block` on `feat/40-top-players-block`) rebases onto it, because an
--  export cannot query a column that is not yet in prod.
-+  Add one served column to `mart_leaderboards` so a consumer showing a board of league leaders can
-+  order it with `ORDER BY <one column>` and encode no rule of its own. This finishes what MR A
-+  (`!164`) started: A moved the WITHIN-league pick into the warehouse (`league_leader_order`); the
-+  ACROSS-league row order stayed in the export as a three-key ORDER BY, and
-+  `analytics-engineer-reviewer` FAILed #40 MR B for it — correctly, because the CPO's rule is
-+  unconditional. This is MR C of three.
+-  Add one served column to `mart_leaderboards` so a consumer showing a board of league leaders can
+-  order it with `ORDER BY <one column>` and encode no rule of its own. This finishes what MR A
+-  (`!164`) started: A moved the WITHIN-league pick into the warehouse (`league_leader_order`); the
+-  ACROSS-league row order stayed in the export as a three-key ORDER BY, and
+-  `analytics-engineer-reviewer` FAILed #40 MR B for it — correctly, because the CPO's rule is
+-  unconditional. This is MR C of three.
++  Ship the Home page's Top players block (GitLab #40, MR B — the frontend half; the warehouse half
++  shipped in !153). Four boards (Goals, Assists, Passes, Key passes), one player per league across
++  the seven `elite` leagues, top 7, board names resolved from the metric catalogue, a board with no
++  data omitted entirely. The work was written and parked in stash `TEMP-40-mrB`; this task pops it,
++  fixes one defect found in it, wires it into `index.astro`, and builds the player page scaffold the
++  block's row links require.
  refs: >
--  `.claude/task/escalations.log`, 2026-09-09 `feat/40-top-players-block` — both rulings, with the
--  measurements behind them. It supersedes the 2026-08-18 `chore/record-top-players-ruling` entry's
--  reservation ("NOT DECIDED, do not assume either way: whether ordering the seven winners by value
--  lives in the mart or the page") and corrects that entry's false premise — it says each league's
--  number one already exists, and DENSE_RANK means it does not.
--  `dbt_project/docs/layering.md` (the consumption-layer contract this sharpens),
--  `docs/metric_layer.md` (read before touching anything metric-related; no metric changes here).
--  GitLab #40. Round-1 FAIL from `analytics-engineer-reviewer` on `feat/40-top-players-block` is what
--  surfaced it.
-+  `.claude/task/escalations.log`, 2026-09-09 — RULING 1: *"All ranking and ordering lives in the
-+  warehouse. The page renders the order it is served."* and RULING 2, the fewer-minutes tie-break.
-+  `dbt_project/docs/layering.md` §Consumption layer, which MR A rewrote to state Ruling 1 without
-+  exception. GitLab #40 (the consumer), #112 (the meaningless last-resort key, MINOR).
-+  MR A merged as `943c9f2`; #40 MR B is parked in stash `TEMP-40-mrB-await-C`.
+-  `.claude/task/escalations.log`, 2026-09-09 — RULING 1: *"All ranking and ordering lives in the
+-  warehouse. The page renders the order it is served."* and RULING 2, the fewer-minutes tie-break.
+-  `dbt_project/docs/layering.md` §Consumption layer, which MR A rewrote to state Ruling 1 without
+-  exception. GitLab #40 (the consumer), #112 (the meaningless last-resort key, MINOR).
+-  MR A merged as `943c9f2`; #40 MR B is parked in stash `TEMP-40-mrB-await-C`.
++  GitLab #40 (design authority; its issue body is STALE — the pooled ranking was withdrawn
++  2026-08-18 for one player per league, and page length is not open).
++  `docs/wireframes/10_home.md` §0 (the CPO's block composition), `docs/metric_layer.md` (read before
++  touching a metric; the catalogue seed is the only source of a metric's label),
++  `docs/site_architecture.md`:51 + :93-95 (the reserved `/{locale}/players/{slug}/` URL and the
++  player slug rule). Precedent for the stub: `!151` (merge `448ef77`), the competition page shell.
++  Approved plan: `C:\Users\Rami\.claude\plans\snoopy-rolling-penguin.md`.
  
  scope_paths:
-   - dbt_project/models/5_marts/shared/mart_leaderboards.sql
-   - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
--  - dbt_project/docs/layering.md
-+  - dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
+-  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
++  - scripts/export_site_data.py
++  - scripts/check_copy_gate.py
++  - tests/test_export_landing.py
++  - tests/test_governance_hooks.py
++  - site_v2/src/components/home/TopPlayers.astro
++  - site_v2/src/pages/*/index.astro
++  - site_v2/src/pages/*/players/*.astro
++  - site_v2/src/specs/index.spec.json
++  - site_v2/src/specs/players/*.spec.json
++  - site_v2/src/config/indexability.mjs
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/src/styles/system.css
++  - site_v2/src/data/landing.json
++  - site_v2/src/data/README.md
++  - site_v2/scripts/check-metric-labels.test.mjs
++  - site_v2/scripts/check-page-specs.mjs
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -32,99 +26,103 @@ scope_paths:
+   - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
+   - .claude/task/escalations.log
    - .claude/active_work.md
  
  impact_map: >
--  writers: `mart_leaderboards` is written only by the dbt build — nightly `fdp-nightly` /
--    `data:build:main`, and per-MR `data:build:mr`. No ingestion path touches it. It is
--    `materialized='view'`, so "writing" it is a view redefinition, not a table rebuild.
-+  writers: `mart_leaderboards` is written only by the dbt build — `data:build:main` /
-+    `fdp-nightly`, and per-MR `data:build:mr`. No ingestion path touches it. It is
-+    `materialized='view'`, so writing it is a view redefinition, not a table rebuild.
+-  writers: `mart_leaderboards` is written only by the dbt build — `data:build:main` /
+-    `fdp-nightly`, and per-MR `data:build:mr`. No ingestion path touches it. It is
+-    `materialized='view'`, so writing it is a view redefinition, not a table rebuild.
++  writers: NO dbt model, seed, macro or test is in scope. `mart_leaderboards` is READ by the export
++    and is not modified; it is written only by the nightly `data:build:main` / `fdp-nightly` build
++    from `int_player_season__metrics` + `dim_player` + `dim_team`.
  
--  downstream: LEAF. Evidence, run in this session against this checkout
-+  downstream: LEAF, re-run against THIS checkout (post-A), not carried over from MR A:
+-  downstream: LEAF, re-run against THIS checkout (post-A), not carried over from MR A:
++  downstream: `mart_leaderboards` is a LEAF. Evidence, run in this session
      (`.venv/Scripts/dbt.exe ls --select mart_leaderboards+`, dbt 1.7.19 / bigquery 1.7.2,
-     DBT_PROFILES_DIR pointed at a scratchpad profile carrying only a `dev`/`dev_scratch` target —
--    `~/.dbt/profiles.yml` on this machine holds ANOTHER project's `dbt_analytics` profile and was
--    not touched):
--      `--resource-type model` -> football_data_pipeline.5_marts.shared.mart_leaderboards  (itself, only)
--      `--resource-type all`   -> 27 nodes = the model + 26 tests, ZERO downstream models
--    The only non-dbt consumer is `scripts/export_site_data.py`, which SELECTs named columns; adding
--    a column cannot break it. `assert_mart_leaderboards_every_home_board_has_a_leader` (shipped in
--    !153) already asserts a rank-1 row exists per elite league per Home board and is unaffected —
--    the new column is an ordering within that same partition.
+-    DBT_PROFILES_DIR pointed at a scratchpad profile carrying only a `dev`/`dev_scratch` target —
+-    `~/.dbt/profiles.yml` holds ANOTHER project's profile and was not touched):
+-      `--resource-type model` -> football_data_pipeline.5_marts.shared.mart_leaderboards (itself, only)
+-      `--resource-type all`   -> 29 nodes = the model + 28 tests, ZERO downstream models
+-    29 and not A's 27 because A added two tests. The only non-dbt consumer is
+-    `scripts/export_site_data.py`, which SELECTs named columns; adding a column cannot break it.
 -
--  layer_rules: `check_layer_contract.py` applies (a `dbt_project/models/**` path is in scope); no
--    per-competition subdirectory is created and no `+materialized` is overridden per model, so it
--    passes unchanged. The new column is computed in the MART, which is where a leaderboard rank
--    already lives — this moves logic INTO the layer the contract names, not out of it.
+-  layer_rules: `check_layer_contract.py` applies (`dbt_project/models/**` is in scope). No
+-    per-competition subdirectory, no per-model `+materialized` override introduced. The column is
+-    computed in the MART, which is the point of the change — it moves the last ordering rule INTO
+-    the layer the contract names.
 -
--  deploy_order: this MR must merge and `data:build:main` must run before #40 MR B can re-export
--    `landing.json`, because that export queries prod `marts.mart_leaderboards`. Cheap: the model is
--    a VIEW, so the column exists the moment the view is recreated — no table rebuild, no
--    `--full-refresh`, and none of the three incremental facts is touched. Nothing is owed
--    operationally if this merges between nightlies; the next `data:build:main` picks it up.
+-  deploy_order: this must merge and `data:build:main` must run before #40 MR B can re-export
+-    `landing.json`, exactly as A did. Cheap and already demonstrated on A: the model is a VIEW, so
+-    the column exists as soon as the view is recreated — no table rebuild, no `--full-refresh`, and
+-    none of the three incremental facts is touched. A's cycle took 9m49s end to end.
 -
--  blast_radius: NO existing column changes and NO number moves. `rank` keeps its DENSE_RANK
--    definition, so ties still share a rank and the top-10 cut stays inclusive of ties — that is a
--    documented consumer contract and this MR deliberately does not touch it. One column is ADDED.
--    ⚠ `mart_team_leaderboards` has the same DENSE_RANK shape and therefore the same latent tie, and
--    it is NOT fixed here: Top teams (#41) is unbuilt, and widening this MR to a second mart would
--    put an unreviewed change in a model nothing consumes yet. Flagged, not folded in.
-+    `~/.dbt/profiles.yml` holds ANOTHER project's profile and was not touched):
-+      `--resource-type model` -> football_data_pipeline.5_marts.shared.mart_leaderboards (itself, only)
-+      `--resource-type all`   -> 29 nodes = the model + 28 tests, ZERO downstream models
-+    29 and not A's 27 because A added two tests. The only non-dbt consumer is
-+    `scripts/export_site_data.py`, which SELECTs named columns; adding a column cannot break it.
+-  blast_radius: NO existing column changes and NO number moves. `rank` (DENSE_RANK, ties share) and
+-    `league_leader_order` (A's within-league pick) are both untouched. One column is ADDED, NULL on
+-    every row that is not a league leader.
+-    ⚠ VERIFIED AGAINST PROD BEFORE BUILDING: the new ordinal reproduces the order #40 MR B already
+-    renders, exactly. Running the window over prod and filtering to the elite pool gives
+-    goals PD,SA,LP,L1,ED,BL1,PL / assists PD,SA,ED,PL,LP,L1,BL1 / passes LP,ED,PL,PD,SA,L1,BL1 /
+-    key passes PD,ED,SA,LP,L1,PL,BL1 — identical to the committed `landing.json`. So MR B's payload
+-    does not change when it switches to this column; only the code does.
+-    ⚠ `mart_team_leaderboards` has the same shape and the same latent gap. NOT fixed here — Top
+-    teams (#41) is unbuilt, and widening this MR would put an unreviewed change in a model nothing
+-    consumes. Flagged, not folded in.
++    DBT_PROFILES_DIR pointed at a scratchpad profile with a `dev`/`dev_scratch` target only —
++    `~/.dbt/profiles.yml` on this machine holds ANOTHER project's `dbt_analytics` profile and was
++    not touched):
++      `--resource-type model` -> football_data_pipeline.5_marts.shared.mart_leaderboards   (itself, only)
++      `--resource-type all`   -> 27 nodes = the model + 26 tests, ZERO downstream models
++    Among those tests: `assert_mart_leaderboards_every_home_board_has_a_leader` (the board-vanished
++    guard this block depends on, shipped in !153), `assert_one_current_season_per_league`,
++    `not_null_mart_leaderboards_is_current_season`, `mart_leaderboards_rank_in_range`.
 +
-+  layer_rules: `check_layer_contract.py` applies (`dbt_project/models/**` is in scope). No
-+    per-competition subdirectory, no per-model `+materialized` override introduced. The column is
-+    computed in the MART, which is the point of the change — it moves the last ordering rule INTO
-+    the layer the contract names.
++  layer_rules: `check_layer_contract.py` is not engaged — no `dbt_project/models/**` path is in
++    scope, so no staging/base materialisation or per-competition-subdirectory rule applies. The
++    consumption-layer contract DOES apply: `scripts/export_site_data.py` may select, filter, group
++    and rename, never derive a fact. The one behavioural change (per-league dedupe) is SELECTION
++    among rows the mart already ranked — it computes no ranking and no metric.
 +
-+  deploy_order: this must merge and `data:build:main` must run before #40 MR B can re-export
-+    `landing.json`, exactly as A did. Cheap and already demonstrated on A: the model is a VIEW, so
-+    the column exists as soon as the view is recreated — no table rebuild, no `--full-refresh`, and
-+    none of the three incremental facts is touched. A's cycle took 9m49s end to end.
++  deploy_order: THIS BRANCH DEPENDS ON MR A AND THAT DEPENDENCY IS ALREADY SATISFIED. `!164` merged
++    as `943c9f2`, `data:build:main` ran green (9m49s) and recreated the view, and the column was
++    then confirmed live by querying prod: 28 rows carry `league_leader_order = 1` across the four
++    Home boards and seven elite leagues, which is exactly one per league-board. Nothing else is
++    owed: `mart_leaderboards` is a VIEW, so there was no table rebuild and none of the three
++    incremental facts was touched. Nothing in the warehouse changes in THIS branch.
++    `site_v2/src/data/landing.json` is a COMMITTED build input (`deploy:export` regenerates only
++    `--entities teams,fixtures`), so the payload lands in this commit and the site build is
++    self-contained.
 +
-+  blast_radius: NO existing column changes and NO number moves. `rank` (DENSE_RANK, ties share) and
-+    `league_leader_order` (A's within-league pick) are both untouched. One column is ADDED, NULL on
-+    every row that is not a league leader.
-+    ⚠ VERIFIED AGAINST PROD BEFORE BUILDING: the new ordinal reproduces the order #40 MR B already
-+    renders, exactly. Running the window over prod and filtering to the elite pool gives
-+    goals PD,SA,LP,L1,ED,BL1,PL / assists PD,SA,ED,PL,LP,L1,BL1 / passes LP,ED,PL,PD,SA,L1,BL1 /
-+    key passes PD,ED,SA,LP,L1,PL,BL1 — identical to the committed `landing.json`. So MR B's payload
-+    does not change when it switches to this column; only the code does.
-+    ⚠ `mart_team_leaderboards` has the same shape and the same latent gap. NOT fixed here — Top
-+    teams (#41) is unbuilt, and widening this MR would put an unreviewed change in a model nothing
-+    consumes. Flagged, not folded in.
++  blast_radius: NO mart, model or number changes. What changes: (1) `landing.json` gains a
++    `top_players` key; (2) the Home page gains a block; (3) a new stub route
++    `/{locale}/players/{slug}/` emits at most 28 players x 3 locales; (4) three metric-label
++    parsers widen to see a key namespace they were blind to, which can only make gates fire MORE.
++    Gates newly engaged: `audit-seo.mjs` check 8 (dead internal link) — the reason the player
++    scaffold exists at all, since no page in `site_v2` emits a player href today.
++
++acceptance_criteria:
++  - Each of the four boards renders at most one row per league_code, and every board that renders
++    covers all seven elite leagues; shown from the committed landing.json.
++  - The block's intro sentence names exactly the leagues that appear on the boards, with no league
++    named that a board does not show.
++  - Re-running the export twice over unchanged data produces a byte-identical landing.json.
++  - Every board title renders a non-empty localised string in de, en and fi in the built HTML — no
++    board title falls back to English and none is blank.
++  - Every player href the built Home page emits resolves to a page the build emitted, in all three
++    locales; astro build completes with audit-seo reporting no issues.
++  - At 375px width every board row is a tap target of at least 44px, and a board stacks as a whole
++    rather than row-by-row.
++  - Deleting one Finnish board label makes check_copy_gate.py exit non-zero.
  
  decisions_taken: >
--  RULING 1, verbatim and quotable: the CPO answered "yes, that's the rule" to *"All ranking and
--  ordering lives in the warehouse. The page renders the order it is served."* This is
--  `layering.md`'s existing consumption-layer rule applied without exception rather than a new rule,
--  so this MR SHARPENS the wording rather than inventing a mechanism. The cost was put to him before
--  he ruled: a block needing a new ordering waits on a mart column.
+-  ⛔ THIS MR EXISTS BECAUSE I WAS WRONG, AND THE ERROR IS RECORDED RATHER THAN QUIETLY FIXED. Both
+-  MR A's contract and #40 MR B's said the cross-league order COULD NOT live in the mart, because the
+-  order is pool-scoped and the pool (`competition_group = 'elite'`, rotating nightly under #101) is
+-  not a concept `mart_leaderboards` knows. That reasoning is false. The ruled order — value, then
+-  fewer minutes, then `player_sk` — is a TOTAL order, and restricting a total order to any subset
+-  preserves the relative order of what remains. So the mart can rank every league leader on a board
+-  globally, and a consumer filtering to any pool inherits the correct order for free. The pool never
+-  enters into it. `decisions_reserved` in both earlier contracts should be read with that
+-  correction, and MR B's is amended when it rebases.
 -
--  RULING 2, and the reasoning he accepted: a tie is broken by FEWER MINUTES PLAYED — the same tally
--  in less time is the better performance, and it reads identically on all four Home boards. Measured
--  against prod 2026-09-08/09 before asking: of the 28 league-boards the Home block renders, 12 carry
--  a tie, minutes resolves 11 of the 12, one survives, and 0 have a NULL `minutes`.
--  The survivor falls to `player_sk`, which is MEANINGLESS AND SAID TO BE — stable, invisible, and
--  making no claim about the players. Player NAME was offered as the fallback and NOT taken, because
--  names in this pipeline are a known-unreliable identity surface and an alphabetical fallback would
--  reorder a board when a name is corrected.
+-  RULING 1 IS WHAT THIS IMPLEMENTS, and it is unconditional: *"All ranking and ordering lives in the
+-  warehouse. The page renders the order it is served."* After this, #40 MR B's query carries
+-  `order by l.board_leader_order` — one served column — and no comparison of its own.
 -
--  ⛔ A FILE'S EXISTENCE IS NOT AUTHORITY. Arguing the previous round I cited
--  `site_v2/src/lib/competitionOrder.mjs` — a shipped frontend module with a five-key sort — as
--  precedent for keeping ordering on the page. CPO: *"I don't even know what it is. Definitely no
--  authoritative document for business logic."* Under Ruling 1 that module is a VIOLATION, not a
--  precedent. It is NOT fixed here — it is a separate task, and folding it in would put an unrelated
--  frontend rewrite inside a warehouse MR.
+-  THE ORDINAL IS SEASON-AGNOSTIC AND GLOBAL, DELIBERATELY. It partitions by `metric_key` alone, over
+-  every league leader on that board. It does NOT partition by season, because `is_current_season` is
+-  per-league and different leagues sit in different `season_api_year` values, so partitioning by
+-  season would split leagues that a consumer shows side by side. The consequence is visible and
+-  intended: filtered to seven leagues the numbers come out SPARSE (17, 18, 21, 31, 36, 40, 41 on the
+-  assists board), because they are positions in a global order. Sparse is the tell that it is global;
+-  contiguity is not a property any consumer needs, and manufacturing it would require knowing the
+-  pool, which is the mistake this MR corrects.
 -
--  THRESHOLD — NEW MECHANISM: none. `row_number()` beside an existing `dense_rank()` in a model that
--  already ranks; no new model, macro, seed, dependency, job or gate. The singular test added is the
--  standard dbt shape and sits beside the sibling this mart already has.
+-  NULL ON NON-LEADERS, not a number. The ordinal is only defined among league leaders, so every
+-  other row carries NULL rather than a position in a sequence it is not part of. A number there
+-  would be meaningless and would invite a consumer to order by it.
 -
--  THRESHOLD — RECURRING COST: negligible and stated rather than assumed. `mart_leaderboards` is a
--  VIEW, so nothing is stored; the added cost is one more window function over the same scan when a
--  consumer queries it, and one extra singular test per build. Measured neighbour for scale: the
--  export's whole Home query over this view is 29.8 MB by dry run, against ~129 GB/day for the two
--  scheduled jobs.
-+  ⛔ THIS MR EXISTS BECAUSE I WAS WRONG, AND THE ERROR IS RECORDED RATHER THAN QUIETLY FIXED. Both
-+  MR A's contract and #40 MR B's said the cross-league order COULD NOT live in the mart, because the
-+  order is pool-scoped and the pool (`competition_group = 'elite'`, rotating nightly under #101) is
-+  not a concept `mart_leaderboards` knows. That reasoning is false. The ruled order — value, then
-+  fewer minutes, then `player_sk` — is a TOTAL order, and restricting a total order to any subset
-+  preserves the relative order of what remains. So the mart can rank every league leader on a board
-+  globally, and a consumer filtering to any pool inherits the correct order for free. The pool never
-+  enters into it. `decisions_reserved` in both earlier contracts should be read with that
-+  correction, and MR B's is amended when it rebases.
+-  THRESHOLD — NEW MECHANISM: none. A second `row_number()` beside two existing window functions in a
+-  model that already ranks. No new model, macro, seed, dependency, job or gate.
+-
+-  THRESHOLD — RECURRING COST: negligible, stated rather than assumed. The model is a VIEW, so
+-  nothing is stored. The added cost is ONE window function over the same scan when a consumer
+-  queries it, plus one singular test per build.
+-  ⚠ This sentence said "one window function and one SELF-JOIN" and that was wrong — it described the
+-  first implementation, which ranked the leaders in their own CTE and joined back. That form was
+-  abandoned (SQLFluff forbids `USING` via ST07 and demands forty qualified references without it),
+-  and the shipped version has no join at all. Corrected after `scope-auditor` caught the leftover in
+-  round 1; it overstated the cost rather than hiding it, but a contract that misdescribes its own
+-  change is wrong either way.
+-  Scale reference: the export's whole Home query over this view is 29.8 MB by dry run, against
+-  ~129 GB/day for the two scheduled jobs.
++  ONE PLAYER PER LEAGUE is the CPO's ruling of 2026-08-18 (pooled ranking withdrawn; the rule it
++  justified — every row shows club AND league — stands). The parked shaper does NOT implement it:
++  `mart_leaderboards` ranks with DENSE_RANK, so ties share rank 1, and filtering `rank == 1` yields
++  several rows for one league. Measured against prod in this session: assists 24 rank-1 rows over 7
++  leagues (top 7 covers 5 leagues, two of them twice), goals 14 (5 leagues, ED three times), key
++  passes 12 (4 leagues), passes 7 (correct). This contract pre-approves the dedupe that makes the
++  code match the ruling. It is implementation of an existing decision, not a new one.
 +
-+  RULING 1 IS WHAT THIS IMPLEMENTS, and it is unconditional: *"All ranking and ordering lives in the
-+  warehouse. The page renders the order it is served."* After this, #40 MR B's query carries
-+  `order by l.board_leader_order` — one served column — and no comparison of its own.
++  ⭐ THE TIE-BREAK IS RESOLVED, AND NOT THE WAY THIS CONTRACT FIRST CLAIMED. Round 1's
++  `analytics-engineer-reviewer` FAIL was right: picking between joint leaders in Python is ranking
++  in the consumption layer. It was escalated and the CPO ruled twice on 2026-09-09
++  (`escalations.log`): (1) *"All ranking and ordering lives in the warehouse. The page renders the
++  order it is served."* (2) a tie goes to FEWER MINUTES PLAYED, then to `player_sk` as a stable and
++  explicitly meaningless last resort — GitLab #112 is filed to find a better final key.
++  So the pick moved OUT of this branch entirely: `mart_leaderboards.league_leader_order` ships in
++  MR A (`!164`, merged as `943c9f2`), and this export now filters `league_leader_order = 1` and
++  computes nothing. The two things that forced the escalation are kept below, because they are the
++  evidence the ruling rests on and both were quotable rather than argued:
++    · `escalations.log`, 2026-08-18 `chore/record-top-players-ruling`, the same entry that rules one
++      per league, ends: *"⚠ NOT DECIDED, do not assume either way: whether ordering the seven
++      winners by value lives in the mart or the page. The 2026-08-16 Ruling 4 ('the mart carries
++      facts, the spec declares the ORDER BY') points at the page, but it was ruled about
++      competitions, not players."* So the mart-or-page question is EXPLICITLY reserved, and taking
++      it silently is the drift this contract exists to stop.
++    · That ruling's stated saving — *"NO new mart and NO new ranking. `mart_leaderboards` already
++      ranks within (league_code, season_api_year), so each league's number one already exists"* —
++      rests on a premise that is FALSE under ties: the mart uses DENSE_RANK, so a league can have
++      several number ones. Measured 2026-09-08: 24 rank-1 rows on assists across 7 leagues.
++  ⚠ SUPERSEDED, KEPT ONLY SO THE NEXT READER SEES WHAT WAS TRIED. The code took highest
++  `sort_value` then lowest `player_id`, for determinism only —
++  `landing.json` is committed and a stable sort would otherwise freeze BigQuery's row order. That is
++  a candidate, not an authority. It is GONE from the code: `_board_order` is deleted, the shaper
++  sorts nothing, and the query orders by the three ruled keys over served columns.
 +
-+  THE ORDINAL IS SEASON-AGNOSTIC AND GLOBAL, DELIBERATELY. It partitions by `metric_key` alone, over
-+  every league leader on that board. It does NOT partition by season, because `is_current_season` is
-+  per-league and different leagues sit in different `season_api_year` values, so partitioning by
-+  season would split leagues that a consumer shows side by side. The consequence is visible and
-+  intended: filtered to seven leagues the numbers come out SPARSE (17, 18, 21, 31, 36, 40, 41 on the
-+  assists board), because they are positions in a global order. Sparse is the tell that it is global;
-+  contiguity is not a property any consumer needs, and manufacturing it would require knowing the
-+  pool, which is the mistake this MR corrects.
++  BOARD LABELS, CPO-CONFIRMED IN THIS SESSION (2026-09-08): DE assists is **Torvorlagen** — his
++  words, *"more precise than just Vorlagen"* — and DE key passes **Schlüsselpässe**. The stash
++  carries `Vorlagen`; it is corrected. DE `Tore`/`Pässe` and FI `Maalit`/`Maalisyötöt`/`Syötöt`/
++  `Avainsyötöt` stand as parked; `Tore`, `Pässe`, `Maalit` and `Syötöt` are additionally the stems
++  of the CPO-validated legacy corpus in `site/i18n/`.
 +
-+  NULL ON NON-LEADERS, not a number. The ordinal is only defined among league leaders, so every
-+  other row carries NULL rather than a position in a sequence it is not part of. A number there
-+  would be meaningless and would invite a consumer to order by it.
++  THRESHOLD — NEW MECHANISM: the player route `/{locale}/players/{slug}/` is new SURFACE but not a
++  new mechanism. The URL is already reserved in `docs/site_architecture.md`:51, and it ships as a
++  STUB by the `!151` precedent: `stub: true` in its page spec, listed in `STUB_PAGES`, which the SEO
++  audit uses to refuse `INDEXABLE = true` while it is non-empty. No new gate, no new build step, no
++  new dependency, no new export entity. Its `getStaticPaths` iterates the committed `landing.json`
++  rather than a new payload.
 +
-+  THRESHOLD — NEW MECHANISM: none. A second `row_number()` beside two existing window functions in a
-+  model that already ranks. No new model, macro, seed, dependency, job or gate.
++  THRESHOLD — RECURRING COST, two, both small and both stated rather than absorbed:
++    (a) the export gains one BigQuery query, measured at 29.8 MB by dry run. The export runs once a
++        night inside `fdp-nightly` (~129 GB/day today), so this is ~0.02% of the existing daily
++        volume.
++    (b) the site build gains at most 28 players x 3 locales = 84 pages against a ~15-20k-page
++        corpus. `deploy:site-v2` already runs at `--max-old-space-size=8192`; 84 pages does not move
++        that. If the CPO judges either unacceptable, the block cannot ship as designed and this is
++        the place to say so.
 +
-+  THRESHOLD — RECURRING COST: negligible, stated rather than assumed. The model is a VIEW, so
-+  nothing is stored. The added cost is ONE window function over the same scan when a consumer
-+  queries it, plus one singular test per build.
-+  ⚠ This sentence said "one window function and one SELF-JOIN" and that was wrong — it described the
-+  first implementation, which ranked the leaders in their own CTE and joined back. That form was
-+  abandoned (SQLFluff forbids `USING` via ST07 and demands forty qualified references without it),
-+  and the shipped version has no join at all. Corrected after `scope-auditor` caught the leftover in
-+  round 1; it overstated the cost rather than hiding it, but a contract that misdescribes its own
-+  change is wrong either way.
-+  Scale reference: the export's whole Home query over this view is 29.8 MB by dry run, against
-+  ~129 GB/day for the two scheduled jobs.
++  THE THREE LABEL PARSERS ARE WIDENED, NOT LOOSENED. `check_copy_gate.py`,
++  `site_v2/scripts/check-metric-labels.test.mjs` and `site_v2/scripts/check-page-specs.mjs` each
++  match only `"metrics.<ident>.label"`. The four board labels use the catalogue's `playerMetrics.*`
++  namespace, so today they skip the em-dash, locale-completeness, terminology and untranslated
++  checks entirely — a missing Finnish label would ship a blank board title (`metricLabel()` falls
++  back to English, then to `""`) with nothing red. Widening each to a generic quoted dotted key can
++  only make the gates cover MORE strings; no assertion is removed or narrowed.
++
++  LANDING.JSON IS SPLICED, NOT WHOLESALE REFRESHED, AND THAT IS THE DELIBERATE CHOICE. Running
++  `--entities landing` regenerates `upcoming` as well, which moves the committed sample's definition
++  to whatever matchday is next. `site_v2/src/data/README.md` requires the sample to be refreshed AS
++  A SET — every fixture `upcoming` links to needs a committed payload, or `audit-seo.mjs` check 8
++  reddens CI. MEASURED on 2026-09-08: the committed set is **4 fixtures across 3 competitions**
++  (CIT x2, DFBP, SPL — the 2026-09-01 matchday); today's next matchday is **49 fixtures across 7
++  competitions** (KL1, ED, VL, SPL, UCL, FAC, LIBER). A wholesale refresh therefore multiplies the
++  committed sample TWELVEFOLD, against a CPO ruling that the thin set is right — *"we're doing
++  infrastructure work and don't show anything now"* — and it was measured for properties (both
++  competition shapes, all three form paths, the row-omission path) that a new set would have to be
++  re-measured for. That is a decision about the sample, not about #40, so this task does not take
++  it: `upcoming` is left exactly as committed and only the new `top_players` key is added. BOTH
++  HALVES ARE REAL EXPORT OUTPUT and are serialised by the export's own `_payload_bytes`; no value is
++  hand-written, which is what `README.md`'s "never hand-edit a payload" forbids. The diff is
++  334 insertions, 0 deletions. ⚠ The consequence is stated rather than hidden: the file now carries
++  two snapshot dates, and README.md is amended to say so.
  
  decisions_reserved:
--  - THE ORDER OF THE ROWS ACROSS LEAGUES, which this column does not settle and cannot. A board
--    shows one leader per league ordered by value, and that ordering ties too (measured: two leagues
--    level on 4 assists). The tie RULE is now settled — value, then fewer minutes, then `player_sk` —
--    but the ordering is pool-scoped, and the pool (`competition_group = 'elite'`, rotating nightly
--    under #101) is not a concept `mart_leaderboards` knows. So MR B applies those three ruled keys
--    as an ORDER BY over served columns. Making even that live in the warehouse needs a pool-aware
--    mart, which is exactly what the CPO questioned on 2026-08-18 ("do we really need a separate mart
--    for it ... it's repetitive work, not sure about it"). Stated here so MR B's reviewer sees it
--    declared rather than discovering it.
--  - Whether `mart_team_leaderboards` gets the same column, and when. Same latent defect, no consumer
--    yet. Not decided here.
--  - Whether `competitionOrder.mjs` is rewritten or deleted. It is a violation under Ruling 1; which
--    it is depends on what the competitions index is supposed to order by, which is not this MR's.
-+  - The last-resort tie-break itself. `player_sk` is stable and meaningless; GitLab #112 is filed at
-+    MINOR priority. This MR inherits that key rather than choosing it, and nothing here depends on
-+    the answer.
-+  - Whether `mart_team_leaderboards` gets the same pair of columns, and when. Same latent gap, no
-+    consumer yet.
-+  - Whether `site_v2/src/lib/competitionOrder.mjs` is rewritten or deleted. It is a violation under
-+    Ruling 1; which one depends on what the competitions index should order by. Filed, not decided.
++  - What the player page actually SHOWS. Reserved and not answered here: this ships a stub whose
++    body is the h1 only, exactly as `!151` shipped the competition shell. The real page is the
++    Player Overview work (`project_player_page_design`, #845), whose five open CPO decisions are
++    untouched by this task.
++  - Whether the `elite` group stays the default. `competition_group = 'elite'` is a literal in the
++    export and deliberately temporary — #101 decided the group is chosen per nightly build by
++    weighted random over the in-season groups. Wiring that is its own MR and is not attempted here.
++  - ⭐ RESOLVED, NOT RESERVED — AND THE RESERVATION ITSELF WAS THE DEFECT. This entry used to say the
++    cross-league row order had to stay in the export because it is POOL-scoped and
++    `mart_leaderboards` knows nothing about pools, so moving it into the warehouse would need a
++    pool-aware mart. `analytics-engineer-reviewer` FAILed round 2 on exactly that, and was right
++    twice over: it was the same ranking rule relocated from Python into SQL that still lives in the
++    frontend, AND the reasoning was false. The ruled order is TOTAL, and restricting a total order to
++    a subset keeps the relative sequence of what survives — so ranking every league leader globally
++    lets any pool filter inherit the right order, and the pool never enters into it. MR C (`!165`,
++    merged `7cac157`) added `board_leader_order` on that basis. This export now carries
++    `order by l.board_leader_order` and compares nothing. Nothing is reserved here any more.
+   - The last-resort tie-break itself. `player_sk` is stable and meaningless; GitLab #112 is filed at
+-    MINOR priority. This MR inherits that key rather than choosing it, and nothing here depends on
+-    the answer.
+-  - Whether `mart_team_leaderboards` gets the same pair of columns, and when. Same latent gap, no
+-    consumer yet.
+-  - Whether `site_v2/src/lib/competitionOrder.mjs` is rewritten or deleted. It is a violation under
+-    Ruling 1; which one depends on what the competitions index should order by. Filed, not decided.
++    MINOR priority to find something that means anything. Nothing in this branch depends on the
++    answer.
++  - WHEN the committed sample set rolls forward, and to what. The `upcoming` half of landing.json
++    now points at the 2026-09-01 matchday while `top_players` is 2026-09-08 — see decisions_taken.
++    Rolling the set forward is periodic maintenance README.md already describes; choosing the new
++    fixture set is the CPO's, because the current one was ruled thin on purpose and today's is 12x
++    larger. Not attempted here and deliberately not answered.
  
  done_when:
--  - `dbt parse` clean, and SQLFluff passes on the changed model from the REPO ROOT with the full rule
--    set (`python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, exit code read bare
--    and unredirected — it exits 1 on success when stdout is redirected).
--  - `python scripts/check_layer_contract.py` and `python scripts/check_description_hygiene.py` exit 0
--    (the new column carries a description and `persist_docs` is on, so BigQuery's 1,024-character
--    column limit applies and a breach fails the prod build).
--  - The new singular test is MUTATION-TESTED, not merely green: dropping the `minutes` leg from the
--    window's ORDER BY must turn it RED, and the evidence must show it red.
--  - Measured against prod through a compiled query: exactly one row per (league_code,
--    season_api_year, metric_key) has the new column = 1, and for the 12 tied Home league-boards the
--    row it picks is the one with fewer minutes.
-+  - `dbt parse` clean, and SQLFluff passes from the REPO ROOT with the full rule set on both changed
-+    files (exit code read BARE and unredirected — it exits 1 on success when stdout is redirected).
-+  - `check_layer_contract.py` and `check_description_hygiene.py` exit 0. The new column carries a
-+    description and `persist_docs` is on, so BigQuery's 1,024-character column limit applies and a
-+    breach fails the prod build.
-+  - The new singular test is MUTATION-TESTED and watched RED, not merely green: dropping the
-+    `minutes` leg from the ordinal's ORDER BY must make it fail, and the evidence must show the row
-+    count it returns.
-+  - Measured against prod: the ordinal is unique within a board, NULL on every non-leader, and
-+    filtering it to the elite pool reproduces the exact league order #40 MR B already renders.
+-  - `dbt parse` clean, and SQLFluff passes from the REPO ROOT with the full rule set on both changed
+-    files (exit code read BARE and unredirected — it exits 1 on success when stdout is redirected).
+-  - `check_layer_contract.py` and `check_description_hygiene.py` exit 0. The new column carries a
+-    description and `persist_docs` is on, so BigQuery's 1,024-character column limit applies and a
+-    breach fails the prod build.
+-  - The new singular test is MUTATION-TESTED and watched RED, not merely green: dropping the
+-    `minutes` leg from the ordinal's ORDER BY must make it fail, and the evidence must show the row
+-    count it returns.
+-  - Measured against prod: the ordinal is unique within a board, NULL on every non-leader, and
+-    filtering it to the elite pool reproduces the exact league order #40 MR B already renders.
+-
+-amendments: (none)
++  - python -m pytest tests/test_export_landing.py — all pass, including a test that the shaper
++    RENDERS THE ORDER IT WAS GIVEN rather than sorting, which is the ruling in unit-test form.
++  - That is mutation-tested: putting a sort back into the shaper turns
++    `test_top_players_does_not_reorder_what_it_is_given` RED.
++  - The committed landing.json is produced by the shipped code against PROD, and two consecutive
++    export runs over unchanged data are byte-identical.
++  - python scripts/check_copy_gate.py exits 0, and exits non-zero with a Finnish board label removed.
++  - cd site_v2 && npm test && npm run build — prebuild runs check-page-specs.mjs, the build runs
++    audit-seo.mjs; dist/{de,en,fi}/index.html and the player stubs all emit.
++  - Browser pane at 375px and at desktop: row tap-target height, the per-board stack, the value
++    column alignment, and the focus ring not crossing a divider (!151 shipped a 21px target and a
++    ring through a divider, both invisible at desktop width).
++
++amendments:
++  - 2026-09-08: + site_v2/src/data/README.md — authority: STANDING RULE, not a CPO answer, and it
++    is named as such rather than dressed up as one. `docs/working_agreement.md` §4 and the repo's
++    corrections-replace rule require a document that this change makes false to be corrected in the
++    same change. That README states "landing.json today carries type/upcoming only" and describes
++    the refresh recipe; adding `top_players`, and splicing rather than refreshing wholesale, makes
++    both sentences wrong. Content: correct the key list, and record that the file now carries two
++    snapshot dates and why. No other file in that directory is touched.
++  - 2026-09-08: + tests/test_governance_hooks.py — authority: STANDING RULE (round-1 FAIL,
++    platform-reviewer). Widening `check_copy_gate.py`'s `_METRIC_ENTRY_RE` fixed a real hole and
++    NOTHING pinned it: reverting the regex to the old `metrics.` anchor leaves pytest green and the
++    gate printing a clean pass over the four `playerMetrics.*` labels, because every fixture in
++    `_strings_fixture()` emits only `metrics.mN.label` keys and `MIN_METRIC_KEYS` (15) still clears
++    at 18. `feedback_never_loosen_a_guard` and the repo's own "a gate whose new behaviour no test
++    pins" rule make the trip-wire mandatory, and this file is where the other two parsers' pins
++    already live. Content: extend the parser-agreement test to the board label keys.
++  - 2026-09-08: + .claude/task/rendered_page_evidence.md — authority: STANDING RULE (round-1 FAIL,
++    bi-analyst-reviewer). The file on disk documents `feat/navigation-rules-competition-shell`, a
++    different branch; its own header records that an artifact describing another change was FAILed
++    once before for exactly this. This branch's rendered claims (44px tap target, per-board stack,
++    the focus ring clearing the divider) are measured but were written only into
++    `acceptance_evidence.md`, which is in `review_exclude_paths` and so invisible to reviewers.
++    Content: replace it with this branch's measurements. It is in `hash_exclude_paths`, so this
++    does not move the review hash.
++  - 2026-09-09: rebased onto merged MR A (`943c9f2`) — authority: the CPO's two 2026-09-09 rulings
++    in `escalations.log`, which this branch was escalated into and which he then answered, plus his
++    instruction "merged A, continue with B". No path is ADDED or removed by this amendment; what
++    changes is the CONTENT of `scripts/export_site_data.py` and `tests/test_export_landing.py`,
++    which now filter a served column instead of ranking in Python. `_board_order` is deleted, the
++    shaper sorts nothing, and two unit tests went to the warehouse with the behaviour they guarded
++    (recorded in place in the test file, not silently dropped).
++    ⚠ The three paperwork files collided on the rebase exactly as `docs/working_agreement.md` warns
++    — `contract.md`, `acceptance_evidence.md` and `review_input.patch` came back UU while every code
++    file merged clean. Resolved to THIS branch's versions; `escalations.log` was reverted before the
++    rebase and taken from main, so the rulings are present once, not twice. All four conflict-marker
++    kinds were grepped for afterwards, including `|||||||`: zero.
++  - 2026-09-09: rebased onto merged MR C (`7cac157`) — authority: the CPO's 2026-09-09 Ruling 1,
++    already recorded, plus his instruction "merged C, continue with B". No path is added or removed.
++    What changes is ONE LINE of `scripts/export_site_data.py`: the three-key ORDER BY becomes
++    `order by l.board_leader_order`, so the export compares nothing at all. The reserved item about
++    the cross-league order is struck, because it is now answered rather than deferred — see
++    `decisions_reserved`.
++    ⚠ The same three paperwork files collided again on this rebase and were resolved the same way
++    (this branch's versions; `escalations.log` reverted first and taken from main). All four
++    conflict-marker kinds grepped for afterwards: zero.
++    ⚠ ACCEPTANCE CRITERIA ARE UNCHANGED AND STILL BIND. In particular "re-running the export twice
++    over unchanged data produces a byte-identical landing.json" now carries a second job: the
++    payload must ALSO be byte-identical to the one produced before this change, because MR C's
++    column was verified to reproduce the same order. If it differs, the column does not encode the
++    rule the export was applying and that is a defect, not a surprise.
+diff --git a/scripts/check_copy_gate.py b/scripts/check_copy_gate.py
+index 154a307..0550962 100644
+--- a/scripts/check_copy_gate.py
++++ b/scripts/check_copy_gate.py
+@@ -107,7 +107,14 @@ _ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
+ # catch exactly those defects.
+ _METRIC_DICT_RE = re.compile(
+     r"^const\s+METRIC_LABELS_([A-Z]{2}):\s*MetricLabels\s*=\s*\{(.*?)^\};", re.S | re.M)
+-_METRIC_ENTRY_RE = re.compile(r'^\s*"(metrics\.[A-Za-z0-9_]+\.label)":\s*"((?:[^"\\]|\\.)*)"', re.M)
++# ANY quoted dotted key, not just `metrics.*.label`. The catalogue's PLAYER metrics live in a
++# second namespace (`playerMetrics.scorerPoints.goals`), and while this was anchored on `metrics\.`
++# those labels skipped all four checks below — a Finnish board title missing from the map would have
++# rendered BLANK (metricLabel falls back to English, then to "") and this gate would have printed a
++# clean pass. Widened with #40 MR B, the change that first rendered one, in step with the two JS
++# parsers named in the comment above.
++_METRIC_ENTRY_RE = re.compile(
++    r'^\s*"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"((?:[^"\\]|\\.)*)"', re.M)
  
- amendments: (none)
-diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-index 331166c..f8ba6f5 100644
---- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-+++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-@@ -167,6 +167,32 @@ ranked as (
-     {% endfor %}
+ 
+ def _dicts(text: str) -> dict[str, dict[str, str]]:
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 4f9003b..8298181 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -35,6 +35,11 @@ from datetime import datetime, timezone
+ 
+ GCP_PROJECT = "football-data-pipeline-gcp"
+ MARTS_DATASET = "marts"
++# Seeds carry no `+schema`, so they ride the profile's own `dataset:` rather than a layer dataset —
++# prod's is `dbt_analytics` (CLAUDE.md). Verified, not assumed: a dry run against
++# `marts.competition_registry` fails "not found", against `dbt_analytics.competition_registry` it
++# validates at 260 bytes.
++SEEDS_DATASET = "dbt_analytics"
+ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+                 "leaderboards", "matchstats", "glossary", "landing", "competition_index")
+@@ -48,6 +53,17 @@ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
+ _LEADERBOARD_METRICS = ("goals_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player",
+                         "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player",
+                         "cards_player")
++# The HOME page's Top players boards (#40): four boards, one metric each, in display order.
++# ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
++# different consumer with a different board set. Sharing one list would couple two surfaces that
++# the CPO has changed independently (the home set was cut from nine boards to four on 2026-08-10
++# while the leaderboards set was not).
++# ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
++# the mart suffixes them `_player`. The board's NAME still comes from the catalogue's `label_en`.
++_HOME_PLAYER_BOARDS = ("goals_player", "assists_player", "passes_player", "passes_key_player")
++# Top 7 per board, raised from 5 by the CPO on 2026-08-10 and applying to Top teams as well.
++_HOME_BOARD_ROWS = 7
++
+ _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
+             "appearances", "minutes", "rank", "sort_value",
+             "goals_player", "assists_player", "shots_on_goal_player", "dribbles_success_player", "dribbles_attempts_player",
+@@ -1155,7 +1171,100 @@ def _landing_side(team: dict | None) -> dict:
+     }
+ 
+ 
+-def shape_landing_payload(upcoming: list[dict]) -> dict:
++def _board_label_keys(seed_path: str = CATALOGUE_SEED_PATH) -> dict[str, str]:
++    """metric_id -> label_i18n_key for the home boards, read from the catalogue seed.
++
++    The board's NAME is the metric's label, and the catalogue is the only source of metric labels
++    (#327). Carrying the KEY rather than the words keeps it that way: the export ships an
++    identifier, the frontend resolves it per locale through `metricLabel()`, and nothing hand-types
++    a board name in either place.
++
++    ⚠ Keyed on (metric_id, entity='player'). Two of the ids here also carry a TEAM row, and keying
++    on metric_id alone silently takes the wrong label — the bug `!27` fixed in
++    export_metric_definitions_json.py.
++    """
++    import csv
++
++    with open(seed_path, encoding="utf-8") as f:
++        rows = [r for r in csv.DictReader(f) if r.get("entity") == "player"]
++    by_id = {r["metric_id"]: r.get("label_i18n_key") for r in rows}
++    missing = [k for k in _HOME_PLAYER_BOARDS if not by_id.get(k)]
++    if missing:
++        raise KeyError(
++            f"no player label_i18n_key in {seed_path} for: {', '.join(missing)}. "
++            "A board name is a governed value; it is never defaulted to the metric id."
++        )
++    return {k: by_id[k] for k in _HOME_PLAYER_BOARDS}
++
++
++def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, str]) -> list[dict]:
++    """The home page's Top players block: four boards, one metric each, one player per league.
++
++    ⚠ NOT `shape_top_players` above — that is the FIXTURE page's players-to-watch list. Different
++    block, different mart, different shape; the names are one word apart on purpose because they
++    are both "top players" to a reader and nothing else about them is shared.
++
++    Design: GitLab #40, which `design-mocks/README.md` names as the authority. Four boards in a
++    fixed order, ranked descending, top 7. The board is a `metric_key` in `mart_leaderboards`; the
++    board's NAME is the catalogue's `label_en` and is resolved by the frontend, not here.
++
++    ONE PLAYER PER LEAGUE, not a pooled ranking (CPO 2026-08-18, GAP-31 withdrawn). The warehouse
++    decides which player that is, via `league_leader_order`; this function only groups the rows it
++    is handed into boards, keeps their order, and cuts each at 7. It sorts nothing.
++    ⚠ #40's text still says "a pooled board ranks across seven leagues"; that sentence is
++    superseded, though the rule it justified (every row shows club AND league) stands.
++    ⚠ `rank == 1` is NOT one per league and was the defect here: the mart ranks with DENSE_RANK, so
++    ties share rank 1. Fixing it in Python was ALSO wrong — CPO 2026-09-09, "All ranking and
++    ordering lives in the warehouse. The page renders the order it is served."
++
++    A BOARD WITH NO ROWS IS OMITTED ENTIRELY (CPO 2026-08-10: *"if a board is missing, the user may
++    not even notice, so don't show"*) — no placeholder, no empty state — and the survivors keep
++    their order. An empty result here means the block does not render at all.
++    ⚠ That is invisible to the reader BY DESIGN, so it is invisible to us too:
++    `assert_mart_leaderboards_every_home_board_has_a_leader` is what notices, not the page.
++
++    Selection only: `elite`, current season, rank 1. `is_current_season` is a SERVED column —
++    picking the season here would be the window selection #846 moved out of this file.
++    """
++    by_board: dict[str, list[dict]] = {key: [] for key in _HOME_PLAYER_BOARDS}
++    for row in rows:
++        key = row.get("metric_key")
++        if key not in by_board:
++            continue
++        league_code = row.get("league_code")
++        by_board[key].append({
++            "player_id": row.get("player_sk"),
++            "slug": player_slug_with_id(row.get("player_name"), row.get("player_sk")),
++            "name": row.get("player_name"),
++            "club": row.get("team_name"),
++            "club_slug": row.get("team_slug"),
++            "crest": row.get("team_logo_url"),
++            "league_code": league_code,
++            "league_name": (meta.get(league_code) or {}).get("name"),
++            "value": row.get("sort_value"),
++        })
++
++    boards = []
++    for key in _HOME_PLAYER_BOARDS:
++        # NO SORTING HERE, DELIBERATELY. The rows arrive in the order the query asked the warehouse
++        # for, and this preserves it — "the page renders the order it is served" (CPO 2026-09-09,
++        # escalations.log). An earlier version of this file deduped and sorted in Python; that was
++        # ranking in the consumption layer and analytics-engineer-reviewer FAILed it.
++        # One row per league is now a WAREHOUSE fact too: `league_leader_order = 1` in the query
++        # below, a column whose tie rule (fewer minutes, then player_sk) lives in
++        # `mart_leaderboards` and is asserted by `assert_mart_leaderboards_one_leader_per_league`.
++        entries = by_board[key]
++        if not entries:
++            continue
++        boards.append({
++            "metric_key": key,
++            "label_i18n_key": label_keys[key],
++            "rows": entries[:_HOME_BOARD_ROWS],
++        })
++    return boards
++
++
++def shape_landing_payload(upcoming: list[dict], top_players: list[dict] | None = None) -> dict:
+     """landing.json — the home modules, in the order the CPO composed them.
+ 
+     Pure assembly of already-shaped parts, so the whole payload is unit-testable without
+@@ -1184,10 +1293,16 @@ def shape_landing_payload(upcoming: list[dict]) -> dict:
+       are NOT removed with it: `nav.json` is an independently-selectable export target
+       (`--entities nav`), untouched by this change.
+     """
+-    return {
++    payload = {
+         "type": "landing",
+         "upcoming": upcoming,
+     }
++    # Present only when a board survived. #40: a board with no data is not rendered, and if no
++    # board has data the block itself does not render — so an EMPTY list must not reach the page as
++    # a key it then has to guard against. Absent means absent.
++    if top_players:
++        payload["top_players"] = top_players
++    return payload
+ 
+ 
+ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+@@ -1250,7 +1365,46 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+     }
+     upcoming = group_upcoming_fixtures(fixtures, teams, meta)
+ 
+-    return shape_landing_payload(upcoming)
++    # Top players (#40). One player per league across the `elite` group, current season only.
++    # ⚠ Every part of the selection AND the order is a SERVED column: `competition_group` from the
++    # registry seed, `is_current_season` and `league_leader_order` from the mart. The WHERE filters
++    # facts and the ORDER BY reads them back in the ruled order; neither computes anything. Picking
++    # the season in Python is what #846 moved out of this file, and picking the league's
++    # representative is what the 2026-09-09 ruling moved out of it.
++    # ⚠ `league_leader_order = 1`, NOT `rank = 1`. `rank` is a DENSE_RANK, so joint leaders share it
++    # and a league returns several rows — measured, 12 of the 28 league-boards this renders are tied.
++    # ⚠ THE ORDER BY IS ONE SERVED COLUMN AND NOTHING ELSE. `board_leader_order` is the position of
++    # a league's leader among ALL league leaders on that board, computed in `mart_leaderboards` from
++    # the ruled keys. This file compares nothing — CPO 2026-09-09: "the page renders the order it is
++    # served".
++    # ⚠ An earlier version restated the three ruled keys here instead, and it was FAILed: it was the
++    # same ranking rule, relocated from Python into SQL that still lives in the frontend. The claim
++    # that it HAD to live here — because the row order is scoped to a POOL of leagues and the mart
++    # knows nothing about pools — was simply wrong. The ruled order is TOTAL, and a total order
++    # restricted to a subset keeps its sequence, so ranking every leader globally lets this pool
++    # filter inherit the right order for free.
++    # ⚠ No `metric_key` leg is needed: the rows arrive interleaved across boards and the shaper
++    # buckets them, so each board still receives its own rows in the served order.
++    # ⚠ `competition_group = 'elite'` is a LITERAL, and deliberately temporary: #101 decided the
++    # group is chosen per nightly build by weighted random over the in-season groups, and wiring
++    # that is its own MR. Until then the block renders the group the CPO named as the default.
++    top_player_rows = _query(client, f"""
++        select l.metric_key, l.league_code, l.sort_value,
++               l.player_sk, l.player_name,
++               l.team_name, l.team_slug, l.team_logo_url
++        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` as l
++        join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
++            on l.league_code = r.league_code
++        where l.is_current_season
++          and l.league_leader_order = 1
++          and r.competition_group = 'elite'
++          and l.metric_key in ({", ".join(f"'{k}'" for k in _HOME_PLAYER_BOARDS)})
++        order by l.board_leader_order
++    """)
++
++    return shape_landing_payload(
++        upcoming, shape_home_top_players(top_player_rows, meta, _board_label_keys())
++    )
+ 
+ 
+ def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:
+diff --git a/site_v2/scripts/check-metric-labels.test.mjs b/site_v2/scripts/check-metric-labels.test.mjs
+index c16b38d..6ba3e0b 100644
+--- a/site_v2/scripts/check-metric-labels.test.mjs
++++ b/site_v2/scripts/check-metric-labels.test.mjs
+@@ -21,13 +21,21 @@ const strings = readFileSync(join(SITE, "src/i18n/strings.ts"), "utf8");
+ const rowsSrc = readFileSync(join(SITE, "src/lib/metricRows.ts"), "utf8");
+ const LOCALES = ["EN", "DE", "FI"];
+ 
+-/** The `metrics.*.label` keys inside one METRIC_LABELS_<loc> block. */
++/** The quoted-dotted label keys inside one METRIC_LABELS_<loc> block.
++ *
++ * ⚠ ANY dotted key, not just `metrics.*.label`. The catalogue uses a SECOND namespace for player
++ * metrics — `playerMetrics.scorerPoints.goals` and friends — and while this regex was anchored on
++ * `metrics\.` those four labels were invisible to every parser that polices metric names: this
++ * one, `check-page-specs.mjs`'s, and `scripts/check_copy_gate.py`'s. A missing Finnish label would
++ * have shipped a BLANK board title (metricLabel falls back to English, then to "") with nothing
++ * red. Widened with #40 MR B, which is the change that first rendered one.
++ */
+ function labelBlock(loc) {
+   const m = strings.match(
+     new RegExp(`const METRIC_LABELS_${loc}: MetricLabels = \\{([\\s\\S]*?)\\n\\};`));
+   assert.ok(m, `METRIC_LABELS_${loc} not found in strings.ts`);
+   const out = new Map();
+-  for (const [, key, val] of m[1].matchAll(/"(metrics\.[A-Za-z0-9_]+\.label)":\s*"((?:[^"\\]|\\.)*)"/g)) {
++  for (const [, key, val] of m[1].matchAll(/"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"((?:[^"\\]|\\.)*)"/g)) {
+     out.set(key, val);
+   }
+   return out;
+@@ -38,9 +46,44 @@ const rowKeys = [...rowsSrc.matchAll(/labelKey:\s*"(metrics\.[A-Za-z0-9_]+\.labe
+ const heroKeys = [...readFileSync(join(SITE, "src/components/team/DeservedHero.astro"), "utf8")
+   .matchAll(/metricLabel\(lang,\s*"(metrics\.[A-Za-z0-9_]+\.label)"\)/g)].map((m) => m[1]);
+ 
++/** The catalogue rows, as {metric_id, entity, label_i18n_key}. Naive comma split, which is safe
++ * for exactly these three columns: they are the first three, and `description` — the only field
++ * that carries commas — comes after them. */
++function catalogueRows() {
++  const lines = readFileSync(join(REPO, "dbt_project/seeds/metric_catalogue.csv"), "utf8")
++    .split(/\r?\n/);
++  const header = lines[0].split(",");
++  const [id, entity, key] = ["metric_id", "entity", "label_i18n_key"].map((c) => header.indexOf(c));
++  assert.ok(id >= 0 && entity > 0 && key > 0, "metric_catalogue.csv is missing a required column");
++  return lines.slice(1).filter(Boolean).map((l) => l.split(","))
++    .map((c) => ({ metric_id: c[id], entity: c[entity], label_i18n_key: c[key] }));
++}
++
++/** The Home Top players board label keys (#40), derived from the two places that already own them:
++ * the board list in the export and the catalogue's own `label_i18n_key`.
++ *
++ * ⚠ NOT read from `src/data/landing.json`, and that is deliberate. A board with no data is omitted
++ * from the payload by design (#40: "if a board is missing, the user may not even notice, so don't
++ * show"), so a payload-derived list would make a legitimately empty board turn this test red — a
++ * build failure over something the DESIGN says is silent. `assert_mart_leaderboards_every_home_
++ * board_has_a_leader` is what notices a vanished board. This list must not move with the data. */
++const boardKeys = (() => {
++  const src = readFileSync(join(REPO, "scripts/export_site_data.py"), "utf8");
++  const block = src.match(/_HOME_PLAYER_BOARDS\s*=\s*\(([^)]*)\)/);
++  assert.ok(block, "could not find _HOME_PLAYER_BOARDS in scripts/export_site_data.py");
++  const ids = [...block[1].matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]);
++  assert.ok(ids.length >= 4, `parsed only ${ids.length} home board ids — the tuple regex broke`);
++  const players = catalogueRows().filter((r) => r.entity === "player");
++  return ids.map((id) => {
++    const row = players.find((r) => r.metric_id === id);
++    assert.ok(row?.label_i18n_key, `no player catalogue row with a label_i18n_key for board ${id}`);
++    return row.label_i18n_key;
++  });
++})();
++
+ test("every metric name the page asks for resolves in all three locales", () => {
+-  const asked = [...new Set([...rowKeys, ...heroKeys])];
+-  assert.ok(asked.length >= 18, `expected >=18 metric names in use, found ${asked.length}`);
++  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys])];
++  assert.ok(asked.length >= 22, `expected >=22 metric names in use, found ${asked.length}`);
+   for (const loc of LOCALES) {
+     const missing = asked.filter((k) => !labels[loc].get(k));
+     assert.deepEqual(missing, [],
+@@ -50,7 +93,7 @@ test("every metric name the page asks for resolves in all three locales", () =>
+ });
+ 
+ test("no locale carries a label nothing renders, and none is empty", () => {
+-  const asked = new Set([...rowKeys, ...heroKeys]);
++  const asked = new Set([...rowKeys, ...heroKeys, ...boardKeys]);
+   for (const loc of LOCALES) {
+     for (const [key, val] of labels[loc]) {
+       assert.ok(asked.has(key), `${loc}.${key} is defined but no component asks for it`);
+@@ -78,7 +121,7 @@ test("every labelKey is a label_i18n_key the catalogue actually declares", () =>
+   assert.ok(declared.size >= 50,
+     `parsed only ${declared.size} label_i18n_key values — the CSV column split broke, and a set that ` +
+     `small would make every key look undeclared`);
+-  const asked = [...new Set([...rowKeys, ...heroKeys])];
++  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys])];
+   const bad = asked.filter((k) => !declared.has(k));
+   assert.deepEqual(bad, [],
+     `label keys the catalogue does not declare in label_i18n_key: ${bad.join(", ")}. ` +
+@@ -124,7 +167,10 @@ test("the page-spec checker's parser and this one see the SAME metric keys", asy
+   const { collectEnI18nKeys } = await import("./check-page-specs.mjs");
+   const { keys, error } = collectEnI18nKeys();
+   assert.equal(error, null);
+-  const theirs = new Set([...keys].filter((k) => /^metrics\./.test(k)));
++  // Dotted keys, both namespaces. Anchoring this filter on `metrics\.` while `labelBlock` above
++  // reads any dotted key would make the two sets disagree by construction on every playerMetrics
++  // entry — the drift this test exists to catch, manufactured by the test itself.
++  const theirs = new Set([...keys].filter((k) => k.includes(".")));
+   const mine = new Set(labels.EN.keys());
+   assert.deepEqual([...theirs].sort(), [...mine].sort(),
+     "the two metric-key parsers disagree; one of the regexes has drifted");
+diff --git a/site_v2/scripts/check-page-specs.mjs b/site_v2/scripts/check-page-specs.mjs
+index 7961243..daec680 100644
+--- a/site_v2/scripts/check-page-specs.mjs
++++ b/site_v2/scripts/check-page-specs.mjs
+@@ -217,7 +217,12 @@ export function collectEnI18nKeys() {
+     return { keys: null, error: `could not locate "const METRIC_LABELS_EN: MetricLabels = {...};" block in ${rel(STRINGS_FILE)}` };
+   }
+   const metricKeys = new Set();
+-  for (const k of mm[1].matchAll(/"(metrics\.[A-Za-z0-9_]+\.label)":\s*"/g)) metricKeys.add(k[1]);
++  // ANY quoted dotted key, not just `metrics.*.label`: the catalogue's player metrics live in a
++  // second namespace (`playerMetrics.scorerPoints.goals`), and while this was anchored on
++  // `metrics\.` a spec could not DECLARE a board label it renders. Widened with #40 MR B, in step
++  // with check-metric-labels.test.mjs's labelBlock and check_copy_gate.py's _METRIC_ENTRY_RE — the
++  // three parsers are pinned to each other by a test in that file.
++  for (const k of mm[1].matchAll(/"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"/g)) metricKeys.add(k[1]);
+   // Its own floor, for the same reason as the one above: a quoted-dotted-key reformat must fail
+   // loudly rather than make every declared metric label look missing.
+   const MIN_EXPECTED_METRIC_KEYS = 15;
+diff --git a/site_v2/src/components/home/TopPlayers.astro b/site_v2/src/components/home/TopPlayers.astro
+new file mode 100644
+index 0000000..77057ba
+--- /dev/null
++++ b/site_v2/src/components/home/TopPlayers.astro
+@@ -0,0 +1,67 @@
++---
++// Top players — the home page's second block (GitLab #40, the authority for this design;
++// design-mocks/top_players_mock.html is its rendering).
++//
++// Four boards, ONE metric each, top 7, all ranked descending, one column at full content width.
++// With one metric there is no column-header row: the board title is the only label the number
++// carries, which is why the title must never truncate either.
++//
++// ONE PLAYER PER LEAGUE (CPO 2026-08-18) — each league's rank-1 player, collected and ordered by
++// value. The warehouse ranks within (league_code, season_api_year) and the export filters and
++// orders; nothing here computes a position. The rank shown is the row's index in an already
++// ordered list, which is why it is a display ordinal and not a served `rank` column: a served rank
++// would be the player's rank WITHIN their league, which is 1 on every row.
++//
++// The block COMPOSES and derives nothing: every value is a served payload field, and the board's
++// name is resolved from the metric catalogue through metricLabel(), never hand-typed here.
++//
++// A board with no data never arrives — the export omits it (#40: "if a board is missing, the user
++// may not even notice, so don't show"). So there is no empty state in this file, deliberately.
++// The block itself is not rendered when no board survived; index.astro guards that.
++import Crest from "../ui/Crest.astro";
++import SectionHead from "../ui/SectionHead.astro";
++import { integer } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { t, metricLabel } from "../../i18n/strings";
++import { localeHref } from "../../lib/href";
++import type { LandingBoard } from "../../lib/types";
++
++interface Props {
++  boards: LandingBoard[];
++  lang: Lang;
++}
++const { boards, lang } = Astro.props;
++
++// The leagues named in the intro line are the ones actually on the boards, in the order they are
++// shown — read from the DATA rather than restated as a list, so the sentence cannot drift from
++// what the block renders when the group changes (#101 will change it nightly).
++const leagueNames = [
++  ...new Map(
++    boards.flatMap((b) => b.rows).map((r) => [r.league_code, r.league_name]),
++  ).values(),
++].filter(Boolean);
++---
++
++<section>
++  <SectionHead label={t(lang, "homeTopPlayers")} />
++  <p class="tt-intro">{t(lang, "homeTopPlayersIntro", { leagues: leagueNames.join(", ") })}</p>
++
++  {boards.map((board) => (
++    <div class="board">
++      <div class="bhd"><span class="bt">{metricLabel(lang, board.label_i18n_key)}</span></div>
++      <div class="bgrid">
++        {board.rows.map((row, i) => (
++          <a class="brow" href={localeHref(lang, `players/${row.slug}/`)}>
++            <span class="rk num">{i + 1}</span>
++            <Crest name={row.club} crest={row.crest} size="xs" />
++            <span class="ent">
++              <span class="nm">{row.name}</span>
++              <span class="sub">{[row.club, row.league_name].filter(Boolean).join(" · ")}</span>
++            </span>
++            <span class="v"><b>{integer(row.value, lang)}</b></span>
++          </a>
++        ))}
++      </div>
++    </div>
++  ))}
++</section>
+diff --git a/site_v2/src/config/indexability.mjs b/site_v2/src/config/indexability.mjs
+index a8c8af7..ee8acaf 100644
+--- a/site_v2/src/config/indexability.mjs
++++ b/site_v2/src/config/indexability.mjs
+@@ -47,8 +47,18 @@ export const INDEXABLE = false;
+  * its locale-distinct title are all true today; only the CONTENT is missing, and **#47** owns it.
+  * Every competition in `mart_competition_index` gets one, so this array grows no entries as the
+  * registry grows — the page count does, the stub list does not.
++ *
++ * `[lang]/players/[player].astro` — the player profile, added with the Home page's Top players
++ * block (**#40**), whose every board row links to its player. `audit-seo.mjs` check 8 fails the
++ * build on an internal href that resolves to no emitted page, so the block cannot ship without
++ * this route; it was green before only because no page in the site emitted a player href at all.
++ * **#845** owns the real Player Overview. Its page count is driven by the players the Home block
++ * happens to link to, so like the competition entry above it is ONE row however many pages emit.
+  */
+-export const STUB_PAGES = ["[lang]/[competition]/index.astro"];
++export const STUB_PAGES = [
++  "[lang]/[competition]/index.astro",
++  "[lang]/players/[player].astro",
++];
+ 
+ /**
+  * Emitted paths kept OUT of the sitemap even when indexable.
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index f3a65e3..32e085d 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -188,6 +188,17 @@ const EN: Dict = {
+   seoHomeTitle: "Football stats and match previews",
+   seoHomeDesc: "Upcoming matches from every competition we cover.",
+   homeNext: "Next matches",
++  // Top players (#40). The block NAME is the CPO's, 2026-08-08: plain nouns, matching the
++  // vocabulary the page already uses, and a matched pair with "Top teams" so the two read as
++  // siblings. "Player leaders" was rejected — "leader" collides with captaincy in football.
++  homeTopPlayers: "Top players",
++  // ⚠ APPROVED WORDING, 2026-08-18. It replaced "Season totals to date. Ranked across pooled
++  // leagues: …", which described the pooled ranking withdrawn the same day. Three constraints it
++  // satisfies, recorded so a rewrite does not undo them: it states the mechanic plainly and echoes
++  // the block's own name; it avoids "leader" for the reason above; and it names no metric, because
++  // the sentence sits above all four boards and "top player" carries every one of them equally.
++  // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
++  homeTopPlayersIntro: "Season totals to date. The top player from each league: {leagues}.",
+   homeNoFixtures: "No matches scheduled right now.",
+   // Competitions index page (#62 step 5) — category labels (competition_types.csv
+   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
+@@ -215,6 +226,13 @@ const EN: Dict = {
+   // scorers would be a promise the page does not keep. Revisit the wording when #47 fills it.
+   seoCompetitionTitle: "{competition}: Overview",
+   seoCompetitionDesc: "Overview page for {competition}.",
++  // The player page (#40 MR B). Same modest wording and the same reason as the competition hub
++  // above: this is a scaffold with no content blocks, so the title promises nothing.
++  // ⚠ THE CLUB IS IN THE TITLE FOR UNIQUENESS, not decoration. audit-seo check 5 requires titles to
++  // be unique within a locale, and 1.6% of provider FULL names collide (site_architecture.md:93) —
++  // which is also why the slug still carries the player id. The club disambiguates the two.
++  seoPlayerTitle: "{player} ({club}): Overview",
++  seoPlayerDesc: "Overview page for {player} of {club}.",
+   filterAll: "All",
+   filterClubs: "Clubs",
+   filterNational: "National teams",
+@@ -365,6 +383,8 @@ const DE: Dict = {
+   seoHomeTitle: "Fußballstatistiken und Spielvorschauen",
+   seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken.",
+   homeNext: "Nächste Spiele",
++  homeTopPlayers: "Top-Spieler",
++  homeTopPlayersIntro: "Saisonwerte bis heute. Der beste Spieler jeder Liga: {leagues}.",
+   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
+   compTypeDomesticLeague: "Nationale Ligen",
+   compTypeDomesticCup: "Nationale Pokale",
+@@ -385,6 +405,8 @@ const DE: Dict = {
+   seoCompetitionsDesc: "Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.",
+   seoCompetitionTitle: "{competition}: Überblick",
+   seoCompetitionDesc: "Überblicksseite für {competition}.",
++  seoPlayerTitle: "{player} ({club}): Überblick",
++  seoPlayerDesc: "Überblicksseite für {player} von {club}.",
+   filterAll: "Alle",
+   filterClubs: "Vereine",
+   filterNational: "Nationalmannschaften",
+@@ -546,6 +568,8 @@ const FI: Dict = {
+   seoHomeTitle: "Jalkapallotilastot ja otteluennakot",
+   seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista.",
+   homeNext: "Seuraavat ottelut",
++  homeTopPlayers: "Kärkipelaajat",
++  homeTopPlayersIntro: "Kauden lukemat tähän asti. Kunkin sarjan paras pelaaja: {leagues}.",
+   homeNoFixtures: "Ei otteluita tällä hetkellä.",
+   compTypeDomesticLeague: "Kansalliset sarjat",
+   compTypeDomesticCup: "Kansalliset cupit",
+@@ -566,6 +590,8 @@ const FI: Dict = {
+   seoCompetitionsDesc: "Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.",
+   seoCompetitionTitle: "{competition}: yleiskatsaus",
+   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
++  seoPlayerTitle: "{player} ({club}): yleiskatsaus",
++  seoPlayerDesc: "Yleiskatsaussivu pelaajalle {player}, joukkue {club}.",
+   filterAll: "Kaikki",
+   filterClubs: "Seurat",
+   filterNational: "Maajoukkueet",
+@@ -651,6 +677,16 @@ const METRIC_LABELS_EN: MetricLabels = {
+   "metrics.corners_per_match.label": "Ø Corners",
+   "metrics.corners_against_per_match.label": "Ø Corners against",
+   "metrics.saves_pct.label": "% Save percentage",
++  // Top players' four boards (#40). PLAYER metrics, so the keys are the catalogue's
++  // `playerMetrics.*` namespace rather than the `metrics.*` one every entry above uses.
++  // EN is the catalogue's `label_en` verbatim — the board name is the metric's name, and #40 says
++  // so explicitly ("The board name is the metric's label_en verbatim").
++  // ⚠ No "Ø" on any of them: these are season TOTALS (catalogue `format: integer`), not per-match
++  // rates, so the sigil and the "per match" wording Top teams needs do not apply here.
++  "playerMetrics.scorerPoints.goals": "Goals",
++  "playerMetrics.scorerPoints.assists": "Assists",
++  "playerMetrics.passAccuracy.total": "Passes",
++  "playerMetrics.keyPasses.label": "Key passes",
+ };
+ 
+ const METRIC_LABELS_DE: MetricLabels = {
+@@ -691,6 +727,17 @@ const METRIC_LABELS_DE: MetricLabels = {
+   "metrics.corners_per_match.label": "Ø Ecken",
+   "metrics.corners_against_per_match.label": "Ø Ecken gegen",
+   "metrics.saves_pct.label": "% Gehaltene Torschüsse",
++  // Top players' four boards (#40). CPO-CONFIRMED 2026-09-08. He ruled the assists label is
++  // "Torvorlagen", in his words *"more precise than just Vorlagen"* — the draft carried the bare
++  // "Vorlagen", and "Assists" (current in German football media) was not taken, consistent with
++  // every other metric name in this file being a German word.
++  // "Tore" and "Pässe" are additionally the stems of the CPO-validated legacy corpus in
++  // site/i18n/de.json (`Ø Tore`, `Ø Pässe`); the sigil is dropped because these are season TOTALS
++  // (catalogue `format: integer`), not per-match rates.
++  "playerMetrics.scorerPoints.goals": "Tore",
++  "playerMetrics.scorerPoints.assists": "Torvorlagen",
++  "playerMetrics.passAccuracy.total": "Pässe",
++  "playerMetrics.keyPasses.label": "Schlüsselpässe",
+ };
+ 
+ const METRIC_LABELS_FI: MetricLabels = {
+@@ -730,6 +777,18 @@ const METRIC_LABELS_FI: MetricLabels = {
+   "metrics.corners_per_match.label": "Ø Kulmapotkut",
+   "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
+   "metrics.saves_pct.label": "% Torjuntaosuus",
++  // Top players' four boards (#40). CPO-CONFIRMED 2026-09-08, together with the DE block above;
++  // he changed only the German assists label and let these four stand.
++  // They were flagged rather than assumed for a reason worth keeping: `10_home.md` §10 records his
++  // ruling that DE/FI are "needed before go-live, not before the block is built" — but this block
++  // RENDERS them, and metricLabel() falls back to English and then to EMPTY, so leaving them out
++  // ships either an English word or a BLANK board title to a Finnish reader.
++  // "Maalit" and "Syötöt" are the stems of the CPO-validated legacy corpus in site/i18n/fi.json
++  // (`Ø Maalit`, `Ø Syötöt`); "Avainsyötöt" matches the per-match form already in this block above.
++  "playerMetrics.scorerPoints.goals": "Maalit",
++  "playerMetrics.scorerPoints.assists": "Maalisyötöt",
++  "playerMetrics.passAccuracy.total": "Syötöt",
++  "playerMetrics.keyPasses.label": "Avainsyötöt",
+ };
+ 
+ const METRIC_LABELS: Record<Lang, MetricLabels> = {
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 5792f13..71c9e5d 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -289,9 +289,39 @@ export interface LandingUpcomingGroup {
+  *  and BrowseCompetition / LandingBrowse, cut 2026-08-19 (CPO: "drop the browse section". Its
+  *  only value was reachability into the long-tail team/player pages, both already blocked on
+  *  data-quality work, so a competitions-only version had nothing left to solve). */
++/** One row of a Top players board: a league's rank-1 player on that board (#40).
++ *
++ *  `league_name` is carried even though the board has one row per league, because the reader
++ *  cannot infer the competition from the club alone. */
++export interface LandingBoardRow {
++  player_id: number | null;
++  slug: string;
++  name: string | null;
++  club: string | null;
++  club_slug: string | null;
++  crest: string | null;
++  league_code: string | null;
++  league_name: string | null;
++  value: number | null;
++}
++
++/** One board: a single metric, its rows already ordered by value, at most 7 of them.
++ *
++ *  ⚠ `label_i18n_key` and NOT a name: the board is titled by the metric catalogue, which is the
++ *  single source of metric labels (#327). The component resolves it through `metricLabel()`.
++ *  A board with no data never reaches here — the export omits it entirely (#40), so this type
++ *  has no empty state to model. */
++export interface LandingBoard {
++  metric_key: string;
++  label_i18n_key: string;
++  rows: LandingBoardRow[];
++}
++
+ export interface Landing {
+   type: string;
+   upcoming: LandingUpcomingGroup[];
++  /** Absent when no board had data — the block then does not render at all (#40). */
++  top_players?: LandingBoard[];
+ }
+ 
+ /** One row of competition_index.json, mart_competition_index verbatim (#62 step 5). Ordering
+diff --git a/site_v2/src/pages/[lang]/index.astro b/site_v2/src/pages/[lang]/index.astro
+index fca198b..dfc8dab 100644
+--- a/site_v2/src/pages/[lang]/index.astro
++++ b/site_v2/src/pages/[lang]/index.astro
+@@ -6,10 +6,11 @@
+ // unblocks go-live. `INDEXABLE` itself stays `false`: flipping it is #377, gated on #799, #852/#843,
+ // #845 and #861, none of which this PR touches.
+ //
+-// ONE module today, of the THREE the CPO composed on 2026-08-08 (10_home.md §0, that spec's stated
+-// authority): next matches -> Top players -> Top teams. The other two are specified and NOT built —
+-// they need six pieces of warehouse work (GAP-24..GAP-29) and a layout the CPO reviewed and did not
+-// approve — so they arrive in their own PR.
++// TWO modules today, of the THREE the CPO composed on 2026-08-08 (10_home.md §0, that spec's
++// stated authority): next matches -> Top players -> Top teams. Top players lands here with #40 MR B;
++// its warehouse half shipped in !153 and its four registered gaps (GAP-27..GAP-30) are all closed.
++// Top teams is specified and NOT built — GAP-29's `mart_team_leaderboards` landed 2026-09-02, so
++// what it still needs is the block, its export payload and the render wiring, in its own MR.
+ //
+ // Browse (the fourth module in the original 2026-06-10 composition) is DROPPED, not deferred (CPO,
+ // 2026-08-19): its only real value was reachability into the long-tail team/player pages, and those
+@@ -32,6 +33,7 @@
+ // the warehouse decided.
+ import Layout from "../../layouts/Layout.astro";
+ import HeroFixtures from "../../components/home/HeroFixtures.astro";
++import TopPlayers from "../../components/home/TopPlayers.astro";
+ import { t } from "../../i18n/strings";
+ import type { Lang } from "../../lib/format";
+ import type { Landing } from "../../lib/types";
+@@ -66,7 +68,10 @@ const entity = {
+ 
+ <Layout lang={lang} title={title} description={description} entity={entity}>
+   <div class="inner">
+-    {/* Top players and Top teams land here, between the hero and end of page, once built. */}
+     <HeroFixtures groups={data.upcoming} lang={lang} />
++    {/* The KEY IS ABSENT, not empty, when no board had data (#40) — the export omits it, so this
++        guard is the whole "block does not render" rule and there is no empty state below it.
++        Top teams lands after this, once built. */}
++    {data.top_players && <TopPlayers boards={data.top_players} lang={lang} />}
+   </div>
+ </Layout>
+diff --git a/site_v2/src/pages/[lang]/players/[player].astro b/site_v2/src/pages/[lang]/players/[player].astro
+new file mode 100644
+index 0000000..9e8255b
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/players/[player].astro
+@@ -0,0 +1,97 @@
++---
++// Player page — SCAFFOLD (spec: src/specs/players/player.spec.json, "stub": true).
++//
++// This ships the URL section 3 of docs/site_architecture.md already reserves for a player
++// (/{locale}/players/{player-slug}/), with a real canonical, a real hreflang set and a
++// locale-distinct title — all true facts about a URL that exists — and NO content blocks. The
++// Player Overview owns the real content (#845) and its open design decisions are untouched here.
++//
++// WHY IT EXISTS NOW: the Top players block (#40) makes every board row a link to its player, and
++// audit-seo.mjs check 8 fails the build on an internal href that resolves to no emitted page. No
++// page in site_v2 emitted a player href before this one, which is why check 8 was green without a
++// player route. A destination that does not exist yet is BUILT, not routed around — 10_home.md
++// section 0: "do not reorder the build because a destination page does not exist yet."
++//
++// Listed in STUB_PAGES (src/config/indexability.mjs), which is the expiry trigger: the SEO audit
++// refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
++// page in the index.
++//
++// SOURCE IS landing.json, and deliberately so: the set of players with a page is exactly the set
++// the Home page links to, which is exactly what check 8 requires and nothing more. It adds no
++// export entity and no committed payload — `--entities players` exists but is not run by
++// deploy:export, and inventing a players/ payload to feed a page with no content would be building
++// #845's plumbing without #845's design. Every value here is a served payload field; nothing on
++// this page is derived, the slug least of all (the export assigns it).
++import Layout from "../../../layouts/Layout.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref, LOCALES } from "../../../lib/href";
++import type { Lang } from "../../../lib/format";
++import type { Landing, LandingBoardRow } from "../../../lib/types";
++import landing from "../../../data/landing.json";
++
++export function getStaticPaths() {
++  // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
++  // leaders changes this set on the next export with no code change here.
++  // Deduped by slug, because a player can lead more than one board — Dybala held rank 1 on both
++  // assists and key passes in the 2026-09-08 data — and two identical params would be a duplicate
++  // route, not two pages.
++  const data = landing as unknown as Landing;
++  const rows = new Map<string, LandingBoardRow>();
++  for (const board of data.top_players ?? []) {
++    for (const row of board.rows) if (!rows.has(row.slug)) rows.set(row.slug, row);
++  }
++  return [...rows.values()].flatMap((player) =>
++    LOCALES.map((lang) => ({
++      params: { lang, player: player.slug },
++      props: { player, lang },
++    })),
++  );
++}
++
++interface Props {
++  player: LandingBoardRow;
++  lang: Lang;
++}
++const { player, lang } = Astro.props;
++
++const name = player.name ?? "";
++const club = player.club ?? "";
++
++// Through t() with the served fields as parameters, never concatenated: a concatenated title is
++// locale-independent, which is how all three locales came to ship byte-identical titles before
++// #844's gate existed. The descriptive words are the entire locale signal.
++// The CLUB is in the title for UNIQUENESS, not decoration — audit check 5 requires titles unique
++// within a locale and 1.6% of provider full names collide (site_architecture.md:93).
++const title = t(lang, "seoPlayerTitle", { player: name, club });
++const description = t(lang, "seoPlayerDesc", { player: name, club });
++
++// schema.org/Person — a footballer is a person, and there is no narrower type for one. Selection
++// only; every value is a served payload field. Undefined rather than null on a missing value: the
++// audit fails a JSON-LD node carrying empty or placeholder values, and an absent key is honest
++// where an empty string is not.
++const entity = {
++  "@type": "Person",
++  name: name || undefined,
++  affiliation: club || undefined,
++};
++
++// Two items, not three. The competition stub's trail passes through the competitions index because
++// that page is its hub; there is no player hub to pass through, and inventing one in a breadcrumb
++// would point at a URL the build does not emit.
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <span class="here">{name}</span>
++    </nav>
++
++    <h1>{name}</h1>
++  </div>
++</Layout>
+diff --git a/site_v2/src/specs/index.spec.json b/site_v2/src/specs/index.spec.json
+index 742fd80..1a8e1d4 100644
+--- a/site_v2/src/specs/index.spec.json
++++ b/site_v2/src/specs/index.spec.json
+@@ -10,7 +10,7 @@
+     "schema_org": "WebSite",
+     "links": {
+       "inbound_hub": "none",
+-      "outbound": ["fixture"]
++      "outbound": ["fixture", "player"]
+     },
+     "minimum_data": "None by design, and this is the one page where that is correct rather than a waiver. The home page's block count does not depend on any entity's data depth: the fixtures hero is the only block today and is omitted whole when it has nothing to say — in the all-competition off-season case (practically unreached, per 10_home.md §6) the page would render zero blocks. #845's minimum-data gate governs the entity pages it generates thousands of, not the three locale roots.",
+     "page_count_driver": "count(locales)",
+@@ -22,6 +22,18 @@
+       "block": "Fixtures hero",
+       "mart": "core:fct_fixture",
+       "i18n_keys": ["homeNext", "homeNoFixtures"]
++    },
++    {
++      "block": "Top players",
++      "mart": "mart_leaderboards",
++      "i18n_keys": [
++        "homeTopPlayers",
++        "homeTopPlayersIntro",
++        "playerMetrics.scorerPoints.goals",
++        "playerMetrics.scorerPoints.assists",
++        "playerMetrics.passAccuracy.total",
++        "playerMetrics.keyPasses.label"
++      ]
+     }
+   ]
+ }
+diff --git a/site_v2/src/specs/players/player.spec.json b/site_v2/src/specs/players/player.spec.json
+new file mode 100644
+index 0000000..35ccb54
+--- /dev/null
++++ b/site_v2/src/specs/players/player.spec.json
+@@ -0,0 +1,22 @@
++{
++  "$schema": "../page-spec.schema.json",
++  "page": "[lang]/players/[player].astro",
++  "entity": "player",
++  "stub": true,
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoPlayerTitle",
++    "description": "seoPlayerDesc",
++    "schema_org": "Person",
++    "links": {
++      "inbound_hub": "home",
++      "outbound": []
++    },
++    "minimum_data": "A row on a Home Top players board — i.e. the player leads one of the four boards in their league's current season, which mart_leaderboards decides and assert_mart_leaderboards_every_home_board_has_a_leader guards. That is deliberately the narrowest gate that satisfies the reason this page exists: audit-seo check 8 requires a page for every player the site links to, and the Home block is the only page that links to one today. It is NOT the rule for which players deserve a page — that is #845's minimum-data question, and it must stay a rule over the served mart rather than a list in the frontend.",
++    "page_count_driver": "count(distinct landing.json .top_players[].rows[].slug) x count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "The URL is permanent and is the one site_architecture.md section 3 already reserves for the player profile. The SLUG is {kebab-name}-{player_api_id} and still carries the id because 18.5% of provider player names collide (1.6% on the full name), so the team scheme does not transfer unchanged; moving player slugs into the warehouse the way team slugs moved is its own work (#843/#852). The id suffix is what anchors identity across a name correction. STUB: this ships the URL, its canonical, its hreflang set and a locale-distinct title, and NO content blocks. #845 owns the real Player Overview. Listed in STUB_PAGES, which blocks INDEXABLE === true until it is filled. Its inbound link is live on the day it ships, unlike the competition stub's: the Home page's Top players block is what makes this page necessary."
++  },
++  "blocks": []
++}
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 66a7a0d..1462b39 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -541,6 +541,93 @@ a.cnm .nm { text-decoration: none; }
+ /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
+ .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
+ 
++/* ============================================================ *
++ *  RANKED BOARD — the Home page's Top players (#40) and, when   *
++ *  it lands, Top teams (#41). ONE metric per board, so there is  *
++ *  no column-header row: the board title is the only label the   *
++ *  number carries. Transcribed from the approved mock            *
++ *  (design-mocks/gen_top_players.py), which is #40's rendering.  *
++ * ============================================================ */
++
++/* Each board is its OWN container, so every measurement below resolves against the BOARD's width
++   and not the page's. Sizing to the page is what broke when the content column was capped
++   narrower than the viewport. */
++.board { margin-top: 26px; container-type: inline-size; }
++.board:first-of-type { margin-top: 10px; }
++
++/* The board head mirrors .fxgroup > .gh, which Next matches already uses on this page, so the two
++   blocks read as siblings rather than introducing a per-page treatment. */
++.bhd { padding-bottom: 7px; border-bottom: 1px solid var(--div); }
++.bt { font-size: 14px; font-weight: 700; color: var(--ink); }
++
++/* ⚠ The track list is written out WHOLE and read with a single var() as the ENTIRE value:
++   `repeat(var(--n), …)` is invalid CSS, because the repeat count must be a literal integer and a
++   custom property there silently invalidates the whole grid-template-columns declaration.
++   ⚠ The value column is a FIXED width, never auto: auto would let a 3-digit value size its track
++   differently from a 2-digit one, so the numbers would stop aligning down the board. */
++.bgrid { --vw: 64px; --gap: 12px; --cols: 18px 24px minmax(0, 1fr) var(--vw); }
++@container (max-width: 430px) { .bgrid { --vw: 56px; --gap: 10px; } }
++
++.brow {
++  display: grid; grid-template-columns: var(--cols);
++  align-items: center; gap: var(--gap);
++  padding: 10px 0; border-bottom: 1px solid var(--line);
++}
++.brow:last-child { border-bottom: 0; }
++.brow .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; }
++
++/* ONE LINE IF IT FITS, STACKED IF NOT — decided PER BOARD, never per row (CPO 2026-08-10: "they
++   all stack together or not"). flex-wrap decides it per ROW, which rendered one board with rows
++   1/5/6 inline and 2/3/4/7 stacked: right for each row, ragged as a block. CSS cannot ask whether
++   a SIBLING wrapped, so the trigger must be something every row shares — the board's own width.
++   `nowrap` is what enforces it: without it one over-long row could still wrap alone. */
++.brow .ent { min-width: 0; display: flex; flex-wrap: nowrap; align-items: baseline; column-gap: 8px; }
++@container (max-width: 480px) {
++  /* ⚠ Blockify the CHILDREN, not just the container: .nm/.sub carry no `display` of their own
++     (flex blockifies them in the branch above), so setting only `.ent { display: block }` leaves
++     two INLINE spans that run together — "Bayern MünchenBundesliga". */
++  .brow .ent { display: block; }
++  .board .nm,
++  .board .sub { display: block; }
++  .board .sub { margin-top: 1px; }
++}
++
++/* ⚠ THE NAME MUST NEVER TRUNCATE. `.fxrow .side .nm` ellipsises, which is right on a fixture card
++   and wrong here: a clipped name defeats a block whose whole purpose is to send people to the
++   player's page. The name wraps and the row grows. `min-width: 0` matters — a flex item refuses to
++   shrink below its min-content width, so without it a long name widens the row instead of
++   wrapping inside it. */
++.board .nm {
++  min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink);
++  white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word;
++  line-height: 1.25;
++}
++.board .sub { min-width: 0; font-size: 11.5px; color: var(--muted); overflow-wrap: break-word; }
++/* Right-aligned, matching .pstat. */
++.brow .v { font-size: 15px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
++.brow .v b { color: var(--ink); font-weight: 700; }
++
++/* ROW TARGET (site_architecture.md §3 "Navigation"): the whole row is the link, so the whole row
++   responds — never the name inside it. ⚠ The mock underlined .nm on hover; that predates the
++   navigation rule and is deliberately NOT carried, because it points the affordance at a word
++   inside a target that is the entire row. Neutral ramp only; --accent is reserved. */
++a.brow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; }
++a.brow .nm { text-decoration: none; }
++@media (hover: hover) { a.brow:hover { background: var(--surface); } }
++a.brow:active { background: var(--sunk); }
++/* ⚠ THE RING IS DRAWN INSIDE, and the reason is measured, not stylistic — same defect class as
++   `a.cnm` above. `.fx a:focus-visible` draws `outline: 2px solid` at `outline-offset: 2px`, so it
++   reaches 4px BEYOND the border box; a `.brow`'s border-box bottom IS the divider, and the next row
++   sits flush against it. Measured at 375px, focusing row 3 of the Goals board: the ring spanned
++   y=373.5..438.3 against dividers at 377.5 and 434.3 — 4px straight through the line at BOTH ends
++   and into both neighbouring rows. !151 shipped exactly this, invisible at desktop width.
++   ⭐ A negative offset rather than padding, and that is DERIVED: `a.cnm` could spend room outward
++   because it had unused space around it, and a row has none — its neighbour is flush, and giving it
++   padding would move the divider it is measured against. So the ring goes inward instead. At -2px
++   the outline occupies 2px to 4px INSIDE the border box, which cannot reach either divider at any
++   row height, so this does not have to be re-derived when a name wraps and the row grows. */
++a.brow:focus-visible { outline-offset: -2px; }
++
+ /* Competitions index (#62 step 5, GitLab #54). Two independent single-select filter axes reuse
+    the shared .seg-in/.seg-btn radio pattern; each hides ROWS that don't match the active value
+    via a plain sibling selector. The "all" state of each group has no rule (nothing hides), so
+diff --git a/tests/test_export_landing.py b/tests/test_export_landing.py
+index 2fd6498..84447ee 100644
+--- a/tests/test_export_landing.py
++++ b/tests/test_export_landing.py
+@@ -12,7 +12,9 @@ shape is the cheapest place to catch any of the three coming back.
+ """
+ 
+ from scripts.export_site_data import (
++    _board_label_keys,
+     group_upcoming_fixtures,
++    shape_home_top_players,
+     shape_landing_payload,
  )
  
-+-- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
-+-- a single served column and compares nothing itself. `league_leader_order` above answers "who
-+-- represents this league"; this answers "in what order do those leaders appear".
-+-- CPO 2026-09-09 (escalations.log): "All ranking and ordering lives in the warehouse. The page
-+-- renders the order it is served." Same three ruled keys as the within-league order, for the same
-+-- reason — fewer minutes for the same tally is the better performance, and player_sk is a stable
-+-- last resort that means nothing (GitLab #112 is open to find a better one).
-+--
-+-- ⭐ PARTITIONED BY metric_key ALONE, AND THAT IS THE WHOLE POINT. An earlier attempt argued this
-+-- could not live here because the row order is scoped to a POOL of leagues (`competition_group`,
-+-- rotating nightly under #101) and the mart knows nothing about pools. That was wrong: the ruled
-+-- order is TOTAL, and restricting a total order to a subset preserves the relative order of what
-+-- survives. So ranking every league leader globally lets ANY pool filter inherit the right order
-+-- for free, and the pool never has to be known here.
-+-- ⚠ CONSEQUENCE, INTENDED AND VISIBLE: filtered to seven leagues the values come out SPARSE
-+-- (17, 18, 21, 31, 36, 40, 41 on the assists board). Sparse is the tell that this is a global
-+-- position. Contiguity is not something a consumer needs, and producing it would require knowing
-+-- the pool — the mistake above.
-+-- ⚠ NO SEASON in the partition, deliberately: `is_current_season` is per LEAGUE, so leagues shown
-+-- side by side can sit in different `season_api_year` values and partitioning by season would split
-+-- them.
-+-- ⚠ COMPUTED IN THE FINAL SELECT, NOT IN A CTE JOINED BACK. The obvious shape — rank the leaders in
-+-- their own CTE and left join — needs a USING or forty qualified column references, and SQLFluff
-+-- rejects the first (ST07) and demands the second (RF02). Sorting the leaders to the FRONT of the
-+-- window instead gives them positions 1..N in the ruled order with no join at all; the CASE then
-+-- keeps those and discards the numbers the non-leaders picked up.
- select
-     {{ dbt_utils.generate_surrogate_key(['player_sk', 'season_sk', 'metric_key']) }}
-         as player_leaderboard_sk,
-@@ -222,6 +248,18 @@ select
-     rank() over (
-         partition by league_code
-         order by season_api_year desc
--    ) = 1 as is_current_season
-+    ) = 1 as is_current_season,
-+    -- NULL on every row that is not a league leader: the position is only defined among leaders, and
-+    -- a number here would invite a consumer to order by a sequence the row is not part of.
-+    case
-+        when league_leader_order = 1 then row_number() over (
-+            partition by metric_key
-+            order by
-+                case when league_leader_order = 1 then 0 else 1 end,
-+                sort_value desc,
-+                minutes asc nulls last,
-+                player_sk asc
-+        )
-+    end as board_leader_order
- from ranked
- where board_rank <= 10
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index de971f2..4ba0bc5 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -1780,6 +1780,17 @@ models:
-           player_sk. Fewer minutes wins because the same tally in less time is the better
-           performance; player_sk is a stable last resort and means nothing on its own.
-         tests: [not_null]
-+      - name: board_leader_order
-+        description: >
-+          The order the league leaders appear in on this board, across every league, by the same
-+          rule: best value, then fewer minutes, then player_sk. league_leader_order says WHO
-+          represents a league; this says in what ORDER those representatives are shown, so a
-+          consumer orders by one served column and compares nothing itself. NULL on any row that is
-+          not a league leader. It is a GLOBAL position, not a position within whatever set a
-+          consumer shows, so filtered to a handful of leagues the values are sparse - that is
-+          expected, because the order is total and any subset of a total order keeps its relative
-+          sequence. Not partitioned by season: is_current_season is per league, so leagues shown
-+          side by side can sit in different season years.
-       - name: sort_value
-         description: "The board's own value the rank is computed from (always > 0). FLOAT64 — holds the integer counts and the 0-1 rates."
-         tests: [not_null]
-diff --git a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-new file mode 100644
-index 0000000..e60be8d
---- /dev/null
-+++ b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-@@ -0,0 +1,122 @@
-+-- board_leader_order must be a TOTAL order over a board's league leaders, and defined on nothing else.
-+--
-+-- WHY IT EXISTS. A consumer showing one leader per league orders by this column alone and compares
-+-- nothing itself (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page renders
-+-- the order it is served"). That only holds if the column really is a total order over the leaders:
-+-- if two leaders on a board shared a position, the consumer's output would depend on whatever order
-+-- BigQuery happened to return them in, and the page would churn with no data change.
-+--
-+-- THREE INVARIANTS, and the third is the one a wrong ORDER BY breaks while the first two stay green.
-+--   1. Unique within a board — no two leaders share a position.
-+--   2. Defined exactly on the leaders — never NULL on a leader, always NULL on a non-leader.
-+--   3. It agrees with the RULE. Checked as an adjacency property rather than by re-deriving the
-+--      window: for every consecutive pair on a board, the earlier row must not be beaten by the
-+--      later one on the ruled keys. Re-computing `row_number()` here and comparing would be a
-+--      tautology - it would pass for any ORDER BY, because the test would use the same one.
-+--
-+-- ⚠ NOT scoped to a pool or a season, because the column is not. It is a global order over every
-+-- league leader on a board; a consumer filtering to seven leagues inherits the relative order.
+@@ -136,15 +138,30 @@ def test_group_upcoming_fixtures_handles_an_empty_calendar():
+ # §0 so the replacement marts inherit them instead of rediscovering them.
+ # --------------------------------------------------------------------------- #
+ def test_shape_landing_payload_carries_only_the_built_modules():
+-    """ONE module today, of the three in the composition. The key set is asserted EXACTLY, so a
+-    re-added block fails here whether it arrives populated or as an empty shell.
++    """TWO modules now, of the three in the composition: next matches and Top players. The key set
++    is asserted EXACTLY, so a re-added block fails here whether it arrives populated or as an empty
++    shell.
+ 
+-    Top players and Top teams will each add a key when they are built; that is a deliberate edit of
+-    this line, not a silent widening.
++    Top teams will add its key when it is built; that is a deliberate edit of this line, not a
++    silent widening.
+     """
+-    payload = shape_landing_payload(upcoming=[{"league_code": "BSA"}])
++    payload = shape_landing_payload(
++        upcoming=[{"league_code": "BSA"}],
++        top_players=[{"metric_key": "goals_player", "rows": [{"name": "X"}]}],
++    )
+     assert payload["type"] == "landing"
+-    assert set(payload) == {"type", "upcoming"}
++    assert set(payload) == {"type", "upcoming", "top_players"}
 +
-+with import_mart_leaderboards as (
-+    select * from {{ ref('mart_leaderboards') }}
-+),
 +
-+leaders as (
-+    select
-+        metric_key,
-+        league_code,
-+        season_api_year,
-+        board_leader_order,
-+        sort_value,
-+        minutes,
-+        player_sk
-+    from import_mart_leaderboards
-+    where league_leader_order = 1
-+),
++def test_shape_landing_payload_omits_top_players_when_no_board_survived():
++    """#40: a board with no data is not rendered, and if NO board has data the block itself does
++    not render. So an empty result must be ABSENT, not an empty list — otherwise the page has to
++    guard against a key that means "nothing", which is the empty-state the CPO ruled out.
++    """
++    for empty in ([], None):
++        payload = shape_landing_payload(upcoming=[{"league_code": "BSA"}], top_players=empty)
++        assert "top_players" not in payload, f"empty {empty!r} must not reach the payload"
++        assert set(payload) == {"type", "upcoming"}
+ 
+ 
+ def test_shape_landing_payload_carries_none_of_the_removed_blocks():
+@@ -154,3 +171,176 @@ def test_shape_landing_payload_carries_none_of_the_removed_blocks():
+     assert "stats" not in payload
+     assert "trending" not in payload
+     assert "browse" not in payload
 +
-+-- 1. Unique within a board.
-+duplicated_position as (
-+    select
-+        metric_key,
-+        board_leader_order
-+    from leaders
-+    group by metric_key, board_leader_order
-+    having count(*) > 1
-+),
 +
-+-- 2. Defined on the leaders and on nothing else.
-+wrongly_defined as (
-+    select
-+        metric_key,
-+        league_code
-+    from import_mart_leaderboards
-+    where
-+        (league_leader_order = 1 and board_leader_order is null)
-+        or (league_leader_order != 1 and board_leader_order is not null)
-+),
++# --------------------------------------------------------------------------- #
++# Top players (#40)
++#
++# The mart already ranks within (league_code, season_api_year), so the shaper only ever filters and
++# orders. These fabricate mart rows directly — no BigQuery — and the WHERE that picks elite /
++# current-season / rank-1 lives in the query, not here, so the rows below are what that query
++# would have returned.
++# --------------------------------------------------------------------------- #
++_LEAGUE_META = {
++    "PL": {"name": "Premier League"},
++    "PD": {"name": "La Liga"},
++    "BL1": {"name": "Bundesliga"},
++}
 +
-+-- 3. Consecutive pairs must not contradict the rule. `lead()` walks the board in the order the
-+--    column claims; the row that comes SECOND may not be strictly better on the ruled keys.
-+adjacent as (
-+    select
-+        metric_key,
-+        board_leader_order,
-+        sort_value,
-+        minutes,
-+        player_sk,
-+        lead(sort_value) over w as next_value,
-+        lead(minutes) over w as next_minutes,
-+        lead(player_sk) over w as next_player_sk
-+    from leaders
-+    window w as (partition by metric_key order by board_leader_order)
-+),
++# Read from the real catalogue seed, not fabricated: a board's NAME is a governed value, and a
++# fabricated key here would let the label mechanism drift from the catalogue unnoticed.
++_LABEL_KEYS = _board_label_keys()
 +
-+out_of_order as (
-+    select
-+        metric_key,
-+        board_leader_order
-+    from adjacent
-+    where
-+        next_value is not null
-+        and (
-+            next_value > sort_value
-+            -- Equal value: the later row must not have played fewer minutes. A NULL sorts last, so
-+            -- the later row having NULL minutes is fine; the earlier row having NULL while the
-+            -- later one has a number is not.
-+            or (
-+                next_value = sort_value
-+                and (
-+                    (minutes is null and next_minutes is not null)
-+                    or (minutes is not null and next_minutes is not null and next_minutes < minutes)
-+                )
-+            )
-+            -- Equal on both: the last resort must still ascend.
-+            or (
-+                next_value = sort_value
-+                and (minutes is not distinct from next_minutes)
-+                and next_player_sk < player_sk
-+            )
-+        )
-+)
 +
-+select
-+    metric_key,
-+    cast(board_leader_order as string) as detail,
-+    'two leaders share a position' as failure
-+from duplicated_position
++def _lb(metric_key, league_code, name, value, player_sk=1):
++    """One mart_leaderboards row, as the export's query returns it."""
++    return {
++        "metric_key": metric_key, "league_code": league_code, "sort_value": value,
++        "player_sk": player_sk, "player_name": name,
++        "team_name": f"{name} FC", "team_slug": "club", "team_logo_url": "https://x/1.png",
++    }
 +
-+union all
 +
-+select
-+    metric_key,
-+    league_code as detail,
-+    'board_leader_order defined on the wrong rows' as failure
-+from wrongly_defined
++def test_top_players_renders_the_order_the_warehouse_served():
++    """The shaper does NOT sort. It groups the rows into boards, keeps their order and cuts at 7.
 +
-+union all
++    ⚠ THIS TEST ASSERTED THE OPPOSITE AND THE OPPOSITE WAS WRONG. It used to hand the shaper
++    unordered rows and require it to sort them by value, which is ranking in the consumption layer;
++    `analytics-engineer-reviewer` FAILed that and the CPO ruled on 2026-09-09 that "all ranking and
++    ordering lives in the warehouse. The page renders the order it is served."
++    So the rows below arrive in the order the query's ORDER BY produced, and the assertion is that
++    the shaper left them alone. Flipping the expectation in the same test, rather than deleting it,
++    is what pins the new behaviour where the old one was guarded.
++    """
++    boards = shape_home_top_players([
++        _lb("goals_player", "PL", "Haaland", 25.0, 12),
++        _lb("goals_player", "PD", "Mbappe", 21.0, 10),
++        _lb("goals_player", "BL1", "Kane", 20.0, 11),
++    ], _LEAGUE_META, _LABEL_KEYS)
++    assert len(boards) == 1
++    assert boards[0]["metric_key"] == "goals_player"
++    assert [r["name"] for r in boards[0]["rows"]] == ["Haaland", "Mbappe", "Kane"]
++    assert [r["league_name"] for r in boards[0]["rows"]] == ["Premier League", "La Liga", "Bundesliga"]
++    # Every row carries its club as well as its player (#40) and a slug to link to.
++    assert boards[0]["rows"][0]["club"] == "Haaland FC"
++    assert boards[0]["rows"][0]["slug"] == "haaland-12"
 +
-+select
-+    metric_key,
-+    cast(board_leader_order as string) as detail,
-+    'consecutive leaders contradict the ruled order' as failure
-+from out_of_order
++
++def test_top_players_does_not_reorder_what_it_is_given():
++    """The sharper form of the test above, and the one that would catch a sort creeping back in:
++    rows handed over in an order NO sort would produce must come out exactly as they went in.
++
++    A shaper that re-sorted by value would reorder these; one that preserves order cannot.
++    """
++    rows = [
++        _lb("goals_player", "BL1", "Lowest", 2.0, 11),
++        _lb("goals_player", "PL", "Highest", 30.0, 12),
++        _lb("goals_player", "PD", "Middle", 9.0, 13),
++    ]
++    boards = shape_home_top_players(rows, _LEAGUE_META, _LABEL_KEYS)
++    assert [r["name"] for r in boards[0]["rows"]] == ["Lowest", "Highest", "Middle"]
++
++
++def test_top_players_keeps_board_order_and_caps_each_at_seven():
++    """The four boards render in a FIXED order — Goals, Assists, Passes, Key passes — regardless of
++    the order the mart returned them, and each is cut at 7 (CPO 2026-08-10, raised from 5).
++
++    NINE DISTINCT LEAGUES, and that stays deliberate even though the shaper no longer dedupes. The
++    query now returns one row per league (`league_leader_order = 1`), so nine rows means nine
++    leagues in the data this function is ever handed. Feeding nine rows from ONE league would test
++    the cap against input the export cannot produce.
++    """
++    nine = ("PL", "PD", "BL1", "ED", "L1", "LP", "SA", "PPL", "TSL")
++    rows = []
++    for key in ("passes_key_player", "goals_player", "passes_player", "assists_player"):
++        for i, league in enumerate(nine):
++            rows.append(_lb(key, league, f"{key}-{i}", 100 - i, player_sk=i))
++    boards = shape_home_top_players(rows, _LEAGUE_META, _LABEL_KEYS)
++    assert [b["metric_key"] for b in boards] == [
++        "goals_player", "assists_player", "passes_player", "passes_key_player",
++    ]
++    assert all(len(b["rows"]) == 7 for b in boards)
++
++
++# --------------------------------------------------------------------------- #
++# TWO TESTS STOOD HERE AND WENT TO THE WAREHOUSE WITH THE BEHAVIOUR THEY GUARDED.
++# They are deleted rather than relaxed, and this note exists so the next reader does not think the
++# invariants were dropped — only that they are no longer THIS file's to assert.
++#
++#   · `test_top_players_shows_one_row_per_league_when_the_leaders_are_tied` pinned a Python dedupe
++#     that picked between joint rank-1 players. That pick is now `league_leader_order` in
++#     `mart_leaderboards`, and it is asserted by
++#     `dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql`, which checks BOTH that
++#     exactly one row per league-board carries 1 AND that it is the row the rule picks. That test is
++#     mutation-proven: with the ruled order it returns 0 rows, with the `minutes` leg dropped it
++#     returns 443 over the whole mart.
++#   · `test_top_players_is_deterministic_when_values_tie` pinned a total order in a Python sort.
++#     The sort is gone; the order is the query's ORDER BY over served columns, and determinism is a
++#     property of the warehouse column plus that clause.
++#
++# Keeping either as a unit test would mean re-implementing the rule in the test to check it, which
++# is the tautology `analytics-engineer-reviewer` names. What replaces them at THIS level is
++# `test_top_players_does_not_reorder_what_it_is_given` above: the shaper's own contract is now
++# "group, preserve, cap", and that is what a unit test can honestly hold it to.
++# --------------------------------------------------------------------------- #
++
++
++def test_top_players_omits_an_empty_board_and_survivors_keep_their_order():
++    """#40: a board with no data is NOT rendered — no placeholder, no empty state — and the
++    surviving boards keep their order and do not reflow to fill the gap."""
++    boards = shape_home_top_players([
++        _lb("goals_player", "PL", "A", 5.0),
++        _lb("passes_key_player", "PL", "B", 3.0),
++    ], _LEAGUE_META, _LABEL_KEYS)
++    # assists and passes had no rows at all: they are absent, not empty.
++    assert [b["metric_key"] for b in boards] == ["goals_player", "passes_key_player"]
++
++
++def test_top_players_carries_the_catalogue_label_key_not_a_hand_written_name():
++    """The board's NAME comes from the metric catalogue (#327: the seed is the single source of
++    metric definitions), so the payload ships the label KEY and the frontend resolves it per
++    locale. Nothing hand-types a board name in the export or the component.
++
++    Asserted against the seed rather than a literal, so renaming a key in the catalogue fails here
++    instead of silently shipping a board with the old name.
++    """
++    boards = shape_home_top_players(
++        [_lb("goals_player", "PL", "A", 5.0)], _LEAGUE_META, _LABEL_KEYS
++    )
++    assert boards[0]["label_i18n_key"] == _LABEL_KEYS["goals_player"]
++    assert boards[0]["label_i18n_key"], "a board must never ship without a label key"
++
++
++def test_board_label_keys_are_the_player_rows_not_the_team_ones():
++    """The board label must come from the catalogue's PLAYER row for the id.
++
++    ⚠ THE ORIGINAL CLAIM HERE WAS FALSE AND IS REPLACED, NOT SOFTENED. It said "two of the four ids
++    also carry a TEAM row". Measured against the seed, two-sided: **0 of 86** metric_ids are defined
++    for more than one entity, and none of these four carries anything but a player row — so the
++    collision it described does not exist today and this test was passing for a reason that was not
++    true.
++
++    What it does pin is still worth pinning, and the entity filter in `_board_label_keys` is still
++    right. `assert_metric_catalogue_unique_by_entity` enforces uniqueness per (metric_id, entity),
++    NOT globally, so a team row sharing one of these ids is permitted by the catalogue's own guards
++    and would make an unfiltered lookup take whichever row `csv.DictReader` reached first — the bug
++    `!27` fixed in export_metric_definitions_json.py. This keeps that door shut and pins the key to
++    the seed rather than to a literal, so renaming it in the catalogue fails here instead of
++    silently shipping a board with the old name.
++    """
++    import csv
++
++    with open("dbt_project/seeds/metric_catalogue.csv", encoding="utf-8") as f:
++        rows = list(csv.DictReader(f))
++    for metric_id, key in _LABEL_KEYS.items():
++        player = [r for r in rows if r["metric_id"] == metric_id and r["entity"] == "player"]
++        assert player, f"{metric_id} has no player row"
++        assert key == player[0]["label_i18n_key"]
++
++
++def test_top_players_returns_nothing_when_no_board_has_data():
++    """If no board has data the block does not render at all — the shaper says so by returning an
++    empty list, which shape_landing_payload then omits entirely."""
++    assert shape_home_top_players([], _LEAGUE_META, _LABEL_KEYS) == []
++    # A metric the home block does not show must not create a board either.
++    assert shape_home_top_players([_lb("cards_player", "PL", "A", 9.0)], _LEAGUE_META, _LABEL_KEYS) == []
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 2c61878..4699cc4 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -917,6 +917,58 @@ def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
+             "either the regex drifted or a label is genuinely absent")
+ 
+ 
++def test_copy_gate_sees_the_player_metric_namespace_too():
++    """`_METRIC_ENTRY_RE` must see `playerMetrics.*`, not only the `metrics.*.label` shape.
++
++    ⛔ WHAT THIS PINS, AND WHY NO OTHER TEST IN THIS FILE CAN. #40's Home boards are titled from the
++    catalogue's PLAYER namespace — `playerMetrics.scorerPoints.goals` and three more — and while the
++    regex was anchored on the `metrics.` prefix those four labels were invisible to this gate. They
++    skipped the em dash, locale-completeness, terminology and untranslated checks entirely, so a
++    Finnish label missing from the map would have rendered a BLANK board title (`metricLabel()`
++    falls back to English, then to "") while the gate printed `COPY GATE ok`.
++
++    Every fixture in `_strings_fixture()` emits `metrics.mN.label` keys only, and `MIN_METRIC_KEYS`
++    (15) still clears at the 18 `metrics.*` labels, so reverting the widening leaves every other
++    test here green — which is exactly the hole platform-reviewer FAILed round 1 of that branch for.
++
++    The board list is read from the export and its labels from the catalogue, the two places that
++    already own them, rather than copied into this file: the same anchor the JS side uses in
++    `site_v2/scripts/check-metric-labels.test.mjs`.
++    """
++    import csv
++    import pathlib
++    import re as _re
++
++    gate = _copy_gate()
++    root = pathlib.Path(__file__).resolve().parents[1]
++
++    block = _re.search(
++        r"_HOME_PLAYER_BOARDS\s*=\s*\(([^)]*)\)",
++        (root / "scripts" / "export_site_data.py").read_text(encoding="utf-8"))
++    assert block, "could not find _HOME_PLAYER_BOARDS in scripts/export_site_data.py"
++    board_ids = _re.findall(r'"([a-z0-9_]+)"', block.group(1))
++    assert len(board_ids) >= 4, f"parsed only {len(board_ids)} board ids — the tuple regex broke"
++
++    with open(root / "dbt_project" / "seeds" / "metric_catalogue.csv", encoding="utf-8") as f:
++        catalogue = [r for r in csv.DictReader(f) if r.get("entity") == "player"]
++    by_id = {r["metric_id"]: r.get("label_i18n_key") for r in catalogue}
++    asked = []
++    for metric_id in board_ids:
++        key = by_id.get(metric_id)
++        assert key, f"no player catalogue row with a label_i18n_key for board {metric_id}"
++        asked.append(key)
++    assert any(not k.startswith("metrics.") for k in asked), (
++        "this test proves nothing unless at least one board label sits OUTSIDE the metrics.* "
++        "namespace — that is the case the widening exists for")
++
++    parsed = gate._metric_labels(gate.STRINGS.read_text(encoding="utf-8"))
++    for loc in ("en", "de", "fi"):
++        missing = sorted(set(asked) - set(parsed[loc]))
++        assert not missing, (
++            f"the gate does not see {missing} for {loc}, but the Home page titles a board with it — "
++            "either _METRIC_ENTRY_RE narrowed again or the label is genuinely absent")
++
++
+ def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
+     """The point of merging the metric labels into `dicts`: an em dash in a metric NAME
+     is still an em dash. Without the merge these 54 strings would be parsed and then
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md    |  17 ++-
+#    site_v2/src/data/landing.json | 334 ++++++++++++++++++++++++++++++++++++++++++
+#    2 files changed, 348 insertions(+), 3 deletions(-)
+# ============================================================================
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -454,8 +1612,8 @@ index 0000000..e60be8d
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 129 ++++--
-#    .claude/task/review.md              | 109 +++--
-#    .claude/task/review_input.patch     | 799 +++++++++++++++++-------------------
-#    3 files changed, 523 insertions(+), 514 deletions(-)
+#   .claude/task/acceptance_evidence.md    |  161 ++-
+#    .claude/task/rendered_page_evidence.md |  246 +++--
+#    .claude/task/review_input.patch        | 1764 ++++++++++++++++++++++++++------
+#    3 files changed, 1657 insertions(+), 514 deletions(-)
 # ============================================================================

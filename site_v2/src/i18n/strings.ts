@@ -188,6 +188,17 @@ const EN: Dict = {
   seoHomeTitle: "Football stats and match previews",
   seoHomeDesc: "Upcoming matches from every competition we cover.",
   homeNext: "Next matches",
+  // Top players (#40). The block NAME is the CPO's, 2026-08-08: plain nouns, matching the
+  // vocabulary the page already uses, and a matched pair with "Top teams" so the two read as
+  // siblings. "Player leaders" was rejected — "leader" collides with captaincy in football.
+  homeTopPlayers: "Top players",
+  // ⚠ APPROVED WORDING, 2026-08-18. It replaced "Season totals to date. Ranked across pooled
+  // leagues: …", which described the pooled ranking withdrawn the same day. Three constraints it
+  // satisfies, recorded so a rewrite does not undo them: it states the mechanic plainly and echoes
+  // the block's own name; it avoids "leader" for the reason above; and it names no metric, because
+  // the sentence sits above all four boards and "top player" carries every one of them equally.
+  // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
+  homeTopPlayersIntro: "Season totals to date. The top player from each league: {leagues}.",
   homeNoFixtures: "No matches scheduled right now.",
   // Competitions index page (#62 step 5) — category labels (competition_types.csv
   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
@@ -215,6 +226,13 @@ const EN: Dict = {
   // scorers would be a promise the page does not keep. Revisit the wording when #47 fills it.
   seoCompetitionTitle: "{competition}: Overview",
   seoCompetitionDesc: "Overview page for {competition}.",
+  // The player page (#40 MR B). Same modest wording and the same reason as the competition hub
+  // above: this is a scaffold with no content blocks, so the title promises nothing.
+  // ⚠ THE CLUB IS IN THE TITLE FOR UNIQUENESS, not decoration. audit-seo check 5 requires titles to
+  // be unique within a locale, and 1.6% of provider FULL names collide (site_architecture.md:93) —
+  // which is also why the slug still carries the player id. The club disambiguates the two.
+  seoPlayerTitle: "{player} ({club}): Overview",
+  seoPlayerDesc: "Overview page for {player} of {club}.",
   filterAll: "All",
   filterClubs: "Clubs",
   filterNational: "National teams",
@@ -365,6 +383,8 @@ const DE: Dict = {
   seoHomeTitle: "Fußballstatistiken und Spielvorschauen",
   seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken.",
   homeNext: "Nächste Spiele",
+  homeTopPlayers: "Top-Spieler",
+  homeTopPlayersIntro: "Saisonwerte bis heute. Der beste Spieler jeder Liga: {leagues}.",
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
   compTypeDomesticLeague: "Nationale Ligen",
   compTypeDomesticCup: "Nationale Pokale",
@@ -385,6 +405,8 @@ const DE: Dict = {
   seoCompetitionsDesc: "Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.",
   seoCompetitionTitle: "{competition}: Überblick",
   seoCompetitionDesc: "Überblicksseite für {competition}.",
+  seoPlayerTitle: "{player} ({club}): Überblick",
+  seoPlayerDesc: "Überblicksseite für {player} von {club}.",
   filterAll: "Alle",
   filterClubs: "Vereine",
   filterNational: "Nationalmannschaften",
@@ -546,6 +568,8 @@ const FI: Dict = {
   seoHomeTitle: "Jalkapallotilastot ja otteluennakot",
   seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista.",
   homeNext: "Seuraavat ottelut",
+  homeTopPlayers: "Kärkipelaajat",
+  homeTopPlayersIntro: "Kauden lukemat tähän asti. Kunkin sarjan paras pelaaja: {leagues}.",
   homeNoFixtures: "Ei otteluita tällä hetkellä.",
   compTypeDomesticLeague: "Kansalliset sarjat",
   compTypeDomesticCup: "Kansalliset cupit",
@@ -566,6 +590,8 @@ const FI: Dict = {
   seoCompetitionsDesc: "Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.",
   seoCompetitionTitle: "{competition}: yleiskatsaus",
   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
+  seoPlayerTitle: "{player} ({club}): yleiskatsaus",
+  seoPlayerDesc: "Yleiskatsaussivu pelaajalle {player}, joukkue {club}.",
   filterAll: "Kaikki",
   filterClubs: "Seurat",
   filterNational: "Maajoukkueet",
@@ -651,6 +677,16 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.corners_per_match.label": "Ø Corners",
   "metrics.corners_against_per_match.label": "Ø Corners against",
   "metrics.saves_pct.label": "% Save percentage",
+  // Top players' four boards (#40). PLAYER metrics, so the keys are the catalogue's
+  // `playerMetrics.*` namespace rather than the `metrics.*` one every entry above uses.
+  // EN is the catalogue's `label_en` verbatim — the board name is the metric's name, and #40 says
+  // so explicitly ("The board name is the metric's label_en verbatim").
+  // ⚠ No "Ø" on any of them: these are season TOTALS (catalogue `format: integer`), not per-match
+  // rates, so the sigil and the "per match" wording Top teams needs do not apply here.
+  "playerMetrics.scorerPoints.goals": "Goals",
+  "playerMetrics.scorerPoints.assists": "Assists",
+  "playerMetrics.passAccuracy.total": "Passes",
+  "playerMetrics.keyPasses.label": "Key passes",
 };
 
 const METRIC_LABELS_DE: MetricLabels = {
@@ -691,6 +727,17 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.corners_per_match.label": "Ø Ecken",
   "metrics.corners_against_per_match.label": "Ø Ecken gegen",
   "metrics.saves_pct.label": "% Gehaltene Torschüsse",
+  // Top players' four boards (#40). CPO-CONFIRMED 2026-09-08. He ruled the assists label is
+  // "Torvorlagen", in his words *"more precise than just Vorlagen"* — the draft carried the bare
+  // "Vorlagen", and "Assists" (current in German football media) was not taken, consistent with
+  // every other metric name in this file being a German word.
+  // "Tore" and "Pässe" are additionally the stems of the CPO-validated legacy corpus in
+  // site/i18n/de.json (`Ø Tore`, `Ø Pässe`); the sigil is dropped because these are season TOTALS
+  // (catalogue `format: integer`), not per-match rates.
+  "playerMetrics.scorerPoints.goals": "Tore",
+  "playerMetrics.scorerPoints.assists": "Torvorlagen",
+  "playerMetrics.passAccuracy.total": "Pässe",
+  "playerMetrics.keyPasses.label": "Schlüsselpässe",
 };
 
 const METRIC_LABELS_FI: MetricLabels = {
@@ -730,6 +777,18 @@ const METRIC_LABELS_FI: MetricLabels = {
   "metrics.corners_per_match.label": "Ø Kulmapotkut",
   "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
   "metrics.saves_pct.label": "% Torjuntaosuus",
+  // Top players' four boards (#40). CPO-CONFIRMED 2026-09-08, together with the DE block above;
+  // he changed only the German assists label and let these four stand.
+  // They were flagged rather than assumed for a reason worth keeping: `10_home.md` §10 records his
+  // ruling that DE/FI are "needed before go-live, not before the block is built" — but this block
+  // RENDERS them, and metricLabel() falls back to English and then to EMPTY, so leaving them out
+  // ships either an English word or a BLANK board title to a Finnish reader.
+  // "Maalit" and "Syötöt" are the stems of the CPO-validated legacy corpus in site/i18n/fi.json
+  // (`Ø Maalit`, `Ø Syötöt`); "Avainsyötöt" matches the per-match form already in this block above.
+  "playerMetrics.scorerPoints.goals": "Maalit",
+  "playerMetrics.scorerPoints.assists": "Maalisyötöt",
+  "playerMetrics.passAccuracy.total": "Syötöt",
+  "playerMetrics.keyPasses.label": "Avainsyötöt",
 };
 
 const METRIC_LABELS: Record<Lang, MetricLabels> = {
