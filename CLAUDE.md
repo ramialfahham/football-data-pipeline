@@ -29,7 +29,9 @@ A football data pipeline: Python ingestion from API-Football → BigQuery raw �
 The legacy GitHub Pages match-preview UI it used to end in was **retired 2026-07-21** — offline, `site/` frozen. There is no public site today.
 
 Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL2, PL, PD, SA, L1, VL, WC (2026), WCQ*, LMX, LP, MLS, SPL, ED.
-Next: player insights chain (#153 → #156).
+**What is next is never written here — run `glab issue list`.** A "next" line in a file this durable
+goes stale silently and then instructs. This one named two GitHub-era issues that resolve to
+nothing, and said so to every session until 2026-09-10.
 
 ## Authoritative docs — read before making decisions
 
@@ -73,10 +75,10 @@ rebuilt from scratch against a design its issue had already approved.
   `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
 - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
-- **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home, epic #361; the hybrid-browse block was dropped 2026-08-19). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**; #377 is v2's own go-live.
+- **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home; the hybrid-browse block was dropped 2026-08-19). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**. v2 has its own go-live.
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
-- **Staging AND base models are TABLES** (base changed 2026-08-02 under #547; staging changed 2026-08-12 under #33 items 9/10). Both were views, so nothing stored an intermediate result and every *test* re-scanned the raw JSON. For base, measured over 35 days: tests $23.91 vs $5.84 to build the models. For staging, measured over 24h on 2026-08-12: tests $0.17 vs models $0.07, with **59 staging tests** each re-executing the parse beneath a view. Storing each layer once a night makes every test read a small table instead. ⚠ The `RAW_APIF_TRANSFERS` figure both items were argued from (6.82–6.99 GiB) is STALE — item 8b shrank that table to **0.178 GiB**; do not size future work from it. Materialisation is a LAYER decision set once in `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a model must never override it per model, whatever the value. `scripts/check_layer_contract.py` enforces both layers.
+- **Staging AND base models are TABLES** (base changed 2026-08-02; staging changed 2026-08-12 under #33 items 9/10). Both were views, so nothing stored an intermediate result and every *test* re-scanned the raw JSON. For base, measured over 35 days: tests $23.91 vs $5.84 to build the models. For staging, measured over 24h on 2026-08-12: tests $0.17 vs models $0.07, with **59 staging tests** each re-executing the parse beneath a view. Storing each layer once a night makes every test read a small table instead. ⚠ The `RAW_APIF_TRANSFERS` figure both items were argued from (6.82–6.99 GiB) is STALE — item 8b shrank that table to **0.178 GiB**; do not size future work from it. Materialisation is a LAYER decision set once in `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a model must never override it per model, whatever the value. `scripts/check_layer_contract.py` enforces both layers.
 
 ## Scalability rules — enforced by CI
 

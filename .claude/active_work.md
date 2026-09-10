@@ -77,7 +77,7 @@ never advances. **Only three models in the project are incremental** — `fct_fi
 `fct_fixture_player_stats`, `fct_fixture_team_stats` — everything else is a table, so check rather
 than assume either way. ⚠ A self-heal clause CANNOT always be copied: the player/team-stats surrogate
 keys INCLUDE `team_id`, so correcting it changes the key and a merge INSERTS the corrected row and
-strands the old one. `event_sk` excludes `team_id`, which is the only reason its #526 self-heal works.
+strands the old one. `event_sk` excludes `team_id`, which is the only reason its self-heal works.
 **The fix is a one-off `dbt build --full-refresh --select <facts>`, and it is the CPO's to run**
 (`dbt build` is banned here).
 ⚠ Check a refresh is lossless first: compare the fact's row count to its base. Equal = nothing

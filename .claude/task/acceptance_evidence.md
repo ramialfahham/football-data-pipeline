@@ -1,66 +1,54 @@
-# Acceptance evidence — the design chain and the ruling log in CLAUDE.md
+# Acceptance evidence — dead issue references in the files that instruct
 
-Measured with grep against the files as committed, not asserted.
+Measured with grep and pytest against the committed state.
 
 criteria_demonstrated:
-  - ⭐ THE DEFECT, MEASURED BEFORE THE FIX. `grep -c` over `CLAUDE.md` — the file every session is
-    told to read first — returned **0** for all five of `wireframes`, `metrics_display`,
-    `ui_design_brief`, `design-mocks` and `escalations.log`. The orientation file named the data
-    contract, the layer rules, the metric layer, ops, dev workflow, guardrails, site IA and the
-    dormant GitHub tree, and pointed at the design chain nowhere and at the CPO ruling record
-    nowhere. After: all five return non-zero.
-  - THE AUTHORITY TABLE NAMES THE DESIGN CHAIN AND POINTS AT ONE OWNER for its reading order —
-    `docs/wireframes/00_overview.md` — rather than restating the order itself.
-  - THE AUTHORITY TABLE NAMES `.claude/task/escalations.log` as the durable record, with the rule
-    that "you ruled X" needs a quote from it and that a task contract is overwritten while this file
-    is not.
-  - THE PRECEDENCE IS STATED ONCE. `grep -ci 'which wins|beats every|on conflict'`:
-    **`CLAUDE.md` = 0, `00_overview.md` = 2.** The rule lives in one file; the other points.
-  - `00_overview.md`'S READING ORDER IS COMPLETE. It named three of the six documents that govern
-    what a screen shows — brief, site architecture, wireframes — and omitted
-    `content_architecture.md`, `metrics_display.md` and the mock/issue layer. Now a six-row table,
-    one row per question, plus the conflict rule.
-  - EVERY LINK RESOLVES. All eight paths referenced by the new table exist on disk, checked with
-    `test -f`: `00_overview.md`, `escalations.log`, `ui_design_brief.md`, `site_architecture.md`,
-    `content_architecture.md`, `metrics_display.md`, `design-mocks/README.md`,
-    `99_gaps_register.md`.
-  - THE OFFLINE GATES ARE GREEN. No code changed, so this is a formality — run and recorded rather
-    than assumed.
+  - BOTH INSTRUCTING FILES ARE CLEAN. `CLAUDE.md` = **0** references to `#115+` (was 5);
+    `.claude/active_work.md` = **0** (was 1, `#526`).
+  - ⭐ THE ONE THAT MATTERED: `CLAUDE.md:32` read **"Next: player insights chain (#153 → #156)."**
+    The file every session is told to read first, naming its next work as two issues that resolve to
+    nothing. It now names no issue at all and points at `glab issue list`, which cannot rot.
+  - THE GUARD FIRES WHEN A DEAD REF RETURNS. Mutation: re-inserted `#153` into `CLAUDE.md`'s next
+    line → `assert not {'CLAUDE.md': [153]}`, 1 failed. Restored → green.
+  - THE GUARD ALSO FIRES IF IT IS MADE VACUOUS. `test_the_boundary_is_not_vacuous` exists because a
+    guard whose threshold sits above every real number passes on any content at all. Mutation:
+    `FIRST_DEAD = 115` → `99999` → that test failed while the first one still passed, which is
+    exactly the hole it covers. Restored → both green.
+  - THE FAILURE MESSAGE TEACHES. It states that GitHub's tracker did not migrate, tells the reader
+    to say the fact rather than the number, gives the recovery command
+    (`git log --all --grep='#N'`, which finds 180 of the 257 as merged PRs), and says explicitly
+    NOT to satisfy the test by deleting the sentence.
+  - NOTHING OUTSIDE SCOPE IS TOUCHED. The 292 references under `docs/` are deliberately left.
+  - `pytest tests/test_no_dead_issue_refs.py` 2 passed; `ruff check` clean.
 
-## The defect this branch shipped and had caught
+## The measurement, since the decision rests on it
 
-⛔ The replacement reading order quietly REWROTE the conflict rule. `00_overview.md` said
-**"Conflicts escalate to the CPO."** — absolute — and my version said a logged ruling wins, "below
-that, the more specific and more recent wins", and only leftovers escalate. That is a §10 rule
-extension: it invents an auto-resolution and narrows when the CPO is consulted. The contract
-simultaneously claimed "nothing is deleted". `scope-auditor` FAILed both.
+| | count |
+|---|---|
+| references to `#115+` across `CLAUDE.md` + `docs/` + memory | **767** |
+| distinct dead issue numbers | **257** |
+| of those, appearing in a commit message — recoverable as merged PRs | **180** |
+| gone entirely | **77** |
 
-Reverted. The rule is absolute again, in force and in wording, with no tie-breaker. The only thing
-added beside it is that a ruling already in `escalations.log` is not a conflict but the answer —
-which changes nothing about escalation. Verified: `grep -c "more specific and more recent"` = **0**.
+GitLab's highest issue is **#114**, so `>=115` is the boundary. It was CHECKED rather than assumed:
+`#33` in `CLAUDE.md` reads like a GitHub-era audit reference, and resolves to a real GitLab issue —
+"Pipeline cost/scalability: diagnosis and ordered plan" — which is exactly what the sentence means.
 
-⚠ Worth naming the shape, because it is not carelessness: that sentence reads like tidying. "More
-specific and more recent wins" is a sensible-sounding default in the abstract, which is exactly why
-it slipped past me — it is a decision about who decides, dressed as a formatting improvement.
+## Why this is a test and not a sentence
 
-## The trade I made, stated so a reviewer can push on it
+The memory index already carries, in bold: *"any GitHub number in these files is a pointer to
+nothing — re-derive from code."* That index loads every session. I read it, then followed a memory
+file to "the authority is issue #753's design-state comment, trust its sections, never a summary of
+them", and #753 does not exist. The warning was in place and did not work.
 
-The chain's MEMBER LIST is now in both files. A document joining the chain needs both updated.
-
-I wrote the non-duplicating version first — `CLAUDE.md` naming only `00_overview.md` — and reverted
-it, because it dropped three of the five terms back to a grep count of **0** in the always-loaded
-file. A pointer only helps a reader who follows it, and #41 is the proof: the wireframes were
-reachable the whole time and I did not reach them.
-
-What is NOT duplicated is the RULE. "Which document wins" appears zero times in `CLAUDE.md`. A stale
-filename list is visible on the next read; a precedence rule stale in two places is the failure that
-cost the last two MRs their review rounds.
+That is also what makes this different from the 292 in `docs/`: a reference in an archive is
+provenance, a reference in `CLAUDE.md` is an instruction.
 
 ## What is NOT demonstrated
 
-- **That this works.** The defect it addresses — a page rebuilt without reading its design — is not
-  machine-detectable, and nothing here is enforced by a gate. The only evidence that would count is
-  the NEXT page being built from its issue and wireframe without being told to. That is the player
-  page, and it is the test.
-- Nothing is deleted or reworded in either file beyond the additions, so no existing claim needed
-  re-verifying.
+- **The 292 `docs/` references and the 470 in memory are untouched**, so most of the 767 remains.
+  This branch fixes 6 and guards against new ones in the two files where a dead pointer causes
+  action. Whether the rest is worth a sweep is in `decisions_reserved`.
+- The guard cannot tell a LIVE `#115+` from a dead one if GitLab ever passes issue 115. At that
+  point `FIRST_DEAD` has to move, and `test_the_boundary_is_not_vacuous` is what will make that a
+  deliberate edit rather than a silent one.

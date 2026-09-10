@@ -1,327 +1,351 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d9e30c10..77a426ff 100644
+index 77a426ff..98759eb8 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,28 +1,29 @@
--# Task contract — design mocks into the repo, and their rulings into the wireframe
-+# Task contract — the design chain and the ruling log, in the file every session reads
+@@ -1,29 +1,33 @@
+-# Task contract — the design chain and the ruling log, in the file every session reads
++# Task contract — dead issue references in the files that instruct
  
  objective: >
--  Bring the design-mock GENERATORS and CHECKS into the repo, and transcribe the CPO's 2026-08-10
--  home-page rulings out of a Python docstring and into the wireframe that governs the page. The
--  generated HTML stays out.
-+  `CLAUDE.md` is read at the start of every session and its "Authoritative docs" table is the map
-+  of what to read before deciding. That table names the data contract, the layer rules, the metric
-+  layer, ops, CI and the site IA — and mentions the DESIGN chain nowhere, and the CPO ruling log
-+  nowhere. Add both, and complete the design chain's own precedence statement so the map has
-+  something to point AT.
+-  `CLAUDE.md` is read at the start of every session and its "Authoritative docs" table is the map
+-  of what to read before deciding. That table names the data contract, the layer rules, the metric
+-  layer, ops, CI and the site IA — and mentions the DESIGN chain nowhere, and the CPO ruling log
+-  nowhere. Add both, and complete the design chain's own precedence statement so the map has
+-  something to point AT.
++  767 references across `CLAUDE.md`, `docs/` and the memory store point at GitHub issues that no
++  longer exist — 257 distinct numbers, of which 180 survive as merged PRs in git history and 77 are
++  gone entirely. Fix the ones that DIRECT ACTION, guard the two files where a dead pointer causes
++  harm, and leave the archaeology alone. Do not sweep 767 edits.
  
  refs: >
--  `design-mocks/README.md` (outside the repo) — the mock store and its own account of what it is.
--  `docs/wireframes/10_home.md` §0 — the home page composition; already cites the generators.
--  `docs/wireframes/99_gaps_register.md` GAP-24 — VOIDED on the authority of a file outside the repo.
--  `.claude/task/escalations.log` `2026-09-10 chore/design-mocks-into-the-repo` — the two CPO
--  rulings this task rests on: the generators come into the repo, and the team boards have ONE value
--  column. ⚠ That entry was written only after `scope-auditor` FAILed the branch for citing his
--  "yes" and "fix it" with nothing logged behind them — the same defect as the previous MR, and
--  worse here because one of the citations was in a permanent checked-in README rather than a task
--  contract.
-+  Measured, not asserted: `grep -c` over `CLAUDE.md` returns **0** for `wireframes`,
-+  `metrics_display`, `ui_design_brief`, `design-mocks` AND `escalations.log`.
-+  `docs/wireframes/00_overview.md` already declares a partial precedence (brief = look-and-feel,
-+  `site_architecture.md` = IA/URLs, wireframes = field binding) that omits
-+  `content_architecture.md`, `metrics_display.md` and the mock/issue layer.
-+  `docs/working_agreement.md` §11 designates `escalations.log` as the durable ruling record.
-+  `.claude/task/escalations.log` `2026-09-10 chore/authority-map-in-claude-md` — the CPO's
-+  instruction to fix the context engineering, his approval of the six-step plan ("go"), and the
-+  steps themselves. This is step 2; step 1 merged as `!169`.
-+  ⚠ That entry was written only after `scope-auditor` FAILed this branch for citing "the plan the
-+  CPO asked for" with nothing logged behind it — the third branch running to make the same mistake,
-+  this time disguised as citing a plan rather than a ruling.
+-  Measured, not asserted: `grep -c` over `CLAUDE.md` returns **0** for `wireframes`,
+-  `metrics_display`, `ui_design_brief`, `design-mocks` AND `escalations.log`.
+-  `docs/wireframes/00_overview.md` already declares a partial precedence (brief = look-and-feel,
+-  `site_architecture.md` = IA/URLs, wireframes = field binding) that omits
+-  `content_architecture.md`, `metrics_display.md` and the mock/issue layer.
+-  `docs/working_agreement.md` §11 designates `escalations.log` as the durable ruling record.
+-  `.claude/task/escalations.log` `2026-09-10 chore/authority-map-in-claude-md` — the CPO's
+-  instruction to fix the context engineering, his approval of the six-step plan ("go"), and the
+-  steps themselves. This is step 2; step 1 merged as `!169`.
+-  ⚠ That entry was written only after `scope-auditor` FAILed this branch for citing "the plan the
+-  CPO asked for" with nothing logged behind it — the third branch running to make the same mistake,
+-  this time disguised as citing a plan rather than a ruling.
++  Measured: GitLab's highest issue is **#114**, so every `#115+` reference is GitHub-era and
++  unreachable. Counts — `CLAUDE.md` 5, `docs/` 292, memory 470. Of 257 distinct, 180 appear in a
++  commit message (recoverable), 77 do not.
++  The trigger: going to build the player page, the chain read memory -> "the authority is issue
++  #753's design-state comment, trust its sections, never a summary of them" -> **#753 does not
++  exist**. The instruction not to trust the summary survived; its referent did not.
++  `.claude/task/escalations.log` `2026-09-10 chore/dead-issue-references` — the CPO's direction
++  that the context cleanup finishes BEFORE product work resumes, and that dead references go first:
++  *"do as recommended but before we get back to product work I want to have this setup/cleanup for
++  better context management first."* That entry also carries the REVISED nine-step plan and
++  supersedes the six-step list in the preceding `chore/authority-map-in-claude-md` entry.
++  This is step 3 of the revised plan; steps 1 and 2 merged as `!169` and `!170`.
++  ⛔ THE `refs:` LINE HERE PREVIOUSLY CITED THE OLDER ENTRY AND CALLED THIS "step 3 of that plan".
++  That entry's step 3 is "split `escalations.log`". `scope-auditor` FAILed it, correctly: the
++  citation was to a REAL log entry for a DIFFERENT sequence, which is a harder defect to catch than
++  an invented ruling and is the fourth branch running to produce this class.
  
  scope_paths:
--  - design-mocks/*.py
--  - design-mocks/*.csv
--  - design-mocks/README.md
--  - .gitignore
--  - docs/wireframes/10_home.md
--  - docs/wireframes/99_gaps_register.md
-+  - CLAUDE.md
-+  - docs/wireframes/00_overview.md
+   - CLAUDE.md
+-  - docs/wireframes/00_overview.md
++  - .claude/active_work.md
++  - tests/test_no_dead_issue_refs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -30,73 +31,91 @@ scope_paths:
+@@ -31,91 +35,67 @@ scope_paths:
    - .claude/task/escalations.log
  
  impact_map: >
--  writers: no dbt model, seed, macro or test. No mart, no export, no site source. The generators
--    READ `dbt_project/seeds/metric_catalogue.csv` and `site_v2/src/styles/system.css`; they write
--    only their own HTML.
-+  writers: no code. Two markdown files.
+-  writers: no code. Two markdown files.
++  writers: no model, mart, export or site source. One new test file; two markdown files.
  
--  downstream: nothing consumes the generators. Three repo documents CITE them
--    (`10_home.md:150`, `10_home.md:184`, `99_gaps_register.md:35`); after this the citations point
--    at in-repo paths and at the transcribed rulings.
-+  downstream: `CLAUDE.md` is loaded by every session and by Cursor; `00_overview.md` is read before
-+    any screen is designed or built. Nothing machine-reads either.
+-  downstream: `CLAUDE.md` is loaded by every session and by Cursor; `00_overview.md` is read before
+-    any screen is designed or built. Nothing machine-reads either.
++  downstream: `CLAUDE.md` loads every session and is read by Cursor too; `active_work.md` is the
++    handover a cold session continues from. The new test runs in CI's `test:python`.
  
--  blast_radius: the site build, the export and CI are untouched — no file any job reads changes.
--    `.gitignore` gains one line so the ~950 KB of generated HTML cannot be committed. The repo
--    grows by ~330 KB of Python.
-+  blast_radius: no model, mart, export, site source, test or gate changes. No CI job reads these
-+    files. The change is what a human or an agent is TOLD to read, which is the whole point —
-+    the failure it addresses (a page rebuilt without reading its design) is not machine-detectable.
+-  blast_radius: no model, mart, export, site source, test or gate changes. No CI job reads these
+-    files. The change is what a human or an agent is TOLD to read, which is the whole point —
+-    the failure it addresses (a page rebuilt without reading its design) is not machine-detectable.
++  blast_radius: the new test asserts a property that is TRUE at commit time and will fail any future
++    edit that reintroduces a `#115+` reference into either file. That is the intent — it is a
++    ratchet, not a one-off cleanup. Nothing else in the repo reads either file.
  
    deploy_order: none.
  
  acceptance_criteria:
--  - Every `.py` and `.csv` in the mock store is tracked in the repo, and no `.html` is.
--  - `python design-mocks/gen_top_players.py` and `gen_top_teams.py` RUN — today both hard-fail on a
--    missing catalogue path — and `check_players.py` / `check_teams.py` pass against their output.
--  - The regenerated mocks are byte-identical in structure to the reviewed ones: 4 boards, 28 rows,
--    28 value cells each.
--  - Every 2026-08-10 ruling now in a generator docstring is stated in `docs/wireframes/10_home.md`,
--    with its reason where the docstring gives one.
--  - `99_gaps_register.md`'s GAP-24 void cites the wireframe, not a file outside the repo.
--  - No generator docstring still claims team boards carry two value columns.
--  - `python -m pytest tests/ -q` and `cd site_v2 && npm test` stay green (nothing they read changes).
-+  - `CLAUDE.md`'s authority table names the design chain and points at ONE place for its precedence,
-+    rather than restating the precedence itself.
-+  - `CLAUDE.md` names `.claude/task/escalations.log` as the durable record of CPO rulings.
-+  - `docs/wireframes/00_overview.md`'s reading order covers every document that governs what a
-+    screen shows — `content_architecture.md`, `metrics_display.md`, the mock/issue layer, AND
-+    `ui_design_brief.md` §6, which is a per-screen FIELD contract and not look-and-feel — and
-+    restates the existing escalation rule without weakening it.
-+    ⚠ §6 was missed on the first pass and `bi-analyst-reviewer` FAILed it, with the concrete cost:
-+    `04_competition_hub.md` does not exist, so §6.5 is the ONLY live field contract for that screen,
-+    and a table calling the brief "look-and-feel" would send a reader straight past it.
-+  - The PRECEDENCE RULE is stated in exactly one file. Measured: `grep -ci 'which wins|beats
-+    every|on conflict'` returns 0 for `CLAUDE.md` and non-zero for `00_overview.md`.
-+    ⚠ Deliberately NOT "no fact appears twice" — the chain's member LIST does appear in both, and
-+    `decisions_taken` records why that trade was taken rather than hidden.
-+  - `grep -c` for each of the five terms over `CLAUDE.md` is non-zero.
+-  - `CLAUDE.md`'s authority table names the design chain and points at ONE place for its precedence,
+-    rather than restating the precedence itself.
+-  - `CLAUDE.md` names `.claude/task/escalations.log` as the durable record of CPO rulings.
+-  - `docs/wireframes/00_overview.md`'s reading order covers every document that governs what a
+-    screen shows — `content_architecture.md`, `metrics_display.md`, the mock/issue layer, AND
+-    `ui_design_brief.md` §6, which is a per-screen FIELD contract and not look-and-feel — and
+-    restates the existing escalation rule without weakening it.
+-    ⚠ §6 was missed on the first pass and `bi-analyst-reviewer` FAILed it, with the concrete cost:
+-    `04_competition_hub.md` does not exist, so §6.5 is the ONLY live field contract for that screen,
+-    and a table calling the brief "look-and-feel" would send a reader straight past it.
+-  - The PRECEDENCE RULE is stated in exactly one file. Measured: `grep -ci 'which wins|beats
+-    every|on conflict'` returns 0 for `CLAUDE.md` and non-zero for `00_overview.md`.
+-    ⚠ Deliberately NOT "no fact appears twice" — the chain's member LIST does appear in both, and
+-    `decisions_taken` records why that trade was taken rather than hidden.
+-  - `grep -c` for each of the five terms over `CLAUDE.md` is non-zero.
++  - `CLAUDE.md` and `.claude/active_work.md` contain ZERO references to `#115` or above.
++  - `tests/test_no_dead_issue_refs.py` fails if one is reintroduced — proven by mutation, not by
++    passing once.
++  - The test explains WHY in its own failure message, so a future session that trips it knows the
++    number is unreachable rather than merely unwelcome.
++  - `CLAUDE.md`'s "Next:" line no longer names an issue at all.
++  - No file outside `scope_paths` is touched: the 292 references in `docs/` are deliberately LEFT.
++  - `pytest tests/` and `ruff check .` stay green.
  
  decisions_taken: >
--  GENERATORS AND CHECKS IN, GENERATED HTML OUT. The Python is source and is COUPLED to the repo —
--  it reads the metric catalogue and `system.css`. That coupling is what broke: versioned apart from
--  its dependency, the dependency moved and the tooling died. The HTML is build output.
+-  THE PRECEDENCE LIVES IN `00_overview.md`, NOT IN `CLAUDE.md`. `CLAUDE.md` gets a row pointing at
+-  it. Stating it in both is the duplication this whole exercise exists to remove — a corrected
+-  precedence would then need sweeping in two places, which is how every stale claim on the last two
+-  MRs got there.
 -
--  THE `REPO` CONSTANT POINTS AT THIS REPO. It currently points at `D:/Projects/fdp-product`, which
--  is not a git repository and has no `dbt_project/` at all — so every generator raises
--  FileNotFoundError today, verified by running one. The README's claim that the mocks "cannot drift
--  from the shipped design system or invent a metric label" has been false since the store was saved.
--  Resolved by deriving the path from the file's own location instead of hardcoding it.
+-  ⚠ `00_overview.md` GOVERNS A DIFFERENT AXIS FROM THE MOCKS, and `bi-analyst-reviewer` corrected me
+-  on this during `!169`: it binds a screen's blocks to real exported FIELDS, while the mock/issue
+-  layer settles what the screen LOOKS like and which boards it carries. They do not conflict, so the
+-  statement must place the mock layer alongside rather than above or below the field binding.
 -
--  THE RULINGS MOVE, THE MOCKS DO NOT. A ruling recorded in a script's docstring is unfindable even
--  when the script runs. `10_home.md` is where someone looks.
+-  ⛔ "NOTHING IS DELETED" WAS FALSE, AND `scope-auditor` CAUGHT IT AS A §10 RULE CHANGE.
+-  `00_overview.md` said **"Conflicts escalate to the CPO."** — absolute. My replacement read "a CPO
+-  ruling beats every document here; below that, the more specific and more recent wins, and anything
+-  still unresolved escalates". That is not an addition. It invents an auto-resolution and narrows
+-  when the CPO is consulted, which is a rule extension and his alone. Reverted: the rule is restored
+-  verbatim in force, with no tie-breaker, and the only thing added is that a ruling ALREADY in
+-  `escalations.log` is not a conflict but the answer — which changes nothing about escalation.
+-  ⚠ The wording that slipped through is the kind that reads like tidying. "More specific and more
+-  recent wins" is a reasonable-sounding default in the abstract; it is a decision about who decides.
 -
--  THE TWO-COLUMN CONTRADICTION IS A STALE SENTENCE, NOT A DESIGN DIVERGENCE.
--  `gen_top_teams.py:84` says "two value columns throughout"; line 311 of the same file says one.
--  The reviewed mock settles it: 28 rows, 28 value cells, 4 boards — ONE value column, matching what
--  shipped. The sentence is a leftover from the draft the same-day ruling replaced. Nothing built
--  needs changing.
+-  Otherwise nothing is deleted: every existing row and sentence stands, and the rest of the change
+-  is addition where there was absence.
 -
--  ⚠ "NOT IN THE REPO, AND DELIBERATELY SO" WAS MINE, NOT THE CPO'S. The README says it and I cited
--  it back to him as his decision; he did not make it, and the README's own next sentence says
--  "committing them is a separate decision". Recorded because attributing an unmade ruling is the
--  failure this repo has logged repeatedly, and this time it nearly settled a question in the wrong
--  direction.
+-  ⚠ A DUPLICATION IS ACCEPTED ON PURPOSE, AND IT IS THE ONE A REVIEWER SHOULD PUSH ON. The chain's
+-  MEMBER LIST now appears twice: named in `CLAUDE.md`'s row and tabulated in `00_overview.md`. A
+-  document joining the chain therefore needs both updated. The alternative — `CLAUDE.md` naming only
+-  `00_overview.md` — was written first and reverted, because it made `metrics_display`,
+-  `ui_design_brief` and `design-mocks` return **0** on a grep of the always-loaded file, and a
+-  pointer only helps a reader who follows it. That is exactly what failed on #41: the wireframes
+-  were reachable and I did not reach them. What is NOT duplicated is the RULE — "which document
+-  wins" appears 0 times in `CLAUDE.md` and only in `00_overview.md`, verified by grep. A list of
+-  filenames going stale is visible; a precedence rule going stale in two places is the failure mode
+-  that cost this repo two MRs.
 -
--  THRESHOLD — NEW MECHANISM: none. No new gate, dependency, route or CI job. A directory of
--  design tooling that runs by hand.
--  THRESHOLD — RECURRING COST: none. Nothing new runs on a schedule or in CI.
-+  THE PRECEDENCE LIVES IN `00_overview.md`, NOT IN `CLAUDE.md`. `CLAUDE.md` gets a row pointing at
-+  it. Stating it in both is the duplication this whole exercise exists to remove — a corrected
-+  precedence would then need sweeping in two places, which is how every stale claim on the last two
-+  MRs got there.
+-  ⚠ I TRIMMED MY OWN ADDITIONS BEFORE COMMITTING, and it is worth recording why. The first version
+-  put a six-line explanation of WHY these rows exist into `CLAUDE.md` — a file loaded on every
+-  session, where narrative costs tokens forever and git already holds the history. Cut to one
+-  sentence. Net: `CLAUDE.md` +5 lines. The same trim was applied to `00_overview.md`.
+-
+-  THRESHOLD — NEW MECHANISM: none. No gate, no dependency, no CI change.
++  ⛔ THE 292 REFERENCES IN `docs/` ARE DELIBERATELY NOT SWEPT, and that is the main decision here.
++  Rewriting them is a ~25-file mechanical diff no reviewer can meaningfully read, for almost no
++  value per edit: most are PROVENANCE ("shipped #627", "corrected under #33"), where the sentence
++  already carries the fact and the number is decoration. 180 of the 257 distinct numbers are
++  recoverable from git history anyway.
++  WHAT IS FIXED IS WHERE A REFERENCE INSTRUCTS. `CLAUDE.md` said "Next: player insights chain
++  (#153 -> #156)" — the always-loaded file telling every session its next work is two issues that
++  resolve to nothing.
 +
-+  ⚠ `00_overview.md` GOVERNS A DIFFERENT AXIS FROM THE MOCKS, and `bi-analyst-reviewer` corrected me
-+  on this during `!169`: it binds a screen's blocks to real exported FIELDS, while the mock/issue
-+  layer settles what the screen LOOKS like and which boards it carries. They do not conflict, so the
-+  statement must place the mock layer alongside rather than above or below the field binding.
++  A WARNING WAS ALREADY THERE AND DID NOT WORK. The memory index says, in bold, "any GitHub number
++  in these files is a pointer to nothing — re-derive from code". I read that index every session
++  and still followed #753. So this ships a TEST, not another sentence.
 +
-+  ⛔ "NOTHING IS DELETED" WAS FALSE, AND `scope-auditor` CAUGHT IT AS A §10 RULE CHANGE.
-+  `00_overview.md` said **"Conflicts escalate to the CPO."** — absolute. My replacement read "a CPO
-+  ruling beats every document here; below that, the more specific and more recent wins, and anything
-+  still unresolved escalates". That is not an addition. It invents an auto-resolution and narrows
-+  when the CPO is consulted, which is a rule extension and his alone. Reverted: the rule is restored
-+  verbatim in force, with no tie-breaker, and the only thing added is that a ruling ALREADY in
-+  `escalations.log` is not a conflict but the answer — which changes nothing about escalation.
-+  ⚠ The wording that slipped through is the kind that reads like tidying. "More specific and more
-+  recent wins" is a reasonable-sounding default in the abstract; it is a decision about who decides.
++  THE "NEXT" LINE NAMES NO ISSUE AT ALL. Any number written into a file this durable goes stale
++  silently and then instructs. It points at `glab issue list`, which cannot rot.
 +
-+  Otherwise nothing is deleted: every existing row and sentence stands, and the rest of the change
-+  is addition where there was absence.
++  ⚠ LOW NUMBERS ARE NOT AMBIGUOUS, CHECKED BEFORE ASSUMING. `#33` in `CLAUDE.md` reads like a
++  GitHub-era audit reference, and GitHub's number space overlapped GitLab's. It resolves: GitLab #33
++  is "Pipeline cost/scalability: diagnosis and ordered plan", exactly what the sentence means. So
++  the `>=115` boundary is real and the guard can use it.
 +
-+  ⚠ A DUPLICATION IS ACCEPTED ON PURPOSE, AND IT IS THE ONE A REVIEWER SHOULD PUSH ON. The chain's
-+  MEMBER LIST now appears twice: named in `CLAUDE.md`'s row and tabulated in `00_overview.md`. A
-+  document joining the chain therefore needs both updated. The alternative — `CLAUDE.md` naming only
-+  `00_overview.md` — was written first and reverted, because it made `metrics_display`,
-+  `ui_design_brief` and `design-mocks` return **0** on a grep of the always-loaded file, and a
-+  pointer only helps a reader who follows it. That is exactly what failed on #41: the wireframes
-+  were reachable and I did not reach them. What is NOT duplicated is the RULE — "which document
-+  wins" appears 0 times in `CLAUDE.md` and only in `00_overview.md`, verified by grep. A list of
-+  filenames going stale is visible; a precedence rule going stale in two places is the failure mode
-+  that cost this repo two MRs.
-+
-+  ⚠ I TRIMMED MY OWN ADDITIONS BEFORE COMMITTING, and it is worth recording why. The first version
-+  put a six-line explanation of WHY these rows exist into `CLAUDE.md` — a file loaded on every
-+  session, where narrative costs tokens forever and git already holds the history. Cut to one
-+  sentence. Net: `CLAUDE.md` +5 lines. The same trim was applied to `00_overview.md`.
-+
-+  THRESHOLD — NEW MECHANISM: none. No gate, no dependency, no CI change.
-+  THRESHOLD — RECURRING COST: none.
++  THRESHOLD — NEW MECHANISM: one test, in the existing suite, no new runner or gate config.
+   THRESHOLD — RECURRING COST: none.
  
  decisions_reserved:
--  - Whether the mock CHECKS should run in CI. They are hand-run today and stay that way here;
--    wiring them to a job is a new gate and its own decision.
--  - Whether the older surfaces' rulings (#47, #50, #52, #54 — competitions index, competition hub,
--    next-matches block, interaction standard) also need transcribing. This task covers the home
--    page, which is the one with a live citation and a voided GAP depending on it.
-+  - ⏳ WHETHER `ui_design_brief.md` §6.1, §6.2 AND §6.4 SHOULD BE MARKED SUPERSEDED. All three have
-+    wireframes and carry no marker; §6.3 has one and points at `10_home.md`. Marking three sections
-+    superseded decides which document binds a screen — the CPO's, not mine. Surfaced by
-+    `bi-analyst-reviewer`, recorded rather than resolved.
-+  - Whether `CLAUDE.md`'s "Operational notes" section (65 lines of traps its own header says were
-+    moved out of `active_work.md` because that file overflows) should move somewhere else. It is
-+    the same disease and it is in this file, but relocating it is its own decision.
-+  - Steps 3-6 of the plan (splitting `escalations.log`, giving reviewers a non-code place to read
-+    reasoning, stripping decision history from code, memory + budgets).
+-  - ⏳ WHETHER `ui_design_brief.md` §6.1, §6.2 AND §6.4 SHOULD BE MARKED SUPERSEDED. All three have
+-    wireframes and carry no marker; §6.3 has one and points at `10_home.md`. Marking three sections
+-    superseded decides which document binds a screen — the CPO's, not mine. Surfaced by
+-    `bi-analyst-reviewer`, recorded rather than resolved.
+-  - Whether `CLAUDE.md`'s "Operational notes" section (65 lines of traps its own header says were
+-    moved out of `active_work.md` because that file overflows) should move somewhere else. It is
+-    the same disease and it is in this file, but relocating it is its own decision.
+-  - Steps 3-6 of the plan (splitting `escalations.log`, giving reviewers a non-code place to read
+-    reasoning, stripping decision history from code, memory + budgets).
++  - The 292 `docs/` references and the 470 in memory. Whether they are worth a sweep at all is the
++    CPO's; my recommendation is no for docs, yes for memory (memory is loaded every session and is
++    where #753 sent me).
++  - Whether the 13 superseded `session_handoff_*.md` files (68 KB) should be deleted from the memory
++    store. The index already declares them superseded and one is still being cited. Memory lives
++    outside the repo so it is not in this MR either way.
++  - Steps 4-9 of the REVISED plan (logged in full under `2026-09-10 chore/dead-issue-references`):
++    split `escalations.log`; where parked work lives (10 stashes, one holding the built player
++    Overview tab); memory-vs-handover-vs-wireframe precedence; a non-code place for reviewer
++    reasoning; decision history out of code plus a hook; memory cut + size budgets.
  
  done_when:
--  - Both home generators run from a clean checkout and their checks pass.
--  - `git status` shows no untracked `.html` under `design-mocks/`.
--  - The offline gate set is green.
-+  - The five grep counts are non-zero and the precedence statement is complete.
-+  - The offline gate set is green (no code changes, so this is a formality — stated so it is run).
+-  - The five grep counts are non-zero and the precedence statement is complete.
+-  - The offline gate set is green (no code changes, so this is a formality — stated so it is run).
++  - The guard is mutation-proven and the two files are clean.
++  - `pytest tests/` and `ruff check .` green.
  
  amendments:
    - none yet
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 7fd014aa..c60c4bf6 100644
+index c60c4bf6..e2dd180d 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -8736,3 +8736,35 @@ this was a stale rationale paragraph, not a new claim about the metric.
-   so", and I cited that back to him as HIS decision. It was mine — the README's own next sentence
-   said "committing them is a separate decision". He asked "I don't remember that I decided", and he
-   was right.
+@@ -8768,3 +8768,43 @@ this was a stale rationale paragraph, not a new claim about the metric.
+ 
+   ⛔ NOT A RULING ON ANY OF THE SIX STEPS' CONTENT. He approved the plan and told me to start; each
+   step's own decisions are still his.
 +
-+2026-09-10 chore/authority-map-in-claude-md — CPO INSTRUCTION: fix the context engineering, as a
-+  step-by-step plan, and start.
++  ⚠ SUPERSEDED THE SAME DAY — see the next entry. The six steps below were written before the
++  player-page investigation, which turned up a whole category the plan did not cover. The CPO
++  re-ordered it. Read the revision, not this list.
 +
-+  HIS WORDS. On the problem: *"Every file should have a clearly defined purpose. I'm not sure if
-+  you're sticking to this... contradictory entries quickly pile up... you end up going off track,
-+  because you're accessing contradictory context and no longer understand which source has authority
-+  or priority."* And: *"You've even recorded decisions with timestamps in code comments and content.
-+  Code files really aren't meant for that."* And: *"you forget that we already have a mock-up for a
-+  page and simply redesign it however takes your fancy."* Then: *"I want a step by step plan how we
-+  address this"*, and on the plan: *"go"*.
++2026-09-10 chore/dead-issue-references — CPO: the context cleanup finishes BEFORE product work
++  resumes, and dead references go first.
 +
-+  THE SIX STEPS, in dependency order, so the sequence is not re-derived next session:
-+    1. design authority into the repo — MERGED as `!169`
-+    2. finish the precedence/reading order — this branch
-+    3. split `escalations.log` (795 KB, 164 entries, unsorted, no index)
-+    4. give reviewers a non-code place to read reasoning
-+    5. strip decision history from code, plus a hook — depends on 4
-+    6. cut memory to behaviour-changing rules; size budgets per surface
++  HIS WORDS. *"I thi k we are not yet done yet with improving our context engineering, no?"* Then,
++  on the recommendation to take dead references ahead of `escalations.log`: *"do as recommended but
++  before we get back to product work I want to have this setup/cleanup for better context management
++  first. If we don't do it it will negatively affect our product work as well."*
 +
-+  ⚠ STEP 5 DEPENDS ON STEP 4, and getting that backwards was my first plan's error. Reviewers read
-+  `review_input.patch` — the DIFF — so anything I want a reviewer to know goes into the diff, which
-+  is the structural reason decision history ends up in code comments. Banning it from code before
-+  there is somewhere else for it to go just squeezes the balloon.
++  WHAT PROMPTED THE REVISION. Going to build the player page surfaced four things the original six
++  steps did not cover:
++    · memory names issue **#753** as the player page's design authority — it does not exist.
++      257 distinct dead issue numbers, 767 references, across `CLAUDE.md`, `docs/` and memory.
++    · memory said the built Overview tab was uncommitted and lost; it is in **stash@{5}**. Ten
++      stashes hold parked work that nothing lists and no gate sees.
++    · memory says the player page is THREE tabs; a later handover says FOUR. Nothing declares which
++      wins.
++    · the only surviving record of that ruling is a commit on the DEAD GitHub remote.
 +
-+  ⚠ MEASURED, so the diagnosis is not felt: `escalations.log` 795 KB; `docs/wireframes/` 260 KB;
-+  memory 107 files with a 21 KB index; and `CLAUDE.md` — read at the start of every session —
-+  returning **0** on a grep for `wireframes`, `metrics_display`, `ui_design_brief`, `design-mocks`
-+  AND `escalations.log`.
++  THE REVISED PLAN — this numbering supersedes the previous entry's:
++    1. design authority into the repo ............................. MERGED `!169`
++    2. the precedence / reading order ............................. MERGED `!170`
++    3. dead issue references ...................................... this branch  [NEW, his call]
++    4. split `escalations.log` .................................... was 3
++    5. where parked work lives — the 10 stashes ................... [NEW]
++    6. memory vs handover vs wireframe precedence ................. [NEW]
++    7. a non-code place for reviewer reasoning .................... was 4
++    8. decision history out of code, plus a hook .................. was 5, depends on 7
++    9. memory cut to behaviour-changing rules; size budgets ....... was 6
 +
-+  ⛔ NOT A RULING ON ANY OF THE SIX STEPS' CONTENT. He approved the plan and told me to start; each
-+  step's own decisions are still his.
++  ⛔ LOGGED ONLY AFTER `scope-auditor` FAILED THE BRANCH — the fourth branch running for this
++  defect, and the most instructive form of it yet: I did not invent a ruling, I cited a REAL log
++  entry for a DIFFERENT sequence. The entry above says step 3 is "split escalations.log"; I was
++  doing dead references and calling it step 3. Citing a genuine record for something it does not say
++  is harder to catch than an invented one, and the reviewer caught it by reading the entry rather
++  than trusting the citation.
 diff --git a/CLAUDE.md b/CLAUDE.md
-index 7237537a..bf15e34b 100644
+index bf15e34b..d4b18789 100644
 --- a/CLAUDE.md
 +++ b/CLAUDE.md
-@@ -45,8 +45,13 @@ Next: player insights chain (#153 → #156).
- | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
- | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
- | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
-+| **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
-+| **What the CPO has RULED** — the durable, verifiable record | [.claude/task/escalations.log](.claude/task/escalations.log) — "you ruled X" needs a quote from here. A task contract is overwritten by the next task; this file is not. |
- | GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+@@ -29,7 +29,9 @@ A football data pipeline: Python ingestion from API-Football → BigQuery raw 
+ The legacy GitHub Pages match-preview UI it used to end in was **retired 2026-07-21** — offline, `site/` frozen. There is no public site today.
  
-+⛔ **The two bold rows are load-bearing.** Until 2026-09-10 this file pointed at neither, and #41 was
-+rebuilt from scratch against a design its issue had already approved.
-+
- ## Architecture decisions (non-negotiable)
+ Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL2, PL, PD, SA, L1, VL, WC (2026), WCQ*, LMX, LP, MLS, SPL, ED.
+-Next: player insights chain (#153 → #156).
++**What is next is never written here — run `glab issue list`.** A "next" line in a file this durable
++goes stale silently and then instructs. This one named two GitHub-era issues that resolve to
++nothing, and said so to every session until 2026-09-10.
  
- - **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
-diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
-index 3a464516..8622b528 100644
---- a/docs/wireframes/00_overview.md
-+++ b/docs/wireframes/00_overview.md
-@@ -2,9 +2,58 @@
+ ## Authoritative docs — read before making decisions
  
- > The wireframe-level spec for every screen of Matchday Pilot v2. This folder is the
- > **primary input** to the design pass (#366) and the template build (#368), and a
--> direct input to SEO (#369). The brief (`docs/ui_design_brief.md`) sets look-and-feel
--> principles; `docs/site_architecture.md` fixes IA/URLs; these wireframes bind every
--> block of every screen to a real exported field. Conflicts escalate to the CPO.
-+> direct input to SEO (#369).
-+
-+## Which document owns what — READ THIS BEFORE DESIGNING OR BUILDING A SCREEN
-+
-+Six documents govern what a screen shows. Each owns a different question, and they are listed here
-+once so nobody has to guess. `CLAUDE.md`'s authority table points here rather than restating it.
-+
-+| Question | Owner |
-+|---|---|
-+| What does the product look and feel like? | [`docs/ui_design_brief.md`](../ui_design_brief.md) §§1–5, 7 — principles, constraints, component inventory. ⚠ Its **§6 is NOT look-and-feel** — see below |
-+| What is the URL, and where does the page sit? | [`docs/site_architecture.md`](../site_architecture.md) — IA and URL scheme |
-+| Which blocks compose the page, and which mart backs each? | [`docs/content_architecture.md`](../content_architecture.md) — the block library and tabbed compositions |
-+| **What does this specific screen show, and is every field real?** | **these wireframes** where one exists for the screen — otherwise [`ui_design_brief.md`](../ui_design_brief.md) **§6**, which is a per-screen field contract in its own right ("what a mockup MAY show"; "if a stat is not listed below, we do not have it — do not draw it") |
-+| How is a METRIC displayed — label, format, grouping, order, direction? | [`metrics_display.md`](metrics_display.md) — **LOCKED**; the catalogue seed owns what a metric IS, this owns how it renders |
-+| What did the CPO approve it to LOOK like? | the **GitLab issue** for that surface, with `design-mocks/` as its rendering — see [`design-mocks/README.md`](../../design-mocks/README.md) |
-+
-+**On conflict: escalate to the CPO.** That rule is unchanged and deliberately absolute — no
-+"the more recent one wins", no "the more specific one wins". Whoever is reading does not get to
-+decide which document is right.
-+
-+A ruling already recorded in [`.claude/task/escalations.log`](../../.claude/task/escalations.log)
-+is not a conflict — it is the answer, and it is where to look before escalating something he has
-+already settled.
-+
-+### `ui_design_brief.md` §6 and these wireframes both bind fields — here is the relationship
-+
-+§6 is titled "Per-screen data contract (what a mockup MAY show)" and the brief calls it *"the single
-+most important rule in this document"*. It is the same kind of gate as [the binding
-+rule](#the-binding-rule-the-whole-point) below, not a look-and-feel principle.
-+
-+The pattern the documents already demonstrate: **once a screen's wireframe is written, it supersedes
-+that screen's §6 subsection.** §6.3 (Landing) carries exactly that marker and points at
-+[`10_home.md`](10_home.md) §0.
-+
-+⛔ **SO §6 IS STILL LIVE FOR ANY SCREEN WITH NO WIREFRAME — TODAY THAT IS THE COMPETITION HUB.**
-+`04_competition_hub.md` is `pending` in the inventory below and does not exist, while
-+`ui_design_brief.md` §6.5 is an un-superseded field list for that page. A reader who took row 1 to
-+mean "the brief is look-and-feel" would skip the only field contract that screen has. That is the
-+defect `bi-analyst-reviewer` FAILed this branch for.
-+
-+⏳ **OPEN, AND NOT DECIDED HERE:** §6.1 (Fixture), §6.2 (Team profile) and §6.4 (Player profile) have
-+wireframes and carry NO supersession marker, unlike §6.3. Whether they should is a question for the
-+CPO — retroactively marking three sections superseded is a decision about which document binds, not
-+a formatting fix.
-+
-+⚠ **THE MOCK/ISSUE LAYER IS NOT ABOVE OR BELOW THE WIREFRAMES — IT IS A DIFFERENT AXIS.** The issue
-+settles what the screen looks like and which boards it carries; the wireframe settles whether every
-+value on it is a real exported field. A design can be approved and still be unbuildable, and that is
-+a gap ([`99_gaps_register.md`](99_gaps_register.md)), not a contradiction.
-+
-+⛔ Until 2026-09-10 this reading order named only three of the six and omitted the mock/issue layer,
-+which is how #41 came to be rebuilt against a design its issue had already approved.
+@@ -73,10 +75,10 @@ rebuilt from scratch against a design its issue had already approved.
+   `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
+ - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
+ - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
+-- **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home, epic #361; the hybrid-browse block was dropped 2026-08-19). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**; #377 is v2's own go-live.
++- **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home; the hybrid-browse block was dropped 2026-08-19). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**. v2 has its own go-live.
+ - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
+ - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
+-- **Staging AND base models are TABLES** (base changed 2026-08-02 under #547; staging changed 2026-08-12 under #33 items 9/10). Both were views, so nothing stored an intermediate result and every *test* re-scanned the raw JSON. For base, measured over 35 days: tests $23.91 vs $5.84 to build the models. For staging, measured over 24h on 2026-08-12: tests $0.17 vs models $0.07, with **59 staging tests** each re-executing the parse beneath a view. Storing each layer once a night makes every test read a small table instead. ⚠ The `RAW_APIF_TRANSFERS` figure both items were argued from (6.82–6.99 GiB) is STALE — item 8b shrank that table to **0.178 GiB**; do not size future work from it. Materialisation is a LAYER decision set once in `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a model must never override it per model, whatever the value. `scripts/check_layer_contract.py` enforces both layers.
++- **Staging AND base models are TABLES** (base changed 2026-08-02; staging changed 2026-08-12 under #33 items 9/10). Both were views, so nothing stored an intermediate result and every *test* re-scanned the raw JSON. For base, measured over 35 days: tests $23.91 vs $5.84 to build the models. For staging, measured over 24h on 2026-08-12: tests $0.17 vs models $0.07, with **59 staging tests** each re-executing the parse beneath a view. Storing each layer once a night makes every test read a small table instead. ⚠ The `RAW_APIF_TRANSFERS` figure both items were argued from (6.82–6.99 GiB) is STALE — item 8b shrank that table to **0.178 GiB**; do not size future work from it. Materialisation is a LAYER decision set once in `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a model must never override it per model, whatever the value. `scripts/check_layer_contract.py` enforces both layers.
  
- ## The binding rule (the whole point)
+ ## Scalability rules — enforced by CI
  
+diff --git a/tests/test_no_dead_issue_refs.py b/tests/test_no_dead_issue_refs.py
+new file mode 100644
+index 00000000..66f3566b
+--- /dev/null
++++ b/tests/test_no_dead_issue_refs.py
+@@ -0,0 +1,69 @@
++"""The two files that INSTRUCT must not cite an issue number that resolves to nothing.
++
++GitHub's tracker did not migrate: 7 milestones and 114 issues are unreachable, and GitLab's own
++numbering restarted, so it currently tops out around #114. Every `#115` or above in this repo is a
++GitHub-era number pointing at nothing.
++
++That is harmless in an archive and harmful in an instruction. `CLAUDE.md` is read at the start of
++every session and `.claude/active_work.md` is the handover a cold session continues from; a dead
++number in either sends the reader somewhere empty. It happened: `CLAUDE.md` told every session its
++next work was "player insights chain (#153 -> #156)", and a memory file named issue #753 as the
++authority for the player page design, which is why that page could not be built from the record.
++
++⚠ A WARNING WAS ALREADY IN PLACE AND DID NOT WORK. The memory index says in bold that any GitHub
++number is a pointer to nothing. This is a test instead.
++
++Scope is deliberately these two files. The ~292 references under `docs/` are left alone: most are
++provenance rather than instruction, and 180 of the 257 distinct numbers survive as merged PRs in
++git history, so the work is recoverable even where the number is not.
++"""
++from __future__ import annotations
++
++import pathlib
++import re
++
++REPO = pathlib.Path(__file__).resolve().parent.parent
++
++# GitLab's highest issue at the time of writing. The boundary is checked, not assumed: `#33` reads
++# like a GitHub-era audit reference and resolves to a real GitLab issue ("Pipeline
++# cost/scalability"), so low numbers are genuinely live and only >= this are dead.
++FIRST_DEAD = 115
++
++INSTRUCTING_FILES = ("CLAUDE.md", ".claude/active_work.md")
++
++_REF = re.compile(r"#(\d+)")
++
++
++def _dead_refs(text: str) -> list[int]:
++    return sorted({int(n) for n in _REF.findall(text) if int(n) >= FIRST_DEAD})
++
++
++def test_the_instructing_files_cite_no_unreachable_issue():
++    offenders = {}
++    for rel in INSTRUCTING_FILES:
++        path = REPO / rel
++        assert path.exists(), f"{rel} is missing — this guard is pointed at the wrong path"
++        dead = _dead_refs(path.read_text(encoding="utf-8"))
++        if dead:
++            offenders[rel] = dead
++
++    assert not offenders, (
++        "These files instruct, and they cite issue numbers that resolve to nothing: "
++        + "; ".join(f"{f} -> {', '.join('#%d' % n for n in ns)}" for f, ns in offenders.items())
++        + f". GitHub's tracker did not migrate, so any #{FIRST_DEAD}+ is unreachable. "
++        "Say the FACT instead of the number — the sentence almost always already carries it. "
++        "If the referenced work matters, it is probably a merged PR: `git log --all --grep='#N'` "
++        "finds it. Do NOT satisfy this test by deleting the sentence."
++    )
++
++
++def test_the_boundary_is_not_vacuous():
++    """A guard that can never fire is not a guard.
++
++    If `FIRST_DEAD` were set above every number the repo uses, the test above would pass on any
++    content at all. This pins that the pattern really does match a reference in the shape these
++    files use, so the first test is known to be capable of failing.
++    """
++    assert _dead_refs("see #153 and #156") == [153, 156]
++    assert _dead_refs("GitLab #33 and #114 are live") == []
++    assert _dead_refs("no refs here") == []
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -335,7 +359,8 @@ index 3a464516..8622b528 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  140 +-
-#    .claude/task/review_input.patch     | 7545 ++---------------------------------
-#    2 files changed, 309 insertions(+), 7376 deletions(-)
+#   .claude/active_work.md              |   2 +-
+#    .claude/task/acceptance_evidence.md | 108 ++++----
+#    .claude/task/review_input.patch     | 508 +++++++++++++++++-------------------
+#    3 files changed, 287 insertions(+), 331 deletions(-)
 # ============================================================================
