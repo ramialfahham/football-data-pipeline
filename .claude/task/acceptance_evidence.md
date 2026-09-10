@@ -1,103 +1,102 @@
-# Acceptance evidence — #41, the Top teams block
+# Acceptance evidence — design mocks into the repo
 
-Read from BUILT output (`site_v2/dist`, the dev server at 375px and 1280px, and the committed
-`site_v2/src/data/landing.json`), not from source.
-
-⛔ **THIS FILE WAS REWRITTEN WHOLESALE, NOT AMENDED.** Its previous version measured the FIRST
-version of this branch — the one built without reading #41 — and every headline number in it was
-false by the time it was read: `250 built page(s)` (now 307), "the rows do not link" and "0 anchors"
-(now 28 hrefs per locale, 7 per board), board titles quoted with the Ø sigil (now expanded), and a
-closing section calling the links "deliberately absent (#41)" when #41 is the document that requires
-them. That is the accumulate-instead-of-replace failure this repo has recorded nine times, so the
-remedy applied here is the one the record prescribes: pull EVERY number out and re-derive it, rather
-than sweep for the ones I remember changing.
+Read from running the tooling, not from reading it. Every generator and check below was executed.
 
 criteria_demonstrated:
-  - ONE ROW PER LEAGUE, ALL SEVEN, DECIDED BY THE WAREHOUSE. The committed `landing.json` carries
-    4 team boards x 7 rows = 28 rows, and the export filters `league_leader_order = 1` — a column
-    `mart_team_leaderboards` has served since `!167`, confirmed live in prod before any code was
-    written.
-  - THE INTRO SENTENCE NAMES THE LEAGUES ON THE BOARDS. Rendered in all three locales; the league
-    list is read from the payload rows rather than restated, so it cannot drift when #101 changes
-    the pool nightly.
-  - ⭐ THE LEAGUE NAMES ARE THE WAREHOUSE'S, NOT THE REGISTRY'S. The intro read
-    "... Eredivisie, 1. Fußball-Bundesliga, Premier League" until the CPO caught it on the page; the
-    export was building its competition dict from `docs/competition_registry.yml`, which is INPUT.
-    Now `Bundesliga`, in all three locales. Swept across the whole registry — **37 identical,
-    11 DIFFERENT** — and fixed on BOTH surfaces that display a competition name, not only the one
-    that was looked at: `competitions.json` gains the same 11 corrections and 0 slug changes, which
-    is what `TeamHeader.astro` renders on the BL1 team pages this branch builds. Zero registry-only
-    names survive anywhere in the 307 built pages. Detail and mutation results: §3b of
-    `rendered_page_evidence.md`.
-  - THE EXPORT IS DETERMINISTIC AND COMPARES NOTHING. `--entities landing` run twice against live
-    BigQuery, outputs compared with `cmp`: IDENTICAL, and identical again after the name overlay was
-    refactored into one shared helper. The query is `order by t.board_leader_order` — one served
-    column. The shaper groups, preserves and caps. Mutation-tested: putting a value sort into the
-    shaper turns `test_top_teams_does_not_reorder_what_it_is_given` RED. That test feeds rows in an
-    order no sort would produce, so it cannot pass by luck.
-  - ⭐ THE MIXED FORMAT IS RIGHT, READ FROM THE BUILT HTML rather than from the catalogue. This is
-    the one thing that differs from the player block, whose four boards are all integers:
-        goals_per_match           1 decimal   4.3, 3.6, 3.6, 3.5
-        shots_on_goal_per_match   1 decimal   9.0, 9.0, 8.7, 8.5
-        passes_per_match          0 decimals  767, 746, 701, 647
-        duels_per_match           0 decimals  121, 119, 111, 109
-    A component that picked a formatter would have rendered one pair wrong. The format travels per
-    board from `metric_catalogue.csv`, and `test_top_teams_carries_the_catalogue_format_per_board`
-    asserts the boards do not collapse to a single shared format.
-  - EVERY BOARD TITLE IS LOCALISED, NON-EMPTY, AND SPELLS THE RATE OUT — #41's rule, per locale:
-        EN  Goals per match / Shots on goal per match / Passes per match / Duels per match
-        DE  Tore pro Spiel / Torschüsse pro Spiel / Pässe pro Spiel / Zweikämpfe pro Spiel
-        FI  Maalit ottelua kohden / Maalilaukaukset ottelua kohden / Syötöt ottelua kohden /
-            Kaksinkamppailut ottelua kohden
-    Blank-title count is 0 in each locale and the **Ø sigil count on the home page is 0 in each
-    locale**. The expansion derives from the LOCALISED label, so a Finnish board is not titled in
-    English. No metric label was authored: all four already existed in the catalogue and in
-    `strings.ts`, and "per match"/"pro Spiel"/"ottelua kohden" already ship in
-    `heroVerdictUnder`/`heroCaption`. A metric ROW elsewhere keeps the sigil, which
-    `metrics_display.md` locks — and that heading-vs-row boundary is now recorded IN
-    `metrics_display.md`, not only in #41.
-    ⛔ THE CODE BEHIND THOSE TITLES WAS REWRITTEN AFTER A REVIEW FAIL, though the titles did not
-    change. `boardTitle()` classified the metric from its id (`endsWith("_per_match")`); it now
-    takes `(lang, labelKey)` and branches on nothing, and the premise that this block's four boards
-    are per-match rates is asserted against the catalogue's `denominator_expr` in
-    `test_the_team_board_set_is_all_per_match_rates`. See §2 of `rendered_page_evidence.md`.
-  - EVERY ROW LINKS OUT AND EVERY LINK RESOLVES. `audit-seo: 307 built page(s) checked. OK.` with
-    the page-count driver showing `/[lang]/teams/[team] -> 60` — the 20 distinct teams the boards
-    link to x 3 locales, up from 3. Measured on the built page: **28 team hrefs per locale**, 7 on
-    each of the four boards (against 0 in the first version of this branch), matching the 28 player
-    hrefs the Top players block already emitted. Check 8 passing is what proves the 20 committed
-    payloads are exactly the right ones. NO NEW ROUTE: `[lang]/teams/[team].astro` already existed.
-  - GEOMETRY HOLDS AT BOTH WIDTHS, AND ACROSS BOTH BLOCKS. At 375x812 every one of the eight boards
-    has a minimum row height of 55.8px against the 44px floor, `.ent` resolves to a single computed
-    display value per board (so a board stacks as a whole, never row-by-row), and the value column's
-    right edge is 359 on ALL EIGHT — the two blocks line up with each other, not just internally.
-    At 1280x900: minimum 44.0px, one-line variant, right edge 945 on all eight, no name truncated.
-    The rows are anchors now, so the focus ring was re-measured on a team board rather than carried
-    over: outline-offset -2px, 0px reach beyond the border box, no divider crossed. No console
-    errors.
-  - THE OFFLINE GATE SET IS GREEN, re-run after the name fix:
-        pytest tests/test_export_landing.py     27 passed
-        pytest tests/test_export_site_data.py   45 passed (72 together)
-        npm test                                83 passed
-        ruff check scripts tests                All checks passed
-        check_copy_gate.py                      exit 0, 474 strings across 3 locales
-                                                (405 chrome + 69 metric labels)
+  - TRACKED: 27 `.py` + 2 `.csv` + `README.md` under `design-mocks/`. `git status --short | grep -c
+    '\.html'` = **0**. The ~950 KB of rendered HTML is `.gitignore`d as build output, alongside
+    `__pycache__/`.
+  - THE HOME GENERATORS RUN, WHICH THEY DID NOT BEFORE. `gen_top_players.py` and `gen_top_teams.py`
+    both wrote their mock (69,320 and 68,969 bytes); `gen_home.py` composed them (106,281 bytes).
+    Before this branch all three raised `FileNotFoundError` — verified by running one against the
+    old path. `check_players.py`, `check_teams.py` and `check_home.py` each report `ALL PASS`.
+  - THE REGENERATED MOCKS MATCH THE REVIEWED DESIGN STRUCTURALLY: `top_players_mock.html` and
+    `top_teams_mock.html` are each **4 boards / 28 rows / 28 value cells**. That count is also what
+    settled the docstring contradiction below — one value column, not two.
+  - ⛔ THE FIRST PASS AT THIS CRITERION FAILED, AND `bi-analyst-reviewer` CAUGHT IT. The criterion
+    says EVERY 2026-08-10 ruling in a generator docstring; I transcribed the board-composition ones
+    and missed three that govern both blocks — the crest being the CLUB badge even on player rows,
+    every board ranking descending without exception (and the conditional reason: the two
+    `lower_better` boards were dropped the same session), and stacking being per-board, "they all
+    stack together or not". I swept the paragraph I was working in, not the docstring.
+    Re-done as a SWEEP: `grep "CPO 2026"` across both generators returns 15 attributed lines, which
+    reduce to EIGHT distinct rulings. Where each now lives:
+        1-3  the board sets, order and cut list ............. `10_home.md` §0 (already there)
+        4    ONE metric per board -> no header row, ONE value column ... `10_home.md`, added
+        5    the board title spells the sigil out ........... `metrics_display.md`, by its charter
+        6    the crest is the CLUB badge, player rows too ... `10_home.md`, added
+        7    every board ranks descending, no exception ..... `10_home.md`, added
+        8    a board stacks as a whole ...................... `10_home.md`, added
+    ⚠ (5) living elsewhere is not an omission — `metrics_display.md`'s charter owns how a metric is
+    displayed, and it being correctly routed is what made the other three read as missed rather
+    than deliberately placed.
+  - THE 2026-08-10 RULINGS ARE IN THE WIREFRAME. `10_home.md` already carried the Top players set,
+    what it cut, and the no-goalkeeper-board consequence. The Top teams paragraph was missing four:
+    Ø Key passes dropped from the passes board; deserved-vs-actual dropped WITH the CPO's reason
+    (deserved points needs one ladder, a pooled board cannot carry it); the shots board ranking on
+    `shots_on_goal_per_match` rather than the difference; the Passes column order reversed. Plus the
+    warehouse consequence — `sot_difference_per_match` and `finishing_efficiency` unused by the
+    block. All now stated there.
+  - GAP-24 CITES THE WIREFRAME. `99_gaps_register.md`'s void previously rested on
+    "`design-mocks/gen_top_players.py`'s header" — a file outside the repo. It now cites
+    `10_home.md` §0.
+  - NO DOCSTRING CLAIMS TWO VALUE COLUMNS. `gen_top_teams.py`'s header said "two value columns
+    throughout" 227 lines above its own code comment saying "ONE value column and no header row".
+    Replaced with the single-column statement and the rendered counts that prove it.
+  - THE OFFLINE GATES ARE GREEN, and one of them was newly engaged:
+        pytest tests/                 1031 passed, 1 skipped, 14 subtests
+        ruff check . (CI's config)    All checks passed
+        npm test (site_v2)            83 passed
 
-## What was reused rather than rebuilt
+## What bringing them in actually cost, and why that is the point
 
-`system.css`'s board rules were written for both blocks — its own comment says "the Home page's Top
-players (#40) and, when it lands, Top teams (#41)" — so this branch adds no CSS at all. The value
-column lining up at the same offset across both blocks at both widths is the evidence that the
-shared pattern actually holds rather than merely being intended. The `a.brow:focus-visible`
-rule #40 shipped covers the new anchors, which is what "no new CSS" has to mean if it is true.
+Adding 27 files to the repo put them under gates they had never faced. `ruff check .` — which CI
+runs over the whole tree — reported **18 errors**. 13 were real defects and were fixed:
 
-## What is NOT demonstrated here
+| rule | n | what it was |
+|---|---|---|
+| F401 | 4 | dead imports, including `ZONE` in a file whose own comment says importing "in case" is the scaffolding that reads as a live feature |
+| F841 | 3 | unused locals — one of them, `example` in `gen_competitions.py`, was a REAL BUG: the table header promises `example / n` and the row emitted only `n`, so the computed example was dropped on the floor. Now rendered |
+| E741 | 3 | `l` as a loop variable (W/D/L) → `lost` |
+| E731 | 2 | `strip = lambda …` → `def` |
 
-- No screenshot: the Browser pane's `screenshot` action fails in this environment, so every visual
-  claim is a measured number or emitted text.
-- No dark/light toggle. The block introduces no new colour token — it reuses the same board classes
-  as Top players, which the theme already swaps. That is reasoning, not a measurement, and is
-  labelled as such.
-- The crests are not fetched. #41 records that the block inherits #36 (crests hotlinked from
-  `media.api-sports.io`, a go-live blocker with a licence question). This block neither adds to that
-  problem nor solves it.
+The remaining 5 are `gen_home.py`'s `sys.path` shim — legitimate, and marked `# noqa: E402` at each
+import, which is the pattern every other shim site in this repo already uses. `.ruff-ci.toml` is not
+touched: its per-file table is documented as complete at four, and adding to a guarded config to
+silence a new file is the wrong direction.
+
+## Drift found and NOT fixed — the competitions-index surface
+
+`gen_competitions.py` still fails, and its own guard is why: `intercontinental_super_cup` is in the
+shipped `dbt_project/seeds/competition_types.csv` and missing from the mock's
+`competition_types.proposed.csv`, so the "undeclared type change" assertion fires. That is the guard
+working — it exists so a mock cannot be designed against a taxonomy that is not real.
+
+Left failing deliberately. `competition_types.proposed.csv` is a PROPOSAL that is meant to differ
+from the shipped seed, so syncing the two is a taxonomy judgement, not a mechanical fix — and this
+task's objective is the home page, with the competitions index (#54) already in
+`decisions_reserved`.
+
+## Five ways the store had rotted, all from living outside the repo
+
+1. Every generator dead — `REPO` pointed at `D:/Projects/fdp-product`, which has no `dbt_project/`.
+2. The player metric ids were renamed underneath it (`goals` → `goals_player`, ×4).
+3. Two checks hardcoded `"Shots on target per match"` after the CPO renamed it to **on goal**.
+4. The four Finnish player labels are marked "PROBE, NOT approved copy"; they shipped and were
+   approved. NOT fixed — see below.
+5. `competition_types.proposed.csv` fell behind the shipped seed (above).
+
+⚠ (4) is left alone on purpose. The renderer discards the probe flag and hardcodes
+`class="fi probe"`, so un-dotting them means changing what the mock renders — a design change to an
+artifact the CPO reviewed, which is not this task's job. The stale claim is corrected in the data
+and flagged at the line.
+
+## What is NOT demonstrated
+
+- No visual check of the mocks. They are HTML that must be served over HTTP to view (the README
+  records that `file://` times out in the browser pane); structure is asserted by the three checks
+  and by the element counts above, not by looking.
+- `gen_competitions.py`, `gen_competition_hub.py`, `gen_matches.py`, `gen_navmap.py`,
+  `gen_sitemap.py`, `gen_taxonomy.py` and their checks are brought in and lint clean, but only the
+  three HOME generators are asserted to run correctly. The others belong to surfaces this task
+  reserves.
