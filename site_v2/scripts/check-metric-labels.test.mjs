@@ -176,6 +176,59 @@ test("the page-spec checker's parser and this one see the SAME metric keys", asy
     "the two metric-key parsers disagree; one of the regexes has drifted");
 });
 
+test("a board title spells the rate out, in the LOCALE's own words", async () => {
+  // #41: "Ø Goals" reads badly as a heading, and a bare "Goals" is wrong because these are
+  // per-match rates and a bare noun reads as a season total. So the sigil is expanded.
+  // ⚠ Derived from the LOCALISED label — the DE and FI labels carry the sigil too, so deriving from
+  // the English one would title a Finnish board in English. That is the failure this asserts.
+  const { boardTitle } = await import("../src/i18n/strings.ts");
+  const key = "metrics.goals_per_match.label";
+  assert.equal(boardTitle("en", key), "Goals per match");
+  assert.equal(boardTitle("de", key), "Tore pro Spiel");
+  assert.equal(boardTitle("fi", key), "Maalit ottelua kohden");
+  for (const lang of ["en", "de", "fi"]) {
+    assert.ok(!boardTitle(lang, key).includes("Ø"),
+      `${lang} board title still carries the sigil it is supposed to expand`);
+  }
+});
+
+test("every team board label the block renders is a bare sigil label, not a windowed one",
+  async () => {
+  // ⛔ REPLACES a test that fed `boardTitle` a per-90 metric id and asserted it came back
+  // unexpanded. That test pinned the WRONG guard: `boardTitle` used to read
+  // `metricId.endsWith("_per_match")`, and `analytics-engineer-reviewer` FAILed it as a taxonomy
+  // judgement made in the frontend from an id's spelling — which this catalogue already proves
+  // unsafe (`shots_on_goal_per_match` carries `metrics.shots_on_target_per_match.label`).
+  //
+  // The real premise is that the four boards this block renders are per-match rates, and that is
+  // asserted against the catalogue's own data in `test_the_team_board_set_is_all_per_match_rates`
+  // (`denominator_expr = count(*)`). What is left for THIS file is the display half of the same
+  // premise: those four labels must be bare `Ø <noun>` strings, because expanding one that already
+  // states its window would read "Ø Goals per 90 per match".
+  const { boardTitle, metricLabel, t } = await import("../src/i18n/strings.ts");
+  const boards = ["goals_per_match", "shots_on_goal_per_match", "passes_per_match",
+                  "duels_per_match"];
+  const rows = catalogueRows();
+  for (const id of boards) {
+    const row = rows.find((r) => r.metric_id === id && r.entity === "team");
+    assert.ok(row, `${id} is not a team metric in the catalogue`);
+    for (const lang of ["en", "de", "fi"]) {
+      const label = metricLabel(lang, row.label_i18n_key);
+      assert.ok(label.startsWith("Ø "),
+        `${lang} label for ${id} is "${label}" — no sigil for the heading to expand`);
+
+      // The window must appear EXACTLY ONCE in the heading. A label that already stated its own
+      // window would read "Ø Goals per 90 per match"; this counts rather than pattern-matches, so
+      // it needs no per-locale list of window words.
+      const title = boardTitle(lang, row.label_i18n_key);
+      const window = t(lang, "perMatch");
+      assert.equal(title.split(window).length - 1, 1,
+        `${lang} heading for ${id} is "${title}" — "${window}" must appear exactly once`);
+      assert.ok(!title.includes("Ø"), `${lang} heading for ${id} kept the sigil: "${title}"`);
+    }
+  }
+});
+
 test("metricRows.ts no longer carries an English label", () => {
   assert.ok(!/^\s*label:/m.test(rowsSrc),
     "metricRows.ts still declares `label:` — a metric name must live in one place only");

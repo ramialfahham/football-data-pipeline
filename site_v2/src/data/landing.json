@@ -169,7 +169,7 @@
           "club_slug": "sc-freiburg",
           "crest": "https://media.api-sports.io/football/teams/160.png",
           "league_code": "BL1",
-          "league_name": "1. Fußball-Bundesliga",
+          "league_name": "Bundesliga",
           "value": 3.0
         },
         {
@@ -263,7 +263,7 @@
           "club_slug": "rb-leipzig",
           "crest": "https://media.api-sports.io/football/teams/173.png",
           "league_code": "BL1",
-          "league_name": "1. Fußball-Bundesliga",
+          "league_name": "Bundesliga",
           "value": 2.0
         }
       ]
@@ -346,7 +346,7 @@
           "club_slug": "bayer-04-leverkusen",
           "crest": "https://media.api-sports.io/football/teams/168.png",
           "league_code": "BL1",
-          "league_name": "1. Fußball-Bundesliga",
+          "league_name": "Bundesliga",
           "value": 198.0
         }
       ]
@@ -429,8 +429,290 @@
           "club_slug": "1-fsv-mainz-05",
           "crest": "https://media.api-sports.io/football/teams/164.png",
           "league_code": "BL1",
-          "league_name": "1. Fußball-Bundesliga",
+          "league_name": "Bundesliga",
           "value": 9.0
+        }
+      ]
+    }
+  ],
+  "top_teams": [
+    {
+      "metric_key": "goals_per_match",
+      "label_i18n_key": "metrics.goals_per_match.label",
+      "format": "decimal_1",
+      "rows": [
+        {
+          "team_id": 529,
+          "slug": "fc-barcelona",
+          "name": "FC Barcelona",
+          "crest": "https://media.api-sports.io/football/teams/529.png",
+          "league_code": "PD",
+          "league_name": "La Liga",
+          "value": 4.25
+        },
+        {
+          "team_id": 197,
+          "slug": "psv-eindhoven",
+          "name": "PSV Eindhoven",
+          "crest": "https://media.api-sports.io/football/teams/197.png",
+          "league_code": "ED",
+          "league_name": "Eredivisie",
+          "value": 3.6
+        },
+        {
+          "team_id": 157,
+          "slug": "bayern-munchen",
+          "name": "Bayern München",
+          "crest": "https://media.api-sports.io/football/teams/157.png",
+          "league_code": "BL1",
+          "league_name": "Bundesliga",
+          "value": 3.588235294117647
+        },
+        {
+          "team_id": 211,
+          "slug": "sl-benfica",
+          "name": "SL Benfica",
+          "crest": "https://media.api-sports.io/football/teams/211.png",
+          "league_code": "LP",
+          "league_name": "Liga Portugal",
+          "value": 3.5
+        },
+        {
+          "team_id": 497,
+          "slug": "as-roma",
+          "name": "AS Roma",
+          "crest": "https://media.api-sports.io/football/teams/497.png",
+          "league_code": "SA",
+          "league_name": "Serie A",
+          "value": 3.3333333333333335
+        },
+        {
+          "team_id": 49,
+          "slug": "chelsea-fc",
+          "name": "Chelsea FC",
+          "crest": "https://media.api-sports.io/football/teams/49.png",
+          "league_code": "PL",
+          "league_name": "Premier League",
+          "value": 2.6666666666666665
+        },
+        {
+          "team_id": 95,
+          "slug": "rc-strasbourg-alsace",
+          "name": "RC Strasbourg Alsace",
+          "crest": "https://media.api-sports.io/football/teams/95.png",
+          "league_code": "L1",
+          "league_name": "Ligue 1",
+          "value": 2.6666666666666665
+        }
+      ]
+    },
+    {
+      "metric_key": "shots_on_goal_per_match",
+      "label_i18n_key": "metrics.shots_on_target_per_match.label",
+      "format": "decimal_1",
+      "rows": [
+        {
+          "team_id": 197,
+          "slug": "psv-eindhoven",
+          "name": "PSV Eindhoven",
+          "crest": "https://media.api-sports.io/football/teams/197.png",
+          "league_code": "ED",
+          "league_name": "Eredivisie",
+          "value": 9.0
+        },
+        {
+          "team_id": 529,
+          "slug": "fc-barcelona",
+          "name": "FC Barcelona",
+          "crest": "https://media.api-sports.io/football/teams/529.png",
+          "league_code": "PD",
+          "league_name": "La Liga",
+          "value": 9.0
+        },
+        {
+          "team_id": 497,
+          "slug": "as-roma",
+          "name": "AS Roma",
+          "crest": "https://media.api-sports.io/football/teams/497.png",
+          "league_code": "SA",
+          "league_name": "Serie A",
+          "value": 8.666666666666666
+        },
+        {
+          "team_id": 157,
+          "slug": "bayern-munchen",
+          "name": "Bayern München",
+          "crest": "https://media.api-sports.io/football/teams/157.png",
+          "league_code": "BL1",
+          "league_name": "Bundesliga",
+          "value": 8.5
+        },
+        {
+          "team_id": 211,
+          "slug": "sl-benfica",
+          "name": "SL Benfica",
+          "crest": "https://media.api-sports.io/football/teams/211.png",
+          "league_code": "LP",
+          "league_name": "Liga Portugal",
+          "value": 8.25
+        },
+        {
+          "team_id": 116,
+          "slug": "rc-lens",
+          "name": "RC Lens",
+          "crest": "https://media.api-sports.io/football/teams/116.png",
+          "league_code": "L1",
+          "league_name": "Ligue 1",
+          "value": 7.333333333333333
+        },
+        {
+          "team_id": 33,
+          "slug": "manchester-united-fc",
+          "name": "Manchester United FC",
+          "crest": "https://media.api-sports.io/football/teams/33.png",
+          "league_code": "PL",
+          "league_name": "Premier League",
+          "value": 6.666666666666667
+        }
+      ]
+    },
+    {
+      "metric_key": "passes_per_match",
+      "label_i18n_key": "metrics.passes_per_match.label",
+      "format": "decimal_0",
+      "rows": [
+        {
+          "team_id": 85,
+          "slug": "paris-saint-germain-fc",
+          "name": "Paris Saint-Germain FC",
+          "crest": "https://media.api-sports.io/football/teams/85.png",
+          "league_code": "L1",
+          "league_name": "Ligue 1",
+          "value": 767.3333333333334
+        },
+        {
+          "team_id": 50,
+          "slug": "manchester-city-fc",
+          "name": "Manchester City FC",
+          "crest": "https://media.api-sports.io/football/teams/50.png",
+          "league_code": "PL",
+          "league_name": "Premier League",
+          "value": 746.0
+        },
+        {
+          "team_id": 157,
+          "slug": "bayern-munchen",
+          "name": "Bayern München",
+          "crest": "https://media.api-sports.io/football/teams/157.png",
+          "league_code": "BL1",
+          "league_name": "Bundesliga",
+          "value": 700.9117647058823
+        },
+        {
+          "team_id": 529,
+          "slug": "fc-barcelona",
+          "name": "FC Barcelona",
+          "crest": "https://media.api-sports.io/football/teams/529.png",
+          "league_code": "PD",
+          "league_name": "La Liga",
+          "value": 646.75
+        },
+        {
+          "team_id": 505,
+          "slug": "inter-milan",
+          "name": "Inter Milan",
+          "crest": "https://media.api-sports.io/football/teams/505.png",
+          "league_code": "SA",
+          "league_name": "Serie A",
+          "value": 643.6666666666666
+        },
+        {
+          "team_id": 217,
+          "slug": "sc-braga",
+          "name": "SC Braga",
+          "crest": "https://media.api-sports.io/football/teams/217.png",
+          "league_code": "LP",
+          "league_name": "Liga Portugal",
+          "value": 602.3333333333334
+        },
+        {
+          "team_id": 197,
+          "slug": "psv-eindhoven",
+          "name": "PSV Eindhoven",
+          "crest": "https://media.api-sports.io/football/teams/197.png",
+          "league_code": "ED",
+          "league_name": "Eredivisie",
+          "value": 588.2
+        }
+      ]
+    },
+    {
+      "metric_key": "duels_per_match",
+      "label_i18n_key": "metrics.duels_per_match.label",
+      "format": "decimal_0",
+      "rows": [
+        {
+          "team_id": 65,
+          "slug": "nottingham-forest-fc",
+          "name": "Nottingham Forest FC",
+          "crest": "https://media.api-sports.io/football/teams/65.png",
+          "league_code": "PL",
+          "league_name": "Premier League",
+          "value": 120.66666666666667
+        },
+        {
+          "team_id": 536,
+          "slug": "sevilla",
+          "name": "Sevilla",
+          "crest": "https://media.api-sports.io/football/teams/536.png",
+          "league_code": "PD",
+          "league_name": "La Liga",
+          "value": 118.75
+        },
+        {
+          "team_id": 512,
+          "slug": "frosinone",
+          "name": "Frosinone",
+          "crest": "https://media.api-sports.io/football/teams/512.png",
+          "league_code": "SA",
+          "league_name": "Serie A",
+          "value": 111.33333333333333
+        },
+        {
+          "team_id": 106,
+          "slug": "stade-brestois-29",
+          "name": "Stade Brestois 29",
+          "crest": "https://media.api-sports.io/football/teams/106.png",
+          "league_code": "L1",
+          "league_name": "Ligue 1",
+          "value": 109.0
+        },
+        {
+          "team_id": 182,
+          "slug": "1-fc-union-berlin",
+          "name": "1. FC Union Berlin",
+          "crest": "https://media.api-sports.io/football/teams/182.png",
+          "league_code": "BL1",
+          "league_name": "Bundesliga",
+          "value": 105.38235294117646
+        },
+        {
+          "team_id": 4716,
+          "slug": "casa-pia-ac",
+          "name": "Casa Pia AC",
+          "crest": "https://media.api-sports.io/football/teams/4716.png",
+          "league_code": "LP",
+          "league_name": "Liga Portugal",
+          "value": 105.2
+        },
+        {
+          "team_id": 207,
+          "slug": "fc-utrecht",
+          "name": "FC Utrecht",
+          "crest": "https://media.api-sports.io/football/teams/207.png",
+          "league_code": "ED",
+          "league_name": "Eredivisie",
+          "value": 101.8
         }
       ]
     }

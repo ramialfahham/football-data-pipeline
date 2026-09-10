@@ -435,29 +435,78 @@ Closed since 2026-08-04:
   each team-season-board still appears once, so the rank is wrong rather than duplicated.
   `assert_mart_team_leaderboards_every_board_has_a_leader` was added for it (0 of 865 groups healthy
   vs 34 of 266 mutated), so the shape this paragraph specifies cannot silently regress.
-- **The Top teams intro copy — CPO confirmed 2026-08-18 the mock's "Ranked across pooled leagues"
-  line is wrong now too**, and needs the same adjustment as the Top players line, same session.
-  **Proposed, NOT yet approved** (copy is always his call — this is a draft for him to correct or
-  confirm):
+- ~~**The Top teams intro copy.**~~ **RULED 2026-09-10.** The CPO dictated the sentence's second
+  half in all three locales after `bi-analyst-reviewer` FAILed `feat/41-top-teams-block` for
+  shipping the unapproved draft below. His words, verbatim:
 
-  > Season to date. The top team from each league: Premier League, La Liga, Bundesliga, Serie A,
-  > Ligue 1, Liga Portugal, Eredivisie.
+  > EN — The top team from each league in the rankings
+  > DE — Die Top-Mannschaft jeder Liga in den Ranglisten
+  > FI — Kunkin sarjan kärkijoukkue ranking-listoilla
 
-  Mirrors the approved Top players line's three constraints: states the mechanic and echoes the
-  block's own name, avoids "leader" for the same reason it was rejected there, names no metric.
-  Keeps **"Season to date"**, not "Season totals to date" — the team boards are per-match rates,
-  not sums, so "totals" would misdescribe them, not just diverge from the players wording for no
-  reason. Same caveat as the players line: the league list is the SHOWN GROUP's members, not a
-  fixed seven — and which group is shown is GAP-33, not yet ruled.
-- ~~**The Top players intro copy.**~~ **APPROVED 2026-08-18** (CPO: "you rephrase", then approved
-  the proposal). The EN string is:
+  Two substantive changes beyond wording, recorded so a rewrite does not undo them: the line now
+  says WHERE the pick comes from ("in the rankings"), which no draft did; and the DE/FI nouns moved
+  from *beste Mannschaft* / *paras joukkue* to **Top-Mannschaft** / **kärkijoukkue**.
 
-  > Season totals to date. The top player from each league: Premier League, La Liga, Bundesliga,
-  > Serie A, Ligue 1, Liga Portugal, Eredivisie.
+  **The WINDOW phrase is APPROVED too** — "approved", 2026-09-10. He rejected "Season to date"
+  outright (*"It should be something that is valid during the season and after the season has
+  completed as well"*), asked me to propose a replacement, and confirmed it:
+  **"Current season." / "Aktuelle Saison." / "Tämä kausi."** The reasoning, recorded so a rewrite is
+  judged against the same bar: "Current season" is the same claim the QUERY makes, since the rows
+  are selected by `is_current_season`, so the sentence cannot drift from what is shown in either
+  state. FI is *Tämä kausi* rather than the more literal *Kuluva kausi* because *kuluva* means
+  ONGOING, which would reintroduce in Finnish the exact mid-season-only problem he rejected in
+  English.
 
-  It replaces *"Season totals to date. Ranked across pooled leagues: …"*, which described the
-  pooled ranking withdrawn by the ruling above. Three constraints it satisfies, recorded so a
-  rewrite does not undo them:
+  ⛔ THIS PARAGRAPH SAID "still open … shipped pending his confirmation" FOR A FULL REVIEW ROUND
+  AFTER HE APPROVED IT, and `scope-auditor` and `bi-analyst-reviewer` FAILed it independently in
+  round 3. Rounds 1 and 2 FAILed for the opposite — unapproved copy that looked settled. Both are
+  the same defect: the approval STATUS of a §10 string not being swept when it changed. This
+  document is the one a future reader trusts on copy status, so a stale marker here is not a
+  cosmetic lag.
+
+  ⚠ **This ruling did not, by itself, touch the Top players line** — that was deliberately left as
+  his to raise, and he raised it in the same session. See the Top players bullet below, RE-RULED
+  2026-09-10. Both blocks now read one shape.
+  ⛔ THIS SENTENCE SAID THE PLAYERS LINE "still reads 'Season totals to date'" UNTIL THE SWEEP AFTER
+  ROUND 3. No reviewer flagged it — it was found by re-grepping every changed file for the whole
+  class rather than fixing the two locations the reviewers named.
+
+  Same caveat as the players line: the league list is the SHOWN GROUP's members, not a fixed seven —
+  and which group is shown is GAP-33, not yet ruled.
+
+  The superseded draft, kept only so the change is legible: *"Season to date. The top team from each
+  league: …"* — proposed 2026-08-18, never approved, shipped in error, replaced above.
+- ~~**The Top players intro copy.**~~ **RE-RULED 2026-09-10, superseding the 2026-08-18 approval.**
+  The CPO opened it himself once the Top teams line was settled — *"now talk about the top players
+  copy as well. we have to change it"* — then approved the proposal. Both home blocks now read one
+  shape:
+
+  > EN — Current season. The top player from each league in the rankings: {leagues}.
+  > DE — Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}.
+  > FI — Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: {leagues}.
+
+  Three changes from the 2026-08-18 string, each mirroring the Top teams ruling above: the window
+  phrase becomes **"Current season."** (the old "Season totals to date" was only true mid-season);
+  the sentence now says **"in the rankings"**, naming where the pick comes from; and the DE/FI nouns
+  become **Top-Spieler** / **kärkipelaaja**.
+
+  ⚠ **"totals" is gone and nothing is lost.** Player boards are counts and team boards are rates, so
+  "totals" was right for one and wrong for the other — but that distinction already lives in the
+  board HEADINGS (#41), where the team headings say "per match" and the player headings are bare
+  nouns, a bare noun being precisely what #41 says reads as a season total.
+
+  ⛔ **BLOCKS A WOMEN'S COMPETITION — ONE STRING, NOT "the German"** (CPO, 2026-09-10: *"If we ever
+  include women's football teams we have to change it properly (at least in German)"*).
+  DE `Der Top-Spieler` is grammatically masculine and would need `Die Top-Spielerin`; a mixed set has
+  no correct singular in this construction. `Die Top-Mannschaft` is NOT affected — *Mannschaft* is
+  the standard German word for a women's team. EN and FI are unaffected (Finnish has no grammatical
+  gender). Deliberately unfixed: no women's competition is in `docs/competition_registry.yml`, and
+  choosing a form for a case that does not exist would be authoring copy nobody has ruled on.
+
+  The 2026-08-18 string, kept only so the change is legible: *"Season totals to date. The top player
+  from each league: …"*. It had itself replaced *"Season totals to date. Ranked across pooled
+  leagues: …"*, which described the pooled ranking withdrawn by the ruling above. Three constraints
+  it satisfied, which the new string still satisfies and a rewrite must not undo:
   - **"The top player from each league"** states the mechanic plainly and echoes the block's own
     name, so heading and sentence cannot drift apart.
   - ⚠ **"leader" is deliberately NOT used**, though it is the obvious word. The CPO rejected

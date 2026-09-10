@@ -1,6 +1,10 @@
 // Types for the fixture payload (scripts/export_site_data.py :: shape_fixture_payload).
 // Mirrors the served shape; the frontend reads these, never reshapes facts.
 
+// The catalogue's `format` values, reused rather than restated: a served format that did not match
+// what `formatValue` accepts would be a runtime surprise the compiler could have caught (#41).
+import type { SingleFormat } from "./format";
+
 export interface WindowStats {
   window_type?: string | null;
   games_in_window?: number | null;   // W1
@@ -317,11 +321,42 @@ export interface LandingBoard {
   rows: LandingBoardRow[];
 }
 
+/** One row of a Top teams board: the league's top team on that metric.
+ *
+ *  ⚠ `slug` is SERVED — `dim_team.team_slug`, assigned in the warehouse (#852), never derived here.
+ *  Every row links out; #41 says that is why the block exists. `league_name` is carried for the
+ *  same reason as on the player rows: the reader cannot infer the competition from the team alone
+ *  on a board that spans seven of them. */
+export interface LandingTeamBoardRow {
+  team_id: number | null;
+  slug: string;
+  name: string | null;
+  crest: string | null;
+  league_code: string | null;
+  league_name: string | null;
+  value: number | null;
+}
+
+/** One team board: a single metric, its rows already ordered by the warehouse, at most 7.
+ *
+ *  ⚠ `format` is SERVED, and it must be: the four boards do NOT share one. goals and shots on goal
+ *  are `decimal_1`, passes and duels are `decimal_0`, per the metric catalogue. A component that
+ *  picked a formatter would render one pair wrong. Same reason `label_i18n_key` is a key and not a
+ *  name — the catalogue is the single source of both (#327). */
+export interface LandingTeamBoard {
+  metric_key: string;
+  label_i18n_key: string;
+  format: SingleFormat;
+  rows: LandingTeamBoardRow[];
+}
+
 export interface Landing {
   type: string;
   upcoming: LandingUpcomingGroup[];
   /** Absent when no board had data — the block then does not render at all (#40). */
   top_players?: LandingBoard[];
+  /** Absent when no board had data, exactly as above (#41). */
+  top_teams?: LandingTeamBoard[];
 }
 
 /** One row of competition_index.json, mart_competition_index verbatim (#62 step 5). Ordering

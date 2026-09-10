@@ -1,134 +1,185 @@
-# Rendered page evidence — `feat/40-top-players-block` (#40 MR B, the Top players block)
+# Rendered page evidence — `feat/41-top-teams-block` (#41, the Top teams block)
 
-> ⚠ **EVERY NUMBER BELOW WAS RE-DERIVED ON 2026-09-09**, after the CPO's ranking rulings moved the
-> tie-break into the warehouse and the payload was re-exported. `bi-analyst-reviewer` FAILed round 2
-> because §5 still carried the pre-re-export counts while `acceptance_evidence.md` had been updated
-> — a file describing a state that is not the one on disk, which is the same class it FAILed round 1
-> for, one level down.
-> The fix is not to correct the one number it caught. Every figure in this file was pulled out and
-> re-checked against the running page and the committed payload; the ones that turned out unchanged
-> are marked VERIFIED, not assumed. Two were wrong (§5), the rest held.
->
-> Round 1's finding was that this file documented `feat/navigation-rules-competition-shell` (!151)
-> entirely — a different branch. It was replaced wholesale then, and re-derived now.
-
-> ⚠ **RE-CONFIRMED AFTER THE MR C SWITCH.** The export now orders by the served
-> `board_leader_order` column instead of restating three keys. The payload it produces is
-> byte-identical to the one every number below was measured against (line endings aside — see
-> `acceptance_evidence.md`), so the rendered figures cannot have moved. `npm run build` was re-run
-> anyway rather than reasoned about, and returned the same counts: `audit-seo: 250 built page(s)
-> checked. OK.` and `/[lang]/players/[player] -> 84`.
-
-Read from the RUNNING page (Astro dev server, `preview_start` name `v2`) and the built `site_v2/dist`.
-Screenshots are unavailable in this pane, so geometry is `getBoundingClientRect()` /
+Read from the RUNNING page (Astro dev server, `preview_start` name `v2`) and the built
+`site_v2/dist`. Screenshots are unavailable in this pane, so geometry is `getBoundingClientRect()` /
 `getComputedStyle()` and structure is the emitted HTML.
 
-## 1. The block renders in all three locales, with no blank board title — VERIFIED
+⛔ **THIS FILE HAS GONE STALE TWICE, AND THE SECOND TIME IS THE INSTRUCTIVE ONE.**
 
-From `dist/{de,en,fi}/index.html`, HTML comments stripped and whitespace collapsed first — Astro
-splits interpolated text with `<!-- -->`, so a naive line grep misses these.
+1. The first version of this branch was written without reading #41 and was wrong in three places —
+   unlinked rows, raw board labels, invented intro copy. This file measured that build, and was
+   replaced wholesale rather than amended.
+2. ⚠ **The replacement then claimed "EVERY NUMBER HERE WAS RE-DERIVED", and that claim was itself
+   false within two rounds.** The CPO re-ruled BOTH home intro sentences on 2026-09-10, after this
+   file was rebuilt, and §3b went on quoting the superseded copy. `bi-analyst-reviewer` FAILed round
+   4 for it. A blanket "everything was re-derived" banner is exactly the wrong instrument: it is
+   written once, ages silently, and reads as an assurance while it decays.
 
-| | section heads | board titles | blank titles | rows |
-|---|---|---|---|---|
-| **EN** | Next matches, Top players | Goals, Assists, Passes, Key passes | 0 | 28 |
-| **DE** | Nächste Spiele, Top-Spieler | Tore, **Torvorlagen**, Pässe, Schlüsselpässe | 0 | 28 |
-| **FI** | Seuraavat ottelut, Kärkipelaajat | Maalit, Maalisyötöt, Syötöt, Avainsyötöt | 0 | 28 |
+So the standing rule for this file is **re-capture on every build whose output it quotes**, not
+"re-derive once and declare it". Every rendered quote below carries the artefact it came from
+(`dist/{lang}/index.html`, the audit line, or a measured geometry value) so a stale one can be
+spotted by re-running the same read rather than by trusting a banner.
 
-`metricLabel()` falls back to English and then to `""`, so a missing Finnish label renders an empty
-heading rather than an error — the blank count is the check that matters. DE assists is the CPO's
-2026-09-08 ruling. The intro line names exactly seven leagues in each locale, which is the set every
-board shows; it is derived from the rendered rows, so it cannot claim a league they lack.
+## 1. The composition is complete — three sections
 
-## 2. Geometry at 375×812 — RE-MEASURED against the new payload
+`document.querySelectorAll('section')` returns **3**: next matches, Top players, Top teams. That is
+10_home.md §0's composition, finished.
 
-Row height is driven by whether a name wraps, and the ruling changed which players appear, so this
-was re-run rather than carried over. It came out the same, which is a result and not an assumption.
+## 2. The board title spells the rate out, per locale — #41's rule
 
-| board | board width | row heights | min | `.ent` computed display | `.v` left / right |
-|---|---|---|---|---|---|
-| Goals | 343px | 57×6, 56 | **55.8px** | `block` (one value) | 303 / 359 |
-| Assists | 343px | 57×6, 56 | **55.8px** | `block` (one value) | 303 / 359 |
-| Passes | 343px | 57×6, 73 | **56.8px** | `block` (one value) | 303 / 359 |
-| Key passes | 343px | 57×6, 56 | **55.8px** | `block` (one value) | 303 / 359 |
+From `dist/{en,de,fi}/index.html`, comments stripped and whitespace collapsed:
 
-- **Tap target**: smallest row 55.8px against the 44px floor. !151 shipped a 21px target.
-- **Per-board stacking**: `.ent`'s computed `display` collapses to a SINGLE value within each board,
-  so a board stacks as a whole and never row-by-row — the CPO's 2026-08-10 rule ("they all stack
-  together or not"). That is why the trigger is the board's own container width and not
-  `flex-wrap`, which decides per row.
-- **Value alignment**: one left edge and one right edge per board across all seven rows.
-- The 73px row on Passes is a name wrapping to two lines — intended, since the name must never
-  truncate on a block whose purpose is to reach the player's page.
+| | team board titles |
+|---|---|
+| **EN** | Goals per match · Shots on goal per match · Passes per match · Duels per match |
+| **DE** | Tore pro Spiel · Torschüsse pro Spiel · Pässe pro Spiel · Zweikämpfe pro Spiel |
+| **FI** | Maalit ottelua kohden · Maalilaukaukset ottelua kohden · Syötöt ottelua kohden · Kaksinkamppailut ottelua kohden |
 
-## 3. Geometry at 1280×900 — RE-MEASURED
+**Sigil left behind: 0 in every locale.** #41: "Ø Goals" reads badly as a heading and a bare "Goals"
+wrongly reads as a season total, so the sigil is expanded into the words it stands for.
 
-| board | board width | row heights | min | `.ent` display | `.v` right | any name truncated |
-|---|---|---|---|---|---|---|
-| all four | 624px | 44–45 | **44.0px** | `flex` (one value) | 945 | no |
+Each is derived from the LOCALISED label, which is the part #41 warns about by name — the DE and FI
+labels carry the sigil too, so deriving from the English one would title a Finnish board in English.
+The "per match" wording is not new copy: `heroVerdictUnder`/`heroCaption` already ship "per match",
+"pro Spiel" and "ottelua kohden".
 
-Above the 480px container breakpoint every board switches to the one-line variant, again as a whole.
-`scrollWidth > clientWidth` is false for every `.nm`.
+The player boards are untouched and still read Goals / Assists / Passes / Key passes — those are
+metric ROW labels, which `metrics_display.md` locks, and #41's expansion is the heading case only.
+That boundary is now RECORDED in `metrics_display.md` itself rather than only in #41 and a code
+comment — `analytics-engineer-reviewer` FAILed the branch for the record gap, and the file's own
+charter ("records the display rulings … until they are codified as catalogue columns") is where it
+belonged.
 
-## 4. The focus ring — a real defect, fixed, re-verified after the fix
+⛔ **THE HEADINGS ABOVE ARE UNCHANGED, BUT THE CODE BEHIND THEM WAS REWRITTEN.** `boardTitle()` used
+to read `metricId.endsWith("_per_match")` before expanding. That was a taxonomy judgement made in
+the frontend — and unsound on this catalogue, where `shots_on_goal_per_match` declares the label key
+`metrics.shots_on_target_per_match.label`. It now takes `(lang, labelKey)` only and branches on
+nothing; the premise that the block's four boards are per-match rates is asserted against the
+catalogue's `denominator_expr` in `test_the_team_board_set_is_all_per_match_rates`. Mutations:
 
-Real keyboard focus (`Tab` from the previous row, `:focus-visible` confirmed true), row 3 of the
-Goals board at 375px:
+| mutant | result |
+|---|---|
+| `duels_won_pct` (a team metric, `denominator_expr = sum(duels_total)`) joins `_HOME_TEAM_BOARDS` | RED |
+| `boardTitle` stops stripping the sigil | RED, 2 JS tests |
 
-| | outline-width | outline-offset | reach beyond border box | ring top / bottom | dividers | verdict |
-|---|---|---|---|---|---|---|
-| **before** | 2px | 2px | **4px** | 373.5 / 438.3 | 377.5 and 434.3 | crosses BOTH |
-| **after** | 2px | **-2px** | **0px** | 377.5 / 434.3 | 377.5 and 434.3 | clears both |
+## 3. Every row links out — #41: "That is why the block exists"
 
-`crossesUpperDivider` and `crossesLowerDivider` are both `false` after the fix, re-confirmed on the
-current payload.
-⚠ The **before** row cannot be re-measured without reverting the CSS, so it is labelled as what it
-is: measured on this branch before the fix, on the earlier payload. It remains the right comparison
-because the row geometry is identical across the two payloads — §2 re-measured the same heights and
-the same y-positions (divider above 377.5, below 434.3), so only the ring moved.
-
-This is the same 4px overshoot `a.cnm` was fixed for earlier in `system.css`, and the defect !151
-shipped. A row cannot spend the room outward the way `a.cnm` did — its neighbour is flush, and
-padding would move the divider it is measured against — so the ring is drawn inward instead. At
-`-2px` the outline sits entirely inside the border box at any row height.
-
-## 5. The player links resolve — ⚠ THE NUMBERS ROUND 2 CAUGHT, CORRECTED
-
-`npm run build`, run against the committed payload:
+`npm run build`:
 
 ```
 [seo-audit] page-count driver: /robots.txt -> 1, /[lang]/competitions -> 3,
-  /[lang]/players/[player] -> 84, /[lang]/teams/[team] -> 3,
+  /[lang]/players/[player] -> 84, /[lang]/teams/[team] -> 60,
   /[lang]/[competition]/matches/[fixture] -> 12, /[lang]/[competition] -> 144, /[lang] -> 3, / -> 1
-audit-seo: 250 built page(s) checked. OK.
+audit-seo: 307 built page(s) checked. OK.
 ```
 
-The home page emits **28** `a.brow` hrefs over **28 distinct slugs** — counted from the running page
-and independently from `landing.json` — and 28 × 3 locales = the **84** player pages the audit
-counts. Check 8 (dead internal link) passes. Before this branch no page in `site_v2` emitted a
-player href at all, which is the only reason that check was green without a player route.
+- Team pages went **3 → 60**: the 20 distinct teams the boards link to, × 3 locales.
+- On the running page, **28 team hrefs** and **7 anchors on every one of the four team boards** —
+  against 0 anchors in the first version of this branch.
+- Check 8 (dead internal link) passes, so all 20 payloads are committed and every href resolves.
+  That is the procedure `site_v2/src/data/README.md` sets out for a sample that is a SET, and the
+  same reason the four linked fixtures are committed.
 
-⚠ **WHAT WAS WRONG HERE, AND WHY IT MATTERS.** This section said 28 hrefs over **27** distinct slugs
-and **81** pages, from a build captured BEFORE the re-export. Under the old Python tie-break Dybala
-led both the assists and key-passes boards, so one slug repeated; under the ruled tie-break he leads
-neither and all 28 are distinct. The mechanism was never in doubt — `getStaticPaths` dedupes by slug
-— but the count is DATA-DEPENDENT, which is exactly why it must be read from the build rather than
-asserted, and why updating `acceptance_evidence.md` alone was not enough.
+## 3b. The competition name is the warehouse's, on every surface that shows one
 
-A stub renders correctly — `/fi/players/n-amiri-714/`:
+The CPO read `1. Fußball-Bundesliga` in the Top players intro on the rendered page. The export was
+building its competition dict from `docs/competition_registry.yml`, which is INPUT; the site
+displays `mart_competition_index.competition_name`.
 
-- `<title>` → `N. Amiri (1. FSV Mainz 05): yleiskatsaus` (locale-distinct, club-disambiguated)
-- breadcrumb → `Etusivu › N. Amiri`
-- `<h1>` → `N. Amiri`
+⛔ **THIS TABLE QUOTED THE PRE-RULING COPY FOR A FULL ROUND, and `bi-analyst-reviewer` FAILed round
+4 for it.** It was captured after the competition-name fix but before the CPO re-ruled both intro
+sentences on 2026-09-10, and never re-captured — so it showed "The top player from each league:"
+with no window phrase and no "in the rankings", and the superseded DE/FI nouns (*beste Spieler*,
+*paras pelaaja*). The file's own opening claim that every number was re-derived was therefore false
+for exactly the one string on this branch with the longest history of being wrong. Worse, the Top
+TEAMS intro — this MR's actual deliverable, and the string that FAILed rounds 1 and 2 — was not
+quoted anywhere in this file at all, so the acceptance criterion "the intro sentence names exactly
+the leagues that appear on the boards" had no built-page evidence behind it.
 
-`read_console_messages` with `onlyErrors` returns nothing on the home page or a stub.
+Re-captured below from `dist/{en,de,fi}/index.html`, comments stripped and whitespace collapsed,
+**both blocks, all three locales** — the complete sentences, not excerpts:
 
-## 6. What is NOT evidenced here
+| | Top players | Top teams |
+|---|---|---|
+| **EN** | Current season. The top player from each league in the rankings: La Liga, Serie A, Liga Portugal, Ligue 1, Eredivisie, **Bundesliga**, Premier League. | Current season. The top team from each league in the rankings: La Liga, Eredivisie, **Bundesliga**, Liga Portugal, Serie A, Premier League, Ligue 1. |
+| **DE** | Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: La Liga, Serie A, Liga Portugal, Ligue 1, Eredivisie, **Bundesliga**, Premier League. | Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: La Liga, Eredivisie, **Bundesliga**, Liga Portugal, Serie A, Premier League, Ligue 1. |
+| **FI** | Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: La Liga, Serie A, Liga Portugal, Ligue 1, Eredivisie, **Bundesliga**, Premier League. | Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: La Liga, Eredivisie, **Bundesliga**, Liga Portugal, Serie A, Premier League, Ligue 1. |
 
-- No screenshot: the Browser pane's `screenshot` action fails in this environment, so every visual
-  claim above is a measured number or emitted text, never an image.
-- Dark/light theme was not toggled. The block introduces no new colour token — it uses `--ink`,
-  `--muted`, `--line`, `--div`, `--surface` and `--sunk`, all of which the theme already swaps — so
-  there is no new theme surface to test. That is an argument, not a measurement, and is labelled as
-  one.
-- The player stub's own content, beyond its title, breadcrumb and h1 — because it has none. It is a
-  `stub: true` page and #845 owns what it eventually shows.
+Two things this table now evidences that the old one could not:
+- **`Bundesliga`, not `1. Fußball-Bundesliga`**, in six rendered sentences — the defect the CPO
+  caught, in both blocks and all three locales.
+- **Each block's league list is its OWN boards' members**, not a shared constant: the two orders
+  differ (players open `La Liga, Serie A, Liga Portugal…`, teams `La Liga, Eredivisie, Bundesliga…`)
+  because each is read from that block's payload rows. A hardcoded list would render identically.
+
+Swept across the whole registry rather than the pool that made it visible — **37 names identical,
+11 DIFFERENT**: BL1, BL2, UECL, all seven WCQ*, and WC (`FIFA World Cup 2026` → `FIFA World Cup`).
+37 of 48 agreeing is why one wrong row hid; six of the seven elite leagues are among the 37.
+
+**Both surfaces, not just the one that was looked at.** `competitions.json` is registry-derived too
+and `TeamHeader.astro` renders it, so BL1 team pages carried the same string — and two of the twenty
+team pages this branch builds are BL1 clubs. After the fix, `/en/teams/bayern-munchen/` renders
+`Bundesliga` in its header. `competitions.json` gains 11 corrected names and **0 slug changes**: the
+slug is an assigned identifier, not a display string.
+
+Swept over the whole build: `Fußball-Bundesliga`, `FIFA World Cup 2026`,
+`UEFA Europa Conference League` and `WC Qualification` appear in **0 of the 307 built pages**.
+
+Mutation-tested, four mutants, all now caught:
+
+| mutant | result |
+|---|---|
+| `_competitions_index` ignores the warehouse (the shipped defect) | RED |
+| `_warehouse_competition_meta` widened to carry a slug | RED |
+| the overlay prefers a served slug over the registry's | RED **only after the test was rewritten** |
+| `fetch_landing_payload` drops the name overlay | `landing.json` reverts to `1. Fußball-Bundesliga` |
+
+⚠ The third one SURVIVED at first. Asserting the slug beside the name was **vacuous**: the helper
+selects only `league_code, competition_name, region_rank`, so no slug ever reached the overlay and
+the assertion could not fail whatever the code did. It is now its own test with the helper patched
+to hand a slug over — the only shape in which it means anything.
+
+## 4. Geometry at 375×812 — all EIGHT boards
+
+| | rows | min row height | `.ent` computed display | `.v` right edge | anchors |
+|---|---|---|---|---|---|
+| four player boards | 7 | 55.8–56.8px | `block` (one value) | 359 | 7 each |
+| four team boards | 7 | 55.8px | `block` (one value) | 359 | 7 each |
+
+- Tap target: smallest row 55.8px against the 44px floor.
+- Per-board stacking: `.ent` collapses to a SINGLE computed display value per board, so a board
+  stacks as a whole and never row-by-row — CPO 2026-08-10, "they all stack together or not".
+- **The two blocks line up with each other**: the value column's right edge is 359 on all eight,
+  not merely consistent within each block. This branch adds no CSS; that is the evidence the shared
+  board pattern actually holds.
+
+## 5. Geometry at 1280×900
+
+| | min row height | `.ent` display | `.v` right edge | any name truncated |
+|---|---|---|---|---|
+| all eight boards | **44.0px** | `flex` (one value) | 945 | no |
+
+## 6. The focus ring, re-measured on a TEAM board
+
+The rows are anchors now, so `:focus-visible` applies to them and had to be checked rather than
+carried over from the player block. Real keyboard focus (`Tab`, `:focus-visible` confirmed true),
+row 3 of the "Shots on goal per match" board at 375px:
+
+| outline-offset | reach beyond border box | ring top / bottom | dividers | crosses |
+|---|---|---|---|---|
+| **-2px** | **0px** | 377.5 / 434.3 | 377.5 and 434.3 | **no** |
+
+The `a.brow:focus-visible { outline-offset: -2px }` rule shipped with #40 covers these rows too,
+which is what "no new CSS" has to mean if it is true.
+
+`read_console_messages` with `onlyErrors` returns nothing.
+
+## 7. What is NOT evidenced here
+
+- No screenshot: the pane's `screenshot` action fails in this environment, so every visual claim is
+  a measured number or emitted text.
+- No dark/light toggle. The block adds no colour token — it reuses the board classes Top players
+  shipped, which the theme swaps. Reasoning, not a measurement, and labelled as one.
+- The crest images are not fetched here. #41 records that the block inherits #36 (crests hotlinked
+  from `media.api-sports.io`, a go-live blocker with a licence question attached). This block does
+  not add to that problem and does not solve it.

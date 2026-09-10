@@ -11,10 +11,18 @@ layering violation, but removed for the same reason the key set is asserted exac
 shape is the cheapest place to catch any of the three coming back.
 """
 
+import csv
+
+from scripts import export_site_data
 from scripts.export_site_data import (
-    _board_label_keys,
+    _HOME_TEAM_BOARDS,
+    CATALOGUE_SEED_PATH,
+    _board_catalogue,
+    _competitions_index,
+    _warehouse_competition_meta,
     group_upcoming_fixtures,
     shape_home_top_players,
+    shape_home_top_teams,
     shape_landing_payload,
 )
 
@@ -142,15 +150,17 @@ def test_shape_landing_payload_carries_only_the_built_modules():
     is asserted EXACTLY, so a re-added block fails here whether it arrives populated or as an empty
     shell.
 
-    Top teams will add its key when it is built; that is a deliberate edit of this line, not a
-    silent widening.
+    ⚠ THE KEY SET IS NOW COMPLETE. All three modules of the composition are built, so a new key
+    appearing here is a re-added block, not a pending one. That is a deliberate edit of this line
+    rather than a silent widening.
     """
     payload = shape_landing_payload(
         upcoming=[{"league_code": "BSA"}],
         top_players=[{"metric_key": "goals_player", "rows": [{"name": "X"}]}],
+        top_teams=[{"metric_key": "goals_per_match", "rows": [{"name": "Y"}]}],
     )
     assert payload["type"] == "landing"
-    assert set(payload) == {"type", "upcoming", "top_players"}
+    assert set(payload) == {"type", "upcoming", "top_players", "top_teams"}
 
 
 def test_shape_landing_payload_omits_top_players_when_no_board_survived():
@@ -159,8 +169,11 @@ def test_shape_landing_payload_omits_top_players_when_no_board_survived():
     guard against a key that means "nothing", which is the empty-state the CPO ruled out.
     """
     for empty in ([], None):
-        payload = shape_landing_payload(upcoming=[{"league_code": "BSA"}], top_players=empty)
+        payload = shape_landing_payload(
+            upcoming=[{"league_code": "BSA"}], top_players=empty, top_teams=empty,
+        )
         assert "top_players" not in payload, f"empty {empty!r} must not reach the payload"
+        assert "top_teams" not in payload, f"empty {empty!r} must not reach the payload"
         assert set(payload) == {"type", "upcoming"}
 
 
@@ -189,7 +202,17 @@ _LEAGUE_META = {
 
 # Read from the real catalogue seed, not fabricated: a board's NAME is a governed value, and a
 # fabricated key here would let the label mechanism drift from the catalogue unnoticed.
-_LABEL_KEYS = _board_label_keys()
+_LABEL_KEYS = _board_catalogue()
+_TEAM_CATALOGUE = _board_catalogue(_HOME_TEAM_BOARDS, "team")
+
+
+def _tlb(metric_key, league_code, name, value, team_sk=1):
+    """One mart_team_leaderboards row, as the export's query returns it."""
+    return {
+        "metric_key": metric_key, "league_code": league_code, "sort_value": value,
+        "team_sk": team_sk, "team_name": name, "team_logo_url": "https://x/1.png",
+        "team_slug": f"{name.lower().replace(' ', '-')}-fc",
+    }
 
 
 def _lb(metric_key, league_code, name, value, player_sk=1):
@@ -307,7 +330,7 @@ def test_top_players_carries_the_catalogue_label_key_not_a_hand_written_name():
     boards = shape_home_top_players(
         [_lb("goals_player", "PL", "A", 5.0)], _LEAGUE_META, _LABEL_KEYS
     )
-    assert boards[0]["label_i18n_key"] == _LABEL_KEYS["goals_player"]
+    assert boards[0]["label_i18n_key"] == _LABEL_KEYS["goals_player"]["label_i18n_key"]
     assert boards[0]["label_i18n_key"], "a board must never ship without a label key"
 
 
@@ -332,10 +355,107 @@ def test_board_label_keys_are_the_player_rows_not_the_team_ones():
 
     with open("dbt_project/seeds/metric_catalogue.csv", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    for metric_id, key in _LABEL_KEYS.items():
+    for metric_id, entry in _LABEL_KEYS.items():
         player = [r for r in rows if r["metric_id"] == metric_id and r["entity"] == "player"]
         assert player, f"{metric_id} has no player row"
-        assert key == player[0]["label_i18n_key"]
+        assert entry["label_i18n_key"] == player[0]["label_i18n_key"]
+
+    # The same for the TEAM boards, and this is where the entity filter stops being theoretical:
+    # the two board sets use different metric_ids, so a lookup that ignored entity would still have
+    # to pick a row, and the seed is the only thing that says which.
+    for metric_id, entry in _TEAM_CATALOGUE.items():
+        team = [r for r in rows if r["metric_id"] == metric_id and r["entity"] == "team"]
+        assert team, f"{metric_id} has no team row"
+        assert entry["label_i18n_key"] == team[0]["label_i18n_key"]
+        assert entry["format"] == team[0]["format"]
+
+
+def test_top_teams_renders_the_order_the_warehouse_served():
+    """The team shaper does not sort either. Same contract as the player one: group, preserve, cap.
+
+    The rows below arrive in the order the query's `order by board_leader_order` produced, and the
+    assertion is that the shaper left them alone.
+    """
+    boards = shape_home_top_teams([
+        _tlb("goals_per_match", "PL", "Alpha", 2.4, 10),
+        _tlb("goals_per_match", "PD", "Beta", 2.1, 11),
+        _tlb("goals_per_match", "BL1", "Gamma", 1.9, 12),
+    ], _LEAGUE_META, _TEAM_CATALOGUE)
+    assert len(boards) == 1
+    assert boards[0]["metric_key"] == "goals_per_match"
+    assert [r["name"] for r in boards[0]["rows"]] == ["Alpha", "Beta", "Gamma"]
+    assert [r["league_name"] for r in boards[0]["rows"]] == [
+        "Premier League", "La Liga", "Bundesliga",
+    ]
+
+
+def test_top_teams_does_not_reorder_what_it_is_given():
+    """The sharper form, and the one that catches a sort creeping back in: rows handed over in an
+    order NO sort would produce must come out exactly as they went in."""
+    rows = [
+        _tlb("goals_per_match", "BL1", "Lowest", 0.9, 11),
+        _tlb("goals_per_match", "PL", "Highest", 3.3, 12),
+        _tlb("goals_per_match", "PD", "Middle", 2.0, 13),
+    ]
+    boards = shape_home_top_teams(rows, _LEAGUE_META, _TEAM_CATALOGUE)
+    assert [r["name"] for r in boards[0]["rows"]] == ["Lowest", "Highest", "Middle"]
+
+
+def test_top_teams_carries_the_catalogue_format_per_board():
+    """⛔ THE ONE THING THAT DIFFERS FROM THE PLAYER BLOCK. Its four boards are all integers; these
+    four are NOT one format — goals and shots on goal are `decimal_1`, passes and duels are
+    `decimal_0`. A component that picked a formatter would render one pair wrong, so the format
+    travels per board from the catalogue and this pins that it is the catalogue's, not a literal.
+    """
+    rows = [_tlb(key, "PL", f"T-{key}", 1.5) for key in _HOME_TEAM_BOARDS]
+    boards = shape_home_top_teams(rows, _LEAGUE_META, _TEAM_CATALOGUE)
+    by_key = {b["metric_key"]: b["format"] for b in boards}
+    assert by_key["goals_per_match"] == "decimal_1"
+    assert by_key["shots_on_goal_per_match"] == "decimal_1"
+    assert by_key["passes_per_match"] == "decimal_0"
+    assert by_key["duels_per_match"] == "decimal_0"
+    assert len(set(by_key.values())) == 2, "the boards must not collapse to one shared format"
+
+
+def test_top_teams_rows_carry_the_served_slug():
+    """⚠ INVERTED. This asserted rows carry NO slug, because an earlier version shipped them
+    unlinked to dodge the committed-team-sample problem. #41 says the opposite outright — "Every row
+    links out. That is why the block exists" — so the fix was to commit the payloads the rows link
+    to, not to drop the link. Keeping the case and flipping its expectation pins the new behaviour
+    where the old one was guarded.
+
+    The slug is `dim_team.team_slug`, SERVED (#852). This file generates no identity.
+    """
+    boards = shape_home_top_teams(
+        [_tlb("goals_per_match", "PL", "Alpha", 2.4)], _LEAGUE_META, _TEAM_CATALOGUE,
+    )
+    row = boards[0]["rows"][0]
+    assert row["slug"] == "alpha-fc"
+    assert set(row) == {"team_id", "slug", "name", "crest", "league_code", "league_name", "value"}
+
+
+def test_top_teams_keeps_board_order_and_caps_each_at_seven():
+    """The four boards render in the CPO's fixed order regardless of what the mart returned, and
+    each is cut at 7. Nine DISTINCT leagues, because the query returns one team per league."""
+    nine = ("PL", "PD", "BL1", "ED", "L1", "LP", "SA", "PPL", "TSL")
+    rows = []
+    for key in ("duels_per_match", "goals_per_match", "passes_per_match", "shots_on_goal_per_match"):
+        for i, league in enumerate(nine):
+            rows.append(_tlb(key, league, f"{key}-{i}", 9.0 - i, team_sk=i))
+    boards = shape_home_top_teams(rows, _LEAGUE_META, _TEAM_CATALOGUE)
+    assert [b["metric_key"] for b in boards] == list(_HOME_TEAM_BOARDS)
+    assert all(len(b["rows"]) == 7 for b in boards)
+
+
+def test_top_teams_omits_an_empty_board_and_returns_nothing_when_all_are_empty():
+    """Same rule as the player block: a board with no data is absent rather than empty, and if none
+    survives the shaper returns an empty list, which shape_landing_payload then omits."""
+    boards = shape_home_top_teams([
+        _tlb("goals_per_match", "PL", "Alpha", 2.4),
+        _tlb("duels_per_match", "PL", "Beta", 48.0),
+    ], _LEAGUE_META, _TEAM_CATALOGUE)
+    assert [b["metric_key"] for b in boards] == ["goals_per_match", "duels_per_match"]
+    assert shape_home_top_teams([], _LEAGUE_META, _TEAM_CATALOGUE) == []
 
 
 def test_top_players_returns_nothing_when_no_board_has_data():
@@ -344,3 +464,115 @@ def test_top_players_returns_nothing_when_no_board_has_data():
     assert shape_home_top_players([], _LEAGUE_META, _LABEL_KEYS) == []
     # A metric the home block does not show must not create a board either.
     assert shape_home_top_players([_lb("cards_player", "PL", "A", 9.0)], _LEAGUE_META, _LABEL_KEYS) == []
+
+
+def test_the_team_board_set_is_all_per_match_rates():
+    """⛔ THIS IS THE PREMISE THE BOARD HEADING RESTS ON, AND IT USED TO BE INFERRED FROM A NAME.
+
+    `boardTitle()` turns the served label `Ø Goals` into the heading `Goals per match` (#41). An
+    earlier version guarded that by reading `metric_id.endsWith("_per_match")` in TypeScript, and
+    `analytics-engineer-reviewer` FAILed it: classifying a metric is a taxonomy judgement, which
+    `layering.md` §Consumption layer keeps out of the frontend. It was also simply UNSAFE — an id's
+    spelling is not a fact about the metric, and this catalogue proves it, since
+    `shots_on_goal_per_match` carries the label key `metrics.shots_on_target_per_match.label`
+    (`metrics_display.md` records that mismatch causing a defect in #370).
+
+    The catalogue states the distinction in DATA: a per-match rate divides by `count(*)`, a per-90
+    divides by `sum(minutes_played)`. So the premise is asserted here, against the seed, once —
+    and a future board that is not a per-match rate turns this RED before its heading can lie.
+    """
+    with open(CATALOGUE_SEED_PATH, encoding="utf-8") as fh:
+        rows = {(r["metric_id"], r["entity"]): r for r in csv.DictReader(fh)}
+
+    for metric_id in _HOME_TEAM_BOARDS:
+        row = rows.get((metric_id, "team"))
+        assert row is not None, f"{metric_id} is not a team metric in the catalogue"
+        assert row["denominator_expr"] == "count(*)", (
+            f"{metric_id} is denominated by {row['denominator_expr']!r}, not by matches — the "
+            f"Top teams heading would call it a per-match rate and be wrong"
+        )
+
+    # Two-sided: the catalogue really does distinguish the two, so the assertion above is not
+    # vacuously true of every rate in the seed.
+    per90 = [r for r in rows.values() if r["denominator_expr"] == "sum(minutes_played)"]
+    assert per90, "no per-90 metric in the catalogue; this guard would then discriminate nothing"
+
+
+# --------------------------------------------------------------------------- #
+# The competition display name — registry is INPUT, the warehouse DISPLAYS
+# --------------------------------------------------------------------------- #
+class _FakeClient:
+    """`_query` only needs `client.query(sql).result()` to yield rows with `.items()`, and a plain
+    dict has that — so no BigQuery and no row stub."""
+
+    def __init__(self, rows):
+        self._rows = rows
+        self.sql = None
+
+    def query(self, sql):
+        self.sql = sql
+        return self
+
+    def result(self):
+        return self._rows
+
+
+def test_the_competition_display_name_comes_from_the_warehouse_not_the_registry():
+    """⛔ THE DEFECT THIS PINS SHIPPED. `docs/competition_registry.yml` names BL1
+    `1. Fußball-Bundesliga`; `mart_competition_index` names it `Bundesliga`. The export read the
+    registry, so the Home intro rendered "... Eredivisie, 1. Fußball-Bundesliga, Premier League"
+    and every BL1 team page header said the same. 37 of the 48 names are identical in both sources,
+    which is exactly why it hid — so this asserts on one of the 11 that differ.
+
+    The slug is asserted separately, in
+    `test_the_overlay_never_takes_the_slug_even_if_the_warehouse_offers_one` — putting it here made
+    it vacuous, see that test's note."""
+    client = _FakeClient([
+        {"league_code": "BL1", "competition_name": "Bundesliga", "region_rank": 1},
+    ])
+    index = _competitions_index(client)
+    assert index["BL1"]["name"] == "Bundesliga"
+    # Every registry competition is still present — the overlay narrows nothing.
+    assert len(index) > 40
+
+
+def test_the_overlay_never_takes_the_slug_even_if_the_warehouse_offers_one(monkeypatch):
+    """The slug is an ASSIGNED IDENTIFIER, not a display string: it is the URL, so taking it from
+    the warehouse would move URL identity out of the registry.
+
+    ⚠ WRITTEN THIS WAY BECAUSE THE OBVIOUS VERSION WAS VACUOUS. Asserting the slug next to the name
+    above passed against a deliberately broken `_competitions_index` that DID prefer a served slug
+    — `_warehouse_competition_meta` selects only `league_code, competition_name, region_rank`, so
+    no slug ever reached the overlay and the assertion could not fail. The helper is patched here
+    to hand one over, which is the only way the assertion means anything."""
+    monkeypatch.setattr(
+        export_site_data, "_warehouse_competition_meta",
+        lambda client: {"BL1": {"name": "Bundesliga", "slug": "warehouse-must-not-win-this"}},
+    )
+    index = _competitions_index(object())
+    assert index["BL1"]["name"] == "Bundesliga"
+    assert index["BL1"]["slug"] == "bundesliga"
+
+
+def test_a_competition_the_warehouse_does_not_name_keeps_the_registry_name():
+    """The overlay is a correction, not a replacement of the registry as the enumeration. A league
+    the mart returns no row for — or returns a NULL name for — keeps the registry's name rather
+    than rendering a blank heading."""
+    client = _FakeClient([{"league_code": "BL1", "competition_name": None, "region_rank": 1}])
+    index = _competitions_index(client)
+    assert index["BL1"]["name"] == "1. Fußball-Bundesliga"
+    assert index["PL"]["name"] == "Premier League"
+
+
+def test_the_warehouse_meta_carries_the_name_and_the_region_rank_together():
+    """One helper serves both consumers — `fetch_landing_payload`'s `meta` (the fixtures hero's
+    group headings and both board blocks) and `_competitions_index` (`competitions.json`, which
+    TeamHeader renders). The rule living at two call sites is what let one of them drift."""
+    client = _FakeClient([
+        {"league_code": "BL1", "competition_name": "Bundesliga", "region_rank": 1},
+        {"league_code": "MLS", "competition_name": None, "region_rank": 3},
+    ])
+    served = _warehouse_competition_meta(client)
+    assert served["BL1"] == {"region_rank": 1, "name": "Bundesliga"}
+    assert served["MLS"] == {"region_rank": 3}
+    assert "mart_competition_index" in client.sql

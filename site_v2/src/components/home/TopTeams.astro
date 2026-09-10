@@ -1,0 +1,80 @@
+---
+// Top teams — the home page's third and last block (GitLab #41). The team mirror of TopPlayers,
+// composed from the same ranked-board pattern: `system.css`'s board rules were written for both,
+// which is why this file adds no styling of its own.
+//
+// Four boards, ONE metric each, top 7, ranked descending, one team per league across the same pool.
+// The warehouse decides all of it — `league_leader_order` picks the league's team and
+// `board_leader_order` orders them (CPO 2026-09-09: "all ranking and ordering lives in the
+// warehouse; the page renders the order it is served"). The rank shown is the row's index in an
+// already ordered list, a display ordinal, not a served column: a served rank would be the team's
+// rank WITHIN its league, which is 1 on every row.
+//
+// ⚠ THE FORMAT IS SERVED, NOT CHOSEN HERE, and it has to be: these four boards do NOT share one.
+// `goals_per_match` and `shots_on_goal_per_match` are `decimal_1`, `passes_per_match` and
+// `duels_per_match` are `decimal_0` — the metric catalogue says so, and hardcoding either would
+// render one pair wrong. The export carries the catalogue's `format` per board and `formatValue`
+// dispatches on it, the same way the board's NAME comes from the catalogue rather than this file.
+//
+// ⚠ EVERY ROW LINKS OUT. #41: "Every row links out. That is why the block exists." An earlier
+// version of this file shipped them unlinked as a workaround for the committed team sample, which
+// contradicted the design outright — the fix was to commit the payloads the rows link to, the
+// procedure `site_v2/src/data/README.md` already sets out for a sample that is a SET.
+//
+// ⚠ THE BOARD TITLE SPELLS THE RATE OUT — `Ø Goals` renders as `Goals per match` — via
+// `boardTitle()`, which formats the SERVED label. #41 rules it in two steps: the sigil reads badly
+// as a heading, and a bare noun reads as a season total. This file does not build that string
+// itself, and neither function decides what kind of metric it has: every board in this block is a
+// per-match rate by the CPO's locked board set, asserted against the catalogue's own
+// `denominator_expr` in `test_the_team_board_set_is_all_per_match_rates`.
+//
+// A board with no data never arrives — the export omits it — so there is no empty state here, and
+// index.astro guards the case where no board survived at all.
+import Crest from "../ui/Crest.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { formatValue } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t, boardTitle } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import type { LandingTeamBoard } from "../../lib/types";
+
+interface Props {
+  boards: LandingTeamBoard[];
+  lang: Lang;
+}
+const { boards, lang } = Astro.props;
+
+// Read from the DATA, in the order shown, so the sentence cannot drift from what the block renders
+// when the pool changes (#101 will change it nightly).
+const leagueNames = [
+  ...new Map(
+    boards.flatMap((b) => b.rows).map((r) => [r.league_code, r.league_name]),
+  ).values(),
+].filter(Boolean);
+---
+
+<section>
+  <SectionHead label={t(lang, "homeTopTeams")} />
+  <p class="tt-intro">{t(lang, "homeTopTeamsIntro", { leagues: leagueNames.join(", ") })}</p>
+
+  {boards.map((board) => (
+    <div class="board">
+      <div class="bhd">
+        <span class="bt">{boardTitle(lang, board.label_i18n_key)}</span>
+      </div>
+      <div class="bgrid">
+        {board.rows.map((row, i) => (
+          <a class="brow" href={localeHref(lang, `teams/${row.slug}/`)}>
+            <span class="rk num">{i + 1}</span>
+            <Crest name={row.name} crest={row.crest} size="xs" />
+            <span class="ent">
+              <span class="nm">{row.name}</span>
+              <span class="sub">{row.league_name}</span>
+            </span>
+            <span class="v"><b>{formatValue(row.value, board.format, lang)}</b></span>
+          </a>
+        ))}
+      </div>
+    </div>
+  ))}
+</section>

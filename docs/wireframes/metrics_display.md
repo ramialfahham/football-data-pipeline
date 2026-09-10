@@ -320,3 +320,25 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves_player`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
 | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
 | 2026-06-11 | Tournament window exception (cumulative + qualifier preview) confirmed as the matrix rule for display; found unimplemented in the new window marts → GAP-18, scheduled before WC 2026. |
+| 2026-08-10 | **A board HEADING expands the `Ø` sigil; a metric ROW keeps it** (CPO, GitLab #41). On a leaderboard board the label is a heading, and `Ø Goals` reads badly there while a bare `Goals` reads as a season total — so the heading spells the rate out: `Goals per match`, `Tore pro Spiel`, `Maalit ottelua kohden`, derived per locale from the localised label. Everywhere a metric renders as a ROW — the team table and player rows locked above, the fixture comparison, the profiles — the sigil stays, unchanged. |
+
+### The heading rule, and why it is written here (added 2026-09-10)
+
+The ruling above was taken on 2026-08-10 and lived only in GitLab #41 and in code comments until
+`analytics-engineer-reviewer` FAILed `feat/41-top-teams-block` for the gap. It belongs here by this
+file's own charter: it is a **display** ruling, and this document holds those until GAP-09 codifies
+them as catalogue columns.
+
+**The boundary is per-BLOCK, not per-METRIC.** The Home Top teams block expands because every board
+in it is a per-match rate — the CPO's locked board set (`goals_per_match`, `shots_on_goal_per_match`,
+`passes_per_match`, `duels_per_match`). Nothing in the frontend decides that; the premise is
+asserted against the catalogue's own data in `test_the_team_board_set_is_all_per_match_rates`
+(`denominator_expr = count(*)`, versus `sum(minutes_played)` for a per-90).
+
+⛔ **Do not re-implement this as "expand when the metric id ends `_per_match`".** That was the first
+implementation and it was unsound on this very catalogue: `shots_on_goal_per_match` declares the
+label key `metrics.shots_on_target_per_match.label`, the same id/name disagreement recorded above as
+having caused a defect in #370. An id's spelling is not a fact about the metric.
+
+⚠ A per-90 label needs no expansion in any case — it already states its window in words
+(`Ø Dribbles completed per 90`). Expanding one would read "per 90 per match".
