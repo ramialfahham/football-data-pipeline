@@ -8580,3 +8580,136 @@ this was a stale rationale paragraph, not a new claim about the metric.
   tie far less than integer counts, which is also why the player answer mattered more.
 
   ⚠ WHAT THIS DOES NOT DECIDE: anything about the player boards. #112 stays open on its own terms.
+
+2026-09-09 feat/41-top-teams-block — CPO INSTRUCTION: the standardised competition names must
+  reach the frontend. The export was reading the registry.
+
+  ⛔ LOGGED BECAUSE `scope-auditor` FAILED THE BRANCH FOR ITS ABSENCE, WHICH IS THE FOURTH RECORDED
+  INSTANCE OF THE SAME FAILURE. I wrote "authority: the CPO, in this session" into `contract.md`'s
+  amendments and quoted him there, and never wrote it here — the one file the working agreement
+  treats as authority and the only one a reviewer can verify against. `contract.md` is overwritten
+  by the next task; this file is not. The reviewer grepped for "standardized",
+  "Fußball-Bundesliga", "competition_name" and "find their way to the frontend" and got nothing,
+  and was right to FAIL on that alone. The entry below is the remedy, written in the same breath as
+  the fix rather than after the next reviewer asks for it.
+
+  HOW IT SURFACED. He read the Top players intro on the rendered page and quoted it back:
+  *"Season totals to date. The top player from each league: La Liga, Serie A, Liga Portugal,
+  Ligue 1, Eredivisie, 1. Fußball-Bundesliga, Premier League. / Where do the league names come
+  from? 1. Fußball-Bundesliga is not correct"*. Then, on the source:
+  *"We have standardized the names. These standardized names should find their way to the frontend.
+  what is the source of these here"*. On being told I had read the registry:
+  *"I used the wrong source — how is that possible??????"*.
+
+  THIS IS NOT A NEW NAMING DECISION AND MUST NOT BE RECORDED AS ONE. The standardised names already
+  exist and are already the CPO's — they are what `mart_competition_index.competition_name` serves.
+  Nothing was renamed on this branch. What changed is WHICH SOURCE the export reads, and the rule
+  governing that was already settled and already written down: *registry is input, the warehouse
+  displays*. So the classification is a settled-rule application, not a §10 product/UX naming call.
+  The instruction is logged because it is the CPO's own words on a live defect, not because the
+  rule needed granting.
+
+  WHAT WAS ACTUALLY WRONG. `fetch_landing_payload` built its competition dict from
+  `docs/competition_registry.yml`, which is INPUT. That has been true since 452332a (2026-08-18), so
+  it predates both board blocks and the fixtures hero's group headings carried it too.
+
+  SWEPT TWO-SIDED ACROSS THE WHOLE REGISTRY, not the pool that made it visible: 37 names identical,
+  11 DIFFERENT — BL1 `1. Fußball-Bundesliga` -> `Bundesliga`, BL2 -> `2. Bundesliga`,
+  UECL `UEFA Europa Conference League` -> `UEFA Conference League`, all seven WCQ*
+  `WC Qualification <x>` -> `World Cup Qualification <x>`, and WC `FIFA World Cup 2026` ->
+  `FIFA World Cup`. 37 of 48 agreeing is the answer to "how is that possible": six of the seven
+  elite leagues are among the identical, so the wrong source looked right until it met a competition
+  that standardisation actually changed.
+
+  ⚠ THE WC ROW IS A DEFECT, NOT A WORDING PREFERENCE, and the rule for it is also already written:
+  a year inside a name is a defect; a season-scoped label is COMPOSED in the warehouse and an entity
+  row carries its name only. The registry would have shown `FIFA World Cup 2026` for all of 2027.
+
+  FIXED ON BOTH SURFACES, NOT ONLY THE ONE HE LOOKED AT. `competitions.json` is registry-derived too
+  and `TeamHeader.astro` renders it, so BL1 team pages carried the same string — and two of the
+  twenty team pages this branch builds are BL1 clubs (157 Bayern München, 182 1. FC Union Berlin).
+  Both now read one helper, `_warehouse_competition_meta`; the rule living at two call sites is what
+  let one of them drift. The SLUG stays the registry's: an assigned identifier, not a display
+  string.
+
+2026-09-10 feat/41-top-teams-block — CPO RULING: the Top teams intro copy. The second half is his
+  words in all three locales; the window phrase is a proposal awaiting his yes.
+
+  HOW IT SURFACED. `bi-analyst-reviewer` FAILed the branch: `10_home.md` marks the Top teams intro
+  *"Proposed, NOT yet approved (copy is always his call — this is a draft for him to correct or
+  confirm)"*, and I had shipped that draft onto the built page. The sibling Top players line carries
+  an explicit approval; this one carried none. The contract even ADMITTED the gap in prose while the
+  code shipped the string anyway — disclosing that something is unapproved is not approval, and
+  writing the disclosure instead of asking is what made it a review round.
+
+  RULING 1 — "SEASON TO DATE" IS OUT, ON A REASON THAT OUTLIVES THIS BLOCK. His words:
+  *"I don't like the 'Season to date' part anymore. It should be something that is valid during the
+  season and after the season has completed as well."* A window phrase that only reads correctly
+  mid-season becomes false the moment a league finishes, and nothing on the page would change to
+  catch it — the boards keep serving the same rows, because `is_current_season` still points at that
+  season until the next one starts.
+  ⚠ THIS DOES NOT TOUCH THE TOP PLAYERS LINE, which he approved on 2026-08-18 and which still reads
+  "Season totals to date". Whether the same objection applies there is HIS to raise; I am not
+  extending a ruling he gave about one block to another he already approved.
+
+  RULING 2 — THE SECOND HALF, VERBATIM, IN ALL THREE LOCALES. Given by him directly, so nothing
+  here was translated by me:
+    EN  "The top team from each league in the rankings"
+    DE  "Die Top-Mannschaft jeder Liga in den Ranglisten"
+    FI  "Kunkin sarjan kärkijoukkue ranking-listoilla"
+  ⚠ Note what changed beyond wording: it now says WHERE the pick comes from ("in the rankings"),
+  which the earlier draft did not. And DE moves from "Die beste Mannschaft" to "Die Top-Mannschaft",
+  FI from "paras joukkue" to "kärkijoukkue" — his choices, not stylistic tidying.
+
+  RULING 3 — THE WINDOW PHRASE, PROPOSED BY ME AND **APPROVED** BY HIM ("approved", 2026-09-10):
+    EN  "Current season."     DE  "Aktuelle Saison."     FI  "Tämä kausi."
+  He asked for one valid during AND after a season, and said the EN choice defines the DE and FI.
+  REASONING, recorded so a future rewrite is judged against the same bar: "Current season" is the
+  same claim the QUERY makes — the rows are selected by `is_current_season` — so the sentence cannot
+  drift from what is shown, in either state. FI is "Tämä kausi" rather than the more literal
+  "Kuluva kausi" because *kuluva* means ONGOING, which would reintroduce in Finnish exactly the
+  mid-season-only problem he had just rejected in English.
+
+  ⛔ IT WAS ON THE PAGE BEFORE HE APPROVED IT, AND `scope-auditor` FAILED ROUND 2 FOR THAT — the
+  SAME defect as round 1, one clause later in the same sentence. I marked my proposal "shipped
+  pending his confirmation" in three artifacts and shipped it anyway, which is the disclosure-is-not
+  -approval failure this very entry names in its own first paragraph. The approval above closes it,
+  but it closed by luck: had he named different words, unapproved copy would have been in the built
+  HTML for the whole round. The rule the reviewer applied is right — an unapproved §10 string does
+  not go into the build, it waits in `decisions_reserved`.
+  ⚠ `bi-analyst-reviewer` FAILED THE SAME CLAUSE INDEPENDENTLY, and added a finding about MY method
+  rather than the code: this log and `10_home.md` CHANGED CONTENT UNDER ITS READS mid-review, and
+  `10_home.md` appeared to revert (that was the stash-dance — `docs` is stashed while `contract.md`
+  is amended, so the file really did vanish and come back). It refused to treat the "approved" text
+  it had not seen at the start as authority, which is the correct instinct: a reviewer that accepts
+  a record changing beneath it can be walked to any verdict. THE LESSON IS TIMING, NOT STRUCTURE —
+  do not edit the task artifacts while a review round is in flight. Rulings still get logged the
+  moment they land; the ROUND waits.
+
+  RULING 4 — THE TOP PLAYERS INTRO CHANGES TOO. He opened it himself: *"now talk about the top
+  players copy as well. we have to change it"*, then *"Approved"* on the proposal. Both home blocks
+  now take one shape:
+    EN  "Current season. The top player from each league in the rankings: {leagues}."
+    DE  "Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}."
+    FI  "Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: {leagues}."
+  ⚠ I HAD DECLINED TO EXTEND THE TEAMS RULING TO THIS LINE — the entry above says in as many words
+  that whether the objection applies to the players line was HIS to raise. He raised it. That is the
+  loop working, and it is the reason not to extend a ruling on my own: the answer was yes, and it
+  still was not mine to give.
+  WHAT "Season totals to date" WAS FOR, and why dropping it is safe: player boards are COUNTS and
+  team boards are RATES, so "totals" was accurate for one and would have been wrong for the other.
+  That distinction survives where #41 already put it — in the board HEADINGS, which say "per match"
+  on the team side and are bare nouns on the player side, a bare noun being exactly what #41 says
+  reads as a season total. The intro no longer says it twice.
+
+  ⛔ A FUTURE BLOCKER HE RAISED IN THE SAME BREATH: *"If we ever include women's football teams we
+  have to change it properly (at least in German)."* Scoped, so it is not rediscovered as a vague
+  worry — it is ONE STRING, not "the German":
+    · DE `Der Top-Spieler` is grammatically MASCULINE. A women's competition needs
+      `Die Top-Spielerin`, and a mixed set has no correct singular in this construction.
+    · DE `Die Top-Mannschaft` is NOT affected. `Mannschaft` is the standard German word for a
+      women's team (`Frauen-Nationalmannschaft`), whatever its etymology.
+    · EN `player` and FI `kärkipelaaja` are unaffected — Finnish has no grammatical gender.
+  NOT FIXED HERE, deliberately: `docs/competition_registry.yml` carries no women's competition, and
+  choosing a form for a case that does not exist would be authoring §10 copy he has not been asked
+  to rule on. Flagged in `strings.ts` at the string itself, so it is found by whoever onboards one.

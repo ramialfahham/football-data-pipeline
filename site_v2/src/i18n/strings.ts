@@ -192,13 +192,41 @@ const EN: Dict = {
   // vocabulary the page already uses, and a matched pair with "Top teams" so the two read as
   // siblings. "Player leaders" was rejected — "leader" collides with captaincy in football.
   homeTopPlayers: "Top players",
-  // ⚠ APPROVED WORDING, 2026-08-18. It replaced "Season totals to date. Ranked across pooled
-  // leagues: …", which described the pooled ranking withdrawn the same day. Three constraints it
-  // satisfies, recorded so a rewrite does not undo them: it states the mechanic plainly and echoes
-  // the block's own name; it avoids "leader" for the reason above; and it names no metric, because
-  // the sentence sits above all four boards and "top player" carries every one of them equally.
+  // ⚠ APPROVED WORDING, RE-RULED 2026-09-10 — superseding the 2026-08-18 approval, at the CPO's
+  // own instigation ("now talk about the top players copy as well. we have to change it", then
+  // "Approved"). `escalations.log`, `2026-09-10 feat/41-top-teams-block`, Ruling 4. Both home
+  // blocks now read one shape; the previous string was "Season totals to date. The top player from
+  // each league: …", which was only true mid-season.
+  // "totals" is gone and nothing is lost: player boards are counts and team boards are rates, but
+  // that distinction lives in the board HEADINGS (#41) — the team headings say "per match" and the
+  // player headings are bare nouns, which is exactly what #41 says reads as a season total.
+  // Three constraints the string still satisfies, recorded so a rewrite does not undo them: it
+  // states the mechanic plainly and echoes the block's own name; it avoids "leader" for the reason
+  // above; and it names no metric, because the sentence sits above all four boards and "top player"
+  // carries every one of them equally.
   // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
-  homeTopPlayersIntro: "Season totals to date. The top player from each league: {leagues}.",
+  homeTopPlayersIntro: "Current season. The top player from each league in the rankings: {leagues}.",
+  homeTopTeams: "Top teams",
+  // ⭐ THE CPO'S OWN WORDS, APPROVED 2026-09-10 — `escalations.log`, entry
+  // `2026-09-10 feat/41-top-teams-block`, Rulings 2 and 3. He dictated the second half verbatim in
+  // all three locales and approved the window phrase, which he had asked me to propose. Nothing
+  // here is a draft and nothing is awaiting sign-off.
+  //   · "in the rankings" says WHERE the pick comes from — his addition; no draft had it.
+  //   · "leader" is still deliberately absent. He turned down "Player leaders / Team leaders" as
+  //     the block name on 2026-08-08 because "leader" collides with captaincy in football and
+  //     translates awkwardly, and the spec records the objection applying to this sentence too.
+  //   · The sentence sits above all four boards, so it names no metric.
+  // ⛔ THIS COMMENT SAID THE OPPOSITE UNTIL ROUND 3, and `scope-auditor` and `bi-analyst-reviewer`
+  // FAILed it independently. It called the value below "the wireframe's own draft, VERBATIM" and
+  // "STILL AWAITING THE CPO" while the value was in fact his approved ruling, and it justified a
+  // "Season to date" wording he had already rejected. Rounds 1 and 2 FAILed for unapproved copy
+  // LOOKING approved; this was the mirror image, and it is the same
+  // accumulate-instead-of-replace failure either way. Replaced, not amended.
+  homeTopTeamsIntro: "Current season. The top team from each league in the rankings: {leagues}.",
+  // The words the Ø sigil stands for, spelled out in a board heading (#41). NOT new copy: the same
+  // phrasing is already approved in `heroVerdictUnder`/`heroCaption`, which say "per match",
+  // "pro Spiel" and "ottelua kohden". Keyed here so the heading can reuse it per locale.
+  perMatch: "per match",
   homeNoFixtures: "No matches scheduled right now.",
   // Competitions index page (#62 step 5) — category labels (competition_types.csv
   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
@@ -384,7 +412,18 @@ const DE: Dict = {
   seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken.",
   homeNext: "Nächste Spiele",
   homeTopPlayers: "Top-Spieler",
-  homeTopPlayersIntro: "Saisonwerte bis heute. Der beste Spieler jeder Liga: {leagues}.",
+  // ⚠ `Der Top-Spieler` is grammatically MASCULINE and blocks a women's competition (CPO,
+  // 2026-09-10: "If we ever include women's football teams we have to change it properly (at least
+  // in German)"). `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
+  // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
+  homeTopPlayersIntro: "Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}.",
+  homeTopTeams: "Top-Mannschaften",
+  // The CPO's words, 2026-09-10 (Rulings 2 and 3). It mirrors the DE players line above — both are
+  // his, both re-ruled the same day — and avoids "Führende", the German trap the "leader" rejection
+  // points at. ⚠ This comment quoted "Der beste Spieler jeder Liga" as the shape it mirrors until
+  // the round-4 sweep; that string no longer exists, so the comment named a model that was gone.
+  homeTopTeamsIntro: "Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: {leagues}.",
+  perMatch: "pro Spiel",
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
   compTypeDomesticLeague: "Nationale Ligen",
   compTypeDomesticCup: "Nationale Pokale",
@@ -569,7 +608,13 @@ const FI: Dict = {
   seoHomeDesc: "Tulevat ottelut kaikista kattamistamme kilpailuista.",
   homeNext: "Seuraavat ottelut",
   homeTopPlayers: "Kärkipelaajat",
-  homeTopPlayersIntro: "Kauden lukemat tähän asti. Kunkin sarjan paras pelaaja: {leagues}.",
+  homeTopPlayersIntro: "Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: {leagues}.",
+  homeTopTeams: "Kärkijoukkueet",
+  // The CPO's words, 2026-09-10 (Rulings 2 and 3), mirroring the FI players line above —
+  // `kärkipelaaja` there, `kärkijoukkue` here. ⚠ This comment quoted the superseded
+  // "Kunkin sarjan paras pelaaja" as the model until the round-4 sweep.
+  homeTopTeamsIntro: "Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: {leagues}.",
+  perMatch: "ottelua kohden",
   homeNoFixtures: "Ei otteluita tällä hetkellä.",
   compTypeDomesticLeague: "Kansalliset sarjat",
   compTypeDomesticCup: "Kansalliset cupit",
@@ -811,4 +856,38 @@ const METRIC_LABELS: Record<Lang, MetricLabels> = {
  */
 export function metricLabel(lang: Lang, labelKey: string): string {
   return METRIC_LABELS[lang]?.[labelKey] ?? METRIC_LABELS_EN[labelKey] ?? "";
+}
+
+/** A ranked board's TITLE: the metric's localised label with the Ø sigil spelled out.
+ *
+ * CPO 2026-08-10 (#41), in two steps: "Ø Goals" reads badly as a heading, but a bare "Goals" is
+ * WRONG because these are per-match rates and a bare noun reads as a season total. So the sigil is
+ * expanded into the words it stands for — `Ø Goals` becomes `Goals per match`.
+ *
+ * ⛔ THIS FUNCTION DOES NOT DECIDE WHAT KIND OF METRIC IT IS BEING GIVEN, and an earlier version
+ * did — it read `metricId.endsWith("_per_match")` to avoid appending "per match" to a per-90 label
+ * ("Ø Dribbles completed per 90"). `analytics-engineer-reviewer` FAILed that, and it was wrong on
+ * BOTH counts:
+ *   · MISPLACED — classifying a metric from a string is a taxonomy judgement, which
+ *     `layering.md` §Consumption layer puts in the warehouse. Its own test applies: a second
+ *     frontend would have had to re-implement the same regex to render the same heading.
+ *   · UNSOUND — an id's SPELLING is not a fact about the metric. This very catalogue proves it:
+ *     `shots_on_goal_per_match` carries the label key `metrics.shots_on_target_per_match.label`,
+ *     a mismatch `metrics_display.md` records as having already caused a defect in #370. The
+ *     catalogue states the distinction in DATA, not in names — a per-match rate has
+ *     `denominator_expr = count(*)`, a per-90 has `sum(minutes_played)`.
+ *
+ * So the premise is asserted where the catalogue can be read — `test_the_team_board_set_is_all_per_
+ * match_rates` in `tests/test_export_landing.py` fails if any board in `_HOME_TEAM_BOARDS` is not a
+ * `count(*)` rate — and this function does one thing: formats a served label for a heading, the way
+ * `formatValue` formats a served number for a cell. Per-90 labels never reach it, and they would
+ * not need it anyway: they already spell the window out in words.
+ *
+ * ⚠ Per locale, from the LOCALISED label: the German and Finnish labels carry the sigil too, so
+ * deriving from the English one would title a Finnish board in English.
+ */
+export function boardTitle(lang: Lang, labelKey: string): string {
+  const label = metricLabel(lang, labelKey);
+  if (!label) return label;
+  return `${label.replace(/^Ø\s*/, "")} ${t(lang, "perMatch")}`;
 }

@@ -61,6 +61,15 @@ _LEADERBOARD_METRICS = ("goals_player", "scorer_points_player", "shots_on_goal_p
 # ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
 # the mart suffixes them `_player`. The board's NAME still comes from the catalogue's `label_en`.
 _HOME_PLAYER_BOARDS = ("goals_player", "assists_player", "passes_player", "passes_key_player")
+# The HOME page's Top teams boards (#41), four boards in display order, locked by the CPO on
+# 2026-08-10 alongside the player set. These are `mart_team_leaderboards`' own `metric_key` values
+# and the catalogue's team `metric_id`s — the same string, unlike the player boards where the mart
+# suffixes `_player`.
+# ⚠ They do NOT share a number format: goals and shots on goal are `decimal_1`, passes and duels are
+# `decimal_0`. The format travels with each board from the catalogue for that reason.
+_HOME_TEAM_BOARDS = (
+    "goals_per_match", "shots_on_goal_per_match", "passes_per_match", "duels_per_match",
+)
 # Top 7 per board, raised from 5 by the CPO on 2026-08-10 and applying to Top teams as well.
 _HOME_BOARD_ROWS = 7
 
@@ -950,14 +959,64 @@ def fetch_nav(registry_path: str = REGISTRY_PATH) -> dict:
     return build_nav(_registry_competitions(registry_path))
 
 
-def _competitions_index(registry_path: str = REGISTRY_PATH) -> dict:
-    """league_code -> {name, slug} for every registry competition (registry-only, no BigQuery).
+def _warehouse_competition_meta(client) -> dict[str, dict]:
+    """league_code -> the competition facts the SITE displays, from `mart_competition_index`.
+
+    ⛔ THE REGISTRY IS INPUT; THE WAREHOUSE IS WHAT THE SITE DISPLAYS. Both carry a competition
+    name and they are NOT the same string: `docs/competition_registry.yml` carries the formal name,
+    the mart carries the standardised one. Swept across the whole registry — 37 identical,
+    11 DIFFERENT:
+
+        BL1   `1. Fußball-Bundesliga`          -> `Bundesliga`
+        BL2   `2. Fußball-Bundesliga`          -> `2. Bundesliga`
+        UECL  `UEFA Europa Conference League`  -> `UEFA Conference League`
+        WCQ*  `WC Qualification <x>`           -> `World Cup Qualification <x>`  (all seven)
+        WC    `FIFA World Cup 2026`            -> `FIFA World Cup`
+
+    The last one is the reason this is a rule and not a preference: a YEAR INSIDE A NAME is a
+    defect, not a naming choice — a season-scoped label is COMPOSED in the warehouse, an entity row
+    carries its name only. Reading the registry would have shown `FIFA World Cup 2026` for all of
+    2027. And 37 of 48 being identical is exactly why it hid: the wrong source looks right until it
+    meets a competition that standardisation actually changed.
+
+    ⚠ `region_rank` comes from the same read for the related reason: the registry carries
+    `confederation`, and turning that into a rank is a taxonomy mapping the consumption-layer
+    contract forbids here. Same mart `fetch_competition_index` reads.
+
+    ONE helper, both consumers — `fetch_landing_payload`'s `meta` (the fixtures hero's group
+    headings and both board blocks' league names) and `_competitions_index`
+    (`competitions.json`, which TeamHeader renders on every team page). They read the registry for
+    everything else and overlay this; splitting the rule across the two call sites is what let one
+    of them drift."""
+    served = {}
+    for row in _query(client, f"select league_code, competition_name, region_rank "
+                              f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index`"):
+        # A NULL name is left to the registry rather than blanking the heading. Nothing is
+        # renamed here and no name is composed — the served string is carried across as-is.
+        entry = {"region_rank": row.get("region_rank")}
+        if row.get("competition_name"):
+            entry["name"] = row["competition_name"]
+        served[row["league_code"]] = entry
+    return served
+
+
+def _competitions_index(client=None, registry_path: str = REGISTRY_PATH) -> dict:
+    """league_code -> {name, slug} for every registry competition.
 
     The frontend's competition slug/name lookup for ALL active leagues
     (site_v2/src/data/competitions.json): the fixture page resolves its URL competition segment from
-    it and TeamHeader reads the display name. Same shape already built inline for leaderboards."""
+    it and TeamHeader reads the display name. Same shape already built inline for leaderboards.
+
+    The SLUG is the registry's — it is an assigned identifier, not a display string. The NAME is
+    the warehouse's whenever a client is given; see `_warehouse_competition_meta` for why. Without
+    a client this falls back to registry names, which is the offline shape the unit test uses —
+    never the shape a real export runs, because `export_all` always has a client."""
+    served = _warehouse_competition_meta(client) if client is not None else {}
     return {
-        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
+        c["league_code"]: {
+            "name": served.get(c["league_code"], {}).get("name") or c.get("name"),
+            "slug": c.get("slug"),
+        }
         for c in _registry_competitions(registry_path)
     }
 
@@ -1171,30 +1230,51 @@ def _landing_side(team: dict | None) -> dict:
     }
 
 
-def _board_label_keys(seed_path: str = CATALOGUE_SEED_PATH) -> dict[str, str]:
-    """metric_id -> label_i18n_key for the home boards, read from the catalogue seed.
+def _board_catalogue(
+    boards: tuple[str, ...] = _HOME_PLAYER_BOARDS,
+    entity: str = "player",
+    seed_path: str = CATALOGUE_SEED_PATH,
+) -> dict[str, dict[str, str]]:
+    """metric_id -> {label_i18n_key, format} for a set of home boards, from the catalogue seed.
 
-    The board's NAME is the metric's label, and the catalogue is the only source of metric labels
-    (#327). Carrying the KEY rather than the words keeps it that way: the export ships an
-    identifier, the frontend resolves it per locale through `metricLabel()`, and nothing hand-types
-    a board name in either place.
+    The board's NAME and its NUMBER FORMAT are both the metric's, and the catalogue is the only
+    source of either (#327). Carrying the KEY rather than the words keeps the name governed: the
+    export ships an identifier, the frontend resolves it per locale through `metricLabel()`, and
+    nothing hand-types a board name in either place. The format travels for the same reason and a
+    sharper one — the TEAM boards do not share a single format (goals and shots on goal are
+    `decimal_1`, passes and duels are `decimal_0`), so a frontend that picked one would render half
+    of them wrong.
 
-    ⚠ Keyed on (metric_id, entity='player'). Two of the ids here also carry a TEAM row, and keying
-    on metric_id alone silently takes the wrong label — the bug `!27` fixed in
-    export_metric_definitions_json.py.
+    ⚠ KEYED ON (metric_id, entity), and the entity leg is load-bearing now that both a player and a
+    team board set read this. `!27` fixed exactly this bug in export_metric_definitions_json.py by
+    keying on metric_id alone.
+    ⚠ An earlier version of this docstring claimed "two of the ids here also carry a TEAM row".
+    That was false and is corrected rather than softened: measured over the seed, 0 of 86 metric_ids
+    are defined for more than one entity. The filter guards a collision the catalogue PERMITS —
+    `assert_metric_catalogue_unique_by_entity` enforces uniqueness per (metric_id, entity), not
+    globally — rather than one it currently contains.
     """
     import csv
 
     with open(seed_path, encoding="utf-8") as f:
-        rows = [r for r in csv.DictReader(f) if r.get("entity") == "player"]
-    by_id = {r["metric_id"]: r.get("label_i18n_key") for r in rows}
-    missing = [k for k in _HOME_PLAYER_BOARDS if not by_id.get(k)]
+        rows = [r for r in csv.DictReader(f) if r.get("entity") == entity]
+    by_id = {r["metric_id"]: r for r in rows}
+    missing = [k for k in boards if not (by_id.get(k) or {}).get("label_i18n_key")]
     if missing:
         raise KeyError(
-            f"no player label_i18n_key in {seed_path} for: {', '.join(missing)}. "
+            f"no {entity} label_i18n_key in {seed_path} for: {', '.join(missing)}. "
             "A board name is a governed value; it is never defaulted to the metric id."
         )
-    return {k: by_id[k] for k in _HOME_PLAYER_BOARDS}
+    no_format = [k for k in boards if not by_id[k].get("format")]
+    if no_format:
+        raise KeyError(
+            f"no {entity} format in {seed_path} for: {', '.join(no_format)}. "
+            "A board's number format is the catalogue's, never the component's."
+        )
+    return {
+        k: {"label_i18n_key": by_id[k]["label_i18n_key"], "format": by_id[k]["format"]}
+        for k in boards
+    }
 
 
 def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, str]) -> list[dict]:
@@ -1258,22 +1338,86 @@ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, s
             continue
         boards.append({
             "metric_key": key,
-            "label_i18n_key": label_keys[key],
+            "label_i18n_key": label_keys[key]["label_i18n_key"],
             "rows": entries[:_HOME_BOARD_ROWS],
         })
     return boards
 
 
-def shape_landing_payload(upcoming: list[dict], top_players: list[dict] | None = None) -> dict:
+def shape_home_top_teams(rows: list[dict], meta: dict, catalogue: dict[str, dict]) -> list[dict]:
+    """The home page's Top teams block (#41): four boards, one metric each, one team per league.
+
+    The team mirror of `shape_home_top_players`, and deliberately the same shape — group the served
+    rows into boards, keep their order, cut each at 7. It sorts nothing and picks nothing: the
+    warehouse decides which team represents a league (`league_leader_order`) and in what order the
+    representatives appear (`board_leader_order`), per the CPO's 2026-09-09 ruling that all ranking
+    and ordering lives there. Reaching that state took #40 four failed review rounds; this starts in
+    it.
+
+    ⚠ THE FORMAT IS CARRIED PER BOARD, unlike the player block where all four are integers. Goals
+    and shots on goal are `decimal_1`, passes and duels are `decimal_0`, and the catalogue is what
+    says so — a component that chose a formatter would render one pair of boards wrong.
+
+    ⚠ EVERY ROW CARRIES A SLUG AND EVERY ROW LINKS OUT, exactly like the player rows. #41: "Every
+    row links out. That is why the block exists." The payloads those links resolve to are committed
+    — 20 of them, allowlisted in `.gitignore` — which is the procedure `site_v2/src/data/README.md`
+    already sets out for a committed sample that is a SET, and the same reason the linked fixtures
+    are committed.
+    ⛔ THIS PARAGRAPH SAID THE OPPOSITE UNTIL `platform-reviewer` CAUGHT IT. It claimed "NO SLUG AND
+    NO LINK", justified by only one team payload being committed — while the code seven lines below
+    set a slug and `TopTeams.astro` wrapped every row in an anchor. The correction was swept through
+    the component, the tests and the contract and missed HERE, in the docstring of the very function
+    that emits the slug. Replaced, not softened.
+
+    A BOARD WITH NO ROWS IS OMITTED ENTIRELY, and if none survives the block does not render at all
+    — the same rule as the player block (CPO 2026-08-10).
+    """
+    by_board: dict[str, list[dict]] = {key: [] for key in _HOME_TEAM_BOARDS}
+    for row in rows:
+        key = row.get("metric_key")
+        if key not in by_board:
+            continue
+        league_code = row.get("league_code")
+        by_board[key].append({
+            "team_id": row.get("team_sk"),
+            # SERVED, never derived: `dim_team.team_slug` is the assigned slug (#852), so this file
+            # generates no identity — the same rule the fixture and player slugs follow.
+            "slug": row.get("team_slug"),
+            "name": row.get("team_name"),
+            "crest": row.get("team_logo_url"),
+            "league_code": league_code,
+            "league_name": (meta.get(league_code) or {}).get("name"),
+            "value": row.get("sort_value"),
+        })
+
+    boards = []
+    for key in _HOME_TEAM_BOARDS:
+        entries = by_board[key]
+        if not entries:
+            continue
+        boards.append({
+            "metric_key": key,
+            "label_i18n_key": catalogue[key]["label_i18n_key"],
+            "format": catalogue[key]["format"],
+            "rows": entries[:_HOME_BOARD_ROWS],
+        })
+    return boards
+
+
+def shape_landing_payload(
+    upcoming: list[dict],
+    top_players: list[dict] | None = None,
+    top_teams: list[dict] | None = None,
+) -> dict:
     """landing.json — the home modules, in the order the CPO composed them.
 
     Pure assembly of already-shaped parts, so the whole payload is unit-testable without
     BigQuery. Spec: docs/wireframes/10_home.md §0, which is that spec's stated authority.
 
-    ONE module today, of a decided THREE: next matches -> Top players -> Top teams (10_home.md
-    §0). Top players/Top teams are specified and not built — they need six pieces of warehouse
-    work (GAP-24..GAP-29) and a layout the CPO has not approved — so they land in their own PR
-    and add their own keys here.
+    ALL THREE modules now: next matches -> Top players -> Top teams (10_home.md §0). Top players
+    landed with #40 (`!166`) and Top teams with #41; the composition is complete and this docstring
+    no longer describes either as unbuilt. The warehouse work those two waited on is merged —
+    `!153`, `!164`, `!165`, `!167`.
 
     Three blocks were removed rather than carried, and all three removals deleted
     consumption-layer violations as a side effect:
@@ -1302,6 +1446,8 @@ def shape_landing_payload(upcoming: list[dict], top_players: list[dict] | None =
     # a key it then has to guard against. Absent means absent.
     if top_players:
         payload["top_players"] = top_players
+    if top_teams:
+        payload["top_teams"] = top_teams
     return payload
 
 
@@ -1323,17 +1469,15 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
         for c in _registry_competitions(registry_path)
     }
 
-    # ⚠ region_rank comes from the MART, not from the registry YAML this dict is otherwise built
-    # from. The registry carries `confederation`; turning that into a rank is a taxonomy mapping,
-    # which the consumption-layer contract forbids here. mart_competition_index already publishes
-    # the rank (from the confederations seed) and is the same mart fetch_competition_index reads.
+    # ⚠ THE DISPLAY NAME IS OVERWRITTEN FROM THE MART — see `_warehouse_competition_meta`, which
+    # holds the rule and the evidence for it. `group_upcoming_fixtures` reads `comp["name"]` from
+    # this dict, so the fixtures hero's group headings are fixed by the same overlay as the boards.
     #
     # ⚠ `sort_order` is deliberately NOT carried any more: the CPO retired it as an ordering basis
     # on 2026-08-16 (Ruling 1) and nothing in this payload consumed it.
-    for row in _query(client, f"select league_code, region_rank "
-                              f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index`"):
-        if row.get("league_code") in meta:
-            meta[row["league_code"]]["region_rank"] = row.get("region_rank")
+    for league_code, served in _warehouse_competition_meta(client).items():
+        if league_code in meta:
+            meta[league_code].update(served)
 
     # Same upcoming-fixture definition the fixture pages use, so the hero can never advertise a
     # match that has no page.
@@ -1402,8 +1546,30 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
         order by l.board_leader_order
     """)
 
+    # Top teams (#41). The same selection as the players block above, against the team mart, and
+    # every clause is the same KIND of served column — see that comment, which is not repeated here.
+    # ⚠ The tie inside `league_leader_order` is broken by `team_sk` and MEANS NOTHING: teams have no
+    # minutes, and for a per-match RATE fewer games is less evidence rather than better performance,
+    # so the CPO ruled there is no criterion (2026-09-09, escalations.log; GitLab #114 to improve).
+    top_team_rows = _query(client, f"""
+        select t.metric_key, t.league_code, t.sort_value,
+               t.team_sk, t.team_name, t.team_slug, t.team_logo_url
+        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_team_leaderboards` as t
+        join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
+            on t.league_code = r.league_code
+        where t.is_current_season
+          and t.league_leader_order = 1
+          and r.competition_group = 'elite'
+          and t.metric_key in ({", ".join(f"'{k}'" for k in _HOME_TEAM_BOARDS)})
+        order by t.board_leader_order
+    """)
+
     return shape_landing_payload(
-        upcoming, shape_home_top_players(top_player_rows, meta, _board_label_keys())
+        upcoming,
+        shape_home_top_players(top_player_rows, meta, _board_catalogue()),
+        shape_home_top_teams(
+            top_team_rows, meta, _board_catalogue(_HOME_TEAM_BOARDS, "team")
+        ),
     )
 
 
@@ -1545,7 +1711,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
     # teams-only run: the team page reads the competition display name from it).
-    sha = write_file(out_root, "competitions.json", _competitions_index())
+    sha = write_file(out_root, "competitions.json", _competitions_index(client))
     entries.append({"type": "competitions_index", "id": "competitions", "slug": None,
                     "path": "competitions.json", "sha256": sha})
 

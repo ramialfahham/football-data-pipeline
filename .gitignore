@@ -245,8 +245,12 @@ artifacts/site_data/
 #
 # Six team payloads (132, 463, 587, 1607, 2242, 2759) were tracked here until the trending block was
 # cut on 2026-08-08. They were listed ONLY because trending rows linked to them; with that block
-# gone nothing on the site links to a team page, so they emitted six orphans. 33.json stays -- it is
+# gone nothing on the site linked to a team page, so they emitted six orphans. 33.json stays -- it is
 # the team-page's own sample and predates the landing work.
+# ⚠ THAT LAST SENTENCE STOPPED BEING TRUE ON 2026-09-09. The Home Top teams block (#41) links every
+# row to a team page, so 20 payloads are tracked again below -- for the same reason the six were
+# once tracked, and the same reason the fixtures are. The orphan problem was the block being cut,
+# never the linking itself.
 #
 # ⚠ REGENERATE AS A SET. `landing.json` is a snapshot of whatever fixtures are next, so refreshing
 # it changes WHICH ids belong below. Refresh the landing sample and these entries together, or the
@@ -258,7 +262,35 @@ artifacts/site_data/
 site_v2/src/data/manifest.json
 site_v2/src/data/slug_map.json
 site_v2/src/data/teams/*.json
+# The 20 teams the Home Top teams boards link to (#41: "Every row links out. That is why the block
+# exists."). Same rule as the fixtures block below and for the same reason: landing.json links to
+# these pages, and those pages exist only if the payload behind each one is committed — audit-seo
+# check 8 fails the build otherwise. 33 (Manchester United) predates the block as the team-page
+# sample and is kept.
+#
+# ⚠ REGENERATE AS A SET. The boards change with the data, so a refresh changes WHICH team ids belong
+# here. Re-export, rewrite this list to exactly the ids the new landing.json links, `git rm` the
+# ones that left, all in the same commit — a stale entry pins a payload nothing re-exports.
 !site_v2/src/data/teams/33.json
+!site_v2/src/data/teams/49.json
+!site_v2/src/data/teams/50.json
+!site_v2/src/data/teams/65.json
+!site_v2/src/data/teams/85.json
+!site_v2/src/data/teams/95.json
+!site_v2/src/data/teams/106.json
+!site_v2/src/data/teams/116.json
+!site_v2/src/data/teams/157.json
+!site_v2/src/data/teams/182.json
+!site_v2/src/data/teams/197.json
+!site_v2/src/data/teams/207.json
+!site_v2/src/data/teams/211.json
+!site_v2/src/data/teams/217.json
+!site_v2/src/data/teams/497.json
+!site_v2/src/data/teams/505.json
+!site_v2/src/data/teams/512.json
+!site_v2/src/data/teams/529.json
+!site_v2/src/data/teams/536.json
+!site_v2/src/data/teams/4716.json
 site_v2/src/data/fixtures/*.json
 # The 2026-09-01 matchday: 4 fixtures across 3 competitions, exactly what `landing.json` links to.
 #
