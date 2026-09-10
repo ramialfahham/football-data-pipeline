@@ -8736,3 +8736,35 @@ this was a stale rationale paragraph, not a new claim about the metric.
   so", and I cited that back to him as HIS decision. It was mine — the README's own next sentence
   said "committing them is a separate decision". He asked "I don't remember that I decided", and he
   was right.
+
+2026-09-10 chore/authority-map-in-claude-md — CPO INSTRUCTION: fix the context engineering, as a
+  step-by-step plan, and start.
+
+  HIS WORDS. On the problem: *"Every file should have a clearly defined purpose. I'm not sure if
+  you're sticking to this... contradictory entries quickly pile up... you end up going off track,
+  because you're accessing contradictory context and no longer understand which source has authority
+  or priority."* And: *"You've even recorded decisions with timestamps in code comments and content.
+  Code files really aren't meant for that."* And: *"you forget that we already have a mock-up for a
+  page and simply redesign it however takes your fancy."* Then: *"I want a step by step plan how we
+  address this"*, and on the plan: *"go"*.
+
+  THE SIX STEPS, in dependency order, so the sequence is not re-derived next session:
+    1. design authority into the repo — MERGED as `!169`
+    2. finish the precedence/reading order — this branch
+    3. split `escalations.log` (795 KB, 164 entries, unsorted, no index)
+    4. give reviewers a non-code place to read reasoning
+    5. strip decision history from code, plus a hook — depends on 4
+    6. cut memory to behaviour-changing rules; size budgets per surface
+
+  ⚠ STEP 5 DEPENDS ON STEP 4, and getting that backwards was my first plan's error. Reviewers read
+  `review_input.patch` — the DIFF — so anything I want a reviewer to know goes into the diff, which
+  is the structural reason decision history ends up in code comments. Banning it from code before
+  there is somewhere else for it to go just squeezes the balloon.
+
+  ⚠ MEASURED, so the diagnosis is not felt: `escalations.log` 795 KB; `docs/wireframes/` 260 KB;
+  memory 107 files with a 21 KB index; and `CLAUDE.md` — read at the start of every session —
+  returning **0** on a grep for `wireframes`, `metrics_display`, `ui_design_brief`, `design-mocks`
+  AND `escalations.log`.
+
+  ⛔ NOT A RULING ON ANY OF THE SIX STEPS' CONTENT. He approved the plan and told me to start; each
+  step's own decisions are still his.

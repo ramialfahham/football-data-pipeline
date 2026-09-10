@@ -45,7 +45,12 @@ Next: player insights chain (#153 → #156).
 | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
 | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
 | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
+| **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
+| **What the CPO has RULED** — the durable, verifiable record | [.claude/task/escalations.log](.claude/task/escalations.log) — "you ruled X" needs a quote from here. A task contract is overwritten by the next task; this file is not. |
 | GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+
+⛔ **The two bold rows are load-bearing.** Until 2026-09-10 this file pointed at neither, and #41 was
+rebuilt from scratch against a design its issue had already approved.
 
 ## Architecture decisions (non-negotiable)
 

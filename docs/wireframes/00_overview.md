@@ -2,9 +2,58 @@
 
 > The wireframe-level spec for every screen of Matchday Pilot v2. This folder is the
 > **primary input** to the design pass (#366) and the template build (#368), and a
-> direct input to SEO (#369). The brief (`docs/ui_design_brief.md`) sets look-and-feel
-> principles; `docs/site_architecture.md` fixes IA/URLs; these wireframes bind every
-> block of every screen to a real exported field. Conflicts escalate to the CPO.
+> direct input to SEO (#369).
+
+## Which document owns what — READ THIS BEFORE DESIGNING OR BUILDING A SCREEN
+
+Six documents govern what a screen shows. Each owns a different question, and they are listed here
+once so nobody has to guess. `CLAUDE.md`'s authority table points here rather than restating it.
+
+| Question | Owner |
+|---|---|
+| What does the product look and feel like? | [`docs/ui_design_brief.md`](../ui_design_brief.md) §§1–5, 7 — principles, constraints, component inventory. ⚠ Its **§6 is NOT look-and-feel** — see below |
+| What is the URL, and where does the page sit? | [`docs/site_architecture.md`](../site_architecture.md) — IA and URL scheme |
+| Which blocks compose the page, and which mart backs each? | [`docs/content_architecture.md`](../content_architecture.md) — the block library and tabbed compositions |
+| **What does this specific screen show, and is every field real?** | **these wireframes** where one exists for the screen — otherwise [`ui_design_brief.md`](../ui_design_brief.md) **§6**, which is a per-screen field contract in its own right ("what a mockup MAY show"; "if a stat is not listed below, we do not have it — do not draw it") |
+| How is a METRIC displayed — label, format, grouping, order, direction? | [`metrics_display.md`](metrics_display.md) — **LOCKED**; the catalogue seed owns what a metric IS, this owns how it renders |
+| What did the CPO approve it to LOOK like? | the **GitLab issue** for that surface, with `design-mocks/` as its rendering — see [`design-mocks/README.md`](../../design-mocks/README.md) |
+
+**On conflict: escalate to the CPO.** That rule is unchanged and deliberately absolute — no
+"the more recent one wins", no "the more specific one wins". Whoever is reading does not get to
+decide which document is right.
+
+A ruling already recorded in [`.claude/task/escalations.log`](../../.claude/task/escalations.log)
+is not a conflict — it is the answer, and it is where to look before escalating something he has
+already settled.
+
+### `ui_design_brief.md` §6 and these wireframes both bind fields — here is the relationship
+
+§6 is titled "Per-screen data contract (what a mockup MAY show)" and the brief calls it *"the single
+most important rule in this document"*. It is the same kind of gate as [the binding
+rule](#the-binding-rule-the-whole-point) below, not a look-and-feel principle.
+
+The pattern the documents already demonstrate: **once a screen's wireframe is written, it supersedes
+that screen's §6 subsection.** §6.3 (Landing) carries exactly that marker and points at
+[`10_home.md`](10_home.md) §0.
+
+⛔ **SO §6 IS STILL LIVE FOR ANY SCREEN WITH NO WIREFRAME — TODAY THAT IS THE COMPETITION HUB.**
+`04_competition_hub.md` is `pending` in the inventory below and does not exist, while
+`ui_design_brief.md` §6.5 is an un-superseded field list for that page. A reader who took row 1 to
+mean "the brief is look-and-feel" would skip the only field contract that screen has. That is the
+defect `bi-analyst-reviewer` FAILed this branch for.
+
+⏳ **OPEN, AND NOT DECIDED HERE:** §6.1 (Fixture), §6.2 (Team profile) and §6.4 (Player profile) have
+wireframes and carry NO supersession marker, unlike §6.3. Whether they should is a question for the
+CPO — retroactively marking three sections superseded is a decision about which document binds, not
+a formatting fix.
+
+⚠ **THE MOCK/ISSUE LAYER IS NOT ABOVE OR BELOW THE WIREFRAMES — IT IS A DIFFERENT AXIS.** The issue
+settles what the screen looks like and which boards it carries; the wireframe settles whether every
+value on it is a real exported field. A design can be approved and still be unbuildable, and that is
+a gap ([`99_gaps_register.md`](99_gaps_register.md)), not a contradiction.
+
+⛔ Until 2026-09-10 this reading order named only three of the six and omitted the mock/issue layer,
+which is how #41 came to be rebuilt against a design its issue had already approved.
 
 ## The binding rule (the whole point)
 
