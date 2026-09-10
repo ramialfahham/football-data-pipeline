@@ -147,9 +147,11 @@ Two consequences worth stating, because both were ruled:
 
 ⛔ **SUPERSEDED 2026-08-10 — THE TABLE BELOW IS THE NINE-BOARD DESIGN AND IS NOT CURRENT.** The CPO
 reduced Top players to **FOUR single-metric boards, in his order: goals → assists → passes → key
-passes** (recorded in `design-mocks/gen_top_players.py`'s header, which lists what was cut, and in
-`99_gaps_register.md` — GAP-24/25/26 are VOID *because* of this reduction). Struck rather than
-deleted, per this file's own convention.
+passes**. GAP-24/25/26 in `99_gaps_register.md` are VOID *because* of this reduction. Struck rather
+than deleted, per this file's own convention.
+⚠ THIS PARAGRAPH USED TO CITE `design-mocks/gen_top_players.py`'s header as where the ruling was
+"recorded". A ruling's record now lives here; the generators are how the design was RENDERED, which
+is what `design-mocks/README.md` always said they were.
 
 What the reduction removed, stated so the table below is not mistaken for a menu: `scorer_points_player`
 (goals and assists became boards in their own right, so the combined metric had nothing left to
@@ -179,12 +181,54 @@ Every board ranks on a VOLUME metric, never a rate. That is deliberate and it ca
 consequence: percentages ride along as context instead of deciding position, so the qualification
 floors that guard `mart_leaderboards`' five rate boards are not needed for eight of the nine.
 
+### Four rulings that govern BOTH blocks (CPO 2026-08-10)
+
+They were made in the same session as the board cuts above and apply to Top players and Top teams
+alike. All three ship in the built page; they are recorded here because the wireframe is where
+someone looks, and until 2026-09-10 they existed only in a generator docstring.
+
+- **ONE metric per board, so there is NO column-header row and exactly ONE value column.** The
+  board title is the only label the number needs; a header would just repeat it. ⚠ Recorded because
+  a generator docstring contradicted itself on this and said "two value columns throughout" — the
+  CPO ruled it on 2026-09-10 ("fix it"), settled by the reviewed mock: 4 boards, 28 rows,
+  **28 value cells**.
+- **The row image is the CLUB CREST — including on player rows.** Not a player photo. A player row
+  carries the badge of the club they play for, the same image the team boards use.
+- **Every board ranks DESCENDING — most first, without exception.** The reason is worth keeping
+  because it is conditional: the two "against" boards (goals conceded, shots on target faced) were
+  `lower_better` and were dropped in this same session, so no surviving board disagrees with its
+  metric's catalogue `direction`. ⚠ Reintroducing a `lower_better` board therefore needs an
+  explicit ruling — the generators keep a guard that fails rather than silently ranking one
+  descending.
+- **A board stacks as a WHOLE, never row by row.** The CPO's words: *"they all stack together or
+  not"*. At a narrow viewport every row of a board changes layout together, so a board never shows
+  some rows stacked and others not.
+
+⛔ These three were MISSED by the 2026-09-10 transcription and caught by `bi-analyst-reviewer`. The
+task's own acceptance criterion said "every 2026-08-10 ruling in a generator docstring"; I swept the
+board-composition paragraph I was working in rather than the whole docstring. The sigil-expansion
+ruling from the same docstrings was correctly routed to `metrics_display.md` by that file's charter,
+which is what made the omission of these three visible as an omission rather than a routing choice.
+
 ⛔ **SUPERSEDED 2026-08-10 — the table below is the SIX-board design and is not current.** Top teams
 was reduced in the same session to **FOUR boards: `goals_per_match` → `shots_on_goal_per_match` →
-`passes_per_match` → `duels_per_match`** (`design-mocks/gen_top_teams.py`). % Points captured and
-Ø Defensive actions are gone, and the surviving four are single-metric like the player boards.
-⚠ % Points captured leaving matters beyond this block: `points_capture_pct` is built on the synthetic
-3-1-0 tally, which is wrong for cup competitions.
+`passes_per_match` → `duels_per_match`**, single-metric like the player boards.
+
+What the CPO cut, and why, stated here rather than left in a generator docstring:
+
+- **% Points captured** — dropped as a board; `points_capture` is shown nowhere. ⚠ This matters
+  beyond the block: `points_capture_pct` is built on the synthetic 3-1-0 tally, which is wrong for
+  cup competitions.
+- **Ø Defensive actions** — dropped.
+- **Ø Key passes** — dropped from the passes board.
+- **Deserved-vs-actual** — dropped, and the reason generalises: deserved points needs ONE ladder to
+  mean anything, so it is a within-league number and a board pooling several leagues cannot carry
+  it. That takes `deserved_points` and `points_won` off the block entirely.
+- The shots board **ranks on `shots_on_goal_per_match`, not on the difference**, and the Passes
+  column order is reversed so the rank metric leads.
+
+⚠ Consequence for the warehouse: `sot_difference_per_match` and `finishing_efficiency` are not used
+by this block at all.
 
 ~~**Six team boards.**~~
 

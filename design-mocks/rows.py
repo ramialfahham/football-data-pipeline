@@ -1,0 +1,269 @@
+"""THE match row — one implementation, imported by every mock that shows a match.
+
+CPO direction, 2026-08-10: *"make sure that displaying of next matches is consistent on every
+page"*. It was not. Four treatments were in the tree or in these mocks:
+
+    .fxrow    home hero (`home/HeroFixtures.astro`)        upcoming
+    .nextfx   team page (`team/TeamFixtures.astro`)        upcoming, a single highlighted card
+    .rmatch   fixture page, team page, H2H                 played, written from ONE team's view
+    .fxrow.res  the competition-hub and matches mocks      played, neutral — a fourth, mine
+
+So this module exists rather than a written rule: consistency by CONSTRUCTION. Both generators
+import these functions, and `check_row_consistency.py` proves the two rendered mocks emit
+identical row markup. In the real site this is one Astro component, not two call sites.
+
+**The rule it encodes.** One row, `.fxrow`:
+  * both sides stacked — crest/flag + name
+  * the right column carries the KICKOFF when upcoming and a REPORT affordance when played
+  * the score sits inline at the end of each side, so home/away needs no extra label
+  * `.nextfx` retires — a next match is simply the first row, not a special card
+
+The one legitimate variant, not built here: on a TEAM page the row also carries a W/D/L chip,
+because that page has a subject and "we won" is meaningful. Everywhere else there is no "we",
+so the row stays neutral.
+
+**Linked or inert.** A row is an anchor only when its target exists. Upcoming rows link today.
+Played rows do NOT — a played match has no page at all (#861) — so `result_row(linked=False)`
+is the honest state now, and `linked=True` is what the same component emits the day match
+reports land. Same markup either way; only the tag changes.
+"""
+import html
+
+from interaction import CHEVRON
+
+E = html.escape
+
+# ⚠ Both badges below are HOTLINKED in production from media.api-sports.io (#36 — a go-live
+# blocker with an open licence question). The league logo inherits that problem exactly. The
+# mocks draw neutral placeholders: they must not hotlink, and the design system's text-initials
+# fallback reads as if the abbreviation were the design.
+
+CREST = (
+    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+    '<path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95'
+    '-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z"'
+    ' fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg>'
+)
+
+# a NATIONAL side is a flag, not a crest — `dim_league` already carries `country_flag_url`, so
+# this is a different asset, not the same one restyled
+FLAG = (
+    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+    '<rect x="3" y="6" width="18" height="12" rx="1.5" fill="none" stroke="currentColor"'
+    ' stroke-width="1.6" opacity=".42"/>'
+    '<path d="M3 10h18M3 14h18" stroke="currentColor" stroke-width="1.2" opacity=".3"/></svg>'
+)
+
+# the league logo — `dim_league.league_logo_url`. A CIRCLE where a club crest is a SHIELD, so a
+# group head cannot be misread as a row.
+LEAGUE_LOGO = (
+    '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+    '<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.6"'
+    ' opacity=".45"/>'
+    '<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.3"'
+    ' opacity=".3"/></svg>'
+)
+
+
+def badge(kind):
+    return FLAG if kind == "nation" else CREST
+
+
+def _sides(kind, home, away, hg=None, ag=None):
+    def side(name, goals, won):
+        g = ""
+        if goals is not None:
+            # ⚠ `winner`, NOT `win`. `system.css:93` defines `.win { display: none }` — the
+            # segment control's hidden-panel class — so marking the winning side `win` made the
+            # WINNER'S SCORE INVISIBLE. Second collision found by the same check, minutes after
+            # the first (`res`, which was 24px wide).
+            g = '<b class="g%s num">%d</b>' % (" winner" if won else "", goals)
+        return ('<span class="side"><span class="crest xs">%s</span>'
+                '<span class="nm">%s</span>%s</span>' % (badge(kind), E(name), g))
+    if hg is None:
+        return '<span class="sides">%s%s</span>' % (side(home, None, False), side(away, None, False))
+    return '<span class="sides">%s%s</span>' % (side(home, hg, hg > ag), side(away, ag, ag > hg))
+
+
+def upcoming_row(kind, home, away, time, zone, href="#"):
+    """An upcoming match. The right column is the kickoff in VENUE-LOCAL time (CPO 2026-08-10),
+    and `zone` is REQUIRED — every row, every page, no exception.
+
+    ⚠ AN EARLIER VERSION MADE IT CONDITIONAL and it was rejected on sight. The zone sat on the
+    GROUP head where a competition has one country, and moved onto the ROW only where a
+    competition spans zones (MLS: four US zones; any national-team competition: played in
+    whichever nation is at home). Both variants then appeared on one screen, a group-level "CET"
+    above one block and per-row "CET"/"EET" in the next.
+
+    CPO, 2026-08-10: *"this is a repetitive content block ... it has to be consistent everywhere
+    we show this type of content block"*. **A reusable block must not change shape according to
+    its context.** So the zone is part of the time, always — repeating "CET" down a Bundesliga
+    list is the price, and it is the right price.
+
+    Dropping the zone entirely is NOT the alternative: Germany 20:45 CET and Finland 21:45 EET
+    are the same moment, and rendering them bare reads as an hour apart.
+
+    ⚠ NO DATE ON THE ROW — it is a `date_head` above the rows it applies to. Putting it in the
+    right-hand column repeated one value down a whole round and made the schedule hard to read."""
+    return ('<a class="fxrow" href="%s">%s'
+            '<span class="when"><b class="t">%s</b><span class="rowtz">%s</span></span></a>'
+            % (href, _sides(kind, home, away), E(time), E(zone)))
+
+
+def result_row(kind, home, hg, away, ag, href="#"):
+    """A played match. THE SAME ROW as `upcoming_row` (CPO 2026-08-10: *"let's keep the design
+    consistent with the next matches block design"*) — same sides, same badges. The score goes
+    inline at the end of each side, so home and away need no extra label, and the kick-off column
+    is dropped: a finished match's start time is not information.
+
+    The winner is shown by TONE + WEIGHT, never by hue — green stays reserved for "better value"
+    and red for a Loss pill, so a draw leaves both sides muted, which is the honest reading.
+
+    ⚠ ALWAYS A LINK. An earlier version rendered played rows inert because the match report page
+    does not exist (#861). CPO ruling: *"we are creating the pages one by one. there will always
+    be some page that's not wired ... until we have created all of them"* — so an unbuilt target
+    no longer blocks the design. Nothing is exposed meanwhile: the site is unpublished and every
+    page is noindex.
+
+    ⚠ A "Report" / "No report yet" chip lived in the right column and is GONE. It was a second
+    thing in the slot that carries the kick-off on every other surface — the block's own
+    never-move rule."""
+    # ⚠ THE MODIFIER IS `played`, NOT `res`. `.res` is ALREADY TAKEN by system.css:155 — it is the
+    # W/D/L result chip of the `.rmatch` row, and it carries `width: 24px; height: 24px`. Naming
+    # the played-row modifier `res` made every played row 24 PIXELS WIDE, which collapsed the name
+    # to nothing and overlapped the rows. Four rounds of layout "fixes" chased that and none could
+    # have worked, because none of them touched the cause. A block's modifier must not reuse a
+    # class the design system already defines; `check_row_consistency.py` now enforces that.
+    # ⚠ NO KICK-OFF ON A PLAYED ROW (CPO 2026-08-10). Once a match is finished the time it started
+    # tells a reader nothing — the score is the whole content — so the right-hand column is
+    # dropped rather than filled with something less useful. This is the standard's OMIT rule, not
+    # a move: the slot is absent, and nothing else takes it over.
+    return ('<a class="fxrow played" href="%s">%s</a>'
+            % (href, _sides(kind, home, away, hg, ag)))
+
+
+def date_head(label):
+    """A DATE inside a competition group. The second and last level of grouping.
+
+    ⚠ This replaced the date-on-every-row version, which the CPO could not scan: *"now it's hard
+    to see when the games are"*. A round runs Friday to Sunday, so the date repeated down the
+    right-hand column as a value when it is really a heading. As a divider it is read once and
+    the rows underneath carry only a kick-off.
+
+    It also keeps ONE grouping order on every surface — competition, then date. The version
+    before this grouped the Matches page by DAY and then competition, and the competition page by
+    matchday, which is two different blocks."""
+    return '<div class="dh">%s</div>' % E(label)
+
+
+def group_head(slug, name):
+    """THE GROUP: one competition. League logo + competition name. Nothing else.
+
+    ⚠ NO MATCHDAY (CPO 2026-08-10: *"leave out the match day — you can see that on the details
+    page anyway"*). It also could not be shown honestly: the warehouse stores the provider's raw
+    `"Regular Season - 25"`, which shipped untranslated to all three locales once already (#866),
+    and turning it into a phase plus a number is taxonomy mapping the consumption layer forbids.
+
+    ⚠ THE COMPETITION MUST BE UNMISSABLE — *"you scroll down and barely notice that the
+    competition has changed"*. Hence the larger name, the wider space above the group and the
+    heavier rule in `ROW_CSS`, rather than the 14px label this started as.
+
+    The competition name is the link that makes a match list a HUB rather than a list: every
+    group head is an outbound edge to a competition, every row one to a match.
+
+    ⚠ NOT CALLED AT ALL ON A COMPETITION'S OWN PAGE. A `here=True` variant rendered the name as
+    plain text there, which put "Bundesliga" directly under the `<h1>Bundesliga</h1>` — the page
+    already IS level 1.
+
+    THE RULE THIS SETTLES: **a block may OMIT a level the page itself supplies; it may never
+    MOVE information from one slot to another.** Dropping the competition level on the
+    competition's page is omission. Putting the timezone on a group head for some competitions
+    and on the row for others was relocation, and that is what was rejected.
+
+    ⚠ NO TIMEZONE HERE, for the same reason. The zone lives on the row — see `upcoming_row`."""
+    # ⚠ THE CHEVRON IS THE AFFORDANCE, and it is present AT REST. The heading used to announce
+    # itself as a link only by underlining on hover — which a phone never shows, so on touch the
+    # link was invisible. See `interaction.py`.
+    return ('<div class="gh"><a class="cnm" href="/en/%s/">'
+            '<span class="clogo">%s</span><span class="nm">%s</span>%s</a></div>'
+            % (E(slug), LEAGUE_LOGO, E(name), CHEVRON))
+
+
+# The row's own CSS. Imported by every mock so the rendered result cannot drift either.
+ROW_CSS = """
+/* ================================================================ *
+ *  THE MATCH ROW — one component, every page (CPO 2026-08-10).      *
+ *  Base `.fxrow` / `.fxgroup` / `.crest.xs` live in system.css;     *
+ *  everything here is the shared DELTA, defined once.               *
+ * ================================================================ */
+
+/* LEVEL 1 — the competition. Deliberately heavier than the 14px label this started as: the
+   complaint was "you scroll down and barely notice that the competition has changed". More space
+   above, a bigger logo, a 17px name and a full-weight rule underneath. A `<span class="cnm here">`
+   on the competition's own page renders identically to the `<a>` — same convention as the nav and
+   the breadcrumb, so being on the page is a state, not a different block. */
+.fxgroup { margin-top: 34px; }
+.fxgroup:first-of-type { margin-top: 14px; }
+.fxgroup > .gh { padding-bottom: 10px; border-bottom: 2px solid var(--div); }
+.fxgroup > .gh .cnm { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.fxgroup > .gh .cnm .chev { margin-left: 2px; }
+.clogo { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); }
+.clogo svg { width: 26px; height: 26px; display: block; }
+.fxgroup > .gh .nm { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+/* ⚠ NO hover rule here. How a clickable thing signals itself is owned by `interaction.py`, in one
+   place, for every surface — this file owns what the block IS, not what it DOES. Two underline-on-
+   hover rules lived here and are gone: they pointed the affordance at a word inside a row whose
+   target was the row. */
+
+/* LEVEL 2 — the date, inside the competition. Read once, not repeated down a column. */
+.fxgroup .dh {
+  font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); padding: 15px 0 6px;
+}
+
+/* The right column: kick-off + venue-local zone. No date — that is the `.dh` heading above.
+   The zone is on EVERY row, always, never on a group head: it was conditional once and a
+   conditional block is two blocks. Quiet suffix to the time, the way a flight schedule does it,
+   because it repeats down a single-country list. */
+.fxrow .when .rowtz { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted);
+                      letter-spacing: .04em; margin-top: 1px; }
+
+
+/* ⚠ THE NAME MUST NEVER TRUNCATE. system.css ellipsises `.fxrow .side .nm`, which is right on
+   the home page's short teaser and wrong on a full list: these pages exist to send people to a
+   match, and "Brighton & Hove Albio…" on a phone defeats that. The row grows instead. */
+/* ⚠ `overflow-wrap: break-word` WAS HERE AND CAUSED THE COLLAPSE. It was added to stop names
+   truncating, and it does — but it also makes the element's MIN-CONTENT width one character. A
+   name that may shrink to its min-content will, the moment anything competes for the space, and
+   the club name renders as a vertical stack of letters. The score is what applies that pressure,
+   which is why only played rows broke.
+   `normal` keeps the minimum at the longest WORD ("Mönchengladbach"), so the name still wraps
+   instead of truncating and can never fall below a readable width. A pathological single long
+   word now overflows its column slightly rather than destroying the row — the right failure. */
+.fxrow .side .nm {
+  white-space: normal; overflow: visible; text-overflow: clip;
+  overflow-wrap: normal; word-break: normal; hyphens: none;
+  line-height: 1.25;
+}
+
+/* the score, inline at the end of each side — so home/away needs no extra label. The winner by
+   TONE + WEIGHT, never by hue: green stays reserved for "better value", red for a Loss pill, and
+   a draw leaves both sides muted. */
+/* ⚠ A PLAYED ROW IS THE NEXT-MATCH ROW PLUS A SCORE. NOTHING ELSE.
+   CPO, 2026-08-10: *"this shouldn't be much different from next match design"* — and it had
+   become very different. Three things were added chasing a layout collapse, none of them asked
+   for, each able to cause one, and all three are now gone:
+     * `.side` was converted from system.css's flex to a three-track grid;
+     * the score was given a fixed min-width, its own padding and 16px bold;
+     * the kick-off was down-weighted on played rows only.
+   `.side` keeps the shipped flex layout. The score is one declaration: pushed to the end of the
+   side, muted, tabular so the digits line up. The winner is tone and weight only — green stays
+   reserved for "better value", red for a Loss pill, so a draw leaves both sides muted. */
+.fxrow .side .g { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fxrow .side .g.winner { color: var(--ink); font-weight: 700; }
+
+/* A played row needs NO right-column rules of its own: it uses the same kick-off + zone slot as
+   every other row. A "Report" / "No report yet" chip lived here and is gone — it put a second
+   kind of thing in the slot that carries the kick-off everywhere else, which is this standard's
+   own omit-never-move rule broken by the standard itself. */
+"""
