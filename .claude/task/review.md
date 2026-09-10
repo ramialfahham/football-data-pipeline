@@ -1,80 +1,68 @@
-# Review — chore/authority-map-in-claude-md — 2026-09-10
+# Review — chore/dead-issue-references — 2026-09-10
 
-diff_sha256: 25ff73d6eb800ead98bb60de97e16e2c6d8dae1f7037ef2b027d4e8e96030738
+diff_sha256: 65236da1bb6b6176005e850515a530cc6c3d29be2de030b750c35e4f27cb3990
 
 rounds: 2
 
-Round 1: `scope-auditor` FAIL; `bi-analyst-reviewer` FAIL.
-Round 2: both PASS.
-
-⭐ **BOTH ROUND-1 FAILS WERE THIS BRANCH DOING THE THING IT WAS WRITTEN TO PREVENT.** The task was
-"write the map of which document owns what". One FAIL was me rewriting a rule while claiming to only
-add; the other was me getting a row of the map wrong. Neither is machine-detectable, and no gate on
-this branch would have caught either.
+Round 1: `platform-reviewer` PASS; `scope-auditor` FAIL.
+Round 2: `scope-auditor` PASS.
 
 ## scope-auditor
 VERDICT: PASS (round 2)
 risks_checked:
-- ⛔ Round 1 FAIL (a) — A §10 RULE EXTENSION DISGUISED AS TIDYING. `00_overview.md` said
-  **"Conflicts escalate to the CPO."**, absolute. I replaced it with "a CPO ruling beats every
-  document here; below that, the more specific and more recent wins, and anything still unresolved
-  escalates". That invents an auto-resolution and narrows when the CPO is consulted — a decision
-  about who decides, in a sentence that reads like formatting. Reverted; the rule is restored in
-  force with no tie-breaker.
-- Round 1 FAIL (b) — the contract said "NOTHING IS DELETED" while (a) deleted a rule. Corrected to
-  name the deletion and the revert.
-- Round 1 FAIL (c) — the contract cited "the context-engineering plan the CPO asked for" with no
-  `escalations.log` entry. THIRD BRANCH RUNNING for this defect, and it noted the new disguise:
-  citing a plan and a sibling-MR reviewer correction rather than a ruling. Logged as
-  `2026-09-10 chore/authority-map-in-claude-md`.
-- Round 2 — verified the restored rule is absolute IN FORCE and not merely reworded to sound so;
-  grepped for the auto-resolution language and got zero; checked the log entry quotes the CPO
-  without inflating "go" into approval of the steps' content, and that it discloses being written
-  after the FAIL.
-- Verified `CLAUDE.md` grew +5 lines and that the precedence rule is not restated there
-  (grep for the rule's phrasing returns 0), so the branch does not create the two-place precedence
-  it exists to prevent.
+- ⛔ ROUND 1 FAIL — THE SHARPEST CATCH ON THIS BRANCH, AND A HARDER DEFECT THAN AN INVENTED RULING.
+  The contract said "Step 3 of that plan" and cited a REAL `escalations.log` entry
+  (`2026-09-10 chore/authority-map-in-claude-md`) — whose step 3 is **"split `escalations.log`"**,
+  not dead references. The CPO's redirect was genuine ("do as recommended but before we get back to
+  product work…") but unlogged, so the citation pointed at a true record for a sequence it does not
+  contain. An invented ruling has nothing behind it; this one had a real entry a reviewer might
+  accept on sight. It was caught by READING the entry rather than trusting the citation.
+  Two related findings: the direction itself was unlogged, and `decisions_reserved` said "steps 4-8"
+  of a plan with six steps.
+- Round 2 — checked the new entry the way it asked to be checked, since an entry that SUPERSEDES
+  another is where a rewrite of history would hide: verified it quotes the CPO verbatim (noting it
+  preserves his uncorrected typo rather than tidying the quote), discloses being written only after
+  the FAIL, and that the nine-step renumbering is consistent with the six it supersedes — old 3→4,
+  4→7, 5→8, with the "8 depends on 7" dependency preserved from the old "5 depends on 4".
+- Round 2 — matched `decisions_reserved`'s steps 4-9 one-to-one against the log's list: no invented
+  step, none dropped.
+- Round 1 — checked each removed reference for FACT LOSS: `#361`, `#377`, `#547`, `#526`. Every
+  surrounding sentence still carries its dates, figures and substance; only the dead pointer went.
+- Round 1 — confirmed the decision NOT to sweep the 292 `docs/` references is stated and reasoned
+  (provenance vs instruction; a ~25-file unreadable diff) rather than quietly glossed.
+- Scope, threshold and credential sweeps clean in both rounds.
 
-## bi-analyst-reviewer
-VERDICT: PASS (round 2)
+## platform-reviewer
+VERDICT: PASS (round 1)
 risks_checked:
-- ⛔ Round 1 FAIL — THE MAP HAD A WRONG ROW, which is the worst possible defect in a map. I filed
-  `docs/ui_design_brief.md` as look-and-feel. Its **§6 is a per-screen FIELD contract** — "Per-screen
-  data contract (what a mockup MAY show)", "if a stat is not listed below, we do not have it — do
-  not draw it" — which the brief itself calls "the single most important rule in this document".
-  ⭐ AND IT NAMED THE CONCRETE COST rather than the principle: `04_competition_hub.md` does not
-  exist, so §6.5 is the ONLY live field contract for the competition hub, and a table calling the
-  brief look-and-feel walks a reader straight past it.
-- Round 1 also established what is NOT wrong, which is what made the finding usable: it read
-  `site_architecture.md` and `content_architecture.md` in full and confirmed their rows are
-  accurate, and it checked `metrics_display.md`'s LOCKED status against `escalations.log` to
-  confirm the new conflict rule does not demote it.
-- Round 2 — re-derived the supersession pattern from the documents rather than the claim: verified
-  §6.3 carries the marker and points at `10_home.md` §0, and that §6.1/§6.2/§6.4 carry none, by
-  grepping the brief itself. Confirmed the branch STOPS at describing that pattern and defers
-  marking the three to the CPO, in both `00_overview.md` and `decisions_reserved`.
-- Round 2 — verified the diff does NOT touch `docs/ui_design_brief.md`, so no silent marking snuck
-  in outside the declared scope.
-- Round 2 — re-checked what it had cleared in round 1, since the file had changed underneath:
-  the conflict rule against the pre-round-1 original verbatim, the LOCKED declarations, and the
-  "different axis" claim.
-- Verified both quoted phrases from the brief are verbatim and correctly attributed.
+- ⭐ SPLIT A CONCERN I HAD CONFLATED. I flagged `FIRST_DEAD = 115` as a hardcoded boundary that goes
+  wrong when GitLab reaches issue 115. It separated the two halves: raising the constant to 116 at
+  that point is a LEGITIMATE adjustment and `test_the_boundary_is_not_vacuous` does not block it —
+  but until someone raises it, a genuinely live `#115` would be flagged as dead. That second half is
+  a real gap; it confirmed it is disclosed in the evidence rather than hidden.
+- CHECKED THE FALSE-POSITIVE SURFACE I HAD NOT. Grepped both target files for markdown anchors
+  (`](#`), hex-colour-shaped tokens and GitHub `#L` line references — none present, so `#(\d+)` has
+  no live false positive. Noted it WOULD fire on a numeric-only markdown anchor if one were added.
+- Verified the guard by tracing every `#<num>` in both files by hand rather than trusting the
+  claimed counts: all below 115, matching the "0 dead refs" claim.
+- CI wiring: `.gitlab-ci.yml` `test:python` runs `pytest tests/ -v` with no path filter, no
+  `pytest.ini`/`pyproject.toml` restricting discovery and no root `conftest.py`, so the new file is
+  collected. Fail-closed, which is correct for a CI test rather than a `.claude/hooks` guardrail.
+- Runtime isolation: `REPO` resolves from `__file__`, so the test is CWD-independent, with no
+  network, BigQuery or credential access.
 
 ## escalations
 
-`2026-09-10 chore/authority-map-in-claude-md` — the CPO's instruction to fix the context
-engineering, quoted; his "go" on the six-step plan; and the six steps in dependency order, with the
-note that step 5 depends on step 4 and that getting that backwards was the first plan's error.
-Explicitly NOT a ruling on any step's content.
-
-## Open, carried to the CPO rather than decided
-
-`ui_design_brief.md` §6.1 (Fixture), §6.2 (Team profile) and §6.4 (Player profile) have wireframes
-and carry no supersession marker; §6.3 has one. Marking three sections superseded decides which
-document binds a screen. In `decisions_reserved`.
+`2026-09-10 chore/dead-issue-references` — the CPO's direction that the context cleanup finishes
+before product work resumes and that dead references go first, quoted; plus the REVISED nine-step
+plan, which supersedes the six-step list in the preceding entry. Two steps are new, both surfaced by
+the player-page investigation: dead references, and where parked work lives (10 stashes, one holding
+the built player Overview tab).
 
 ## What this branch does NOT do
 
-Nothing here is enforced. No gate can detect a page rebuilt without reading its design — which is
-the failure it addresses. The only evidence that will count is the next page being built from its
-issue and wireframe without being told to.
+767 dead references exist; this fixes 6. The 292 in `docs/` and 470 in memory are untouched, and
+whether they are worth a sweep is reserved. What is guarded is the two files where a dead reference
+INSTRUCTS rather than merely records — which is where it did real damage: `CLAUDE.md` told every
+session its next work was "player insights chain (#153 → #156)", and a memory file named #753 as the
+player page's design authority. Neither number exists.
