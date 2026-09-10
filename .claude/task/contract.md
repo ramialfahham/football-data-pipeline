@@ -1,28 +1,29 @@
-# Task contract — design mocks into the repo, and their rulings into the wireframe
+# Task contract — the design chain and the ruling log, in the file every session reads
 
 objective: >
-  Bring the design-mock GENERATORS and CHECKS into the repo, and transcribe the CPO's 2026-08-10
-  home-page rulings out of a Python docstring and into the wireframe that governs the page. The
-  generated HTML stays out.
+  `CLAUDE.md` is read at the start of every session and its "Authoritative docs" table is the map
+  of what to read before deciding. That table names the data contract, the layer rules, the metric
+  layer, ops, CI and the site IA — and mentions the DESIGN chain nowhere, and the CPO ruling log
+  nowhere. Add both, and complete the design chain's own precedence statement so the map has
+  something to point AT.
 
 refs: >
-  `design-mocks/README.md` (outside the repo) — the mock store and its own account of what it is.
-  `docs/wireframes/10_home.md` §0 — the home page composition; already cites the generators.
-  `docs/wireframes/99_gaps_register.md` GAP-24 — VOIDED on the authority of a file outside the repo.
-  `.claude/task/escalations.log` `2026-09-10 chore/design-mocks-into-the-repo` — the two CPO
-  rulings this task rests on: the generators come into the repo, and the team boards have ONE value
-  column. ⚠ That entry was written only after `scope-auditor` FAILed the branch for citing his
-  "yes" and "fix it" with nothing logged behind them — the same defect as the previous MR, and
-  worse here because one of the citations was in a permanent checked-in README rather than a task
-  contract.
+  Measured, not asserted: `grep -c` over `CLAUDE.md` returns **0** for `wireframes`,
+  `metrics_display`, `ui_design_brief`, `design-mocks` AND `escalations.log`.
+  `docs/wireframes/00_overview.md` already declares a partial precedence (brief = look-and-feel,
+  `site_architecture.md` = IA/URLs, wireframes = field binding) that omits
+  `content_architecture.md`, `metrics_display.md` and the mock/issue layer.
+  `docs/working_agreement.md` §11 designates `escalations.log` as the durable ruling record.
+  `.claude/task/escalations.log` `2026-09-10 chore/authority-map-in-claude-md` — the CPO's
+  instruction to fix the context engineering, his approval of the six-step plan ("go"), and the
+  steps themselves. This is step 2; step 1 merged as `!169`.
+  ⚠ That entry was written only after `scope-auditor` FAILed this branch for citing "the plan the
+  CPO asked for" with nothing logged behind it — the third branch running to make the same mistake,
+  this time disguised as citing a plan rather than a ruling.
 
 scope_paths:
-  - design-mocks/*.py
-  - design-mocks/*.csv
-  - design-mocks/README.md
-  - .gitignore
-  - docs/wireframes/10_home.md
-  - docs/wireframes/99_gaps_register.md
+  - CLAUDE.md
+  - docs/wireframes/00_overview.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -30,73 +31,91 @@ scope_paths:
   - .claude/task/escalations.log
 
 impact_map: >
-  writers: no dbt model, seed, macro or test. No mart, no export, no site source. The generators
-    READ `dbt_project/seeds/metric_catalogue.csv` and `site_v2/src/styles/system.css`; they write
-    only their own HTML.
+  writers: no code. Two markdown files.
 
-  downstream: nothing consumes the generators. Three repo documents CITE them
-    (`10_home.md:150`, `10_home.md:184`, `99_gaps_register.md:35`); after this the citations point
-    at in-repo paths and at the transcribed rulings.
+  downstream: `CLAUDE.md` is loaded by every session and by Cursor; `00_overview.md` is read before
+    any screen is designed or built. Nothing machine-reads either.
 
-  blast_radius: the site build, the export and CI are untouched — no file any job reads changes.
-    `.gitignore` gains one line so the ~950 KB of generated HTML cannot be committed. The repo
-    grows by ~330 KB of Python.
+  blast_radius: no model, mart, export, site source, test or gate changes. No CI job reads these
+    files. The change is what a human or an agent is TOLD to read, which is the whole point —
+    the failure it addresses (a page rebuilt without reading its design) is not machine-detectable.
 
   deploy_order: none.
 
 acceptance_criteria:
-  - Every `.py` and `.csv` in the mock store is tracked in the repo, and no `.html` is.
-  - `python design-mocks/gen_top_players.py` and `gen_top_teams.py` RUN — today both hard-fail on a
-    missing catalogue path — and `check_players.py` / `check_teams.py` pass against their output.
-  - The regenerated mocks are byte-identical in structure to the reviewed ones: 4 boards, 28 rows,
-    28 value cells each.
-  - Every 2026-08-10 ruling now in a generator docstring is stated in `docs/wireframes/10_home.md`,
-    with its reason where the docstring gives one.
-  - `99_gaps_register.md`'s GAP-24 void cites the wireframe, not a file outside the repo.
-  - No generator docstring still claims team boards carry two value columns.
-  - `python -m pytest tests/ -q` and `cd site_v2 && npm test` stay green (nothing they read changes).
+  - `CLAUDE.md`'s authority table names the design chain and points at ONE place for its precedence,
+    rather than restating the precedence itself.
+  - `CLAUDE.md` names `.claude/task/escalations.log` as the durable record of CPO rulings.
+  - `docs/wireframes/00_overview.md`'s reading order covers every document that governs what a
+    screen shows — `content_architecture.md`, `metrics_display.md`, the mock/issue layer, AND
+    `ui_design_brief.md` §6, which is a per-screen FIELD contract and not look-and-feel — and
+    restates the existing escalation rule without weakening it.
+    ⚠ §6 was missed on the first pass and `bi-analyst-reviewer` FAILed it, with the concrete cost:
+    `04_competition_hub.md` does not exist, so §6.5 is the ONLY live field contract for that screen,
+    and a table calling the brief "look-and-feel" would send a reader straight past it.
+  - The PRECEDENCE RULE is stated in exactly one file. Measured: `grep -ci 'which wins|beats
+    every|on conflict'` returns 0 for `CLAUDE.md` and non-zero for `00_overview.md`.
+    ⚠ Deliberately NOT "no fact appears twice" — the chain's member LIST does appear in both, and
+    `decisions_taken` records why that trade was taken rather than hidden.
+  - `grep -c` for each of the five terms over `CLAUDE.md` is non-zero.
 
 decisions_taken: >
-  GENERATORS AND CHECKS IN, GENERATED HTML OUT. The Python is source and is COUPLED to the repo —
-  it reads the metric catalogue and `system.css`. That coupling is what broke: versioned apart from
-  its dependency, the dependency moved and the tooling died. The HTML is build output.
+  THE PRECEDENCE LIVES IN `00_overview.md`, NOT IN `CLAUDE.md`. `CLAUDE.md` gets a row pointing at
+  it. Stating it in both is the duplication this whole exercise exists to remove — a corrected
+  precedence would then need sweeping in two places, which is how every stale claim on the last two
+  MRs got there.
 
-  THE `REPO` CONSTANT POINTS AT THIS REPO. It currently points at `D:/Projects/fdp-product`, which
-  is not a git repository and has no `dbt_project/` at all — so every generator raises
-  FileNotFoundError today, verified by running one. The README's claim that the mocks "cannot drift
-  from the shipped design system or invent a metric label" has been false since the store was saved.
-  Resolved by deriving the path from the file's own location instead of hardcoding it.
+  ⚠ `00_overview.md` GOVERNS A DIFFERENT AXIS FROM THE MOCKS, and `bi-analyst-reviewer` corrected me
+  on this during `!169`: it binds a screen's blocks to real exported FIELDS, while the mock/issue
+  layer settles what the screen LOOKS like and which boards it carries. They do not conflict, so the
+  statement must place the mock layer alongside rather than above or below the field binding.
 
-  THE RULINGS MOVE, THE MOCKS DO NOT. A ruling recorded in a script's docstring is unfindable even
-  when the script runs. `10_home.md` is where someone looks.
+  ⛔ "NOTHING IS DELETED" WAS FALSE, AND `scope-auditor` CAUGHT IT AS A §10 RULE CHANGE.
+  `00_overview.md` said **"Conflicts escalate to the CPO."** — absolute. My replacement read "a CPO
+  ruling beats every document here; below that, the more specific and more recent wins, and anything
+  still unresolved escalates". That is not an addition. It invents an auto-resolution and narrows
+  when the CPO is consulted, which is a rule extension and his alone. Reverted: the rule is restored
+  verbatim in force, with no tie-breaker, and the only thing added is that a ruling ALREADY in
+  `escalations.log` is not a conflict but the answer — which changes nothing about escalation.
+  ⚠ The wording that slipped through is the kind that reads like tidying. "More specific and more
+  recent wins" is a reasonable-sounding default in the abstract; it is a decision about who decides.
 
-  THE TWO-COLUMN CONTRADICTION IS A STALE SENTENCE, NOT A DESIGN DIVERGENCE.
-  `gen_top_teams.py:84` says "two value columns throughout"; line 311 of the same file says one.
-  The reviewed mock settles it: 28 rows, 28 value cells, 4 boards — ONE value column, matching what
-  shipped. The sentence is a leftover from the draft the same-day ruling replaced. Nothing built
-  needs changing.
+  Otherwise nothing is deleted: every existing row and sentence stands, and the rest of the change
+  is addition where there was absence.
 
-  ⚠ "NOT IN THE REPO, AND DELIBERATELY SO" WAS MINE, NOT THE CPO'S. The README says it and I cited
-  it back to him as his decision; he did not make it, and the README's own next sentence says
-  "committing them is a separate decision". Recorded because attributing an unmade ruling is the
-  failure this repo has logged repeatedly, and this time it nearly settled a question in the wrong
-  direction.
+  ⚠ A DUPLICATION IS ACCEPTED ON PURPOSE, AND IT IS THE ONE A REVIEWER SHOULD PUSH ON. The chain's
+  MEMBER LIST now appears twice: named in `CLAUDE.md`'s row and tabulated in `00_overview.md`. A
+  document joining the chain therefore needs both updated. The alternative — `CLAUDE.md` naming only
+  `00_overview.md` — was written first and reverted, because it made `metrics_display`,
+  `ui_design_brief` and `design-mocks` return **0** on a grep of the always-loaded file, and a
+  pointer only helps a reader who follows it. That is exactly what failed on #41: the wireframes
+  were reachable and I did not reach them. What is NOT duplicated is the RULE — "which document
+  wins" appears 0 times in `CLAUDE.md` and only in `00_overview.md`, verified by grep. A list of
+  filenames going stale is visible; a precedence rule going stale in two places is the failure mode
+  that cost this repo two MRs.
 
-  THRESHOLD — NEW MECHANISM: none. No new gate, dependency, route or CI job. A directory of
-  design tooling that runs by hand.
-  THRESHOLD — RECURRING COST: none. Nothing new runs on a schedule or in CI.
+  ⚠ I TRIMMED MY OWN ADDITIONS BEFORE COMMITTING, and it is worth recording why. The first version
+  put a six-line explanation of WHY these rows exist into `CLAUDE.md` — a file loaded on every
+  session, where narrative costs tokens forever and git already holds the history. Cut to one
+  sentence. Net: `CLAUDE.md` +5 lines. The same trim was applied to `00_overview.md`.
+
+  THRESHOLD — NEW MECHANISM: none. No gate, no dependency, no CI change.
+  THRESHOLD — RECURRING COST: none.
 
 decisions_reserved:
-  - Whether the mock CHECKS should run in CI. They are hand-run today and stay that way here;
-    wiring them to a job is a new gate and its own decision.
-  - Whether the older surfaces' rulings (#47, #50, #52, #54 — competitions index, competition hub,
-    next-matches block, interaction standard) also need transcribing. This task covers the home
-    page, which is the one with a live citation and a voided GAP depending on it.
+  - ⏳ WHETHER `ui_design_brief.md` §6.1, §6.2 AND §6.4 SHOULD BE MARKED SUPERSEDED. All three have
+    wireframes and carry no marker; §6.3 has one and points at `10_home.md`. Marking three sections
+    superseded decides which document binds a screen — the CPO's, not mine. Surfaced by
+    `bi-analyst-reviewer`, recorded rather than resolved.
+  - Whether `CLAUDE.md`'s "Operational notes" section (65 lines of traps its own header says were
+    moved out of `active_work.md` because that file overflows) should move somewhere else. It is
+    the same disease and it is in this file, but relocating it is its own decision.
+  - Steps 3-6 of the plan (splitting `escalations.log`, giving reviewers a non-code place to read
+    reasoning, stripping decision history from code, memory + budgets).
 
 done_when:
-  - Both home generators run from a clean checkout and their checks pass.
-  - `git status` shows no untracked `.html` under `design-mocks/`.
-  - The offline gate set is green.
+  - The five grep counts are non-zero and the precedence statement is complete.
+  - The offline gate set is green (no code changes, so this is a formality — stated so it is run).
 
 amendments:
   - none yet
