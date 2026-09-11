@@ -7,7 +7,7 @@
 -- board. GAP-30 recorded that accepted_values on metric_key "is the only thing pinning the board
 -- set"; the silent direction is the one that needs this test.
 --
--- The board set is CPO-ruled (2026-08-10, four single-metric boards). Changing it means changing
+-- The board set is a product decision (four single-metric boards). Changing it means changing
 -- this number, the model's board list and seeds' accepted_values together — which is the point.
 --
 -- Returns a row (= fails) when the count is anything other than 4.

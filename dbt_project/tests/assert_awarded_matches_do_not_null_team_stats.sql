@@ -1,6 +1,6 @@
 -- An awarded match must not blank a team's season statistics.
 --
--- WHY THIS EXISTS. Since 2026-09-07 an AWD (technical loss) or WO (walkover) counts as a played
+-- WHY THIS EXISTS. An AWD (technical loss) or WO (walkover) counts as a played
 -- match for RESULTS — it has a real scoreline and the league table counts it. It has no STAT LINE
 -- and never will: nobody played. The team-stat rates are gated all-or-nothing, so if that gate
 -- compares coverage against `games_played` it reads the awarded match as a missing stat and NULLs
@@ -13,9 +13,7 @@
 -- test is what pins that. Revert any of the 25 gates in int_team_season__metrics_cumulative.sql to
 -- `games_played` and every team-season carrying an awarded match fails here.
 --
--- ⛔ THE CONTRACT PROMISED THIS TEST AND THE FIRST VERSION OF THE BRANCH SHIPPED WITHOUT IT.
--- `analytics-engineer-reviewer` found the omission: a plain reversion at any of the 35 gate sites
--- would have passed CI untouched.
+-- ⛔ Without this test a plain reversion at any of the 35 gate sites would pass CI untouched.
 --
 -- Reads the whole-season projection rather than the cumulative model: same formulas, one row per
 -- team-season instead of one per matchday, so a failure names a season rather than a matchday.

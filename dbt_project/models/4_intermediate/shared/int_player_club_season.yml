@@ -23,8 +23,8 @@ models:
             - season_sk
       # An appearance requires pitch time, so starts and substitute appearances PARTITION appearances
       # exactly: is_starter = (minutes > 0 and not sub), substitute_appearances = (minutes > 0 and sub).
-      # This is the guard that would have caught the 2026-07-23 defect, where appearances counted every
-      # matchday selection (incl. unused substitutes) while starts already required minutes > 0.
+      # This is the guard against appearances counting every matchday selection (incl. unused
+      # substitutes) while starts already require minutes > 0 — a defect this surface once had.
       - dbt_utils.expression_is_true:
           expression: "starts + substitute_appearances = appearances"
           name: player_club_season_starts_plus_subs_equals_appearances

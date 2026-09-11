@@ -326,7 +326,7 @@ models:
       # asserts BOTH directions. It briefly became one-directional, when the single-ladder split
       # applied to the rank alone; deleting the direction rather than narrowing it left the column
       # with no positive-existence guard at all, so it could have gone silently empty with every
-      # test still green (analytics-engineer-reviewer, 2026-07-22). A test may become NARROWER when
+      # test still green. A test may become NARROWER when
       # a change makes it partly untrue. It must never become SHORTER.
       - dbt_utils.expression_is_true:
           expression: "(deserved_points is null and deserved_rank is null) or (deserved_points is not null and deserved_rank is not null)"
@@ -342,14 +342,14 @@ models:
           expression: "deserved_points is null or (shots_on_goal_difference_per_match is not null and actual_rank is not null)"
           name: int_team_season_deserved_points_requires_inputs
       # LEGAL-RANGE INVARIANT. ⚠ THIS TEST CAN NO LONGER DISCOVER THE CONDITION IT NAMES, and that is
-      # deliberate: since 2026-09-06 the model caps the fitted rate into [0, 3], so the invariant holds
-      # by construction. What it still pins is that the cap is WIRED IN — delete the cap and this goes
+      # deliberate: the model caps the fitted rate into [0, 3], so the invariant holds by
+      # construction. What it still pins is that the cap is WIRED IN — delete the cap and this goes
       # red, which is the mutation the acceptance evidence watches. It is kept at severity=error for
       # that reason and must not be deleted as redundant.
-      # Its history, because it explains why the cap exists: it fired twice on real data. Before the
-      # >= 3 games gate, two Liga MX rows one game into the season fell outside the range; then on
-      # 2026-09-06 an LP row four games in fitted 12.0259 against a ceiling of 12 and stopped the prod
-      # build. The DETECTION job now belongs to the warn-severity test below.
+      # Why the cap exists: this test fired twice on real data. Before the >= 3 games gate, two
+      # Liga MX rows one game into the season fell outside the range; later an LP row four games in
+      # fitted 12.0259 against a ceiling of 12 and stopped the prod build. The DETECTION job now
+      # belongs to the warn-severity test below.
       - dbt_utils.expression_is_true:
           expression: "deserved_points is null or (deserved_points >= 0 and deserved_points <= 3 * season_games_played)"
           name: int_team_season_deserved_points_in_legal_range
@@ -358,7 +358,7 @@ models:
       # would mean the fit itself had gone wrong — and after the change above, nothing else in the repo
       # would notice. WARN, not error: this must stay visible without skipping the ~620 downstream
       # nodes that a severity=error failure inside `dbt build` marks as skipped, which is exactly how
-      # the prod warehouse stopped refreshing on 2026-09-06.
+      # the prod warehouse once stopped refreshing.
       #
       # ⚠ IT READS THE VALUE, NOT THE FLAG, AND THAT IS THE WHOLE POINT. The first version asserted
       # `not deserved_points_was_capped`, and hardwiring that column to FALSE silenced it with every
@@ -370,9 +370,9 @@ models:
       # a bounded outcome met an unbounded estimator — so this is not an error condition and
       # `severity: error` would fail the prod build on data the model handled properly. It is
       # therefore a signal, and the closest of engineering_standards.md §3's three guideline rows is
-      # the third ("nice to have" coverage): surface it, do not block on it. Recorded because
-      # analytics-engineer-reviewer noted the case matches none of the three exactly, and a reader
-      # should see the reasoning rather than assume the table was ignored.
+      # the third ("nice to have" coverage): surface it, do not block on it. Recorded because the
+      # case matches none of the three exactly, and a reader should see the reasoning rather than
+      # assume the table was ignored.
       - dbt_utils.expression_is_true:
           expression: "deserved_points is null or (deserved_points > 0 and deserved_points < 3 * season_games_played)"
           name: int_team_season_deserved_points_cap_did_not_bind
@@ -395,8 +395,8 @@ models:
       # league-season must be a 1..N permutation — otherwise a competition-wide deserved position is
       # being compared against a within-conference actual one. Asserted as uniqueness over the real
       # data rather than by excluding a list of league codes, so an onboarded conference league is
-      # caught with no file edit (found by the football reviewer, 2026-07-22; 232 rows across MLS,
-      # LMX, APD and J1 would have shipped a non-comparable rank).
+      # caught with no file edit (232 rows across MLS, LMX, APD and J1 would otherwise have
+      # shipped a non-comparable rank).
       - dbt_utils.unique_combination_of_columns:
           name: int_team_season_deserved_rank_only_on_single_ladder_tables
           combination_of_columns:

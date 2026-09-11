@@ -3,16 +3,15 @@
 {#
     The region dimension (#69) — the counterpart to dim_country. A competition points at ONE of the
     two: a domestic competition has a country, a continental or international one has a region.
-    Which relationship is populated IS the answer, which is what removes the need for the
-    competition_types.single_country flag the CPO rejected on 2026-08-16.
+    Which relationship is populated IS the answer, which is what removes the need for a
+    competition_types.single_country flag.
 
     Published from confederations.csv, which shipped in #57 and has been read by nothing since.
 
     ⚠ region_key HOLDS A CONFEDERATION CODE — UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA. The
     seed keeps `confederation` as its column name because it is the authoring surface and #57
     shipped it that way; the dim publishes it under the name its consumers read, which is a region.
-    FIFA -> World is the one row that is a judgement rather than geography (the CPO's, recorded on
-    the seed).
+    FIFA -> World is the one row that is a judgement rather than geography, recorded on the seed.
 
     ⚠ WHAT THIS DOES NOT ADD. competition_registry.confederation ALREADY carries a relationships
     test to ref('confederations') (seeds/schema.yml), so the competition->region guard exists at

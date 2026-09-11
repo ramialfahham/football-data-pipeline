@@ -52,8 +52,7 @@ models:
         # where a window has no shots-on-target data at all it sums nothing and is legitimately NULL,
         # which is the honest answer and what makes finishing_efficiency_pct null out. Its precedent
         # sibling `goals_against_in_save_games` is untested for the same reason. A not_null here was
-        # asked for in review and declined: it would fail on real data
-        # (analytics-engineer-reviewer, round 3).
+        # deliberately absent: it would fail on real data.
       - name: games_with_team_stats
         description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency_pct."
         tests: [not_null]

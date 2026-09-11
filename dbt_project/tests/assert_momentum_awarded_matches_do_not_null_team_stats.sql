@@ -6,7 +6,7 @@
 -- on one surface only would let a reversion of the other's 10 gates through — and the two would then
 -- disagree about the same match, which is the failure this pairing exists to prevent.
 --
--- ⚠ NO CURRENT WINDOW EXERCISES THIS. Measured 2026-09-07: 0 of 9,784 windows contain an awarded
+-- ⚠ NO CURRENT WINDOW EXERCISES THIS. Measured when written: 0 of 9,784 windows contain an awarded
 -- match, because the window is a team's last five matches and no awarded fixture is that recent
 -- anywhere. So this test is GREEN TODAY FOR A REASON THAT HAS NOTHING TO DO WITH THE GATE, and it
 -- would stay green under a reverted gate until an awarded match happens to fall inside a window.

@@ -18,8 +18,8 @@
   player-stat rows via the base, so a row means "this player was in this club's matchday squad at
   least once that competition-season". `appearances` counts only the legs he actually PLAYED
   (minutes > 0), so it can legitimately be 0: a squad member who never got on the pitch keeps his row
-  (CPO 2026-07-23 — "Players are part of the squad even with zero appearances") and simply scores 0.
-  Until 2026-07-23 `appearances` counted every matchday selection, which inflated 51.4% of rows.
+  (players are part of the squad even with zero appearances) and simply scores 0. Counting every
+  matchday selection instead would inflate 51.4% of rows.
   Per-club / per-competition / national subtotals are derivable from this grain (display-side), so
   they are not precomputed.
 #}
@@ -129,7 +129,7 @@ select
     -- all three "not a catalogue metric" — false: `goals_player` and `assists_player` are both catalogue rows
     -- (entity=player, group=goals, tier 1). Only the playing-time pair is uncatalogued, and the one
     -- catalogued member of that family is the RATE below, minutes_per_appearance (group
-    -- playing_time as of 2026-08-04).
+    -- playing_time).
     wc.minutes,
     -- mins/app for the Squad tab, computed here so the consumption layer never divides. A
     -- catalogue-governed rate (metric_catalogue: minutes_per_appearance). safe_divide -> null when

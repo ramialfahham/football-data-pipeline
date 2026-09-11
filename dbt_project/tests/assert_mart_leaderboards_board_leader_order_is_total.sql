@@ -1,8 +1,8 @@
 -- board_leader_order must be a TOTAL order over a board's league leaders, and defined on nothing else.
 --
 -- WHY IT EXISTS. A consumer showing one leader per league orders by this column alone and compares
--- nothing itself (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page renders
--- the order it is served"). That only holds if the column really is a total order over the leaders:
+-- nothing itself (all ranking and ordering lives in the warehouse; the page renders the order it
+-- is served). That only holds if the column really is a total order over the leaders:
 -- if two leaders on a board shared a position, the consumer's output would depend on whatever order
 -- BigQuery happened to return them in, and the page would churn with no data change.
 --

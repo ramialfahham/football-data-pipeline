@@ -75,7 +75,7 @@ fixture_participants as (
         and away_team_id is not null
 ),
 
--- CPO-owned corrections for known provider team-id defects (#526), from
+-- Hand-curated corrections for known provider team-id defects, from
 -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one
 -- club under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is
 -- a fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so

@@ -169,7 +169,7 @@ select
     a.dribbles_success_player_pct,
     a.saves_player_pct,
     -- year-over-year (domestic only; the player's primary club that season; NULL
-    -- otherwise / when the prior season at that club is absent). CPO metric set 2026-07-03.
+    -- otherwise / when the prior season at that club is absent).
     y.yoy_appearances_cutoff,
     y.goals_player_this_season,
     y.goals_player_prev_season,
@@ -195,7 +195,7 @@ select
     y.passes_key_player_prev_season_full,
     y.defensive_actions_player_prev_season_full,
     -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
-    -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
+    -- primary club that season; NULL where absent).
     c.scorer_points_player,
     c.team_goals_season,
     c.contribution_player_pct,

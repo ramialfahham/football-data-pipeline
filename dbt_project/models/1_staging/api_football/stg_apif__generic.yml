@@ -17,9 +17,9 @@ version: 2
 # backfill days). This is a faithful flatten (no dedup); base assembles current-per-player. The
 # "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables; squads
 # (re-fetched in full every run) follows it, profiles/teams do not. RAW_APIF_COACHES is a
-# COMPLETE-snapshot table that ALSO reads all snapshots (not latest-per-league) — a CPO
-# entity-preservation ruling (escalations.log 2026-06-23): latest-per-league would drop coaches whose
-# teams later leave a league's pull, so all snapshots are read and base dedups to one coach entity.
+# COMPLETE-snapshot table that ALSO reads all snapshots (not latest-per-league), for entity
+# preservation: latest-per-league would drop coaches whose teams later leave a league's pull, so
+# all snapshots are read and base dedups to one coach entity.
 # (check_layer_contract.py permits omitting the snapshot select — it only forbids non-league_code
 # partitions, distinct, group by, aggregation and cross-domain joins.)
 

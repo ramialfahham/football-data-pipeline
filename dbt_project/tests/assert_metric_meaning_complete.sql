@@ -10,26 +10,19 @@
   — the guard could not see them. The catalogue-wide direction sweep populated `direction` on every
   row, and the player `interpretation` sweep filled the remaining 28, so the exemption has no
   justification left. Do NOT reintroduce an entity predicate: an exemption here is invisible by
-  construction. (CPO 2026-06-29; broadened to every entity 2026-07-21.)
+  construction.
 
   Companion guard: `assert_metric_direction_lower_is_better_agree` stops `direction` and the legacy
   `lower_is_better` boolean asserting different things about the same metric.
 
   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
 
-  CI note, REWRITTEN 2026-08-27 under #92 — the previous version of this paragraph is now false in
-  every particular, and it is kept in git rather than paraphrased. It said: on a PR this runs in the
-  deferred singular-test step, where `ref('metric_catalogue')` resolves to MAIN's seed rather than
-  the branch's, because `--favor-state` swaps it for the state relation; that a change to catalogue
-  VALUES and a guard depending on those values therefore cannot land in the same PR; and — the line
-  that mattered — "Do not try to solve this with a CI workflow change."
-
-  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
+  CI note. On a merge request this guard reads the BRANCH's seed: `--favor-state` is absent from
   `data:build:mr`'s `dbt test` invocation, and `dbt seed --target "$DBT_CI_TARGET"` runs before it
   in the same job, so the BRANCH's `metric_catalogue` relation always exists in that target and
-  plain `--defer` prefers a relation that exists over the deferred one. **This guard now reads the
-  branch's seed, so catalogue values and a guard that depends on them CAN land in the same PR.** Do
-  not split a change on the strength of the old rule.
+  plain `--defer` prefers a relation that exists over the deferred one. **Catalogue values and a
+  guard that depends on them CAN land in the same merge request.** Do not split a change on the
+  strength of the opposite (once true) rule.
   ⚠ There is no shared `ci` target any more: the CI target is named per merge request
   (`ci_mr<IID>`), so this seed lands in that merge request's own dataset and no other branch can
   read or overwrite it.

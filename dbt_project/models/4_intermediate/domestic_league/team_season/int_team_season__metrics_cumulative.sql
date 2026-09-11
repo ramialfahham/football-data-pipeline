@@ -20,7 +20,7 @@
   final-row select (guaranteeing byte-identity). HERE they mean "cumulative THROUGH THIS matchday",
   not the whole season. Formulas + coverage gates are lifted verbatim from int_team_season__metrics.
 
-  Incomplete-data → NULL (CPO 2026-06-25): a team-feed rate is NULL unless its stat covers every
+  Incomplete-data → NULL: a team-feed rate is NULL unless its stat covers every
   game through this matchday (games_with_* == games_played); scoreline + player-derived are not gated.
 #}
 
@@ -121,12 +121,11 @@ select
         -- ⚠ NOT games_played, and not either coverage count alone. This is the one two-sided rate
         -- here: the numerator subtracts a sum over the games with OPPONENT SoT from a sum over the
         -- games with OWN SoT, so its denominator must be the games both cover.
-        -- It read `games_played` until 2026-09-07, which was correct only while the gate demanded
-        -- FULL coverage — both counts then equalled games_played by construction. Once awarded
-        -- matches count as played, the gate demands coverage of the non-awarded games only, so
-        -- games_played became one larger than the set the numerator spans and quietly diluted the
-        -- rate. `least` is byte-identical to the old behaviour wherever the old gate passed, and
-        -- correct where it now does not (analytics-engineer-reviewer, 2026-09-07).
+        -- `games_played` would be correct only if the gate demanded FULL coverage — both counts
+        -- then equal games_played by construction. Because awarded matches count as played, the
+        -- gate demands coverage of the non-awarded games only, so games_played is one larger than
+        -- the set the numerator spans and would quietly dilute the rate. `least` equals
+        -- games_played wherever coverage is full, and is correct where it is not.
         -- It matters more than the other rates: this is the regression input to
         -- int_team_season__deserved_vs_actual, so a diluted value moves a whole league-season's
         -- deserved-points fit, not one cell.
@@ -138,9 +137,8 @@ select
     -- ⚠ SAME-WINDOW NUMERATOR. `goals_open_play_in_sot_games` counts open-play goals only in the
     -- games whose shots-on-target the denominator also counts. The full goal sum would include an
     -- awarded result's goals — a 3-0 technical win is three real goals with no shot behind them —
-    -- against a denominator that can never see them, inflating the ratio. Before awarded matches
-    -- became legs the two spanned the same games and the distinction did not exist
-    -- (analytics-engineer-reviewer, 2026-09-07).
+    -- against a denominator that can never see them, inflating the ratio. Without awarded
+    -- matches as legs the two would span the same games and the distinction would not exist.
     case
         when games_with_sot_stats < games_expecting_team_stats then null
         when goals_open_play_in_sot_games < 0 then null

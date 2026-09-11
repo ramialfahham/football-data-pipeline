@@ -109,7 +109,7 @@ select
     safe_divide(duels_won_player, duels_player) as duels_won_player_pct,
     safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
     safe_divide(saves_player, nullif(saves_player + goals_against_player, 0)) as saves_player_pct,
-    -- finishing efficiency (CPO Option A): open-play conversion = (goals_player − goals_penalty_player) /
+    -- finishing efficiency: open-play conversion = (goals_player − goals_penalty_player) /
     -- shots_on_goal_player. NULL ('—') when shots_on_goal_player is zero or the numerator falls outside
     -- [0, shots_on_goal_player] (rare broken-stat rows) — never >100%. (#506)
     case

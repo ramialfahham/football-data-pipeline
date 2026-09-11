@@ -35,7 +35,7 @@ finished as (
 ),
 
 -- Penalty goals per (fixture, player) from match events, for the open-play finishing numerator
--- (CPO Option A). event_detail='Penalty' = a scored penalty by this player; goals_total stays the
+-- (the open-play definition). event_detail='Penalty' = a scored penalty by this player; goals_total stays the
 -- authoritative player goal count (already excludes own goals) — only the penalty component is
 -- event-derived. Mirrors int_player_season__metrics exactly.
 events as (
@@ -100,7 +100,7 @@ aggregated as (
         season_api_year,
         -- the club's latest kickoff this competition-season — lets the rollup pick the last club.
         max(kickoff_datetime) as last_kickoff_at,
-        -- An appearance requires PITCH TIME (CPO 2026-07-23: "Then it is wrong"). The provider's
+        -- An appearance requires PITCH TIME. The provider's
         -- /fixtures/players payload lists the whole matchday squad, so an unused substitute arrives as
         -- a stat row with null minutes; counting those made `appearances` a SELECTION count. Measured
         -- before the fix: 382,942 of 1,677,854 stat rows were 0-minute bench selections, inflating

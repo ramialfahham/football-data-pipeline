@@ -67,7 +67,7 @@ team_agg as (
         sum(goals_against) as goals_against,
         -- scoreline-based, full window (clean sheets display as x of games)
         countif(goals_against = 0) as clean_sheet_games,
-        -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
+        -- open-play goal components: goals_open_play = goals_for − goals_penalty
         -- − goals_own (computed in the mart). Full-window sums, for display.
         sum(goals_penalty) as goals_penalty,
         sum(goals_own) as goals_own,

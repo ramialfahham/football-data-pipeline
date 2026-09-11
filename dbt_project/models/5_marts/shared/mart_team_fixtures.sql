@@ -16,8 +16,8 @@
   and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
   ranks (no honest place in "next" or "recent results").
 
-  No slug column: the published fixture URL identity is a separate, CPO-ruled
-  concern (GAP-19 item 5) and is added in its own PR. league_code discriminates
+  No slug column: the published fixture URL identity is a separate product
+  concern and is added in its own change. league_code discriminates
   the competition and is not a BigQuery partition or cluster key; the model is
   competition-agnostic.
 

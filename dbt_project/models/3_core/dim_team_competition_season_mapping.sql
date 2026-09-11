@@ -17,7 +17,7 @@
     in competition X, season Y"; per-match facts live in fct_fixture. (Known scope of the
     fixtures source: a team listed only in a standings table whose fixtures fall outside the
     ingested window is not a member here — see base_apif__teams; rare and out of scope for
-    the membership question, which the CPO scoped to fixtures.)
+    the membership question, which is scoped to fixtures.)
 
     Grain is enforced by the final GROUP BY on (league_code, season, team_sk), so it cannot
     split. league_api_id is 1:1 with league_code by registry design; max(league_api_id)

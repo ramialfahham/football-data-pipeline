@@ -1,6 +1,6 @@
 -- Every board has a rank 1 in every league-season it appears in.
 --
--- This pins the CPO's 2026-08-18 ruling — "one team per league, same as players" — which the model
+-- This pins the rule — one team per league, same as players — which the model
 -- implements as `partition by league_code, season_api_year, metric_key`. Under that partition a
 -- DENSE_RANK always starts at 1 in every group, so the property holds BY CONSTRUCTION and this test
 -- asserts the construction. The block reads each league's rank-1 team; a board with no leader in a

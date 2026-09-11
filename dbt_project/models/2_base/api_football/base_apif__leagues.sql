@@ -12,7 +12,7 @@ import_league_name_overrides as (
 
 -- The provider's country string is not display-ready: it hyphenates multi-word names
 -- (Saudi-Arabia, South-Korea) and abbreviates one (USA). Standardised HERE, in base, because
--- the transformation layer is where we clean and reconcile (CPO 2026-08-14) and because the
+-- the transformation layer is where we clean and reconcile, and because the
 -- core dim publishes rather than corrects -- there is no coalesce in dim_league. Same three
 -- parts as team_name_overrides: seed, left join, and a singular test that fails when a row
 -- stops being a correction.
@@ -48,7 +48,7 @@ src as (
         leagues.has_coverage_odds,
         leagues.raw_ingested_at,
         -- The competition's DISPLAY NAME, corrected here for the same reason the country is:
-        -- what the provider delivers is not the single source of truth (CPO 2026-09-04), and its
+        -- what the provider delivers is not the single source of truth, and its
         -- names are neither current nor unique. `Serie A` arrives for BOTH Italy's SA and
         -- Brazil's BSA, which put two competitions on one title, description and H1; others are
         -- stale renames (Primeira Liga, CONCACAF Champions League) or sponsor names (Jupiler).

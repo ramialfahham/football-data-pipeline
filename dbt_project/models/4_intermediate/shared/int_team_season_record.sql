@@ -125,20 +125,17 @@ select
     -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
     sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
         as games_with_save_stats,
-    -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
+    -- open-play goal components: goals_open_play = goals_for − goals_penalty
     -- − goals_own (computed in the mart). Full cumulative sums, for display.
     sum(goals_penalty) over w as goals_penalty,
     sum(goals_own) over w as goals_own,
-    -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS, and it is now REQUIRED where it was not before.
-    -- The comment here used to say "finishing is NULL unless the window is fully shot-covered, so no
-    -- coverage-restricted goals sum is needed". That held only while every leg was a played match
-    -- with a stat line. Since 2026-09-07 an awarded result (AWD/WO) is a leg too: its GOALS are real
-    -- and land in the full sums above, but it has no shots-on-target, so a finishing ratio built from
-    -- the full goal sum over the SoT-covered shot sum counts goals from a match the denominator can
-    -- never see — a 3-0 technical win adds three goals against zero shots.
+    -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS, REQUIRED because an awarded result (AWD/WO) is a leg
+    -- too: its GOALS are real and land in the full sums above, but it has no shots-on-target, so a
+    -- finishing ratio built from the full goal sum over the SoT-covered shot sum counts goals from
+    -- a match the denominator can never see — a 3-0 technical win adds three goals against zero
+    -- shots. "Finishing is NULL unless the window is fully shot-covered" is not enough on its own.
     -- Restricting the numerator to the games the denominator covers is the same-window pattern this
-    -- model already applies to saves_pct via goals_against_in_save_games
-    -- (analytics-engineer-reviewer, 2026-09-07).
+    -- model already applies to saves_pct via goals_against_in_save_games.
     sum(if(shots_on_goal is not null, goals_for - goals_penalty - goals_own, null)) over w
         as goals_open_play_in_sot_games,
     -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator

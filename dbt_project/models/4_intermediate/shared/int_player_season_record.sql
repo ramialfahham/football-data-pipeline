@@ -10,8 +10,8 @@
   A player-match leg exists wherever the API provides player stats, and the provider lists the whole
   matchday squad — so an UNUSED SUBSTITUTE arrives as a 0-minute leg. Those are filtered out below,
   because this model's row IS an appearance ("one row per match the player appeared in") and
-  match_number/games_played must count matches actually played, not matchday selections. Before
-  2026-07-23 they did not (CPO: "Then it is wrong"). Player ratios
+  match_number/games_played must count matches actually played, not matchday selections —
+  the provider lists whole squads, so a selection count is wrong. Player ratios
   (saves_player_pct, passes_accuracy_player_pct, duels_won_player_pct, dribbles_success_player_pct) are stat-over-stat
   from the same rows, so no coverage-restriction is needed (unlike the team builder's
   scoreline-vs-stat mix). Raw sums only — ratios live in the mart.

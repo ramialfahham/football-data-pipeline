@@ -10,8 +10,8 @@
 -- A suspended or interrupted match is VALID STATUS INFORMATION — a true fact about the world, which
 -- can hold for days while a replay decision is made, and which no amount of re-ingesting changes.
 -- There is nothing actionable to report about it, so it is neither an error nor a warning here.
--- Keeping it at error severity was actively harmful: ONE Eredivisie fixture sitting at INT ended the
--- 2026-09-07 nightly at PASS=405 WARN=1 ERROR=2 SKIP=672, because `dbt build` marks every dependent
+-- Keeping it at error severity was actively harmful: ONE Eredivisie fixture sitting at INT ended a
+-- nightly at PASS=405 WARN=1 ERROR=2 SKIP=672, because `dbt build` marks every dependent
 -- of a failed error-severity test as skipped. That red then became routine, and an unrelated defect
 -- hid behind it for three nights.
 -- ⭐ What actually mattered in that incident was that a TEAM WAS A GAME SHORT of its league, not that

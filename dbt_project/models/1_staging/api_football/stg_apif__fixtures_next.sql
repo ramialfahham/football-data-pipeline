@@ -33,8 +33,8 @@ select
     -- and `Abd` where the API's own code is `ABD` — which is why the accepted_values test on
     -- fct_fixture.status_short has been warning "Got 2 results" in every build. `upper()` yields the
     -- provider's own canonical codes, so this repairs the field rather than re-coding it.
-    -- Casing normalisation is raw cleanup, so it belongs here and nowhere downstream (CPO,
-    -- 2026-09-06: "another input to standardize").
+    -- Casing normalisation is raw cleanup — another input to standardize — so it belongs here
+    -- and nowhere downstream.
     upper(json_value(match_json, '$.fixture.status.short')) as status_short,
     safe_cast(json_value(match_json, '$.fixture.status.elapsed') as int64) as status_elapsed,
     safe_cast(json_value(match_json, '$.league.season') as int64) as season,

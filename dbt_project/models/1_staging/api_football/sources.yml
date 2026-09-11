@@ -75,14 +75,13 @@ sources:
 
       # 7-DAY RE-FETCH CADENCE (#33 item 14), so these thresholds are NOT the 30h/54h the
       # nightly sources use. Managers change rarely and /coachs cost 18.7 min a night to
-      # re-download unchanged data; the CPO ruled a weekly cadence.
+      # re-download unchanged data, so the cadence is weekly.
       #
       # These two numbers are LOAD-BEARING, not decoration: at 54h this table would sit
       # permanently past error_after once anything actually reads these thresholds.
-      # WHO READS THEM: nothing does today. `dbt source freshness` is invoked nowhere in this
-      # repo. The consumer is the hourly sentinel added by #39 Stage 2 (MR !30), which is a
-      # SEPARATE, currently unmerged branch — so until it lands this block is inert metadata,
-      # and after it lands unraised thresholds would email daily about correct behaviour.
+      # WHO READS THEM: the hourly freshness sentinel, `scripts/check_raw_freshness.py`, which
+      # reads these thresholds from this file — so unraised thresholds would email daily about
+      # correct behaviour. `dbt source freshness` itself is invoked nowhere in this repo.
       # 8 days = the 7-day cadence plus a day of slack. 10 days = tolerate one entirely missed
       # cycle before paging. `tests/test_refetch_cadence.py` pins this against
       # REFETCH_INTERVAL_DAYS so the cadence and the threshold cannot drift apart.

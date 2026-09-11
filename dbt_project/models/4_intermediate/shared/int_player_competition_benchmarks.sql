@@ -7,9 +7,9 @@
   the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
   and percentile display. The player analog of int_team_competition_benchmarks.
 
-  Only players with >= 270 minutes IN the position enter the distribution (CPO floor B2); for
-  finishing_efficiency_player_pct, also >= 10 shots on target in the position (its denominator is shots, not minutes —
-  D4). Metric x position eligibility comes from player_benchmark_metrics() (CPO B3): a metric ineligible for
+  Only players with >= 270 minutes IN the position enter the distribution; for
+  finishing_efficiency_player_pct, also >= 10 shots on target in the position (its denominator is shots, not
+  minutes). Metric x position eligibility comes from player_benchmark_metrics(): a metric ineligible for
   a position (e.g. saves_player for an outfielder) yields a null value and is not counted.
 
   Grain: (league_code, season_api_year, position_group, metric_key). All competitions, each season on its own

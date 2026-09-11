@@ -1,783 +1,1653 @@
-diff --git a/.claude/hooks/comment_history_gate.py b/.claude/hooks/comment_history_gate.py
-new file mode 100644
-index 00000000..7a78b105
---- /dev/null
-+++ b/.claude/hooks/comment_history_gate.py
-@@ -0,0 +1,279 @@
-+#!/usr/bin/env python
-+"""Comment-history gate — a code comment says WHY, never who decided or when.
-+
-+Denies an `Edit`, `Write` or `MultiEdit` whose written text adds, to a code file, a comment line
-+carrying decision history: a calendar date, the product owner's title, the word for a review
-+role, a numbered review round or a merge-request number (the exact patterns are MARKERS below).
-+That history has a home that survives the task without living next to
-+the line — the commit message, the merge request and the issue — and `git blame` reaches all three
-+from any line (dbt_project/docs/engineering_standards.md, section 1.2, has the recipe).
-+
-+What counts as a comment line: a line with a comment marker (`#`, `--`, `//`, `/*`, `*`, `<!--`,
-+`{#`) at its start or after whitespace; every line inside a block comment of the file's language
-+(`/* … */`, `<!-- … -->`, `{# … #}`); and every line of a Python docstring — found by `ast` when
-+the text parses as a module, and by a line starting with a triple quote when it is a fragment.
-+A marker inside a string literal that follows whitespace also matches; accepted, rare, and the
-+deny names the line.
-+
-+The check reads only the text being written, not the whole file. So an edit that re-includes an
-+existing flagged line is denied until the marker is removed — every ordinary edit helps the sweep.
-+Markdown, docs, `.claude/task/` and any tree not listed below are not code and are never checked.
-+
-+`tests/test_no_decision_history_in_code.py` imports the definitions below and pins the count of
-+flagged lines already in the tree, so the CI count and this deny cannot drift apart. Fails OPEN on
-+any unexpected error, like every hook in this directory.
-+"""
-+
-+from __future__ import annotations
-+
-+import ast
-+import os
-+import re
-+import sys
-+from collections.abc import Iterator
-+
-+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-+from _command_utils import emit_deny, read_event  # noqa: E402
-+
-+# Trees whose files are code. `.github/` is dormant and deliberately unedited; `docs/` is prose.
-+TREES = (
-+    "ingestion",
-+    "scripts",
-+    "dbt_project/models",
-+    "dbt_project/macros",
-+    "dbt_project/tests",
-+    "dbt_project/seeds",
-+    "site_v2/src",
-+    "site_v2/scripts",
-+    "site_v2/integrations",
-+    ".claude/hooks",
-+    "tests",
-+    "design-mocks",
-+    "deploy",
-+)
-+EXTS = frozenset({".py", ".sql", ".astro", ".ts", ".mjs", ".js", ".yml", ".yaml", ".css"})
-+
-+# Block-comment delimiters per language. Python has none: its blocks are docstrings.
-+BLOCKS = {
-+    ".css": (("/*", "*/"),),
-+    ".js": (("/*", "*/"),),
-+    ".mjs": (("/*", "*/"),),
-+    ".ts": (("/*", "*/"),),
-+    ".astro": (("/*", "*/"), ("<!--", "-->")),
-+    ".sql": (("/*", "*/"), ("{#", "#}")),
-+    ".yml": (("{#", "#}"),),
-+    ".yaml": (("{#", "#}"),),
-+    ".py": (),
-+}
-+
-+_COMMENT = re.compile(r"(^|\s)(#|--|//|/\*|\*|<!--|\{#)")
-+_DOCSTRING_OPEN = re.compile(r"^\s*(\"\"\"|''')")
-+
-+MARKERS = {
-+    "date": re.compile(r"\b20\d\d-\d\d-\d\d\b"),
-+    "product owner": re.compile(r"\bCPO\b"),
-+    "reviewer": re.compile(r"\breviewer\b", re.IGNORECASE),
-+    "review round": re.compile(r"\bround \d", re.IGNORECASE),
-+    "merge request": re.compile(r"(?<![\w!])!\d{1,4}\b"),
-+}
-+
-+_SKIP_SEGMENTS = frozenset({"node_modules", "__pycache__", "target", ".venv"})
-+
-+
-+def is_code_path(rel: str) -> bool:
-+    """True when a repo-relative path is a code file under one of the guarded trees."""
-+    rel = rel.replace("\\", "/")
-+    if rel.startswith("./"):
-+        rel = rel[2:]
-+    if os.path.splitext(rel)[1].lower() not in EXTS:
-+        return False
-+    if _SKIP_SEGMENTS.intersection(rel.split("/")):
-+        return False
-+    return any(rel.startswith(t + "/") for t in TREES)
-+
-+
-+def marker_kind(line: str) -> str | None:
-+    """The marker kind a line carries, or None."""
-+    for kind, rx in MARKERS.items():
-+        if rx.search(line):
-+            return kind
-+    return None
-+
-+
-+def is_history_comment(line: str) -> str | None:
-+    """The marker kind a single MARKER-BEARING comment line carries, or None when the line is
-+    clean or carries no comment marker. Block-comment and docstring lines are found by
-+    `comment_lines`, which has the context a single line does not."""
-+    if not _COMMENT.search(line):
-+        return None
-+    return marker_kind(line)
-+
-+
-+def _docstring_ranges(text: str) -> list[tuple[int, int]] | None:
-+    """(first, last) line numbers of every docstring, or None when the text is not a module."""
-+    try:
-+        tree = ast.parse(text)
-+    except (SyntaxError, ValueError):
-+        return None
-+    ranges = []
-+    for node in ast.walk(tree):
-+        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-+            continue
-+        body = getattr(node, "body", None) or []
-+        first = body[0] if body else None
-+        if (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
-+                and isinstance(first.value.value, str)):
-+            ranges.append((first.lineno, first.end_lineno or first.lineno))
-+    return ranges
-+
-+
-+def _open_at_end(line: str, pairs: tuple, start: int = 0) -> str | None:
-+    """The closer of the block comment that is still open when `line` ends, scanning from
-+    `start`: every opener is matched to its closer on the same line, in order, so a line that
-+    closes one block and opens another leaves the second one open."""
-+    pos = start
-+    while True:
-+        first = None
-+        for opener, closer in pairs:
-+            at = line.find(opener, pos)
-+            if at != -1 and (first is None or at < first[0]):
-+                first = (at, opener, closer)
-+        if first is None:
-+            return None
-+        at, opener, closer = first
-+        end = line.find(closer, at + len(opener))
-+        if end == -1:
-+            return closer
-+        pos = end + len(closer)
-+
-+
-+def comment_lines(text: str, ext: str) -> Iterator[tuple[int, str]]:
-+    """(1-based line number, line) for every comment line in `text`, for a file of type `ext`."""
-+    ext = ext.lower()
-+    pairs = BLOCKS.get(ext, ())
-+    lines = text.splitlines()
-+    in_doc: set[int] = set()
-+    use_heuristic = False
-+    if ext == ".py":
-+        ranges = _docstring_ranges(text)
-+        if ranges is None:
-+            use_heuristic = True
-+        else:
-+            for a, b in ranges:
-+                in_doc.update(range(a, b + 1))
-+    closer: str | None = None
-+    doc_fragment = False
-+    for n, line in enumerate(lines, 1):
-+        if n in in_doc:
-+            yield n, line
-+            continue
-+        if closer:
-+            yield n, line
-+            end = line.find(closer)
-+            if end != -1:
-+                closer = _open_at_end(line, pairs, end + len(closer))
-+            continue
-+        if doc_fragment:
-+            yield n, line
-+            if '"""' in line or "'''" in line:
-+                doc_fragment = False
-+            continue
-+        has_opener = any(opener in line for opener, _ in pairs)
-+        if _COMMENT.search(line) or has_opener:
-+            yield n, line
-+            closer = _open_at_end(line, pairs)
-+            continue
-+        if use_heuristic and _DOCSTRING_OPEN.match(line):
-+            yield n, line
-+            quote = _DOCSTRING_OPEN.match(line).group(1)
-+            if line.count(quote) < 2:
-+                doc_fragment = True
-+
-+
-+def flagged_lines(text: str, ext: str = ".py") -> list[tuple[int, str, str]]:
-+    """(1-based line number, marker kind, line) for every comment line carrying history."""
-+    out = []
-+    for n, line in comment_lines(text, ext):
-+        kind = marker_kind(line)
-+        if kind:
-+            out.append((n, kind, line.strip()))
-+    return out
-+
-+
-+def count_tree(root: str) -> tuple[int, int]:
-+    """(flagged lines, files with at least one) across the guarded trees under `root`."""
-+    lines = files = 0
-+    for tree in TREES:
-+        for dirpath, _dirs, names in os.walk(os.path.join(root, tree)):
-+            for name in names:
-+                path = os.path.join(dirpath, name)
-+                rel = os.path.relpath(path, root).replace("\\", "/")
-+                if not is_code_path(rel):
-+                    continue
-+                try:
-+                    with open(path, encoding="utf-8", errors="replace") as fh:
-+                        hits = flagged_lines(fh.read(), os.path.splitext(rel)[1])
-+                except OSError:
-+                    continue
-+                if hits:
-+                    lines += len(hits)
-+                    files += 1
-+    return lines, files
-+
-+
-+def _written_texts(tool_input: dict) -> list[str]:
-+    texts = []
-+    if isinstance(tool_input.get("new_string"), str):
-+        texts.append(tool_input["new_string"])
-+    if isinstance(tool_input.get("content"), str):
-+        texts.append(tool_input["content"])
-+    for edit in tool_input.get("edits") or []:
-+        if isinstance(edit, dict) and isinstance(edit.get("new_string"), str):
-+            texts.append(edit["new_string"])
-+    return texts
-+
-+
-+def _repo_root() -> str:
-+    env = os.environ.get("CLAUDE_PROJECT_DIR")
-+    if env:
-+        return os.path.abspath(env)
-+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-+
-+
-+def main() -> int:
-+    event = read_event()
-+    try:
-+        tool_input = event.get("tool_input") or {}
-+        file_path = tool_input.get("file_path") or ""
-+        if not file_path:
-+            return 0
-+        root = _repo_root()
-+        try:
-+            rel = os.path.relpath(os.path.abspath(file_path), root)
-+        except ValueError:
-+            return 0
-+        if rel.startswith(".."):
-+            return 0
-+        if not is_code_path(rel):
-+            return 0
-+        ext = os.path.splitext(rel)[1]
-+        hits = []
-+        for text in _written_texts(tool_input):
-+            hits.extend(flagged_lines(text, ext))
-+        if not hits:
-+            return 0
-+        shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])
-+        emit_deny(
-+            "COMMENT HISTORY GATE: this edit adds a comment carrying decision history to a code "
-+            f"file — {shown}. A comment says WHY in one line; who decided, when, which reviewer, "
-+            "which round, which MR — never in code. That lives in the commit message, the MR and "
-+            "the issue, and `git blame` reaches all three (engineering_standards.md section 1.2). "
-+            "Rewrite the comment as the why alone, or drop it."
-+        )
-+    except Exception:
-+        return 0
-+    return 0
-+
-+
-+if __name__ == "__main__":
-+    sys.exit(main())
-diff --git a/.claude/settings.json b/.claude/settings.json
-index 55ac678a..fb6a57c8 100644
---- a/.claude/settings.json
-+++ b/.claude/settings.json
-@@ -63,6 +63,12 @@
-             "shell": "bash",
-             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/task_contract_gate.py\"",
-             "statusMessage": "Checking task contract..."
-+          },
-+          {
-+            "type": "command",
-+            "shell": "bash",
-+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/comment_history_gate.py\"",
-+            "statusMessage": "Checking comments for decision history..."
-           }
-         ]
-       }
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 6857666c..51eddf0f 100644
+index 51eddf0f..6b80ffc7 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,85 +1,146 @@
--# Task contract — one table says which source answers which question; memory answers none
-+# Task contract — decision history out of code: an edit-time hook and a pinned count
+@@ -1,146 +1,83 @@
+-# Task contract — decision history out of code: an edit-time hook and a pinned count
++# Task contract — sweep 1 of 4: decision history out of dbt comments
  
  objective: >
--  Memory said the player page is three tabs; a later handover said four; nothing said which wins,
--  and the four-tab record survives only as a commit on the dead GitHub remote. Memory also said
--  the built Overview tab was lost when the repo had it in a stash. A session acted on memory both
--  times. This branch states the precedence once, in `CLAUDE.md`, demotes memory in its own index,
--  moves the tab decision into the player page's issue, and preserves the commit that records it.
-+  The code holds 850 comment lines carrying a date, "CPO", "reviewer", "round N" or an MR number —
-+  builder-written claims about what the CPO decided, in files he never reads. `engineering_standards.md`
-+  §1.2 has forbidden it for as long as it has existed and it is ignored. This branch adds the
-+  guard: an edit-time hook that refuses adding such a line to a code file, and a CI test that pins
-+  the count so it can only move in the open. The sweeps that take the count to zero are four
-+  later MRs, one per reviewer territory.
+-  The code holds 850 comment lines carrying a date, "CPO", "reviewer", "round N" or an MR number —
+-  builder-written claims about what the CPO decided, in files he never reads. `engineering_standards.md`
+-  §1.2 has forbidden it for as long as it has existed and it is ignored. This branch adds the
+-  guard: an edit-time hook that refuses adding such a line to a code file, and a CI test that pins
+-  the count so it can only move in the open. The sweeps that take the count to zero are four
+-  later MRs, one per reviewer territory.
++  137 comment lines in `dbt_project/` (65 files) carry a date, "CPO", "reviewer", "round N" or an
++  MR number — builder-written claims about decisions, in files nobody reads for them. The guard
++  (`!177`) stops new ones and pins the count; this sweep rewrites each such line as the why alone
++  (or removes it when it was only history) and lowers the pin by exactly what it removed. No SQL
++  or YAML behaviour changes.
  
  refs: >
--  GitLab #117 (this task, `Task` template — the What/Why/How below are copied from it). GitLab
--  #115 step 6. The CPO's "go" in chat on 2026-09-11 to the issue text as shown to him. The
--  four-tab record: commit `1f0af6ae` on `origin/docs/handover-player-tabs-and-seo`, 2026-07-27,
--  "docs(handover): player page is four tabs (848)".
-+  GitLab #120 (this task, `Task` template; the What/Why/How below are copied from it). #115 step 8,
-+  which depends on step 7 (`!176`, the rule and the recipe). The CPO's "do it" in chat on
-+  2026-09-11 to the five-MR shape — the guard first (a pinned count and an edit-time hook on a
-+  date / CPO / reviewer / round N / !N in a comment), then four sweeps by reviewer territory.
-+
-+protected_override: >
-+  `.claude/hooks/comment_history_gate.py` (new) and `.claude/settings.json` (one hook
-+  registration). The CPO approved this in chat on 2026-09-11 ("do it", to the plan "a hook that
-+  refuses an edit adding a date / CPO / reviewer / round N / !N to a comment … Protected path →
-+  cto + platform review"). Under working_agreement §11 the durable approval is his merge of this
-+  MR, whose head repeats this quote under Locked files.
+-  GitLab #120 (this task, `Task` template; the What/Why/How below are copied from it). #115 step 8,
+-  which depends on step 7 (`!176`, the rule and the recipe). The CPO's "do it" in chat on
+-  2026-09-11 to the five-MR shape — the guard first (a pinned count and an edit-time hook on a
+-  date / CPO / reviewer / round N / !N in a comment), then four sweeps by reviewer territory.
+-
+-protected_override: >
+-  `.claude/hooks/comment_history_gate.py` (new) and `.claude/settings.json` (one hook
+-  registration). The CPO approved this in chat on 2026-09-11 ("do it", to the plan "a hook that
+-  refuses an edit adding a date / CPO / reviewer / round N / !N to a comment … Protected path →
+-  cto + platform review"). Under working_agreement §11 the durable approval is his merge of this
+-  MR, whose head repeats this quote under Locked files.
++  GitLab #121 (this task, `Task` template; the What/Why/How below are copied from it). #115 step 8,
++  the first of the four sweeps the CPO said "do it" to on 2026-09-11 ("four sweeps, one per
++  reviewer territory, each lowering the pin … Each line keeps the why and drops the who/when").
++  The rule: `engineering_standards.md` §1.2 (`!176`). The guard: `!177`.
  
  scope_paths:
--  - CLAUDE.md
--  - docs/working_agreement.md
--  - .claude/active_work.md
-+  - .claude/hooks/comment_history_gate.py
-+  - .claude/settings.json
-+  - tests/test_no_decision_history_in_code.py
-+  - docs/agent_guardrails.md
+-  - .claude/hooks/comment_history_gate.py
+-  - .claude/settings.json
++  - dbt_project/models/**
++  - dbt_project/macros/**
++  - dbt_project/tests/**
++  - dbt_project/seeds/**
+   - tests/test_no_decision_history_in_code.py
+-  - docs/agent_guardrails.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: none — two prose files in the repo. Outside the repo, and outside this diff: the memory
--    index and one memory file (my notes), a new GitLab issue for the player page, and a pushed
--    `archive/` branch that points at an existing commit.
+-  writers: one new hook, one registration line, one test file. No model, script, export, site
+-    source or CI-config change.
 -
--  downstream: every session reads `CLAUDE.md` first; the table changes where a session looks for
--    an answer, not any answer. No hook, test, CI job or routing reads the section edited.
-+  writers: one new hook, one registration line, one test file. No model, script, export, site
-+    source or CI-config change.
-+
-+  downstream (a guard's blast radius is every future edit): the hook fires on every `Edit`,
-+    `Write` and `MultiEdit` in the repo. It reads `tool_input` — `new_string`, `content`, or
-+    `edits[].new_string` — and denies ONLY when (a) the target path is under one of the code trees
-+    it lists with a code extension it lists, and (b) a line of the written text is a comment line
-+    carrying one of the five markers. Everything else — markdown, docs, `.claude/task/**`,
-+    non-listed trees, a marker outside a comment — passes without output. `NotebookEdit` shares
-+    the matcher but writes `new_source`, which the hook does not read, so it passes. On any
-+    exception it returns 0 with no output: fails OPEN, like every hook here. The
-+    test imports the hook's pattern and trees, so the CI count and the edit-time deny cannot
-+    diverge; `test_governance_hooks.py` is untouched (no existing gate changes behaviour).
-+    `check_task_artifacts.py`, the review hash and routing: untouched.
-+
-+  what stops being enforced if it is wrong: nothing that is enforced today — the rule had no
-+    enforcement. If the hook mis-denies, the message names the line and the rule, and the fix is
-+    to write the why without the marker.
+-  downstream (a guard's blast radius is every future edit): the hook fires on every `Edit`,
+-    `Write` and `MultiEdit` in the repo. It reads `tool_input` — `new_string`, `content`, or
+-    `edits[].new_string` — and denies ONLY when (a) the target path is under one of the code trees
+-    it lists with a code extension it lists, and (b) a line of the written text is a comment line
+-    carrying one of the five markers. Everything else — markdown, docs, `.claude/task/**`,
+-    non-listed trees, a marker outside a comment — passes without output. `NotebookEdit` shares
+-    the matcher but writes `new_source`, which the hook does not read, so it passes. On any
+-    exception it returns 0 with no output: fails OPEN, like every hook here. The
+-    test imports the hook's pattern and trees, so the CI count and the edit-time deny cannot
+-    diverge; `test_governance_hooks.py` is untouched (no existing gate changes behaviour).
+-    `check_task_artifacts.py`, the review hash and routing: untouched.
++  writers: comment lines only, in 65 dbt files. No model logic, no column, no test predicate, no
++    seed row changes. The pin constant in one test file.
  
-   layer_rules: n/a.
+-  what stops being enforced if it is wrong: nothing that is enforced today — the rule had no
+-    enforcement. If the hook mis-denies, the message names the line and the rule, and the fix is
+-    to write the why without the marker.
++  downstream: none that a comment can reach. dbt compiles `--` and `/* */` comments into the
++    compiled SQL and BigQuery ignores them; YAML comments are dropped by the parser before dbt
++    sees them; Jinja `{# #}` comments are dropped at render. EVIDENCE, not assertion: for every
++    touched `.sql` file, the text with comments stripped is byte-identical before and after; for
++    every touched `.yml` file, the parsed YAML document is identical before and after — a script
++    run over the diff and its output pasted in the evidence. `dbt parse` green;
++    `scripts/check_layer_contract.py` green.
  
-   deploy_order: none.
+-  layer_rules: n/a.
++  layer_rules: unchanged — no file moves between layers, no per-competition file appears.
  
--  blast_radius: none in the repo. The archive branch is a new ref on GitLab pointing at a commit
--    the repo already holds; deleting it is one command.
-+  blast_radius: a NEW DENY on edits. Bounded by (a) and (b) above. Measured false-positive risk:
-+    a code line where a marker appears after a `#` inside a STRING (`"… # CPO …"`) reads as a
-+    comment line to the pattern — accepted, stated in the hook, and rare.
+-  deploy_order: none.
++  deploy_order: none — nothing changes in the warehouse.
+ 
+-  blast_radius: a NEW DENY on edits. Bounded by (a) and (b) above. Measured false-positive risk:
+-    a code line where a marker appears after a `#` inside a STRING (`"… # CPO …"`) reads as a
+-    comment line to the pattern — accepted, stated in the hook, and rare.
++  blast_radius: none in data. In prose: a why that was carried by an attribution alone could be
++    lost — the rule applied is to KEEP the deviation, its cost, the design analogy, the downstream
++    contract and any pointer to a design doc, and drop only who decided and when. Where a comment
++    was only history it is removed. The analytics-engineer reviewer judges that per file.
  
  acceptance_criteria:
--  - `CLAUDE.md` has one table saying which source answers which question — what a screen shows
--    (the design chain via `00_overview.md`), what is required / what is next (the GitLab issue),
--    where we are right now (`.claude/active_work.md`), how we work (`working_agreement.md`) — and
--    one line: memory answers none of these; a product fact found only in memory is not a fact
--    until verified in the repo or an issue.
--  - The memory index opens with that same line.
--  - The "3 tabs" memory claim is gone. The player page's tab list is recorded as a requirement in
--    the player page's GitLab issue: four tabs, International gated on
--    `national_appearances_total ≥ 1`, as the CPO's 2026-07-27 decision.
--  - That commit's branch is preserved on GitLab as `archive/docs-handover-player-tabs-and-seo`.
--  - Nothing else restates the table; the working agreement points at it.
-+  - An edit-time hook refuses an `Edit`/`Write`/`MultiEdit` that adds a comment line carrying a
-+    date, "CPO", "reviewer", "round N" or an MR number (`!N`) to a code file, and says where that
-+    belongs (the commit message, the MR, the issue — `engineering_standards.md` §1.2). Docs,
-+    markdown and `.claude/task/` are not code and are untouched by it.
-+  - A test pins the count of such lines already in the code (850 across 174 files today) and
-+    fails if the count RISES — or if it falls without the pin being lowered, so every sweep moves
-+    the number in the open.
-+  - The hook and the test share one definition of "a comment line carrying history" and one list
-+    of code trees, and a test pins them against each other so they cannot drift.
-+  - The guard proves itself: deleting one flagged line without lowering the pin turns the test
-+    red; adding one turns it red; the hook denies a real `Edit` that adds one and allows the same
-+    text in a markdown file.
-+  - The hook itself and the test contain zero flagged lines — they obey the rule they enforce.
+-  - An edit-time hook refuses an `Edit`/`Write`/`MultiEdit` that adds a comment line carrying a
+-    date, "CPO", "reviewer", "round N" or an MR number (`!N`) to a code file, and says where that
+-    belongs (the commit message, the MR, the issue — `engineering_standards.md` §1.2). Docs,
+-    markdown and `.claude/task/` are not code and are untouched by it.
+-  - A test pins the count of such lines already in the code (850 across 174 files today) and
+-    fails if the count RISES — or if it falls without the pin being lowered, so every sweep moves
+-    the number in the open.
+-  - The hook and the test share one definition of "a comment line carrying history" and one list
+-    of code trees, and a test pins them against each other so they cannot drift.
+-  - The guard proves itself: deleting one flagged line without lowering the pin turns the test
+-    red; adding one turns it red; the hook denies a real `Edit` that adds one and allows the same
+-    text in a markdown file.
+-  - The hook itself and the test contain zero flagged lines — they obey the rule they enforce.
++  - Every comment line in `dbt_project/` (models, macros, tests, seeds) that carries a date, "CPO",
++    "reviewer", "round N" or `!N` is rewritten as the why alone, or removed when it was only
++    history — 137 lines in 65 files today.
++  - No SQL or YAML behaviour changes: for every touched `.sql` file the text with comments stripped
++    is byte-identical before and after; for every touched `.yml` file the parsed YAML is identical
++    before and after.
++  - The pin in `tests/test_no_decision_history_in_code.py` is lowered by exactly the lines removed
++    (850 → 713, 174 → 109 files), and the guard's test suite is green.
++  - Nothing load-bearing is lost: for a model header that explains a deviation (e.g.
++    `stg_apif__coaches.sql` reads all snapshots), the deviation, its cost and the design pointer
++    stay; only the attribution goes.
  
  decisions_taken: >
--  THE TABLE IS A LOOKUP, NOT A RULING. Every row points at an authority that already exists
--  (`00_overview.md` since `!170`, the issue since `!174`, `active_work.md` since 2026-08-06, the
--  working agreement); the table only says which answers which question. The one new sentence —
--  memory answers none of these — is the demotion the failures above justify, and it binds only me.
-+  THE PATTERN IS THE ONE HE SAID "DO IT" TO: date, CPO, reviewer, round N, !N. Issue refs (`#N`)
-+  would add 535 lines (962 total, 208 files), mostly dead GitHub-era pointers — a widening for
-+  after the first sweep, recorded in #120's Not-in-scope, not taken here.
-+
-+  THE PIN FAILS IN BOTH DIRECTIONS. A one-sided "must not rise" pin lets sweeps go unrecorded and
-+  the number drift; a two-sided pin makes every sweep MR state its new count. Same design as the
-+  dead-reference guard's digest.
+-  THE PATTERN IS THE ONE HE SAID "DO IT" TO: date, CPO, reviewer, round N, !N. Issue refs (`#N`)
+-  would add 535 lines (962 total, 208 files), mostly dead GitHub-era pointers — a widening for
+-  after the first sweep, recorded in #120's Not-in-scope, not taken here.
+-
+-  THE PIN FAILS IN BOTH DIRECTIONS. A one-sided "must not rise" pin lets sweeps go unrecorded and
+-  the number drift; a two-sided pin makes every sweep MR state its new count. Same design as the
+-  dead-reference guard's digest.
+-
+-  THE HOOK CHECKS THE WRITTEN TEXT, NOT THE FILE. An Edit that re-includes an existing flagged
+-  line is denied until the marker goes — ratchet-by-touch. A Write of a file that still holds one
+-  is denied until cleaned. Deliberate: the sweeps get help from every ordinary edit.
++  THE REWRITE RULE, applied line by line: keep the why (the deviation, its cost, the analogy, the
++  downstream contract, a pointer to a design DOC); drop who decided and when (a name, a title, a
++  date, a log pointer, a ruling label such as "Option A" when the definition it labels is stated,
++  a reviewer credit, an MR number). A comment that was ONLY history is removed. A date that is
++  DATA (a boundary the code depends on) would be moved into code, not prose — none of the 137
++  is one on inspection; each is judged as met.
  
--  THE FOUR TABS ARE MOVED, NOT DECIDED. The player page issue records the tab structure as the
--  CPO's 2026-07-27 decision per the commit, marks it as such, and says the per-tab requirements
--  are written when that work starts — which is where he confirms or changes it.
-+  THE HOOK CHECKS THE WRITTEN TEXT, NOT THE FILE. An Edit that re-includes an existing flagged
-+  line is denied until the marker goes — ratchet-by-touch. A Write of a file that still holds one
-+  is denied until cleaned. Deliberate: the sweeps get help from every ordinary edit.
+-  ONE DEFINITION, IMPORTED. The test imports `MARKERS`, `TREES`, `EXTS` and `is_history_comment`
+-  from the hook; a pin test asserts the test module holds no copy. The stop-gate/validate-local
+-  parity test is the precedent.
++  THE PIN MOVES BY EXACTLY THE LINES REMOVED, checked by running `count_tree` before and after,
++  not by arithmetic on the sample.
  
--  THE ARCHIVE BRANCH IS A REF, NOT A COPY. `git branch archive/… origin/docs/handover-player-tabs-and-seo`
--  makes a GitLab ref to a commit already in the repository; nothing is rewritten. My initiative,
--  reversible, listed in #117's How before the go.
-+  ONE DEFINITION, IMPORTED. The test imports `MARKERS`, `TREES`, `EXTS` and `is_history_comment`
-+  from the hook; a pin test asserts the test module holds no copy. The stop-gate/validate-local
-+  parity test is the precedent.
- 
--  THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
-+  THRESHOLD — NEW MECHANISM: yes, one new hook and one CI test, approved above. THRESHOLD —
-+  RECURRING COST: one regex pass over the written text per Edit/Write — microseconds; one file
-+  walk per CI run (~1 s).
+-  THRESHOLD — NEW MECHANISM: yes, one new hook and one CI test, approved above. THRESHOLD —
+-  RECURRING COST: one regex pass over the written text per Edit/Write — microseconds; one file
+-  walk per CI run (~1 s).
++  THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
  
  decisions_reserved:
--  - Whether the four-tab structure still stands — his, when the player page's requirements are
--    written.
--  - Steps 7-9 of #115.
-+  - Widening the pattern to `#N` issue refs — after the first sweep, with its number (535).
-+  - The four sweeps and their order.
+-  - Widening the pattern to `#N` issue refs — after the first sweep, with its number (535).
+-  - The four sweeps and their order.
++  - The other three sweeps and their order; widening the pattern to `#N`.
  
  done_when:
--  - The five criteria proven; `pytest tests/test_governance_doc_parity.py tests/test_no_dead_issue_refs.py`
--    green (the two tests that read `CLAUDE.md`).
--  - #117 closed by the MR; the player page issue exists; the archive branch is on GitLab.
-+  - The five criteria proven; `pytest tests/test_no_decision_history_in_code.py
-+    tests/test_governance_hooks.py` green; `ruff check --config .ruff-ci.toml` clean on both new
-+    files.
-+  - Mutations run on a scratch copy (the classifier refuses weakening the real hook): count pin
-+    both directions; hook deny/allow on a real event.
+-  - The five criteria proven; `pytest tests/test_no_decision_history_in_code.py
+-    tests/test_governance_hooks.py` green; `ruff check --config .ruff-ci.toml` clean on both new
+-    files.
+-  - Mutations run on a scratch copy (the classifier refuses weakening the real hook): count pin
+-    both directions; hook deny/allow on a real event.
++  - The four criteria proven; `pytest tests/test_no_decision_history_in_code.py` green at the new
++    pin; `python scripts/check_layer_contract.py` green; `dbt parse` green; the comment-stripping
++    and YAML-parse comparison over every touched file → identical.
  
  amendments:
--  - Scope +`.claude/active_work.md`, before any edit to it. It is the "where are we right now" row
--    of the table this branch writes, and it is stale: last updated 2026-09-08, its NEXT ACTION is
--    "#40 MR B" (merged as `!166`), and it predates #115 entirely. A precedence table pointing at a
--    stale handover would be the defect this step exists to fix. Handover upkeep is bookkeeping
--    inside an already-approved task, not a decision; the file is artifact-only and its edit rides
--    into this reviewed commit (§2).
-+  - Scope +`docs/agent_guardrails.md`: its hook table inventories every hook in
-+    `.claude/settings.json`; a new hook without a row is the doc-sync defect the scope-auditor
-+    hunts. Bookkeeping inside the approved task, not a decision. Also corrected the impact_map's
-+    `NotebookEdit` sentence: it shares the matcher and passes because the hook does not read
-+    `new_source` — not "not matched".
-+  - Round 1 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). The finding: a
-+    per-line marker check is blind to the continuation lines of a wrapped `/* … */` block —
-+    `site_v2/src/styles/system.css:623` narrates what `!151` shipped on such a line and was neither
-+    counted nor deniable. Fixed as a CLASS, not a line: `comment_lines()` now treats every line
-+    inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`) and every
-+    line of a Python docstring (`ast` when the text parses; a line opening with a triple quote when
-+    it is an edit fragment) as a comment line. Measured before fixing: block continuation lines
-+    +41, docstring lines +329 — `stop_gate.py`'s own docstring carries three. The pin moves from
-+    481/140 to **849/174**; the criteria and #120 are updated to say so. Also taken from the same
-+    review: extension matching is case-insensitive; skip-directories match as path segments.
-+    The hook's first docstring described the markers with the word for a review role and flagged
-+    ITSELF once the docstring rule existed — reworded, which is the rule reading source, not intent.
-+  - Round 2 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). The finding, with a
-+    repro: a line that CLOSES one block and OPENS another (`*/ .b{} /* reopens`) cleared the block
-+    state and hid the reopened block's continuation lines from the deny and the pin; the same root
-+    (`line.find(opener)` sees only the first opener; an opener glued to code without whitespace
-+    never entered block state) had two more shapes. Fixed as the class: `_open_at_end()` walks the
-+    line matching every opener to its closer in order, from the start of a fresh line or from just
-+    after the closer that ended a block; a line with any opener is a comment line whether or not
-+    whitespace precedes it. Pinned by `test_a_line_that_closes_one_block_and_opens_another_keeps_the_state`
-+    with the reviewer's repro plus the two sibling shapes and a same-line-closed block that must
-+    NOT leak. The corrected walk finds one more line in the tree: pin 849 → **850**/174. Round 3
-+    is the cap; it re-runs all three reviewers on the fixed hook.
-+  - Round 3 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). Not a bypass this
-+    time — a coverage hole: no test put two comment syntaxes on one line (`.sql` has `/* */` and
-+    `{# #}`; `.astro` has `/* */` and `<!-- -->`), so the leftmost-opener comparison in
-+    `_open_at_end` was exercised only with one pair and a "last pair wins" regression would pass.
-+    Taken: `test_two_comment_syntaxes_on_one_line_pick_the_leftmost_open_block` — both orders, an
-+    unterminated C block whose text merely contains the Jinja opener, and the Astro pair;
-+    mutation "leftmost comparison weakened" on the scratch copy turns exactly that test red. No
-+    hook change; the pin stays 850/174. Round 4 runs under a `rounds_cap_override` in `review.md`,
-+    recorded as on `!173` and `!174`: to clear a standing FAIL by review, not to ship past one.
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 253e5992..afcd6c00 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -52,6 +52,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open MR; not done until the MR URL exists. |
- | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
- | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
-+| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit whose written text adds, to a code file, a comment line carrying decision history — a date, "CPO", "reviewer", "round N" or an MR number — and says where that belongs: the commit message, the MR and the issue, reached from any line by `git blame` (`engineering_standards.md` §1.2). A comment line is one with a marker (`#`, `--`, `//`, `/*`, `*`, `<!--`, `{#`) at its start or after whitespace, any line inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`), and any line of a Python docstring (`ast` on a whole file; a line opening with a triple quote in an edit fragment). Checks only the text being written, so an edit that re-includes an existing flagged line is denied until the marker goes — every ordinary edit helps the sweep. Markdown, docs, `.claude/task/` and unlisted trees are never checked. Its twin in CI, `tests/test_no_decision_history_in_code.py`, imports the hook's own pattern and tree list and pins the count of flagged lines already in the tree in BOTH directions, so a sweep must lower the pin and the number never moves silently. Fails open. |
- | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
- | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
- | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+-  - Scope +`docs/agent_guardrails.md`: its hook table inventories every hook in
+-    `.claude/settings.json`; a new hook without a row is the doc-sync defect the scope-auditor
+-    hunts. Bookkeeping inside the approved task, not a decision. Also corrected the impact_map's
+-    `NotebookEdit` sentence: it shares the matcher and passes because the hook does not read
+-    `new_source` — not "not matched".
+-  - Round 1 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). The finding: a
+-    per-line marker check is blind to the continuation lines of a wrapped `/* … */` block —
+-    `site_v2/src/styles/system.css:623` narrates what `!151` shipped on such a line and was neither
+-    counted nor deniable. Fixed as a CLASS, not a line: `comment_lines()` now treats every line
+-    inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`) and every
+-    line of a Python docstring (`ast` when the text parses; a line opening with a triple quote when
+-    it is an edit fragment) as a comment line. Measured before fixing: block continuation lines
+-    +41, docstring lines +329 — `stop_gate.py`'s own docstring carries three. The pin moves from
+-    481/140 to **849/174**; the criteria and #120 are updated to say so. Also taken from the same
+-    review: extension matching is case-insensitive; skip-directories match as path segments.
+-    The hook's first docstring described the markers with the word for a review role and flagged
+-    ITSELF once the docstring rule existed — reworded, which is the rule reading source, not intent.
+-  - Round 2 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). The finding, with a
+-    repro: a line that CLOSES one block and OPENS another (`*/ .b{} /* reopens`) cleared the block
+-    state and hid the reopened block's continuation lines from the deny and the pin; the same root
+-    (`line.find(opener)` sees only the first opener; an opener glued to code without whitespace
+-    never entered block state) had two more shapes. Fixed as the class: `_open_at_end()` walks the
+-    line matching every opener to its closer in order, from the start of a fresh line or from just
+-    after the closer that ended a block; a line with any opener is a comment line whether or not
+-    whitespace precedes it. Pinned by `test_a_line_that_closes_one_block_and_opens_another_keeps_the_state`
+-    with the reviewer's repro plus the two sibling shapes and a same-line-closed block that must
+-    NOT leak. The corrected walk finds one more line in the tree: pin 849 → **850**/174. Round 3
+-    is the cap; it re-runs all three reviewers on the fixed hook.
+-  - Round 3 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). Not a bypass this
+-    time — a coverage hole: no test put two comment syntaxes on one line (`.sql` has `/* */` and
+-    `{# #}`; `.astro` has `/* */` and `<!-- -->`), so the leftmost-opener comparison in
+-    `_open_at_end` was exercised only with one pair and a "last pair wins" regression would pass.
+-    Taken: `test_two_comment_syntaxes_on_one_line_pick_the_leftmost_open_block` — both orders, an
+-    unterminated C block whose text merely contains the Jinja opener, and the Astro pair;
+-    mutation "leftmost comparison weakened" on the scratch copy turns exactly that test red. No
+-    hook change; the pin stays 850/174. Round 4 runs under a `rounds_cap_override` in `review.md`,
+-    recorded as on `!173` and `!174`: to clear a standing FAIL by review, not to ship past one.
++  - none yet
+diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
+index 3d4e9245..bb47fc1d 100644
+--- a/dbt_project/macros/player_benchmark_metrics.sql
++++ b/dbt_project/macros/player_benchmark_metrics.sql
+@@ -5,14 +5,14 @@
+   value + rank + percentile) cannot drift apart — the player analog of team_benchmark_metrics().
+ 
+   Each entry: key = the metric_catalogue metric_id; col = the column in int_player_season_position__metrics;
+-  pos = the position groups this metric is benchmarked for (eligibility — CPO ruling 2026-06-23 B3); floor
++  pos = the position groups this metric is benchmarked for (eligibility); floor
+   (optional) = an extra per-row qualifier on top of the global minutes >= 270 (finishing needs >= 10 shots
+   on target in the position); num/den (optional, the 5 RATIO metrics only) = numerator/denominator
+   expressions over the same int_player_season_position__metrics atoms, so the mart can carry the volume
+   behind each % for the no-naked-% triple {num} of {den} · {pct}% on the Stats screen (GAP-21, #391). Only
+   the MART reads num/den; the engine (int_player_competition_benchmarks) ignores them.
+ 
+-  Eligibility rule (CPO B3): benchmark a metric for a position only when non-degenerate for that group.
++  Eligibility rule: benchmark a metric for a position only when non-degenerate for that group.
+   Because the peer pool is already position-specific, the only dead boards are at the GK<->outfield
+   boundary, so eligibility is essentially binary: GK = the 4 keeper metrics (shot-stopping + distribution);
+   DEF = MID = ATT = the other 16. No finer outfield split — a CB's goals_per90 is ranked only vs other CBs.
+diff --git a/dbt_project/macros/team_name_normalization.sql b/dbt_project/macros/team_name_normalization.sql
+index 8b5513b2..1e590e7b 100644
+--- a/dbt_project/macros/team_name_normalization.sql
++++ b/dbt_project/macros/team_name_normalization.sql
+@@ -25,7 +25,7 @@ trim(
+   is user-visible and expensive to change once published -- treat any edit here as
+   a URL migration, not a refactor.
+ 
+-  THE RULE (CPO ruling on E3, 2026-07-27, recorded in .claude/task/escalations.log):
++  THE RULE:
+   fold to the base letter where one exists; expand only where none does.
+     u-umlaut HAS a base letter  -> Bayern Munchen  -> bayern-munchen
+     sharp-s has NONE            -> Rot-Weiss Essen -> rot-weiss-essen
+diff --git a/dbt_project/models/1_staging/api_football/sources.yml b/dbt_project/models/1_staging/api_football/sources.yml
+index 61a2e0f5..0eb08f85 100644
+--- a/dbt_project/models/1_staging/api_football/sources.yml
++++ b/dbt_project/models/1_staging/api_football/sources.yml
+@@ -75,14 +75,13 @@ sources:
+ 
+       # 7-DAY RE-FETCH CADENCE (#33 item 14), so these thresholds are NOT the 30h/54h the
+       # nightly sources use. Managers change rarely and /coachs cost 18.7 min a night to
+-      # re-download unchanged data; the CPO ruled a weekly cadence.
++      # re-download unchanged data, so the cadence is weekly.
+       #
+       # These two numbers are LOAD-BEARING, not decoration: at 54h this table would sit
+       # permanently past error_after once anything actually reads these thresholds.
+-      # WHO READS THEM: nothing does today. `dbt source freshness` is invoked nowhere in this
+-      # repo. The consumer is the hourly sentinel added by #39 Stage 2 (MR !30), which is a
+-      # SEPARATE, currently unmerged branch — so until it lands this block is inert metadata,
+-      # and after it lands unraised thresholds would email daily about correct behaviour.
++      # WHO READS THEM: the hourly freshness sentinel, `scripts/check_raw_freshness.py`, which
++      # reads these thresholds from this file — so unraised thresholds would email daily about
++      # correct behaviour. `dbt source freshness` itself is invoked nowhere in this repo.
+       # 8 days = the 7-day cadence plus a day of slack. 10 days = tolerate one entirely missed
+       # cycle before paging. `tests/test_refetch_cadence.py` pins this against
+       # REFETCH_INTERVAL_DAYS so the cadence and the threshold cannot drift apart.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql b/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
+index da982f9d..3e6a016e 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__coach_career.sql
+@@ -1,7 +1,7 @@
+ -- Coach managerial history: one row per (coach, career stint) — flattened from RAW_APIF_COACHES
+ -- payload.response[].coach.career[] (team + start/end). RAW_APIF_COACHES is a complete snapshot per
+--- (league_code, run); staging reads ALL snapshots faithfully (NOT latest-per-league) — CPO-ruled this
+--- session to preserve every coach's history (see stg_apif__coaches / escalations.log). base dedups the
++-- (league_code, run); staging reads ALL snapshots faithfully (NOT latest-per-league) to preserve
++-- every coach's history — the same entity preservation as stg_apif__coaches. base dedups the
+ -- stints. The career team set is broader than dim_team (youth/reserve/untracked clubs), so team_id is
+ -- kept as the provider id. See dbt_project/docs/layering.md §1_staging.
+ with src as (
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql b/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
+index 5fa757ad..c2086be0 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__coaches.sql
+@@ -1,10 +1,10 @@
+ -- RAW_APIF_COACHES is a complete snapshot per (league_code, run): one row per league per ingest,
+ -- whose payload.response[] holds that league's coaches (each as response[].coach — id, name, bio,
+--- and a career[] history). Staging reads ALL snapshots faithfully (NOT latest-per-league) — CPO-ruled
+--- this session to PRESERVE every coach ever seen (mirrors dim_player/dim_team entity preservation);
++-- and a career[] history). Staging reads ALL snapshots faithfully (NOT latest-per-league) to
++-- PRESERVE every coach ever seen (mirrors dim_player/dim_team entity preservation):
+ -- latest-per-league would drop ~120 coaches whose teams later left our pull. base dedups a coach to
+ -- one entity (latest ingest). The career[] history is a separate grain (stg_apif__coach_career).
+--- See dbt_project/docs/layering.md §1_staging and .claude/task/escalations.log (2026-06-23).
++-- See dbt_project/docs/layering.md §1_staging.
+ with src as (
+     select
+         league_code,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+index 38b17707..c1bdb082 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+@@ -1,7 +1,7 @@
+ -- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
+ -- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
+--- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
+--- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py: raw keeps both
++-- versions). So it carries many fixtures per league_code AND several versions per
+ -- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
+ -- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc,
+ -- which is where the choice between versions belongs. See dbt_project/docs/layering.md §1_staging.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+index ee041ccc..02ad576e 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_players.sql
+@@ -1,7 +1,7 @@
+ -- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
+ -- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
+--- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
+--- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py: raw keeps both
++-- versions). So it carries many fixtures per league_code AND several versions per
+ -- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
+ -- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc,
+ -- which is where the choice between versions belongs. See dbt_project/docs/layering.md §1_staging.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+index 6bd50ef0..0104e49b 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_statistics.sql
+@@ -1,7 +1,7 @@
+ -- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
+ -- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
+--- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
+--- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py: raw keeps both
++-- versions). So it carries many fixtures per league_code AND several versions per
+ -- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
+ -- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc,
+ -- which is where the choice between versions belongs. See dbt_project/docs/layering.md §1_staging.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+index 26b3722f..1d0cc353 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+@@ -33,8 +33,8 @@ select
+     -- and `Abd` where the API's own code is `ABD` — which is why the accepted_values test on
+     -- fct_fixture.status_short has been warning "Got 2 results" in every build. `upper()` yields the
+     -- provider's own canonical codes, so this repairs the field rather than re-coding it.
+-    -- Casing normalisation is raw cleanup, so it belongs here and nowhere downstream (CPO,
+-    -- 2026-09-06: "another input to standardize").
++    -- Casing normalisation is raw cleanup — another input to standardize — so it belongs here
++    -- and nowhere downstream.
+     upper(json_value(match_json, '$.fixture.status.short')) as status_short,
+     safe_cast(json_value(match_json, '$.fixture.status.elapsed') as int64) as status_elapsed,
+     safe_cast(json_value(match_json, '$.league.season') as int64) as season,
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index d956add2..4a206491 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -17,9 +17,9 @@ version: 2
+ # backfill days). This is a faithful flatten (no dedup); base assembles current-per-player. The
+ # "latest snapshot per league_code" clause above is the rule for COMPLETE-snapshot tables; squads
+ # (re-fetched in full every run) follows it, profiles/teams do not. RAW_APIF_COACHES is a
+-# COMPLETE-snapshot table that ALSO reads all snapshots (not latest-per-league) — a CPO
+-# entity-preservation ruling (escalations.log 2026-06-23): latest-per-league would drop coaches whose
+-# teams later leave a league's pull, so all snapshots are read and base dedups to one coach entity.
++# COMPLETE-snapshot table that ALSO reads all snapshots (not latest-per-league), for entity
++# preservation: latest-per-league would drop coaches whose teams later leave a league's pull, so
++# all snapshots are read and base dedups to one coach entity.
+ # (check_layer_contract.py permits omitting the snapshot select — it only forbids non-league_code
+ # partitions, distinct, group by, aggregation and cross-domain joins.)
+ 
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+index 2b0e525a..99b78dd7 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+@@ -1,7 +1,7 @@
+ -- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
+ -- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
+--- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
+--- keeps both versions"). So it carries many fixtures per league_code AND several versions per
++-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py: raw keeps both
++-- versions). So it carries many fixtures per league_code AND several versions per
+ -- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
+ -- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc.
+ -- ⚠ This model has NO consumer today (`dbt ls --select stg_apif__lineups+` returns only itself),
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index 637c0bde..4b27a4cf 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -75,7 +75,7 @@ fixture_participants as (
+         and away_team_id is not null
+ ),
+ 
+--- CPO-owned corrections for known provider team-id defects (#526), from
++-- Hand-curated corrections for known provider team-id defects, from
+ -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one
+ -- club under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is
+ -- a fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index 4bb34bb6..5bf178c9 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -66,7 +66,7 @@ fixture_participants as (
+         and away_team_id is not null
+ ),
+ 
+--- CPO-owned corrections for known provider team-id defects, from
++-- Hand-curated corrections for known provider team-id defects, from
+ -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one club
+ -- under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is a
+ -- fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so a
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index 6db95557..cbaf2211 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -77,7 +77,7 @@ fixture_participants as (
+         and away_team_id is not null
+ ),
+ 
+--- CPO-owned corrections for known provider team-id defects, from
++-- Hand-curated corrections for known provider team-id defects, from
+ -- seeds/fixture_team_id_overrides.csv. `alias` = unconditional duplicate-id replacement (one club
+ -- under two provider ids); `reattribute_if_cohabiting` = replace only when the correct id is a
+ -- fixture participant and the wrong id is not (a mis-attribution between two DISTINCT clubs, so a
+diff --git a/dbt_project/models/2_base/api_football/base_apif__leagues.sql b/dbt_project/models/2_base/api_football/base_apif__leagues.sql
+index ef4fb5b7..c079f6b0 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__leagues.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__leagues.sql
+@@ -12,7 +12,7 @@ import_league_name_overrides as (
+ 
+ -- The provider's country string is not display-ready: it hyphenates multi-word names
+ -- (Saudi-Arabia, South-Korea) and abbreviates one (USA). Standardised HERE, in base, because
+--- the transformation layer is where we clean and reconcile (CPO 2026-08-14) and because the
++-- the transformation layer is where we clean and reconcile, and because the
+ -- core dim publishes rather than corrects -- there is no coalesce in dim_league. Same three
+ -- parts as team_name_overrides: seed, left join, and a singular test that fails when a row
+ -- stops being a correction.
+@@ -48,7 +48,7 @@ src as (
+         leagues.has_coverage_odds,
+         leagues.raw_ingested_at,
+         -- The competition's DISPLAY NAME, corrected here for the same reason the country is:
+-        -- what the provider delivers is not the single source of truth (CPO 2026-09-04), and its
++        -- what the provider delivers is not the single source of truth, and its
+         -- names are neither current nor unique. `Serie A` arrives for BOTH Italy's SA and
+         -- Brazil's BSA, which put two competitions on one title, description and H1; others are
+         -- stale renames (Primeira Liga, CONCACAF Champions League) or sponsor names (Jupiler).
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams.sql b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+index 8cf53a31..7be7033c 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams.sql
+@@ -83,7 +83,7 @@ stg_fixture_level as (
+     where team_id is not null
+ ),
+ 
+--- Fixture participants and the CPO-owned team-id corrections, exactly as the three fixture-level
++-- Fixture participants and the hand-curated team-id corrections, exactly as the three fixture-level
+ -- base models apply them (seeds/fixture_team_id_overrides.csv). Only fixtures whose two
+ -- participants are BOTH known are kept, so the participant checks never hit the
+ -- NOT IN (value, NULL) -> UNKNOWN trap.
+diff --git a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+index fdcb4876..014fbbdf 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__teams_global.sql
+@@ -1,9 +1,9 @@
+ -- Global team entity: one row per team_api_id (latest ingest across league_code rows).
+ -- Feeds dim_team. Grain: team_api_id.
+ --
+--- Applies the CPO-owned name corrections here rather than in dim_team so the core
+--- dimension publishes an entity that is already settled (CPO ruling, 2026-07-27: base is
+--- where these preparations happen, the dim propagates the result). Why it matters beyond
++-- Applies the hand-curated name corrections here rather than in dim_team so the core
++-- dimension publishes an entity that is already settled: base is where these preparations
++-- happen, the dim propagates the result. Why it matters beyond
+ -- spelling: the provider's /teams endpoint sends a short label of unverified quality
+ -- ("Rangers", "Lokomotiv"), and it is the ONLY team name in the product -- it drives the
+ -- fixture card, the page H1, the <title>, the meta description and the URL slug, so 18
+diff --git a/dbt_project/models/3_core/dim_region.sql b/dbt_project/models/3_core/dim_region.sql
+index 21a9257b..2209b9f0 100644
+--- a/dbt_project/models/3_core/dim_region.sql
++++ b/dbt_project/models/3_core/dim_region.sql
+@@ -3,16 +3,15 @@
+ {#
+     The region dimension (#69) — the counterpart to dim_country. A competition points at ONE of the
+     two: a domestic competition has a country, a continental or international one has a region.
+-    Which relationship is populated IS the answer, which is what removes the need for the
+-    competition_types.single_country flag the CPO rejected on 2026-08-16.
++    Which relationship is populated IS the answer, which is what removes the need for a
++    competition_types.single_country flag.
+ 
+     Published from confederations.csv, which shipped in #57 and has been read by nothing since.
+ 
+     ⚠ region_key HOLDS A CONFEDERATION CODE — UEFA, CONMEBOL, CONCACAF, CAF, AFC, OFC, FIFA. The
+     seed keeps `confederation` as its column name because it is the authoring surface and #57
+     shipped it that way; the dim publishes it under the name its consumers read, which is a region.
+-    FIFA -> World is the one row that is a judgement rather than geography (the CPO's, recorded on
+-    the seed).
++    FIFA -> World is the one row that is a judgement rather than geography, recorded on the seed.
+ 
+     ⚠ WHAT THIS DOES NOT ADD. competition_registry.confederation ALREADY carries a relationships
+     test to ref('confederations') (seeds/schema.yml), so the competition->region guard exists at
+diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
+index 30ca3eff..13cda50e 100644
+--- a/dbt_project/models/3_core/dim_team.sql
++++ b/dbt_project/models/3_core/dim_team.sql
+@@ -7,7 +7,7 @@ with import_base_apif__teams_global as (
+ -- team_slug is the team's permanent, locale-independent URL segment
+ -- (/{locale}/teams/{team_slug}/, docs/site_architecture.md section 3). Derived in base and
+ -- merely published here, like every other attribute: base prepares, the dim propagates.
+--- It carries no provider id except in the terminal collision case (CPO ruling, #852).
++-- It carries no provider id except in the terminal collision case.
+ select
+     cast(team_api_id as int64) as team_sk,
+     team_api_id,
+diff --git a/dbt_project/models/3_core/dim_team_competition_season_mapping.sql b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
+index fbdcb07f..5d2b4d12 100644
+--- a/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
++++ b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
+@@ -17,7 +17,7 @@
+     in competition X, season Y"; per-match facts live in fct_fixture. (Known scope of the
+     fixtures source: a team listed only in a standings table whose fixtures fall outside the
+     ingested window is not a member here — see base_apif__teams; rare and out of scope for
+-    the membership question, which the CPO scoped to fixtures.)
++    the membership question, which is scoped to fixtures.)
+ 
+     Grain is enforced by the final GROUP BY on (league_code, season, team_sk), so it cannot
+     split. league_api_id is 1:1 with league_code by registry design; max(league_api_id)
+diff --git a/dbt_project/models/3_core/fct_transfer.sql b/dbt_project/models/3_core/fct_transfer.sql
+index b8cdb032..e1f92a91 100644
+--- a/dbt_project/models/3_core/fct_transfer.sql
++++ b/dbt_project/models/3_core/fct_transfer.sql
+@@ -3,9 +3,8 @@
+ {#
+   Dated player transfers (moves). One row per distinct move: which player moved from
+   which team to which team, on which date, plus the provider's raw type string. The
+-  dated source of the player affiliation timeline (a later PR derives valid_from /
+-  valid_to + chronological order). Reinstated 2026-06-14 (transfers chain rebuild;
+-  reverses #420).
++  dated source of the player affiliation timeline (valid_from / valid_to and the
++  chronological order are derived downstream).
+ 
+   player_sk is the API player id (= dim_player.player_sk); team_in_sk / team_out_sk are
+   API team ids (= dim_team.team_sk). team_in_sk or team_out_sk may be null when the
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index 1a350a7a..a250fe52 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -109,7 +109,7 @@ select
+     safe_divide(duels_won_player, duels_player) as duels_won_player_pct,
+     safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
+     safe_divide(saves_player, nullif(saves_player + goals_against_player, 0)) as saves_player_pct,
+-    -- finishing efficiency (CPO Option A): open-play conversion = (goals_player − goals_penalty_player) /
++    -- finishing efficiency: open-play conversion = (goals_player − goals_penalty_player) /
+     -- shots_on_goal_player. NULL ('—') when shots_on_goal_player is zero or the numerator falls outside
+     -- [0, shots_on_goal_player] (rare broken-stat rows) — never >100%. (#506)
+     case
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index e5176660..fd25927f 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -326,7 +326,7 @@ models:
+       # asserts BOTH directions. It briefly became one-directional, when the single-ladder split
+       # applied to the rank alone; deleting the direction rather than narrowing it left the column
+       # with no positive-existence guard at all, so it could have gone silently empty with every
+-      # test still green (analytics-engineer-reviewer, 2026-07-22). A test may become NARROWER when
++      # test still green. A test may become NARROWER when
+       # a change makes it partly untrue. It must never become SHORTER.
+       - dbt_utils.expression_is_true:
+           expression: "(deserved_points is null and deserved_rank is null) or (deserved_points is not null and deserved_rank is not null)"
+@@ -342,14 +342,14 @@ models:
+           expression: "deserved_points is null or (shots_on_goal_difference_per_match is not null and actual_rank is not null)"
+           name: int_team_season_deserved_points_requires_inputs
+       # LEGAL-RANGE INVARIANT. ⚠ THIS TEST CAN NO LONGER DISCOVER THE CONDITION IT NAMES, and that is
+-      # deliberate: since 2026-09-06 the model caps the fitted rate into [0, 3], so the invariant holds
+-      # by construction. What it still pins is that the cap is WIRED IN — delete the cap and this goes
++      # deliberate: the model caps the fitted rate into [0, 3], so the invariant holds by
++      # construction. What it still pins is that the cap is WIRED IN — delete the cap and this goes
+       # red, which is the mutation the acceptance evidence watches. It is kept at severity=error for
+       # that reason and must not be deleted as redundant.
+-      # Its history, because it explains why the cap exists: it fired twice on real data. Before the
+-      # >= 3 games gate, two Liga MX rows one game into the season fell outside the range; then on
+-      # 2026-09-06 an LP row four games in fitted 12.0259 against a ceiling of 12 and stopped the prod
+-      # build. The DETECTION job now belongs to the warn-severity test below.
++      # Why the cap exists: this test fired twice on real data. Before the >= 3 games gate, two
++      # Liga MX rows one game into the season fell outside the range; later an LP row four games in
++      # fitted 12.0259 against a ceiling of 12 and stopped the prod build. The DETECTION job now
++      # belongs to the warn-severity test below.
+       - dbt_utils.expression_is_true:
+           expression: "deserved_points is null or (deserved_points >= 0 and deserved_points <= 3 * season_games_played)"
+           name: int_team_season_deserved_points_in_legal_range
+@@ -358,7 +358,7 @@ models:
+       # would mean the fit itself had gone wrong — and after the change above, nothing else in the repo
+       # would notice. WARN, not error: this must stay visible without skipping the ~620 downstream
+       # nodes that a severity=error failure inside `dbt build` marks as skipped, which is exactly how
+-      # the prod warehouse stopped refreshing on 2026-09-06.
++      # the prod warehouse once stopped refreshing.
+       #
+       # ⚠ IT READS THE VALUE, NOT THE FLAG, AND THAT IS THE WHOLE POINT. The first version asserted
+       # `not deserved_points_was_capped`, and hardwiring that column to FALSE silenced it with every
+@@ -370,9 +370,9 @@ models:
+       # a bounded outcome met an unbounded estimator — so this is not an error condition and
+       # `severity: error` would fail the prod build on data the model handled properly. It is
+       # therefore a signal, and the closest of engineering_standards.md §3's three guideline rows is
+-      # the third ("nice to have" coverage): surface it, do not block on it. Recorded because
+-      # analytics-engineer-reviewer noted the case matches none of the three exactly, and a reader
+-      # should see the reasoning rather than assume the table was ignored.
++      # the third ("nice to have" coverage): surface it, do not block on it. Recorded because the
++      # case matches none of the three exactly, and a reader should see the reasoning rather than
++      # assume the table was ignored.
+       - dbt_utils.expression_is_true:
+           expression: "deserved_points is null or (deserved_points > 0 and deserved_points < 3 * season_games_played)"
+           name: int_team_season_deserved_points_cap_did_not_bind
+@@ -395,8 +395,8 @@ models:
+       # league-season must be a 1..N permutation — otherwise a competition-wide deserved position is
+       # being compared against a within-conference actual one. Asserted as uniqueness over the real
+       # data rather than by excluding a list of league codes, so an onboarded conference league is
+-      # caught with no file edit (found by the football reviewer, 2026-07-22; 232 rows across MLS,
+-      # LMX, APD and J1 would have shipped a non-comparable rank).
++      # caught with no file edit (232 rows across MLS, LMX, APD and J1 would otherwise have
++      # shipped a non-comparable rank).
+       - dbt_utils.unique_combination_of_columns:
+           name: int_team_season_deserved_rank_only_on_single_ladder_tables
+           combination_of_columns:
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+index 620b7009..c20cb0a1 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+@@ -4,10 +4,10 @@
+   TEAM deserved-vs-actual read (points-space). One row per (team_sk, season_sk): the points the
+   team's process deserved, versus the points it actually has.
+ 
+-  Method (CPO-locked 2026-07-22, escalations.log): deserved signal = shots_on_goal_difference_per_match
++  Method (locked — a change is a product decision, not a builder's): deserved signal = shots_on_goal_difference_per_match
+   (SoT for - against per match). Within each league-season, fit ordinary least squares of
+   points-per-match on that signal, then deserved_points = the fitted points-per-match, CAPPED INTO
+-  [0, 3], * the team's own games played. The cap is mechanical (CPO 2026-09-06, escalations.log):
++  [0, 3], * the team's own games played. The cap is mechanical:
+   points per match is a bounded outcome and least squares is an unbounded predictor, so a fitted rate
+   can land fractionally outside a support it cannot actually leave. deserved_points_gap =
+   points_won_sum_season - deserved_points, so NEGATIVE = under-
+@@ -25,7 +25,7 @@
+   ~0.25 points per match per unit of SoT difference, near 9.8 points over a 38-game season. Rank
+   space was abandoned because a fitted line there can predict positions that do not exist.
+ 
+-  DOMESTIC LEAGUES ONLY (CPO 2026-07-22). deserved_rank ranks all teams in a competition 1..N, but a
++  DOMESTIC LEAGUES ONLY. deserved_rank ranks all teams in a competition 1..N, but a
+   group-stage tournament's actual standing is a position WITHIN a group (1..4) — not comparable, so
+   every tournament team carried a large false gap (mean absolute rank gap 3.43 domestic against
+   8.29-21.46 for the tournament types, over 224 rows). The previous gate assumed knockouts carry no
+@@ -65,8 +65,8 @@
+   team's fitted rate is scaled by its own games played, which then differ.
+ 
+   ⚠️ THE CAP BREAKS THAT IDENTITY, by exactly the amount it shaves, and nothing compensates. The
+-  qualifier above is not decoration: a completed season could carry a capped row, and this comment
+-  claimed an unconditional 0 until analytics-engineer-reviewer caught it. In practice the breakage is
++  qualifier above is not decoration: a completed season could carry a capped row, so the 0 is
++  NOT unconditional. In practice the breakage is
+   far inside the mid-season approximation already accepted here — the one capped row in prod moves
+   its league's sum by 0.026 points against a mid-season spread measured in whole points, and no
+   COMPLETED season carries a capped row today. Stated rather than relied on, because "no completed
+@@ -170,7 +170,7 @@ gated as (
+         -- Telling MLS apart from Liga MX needs a real "is this one continuous competition" signal,
+         -- which does not exist yet and is a design decision, not a builder's assumption. Until it
+         -- does, this withholds rather than publishes: the conservative direction, at the cost of a
+-        -- read MLS could probably support. (football-analytics-expert-reviewer, 2026-07-22.)
++        -- read MLS could probably support.
+         (c.distinct_actual_ranks = c.teams) as actual_table_is_single_ladder
+     from joined as j
+     inner join coverage as c
+@@ -215,7 +215,7 @@ rated as (
+     from fitted as f
+ ),
+ 
+--- MECHANICAL CAP AT THE BOUNDS (CPO-ruled 2026-09-06, escalations.log). Points per match lives in
++-- MECHANICAL CAP AT THE BOUNDS. Points per match lives in
+ -- [0, 3] by the rules of the competition, and ordinary least squares is an unbounded predictor, so
+ -- it will occasionally put a team fractionally outside a support it cannot actually leave. Capping
+ -- is the pragmatic treatment of that bounded outcome; the principled alternative is a model that
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+index c08d8561..610e82e2 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+@@ -20,7 +20,7 @@
+   final-row select (guaranteeing byte-identity). HERE they mean "cumulative THROUGH THIS matchday",
+   not the whole season. Formulas + coverage gates are lifted verbatim from int_team_season__metrics.
+ 
+-  Incomplete-data → NULL (CPO 2026-06-25): a team-feed rate is NULL unless its stat covers every
++  Incomplete-data → NULL: a team-feed rate is NULL unless its stat covers every
+   game through this matchday (games_with_* == games_played); scoreline + player-derived are not gated.
+ #}
+ 
+@@ -121,12 +121,11 @@ select
+         -- ⚠ NOT games_played, and not either coverage count alone. This is the one two-sided rate
+         -- here: the numerator subtracts a sum over the games with OPPONENT SoT from a sum over the
+         -- games with OWN SoT, so its denominator must be the games both cover.
+-        -- It read `games_played` until 2026-09-07, which was correct only while the gate demanded
+-        -- FULL coverage — both counts then equalled games_played by construction. Once awarded
+-        -- matches count as played, the gate demands coverage of the non-awarded games only, so
+-        -- games_played became one larger than the set the numerator spans and quietly diluted the
+-        -- rate. `least` is byte-identical to the old behaviour wherever the old gate passed, and
+-        -- correct where it now does not (analytics-engineer-reviewer, 2026-09-07).
++        -- `games_played` would be correct only if the gate demanded FULL coverage — both counts
++        -- then equal games_played by construction. Because awarded matches count as played, the
++        -- gate demands coverage of the non-awarded games only, so games_played is one larger than
++        -- the set the numerator spans and would quietly dilute the rate. `least` equals
++        -- games_played wherever coverage is full, and is correct where it is not.
+         -- It matters more than the other rates: this is the regression input to
+         -- int_team_season__deserved_vs_actual, so a diluted value moves a whole league-season's
+         -- deserved-points fit, not one cell.
+@@ -138,9 +137,8 @@ select
+     -- ⚠ SAME-WINDOW NUMERATOR. `goals_open_play_in_sot_games` counts open-play goals only in the
+     -- games whose shots-on-target the denominator also counts. The full goal sum would include an
+     -- awarded result's goals — a 3-0 technical win is three real goals with no shot behind them —
+-    -- against a denominator that can never see them, inflating the ratio. Before awarded matches
+-    -- became legs the two spanned the same games and the distinction did not exist
+-    -- (analytics-engineer-reviewer, 2026-09-07).
++    -- against a denominator that can never see them, inflating the ratio. Without awarded
++    -- matches as legs the two would span the same games and the distinction would not exist.
+     case
+         when games_with_sot_stats < games_expecting_team_stats then null
+         when goals_open_play_in_sot_games < 0 then null
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+index bfb4f8e3..89b39aa6 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+@@ -5,7 +5,7 @@
+   raw stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
+   competition's type/entity classification and the dimensions windows need.
+ 
+-  "Finished" includes AWD (technical loss) and WO (walkover) since 2026-09-06 (CPO, escalations.log):
++  "Finished" includes AWD (technical loss) and WO (walkover):
+   those are official results the league table counts, and excluding them left 24 fixtures
+   contributing nothing — FC Utrecht showing 4 games where its league had played 5. They carry a
+   scoreline and NO stat line, which is what `is_awarded_result` exists to say; the coverage gates
+@@ -35,7 +35,8 @@ types as (
+ ),
+ 
+ -- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
+--- (CPO Option A, 2026-06-24). event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
++-- (open-play = goals minus penalties minus own goals credited).
++-- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
+ -- = an own goal THIS team scored into its own net — which counts for the OPPONENT, so it is joined
+ -- as the opponent's own goals downstream. The remaining goals ('Normal Goal') are open play. Only
+ -- the components are event-derived; goals_for stays the authoritative scoreline.
+@@ -141,7 +142,7 @@ with_stats as (
+         opp.shots_total as opponent_shots_total,
+         opp.shots_inside_box as opponent_shots_inside_box,
+         opp.corner_kicks as opponent_corner_kicks,
+-        -- open-play goal split (CPO Option A): goals_for stays the authoritative scoreline; this
++        -- open-play goal split: goals_for stays the authoritative scoreline; this
+         -- team's penalties and the own goals credited to it (the OPPONENT's own-goal events) are
+         -- subtracted downstream to get goals_open_play. Catalogued as goals_penalty / goals_own.
+         coalesce(ev_own.penalty_goals, 0) as goals_penalty,
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index c8a83b77..bf1faffa 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -52,8 +52,7 @@ models:
+         # where a window has no shots-on-target data at all it sums nothing and is legitimately NULL,
+         # which is the honest answer and what makes finishing_efficiency_pct null out. Its precedent
+         # sibling `goals_against_in_save_games` is untested for the same reason. A not_null here was
+-        # asked for in review and declined: it would fail on real data
+-        # (analytics-engineer-reviewer, round 3).
++        # deliberately absent: it would fail on real data.
+       - name: games_with_team_stats
+         description: "Count of window legs with team stats present (shots/passes/corners). Denominator/gate for per-match team-stat rates and finishing_efficiency_pct."
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+index e40260b0..c859e504 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+@@ -23,8 +23,8 @@ models:
+             - season_sk
+       # An appearance requires pitch time, so starts and substitute appearances PARTITION appearances
+       # exactly: is_starter = (minutes > 0 and not sub), substitute_appearances = (minutes > 0 and sub).
+-      # This is the guard that would have caught the 2026-07-23 defect, where appearances counted every
+-      # matchday selection (incl. unused substitutes) while starts already required minutes > 0.
++      # This is the guard against appearances counting every matchday selection (incl. unused
++      # substitutes) while starts already require minutes > 0 — a defect this surface once had.
+       - dbt_utils.expression_is_true:
+           expression: "starts + substitute_appearances = appearances"
+           name: player_club_season_starts_plus_subs_equals_appearances
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+index eec78a26..e0892662 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+@@ -35,7 +35,7 @@ finished as (
+ ),
+ 
+ -- Penalty goals per (fixture, player) from match events, for the open-play finishing numerator
+--- (CPO Option A). event_detail='Penalty' = a scored penalty by this player; goals_total stays the
++-- (the open-play definition). event_detail='Penalty' = a scored penalty by this player; goals_total stays the
+ -- authoritative player goal count (already excludes own goals) — only the penalty component is
+ -- event-derived. Mirrors int_player_season__metrics exactly.
+ events as (
+@@ -100,7 +100,7 @@ aggregated as (
+         season_api_year,
+         -- the club's latest kickoff this competition-season — lets the rollup pick the last club.
+         max(kickoff_datetime) as last_kickoff_at,
+-        -- An appearance requires PITCH TIME (CPO 2026-07-23: "Then it is wrong"). The provider's
++        -- An appearance requires PITCH TIME. The provider's
+         -- /fixtures/players payload lists the whole matchday squad, so an unused substitute arrives as
+         -- a stat row with null minutes; counting those made `appearances` a SELECTION count. Measured
+         -- before the fix: 382,942 of 1,677,854 stat rows were 0-minute bench selections, inflating
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+index 4c812edc..177749d3 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+@@ -7,9 +7,9 @@
+   the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
+   and percentile display. The player analog of int_team_competition_benchmarks.
+ 
+-  Only players with >= 270 minutes IN the position enter the distribution (CPO floor B2); for
+-  finishing_efficiency_player_pct, also >= 10 shots on target in the position (its denominator is shots, not minutes —
+-  D4). Metric x position eligibility comes from player_benchmark_metrics() (CPO B3): a metric ineligible for
++  Only players with >= 270 minutes IN the position enter the distribution; for
++  finishing_efficiency_player_pct, also >= 10 shots on target in the position (its denominator is shots, not
++  minutes). Metric x position eligibility comes from player_benchmark_metrics(): a metric ineligible for
+   a position (e.g. saves_player for an outfielder) yields a null value and is not counted.
+ 
+   Grain: (league_code, season_api_year, position_group, metric_key). All competitions, each season on its own
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+index 12b4fc3c..de2426a7 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+@@ -55,7 +55,7 @@ player_agg as (
+         wl.season_api_year,
+         wl.entity_type,
+         wl.window_type,
+-        -- pitch time required, same rule as the season models (CPO 2026-07-23): the provider lists
++        -- pitch time required, same rule as the season models: the provider lists
+         -- whole matchday squads, so count(*) counted unused substitutes as appearances. 0 is now a
+         -- legitimate value (named in the squad for window legs but never brought on).
+         countif(coalesce(p.minutes_played, 0) > 0) as games_in_window,
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+index 0740ea32..3a5bc66a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+@@ -5,14 +5,14 @@
+   (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
+   int_player_profile__yoy). "Involved in 45% of Bayern's goals."
+ 
+-  Metric definition (CPO, AskUserQuestion 2026-07-03):
++  Metric definition:
+     - numerator = scorer_points_player = goals_total + goals_assists (summed over the player's appearances-with-stats)
+     - denominator = team_goals_season = the club's goals_for over ALL its matches that competition-season (the
+       authoritative scoreline), NOT just the matches the player appeared in.
+     - contribution_player_pct = scorer_points_player / team_goals_season. Range [0, 1] (a player's G+A over his
+       appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
+ 
+-  Honest limit (CPO-accepted): player stats are sparse (many matches lack statistics_players). Where the
++  Honest limit, accepted by design: player stats are sparse (many matches lack statistics_players). Where the
+   player's stats are missing for a game he played, his involvements there go uncounted while the whole-season
+   denominator stays complete — so the share UNDERSTATES for players with coverage gaps. Absence is honest.
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+index 962663ee..055f30d9 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+@@ -11,11 +11,11 @@
+   season is running (a part-season vs a full season would mislead).
+ 
+   Alignment is by APPEARANCES (match_number from int_player_season_record — the running
+-  count of the matches the player actually PLAYED; before 2026-07-23 it counted every
+-  player-stat row, so unused substitutes inflated it), the player analog of the team
++  count of the matches the player actually PLAYED — a count of player-stat rows would
++  include unused substitutes and inflate it), the player analog of the team
+   builder's games played. Not by date, not by round number.
+ 
+-  Metric set (CPO 2026-07-03, the broader per-position set): goals, assists, shots on
++  Metric set (the broader per-position set): goals, assists, shots on
+   target, key passes, defensive actions (tackles + interceptions + blocks). Raw
+   cumulative counts (per-90 / ratios live elsewhere); the delta is this - prev.
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season__team.sql b/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
+index 143c3b6e..de6af625 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
+@@ -2,7 +2,7 @@
+ 
+ {#
+   GAP-16 — the player's team per competition-season: the club of their MOST RECENT finished match
+-  that season (Option B, CPO-ruled 2026-06-30 — deterministic + byte-stable, where the roster
++  that season (chosen because it is deterministic and byte-stable, where the roster
+   affiliation source has no transfer date so cannot give a stable "latest team that season").
+   is_current_team flags the single season-row holding the player's globally most-recent finished
+   match (their current club). dbt owns "which team is current"; the consumption layer never re-ranks.
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+index ac40e608..4058f4fc 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+@@ -16,7 +16,7 @@ models:
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [player_sk, season_sk, position_group]
+-      # finishing_efficiency_player_pct is open-play conversion in [0,1] (CPO Option A); range-guarded on this
++      # finishing_efficiency_player_pct is open-play conversion in [0,1]; range-guarded on this
+       # surface itself, not only on the benchmark consumer (covers sub-floor / GK rows too).
+       - dbt_utils.expression_is_true:
+           expression: "finishing_efficiency_player_pct is null or (finishing_efficiency_player_pct between 0 and 1)"
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index de3763ca..13f34879 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -7,7 +7,7 @@
+   he played that match (fct_fixture_player_stats.position_code, recorded at match time) and aggregates each
+   role separately. A player who logged minutes in two positions gets two rows, each carrying the per-90 he
+   produced IN that role — so a multi-position player is benchmarked honestly per position, and the minutes
+-  >= 270 floor applied downstream both qualifies and assigns the position (CPO ruling 2026-06-23 B1/B2).
++  >= 270 floor applied downstream both qualifies and assigns the position.
+ 
+   position_code G/D/M/F -> position_group GK/DEF/MID/ATT; non-canonical codes ('-'/'SUB'/null, ~142 of
+   1.67M legs) are dropped (they cannot be assigned a position). Atom formulas mirror int_player_season__
+@@ -34,7 +34,7 @@ finished as (
+ ),
+ 
+ -- Penalty goals per (fixture, player) from match events, for the open-play finishing
+--- numerator (CPO Option A). goals_total stays authoritative; only the penalty component is
++-- numerator. goals_total stays authoritative; only the penalty component is
+ -- event-derived. (Player goals_total already excludes own goals.)
+ events as (
+     select
+@@ -92,7 +92,7 @@ aggregated as (
+         league_code,
+         season_api_year,
+         position_group,
+-        -- pitch time required, same rule as int_player_club_season__metrics (CPO 2026-07-23): the
++        -- pitch time required, same rule as int_player_club_season__metrics: the
+         -- provider lists whole matchday squads, so count(*) counted unused substitutes as appearances.
+         countif(coalesce(minutes_played, 0) > 0) as appearances,
+         sum(coalesce(minutes_played, 0)) as minutes,
+@@ -152,7 +152,7 @@ select
+     safe_divide(duels_won_player, duels_player) as duels_won_player_pct,
+     safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
+     safe_divide(saves_player, nullif(saves_player + goals_against_player, 0)) as saves_player_pct,
+-    -- finishing efficiency (CPO Option A): open-play conversion = (goals_player − goals_penalty_player) /
++    -- finishing efficiency: open-play conversion = (goals_player − goals_penalty_player) /
+     -- shots_on_goal_player. NULL when shots_on_goal_player is zero or the numerator falls outside
+     -- [0, shots_on_goal_player] — never >100%.
+     case
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+index ffd733f4..3baed6ba 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+@@ -10,8 +10,8 @@
+   A player-match leg exists wherever the API provides player stats, and the provider lists the whole
+   matchday squad — so an UNUSED SUBSTITUTE arrives as a 0-minute leg. Those are filtered out below,
+   because this model's row IS an appearance ("one row per match the player appeared in") and
+-  match_number/games_played must count matches actually played, not matchday selections. Before
+-  2026-07-23 they did not (CPO: "Then it is wrong"). Player ratios
++  match_number/games_played must count matches actually played, not matchday selections —
++  the provider lists whole squads, so a selection count is wrong. Player ratios
+   (saves_player_pct, passes_accuracy_player_pct, duels_won_player_pct, dribbles_success_player_pct) are stat-over-stat
+   from the same rows, so no coverage-restriction is needed (unlike the team builder's
+   scoreline-vs-stat mix). Raw sums only — ratios live in the mart.
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+index cce0598f..072883f0 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+@@ -67,7 +67,7 @@ team_agg as (
+         sum(goals_against) as goals_against,
+         -- scoreline-based, full window (clean sheets display as x of games)
+         countif(goals_against = 0) as clean_sheet_games,
+-        -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
++        -- open-play goal components: goals_open_play = goals_for − goals_penalty
+         -- − goals_own (computed in the mart). Full-window sums, for display.
+         sum(goals_penalty) as goals_penalty,
+         sum(goals_own) as goals_own,
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+index eb5842b9..c1e64406 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+@@ -125,20 +125,17 @@ select
+     -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
+     sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
+         as games_with_save_stats,
+-    -- open-play goal components (CPO Option A): goals_open_play = goals_for − goals_penalty
++    -- open-play goal components: goals_open_play = goals_for − goals_penalty
+     -- − goals_own (computed in the mart). Full cumulative sums, for display.
+     sum(goals_penalty) over w as goals_penalty,
+     sum(goals_own) over w as goals_own,
+-    -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS, and it is now REQUIRED where it was not before.
+-    -- The comment here used to say "finishing is NULL unless the window is fully shot-covered, so no
+-    -- coverage-restricted goals sum is needed". That held only while every leg was a played match
+-    -- with a stat line. Since 2026-09-07 an awarded result (AWD/WO) is a leg too: its GOALS are real
+-    -- and land in the full sums above, but it has no shots-on-target, so a finishing ratio built from
+-    -- the full goal sum over the SoT-covered shot sum counts goals from a match the denominator can
+-    -- never see — a 3-0 technical win adds three goals against zero shots.
++    -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS, REQUIRED because an awarded result (AWD/WO) is a leg
++    -- too: its GOALS are real and land in the full sums above, but it has no shots-on-target, so a
++    -- finishing ratio built from the full goal sum over the SoT-covered shot sum counts goals from
++    -- a match the denominator can never see — a 3-0 technical win adds three goals against zero
++    -- shots. "Finishing is NULL unless the window is fully shot-covered" is not enough on its own.
+     -- Restricting the numerator to the games the denominator covers is the same-window pattern this
+-    -- model already applies to saves_pct via goals_against_in_save_games
+-    -- (analytics-engineer-reviewer, 2026-09-07).
++    -- model already applies to saves_pct via goals_against_in_save_games.
+     sum(if(shots_on_goal is not null, goals_for - goals_penalty - goals_own, null)) over w
+         as goals_open_play_in_sot_games,
+     -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index 08672d47..91ba6667 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -27,7 +27,7 @@ models:
+           combination_of_columns:
+             - league_code
+             - team_sk
+-      # finishing_efficiency_pct is open-play conversion in [0,1] (CPO Option A); passthrough
++      # finishing_efficiency_pct is open-play conversion in [0,1]; passthrough
+       # from int_team_season__metrics — range-checked here as the consumer-contract guard.
+       - dbt_utils.expression_is_true:
+           expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+index 480ad09b..95063d4a 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+@@ -175,11 +175,11 @@ select
+     -- WC form-context label flags (GAP-18): true when the side's W1 window is the qualifier
+     -- window (window_type='qualifiers'). The live formContextLabel UI reads these EXACT field
+     -- names to pick "all qualifying matches" vs "all World Cup matches so far" — the names are
+-    -- pinned by the published UI contract, a CPO-approved exception to the is_/has_ boolean
+-    -- convention (2026-06-16). coalesce keeps them boolean (never null) for the no-window case.
++    -- pinned by the published UI contract, a deliberate exception to the is_/has_ boolean
++    -- convention. coalesce keeps them boolean (never null) for the no-window case.
+     -- The mart surfaces one round per league (next_round), so under normal scheduling both sides
+-    -- of a fixture share the same window phase and the UI's both-sides check is unambiguous (CPO
+-    -- accepted this dependency over per-side labels, 2026-06-16).
++    -- of a fixture share the same window phase and the UI's both-sides check is unambiguous —
++    -- that dependency is accepted over per-side labels.
+     coalesce(mh.window_type = 'qualifiers', false) as home_form_from_qualifiers,
+     coalesce(ma.window_type = 'qualifiers', false) as away_form_from_qualifiers
+ from next_round_fixtures as f
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_index.sql b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+index 14c3985d..3dab0c3a 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+@@ -7,8 +7,8 @@
+     that, and #62 is the fix.
+ 
+     ORDERING. This mart carries the ordering INPUTS as facts and does not pre-bake the answer.
+-    The page spec declares the ORDER BY (CPO, 2026-08-16: sorting is arrangement, not a fact a
+-    visitor reads). The approved rule is:
++    The page spec declares the ORDER BY (sorting is arrangement, not a fact a visitor reads).
++    The rule is:
+ 
+         has an upcoming fixture       -- the 20 dormant competitions cannot compete on proximity
+         days until next kickoff       -- BUCKETED BY CALENDAR DAY, not by timestamp
+@@ -20,12 +20,12 @@
+     played first. Bucketing by day is deliberate: the raw clock would rank the Eredivisie above
+     the Premier League on a shared matchday for kicking off at 10:15 instead of 19:00.
+ 
+-    The registry's `sort_order` is deliberately ABSENT — declared obsolete by the CPO on
+-    2026-08-16. Its last consumer on the site was the home page's browse block, DROPPED
+-    2026-08-19; it now feeds only `build_nav()`/`nav.json`, an export target with no frontend
+-    consumer. Either way it is not this model's ordering basis, and this model does not remove it.
++    The registry's `sort_order` is deliberately ABSENT — it is obsolete. Its last consumer on the
++    site was the home page's browse block, since dropped; it now feeds only
++    `build_nav()`/`nav.json`, an export target with no frontend consumer. Either way it is not
++    this model's ordering basis, and this model does not remove it.
+ 
+-    LABELS. English name AND i18n key, never a translated string (#62, 2026-08-14).
++    LABELS. English name AND i18n key, never a translated string.
+     region_label_i18n_key is NULL when the region is a country, because a country name is an
+     entity name rather than chrome.
+ #}
+@@ -109,7 +109,7 @@ select
+     -- Which relationship is populated IS the answer (#69 step 5): league_country is NULL for
+     -- every international/continental competition (the base layer turns the provider's 'World'
+     -- sentinel into NULL, never a corrected string), so testing it directly replaces the
+-    -- competition_types.single_country flag the CPO rejected on 2026-08-16 -- there is no
++    -- competition_types.single_country flag that was considered and rejected -- there is no
+     -- second taxonomy statement to keep in sync with the FK.
+     coalesce(leagues.league_country, confed.label_en) as region_label_en,
+     case
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index f8ba6f51..c94b64ee 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -12,11 +12,11 @@
+   the top-10 cut is inclusive of ties (the mart_top_scorers convention). Only players with a positive
+   value on a board are ranked (a leaderboard shows positive performers).
+ 
+-  RATE boards add a qualification rule (CPO, #506) so a tiny sample can't game a rate: minutes >= 270
++  RATE boards add a qualification rule so a tiny sample can't game a rate: minutes >= 270
+   (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass / duels /
+   dribble / finishing are outfield (excl. GK); save is GK-only. finishing also needs
+   shots_on_goal_player >= 10 (minutes don't bound shot count, so a 1-shot 1-goal player would otherwise
+-  read a perfect rate). finishing_efficiency_player_pct is now open-play conversion in [0, 1] (CPO Option A).
++  read a perfect rate). finishing_efficiency_player_pct is open-play conversion in [0, 1].
+   sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
+ 
+   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
+@@ -141,11 +141,11 @@ ranked as (
+         -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
+         -- ties SHARING a rank is a documented consumer contract here, and the top-10 cut is
+         -- inclusive of them. But a consumer that must show ONE player per league cannot use it —
+-        -- measured against prod 2026-09-09, 12 of the 28 league-boards the Home block renders have
+-        -- more than one rank-1 player. Deciding which of them is shown is ranking, so it belongs
+-        -- here and not in the export (CPO 2026-09-09, escalations.log: "All ranking and ordering
+-        -- lives in the warehouse. The page renders the order it is served.").
+-        -- ⭐ FEWER MINUTES WINS (CPO, same day): the same tally in less time is the better
++        -- measured against prod, 12 of the 28 league-boards the Home block renders have more than
++        -- one rank-1 player. Deciding which of them is shown is ranking, so it belongs here and
++        -- not in the export: all ranking and ordering lives in the warehouse, and the page renders
++        -- the order it is served.
++        -- ⭐ FEWER MINUTES WINS: the same tally in less time is the better
+         -- performance, and that reads identically on every board — fewer minutes for the same
+         -- passes or assists is also the better return. It settles 11 of those 12 ties.
+         -- ⚠ `player_sk` last is MEANINGLESS AND SAID TO BE. It exists so the one tie that survives
+@@ -170,8 +170,8 @@ ranked as (
+ -- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
+ -- a single served column and compares nothing itself. `league_leader_order` above answers "who
+ -- represents this league"; this answers "in what order do those leaders appear".
+--- CPO 2026-09-09 (escalations.log): "All ranking and ordering lives in the warehouse. The page
+--- renders the order it is served." Same three ruled keys as the within-league order, for the same
++-- All ranking and ordering lives in the warehouse; the page renders the order it is served.
++-- Same three keys as the within-league order, for the same
+ -- reason — fewer minutes for the same tally is the better performance, and player_sk is a stable
+ -- last resort that means nothing (GitLab #112 is open to find a better one).
+ --
+@@ -239,9 +239,9 @@ select
+     finishing_efficiency_player_pct,
+     -- WHICH SEASON a consumer should show, served as a fact rather than chosen downstream.
+     -- The Home block shows one league's current-season leader; without this the export would have
+-    -- to pick a season itself, which is the window-selection shape analytics-engineer-reviewer
+-    -- FAILed twice under GAP-32. Same answer #846 reached for mart_player_profile's
+-    -- is_featured_season: serve the pick, let consumption filter on it.
++    -- to pick a season itself, which is window selection — a warehouse decision the consumption
++    -- layer must not make. Same answer as mart_player_profile's is_featured_season: serve the
++    -- pick, let consumption filter on it.
+     -- Latest season per LEAGUE, not per player: the flag answers "is this the season the site is
+     -- currently showing for this competition", so every row of a league agrees. ST06 puts
+     -- calculations after simple targets, hence its position last.
+diff --git a/dbt_project/models/5_marts/shared/mart_player_career.sql b/dbt_project/models/5_marts/shared/mart_player_career.sql
+index e2348ec6..4da5115f 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_career.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_career.sql
+@@ -18,8 +18,8 @@
+   player-stat rows via the base, so a row means "this player was in this club's matchday squad at
+   least once that competition-season". `appearances` counts only the legs he actually PLAYED
+   (minutes > 0), so it can legitimately be 0: a squad member who never got on the pitch keeps his row
+-  (CPO 2026-07-23 — "Players are part of the squad even with zero appearances") and simply scores 0.
+-  Until 2026-07-23 `appearances` counted every matchday selection, which inflated 51.4% of rows.
++  (players are part of the squad even with zero appearances) and simply scores 0. Counting every
++  matchday selection instead would inflate 51.4% of rows.
+   Per-club / per-competition / national subtotals are derivable from this grain (display-side), so
+   they are not precomputed.
+ #}
+@@ -129,7 +129,7 @@ select
+     -- all three "not a catalogue metric" — false: `goals_player` and `assists_player` are both catalogue rows
+     -- (entity=player, group=goals, tier 1). Only the playing-time pair is uncatalogued, and the one
+     -- catalogued member of that family is the RATE below, minutes_per_appearance (group
+-    -- playing_time as of 2026-08-04).
++    -- playing_time).
+     wc.minutes,
+     -- mins/app for the Squad tab, computed here so the consumption layer never divides. A
+     -- catalogue-governed rate (metric_catalogue: minutes_per_appearance). safe_divide -> null when
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index 7125fca0..b3dc663d 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -169,7 +169,7 @@ select
+     a.dribbles_success_player_pct,
+     a.saves_player_pct,
+     -- year-over-year (domestic only; the player's primary club that season; NULL
+-    -- otherwise / when the prior season at that club is absent). CPO metric set 2026-07-03.
++    -- otherwise / when the prior season at that club is absent).
+     y.yoy_appearances_cutoff,
+     y.goals_player_this_season,
+     y.goals_player_prev_season,
+@@ -195,7 +195,7 @@ select
+     y.passes_key_player_prev_season_full,
+     y.defensive_actions_player_prev_season_full,
+     -- contribution-share (goal involvements as a share of the club's whole-season goals; the player's
+-    -- primary club that season; NULL where absent). CPO metric definition 2026-07-03.
++    -- primary club that season; NULL where absent).
+     c.scorer_points_player,
+     c.team_goals_season,
+     c.contribution_player_pct,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+index abbb9a44..e89450b7 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+@@ -16,8 +16,8 @@
+   and finished-with-leg fixtures. Live / postponed / cancelled rows carry null
+   ranks (no honest place in "next" or "recent results").
+ 
+-  No slug column: the published fixture URL identity is a separate, CPO-ruled
+-  concern (GAP-19 item 5) and is added in its own PR. league_code discriminates
++  No slug column: the published fixture URL identity is a separate product
++  concern and is added in its own change. league_code discriminates
+   the competition and is not a BigQuery partition or cluster key; the model is
+   competition-agnostic.
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+index d72e73a7..488aed68 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+@@ -6,15 +6,15 @@
+   within its competition-season. Season-to-date, composed from int_team_season__metrics (the
+   canonical whole-season team rollup) + dim_team identity — NOT mart-from-mart.
+ 
+-  FOUR boards (CPO 2026-08-10), single-metric like the reduced player boards: goals_per_match,
++  FOUR boards, single-metric like the reduced player boards: goals_per_match,
+   shots_on_goal_per_match, passes_per_match, duels_per_match. All four are higher_better in the
+   metric catalogue, so one shared DESC order is correct for every board — a lower-is-better board
+   would need its own direction and there is none here.
+ 
+   rank = DENSE_RANK over the board's metric desc within (league_code, season_api_year): ties share a
+   rank, no ranks are skipped, and the top-10 cut is inclusive of ties (the mart_leaderboards
+-  convention). The partition is per league by CPO ruling 2026-08-18 — "one team per league, same as
+-  players" — so a board is each league's rank-1 team collected and ordered, and the ranking never
++  convention). The partition is per league — one team per league, same as players — so a board
++  is each league's rank-1 team collected and ordered, and the ranking never
+   crosses league_code. That also satisfies the block's rule that club and national-team
+   competitions are never mixed: every competition is already its own ranking.
+ 
+@@ -106,13 +106,13 @@ ranked as (
+         -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
+         -- ties sharing a rank, and the top-10 cut being inclusive of them, are a documented consumer
+         -- contract. But a consumer that must show ONE team per league cannot use it — measured
+-        -- against prod 2026-09-09, 2 of 259 league-board-seasons have more than one rank-1 team.
++        -- against prod, 2 of 259 league-board-seasons have more than one rank-1 team.
+         -- Rare, but the block claims one team per league, and deciding WHICH is ranking, so it
+-        -- belongs here (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page
+-        -- renders the order it is served.").
+-        -- ⛔ NO SPORTING TIE-BREAK EXISTS HERE, AND THAT IS RULED, NOT AN OVERSIGHT. The player mart
+-        -- breaks a tie on fewer MINUTES played, and teams have no minutes. `season_games_played` was
+-        -- proposed as the analogue and the CPO rejected it — "will not work most of the time" — for
++        -- belongs here: all ranking and ordering lives in the warehouse, and the page renders the
++        -- order it is served.
++        -- ⛔ NO SPORTING TIE-BREAK EXISTS HERE, AND THAT IS DELIBERATE, NOT AN OVERSIGHT. The player
++        -- mart breaks a tie on fewer MINUTES played, and teams have no minutes. `season_games_played`
++        -- is the obvious analogue and was rejected — it will not work most of the time — for
+         -- two reasons, the second being the real one: it barely discriminates (3.6 distinct game
+         -- counts per league-season on average, and in 72 of 235 every team is level), and for a RATE
+         -- fewer games is not better, it is LESS EVIDENCE for the same rate.
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum.sql b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+index a6a411f9..931948be 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+@@ -52,7 +52,7 @@ select
+     safe_divide(b.goals_for, b.games_in_window) as goals_per_match,
+     safe_divide(b.goals_against, b.games_in_window) as goals_against_per_match,
+     -- shots (team-stat window): NULL ('—') on partial coverage — never a partial-window average
+-    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shots_on_goal_pct / danger_zone
++    -- (the universal incomplete-data rule). shots_on_goal_pct / danger_zone
+     -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
+     case
+         when b.games_with_team_stats < b.games_expecting_team_stats then null
+@@ -70,7 +70,7 @@ select
+         when b.games_with_sot_stats < b.games_expecting_team_stats then null
+         else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end
+         as shots_on_goal_per_match,
+-    -- finishing efficiency (CPO Option A): open-play conversion =
++    -- finishing efficiency: open-play conversion =
+     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the window is
+     -- fully shot-covered AND the numerator is valid [0, shots_on_goal] — never a partial-window
+     -- value and never >100% (penalties + own goals removed; a stray inconsistency nulls out).
+@@ -111,8 +111,8 @@ select
+         )
+     end as saves_pct,
+     -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
+-    -- gated) — these are player data, and missing player stats must not blank a team stat
+-    -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
++    -- gated) — these are player data, and missing player stats must not blank a team stat;
++    -- null only when no player-covered game exists (safe_divide by 0).
+     safe_divide(b.key_passes, b.games_with_player_stats) as passes_key_per_match,
+     safe_divide(b.tackles, b.games_with_player_stats) as tackles_per_match,
+     safe_divide(b.interceptions, b.games_with_player_stats)
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index 22b9d1db..d362c41e 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -197,7 +197,7 @@ select
+     d.deserved_points_gap,
+     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
+     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
+-    -- with no league season. Ruled a warehouse fact (CPO 2026-08-02), so the export and the page
++    -- with no league season. A warehouse fact, so the export and the page
+     -- SELECT this flag instead of each re-deciding it; three copies of the rule had already
+     -- drifted apart. Last in the list because ST06 puts calculations after simple targets.
+     row_number() over (
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 8ac3c01f..bb6ff2e2 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -606,7 +606,7 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+           name: team_profile_duels_won_pct_in_range
+-      # finishing_efficiency_pct is open-play conversion in [0,1] (CPO Option A)
++      # finishing_efficiency_pct is open-play conversion in [0,1]
+       - dbt_utils.expression_is_true:
+           expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+           name: team_profile_finishing_efficiency_pct_in_range
+@@ -1741,7 +1741,7 @@ models:
+           expression: "sort_value > 0"
+           name: mart_leaderboards_sort_value_positive
+       # RATE-board ratios are all bounded [0,1]. finishing_efficiency_player_pct is now open-play
+-      # conversion in [0,1] (CPO Option A), so it is range-checked here like the other rates.
++      # conversion in [0,1], so it is range-checked here like the other rates.
+       # Rates are null when their denominator is zero.
+       - dbt_utils.expression_is_true:
+           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
+@@ -2308,7 +2308,7 @@ models:
+           expression: "percentile >= 0 and percentile <= 1"
+           name: mart_competition_benchmarks_player_percentile_in_range
+       # finishing_efficiency_player_pct is the one bounded metric in the LONG metric_value column (the
+-      # per-90 metrics are unbounded). It is open-play conversion in [0,1] (CPO Option A) —
++      # per-90 metrics are unbounded). It is open-play conversion in [0,1] —
+       # range-check the finishing rows; this is the only finishing surface on the player benchmark.
+       - dbt_utils.expression_is_true:
+           expression: "metric_key != 'finishing_efficiency_player_pct' or metric_value is null or (metric_value between 0 and 1)"
+@@ -2427,11 +2427,10 @@ models:
+             - player_sk
+             - team_sk
+             - season_sk
+-      # Appearances can no longer be negative but CAN be 0: since 2026-07-23 an appearance requires pitch
+-      # time, and a squad member who was never brought on keeps his row scoring 0 (CPO ruling). The old
+-      # expression here was `appearances >= 1`, which asserted this mart excluded never-played members —
+-      # the exact premise the CPO overturned, and which the data never satisfied anyway (26,530 rows).
+-      # So this is narrowed to what still holds, not loosened to make a change pass.
++      # Appearances cannot be negative but CAN be 0: an appearance requires pitch time, and a squad
++      # member who was never brought on keeps his row scoring 0. An `appearances >= 1` assertion
++      # would claim this mart excludes never-played members — the opposite of the rule, and never
++      # true of the data anyway (26,530 such rows). So the test asserts what holds, not less.
+       - dbt_utils.expression_is_true:
+           expression: "appearances >= 0"
+           name: player_career_appearances_non_negative
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index cc42504e..7f4822bd 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -380,7 +380,7 @@ seeds:
+           House style: what it captures, then a plain definition, then what a notable value
+           signals, with any honest volume, style or role caveat last in parentheses.
+     tests:
+-      # Display names are unique WITHIN an entity, not globally (CPO 2026-08-08). The same words on
++      # Display names are unique WITHIN an entity, not globally. The same words on
+       # a player row and a team row are allowed — `% Duels won` means the same thing for both and
+       # the surrounding block says which — so a plain `unique` on label_en would be the wrong test
+       # and would fail today on five legitimate pairs.
+diff --git a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql b/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
+index e314c109..effdbd95 100644
+--- a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
++++ b/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
+@@ -1,6 +1,6 @@
+ -- An awarded match must not blank a team's season statistics.
+ --
+--- WHY THIS EXISTS. Since 2026-09-07 an AWD (technical loss) or WO (walkover) counts as a played
++-- WHY THIS EXISTS. An AWD (technical loss) or WO (walkover) counts as a played
+ -- match for RESULTS — it has a real scoreline and the league table counts it. It has no STAT LINE
+ -- and never will: nobody played. The team-stat rates are gated all-or-nothing, so if that gate
+ -- compares coverage against `games_played` it reads the awarded match as a missing stat and NULLs
+@@ -13,9 +13,7 @@
+ -- test is what pins that. Revert any of the 25 gates in int_team_season__metrics_cumulative.sql to
+ -- `games_played` and every team-season carrying an awarded match fails here.
+ --
+--- ⛔ THE CONTRACT PROMISED THIS TEST AND THE FIRST VERSION OF THE BRANCH SHIPPED WITHOUT IT.
+--- `analytics-engineer-reviewer` found the omission: a plain reversion at any of the 35 gate sites
+--- would have passed CI untouched.
++-- ⛔ Without this test a plain reversion at any of the 35 gate sites would pass CI untouched.
+ --
+ -- Reads the whole-season projection rather than the cumulative model: same formulas, one row per
+ -- team-season instead of one per matchday, so a failure names a season rather than a matchday.
+diff --git a/dbt_project/tests/assert_fct_fixture_no_stale_live.sql b/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
+index 2e088cde..7ff2d49f 100644
+--- a/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
++++ b/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
+@@ -10,8 +10,8 @@
+ -- A suspended or interrupted match is VALID STATUS INFORMATION — a true fact about the world, which
+ -- can hold for days while a replay decision is made, and which no amount of re-ingesting changes.
+ -- There is nothing actionable to report about it, so it is neither an error nor a warning here.
+--- Keeping it at error severity was actively harmful: ONE Eredivisie fixture sitting at INT ended the
+--- 2026-09-07 nightly at PASS=405 WARN=1 ERROR=2 SKIP=672, because `dbt build` marks every dependent
++-- Keeping it at error severity was actively harmful: ONE Eredivisie fixture sitting at INT ended a
++-- nightly at PASS=405 WARN=1 ERROR=2 SKIP=672, because `dbt build` marks every dependent
+ -- of a failed error-severity test as skipped. That red then became routine, and an unrelated defect
+ -- hid behind it for three nights.
+ -- ⭐ What actually mattered in that incident was that a TEAM WAS A GAME SHORT of its league, not that
+diff --git a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
+index e60be8d0..9b41e0c0 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
+@@ -1,8 +1,8 @@
+ -- board_leader_order must be a TOTAL order over a board's league leaders, and defined on nothing else.
+ --
+ -- WHY IT EXISTS. A consumer showing one leader per league orders by this column alone and compares
+--- nothing itself (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page renders
+--- the order it is served"). That only holds if the column really is a total order over the leaders:
++-- nothing itself (all ranking and ordering lives in the warehouse; the page renders the order it
++-- is served). That only holds if the column really is a total order over the leaders:
+ -- if two leaders on a board shared a position, the consumer's output would depend on whatever order
+ -- BigQuery happened to return them in, and the page would churn with no data change.
+ --
+diff --git a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
+index 5a512318..0980914b 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
+@@ -1,10 +1,10 @@
+ -- league_leader_order must be a TOTAL order within a league-board, and its 1 must be the right row.
+ --
+--- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod on
+--- 2026-09-09, 12 of the 28 league-boards the Home page renders had more than one rank-1 player, and
++-- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod,
++-- 12 of the 28 league-boards the Home page renders had more than one rank-1 player, and
+ -- one board returned 24 rank-1 rows across 7 leagues. A consumer showing ONE player per league
+--- cannot use `rank`, which is why `league_leader_order` exists (CPO 2026-09-09, escalations.log:
+--- "All ranking and ordering lives in the warehouse. The page renders the order it is served").
++-- cannot use `rank`, which is why `league_leader_order` exists: all ranking and ordering lives in
++-- the warehouse, and the page renders the order it is served.
+ --
+ -- TWO INVARIANTS, and the second is the one that would rot silently. The first — exactly one row
+ -- per league-board carries 1 — is structural and a broken window function would break it loudly.
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql b/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
+index d6495814..08bf39cf 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
+@@ -7,7 +7,7 @@
+ -- board. GAP-30 recorded that accepted_values on metric_key "is the only thing pinning the board
+ -- set"; the silent direction is the one that needs this test.
+ --
+--- The board set is CPO-ruled (2026-08-10, four single-metric boards). Changing it means changing
++-- The board set is a product decision (four single-metric boards). Changing it means changing
+ -- this number, the model's board list and seeds' accepted_values together — which is the point.
+ --
+ -- Returns a row (= fails) when the count is anything other than 4.
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql b/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
+index 3ba8c1bb..4db5f19e 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
+@@ -1,6 +1,6 @@
+ -- Every board has a rank 1 in every league-season it appears in.
+ --
+--- This pins the CPO's 2026-08-18 ruling — "one team per league, same as players" — which the model
++-- This pins the rule — one team per league, same as players — which the model
+ -- implements as `partition by league_code, season_api_year, metric_key`. Under that partition a
+ -- DENSE_RANK always starts at 1 in every group, so the property holds BY CONSTRUCTION and this test
+ -- asserts the construction. The block reads each league's rank-1 team; a board with no leader in a
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+index 52531c7e..46b44f2d 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+@@ -1,11 +1,10 @@
+ -- The three columns the Top teams block orders and filters on must mean what they say.
+ --
+--- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod on
+--- 2026-09-09, 2 of 259 league-board-seasons have more than one rank-1 team. Rare, but the block
++-- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod,
++-- 2 of 259 league-board-seasons have more than one rank-1 team. Rare, but the block
+ -- claims one team per league, and a consumer that must pick cannot use `rank`. Deciding which team
+--- represents a league, and in what order the representatives appear, is ranking, so it lives here
+--- (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page renders the order it
+--- is served").
++-- represents a league, and in what order the representatives appear, is ranking, so it lives here:
++-- all ranking and ordering lives in the warehouse, and the page renders the order it is served.
+ --
+ -- FOUR INVARIANTS. The first three mirror the player mart's; the fourth guards `is_current_season`,
+ -- which this mart did not have before and which stops the export choosing a season for itself.
+@@ -16,7 +15,7 @@
+ --
+ -- ⚠ THE TIE-BREAK IS `team_sk` AND IT IS MEANINGLESS. There is no sporting criterion for two teams
+ -- on an equal per-match rate — the player mart's fewer-minutes rule does not transfer, because for
+--- a RATE fewer games means less evidence, not better performance (CPO 2026-09-09, GitLab #114).
++-- a RATE fewer games means less evidence, not better performance (a better key is an open question).
+ -- The test still pins it, because an arbitrary key that is not STABLE would churn the committed
+ -- payload between exports.
+ 
+diff --git a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
+index 343a85e0..d4b55640 100644
+--- a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
++++ b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
+@@ -6,11 +6,11 @@
+   Why it exists. `direction` (higher_better / lower_better / neutral) is the richer successor and the
+   authority; `lower_is_better` is retained only because the live MVP export
+   (`scripts/export_metric_definitions_json.py`) still reads it. Nothing checked that the two agreed,
+-  and by 2026-07-21 four rows contradicted each other (`cards_yellow`, `cards_red`, `cards_total`,
++  and four rows once contradicted each other (`cards_yellow`, `cards_red`, `cards_total`,
+   `shots_on_goal_against_player` — each `lower_is_better = false` beside `direction = 'lower_better'`). Two
+   columns saying opposite things about one metric is precisely the "surprising ambiguity" this layer
+   must not contain. The four were corrected to follow `direction`, and this guard landed with the
+-  fix. (CPO 2026-07-21.)
++  fix.
+ 
+   BOTH sides are checked on purpose. A guard that only caught `lower_is_better = true` beside a
+   non-lower_better direction would have passed on all four of the rows that were actually wrong.
+@@ -27,19 +27,12 @@
+   silence on the very row it exists to catch. `lower_is_better` loads from the seed as BOOLEAN
+   (verified against the built table), so no cast is needed.
+ 
+-  CI note, REWRITTEN 2026-08-27 under #92. The previous version said that on a PR
+-  `ref('metric_catalogue')` resolves to MAIN's seed rather than the branch's, because
+-  `--favor-state` swaps it for the state relation; that this is why the 4 corrections this guard
+-  depends on had to merge FIRST in their own PR before the guard followed; and "Do not try to solve
+-  this with a CI workflow change."
+-
+-  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
++  CI note. On a merge request this guard reads the BRANCH's seed: `--favor-state` is absent from
+   `data:build:mr`'s `dbt test` invocation, `dbt seed --target "$DBT_CI_TARGET"` runs before it in
+-  the same job, and plain `--defer` prefers the branch's seed relation because it exists. **This
+-  guard now reads the branch's seed.** The split-the-PR rule above was a workaround for the flag,
+-  not a property of the guard, and it no longer applies. The 4 corrections having merged first
+-  remains a fact of history, not a rule for the next change.
+-  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
++  the same job, and plain `--defer` prefers the branch's seed relation because it exists. So
++  catalogue values and a guard that depends on them CAN land in the same merge request — do not
++  split a change on the strength of the opposite (once true) rule.
++  ⚠ There is no shared `ci` target: the CI target is named per merge request
+   (`ci_mr<IID>`), so this seed lands in that merge request's own dataset.
+   ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately. Both that
+   asymmetry and the per-merge-request naming are pinned in
+diff --git a/dbt_project/tests/assert_metric_meaning_complete.sql b/dbt_project/tests/assert_metric_meaning_complete.sql
+index 52126b11..31a472d0 100644
+--- a/dbt_project/tests/assert_metric_meaning_complete.sql
++++ b/dbt_project/tests/assert_metric_meaning_complete.sql
+@@ -10,26 +10,19 @@
+   — the guard could not see them. The catalogue-wide direction sweep populated `direction` on every
+   row, and the player `interpretation` sweep filled the remaining 28, so the exemption has no
+   justification left. Do NOT reintroduce an entity predicate: an exemption here is invisible by
+-  construction. (CPO 2026-06-29; broadened to every entity 2026-07-21.)
++  construction.
+ 
+   Companion guard: `assert_metric_direction_lower_is_better_agree` stops `direction` and the legacy
+   `lower_is_better` boolean asserting different things about the same metric.
+ 
+   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
+ 
+-  CI note, REWRITTEN 2026-08-27 under #92 — the previous version of this paragraph is now false in
+-  every particular, and it is kept in git rather than paraphrased. It said: on a PR this runs in the
+-  deferred singular-test step, where `ref('metric_catalogue')` resolves to MAIN's seed rather than
+-  the branch's, because `--favor-state` swaps it for the state relation; that a change to catalogue
+-  VALUES and a guard depending on those values therefore cannot land in the same PR; and — the line
+-  that mattered — "Do not try to solve this with a CI workflow change."
+-
+-  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
++  CI note. On a merge request this guard reads the BRANCH's seed: `--favor-state` is absent from
+   `data:build:mr`'s `dbt test` invocation, and `dbt seed --target "$DBT_CI_TARGET"` runs before it
+   in the same job, so the BRANCH's `metric_catalogue` relation always exists in that target and
+-  plain `--defer` prefers a relation that exists over the deferred one. **This guard now reads the
+-  branch's seed, so catalogue values and a guard that depends on them CAN land in the same PR.** Do
+-  not split a change on the strength of the old rule.
++  plain `--defer` prefers a relation that exists over the deferred one. **Catalogue values and a
++  guard that depends on them CAN land in the same merge request.** Do not split a change on the
++  strength of the opposite (once true) rule.
+   ⚠ There is no shared `ci` target any more: the CI target is named per merge request
+   (`ci_mr<IID>`), so this seed lands in that merge request's own dataset and no other branch can
+   read or overwrite it.
+diff --git a/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql b/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
+index d5725f77..65ddbc16 100644
+--- a/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
++++ b/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
+@@ -6,7 +6,7 @@
+ -- on one surface only would let a reversion of the other's 10 gates through — and the two would then
+ -- disagree about the same match, which is the failure this pairing exists to prevent.
+ --
+--- ⚠ NO CURRENT WINDOW EXERCISES THIS. Measured 2026-09-07: 0 of 9,784 windows contain an awarded
++-- ⚠ NO CURRENT WINDOW EXERCISES THIS. Measured when written: 0 of 9,784 windows contain an awarded
+ -- match, because the window is a team's last five matches and no awarded fixture is that recent
+ -- anywhere. So this test is GREEN TODAY FOR A REASON THAT HAS NOTHING TO DO WITH THE GATE, and it
+ -- would stay green under a reverted gate until an awarded match happens to fall inside a window.
+diff --git a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql b/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
+index cdbdddff..b85bac8f 100644
+--- a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
++++ b/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
+@@ -21,19 +21,20 @@
+ -- blind spot exactly where it matters most: if a fixture loses ALL of its events, base holds zero
+ -- rows for it, the grouped CTE produces no row, and an inner join silently drops every one of that
+ -- fixture's events from the result — the TOTAL-loss case, undetectable at any cutoff, forever.
+--- The known #75 incident was partial for all 5 fixtures, so measuring against it could not reveal
+--- the gap; analytics-engineer-reviewer found it by reading the join. Scoping on `fct_fixture`
++-- The known incident was partial for all 5 fixtures, so measuring against it could not reveal
++-- the gap; it shows only in the join. Scoping on `fct_fixture`
+ -- (one row per fixture, always present) removes the dependency on base having survivors.
+ --
+ -- ⚠ SCOPED BY KICKOFF DATE, and the reason is not tidiness. The known backlog (5 fixtures, 29
+--- events, kickoffs 2026-08-08 and 2026-08-15) is UNREPAIRABLE — verified live against the
++-- events, both kickoffs before the cutoff) is UNREPAIRABLE — verified live against the
+ -- provider, which no longer returns those events — so asserting over it would block every build on
+ -- damage nobody can fix. The cutoff excludes it permanently and unambiguously, because a kickoff
+ -- date never moves (unlike an ingest timestamp, which those fixtures kept refreshing while their
+ -- 3-day retry window stayed open).
+ -- ⚠ Consequence stated rather than hidden: this is INERT for fixtures before the cutoff. Its logic
+--- is PROVEN — 0 rows at the shipped cutoff and exactly the 29 known rows at 2026-08-01, both RUN
+--- against prod — but a green run over a window with no fixtures in it is not evidence.
++-- is PROVEN — 0 rows at the shipped cutoff and exactly the 29 known rows with the cutoff moved
++-- before the backlog, both RUN against prod — but a green run over a window with no fixtures in
++-- it is not evidence.
+ -- ⚠ Do NOT raise the cutoff to silence a future failure. A new failure means new loss, which is
+ -- the thing this exists to catch. Lower it once the backlog is resolved, and record why.
+ 
+diff --git a/dbt_project/tests/assert_one_current_season_per_league.sql b/dbt_project/tests/assert_one_current_season_per_league.sql
+index 67b69665..4445083c 100644
+--- a/dbt_project/tests/assert_one_current_season_per_league.sql
++++ b/dbt_project/tests/assert_one_current_season_per_league.sql
+@@ -22,8 +22,8 @@
+ -- which the first two halves CANNOT see. Revert the model's `rank()` to `row_number()` and exactly
+ -- ONE row per league carries the flag: the distinct-season count is still 1, that row's season is
+ -- still the max, and a cardinality-plus-recency test stays GREEN while the flag is false on every
+--- other row of the season. `analytics-engineer-reviewer` found that gap; the mutations I had run
+--- (ascending order, two seasons flagged) both missed it because neither changes the season SET.
++-- other row of the season. The obvious mutations (ascending order, two seasons flagged) both miss
++-- that gap because neither changes the season SET.
+ -- A flagged season must therefore be flagged ENTIRELY.
+ 
+ with import_mart_leaderboards as (
+diff --git a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
+index 8bfb8be4..20de93a1 100644
+--- a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
++++ b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
+@@ -1,4 +1,4 @@
+--- Consistency guard for dim_team_competition_season_mapping (CPO 2026-06-17, Phase 1).
++-- Consistency guard for dim_team_competition_season_mapping.
+ -- The mapping must hold EXACTLY the team↔competition↔season set that the fixtures fact holds
+ -- — no missing members, no extras. A cross-model invariant between the core mapping and
+ -- fct_fixture (the canonical fixtures fact): it catches the membership logic drifting from
+diff --git a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+index cbdb7ace..27af97f5 100644
+--- a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
++++ b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+@@ -13,7 +13,7 @@
+ -- ⭐ THE POINT IS THAT IT ENUMERATES NOTHING. A status list can only catch the causes somebody
+ -- thought to list, and the status field is the least reliable thing the provider sends. The
+ -- standings' played count is produced independently of it, so this catches the SYMPTOM instead of
+--- guessing at causes. It is the detector the 2026-09-06 Eredivisie incident actually needed: FC
++-- guessing at causes. It is the detector an Eredivisie incident actually needed: FC
+ -- Utrecht was a game short of its league, and no test asked that question.
+ --
+ -- ⛔ ONE DIRECTION ONLY, AND THE ASYMMETRY IS MEASURED, NOT ASSUMED. Over 4,082 team-seasons:
+@@ -23,7 +23,7 @@
+ -- two-sided test would be red on 38% of all rows and would be deleted within a week. Only
+ -- `ours < standings` means something is missing.
+ --
+--- ⚠ SEVERITY IS WARN, BY CPO RULING ("do it that way, warn severity for now"), because this test is
++-- ⚠ SEVERITY IS WARN, DELIBERATELY AND FOR NOW, because this test is
+ -- RED ON REAL DATA TODAY — 3 rows, at least two of them confirmed genuine. Their fix is GitLab
+ -- #110's open rule on awarded results filed under the wrong status. Error severity would stop the
+ -- whole warehouse over defects we have deliberately not decided how to correct yet.
 diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
-new file mode 100644
-index 00000000..5f1aa41c
---- /dev/null
+index 5f1aa41c..fe892e2a 100644
+--- a/tests/test_no_decision_history_in_code.py
 +++ b/tests/test_no_decision_history_in_code.py
-@@ -0,0 +1,254 @@
-+"""A code comment says WHY, never who decided or when — the guard, both halves.
-+
-+Half one is the edit-time hook `.claude/hooks/comment_history_gate.py`: it denies an `Edit`,
-+`Write` or `MultiEdit` whose written text adds a comment line carrying decision history to a code
-+file. Half two is the pin below: the count of such lines already in the tree, which may only move
-+in the open — a sweep MR lowers the pin, and nothing else moves it.
-+
-+Everything here imports the hook's own definition of a flagged line and of a code tree, so the CI
-+count and the edit-time deny cannot drift apart; `test_definition_is_imported_not_copied` pins
-+that. The rule these guard is in `dbt_project/docs/engineering_standards.md`, section 1.2.
-+
-+The sample lines used in the tests are BUILT at runtime from pieces, never written as literals,
-+because a literal `"x = 1  <hash> <marker>"` in this file would itself be a flagged line — the
-+guard reads source text, not semantics, and this file is inside a guarded tree.
-+"""
-+
-+from __future__ import annotations
-+
-+import json
-+import os
-+import pathlib
-+import subprocess
-+import sys
-+
-+import pytest
-+
-+REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-+HOOKS = os.path.join(REPO, ".claude", "hooks")
-+sys.path.insert(0, HOOKS)
-+import comment_history_gate as gate  # noqa: E402
-+
-+# The pin. A sweep MR lowers these two numbers and nothing else may move them.
-+PINNED_LINES = 850
-+PINNED_FILES = 174
-+
-+HASH = chr(35)
-+
-+
-+def history_line(marker_text: str) -> str:
-+    """A code line whose trailing comment carries `marker_text`, assembled so that THIS file holds
-+    no flagged line."""
-+    return f"x = 1  {HASH} {marker_text}"
-+
-+
-+SAMPLE_MARKERS = {
-+    "date": "changed on " + "2026" + "-08-20",
-+    "product owner": "the " + "CPO" + " ruled this",
-+    "reviewer": "a " + "reviewer" + " asked for it",
-+    "review round": "found in " + "round " + "3",
-+    "merge request": "see " + "!" + "132",
-+}
-+
-+
-+def run_hook(event: dict) -> str:
-+    env = dict(os.environ, CLAUDE_PROJECT_DIR=REPO)
-+    proc = subprocess.run(
-+        [sys.executable, os.path.join(HOOKS, "comment_history_gate.py")],
-+        input=json.dumps(event), capture_output=True, text=True, env=env, timeout=60, check=False,
-+    )
-+    return proc.stdout
-+
-+
-+def edit_event(rel_path: str, new_string: str, tool: str = "Edit") -> dict:
-+    return {"hook_event_name": "PreToolUse", "tool_name": tool,
-+            "tool_input": {"file_path": os.path.join(REPO, rel_path), "new_string": new_string}}
-+
-+
-+def denied(out: str) -> bool:
-+    return '"permissionDecision": "deny"' in out
-+
-+
-+# --- the pin -----------------------------------------------------------------------------------
-+
-+def test_the_tree_matches_the_pin_in_both_directions():
-+    lines, files = gate.count_tree(REPO)
-+    assert lines <= PINNED_LINES, (
-+        f"{lines - PINNED_LINES} new comment line(s) carrying decision history were added. A "
-+        "comment says WHY; who decided, when, which reviewer, which round, which MR live in the "
-+        "commit message, the MR and the issue (engineering_standards.md section 1.2)."
-+    )
-+    assert lines == PINNED_LINES and files == PINNED_FILES, (
-+        f"the tree now holds {lines} flagged lines in {files} files against a pin of "
-+        f"{PINNED_LINES} in {PINNED_FILES}: lower PINNED_LINES / PINNED_FILES in this file so the "
-+        "sweep is recorded — the number moves only in the open"
-+    )
-+
-+
-+def test_count_tree_counts_what_the_hook_flags(tmp_path):
-+    root = tmp_path
-+    (root / "scripts").mkdir()
-+    (root / "docs").mkdir()
-+    body = "\n".join(["import os", history_line(SAMPLE_MARKERS["date"]),
-+                      "y = 2", history_line(SAMPLE_MARKERS["reviewer"])]) + "\n"
-+    (root / "scripts" / "a.py").write_text(body, encoding="utf-8")
-+    (root / "scripts" / "clean.py").write_text("z = 3\n", encoding="utf-8")
-+    (root / "docs" / "note.md").write_text(history_line(SAMPLE_MARKERS["date"]) + "\n", encoding="utf-8")
-+    assert gate.count_tree(str(root)) == (2, 1), "two flagged lines in one code file; markdown is not code"
-+    with open(root / "scripts" / "clean.py", "a", encoding="utf-8") as fh:
-+        fh.write(history_line(SAMPLE_MARKERS["product owner"]) + "\n")
-+    assert gate.count_tree(str(root)) == (3, 2), "adding one flagged line moves the count by one"
-+
-+
-+# --- one definition ----------------------------------------------------------------------------
-+
-+def test_definition_is_imported_not_copied():
-+    src = pathlib.Path(__file__).read_text(encoding="utf-8")
-+    compile_call, trees_def, exts_def = "re." + "compile(", "TREES" + " = (", "EXTS" + " = "
-+    assert compile_call not in src, "the marker patterns live in the hook; this file imports them"
-+    assert trees_def not in src and exts_def not in src, "the tree list lives in the hook"
-+    for name in ("MARKERS", "TREES", "EXTS", "is_history_comment", "flagged_lines", "count_tree"):
-+        assert hasattr(gate, name), name
-+
-+
-+def test_block_comment_continuation_lines_are_comment_lines():
-+    """A wrapped `/* … */` block whose inner lines carry no marker character was invisible to a
-+    per-line check — `site_v2/src/styles/system.css` narrated what an MR shipped on such a line.
-+    Every line between the opener and its closer is a comment line, per language."""
-+    slash, star = chr(47), chr(42)
-+    opener, closer = slash + star, star + slash
-+    css = "\n".join([".a { color: red; }", opener + " the ring is drawn inside, and the reason is measured",
-+                     "   " + SAMPLE_MARKERS["merge request"] + " shipped exactly this",
-+                     "   " + closer, ".b { color: blue; }"]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(css, ".css")] == [(3, "merge request")]
-+    assert gate.flagged_lines(css, ".py") == [], "a slash-star block is not a comment in Python"
-+    jinja_open, jinja_close = "{" + HASH, HASH + "}"
-+    sql = "\n".join(["select 1", jinja_open + " why this reads all snapshots:",
-+                     "   " + SAMPLE_MARKERS["product owner"] + " " + jinja_close, "from t"]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(sql, ".sql")] == [(3, "product owner")]
-+    html_open, html_close = "<" + "!--", "--" + ">"
-+    astro = "\n".join(["---", "---", html_open + " layout note", "   " + SAMPLE_MARKERS["date"] + " " + html_close]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(astro, ".astro")] == [(4, "date")]
-+
-+
-+def test_a_line_that_closes_one_block_and_opens_another_keeps_the_state():
-+    """The state machine used to clear the block on any line containing a closer, so a line
-+    reading `*/ .b{} /* reopens` dropped the second block and hid its continuation lines from
-+    both the deny and the pin. Every opener is matched to its closer in order, on the line."""
-+    slash, star = chr(47), chr(42)
-+    opener, closer = slash + star, star + slash
-+    css = "\n".join([".a { color: red; }",
-+                     opener + " comment starts here",
-+                     closer + " .b{} " + opener + " comment reopens",
-+                     SAMPLE_MARKERS["date"] + " the " + "CPO" + " ruled this stays forever",
-+                     closer + " .c{}"]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(css, ".css")] == [(4, "date")]
-+    one_line = "x;" + opener + " a " + closer + " y " + opener + " dangling\n" + SAMPLE_MARKERS["reviewer"] + "\n" + closer + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(one_line, ".js")] == [(2, "reviewer")], \
-+        "the second opener on a line, left open, is the live one"
-+    glued = "a=1;" + opener + " no whitespace before the opener\n" + SAMPLE_MARKERS["product owner"] + "\n" + closer + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(glued, ".ts")] == [(2, "product owner")], \
-+        "an opener glued to code still opens a block"
-+    closed_same_line = "a=1; " + opener + " " + SAMPLE_MARKERS["date"] + " " + closer + "\n" + SAMPLE_MARKERS["reviewer"] + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(closed_same_line, ".css")] == [(1, "date")], \
-+        "a block closed on its own line does not leak into the next line"
-+
-+
-+def test_two_comment_syntaxes_on_one_line_pick_the_leftmost_open_block():
-+    """`.sql` carries `/* */` and `{# #}`, `.astro` carries `/* */` and `<!-- -->`. When both
-+    appear on one line the walk must pair each opener with its own closer, in position order —
-+    a walk that let the last-checked syntax win would leave the wrong block open."""
-+    slash, star = chr(47), chr(42)
-+    c_open, c_close = slash + star, star + slash
-+    j_open, j_close = "{" + HASH, HASH + "}"
-+    # a closed C block, then an open Jinja block: the next line is inside the Jinja block
-+    sql = "\n".join([c_open + " a " + c_close + " select 1 " + j_open + " why:",
-+                     SAMPLE_MARKERS["date"], j_close, "from t"]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(sql, ".sql")] == [(2, "date")]
-+    # the other order: a closed Jinja block, then an open C block, closed two lines later
-+    sql2 = "\n".join([j_open + " a " + j_close + " select 1 " + c_open + " why:",
-+                      SAMPLE_MARKERS["reviewer"], c_close + " from t", SAMPLE_MARKERS["date"]]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(sql2, ".sql")] == [(2, "reviewer")], \
-+        "line 4 is code again once the C block closed on line 3"
-+    # an unterminated C block whose text merely contains the other syntax's opener
-+    sql3 = "\n".join([c_open + " unterminated, and " + j_open + " is just text here",
-+                      SAMPLE_MARKERS["product owner"], j_close + " still inside the C block",
-+                      SAMPLE_MARKERS["date"], c_close]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(sql3, ".sql")] == [(2, "product owner"), (4, "date")], \
-+        "only the C closer ends the block; a Jinja closer inside it is text"
-+    h_open, h_close = "<" + "!--", "--" + ">"
-+    astro = "\n".join(["---", "---", h_open + " a " + h_close + " <p/> " + c_open + " why:",
-+                       SAMPLE_MARKERS["merge request"], c_close]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(astro, ".astro")] == [(4, "merge request")]
-+
-+
-+def test_python_docstrings_are_comment_lines_but_string_literals_are_not():
-+    q = '"' * 3
-+    module = "\n".join([q + "Module purpose.", "", "   " + SAMPLE_MARKERS["date"] + " and more", q, "",
-+                        "def f():", "    " + q + "Why f exists.", "    " + SAMPLE_MARKERS["reviewer"], "    " + q,
-+                        "    return 1", "", "FIXTURE = " + q + "not a docstring: " + SAMPLE_MARKERS["product owner"] + q]) + "\n"
-+    hits = [(n, k) for n, k, _ in gate.flagged_lines(module, ".py")]
-+    assert hits == [(3, "date"), (8, "reviewer")], hits
-+    fragment = "\n".join(["    " + q + "A docstring in an edit fragment that does not parse alone.",
-+                          "    " + SAMPLE_MARKERS["product owner"], "    " + q]) + "\n"
-+    assert [(n, k) for n, k, _ in gate.flagged_lines(fragment, ".py")] == [(2, "product owner")]
-+
-+
-+def test_every_marker_kind_is_flagged_and_a_why_is_not():
-+    for kind, text in SAMPLE_MARKERS.items():
-+        assert gate.is_history_comment(history_line(text)) == kind, kind
-+    assert gate.is_history_comment(history_line("the provider files a forfeit as FT with no stat line")) is None
-+    assert gate.is_history_comment("status = " + '"' + "reviewer" + '"') is None, "no comment marker, no flag"
-+    assert gate.is_history_comment(history_line("ground truth, not a review round")) is None, \
-+        "round without a digit is a word, not a round"
-+
-+
-+# --- the hook, on real events ------------------------------------------------------------------
-+
-+def test_hook_denies_a_history_comment_in_a_code_file():
-+    out = run_hook(edit_event("scripts/export_site_data.py", history_line(SAMPLE_MARKERS["product owner"])))
-+    assert denied(out)
-+    assert "COMMENT HISTORY GATE" in out and "section 1.2" in out
-+
-+
-+def test_hook_allows_the_same_text_in_markdown_and_in_task_artifacts():
-+    text = history_line(SAMPLE_MARKERS["product owner"])
-+    assert run_hook(edit_event("docs/working_agreement.md", text)).strip() == ""
-+    assert run_hook(edit_event(".claude/task/contract.md", text)).strip() == ""
-+
-+
-+def test_hook_allows_a_why_only_comment():
-+    out = run_hook(edit_event("scripts/export_site_data.py",
-+                              history_line("the export selects and renames; it never derives a fact")))
-+    assert out.strip() == ""
-+
-+
-+def test_hook_checks_write_content_and_multiedit_edits():
-+    write = {"hook_event_name": "PreToolUse", "tool_name": "Write",
-+             "tool_input": {"file_path": os.path.join(REPO, "ingestion", "new.py"),
-+                            "content": "import os\n" + history_line(SAMPLE_MARKERS["date"]) + "\n"}}
-+    assert denied(run_hook(write))
-+    multi = {"hook_event_name": "PreToolUse", "tool_name": "MultiEdit",
-+             "tool_input": {"file_path": os.path.join(REPO, "tests", "x.py"),
-+                            "edits": [{"old_string": "a", "new_string": "b"},
-+                                      {"old_string": "c", "new_string": history_line(SAMPLE_MARKERS["merge request"])}]}}
-+    assert denied(run_hook(multi))
-+
-+
-+def test_hook_ignores_paths_outside_the_repo_and_fails_open_on_garbage():
-+    outside = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
-+               "tool_input": {"file_path": os.path.join(os.path.dirname(REPO), "elsewhere", "a.py"),
-+                              "new_string": history_line(SAMPLE_MARKERS["date"])}}
-+    assert run_hook(outside).strip() == ""
-+    env = dict(os.environ, CLAUDE_PROJECT_DIR=REPO)
-+    proc = subprocess.run([sys.executable, os.path.join(HOOKS, "comment_history_gate.py")],
-+                          input="not json", capture_output=True, text=True, env=env, timeout=60, check=False)
-+    assert proc.returncode == 0 and proc.stdout.strip() == ""
-+
-+
-+# --- the guard obeys its own rule --------------------------------------------------------------
-+
-+@pytest.mark.parametrize("rel", [".claude/hooks/comment_history_gate.py", "tests/test_no_decision_history_in_code.py"])
-+def test_the_guard_files_hold_no_flagged_line(rel):
-+    text = pathlib.Path(REPO, rel).read_text(encoding="utf-8")
-+    assert gate.flagged_lines(text) == []
+@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 850
+-PINNED_FILES = 174
++PINNED_LINES = 713
++PINNED_FILES = 109
+ 
+ HASH = chr(35)
+ 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -791,7 +1661,8 @@ index 00000000..5f1aa41c
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 125 +++--
-#    .claude/task/review_input.patch     | 960 ++++++++++++++++++++++++++----------
-#    2 files changed, 803 insertions(+), 282 deletions(-)
+#   .claude/task/acceptance_evidence.md |  130 +-
+#    .claude/task/review.md              |  147 +--
+#    .claude/task/review_input.patch     | 2378 ++++++++++++++++++++++++-----------
+#    3 files changed, 1714 insertions(+), 941 deletions(-)
 # ============================================================================

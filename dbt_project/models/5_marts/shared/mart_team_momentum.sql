@@ -52,7 +52,7 @@ select
     safe_divide(b.goals_for, b.games_in_window) as goals_per_match,
     safe_divide(b.goals_against, b.games_in_window) as goals_against_per_match,
     -- shots (team-stat window): NULL ('—') on partial coverage — never a partial-window average
-    -- (reverse #320; universal incomplete-data rule, CPO 2026-06-25). shots_on_goal_pct / danger_zone
+    -- (the universal incomplete-data rule). shots_on_goal_pct / danger_zone
     -- gate on the binding shot coverage (SoT ⊆ team-stat, so full SoT coverage ⇒ full shots_total).
     case
         when b.games_with_team_stats < b.games_expecting_team_stats then null
@@ -70,7 +70,7 @@ select
         when b.games_with_sot_stats < b.games_expecting_team_stats then null
         else safe_divide(b.shots_on_goal, b.games_with_sot_stats) end
         as shots_on_goal_per_match,
-    -- finishing efficiency (CPO Option A): open-play conversion =
+    -- finishing efficiency: open-play conversion =
     -- (goals_for − goals_penalty − goals_own) / shots_on_goal. NULL ('—') unless the window is
     -- fully shot-covered AND the numerator is valid [0, shots_on_goal] — never a partial-window
     -- value and never >100% (penalties + own goals removed; a stray inconsistency nulls out).
@@ -111,8 +111,8 @@ select
         )
     end as saves_pct,
     -- player-derived team metrics: DELIBERATELY left on average-over-player-covered games (NOT
-    -- gated) — these are player data, and missing player stats must not blank a team stat
-    -- (CPO 2026-06-25). null only when no player-covered game exists (safe_divide by 0).
+    -- gated) — these are player data, and missing player stats must not blank a team stat;
+    -- null only when no player-covered game exists (safe_divide by 0).
     safe_divide(b.key_passes, b.games_with_player_stats) as passes_key_per_match,
     safe_divide(b.tackles, b.games_with_player_stats) as tackles_per_match,
     safe_divide(b.interceptions, b.games_with_player_stats)

@@ -1,10 +1,10 @@
 -- league_leader_order must be a TOTAL order within a league-board, and its 1 must be the right row.
 --
--- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod on
--- 2026-09-09, 12 of the 28 league-boards the Home page renders had more than one rank-1 player, and
+-- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod,
+-- 12 of the 28 league-boards the Home page renders had more than one rank-1 player, and
 -- one board returned 24 rank-1 rows across 7 leagues. A consumer showing ONE player per league
--- cannot use `rank`, which is why `league_leader_order` exists (CPO 2026-09-09, escalations.log:
--- "All ranking and ordering lives in the warehouse. The page renders the order it is served").
+-- cannot use `rank`, which is why `league_leader_order` exists: all ranking and ordering lives in
+-- the warehouse, and the page renders the order it is served.
 --
 -- TWO INVARIANTS, and the second is the one that would rot silently. The first — exactly one row
 -- per league-board carries 1 — is structural and a broken window function would break it loudly.
