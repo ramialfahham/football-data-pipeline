@@ -1,6 +1,13 @@
 # Review — feat/115-step8-history-out-of-code-guard — 2026-09-11
 
-diff_sha256: cc102ceea2b2886062bcd66b2ef3b6402e235439b35a6987c3fcc6a0c6fa6b79
+diff_sha256: 1475a9dfeca684abd7973741a0ef0464c6b1990a8411960ffc862c77f0a0aa64
+
+rebound: the four PASS verdicts below were given on
+`cc102ceea2b2886062bcd66b2ef3b6402e235439b35a6987c3fcc6a0c6fa6b79`. `!176` merged first and the
+branch was rebased onto it; every code, test, settings and doc file is byte-identical to the
+reviewed commit (the rebase conflicted only in the four per-task artifacts, resolved by keeping
+this branch's), and the hash moved solely because the base side of `contract.md` moved. Rebound
+without a new round, as `!172`'s rebinding was.
 
 rounds: 4
 
