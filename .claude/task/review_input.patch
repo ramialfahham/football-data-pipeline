@@ -1,526 +1,280 @@
-diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
-index ffc26ced..4b62cfc8 100644
---- a/.claude/agents/scope-auditor.md
-+++ b/.claude/agents/scope-auditor.md
-@@ -83,8 +83,13 @@ pass. Do not convert an absence of findings into a finding.
- - **You review the code diff and `contract.md`, never the review's own
-   paperwork.** The task NOTES in `.claude/task/` are excluded from the patch you
-   are handed, so the phrasing of the evidence artifacts is not yours to audit.
--  `contract.md` and `escalations.log` ARE in the patch — they carry the scope and
--  the authority you check, and you cannot verify a cited ruling without the log.
-+  `contract.md` IS in the patch — it carries the scope and the quoted approval a
-+  `protected_override` rests on. That quote is the builder's word; you cannot verify
-+  it, and no file lets you (`escalations.log` is frozen since 2026-09-11 — a NEW
-+  entry in it is a defect; a citation of an old one is checkable). What you check
-+  instead: the approval is quoted with a date, and the contract says the MR
-+  head's `Locked files` line repeats that same quote — the CPO, who merges, reads
-+  the two copies side by side. A §10 decision with no quote at all is still FAIL.
- - You can never approve a §10 decision — finding one means FAIL (if taken
-   silently) or ESCALATE (if genuinely ambiguous).
- - Uncertain whether a written rule covers a case? The classification itself is
-diff --git a/.claude/skills/onboard-endpoint/SKILL.md b/.claude/skills/onboard-endpoint/SKILL.md
-index a758f452..254cdb0d 100644
---- a/.claude/skills/onboard-endpoint/SKILL.md
-+++ b/.claude/skills/onboard-endpoint/SKILL.md
-@@ -111,9 +111,9 @@ for explicit approval to enable the recurring pull (this mirrors
- file is written). Do NOT write ingestion code or enable a schedule until that
- approval is given, and **never infer or self-grant it** — cost is non-negotiable
- (CLAUDE.md "Cost is non-negotiable"; docs/working_agreement.md §5). Once the CPO
--gives it, record the approval in `.claude/task/escalations.log` — the builder
--appends rulings there as the standard practice (docs/working_agreement.md §2/§11)
--so the build contract's `decisions_taken` can cite a locatable ruling. No new
-+gives it, the approval is recorded by the thing it changes (docs/working_agreement.md
-+§11): the registry entry in the MR, quoted in the contract's `decisions_taken`, and
-+named in the MR head as a recurring cost he is approving by merging. No new
- daily run cadence without separate approval — ride the 04:00 run or a sub-schedule.
- 
- ### Step 4 — CPO history-depth decision
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 25b1644c..89cc0395 100644
+index 89cc0395..6857666c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,146 +1,153 @@
--# Task contract — a stash left behind blocks the turn
-+# Task contract — requirements live in the issue, decisions in the MR head; the ruling log is frozen
+@@ -1,153 +1,85 @@
+-# Task contract — requirements live in the issue, decisions in the MR head; the ruling log is frozen
++# Task contract — one table says which source answers which question; memory answers none
  
  objective: >
--  Ten pieces of parked work sat in `git stash` — a store nothing lists, no gate sees, and one
--  keystroke empties — including the whole player Overview tab, which memory had already written
--  off as lost. All ten are now pushed `parked/*` branches and the stack is empty. This branch adds
--  the mechanism that keeps it empty: the stop gate blocks a turn that ends with parked work in the
--  stash.
-+  `escalations.log` (810 KB, 172 entries, ~2 CPO-quote lines per entry, the rest builder
-+  narrative) was the only place a "the CPO ruled X" claim could be checked — and it is written by
-+  the builder, in the branch it authorises. On `!173` three of four review rounds were spent on
-+  that record, none on the code; across the session, seven misattributed quotes. The CPO's
-+  question: "What are the decisions worth being logged? And where?" His answer, after a fresh
-+  independent review of the proposal: requirements go in a GitLab issue per major task, in a
-+  fixed short shape the plan is part of; a rule change is edited into the document that owns it;
-+  the MR description starts with a head he can scan; his merge is the approval. Nothing else is
-+  written down. This branch makes that the written process and freezes the log.
+-  `escalations.log` (810 KB, 172 entries, ~2 CPO-quote lines per entry, the rest builder
+-  narrative) was the only place a "the CPO ruled X" claim could be checked — and it is written by
+-  the builder, in the branch it authorises. On `!173` three of four review rounds were spent on
+-  that record, none on the code; across the session, seven misattributed quotes. The CPO's
+-  question: "What are the decisions worth being logged? And where?" His answer, after a fresh
+-  independent review of the proposal: requirements go in a GitLab issue per major task, in a
+-  fixed short shape the plan is part of; a rule change is edited into the document that owns it;
+-  the MR description starts with a head he can scan; his merge is the approval. Nothing else is
+-  written down. This branch makes that the written process and freezes the log.
++  Memory said the player page is three tabs; a later handover said four; nothing said which wins,
++  and the four-tab record survives only as a commit on the dead GitHub remote. Memory also said
++  the built Overview tab was lost when the repo had it in a stash. A session acted on memory both
++  times. This branch states the precedence once, in `CLAUDE.md`, demotes memory in its own index,
++  moves the tab decision into the player page's issue, and preserves the commit that records it.
  
  refs: >
--  `.claude/task/escalations.log` `2026-09-11 feat/stash-check-in-stop-gate` — the CPO's "yes" to
--  editing the protected stop gate, after the plain-language explanation he asked for.
--  Step 4 of the context cleanup as GitLab #115 numbers it ("4 — where parked work lives"; "5 —
--  split `escalations.log`"). ⚠ The 2026-09-10 log entry that first listed the nine steps had those
--  two the other way round; #115 is the tracker and supersedes it. Steps 1-3 merged as `!169`-`!172`.
--  Precedent for a protected-path edit to this file: `check_description_hygiene.py` was added to
--  `FAST_GATES` on 2026-08-20 "with CPO approval for the protected-path edit".
+-  GitLab #115 step 5 ("split `escalations.log`") — resolved as FREEZE rather than split, because
+-  the fresh review found the growth is all narrative and the self-attestation cannot be cured by
+-  restructuring the same builder-written file. The CPO's "go" (chat, 2026-09-11) to the plan
+-  quoted in the issue this MR closes. Independent review: a fresh general-purpose agent, prompt and
+-  answer in the issue's fold. Overlap noted, not taken: GitLab #77 (per-task paperwork vs durable
+-  records).
 -
--protected_override: CPO approved editing `.claude/hooks/stop_gate.py` on 2026-09-11 — asked
--  directly, in plain language, and answered "yes". Recorded in `escalations.log` under
--  `2026-09-11 feat/stash-check-in-stop-gate`.
-+  GitLab #115 step 5 ("split `escalations.log`") — resolved as FREEZE rather than split, because
-+  the fresh review found the growth is all narrative and the self-attestation cannot be cured by
-+  restructuring the same builder-written file. The CPO's "go" (chat, 2026-09-11) to the plan
-+  quoted in the issue this MR closes. Independent review: a fresh general-purpose agent, prompt and
-+  answer in the issue's fold. Overlap noted, not taken: GitLab #77 (per-task paperwork vs durable
-+  records).
-+
-+protected_override: >
-+  `.claude/agents/scope-auditor.md` — one sentence changes: the auditor stops requiring a log entry
-+  for a cited approval and instead checks the contract quotes it and the MR head declares it. The
-+  CPO approved this plan in chat on 2026-09-11 ("ok go", after "Explain like I am twelve" ×3 and a
-+  fresh-agent review he asked for). Under the rule this branch introduces, the durable approval is
-+  his MERGE of this MR, whose head declares the locked file. The final entry of the frozen log
-+  records the same approval — the last entry it will ever take.
+-protected_override: >
+-  `.claude/agents/scope-auditor.md` — one sentence changes: the auditor stops requiring a log entry
+-  for a cited approval and instead checks the contract quotes it and the MR head declares it. The
+-  CPO approved this plan in chat on 2026-09-11 ("ok go", after "Explain like I am twelve" ×3 and a
+-  fresh-agent review he asked for). Under the rule this branch introduces, the durable approval is
+-  his MERGE of this MR, whose head declares the locked file. The final entry of the frozen log
+-  records the same approval — the last entry it will ever take.
++  GitLab #117 (this task, `Task` template — the What/Why/How below are copied from it). GitLab
++  #115 step 6. The CPO's "go" in chat on 2026-09-11 to the issue text as shown to him. The
++  four-tab record: commit `1f0af6ae` on `origin/docs/handover-player-tabs-and-seo`, 2026-07-27,
++  "docs(handover): player page is four tabs (848)".
  
  scope_paths:
--  - .claude/hooks/stop_gate.py
--  - tests/test_governance_hooks.py
-+  - .gitlab/issue_templates/Task.md
-+  - .gitlab/merge_request_templates/Default.md
+-  - .gitlab/issue_templates/Task.md
+-  - .gitlab/merge_request_templates/Default.md
+-  - docs/working_agreement.md
+   - CLAUDE.md
+-  - docs/wireframes/00_overview.md
+-  - .claude/task/TEMPLATE.md
+-  - .claude/task/escalations.log
+-  - .claude/agents/scope-auditor.md
+-  - .claude/skills/onboard-endpoint/SKILL.md
 +  - docs/working_agreement.md
-+  - CLAUDE.md
-+  - docs/wireframes/00_overview.md
-+  - .claude/task/TEMPLATE.md
-+  - .claude/task/escalations.log
-+  - .claude/agents/scope-auditor.md
-+  - .claude/skills/onboard-endpoint/SKILL.md
++  - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
--  - .claude/task/escalations.log
  
  impact_map: >
--  writers: one hook (`.claude/hooks/stop_gate.py`), one test file. No model, mart, export, site
--    source or CI config.
--
--  downstream: the Stop hook fires at the end of every agent turn. It does NOT run in CI. Nothing
--    else reads it.
--
--  blast_radius: a NEW BLOCKING CONDITION on ending a turn. Today the gate blocks on out-of-scope
--    dirty files and on failing offline checks; after this it also blocks when the stash holds
--    ANYTHING — the rule exactly as the CPO was told it: "if you end your turn with something still
--    in the pocket, you get stopped". No label is exempt. The contract stash-dance is not affected:
--    it stashes, edits and pops inside ONE turn, and the gate fires at turn END — so the only
--    stash-dance the gate can see is a forgotten one, which is the #41 case it should catch. Like
--    the two existing conditions it blocks ONCE (`stop_hook_active`), so a stash this session cannot
--    pop — another worktree's, since the stack is repo-wide — costs one nag, not a wall. The check
--    runs BEFORE the dirty-tree short-circuit, because a forgotten stash leaves the tree clean —
--    that is the exact case it exists for.
-+  writers: none — no code, no model, no export, no CI job changes. Two new template files, five
-+    prose files, one reviewer brief (one sentence), the log (a banner and a final entry).
-+
-+  downstream: the process every future task follows. `.gitlab/issue_templates/` and
-+    `.gitlab/merge_request_templates/` are read by GitLab's UI; the post-commit hook opens MRs with
-+    `glab mr create --fill`, which takes the description from the commit message, so the MR head is
-+    set by the builder right after (`glab mr update`) — a rule, stated in the working agreement.
-+    `review_routing.json` is NOT changed: the log stays un-excluded from the review patch (frozen,
-+    it never diffs again), so `test_governance_hooks.py`'s patch-composition tests are untouched.
-+
-+  layer_rules: n/a.
+-  writers: none — no code, no model, no export, no CI job changes. Two new template files, five
+-    prose files, one reviewer brief (one sentence), the log (a banner and a final entry).
++  writers: none — two prose files in the repo. Outside the repo, and outside this diff: the memory
++    index and one memory file (my notes), a new GitLab issue for the player page, and a pushed
++    `archive/` branch that points at an existing commit.
+ 
+-  downstream: the process every future task follows. `.gitlab/issue_templates/` and
+-    `.gitlab/merge_request_templates/` are read by GitLab's UI; the post-commit hook opens MRs with
+-    `glab mr create --fill`, which takes the description from the commit message, so the MR head is
+-    set by the builder right after (`glab mr update`) — a rule, stated in the working agreement.
+-    `review_routing.json` is NOT changed: the log stays un-excluded from the review patch (frozen,
+-    it never diffs again), so `test_governance_hooks.py`'s patch-composition tests are untouched.
++  downstream: every session reads `CLAUDE.md` first; the table changes where a session looks for
++    an answer, not any answer. No hook, test, CI job or routing reads the section edited.
+ 
+   layer_rules: n/a.
  
    deploy_order: none.
  
-+  blast_radius: the scope-auditor's brief no longer says "you cannot verify a cited ruling without
-+    the log". If that sentence carried real protection, this weakens it. It did not: the log is
-+    builder-written, so the check it enabled was "did the builder write the same thing twice". The
-+    protection that remains is the one that always existed — the CPO reads the MR head and merges
-+    or not — now stated as the rule instead of assumed.
-+
+-  blast_radius: the scope-auditor's brief no longer says "you cannot verify a cited ruling without
+-    the log". If that sentence carried real protection, this weakens it. It did not: the log is
+-    builder-written, so the check it enabled was "did the builder write the same thing twice". The
+-    protection that remains is the one that always existed — the CPO reads the MR head and merges
+-    or not — now stated as the rule instead of assumed.
++  blast_radius: none in the repo. The archive branch is a new ref on GitLab pointing at a commit
++    the repo already holds; deleting it is one command.
+ 
  acceptance_criteria:
--  - Any stash blocks the turn, with a message that names the stash and says to put it on a
--    `parked/` branch. Proven by creating one and running the gate.
--  - A `TEMP-` stash blocks too — there is no label exemption. Proven by a test, so the exemption
--    the first draft carried cannot come back silently.
--  - An empty stash list passes with no output. Proven.
--  - The check runs even when the tree is clean — a mutation that moves it below the dirty-tree
--    short-circuit turns a test RED.
--  - The gate's existing behaviour is unchanged for the cases it already handled; the existing
--    governance-hook tests stay green.
-+  - A GitLab issue template exists with exactly the four fields — Requested by / What exactly (a
-+    checklist, each line checkable without reading code) / Why / How (≤7 lines) — plus a fold for
-+    exploration detail and a Not-in-scope line; and the issue this MR closes uses it.
-+  - An MR template exists whose head is `Closes #N`, the issue's checklist ticked with one link per
-+    tick, and a `Locked files` line; and this MR's description carries that head.
-+  - `docs/working_agreement.md` states, in §1 and §11: one issue per major task in that shape; the
-+    plan is the issue's How and the plan file shown for approval is the same text; a rule change is
-+    edited into the document that owns it in the same MR; the MR head lists decisions and locked
-+    files; the merge is the approval; nothing else is logged. The two sentences that said
-+    "escalations are appended to `escalations.log`" are gone.
-+  - `escalations.log` carries a FROZEN banner at the top and a final entry recording this approval
-+    as its last; `CLAUDE.md`'s authority row, `00_overview.md`, `TEMPLATE.md`'s override guidance,
-+    the onboard-endpoint skill and the scope-auditor's brief no longer instruct anyone to write to
-+    it or to require an entry in it. Verified by grep for instructing sentences, not by word count:
-+    citations of past entries stay.
-+  - No gate, hook, CI job or routing row is added or changed — `git diff --stat` shows no
-+    `.claude/hooks/`, `scripts/`, `.gitlab-ci.yml` or `review_routing.json` change.
+-  - A GitLab issue template exists with exactly the four fields — Requested by / What exactly (a
+-    checklist, each line checkable without reading code) / Why / How (≤7 lines) — plus a fold for
+-    exploration detail and a Not-in-scope line; and the issue this MR closes uses it.
+-  - An MR template exists whose head is `Closes #N`, the issue's checklist ticked with one link per
+-    tick, and a `Locked files` line; and this MR's description carries that head.
+-  - `docs/working_agreement.md` states, in §1 and §11: one issue per major task in that shape; the
+-    plan is the issue's How and the plan file shown for approval is the same text; a rule change is
+-    edited into the document that owns it in the same MR; the MR head lists decisions and locked
+-    files; the merge is the approval; nothing else is logged. The two sentences that said
+-    "escalations are appended to `escalations.log`" are gone.
+-  - `escalations.log` carries a FROZEN banner at the top and a final entry recording this approval
+-    as its last; `CLAUDE.md`'s authority row, `00_overview.md`, `TEMPLATE.md`'s override guidance,
+-    the onboard-endpoint skill and the scope-auditor's brief no longer instruct anyone to write to
+-    it or to require an entry in it. Verified by grep for instructing sentences, not by word count:
+-    citations of past entries stay.
+-  - No gate, hook, CI job or routing row is added or changed — `git diff --stat` shows no
+-    `.claude/hooks/`, `scripts/`, `.gitlab-ci.yml` or `review_routing.json` change.
++  - `CLAUDE.md` has one table saying which source answers which question — what a screen shows
++    (the design chain via `00_overview.md`), what is required / what is next (the GitLab issue),
++    where we are right now (`.claude/active_work.md`), how we work (`working_agreement.md`) — and
++    one line: memory answers none of these; a product fact found only in memory is not a fact
++    until verified in the repo or an issue.
++  - The memory index opens with that same line.
++  - The "3 tabs" memory claim is gone. The player page's tab list is recorded as a requirement in
++    the player page's GitLab issue: four tabs, International gated on
++    `national_appearances_total ≥ 1`, as the CPO's 2026-07-27 decision.
++  - That commit's branch is preserved on GitLab as `archive/docs-handover-player-tabs-and-seo`.
++  - Nothing else restates the table; the working agreement points at it.
  
  decisions_taken: >
--  A STASH IS NOT A STORE, AND THE RULE IS ENFORCED, NOT WRITTEN. `working_agreement.md` could say
--  "park work on a branch"; the point of this cleanup is that written rules have not held. The stop
--  gate already holds the line on dirty trees and failing checks; this is the same instrument.
+-  FREEZE, NOT SPLIT. #115 step 5 said "split". The fresh review measured the log — growth is all
+-  builder narrative; CPO quotes stay ~2 lines per entry — and found the self-attestation survives
+-  any restructuring of a builder-written file. The CPO chose freeze + the issue/MR-head process.
+-  #115's bar ("every step ships a mechanism") is met by the harness-enforced plan approval on the
+-  issue text and by the merge, not by a new gate; the CPO was told this conflict plainly and chose.
 -
--  NO EXEMPTION. The first draft exempted `TEMP-` stashes for 24 hours, on the premise that the
--  contract stash-dance would otherwise be blocked. The premise was false — the dance is intra-turn
--  and the gate is turn-end — and the CPO was never shown the exemption: the explanation he said
--  "yes" to states the rule unconditionally (cto-reviewer, round 1). Removed. The rule shipped is
--  the rule approved, and it is stricter: `TEMP-40-mrB` sat under that label for days "until the
--  mart column is in prod", which the 24h window would have tolerated for a day.
+-  NO NEW CI CHECK. The proposed MR↔contract description check was dropped by the fresh review: it
+-  binds two builder-written texts to each other, and GitLab truncates
+-  `CI_MERGE_REQUEST_DESCRIPTION` at 2,700 characters. The CPO asked what "no CI check" means and
+-  accepted it: the one thing no machine can verify — "did he build what I asked" — is his read of
+-  the head.
 -
--  IT RUNS FIRST, BEFORE THE DIRTY CHECK. `FAST_GATES` is skipped on a clean tree to save 2.9s per
--  conversational turn. A forgotten stash leaves the tree CLEAN — so a check placed with
--  `FAST_GATES` would never see the case it exists for. `git stash list` costs ~10ms and runs
--  unconditionally.
+-  THE MR HEAD IS SET BY THE BUILDER AFTER THE HOOK OPENS THE MR. `glab mr create --fill` uses the
+-  commit message; a commit message cannot carry file links cleanly under the commit form gate. So
+-  the rule is "open, then `glab mr update` with the head", and the template file is the shape.
 -
--  THE TEN EXISTING STASHES WERE CONVERTED, NOT DELETED. Each is a pushed `parked/<original
--  branch>` branch pointing at the stash commit, so all three parents — base, index, untracked —
--  are reachable and `git stash apply parked/<x>` restores it exactly. Verified before dropping:
--  every stash commit's SHA is a remote branch tip. Five of the ten are dead or superseded and are
--  branches the CPO can delete at leisure; the dispositions are in `escalations.log`.
--  THE SEQUENCE, plainly — AND NOT DRESSED AS APPROVED: the CPO approved the PLAN on 2026-09-10
--  ("do as recommended", log entry `2026-09-10 chore/dead-issue-references`), which listed "where
--  parked work lives — the 10 stashes ... [NEW]" as a step. That entry says nothing about the
--  steps' content. The EARLIER entry that day, `2026-09-10 chore/authority-map-in-claude-md`,
--  recording his "go" on the original six-step plan — before the stash step existed — says: "NOT
--  A RULING ON ANY OF THE SIX STEPS' CONTENT. He approved the plan and told me to start; each
--  step's own decisions are still his." I read that limit as carrying to the revised plan (a
--  re-ordered checklist approved with "do as recommended" is no more a content ruling than the
--  original approved with "go"), but that is MY reading; no entry disclaims content-approval for
--  the revised plan in so many words. Either way: he did not approve the step's CONTENT.
--  Converting each stash to a pushed `parked/*` branch and dropping it was MY choice,
--  taken on my own initiative under the autonomy rule for a non-destructive, reversible action
--  (each stash commit verified a pushed branch tip before its drop; all ten branches exist), and
--  told to him afterwards in the same message as the ask for this gate. He answered the ask; he
--  did not rule on the conversion, and this contract does not claim he did. Merging this MR is
--  where he can. The live/dead split is a LABEL on a decision reserved to him, not an action taken.
+-  SEVEN OTHER REVIEWER BRIEFS SAY THE LOG "carries authority" AND ARE LEFT ALONE. The sentence
+-  explains why the file is in the patch (it still is — frozen), not an instruction to check it.
+-  Editing eight protected files for one word is the churn this cleanup exists to stop.
 -
--  THRESHOLD — NEW MECHANISM: yes, one new blocking condition in an existing protected gate.
--  Approved by the CPO, recorded. Routed to cto-reviewer and platform-reviewer by
--  `review_routing.json`.
--  THRESHOLD — RECURRING COST: ~10ms per turn end.
-+  FREEZE, NOT SPLIT. #115 step 5 said "split". The fresh review measured the log — growth is all
-+  builder narrative; CPO quotes stay ~2 lines per entry — and found the self-attestation survives
-+  any restructuring of a builder-written file. The CPO chose freeze + the issue/MR-head process.
-+  #115's bar ("every step ships a mechanism") is met by the harness-enforced plan approval on the
-+  issue text and by the merge, not by a new gate; the CPO was told this conflict plainly and chose.
+-  THE "NO ISSUE FOR A TYPO OR REFACTOR" EXCEPTION IS HIS, NOT MINE. His words (chat, 2026-09-11):
+-  "There are some small exceptions but I think we need an issue for every major task with clear
+-  requirements and documentation including a plan." Naming the exceptions (typo, refactor with no
+-  requirement) is form; the exception itself is quoted in §1 so it is traceable (cto-reviewer,
+-  round 1).
+-
+-  A LOCKED-FILE APPROVAL IS WRITTEN TWICE, AND THE CPO SEES BOTH. cto-reviewer, round 1: rules and
+-  requirements keep a second artifact (the owning doc, the issue); a `protected_override` would
+-  have had only the contract — and the second copy is what caught the misattributions on `!173`.
+-  So the MR head's `Locked files` line REPEATS the quoted approval and date, next to the contract's
+-  copy, which the CPO reads at merge. Reviewers still cannot verify the quote — nobody can but him
+-  — but a quote that differs between the two copies is now visible to the one person who knows.
+-
+-  THRESHOLD — NEW MECHANISM: none. Two templates and prose. THRESHOLD — RECURRING COST: none.
++  THE TABLE IS A LOOKUP, NOT A RULING. Every row points at an authority that already exists
++  (`00_overview.md` since `!170`, the issue since `!174`, `active_work.md` since 2026-08-06, the
++  working agreement); the table only says which answers which question. The one new sentence —
++  memory answers none of these — is the demotion the failures above justify, and it binds only me.
 +
-+  NO NEW CI CHECK. The proposed MR↔contract description check was dropped by the fresh review: it
-+  binds two builder-written texts to each other, and GitLab truncates
-+  `CI_MERGE_REQUEST_DESCRIPTION` at 2,700 characters. The CPO asked what "no CI check" means and
-+  accepted it: the one thing no machine can verify — "did he build what I asked" — is his read of
-+  the head.
++  THE FOUR TABS ARE MOVED, NOT DECIDED. The player page issue records the tab structure as the
++  CPO's 2026-07-27 decision per the commit, marks it as such, and says the per-tab requirements
++  are written when that work starts — which is where he confirms or changes it.
 +
-+  THE MR HEAD IS SET BY THE BUILDER AFTER THE HOOK OPENS THE MR. `glab mr create --fill` uses the
-+  commit message; a commit message cannot carry file links cleanly under the commit form gate. So
-+  the rule is "open, then `glab mr update` with the head", and the template file is the shape.
++  THE ARCHIVE BRANCH IS A REF, NOT A COPY. `git branch archive/… origin/docs/handover-player-tabs-and-seo`
++  makes a GitLab ref to a commit already in the repository; nothing is rewritten. My initiative,
++  reversible, listed in #117's How before the go.
 +
-+  SEVEN OTHER REVIEWER BRIEFS SAY THE LOG "carries authority" AND ARE LEFT ALONE. The sentence
-+  explains why the file is in the patch (it still is — frozen), not an instruction to check it.
-+  Editing eight protected files for one word is the churn this cleanup exists to stop.
-+
-+  THE "NO ISSUE FOR A TYPO OR REFACTOR" EXCEPTION IS HIS, NOT MINE. His words (chat, 2026-09-11):
-+  "There are some small exceptions but I think we need an issue for every major task with clear
-+  requirements and documentation including a plan." Naming the exceptions (typo, refactor with no
-+  requirement) is form; the exception itself is quoted in §1 so it is traceable (cto-reviewer,
-+  round 1).
-+
-+  A LOCKED-FILE APPROVAL IS WRITTEN TWICE, AND THE CPO SEES BOTH. cto-reviewer, round 1: rules and
-+  requirements keep a second artifact (the owning doc, the issue); a `protected_override` would
-+  have had only the contract — and the second copy is what caught the misattributions on `!173`.
-+  So the MR head's `Locked files` line REPEATS the quoted approval and date, next to the contract's
-+  copy, which the CPO reads at merge. Reviewers still cannot verify the quote — nobody can but him
-+  — but a quote that differs between the two copies is now visible to the one person who knows.
-+
-+  THRESHOLD — NEW MECHANISM: none. Two templates and prose. THRESHOLD — RECURRING COST: none.
++  THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
  
  decisions_reserved:
--  - Deleting the five dead/superseded `parked/*` branches. They are the CPO's to delete; the
--    dispositions are recorded so he can.
--  - Steps 5-9 of the cleanup (GitLab #115).
-+  - Whether #77 (per-task paperwork vs durable records) absorbs the rest of the contract/evidence
-+    artifact question.
-+  - Steps 6-9 of #115.
+-  - Whether #77 (per-task paperwork vs durable records) absorbs the rest of the contract/evidence
+-    artifact question.
+-  - Steps 6-9 of #115.
++  - Whether the four-tab structure still stands — his, when the player page's requirements are
++    written.
++  - Steps 7-9 of #115.
  
  done_when:
--  - All five criteria proven by running the gate against real stashes and by the tests.
--  - `pytest tests/test_governance_hooks.py` green, ruff green.
-+  - All five criteria proven; `pytest tests/test_governance_doc_parity.py tests/test_post_commit_hook.py`
-+    green (prose-parity and hook tests are the ones that could see these edits).
-+  - The issue this MR closes exists in the new shape; the MR head is set.
+-  - All five criteria proven; `pytest tests/test_governance_doc_parity.py tests/test_post_commit_hook.py`
+-    green (prose-parity and hook tests are the ones that could see these edits).
+-  - The issue this MR closes exists in the new shape; the MR head is set.
++  - The five criteria proven; `pytest tests/test_governance_doc_parity.py tests/test_no_dead_issue_refs.py`
++    green (the two tests that read `CLAUDE.md`).
++  - #117 closed by the MR; the player page issue exists; the archive branch is on GitLab.
  
  amendments:
--  - Round 1 (cto-reviewer FAIL, scope-auditor FAIL, platform-reviewer PASS). Three changes, none
--    widening scope: (1) the `TEMP-`/24h exemption is REMOVED — the CPO was not shown it and its
--    premise was false (above); the two acceptance criteria that described it are replaced by one
--    that pins its absence. (2) "six" dead/superseded branches corrected to FIVE, in all three
--    places the miscount appeared — the log's own enumerated list has five (scope-auditor). (3) the
--    step number is disambiguated against #115, whose numbering supersedes the log's.
--    Two findings answered with evidence rather than a change: this IS step 4 per #115 (the
--    reviewer read the superseded numbering in the previous branch's contract text); and the
--    conversion was not destructive — sequence recorded above. The self-attestation of
--    `escalations.log` stands as recorded: it is what #115 step 5 exists to fix, and until then
--    the CPO's merge of an MR that carries the entry is the verification.
--  - Round 2 (cto-reviewer FAIL, platform-reviewer PASS, scope-auditor PASS). The round-1 answer
--    on the conversion had put "a stash is not a store" in quotation marks as the recommendation
--    the CPO said "do as recommended" to. The phrase IS in that recommendation — in the transcript
--    — but the 2026-09-10 log entry does not carry it, so to a reviewer it read as a quote the
--    source does not contain; and the deeper point holds regardless: "do as recommended" approved
--    the plan, not the step's content, as that entry says itself. Rewritten (above) to state that
--    the conversion was my own initiative under the autonomy rule, told afterwards, not approved;
--    the recommendation text is now logged verbatim and attributed as MINE, not his. Also: the
--    evidence file's `criteria_demonstrated` carried six bullets against five criteria (the ruff
--    line belongs to `done_when`) — moved, since the artifact gate counts them.
--  - Round 3 (cto-reviewer FAIL, scope-auditor FAIL, same finding). The round-2 rewrite cited
--    "each step's own decisions are still his" as said by the entry that records "do as
--    recommended". It is said by the EARLIER entry that day, about the original six-step plan,
--    before the stash step existed. The seventh instance this session of citing a real sentence
--    to the wrong place — inside the paragraph written to cure the sixth. Fixed above: each quote
--    now names its entry, and the carry-forward to the revised plan is stated as my reading, not
--    as something the record says. Every quote in this contract was then grepped against the log
--    for the entry it names. Round 4 runs under a `rounds_cap_override` in `review.md`, recorded
--    the way `!172` recorded it: to clear a standing FAIL by review, not to ship past one.
-+  - Round 1 (scope-auditor PASS, cto-reviewer FAIL). Two findings, both taken: (1) a locked-file
-+    approval had no second copy under the new rule — the MR head's `Locked files` line now repeats
-+    the quote and date (template, §11 table, scope-auditor sentence, the head of this MR); (2) the
-+    "no issue for a typo/refactor" exception was new rule text without a source — it is the CPO's
-+    own "some small exceptions", now quoted in §1 and above. Also corrected in the record: the
-+    review prompt claimed this contract cites `fix/merge-guard-covers-the-api`; it did not and
-+    does not — that precedent is in the fresh review's answer, in #116's fold.
-+  - Round 2 (cto-reviewer FAIL, scope-auditor PASS). The second copy of a locked-file approval
-+    was a template line set by hand after the hook opens the MR — a promise, not evidence, and on
-+    the one branch where it applies. FIX, a rule refinement in §11: the COMMIT MESSAGE carries the
-+    `Locked files` line with the quote, so `glab mr create --fill` puts it in the MR description
-+    automatically and `git log` holds it in a tracked place; the hand-set head only adds the ticks
-+    and links. The evidence now quotes that commit-message line verbatim beside the contract's
-+    quote — identical strings — and says what remains unverifiable until the commit exists.
-+  - Round 3 (cto-reviewer FAIL, scope-auditor FAIL, same finding). "Identical strings" above was
-+    FALSE when written: the commit-message line paraphrased the contract's approval ("the
-+    explanation he asked for three times" for `"Explain like I am twelve" ×3`) and the evidence
-+    called that verbatim. Inside the fix for quote drift, quote drift. FIX: the commit message now
-+    carries the contract's approval span character-for-character, and the evidence records a
-+    Python equality on the two spans (`IDENTICAL`), not a reading. Round 4 runs under a
-+    `rounds_cap_override` in `review.md`, recorded as on `!172` and `!173`: to clear a standing
-+    FAIL by review, not to ship past one.
-diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 269b814b..f49dfd31 100644
---- a/.claude/task/escalations.log
-+++ b/.claude/task/escalations.log
-@@ -1,3 +1,8 @@
-+FROZEN 2026-09-11 — HISTORY ONLY. NO NEW ENTRIES. A decision is recorded by the thing it changes:
-+a requirement in its GitLab issue, a rule in the document that owns it, code in the MR whose head
-+lists the decisions — and the CPO's merge is the approval (docs/working_agreement.md §11). Cite an
-+entry below if you need to; never add one. The last entry, at the bottom, records the freeze.
-+
- 2026-08-03 feat/367-landing-page — §10 escalation (rule extension). ONE question, raised by the
- build gate rather than by a reviewer, and it blocks the landing page from building.
- 
-@@ -8913,3 +8918,26 @@ this was a stale rationale paragraph, not a new claim about the metric.
- 
-   ⚠ VERIFIED BEFORE DROPPING, not assumed: every one of the ten stash commits' SHAs is a remote
-   branch tip. Then the stack was emptied — 0 entries.
-+
-+2026-09-11 chore/115-step5-decision-record — THE LAST ENTRY. This log is frozen from here.
-+
-+  HIS WORDS, on this file: "I have the feeling that you write down even irrelevant content, some
-+  tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them
-+  which again lets you drift. So the question rather is: What are the decisions worth being logged.
-+  And where? Or is it just: Decide it -> build it, or decide it -> write it down in an
-+  authoritative document."
-+
-+  WHAT REPLACES IT (docs/working_agreement.md §1 and §11, edited in the MR that carries this
-+  entry): one GitLab issue per major task in a fixed short shape — Requested by / What exactly (a
-+  checklist checkable without code) / Why / How (the plan, ≤7 lines) — which is what plan mode
-+  shows for approval; a rule change edited into the document that owns it, in the same MR; an MR
-+  head the CPO can scan — Closes #N, the checklist ticked with a link per tick, locked files; and
-+  his merge as the approval. Nothing else is written down. No new gate: a fresh independent
-+  reviewer he asked for found the proposed CI check would bind two builder-written texts to each
-+  other and break on GitLab's 2,700-character truncation, and that the growth of this file was
-+  all builder narrative around ~2 lines of his words per entry.
-+
-+  HIS GO: "ok go" (2026-09-11), after asking three times for it to be explained "like I am
-+  twelve", after the fresh review, and after asking what "no CI check" means. Recorded here
-+  because the scope-auditor's brief still required a log entry for a protected-path approval
-+  until this same MR changed that sentence; from the next MR on, the approval IS the merge.
-diff --git a/.gitlab/issue_templates/Task.md b/.gitlab/issue_templates/Task.md
-new file mode 100644
-index 00000000..f8ea5e18
---- /dev/null
-+++ b/.gitlab/issue_templates/Task.md
-@@ -0,0 +1,31 @@
-+**Requested by:** Rami
-+
-+## What exactly
-+
-+<!-- One line per requirement. Each line must be checkable WITHOUT reading code:
-+     "the German home page shows Torvorlagen as the assists title" — not "update the i18n map".
-+     These lines become the task contract's acceptance_criteria verbatim, and the MR head ticks them. -->
-+
-+- [ ]
-+- [ ]
-+
-+## Why
-+
-+<!-- One sentence. -->
-+
-+## How
-+
-+<!-- The plan. At most 7 lines, one step each. This is what plan mode shows for approval —
-+     the same text, not a second document. -->
-+
-+1.
-+
-+**Not in scope:**
-+
-+<details>
-+<summary>Exploration detail — for the builder and the reviewers, not required reading</summary>
-+
-+<!-- What was found while exploring: prod checks, defects, measurements, the reasoning behind
-+     the How. Unlimited here; nothing above the fold. -->
-+
-+</details>
-diff --git a/.gitlab/merge_request_templates/Default.md b/.gitlab/merge_request_templates/Default.md
-new file mode 100644
-index 00000000..63cea099
---- /dev/null
-+++ b/.gitlab/merge_request_templates/Default.md
-@@ -0,0 +1,21 @@
-+Closes #
-+
-+<!-- The head: the issue's checklist, ticked, ONE LINK per tick — a file at this commit, a test
-+     name, or a rendered page. The CPO reads this and merges, or not. Nothing above the fold but
-+     this. An MR with no issue (typo, refactor) writes "No behaviour change" here instead. -->
-+
-+- [x]  — 
-+- [x]  — 
-+
-+**Locked files:** none
-+<!-- or, per locked file: `path` — approved: "<the CPO's words>" (<where>, <date>) — the same
-+     quote the contract's protected_override carries, so the two copies sit side by side. -->
-+
-+
-+<details>
-+<summary>Details — review rounds, evidence, what is NOT done</summary>
-+
-+<!-- Review: rounds, who passed when, what each FAIL was.
-+     Evidence: what was run. Limits: what is deliberately not done. -->
-+
-+</details>
+-  - Round 1 (scope-auditor PASS, cto-reviewer FAIL). Two findings, both taken: (1) a locked-file
+-    approval had no second copy under the new rule — the MR head's `Locked files` line now repeats
+-    the quote and date (template, §11 table, scope-auditor sentence, the head of this MR); (2) the
+-    "no issue for a typo/refactor" exception was new rule text without a source — it is the CPO's
+-    own "some small exceptions", now quoted in §1 and above. Also corrected in the record: the
+-    review prompt claimed this contract cites `fix/merge-guard-covers-the-api`; it did not and
+-    does not — that precedent is in the fresh review's answer, in #116's fold.
+-  - Round 2 (cto-reviewer FAIL, scope-auditor PASS). The second copy of a locked-file approval
+-    was a template line set by hand after the hook opens the MR — a promise, not evidence, and on
+-    the one branch where it applies. FIX, a rule refinement in §11: the COMMIT MESSAGE carries the
+-    `Locked files` line with the quote, so `glab mr create --fill` puts it in the MR description
+-    automatically and `git log` holds it in a tracked place; the hand-set head only adds the ticks
+-    and links. The evidence now quotes that commit-message line verbatim beside the contract's
+-    quote — identical strings — and says what remains unverifiable until the commit exists.
+-  - Round 3 (cto-reviewer FAIL, scope-auditor FAIL, same finding). "Identical strings" above was
+-    FALSE when written: the commit-message line paraphrased the contract's approval ("the
+-    explanation he asked for three times" for `"Explain like I am twelve" ×3`) and the evidence
+-    called that verbatim. Inside the fix for quote drift, quote drift. FIX: the commit message now
+-    carries the contract's approval span character-for-character, and the evidence records a
+-    Python equality on the two spans (`IDENTICAL`), not a reading. Round 4 runs under a
+-    `rounds_cap_override` in `review.md`, recorded as on `!172` and `!173`: to clear a standing
+-    FAIL by review, not to ship past one.
++  - Scope +`.claude/active_work.md`, before any edit to it. It is the "where are we right now" row
++    of the table this branch writes, and it is stale: last updated 2026-09-08, its NEXT ACTION is
++    "#40 MR B" (merged as `!166`), and it predates #115 entirely. A precedence table pointing at a
++    stale handover would be the defect this step exists to fix. Handover upkeep is bookkeeping
++    inside an already-approved task, not a decision; the file is artifact-only and its edit rides
++    into this reviewed commit (§2).
 diff --git a/CLAUDE.md b/CLAUDE.md
-index d4b18789..67537039 100644
+index 67537039..b808cf6f 100644
 --- a/CLAUDE.md
 +++ b/CLAUDE.md
-@@ -48,7 +48,7 @@ nothing, and said so to every session until 2026-09-10.
- | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
- | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
- | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
--| **What the CPO has RULED** — the durable, verifiable record | [.claude/task/escalations.log](.claude/task/escalations.log) — "you ruled X" needs a quote from here. A task contract is overwritten by the next task; this file is not. |
-+| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen** (2026-09-11): cite a past entry, never add one. |
- | GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+@@ -33,11 +33,30 @@ Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL
+ goes stale silently and then instructs. This one named two GitHub-era issues that resolve to
+ nothing, and said so to every session until 2026-09-10.
  
- ⛔ **The two bold rows are load-bearing.** Until 2026-09-10 this file pointed at neither, and #41 was
-diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
-index 8622b528..34da5b9b 100644
---- a/docs/wireframes/00_overview.md
-+++ b/docs/wireframes/00_overview.md
-@@ -22,9 +22,10 @@ once so nobody has to guess. `CLAUDE.md`'s authority table points here rather th
- "the more recent one wins", no "the more specific one wins". Whoever is reading does not get to
- decide which document is right.
++## Which source answers which question
++
++Four questions, four sources. When two sources disagree, the one in this table wins, and a fact
++found nowhere in it is not a fact.
++
++| Question | The source |
++|---|---|
++| **What does a screen show?** | the design chain, in the reading order [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns — ending at the surface's GitLab issue |
++| **What is required, and what is next?** | the **GitLab issue** (`glab issue list`; the `Task` template: What exactly / Why / How) |
++| **Where are we right now?** | [.claude/active_work.md](.claude/active_work.md) — current state only, never history or requirements |
++| **How do we work?** | [docs/working_agreement.md](docs/working_agreement.md), then this file |
++
++⛔ **Memory answers none of these.** The memory files under `~/.claude/projects/…/memory/` are the
++agent's notes — compressed by the agent, reviewed by nobody. A product fact found only in memory is
++not a fact until it is verified in the repo or an issue. Twice in 2026-09 a session acted on memory
++against the repo: "the player page is three tabs" (a later handover said four) and "the Overview
++tab is lost" (it was in a stash). Memory holds behaviour feedback and pointers; when it disagrees
++with a row above, it loses and gets corrected.
++
+ ## Authoritative docs — read before making decisions
  
--A ruling already recorded in [`.claude/task/escalations.log`](../../.claude/task/escalations.log)
--is not a conflict — it is the answer, and it is where to look before escalating something he has
--already settled.
-+A decision he has already made on a screen is not a conflict — it is the answer. Where it lives:
-+the screen's **GitLab issue** (its `What exactly` checklist and its edits), then the wireframe the
-+issue's MR edited. Look there before escalating something he has already settled. A ruling from
-+before 2026-09-11 may sit in the frozen `.claude/task/escalations.log`; cite it, never add to it.
+ | Topic | File |
+ |-------|------|
+-| Project vision, UI, multi-competition roadmap | Claude memory files (see below) + this file |
++| Project vision, the user, the navigation flow | [docs/north_star.md](docs/north_star.md) + this file |
+ | Agent role briefs | [docs/roles/](docs/roles/) — one file per role |
+ | Data contract (raw landing, merge model, endpoints) | [docs/data_contract.md](docs/data_contract.md) |
+ | dbt layer rules (what belongs where) | [dbt_project/docs/layering.md](dbt_project/docs/layering.md) |
+@@ -179,9 +198,9 @@ every session that learned something had to delete something. None of this is cu
+ Claude memory for this project lives at:
+ `C:\Users\Rami\.claude\projects\D--Projects-football-data-pipeline\memory\`
  
- ### `ui_design_brief.md` §6 and these wireframes both bind fields — here is the relationship
+-Read `MEMORY.md` there for the index. Key files:
+-- `project_vision.md` — product goals, UI, multi-competition roadmap
+-- `project_architecture.md` — layer design, CI order, form logic
++Read `MEMORY.md` there for the index. It holds how to work with Rami and what has gone wrong
++before — never the answer to any of the four questions above ("Which source answers which
++question"). Key files:
+ - `feedback_engineering.md` — engineering principles and past corrections
+ - `user_profile.md` — who Rami is and how he works
  
 diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index 2a4ec7eb..c57d597b 100644
+index c57d597b..50d3784a 100644
 --- a/docs/working_agreement.md
 +++ b/docs/working_agreement.md
-@@ -33,6 +33,21 @@ self-attested `cpo_go` contract token enforced by the impact-map gate was consid
+@@ -33,6 +33,9 @@ self-attested `cpo_go` contract token enforced by the impact-map gate was consid
  **held in reserve** — adopt it only if plan mode proves insufficient; a new gate must earn
  its place over the simplest thing that works.)
  
-+**The requirement lives in a GitLab issue, and the plan is part of it (2026-09-11).** Every
-+major task gets one issue in the `Task` template shape — *Requested by* / *What exactly* (a
-+checklist, each line checkable without reading code) / *Why* / *How* (the plan, ≤7 lines) /
-+*Not in scope*, with exploration detail below a fold. The builder writes it from the
-+conversation; **the plan file shown for approval is the issue's text, not a second
-+document**; the CPO's approval is on those lines and nothing else. The task contract's
-+`acceptance_criteria` copies the checklist verbatim (the blinded reviewers cannot read
-+GitLab). A question the issue does not answer is asked, and the answer is **edited into the
-+issue** — never appended to a log. The CPO's own carve-out: *"There are some small exceptions
-+but I think we need an issue for every major task with clear requirements and documentation
-+including a plan"* — the exceptions are a typo or a refactor with no requirement, whose MR head
-+says "No behaviour change". Why: plans were ~1,400–5,600-word files outside the
-+repo that the CPO approved without being able to scan, and decisions were quoted from chat
-+into a builder-written log — 3 of 4 review rounds on `!173` were spent on that record.
++**Which source answers which question is stated ONCE, in `CLAUDE.md` ("Which source answers
++which question") — this document does not restate it.** Memory answers none of them.
 +
- ---
- 
- ## 2. Before any non-trivial change — the task contract (machine-gated)
-@@ -116,7 +131,7 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
-   through.
- - `git commit --amend`, `--no-verify`/`-n`, and `core.hooksPath` repointing are
-   denied — history stays append-only and hook-verified.
--- Escalations are appended to `.claude/task/escalations.log` (committed).
-+- A decision is recorded by the thing it changes, never by a log (2026-09-11; §11 says how).
- 
- **The review cycle (governance G3)** — every substantive commit passes the
- serialized four steps; the commit gate enforces them mechanically:
-@@ -167,10 +182,10 @@ serialized four steps; the commit gate enforces them mechanically:
-      `.claude/task/` are excluded from `review_input.patch`
-      (`review_exclude_paths`), which is generated by
-      `git_discipline.py --review-patch`, never by hand. **Two files there are NOT
--     excluded, because they carry authority rather than notes**: `contract.md`
--     (scope and acceptance criteria) and `escalations.log` (the durable record of
--     CPO rulings that `protected_override` cites — a reviewer cannot check whether
--     a claimed ruling exists without it). The patch is CUMULATIVE from the base
-+     excluded**: `contract.md` (scope, acceptance criteria and the quoted
-+     approval a `protected_override` rests on) and `escalations.log` (frozen
-+     since 2026-09-11 — still in the patch so a citation of a past entry can be
-+     checked; a new entry in it is a defect). The patch is CUMULATIVE from the base
-      branch, never just the staged increment. §10 decisions are never approved by
-      a reviewer.
- 
-@@ -335,7 +350,19 @@ The escalation itself presents **at least two distinct, conflicting paths**. For
- 
- **End with a recommendation, and say why.** (Corrected 2026-07-22. This section used to ban one — "no preferred option, no recommendation" — and that rule was both stale and inconsistently followed: `escalations.log` holds 9 escalations that withheld a recommendation and 8 that gave one. The CPO wants the recommendation: leading with a bolded call and its reasoning is faster to judge than a neutral menu, and a menu with no view is often an undigested choice handed over rather than a decision genuinely reserved.) Anchoring is still forbidden in one specific sense: never shade the alternatives to make the recommendation look inevitable, and never guess what the CPO wants to hear. The recommendation is the agent's reasoning made visible so it can be attacked, not a nudge.
- 
--Every escalation is appended to `.claude/task/escalations.log` (committed with the branch) once the task-contract machinery exists.
-+**Where the answer goes (2026-09-11).** A decision is recorded by the thing it changes, and nowhere else:
-+
-+| the decision changes… | the record is… |
-+|---|---|
-+| **code** | the MR. The CPO merges it → approved. |
-+| **a rule** — how we work, what a screen shows, what a metric means | the document that owns that rule, **edited in the same MR** — never appended, so a changed mind replaces the old text |
-+| **a requirement** for work not yet built | that work's GitLab issue, edited in place |
-+| **a locked file** (a protected path) | the contract's `protected_override` quotes the approval with its date, and the MR head's `Locked files` line **repeats the same quote** — two copies, side by side, for the one reader who knows whether they are his words; the merge is the approval |
-+| nothing durable | not a decision. Not written anywhere. |
-+
-+**The MR head is the CPO's check.** The commit message body carries `Closes #N` and the `Locked files:` line (with the quoted approval) — the post-commit hook opens the MR with `glab mr create --fill`, so those two lines reach the MR description on their own and sit in `git log` for good. Right after, the builder sets the description to the full `Default` MR template shape (`glab mr update <n> --description …`): the issue's checklist ticked with one link per tick, the same `Locked files:` line, everything else below a fold. **The merge is the one act the builder cannot perform, so the merge is the approval** — nothing is "recorded" until he clicks, and no quote of him exists anywhere. That asks one thing of him: read the head before merging, and refuse a long one.
-+
-+`.claude/task/escalations.log` is **frozen** as of 2026-09-11 — history only, no new entries. It was written by the party it authorised, in the branch it authorised; 3 of 4 review rounds on `!173` went to misattributed quotes in it, and the CPO's own words on it: *"you write down even irrelevant content, some tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them which again lets you drift."* A citation of a past entry stays valid; a new entry is a defect.
- 
- ---
- 
+ **The requirement lives in a GitLab issue, and the plan is part of it (2026-09-11).** Every
+ major task gets one issue in the `Task` template shape — *Requested by* / *What exactly* (a
+ checklist, each line checkable without reading code) / *Why* / *How* (the plan, ≤7 lines) /
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -534,8 +288,7 @@ index 2a4ec7eb..c57d597b 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/TEMPLATE.md            |   7 +-
-#    .claude/task/acceptance_evidence.md | 122 ++---
-#    .claude/task/review_input.patch     | 974 ++++++++++++++++++------------------
-#    3 files changed, 531 insertions(+), 572 deletions(-)
+#   .claude/active_work.md              | 108 ++++++++++++++++++------------------
+#    .claude/task/acceptance_evidence.md |  81 ++++++++++++---------------
+#    2 files changed, 90 insertions(+), 99 deletions(-)
 # ============================================================================

@@ -33,11 +33,30 @@ Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL
 goes stale silently and then instructs. This one named two GitHub-era issues that resolve to
 nothing, and said so to every session until 2026-09-10.
 
+## Which source answers which question
+
+Four questions, four sources. When two sources disagree, the one in this table wins, and a fact
+found nowhere in it is not a fact.
+
+| Question | The source |
+|---|---|
+| **What does a screen show?** | the design chain, in the reading order [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns — ending at the surface's GitLab issue |
+| **What is required, and what is next?** | the **GitLab issue** (`glab issue list`; the `Task` template: What exactly / Why / How) |
+| **Where are we right now?** | [.claude/active_work.md](.claude/active_work.md) — current state only, never history or requirements |
+| **How do we work?** | [docs/working_agreement.md](docs/working_agreement.md), then this file |
+
+⛔ **Memory answers none of these.** The memory files under `~/.claude/projects/…/memory/` are the
+agent's notes — compressed by the agent, reviewed by nobody. A product fact found only in memory is
+not a fact until it is verified in the repo or an issue. Twice in 2026-09 a session acted on memory
+against the repo: "the player page is three tabs" (a later handover said four) and "the Overview
+tab is lost" (it was in a stash). Memory holds behaviour feedback and pointers; when it disagrees
+with a row above, it loses and gets corrected.
+
 ## Authoritative docs — read before making decisions
 
 | Topic | File |
 |-------|------|
-| Project vision, UI, multi-competition roadmap | Claude memory files (see below) + this file |
+| Project vision, the user, the navigation flow | [docs/north_star.md](docs/north_star.md) + this file |
 | Agent role briefs | [docs/roles/](docs/roles/) — one file per role |
 | Data contract (raw landing, merge model, endpoints) | [docs/data_contract.md](docs/data_contract.md) |
 | dbt layer rules (what belongs where) | [dbt_project/docs/layering.md](dbt_project/docs/layering.md) |
@@ -179,9 +198,9 @@ every session that learned something had to delete something. None of this is cu
 Claude memory for this project lives at:
 `C:\Users\Rami\.claude\projects\D--Projects-football-data-pipeline\memory\`
 
-Read `MEMORY.md` there for the index. Key files:
-- `project_vision.md` — product goals, UI, multi-competition roadmap
-- `project_architecture.md` — layer design, CI order, form logic
+Read `MEMORY.md` there for the index. It holds how to work with Rami and what has gone wrong
+before — never the answer to any of the four questions above ("Which source answers which
+question"). Key files:
 - `feedback_engineering.md` — engineering principles and past corrections
 - `user_profile.md` — who Rami is and how he works
 

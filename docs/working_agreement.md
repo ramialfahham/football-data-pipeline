@@ -33,6 +33,9 @@ self-attested `cpo_go` contract token enforced by the impact-map gate was consid
 **held in reserve** — adopt it only if plan mode proves insufficient; a new gate must earn
 its place over the simplest thing that works.)
 
+**Which source answers which question is stated ONCE, in `CLAUDE.md` ("Which source answers
+which question") — this document does not restate it.** Memory answers none of them.
+
 **The requirement lives in a GitLab issue, and the plan is part of it (2026-09-11).** Every
 major task gets one issue in the `Task` template shape — *Requested by* / *What exactly* (a
 checklist, each line checkable without reading code) / *Why* / *How* (the plan, ≤7 lines) /
