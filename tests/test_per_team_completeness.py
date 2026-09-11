@@ -332,7 +332,7 @@ class TestStagnationWindow:
 
 
 class TestDeliberateSkipIsNotStagnation:
-    """The 2026-08-14 nightly, pinned.
+    """The nightly that died on a deliberately skipped league, pinned.
 
     `detect_stagnant_per_team_gaps` fails a run when a pair is short of teams on two consecutive
     runs, because "the next night's fetch would have healed it". #33 item 14 put transfers on a
@@ -407,9 +407,9 @@ class TestDeliberateSkipIsNotStagnation:
         """"Never silent" is only worth what its test is worth.
 
         The message began as an inline print in the orchestrator, which no test can reach —
-        `_load_api_football` is deliberately never driven end to end. A reviewer caught that the
-        contract claimed this was asserted on the emitted text when nothing asserted anything, so
-        the text moved into a function that can be called.
+        `_load_api_football` is deliberately never driven end to end. The contract once claimed
+        this was asserted on the emitted text when nothing asserted anything, so the text moved
+        into a function that can be called.
         """
         note = skipped_exemption_note(["UCL/TRANSFERS", "SPL/TRANSFERS"])
         assert note is not None

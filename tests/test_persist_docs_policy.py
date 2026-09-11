@@ -6,7 +6,7 @@ Turning on `persist_docs` is the change in this repo's history that most directl
 field to a production build: every `description:` is pushed to BigQuery as table and column
 metadata, and BigQuery HARD-REJECTS a column description over 1,024 characters or a relation
 description over 16,384. A rejection fails the model, and in `data:build:main` that fails the prod
-build. Bracketed live on 2026-08-21 against a dev table: 1,024 accepted, 1,025 rejected with an
+build. Bracketed live against a dev table: 1,024 accepted, 1,025 rejected with an
 HTTP 400, 16,384 accepted, 16,385 rejected. It is a rejection, not a truncation.
 
 Every invariant below could previously be reverted with the entire suite still green:
@@ -17,7 +17,7 @@ Every invariant below could previously be reverted with the entire suite still g
     declare no custom schema and ride `target.schema` through `macros/generate_schema_name.sql`
     (`dbt_analytics` on prod). Every `ref()` to a seed then resolves somewhere else;
   * delete the `dbt docs generate` step, or move it to `data:nightly` / `data:build:mr`, both of
-    which the CPO's own override explicitly rejected — the first re-publishes identical pages for
+    which are explicitly rejected — the first re-publishes identical pages for
     recurring cost, the second produces a catalog covering only what one branch changed;
   * restore `allow_failure: true` and the docs step becomes the "green but did nothing" shape that
     GitLab #904 names as this repo's dominant failure. The retired GitHub workflow did exactly
@@ -168,7 +168,7 @@ def _jobs_running(command_fragment: str) -> list[str]:
 
 
 def test_docs_are_generated_exactly_once_and_only_on_main():
-    """The CPO chose the cadence: after each merge to main, and nowhere else.
+    """The cadence: after each merge to main, and nowhere else.
 
     `data:nightly` was rejected because a description's content comes from the repo, not the data,
     so a nightly run re-publishes identical pages for recurring cost. `data:build:mr` was rejected
@@ -176,7 +176,7 @@ def test_docs_are_generated_exactly_once_and_only_on_main():
     its catalog would cover only what one branch changed — a partial column list presented as the
     column list.
     ⚠ That rationale used to say "the shared ci_* datasets". There is no shared CI workspace any
-    more (#92, 2026-08-27) — each merge request writes its own — but the reason this job is still
+    more (#92) — each merge request writes its own — but the reason this job is still
     the wrong place to generate docs is UNCHANGED and if anything stronger: a per-merge-request
     dataset holds even less of the warehouse than the shared one did.
     """

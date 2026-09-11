@@ -121,8 +121,8 @@ def test_appends_names_to_an_existing_column_list(monkeypatch, tmp_path):
     # The names that were already there keep their description and tests.
     assert doc["models"][0]["columns"][0]["description"] == "Identity key."
     assert doc["models"][0]["columns"][0]["tests"] == ["not_null"]
-    # The new ones carry a name and nothing else. "No thin filler" (CPO 2026-08-21)
-    # is enforced here rather than trusted: a description invented by a generator
+    # The new ones carry a name and nothing else. "No thin filler" is enforced here
+    # rather than trusted: a description invented by a generator
     # is the worst kind.
     assert doc["models"][0]["columns"][2] == {"name": "thing_name"}
     assert doc["models"][0]["columns"][3] == {"name": "tier"}
@@ -322,8 +322,8 @@ def test_refuses_a_file_with_mixed_line_endings(monkeypatch, tmp_path, capsys):
 
 
 def test_a_failure_at_the_commit_point_leaves_the_original_intact(monkeypatch, tmp_path, capsys):
-    """platform-reviewer's round-1 FAIL. `open(path, "w")` truncates at open time,
-    so a crash between the truncate and the last write leaves a TRACKED yml
+    """`open(path, "w")` truncates at open time, so a crash between the truncate
+    and the last write leaves a TRACKED yml
     half-written. `_verify` cannot catch that: it compares two in-memory strings
     and has already returned before any byte moves.
 
@@ -854,8 +854,8 @@ def test_verify_still_refuses_a_replace_the_run_did_not_plan():
 
 
 def test_an_unplanned_line_cannot_ride_along_inside_a_planned_replace():
-    """⚠ THE CASE EVERY OTHER TEST MISSES, and platform-reviewer found it by reading
-    rather than running. The guard requires EVERY old line inside a `replace` opcode
+    """⚠ THE CASE EVERY OTHER TEST MISSES, found by reading rather than running.
+    The guard requires EVERY old line inside a `replace` opcode
     to have been planned. Weaken that to "at least one" and an unplanned line merged
     into the same opcode as a legitimate swap slips through — and `_verify`'s second,
     structural check cannot catch it either, because that one compares parsed YAML

@@ -4,10 +4,10 @@ WHY THIS EXISTS
 ---------------
 The hook auto-pushes and opens a merge request so that working agreement section 3 ("the task is
 not done until you open the MR") cannot be forgotten. It asked whether an MR *existed* for the
-branch and never whether it was still *open*. On 2026-08-07 it printed `MR already open: !16`
-while !16 was `state: merged`; two commits carrying three CPO rulings then sat on the branch with
-no MR, and `main` kept a handover the CPO had already corrected. It was noticed because a CI
-timestamp read as older than the commits, which is luck rather than a check.
+branch and never whether it was still *open*. Once it printed "MR already open" for an MR that
+was `state: merged`; two commits then sat on the branch with no MR, and `main` kept a handover
+that had already been corrected. It was noticed because a CI timestamp read as older than the
+commits, which is luck rather than a check.
 
 The failure mode is not "no MR opens". It is "the tooling reports one is open when it is not", so
 the builder reads a URL, believes step 4 is done, and stops looking. Until this file the hook had
@@ -25,7 +25,7 @@ REAL `glab` returns for that scenario. That is deliberate: the test states a req
 branch's MR state, not about which CLI call satisfies it, so a future reimplementation that asks
 correctly by some third route still passes.
 
-MEASURED, against the live project on 2026-08-07, not invented. Each cell is post-`--jq` stdout
+MEASURED against the live project, not invented. Each cell is post-`--jq` stdout
 and the process exit code:
 
   scenario                     `mr view <branch> --jq .web_url`   `mr list -s <branch> --jq .[0].web_url // empty`

@@ -180,8 +180,8 @@ class TestEvaluateCompletenessOutcome:
             # SKIP_COMPLETENESS_CHECK suppresses them too. Extended in place, never relaxed to a
             # subset, so a future signal still cannot be added here unnoticed.
             "stagnant_per_team_gaps": [],
-            # 2026-08-14: pairs the re-fetch cadence deliberately skipped this run, which the gate
-            # exempts from stagnation. Reported so an exemption is never silent. Added here
+            # Pairs the re-fetch cadence deliberately skipped this run, which the gate exempts
+            # from stagnation. Reported so an exemption is never silent. Added here
             # consciously, which is the point of the exact-equality assertion above — this key
             # could not slip in unnoticed, and it did not.
             "skipped_per_team_exempt": [],

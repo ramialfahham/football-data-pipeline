@@ -2,10 +2,9 @@
 
 WHY THIS EXISTS
 ---------------
-`.ruff-ci.toml` was added on 2026-08-07 after `platform-reviewer` at opus spent ~125k tokens on
-!19 finding a duplicate module-level function name. Three review rounds on that change surfaced
-five defects, and every one of them shares a shape: the lint setup keeps failing in ways that
-report success.
+`.ruff-ci.toml` was added after a review spent ~125k tokens finding a duplicate module-level
+function name that a linter should have found. The change that added it surfaced five defects,
+and every one of them shares a shape: the lint setup keeps failing in ways that report success.
 
   * The ruleset can be narrowed and nothing goes red — it just stops finding things.
   * `dummy-variable-rgx` can be deleted and the violation count does not move, because the repo
@@ -65,7 +64,7 @@ def test_select_is_exactly_ruffs_default_set():
 def test_the_dummy_variable_override_survives():
     """Its removal is invisible: the violation count is unchanged and the build stays green.
 
-    Ruff's default exempts ALL underscore-prefixed names from F811/F841. Measured 2026-08-07:
+    Ruff's default exempts ALL underscore-prefixed names from F811/F841. Measured:
     `f` and `review_patch` are flagged for redefinition; `_f`, `_review_patch` and `__x` are not.
     """
     rgx = _config()["lint"].get("dummy-variable-rgx")
@@ -134,7 +133,7 @@ def test_per_file_ignores_only_exempt_e402_in_the_shim_scripts():
 def test_the_ci_job_passes_the_config_and_no_select_override():
     """`--select` on the command line OVERRIDES the config file wholesale.
 
-    Round 3 of this change found the acceptance criterion itself naming
+    The acceptance criterion of the change that added the config itself once named
     `ruff check . --select F,E9`, which would have passed on a tree where E4/E7 were red or where
     the config failed to load at all. The same mistake in the CI job would make every other test
     in this file meaningless.

@@ -3,15 +3,15 @@
 The original defect: `_delete_superseded_player_rows` deleted the prior row for a (team, season)
 keyed on what the NEW row claimed, with no check that the fetch had succeeded. A per-minute rate
 limit arrives as HTTP 200 with the error in the body, so a rejected call looked like an
-empty-but-valid squad and destroyed the good rows it failed to replace. Measured on the 2026-08-02
-nightly: UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40
+empty-but-valid squad and destroyed the good rows it failed to replace. Measured on one nightly:
+UCL 340 went 25 players to 0, UEL 573 24 to 0, UECL 20034 23 to 0, and APD 463 46 to 40
 when the limit hit mid-pagination.
 
 No existing test could catch this class and none could be written against the old signals: the
 TABLE GREW while the data was destroyed, so row-count, freshness and not-null checks all passed.
 
-⚠ THE DELETES ARE GONE since 2026-08-17 (CPO: raw appends and never deletes; the removal is pinned
-by `tests/test_raw_merge_on_write.py`). This file keeps its subject anyway, narrowed to the half
+⚠ THE DELETES ARE GONE (raw appends and never deletes; the removal is pinned by
+`tests/test_raw_merge_on_write.py`). This file keeps its subject anyway, narrowed to the half
 that still exists and still matters: an incomplete fetch is not WRITTEN. That is not the same
 guarantee as "not deleted", and it is not made redundant by append-only — a written row marks the
 key captured, so a rate-limited empty answer would still turn a transient failure into a permanent
@@ -115,8 +115,8 @@ class TestCompleteFetchIsStillWritten:
         assert ctx.errors == []
 
     def test_empty_but_complete_response_is_still_written(self, monkeypatch):
-        # CPO decision 2026-08-03: an empty response with NO error is the provider genuinely
-        # reporting no players, and is indistinguishable from one. It is written. Refusing to
+        # An empty response with NO error is the provider genuinely reporting no players, and
+        # is indistinguishable from one. It is written. Refusing to
         # write on emptiness would strand 3,539 historical team-seasons outside the fetch
         # cache and re-fetch them every night, about +42 min per run, permanently.
         #
@@ -212,7 +212,7 @@ class TestResultIsComplete:
 
 
 class TestReturnedKeySetIsStable:
-    """Regression guard for the defect review round 1 caught.
+    """Regression guard for a defect the first version of the fix had.
 
     `fetch_merged_paged`'s returned dict is copied wholesale into the stored raw payload by
     `_merge_merged_paged` (standings, fixtures) and by the manual envelope comprehension in
@@ -318,8 +318,8 @@ class TestFixtureDetailsRetryKeepsBothVersions:
     and poorer in another. The delete made the poorer answer the only surviving one: fixture
     1564795 went 27 events to 17, an entire penalty shootout, unrecoverable.
 
-    CPO 2026-08-17, verbatim: "raw keeps both versions." Base decides, using the rule it already
-    has (`base_apif__fixture_events`, newest per (league_code, fixture_id, event_index)).
+    The rule: "raw keeps both versions." Base decides, using the rule it already has
+    (`base_apif__fixture_events`, newest per (league_code, fixture_id, event_index)).
     """
 
     def test_a_retried_fixture_is_appended_and_nothing_is_deleted(self, monkeypatch):

@@ -10,7 +10,7 @@ three. Index 2 was generated and never sent.
 The policy that went missing was `fdp freshness sentinel itself stopped`: the one that fires
 when the freshness sentinel itself dies. So the dropped alert was precisely the alert whose
 absence nothing else can reveal. It FAILS OPEN — the broken state looks identical to the
-working one — and it sat undeployed until found by accident on 2026-08-11.
+working one — and it sat undeployed until found by accident.
 
 HOW IT IS SHAPED, AND TWO REJECTED ATTEMPTS
 -------------------------------------------
@@ -20,8 +20,8 @@ progression is the useful part:
   v1 matched the SHAPE OF THE RETIRED BASH RECIPE (`for i in 0 1`, `{0..1}`, `polN.json`). The
      fixed recipe is Python, so every pattern was already unreachable.
   v2 parsed the recipe with `ast` and forbade a number, slice, `islice` or `break` in the loop
-     expression. Better, but still a shape test, and a reviewer produced four rewrites that
-     reproduce #61 while passing all of it: hoisting the slice into a variable
+     expression. Better, but still a shape test: four rewrites reproduce #61 while passing
+     all of it — hoisting the slice into a variable
      (`policies_to_apply = ...[:2]`), a `continue` that skips one policy, a filter baked into a
      generator expression, and a second statement that undoes the loop afterwards.
 
@@ -242,8 +242,8 @@ def test_recipe_updates_every_declared_policy_and_creates_nothing_when_all_exist
 
 # Sizes the count-independence tests run at. MORE THAN ONE, ON PURPOSE.
 #
-# An earlier version used 5 everywhere, and a reviewer pointed out that this had simply MOVED
-# the hardcoded number rather than removed it: a bound of exactly 5 - the size the suite itself
+# An earlier version used 5 everywhere, which had simply MOVED the hardcoded number rather
+# than removed it: a bound of exactly 5 - the size the suite itself
 # had standardised on - was invisible to every test. The same defect as #61, one layer up.
 #
 # No finite set of sizes proves a universal property. What this does is make a surviving bound

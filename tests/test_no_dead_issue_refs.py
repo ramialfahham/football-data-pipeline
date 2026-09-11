@@ -35,8 +35,8 @@ set and is NOT caught. Silent. Accepted as the price of an offline guard; the bo
 cover it.
 
 These are every `#115`-`#9999` referenced anywhere in `CLAUDE.md`, `docs/`,
-`.claude/active_work.md` and the memory store as of 2026-09-10; since GitLab had only reached #115
-that day, anything at or above it in a document written earlier is necessarily GitHub-era.
+`.claude/active_work.md` and the memory store, enumerated when GitLab had only reached #115;
+anything at or above it in a document written earlier is necessarily GitHub-era.
 
 ⚠ ONE FUTURE COLLISION IS POSSIBLE AND IS HANDLED BY DESIGN: if GitLab ever issues a number that is
 in this set, a legitimate reference to it would be flagged. The fix is to delete that one number
@@ -125,8 +125,8 @@ def test_the_guard_can_actually_fire():
     # The trailing-hex guard: a six-digit CSS colour is not issue 475569.
     assert _dead_refs("| Weaker side | `#475569` (slate-600) |") == []
     # HTML entities are not issue references, at ANY escape depth — the `;` exclusion, not a
-    # per-depth blacklist. `platform-reviewer` found depth 2 after depth 1 was fixed; depth 3 is
-    # pinned here so the regress is closed rather than one step behind.
+    # per-depth blacklist. Depth 2 surfaced after depth 1 was fixed; depth 3 is pinned here so
+    # the regress is closed rather than one step behind.
     assert _dead_refs("the trademark sign is &#153; in legacy markup") == []
     assert _dead_refs("shown literally as &amp;#753; in the source") == []
     assert _dead_refs("and doubly as &amp;amp;#753; if quoted again") == []
@@ -149,10 +149,8 @@ def test_a_short_all_digit_hex_colour_is_a_KNOWN_false_positive():
     ⛔ ASSERTING THE CURRENT (WRONG) BEHAVIOUR ON PURPOSE. If someone later makes `#217` in prose
     stop being read as an issue, this test fails and they must decide deliberately whether they have
     also just introduced a false negative. That is the point — an undocumented gap becomes a
-    documented one.
-
-    Found by `platform-reviewer` at round 3, after it had already found the six-digit colour and two
-    depths of HTML entity in the same pattern.
+    documented one — the third hole of this kind in the same pattern, after the six-digit colour
+    and two depths of HTML entity.
     """
     assert _dead_refs("accent colour #217 was chosen") == [217]
     assert _dead_refs("use #753 as the tint") == [753]
@@ -176,10 +174,10 @@ def test_a_reference_abutting_a_hex_letter_is_a_KNOWN_false_negative():
     A citation written as `#217e`, with no space or punctuation after the number, is not a form
     anyone uses — verified: `grep -P "#\\d{1,4}[a-fA-F]"` over both guarded files matches nothing.
 
-    ⛔ PINNED BECAUSE IT WAS SILENT. `platform-reviewer` FAILed round 4 on exactly that: I had
-    pinned the false-POSITIVE side (`#217` as a colour) and left this side undisclosed and
-    untested, which is the more dangerous half by this file's own standard. Its words: a test that
-    would still pass with the change reverted is not coverage. This is that assertion.
+    ⛔ PINNED BECAUSE IT WAS SILENT. An earlier version pinned the false-POSITIVE side (`#217`
+    as a colour) and left this side undisclosed and untested, which is the more dangerous half
+    by this file's own standard: a test that would still pass with the change reverted is not
+    coverage. This is that assertion.
     """
     assert _dead_refs("see #217e for details") == []
     assert _dead_refs("the tag #908d covers it") == []
@@ -192,10 +190,10 @@ def test_no_member_of_the_dead_set_can_be_removed_quietly():
     """⛔ THE OBVIOUS WAY TO SILENCE THIS GUARD IS TO EDIT THE SET, so every member is pinned.
 
     An earlier version pinned only `min(...) == 151` and two literal strings, which protected
-    exactly 4 of 256 members — deleting any of the other 252 left all tests green.
-    `platform-reviewer` caught it, and caught that the mutation offered as proof had deleted 151
-    itself: the one member that happened to be pinned. A cherry-picked mutation demonstrates
-    nothing about the general property it is offered for.
+    exactly 4 of 256 members — deleting any of the other 252 left all tests green, and the
+    mutation offered as proof had deleted 151 itself: the one member that happened to be
+    pinned. A cherry-picked mutation demonstrates nothing about the general property it is
+    offered for.
 
     A digest covers every member against deletion, addition AND substitution, which a length check
     alone would not. `hashlib` rather than `hash()` because the built-in is salted per process for
@@ -217,8 +215,9 @@ def test_no_member_of_the_dead_set_can_be_removed_quietly():
 def test_the_headroom_before_a_collision_is_stated():
     """The set is closed, so the only way it goes wrong is GitLab reaching one of these numbers.
 
-    GitLab was at #115 on 2026-09-10 and the lowest dead number is #151, so there are 35 issues of
-    headroom. Pinning both ends makes the collision arrive as a named test failure rather than as a
+    GitLab was at #115 when the set was enumerated and the lowest dead number is #151, so there
+    were 35 issues of headroom. Pinning both ends makes the collision arrive as a named test
+    failure rather than as a
     confusing false positive on a live reference.
     """
     assert min(DEAD_GITHUB_ISSUES) == 151

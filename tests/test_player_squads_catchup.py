@@ -171,7 +171,7 @@ def _patch_quota_cut_after_first(monkeypatch):
 
     def fake_squad(headers, team_id, errors, error_context=""):
         monkeypatch.setattr(q, "_http_quota_exhausted", True)  # exhaust after the first fetch
-        # (rows, complete) since 2026-08-17. COMPLETE deliberately: this test is about the QUOTA
+        # The helper returns (rows, complete). COMPLETE deliberately: this test is about the QUOTA
         # cut mid-competition, not about a failed fetch, and the two paths must stay separable.
         return [{"players": []}], True
 

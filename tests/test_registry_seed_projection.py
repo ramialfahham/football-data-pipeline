@@ -86,8 +86,8 @@ def test_guard_catches_whitespace_corruption_in_the_seed(tmp_path, monkeypatch):
     """A trailing space in a seed cell must FAIL, not be normalised away.
 
     The first draft stripped the SEED side while comparing against an unstripped registry, so
-    "UEFA " matched "UEFA" and the guard reported OK on a corrupted file (platform-reviewer,
-    round 1). Nothing else would have caught it: a trailing space is neither null nor a duplicate,
+    "UEFA " matched "UEFA" and the guard reported OK on a corrupted file. Nothing else would
+    have caught it: a trailing space is neither null nor a duplicate,
     so `not_null` and `unique` pass, and only `confederation` has a relationships test.
 
     Normalisation now happens once in the writer, and the comparison is exact. Driven through the

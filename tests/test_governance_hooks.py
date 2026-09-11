@@ -57,12 +57,11 @@ CONTRACT_OVERRIDE = CONTRACT.replace(
     "scope_paths:\n", "scope_paths:\n  - .claude/hooks/some_hook.py\n"
 )
 
-# An override WITHOUT an impact_map. This fixture did not exist until 2026-07-22,
-# and its absence is why the suite covered only the ALLOW direction of the
-# protected-path gate: CONTRACT_OVERRIDE derives from CONTRACT, which already
-# carries _IMPACT_BLOCK, so `test_protected_path_allowed_with_override` would
-# have passed identically whether or not the map was ever checked. A one-sided
-# test passes while broken (cto-reviewer, 2026-07-22).
+# An override WITHOUT an impact_map. Without this fixture the suite covered only the
+# ALLOW direction of the protected-path gate: CONTRACT_OVERRIDE derives from
+# CONTRACT, which already carries _IMPACT_BLOCK, so
+# `test_protected_path_allowed_with_override` would have passed identically whether
+# or not the map was ever checked. A one-sided test passes while broken.
 CONTRACT_OVERRIDE_NO_IMPACT = CONTRACT_NO_IMPACT.replace(
     "decisions_taken:",
     'protected_override: >\n  CPO approval test\ndecisions_taken:',
@@ -101,8 +100,7 @@ def _repo_template(tmp_path_factory):
     instead of running `git init` + 2 configs + add + commit per test — six
     subprocess spawns each, over ~200 tests, which is what made the suite take
     ~11 minutes. A git repo is path-independent, so a copied `.git` keeps the
-    initial commit and each copy mutates in isolation (review-economics trim,
-    2026-07-22)."""
+    initial commit and each copy mutates in isolation."""
     base = tmp_path_factory.mktemp("repo_template")
     subprocess.run(["git", "init", "-q"], cwd=base, check=True)
     subprocess.run(["git", "config", "user.email", "t@t"], cwd=base, check=True)
@@ -231,9 +229,8 @@ def test_ingestion_edit_denied_without_impact_map(repo):
 def test_nullish_impact_map_does_not_satisfy(repo, value, spelling):
     """`impact_map: none` used to satisfy the requirement. The nullish set
     rejected `(none)` but not `none`, `n/a` or `TBD`, and did not case-fold — the
-    same hole class fixed in the sibling helper a round earlier, left standing in
-    the function this task makes load-bearing on every guard edit in the repo
-    (cto-reviewer, 2026-07-22)."""
+    same hole class fixed in the sibling helper, left standing in the function
+    that is load-bearing on every guard edit in the repo."""
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
         "decisions_taken:", spelling.format(v=value) + "decisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
@@ -246,7 +243,7 @@ def test_block_scalar_header_impact_map_does_not_satisfy(repo, header):
     """A YAML chomping or indentation suffix used to walk straight through the
     nullish word list, which had `>` and `|` but not `>-`. Not contrived: this
     repo's own workflow files write `>-`. Matched by pattern now, because
-    enumerating literals loses by one variant every round (cto-reviewer)."""
+    enumerating literals loses by one variant every time."""
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
         "decisions_taken:", f"impact_map: {header}\n  none\ndecisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
@@ -274,8 +271,8 @@ def test_block_scalar_header_decisions_reserved_does_not_satisfy(repo, header):
 def test_real_impact_map_is_allowed_in_every_spelling(repo, spelling):
     """The ALLOW half. The nullish tests covered three spellings of DENY while
     the only ALLOW fixture was the plain block scalar, so a fix that rejected too
-    much would have passed — the one-sided coverage this contract's own done_when
-    names, found for the third time (cto-reviewer, 2026-07-22)."""
+    much would have passed — one-sided coverage, the third instance of the class
+    in this file."""
     write_contract(repo, CONTRACT_NO_IMPACT.replace(
         "decisions_taken:", spelling + "decisions_taken:"))
     out, _ = run_hook("task_contract_gate.py",
@@ -374,7 +371,7 @@ def test_stop_never_loops(repo):
     assert out.strip() == ""
 
 
-# --- parked work in the stash (added 2026-09-11, CPO-approved protected-path edit) ---
+# --- parked work in the stash ---
 def _stash(repo, label: str) -> None:
     """Park one tracked change under `label`. Leaves the tree CLEAN, which is the whole point."""
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 2")
@@ -457,9 +454,9 @@ def test_normal_commit_not_denied(repo):
 # --------------------------------------------------------------------------- #
 # The REAL routing file. Everything below this block uses a synthetic fixture,
 # which is correct for testing the gate's mechanics — but it meant nothing ever
-# tested the routing DATA. On 2026-07-22 a routing change shipped that missed six
-# tracked files, including `site_v2/src/lib/metricRows.ts` (the CPO-locked 16-row
-# display contract), because it was "verified" by a one-off manual evaluation
+# tested the routing DATA. A routing change once shipped that missed six tracked
+# files, including `site_v2/src/lib/metricRows.ts` (the locked 16-row display
+# contract), because it was "verified" by a one-off manual evaluation
 # against two paths that did not exist. These tests load the real file and
 # enumerate the real tree, so that class of miss fails the build instead.
 # --------------------------------------------------------------------------- #
@@ -482,8 +479,7 @@ def required_reviewers(routing: dict, path: str) -> set:
     only because no `/**` pattern has an fnmatch metacharacter in its prefix,
     and this tree's own directories are `[lang]`, `[competition]`, `[fixture]`,
     so that is luck rather than design. Testing a model of the system instead of
-    the system is the exact root cause this whole change exists to fix
-    (cto-reviewer, 2026-07-22)."""
+    the system is the exact root cause these tests exist to fix."""
     return _gd()._required_reviewers([path], routing)
 
 
@@ -503,7 +499,7 @@ def tracked(prefix: str) -> list[str]:
     so it fails the prefix filter and silently leaves the coverage set — the
     under-enumeration bug this repo already fixed twice in the hooks themselves.
     A test whose one promise is "every tracked file is covered" must not
-    under-enumerate (cto-reviewer, 2026-07-22)."""
+    under-enumerate."""
     r = subprocess.run(["git", "ls-files", "-z", prefix], capture_output=True, text=True,
                        cwd=os.path.join(os.path.dirname(__file__), ".."))
     assert r.returncode == 0, f"git ls-files failed: {r.stderr}"
@@ -513,7 +509,7 @@ def tracked(prefix: str) -> list[str]:
 def test_every_reviewer_brief_carries_the_identical_delta_section():
     """The delta-re-review rule must read the same in all six briefs; a reviewer
     that received a drifted copy would apply a different rule. Enumerated from the
-    real agents directory, not a hand list (review-economics, 2026-07-22)."""
+    real agents directory, not a hand list."""
     import glob
     agents_dir = os.path.join(os.path.dirname(__file__), "..", ".claude", "agents")
     briefs = sorted(glob.glob(os.path.join(agents_dir, "*.md")))
@@ -550,7 +546,7 @@ def test_ci_backstop_reuses_the_canonical_hook_logic():
     structural logic — it diverged once (the override placeholder set, the
     `(none)` spelling, the export regex) and nothing caught it. Assert CI calls
     the hooks' own functions, and that the two nullish sets are identical, so a
-    future hand-copy is impossible to land green (cto-reviewer, 2026-07-22)."""
+    future hand-copy is impossible to land green."""
     import importlib
     gd = _gd()                                  # inserts .claude/hooks on the path
     sys.path.insert(0, SCRIPTS)
@@ -568,7 +564,7 @@ def test_ci_backstop_reuses_the_canonical_hook_logic():
 
 def test_empty_cap_override_does_not_absorb_the_next_line(repo):
     """`rounds_cap_override:` with no inline value must NOT capture the following
-    `## header` as its reason (cto-reviewer, 2026-07-22)."""
+    `## header` as its reason."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY,
                  rounds="rounds: 4\nrounds_cap_override:\n")
@@ -579,7 +575,7 @@ def test_empty_cap_override_does_not_absorb_the_next_line(repo):
 @pytest.mark.parametrize("word", ["tbd", "none", "(none)", "n/a", "todo", "-"])
 def test_word_placeholder_cap_override_rejected(repo, word):
     """The word-placeholders, not just `<...>`, must be rejected — the CI copy
-    used to accept them (cto-reviewer, 2026-07-22)."""
+    used to accept them."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY,
                  rounds=f"rounds: 4\nrounds_cap_override: {word}\n")
@@ -597,9 +593,9 @@ def test_real_routing_parses_and_has_the_required_keys():
 
 def test_every_tracked_frontend_source_file_gets_the_display_reviewer():
     """The binding rule (00_overview.md, "the whole point") says a block may
-    reference only fields that exist in the export. bi-analyst-reviewer enforces
-    it. If ANY file that can render a field escapes that reviewer, a fabricated
-    metric ships unseen — which is exactly what was planned on 2026-07-22.
+    reference only fields that exist in the export. The display reviewer (the
+    bi-analyst) enforces it. If ANY file that can render a field escapes that
+    reviewer, a fabricated metric ships unseen — which was once exactly the plan.
 
     Enumerated from `git ls-files`, not from a hand-written list, because the
     hand-written list is what was wrong."""
@@ -620,9 +616,8 @@ def test_every_tracked_frontend_non_source_file_gets_platform_review():
     (`vitest.config.ts`, `.npmrc`, a postcss config) routes to NOBODY and the suite
     stays green.
 
-    Both cto-reviewer and platform-reviewer raised this independently at opus on
-    2026-07-31, citing this file's own docstrings three times over: a hand-written
-    list is what was wrong the last three times. `site_v2/.gitignore` is included
+    A hand-written list is what was wrong the last three times, as this file's own
+    docstrings say three times over. `site_v2/.gitignore` is included
     deliberately — a path covered today does not lose coverage in a split."""
     r = real_routing()
     outside = [f for f in tracked("site_v2") if not f.startswith("site_v2/src/")]
@@ -644,7 +639,7 @@ def test_frontend_build_config_does_not_get_the_display_reviewer():
     (`package-lock.json`, `.gitignore`) and would miss whatever lands outside
     `src` next. Writing one direction from the real tree and the other from a
     literal is the same defect at half scale, in the file whose whole thesis is
-    "enumerate the real tree" (cto-reviewer, 2026-07-22)."""
+    "enumerate the real tree"."""
     r = real_routing()
     outside = [f for f in tracked("site_v2") if not f.startswith("site_v2/src/")]
     assert outside, "no tracked files outside site_v2/src — has the tree moved?"
@@ -663,9 +658,9 @@ PINNED_CASES = [
     ("docs/competition_registry.yml", "data-engineer-reviewer"),
     ("docs/data_contract.md", "data-engineer-reviewer"),
     ("scripts/export_site_data.py", "analytics-engineer-reviewer"),
-    # The CTO split (#868, 2026-07-31): the territory moved to platform-reviewer,
-    # so these four pins moved with it. The CTO is no longer routed to scripts/,
-    # tests/ or site_v2/ at all — it is woken by a PROPERTY of the change.
+    # The CTO split (#868): the territory moved to the platform reviewer, so these
+    # four pins moved with it. The CTO is no longer routed to scripts/, tests/ or
+    # site_v2/ at all — it is woken by a PROPERTY of the change.
     ("scripts/sync_dbt_vars.py", "platform-reviewer"),
     ("tests/test_governance_hooks.py", "platform-reviewer"),
     ("requirements.txt", "cto-reviewer"),
@@ -723,13 +718,13 @@ def test_every_routing_pattern_is_pinned_by_the_test_above():
     `dbt_project/seeds/competition_registry.csv` sat in it with no case pinning
     them, so deleting either route left the whole suite green — frontend build
     config would have lost platform review silently. A hand-typed copy of a list
-    is a list that desynchronises (cto-reviewer, 2026-07-22).
+    is a list that desynchronises.
 
     A pattern counts as pinned only when some case both MATCHES it and asserts a
     reviewer that pattern actually confers. Matching alone is not enough:
-    `site_v2/src/lib/metricRows.ts` matches `site_v2/**` too, but it asserts
-    `bi-analyst-reviewer`, which says nothing about whether `site_v2/**` still
-    routes to the CTO."""
+    `site_v2/src/lib/metricRows.ts` matches `site_v2/**` too, but it asserts the
+    display reviewer, which says nothing about whether `site_v2/**` still routes
+    to the CTO."""
     routing = real_routing()
     unpinned = [
         pattern for pattern, reviewers in routing["paths"].items()
@@ -747,7 +742,7 @@ def test_copy_gate_parses_the_real_strings_file():
     strings.ts's own header explains why every value is double-quoted: the build
     gate `check-page-specs.mjs` extracts keys on the double quote, so rewriting an
     entry as a backtick template drops it from the checked set. The same fragility
-    applies here, so it is pinned here (CPO ruling 2026-07-31, #868)."""
+    applies here, so it is pinned here (#868)."""
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
     try:
         import check_copy_gate as gate
@@ -800,9 +795,8 @@ def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
     nothing for a merge without `-m`, so `total == 0` and the assertion would have
     reddened **every PR in the repo, including this branch's own**. The irony was
     that `report_process_health.py` documents exactly that shape and handles it,
-    while the test asserted it could not happen. Caught by platform-reviewer at
-    opus, round 4. Faking `_git` also removes seven subprocess spawns and lets one
-    test pin the counting as well as the roster."""
+    while the test asserted it could not happen. Faking `_git` also removes seven
+    subprocess spawns and lets one test pin the counting as well as the roster."""
     health = _health()
     monkeypatch.setattr(health, "_git", _fake_git({
         "sha1": ["dbt_project/models/x.sql"],
@@ -826,9 +820,8 @@ def test_health_report_surfaces_a_dead_reviewer(monkeypatch):
 
 def test_health_report_survives_a_shallow_clone(monkeypatch, capsys):
     """The branch that closed the `ZeroDivisionError` was the one thing nothing
-    exercised — platform-reviewer's own words in round 4, and it was right. An empty
-    range is the realistic CI shape (see the test above), so `main()` must report
-    and exit 0 rather than divide by zero."""
+    exercised. An empty range is the realistic CI shape (see the test above), so
+    `main()` must report and exit 0 rather than divide by zero."""
     health = _health()
     monkeypatch.setattr(health, "_git", _fake_git({}))
     assert health.main() == 0
@@ -842,10 +835,9 @@ def test_copy_gate_floor_is_in_the_gate_not_only_in_this_test(tmp_path, monkeypa
     regex works today but says nothing about the gate: set `MIN_KEYS = 0`, or delete
     the `thin` block, and the suite stayed green while `main()` would print
     "COPY GATE ok: 0 strings" and return 0 over a broken regex. That is the exact
-    failure the floor exists to prevent, and it was the floor's own coverage gap.
-    Caught by platform-reviewer at opus, round 3 — the same finding class it had
-    already raised twice, which is why it is pinned by driving `main()` rather than
-    by inspecting a constant.
+    failure the floor exists to prevent, and it was the floor's own coverage gap —
+    the same finding class as the two above, which is why it is pinned by driving
+    `main()` rather than by inspecting a constant.
 
     A dictionary whose values are backtick templates matches `_DICT_RE` but yields
     ZERO entries from `_ENTRY_RE` — the fragility `strings.ts`'s own header warns
@@ -906,8 +898,7 @@ def test_copy_gate_metric_floor_is_in_the_gate_not_only_in_a_test(tmp_path, monk
     has no METRIC_LABELS block at all, so the CHROME floor fires and `main()` returns
     before the metric block is ever reached. So `MIN_METRIC_KEYS = 0`, or deleting the
     `thin_metrics` branch, broke no test — a second unpinned floor added while the
-    comment beside it cited the first one's lesson. Caught by platform-reviewer,
-    round 1 of #370.
+    comment beside it cited the first one's lesson.
 
     The fixture therefore keeps the chrome dicts HEALTHY (40 double-quoted entries, so
     the chrome floor passes) and breaks only the metric values, using backtick
@@ -949,8 +940,8 @@ def test_copy_gate_metric_parser_agrees_with_the_real_consumers():
     `check-metric-labels.test.mjs`'s. The two JS ones are pinned to each other in that
     test file; this pins the PYTHON one to the keys the page actually asks for, so all
     three are tied to a common anchor rather than merely agreeing by luck. The drift
-    class is the one `platform-reviewer`'s brief names for the hand-copied reviewer
-    matcher (round 1 of #370)."""
+    class is the one the platform brief names for the hand-copied reviewer
+    matcher."""
     import pathlib
     import re as _re
 
@@ -985,7 +976,7 @@ def test_copy_gate_sees_the_player_metric_namespace_too():
 
     Every fixture in `_strings_fixture()` emits `metrics.mN.label` keys only, and `MIN_METRIC_KEYS`
     (15) still clears at the 18 `metrics.*` labels, so reverting the widening leaves every other
-    test here green — which is exactly the hole platform-reviewer FAILed round 1 of that branch for.
+    test here green — exactly the hole this test exists to close.
 
     The board list is read from the export and its labels from the catalogue, the two places that
     already own them, rather than copied into this file: the same anchor the JS side uses in
@@ -1043,12 +1034,10 @@ def test_routing_has_no_duplicate_keys():
     with no signal. Neither consumer detects it and no other test would either,
     because the parsed dict looks perfectly well-formed.
 
-    Live risk as of the CTO split (#868): five patterns are deliberately shared
-    between `cto-reviewer` and `platform-reviewer`, and the natural way to write
-    that change is one key per role. `object_pairs_hook` sees the raw pairs
-    BEFORE the dict collapses them, so this is exact rather than a regex guess.
-
-    Found by the pre-CPO plan challenge on 2026-07-31, not in review."""
+    Live risk since the CTO split (#868): five patterns are deliberately shared
+    between the CTO and the platform reviewer, and the natural way to write that
+    change is one key per role. `object_pairs_hook` sees the raw pairs BEFORE the
+    dict collapses them, so this is exact rather than a regex guess."""
     def reject_dupes(pairs):
         seen = set()
         for key, _ in pairs:
@@ -1062,10 +1051,10 @@ def test_routing_has_no_duplicate_keys():
 
 def test_frontend_source_gets_no_authority_or_platform_review():
     """The regression guard for what motivated the CTO split (#868). Before it,
-    `site_v2/**` routed to `cto-reviewer` while `site_v2/src/**` routed to
-    `bi-analyst-reviewer`, so 48 distinct tracked files demanded BOTH and a CTO
-    reviewed Astro markup — the wrong altitude, and it spent the one role with
-    architectural authority on line review.
+    `site_v2/**` routed to the CTO while `site_v2/src/**` routed to the display
+    reviewer, so 48 distinct tracked files demanded BOTH and a CTO reviewed Astro
+    markup — the wrong altitude, and it spent the one role with architectural
+    authority on line review.
 
     Enumerated from `git ls-files`, like its two siblings above, because a
     hand-written list is what was wrong the last three times."""
@@ -1095,7 +1084,7 @@ ROUTING = {
         ".claude/task/rendered_page_evidence.md",
     ],
     # Mirrors the REAL review_exclude_paths. escalations.log is deliberately ABSENT:
-    # it is authority, not a note, so reviewers must receive it (cto-reviewer, round 1).
+    # it is authority, not a note, so reviewers must receive it.
     "review_exclude_paths": [
         ".claude/task/review.md",
         ".claude/task/review_input.patch",
@@ -1133,18 +1122,11 @@ def write_review(repo, hash_hex, body, rounds="rounds: 1\n"):
     )
 
 
-GOOD_BODY = """## scope-auditor
-VERDICT: PASS
-risks_checked:
-- risk one checked
-- risk two checked
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- risk one checked
-- risk two checked
-"""
+GOOD_BODY = (
+    "## scope-auditor\nVERDICT: PASS\nrisks_checked:\n- risk one checked\n- risk two checked\n\n"
+    "## analytics-engineer-reviewer\nVERDICT: PASS\nrisks_checked:\n- risk one checked\n"
+    "- risk two checked\n"
+)
 
 COMMIT_CMD = 'git commit -m "feat: x"'
 
@@ -1188,10 +1170,10 @@ def test_commit_denied_when_required_reviewer_missing(repo):
 
 
 def test_commit_allowed_on_pass_with_one_thing_examined(repo):
-    """A PASS may find nothing (CPO 2026-08-01). One entry under risks_checked:
+    """A PASS may find nothing. One entry under risks_checked:
     is enough — the floor dropped from 2 to 1, because requiring two on correct
     code obliged the reviewer to invent, and what it invented was findings about
-    the builder's own paperwork (#370 rounds 6-12)."""
+    the builder's own paperwork (#370 spent seven rounds that way)."""
     setup_review_repo(repo)
     body = GOOD_BODY.replace("- risk two checked\n\n## analytics", "\n## analytics", 1)
     write_review(repo, staged_hash(repo), body)
@@ -1202,7 +1184,7 @@ def test_commit_allowed_on_pass_with_one_thing_examined(repo):
 def test_commit_denied_on_pass_with_nothing_examined(repo):
     """The floor is 1, not 0. A bare PASS with nothing under risks_checked: is
     still denied — that is the rubber stamp the original two-risk rule existed
-    to prevent, and it survives the 2026-08-01 relaxation."""
+    to prevent, and it survives the relaxation to one."""
     setup_review_repo(repo)
     body = GOOD_BODY.replace(
         "risks_checked:\n- risk one checked\n- risk two checked\n\n## analytics",
@@ -1213,8 +1195,8 @@ def test_commit_denied_on_pass_with_nothing_examined(repo):
 
 
 def test_bullets_before_risks_marker_do_not_satisfy_quota(repo):
-    """Risks count anchors to the risks_checked: marker (CTO, round 3) —
-    stray bullets above it must not pass for checked risks."""
+    """Risks count anchors to the risks_checked: marker — stray bullets above it
+    must not pass for checked risks."""
     setup_review_repo(repo)
     body = GOOD_BODY.replace(
         "VERDICT: PASS\nrisks_checked:\n- risk one checked\n- risk two checked\n\n## analytics",
@@ -1241,7 +1223,7 @@ def test_artifact_only_commit_exempt_from_review(repo):
 
 
 # --------------------------------------------------------------------------- #
-# Acceptance gate (Quality Assurance, CPO ruling 2026-07-31, #868)
+# Acceptance gate (Quality Assurance, #868)
 #
 # Every reviewer reads the diff and asks whether the code is right; none asked
 # whether the finished thing does what the ticket asked. The player Overview
@@ -1323,8 +1305,7 @@ def test_acceptance_gate_does_not_fire_off_the_user_facing_surface(repo):
     `select 1`, byte-identical to what `_repo_template` already committed, so
     `git diff --staged --name-only` was EMPTY, `_commit_gate` returned at its
     `if not paths` guard, and the gate under test was never reached — the test
-    would have passed with `ACCEPTANCE_TRIGGER = ""`, i.e. firing on everything.
-    Caught by platform-reviewer at opus, 2026-07-31, round 1."""
+    would have passed with `ACCEPTANCE_TRIGGER = ""`, i.e. firing on everything."""
     _stage_frontend(repo, contract="objective: >\n  a model\nscope_paths:\n  - x\n")
     subprocess.run(["git", "reset"], cwd=repo, check=True, capture_output=True)
     target = repo / "dbt_project" / "models" / "warehouse_only.sql"
@@ -1348,9 +1329,8 @@ def test_acceptance_gate_delegates_when_there_is_no_contract(tmp_path):
     asserted only `not denied(out)`, which proved nothing: delete the guard and
     `open()` raises FileNotFoundError, `main()` swallows it in the fail-open
     wrapper, and the commit is still not denied — so the test passed either way and
-    its own coverage claim was false. Caught by platform-reviewer at opus, round 3.
-    Reaching into the hook is the same move `required_reviewers` already makes for
-    the routing matcher."""
+    its own coverage claim was false. Reaching into the hook is the same move
+    `required_reviewers` already makes for the routing matcher."""
     gd = _gd()
     frontend = ["site_v2/src/pages/x.astro"]
     assert gd._acceptance_gate(str(tmp_path), frontend) is None, (
@@ -1367,9 +1347,8 @@ def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
     """Pins `_MIN_EVIDENCE_CHARS`. Without this, deleting the length filter or
     setting the constant to 0 broke NO test: the placeholder test never reaches the
     filter (`_bullets` drops `<...>` and `none` first) and the distinctness test
-    uses lines that clear the floor. So the branch added to answer round 1 was
-    itself unpinned gate behaviour — round 1's own finding class, on round 1's fix.
-    Named by platform-reviewer at opus, round 2.
+    uses lines that clear the floor. So the branch added to fix the first finding
+    was itself unpinned gate behaviour — the same finding class, on its own fix.
 
     `- ok` and `- fine` are non-placeholder, distinct, and four characters: proof
     of nothing."""
@@ -1382,9 +1361,8 @@ def test_acceptance_gate_rejects_evidence_too_short_to_be_a_reading(repo):
 
 def test_acceptance_gate_rejects_repeated_identical_evidence(repo):
     """A count alone is satisfied by two bullets both reading "checked". The quota
-    is a floor, not proof, so identical and too-short lines are rejected
-    (cto-reviewer round 1: "the proof is written by the builder and read by a
-    bullet counter")."""
+    is a floor, not proof, so identical and too-short lines are rejected — "the
+    proof is written by the builder and read by a bullet counter"."""
     _stage_frontend(repo, contract=CRITERIA_CONTRACT, evidence=(
         "criteria_demonstrated:\n  - checked and it works fine\n"
         "  - checked and it works fine\n"))
@@ -1393,7 +1371,7 @@ def test_acceptance_gate_rejects_repeated_identical_evidence(repo):
 
 
 # --------------------------------------------------------------------------- #
-# Round cap (review-economics, 2026-07-22) — the commit gate bounds the loop.
+# Round cap — the commit gate bounds the loop.
 # --------------------------------------------------------------------------- #
 def test_commit_denied_without_a_rounds_line(repo):
     setup_review_repo(repo)
@@ -1490,7 +1468,7 @@ def test_answer_elsewhere_does_not_mask_unanswered_escalation(repo):
 
 def test_preamble_escalation_not_masked(repo):
     """An ESCALATE before the first ## header belongs to the _preamble
-    pseudo-section and must pair there (CTO finding, round 4)."""
+    pseudo-section and must pair there."""
     setup_review_repo(repo)
     body = (
         "VERDICT: ESCALATE\n- question: x?\n\n" + GOOD_BODY +
@@ -1508,8 +1486,8 @@ def test_preamble_escalation_not_masked(repo):
 ])
 def test_commit_chained_with_sibling_commands_denied(repo, cmd):
     """The hash is verified at PreToolUse time; sibling commands in the same
-    call could restage content before the commit runs (CTO finding, round 4).
-    `git commit` must be the sole command in the Bash call."""
+    call could restage content before the commit runs. `git commit` must be the
+    sole command in the Bash call."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY)
     out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
@@ -1558,9 +1536,8 @@ def test_plain_commit_with_quoted_message_not_form_blocked(repo):
     'git commit -m "unclosed',                       # unparseable quoting: fail-closed
 ])
 def test_bundled_abbreviated_and_global_option_forms_denied(repo, cmd):
-    """Allowlist inversion (CTO findings, rounds 2-3): spellings a denylist
-    regex misses must still be form-blocked — only exactly `git commit`
-    enters the gate's allowed path."""
+    """Allowlist inversion: spellings a denylist regex misses must still be
+    form-blocked — only exactly `git commit` enters the gate's allowed path."""
     setup_review_repo(repo)
     write_review(repo, staged_hash(repo), GOOD_BODY)
     out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
@@ -1581,8 +1558,8 @@ def test_allowed_commit_flag_set_not_form_blocked(repo, cmd):
 
 
 def test_non_ascii_staged_path_still_requires_reviewer(repo):
-    """quotePath-escaped paths must not drop a required reviewer (CTO,
-    round 5): the -z enumeration keeps the path matchable by routing."""
+    """quotePath-escaped paths must not drop a required reviewer: the -z
+    enumeration keeps the path matchable by routing."""
     setup_review_repo(repo, stage_path="dbt_project/models/täst.sql")
     body = GOOD_BODY.split("## analytics-engineer-reviewer")[0]
     write_review(repo, staged_hash(repo), body)
@@ -1600,16 +1577,16 @@ def test_routing_file_is_protected(repo):
 
 
 def test_agents_dir_is_protected(repo):
-    """Per the CPO's recorded G3 escalation answer (2026-06-12): reviewer
-    definitions are governance artifacts — protected like the routing file."""
+    """Reviewer definitions are governance artifacts — protected like the routing
+    file."""
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/agents/scope-auditor.md"), repo)
     assert denied(out) and "PROTECTED" in out
 
 
 def test_commands_dir_is_protected(repo):
-    """Per the CPO ruling 2026-06-14: custom slash commands can embed shell, so a
-    command file is protected like a hook/agent definition."""
+    """Custom slash commands can embed shell, so a command file is protected like
+    a hook/agent definition."""
     write_contract(repo)
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, ".claude/commands/status.md"), repo)
     assert denied(out) and "PROTECTED" in out
@@ -1654,7 +1631,7 @@ def _ci_module():
 # `origin` names two different repositories. Inside GitLab CI it is the GitLab
 # project, which is why `.gitlab-ci.yml` passes `--base origin/...` and is right
 # to. On a working copy here it is the GitHub remote, dormant while account
-# access is unavailable, and 27 commits behind `gitlab/main` on 2026-08-07 — so
+# access is unavailable, and dozens of commits behind `gitlab/main` — so
 # the bare command diffed against a stale tree and reported four required
 # reviewers that were not required at all.
 #
@@ -1877,8 +1854,8 @@ def test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute(tmp_path):
     # env var over the working directory, so inheriting it points the hook at the REAL repository,
     # where the base resolves fine and it exits 0 — the test would go green for a reason unrelated
     # to the defect in any environment that exports it, which is the normal case for this repo.
-    # It happens to be unset on the machine this was written on, which is exactly why it needed a
-    # reviewer to catch (platform-reviewer, opus).
+    # It happens to be unset on the machine this was written on, which is exactly why the hole
+    # was invisible from here.
     env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
     r = subprocess.run(
         [sys.executable, os.path.join(HOOKS, "git_discipline.py"), "--staged-hash"],
@@ -1925,8 +1902,8 @@ def test_base_resolution_prefers_the_remote_tracking_ref_over_a_stale_local_main
 
     ⚠ This pins the half of the fix that had no test. `ci_repo` creates a local `main` and NO
     remotes, so `gitlab/main` and `origin/main` both fail to resolve and every preference order
-    gives the same answer — reverting the reorder left the whole suite green (platform-reviewer,
-    opus). The fixture is given a real `refs/remotes/gitlab/main` here, ahead of a deliberately
+    gives the same answer — reverting the reorder left the whole suite green. The fixture is
+    given a real `refs/remotes/gitlab/main` here, ahead of a deliberately
     stale local `main`, so the order is observable.
 
     Measured on the live repo when this was found: local `main` sat at 57175fc while `gitlab/main`
@@ -1975,16 +1952,15 @@ def test_governance_base_env_var_overrides_the_base(ci_repo):
     `_base_commit` read no environment variable at all, so `git commit` was locked with a remedy
     that did nothing — and for two histories with no common ancestor the other suggested remedy
     (fetch the base branch) does not help either. A deny with no escape is the workflow lock the
-    fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
-    `scripts/check_task_artifacts.py:106` already honoured it, so this also closes a local/CI split.
+    fail-open house rule exists to prevent. `scripts/check_task_artifacts.py:106` already
+    honoured it, so this also closes a local/CI split.
 
     ⚠ THE REF MUST HAVE DIVERGED. An earlier version of this test pointed GOVERNANCE_BASE at a
     direct ANCESTOR of HEAD, where the tip and the merge-base are the same commit — so it could
     not tell the two apart and stayed green against a hook that used the tip. The CI twin spells
     the base `f"{args.base}...HEAD"` (three-dot, merge-base), so a tip-resolving hook diverges from
     CI the moment the override names a branch that has moved on, which is the documented use of
-    the variable. Caught by platform-reviewer, opus, round 3 — the third test in this task that
-    passed either way.
+    the variable — the third test of its task that passed either way.
     """
     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1\n")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
@@ -2064,7 +2040,7 @@ def test_local_staged_hash_equals_ci_recompute_on_a_multi_commit_branch(ci_repo)
     Once a second commit lands, the index equals HEAD, so that diff is EMPTY while CI still sees
     the whole branch — the local number was the hash of nothing. This was a documented trap
     ("on a SECOND commit, --staged-hash is the WRONG number") rather than a mystery, and it cost
-    two wasted rebind cycles on !33. Diffing from the base makes it simply false.
+    wasted rebind cycles. Diffing from the base makes it simply false.
     """
     (ci_repo / "dbt_project" / "models" / "allowed.sql").write_text("select 7\n")
     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
@@ -2096,7 +2072,7 @@ def test_ci_check_fails_on_missing_required_reviewer(ci_repo):
 
 
 def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
-    """CI mirror of the -z enumeration fix (CTO finding, round 5)."""
+    """CI mirror of the -z enumeration fix."""
     (ci_repo / "dbt_project" / "models" / "täst.sql").write_text(
         "select 1", encoding="utf-8")
     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
@@ -2111,7 +2087,7 @@ def test_ci_check_requires_reviewer_for_non_ascii_path(ci_repo):
 
 
 def test_ci_check_fails_on_preamble_escalation(ci_repo):
-    """CI mirror of the _preamble pseudo-section rule (CTO finding, round 4)."""
+    """CI mirror of the _preamble pseudo-section rule."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
     body = (
@@ -2128,9 +2104,8 @@ def test_ci_check_fails_on_preamble_escalation(ci_repo):
 
 
 def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
-    """Per-section pairing (scope-auditor finding, round 2): an answer in one
-    section must not mask another section's unanswered ESCALATE — the global
-    count alone would pass this body."""
+    """Per-section pairing: an answer in one section must not mask another
+    section's unanswered ESCALATE — the global count alone would pass this body."""
     (ci_repo / "dbt_project" / "models" / "new.sql").write_text("select 1")
     (ci_repo / ".claude" / "task" / "contract.md").write_text(CONTRACT)
     body = GOOD_BODY + (
@@ -2147,8 +2122,8 @@ def test_ci_check_fails_on_per_section_unanswered_escalation(ci_repo):
 
 
 # --------------------------------------------------------------------------- #
-# Protected paths are STRUCTURAL — authority and understanding are two gates
-# (2026-07-22). Every one of these runs both directions on purpose.
+# Protected paths are STRUCTURAL — authority and understanding are two gates.
+# Every one of these runs both directions on purpose.
 # --------------------------------------------------------------------------- #
 
 def test_protected_path_denied_with_override_but_no_impact_map(repo):
@@ -2176,8 +2151,7 @@ def test_protected_path_allowed_with_override_and_impact_map(repo):
     ".claude/commands/c.md", ".github/workflows/w.yml",
     # … and PROTECTED_FILES, which the first version of this test omitted while
     # calling itself exhaustive. The change went into `_is_protected`, which
-    # covers both tuples, and `.claude/settings.json` is edited by this very
-    # diff (cto-reviewer, 2026-07-22).
+    # covers both tuples.
     ".claude/settings.json", ".claude/review_routing.json",
     ".mcp.json", ".cursor/mcp.json", ".gitlab-ci.yml",
 ])
@@ -2195,9 +2169,9 @@ def test_every_protected_path_needs_an_impact_map(repo, rel):
 # An UNRECOGNISED condition is a hard error, never a silent "doesn't match". Treating
 # unknown as false is what makes a guard test quietly stop guarding: someone writes
 # `$CI_COMMIT_BRANCH == "main"` (same meaning, different spelling), the recogniser
-# shrugs, and a job that DOES run on a schedule is reported safe. platform-reviewer
-# flagged that gap once the deploy jobs stopped routing through *not_on_schedule and
-# came to depend entirely on hand-written conditions.
+# shrugs, and a job that DOES run on a schedule is reported safe. That gap opened
+# once the deploy jobs stopped routing through *not_on_schedule and came to depend
+# entirely on hand-written conditions.
 # Each `if:` condition mapped to the PIPELINE CONTEXTS in which it holds. Contexts:
 #   schedule  — a scheduled pipeline (runs on main)
 #   web       — a manual dispatch from the UI (runs on main)
@@ -2255,8 +2229,8 @@ def _when_in(job: dict, context: str) -> str:
 def test_a_web_dispatch_never_auto_starts_a_warehouse_build():
     """Asking for one manual job must not silently start an expensive one.
 
-    `data:nightly` is reachable ONLY by web dispatch (no schedule exists yet — the CPO
-    deferred creating one while nothing reads the data). But `data:build:main` is also on
+    `data:nightly` is reachable ONLY by web dispatch (no schedule exists yet — creating
+    one is deferred while nothing reads the data). But `data:build:main` is also on
     main, and `changes:` evaluates TRUE on any non-push pipeline, so before this pin it
     matched on a web dispatch and ran `on_success` — AUTOMATICALLY. Clicking "run
     pipeline" to get a nightly therefore also started a full prod warehouse build.
@@ -2327,17 +2301,17 @@ def test_the_firebase_deploy_is_reachable_only_by_deliberate_dispatch():
     by source, so an unscoped manual job shows up on every merge request and every
     push to main, one click from deploying whatever that branch happens to build.
 
-    That shipped in an earlier revision of this branch and `platform-reviewer` caught
-    it. Manual-ness is not the gate; being unreachable except by deliberate dispatch
-    is. Nothing else in the suite checks job REACHABILITY by pipeline source.
+    That shipped in an earlier revision. Manual-ness is not the gate; being
+    unreachable except by deliberate dispatch is. Nothing else in the suite checks
+    job REACHABILITY by pipeline source.
 
     TWO jobs are excluded BY NAME: GitLab #74's `build:nightly-image` and
     `deploy:nightly-image` (kaniko build + gcloud repoint, split across two jobs
     because no single image carries both toolchains), which are deliberately the
     other shape — no button, an automatic rebuild+redeploy reachable on `push_main`
-    and nothing else (pinned separately, right below). Round-1 review (cto-reviewer,
-    opus) tried excluding by PROPERTY instead — "has no `when: manual` rule
-    anywhere" — and that construction is self-disabling: a Firebase job rewritten
+    and nothing else (pinned separately, right below). An earlier version excluded
+    by PROPERTY instead — "has no `when: manual` rule anywhere" — and that
+    construction is self-disabling: a Firebase job rewritten
     with an unconditional `if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH` and no
     `when:` at all (defaulting to `on_success`, strictly worse than the original
     play-button defect) would ALSO have no `when: manual` and silently escape this
@@ -2418,8 +2392,8 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
         "deploy:nightly-image needs: [build:nightly-image], so if a pipeline ever "
         "creates one without the other, GitLab refuses to construct it at all.")
 
-    # Round-1 finding, platform-reviewer: the contract leans on `needs:` and a shared
-    # `resource_group` for correct ordering, but nothing asserted either was actually
+    # The contract leans on `needs:` and a shared `resource_group` for correct
+    # ordering, but nothing asserted either was actually
     # present — deleting one is silent. Without `needs: ["build:nightly-image"]`, the
     # two same-stage jobs could run concurrently and `deploy:nightly-image` could pin a
     # tag `build:nightly-image` has not pushed yet; without the shared group, two
@@ -2434,8 +2408,8 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
         f"got build={build_rg!r}, deploy={deploy_rg!r}. Without it, concurrent pipelines "
         "can build/deploy this image at the same time.")
 
-    # Round-2 finding, platform-reviewer: a job scheduled off `needs:` starts as soon as its
-    # OWN edges finish, regardless of stage — this file's own `.python` comment gives that
+    # A job scheduled off `needs:` starts as soon as its OWN edges finish, regardless of
+    # stage — this file's own `.python` comment gives that
     # mechanic as the REASON `needs: []` exists elsewhere. An earlier version of
     # `build:nightly-image` needed only validate:governance + test:python, so a push whose
     # secrets scan (gitleaks) or lint FAILED could still have its content built into the image
@@ -2451,10 +2425,10 @@ def test_the_nightly_image_jobs_are_reachable_only_on_a_push_to_main():
 
 
 def test_data_paths_image_covers_what_the_nightly_image_actually_runs():
-    """`.data_paths_image` is hand-derived from the Dockerfile and entrypoint.sh, and round-1
-    review already proved a hand derivation misses things (`scripts/sync_dbt_vars.py`, imported
-    by `check_registry_var_sync.py` but not matched by `scripts/check_*.py`). Round-2 finding,
-    platform-reviewer: this is the one path anchor in the file with no test, and when it next
+    """`.data_paths_image` is hand-derived from the Dockerfile and entrypoint.sh, and a hand
+    derivation has already been shown to miss things (`scripts/sync_dbt_vars.py`, imported
+    by `check_registry_var_sync.py` but not matched by `scripts/check_*.py`). This is the one
+    path anchor in the file with no test, and when it next
     misses an entry, the failure is silent — `deploy:nightly-image` just does not fire, and the
     #74 defect (image never tracks `main`) is back for that one path with a green pipeline.
 
@@ -2664,13 +2638,13 @@ def test_ci_writes_the_dbt_profile_where_sqlfluff_looks_for_it():
     #    An earlier version of this test asserted only that the marker appeared SOMEWHERE
     #    in the job — presence, not position — while its comment and the contract both
     #    promised "first". Reordering a job would have broken CI with this test still
-    #    green (platform-reviewer). A guard that looks like an order check but is not is
-    #    worse than none, so the index comparison below is the point of this block.
+    #    green. A guard that looks like an order check but is not is worse than none,
+    #    so the index comparison below is the point of this block.
     #    `\(?` matters: `data:build:mr` invokes dbt inside a SUBSHELL
     #    (`(cd /tmp/main-src/dbt_project && dbt deps && dbt compile ...)`) and a regex
     #    anchored on the tool name or a bare `cd ... &&` misses it entirely. That was a
-    #    non-live blind spot when platform-reviewer found it — the same job's plainly
-    #    formatted `cd dbt_project && dbt deps` anchored the check correctly — but a
+    #    non-live blind spot — the same job's plainly formatted
+    #    `cd dbt_project && dbt deps` anchored the check correctly — but a
     #    future edit that removed the plain line would have exempted the job silently,
     #    which is the vacuous-pass shape this block exists to avoid.
     marker = f"cat > {ci_dir}/profiles.yml"
@@ -2721,7 +2695,7 @@ def test_ordinary_doc_still_needs_no_impact_map(repo):
 
 # --------------------------------------------------------------------------- #
 # The Artifact gate — design was the only surface with no gate at all, which is
-# why three mocks were produced and rejected in one day (2026-07-22).
+# why three mocks were produced and rejected in one day.
 # --------------------------------------------------------------------------- #
 
 def artifact_event(path="/tmp/mock.html", hook_event="PreToolUse") -> dict:
@@ -2791,7 +2765,7 @@ def test_unclosed_bracket_does_not_swallow_a_later_real_reservation(repo):
     """An entry legitimately opening with `<` used to latch an "inside a
     placeholder" flag that nothing cleared, hiding every real reservation after
     it and then reporting the block as still holding the template's bare
-    `- none`, which was neither true nor actionable (cto-reviewer, 2026-07-22)."""
+    `- none`, which was neither true nor actionable."""
     write_contract(repo, CONTRACT.replace(
         "decisions_reserved:\n  - none",
         "decisions_reserved:\n  - <2s page load is a product call\n"
@@ -2836,8 +2810,8 @@ def test_reserved_block_cannot_forge_an_impact_map(repo):
 def test_scope_paths_closes_an_open_impact_block(repo):
     """The third forgeable key ordering. `scope_paths:` did not close an impact
     block opened above it, so any indented non-item line inside the scope list
-    was scored as impact-map content and forged the map — the requirement this
-    whole task makes load-bearing (cto-reviewer, 2026-07-22, round 7)."""
+    was scored as impact-map content and forged the map — the requirement that is
+    load-bearing on every guard edit."""
     contract = (
         "# Task contract — test\n"
         "objective: >\n  test\n"
@@ -2876,7 +2850,7 @@ def test_artifact_gate_does_not_apply_scope_to_the_artifact_path(repo):
     """Non-vacuous version: an IN-REPO path that is OUTSIDE scope_paths. An
     implementation that reused `_gate_file_edit` would deny this. The earlier
     version used an out-of-repo path, which `_rel_in_repo` returns None for, so
-    it passed under either implementation (cto-reviewer, 2026-07-22)."""
+    it passed under either implementation."""
     write_contract(repo, CONTRACT_RESERVED)
     out, _ = run_hook("task_contract_gate.py",
                       artifact_event(str(repo / "dbt_project" / "models" / "other.sql")), repo)
@@ -2912,7 +2886,7 @@ def test_hooks_fail_open_on_malformed_input(repo, script, junk):
 
 
 # --------------------------------------------------------------------------- #
-# handover_in — the delivery half. It was never wired at all until 2026-07-22,
+# handover_in — the delivery half. For a long time it was not wired at all,
 # while the handover file claimed it was.
 # --------------------------------------------------------------------------- #
 
@@ -2930,7 +2904,7 @@ def test_handover_found_from_a_subdirectory(repo):
     missing and invited writing a second one in the wrong place. Every other
     branch of the test harness sets cwd, CLAUDE_PROJECT_DIR and the event's cwd
     to the same directory, so all four existing handover tests passed identically
-    against the old code (cto-reviewer, 2026-07-22)."""
+    against the old code."""
     (repo / ".claude" / "active_work.md").write_text(
         "# Active work\nTHE GOAL: ship the site.", encoding="utf-8")
     sub = repo / "dbt_project" / "models"
@@ -2978,7 +2952,7 @@ def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo):
 
 
 # ---------------------------------------------------------------------------
-# Reviewers stop reviewing the review's own paperwork (CPO 2026-08-01).
+# Reviewers stop reviewing the review's own paperwork.
 # Three changes, three invariants. #370 ran twelve rounds because the paperwork
 # was inside both the reviewed patch AND the hash, and a PASS required two
 # findings — so a typo fix voided every verdict and bought another round.
@@ -3031,8 +3005,7 @@ def test_review_patch_excludes_the_tasks_own_paperwork(repo):
     reviewed diff."""
     setup_review_repo(repo)
     # Create EVERY file that should be hidden, so all the assertions below bite.
-    # Three of the four used to assert nothing because the files did not exist
-    # (platform-reviewer, round 3).
+    # Three of the four used to assert nothing because the files did not exist.
     hidden = ("acceptance_evidence.md", "rendered_page_evidence.md",
               "review.md", "review_input.patch")
     for i, name in enumerate(hidden):
@@ -3050,10 +3023,10 @@ def test_review_patch_excludes_the_tasks_own_paperwork(repo):
 
 
 def test_review_patch_DOES_deliver_the_rulings_log(repo):
-    """The other authority file. `escalations.log` is the durable record of CPO
-    rulings that `protected_override` cites, so a reviewer that cannot see it cannot
-    check whether a claimed ruling exists — a check that has fired. It was wrongly
-    excluded for one round; this pins the mechanism, not just the routing data."""
+    """The other authority file. `escalations.log` is the frozen record of past
+    rulings that a `protected_override` may cite, so a reviewer that cannot see it
+    cannot check whether a claimed ruling exists — a check that has fired. It was
+    once wrongly excluded; this pins the mechanism, not just the routing data."""
     setup_review_repo(repo)
     (repo / ".claude" / "task" / "escalations.log").write_text("LOG_MARKER\n")
     subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -3066,7 +3039,7 @@ def test_review_patch_is_cumulative_not_just_the_last_increment(repo):
     """Every brief promises "the cumulative branch diff vs main", because two
     individually clean commits can cumulatively drift. `git diff --staged` alone is
     index-vs-HEAD, so on a branch that already has a commit the reviewers would get
-    only the newest slice. Fails on revert to a bare `--staged` (cto-reviewer)."""
+    only the newest slice. Fails on revert to a bare `--staged`."""
     setup_review_repo(repo)
     subprocess.run(["git", "branch", "-f", "main", "HEAD"], cwd=repo, check=True)
     subprocess.run(["git", "checkout", "-q", "-b", "feat/two-commits"], cwd=repo, check=True)
@@ -3089,7 +3062,7 @@ def test_review_patch_is_cumulative_not_just_the_last_increment(repo):
 def test_review_patch_still_contains_the_code_and_the_contract(repo):
     """The other direction, so change 1 cannot be satisfied by excluding
     everything: the reviewers must still receive the code diff, and contract.md
-    because that is what scope-auditor and cto-reviewer check authority against."""
+    because that is what the auditor and the CTO check authority against."""
     setup_review_repo(repo)
     (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 1 as CODE_MARKER\n")
     (repo / ".claude" / "task" / "contract.md").write_text("objective: CONTRACT_MARKER\n")
@@ -3123,10 +3096,10 @@ def test_every_task_artifact_is_classified(repo):
         "these .claude/task/ files are neither hidden from reviewers nor one of the "
         f"two authority files, so reviewers will review their own paperwork: {unclassified}"
     )
-    # And the other direction: an authority file must never be hidden. cto-reviewer
-    # caught escalations.log excluded here — protected_override cites it as the
-    # locatable record, so a reviewer that cannot see it cannot check whether a
-    # claimed CPO ruling exists.
+    # And the other direction: an authority file must never be hidden. escalations.log
+    # was once excluded here — a protected_override may cite it as the locatable
+    # record, so a reviewer that cannot see it cannot check whether a claimed ruling
+    # exists.
     hidden_authority = sorted(authority & excluded)
     assert not hidden_authority, (
         f"authority files hidden from reviewers: {hidden_authority}"
@@ -3136,8 +3109,8 @@ def test_every_task_artifact_is_classified(repo):
 def test_real_routing_hides_the_evidence_artifacts_from_the_hash(repo):
     """Pins the REAL routing data for change 2, not the synthetic fixture.
 
-    `platform-reviewer` caught that every test of the hash exclusion used the
-    fixture, so deleting the two evidence artifacts from the real
+    Every test of the hash exclusion used the fixture, so deleting the two
+    evidence artifacts from the real
     `hash_exclude_paths` left the whole suite green — the change was demonstrated
     once by hand and then unprotected. The same gap shipped a routing change that
     missed six tracked files, which is why `real_routing()` exists at all."""
@@ -3174,8 +3147,8 @@ def test_ci_twin_accepts_a_pass_with_one_thing_examined(ci_repo):
 
     The floor lives in TWO places — `git_discipline._commit_gate` and
     `check_task_artifacts.py` — and for one review round they disagreed: the hook
-    allowed one entry while fail-closed CI still demanded two, so a reviewer taking
-    the CPO's 2026-08-01 permission committed locally and then reddened the PR. Every
+    allowed one entry while fail-closed CI still demanded two, so a review with one
+    entry committed locally and then reddened the PR. Every
     existing CI-path test used a two-entry body, so all 248 stayed green through that
     divergence. Fails on revert of the CI floor to 2."""
     body = GOOD_BODY.replace("- risk two checked\n", "", 1)
@@ -3201,7 +3174,7 @@ def test_review_patch_fails_LOUD_when_git_fails(tmp_path):
     returned empty bytes and exit 0 would leave a zero-byte patch that reads to a
     reviewer as "nothing changed" — and nothing downstream can detect it, because
     review_input.patch is in both exclusion lists. Reverting the `raise` leaves the
-    rest of the suite green (platform-reviewer, round 3).
+    rest of the suite green.
 
     A directory with a routing file but no `.git` makes every git call fail."""
     (tmp_path / ".claude").mkdir()
@@ -3244,7 +3217,7 @@ def test_review_patch_refuses_a_base_that_shares_no_history(tmp_path, _repo_temp
 
 
 # --------------------------------------------------------------------------- #
-# Wiring the unwired guards (2026-08-06)
+# Wiring the unwired guards
 #
 # Every test below pins a behaviour that was ADDED because its absence was
 # invisible. That is the whole class: a guard that silently does nothing looks
@@ -3283,7 +3256,7 @@ def test_routing_canary_never_pollutes_cli_stdout(repo):
     As a hook, stdout carries the JSON protocol and a canary belongs there. As a CLI
     (`--review-patch`, `--staged-hash`), stdout IS the product — the patch reviewers read
     and that gets committed. The first version of the canary printed in both, appending a
-    JSON blob to `review_input.patch`. Found by cto-reviewer at opus, reproduced, fixed.
+    JSON blob to `review_input.patch` — reproduced before it was fixed.
     """
     setup_review_repo(repo)
     (repo / ".claude" / "review_routing.json").write_text('{"always": ["x",]}')
@@ -3309,12 +3282,12 @@ def test_manifest_failure_is_loud_not_silent(repo):
 
     Swallowing an error here hides them with nothing said — the exact coverage loss the
     key exists to prevent. `_base_commit` already refuses rather than narrowing a diff;
-    this must refuse too. (cto-reviewer, opus.)
+    this must refuse too.
 
     An earlier version of this test asserted `"raise" in inspect.getsource(...)` and was
     VACUOUS: the word appears in the function's own comment, so swapping the raise for a
-    `return b""` left it green, and it never called the function at all
-    (platform-reviewer at opus). This one drives the real failure branch.
+    `return b""` left it green, and it never called the function at all. This one drives
+    the real failure branch.
     """
     setup_review_repo(repo)
     sys.path.insert(0, HOOKS)
@@ -3333,7 +3306,7 @@ def test_fast_gates_and_validate_local_agree(repo):
     `validate-local` claimed "the first five" of its block run at turn end — which
     included `check_task_artifacts.py` (which must NOT, it needs a fetched origin/main
     and a current review.md) and omitted `check_ui_i18n_metrics.py` (which does).
-    Found by platform-reviewer at opus. Prose cannot hold this; a test can.
+    Prose cannot hold this; a test can.
     """
     root = os.path.join(os.path.dirname(__file__), "..")
     sys.path.insert(0, HOOKS)
@@ -3410,7 +3383,7 @@ def test_review_patch_excludes_summarise_paths_from_the_body(repo):
 def test_summarised_paths_are_announced_not_hidden(repo):
     """Excluding the body must NOT hide that the files changed.
 
-    Silence here would quietly delete bi-analyst-reviewer's core hunt item — whether a
+    Silence here would quietly delete the display reviewer's core hunt item — whether a
     displayed field exists in the exported sample — trading payload for coverage. That
     is the difference between `review_summarise_paths` and `review_exclude_paths`.
     """
@@ -3477,9 +3450,9 @@ def test_summarised_paths_still_bind_the_review_hash(repo):
 # --------------------------------------------------------------------------- #
 # Exclusion deletes the file from the patch, so a reviewer cannot tell a file that was
 # never edited from one edited and deliberately hidden. Both look identical: absent.
-# Reviewers drew the false inference three times (2026-08-03 active_work.md, 2026-08-06
-# TEMPLATE.md, 2026-08-07 active_work.md), each costing a round, each withdrawn on the
-# evidence. They were reasoning correctly from what they were given.
+# Reviewers drew the false inference three times (active_work.md twice, TEMPLATE.md
+# once), each costing a round, each withdrawn on the evidence. They were reasoning
+# correctly from what they were given.
 #
 # MEASURED against the pre-#25 hook, not predicted: THREE of the four go red
 # (`..._are_named`, `..._without_pasting_them`, `..._does_not_reach_the_review_hash`).
@@ -3521,9 +3494,9 @@ def test_excluded_paths_that_changed_are_named(repo):
 
 
 def test_the_trailer_names_files_without_pasting_them(repo):
-    """Announcing is not un-excluding. The CPO ruling that reviewers never judge the
-    review's own paperwork (2026-08-01) has to survive this change, so the trailer carries
-    names and counts and no content."""
+    """Announcing is not un-excluding. The rule that reviewers never judge the review's
+    own paperwork has to survive this change, so the trailer carries names and counts
+    and no content."""
     _commit_routing(repo)
     _stage_excluded_edit(repo, "UNIQUE_MARKER_INSIDE_EXCLUDED_FILE\n")
     patch = _review_patch(repo)
@@ -3580,7 +3553,7 @@ def test_excluded_trailer_failure_is_loud_not_silent(repo):
     wrapping the `_staged_stat` call in `try/except: return b""` goes red here.
 
     It asserts on the STRUCTURAL `section` token in the message, not on the prose reason,
-    so rewording the explanation cannot silently unpin it (platform-reviewer at opus).
+    so rewording the explanation cannot silently unpin it.
     """
     setup_review_repo(repo)
     sys.path.insert(0, HOOKS)
@@ -3591,8 +3564,8 @@ def test_excluded_trailer_failure_is_loud_not_silent(repo):
         git_discipline._excluded_trailer(str(repo), [":(attr:!!bad)x"])
     # The FULL section phrase, not the bare word: the trailer's own reason string ends
     # "…which is the defect this trailer exists to remove", so asserting on `"trailer"`
-    # alone would survive `section` being emptied and quietly stop pinning anything
-    # (platform-reviewer at opus, round 2). Its manifest twin has no such overlap.
+    # alone would survive `section` being emptied and quietly stop pinning anything.
+    # Its manifest twin has no such overlap.
     assert "review patch trailer" in str(exc.value).lower(), (
         f"raised, but not identified as the trailer section: {exc.value}")
 

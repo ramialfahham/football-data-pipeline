@@ -81,8 +81,8 @@ def _shared(tmp_path, monkeypatch, description_line: str, blocks=SHARED_TEAM_SK,
 
 def test_the_two_docs_block_regexes_agree():
     """`DOC_BLOCK_RE` is hand-copied into the gate and the generator, with no
-    shared import. platform-reviewer flagged that as a drift risk rather than a
-    defect: both were changed together here, but nothing forces that next time.
+    shared import. That is a drift risk rather than a defect: both were changed
+    together once, but nothing forces that next time.
 
     Importing one script from the other would couple a gate to a generator, so
     the parity is pinned by behaviour instead, the way FAST_GATES and the
@@ -518,8 +518,8 @@ def test_an_unparseable_file_fails_closed(tmp_path, monkeypatch, capsys):
 
 def test_the_real_repo_is_green():
     """Ships green on day one — the `check_copy_gate.py` precedent, where wiring a
-    gate that was red on main would have reddened CI on text only the CPO could
-    fix. This one asserts the state the wiring depends on."""
+    gate that was red on main would have reddened CI on text only the product
+    owner could fix. This one asserts the state the wiring depends on."""
     assert gate.main() == 0
 
 
