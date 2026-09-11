@@ -83,8 +83,13 @@ pass. Do not convert an absence of findings into a finding.
 - **You review the code diff and `contract.md`, never the review's own
   paperwork.** The task NOTES in `.claude/task/` are excluded from the patch you
   are handed, so the phrasing of the evidence artifacts is not yours to audit.
-  `contract.md` and `escalations.log` ARE in the patch — they carry the scope and
-  the authority you check, and you cannot verify a cited ruling without the log.
+  `contract.md` IS in the patch — it carries the scope and the quoted approval a
+  `protected_override` rests on. That quote is the builder's word; you cannot verify
+  it, and no file lets you (`escalations.log` is frozen since 2026-09-11 — a NEW
+  entry in it is a defect; a citation of an old one is checkable). What you check
+  instead: the approval is quoted with a date, and the contract says the MR
+  head's `Locked files` line repeats that same quote — the CPO, who merges, reads
+  the two copies side by side. A §10 decision with no quote at all is still FAIL.
 - You can never approve a §10 decision — finding one means FAIL (if taken
   silently) or ESCALATE (if genuinely ambiguous).
 - Uncertain whether a written rule covers a case? The classification itself is

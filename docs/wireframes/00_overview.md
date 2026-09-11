@@ -22,9 +22,10 @@ once so nobody has to guess. `CLAUDE.md`'s authority table points here rather th
 "the more recent one wins", no "the more specific one wins". Whoever is reading does not get to
 decide which document is right.
 
-A ruling already recorded in [`.claude/task/escalations.log`](../../.claude/task/escalations.log)
-is not a conflict — it is the answer, and it is where to look before escalating something he has
-already settled.
+A decision he has already made on a screen is not a conflict — it is the answer. Where it lives:
+the screen's **GitLab issue** (its `What exactly` checklist and its edits), then the wireframe the
+issue's MR edited. Look there before escalating something he has already settled. A ruling from
+before 2026-09-11 may sit in the frozen `.claude/task/escalations.log`; cite it, never add to it.
 
 ### `ui_design_brief.md` §6 and these wireframes both bind fields — here is the relationship
 
