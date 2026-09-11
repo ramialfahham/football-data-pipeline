@@ -1,22 +1,22 @@
 """Editorial and Localisation gate — MECHANICAL checks on user-visible strings.
 
-CPO ruling 2026-07-31 (#868), in his words: *"Editorial and Localisation exists as
-a mechanical gate, not a copy approver. Wording stays yours. Growth owns the
-title's shape, Editorial owns its words."*
+Editorial and Localisation exists as a mechanical gate, not a copy approver.
+Wording stays the product owner's: Growth owns the title's shape, Editorial owns
+its words.
 
 Why a gate and not a reviewer agent. An agent cannot validate Finnish better than
 the builder can — same model, same text — so a copy-approving role would
 manufacture a signature. What it CAN do is mechanical, and that is all this file
-does. On #867, nine user-visible strings shipped and four were wrong; the CPO
-wrote the Finnish himself. Every check here is one of those four defect classes
-made unrepeatable. Judgement about whether a sentence reads naturally stays with
-the CPO, permanently.
+does. One release shipped nine user-visible strings of which four were wrong, and
+the product owner wrote the Finnish himself. Every check here is one of those
+four defect classes made unrepeatable. Judgement about whether a sentence reads
+naturally stays with him, permanently.
 
 The checks, each traceable to a real defect:
-  1. EM DASHES in shipped copy. The CPO flagged them twice as an AI tell, in prose
-     AND in product copy. #867 shipped 14. Mechanical, zero false positives.
-  2. LOCALE COMPLETENESS. A key present in one locale and missing in another. #866
-     is the live instance in the other direction (a value never translated).
+  1. EM DASHES in shipped copy — an AI tell, in prose AND in product copy; one
+     release shipped 14. Mechanical, zero false positives.
+  2. LOCALE COMPLETENESS. A key present in one locale and missing in another;
+     the live instance was the other direction (a value never translated).
   3. TERMINOLOGY drift against the 381-string validated corpus in `site/i18n/`
      (127 leaf strings per locale, verified). Football Finnish says `kunto` for
      form, not `muoto`; a string that uses a term the validated corpus contradicts
@@ -29,22 +29,20 @@ The checks, each traceable to a real defect:
 Exit 1 on any finding, and on an absent or unparseable `strings.ts`. Fails CLOSED,
 as a CI check should.
 
-**WIRED, 2026-08-06.** Runs in `.gitlab-ci.yml` `validate:governance` and in the
-`validate-local` skill.
+Runs in `.gitlab-ci.yml` `validate:governance` and in the `validate-local` skill.
 
 It was deliberately unwired for its first weeks, and the reason is worth keeping: it
 exited 1 on `main` with 16 findings (14 em dashes, `fi.secForm` = `Muotovertailu`,
 `fi.footerDataSource` left in English), and every one of those fixes is copy, which
-is the CPO's alone (§10) — so the builder could not green it. Wiring it then would
-have reddened CI on strings only he could touch.
-
-MR !7 cleared all 16 with his rulings, which made wiring a one-line change. That
-sequencing was the point: fix, then wire, so the default branch never goes red.
+is the product owner's alone (§10) — so the builder could not green it. Wiring it
+then would have reddened CI on strings only he could touch. Once his rulings had
+cleared all 16, wiring was a one-line change. That sequencing was the point: fix,
+then wire, so the default branch never goes red.
 
 The interval is the lesson, not the exception. A guard that runs nowhere is
 indistinguishable from no guard, and this repo already carries that failure with
-`seo-expert-reviewer`. "Not wired yet" is only honest while it is temporary and
-someone is counting the days.
+the SEO review role, which exists and is routed nowhere. "Not wired yet" is only
+honest while it is temporary and someone is counting the days.
 """
 from __future__ import annotations
 
@@ -66,10 +64,9 @@ MIN_KEYS = 20
 MIN_METRIC_KEYS = 15
 
 # Terms the validated corpus settles. term -> (wrong, right, why)
-# Only entries evidenced by the corpus or by a recorded CPO correction belong here.
+# Only entries evidenced by the corpus or by a correction the product owner made belong here.
 TERMINOLOGY = {
-    "fi": [("muoto", "kunto", "football Finnish uses `kunto` for form; `muoto` is shape/format "
-                             "(CPO correction, #867)")],
+    "fi": [("muoto", "kunto", "football Finnish uses `kunto` for form; `muoto` is shape/format")],
 }
 
 # A dictionary literal: `const EN: Dict = { key: "value", ... };`
@@ -82,22 +79,22 @@ _ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.M)
 #
 # Check 4's message used to promise one — "the value needs a comment saying so" — while the code
 # parsed no comment, so the only way past it was to change the copy. A marker (`i18n:same-as-en`)
-# was built to honour that promise and then REMOVED after cto-reviewer at opus argued it down.
-# The argument, kept because it is the reusable part:
+# was built to honour that promise and then REMOVED. The argument, kept because it is the
+# reusable part:
 #
 #   · The case the exemption was for is ALREADY exempt. Check 4 skips any value with no
 #     `[a-z]{3,}` word (numbers, symbols, abbreviations) and any single capitalised token
 #     (brand names). The residual case is a multi-word English string deliberately kept in
 #     de/fi — of which this repo has ZERO.
-#   · The one historical instance, `fi.footerDataSource`, was ruled on by the CPO by
-#     TRANSLATING it, in a decision taken with no exemption available.
-#   · Translation is §10, the CPO's alone. A self-serve comment would let any future agent whose
-#     change reddens check 4 go green on its own authority — a guard bypass added ahead of any
-#     demonstrated need, in the direction the last real ruling went against.
+#   · The one historical instance, `fi.footerDataSource`, was settled by TRANSLATING it, with
+#     no exemption available.
+#   · Translation is §10, the product owner's alone. A self-serve comment would let any future
+#     agent whose change reddens check 4 go green on its own authority — a guard bypass added
+#     ahead of any demonstrated need, in the direction the last real decision went against.
 #
-# So the message is corrected instead: it now points at the CPO rather than promising a hatch.
-# If a genuine identical-string case ever appears, it is a CPO ruling, and THAT is when an
-# exemption gets designed — with the case in hand.
+# So the message is corrected instead: it points at the product owner rather than promising a
+# hatch. If a genuine identical-string case ever appears, it is his decision, and THAT is when
+# an exemption gets designed — with the case in hand.
 
 # #370 added a SECOND string class this gate has to see: metric display names, in their own
 # `METRIC_LABELS_<LOC>` maps keyed by the catalogue's `label_i18n_key`. Their keys are QUOTED and
@@ -159,7 +156,6 @@ def main() -> int:
     # would iterate nothing, and this would print a clean pass over zero strings.
     # The repo's precedent for a floor in the checker is
     # `site_v2/scripts/check-page-specs.mjs`'s MIN_EXPECTED_KEYS.
-    # (platform-reviewer at opus, 2026-07-31.)
     thin = {loc: len(dicts[loc]) for loc in LOCALES if len(dicts[loc]) < MIN_KEYS}
     if thin:
         print(f"FAIL: extracted too few strings {thin} (floor {MIN_KEYS} per locale). "

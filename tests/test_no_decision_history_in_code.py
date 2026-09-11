@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
 import comment_history_gate as gate  # noqa: E402
 
 # The pin. A sweep MR lowers these two numbers and nothing else may move them.
-PINNED_LINES = 713
-PINNED_FILES = 109
+PINNED_LINES = 495
+PINNED_FILES = 84
 
 HASH = chr(35)
 
@@ -45,7 +45,7 @@ def history_line(marker_text: str) -> str:
 SAMPLE_MARKERS = {
     "date": "changed on " + "2026" + "-08-20",
     "product owner": "the " + "CPO" + " ruled this",
-    "reviewer": "a " + "reviewer" + " asked for it",
+    "reviewer": "the " + "platform-" + "reviewer" + " asked for it",
     "review round": "found in " + "round " + "3",
     "merge request": "see " + "!" + "132",
 }
@@ -201,6 +201,37 @@ def test_every_marker_kind_is_flagged_and_a_why_is_not():
     assert gate.is_history_comment("status = " + '"' + "reviewer" + '"') is None, "no comment marker, no flag"
     assert gate.is_history_comment(history_line("ground truth, not a review round")) is None, \
         "round without a digit is a word, not a round"
+    assert gate.is_history_comment(history_line("what a reviewer sees in review.md")) is None, \
+        "the bare word for the role is this repo's own concept, not a credit"
+    assert gate.is_history_comment(history_line("every reviewer required by the routing table")) is None
+    assert gate.is_history_comment(history_line("scope-" + "auditor" + " asked for it")) == "reviewer"
+    for credit in ("an earlier version was wrong; a " + "reviewer" + " caught it",
+                   "all three " + "reviewers" + " failed it",
+                   "found by a " + "reviewer" + " reading the file",
+                   "a " + "reviewer" + " pointed out the hole"):
+        assert gate.is_history_comment(history_line(credit)) == "reviewer", credit
+
+
+def test_a_quoted_span_is_a_literal_and_the_rest_of_the_line_is_prose():
+    dq, sq = chr(34), chr(39)
+    token = dq + "CPO" + " ANSWER:" + dq
+    assert gate.is_history_comment(history_line("counts every " + token + " line")) is None, \
+        "a quoted token the code parses is not prose about a decision"
+    example = "--timestamp " + sq + "2026" + "-05-07 17:55:00" + sq
+    assert gate.is_history_comment(history_line(example)) is None, "a quoted usage example"
+    assert gate.is_history_comment(history_line("the " + "CPO" + " said " + dq + "drop it" + dq)) \
+        == "product owner", "the marker outside the quotes still counts"
+    assert gate.is_history_comment(history_line("he" + sq + "s sure " + "2026" + "-08-10 wasn" + sq + "t it")) \
+        == "date", "an apostrophe inside a word opens no span, so the date between two is prose"
+    assert gate.is_history_comment(history_line(sq + "tis the " + "CPO" + " ruling, rock " + sq + "n" + sq + " roll")) \
+        == "product owner", "a quote that ends inside a word closes no span either"
+    tick = chr(96)
+    assert gate.is_history_comment(history_line("caught by " + tick + "platform-" + "reviewer" + tick)) \
+        == "reviewer", "backticks are formatting, not a literal"
+    q = dq * 3
+    module = "def f():\n    " + q + "The " + "CPO" + " ruled this." + q + "\n    return 1\n"
+    assert [(n, k) for n, k, _ in gate.flagged_lines(module, ".py")] == [(2, "product owner")], \
+        "a one-line docstring is a comment line, not a quoted span"
 
 
 # --- the hook, on real events ------------------------------------------------------------------

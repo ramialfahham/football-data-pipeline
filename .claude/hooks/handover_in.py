@@ -6,22 +6,20 @@ a fresh agent continues from the documented state instead of re-deriving it from
 an issue title or a memory file, which is how scoped work gets silently
 re-scoped. If the handover is missing, say so.
 
-WHY THIS FILE LIVES HERE (2026-07-22). The wiring was first pointed at the copy
-in `docs/portable_guardrails/hooks/`, and the cto-reviewer failed it: that path
+WHY THIS FILE LIVES HERE and not in `docs/portable_guardrails/hooks/`: that path
 is not a PROTECTED prefix and has no entry in `review_routing.json`, so a script
-that auto-executes at every session start would have been editable inside any
-ordinary task with no `protected_override`, no platform review and no opus
-floor. That is the class the CPO ruled on for `.claude/commands/` (2026-06-14)
-and `.mcp.json` (2026-06-18): anything that auto-launches a command every
-session is guard-level, and an agent must never be able to self-grant it.
-`docs/agent_guardrails.md` already said as much — project hooks live in
+that auto-executes at every session start would be editable inside any ordinary
+task with no `protected_override`, no platform review and no opus floor. Anything
+that auto-launches a command every session is guard-level — the same class as
+`.claude/commands/` and `.mcp.json` — and an agent must never be able to
+self-grant it. `docs/agent_guardrails.md` says as much: project hooks live in
 `.claude/hooks/`, and `docs/portable_guardrails/hooks/` is the copy-out archive
 for other projects. The archive copy stays; this is the one that runs.
 
-The read-in half of the handover loop, and as of 2026-07-22 the ONLY leg of it
-that actually runs. The other two, a plan-back gate before the first code edit
-and a push reminder to update the handover, sit in the never-installed global
-set (`docs/portable_guardrails/`), so do not rely on them.
+The read-in half of the handover loop, and the ONLY leg of it that actually
+runs. The other two, a plan-back gate before the first code edit and a push
+reminder to update the handover, sit in the never-installed global set
+(`docs/portable_guardrails/`), so do not rely on them.
 
 Fails open on any error (no output, exit 0).
 """
@@ -34,15 +32,15 @@ import sys
 
 HANDOVER_REL = os.path.join(".claude", "active_work.md")
 # Keep the injection bounded. `.claude/active_work.md` is required to stay under
-# this — it was 112,233 characters until 2026-07-22, i.e. this hook would have
-# delivered the first 14% and truncated in silence had it ever been wired.
+# this — a 112,233-character handover would have had its first 14% delivered and
+# the rest truncated in silence.
 #
-# The unit is CHARACTERS, and that is stated here because it used to be both:
-# the file was read with `f.read(MAX_CHARS)` on a text handle (characters) while
-# truncation was decided by `os.path.getsize()` (bytes). Any handover under the
-# character cap but over the byte cap — trivially reachable, this file is full of
-# arrows and symbols — was injected complete AND labelled truncated, in the one
-# hook that runs at every session start (cto-reviewer, 2026-07-22).
+# The unit is CHARACTERS, and that is stated here because it is easy to make it
+# both: reading with `f.read(MAX_CHARS)` on a text handle counts characters, while
+# `os.path.getsize()` counts bytes. A handover under the character cap but over
+# the byte cap — trivially reachable, this file is full of arrows and symbols —
+# would be injected complete AND labelled truncated, in the one hook that runs at
+# every session start.
 MAX_CHARS = 16000
 
 
@@ -53,10 +51,9 @@ def main() -> int:
         return 0
     try:
         # `CLAUDE_PROJECT_DIR` first, like every sibling hook's `_repo_root()`.
-        # This one used `cwd` alone, so a session started from a subdirectory
-        # reported "No .claude/active_work.md found" and invited writing a second
-        # handover in the wrong place — in the one hook that runs at every
-        # session start (cto-reviewer, 2026-07-22).
+        # `cwd` alone would make a session started from a subdirectory report
+        # "No .claude/active_work.md found" and invite writing a second handover
+        # in the wrong place — in the one hook that runs at every session start.
         root = os.environ.get("CLAUDE_PROJECT_DIR") or event.get("cwd") or os.getcwd()
         path = os.path.join(root, HANDOVER_REL)
         if os.path.isfile(path):

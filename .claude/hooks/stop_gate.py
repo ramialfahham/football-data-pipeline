@@ -5,9 +5,9 @@ When the agent tries to end its turn this asks two questions:
 
   1. GOVERNANCE — does `git status` match the task contract? Out-of-scope
      modifications block the stop with a prescriptive reversion instruction.
-  2. CORRECTNESS — do the fast offline gates still pass? Added 2026-08-06.
+  2. CORRECTNESS — do the fast offline gates still pass?
 
-Question 2 exists because until then NOTHING verified correctness at turn end.
+Question 2 exists because otherwise NOTHING verifies correctness at turn end.
 The governance check answers "is this in scope", never "does it work", so on any
 turn nobody watched closely, "I made the change" and "the change works" were the
 same claim backed by nothing. That gap matters more under auto mode, whose
@@ -21,9 +21,8 @@ no hook.
 
 `FAST_GATES` below is the SOURCE OF TRUTH for that set. `validate-local` runs a
 superset and names these five explicitly; `test_fast_gates_and_validate_local_agree`
-pins the two against each other, because the first version of this docstring and
-the skill each declared the OTHER as the reference while listing different scripts
-(platform-reviewer at opus).
+pins the two against each other, because a docstring and a skill can each declare the
+OTHER as the reference while listing different scripts.
 
 Both checks block the stop ONCE — the `stop_hook_active` flag prevents infinite
 loops, so an agent that ignores the message ends its turn on the second attempt.
@@ -60,11 +59,10 @@ FAST_GATES = (
     "scripts/check_competition_type_seed.py",
     "scripts/check_ui_i18n_metrics.py",
     "scripts/check_copy_gate.py",
-    # Added 2026-08-20 with CPO approval for the protected-path edit (his "do both":
-    # CI *and* turn end). It belongs here rather than in CI alone because CI catches a
-    # bad description after it is written and pushed, while this catches it in the turn
-    # that wrote it — and the whole programme exists because prose-only rules did not
-    # hold. Offline, parses YAML off disk, no network and no warehouse.
+    # Runs here AND in CI, deliberately. CI catches a bad description after it is
+    # written and pushed, while this catches it in the turn that wrote it — and the
+    # whole programme exists because prose-only rules did not hold. Offline, parses
+    # YAML off disk, no network and no warehouse.
     "scripts/check_description_hygiene.py",
 )
 # Generous against a cold filesystem; the measured total is ~2.9s.

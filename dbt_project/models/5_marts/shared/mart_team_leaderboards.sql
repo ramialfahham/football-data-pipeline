@@ -145,8 +145,8 @@ select
     season_games_played,
     -- WHICH SEASON a consumer should show, served as a fact rather than chosen downstream. Without
     -- it the export would pick a season itself, which is the window selection #846 moved out of that
-    -- file and that reviewers failed twice. Same definition as mart_leaderboards: latest season per
-    -- LEAGUE, not per team, so every row of a league agrees on the answer.
+    -- file. Same definition as mart_leaderboards: latest season per LEAGUE, not per team, so every
+    -- row of a league agrees on the answer.
     rank() over (
         partition by league_code
         order by season_api_year desc

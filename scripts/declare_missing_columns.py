@@ -1,16 +1,15 @@
 """Declare columns that EXIST in the warehouse but appear in no `.yml`.
 
-#82 MR2. `check_description_hygiene.py` checks the CONTENT of descriptions that
-exist, and object-level PRESENCE since `!91`. Neither can see a column that is
-declared nowhere at all: there is no yml entry to look at. Measured against
-production on 2026-08-23, that was 979 columns across 40 models — more than the
-1,236-column gap the issue reported, most of it invisible to every check we had.
+`check_description_hygiene.py` checks the CONTENT of descriptions that exist, and
+object-level PRESENCE. Neither can see a column that is declared nowhere at all:
+there is no yml entry to look at. Measured against production when this was
+written, that was 979 columns across 40 models — most of it invisible to every
+check we had.
 
 This script writes their NAMES down, with no descriptions, so the real surface
 becomes visible and the shared definitions can be wired into it. A name with no
-text is an honest empty slot. Inventing text to fill it is the "thin filler" the
-CPO ruled against on 2026-08-21, and it would be far harder to find and replace
-later than an empty slot is.
+text is an honest empty slot. Inventing text to fill it is "thin filler", and it
+would be far harder to find and replace later than an empty slot is.
 
 IT NEVER REORDERS OR REFORMATS A LINE THAT IS ALREADY THERE, AND THAT IS THE
 WHOLE POINT. That constraint is what separates it from a general yml formatter,
@@ -85,9 +84,9 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 DBT_DIR = REPO_ROOT / "dbt_project"
 MODELS_DIR = DBT_DIR / "models"
 
-# The CPO's coverage scope, ruled 2026-08-21: "core, intermediate and marts ->
-# business meaning starts in core downstream." Staging and base are deliberately
-# out. Directory names, because that is what the layer contract is expressed in.
+# The coverage scope: core, intermediate and marts — business meaning starts in
+# core and flows downstream. Staging and base are deliberately out. Directory
+# names, because that is what the layer contract is expressed in.
 IN_SCOPE_DIRS = ("3_core", "4_intermediate", "5_marts")
 
 # Floor under the DISCOVERY, same precedent as `check_description_hygiene.py`'s
@@ -827,9 +826,9 @@ def _verify(before: str, after: str, expected: object, rel: str, newline: str,
         # ⚠ `all`, NOT `any`, and there is a test that dies if you change it. With
         # `any`, an unplanned line merged into the same opcode as a legitimate swap
         # rides along — and the structural check below cannot catch it, because it
-        # compares parsed YAML and is blind to a reformat. Found by
-        # platform-reviewer, whose point was that every other test replaces ONE
-        # isolated line, where the two are identical.
+        # compares parsed YAML and is blind to a reformat. Every other test
+        # replaces ONE isolated line, where the two are identical, so only a
+        # multi-line replace tells them apart.
         if op == "replace" and all(old_lines[k] in replaceable for k in range(i1, i2)):
             continue
         bad.append((op, i1))
@@ -1121,9 +1120,8 @@ def _write_files(by_file: dict, insert_fn, expect_fn, noun: str) -> int:
         # TRACKED yml half-written. `_verify` cannot see that failure — it compares
         # two in-memory strings and has already returned by this point — so the
         # module's "nothing is written unless every model verifies" is true of a
-        # guard tripping and says nothing about the write itself. That gap was
-        # platform-reviewer's round-1 FAIL, and it is the one failure mode the
-        # append-only promise is least able to survive.
+        # guard tripping and says nothing about the write itself. That gap is the
+        # one failure mode the append-only promise is least able to survive.
         # Write a sibling temp, flush it all the way to disk, then rename over the
         # original: `os.replace` is atomic on POSIX and on Windows, and a sibling
         # shares the directory so the rename never crosses a filesystem. The temp

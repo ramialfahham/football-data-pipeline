@@ -1,11 +1,10 @@
 """Drop every RAW_APIF_*_INJURIES table from BigQuery.
 
-⚠ THIS SCRIPT HAS OUTLIVED ONE REMOVAL ALREADY. It was written for `401c1cc` (2026-05-10), which
-removed the injuries surface because it had no consumer. The endpoint was re-added sixteen days
-later (`983d12c`) with no consumer named, migrated to the unified raw tables (`178261d`), and ran
-for three months writing `RAW_APIF_INJURIES` — 1.975 GiB, the largest raw table — that nothing
-ever read. #33 item 15 removes it again. If a third re-add is ever proposed, read
-`.claude/task/escalations.log` for why the first two failed to justify themselves.
+⚠ THIS SCRIPT HAS OUTLIVED ONE REMOVAL ALREADY. It was written for the first removal of the
+injuries surface, which had no consumer. The endpoint was re-added sixteen days later with no
+consumer named, migrated to the unified raw tables, and ran for three months writing
+`RAW_APIF_INJURIES` — 1.975 GiB, the largest raw table — that nothing ever read. If a third
+re-add is ever proposed, it has to name its consumer first; the first two never did.
 
 The match pattern is unchanged and still correct: it targets tables whose name starts with
 ``RAW_APIF_`` and ends with ``_INJURIES``. That covered the retired per-competition naming

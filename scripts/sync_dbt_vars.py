@@ -81,10 +81,10 @@ def _normalise(value: object) -> str:
     surrounding whitespace is stripped.
 
     ⚠ Stripping HERE rather than when reading the seed back is the point, and it was a real defect
-    in the first draft (platform-reviewer, round 1). That version stripped the SEED side while
-    comparing against an unstripped registry, so a seed cell of "UEFA " was normalised to "UEFA"
-    before the comparison and matched — the guard passed on a corrupted file. Normalising once, on
-    the way in, lets `check_registry_var_sync` compare the seed byte-for-byte and actually catch it.
+    in the first draft. That version stripped the SEED side while comparing against an unstripped
+    registry, so a seed cell of "UEFA " was normalised to "UEFA" before the comparison and matched
+    — the guard passed on a corrupted file. Normalising once, on the way in, lets
+    `check_registry_var_sync` compare the seed byte-for-byte and actually catch it.
     """
     return "" if value is None else str(value).strip()
 

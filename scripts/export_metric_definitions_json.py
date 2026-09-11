@@ -37,10 +37,10 @@ def load_catalogue(path: Path) -> dict[tuple[str, str], dict[str, object]]:
     PLAYER key to a binding whose subject is a team, while `site/team-season/index.html` calls the
     TEAM key. `tests/test_metric_bindings.py` caught it as a byte-identity failure.
 
-    The first fix resolved the ambiguity with a hardcoded "prefer team" default.
-    `analytics-engineer-reviewer` FAILED it, correctly: entity alignment is business logic and
-    belongs upstream, `layering.md` §Consumption layer forbids entity derivation downstream of the
-    marts, and byte-identical output does not cure a rule living in the wrong layer.
+    The first fix resolved the ambiguity with a hardcoded "prefer team" default. That was wrong:
+    entity alignment is business logic and belongs upstream, `layering.md` §Consumption layer
+    forbids entity derivation downstream of the marts, and byte-identical output does not cure a
+    rule living in the wrong layer.
 
     So the entity is DATA now. `metric_bindings.csv` carries `catalogue_entity` per row and this is
     a plain two-key lookup with no default and no preference. Adding a player-entity binding is a

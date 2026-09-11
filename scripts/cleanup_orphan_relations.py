@@ -3,8 +3,8 @@
 WHY THIS EXISTS
 ---------------
 `check_layer_contract.py` blocks the per-competition pattern in the REPO. Nothing reconciles the
-WAREHOUSE. So when `6e4ba18` (2026-05-27) replaced the per-competition staging and base models with
-generic unified ones, the models left the repo and 310 relations stayed behind in production,
+WAREHOUSE. So when the per-competition staging and base models were replaced with generic
+unified ones, the models left the repo and 310 relations stayed behind in production,
 unnoticed for three months. 244 of them sat in `staging` alone, against 15 real staging models.
 
 Most are inert: they read raw tables that no longer exist, so any query against them errors. The
