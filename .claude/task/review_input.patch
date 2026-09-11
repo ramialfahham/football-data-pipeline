@@ -1,10 +1,312 @@
+diff --git a/.claude/hooks/comment_history_gate.py b/.claude/hooks/comment_history_gate.py
+new file mode 100644
+index 00000000..7a78b105
+--- /dev/null
++++ b/.claude/hooks/comment_history_gate.py
+@@ -0,0 +1,279 @@
++#!/usr/bin/env python
++"""Comment-history gate — a code comment says WHY, never who decided or when.
++
++Denies an `Edit`, `Write` or `MultiEdit` whose written text adds, to a code file, a comment line
++carrying decision history: a calendar date, the product owner's title, the word for a review
++role, a numbered review round or a merge-request number (the exact patterns are MARKERS below).
++That history has a home that survives the task without living next to
++the line — the commit message, the merge request and the issue — and `git blame` reaches all three
++from any line (dbt_project/docs/engineering_standards.md, section 1.2, has the recipe).
++
++What counts as a comment line: a line with a comment marker (`#`, `--`, `//`, `/*`, `*`, `<!--`,
++`{#`) at its start or after whitespace; every line inside a block comment of the file's language
++(`/* … */`, `<!-- … -->`, `{# … #}`); and every line of a Python docstring — found by `ast` when
++the text parses as a module, and by a line starting with a triple quote when it is a fragment.
++A marker inside a string literal that follows whitespace also matches; accepted, rare, and the
++deny names the line.
++
++The check reads only the text being written, not the whole file. So an edit that re-includes an
++existing flagged line is denied until the marker is removed — every ordinary edit helps the sweep.
++Markdown, docs, `.claude/task/` and any tree not listed below are not code and are never checked.
++
++`tests/test_no_decision_history_in_code.py` imports the definitions below and pins the count of
++flagged lines already in the tree, so the CI count and this deny cannot drift apart. Fails OPEN on
++any unexpected error, like every hook in this directory.
++"""
++
++from __future__ import annotations
++
++import ast
++import os
++import re
++import sys
++from collections.abc import Iterator
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from _command_utils import emit_deny, read_event  # noqa: E402
++
++# Trees whose files are code. `.github/` is dormant and deliberately unedited; `docs/` is prose.
++TREES = (
++    "ingestion",
++    "scripts",
++    "dbt_project/models",
++    "dbt_project/macros",
++    "dbt_project/tests",
++    "dbt_project/seeds",
++    "site_v2/src",
++    "site_v2/scripts",
++    "site_v2/integrations",
++    ".claude/hooks",
++    "tests",
++    "design-mocks",
++    "deploy",
++)
++EXTS = frozenset({".py", ".sql", ".astro", ".ts", ".mjs", ".js", ".yml", ".yaml", ".css"})
++
++# Block-comment delimiters per language. Python has none: its blocks are docstrings.
++BLOCKS = {
++    ".css": (("/*", "*/"),),
++    ".js": (("/*", "*/"),),
++    ".mjs": (("/*", "*/"),),
++    ".ts": (("/*", "*/"),),
++    ".astro": (("/*", "*/"), ("<!--", "-->")),
++    ".sql": (("/*", "*/"), ("{#", "#}")),
++    ".yml": (("{#", "#}"),),
++    ".yaml": (("{#", "#}"),),
++    ".py": (),
++}
++
++_COMMENT = re.compile(r"(^|\s)(#|--|//|/\*|\*|<!--|\{#)")
++_DOCSTRING_OPEN = re.compile(r"^\s*(\"\"\"|''')")
++
++MARKERS = {
++    "date": re.compile(r"\b20\d\d-\d\d-\d\d\b"),
++    "product owner": re.compile(r"\bCPO\b"),
++    "reviewer": re.compile(r"\breviewer\b", re.IGNORECASE),
++    "review round": re.compile(r"\bround \d", re.IGNORECASE),
++    "merge request": re.compile(r"(?<![\w!])!\d{1,4}\b"),
++}
++
++_SKIP_SEGMENTS = frozenset({"node_modules", "__pycache__", "target", ".venv"})
++
++
++def is_code_path(rel: str) -> bool:
++    """True when a repo-relative path is a code file under one of the guarded trees."""
++    rel = rel.replace("\\", "/")
++    if rel.startswith("./"):
++        rel = rel[2:]
++    if os.path.splitext(rel)[1].lower() not in EXTS:
++        return False
++    if _SKIP_SEGMENTS.intersection(rel.split("/")):
++        return False
++    return any(rel.startswith(t + "/") for t in TREES)
++
++
++def marker_kind(line: str) -> str | None:
++    """The marker kind a line carries, or None."""
++    for kind, rx in MARKERS.items():
++        if rx.search(line):
++            return kind
++    return None
++
++
++def is_history_comment(line: str) -> str | None:
++    """The marker kind a single MARKER-BEARING comment line carries, or None when the line is
++    clean or carries no comment marker. Block-comment and docstring lines are found by
++    `comment_lines`, which has the context a single line does not."""
++    if not _COMMENT.search(line):
++        return None
++    return marker_kind(line)
++
++
++def _docstring_ranges(text: str) -> list[tuple[int, int]] | None:
++    """(first, last) line numbers of every docstring, or None when the text is not a module."""
++    try:
++        tree = ast.parse(text)
++    except (SyntaxError, ValueError):
++        return None
++    ranges = []
++    for node in ast.walk(tree):
++        if not isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
++            continue
++        body = getattr(node, "body", None) or []
++        first = body[0] if body else None
++        if (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
++                and isinstance(first.value.value, str)):
++            ranges.append((first.lineno, first.end_lineno or first.lineno))
++    return ranges
++
++
++def _open_at_end(line: str, pairs: tuple, start: int = 0) -> str | None:
++    """The closer of the block comment that is still open when `line` ends, scanning from
++    `start`: every opener is matched to its closer on the same line, in order, so a line that
++    closes one block and opens another leaves the second one open."""
++    pos = start
++    while True:
++        first = None
++        for opener, closer in pairs:
++            at = line.find(opener, pos)
++            if at != -1 and (first is None or at < first[0]):
++                first = (at, opener, closer)
++        if first is None:
++            return None
++        at, opener, closer = first
++        end = line.find(closer, at + len(opener))
++        if end == -1:
++            return closer
++        pos = end + len(closer)
++
++
++def comment_lines(text: str, ext: str) -> Iterator[tuple[int, str]]:
++    """(1-based line number, line) for every comment line in `text`, for a file of type `ext`."""
++    ext = ext.lower()
++    pairs = BLOCKS.get(ext, ())
++    lines = text.splitlines()
++    in_doc: set[int] = set()
++    use_heuristic = False
++    if ext == ".py":
++        ranges = _docstring_ranges(text)
++        if ranges is None:
++            use_heuristic = True
++        else:
++            for a, b in ranges:
++                in_doc.update(range(a, b + 1))
++    closer: str | None = None
++    doc_fragment = False
++    for n, line in enumerate(lines, 1):
++        if n in in_doc:
++            yield n, line
++            continue
++        if closer:
++            yield n, line
++            end = line.find(closer)
++            if end != -1:
++                closer = _open_at_end(line, pairs, end + len(closer))
++            continue
++        if doc_fragment:
++            yield n, line
++            if '"""' in line or "'''" in line:
++                doc_fragment = False
++            continue
++        has_opener = any(opener in line for opener, _ in pairs)
++        if _COMMENT.search(line) or has_opener:
++            yield n, line
++            closer = _open_at_end(line, pairs)
++            continue
++        if use_heuristic and _DOCSTRING_OPEN.match(line):
++            yield n, line
++            quote = _DOCSTRING_OPEN.match(line).group(1)
++            if line.count(quote) < 2:
++                doc_fragment = True
++
++
++def flagged_lines(text: str, ext: str = ".py") -> list[tuple[int, str, str]]:
++    """(1-based line number, marker kind, line) for every comment line carrying history."""
++    out = []
++    for n, line in comment_lines(text, ext):
++        kind = marker_kind(line)
++        if kind:
++            out.append((n, kind, line.strip()))
++    return out
++
++
++def count_tree(root: str) -> tuple[int, int]:
++    """(flagged lines, files with at least one) across the guarded trees under `root`."""
++    lines = files = 0
++    for tree in TREES:
++        for dirpath, _dirs, names in os.walk(os.path.join(root, tree)):
++            for name in names:
++                path = os.path.join(dirpath, name)
++                rel = os.path.relpath(path, root).replace("\\", "/")
++                if not is_code_path(rel):
++                    continue
++                try:
++                    with open(path, encoding="utf-8", errors="replace") as fh:
++                        hits = flagged_lines(fh.read(), os.path.splitext(rel)[1])
++                except OSError:
++                    continue
++                if hits:
++                    lines += len(hits)
++                    files += 1
++    return lines, files
++
++
++def _written_texts(tool_input: dict) -> list[str]:
++    texts = []
++    if isinstance(tool_input.get("new_string"), str):
++        texts.append(tool_input["new_string"])
++    if isinstance(tool_input.get("content"), str):
++        texts.append(tool_input["content"])
++    for edit in tool_input.get("edits") or []:
++        if isinstance(edit, dict) and isinstance(edit.get("new_string"), str):
++            texts.append(edit["new_string"])
++    return texts
++
++
++def _repo_root() -> str:
++    env = os.environ.get("CLAUDE_PROJECT_DIR")
++    if env:
++        return os.path.abspath(env)
++    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
++
++
++def main() -> int:
++    event = read_event()
++    try:
++        tool_input = event.get("tool_input") or {}
++        file_path = tool_input.get("file_path") or ""
++        if not file_path:
++            return 0
++        root = _repo_root()
++        try:
++            rel = os.path.relpath(os.path.abspath(file_path), root)
++        except ValueError:
++            return 0
++        if rel.startswith(".."):
++            return 0
++        if not is_code_path(rel):
++            return 0
++        ext = os.path.splitext(rel)[1]
++        hits = []
++        for text in _written_texts(tool_input):
++            hits.extend(flagged_lines(text, ext))
++        if not hits:
++            return 0
++        shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])
++        emit_deny(
++            "COMMENT HISTORY GATE: this edit adds a comment carrying decision history to a code "
++            f"file — {shown}. A comment says WHY in one line; who decided, when, which reviewer, "
++            "which round, which MR — never in code. That lives in the commit message, the MR and "
++            "the issue, and `git blame` reaches all three (engineering_standards.md section 1.2). "
++            "Rewrite the comment as the why alone, or drop it."
++        )
++    except Exception:
++        return 0
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 55ac678a..fb6a57c8 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -63,6 +63,12 @@
+             "shell": "bash",
+             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/task_contract_gate.py\"",
+             "statusMessage": "Checking task contract..."
++          },
++          {
++            "type": "command",
++            "shell": "bash",
++            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/comment_history_gate.py\"",
++            "statusMessage": "Checking comments for decision history..."
+           }
+         ]
+       }
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 6857666c..c994631f 100644
+index 6857666c..51eddf0f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,85 +1,77 @@
+@@ -1,85 +1,146 @@
 -# Task contract — one table says which source answers which question; memory answers none
-+# Task contract — reasoning lives in git, not in code comments: the rule and the recipe
++# Task contract — decision history out of code: an edit-time hook and a pinned count
  
  objective: >
 -  Memory said the player page is three tabs; a later handover said four; nothing said which wins,
@@ -12,29 +314,38 @@ index 6857666c..c994631f 100644
 -  the built Overview tab was lost when the repo had it in a stash. A session acted on memory both
 -  times. This branch states the precedence once, in `CLAUDE.md`, demotes memory in its own index,
 -  moves the tab decision into the player page's issue, and preserves the commit that records it.
-+  429 comment lines in code carry a date, "CPO", "reviewer" or "round N" — history, not reasoning.
-+  `engineering_standards.md` §1.2 already forbids it and is ignored, because the contract reviewers
-+  read dies with the task, so the builder writes the reasoning next to the line to make it survive.
-+  Since `!174` the durable place exists — commit message, MR head and fold, issue fold, reached
-+  from any line by `git blame` — it just is not named. This branch names it, in the document that
-+  owns code comments, and records the count step 8's hook will ratchet down.
++  The code holds 850 comment lines carrying a date, "CPO", "reviewer", "round N" or an MR number —
++  builder-written claims about what the CPO decided, in files he never reads. `engineering_standards.md`
++  §1.2 has forbidden it for as long as it has existed and it is ignored. This branch adds the
++  guard: an edit-time hook that refuses adding such a line to a code file, and a CI test that pins
++  the count so it can only move in the open. The sweeps that take the count to zero are four
++  later MRs, one per reviewer territory.
  
  refs: >
 -  GitLab #117 (this task, `Task` template — the What/Why/How below are copied from it). GitLab
 -  #115 step 6. The CPO's "go" in chat on 2026-09-11 to the issue text as shown to him. The
 -  four-tab record: commit `1f0af6ae` on `origin/docs/handover-player-tabs-and-seo`, 2026-07-27,
 -  "docs(handover): player page is four tabs (848)".
-+  GitLab #119 (this task; the What/Why/How below are copied from it). GitLab #115 step 7; step 8
-+  depends on it. The CPO's "go" in chat on 2026-09-11 to the issue text as shown to him.
++  GitLab #120 (this task, `Task` template; the What/Why/How below are copied from it). #115 step 8,
++  which depends on step 7 (`!176`, the rule and the recipe). The CPO's "do it" in chat on
++  2026-09-11 to the five-MR shape — the guard first (a pinned count and an edit-time hook on a
++  date / CPO / reviewer / round N / !N in a comment), then four sweeps by reviewer territory.
++
++protected_override: >
++  `.claude/hooks/comment_history_gate.py` (new) and `.claude/settings.json` (one hook
++  registration). The CPO approved this in chat on 2026-09-11 ("do it", to the plan "a hook that
++  refuses an edit adding a date / CPO / reviewer / round N / !N to a comment … Protected path →
++  cto + platform review"). Under working_agreement §11 the durable approval is his merge of this
++  MR, whose head repeats this quote under Locked files.
  
  scope_paths:
-+  - dbt_project/docs/engineering_standards.md
-   - CLAUDE.md
+-  - CLAUDE.md
 -  - docs/working_agreement.md
 -  - .claude/active_work.md
-+  - .gitlab/issue_templates/Task.md
-+  - .gitlab/merge_request_templates/Default.md
-+  - .claude/task/TEMPLATE.md
++  - .claude/hooks/comment_history_gate.py
++  - .claude/settings.json
++  - tests/test_no_decision_history_in_code.py
++  - docs/agent_guardrails.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
@@ -44,13 +355,27 @@ index 6857666c..c994631f 100644
 -  writers: none — two prose files in the repo. Outside the repo, and outside this diff: the memory
 -    index and one memory file (my notes), a new GitLab issue for the player page, and a pushed
 -    `archive/` branch that points at an existing commit.
-+  writers: none — five prose files. No code, model, hook, test, CI job or routing row.
- 
+-
 -  downstream: every session reads `CLAUDE.md` first; the table changes where a session looks for
 -    an answer, not any answer. No hook, test, CI job or routing reads the section edited.
-+  downstream: `engineering_standards.md` §1.2 is the standard `scripts/check_description_hygiene.py`
-+    cites for descriptions (§2), not §1.2; nothing parses §1.2. `CLAUDE.md` is read by every
-+    session. The templates are read by GitLab's UI and by the builder.
++  writers: one new hook, one registration line, one test file. No model, script, export, site
++    source or CI-config change.
++
++  downstream (a guard's blast radius is every future edit): the hook fires on every `Edit`,
++    `Write` and `MultiEdit` in the repo. It reads `tool_input` — `new_string`, `content`, or
++    `edits[].new_string` — and denies ONLY when (a) the target path is under one of the code trees
++    it lists with a code extension it lists, and (b) a line of the written text is a comment line
++    carrying one of the five markers. Everything else — markdown, docs, `.claude/task/**`,
++    non-listed trees, a marker outside a comment — passes without output. `NotebookEdit` shares
++    the matcher but writes `new_source`, which the hook does not read, so it passes. On any
++    exception it returns 0 with no output: fails OPEN, like every hook here. The
++    test imports the hook's pattern and trees, so the CI count and the edit-time deny cannot
++    diverge; `test_governance_hooks.py` is untouched (no existing gate changes behaviour).
++    `check_task_artifacts.py`, the review hash and routing: untouched.
++
++  what stops being enforced if it is wrong: nothing that is enforced today — the rule had no
++    enforcement. If the hook mis-denies, the message names the line and the rule, and the fix is
++    to write the why without the marker.
  
    layer_rules: n/a.
  
@@ -58,8 +383,9 @@ index 6857666c..c994631f 100644
  
 -  blast_radius: none in the repo. The archive branch is a new ref on GitLab pointing at a commit
 -    the repo already holds; deleting it is one command.
-+  blast_radius: none in code. A rule that already existed is restated with the place the
-+    reasoning goes and the count of violations; enforcement is step 8.
++  blast_radius: a NEW DENY on edits. Bounded by (a) and (b) above. Measured false-positive risk:
++    a code line where a marker appears after a `#` inside a STRING (`"… # CPO …"`) reads as a
++    comment line to the pattern — accepted, stated in the hook, and rare.
  
  acceptance_criteria:
 -  - `CLAUDE.md` has one table saying which source answers which question — what a screen shows
@@ -73,55 +399,68 @@ index 6857666c..c994631f 100644
 -    `national_appearances_total ≥ 1`, as the CPO's 2026-07-27 decision.
 -  - That commit's branch is preserved on GitLab as `archive/docs-handover-player-tabs-and-seo`.
 -  - Nothing else restates the table; the working agreement points at it.
-+  - `dbt_project/docs/engineering_standards.md` §1.2 says, for every language in the repo: a
-+    comment says why, in one line. Who decided, when, which reviewer, which round, which MR or
-+    issue — never in code; that lives in the commit message, the MR and the issue, and `git blame`
-+    reaches it from any line. With the recipe.
-+  - `CLAUDE.md` says the same in one sentence.
-+  - The issue and MR templates' folds say they are the place for the reasoning reviewers and
-+    future readers need.
-+  - The contract template says: reviewers read `decisions_taken` and `amendments` — argue with a
-+    reviewer there, never in a code comment.
-+  - The count of such comment lines is recorded (429 today) as the number step 8's hook ratchets
-+    down.
++  - An edit-time hook refuses an `Edit`/`Write`/`MultiEdit` that adds a comment line carrying a
++    date, "CPO", "reviewer", "round N" or an MR number (`!N`) to a code file, and says where that
++    belongs (the commit message, the MR, the issue — `engineering_standards.md` §1.2). Docs,
++    markdown and `.claude/task/` are not code and are untouched by it.
++  - A test pins the count of such lines already in the code (850 across 174 files today) and
++    fails if the count RISES — or if it falls without the pin being lowered, so every sweep moves
++    the number in the open.
++  - The hook and the test share one definition of "a comment line carrying history" and one list
++    of code trees, and a test pins them against each other so they cannot drift.
++  - The guard proves itself: deleting one flagged line without lowering the pin turns the test
++    red; adding one turns it red; the hook denies a real `Edit` that adds one and allows the same
++    text in a markdown file.
++  - The hook itself and the test contain zero flagged lines — they obey the rule they enforce.
  
  decisions_taken: >
 -  THE TABLE IS A LOOKUP, NOT A RULING. Every row points at an authority that already exists
 -  (`00_overview.md` since `!170`, the issue since `!174`, `active_work.md` since 2026-08-06, the
 -  working agreement); the table only says which answers which question. The one new sentence —
 -  memory answers none of these — is the demotion the failures above justify, and it binds only me.
-+  THE NON-CODE PLACE IS GIT, NOT A NEW FILE. A "decisions.md" or a per-file reasoning doc would be
-+  a second `escalations.log`: builder-written, unbound, growing. The commit message, the MR and the
-+  issue already exist, are reachable from any line, and — since `!174` — are the CPO's check.
++  THE PATTERN IS THE ONE HE SAID "DO IT" TO: date, CPO, reviewer, round N, !N. Issue refs (`#N`)
++  would add 535 lines (962 total, 208 files), mostly dead GitHub-era pointers — a widening for
++  after the first sweep, recorded in #120's Not-in-scope, not taken here.
++
++  THE PIN FAILS IN BOTH DIRECTIONS. A one-sided "must not rise" pin lets sweeps go unrecorded and
++  the number drift; a two-sided pin makes every sweep MR state its new count. Same design as the
++  dead-reference guard's digest.
  
 -  THE FOUR TABS ARE MOVED, NOT DECIDED. The player page issue records the tab structure as the
 -  CPO's 2026-07-27 decision per the commit, marks it as such, and says the per-tab requirements
 -  are written when that work starts — which is where he confirms or changes it.
-+  THE COUNT IS A GREP, STATED AS SUCH. `(#|--|//|\*).*(20\d\d-\d\d-\d\d|CPO|reviewer|round \d)`
-+  over the code trees. It over-counts a little (a docstring line quoting a date for a real reason)
-+  and under-counts a little (a "his 'do both'" with no date). It is a ratchet's starting number,
-+  not a claim of precision; step 8 decides the exact pattern.
++  THE HOOK CHECKS THE WRITTEN TEXT, NOT THE FILE. An Edit that re-includes an existing flagged
++  line is denied until the marker goes — ratchet-by-touch. A Write of a file that still holds one
++  is denied until cleaned. Deliberate: the sweeps get help from every ordinary edit.
  
 -  THE ARCHIVE BRANCH IS A REF, NOT A COPY. `git branch archive/… origin/docs/handover-player-tabs-and-seo`
 -  makes a GitLab ref to a commit already in the repository; nothing is rewritten. My initiative,
 -  reversible, listed in #117's How before the go.
-+  NO REVIEWER BRIEF CHANGES. Grepped `.claude/agents/*.md`: none asks for reasoning in code. The
-+  pressure was mine.
++  ONE DEFINITION, IMPORTED. The test imports `MARKERS`, `TREES`, `EXTS` and `is_history_comment`
++  from the hook; a pin test asserts the test module holds no copy. The stop-gate/validate-local
++  parity test is the precedent.
  
-   THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
+-  THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
++  THRESHOLD — NEW MECHANISM: yes, one new hook and one CI test, approved above. THRESHOLD —
++  RECURRING COST: one regex pass over the written text per Edit/Write — microseconds; one file
++  walk per CI run (~1 s).
  
  decisions_reserved:
 -  - Whether the four-tab structure still stands — his, when the player page's requirements are
 -    written.
 -  - Steps 7-9 of #115.
-+  - The hook's exact pattern and whether the 429 are swept or ratcheted — #115 step 8.
++  - Widening the pattern to `#N` issue refs — after the first sweep, with its number (535).
++  - The four sweeps and their order.
  
  done_when:
-   - The five criteria proven; `pytest tests/test_governance_doc_parity.py tests/test_no_dead_issue_refs.py`
+-  - The five criteria proven; `pytest tests/test_governance_doc_parity.py tests/test_no_dead_issue_refs.py`
 -    green (the two tests that read `CLAUDE.md`).
 -  - #117 closed by the MR; the player page issue exists; the archive branch is on GitLab.
-+    green (the suites that read `CLAUDE.md`).
-+  - The recipe verified on a real line of `!175`, output in the evidence.
++  - The five criteria proven; `pytest tests/test_no_decision_history_in_code.py
++    tests/test_governance_hooks.py` green; `ruff check --config .ruff-ci.toml` clean on both new
++    files.
++  - Mutations run on a scratch copy (the classifier refuses weakening the real hook): count pin
++    both directions; hook deny/allow on a real event.
  
  amendments:
 -  - Scope +`.claude/active_work.md`, before any edit to it. It is the "where are we right now" row
@@ -130,104 +469,315 @@ index 6857666c..c994631f 100644
 -    stale handover would be the defect this step exists to fix. Handover upkeep is bookkeeping
 -    inside an already-approved task, not a decision; the file is artifact-only and its edit rides
 -    into this reviewed commit (§2).
-+  - none yet
-diff --git a/.gitlab/issue_templates/Task.md b/.gitlab/issue_templates/Task.md
-index f8ea5e18..372b17cc 100644
---- a/.gitlab/issue_templates/Task.md
-+++ b/.gitlab/issue_templates/Task.md
-@@ -26,6 +26,7 @@
- <summary>Exploration detail — for the builder and the reviewers, not required reading</summary>
- 
- <!-- What was found while exploring: prod checks, defects, measurements, the reasoning behind
--     the How. Unlimited here; nothing above the fold. -->
-+     the How. Unlimited here; nothing above the fold. THIS IS WHERE REASONING LIVES — not in a
-+     code comment. A future reader reaches it from any line: git blame → commit → "Closes #N". -->
- 
- </details>
-diff --git a/.gitlab/merge_request_templates/Default.md b/.gitlab/merge_request_templates/Default.md
-index 63cea099..4bd105d4 100644
---- a/.gitlab/merge_request_templates/Default.md
-+++ b/.gitlab/merge_request_templates/Default.md
-@@ -15,7 +15,9 @@ Closes #
- <details>
- <summary>Details — review rounds, evidence, what is NOT done</summary>
- 
--<!-- Review: rounds, who passed when, what each FAIL was.
-+<!-- THIS IS WHERE THE REVIEW RECORD LIVES — who found what, in which round, and what changed —
-+     not in a code comment next to the line. The merge commit points here ("See merge request").
-+     Review: rounds, who passed when, what each FAIL was.
-      Evidence: what was run. Limits: what is deliberately not done. -->
- 
- </details>
-diff --git a/CLAUDE.md b/CLAUDE.md
-index b808cf6f..f005b0d7 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -159,6 +159,11 @@ every session that learned something had to delete something. None of this is cu
-   gate. A post-commit hook auto-pushes and opens the **MR**. `review.md` must be COMMITTED, and
-   its reviewer sections must be `## <exact-routing-key>` headers — the gate parses those
-   literally, and a `verdicts:` block alone does NOT satisfy it.
-+- **Reasoning lives in git, not in code comments.** A comment says WHY in one line; who decided,
-+  when, which reviewer, which round, which MR — never. That is in the commit message, the MR and
-+  the issue, and `git blame` reaches all three from any line
-+  (`dbt_project/docs/engineering_standards.md` §1.2 has the recipe). 429 such lines existed on
-+  2026-09-11; #115 step 8 adds the hook that ratchets them down.
- - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
-   blocks the turn once if any fails. Do not end a turn on a red gate silently.
- - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
-diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
-index fb4828f2..bfe74e3c 100644
---- a/dbt_project/docs/engineering_standards.md
-+++ b/dbt_project/docs/engineering_standards.md
-@@ -28,7 +28,7 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
- - Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
- - For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
- 
--## 1.2) Code Comments (Python and SQL)
-+## 1.2) Code Comments (every language in the repo — Python, SQL, Astro, TypeScript, YAML)
- 
- Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, and functions already describe what the code does. A comment is warranted when the reader would otherwise be left wondering why a decision was made, what constraint is being respected, or what non-obvious behaviour to expect.
- 
-@@ -49,7 +49,38 @@ Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, an
- 
- **Inline:** Reserve for genuinely surprising logic. One line is almost always enough. Avoid multi-line comment blocks.
- 
--**Standard applied consistently across Python and SQL.** A senior engineer reading any file in this repo should be able to orient themselves within 30 seconds.
-+**Standard applied consistently across every language.** A senior engineer reading any file in this repo should be able to orient themselves within 30 seconds.
++  - Scope +`docs/agent_guardrails.md`: its hook table inventories every hook in
++    `.claude/settings.json`; a new hook without a row is the doc-sync defect the scope-auditor
++    hunts. Bookkeeping inside the approved task, not a decision. Also corrected the impact_map's
++    `NotebookEdit` sentence: it shares the matcher and passes because the hook does not read
++    `new_source` — not "not matched".
++  - Round 1 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). The finding: a
++    per-line marker check is blind to the continuation lines of a wrapped `/* … */` block —
++    `site_v2/src/styles/system.css:623` narrates what `!151` shipped on such a line and was neither
++    counted nor deniable. Fixed as a CLASS, not a line: `comment_lines()` now treats every line
++    inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`) and every
++    line of a Python docstring (`ast` when the text parses; a line opening with a triple quote when
++    it is an edit fragment) as a comment line. Measured before fixing: block continuation lines
++    +41, docstring lines +329 — `stop_gate.py`'s own docstring carries three. The pin moves from
++    481/140 to **849/174**; the criteria and #120 are updated to say so. Also taken from the same
++    review: extension matching is case-insensitive; skip-directories match as path segments.
++    The hook's first docstring described the markers with the word for a review role and flagged
++    ITSELF once the docstring rule existed — reworded, which is the rule reading source, not intent.
++  - Round 2 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). The finding, with a
++    repro: a line that CLOSES one block and OPENS another (`*/ .b{} /* reopens`) cleared the block
++    state and hid the reopened block's continuation lines from the deny and the pin; the same root
++    (`line.find(opener)` sees only the first opener; an opener glued to code without whitespace
++    never entered block state) had two more shapes. Fixed as the class: `_open_at_end()` walks the
++    line matching every opener to its closer in order, from the start of a fresh line or from just
++    after the closer that ended a block; a line with any opener is a comment line whether or not
++    whitespace precedes it. Pinned by `test_a_line_that_closes_one_block_and_opens_another_keeps_the_state`
++    with the reviewer's repro plus the two sibling shapes and a same-line-closed block that must
++    NOT leak. The corrected walk finds one more line in the tree: pin 849 → **850**/174. Round 3
++    is the cap; it re-runs all three reviewers on the fixed hook.
++  - Round 3 (platform-reviewer FAIL; cto-reviewer PASS; scope-auditor PASS). Not a bypass this
++    time — a coverage hole: no test put two comment syntaxes on one line (`.sql` has `/* */` and
++    `{# #}`; `.astro` has `/* */` and `<!-- -->`), so the leftmost-opener comparison in
++    `_open_at_end` was exercised only with one pair and a "last pair wins" regression would pass.
++    Taken: `test_two_comment_syntaxes_on_one_line_pick_the_leftmost_open_block` — both orders, an
++    unterminated C block whose text merely contains the Jinja opener, and the Astro pair;
++    mutation "leftmost comparison weakened" on the scratch copy turns exactly that test red. No
++    hook change; the pin stays 850/174. Round 4 runs under a `rounds_cap_override` in `review.md`,
++    recorded as on `!173` and `!174`: to clear a standing FAIL by review, not to ship past one.
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 253e5992..afcd6c00 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -52,6 +52,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open MR; not done until the MR URL exists. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
++| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit whose written text adds, to a code file, a comment line carrying decision history — a date, "CPO", "reviewer", "round N" or an MR number — and says where that belongs: the commit message, the MR and the issue, reached from any line by `git blame` (`engineering_standards.md` §1.2). A comment line is one with a marker (`#`, `--`, `//`, `/*`, `*`, `<!--`, `{#`) at its start or after whitespace, any line inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`), and any line of a Python docstring (`ast` on a whole file; a line opening with a triple quote in an edit fragment). Checks only the text being written, so an edit that re-includes an existing flagged line is denied until the marker goes — every ordinary edit helps the sweep. Markdown, docs, `.claude/task/` and unlisted trees are never checked. Its twin in CI, `tests/test_no_decision_history_in_code.py`, imports the hook's own pattern and tree list and pins the count of flagged lines already in the tree in BOTH directions, so a sweep must lower the pin and the number never moves silently. Fails open. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+new file mode 100644
+index 00000000..5f1aa41c
+--- /dev/null
++++ b/tests/test_no_decision_history_in_code.py
+@@ -0,0 +1,254 @@
++"""A code comment says WHY, never who decided or when — the guard, both halves.
 +
-+### Reasoning lives in git, not in the comment
++Half one is the edit-time hook `.claude/hooks/comment_history_gate.py`: it denies an `Edit`,
++`Write` or `MultiEdit` whose written text adds a comment line carrying decision history to a code
++file. Half two is the pin below: the count of such lines already in the tree, which may only move
++in the open — a sweep MR lowers the pin, and nothing else moves it.
 +
-+A comment says **why**, in one line. **Who decided, when, which reviewer, which round, which MR or
-+issue — never in code.** That is history, and it has a home that survives the task without living
-+next to the line: the **commit message** carries the why and `Closes #N`; the **MR** carries the
-+review record (its head and its fold); the **issue** carries the exploration (its fold). Any line
-+reaches all three:
++Everything here imports the hook's own definition of a flagged line and of a code tree, so the CI
++count and the edit-time deny cannot drift apart; `test_definition_is_imported_not_copied` pins
++that. The rule these guard is in `dbt_project/docs/engineering_standards.md`, section 1.2.
 +
-+```bash
-+c=$(git blame -L 36,36 --porcelain CLAUDE.md | head -1 | cut -d' ' -f1)   # → the commit
-+git log -1 --format=%B "$c"                                               # → the why, "Closes #N"
-+git log --merges --ancestry-path --first-parent --reverse --format=%B "$c..gitlab/main" \
-+  | grep -m1 "See merge request"                                          # → "…!N", the MR
-+```
++The sample lines used in the tests are BUILT at runtime from pieces, never written as literals,
++because a literal `"x = 1  <hash> <marker>"` in this file would itself be a flagged line — the
++guard reads source text, not semantics, and this file is inside a guarded tree.
++"""
 +
-+Run on 2026-09-11 against `CLAUDE.md` line 36: commit `82ddb9c5`, "Closes #117", "See merge
-+request rami.al-fahham/football-data-pipeline!175".
++from __future__ import annotations
 +
-+GitLab shows the MR for any commit directly. So a comment that reads "CPO ruled 2026-06-23",
-+"(cto-reviewer, round 3)" or "see !132" is a defect in three ways: it is not the why, it rots (the
-+GitHub-era numbers in this repo already point at nothing), and it argues with a reviewer in a place
-+the next reader has to carry forever. **Argue with a reviewer in the contract's `amendments`**,
-+which reviewers read and which the MR carries; it is the review's record, not the code's.
++import json
++import os
++import pathlib
++import subprocess
++import sys
 +
-+Why this section exists: the rule above it was ignored. On 2026-09-11 the code held **429**
-+comment lines carrying a date, "CPO", "reviewer" or "round N" (tests 99, `site_v2/src` 88, dbt
-+models 78, hooks 48, `scripts` 46, `ingestion` 35, dbt tests 19, `site_v2/scripts` 16 — the grep is
-+`(#|--|//|\*).*(20\d\d-\d\d-\d\d|CPO|reviewer|round \d)`). That number is the starting point of the
-+ratchet #115 step 8 adds as a hook; until then this paragraph is the rule and the count is the
-+measure.
- 
- ## 1.3) Macros
- 
++import pytest
++
++REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
++HOOKS = os.path.join(REPO, ".claude", "hooks")
++sys.path.insert(0, HOOKS)
++import comment_history_gate as gate  # noqa: E402
++
++# The pin. A sweep MR lowers these two numbers and nothing else may move them.
++PINNED_LINES = 850
++PINNED_FILES = 174
++
++HASH = chr(35)
++
++
++def history_line(marker_text: str) -> str:
++    """A code line whose trailing comment carries `marker_text`, assembled so that THIS file holds
++    no flagged line."""
++    return f"x = 1  {HASH} {marker_text}"
++
++
++SAMPLE_MARKERS = {
++    "date": "changed on " + "2026" + "-08-20",
++    "product owner": "the " + "CPO" + " ruled this",
++    "reviewer": "a " + "reviewer" + " asked for it",
++    "review round": "found in " + "round " + "3",
++    "merge request": "see " + "!" + "132",
++}
++
++
++def run_hook(event: dict) -> str:
++    env = dict(os.environ, CLAUDE_PROJECT_DIR=REPO)
++    proc = subprocess.run(
++        [sys.executable, os.path.join(HOOKS, "comment_history_gate.py")],
++        input=json.dumps(event), capture_output=True, text=True, env=env, timeout=60, check=False,
++    )
++    return proc.stdout
++
++
++def edit_event(rel_path: str, new_string: str, tool: str = "Edit") -> dict:
++    return {"hook_event_name": "PreToolUse", "tool_name": tool,
++            "tool_input": {"file_path": os.path.join(REPO, rel_path), "new_string": new_string}}
++
++
++def denied(out: str) -> bool:
++    return '"permissionDecision": "deny"' in out
++
++
++# --- the pin -----------------------------------------------------------------------------------
++
++def test_the_tree_matches_the_pin_in_both_directions():
++    lines, files = gate.count_tree(REPO)
++    assert lines <= PINNED_LINES, (
++        f"{lines - PINNED_LINES} new comment line(s) carrying decision history were added. A "
++        "comment says WHY; who decided, when, which reviewer, which round, which MR live in the "
++        "commit message, the MR and the issue (engineering_standards.md section 1.2)."
++    )
++    assert lines == PINNED_LINES and files == PINNED_FILES, (
++        f"the tree now holds {lines} flagged lines in {files} files against a pin of "
++        f"{PINNED_LINES} in {PINNED_FILES}: lower PINNED_LINES / PINNED_FILES in this file so the "
++        "sweep is recorded — the number moves only in the open"
++    )
++
++
++def test_count_tree_counts_what_the_hook_flags(tmp_path):
++    root = tmp_path
++    (root / "scripts").mkdir()
++    (root / "docs").mkdir()
++    body = "\n".join(["import os", history_line(SAMPLE_MARKERS["date"]),
++                      "y = 2", history_line(SAMPLE_MARKERS["reviewer"])]) + "\n"
++    (root / "scripts" / "a.py").write_text(body, encoding="utf-8")
++    (root / "scripts" / "clean.py").write_text("z = 3\n", encoding="utf-8")
++    (root / "docs" / "note.md").write_text(history_line(SAMPLE_MARKERS["date"]) + "\n", encoding="utf-8")
++    assert gate.count_tree(str(root)) == (2, 1), "two flagged lines in one code file; markdown is not code"
++    with open(root / "scripts" / "clean.py", "a", encoding="utf-8") as fh:
++        fh.write(history_line(SAMPLE_MARKERS["product owner"]) + "\n")
++    assert gate.count_tree(str(root)) == (3, 2), "adding one flagged line moves the count by one"
++
++
++# --- one definition ----------------------------------------------------------------------------
++
++def test_definition_is_imported_not_copied():
++    src = pathlib.Path(__file__).read_text(encoding="utf-8")
++    compile_call, trees_def, exts_def = "re." + "compile(", "TREES" + " = (", "EXTS" + " = "
++    assert compile_call not in src, "the marker patterns live in the hook; this file imports them"
++    assert trees_def not in src and exts_def not in src, "the tree list lives in the hook"
++    for name in ("MARKERS", "TREES", "EXTS", "is_history_comment", "flagged_lines", "count_tree"):
++        assert hasattr(gate, name), name
++
++
++def test_block_comment_continuation_lines_are_comment_lines():
++    """A wrapped `/* … */` block whose inner lines carry no marker character was invisible to a
++    per-line check — `site_v2/src/styles/system.css` narrated what an MR shipped on such a line.
++    Every line between the opener and its closer is a comment line, per language."""
++    slash, star = chr(47), chr(42)
++    opener, closer = slash + star, star + slash
++    css = "\n".join([".a { color: red; }", opener + " the ring is drawn inside, and the reason is measured",
++                     "   " + SAMPLE_MARKERS["merge request"] + " shipped exactly this",
++                     "   " + closer, ".b { color: blue; }"]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(css, ".css")] == [(3, "merge request")]
++    assert gate.flagged_lines(css, ".py") == [], "a slash-star block is not a comment in Python"
++    jinja_open, jinja_close = "{" + HASH, HASH + "}"
++    sql = "\n".join(["select 1", jinja_open + " why this reads all snapshots:",
++                     "   " + SAMPLE_MARKERS["product owner"] + " " + jinja_close, "from t"]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(sql, ".sql")] == [(3, "product owner")]
++    html_open, html_close = "<" + "!--", "--" + ">"
++    astro = "\n".join(["---", "---", html_open + " layout note", "   " + SAMPLE_MARKERS["date"] + " " + html_close]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(astro, ".astro")] == [(4, "date")]
++
++
++def test_a_line_that_closes_one_block_and_opens_another_keeps_the_state():
++    """The state machine used to clear the block on any line containing a closer, so a line
++    reading `*/ .b{} /* reopens` dropped the second block and hid its continuation lines from
++    both the deny and the pin. Every opener is matched to its closer in order, on the line."""
++    slash, star = chr(47), chr(42)
++    opener, closer = slash + star, star + slash
++    css = "\n".join([".a { color: red; }",
++                     opener + " comment starts here",
++                     closer + " .b{} " + opener + " comment reopens",
++                     SAMPLE_MARKERS["date"] + " the " + "CPO" + " ruled this stays forever",
++                     closer + " .c{}"]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(css, ".css")] == [(4, "date")]
++    one_line = "x;" + opener + " a " + closer + " y " + opener + " dangling\n" + SAMPLE_MARKERS["reviewer"] + "\n" + closer + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(one_line, ".js")] == [(2, "reviewer")], \
++        "the second opener on a line, left open, is the live one"
++    glued = "a=1;" + opener + " no whitespace before the opener\n" + SAMPLE_MARKERS["product owner"] + "\n" + closer + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(glued, ".ts")] == [(2, "product owner")], \
++        "an opener glued to code still opens a block"
++    closed_same_line = "a=1; " + opener + " " + SAMPLE_MARKERS["date"] + " " + closer + "\n" + SAMPLE_MARKERS["reviewer"] + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(closed_same_line, ".css")] == [(1, "date")], \
++        "a block closed on its own line does not leak into the next line"
++
++
++def test_two_comment_syntaxes_on_one_line_pick_the_leftmost_open_block():
++    """`.sql` carries `/* */` and `{# #}`, `.astro` carries `/* */` and `<!-- -->`. When both
++    appear on one line the walk must pair each opener with its own closer, in position order —
++    a walk that let the last-checked syntax win would leave the wrong block open."""
++    slash, star = chr(47), chr(42)
++    c_open, c_close = slash + star, star + slash
++    j_open, j_close = "{" + HASH, HASH + "}"
++    # a closed C block, then an open Jinja block: the next line is inside the Jinja block
++    sql = "\n".join([c_open + " a " + c_close + " select 1 " + j_open + " why:",
++                     SAMPLE_MARKERS["date"], j_close, "from t"]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(sql, ".sql")] == [(2, "date")]
++    # the other order: a closed Jinja block, then an open C block, closed two lines later
++    sql2 = "\n".join([j_open + " a " + j_close + " select 1 " + c_open + " why:",
++                      SAMPLE_MARKERS["reviewer"], c_close + " from t", SAMPLE_MARKERS["date"]]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(sql2, ".sql")] == [(2, "reviewer")], \
++        "line 4 is code again once the C block closed on line 3"
++    # an unterminated C block whose text merely contains the other syntax's opener
++    sql3 = "\n".join([c_open + " unterminated, and " + j_open + " is just text here",
++                      SAMPLE_MARKERS["product owner"], j_close + " still inside the C block",
++                      SAMPLE_MARKERS["date"], c_close]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(sql3, ".sql")] == [(2, "product owner"), (4, "date")], \
++        "only the C closer ends the block; a Jinja closer inside it is text"
++    h_open, h_close = "<" + "!--", "--" + ">"
++    astro = "\n".join(["---", "---", h_open + " a " + h_close + " <p/> " + c_open + " why:",
++                       SAMPLE_MARKERS["merge request"], c_close]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(astro, ".astro")] == [(4, "merge request")]
++
++
++def test_python_docstrings_are_comment_lines_but_string_literals_are_not():
++    q = '"' * 3
++    module = "\n".join([q + "Module purpose.", "", "   " + SAMPLE_MARKERS["date"] + " and more", q, "",
++                        "def f():", "    " + q + "Why f exists.", "    " + SAMPLE_MARKERS["reviewer"], "    " + q,
++                        "    return 1", "", "FIXTURE = " + q + "not a docstring: " + SAMPLE_MARKERS["product owner"] + q]) + "\n"
++    hits = [(n, k) for n, k, _ in gate.flagged_lines(module, ".py")]
++    assert hits == [(3, "date"), (8, "reviewer")], hits
++    fragment = "\n".join(["    " + q + "A docstring in an edit fragment that does not parse alone.",
++                          "    " + SAMPLE_MARKERS["product owner"], "    " + q]) + "\n"
++    assert [(n, k) for n, k, _ in gate.flagged_lines(fragment, ".py")] == [(2, "product owner")]
++
++
++def test_every_marker_kind_is_flagged_and_a_why_is_not():
++    for kind, text in SAMPLE_MARKERS.items():
++        assert gate.is_history_comment(history_line(text)) == kind, kind
++    assert gate.is_history_comment(history_line("the provider files a forfeit as FT with no stat line")) is None
++    assert gate.is_history_comment("status = " + '"' + "reviewer" + '"') is None, "no comment marker, no flag"
++    assert gate.is_history_comment(history_line("ground truth, not a review round")) is None, \
++        "round without a digit is a word, not a round"
++
++
++# --- the hook, on real events ------------------------------------------------------------------
++
++def test_hook_denies_a_history_comment_in_a_code_file():
++    out = run_hook(edit_event("scripts/export_site_data.py", history_line(SAMPLE_MARKERS["product owner"])))
++    assert denied(out)
++    assert "COMMENT HISTORY GATE" in out and "section 1.2" in out
++
++
++def test_hook_allows_the_same_text_in_markdown_and_in_task_artifacts():
++    text = history_line(SAMPLE_MARKERS["product owner"])
++    assert run_hook(edit_event("docs/working_agreement.md", text)).strip() == ""
++    assert run_hook(edit_event(".claude/task/contract.md", text)).strip() == ""
++
++
++def test_hook_allows_a_why_only_comment():
++    out = run_hook(edit_event("scripts/export_site_data.py",
++                              history_line("the export selects and renames; it never derives a fact")))
++    assert out.strip() == ""
++
++
++def test_hook_checks_write_content_and_multiedit_edits():
++    write = {"hook_event_name": "PreToolUse", "tool_name": "Write",
++             "tool_input": {"file_path": os.path.join(REPO, "ingestion", "new.py"),
++                            "content": "import os\n" + history_line(SAMPLE_MARKERS["date"]) + "\n"}}
++    assert denied(run_hook(write))
++    multi = {"hook_event_name": "PreToolUse", "tool_name": "MultiEdit",
++             "tool_input": {"file_path": os.path.join(REPO, "tests", "x.py"),
++                            "edits": [{"old_string": "a", "new_string": "b"},
++                                      {"old_string": "c", "new_string": history_line(SAMPLE_MARKERS["merge request"])}]}}
++    assert denied(run_hook(multi))
++
++
++def test_hook_ignores_paths_outside_the_repo_and_fails_open_on_garbage():
++    outside = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
++               "tool_input": {"file_path": os.path.join(os.path.dirname(REPO), "elsewhere", "a.py"),
++                              "new_string": history_line(SAMPLE_MARKERS["date"])}}
++    assert run_hook(outside).strip() == ""
++    env = dict(os.environ, CLAUDE_PROJECT_DIR=REPO)
++    proc = subprocess.run([sys.executable, os.path.join(HOOKS, "comment_history_gate.py")],
++                          input="not json", capture_output=True, text=True, env=env, timeout=60, check=False)
++    assert proc.returncode == 0 and proc.stdout.strip() == ""
++
++
++# --- the guard obeys its own rule --------------------------------------------------------------
++
++@pytest.mark.parametrize("rel", [".claude/hooks/comment_history_gate.py", "tests/test_no_decision_history_in_code.py"])
++def test_the_guard_files_hold_no_flagged_line(rel):
++    text = pathlib.Path(REPO, rel).read_text(encoding="utf-8")
++    assert gate.flagged_lines(text) == []
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -241,7 +791,7 @@ index fb4828f2..bfe74e3c 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/TEMPLATE.md            |  5 +++
-#    .claude/task/acceptance_evidence.md | 65 +++++++++++++++++--------------------
-#    2 files changed, 35 insertions(+), 35 deletions(-)
+#   .claude/task/acceptance_evidence.md | 125 +++--
+#    .claude/task/review_input.patch     | 960 ++++++++++++++++++++++++++----------
+#    2 files changed, 803 insertions(+), 282 deletions(-)
 # ============================================================================
