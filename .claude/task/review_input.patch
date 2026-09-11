@@ -1,532 +1,526 @@
-diff --git a/.claude/hooks/stop_gate.py b/.claude/hooks/stop_gate.py
-index 56ba65af..25bdb2a7 100644
---- a/.claude/hooks/stop_gate.py
-+++ b/.claude/hooks/stop_gate.py
-@@ -70,6 +70,30 @@ FAST_GATES = (
- # Generous against a cold filesystem; the measured total is ~2.9s.
- GATE_TIMEOUT_S = 90
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index ffc26ced..4b62cfc8 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -83,8 +83,13 @@ pass. Do not convert an absence of findings into a finding.
+ - **You review the code diff and `contract.md`, never the review's own
+   paperwork.** The task NOTES in `.claude/task/` are excluded from the patch you
+   are handed, so the phrasing of the evidence artifacts is not yours to audit.
+-  `contract.md` and `escalations.log` ARE in the patch — they carry the scope and
+-  the authority you check, and you cannot verify a cited ruling without the log.
++  `contract.md` IS in the patch — it carries the scope and the quoted approval a
++  `protected_override` rests on. That quote is the builder's word; you cannot verify
++  it, and no file lets you (`escalations.log` is frozen since 2026-09-11 — a NEW
++  entry in it is a defect; a citation of an old one is checkable). What you check
++  instead: the approval is quoted with a date, and the contract says the MR
++  head's `Locked files` line repeats that same quote — the CPO, who merges, reads
++  the two copies side by side. A §10 decision with no quote at all is still FAIL.
+ - You can never approve a §10 decision — finding one means FAIL (if taken
+   silently) or ESCALATE (if genuinely ambiguous).
+ - Uncertain whether a written rule covers a case? The classification itself is
+diff --git a/.claude/skills/onboard-endpoint/SKILL.md b/.claude/skills/onboard-endpoint/SKILL.md
+index a758f452..254cdb0d 100644
+--- a/.claude/skills/onboard-endpoint/SKILL.md
++++ b/.claude/skills/onboard-endpoint/SKILL.md
+@@ -111,9 +111,9 @@ for explicit approval to enable the recurring pull (this mirrors
+ file is written). Do NOT write ingestion code or enable a schedule until that
+ approval is given, and **never infer or self-grant it** — cost is non-negotiable
+ (CLAUDE.md "Cost is non-negotiable"; docs/working_agreement.md §5). Once the CPO
+-gives it, record the approval in `.claude/task/escalations.log` — the builder
+-appends rulings there as the standard practice (docs/working_agreement.md §2/§11)
+-so the build contract's `decisions_taken` can cite a locatable ruling. No new
++gives it, the approval is recorded by the thing it changes (docs/working_agreement.md
++§11): the registry entry in the MR, quoted in the contract's `decisions_taken`, and
++named in the MR head as a recurring cost he is approving by merging. No new
+ daily run cadence without separate approval — ride the 04:00 run or a sub-schedule.
  
-+def _parked_stashes(root: str) -> list[str]:
-+    """Every stash entry, as `stash@{n}: <message>` lines — none should exist at turn end.
-+
-+    A stash is not a store: nothing lists it, no gate sees it, and `git stash drop` is one
-+    keystroke. Parked work goes on a pushed `parked/<branch>` branch. No label is exempt — the
-+    contract stash-dance stashes, edits and pops inside one turn, so the only stash-dance this
-+    can see is a forgotten one.
-+
-+    Runs UNCONDITIONALLY, before the dirty-tree short-circuit in `main`: a forgotten stash leaves
-+    the tree clean, so a check placed with `FAST_GATES` would never see the case it exists for.
-+    ~10ms. Fails OPEN like everything else here.
-+    """
-+    try:
-+        proc = subprocess.run(
-+            ["git", "stash", "list", "--format=%gd: %s"],
-+            cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace",
-+            timeout=10,
-+        )
-+    except Exception:
-+        return []
-+    if proc.returncode != 0:
-+        return []
-+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-+
- 
- def _failing_gates(root: str) -> list[tuple[str, str]]:
-     """(script, first meaningful output line) for each fast gate that fails.
-@@ -106,6 +130,25 @@ def main() -> int:
-         return 0
-     try:
-         root = _repo_root()
-+
-+        # PARKED WORK. First, and regardless of whether the tree is dirty — see `_parked_stashes`.
-+        parked = _parked_stashes(root)
-+        if parked:
-+            print(json.dumps({
-+                "decision": "block",
-+                "reason": (
-+                    "STOP GATE (parked work): the stash holds work that should not be there at "
-+                    "turn end: " + " | ".join(parked[:5]) +
-+                    ". A stash is not a store — nothing lists it and one keystroke empties it. "
-+                    "If it is your contract stash-dance, pop it now (`git stash pop`). If it is "
-+                    "parked work, put it on a branch: `git branch parked/<name> stash@{N}`, "
-+                    "`git push gitlab parked/<name>:parked/<name>`, then `git stash drop`. "
-+                    "If it is another worktree's `TEMP-` dance (the stack is repo-wide), leave "
-+                    "it and end the turn again."
-+                ),
-+            }))
-+            return 0
-+
-         contract = _read_contract(root)
-         dirty = _dirty_outside_task_dir(root)
-         if contract:
+ ### Step 4 — CPO history-depth decision
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 69f41764..25b1644c 100644
+index 25b1644c..89cc0395 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,37 +1,28 @@
--# Task contract — the dead-reference guard used a boundary that was wrong within the hour
-+# Task contract — a stash left behind blocks the turn
+@@ -1,146 +1,153 @@
+-# Task contract — a stash left behind blocks the turn
++# Task contract — requirements live in the issue, decisions in the MR head; the ruling log is frozen
  
  objective: >
--  `tests/test_no_dead_issue_refs.py` shipped in `!171` with `FIRST_DEAD = 115`: any issue reference
--  at or above 115 is dead. GitLab issued **#115** the same day — the context-cleanup issue the CPO
--  asked for as his reference — so the guard would flag a live reference, and the constant would need
--  chasing GitLab's counter forever. Replace the moving boundary with a CLOSED SET, which needs no
--  periodic re-tuning — see `decisions_taken` for what it does still cost.
-+  Ten pieces of parked work sat in `git stash` — a store nothing lists, no gate sees, and one
-+  keystroke empties — including the whole player Overview tab, which memory had already written
-+  off as lost. All ten are now pushed `parked/*` branches and the stack is empty. This branch adds
-+  the mechanism that keeps it empty: the stop gate blocks a turn that ends with parked work in the
-+  stash.
+-  Ten pieces of parked work sat in `git stash` — a store nothing lists, no gate sees, and one
+-  keystroke empties — including the whole player Overview tab, which memory had already written
+-  off as lost. All ten are now pushed `parked/*` branches and the stack is empty. This branch adds
+-  the mechanism that keeps it empty: the stop gate blocks a turn that ends with parked work in the
+-  stash.
++  `escalations.log` (810 KB, 172 entries, ~2 CPO-quote lines per entry, the rest builder
++  narrative) was the only place a "the CPO ruled X" claim could be checked — and it is written by
++  the builder, in the branch it authorises. On `!173` three of four review rounds were spent on
++  that record, none on the code; across the session, seven misattributed quotes. The CPO's
++  question: "What are the decisions worth being logged? And where?" His answer, after a fresh
++  independent review of the proposal: requirements go in a GitLab issue per major task, in a
++  fixed short shape the plan is part of; a rule change is edited into the document that owns it;
++  the MR description starts with a head he can scan; his merge is the approval. Nothing else is
++  written down. This branch makes that the written process and freezes the log.
  
  refs: >
--  `!171` shipped the guard. GitLab **#115** is "Context engineering cleanup", filed 2026-09-10 and
--  live — the collision.
--  `.claude/task/escalations.log` `2026-09-10 chore/dead-issue-references` — the CPO's direction that
--  the cleanup finishes before product work resumes, and the revised nine-step plan.
--  ⭐ THE JUSTIFICATION FOR REWRITING RATHER THAN BUMPING THE CONSTANT IS TECHNICAL AND STANDS ON ITS
--  OWN, without reference to anything the CPO said: **there is no value of `FIRST_DEAD` that is both
--  correct and stable.** Correct means just above GitLab's maximum, which moves. Stable means high,
--  which stops flagging everything below it — that is, all of them. A one-character bump to 116 buys
--  one issue of life. That argument is checkable by anyone and is what this branch rests on.
+-  `.claude/task/escalations.log` `2026-09-11 feat/stash-check-in-stop-gate` — the CPO's "yes" to
+-  editing the protected stop gate, after the plain-language explanation he asked for.
+-  Step 4 of the context cleanup as GitLab #115 numbers it ("4 — where parked work lives"; "5 —
+-  split `escalations.log`"). ⚠ The 2026-09-10 log entry that first listed the nine steps had those
+-  two the other way round; #115 is the tracker and supersedes it. Steps 1-3 merged as `!169`-`!172`.
+-  Precedent for a protected-path edit to this file: `check_description_hygiene.py` was added to
+-  `FAST_GATES` on 2026-08-20 "with CPO approval for the protected-path edit".
 -
--  ⚠ THE CPO'S STANDARD IS CONTEXT, NOT AUTHORITY, AND `scope-auditor` WAS RIGHT TWICE ABOUT IT.
--  Round 1: I quoted him without logging it, and it FAILed as fabricated — correctly, because an
--  unlogged quote is indistinguishable from an invented one. Round 2, after I logged it: it FAILed
--  again on the deeper point, that a log entry I wrote, in the branch under review, after being
--  caught, corroborates nothing but my own assertion.
--  ⛔ THAT SECOND OBJECTION IS UNANSWERABLE AND IT IS NOT SPECIFIC TO THIS BRANCH. Every entry in
--  `escalations.log` is authored by the party it constrains, in the branch it justifies. The file the
--  working agreement designates as the durable record of the CPO's rulings is self-attested. No care
--  taken while writing an entry fixes that. Recorded as a finding against step 4 of the context plan
--  (GitLab #115), which is where `escalations.log` is restructured — this branch does not pretend to
--  solve it, and deliberately no longer leans on it.
-+  `.claude/task/escalations.log` `2026-09-11 feat/stash-check-in-stop-gate` — the CPO's "yes" to
-+  editing the protected stop gate, after the plain-language explanation he asked for.
-+  Step 4 of the context cleanup as GitLab #115 numbers it ("4 — where parked work lives"; "5 —
-+  split `escalations.log`"). ⚠ The 2026-09-10 log entry that first listed the nine steps had those
-+  two the other way round; #115 is the tracker and supersedes it. Steps 1-3 merged as `!169`-`!172`.
-+  Precedent for a protected-path edit to this file: `check_description_hygiene.py` was added to
-+  `FAST_GATES` on 2026-08-20 "with CPO approval for the protected-path edit".
+-protected_override: CPO approved editing `.claude/hooks/stop_gate.py` on 2026-09-11 — asked
+-  directly, in plain language, and answered "yes". Recorded in `escalations.log` under
+-  `2026-09-11 feat/stash-check-in-stop-gate`.
++  GitLab #115 step 5 ("split `escalations.log`") — resolved as FREEZE rather than split, because
++  the fresh review found the growth is all narrative and the self-attestation cannot be cured by
++  restructuring the same builder-written file. The CPO's "go" (chat, 2026-09-11) to the plan
++  quoted in the issue this MR closes. Independent review: a fresh general-purpose agent, prompt and
++  answer in the issue's fold. Overlap noted, not taken: GitLab #77 (per-task paperwork vs durable
++  records).
 +
-+protected_override: CPO approved editing `.claude/hooks/stop_gate.py` on 2026-09-11 — asked
-+  directly, in plain language, and answered "yes". Recorded in `escalations.log` under
-+  `2026-09-11 feat/stash-check-in-stop-gate`.
++protected_override: >
++  `.claude/agents/scope-auditor.md` — one sentence changes: the auditor stops requiring a log entry
++  for a cited approval and instead checks the contract quotes it and the MR head declares it. The
++  CPO approved this plan in chat on 2026-09-11 ("ok go", after "Explain like I am twelve" ×3 and a
++  fresh-agent review he asked for). Under the rule this branch introduces, the durable approval is
++  his MERGE of this MR, whose head declares the locked file. The final entry of the frozen log
++  records the same approval — the last entry it will ever take.
  
  scope_paths:
--  - tests/test_no_dead_issue_refs.py
-+  - .claude/hooks/stop_gate.py
-+  - tests/test_governance_hooks.py
+-  - .claude/hooks/stop_gate.py
+-  - tests/test_governance_hooks.py
++  - .gitlab/issue_templates/Task.md
++  - .gitlab/merge_request_templates/Default.md
++  - docs/working_agreement.md
++  - CLAUDE.md
++  - docs/wireframes/00_overview.md
++  - .claude/task/TEMPLATE.md
++  - .claude/task/escalations.log
++  - .claude/agents/scope-auditor.md
++  - .claude/skills/onboard-endpoint/SKILL.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -39,144 +30,117 @@ scope_paths:
-   - .claude/task/escalations.log
+   - .claude/task/acceptance_evidence.md
+-  - .claude/task/escalations.log
  
  impact_map: >
--  writers: one test file. No model, mart, export, site source, doc or CI config.
+-  writers: one hook (`.claude/hooks/stop_gate.py`), one test file. No model, mart, export, site
+-    source or CI config.
 -
--  downstream: the test runs in CI's `test:python`. Nothing else reads it.
+-  downstream: the Stop hook fires at the end of every agent turn. It does NOT run in CI. Nothing
+-    else reads it.
 -
--  blast_radius: the guard's COVERAGE changes shape. Before: everything `>=115`, which over-covers
--    (future live issues) and under-covers nothing. After: exactly the 256 GitHub-era numbers this
--    repo actually references. That UNDER-COVERS a GitHub number nothing has ever cited, and that
--    gap is real, silent and unguarded — see `decisions_taken`, which states it the same way. It has
--    not occurred historically (every dead reference that got in was copied from elsewhere in the
--    repo, which the set covers), but "has not happened" is not "cannot happen".
--    ⚠ THIS SENTENCE READ "harmless" UNTIL ROUND 4, while `decisions_taken` called the same gap "the
--    worse property, and it is not guarded". `scope-auditor` FAILed it as the same defect class as
--    rounds 2 and 3 — an absolute claim sitting apart from its own rebuttal — surviving a third time
--    because the sweep grepped for the WORDS I had used ("correct forever", "cannot rot") and this
--    instance said "harmless".
-+  writers: one hook (`.claude/hooks/stop_gate.py`), one test file. No model, mart, export, site
-+    source or CI config.
+-  blast_radius: a NEW BLOCKING CONDITION on ending a turn. Today the gate blocks on out-of-scope
+-    dirty files and on failing offline checks; after this it also blocks when the stash holds
+-    ANYTHING — the rule exactly as the CPO was told it: "if you end your turn with something still
+-    in the pocket, you get stopped". No label is exempt. The contract stash-dance is not affected:
+-    it stashes, edits and pops inside ONE turn, and the gate fires at turn END — so the only
+-    stash-dance the gate can see is a forgotten one, which is the #41 case it should catch. Like
+-    the two existing conditions it blocks ONCE (`stop_hook_active`), so a stash this session cannot
+-    pop — another worktree's, since the stack is repo-wide — costs one nag, not a wall. The check
+-    runs BEFORE the dirty-tree short-circuit, because a forgotten stash leaves the tree clean —
+-    that is the exact case it exists for.
++  writers: none — no code, no model, no export, no CI job changes. Two new template files, five
++    prose files, one reviewer brief (one sentence), the log (a banner and a final entry).
 +
-+  downstream: the Stop hook fires at the end of every agent turn. It does NOT run in CI. Nothing
-+    else reads it.
++  downstream: the process every future task follows. `.gitlab/issue_templates/` and
++    `.gitlab/merge_request_templates/` are read by GitLab's UI; the post-commit hook opens MRs with
++    `glab mr create --fill`, which takes the description from the commit message, so the MR head is
++    set by the builder right after (`glab mr update`) — a rule, stated in the working agreement.
++    `review_routing.json` is NOT changed: the log stays un-excluded from the review patch (frozen,
++    it never diffs again), so `test_governance_hooks.py`'s patch-composition tests are untouched.
 +
-+  blast_radius: a NEW BLOCKING CONDITION on ending a turn. Today the gate blocks on out-of-scope
-+    dirty files and on failing offline checks; after this it also blocks when the stash holds
-+    ANYTHING — the rule exactly as the CPO was told it: "if you end your turn with something still
-+    in the pocket, you get stopped". No label is exempt. The contract stash-dance is not affected:
-+    it stashes, edits and pops inside ONE turn, and the gate fires at turn END — so the only
-+    stash-dance the gate can see is a forgotten one, which is the #41 case it should catch. Like
-+    the two existing conditions it blocks ONCE (`stop_hook_active`), so a stash this session cannot
-+    pop — another worktree's, since the stack is repo-wide — costs one nag, not a wall. The check
-+    runs BEFORE the dirty-tree short-circuit, because a forgotten stash leaves the tree clean —
-+    that is the exact case it exists for.
++  layer_rules: n/a.
  
    deploy_order: none.
  
++  blast_radius: the scope-auditor's brief no longer says "you cannot verify a cited ruling without
++    the log". If that sentence carried real protection, this weakens it. It did not: the log is
++    builder-written, so the check it enabled was "did the builder write the same thing twice". The
++    protection that remains is the one that always existed — the CPO reads the MR head and merges
++    or not — now stated as the rule instead of assumed.
++
  acceptance_criteria:
--  - A live GitLab reference is NOT flagged. Pinned for `#115` specifically, the number that broke
--    the boundary version.
--  - A dead reference IS flagged. Pinned for `#753` (the player page's phantom design authority) and
--    `#153`/`#156` (the "Next" line).
--  - The CSS colour `#475569` in `docs/roles/ui_expert.md` is not read as an issue number.
--  - Removing ANY number from the set turns a test RED — pinned by a digest over all 256 members,
--    not by asserting a handful. ⚠ The first version pinned `min(...)`, two literal strings and
--    nothing else: 4 of 256 members, so deleting any of the other 252 stayed green. Worse, the
--    mutation offered as proof deleted `151`, which is the member `min(...)` pins — a cherry-picked
--    mutation presented as a general property. `platform-reviewer` caught both.
--  - A previously-uncited dead number entering these files is NOT caught, and no test claims it is.
--  - A three-digit all-decimal CSS colour (`#217`) in either guarded file IS misread as an issue.
--    Accepted, not fixed — pinned by `test_a_short_all_digit_hex_colour_is_a_KNOWN_false_positive`,
--    which asserts the wrong behaviour so it is a documented limitation rather than an unknown gap.
--  - A dead reference abutting a hex letter (`#217e`) is NOT caught — a silent false negative.
--    Accepted, not fixed, for the mirror reason: `#217e` is itself a valid `#RGBA` colour. Pinned by
--    `test_a_reference_abutting_a_hex_letter_is_a_KNOWN_false_negative`; no such form exists in
--    either guarded file today.
--  - `pytest tests/` and `ruff check .` green.
-+  - Any stash blocks the turn, with a message that names the stash and says to put it on a
-+    `parked/` branch. Proven by creating one and running the gate.
-+  - A `TEMP-` stash blocks too — there is no label exemption. Proven by a test, so the exemption
-+    the first draft carried cannot come back silently.
-+  - An empty stash list passes with no output. Proven.
-+  - The check runs even when the tree is clean — a mutation that moves it below the dirty-tree
-+    short-circuit turns a test RED.
-+  - The gate's existing behaviour is unchanged for the cases it already handled; the existing
-+    governance-hook tests stay green.
+-  - Any stash blocks the turn, with a message that names the stash and says to put it on a
+-    `parked/` branch. Proven by creating one and running the gate.
+-  - A `TEMP-` stash blocks too — there is no label exemption. Proven by a test, so the exemption
+-    the first draft carried cannot come back silently.
+-  - An empty stash list passes with no output. Proven.
+-  - The check runs even when the tree is clean — a mutation that moves it below the dirty-tree
+-    short-circuit turns a test RED.
+-  - The gate's existing behaviour is unchanged for the cases it already handled; the existing
+-    governance-hook tests stay green.
++  - A GitLab issue template exists with exactly the four fields — Requested by / What exactly (a
++    checklist, each line checkable without reading code) / Why / How (≤7 lines) — plus a fold for
++    exploration detail and a Not-in-scope line; and the issue this MR closes uses it.
++  - An MR template exists whose head is `Closes #N`, the issue's checklist ticked with one link per
++    tick, and a `Locked files` line; and this MR's description carries that head.
++  - `docs/working_agreement.md` states, in §1 and §11: one issue per major task in that shape; the
++    plan is the issue's How and the plan file shown for approval is the same text; a rule change is
++    edited into the document that owns it in the same MR; the MR head lists decisions and locked
++    files; the merge is the approval; nothing else is logged. The two sentences that said
++    "escalations are appended to `escalations.log`" are gone.
++  - `escalations.log` carries a FROZEN banner at the top and a final entry recording this approval
++    as its last; `CLAUDE.md`'s authority row, `00_overview.md`, `TEMPLATE.md`'s override guidance,
++    the onboard-endpoint skill and the scope-auditor's brief no longer instruct anyone to write to
++    it or to require an entry in it. Verified by grep for instructing sentences, not by word count:
++    citations of past entries stay.
++  - No gate, hook, CI job or routing row is added or changed — `git diff --stat` shows no
++    `.claude/hooks/`, `scripts/`, `.gitlab-ci.yml` or `review_routing.json` change.
  
  decisions_taken: >
--  THE SET IS CLOSED, AND THAT IS THE WHOLE POINT. GitHub's tracker is gone, so no NEW dead number
--  can ever come into existence. A frozen list therefore needs no periodic re-tuning, where a
--  boundary is wrong the moment GitLab's counter moves.
--  ⚠ NOT "correct forever", and the decay is not a single event either. As GitLab's counter climbs
--  from #115 into this range, more members become live numbers, so the collision SURFACE grows — and
--  unevenly, because the set has dense runs (`range(276, 297)` is 21 consecutive, `range(407, 429)`
--  is 22). `scope-auditor` FAILed the earlier "a named event with a one-line fix" wording for
--  exactly that, and it was right that the wording understated it.
--  ⚠ WHAT IT GOT WRONG, and it changes the size of the problem: it concluded the guard would then
--  fail "on every single issue GitLab files for weeks, each one requiring its own commit". It does
--  not. The guard fires on CITATION, not existence — `_dead_refs` only returns numbers the text
--  actually contains — so entering a dense run costs nothing by itself. Verified by running it: with
--  280 in the set, prose that does not cite it returns `[]`. The cost is one deletion at the moment
--  someone writes that live issue into one of the two guarded files, and those files cite ~15 issues
--  between them across the project's entire life.
--  Contents: every `#115`-`#9999` referenced across
--  `CLAUDE.md`, `docs/`, `.claude/active_work.md` and the memory store on 2026-09-10 — 256 numbers.
--  The derivation is sound because GitLab had only reached #115 that day, so anything at or above it
--  in an older document is necessarily GitHub-era.
+-  A STASH IS NOT A STORE, AND THE RULE IS ENFORCED, NOT WRITTEN. `working_agreement.md` could say
+-  "park work on a branch"; the point of this cleanup is that written rules have not held. The stop
+-  gate already holds the line on dirty trees and failing checks; this is the same instrument.
 -
--  ⛔ A CSS COLOUR WAS BEING READ AS AN ISSUE NUMBER. `docs/roles/ui_expert.md` carries `#475569`
--  (slate-600), and the shipped regex `#(\d+)` matched it as issue 475569. `platform-reviewer` raised
--  this class on `!171` as hypothetical — "would false-positive on a pure-digit hex colour if one
--  were ever added" — having grepped only the two guarded files. One already existed elsewhere in the
--  repo. The pattern is now `#(\d{1,4})(?![0-9a-fA-F])`.
--  ⚠ FOUND BY REGENERATING THE SET, not by review: the derived range ran to 475569, which is not a
--  plausible issue id. The number was the tell.
+-  NO EXEMPTION. The first draft exempted `TEMP-` stashes for 24 hours, on the premise that the
+-  contract stash-dance would otherwise be blocked. The premise was false — the dance is intra-turn
+-  and the gate is turn-end — and the CPO was never shown the exemption: the explanation he said
+-  "yes" to states the rule unconditionally (cto-reviewer, round 1). Removed. The rule shipped is
+-  the rule approved, and it is stricter: `TEMP-40-mrB` sat under that label for days "until the
+-  mart column is in prod", which the 24h window would have tolerated for a day.
 -
--  THE ONE REMAINING FAILURE MODE IS DISCLOSED AND MADE LOUD, not hidden. If GitLab ever issues a
--  number inside the set, a legitimate reference is flagged. The fix is deleting one entry —
--  deliberate and visible. `test_the_headroom_before_a_collision_is_stated` pins the
--  lowest member (#151), so the headroom is stated and a silencing edit cannot pass quietly.
+-  IT RUNS FIRST, BEFORE THE DIRTY CHECK. `FAST_GATES` is skipped on a clean tree to save 2.9s per
+-  conversational turn. A forgotten stash leaves the tree CLEAN — so a check placed with
+-  `FAST_GATES` would never see the case it exists for. `git stash list` costs ~10ms and runs
+-  unconditionally.
 -
--  THRESHOLD — NEW MECHANISM: none. The same test file, in the same suite.
+-  THE TEN EXISTING STASHES WERE CONVERTED, NOT DELETED. Each is a pushed `parked/<original
+-  branch>` branch pointing at the stash commit, so all three parents — base, index, untracked —
+-  are reachable and `git stash apply parked/<x>` restores it exactly. Verified before dropping:
+-  every stash commit's SHA is a remote branch tip. Five of the ten are dead or superseded and are
+-  branches the CPO can delete at leisure; the dispositions are in `escalations.log`.
+-  THE SEQUENCE, plainly — AND NOT DRESSED AS APPROVED: the CPO approved the PLAN on 2026-09-10
+-  ("do as recommended", log entry `2026-09-10 chore/dead-issue-references`), which listed "where
+-  parked work lives — the 10 stashes ... [NEW]" as a step. That entry says nothing about the
+-  steps' content. The EARLIER entry that day, `2026-09-10 chore/authority-map-in-claude-md`,
+-  recording his "go" on the original six-step plan — before the stash step existed — says: "NOT
+-  A RULING ON ANY OF THE SIX STEPS' CONTENT. He approved the plan and told me to start; each
+-  step's own decisions are still his." I read that limit as carrying to the revised plan (a
+-  re-ordered checklist approved with "do as recommended" is no more a content ruling than the
+-  original approved with "go"), but that is MY reading; no entry disclaims content-approval for
+-  the revised plan in so many words. Either way: he did not approve the step's CONTENT.
+-  Converting each stash to a pushed `parked/*` branch and dropping it was MY choice,
+-  taken on my own initiative under the autonomy rule for a non-destructive, reversible action
+-  (each stash commit verified a pushed branch tip before its drop; all ten branches exist), and
+-  told to him afterwards in the same message as the ask for this gate. He answered the ask; he
+-  did not rule on the conversion, and this contract does not claim he did. Merging this MR is
+-  where he can. The live/dead split is a LABEL on a decision reserved to him, not an action taken.
 -
--  THRESHOLD — RECURRING COST: **NOT "strictly less". It is a TRADE, and the earlier version of this
--  line was self-contradictory** — it claimed "no regeneration at all" three lines above conceding
--  that a previously-uncited dead number would slip through, which is precisely a case where the set
--  would need regenerating. `scope-auditor` caught the contradiction. Stated honestly:
--
--    | | boundary (`>=115`) | closed set |
--    |---|---|---|
--    | maintenance | re-tune whenever GitLab's counter passes it — perpetual, and triggered by the counter alone | one deletion per collision, and only when a colliding issue is actually CITED in one of the two files (~15 citations in the project's life so far) |
--    | covers a dead number NEVER cited before | **yes** | **no** |
--    | covers live GitLab issues correctly | no — flags them | yes |
--    | silencing it | move one constant, invisible | RED, digest-pinned |
--
--  ⛔ A FOURTH FALSE-POSITIVE CLASS IS ACCEPTED, NOT FIXED, AND THAT IS A DECISION — recorded here
--  because `scope-auditor` FAILed round 6 for it living only in a test docstring while the other two
--  known gaps were disclosed in this contract. Selectively surfacing some limitations to the
--  authoritative record and leaving one in code comments is the "documented to get past review"
--  pattern, whatever the intent.
--  THE CLASS: a three-digit all-decimal CSS shorthand colour is TEXTUALLY IDENTICAL to a dead-set
--  member — `#217` the colour and #217 the issue cannot be told apart. Verified by running it:
--  `_dead_refs("accent colour #217 was chosen")` returns `[217]`. The six-digit form is only caught
--  because a trailing hex digit gives the lookahead something to trip on.
--  NOT FIXED BECAUSE EVERY FIX IS WORSE. A context rule — ignore it after "colour", ignore it inside
--  backticks — buys this at the price of FALSE NEGATIVES, and a guard that lets through the thing it
--  exists to catch has failed at its job, where one that occasionally complains has not.
--  PINNED INSTEAD by `test_a_short_all_digit_hex_colour_is_a_KNOWN_false_positive`, which asserts the
--  current WRONG behaviour, so anyone later "fixing" it must deliberately decide whether they have
--  introduced a false negative. The failure is loud — a red test naming the number — never silent.
--  ⚠ Found by `platform-reviewer` at its third round, after it had already found the six-digit colour
--  and two depths of HTML entity in the same pattern.
--
--  ⛔ A FIFTH CLASS, AND IT RUNS THE DANGEROUS WAY: A SILENT FALSE NEGATIVE, ACCEPTED. The trailing
--  `(?![0-9a-fA-F])` that stops `#475569` reading as an issue excludes ANY digit run abutting a hex
--  letter — so `#217e` and `#908d` match nothing, and a dead reference written that way is MISSED.
--  That is the guard letting through what it exists to catch.
--  ACCEPTED because the ambiguity is genuine in both directions: CSS colours are 3, 4, 6 or 8
--  characters, so `#217e` is itself a valid `#RGBA` colour, and there is no reading of it that is
--  unambiguously a citation. What decides it is which side has occurred — `#475569` was real, in
--  `docs/roles/ui_expert.md`, while a citation with no space or punctuation after the number is not
--  a form anyone uses: `grep -P "#\d{1,4}[a-fA-F]"` over both guarded files matches nothing.
--  PINNED by `test_a_reference_abutting_a_hex_letter_is_a_KNOWN_false_negative`, which asserts the
--  wrong behaviour deliberately and shows every ordinary citation form still matches.
--  ⚠ Found by `platform-reviewer` at round 4 — the mirror of the class above, undisclosed while the
--  false-positive side was pinned. And then `scope-auditor` FAILed round 7 because I had pinned it
--  in the test and NOT written it here: the identical defect it had FAILed in round 6 for the class
--  above, repeated one round later on the next class. Recorded because that repetition is the
--  finding.
--
--  SO THE SET IS NARROWER IN ONE DIMENSION AND THE OLD GUARD WAS BROADER THERE. What decides it is
--  which failure has actually occurred: the boundary flagged a live issue within hours of shipping
--  (#115, his own reference issue). Nobody has ever pasted a never-before-cited GitHub number into
--  these two files — the dead references got in by being COPIED FROM elsewhere in the repo, and the
--  set covers everything the repo cites.
--  ⚠ THE GAP IS SILENT, WHICH IS THE WORSE PROPERTY, and it is not guarded. Recorded rather than
--  papered over: no test can catch it offline, because the only complete check is asking the tracker.
-+  A STASH IS NOT A STORE, AND THE RULE IS ENFORCED, NOT WRITTEN. `working_agreement.md` could say
-+  "park work on a branch"; the point of this cleanup is that written rules have not held. The stop
-+  gate already holds the line on dirty trees and failing checks; this is the same instrument.
+-  THRESHOLD — NEW MECHANISM: yes, one new blocking condition in an existing protected gate.
+-  Approved by the CPO, recorded. Routed to cto-reviewer and platform-reviewer by
+-  `review_routing.json`.
+-  THRESHOLD — RECURRING COST: ~10ms per turn end.
++  FREEZE, NOT SPLIT. #115 step 5 said "split". The fresh review measured the log — growth is all
++  builder narrative; CPO quotes stay ~2 lines per entry — and found the self-attestation survives
++  any restructuring of a builder-written file. The CPO chose freeze + the issue/MR-head process.
++  #115's bar ("every step ships a mechanism") is met by the harness-enforced plan approval on the
++  issue text and by the merge, not by a new gate; the CPO was told this conflict plainly and chose.
 +
-+  NO EXEMPTION. The first draft exempted `TEMP-` stashes for 24 hours, on the premise that the
-+  contract stash-dance would otherwise be blocked. The premise was false — the dance is intra-turn
-+  and the gate is turn-end — and the CPO was never shown the exemption: the explanation he said
-+  "yes" to states the rule unconditionally (cto-reviewer, round 1). Removed. The rule shipped is
-+  the rule approved, and it is stricter: `TEMP-40-mrB` sat under that label for days "until the
-+  mart column is in prod", which the 24h window would have tolerated for a day.
++  NO NEW CI CHECK. The proposed MR↔contract description check was dropped by the fresh review: it
++  binds two builder-written texts to each other, and GitLab truncates
++  `CI_MERGE_REQUEST_DESCRIPTION` at 2,700 characters. The CPO asked what "no CI check" means and
++  accepted it: the one thing no machine can verify — "did he build what I asked" — is his read of
++  the head.
 +
-+  IT RUNS FIRST, BEFORE THE DIRTY CHECK. `FAST_GATES` is skipped on a clean tree to save 2.9s per
-+  conversational turn. A forgotten stash leaves the tree CLEAN — so a check placed with
-+  `FAST_GATES` would never see the case it exists for. `git stash list` costs ~10ms and runs
-+  unconditionally.
++  THE MR HEAD IS SET BY THE BUILDER AFTER THE HOOK OPENS THE MR. `glab mr create --fill` uses the
++  commit message; a commit message cannot carry file links cleanly under the commit form gate. So
++  the rule is "open, then `glab mr update` with the head", and the template file is the shape.
 +
-+  THE TEN EXISTING STASHES WERE CONVERTED, NOT DELETED. Each is a pushed `parked/<original
-+  branch>` branch pointing at the stash commit, so all three parents — base, index, untracked —
-+  are reachable and `git stash apply parked/<x>` restores it exactly. Verified before dropping:
-+  every stash commit's SHA is a remote branch tip. Five of the ten are dead or superseded and are
-+  branches the CPO can delete at leisure; the dispositions are in `escalations.log`.
-+  THE SEQUENCE, plainly — AND NOT DRESSED AS APPROVED: the CPO approved the PLAN on 2026-09-10
-+  ("do as recommended", log entry `2026-09-10 chore/dead-issue-references`), which listed "where
-+  parked work lives — the 10 stashes ... [NEW]" as a step. That entry says nothing about the
-+  steps' content. The EARLIER entry that day, `2026-09-10 chore/authority-map-in-claude-md`,
-+  recording his "go" on the original six-step plan — before the stash step existed — says: "NOT
-+  A RULING ON ANY OF THE SIX STEPS' CONTENT. He approved the plan and told me to start; each
-+  step's own decisions are still his." I read that limit as carrying to the revised plan (a
-+  re-ordered checklist approved with "do as recommended" is no more a content ruling than the
-+  original approved with "go"), but that is MY reading; no entry disclaims content-approval for
-+  the revised plan in so many words. Either way: he did not approve the step's CONTENT.
-+  Converting each stash to a pushed `parked/*` branch and dropping it was MY choice,
-+  taken on my own initiative under the autonomy rule for a non-destructive, reversible action
-+  (each stash commit verified a pushed branch tip before its drop; all ten branches exist), and
-+  told to him afterwards in the same message as the ask for this gate. He answered the ask; he
-+  did not rule on the conversion, and this contract does not claim he did. Merging this MR is
-+  where he can. The live/dead split is a LABEL on a decision reserved to him, not an action taken.
++  SEVEN OTHER REVIEWER BRIEFS SAY THE LOG "carries authority" AND ARE LEFT ALONE. The sentence
++  explains why the file is in the patch (it still is — frozen), not an instruction to check it.
++  Editing eight protected files for one word is the churn this cleanup exists to stop.
 +
-+  THRESHOLD — NEW MECHANISM: yes, one new blocking condition in an existing protected gate.
-+  Approved by the CPO, recorded. Routed to cto-reviewer and platform-reviewer by
-+  `review_routing.json`.
-+  THRESHOLD — RECURRING COST: ~10ms per turn end.
++  THE "NO ISSUE FOR A TYPO OR REFACTOR" EXCEPTION IS HIS, NOT MINE. His words (chat, 2026-09-11):
++  "There are some small exceptions but I think we need an issue for every major task with clear
++  requirements and documentation including a plan." Naming the exceptions (typo, refactor with no
++  requirement) is form; the exception itself is quoted in §1 so it is traceable (cto-reviewer,
++  round 1).
++
++  A LOCKED-FILE APPROVAL IS WRITTEN TWICE, AND THE CPO SEES BOTH. cto-reviewer, round 1: rules and
++  requirements keep a second artifact (the owning doc, the issue); a `protected_override` would
++  have had only the contract — and the second copy is what caught the misattributions on `!173`.
++  So the MR head's `Locked files` line REPEATS the quoted approval and date, next to the contract's
++  copy, which the CPO reads at merge. Reviewers still cannot verify the quote — nobody can but him
++  — but a quote that differs between the two copies is now visible to the one person who knows.
++
++  THRESHOLD — NEW MECHANISM: none. Two templates and prose. THRESHOLD — RECURRING COST: none.
  
  decisions_reserved:
--  - The 292 dead references under `docs/` and 470 in memory, unchanged from `!171`.
--  - Steps 4-9 of the revised plan, tracked on GitLab **#115**.
-+  - Deleting the five dead/superseded `parked/*` branches. They are the CPO's to delete; the
-+    dispositions are recorded so he can.
-+  - Steps 5-9 of the cleanup (GitLab #115).
+-  - Deleting the five dead/superseded `parked/*` branches. They are the CPO's to delete; the
+-    dispositions are recorded so he can.
+-  - Steps 5-9 of the cleanup (GitLab #115).
++  - Whether #77 (per-task paperwork vs durable records) absorbs the rest of the contract/evidence
++    artifact question.
++  - Steps 6-9 of #115.
  
  done_when:
--  - Mutation-proven in both directions: a dead ref returning goes RED, and removing a set member to
--    silence the guard goes RED.
--  - `pytest tests/` and `ruff check .` green.
-+  - All five criteria proven by running the gate against real stashes and by the tests.
-+  - `pytest tests/test_governance_hooks.py` green, ruff green.
+-  - All five criteria proven by running the gate against real stashes and by the tests.
+-  - `pytest tests/test_governance_hooks.py` green, ruff green.
++  - All five criteria proven; `pytest tests/test_governance_doc_parity.py tests/test_post_commit_hook.py`
++    green (prose-parity and hook tests are the ones that could see these edits).
++  - The issue this MR closes exists in the new shape; the MR head is set.
  
  amendments:
--  - none yet
-+  - Round 1 (cto-reviewer FAIL, scope-auditor FAIL, platform-reviewer PASS). Three changes, none
-+    widening scope: (1) the `TEMP-`/24h exemption is REMOVED — the CPO was not shown it and its
-+    premise was false (above); the two acceptance criteria that described it are replaced by one
-+    that pins its absence. (2) "six" dead/superseded branches corrected to FIVE, in all three
-+    places the miscount appeared — the log's own enumerated list has five (scope-auditor). (3) the
-+    step number is disambiguated against #115, whose numbering supersedes the log's.
-+    Two findings answered with evidence rather than a change: this IS step 4 per #115 (the
-+    reviewer read the superseded numbering in the previous branch's contract text); and the
-+    conversion was not destructive — sequence recorded above. The self-attestation of
-+    `escalations.log` stands as recorded: it is what #115 step 5 exists to fix, and until then
-+    the CPO's merge of an MR that carries the entry is the verification.
-+  - Round 2 (cto-reviewer FAIL, platform-reviewer PASS, scope-auditor PASS). The round-1 answer
-+    on the conversion had put "a stash is not a store" in quotation marks as the recommendation
-+    the CPO said "do as recommended" to. The phrase IS in that recommendation — in the transcript
-+    — but the 2026-09-10 log entry does not carry it, so to a reviewer it read as a quote the
-+    source does not contain; and the deeper point holds regardless: "do as recommended" approved
-+    the plan, not the step's content, as that entry says itself. Rewritten (above) to state that
-+    the conversion was my own initiative under the autonomy rule, told afterwards, not approved;
-+    the recommendation text is now logged verbatim and attributed as MINE, not his. Also: the
-+    evidence file's `criteria_demonstrated` carried six bullets against five criteria (the ruff
-+    line belongs to `done_when`) — moved, since the artifact gate counts them.
-+  - Round 3 (cto-reviewer FAIL, scope-auditor FAIL, same finding). The round-2 rewrite cited
-+    "each step's own decisions are still his" as said by the entry that records "do as
-+    recommended". It is said by the EARLIER entry that day, about the original six-step plan,
-+    before the stash step existed. The seventh instance this session of citing a real sentence
-+    to the wrong place — inside the paragraph written to cure the sixth. Fixed above: each quote
-+    now names its entry, and the carry-forward to the revised plan is stated as my reading, not
-+    as something the record says. Every quote in this contract was then grepped against the log
-+    for the entry it names. Round 4 runs under a `rounds_cap_override` in `review.md`, recorded
-+    the way `!172` recorded it: to clear a standing FAIL by review, not to ship past one.
+-  - Round 1 (cto-reviewer FAIL, scope-auditor FAIL, platform-reviewer PASS). Three changes, none
+-    widening scope: (1) the `TEMP-`/24h exemption is REMOVED — the CPO was not shown it and its
+-    premise was false (above); the two acceptance criteria that described it are replaced by one
+-    that pins its absence. (2) "six" dead/superseded branches corrected to FIVE, in all three
+-    places the miscount appeared — the log's own enumerated list has five (scope-auditor). (3) the
+-    step number is disambiguated against #115, whose numbering supersedes the log's.
+-    Two findings answered with evidence rather than a change: this IS step 4 per #115 (the
+-    reviewer read the superseded numbering in the previous branch's contract text); and the
+-    conversion was not destructive — sequence recorded above. The self-attestation of
+-    `escalations.log` stands as recorded: it is what #115 step 5 exists to fix, and until then
+-    the CPO's merge of an MR that carries the entry is the verification.
+-  - Round 2 (cto-reviewer FAIL, platform-reviewer PASS, scope-auditor PASS). The round-1 answer
+-    on the conversion had put "a stash is not a store" in quotation marks as the recommendation
+-    the CPO said "do as recommended" to. The phrase IS in that recommendation — in the transcript
+-    — but the 2026-09-10 log entry does not carry it, so to a reviewer it read as a quote the
+-    source does not contain; and the deeper point holds regardless: "do as recommended" approved
+-    the plan, not the step's content, as that entry says itself. Rewritten (above) to state that
+-    the conversion was my own initiative under the autonomy rule, told afterwards, not approved;
+-    the recommendation text is now logged verbatim and attributed as MINE, not his. Also: the
+-    evidence file's `criteria_demonstrated` carried six bullets against five criteria (the ruff
+-    line belongs to `done_when`) — moved, since the artifact gate counts them.
+-  - Round 3 (cto-reviewer FAIL, scope-auditor FAIL, same finding). The round-2 rewrite cited
+-    "each step's own decisions are still his" as said by the entry that records "do as
+-    recommended". It is said by the EARLIER entry that day, about the original six-step plan,
+-    before the stash step existed. The seventh instance this session of citing a real sentence
+-    to the wrong place — inside the paragraph written to cure the sixth. Fixed above: each quote
+-    now names its entry, and the carry-forward to the revised plan is stated as my reading, not
+-    as something the record says. Every quote in this contract was then grepped against the log
+-    for the entry it names. Round 4 runs under a `rounds_cap_override` in `review.md`, recorded
+-    the way `!172` recorded it: to clear a standing FAIL by review, not to ship past one.
++  - Round 1 (scope-auditor PASS, cto-reviewer FAIL). Two findings, both taken: (1) a locked-file
++    approval had no second copy under the new rule — the MR head's `Locked files` line now repeats
++    the quote and date (template, §11 table, scope-auditor sentence, the head of this MR); (2) the
++    "no issue for a typo/refactor" exception was new rule text without a source — it is the CPO's
++    own "some small exceptions", now quoted in §1 and above. Also corrected in the record: the
++    review prompt claimed this contract cites `fix/merge-guard-covers-the-api`; it did not and
++    does not — that precedent is in the fresh review's answer, in #116's fold.
++  - Round 2 (cto-reviewer FAIL, scope-auditor PASS). The second copy of a locked-file approval
++    was a template line set by hand after the hook opens the MR — a promise, not evidence, and on
++    the one branch where it applies. FIX, a rule refinement in §11: the COMMIT MESSAGE carries the
++    `Locked files` line with the quote, so `glab mr create --fill` puts it in the MR description
++    automatically and `git log` holds it in a tracked place; the hand-set head only adds the ticks
++    and links. The evidence now quotes that commit-message line verbatim beside the contract's
++    quote — identical strings — and says what remains unverifiable until the commit exists.
++  - Round 3 (cto-reviewer FAIL, scope-auditor FAIL, same finding). "Identical strings" above was
++    FALSE when written: the commit-message line paraphrased the contract's approval ("the
++    explanation he asked for three times" for `"Explain like I am twelve" ×3`) and the evidence
++    called that verbatim. Inside the fix for quote drift, quote drift. FIX: the commit message now
++    carries the contract's approval span character-for-character, and the evidence records a
++    Python equality on the two spans (`IDENTICAL`), not a reading. Round 4 runs under a
++    `rounds_cap_override` in `review.md`, recorded as on `!172` and `!173`: to clear a standing
++    FAIL by review, not to ship past one.
 diff --git a/.claude/task/escalations.log b/.claude/task/escalations.log
-index 4396765b..269b814b 100644
+index 269b814b..f49dfd31 100644
 --- a/.claude/task/escalations.log
 +++ b/.claude/task/escalations.log
-@@ -8835,3 +8835,81 @@ this was a stale rationale paragraph, not a new claim about the metric.
-   The quote is real and verbatim. That is the point: an unlogged real quote is indistinguishable
-   from a fabricated one, and a reviewer is right to treat it as fabricated. The cost is not a lost
-   round; it is that I cannot tell the difference either, three sessions from now.
+@@ -1,3 +1,8 @@
++FROZEN 2026-09-11 — HISTORY ONLY. NO NEW ENTRIES. A decision is recorded by the thing it changes:
++a requirement in its GitLab issue, a rule in the document that owns it, code in the MR whose head
++lists the decisions — and the CPO's merge is the approval (docs/working_agreement.md §11). Cite an
++entry below if you need to; never add one. The last entry, at the bottom, records the freeze.
 +
-+2026-09-11 feat/stash-check-in-stop-gate — CPO: "yes" to editing the protected stop gate so a
-+  stash left behind blocks the turn. Logged BEFORE the branch was written, for once.
-+
-+  THE ASK, as he asked for it ("Explain like I'm twelve. Keep it short."): git has a pocket called
-+  the stash; nothing lists it, nothing checks it, one keystroke empties it; ten pieces of work were
-+  in it, one of them the whole player page. Everything was moved to labelled shelves (pushed
-+  `parked/*` branches) and the pocket emptied. The rule asked for: end a turn with something still
-+  in the pocket and you get stopped. The file that rule lives in is locked. His answer: *"yes"*.
-+
-+  WHAT THE YES COVERS: exactly what he was told and nothing more — one new blocking condition in
-+  `.claude/hooks/stop_gate.py`: anything in the stash at turn end blocks. Where it runs (before
-+  the dirty-tree short-circuit, because a forgotten stash leaves the tree clean) is form.
-+  ⛔ WHAT THE FIRST DRAFT ADDED WITHOUT SHOWING HIM: a `TEMP-` label exempt for 24h. This
-+  paragraph originally folded that into "what the yes covers". It was never in the explanation he
-+  answered — cto-reviewer, round 1, quoting the ask above against the code. Removed from the code
-+  rather than put to him, because its premise was false anyway: the contract stash-dance is
-+  intra-turn and the gate is turn-end, so the exemption protected nothing and tolerated a
-+  `TEMP-` park for a day (`TEMP-40-mrB` sat for days). The rule shipped is the rule approved.
-+  ⚠ NOT COVERED, still his: deleting the five `parked/*` branches that are dead or superseded.
-+  (First written as "six" here and twice in the contract; the list below has five —
-+  scope-auditor, round 1.)
-+  ⚠ SEQUENCE OF THE CONVERSION, plainly, and NOT dressed as approved (cto-reviewer, round 2).
-+  On 2026-09-10 he said "do as recommended" (entry `2026-09-10 chore/dead-issue-references`) to a
-+  plan that listed "where parked work lives — the 10 stashes ... [NEW]" as a step. That approved
-+  the PLAN; that entry says nothing about the steps' content. The EARLIER entry that day,
-+  `2026-09-10 chore/authority-map-in-claude-md`, on his "go" to the original six-step plan —
-+  before the stash step existed — says: "NOT A RULING ON ANY OF THE SIX STEPS' CONTENT. He
-+  approved the plan and told me to start; each step's own decisions are still his." I read that
-+  limit as carrying to the revised plan; that is my reading, and no entry says it of the revised
-+  plan in so many words. (Round 3, both reviewers: the previous version of this paragraph put
-+  that sentence in the wrong entry — the seventh instance this session.) Either way, he did not
-+  approve the step's content. Converting each stash to a pushed
-+  `parked/*` branch and dropping it was MY choice, on my own initiative, under the autonomy rule
-+  for a non-destructive, reversible action — each stash commit verified a pushed branch tip BEFORE
-+  its drop — and told to him afterwards, in the ask above. He answered the ask. He did not rule on
-+  the conversion, and nothing here claims he did; merging the MR that carries this entry is where
-+  he can. The live/dead split below is a label on a decision that stays his.
-+  ⚠ THE RECOMMENDATION HE SAID "DO AS RECOMMENDED" TO — MY words, from the transcript, logged
-+  because the round-2 answer quoted a phrase from it that this file did not carry (the sixth
-+  unlogged-quote instance this session; a real quote a reviewer cannot find is a fabricated one):
-+    "| **Where parked work lives** | 10 stashes carrying real work, including the player Overview
-+    tab. A stash is not a store — nothing lists it, nothing gates it, and `git stash drop` is one
-+    keystroke. |" ... "**My recommendation: dead references first.**" ... "Want me to do that next,
-+    or keep `escalations.log` as step 3?"
-+  It describes the PROBLEM, not the branches solution — which is why the conversion is recorded
-+  above as my initiative and not as his ruling.
-+  ⚠ NUMBERING: this is step 4 as GitLab #115 numbers it ("4 — where parked work lives"; "5 —
-+  split escalations.log"). The 2026-09-10 revised list in this file had those two the other way
-+  round; #115 is the tracker and wins. The previous branch's contract said "step 4 is where
-+  escalations.log is restructured" under the older numbering — same step, different number.
-+  ⚠ SELF-ATTESTATION, unchanged: this entry is written by the party it authorises, in the branch
-+  it authorises. That is the finding already recorded against the log-split step, and this branch
-+  does not fix it. Until it is fixed, the verification is the CPO's merge of the MR that carries
-+  this entry — he can read the ask and the answer above and knows whether they are his.
-+
-+  THE TEN, AND WHAT EACH IS — so he can delete without re-deriving:
-+    LIVE, worth keeping:
-+      parked/feat/player-overview-tab ............ the built Overview tab: 6 components, route, spec,
-+                                                    2 payloads, in the stash's third parent.
-+                                                    Recover with `git stash apply parked/…`.
-+      parked/fix/dbt-profile-local-to-this-repo--profile-root
-+      parked/fix/dbt-profile-local-to-this-repo--profile-local-3 ... 4 days old, round 3 open
-+      parked/docs/391-player-stats-percentile-spec  the wireframe rework; NOT in main
-+      parked/feat/expert-agents-that-build ......... ui-expert agent, unreviewed
-+    DEAD or SUPERSEDED, safe to delete:
-+      parked/feat/62-mart-competition-index ........ LANDED — reverse-applies to main cleanly
-+      parked/feat/367-landing-page ................. trending and browse were both CUT; neither
-+                                                    file exists in main
-+      parked/fix/20-push-judged-by-target .......... its own message: "do not resume, do not
-+                                                    attempt a fifth version"
-+      parked/feat/team-sot-difference-metrics ...... `sot_difference` landed in
-+                                                    `int_team_season__deserved_vs_actual`
-+      parked/data/marts-gap15-16-19 ................ GAP-16 shipped; 15 and 19 approved; the pilot
-+                                                    predates the slug rulings it was waiting on
-+
-+  ⚠ VERIFIED BEFORE DROPPING, not assumed: every one of the ten stash commits' SHAs is a remote
-+  branch tip. Then the stack was emptied — 0 entries.
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index 4699cc4e..335d8f32 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -9,6 +9,7 @@ from __future__ import annotations
- import fnmatch
- import json
- import os
-+import pathlib
- import re
- import shutil
- import subprocess
-@@ -373,6 +374,61 @@ def test_stop_never_loops(repo):
-     assert out.strip() == ""
+ 2026-08-03 feat/367-landing-page — §10 escalation (rule extension). ONE question, raised by the
+ build gate rather than by a reviewer, and it blocks the landing page from building.
  
+@@ -8913,3 +8918,26 @@ this was a stale rationale paragraph, not a new claim about the metric.
  
-+# --- parked work in the stash (added 2026-09-11, CPO-approved protected-path edit) ---
-+def _stash(repo, label: str) -> None:
-+    """Park one tracked change under `label`. Leaves the tree CLEAN, which is the whole point."""
-+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 2")
-+    subprocess.run(["git", "stash", "push", "-m", label, "--", "dbt_project/models/allowed.sql"],
-+                   cwd=repo, check=True, capture_output=True)
+   ⚠ VERIFIED BEFORE DROPPING, not assumed: every one of the ten stash commits' SHAs is a remote
+   branch tip. Then the stack was emptied — 0 entries.
++
++2026-09-11 chore/115-step5-decision-record — THE LAST ENTRY. This log is frozen from here.
++
++  HIS WORDS, on this file: "I have the feeling that you write down even irrelevant content, some
++  tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them
++  which again lets you drift. So the question rather is: What are the decisions worth being logged.
++  And where? Or is it just: Decide it -> build it, or decide it -> write it down in an
++  authoritative document."
++
++  WHAT REPLACES IT (docs/working_agreement.md §1 and §11, edited in the MR that carries this
++  entry): one GitLab issue per major task in a fixed short shape — Requested by / What exactly (a
++  checklist checkable without code) / Why / How (the plan, ≤7 lines) — which is what plan mode
++  shows for approval; a rule change edited into the document that owns it, in the same MR; an MR
++  head the CPO can scan — Closes #N, the checklist ticked with a link per tick, locked files; and
++  his merge as the approval. Nothing else is written down. No new gate: a fresh independent
++  reviewer he asked for found the proposed CI check would bind two builder-written texts to each
++  other and break on GitLab's 2,700-character truncation, and that the growth of this file was
++  all builder narrative around ~2 lines of his words per entry.
++
++  HIS GO: "ok go" (2026-09-11), after asking three times for it to be explained "like I am
++  twelve", after the fresh review, and after asking what "no CI check" means. Recorded here
++  because the scope-auditor's brief still required a log entry for a protected-path approval
++  until this same MR changed that sentence; from the next MR on, the approval IS the merge.
+diff --git a/.gitlab/issue_templates/Task.md b/.gitlab/issue_templates/Task.md
+new file mode 100644
+index 00000000..f8ea5e18
+--- /dev/null
++++ b/.gitlab/issue_templates/Task.md
+@@ -0,0 +1,31 @@
++**Requested by:** Rami
++
++## What exactly
++
++<!-- One line per requirement. Each line must be checkable WITHOUT reading code:
++     "the German home page shows Torvorlagen as the assists title" — not "update the i18n map".
++     These lines become the task contract's acceptance_criteria verbatim, and the MR head ticks them. -->
++
++- [ ]
++- [ ]
++
++## Why
++
++<!-- One sentence. -->
++
++## How
++
++<!-- The plan. At most 7 lines, one step each. This is what plan mode shows for approval —
++     the same text, not a second document. -->
++
++1.
++
++**Not in scope:**
++
++<details>
++<summary>Exploration detail — for the builder and the reviewers, not required reading</summary>
++
++<!-- What was found while exploring: prod checks, defects, measurements, the reasoning behind
++     the How. Unlimited here; nothing above the fold. -->
++
++</details>
+diff --git a/.gitlab/merge_request_templates/Default.md b/.gitlab/merge_request_templates/Default.md
+new file mode 100644
+index 00000000..63cea099
+--- /dev/null
++++ b/.gitlab/merge_request_templates/Default.md
+@@ -0,0 +1,21 @@
++Closes #
++
++<!-- The head: the issue's checklist, ticked, ONE LINK per tick — a file at this commit, a test
++     name, or a rendered page. The CPO reads this and merges, or not. Nothing above the fold but
++     this. An MR with no issue (typo, refactor) writes "No behaviour change" here instead. -->
++
++- [x]  — 
++- [x]  — 
++
++**Locked files:** none
++<!-- or, per locked file: `path` — approved: "<the CPO's words>" (<where>, <date>) — the same
++     quote the contract's protected_override carries, so the two copies sit side by side. -->
 +
 +
-+def test_stop_blocked_by_a_parked_stash_even_on_a_clean_tree(repo):
-+    """The case the check exists for: work parked in the stash, tree clean.
++<details>
++<summary>Details — review rounds, evidence, what is NOT done</summary>
 +
-+    ⚠ CLEAN TREE IS LOAD-BEARING. The FAST_GATES correctness check short-circuits on a clean tree
-+    to save 2.9s per conversational turn, so a stash check placed there would never fire on the
-+    one case that matters. This asserts it fires anyway, i.e. it runs before that short-circuit.
-+    """
-+    write_contract(repo)
-+    _stash(repo, "parked: some real work")
-+    assert subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True,
-+                          text=True).stdout.strip() == "", "precondition: tree must be clean"
-+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
-+    assert '"decision": "block"' in out and "parked work" in out and "some real work" in out
-+    assert "parked/" in out, "the message must tell the agent where parked work belongs"
++<!-- Review: rounds, who passed when, what each FAIL was.
++     Evidence: what was run. Limits: what is deliberately not done. -->
 +
++</details>
+diff --git a/CLAUDE.md b/CLAUDE.md
+index d4b18789..67537039 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -48,7 +48,7 @@ nothing, and said so to every session until 2026-09-10.
+ | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
+ | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
+ | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
+-| **What the CPO has RULED** — the durable, verifiable record | [.claude/task/escalations.log](.claude/task/escalations.log) — "you ruled X" needs a quote from here. A task contract is overwritten by the next task; this file is not. |
++| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen** (2026-09-11): cite a past entry, never add one. |
+ | GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+ 
+ ⛔ **The two bold rows are load-bearing.** Until 2026-09-10 this file pointed at neither, and #41 was
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 8622b528..34da5b9b 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -22,9 +22,10 @@ once so nobody has to guess. `CLAUDE.md`'s authority table points here rather th
+ "the more recent one wins", no "the more specific one wins". Whoever is reading does not get to
+ decide which document is right.
+ 
+-A ruling already recorded in [`.claude/task/escalations.log`](../../.claude/task/escalations.log)
+-is not a conflict — it is the answer, and it is where to look before escalating something he has
+-already settled.
++A decision he has already made on a screen is not a conflict — it is the answer. Where it lives:
++the screen's **GitLab issue** (its `What exactly` checklist and its edits), then the wireframe the
++issue's MR edited. Look there before escalating something he has already settled. A ruling from
++before 2026-09-11 may sit in the frozen `.claude/task/escalations.log`; cite it, never add to it.
+ 
+ ### `ui_design_brief.md` §6 and these wireframes both bind fields — here is the relationship
+ 
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 2a4ec7eb..c57d597b 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -33,6 +33,21 @@ self-attested `cpo_go` contract token enforced by the impact-map gate was consid
+ **held in reserve** — adopt it only if plan mode proves insufficient; a new gate must earn
+ its place over the simplest thing that works.)
+ 
++**The requirement lives in a GitLab issue, and the plan is part of it (2026-09-11).** Every
++major task gets one issue in the `Task` template shape — *Requested by* / *What exactly* (a
++checklist, each line checkable without reading code) / *Why* / *How* (the plan, ≤7 lines) /
++*Not in scope*, with exploration detail below a fold. The builder writes it from the
++conversation; **the plan file shown for approval is the issue's text, not a second
++document**; the CPO's approval is on those lines and nothing else. The task contract's
++`acceptance_criteria` copies the checklist verbatim (the blinded reviewers cannot read
++GitLab). A question the issue does not answer is asked, and the answer is **edited into the
++issue** — never appended to a log. The CPO's own carve-out: *"There are some small exceptions
++but I think we need an issue for every major task with clear requirements and documentation
++including a plan"* — the exceptions are a typo or a refactor with no requirement, whose MR head
++says "No behaviour change". Why: plans were ~1,400–5,600-word files outside the
++repo that the CPO approved without being able to scan, and decisions were quoted from chat
++into a builder-written log — 3 of 4 review rounds on `!173` were spent on that record.
 +
-+def test_stop_blocks_a_temp_stash_too(repo):
-+    """No label is exempt. The first draft let a `TEMP-` stash pass for 24h, on the premise that
-+    the contract stash-dance would otherwise be blocked; the dance is intra-turn and the gate is
-+    turn-end, so the only `TEMP-` stash the gate can see is a forgotten one — the #41 case — and
-+    `TEMP-40-mrB` sat under that label for days. This pins the exemption's absence."""
-+    write_contract(repo)
-+    _stash(repo, "TEMP-contract-amend")
-+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
-+    assert '"decision": "block"' in out and "TEMP-contract-amend" in out
+ ---
+ 
+ ## 2. Before any non-trivial change — the task contract (machine-gated)
+@@ -116,7 +131,7 @@ Mechanics enforced by hooks (see `docs/agent_guardrails.md`):
+   through.
+ - `git commit --amend`, `--no-verify`/`-n`, and `core.hooksPath` repointing are
+   denied — history stays append-only and hook-verified.
+-- Escalations are appended to `.claude/task/escalations.log` (committed).
++- A decision is recorded by the thing it changes, never by a log (2026-09-11; §11 says how).
+ 
+ **The review cycle (governance G3)** — every substantive commit passes the
+ serialized four steps; the commit gate enforces them mechanically:
+@@ -167,10 +182,10 @@ serialized four steps; the commit gate enforces them mechanically:
+      `.claude/task/` are excluded from `review_input.patch`
+      (`review_exclude_paths`), which is generated by
+      `git_discipline.py --review-patch`, never by hand. **Two files there are NOT
+-     excluded, because they carry authority rather than notes**: `contract.md`
+-     (scope and acceptance criteria) and `escalations.log` (the durable record of
+-     CPO rulings that `protected_override` cites — a reviewer cannot check whether
+-     a claimed ruling exists without it). The patch is CUMULATIVE from the base
++     excluded**: `contract.md` (scope, acceptance criteria and the quoted
++     approval a `protected_override` rests on) and `escalations.log` (frozen
++     since 2026-09-11 — still in the patch so a citation of a past entry can be
++     checked; a new entry in it is a defect). The patch is CUMULATIVE from the base
+      branch, never just the staged increment. §10 decisions are never approved by
+      a reviewer.
+ 
+@@ -335,7 +350,19 @@ The escalation itself presents **at least two distinct, conflicting paths**. For
+ 
+ **End with a recommendation, and say why.** (Corrected 2026-07-22. This section used to ban one — "no preferred option, no recommendation" — and that rule was both stale and inconsistently followed: `escalations.log` holds 9 escalations that withheld a recommendation and 8 that gave one. The CPO wants the recommendation: leading with a bolded call and its reasoning is faster to judge than a neutral menu, and a menu with no view is often an undigested choice handed over rather than a decision genuinely reserved.) Anchoring is still forbidden in one specific sense: never shade the alternatives to make the recommendation look inevitable, and never guess what the CPO wants to hear. The recommendation is the agent's reasoning made visible so it can be attacked, not a nudge.
+ 
+-Every escalation is appended to `.claude/task/escalations.log` (committed with the branch) once the task-contract machinery exists.
++**Where the answer goes (2026-09-11).** A decision is recorded by the thing it changes, and nowhere else:
 +
++| the decision changes… | the record is… |
++|---|---|
++| **code** | the MR. The CPO merges it → approved. |
++| **a rule** — how we work, what a screen shows, what a metric means | the document that owns that rule, **edited in the same MR** — never appended, so a changed mind replaces the old text |
++| **a requirement** for work not yet built | that work's GitLab issue, edited in place |
++| **a locked file** (a protected path) | the contract's `protected_override` quotes the approval with its date, and the MR head's `Locked files` line **repeats the same quote** — two copies, side by side, for the one reader who knows whether they are his words; the merge is the approval |
++| nothing durable | not a decision. Not written anywhere. |
 +
-+def test_stop_passes_on_an_empty_stash(repo):
-+    write_contract(repo)
-+    assert subprocess.run(["git", "stash", "list"], cwd=repo, capture_output=True,
-+                          text=True).stdout.strip() == "", "precondition: empty stack"
-+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
-+    assert out.strip() == ""
++**The MR head is the CPO's check.** The commit message body carries `Closes #N` and the `Locked files:` line (with the quoted approval) — the post-commit hook opens the MR with `glab mr create --fill`, so those two lines reach the MR description on their own and sit in `git log` for good. Right after, the builder sets the description to the full `Default` MR template shape (`glab mr update <n> --description …`): the issue's checklist ticked with one link per tick, the same `Locked files:` line, everything else below a fold. **The merge is the one act the builder cannot perform, so the merge is the approval** — nothing is "recorded" until he clicks, and no quote of him exists anywhere. That asks one thing of him: read the head before merging, and refuse a long one.
 +
-+
-+def test_stop_stash_check_precedes_the_dirty_tree_short_circuit():
-+    """Pins the ORDERING, by structure: the parked-stash check must run before the
-+    `_dirty_outside_task_dir` short-circuit in `main()`. A mutation that moves it below turns this
-+    red, which the behavioural test above also catches — this one names the cause."""
-+    src = pathlib.Path(HOOKS, "stop_gate.py").read_text(encoding="utf-8")
-+    body = src[src.index("def main("):]
-+    assert body.index("_parked_stashes(root)") < body.index("_dirty_outside_task_dir(root)"), (
-+        "the stash check must run before the dirty-tree check, or a clean tree with a forgotten "
-+        "stash passes silently"
-+    )
-+
-+
- # --------------------------------------------------------------------------- #
- # git_discipline — flag denies
- # --------------------------------------------------------------------------- #
++`.claude/task/escalations.log` is **frozen** as of 2026-09-11 — history only, no new entries. It was written by the party it authorised, in the branch it authorised; 3 of 4 review rounds on `!173` went to misattributed quotes in it, and the CPO's own words on it: *"you write down even irrelevant content, some tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them which again lets you drift."* A citation of a past entry stays valid; a new entry is a defect.
+ 
+ ---
+ 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -540,8 +534,8 @@ index 4699cc4e..335d8f32 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 146 +++---
-#    .claude/task/review.md              | 148 ++----
-#    .claude/task/review_input.patch     | 969 +++++++++++++++++-------------------
-#    3 files changed, 582 insertions(+), 681 deletions(-)
+#   .claude/task/TEMPLATE.md            |   7 +-
+#    .claude/task/acceptance_evidence.md | 122 ++---
+#    .claude/task/review_input.patch     | 974 ++++++++++++++++++------------------
+#    3 files changed, 531 insertions(+), 572 deletions(-)
 # ============================================================================

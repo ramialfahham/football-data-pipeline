@@ -1,3 +1,8 @@
+FROZEN 2026-09-11 — HISTORY ONLY. NO NEW ENTRIES. A decision is recorded by the thing it changes:
+a requirement in its GitLab issue, a rule in the document that owns it, code in the MR whose head
+lists the decisions — and the CPO's merge is the approval (docs/working_agreement.md §11). Cite an
+entry below if you need to; never add one. The last entry, at the bottom, records the freeze.
+
 2026-08-03 feat/367-landing-page — §10 escalation (rule extension). ONE question, raised by the
 build gate rather than by a reviewer, and it blocks the landing page from building.
 
@@ -8913,3 +8918,26 @@ this was a stale rationale paragraph, not a new claim about the metric.
 
   ⚠ VERIFIED BEFORE DROPPING, not assumed: every one of the ten stash commits' SHAs is a remote
   branch tip. Then the stack was emptied — 0 entries.
+
+2026-09-11 chore/115-step5-decision-record — THE LAST ENTRY. This log is frozen from here.
+
+  HIS WORDS, on this file: "I have the feeling that you write down even irrelevant content, some
+  tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them
+  which again lets you drift. So the question rather is: What are the decisions worth being logged.
+  And where? Or is it just: Decide it -> build it, or decide it -> write it down in an
+  authoritative document."
+
+  WHAT REPLACES IT (docs/working_agreement.md §1 and §11, edited in the MR that carries this
+  entry): one GitLab issue per major task in a fixed short shape — Requested by / What exactly (a
+  checklist checkable without code) / Why / How (the plan, ≤7 lines) — which is what plan mode
+  shows for approval; a rule change edited into the document that owns it, in the same MR; an MR
+  head the CPO can scan — Closes #N, the checklist ticked with a link per tick, locked files; and
+  his merge as the approval. Nothing else is written down. No new gate: a fresh independent
+  reviewer he asked for found the proposed CI check would bind two builder-written texts to each
+  other and break on GitLab's 2,700-character truncation, and that the growth of this file was
+  all builder narrative around ~2 lines of his words per entry.
+
+  HIS GO: "ok go" (2026-09-11), after asking three times for it to be explained "like I am
+  twelve", after the fresh review, and after asking what "no CI check" means. Recorded here
+  because the scope-auditor's brief still required a log entry for a protected-path approval
+  until this same MR changed that sentence; from the next MR on, the approval IS the merge.

@@ -111,9 +111,9 @@ for explicit approval to enable the recurring pull (this mirrors
 file is written). Do NOT write ingestion code or enable a schedule until that
 approval is given, and **never infer or self-grant it** — cost is non-negotiable
 (CLAUDE.md "Cost is non-negotiable"; docs/working_agreement.md §5). Once the CPO
-gives it, record the approval in `.claude/task/escalations.log` — the builder
-appends rulings there as the standard practice (docs/working_agreement.md §2/§11)
-so the build contract's `decisions_taken` can cite a locatable ruling. No new
+gives it, the approval is recorded by the thing it changes (docs/working_agreement.md
+§11): the registry entry in the MR, quoted in the contract's `decisions_taken`, and
+named in the MR head as a recurring cost he is approving by merging. No new
 daily run cadence without separate approval — ride the 04:00 run or a sub-schedule.
 
 ### Step 4 — CPO history-depth decision
