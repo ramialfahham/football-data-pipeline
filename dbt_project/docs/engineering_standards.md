@@ -28,7 +28,7 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Keep each CTE single-purpose (import, explode/flatten, dedupe/rank, final projection) and use stable, descriptive CTE names.
 - For BigQuery array expansion, prefer explicit `cross join unnest(...)` style over implicit comma joins where practical.
 
-## 1.2) Code Comments (Python and SQL)
+## 1.2) Code Comments (every language in the repo — Python, SQL, Astro, TypeScript, YAML)
 
 Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, and functions already describe what the code does. A comment is warranted when the reader would otherwise be left wondering why a decision was made, what constraint is being respected, or what non-obvious behaviour to expect.
 
@@ -49,7 +49,38 @@ Comments exist to convey **why**, not **what**. Well-named identifiers, CTEs, an
 
 **Inline:** Reserve for genuinely surprising logic. One line is almost always enough. Avoid multi-line comment blocks.
 
-**Standard applied consistently across Python and SQL.** A senior engineer reading any file in this repo should be able to orient themselves within 30 seconds.
+**Standard applied consistently across every language.** A senior engineer reading any file in this repo should be able to orient themselves within 30 seconds.
+
+### Reasoning lives in git, not in the comment
+
+A comment says **why**, in one line. **Who decided, when, which reviewer, which round, which MR or
+issue — never in code.** That is history, and it has a home that survives the task without living
+next to the line: the **commit message** carries the why and `Closes #N`; the **MR** carries the
+review record (its head and its fold); the **issue** carries the exploration (its fold). Any line
+reaches all three:
+
+```bash
+c=$(git blame -L 36,36 --porcelain CLAUDE.md | head -1 | cut -d' ' -f1)   # → the commit
+git log -1 --format=%B "$c"                                               # → the why, "Closes #N"
+git log --merges --ancestry-path --first-parent --reverse --format=%B "$c..gitlab/main" \
+  | grep -m1 "See merge request"                                          # → "…!N", the MR
+```
+
+Run on 2026-09-11 against `CLAUDE.md` line 36: commit `82ddb9c5`, "Closes #117", "See merge
+request rami.al-fahham/football-data-pipeline!175".
+
+GitLab shows the MR for any commit directly. So a comment that reads "CPO ruled 2026-06-23",
+"(cto-reviewer, round 3)" or "see !132" is a defect in three ways: it is not the why, it rots (the
+GitHub-era numbers in this repo already point at nothing), and it argues with a reviewer in a place
+the next reader has to carry forever. **Argue with a reviewer in the contract's `amendments`**,
+which reviewers read and which the MR carries; it is the review's record, not the code's.
+
+Why this section exists: the rule above it was ignored. On 2026-09-11 the code held **429**
+comment lines carrying a date, "CPO", "reviewer" or "round N" (tests 99, `site_v2/src` 88, dbt
+models 78, hooks 48, `scripts` 46, `ingestion` 35, dbt tests 19, `site_v2/scripts` 16 — the grep is
+`(#|--|//|\*).*(20\d\d-\d\d-\d\d|CPO|reviewer|round \d)`). That number is the starting point of the
+ratchet #115 step 8 adds as a hook; until then this paragraph is the rule and the count is the
+measure.
 
 ## 1.3) Macros
 

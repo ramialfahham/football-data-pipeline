@@ -15,7 +15,9 @@ Closes #
 <details>
 <summary>Details — review rounds, evidence, what is NOT done</summary>
 
-<!-- Review: rounds, who passed when, what each FAIL was.
+<!-- THIS IS WHERE THE REVIEW RECORD LIVES — who found what, in which round, and what changed —
+     not in a code comment next to the line. The merge commit points here ("See merge request").
+     Review: rounds, who passed when, what each FAIL was.
      Evidence: what was run. Limits: what is deliberately not done. -->
 
 </details>

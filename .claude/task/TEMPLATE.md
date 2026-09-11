@@ -74,6 +74,11 @@ scope_paths:
 decisions_taken: >
   <what this contract pre-approves, quoting the CPO ruling it rests on>
 
+  # THIS AND `amendments:` ARE WHAT THE REVIEWERS READ. Argue with a reviewer here —
+  # never in a code comment next to the line. A comment says WHY in one line; who
+  # decided, when, which reviewer, which round, which MR — never in code
+  # (engineering_standards.md §1.2). The MR carries this contract into history.
+
   # THRESHOLD DECLARATIONS (CPO ruling 2026-07-31, #868). Two of the CTO's four
   # thresholds — a NEW MECHANISM and a RECURRING COST — can appear in any file,
   # so no routing row can find them and `cto-reviewer` only sees them if you

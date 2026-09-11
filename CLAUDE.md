@@ -159,6 +159,11 @@ every session that learned something had to delete something. None of this is cu
   gate. A post-commit hook auto-pushes and opens the **MR**. `review.md` must be COMMITTED, and
   its reviewer sections must be `## <exact-routing-key>` headers — the gate parses those
   literally, and a `verdicts:` block alone does NOT satisfy it.
+- **Reasoning lives in git, not in code comments.** A comment says WHY in one line; who decided,
+  when, which reviewer, which round, which MR — never. That is in the commit message, the MR and
+  the issue, and `git blame` reaches all three from any line
+  (`dbt_project/docs/engineering_standards.md` §1.2 has the recipe). 429 such lines existed on
+  2026-09-11; #115 step 8 adds the hook that ratchets them down.
 - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
   blocks the turn once if any fails. Do not end a turn on a red gate silently.
 - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
