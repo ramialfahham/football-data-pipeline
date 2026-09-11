@@ -8808,3 +8808,30 @@ this was a stale rationale paragraph, not a new claim about the metric.
   doing dead references and calling it step 3. Citing a genuine record for something it does not say
   is harder to catch than an invented one, and the reviewer caught it by reading the entry rather
   than trusting the citation.
+
+2026-09-10 fix/dead-ref-boundary-off-by-one — CPO: the standard for the cleanup is that it does not
+  need doing again, and he wants a tracker reference for it.
+
+  HIS WORDS, on merging the dead-reference MR: *"171 merged. I have no reference regarding the
+  cleanup. And when I say cleanup, I assume that we have a better foundation now that does not
+  require us to do that same cleanup again i the future. So after this cleanup I expect a better and
+  more stable context management. After that we get back to product work."*
+
+  TWO THINGS FOLLOW, both acted on:
+    · A REFERENCE EXISTS NOW — GitLab **#115**, "Context engineering cleanup", with the nine steps
+      as checkboxes and, per the standard below, the MECHANISM each step leaves. The plan had been
+      living in this log, which is 795 KB and which he cannot reasonably read. That is itself an
+      instance of the problem the cleanup is about.
+    · THE STANDARD IS "SHIPS A MECHANISM, NOT A TIDY STATE". A sweep rots and we repeat it; a guard
+      does not. Applied immediately: `FIRST_DEAD = 115` in the guard `!171` shipped is a constant
+      that must be re-tuned every time GitLab's counter passes it — and GitLab issued #115 the same
+      day, for his reference issue. By this standard a bump to 116 is not a fix, so the guard was
+      rewritten around a closed set.
+
+  ⛔ THE FIFTH INSTANCE THIS SESSION, AND THE MOST EXPENSIVE FORM. I quoted him into
+  `contract.md` as "THE STANDARD THIS BRANCH IS MEASURED AGAINST" and did not log it.
+  `scope-auditor` grepped this file, found nothing, and concluded the quote was INVENTED — and
+  therefore that the whole justification for rewriting rather than bumping the constant collapsed.
+  The quote is real and verbatim. That is the point: an unlogged real quote is indistinguishable
+  from a fabricated one, and a reviewer is right to treat it as fabricated. The cost is not a lost
+  round; it is that I cannot tell the difference either, three sessions from now.
