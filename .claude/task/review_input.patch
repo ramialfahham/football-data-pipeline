@@ -716,7 +716,7 @@ index c08d8561..610e82e2 100644
          when games_with_sot_stats < games_expecting_team_stats then null
          when goals_open_play_in_sot_games < 0 then null
 diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-index bfb4f8e3..9a670573 100644
+index bfb4f8e3..89b39aa6 100644
 --- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
 @@ -5,7 +5,7 @@
@@ -728,16 +728,17 @@ index bfb4f8e3..9a670573 100644
    those are official results the league table counts, and excluding them left 24 fixtures
    contributing nothing — FC Utrecht showing 4 games where its league had played 5. They carry a
    scoreline and NO stat line, which is what `is_awarded_result` exists to say; the coverage gates
-@@ -35,7 +35,7 @@ types as (
+@@ -35,7 +35,8 @@ types as (
  ),
  
  -- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
 --- (CPO Option A, 2026-06-24). event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
-+-- (open-play = goals minus penalties minus own goals credited). event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
++-- (open-play = goals minus penalties minus own goals credited).
++-- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
  -- = an own goal THIS team scored into its own net — which counts for the OPPONENT, so it is joined
  -- as the opponent's own goals downstream. The remaining goals ('Normal Goal') are open play. Only
  -- the components are event-derived; goals_for stays the authoritative scoreline.
-@@ -141,7 +141,7 @@ with_stats as (
+@@ -141,7 +142,7 @@ with_stats as (
          opp.shots_total as opponent_shots_total,
          opp.shots_inside_box as opponent_shots_inside_box,
          opp.corner_kicks as opponent_corner_kicks,
@@ -1660,6 +1661,8 @@ index 5f1aa41c..fe892e2a 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 130 +++++++++++-------------------------
-#    1 file changed, 40 insertions(+), 90 deletions(-)
+#   .claude/task/acceptance_evidence.md |  130 +-
+#    .claude/task/review.md              |  147 +--
+#    .claude/task/review_input.patch     | 2378 ++++++++++++++++++++++++-----------
+#    3 files changed, 1714 insertions(+), 941 deletions(-)
 # ============================================================================

@@ -1,12 +1,28 @@
 # Review — chore/115-step8-sweep-dbt — 2026-09-11
 
-diff_sha256: fcd4ffe564ca4f544f94a175e1b6d52272e94205e21f2093c21dd876cff964d7
+diff_sha256: ac65b75f4d78738b46dad99a19416651b55efba1b977b1035b4494fe2867b4f7
 
-rounds: 1
+rounds: 2
 
-analytics-engineer-reviewer: PASS at round 1.
-platform-reviewer: PASS at round 1 (routed by the pin in `tests/test_no_decision_history_in_code.py`).
-scope-auditor: PASS at round 1.
+analytics-engineer-reviewer: PASS at round 1 (`fcd4ffe5…`), PASS at round 2 (delta).
+platform-reviewer: PASS at round 1 (routed by the pin in `tests/test_no_decision_history_in_code.py`);
+  the round-2 delta is one wrapped comment line in a dbt model, outside its territory — carried.
+scope-auditor: PASS at round 1, PASS at round 2 (delta).
+
+Round 2: CI's SQLFluff (`LT05`, dbt templater) failed one comment line I had made 132 characters
+long in `int_legs__team_match.sql`; wrapped onto two lines, same words. All 56 touched SQL files
+re-linted for `LT05` locally: zero (only the documented `dbt_utils` templater noise). The
+comment-stripping proof re-run on the delta: identical.
+
+### analytics-engineer-reviewer — round 2 (delta)
+VERDICT: PASS
+- The only change since `fcd4ffe5…` is the one `--` line split into two `--` lines, same words;
+  the `events` CTE beneath is untouched; nothing else in the file or the branch changed.
+
+### scope-auditor — round 2 (delta)
+VERDICT: PASS
+- Delta located on disk and in the patch; no re-introduced marker; both lines remain comments;
+  the full 65-file patch re-read — no hunk differs from the reviewed pattern; scope unchanged.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS (round 1)

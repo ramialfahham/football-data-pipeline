@@ -35,7 +35,8 @@ types as (
 ),
 
 -- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
--- (open-play = goals minus penalties minus own goals credited). event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
+-- (open-play = goals minus penalties minus own goals credited).
+-- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
 -- = an own goal THIS team scored into its own net — which counts for the OPPONENT, so it is joined
 -- as the opponent's own goals downstream. The remaining goals ('Normal Goal') are open play. Only
 -- the components are event-derived; goals_for stays the authoritative scoreline.
