@@ -63,6 +63,12 @@
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/task_contract_gate.py\"",
             "statusMessage": "Checking task contract..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/comment_history_gate.py\"",
+            "statusMessage": "Checking comments for decision history..."
           }
         ]
       }
