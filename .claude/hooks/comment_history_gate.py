@@ -12,8 +12,9 @@ What counts as a comment line: a line with a comment marker (`#`, `--`, `//`, `/
 `{#`) at its start or after whitespace; every line inside a block comment of the file's language
 (`/* … */`, `<!-- … -->`, `{# … #}`); and every line of a Python docstring — found by `ast` when
 the text parses as a module, and by a line starting with a triple quote when it is a fragment.
-A marker inside a string literal that follows whitespace also matches; accepted, rare, and the
-deny names the line.
+A marker inside a quoted span of the line is a literal (a token, a usage example) and does not
+count; a marker inside a code string literal that happens to follow whitespace does match —
+accepted, rare, and the deny names the line.
 
 The check reads only the text being written, not the whole file. So an edit that re-includes an
 existing flagged line is denied until the marker is removed — every ordinary edit helps the sweep.
@@ -69,10 +70,20 @@ BLOCKS = {
 _COMMENT = re.compile(r"(^|\s)(#|--|//|/\*|\*|<!--|\{#)")
 _DOCSTRING_OPEN = re.compile(r"^\s*(\"\"\"|''')")
 
+# A review credit names a role, or narrates what an unnamed reviewer did — "a reviewer caught it",
+# "two reviewers failed it", "caught by a reviewer". The bare word alone is this repo's own concept
+# (the review gate describes what its readers see: "what a reviewer reads"), so it is no marker.
+_ROLES = "cto|platform|analytics-engineer|bi-analyst|data-engineer|seo-expert|football-analytics-expert"
+_FOUND = ("caught|found|flagged|spotted|noticed|pointed out|showed|produced|rejected|failed|asked|"
+          "insisted|objected|raised|noted|reported")
 MARKERS = {
     "date": re.compile(r"\b20\d\d-\d\d-\d\d\b"),
     "product owner": re.compile(r"\bCPO\b"),
-    "reviewer": re.compile(r"\breviewer\b", re.IGNORECASE),
+    "reviewer": re.compile(
+        rf"\b(?:(?:{_ROLES})-reviewer|scope-auditor)\b"
+        rf"|\breviewers?\s+(?:{_FOUND})\b"
+        rf"|\b(?:{_FOUND})\s+by\s+(?:a|the|one|another|every|each|both|two|three|all)\s+reviewers?\b",
+        re.IGNORECASE),
     "review round": re.compile(r"\bround \d", re.IGNORECASE),
     "merge request": re.compile(r"(?<![\w!])!\d{1,4}\b"),
 }
@@ -92,10 +103,20 @@ def is_code_path(rel: str) -> bool:
     return any(rel.startswith(t + "/") for t in TREES)
 
 
+# A quoted span is a literal — a token the code parses, a value in a usage example — not prose
+# about a decision, so it is blanked before the markers are matched. Only a quote that starts a
+# token opens a span (an apostrophe inside a word does not), and a triple quote is a docstring
+# delimiter, not a span, or a one-line docstring would vanish whole. Backticks are NOT a literal:
+# measured over the tree, two in three backticked markers were credits, not identifiers.
+_TRIPLE = re.compile(r"\"\"\"|'''")
+_LITERAL = re.compile(r"(?<!\w)\"[^\"\n]*\"(?!\w)|(?<!\w)'[^'\n]*'(?!\w)")
+
+
 def marker_kind(line: str) -> str | None:
-    """The marker kind a line carries, or None."""
+    """The marker kind a line carries outside its literal spans, or None."""
+    prose = _LITERAL.sub(" ", _TRIPLE.sub(" ", line))
     for kind, rx in MARKERS.items():
-        if rx.search(line):
+        if rx.search(prose):
             return kind
     return None
 

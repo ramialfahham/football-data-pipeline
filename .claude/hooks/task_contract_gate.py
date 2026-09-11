@@ -8,7 +8,7 @@ Drift is made mechanically impossible: every unit of work declares a contract
     - any repo-file edit when no contract exists
     - any edit outside the contract's scope_paths
     - edits to PROTECTED paths (the guards themselves) unless the contract
-      carries an explicit `protected_override` naming the CPO approval
+      carries an explicit `protected_override` quoting the product owner's approval
     - edits to the contract itself while the tree is dirty (clean-tree rule:
       amendments are discrete events, never mixed into code changes)
     - any edit on the STRUCTURAL SURFACE (raw writers `ingestion/**`, dbt models
@@ -49,20 +49,18 @@ from _command_utils import (  # noqa: E402
 
 CONTRACT_REL = ".claude/task/contract.md"
 TASK_DIR_REL = ".claude/task/"
-# .claude/agents/ added per the CPO's recorded escalation answer (G3 review,
-# 2026-06-12): the reviewer definitions are governance artifacts like the
+# .claude/agents/: the reviewer definitions are governance artifacts like the
 # routing file — the builder must never be able to weaken its own adversary
-# inside an ordinary task contract. .claude/commands/ added per the CPO ruling
-# 2026-06-14 (this branch's escalations.log): custom slash commands can embed
-# shell, so a command file is the same high-stakes class as a hook — never add
-# one inside an ordinary task without protected_override + cto review.
-# .mcp.json + .cursor/mcp.json added per the CPO ruling 2026-06-18 (this
-# conversation): an MCP-server config auto-launches a command (`uvx dbt-mcp` …)
-# every session — the same command-class as .claude/commands/, so it is
-# guard-level. No agent may self-grant an MCP server inside an ordinary task;
-# it needs protected_override + cto review. Both the Claude Code (.mcp.json)
-# and Cursor (.cursor/mcp.json) entry points are covered; .claude/settings.json
-# (which can also carry an mcpServers block) is already PROTECTED below.
+# inside an ordinary task contract. .claude/commands/: custom slash commands can
+# embed shell, so a command file is the same high-stakes class as a hook — never
+# add one inside an ordinary task without protected_override + cto review.
+# .mcp.json + .cursor/mcp.json: an MCP-server config auto-launches a command
+# (`uvx dbt-mcp` …) every session — the same command-class as .claude/commands/,
+# so it is guard-level. No agent may self-grant an MCP server inside an ordinary
+# task; it needs protected_override + cto review. Both the Claude Code
+# (.mcp.json) and Cursor (.cursor/mcp.json) entry points are covered;
+# .claude/settings.json (which can also carry an mcpServers block) is already
+# PROTECTED below.
 PROTECTED_PREFIXES = (".claude/hooks/", ".claude/agents/", ".claude/commands/", ".github/workflows/")
 PROTECTED_FILES = (
     ".claude/settings.json",
@@ -108,8 +106,8 @@ _PLACEHOLDER_RE = re.compile(r"^<.*>$")
 #
 # The set is SHARED because it was not: `_impact_content` rejected `(none)` while
 # accepting `none`, `n/a` and `TBD`, so `impact_map: none` satisfied the very
-# requirement this task makes load-bearing on every guard edit in the repo. One
-# helper got the fix and its twin did not (cto-reviewer, 2026-07-22).
+# requirement that is load-bearing on every guard edit in the repo — one helper
+# had the fix and its twin did not.
 _NULLISH = {"none", "(none)", "n/a", "na", "tbd", "-", "todo", "?"}
 
 # A YAML block-scalar HEADER carries no content: `>`, `|`, and every chomping and
@@ -117,8 +115,7 @@ _NULLISH = {"none", "(none)", "n/a", "na", "tbd", "-", "todo", "?"}
 # PATTERN, not by enumeration. `>` and `|` were added to the word list one round
 # earlier and `>-` walked straight through it — and `>-` is not contrived, it is
 # what this repo's own workflow files use. Enumerating literals loses this race
-# by one variant every round; the pattern closes the class (cto-reviewer,
-# 2026-07-22, the FOURTH finding of this same class in this function pair).
+# by one variant every time; the pattern closes the class.
 _BLOCK_HEADER_RE = re.compile(r"^[>|]\d*[+-]?$")
 
 
@@ -137,8 +134,7 @@ def _impact_content(text: str) -> bool:
     nullish set, so it satisfied the requirement with zero blast-radius trace.
     The inline and block-scalar spellings were caught and the dash list was not,
     even though `scope_paths`, `decisions_reserved` and `done_when` in this
-    repo's own contract are all dash lists. Third round of the same word class in
-    the same function pair (cto-reviewer, 2026-07-22).
+    repo's own contract are all dash lists.
     """
     s = text.strip().lstrip("-").strip()
     if not s or _is_empty_marker(s):
@@ -154,10 +150,10 @@ def _reserved_content(text: str) -> bool:
     The artifact gate rests on this: publishing a mock IS the product decision,
     so the open questions must be reserved rather than answered by drawing them.
     A contract exists in almost every session, so contract-existence alone would
-    make that gate fire essentially never (cto-reviewer, 2026-07-22).
+    make that gate fire essentially never.
 
     "Nothing is open" is still a legitimate answer — it just has to be a
-    sentence someone can check ("none: the design is CPO-approved as mock X and
+    sentence someone can check ("none: the design is approved as mock X and
     this publishes it unchanged"), not the template's bare `- none`.
     """
     s = text.strip().lstrip("-").strip()
@@ -184,7 +180,7 @@ def _has_real_reservation(lines: list[str]) -> bool:
     reservation written after it and then reported the block as "empty or still
     the template's bare `- none`", which is neither. Fail-closed, but crying wolf
     on a true statement is exactly what the sibling deny message was rewritten to
-    stop doing (cto-reviewer, 2026-07-22).
+    stop doing.
     """
     stripped = _PLACEHOLDER_SPAN.sub(" ", "\n".join(lines))
     return any(_reserved_content(line) for line in stripped.splitlines())
@@ -193,10 +189,9 @@ def _has_real_reservation(lines: list[str]) -> bool:
 def _is_structural(rel: str) -> bool:
     """The structural surface — an impact_map is required before editing here.
 
-    PROTECTED paths are structural too (2026-07-22). They were left out until a
-    retrospective measured the consequence: editing a hook needed CPO authority
-    but NO blast-radius trace, while a cosmetic label change on a leaf mart
-    needed one. That is backwards. `protected_override` answers "may you"; the
+    PROTECTED paths are structural too. Leaving them out would mean editing a
+    hook needs authority but NO blast-radius trace, while a cosmetic label change
+    on a leaf mart needs one. That is backwards. `protected_override` answers "may you"; the
     impact_map answers "do you know what breaks" — two different questions, and
     a guard's blast radius is every future task in the repo, which is wider than
     almost any model's. Both are now required here.
@@ -348,7 +343,7 @@ def _deny_missing_impact_map(rel: str) -> None:
     # Say WHY this specific path is on the surface. Telling the agent that
     # `.claude/hooks/x.py` is a "raw writer, dbt model, or consumption" file is
     # false, and the rational conclusion from a false reason is that the gate is
-    # buggy (cto-reviewer, 2026-07-22).
+    # buggy.
     if _is_protected(rel):
         why = (
             "is a PROTECTED guard path, which is part of the structural surface: "
@@ -402,9 +397,9 @@ def _gate_file_edit(event: dict, root: str) -> None:
         if contract and contract["protected_override"] and _matches_scope(rel, contract["scope"]):
             # The impact_map check below this block is unreachable once we
             # return here, so it has to happen INSIDE the branch. Adding
-            # protected paths to `_is_structural` alone would have changed
-            # nothing (2026-07-22): authority and understanding are separate
-            # gates and a protected edit needs both.
+            # protected paths to `_is_structural` alone would change nothing:
+            # authority and understanding are separate gates and a protected
+            # edit needs both.
             if not contract.get("impact_map_present"):
                 _deny_missing_impact_map(rel)
                 return
@@ -429,7 +424,7 @@ def _gate_file_edit(event: dict, root: str) -> None:
 
 
 def _gate_artifact(root: str) -> None:
-    """Publishing a design is work, and until 2026-07-22 it was the only kind
+    """Publishing a design is work, and without this it would be the only kind
     with no gate on it at all.
 
     Every other guard in this repo keys on a repo file path. A published mock is
@@ -444,7 +439,7 @@ def _gate_artifact(root: str) -> None:
     `decisions_reserved`. The second matters more than it looks. A contract is
     mandatory before any repo edit, so one exists in almost every session, and
     contract-existence alone would make this gate fire essentially never on the
-    surface it was built for (cto-reviewer, 2026-07-22). "What belongs on this
+    surface it was built for. "What belongs on this
     page" is a §10 product decision: it is reserved and escalated, never answered
     by whoever is drawing the page.
     """
@@ -531,7 +526,7 @@ def _gate_bash_pre(event: dict, root: str) -> None:
         # an override and no map was permitted, and neither the post-command
         # check nor the stop gate flags a protected+override file afterwards.
         # A gate enforced on one write path and advertised as general is not a
-        # gate (cto-reviewer, 2026-07-22).
+        # gate.
         if _is_structural(rel) and not contract.get("impact_map_present"):
             _deny_missing_impact_map(rel)
             return

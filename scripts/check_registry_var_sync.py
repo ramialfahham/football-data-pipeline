@@ -30,9 +30,9 @@ DBT_PROJECT_PATH = REPO_ROOT / "dbt_project" / "dbt_project.yml"
 REGISTRY_SEED_PATH = REPO_ROOT / "dbt_project" / "seeds" / "competition_registry.csv"
 
 # The seed's columns come from the WRITER, imported rather than restated, so the guard cannot check
-# a different column set from the one that is written. An earlier draft duplicated the tuple here
-# and leaned on a parity test; platform-reviewer was right that the justification did not hold —
-# `scripts/` resolves as a namespace package from the repo root, so one sys.path line makes the
+# a different column set from the one that is written. Duplicating the tuple here and leaning on
+# a parity test would not hold — `scripts/` resolves as a namespace package from the repo root,
+# so one sys.path line makes the
 # import work whether this runs as `python scripts/check_registry_var_sync.py` (CI) or under pytest.
 # A structural guarantee beats a test that detects the drift after the fact, and this is the same
 # shape `scripts/check_task_artifacts.py:51` already uses to reach the hooks package.
@@ -105,8 +105,8 @@ def _registry_seed_rows() -> set[tuple[str, ...]]:
 def _seed_rows() -> set[tuple[str, ...]]:
     """The rows the seed ACTUALLY holds, read verbatim.
 
-    ⚠ NOTHING IS STRIPPED HERE, deliberately. Stripping this side while the registry side was
-    unstripped is precisely the hole platform-reviewer found at round 1: a seed cell of "UEFA "
+    ⚠ NOTHING IS STRIPPED HERE, deliberately. Stripping this side while the registry side is
+    unstripped is a hole: a seed cell of "UEFA "
     normalised to "UEFA", matched the registry, and the guard reported OK on a corrupted file —
     and `not_null`/`unique` would not have caught it either, since a trailing space is neither
     null nor a duplicate. Normalisation happens once, in the writer's `_normalise`; the comparison

@@ -3,8 +3,8 @@
 WHY THIS EXISTS
 ---------------
 Every check that lives inside the nightly only runs when the nightly runs. The failure that
-cost six days of stale data (2026-08-03 to 08-09) was the nightly NOT RUNNING AT ALL — a cron
-silently dropped by a platform migration. Nothing inside the pipeline can see that.
+cost six days of stale data was the nightly NOT RUNNING AT ALL — a cron silently dropped by a
+platform migration. Nothing inside the pipeline can see that.
 
 This runs on its own schedule and measures the thing the product actually cares about: HOW OLD
 IS THE DATA. It does not care whether the nightly ran, succeeded, or exists. A pipeline that
@@ -13,7 +13,7 @@ is a proxy, data age is the real signal.
 
 WHY NOT AN ALERT ON THE JOB ITSELF
 ----------------------------------
-That was the first design and the CPO rejected it. Cloud Monitoring caps `conditionAbsent` at
+That was the first design, and it does not work. Cloud Monitoring caps `conditionAbsent` at
 23h30m and MQL `absent_for` at 1d1h, and for a DAILY job every value at or below 24h fires
 before each run — so the only usable number was 25h, a ceiling rather than a choice. Running
 THIS hourly dissolves that: absence detection on an hourly job needs a 3h window, far inside

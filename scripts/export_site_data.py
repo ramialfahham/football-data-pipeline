@@ -5,9 +5,9 @@ the Astro build (#368) can render "one template x N entities". This is the engin
 of the programmatic site: marts -> per-entity JSON -> templates -> pages.
 
 ADDITIVE and isolated: it does not touch the legacy ``export_pages_data.py``.
-The Matchday IQ MVP it once ran alongside was RETIRED on 2026-07-21 (offline,
-Pages deleted, ``site/`` frozen), so there is no cutover to wait for; #377 is now
-the go-live of v2 itself. Output is a build artifact (gitignored), not committed.
+The Matchday IQ MVP it once ran alongside is RETIRED (offline, Pages deleted,
+``site/`` frozen), so there is no cutover to wait for; #377 is now the go-live of
+v2 itself. Output is a build artifact (gitignored), not committed.
 
 Contract: ``docs/site_architecture.md`` section 5 (template -> export file -> mart).
 Data is locale-independent; display labels resolve at build time from the metric
@@ -56,21 +56,20 @@ _LEADERBOARD_METRICS = ("goals_player", "scorer_points_player", "shots_on_goal_p
 # The HOME page's Top players boards (#40): four boards, one metric each, in display order.
 # ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
 # different consumer with a different board set. Sharing one list would couple two surfaces that
-# the CPO has changed independently (the home set was cut from nine boards to four on 2026-08-10
-# while the leaderboards set was not).
+# have changed independently (the home set was cut from nine boards to four while the leaderboards
+# set was not).
 # ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
 # the mart suffixes them `_player`. The board's NAME still comes from the catalogue's `label_en`.
 _HOME_PLAYER_BOARDS = ("goals_player", "assists_player", "passes_player", "passes_key_player")
-# The HOME page's Top teams boards (#41), four boards in display order, locked by the CPO on
-# 2026-08-10 alongside the player set. These are `mart_team_leaderboards`' own `metric_key` values
-# and the catalogue's team `metric_id`s — the same string, unlike the player boards where the mart
-# suffixes `_player`.
+# The HOME page's Top teams boards (#41), four boards in display order, locked alongside the player
+# set. These are `mart_team_leaderboards`' own `metric_key` values and the catalogue's team
+# `metric_id`s — the same string, unlike the player boards where the mart suffixes `_player`.
 # ⚠ They do NOT share a number format: goals and shots on goal are `decimal_1`, passes and duels are
 # `decimal_0`. The format travels with each board from the catalogue for that reason.
 _HOME_TEAM_BOARDS = (
     "goals_per_match", "shots_on_goal_per_match", "passes_per_match", "duels_per_match",
 )
-# Top 7 per board, raised from 5 by the CPO on 2026-08-10 and applying to Top teams as well.
+# Top 7 per board, raised from 5, and applying to Top teams as well.
 _HOME_BOARD_ROWS = 7
 
 _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
@@ -99,11 +98,11 @@ _GROUP_ORDER = ["leagues", "cups", "continental-club", "national-teams"]
 # Only these types get a country hub (real nations); international comps live in groups only.
 _DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
 
-# ⚠ `_HERO_FIXTURE_LIMIT = 12` USED TO LIVE HERE and is GONE (CPO, 2026-08-18). It was reasoned —
-# 10_home.md measured that twelve filled the first screenful across two or three competitions on
-# every day sampled — but it does not SCALE: as competitions are onboarded, twelve slots hold fewer
-# and fewer of them, so the block narrows exactly as the site broadens. CPO: "we will show what we
-# have, more matches will come, because we ingest more competitions."
+# ⚠ `_HERO_FIXTURE_LIMIT = 12` USED TO LIVE HERE and is GONE. It was reasoned — 10_home.md measured
+# that twelve filled the first screenful across two or three competitions on every day sampled —
+# but it does not SCALE: as competitions are onboarded, twelve slots hold fewer and fewer of them,
+# so the block narrows exactly as the site broadens. The ruling: "we will show what we have, more
+# matches will come, because we ingest more competitions."
 #
 # The replacement is the natural unit, not another number: every match on the NEXT DAY THAT HAS
 # FOOTBALL (`group_upcoming_fixtures`). That does not reopen what GAP-02 settled — "today's
@@ -127,14 +126,14 @@ def player_slug_with_id(name: str | None, entity_id: int) -> str:
     more -- they are derived in the warehouse and served on ``mart_team_profile`` as
     ``team_slug`` (#852), because assigning an identifier is derivation and this script
     is the consumption layer (#846). Calling this for a team would put the provider id
-    back in a team URL, which the CPO ruled out.
+    back in a team URL, which is ruled out.
 
     Two things a reader should not trust from the old version of this docstring:
     it claimed the id suffix gave "stability across renames" -- it does not, because
     the name half is recomputed from the current name on every export, which is #843.
     And ``_kebab`` DELETES any character NFKD cannot decompose, so a player named
-    Sigurðsson still loses a letter here. The transliteration fix (CPO ruling E3)
-    landed for teams only; players inherit it when player slugs move to the warehouse.
+    Sigurðsson still loses a letter here. The transliteration fix landed for teams
+    only; players inherit it when player slugs move to the warehouse.
     """
     base = _kebab(name)
     return f"{base}-{entity_id}" if base else str(entity_id)
@@ -355,7 +354,7 @@ def shape_team_payload(
         "team_id": team_id,
         # Served, not computed: mart_team_profile carries team_slug, derived in the warehouse
         # from the corrected name (#852). A slug built here would be identity generation in the
-        # consumption layer, and would reintroduce the provider id the CPO ruled out.
+        # consumption layer, and would reintroduce the provider id that is ruled out.
         "slug": featured.get("team_slug"),
         "name": featured.get("team_name"),
         "country": featured.get("team_country"),
@@ -1034,7 +1033,7 @@ def shape_competition_index(rows: list[dict]) -> list[dict]:
     renders. Pure passthrough otherwise -- the mart already resolves the category label, the
     region label and the ordering FACTS (region_rank, next/last kickoff); this function adds no
     logic. It does not sort or filter: the mart carries facts, the page spec declares the ORDER BY
-    (#62 step 4, escalations.log 2026-08-16)."""
+    (#62 step 4)."""
     return [{k: r.get(k) for k in _COMPETITION_INDEX_KEEP} for r in rows]
 
 
@@ -1178,16 +1177,16 @@ def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict) -> li
     grouped by competition.
 
     ⚠ THIS FUNCTION NO LONGER SELECTS ANYTHING. It groups every fixture it is handed and truncates
-    nothing — the retired `_HERO_FIXTURE_LIMIT = 12` slice is gone (CPO 2026-08-18), and the
-    matchday restriction is a WHERE clause in `fetch_landing_payload`'s query, beside the
+    nothing — the retired `_HERO_FIXTURE_LIMIT = 12` slice is gone, and the matchday
+    restriction is a WHERE clause in `fetch_landing_payload`'s query, beside the
     upcoming-window filter that has always lived there. Keeping the day selection out of Python is
     the same call #846 forced on `_featured_season_row`.
 
     GROUPING ONLY — no ordering business rule lives here either. `fixtures` arrives kickoff-ordered
     from the caller, so the payload's group order is first-appearance order, which is a
     deterministic export diff and NOT the display order: the PAGE applies the site-wide ordering
-    key (`site_v2/src/lib/competitionOrder.mjs`), per the CPO's 2026-08-16 Ruling 4 — "the mart
-    carries facts, the spec declares the ORDER BY".
+    key (`site_v2/src/lib/competitionOrder.mjs`), per the ruling "the mart carries facts, the spec
+    declares the ORDER BY".
     """
     groups: dict = {}
     for f in fixtures:
@@ -1246,8 +1245,8 @@ def _board_catalogue(
     of them wrong.
 
     ⚠ KEYED ON (metric_id, entity), and the entity leg is load-bearing now that both a player and a
-    team board set read this. `!27` fixed exactly this bug in export_metric_definitions_json.py by
-    keying on metric_id alone.
+    team board set read this. export_metric_definitions_json.py had exactly this bug from keying
+    on metric_id alone.
     ⚠ An earlier version of this docstring claimed "two of the ids here also carry a TEAM row".
     That was false and is corrected rather than softened: measured over the seed, 0 of 86 metric_ids
     are defined for more than one entity. The filter guards a collision the catalogue PERMITS —
@@ -1288,16 +1287,16 @@ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, s
     fixed order, ranked descending, top 7. The board is a `metric_key` in `mart_leaderboards`; the
     board's NAME is the catalogue's `label_en` and is resolved by the frontend, not here.
 
-    ONE PLAYER PER LEAGUE, not a pooled ranking (CPO 2026-08-18, GAP-31 withdrawn). The warehouse
-    decides which player that is, via `league_leader_order`; this function only groups the rows it
+    ONE PLAYER PER LEAGUE, not a pooled ranking (GAP-31 withdrawn). The warehouse decides which
+    player that is, via `league_leader_order`; this function only groups the rows it
     is handed into boards, keeps their order, and cuts each at 7. It sorts nothing.
     ⚠ #40's text still says "a pooled board ranks across seven leagues"; that sentence is
     superseded, though the rule it justified (every row shows club AND league) stands.
     ⚠ `rank == 1` is NOT one per league and was the defect here: the mart ranks with DENSE_RANK, so
-    ties share rank 1. Fixing it in Python was ALSO wrong — CPO 2026-09-09, "All ranking and
+    ties share rank 1. Fixing it in Python was ALSO wrong — the ruling is "All ranking and
     ordering lives in the warehouse. The page renders the order it is served."
 
-    A BOARD WITH NO ROWS IS OMITTED ENTIRELY (CPO 2026-08-10: *"if a board is missing, the user may
+    A BOARD WITH NO ROWS IS OMITTED ENTIRELY (the ruling: *"if a board is missing, the user may
     not even notice, so don't show"*) — no placeholder, no empty state — and the survivors keep
     their order. An empty result here means the block does not render at all.
     ⚠ That is invisible to the reader BY DESIGN, so it is invisible to us too:
@@ -1327,9 +1326,9 @@ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, s
     boards = []
     for key in _HOME_PLAYER_BOARDS:
         # NO SORTING HERE, DELIBERATELY. The rows arrive in the order the query asked the warehouse
-        # for, and this preserves it — "the page renders the order it is served" (CPO 2026-09-09,
-        # escalations.log). An earlier version of this file deduped and sorted in Python; that was
-        # ranking in the consumption layer and analytics-engineer-reviewer FAILed it.
+        # for, and this preserves it — "the page renders the order it is served". An earlier
+        # version of this file deduped and sorted in Python; that was ranking in the consumption
+        # layer.
         # One row per league is now a WAREHOUSE fact too: `league_leader_order = 1` in the query
         # below, a column whose tie rule (fewer minutes, then player_sk) lives in
         # `mart_leaderboards` and is asserted by `assert_mart_leaderboards_one_leader_per_league`.
@@ -1350,9 +1349,8 @@ def shape_home_top_teams(rows: list[dict], meta: dict, catalogue: dict[str, dict
     The team mirror of `shape_home_top_players`, and deliberately the same shape — group the served
     rows into boards, keep their order, cut each at 7. It sorts nothing and picks nothing: the
     warehouse decides which team represents a league (`league_leader_order`) and in what order the
-    representatives appear (`board_leader_order`), per the CPO's 2026-09-09 ruling that all ranking
-    and ordering lives there. Reaching that state took #40 four failed review rounds; this starts in
-    it.
+    representatives appear (`board_leader_order`), per the ruling that all ranking and ordering
+    lives there. Reaching that state took #40 several failed reviews; this starts in it.
 
     ⚠ THE FORMAT IS CARRIED PER BOARD, unlike the player block where all four are integers. Goals
     and shots on goal are `decimal_1`, passes and duels are `decimal_0`, and the catalogue is what
@@ -1363,14 +1361,14 @@ def shape_home_top_teams(rows: list[dict], meta: dict, catalogue: dict[str, dict
     — 20 of them, allowlisted in `.gitignore` — which is the procedure `site_v2/src/data/README.md`
     already sets out for a committed sample that is a SET, and the same reason the linked fixtures
     are committed.
-    ⛔ THIS PARAGRAPH SAID THE OPPOSITE UNTIL `platform-reviewer` CAUGHT IT. It claimed "NO SLUG AND
-    NO LINK", justified by only one team payload being committed — while the code seven lines below
+    ⛔ THIS PARAGRAPH ONCE SAID THE OPPOSITE. It claimed "NO SLUG AND NO LINK", justified by only
+    one team payload being committed — while the code seven lines below
     set a slug and `TopTeams.astro` wrapped every row in an anchor. The correction was swept through
     the component, the tests and the contract and missed HERE, in the docstring of the very function
     that emits the slug. Replaced, not softened.
 
     A BOARD WITH NO ROWS IS OMITTED ENTIRELY, and if none survives the block does not render at all
-    — the same rule as the player block (CPO 2026-08-10).
+    — the same rule as the player block.
     """
     by_board: dict[str, list[dict]] = {key: [] for key in _HOME_TEAM_BOARDS}
     for row in rows:
@@ -1409,28 +1407,26 @@ def shape_landing_payload(
     top_players: list[dict] | None = None,
     top_teams: list[dict] | None = None,
 ) -> dict:
-    """landing.json — the home modules, in the order the CPO composed them.
+    """landing.json — the home modules, in the order the spec composes them.
 
     Pure assembly of already-shaped parts, so the whole payload is unit-testable without
     BigQuery. Spec: docs/wireframes/10_home.md §0, which is that spec's stated authority.
 
-    ALL THREE modules now: next matches -> Top players -> Top teams (10_home.md §0). Top players
-    landed with #40 (`!166`) and Top teams with #41; the composition is complete and this docstring
-    no longer describes either as unbuilt. The warehouse work those two waited on is merged —
-    `!153`, `!164`, `!165`, `!167`.
+    ALL THREE modules: next matches -> Top players -> Top teams (10_home.md §0). Top players
+    landed with #40 and Top teams with #41; the composition is complete.
 
     Three blocks were removed rather than carried, and all three removals deleted
     consumption-layer violations as a side effect:
 
-    - The stats teasers (top scorers + a league-table snippet), ruled useless by the CPO on
-      2026-08-08. Their helpers `eligible_stats_competitions` and `pick_stats_competition` judged
-      season eligibility and then ranked competitions by registry sort_order — result judgement and
-      business ranking in the export, which `layering.md` forbids outright.
+    - The stats teasers (top scorers + a league-table snippet), ruled useless. Their helpers
+      `eligible_stats_competitions` and `pick_stats_competition` judged season eligibility and
+      then ranked competitions by registry sort_order — result judgement and business ranking in
+      the export, which `layering.md` forbids outright.
     - Trending, which is not in the composition above. It was also stale against the last ruling
-      that touched it (CPO 2026-08-04: three team streak types, winning/unbeaten/clean-sheet, with
-      "winless and losing are both dropped"), while the built mart still served five signals
-      including `winless`, no player streaks and no start dates.
-    - Browse, DROPPED (not deferred) 2026-08-19, CPO: "drop the browse section". Its only real
+      that touched it (three team streak types, winning/unbeaten/clean-sheet, with "winless and
+      losing are both dropped"), while the built mart still served five signals including
+      `winless`, no player streaks and no start dates.
+    - Browse, DROPPED (not deferred): "drop the browse section". Its only real
       value was reachability into the long-tail team/player pages, and both are already blocked
       on the team/player-name data-quality work, so a competitions-only version had nothing left
       to solve — the competitions index page already covers that pool. `build_nav`/`fetch_nav`
@@ -1457,10 +1453,9 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     THREE BigQuery reads, unchanged by dropping browse below (it was registry-driven and read
     nothing either way): `core.fct_fixture` and `core.dim_team` for the hero, plus
     `mart_competition_index` for `region_rank` (below). The stats teasers
-    (`mart_leaderboards` + `mart_standings`) and trending (`mart_landing_trending`) were removed
-    on 2026-08-08, and browse (registry-driven, read nothing) was dropped 2026-08-19 (see
-    `shape_landing_payload`) — their queries and, for browse, its `fetch_nav` call here, went with
-    them. Per-query dry-run figures are in `.claude/task/acceptance_evidence.md`.
+    (`mart_leaderboards` + `mart_standings`) and trending (`mart_landing_trending`) were removed,
+    and browse (registry-driven, read nothing) was dropped (see `shape_landing_payload`) — their
+    queries and, for browse, its `fetch_nav` call here, went with them.
     """
     meta = {
         c["league_code"]: {
@@ -1473,17 +1468,17 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     # holds the rule and the evidence for it. `group_upcoming_fixtures` reads `comp["name"]` from
     # this dict, so the fixtures hero's group headings are fixed by the same overlay as the boards.
     #
-    # ⚠ `sort_order` is deliberately NOT carried any more: the CPO retired it as an ordering basis
-    # on 2026-08-16 (Ruling 1) and nothing in this payload consumed it.
+    # ⚠ `sort_order` is deliberately NOT carried any more: it is retired as an ordering basis and
+    # nothing in this payload consumed it.
     for league_code, served in _warehouse_competition_meta(client).items():
         if league_code in meta:
             meta[league_code].update(served)
 
     # Same upcoming-fixture definition the fixture pages use, so the hero can never advertise a
     # match that has no page.
-    # THE MATCHDAY IS SELECTED HERE, IN THE QUERY — not in Python (analytics-engineer-reviewer,
-    # round 1). An earlier draft took `min(date)` over the fetched rows and filtered in a loop,
-    # which is the same shape as the season-picking this file already had to move OUT of Python
+    # THE MATCHDAY IS SELECTED HERE, IN THE QUERY — not in Python. An earlier draft took
+    # `min(date)` over the fetched rows and filtered in a loop, which is the same shape as the
+    # season-picking this file already had to move OUT of Python
     # under #846 (`_featured_season_row`: "picking here was window selection in the consumption
     # layer"). The `fixture_date >= current_date()` window on the line below has always lived in
     # this WHERE clause; restricting it to the first day with football belongs in exactly the same
@@ -1514,13 +1509,12 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     # registry seed, `is_current_season` and `league_leader_order` from the mart. The WHERE filters
     # facts and the ORDER BY reads them back in the ruled order; neither computes anything. Picking
     # the season in Python is what #846 moved out of this file, and picking the league's
-    # representative is what the 2026-09-09 ruling moved out of it.
+    # representative is what the ranking ruling moved out of it.
     # ⚠ `league_leader_order = 1`, NOT `rank = 1`. `rank` is a DENSE_RANK, so joint leaders share it
     # and a league returns several rows — measured, 12 of the 28 league-boards this renders are tied.
     # ⚠ THE ORDER BY IS ONE SERVED COLUMN AND NOTHING ELSE. `board_leader_order` is the position of
     # a league's leader among ALL league leaders on that board, computed in `mart_leaderboards` from
-    # the ruled keys. This file compares nothing — CPO 2026-09-09: "the page renders the order it is
-    # served".
+    # the ruled keys. This file compares nothing — "the page renders the order it is served".
     # ⚠ An earlier version restated the three ruled keys here instead, and it was FAILed: it was the
     # same ranking rule, relocated from Python into SQL that still lives in the frontend. The claim
     # that it HAD to live here — because the row order is scoped to a POOL of leagues and the mart
@@ -1531,7 +1525,7 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     # buckets them, so each board still receives its own rows in the served order.
     # ⚠ `competition_group = 'elite'` is a LITERAL, and deliberately temporary: #101 decided the
     # group is chosen per nightly build by weighted random over the in-season groups, and wiring
-    # that is its own MR. Until then the block renders the group the CPO named as the default.
+    # that is its own MR. Until then the block renders the group named as the default.
     top_player_rows = _query(client, f"""
         select l.metric_key, l.league_code, l.sort_value,
                l.player_sk, l.player_name,
@@ -1550,7 +1544,7 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     # every clause is the same KIND of served column — see that comment, which is not repeated here.
     # ⚠ The tie inside `league_leader_order` is broken by `team_sk` and MEANS NOTHING: teams have no
     # minutes, and for a per-match RATE fewer games is less evidence rather than better performance,
-    # so the CPO ruled there is no criterion (2026-09-09, escalations.log; GitLab #114 to improve).
+    # so there is no criterion by ruling (GitLab #114 to improve).
     top_team_rows = _query(client, f"""
         select t.metric_key, t.league_code, t.sort_value,
                t.team_sk, t.team_name, t.team_slug, t.team_logo_url

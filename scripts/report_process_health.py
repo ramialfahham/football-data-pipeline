@@ -1,20 +1,19 @@
 """Process health — reports numbers. Decides nothing.
 
-NOT CPO-RULED. This script is builder-initiated: it was proposed to the CPO on
-2026-07-31 as one of six gap fixes and he did not rule on it. It ships because it
-only READS artifacts the repo already keeps and prints them. It carries no
-authority and sets no policy.
+Builder-initiated, not a product decision. It ships because it only READS
+artifacts the repo already keeps and prints them. It carries no authority and
+sets no policy.
 
 **Whether any number here should have a threshold, and what happens when a
-threshold is crossed, is a §10 decision reserved to the CPO.** An earlier draft of
-this file invented a threshold and a sunset rule for withdrawing CPO-ruled
-process; both `cto-reviewer` and `scope-auditor` failed it as builder-authored
-governance, correctly. The constant below is a REFERENCE POINT computed from the
-log, not a target and not a trigger.
+threshold is crossed, is a §10 decision reserved to the product owner.** A
+threshold or a sunset rule for withdrawing process would be builder-authored
+governance. The constant below is a REFERENCE POINT computed from the log, not a
+target and not a trigger.
 
 The one claim the org design rests on is that front-loading a decision removes
-review rounds and CPO interruptions. This prints the before and after so that
-claim can be tested rather than asserted. Acting on the result is the CPO's.
+review rounds and interruptions of the product owner. This prints the before and
+after so that claim can be tested rather than asserted. Acting on the result is
+his.
 
 Read-only. Never fails a build.
 """
@@ -58,12 +57,12 @@ SPLIT_DATE = "2026-07-31"
 
 
 def rulings() -> dict:
-    """CPO rulings recorded, split into before and after the org change."""
+    """Rulings recorded in the log, split into before and after the org change."""
     if not ESCALATIONS.is_file():
         return {"before": (0, 0), "after": (0, 0)}
     text = ESCALATIONS.read_text(encoding="utf-8", errors="replace")
     # One entry per `YYYY-MM-DD[/DD] <branch>` header; its rulings are the
-    # CPO ANSWER/RULING markers until the next header.
+    # 'CPO ANSWER' / 'CPO RULING' markers until the next header.
     heads = list(re.finditer(r"^(20\d\d-\d\d-\d\d)(?:/\d\d)? (\S+)", text, flags=re.M))
     tally = {"before": [0, set()], "after": [0, set()]}
     for i, h in enumerate(heads):
@@ -77,7 +76,7 @@ def rulings() -> dict:
 
 def rounds_history() -> list[int]:
     """Every `rounds:` value review.md has ever carried, from its own git log.
-    A branch that needed round 3 cost three times the reviewer spend of round 1."""
+    A branch that needed three rounds cost three times the reviewer spend of one."""
     log = _git("log", "--format=%H", "--", REVIEW_REL).split()
     seen = []
     for sha in log:
@@ -160,9 +159,9 @@ def main() -> int:
     briefs = {p.stem for p in (REPO_ROOT / ".claude" / "agents").glob("*.md")
               if p.stem != "README"}
     if not total:
-        # Seeding the counter made the loop below always run, which un-hid a
-        # ZeroDivisionError that was previously unreachable (platform-reviewer,
-        # round 3). Realistic shape: a `fetch-depth: 1` checkout of a merge commit,
+        # Seeding the counter makes the loop below always run, which un-hides a
+        # ZeroDivisionError that is otherwise unreachable. Realistic shape: a
+        # `fetch-depth: 1` checkout of a merge commit,
         # where `diff-tree` without `-m` prints nothing for every commit it sees.
         print("\nReviewer activation: no file-bearing commits in range, nothing to "
               "report. (A shallow clone or a merge-only range does this.)")

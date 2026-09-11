@@ -76,11 +76,14 @@ the next reader has to carry forever. **Argue with a reviewer in the contract's 
 which reviewers read and which the MR carries; it is the review's record, not the code's.
 
 Why this section exists: the rule above it was ignored. On 2026-09-11 the code held **429**
-comment lines carrying a date, "CPO", "reviewer" or "round N" (tests 99, `site_v2/src` 88, dbt
-models 78, hooks 48, `scripts` 46, `ingestion` 35, dbt tests 19, `site_v2/scripts` 16 — the grep is
-`(#|--|//|\*).*(20\d\d-\d\d-\d\d|CPO|reviewer|round \d)`). That number is the starting point of the
-ratchet #115 step 8 adds as a hook; until then this paragraph is the rule and the count is the
-measure.
+comment lines carrying a date, "CPO", "reviewer" or "round N" by a first grep, 850 by the hook
+that replaced it. **The measure is the hook**, `.claude/hooks/comment_history_gate.py`: its
+`MARKERS` define what counts (a date, "CPO", a review credit — a named role or what an unnamed
+reviewer did — a numbered round, an MR number), its `comment_lines` defines a comment line per
+language, and `tests/test_no_decision_history_in_code.py` pins the count in both directions so it
+moves only in the open. A marker inside a quoted span is a literal, not prose; the bare word
+"reviewer" is the review gate's own vocabulary, not a credit. `docs/agent_guardrails.md` carries
+the full definition.
 
 ## 1.3) Macros
 

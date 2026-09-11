@@ -148,8 +148,8 @@ def _check_no_per_model_materialisation(
 def check_staging_materialisation(errors: list[str]) -> None:
     """Staging models must not set materialisation per model (#33 item 10).
 
-    Staging became a table on 2026-08-12 for the same measured reason base did on 2026-08-02:
-    a view stores nothing, so all 59 staging tests re-executed the raw JSON parse. That saving
+    Staging is a table for the same measured reason base is: a view stores nothing, so all 59
+    staging tests would re-execute the raw JSON parse. That saving
     only survives if the layer keeps deciding centrally — one model opting back into `view`
     reinstates the rescan for its own tests, invisibly, because nothing fails.
     """

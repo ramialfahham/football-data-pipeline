@@ -34,7 +34,7 @@ from _command_utils import (  # noqa: E402
 _MR_MERGE = re.compile(r"glab\s+mr\s+(?:merge|accept)\b")
 _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
 _COMMIT_FORBIDDEN = re.compile(r"(?:^|\s)(--no-verify|--amend|-n)(?=\s|$)")
-# Commit-flag ALLOWLIST (CTO finding, G3 review round 2): a denylist of the
+# Commit-flag ALLOWLIST: a denylist of the
 # self-staging forms (-a/-am/--include/...) is bypassable via POSIX
 # short-option bundling (`-qam`) and long-option prefix abbreviation
 # (`--inc`). Inverted: any flag outside this set — and any positional
@@ -57,7 +57,7 @@ def _commit_form_violation(raw: str) -> str | None:
 
     Tokenizes the RAW command with shlex — the quote-stripped text erases a
     QUOTED pathspec (`git commit -m "x" "path.sql"`), which git commits as
-    reviewer-unseen working-tree content (CTO finding, G3 review round 5).
+    reviewer-unseen working-tree content.
     Walks the tokens after `commit`: `--` or any positional token is a
     pathspec (selects/stages content at commit time); any flag outside
     _ALLOWED_COMMIT_FLAGS is denied by default — covering -a/-am/--all,
@@ -120,7 +120,7 @@ def _staged_diff_bytes(root: str) -> bytes | None:
       `review.md`; the gate recomputes it from the same broken call, gets the same value, and the
       two AGREE. The commit passes with a binding that covers ZERO bytes — no code, not even
       `contract.md`. Deterministic, not a race: both calls run seconds apart in the same state.
-      Reproduced before fixing (cto-reviewer, opus).
+      Reproduced before fixing.
 
     So failure returns **None**, which is distinguishable from a genuinely empty diff, and BOTH
     callers must handle it: the CLI refuses to emit a hash it could not compute (stderr, non-zero
@@ -138,7 +138,7 @@ def _staged_paths(root: str) -> list[str]:
     import subprocess
     # -z (NUL-split): with core.quotePath, non-ASCII paths come out quoted
     # and escaped, match no routing pattern, and would silently drop a
-    # required reviewer (CTO finding, G3 review round 5).
+    # required reviewer.
     out = subprocess.run(
         ["git", "diff", "--staged", "--name-only", "-z"], cwd=root,
         capture_output=True, text=True, timeout=30,
@@ -152,7 +152,7 @@ def _staged_paths(root: str) -> list[str]:
 # read and that gets committed. Printing a canary in CLI mode appends a JSON blob to
 # `review_input.patch`. Verified by running it: the blob landed at the end of the patch,
 # after the last hunk, because `print()` buffers while `sys.stdout.buffer.write()` does
-# not. Found by cto-reviewer at opus, routed to platform; reproduced before fixing.
+# not. Reproduced before fixing.
 _CLI_MODE = False
 
 
@@ -214,8 +214,8 @@ def _hash_exclude_pathspec(routing: dict | None) -> list[str]:
 
 def _review_patch_bytes(root: str) -> bytes:
     """The staged diff AS THE REVIEWERS SEE IT: code and contract.md, never the review's
-    own paperwork. CPO 2026-08-01 — reviewers stopped being able to fail a commit over a
-    defect in the notes about the commit. This is a SEPARATE exclusion list from
+    own paperwork, so a reviewer cannot fail a commit over a defect in the notes about the
+    commit. This is a SEPARATE exclusion list from
     `hash_exclude_paths`: what a reviewer reads and what invalidates their verdict are
     different questions, and conflating them is what made a typo fix cost a full round.
     Used by `--review-patch`, which is how `.claude/task/review_input.patch` must be
@@ -224,7 +224,7 @@ def _review_patch_bytes(root: str) -> bytes:
     excludes = routing.get("review_exclude_paths") or []
     # Reviewed CONTENT that is not pasted. Excluded from the body like `excludes`, but
     # ANNOUNCED in a manifest, because hiding it outright would silently delete
-    # bi-analyst-reviewer's field-existence hunt item. See `_doc_review_summarise_paths`.
+    # the display-contract review's field-existence hunt item. See `_doc_review_summarise_paths`.
     summarise = routing.get("review_summarise_paths") or []
     all_excluded = list(excludes) + list(summarise)
     spec = (["--", "."] + [f":(exclude){p}" for p in all_excluded]) if all_excluded else []
@@ -262,8 +262,8 @@ def _staged_stat(root: str, paths: list[str], section: str, why: str) -> str:
 
     `section` names which of the two went missing and is a STRUCTURAL field, not prose:
     both fail-loud tests assert on it, so the reason text below can be reworded without
-    silently unpinning them. (platform-reviewer at opus: the manifest test's `"manifest" in
-    ...` assertion had come to depend on a `why` string happening to end with that word.)
+    silently unpinning them. (The manifest test's `"manifest" in ...` assertion had once come
+    to depend on a `why` string happening to end with that word.)
     """
     if not paths:
         return ""
@@ -288,12 +288,12 @@ def _excluded_trailer(root: str, excludes: list[str]) -> bytes:
     cannot tell "never edited" from "edited and deliberately hidden". Both are absence. A
     reviewer that sees a path in `scope_paths` and not in the patch reasonably concludes the
     scope is wrong or an edit is missing; both conclusions are false and both cost a round.
-    It fired three times — 2026-08-03 and 2026-08-07 on `.claude/active_work.md`, 2026-08-06
-    on `.claude/task/TEMPLATE.md` — and every one was withdrawn on the evidence. The
-    reviewers were reasoning correctly from what they were given. It is a missing affordance.
+    It fired three times on this repo's own handover and template edits, and every one was
+    withdrawn on the evidence. The reviewers were reasoning correctly from what they were
+    given. It is a missing affordance.
 
-    THIS DOES NOT UN-EXCLUDE ANYTHING. Names and line counts only, never content, so the CPO
-    ruling that reviewers do not judge the review's own paperwork (2026-08-01) is untouched.
+    THIS DOES NOT UN-EXCLUDE ANYTHING. Names and line counts only, never content, so the rule
+    that reviewers do not judge the review's own paperwork is untouched.
     It also cannot move the review hash: that is `_staged_diff_bytes` over
     `hash_exclude_paths`, a different function over a different list. What a reviewer READS
     and what BINDS a verdict stay separate questions.
@@ -307,8 +307,7 @@ def _excluded_trailer(root: str, excludes: list[str]) -> bytes:
     every time trains the reader to skip the header, and then a real one gets skipped too.
     """
     # KEYWORDS, not positions: `section` and `why` are adjacent strings, so a positional
-    # swap here would leave both fail-loud tests green while the error text read backwards
-    # (platform-reviewer at opus, round 2).
+    # swap here would leave both fail-loud tests green while the error text read backwards.
     stat = _staged_stat(
         root, excludes,
         section="trailer",
@@ -352,7 +351,7 @@ def _summary_manifest(root: str, summarise: list[str]) -> bytes:
     # than no patch. The same logic applies here in the opposite direction: these files
     # were REMOVED from the body on the promise that a manifest would announce them, so
     # swallowing an error here means they are hidden with nothing said — the exact
-    # coverage loss `review_summarise_paths` exists to prevent. (cto-reviewer, opus.)
+    # coverage loss `review_summarise_paths` exists to prevent.
     # The git call itself now lives in `_staged_stat`; the reasoning above is why the
     # `why` string below is worded as a coverage loss rather than an ambiguity.
     stat = _staged_stat(
@@ -393,7 +392,7 @@ def _base_commit(root: str) -> str:
     that has only `origin/main` (the CI twin spells the base that way), a repo whose
     default branch is `master`/`develop` (these guards are written to travel to other
     repos), a `--single-branch` clone, a shallow `fetch-depth: 1` checkout, or two
-    histories with no common ancestor. All three reviewers caught it.
+    histories with no common ancestor.
     """
     import subprocess
 
@@ -408,7 +407,7 @@ def _base_commit(root: str) -> str:
     # stated remedy was fictional, and for two histories with no common ancestor the other half
     # (fetch the base branch) does not help either, because the ref already resolves and it is the
     # missing ancestor that fails. That left `git commit` locked with no way out — exactly the
-    # workflow lock the fail-open house rule exists to prevent. Caught by cto-reviewer at opus.
+    # workflow lock the fail-open house rule exists to prevent.
     # `scripts/check_task_artifacts.py:106` already honours it, so this also closes a local/CI
     # asymmetry rather than only unblocking the operator.
     env_base = os.environ.get("GOVERNANCE_BASE")
@@ -426,9 +425,9 @@ def _base_commit(root: str) -> str:
         # the variable. The local diff would then carry the branch's own changes PLUS a reverse
         # delta for everything merged upstream since the branch was cut: a red pipeline on a
         # correct branch, and a reviewers' patch full of already-merged work. That is precisely the
-        # defect this task exists to remove, and an earlier draft reintroduced it through this very
-        # escape hatch (platform-reviewer, opus, round 3). Every other base path in the repo is
-        # merge-based, including the ref loop below.
+        # defect the merge-base logic exists to remove, and an escape hatch that reads the ref
+        # directly reintroduces it. Every other base path in the repo is merge-based, including
+        # the ref loop below.
         code, base = _git("merge-base", "HEAD", resolved)
         if code == 0 and base:
             return base
@@ -519,7 +518,7 @@ def _artifact_only(paths: list[str], routing: dict) -> bool:
 def _review_sections(text: str) -> dict[str, str]:
     """Map '## section' name -> section body. Text before the first header is
     kept as the `_preamble` pseudo-section so an ESCALATE written there cannot
-    escape the per-section pairing (CTO finding, G3 review round 4)."""
+    escape the per-section pairing."""
     sections, name, buf = {}, "_preamble", []
     for line in text.splitlines():
         m = re.match(r"^##\s+(\S+)", line)
@@ -538,17 +537,17 @@ ROUND_CAP = 3
 def _rounds_gate(text: str) -> str | None:
     """Reason to deny on the review-round count, or None.
 
-    Every review round used to re-run every reviewer over the whole diff with no
-    bound on the loop; a nine-round PR was the result (CPO 2026-07-22: the process
-    "has to be more economic"). `review.md` must declare `rounds: N`, and past the
-    cap the builder STOPS and brings the open findings to the CPO instead of
-    grinding a round 4, 5, 6. To proceed past the cap anyway (the CPO said keep
-    going) the review must carry a `rounds_cap_override:` line with that reason —
-    a real sentence, not a bare marker.
+    An unbounded review loop re-runs every reviewer over the whole diff until
+    somebody stops it; a nine-round PR was the result once, and the process has
+    to be more economic than that. `review.md` must declare `rounds: N`, and past
+    the cap the builder STOPS and brings the open findings to the product owner
+    instead of grinding on. To proceed past the cap anyway the review must carry a
+    `rounds_cap_override:` line recording the product owner's go-ahead and the reason
+    — a real sentence, not a bare marker.
     """
     # `[^\S\n]*` = horizontal whitespace only, so a keyless `rounds:` cannot swallow
     # the NEXT line as its value (an empty `rounds_cap_override:` used to capture the
-    # following `## header` and read as a real reason — cto-reviewer, 2026-07-22).
+    # following `## header` and read as a real reason).
     m = re.search(r"^[^\S\n]*rounds:[^\S\n]*(.+)$", text, flags=re.MULTILINE)
     if not m:
         return (
@@ -599,8 +598,7 @@ EVIDENCE_REL = ".claude/task/acceptance_evidence.md"
 def _bullets(block: str) -> list[str]:
     """Non-placeholder `- ` items in a block.
 
-    A STRICTER variant of the risks_checked counter below, not a mirror of it — an
-    earlier comment claimed otherwise and was wrong (cto-reviewer, 2026-07-31).
+    A STRICTER variant of the risks_checked counter below, not a mirror of it.
     Two real differences: `[^\\S\\n]` is horizontal whitespace only, where the
     risks counter's `\\s` crosses newlines (the class already fixed once in
     `_rounds_gate`); and this rejects nullish words and `<placeholders>`, which the
@@ -639,11 +637,11 @@ def _block(text: str, key: str) -> str:
 
 
 def _acceptance_gate(root: str, paths: list[str]) -> str | None:
-    """Reason to deny on missing acceptance evidence, or None (#868, 2026-07-31).
+    """Reason to deny on missing acceptance evidence, or None.
 
-    The CPO's ruling: Quality Assurance exists as a required EVIDENCE ARTIFACT
-    with a gate, not as a reviewer agent — "this check needs proof, not
-    judgement". Every reviewer reads the diff and asks whether the code is
+    Quality Assurance exists as a required EVIDENCE ARTIFACT with a gate, not as
+    a reviewer agent — this check needs proof, not judgement. Every reviewer
+    reads the diff and asks whether the code is
     right; none asked whether the finished thing does what the ticket asked. The
     player Overview built, passed both reviewers, and still opened on the wrong
     season, because nobody was looking at that question.
@@ -651,10 +649,10 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
     TRIGGER is narrow on purpose: only a diff touching `site_v2/src/` — the
     user-facing surface where that failure happened. A guard that cries wolf
     gets ignored (see review_routing.json's own _doc), so this does not fire on
-    warehouse, ingestion or tooling work. Widening it is a CPO decision.
+    warehouse, ingestion or tooling work. Widening it is a product decision.
 
-    The criteria live in the contract and the CPO approves them BEFORE any code;
-    the lock is the mechanism, not the authorship (ruling 2). This gate cannot
+    The criteria live in the contract and the product owner approves them BEFORE
+    any code; the lock is the mechanism, not the authorship. This gate cannot
     verify that they were approved in advance — that is the honest limit — but
     it CAN refuse a commit where a declared criterion was never demonstrated,
     which is what stops criteria being softened at round three.
@@ -671,9 +669,9 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
             "ACCEPTANCE GATE: this diff changes the user-facing surface "
             f"(`{ACCEPTANCE_TRIGGER}`) and the contract declares no "
             "`acceptance_criteria:`. Write them as testable statements, get the "
-            "CPO's approval BEFORE building, and they are locked after that "
-            "(CPO ruling 2026-07-31, #868). Reviewers check whether the code is "
-            "right; nothing else checks whether it does what was asked."
+            "CPO's approval BEFORE building, and they are locked after that. "
+            "Reviewers check whether the code is right; nothing else checks "
+            "whether it does what was asked."
         )
     evidence_path = os.path.join(root, EVIDENCE_REL)
     if not os.path.isfile(evidence_path):
@@ -690,7 +688,7 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
     if len(substantive) < len(criteria):
         # Say WHY a line did not count. A gate that reports "1 demonstrated" when
         # the builder wrote 2 looks buggy and gets worked around rather than
-        # answered (the _deny_missing_impact_map lesson, cto-reviewer 2026-07-22).
+        # answered (the _deny_missing_impact_map lesson).
         dropped = len(shown) - len(substantive)
         detail = (f" {dropped} line(s) were too short to be a reading of built "
                   f"output (under {_MIN_EVIDENCE_CHARS} characters)." if dropped else "")
@@ -702,7 +700,7 @@ def _acceptance_gate(root: str, paths: list[str]) -> str | None:
         )
     # A count is a floor, not proof: two bullets both reading "checked" satisfy it.
     # Identical lines mean one criterion was demonstrated twice and another not at
-    # all (cto-reviewer, 2026-07-31: "read by a bullet counter").
+    # all — evidence written for a bullet counter, not a reader.
     lowered = [s.lower() for s in substantive]
     if len(set(lowered)) < len(lowered):
         dupes = sorted({s for s in lowered if lowered.count(s) > 1})
@@ -740,7 +738,7 @@ def _commit_gate(root: str) -> str | None:
     blob = _staged_diff_bytes(root)
     # ⚠ DENY EXPLICITLY when the hash could not be computed, rather than relying on a mismatch.
     # Letting this fall through to the comparison is what allowed sha256(b"") to match itself and
-    # bind a review to zero bytes (cto-reviewer, opus — reproduced, then fixed).
+    # bind a review to zero bytes — reproduced, then fixed.
     #
     # ⚠ `is None`, NOT `not blob`. The two are different states and conflating them re-creates the
     # bug one level up: `None` means the diff could not be computed, while `b""` is a LEGITIMATE
@@ -776,8 +774,8 @@ def _commit_gate(root: str) -> str | None:
         )
     sections = _review_sections(text)
     for name, body in sections.items():
-        # per-section pairing: one CPO answer elsewhere must not mask another
-        # unanswered escalation (scope-auditor boundary note, G3 first review)
+        # per-section pairing: one answered escalation elsewhere must not mask
+        # another unanswered one
         if "VERDICT: ESCALATE" in body and "CPO ANSWER:" not in body:
             return (
                 f"REVIEW GATE: section `{name}` carries an ESCALATE without a "
@@ -795,18 +793,18 @@ def _commit_gate(root: str) -> str | None:
         if "VERDICT: PASS" in body:
             # A PASS must say what was EXAMINED. It need not name a defect.
             #
-            # This floor was 2 until 2026-08-01, on the theory that a reviewer with no
-            # findings was not looking hard enough. The effect was the opposite: given a
-            # correct diff, a reviewer REQUIRED to produce two findings produces two, and
-            # what it finds is prose. #370 ran twelve rounds, of which 6-12 found nothing
-            # a visitor would see. CPO ruling: "Of course, the reviewer needs to have the
-            # critical attitude but it's allowed to approve and not invent some finding."
+            # A floor of 2 — on the theory that a reviewer with no findings is not
+            # looking hard enough — has the opposite effect: given a correct diff, a
+            # reviewer REQUIRED to produce two findings produces two, and what it finds
+            # is prose. One MR ran twelve rounds, of which the last seven found nothing a
+            # visitor would see. The reviewer needs to have the critical attitude, but it
+            # is allowed to approve and not invent some finding.
             #
             # The floor is 1, not 0, deliberately: 0 permits a bare `VERDICT: PASS` with
             # nothing behind it, which is the rubber stamp the original rule was written
             # to prevent. One entry keeps a reviewer accountable for having looked.
             # Count only entries after the marker — a stray bullet list above it must not
-            # satisfy the floor (CTO, G3 round 3).
+            # satisfy the floor.
             _, _, risks_block = body.partition("risks_checked:")
             risks = re.findall(r"^\s*-\s+\S", risks_block, flags=re.MULTILINE)
             if len(risks) < 1:
@@ -865,8 +863,8 @@ def main() -> int:
             return 0
 
     for part in stripped_parts:
-        # Commit detection is token-exact and deliberately LOOSE (CTO finding,
-        # G3 review round 3): enumerating git's global options (-p, -C, -c,
+        # Commit detection is token-exact and deliberately LOOSE:
+        # enumerating git's global options (-p, -C, -c,
         # --git-dir <x>, ...) under-matches, and an unmatched spelling skips
         # the whole gate. Any `git ... commit ...` invocation enters here;
         # the form check below then requires the spelling to be exactly
@@ -878,7 +876,7 @@ def main() -> int:
                 # The staged-diff hash is verified at PreToolUse time; a
                 # sibling command in the same call (`git add x && git commit`)
                 # would mutate the index AFTER the check and commit
-                # reviewer-unseen content (CTO finding, G3 review round 4).
+                # reviewer-unseen content.
                 emit_deny(
                     "COMMIT FORM BLOCKED: `git commit` must be the SOLE "
                     "command in the Bash call — a chained sibling command "

@@ -4,8 +4,8 @@ WHY THIS EXISTS
 ---------------
 Cost is a CTO threshold that every task contract must declare, and until now the declaration was a
 guess. There was no way to answer "what does this cost" short of hand-writing an INFORMATION_SCHEMA
-query, so "RECURRING COST: none" got written from intuition and nobody could challenge it. Twice on
-2026-08-02 that declaration was made on changes that did add cost.
+query, so "RECURRING COST: none" got written from intuition and nobody could challenge it. Twice in
+one day that declaration was made on changes that did add cost.
 
 It is also how the May 2026 regression should have been caught. A cost optimisation was signed off
 on the 25th and undone by an unrelated refactor on the 27th; the only signal was the monthly bill,

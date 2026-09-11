@@ -97,7 +97,8 @@ RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
     (
         "decision language",
         # No bare `ruled`/`ruling` — "goal ruled out for offside" is football, not a
-        # decision log. A ruling worth logging is attributed, so `CPO` catches it.
+        # decision log. A recorded ruling is attributed to the owner's title, which
+        # the first alternative catches.
         re.compile(r"\bCPO\b|\bSLATED FOR\b|\ban earlier (?:version|draft)\b"
                    r"|\bused to say\b"),
         "rulings belong in .claude/task/escalations.log, open questions in the "
@@ -236,8 +237,7 @@ def _on_disk() -> tuple[set[str], set[str]]:
 
     Defined once and used by both the coverage check and the census line it
     prints, so the number reported can never drift from the number enforced —
-    an earlier version globbed separately for the census and quietly dropped the
-    `dbt_packages/` exclusion (platform-reviewer).
+    a separate glob for the census can quietly drop the `dbt_packages/` exclusion.
     """
     def keep(path: pathlib.Path) -> bool:
         rel = f"/{_rel(path)}"
@@ -282,8 +282,8 @@ def _shared_block_coverage(docs: list[tuple[str, pathlib.Path, object]],
     it." That rule was written down and enforced nowhere; measured when this was
     added, 195 columns whose name had a definition sitting in
     `models/docs/shared_columns.md` were blank, against 99 that referenced theirs.
-    Hand-referencing does not hold at this scale, which is the CPO's stated reason
-    (2026-08-21) for allowing docs blocks only with a mechanism behind them.
+    Hand-referencing does not hold at this scale, which is why docs blocks are
+    allowed only with a mechanism behind them.
 
     ⚠ IT DOES NOT POLICE *WHICH* BLOCK, deliberately, and that is what removes the
     need for an exemption list. A column named `league_code` that actually carries
