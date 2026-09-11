@@ -1,37 +1,28 @@
-# Task contract — the dead-reference guard used a boundary that was wrong within the hour
+# Task contract — a stash left behind blocks the turn
 
 objective: >
-  `tests/test_no_dead_issue_refs.py` shipped in `!171` with `FIRST_DEAD = 115`: any issue reference
-  at or above 115 is dead. GitLab issued **#115** the same day — the context-cleanup issue the CPO
-  asked for as his reference — so the guard would flag a live reference, and the constant would need
-  chasing GitLab's counter forever. Replace the moving boundary with a CLOSED SET, which needs no
-  periodic re-tuning — see `decisions_taken` for what it does still cost.
+  Ten pieces of parked work sat in `git stash` — a store nothing lists, no gate sees, and one
+  keystroke empties — including the whole player Overview tab, which memory had already written
+  off as lost. All ten are now pushed `parked/*` branches and the stack is empty. This branch adds
+  the mechanism that keeps it empty: the stop gate blocks a turn that ends with parked work in the
+  stash.
 
 refs: >
-  `!171` shipped the guard. GitLab **#115** is "Context engineering cleanup", filed 2026-09-10 and
-  live — the collision.
-  `.claude/task/escalations.log` `2026-09-10 chore/dead-issue-references` — the CPO's direction that
-  the cleanup finishes before product work resumes, and the revised nine-step plan.
-  ⭐ THE JUSTIFICATION FOR REWRITING RATHER THAN BUMPING THE CONSTANT IS TECHNICAL AND STANDS ON ITS
-  OWN, without reference to anything the CPO said: **there is no value of `FIRST_DEAD` that is both
-  correct and stable.** Correct means just above GitLab's maximum, which moves. Stable means high,
-  which stops flagging everything below it — that is, all of them. A one-character bump to 116 buys
-  one issue of life. That argument is checkable by anyone and is what this branch rests on.
+  `.claude/task/escalations.log` `2026-09-11 feat/stash-check-in-stop-gate` — the CPO's "yes" to
+  editing the protected stop gate, after the plain-language explanation he asked for.
+  Step 4 of the context cleanup as GitLab #115 numbers it ("4 — where parked work lives"; "5 —
+  split `escalations.log`"). ⚠ The 2026-09-10 log entry that first listed the nine steps had those
+  two the other way round; #115 is the tracker and supersedes it. Steps 1-3 merged as `!169`-`!172`.
+  Precedent for a protected-path edit to this file: `check_description_hygiene.py` was added to
+  `FAST_GATES` on 2026-08-20 "with CPO approval for the protected-path edit".
 
-  ⚠ THE CPO'S STANDARD IS CONTEXT, NOT AUTHORITY, AND `scope-auditor` WAS RIGHT TWICE ABOUT IT.
-  Round 1: I quoted him without logging it, and it FAILed as fabricated — correctly, because an
-  unlogged quote is indistinguishable from an invented one. Round 2, after I logged it: it FAILed
-  again on the deeper point, that a log entry I wrote, in the branch under review, after being
-  caught, corroborates nothing but my own assertion.
-  ⛔ THAT SECOND OBJECTION IS UNANSWERABLE AND IT IS NOT SPECIFIC TO THIS BRANCH. Every entry in
-  `escalations.log` is authored by the party it constrains, in the branch it justifies. The file the
-  working agreement designates as the durable record of the CPO's rulings is self-attested. No care
-  taken while writing an entry fixes that. Recorded as a finding against step 4 of the context plan
-  (GitLab #115), which is where `escalations.log` is restructured — this branch does not pretend to
-  solve it, and deliberately no longer leans on it.
+protected_override: CPO approved editing `.claude/hooks/stop_gate.py` on 2026-09-11 — asked
+  directly, in plain language, and answered "yes". Recorded in `escalations.log` under
+  `2026-09-11 feat/stash-check-in-stop-gate`.
 
 scope_paths:
-  - tests/test_no_dead_issue_refs.py
+  - .claude/hooks/stop_gate.py
+  - tests/test_governance_hooks.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -39,144 +30,117 @@ scope_paths:
   - .claude/task/escalations.log
 
 impact_map: >
-  writers: one test file. No model, mart, export, site source, doc or CI config.
+  writers: one hook (`.claude/hooks/stop_gate.py`), one test file. No model, mart, export, site
+    source or CI config.
 
-  downstream: the test runs in CI's `test:python`. Nothing else reads it.
+  downstream: the Stop hook fires at the end of every agent turn. It does NOT run in CI. Nothing
+    else reads it.
 
-  blast_radius: the guard's COVERAGE changes shape. Before: everything `>=115`, which over-covers
-    (future live issues) and under-covers nothing. After: exactly the 256 GitHub-era numbers this
-    repo actually references. That UNDER-COVERS a GitHub number nothing has ever cited, and that
-    gap is real, silent and unguarded — see `decisions_taken`, which states it the same way. It has
-    not occurred historically (every dead reference that got in was copied from elsewhere in the
-    repo, which the set covers), but "has not happened" is not "cannot happen".
-    ⚠ THIS SENTENCE READ "harmless" UNTIL ROUND 4, while `decisions_taken` called the same gap "the
-    worse property, and it is not guarded". `scope-auditor` FAILed it as the same defect class as
-    rounds 2 and 3 — an absolute claim sitting apart from its own rebuttal — surviving a third time
-    because the sweep grepped for the WORDS I had used ("correct forever", "cannot rot") and this
-    instance said "harmless".
+  blast_radius: a NEW BLOCKING CONDITION on ending a turn. Today the gate blocks on out-of-scope
+    dirty files and on failing offline checks; after this it also blocks when the stash holds
+    ANYTHING — the rule exactly as the CPO was told it: "if you end your turn with something still
+    in the pocket, you get stopped". No label is exempt. The contract stash-dance is not affected:
+    it stashes, edits and pops inside ONE turn, and the gate fires at turn END — so the only
+    stash-dance the gate can see is a forgotten one, which is the #41 case it should catch. Like
+    the two existing conditions it blocks ONCE (`stop_hook_active`), so a stash this session cannot
+    pop — another worktree's, since the stack is repo-wide — costs one nag, not a wall. The check
+    runs BEFORE the dirty-tree short-circuit, because a forgotten stash leaves the tree clean —
+    that is the exact case it exists for.
 
   deploy_order: none.
 
 acceptance_criteria:
-  - A live GitLab reference is NOT flagged. Pinned for `#115` specifically, the number that broke
-    the boundary version.
-  - A dead reference IS flagged. Pinned for `#753` (the player page's phantom design authority) and
-    `#153`/`#156` (the "Next" line).
-  - The CSS colour `#475569` in `docs/roles/ui_expert.md` is not read as an issue number.
-  - Removing ANY number from the set turns a test RED — pinned by a digest over all 256 members,
-    not by asserting a handful. ⚠ The first version pinned `min(...)`, two literal strings and
-    nothing else: 4 of 256 members, so deleting any of the other 252 stayed green. Worse, the
-    mutation offered as proof deleted `151`, which is the member `min(...)` pins — a cherry-picked
-    mutation presented as a general property. `platform-reviewer` caught both.
-  - A previously-uncited dead number entering these files is NOT caught, and no test claims it is.
-  - A three-digit all-decimal CSS colour (`#217`) in either guarded file IS misread as an issue.
-    Accepted, not fixed — pinned by `test_a_short_all_digit_hex_colour_is_a_KNOWN_false_positive`,
-    which asserts the wrong behaviour so it is a documented limitation rather than an unknown gap.
-  - A dead reference abutting a hex letter (`#217e`) is NOT caught — a silent false negative.
-    Accepted, not fixed, for the mirror reason: `#217e` is itself a valid `#RGBA` colour. Pinned by
-    `test_a_reference_abutting_a_hex_letter_is_a_KNOWN_false_negative`; no such form exists in
-    either guarded file today.
-  - `pytest tests/` and `ruff check .` green.
+  - Any stash blocks the turn, with a message that names the stash and says to put it on a
+    `parked/` branch. Proven by creating one and running the gate.
+  - A `TEMP-` stash blocks too — there is no label exemption. Proven by a test, so the exemption
+    the first draft carried cannot come back silently.
+  - An empty stash list passes with no output. Proven.
+  - The check runs even when the tree is clean — a mutation that moves it below the dirty-tree
+    short-circuit turns a test RED.
+  - The gate's existing behaviour is unchanged for the cases it already handled; the existing
+    governance-hook tests stay green.
 
 decisions_taken: >
-  THE SET IS CLOSED, AND THAT IS THE WHOLE POINT. GitHub's tracker is gone, so no NEW dead number
-  can ever come into existence. A frozen list therefore needs no periodic re-tuning, where a
-  boundary is wrong the moment GitLab's counter moves.
-  ⚠ NOT "correct forever", and the decay is not a single event either. As GitLab's counter climbs
-  from #115 into this range, more members become live numbers, so the collision SURFACE grows — and
-  unevenly, because the set has dense runs (`range(276, 297)` is 21 consecutive, `range(407, 429)`
-  is 22). `scope-auditor` FAILed the earlier "a named event with a one-line fix" wording for
-  exactly that, and it was right that the wording understated it.
-  ⚠ WHAT IT GOT WRONG, and it changes the size of the problem: it concluded the guard would then
-  fail "on every single issue GitLab files for weeks, each one requiring its own commit". It does
-  not. The guard fires on CITATION, not existence — `_dead_refs` only returns numbers the text
-  actually contains — so entering a dense run costs nothing by itself. Verified by running it: with
-  280 in the set, prose that does not cite it returns `[]`. The cost is one deletion at the moment
-  someone writes that live issue into one of the two guarded files, and those files cite ~15 issues
-  between them across the project's entire life.
-  Contents: every `#115`-`#9999` referenced across
-  `CLAUDE.md`, `docs/`, `.claude/active_work.md` and the memory store on 2026-09-10 — 256 numbers.
-  The derivation is sound because GitLab had only reached #115 that day, so anything at or above it
-  in an older document is necessarily GitHub-era.
+  A STASH IS NOT A STORE, AND THE RULE IS ENFORCED, NOT WRITTEN. `working_agreement.md` could say
+  "park work on a branch"; the point of this cleanup is that written rules have not held. The stop
+  gate already holds the line on dirty trees and failing checks; this is the same instrument.
 
-  ⛔ A CSS COLOUR WAS BEING READ AS AN ISSUE NUMBER. `docs/roles/ui_expert.md` carries `#475569`
-  (slate-600), and the shipped regex `#(\d+)` matched it as issue 475569. `platform-reviewer` raised
-  this class on `!171` as hypothetical — "would false-positive on a pure-digit hex colour if one
-  were ever added" — having grepped only the two guarded files. One already existed elsewhere in the
-  repo. The pattern is now `#(\d{1,4})(?![0-9a-fA-F])`.
-  ⚠ FOUND BY REGENERATING THE SET, not by review: the derived range ran to 475569, which is not a
-  plausible issue id. The number was the tell.
+  NO EXEMPTION. The first draft exempted `TEMP-` stashes for 24 hours, on the premise that the
+  contract stash-dance would otherwise be blocked. The premise was false — the dance is intra-turn
+  and the gate is turn-end — and the CPO was never shown the exemption: the explanation he said
+  "yes" to states the rule unconditionally (cto-reviewer, round 1). Removed. The rule shipped is
+  the rule approved, and it is stricter: `TEMP-40-mrB` sat under that label for days "until the
+  mart column is in prod", which the 24h window would have tolerated for a day.
 
-  THE ONE REMAINING FAILURE MODE IS DISCLOSED AND MADE LOUD, not hidden. If GitLab ever issues a
-  number inside the set, a legitimate reference is flagged. The fix is deleting one entry —
-  deliberate and visible. `test_the_headroom_before_a_collision_is_stated` pins the
-  lowest member (#151), so the headroom is stated and a silencing edit cannot pass quietly.
+  IT RUNS FIRST, BEFORE THE DIRTY CHECK. `FAST_GATES` is skipped on a clean tree to save 2.9s per
+  conversational turn. A forgotten stash leaves the tree CLEAN — so a check placed with
+  `FAST_GATES` would never see the case it exists for. `git stash list` costs ~10ms and runs
+  unconditionally.
 
-  THRESHOLD — NEW MECHANISM: none. The same test file, in the same suite.
+  THE TEN EXISTING STASHES WERE CONVERTED, NOT DELETED. Each is a pushed `parked/<original
+  branch>` branch pointing at the stash commit, so all three parents — base, index, untracked —
+  are reachable and `git stash apply parked/<x>` restores it exactly. Verified before dropping:
+  every stash commit's SHA is a remote branch tip. Five of the ten are dead or superseded and are
+  branches the CPO can delete at leisure; the dispositions are in `escalations.log`.
+  THE SEQUENCE, plainly — AND NOT DRESSED AS APPROVED: the CPO approved the PLAN on 2026-09-10
+  ("do as recommended", log entry `2026-09-10 chore/dead-issue-references`), which listed "where
+  parked work lives — the 10 stashes ... [NEW]" as a step. That entry says nothing about the
+  steps' content. The EARLIER entry that day, `2026-09-10 chore/authority-map-in-claude-md`,
+  recording his "go" on the original six-step plan — before the stash step existed — says: "NOT
+  A RULING ON ANY OF THE SIX STEPS' CONTENT. He approved the plan and told me to start; each
+  step's own decisions are still his." I read that limit as carrying to the revised plan (a
+  re-ordered checklist approved with "do as recommended" is no more a content ruling than the
+  original approved with "go"), but that is MY reading; no entry disclaims content-approval for
+  the revised plan in so many words. Either way: he did not approve the step's CONTENT.
+  Converting each stash to a pushed `parked/*` branch and dropping it was MY choice,
+  taken on my own initiative under the autonomy rule for a non-destructive, reversible action
+  (each stash commit verified a pushed branch tip before its drop; all ten branches exist), and
+  told to him afterwards in the same message as the ask for this gate. He answered the ask; he
+  did not rule on the conversion, and this contract does not claim he did. Merging this MR is
+  where he can. The live/dead split is a LABEL on a decision reserved to him, not an action taken.
 
-  THRESHOLD — RECURRING COST: **NOT "strictly less". It is a TRADE, and the earlier version of this
-  line was self-contradictory** — it claimed "no regeneration at all" three lines above conceding
-  that a previously-uncited dead number would slip through, which is precisely a case where the set
-  would need regenerating. `scope-auditor` caught the contradiction. Stated honestly:
-
-    | | boundary (`>=115`) | closed set |
-    |---|---|---|
-    | maintenance | re-tune whenever GitLab's counter passes it — perpetual, and triggered by the counter alone | one deletion per collision, and only when a colliding issue is actually CITED in one of the two files (~15 citations in the project's life so far) |
-    | covers a dead number NEVER cited before | **yes** | **no** |
-    | covers live GitLab issues correctly | no — flags them | yes |
-    | silencing it | move one constant, invisible | RED, digest-pinned |
-
-  ⛔ A FOURTH FALSE-POSITIVE CLASS IS ACCEPTED, NOT FIXED, AND THAT IS A DECISION — recorded here
-  because `scope-auditor` FAILed round 6 for it living only in a test docstring while the other two
-  known gaps were disclosed in this contract. Selectively surfacing some limitations to the
-  authoritative record and leaving one in code comments is the "documented to get past review"
-  pattern, whatever the intent.
-  THE CLASS: a three-digit all-decimal CSS shorthand colour is TEXTUALLY IDENTICAL to a dead-set
-  member — `#217` the colour and #217 the issue cannot be told apart. Verified by running it:
-  `_dead_refs("accent colour #217 was chosen")` returns `[217]`. The six-digit form is only caught
-  because a trailing hex digit gives the lookahead something to trip on.
-  NOT FIXED BECAUSE EVERY FIX IS WORSE. A context rule — ignore it after "colour", ignore it inside
-  backticks — buys this at the price of FALSE NEGATIVES, and a guard that lets through the thing it
-  exists to catch has failed at its job, where one that occasionally complains has not.
-  PINNED INSTEAD by `test_a_short_all_digit_hex_colour_is_a_KNOWN_false_positive`, which asserts the
-  current WRONG behaviour, so anyone later "fixing" it must deliberately decide whether they have
-  introduced a false negative. The failure is loud — a red test naming the number — never silent.
-  ⚠ Found by `platform-reviewer` at its third round, after it had already found the six-digit colour
-  and two depths of HTML entity in the same pattern.
-
-  ⛔ A FIFTH CLASS, AND IT RUNS THE DANGEROUS WAY: A SILENT FALSE NEGATIVE, ACCEPTED. The trailing
-  `(?![0-9a-fA-F])` that stops `#475569` reading as an issue excludes ANY digit run abutting a hex
-  letter — so `#217e` and `#908d` match nothing, and a dead reference written that way is MISSED.
-  That is the guard letting through what it exists to catch.
-  ACCEPTED because the ambiguity is genuine in both directions: CSS colours are 3, 4, 6 or 8
-  characters, so `#217e` is itself a valid `#RGBA` colour, and there is no reading of it that is
-  unambiguously a citation. What decides it is which side has occurred — `#475569` was real, in
-  `docs/roles/ui_expert.md`, while a citation with no space or punctuation after the number is not
-  a form anyone uses: `grep -P "#\d{1,4}[a-fA-F]"` over both guarded files matches nothing.
-  PINNED by `test_a_reference_abutting_a_hex_letter_is_a_KNOWN_false_negative`, which asserts the
-  wrong behaviour deliberately and shows every ordinary citation form still matches.
-  ⚠ Found by `platform-reviewer` at round 4 — the mirror of the class above, undisclosed while the
-  false-positive side was pinned. And then `scope-auditor` FAILed round 7 because I had pinned it
-  in the test and NOT written it here: the identical defect it had FAILed in round 6 for the class
-  above, repeated one round later on the next class. Recorded because that repetition is the
-  finding.
-
-  SO THE SET IS NARROWER IN ONE DIMENSION AND THE OLD GUARD WAS BROADER THERE. What decides it is
-  which failure has actually occurred: the boundary flagged a live issue within hours of shipping
-  (#115, his own reference issue). Nobody has ever pasted a never-before-cited GitHub number into
-  these two files — the dead references got in by being COPIED FROM elsewhere in the repo, and the
-  set covers everything the repo cites.
-  ⚠ THE GAP IS SILENT, WHICH IS THE WORSE PROPERTY, and it is not guarded. Recorded rather than
-  papered over: no test can catch it offline, because the only complete check is asking the tracker.
+  THRESHOLD — NEW MECHANISM: yes, one new blocking condition in an existing protected gate.
+  Approved by the CPO, recorded. Routed to cto-reviewer and platform-reviewer by
+  `review_routing.json`.
+  THRESHOLD — RECURRING COST: ~10ms per turn end.
 
 decisions_reserved:
-  - The 292 dead references under `docs/` and 470 in memory, unchanged from `!171`.
-  - Steps 4-9 of the revised plan, tracked on GitLab **#115**.
+  - Deleting the five dead/superseded `parked/*` branches. They are the CPO's to delete; the
+    dispositions are recorded so he can.
+  - Steps 5-9 of the cleanup (GitLab #115).
 
 done_when:
-  - Mutation-proven in both directions: a dead ref returning goes RED, and removing a set member to
-    silence the guard goes RED.
-  - `pytest tests/` and `ruff check .` green.
+  - All five criteria proven by running the gate against real stashes and by the tests.
+  - `pytest tests/test_governance_hooks.py` green, ruff green.
 
 amendments:
-  - none yet
+  - Round 1 (cto-reviewer FAIL, scope-auditor FAIL, platform-reviewer PASS). Three changes, none
+    widening scope: (1) the `TEMP-`/24h exemption is REMOVED — the CPO was not shown it and its
+    premise was false (above); the two acceptance criteria that described it are replaced by one
+    that pins its absence. (2) "six" dead/superseded branches corrected to FIVE, in all three
+    places the miscount appeared — the log's own enumerated list has five (scope-auditor). (3) the
+    step number is disambiguated against #115, whose numbering supersedes the log's.
+    Two findings answered with evidence rather than a change: this IS step 4 per #115 (the
+    reviewer read the superseded numbering in the previous branch's contract text); and the
+    conversion was not destructive — sequence recorded above. The self-attestation of
+    `escalations.log` stands as recorded: it is what #115 step 5 exists to fix, and until then
+    the CPO's merge of an MR that carries the entry is the verification.
+  - Round 2 (cto-reviewer FAIL, platform-reviewer PASS, scope-auditor PASS). The round-1 answer
+    on the conversion had put "a stash is not a store" in quotation marks as the recommendation
+    the CPO said "do as recommended" to. The phrase IS in that recommendation — in the transcript
+    — but the 2026-09-10 log entry does not carry it, so to a reviewer it read as a quote the
+    source does not contain; and the deeper point holds regardless: "do as recommended" approved
+    the plan, not the step's content, as that entry says itself. Rewritten (above) to state that
+    the conversion was my own initiative under the autonomy rule, told afterwards, not approved;
+    the recommendation text is now logged verbatim and attributed as MINE, not his. Also: the
+    evidence file's `criteria_demonstrated` carried six bullets against five criteria (the ruff
+    line belongs to `done_when`) — moved, since the artifact gate counts them.
+  - Round 3 (cto-reviewer FAIL, scope-auditor FAIL, same finding). The round-2 rewrite cited
+    "each step's own decisions are still his" as said by the entry that records "do as
+    recommended". It is said by the EARLIER entry that day, about the original six-step plan,
+    before the stash step existed. The seventh instance this session of citing a real sentence
+    to the wrong place — inside the paragraph written to cure the sixth. Fixed above: each quote
+    now names its entry, and the carry-forward to the revised plan is stated as my reading, not
+    as something the record says. Every quote in this contract was then grepped against the log
+    for the entry it names. Round 4 runs under a `rounds_cap_override` in `review.md`, recorded
+    the way `!172` recorded it: to clear a standing FAIL by review, not to ship past one.

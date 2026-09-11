@@ -70,6 +70,30 @@ FAST_GATES = (
 # Generous against a cold filesystem; the measured total is ~2.9s.
 GATE_TIMEOUT_S = 90
 
+def _parked_stashes(root: str) -> list[str]:
+    """Every stash entry, as `stash@{n}: <message>` lines — none should exist at turn end.
+
+    A stash is not a store: nothing lists it, no gate sees it, and `git stash drop` is one
+    keystroke. Parked work goes on a pushed `parked/<branch>` branch. No label is exempt — the
+    contract stash-dance stashes, edits and pops inside one turn, so the only stash-dance this
+    can see is a forgotten one.
+
+    Runs UNCONDITIONALLY, before the dirty-tree short-circuit in `main`: a forgotten stash leaves
+    the tree clean, so a check placed with `FAST_GATES` would never see the case it exists for.
+    ~10ms. Fails OPEN like everything else here.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "stash", "list", "--format=%gd: %s"],
+            cwd=root, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=10,
+        )
+    except Exception:
+        return []
+    if proc.returncode != 0:
+        return []
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+
 
 def _failing_gates(root: str) -> list[tuple[str, str]]:
     """(script, first meaningful output line) for each fast gate that fails.
@@ -106,6 +130,25 @@ def main() -> int:
         return 0
     try:
         root = _repo_root()
+
+        # PARKED WORK. First, and regardless of whether the tree is dirty — see `_parked_stashes`.
+        parked = _parked_stashes(root)
+        if parked:
+            print(json.dumps({
+                "decision": "block",
+                "reason": (
+                    "STOP GATE (parked work): the stash holds work that should not be there at "
+                    "turn end: " + " | ".join(parked[:5]) +
+                    ". A stash is not a store — nothing lists it and one keystroke empties it. "
+                    "If it is your contract stash-dance, pop it now (`git stash pop`). If it is "
+                    "parked work, put it on a branch: `git branch parked/<name> stash@{N}`, "
+                    "`git push gitlab parked/<name>:parked/<name>`, then `git stash drop`. "
+                    "If it is another worktree's `TEMP-` dance (the stack is repo-wide), leave "
+                    "it and end the turn again."
+                ),
+            }))
+            return 0
+
         contract = _read_contract(root)
         dirty = _dirty_outside_task_dir(root)
         if contract:
