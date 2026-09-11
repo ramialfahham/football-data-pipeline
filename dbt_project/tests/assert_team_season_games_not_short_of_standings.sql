@@ -13,7 +13,7 @@
 -- ⭐ THE POINT IS THAT IT ENUMERATES NOTHING. A status list can only catch the causes somebody
 -- thought to list, and the status field is the least reliable thing the provider sends. The
 -- standings' played count is produced independently of it, so this catches the SYMPTOM instead of
--- guessing at causes. It is the detector the 2026-09-06 Eredivisie incident actually needed: FC
+-- guessing at causes. It is the detector an Eredivisie incident actually needed: FC
 -- Utrecht was a game short of its league, and no test asked that question.
 --
 -- ⛔ ONE DIRECTION ONLY, AND THE ASYMMETRY IS MEASURED, NOT ASSUMED. Over 4,082 team-seasons:
@@ -23,7 +23,7 @@
 -- two-sided test would be red on 38% of all rows and would be deleted within a week. Only
 -- `ours < standings` means something is missing.
 --
--- ⚠ SEVERITY IS WARN, BY CPO RULING ("do it that way, warn severity for now"), because this test is
+-- ⚠ SEVERITY IS WARN, DELIBERATELY AND FOR NOW, because this test is
 -- RED ON REAL DATA TODAY — 3 rows, at least two of them confirmed genuine. Their fix is GitLab
 -- #110's open rule on awarded results filed under the wrong status. Error severity would stop the
 -- whole warehouse over defects we have deliberately not decided how to correct yet.

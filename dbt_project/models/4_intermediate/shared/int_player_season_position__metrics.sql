@@ -7,7 +7,7 @@
   he played that match (fct_fixture_player_stats.position_code, recorded at match time) and aggregates each
   role separately. A player who logged minutes in two positions gets two rows, each carrying the per-90 he
   produced IN that role — so a multi-position player is benchmarked honestly per position, and the minutes
-  >= 270 floor applied downstream both qualifies and assigns the position (CPO ruling 2026-06-23 B1/B2).
+  >= 270 floor applied downstream both qualifies and assigns the position.
 
   position_code G/D/M/F -> position_group GK/DEF/MID/ATT; non-canonical codes ('-'/'SUB'/null, ~142 of
   1.67M legs) are dropped (they cannot be assigned a position). Atom formulas mirror int_player_season__
@@ -34,7 +34,7 @@ finished as (
 ),
 
 -- Penalty goals per (fixture, player) from match events, for the open-play finishing
--- numerator (CPO Option A). goals_total stays authoritative; only the penalty component is
+-- numerator. goals_total stays authoritative; only the penalty component is
 -- event-derived. (Player goals_total already excludes own goals.)
 events as (
     select
@@ -92,7 +92,7 @@ aggregated as (
         league_code,
         season_api_year,
         position_group,
-        -- pitch time required, same rule as int_player_club_season__metrics (CPO 2026-07-23): the
+        -- pitch time required, same rule as int_player_club_season__metrics: the
         -- provider lists whole matchday squads, so count(*) counted unused substitutes as appearances.
         countif(coalesce(minutes_played, 0) > 0) as appearances,
         sum(coalesce(minutes_played, 0)) as minutes,
@@ -152,7 +152,7 @@ select
     safe_divide(duels_won_player, duels_player) as duels_won_player_pct,
     safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
     safe_divide(saves_player, nullif(saves_player + goals_against_player, 0)) as saves_player_pct,
-    -- finishing efficiency (CPO Option A): open-play conversion = (goals_player − goals_penalty_player) /
+    -- finishing efficiency: open-play conversion = (goals_player − goals_penalty_player) /
     -- shots_on_goal_player. NULL when shots_on_goal_player is zero or the numerator falls outside
     -- [0, shots_on_goal_player] — never >100%.
     case

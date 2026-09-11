@@ -380,7 +380,7 @@ seeds:
           House style: what it captures, then a plain definition, then what a notable value
           signals, with any honest volume, style or role caveat last in parentheses.
     tests:
-      # Display names are unique WITHIN an entity, not globally (CPO 2026-08-08). The same words on
+      # Display names are unique WITHIN an entity, not globally. The same words on
       # a player row and a team row are allowed — `% Duels won` means the same thing for both and
       # the surrounding block says which — so a plain `unique` on label_en would be the wrong test
       # and would fail today on five legitimate pairs.

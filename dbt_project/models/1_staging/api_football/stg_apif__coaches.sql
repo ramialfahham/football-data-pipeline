@@ -1,10 +1,10 @@
 -- RAW_APIF_COACHES is a complete snapshot per (league_code, run): one row per league per ingest,
 -- whose payload.response[] holds that league's coaches (each as response[].coach — id, name, bio,
--- and a career[] history). Staging reads ALL snapshots faithfully (NOT latest-per-league) — CPO-ruled
--- this session to PRESERVE every coach ever seen (mirrors dim_player/dim_team entity preservation);
+-- and a career[] history). Staging reads ALL snapshots faithfully (NOT latest-per-league) to
+-- PRESERVE every coach ever seen (mirrors dim_player/dim_team entity preservation):
 -- latest-per-league would drop ~120 coaches whose teams later left our pull. base dedups a coach to
 -- one entity (latest ingest). The career[] history is a separate grain (stg_apif__coach_career).
--- See dbt_project/docs/layering.md §1_staging and .claude/task/escalations.log (2026-06-23).
+-- See dbt_project/docs/layering.md §1_staging.
 with src as (
     select
         league_code,

@@ -1,7 +1,7 @@
 -- RAW_APIF_FIXTURE_DETAILS is APPEND-ONLY and holds one row per FETCH of a fixture: the loader
 -- skip-fetches only finished fixtures missing data, and a retry appends a second version rather
--- than replacing the first (ingestion/api_football/loads/batch_fixtures.py; CPO 2026-08-17, "raw
--- keeps both versions"). So it carries many fixtures per league_code AND several versions per
+-- than replacing the first (ingestion/api_football/loads/batch_fixtures.py: raw keeps both
+-- versions). So it carries many fixtures per league_code AND several versions per
 -- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
 -- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc.
 -- ⚠ This model has NO consumer today (`dbt ls --select stg_apif__lineups+` returns only itself),

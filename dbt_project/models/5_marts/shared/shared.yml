@@ -606,7 +606,7 @@ models:
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
           name: team_profile_duels_won_pct_in_range
-      # finishing_efficiency_pct is open-play conversion in [0,1] (CPO Option A)
+      # finishing_efficiency_pct is open-play conversion in [0,1]
       - dbt_utils.expression_is_true:
           expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
           name: team_profile_finishing_efficiency_pct_in_range
@@ -1741,7 +1741,7 @@ models:
           expression: "sort_value > 0"
           name: mart_leaderboards_sort_value_positive
       # RATE-board ratios are all bounded [0,1]. finishing_efficiency_player_pct is now open-play
-      # conversion in [0,1] (CPO Option A), so it is range-checked here like the other rates.
+      # conversion in [0,1], so it is range-checked here like the other rates.
       # Rates are null when their denominator is zero.
       - dbt_utils.expression_is_true:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
@@ -2308,7 +2308,7 @@ models:
           expression: "percentile >= 0 and percentile <= 1"
           name: mart_competition_benchmarks_player_percentile_in_range
       # finishing_efficiency_player_pct is the one bounded metric in the LONG metric_value column (the
-      # per-90 metrics are unbounded). It is open-play conversion in [0,1] (CPO Option A) —
+      # per-90 metrics are unbounded). It is open-play conversion in [0,1] —
       # range-check the finishing rows; this is the only finishing surface on the player benchmark.
       - dbt_utils.expression_is_true:
           expression: "metric_key != 'finishing_efficiency_player_pct' or metric_value is null or (metric_value between 0 and 1)"
@@ -2427,11 +2427,10 @@ models:
             - player_sk
             - team_sk
             - season_sk
-      # Appearances can no longer be negative but CAN be 0: since 2026-07-23 an appearance requires pitch
-      # time, and a squad member who was never brought on keeps his row scoring 0 (CPO ruling). The old
-      # expression here was `appearances >= 1`, which asserted this mart excluded never-played members —
-      # the exact premise the CPO overturned, and which the data never satisfied anyway (26,530 rows).
-      # So this is narrowed to what still holds, not loosened to make a change pass.
+      # Appearances cannot be negative but CAN be 0: an appearance requires pitch time, and a squad
+      # member who was never brought on keeps his row scoring 0. An `appearances >= 1` assertion
+      # would claim this mart excludes never-played members — the opposite of the rule, and never
+      # true of the data anyway (26,530 such rows). So the test asserts what holds, not less.
       - dbt_utils.expression_is_true:
           expression: "appearances >= 0"
           name: player_career_appearances_non_negative

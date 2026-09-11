@@ -6,11 +6,11 @@
   Why it exists. `direction` (higher_better / lower_better / neutral) is the richer successor and the
   authority; `lower_is_better` is retained only because the live MVP export
   (`scripts/export_metric_definitions_json.py`) still reads it. Nothing checked that the two agreed,
-  and by 2026-07-21 four rows contradicted each other (`cards_yellow`, `cards_red`, `cards_total`,
+  and four rows once contradicted each other (`cards_yellow`, `cards_red`, `cards_total`,
   `shots_on_goal_against_player` — each `lower_is_better = false` beside `direction = 'lower_better'`). Two
   columns saying opposite things about one metric is precisely the "surprising ambiguity" this layer
   must not contain. The four were corrected to follow `direction`, and this guard landed with the
-  fix. (CPO 2026-07-21.)
+  fix.
 
   BOTH sides are checked on purpose. A guard that only caught `lower_is_better = true` beside a
   non-lower_better direction would have passed on all four of the rows that were actually wrong.
@@ -27,19 +27,12 @@
   silence on the very row it exists to catch. `lower_is_better` loads from the seed as BOOLEAN
   (verified against the built table), so no cast is needed.
 
-  CI note, REWRITTEN 2026-08-27 under #92. The previous version said that on a PR
-  `ref('metric_catalogue')` resolves to MAIN's seed rather than the branch's, because
-  `--favor-state` swaps it for the state relation; that this is why the 4 corrections this guard
-  depends on had to merge FIRST in their own PR before the guard followed; and "Do not try to solve
-  this with a CI workflow change."
-
-  It was solved with a CI workflow change, with the CPO's approval. `--favor-state` is gone from
+  CI note. On a merge request this guard reads the BRANCH's seed: `--favor-state` is absent from
   `data:build:mr`'s `dbt test` invocation, `dbt seed --target "$DBT_CI_TARGET"` runs before it in
-  the same job, and plain `--defer` prefers the branch's seed relation because it exists. **This
-  guard now reads the branch's seed.** The split-the-PR rule above was a workaround for the flag,
-  not a property of the guard, and it no longer applies. The 4 corrections having merged first
-  remains a fact of history, not a rule for the next change.
-  ⚠ There is no shared `ci` target any more: the CI target is named per merge request
+  the same job, and plain `--defer` prefers the branch's seed relation because it exists. So
+  catalogue values and a guard that depends on them CAN land in the same merge request — do not
+  split a change on the strength of the opposite (once true) rule.
+  ⚠ There is no shared `ci` target: the CI target is named per merge request
   (`ci_mr<IID>`), so this seed lands in that merge request's own dataset.
   ⚠ `--favor-state` remains on the sibling `dbt build` invocation, deliberately. Both that
   asymmetry and the per-merge-request naming are pinned in

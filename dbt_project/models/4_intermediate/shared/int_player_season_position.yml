@@ -16,7 +16,7 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [player_sk, season_sk, position_group]
-      # finishing_efficiency_player_pct is open-play conversion in [0,1] (CPO Option A); range-guarded on this
+      # finishing_efficiency_player_pct is open-play conversion in [0,1]; range-guarded on this
       # surface itself, not only on the benchmark consumer (covers sub-floor / GK rows too).
       - dbt_utils.expression_is_true:
           expression: "finishing_efficiency_player_pct is null or (finishing_efficiency_player_pct between 0 and 1)"

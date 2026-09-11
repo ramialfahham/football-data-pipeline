@@ -1,7 +1,7 @@
 -- Coach managerial history: one row per (coach, career stint) — flattened from RAW_APIF_COACHES
 -- payload.response[].coach.career[] (team + start/end). RAW_APIF_COACHES is a complete snapshot per
--- (league_code, run); staging reads ALL snapshots faithfully (NOT latest-per-league) — CPO-ruled this
--- session to preserve every coach's history (see stg_apif__coaches / escalations.log). base dedups the
+-- (league_code, run); staging reads ALL snapshots faithfully (NOT latest-per-league) to preserve
+-- every coach's history — the same entity preservation as stg_apif__coaches. base dedups the
 -- stints. The career team set is broader than dim_team (youth/reserve/untracked clubs), so team_id is
 -- kept as the provider id. See dbt_project/docs/layering.md §1_staging.
 with src as (

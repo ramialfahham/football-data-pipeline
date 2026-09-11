@@ -1,11 +1,10 @@
 -- The three columns the Top teams block orders and filters on must mean what they say.
 --
--- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod on
--- 2026-09-09, 2 of 259 league-board-seasons have more than one rank-1 team. Rare, but the block
+-- WHY IT EXISTS. `rank` is a DENSE_RANK, so joint leaders share it — measured against prod,
+-- 2 of 259 league-board-seasons have more than one rank-1 team. Rare, but the block
 -- claims one team per league, and a consumer that must pick cannot use `rank`. Deciding which team
--- represents a league, and in what order the representatives appear, is ranking, so it lives here
--- (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page renders the order it
--- is served").
+-- represents a league, and in what order the representatives appear, is ranking, so it lives here:
+-- all ranking and ordering lives in the warehouse, and the page renders the order it is served.
 --
 -- FOUR INVARIANTS. The first three mirror the player mart's; the fourth guards `is_current_season`,
 -- which this mart did not have before and which stops the export choosing a season for itself.
@@ -16,7 +15,7 @@
 --
 -- ⚠ THE TIE-BREAK IS `team_sk` AND IT IS MEANINGLESS. There is no sporting criterion for two teams
 -- on an equal per-match rate — the player mart's fewer-minutes rule does not transfer, because for
--- a RATE fewer games means less evidence, not better performance (CPO 2026-09-09, GitLab #114).
+-- a RATE fewer games means less evidence, not better performance (a better key is an open question).
 -- The test still pins it, because an arbitrary key that is not STABLE would churn the committed
 -- payload between exports.
 

@@ -1,4 +1,4 @@
--- Consistency guard for dim_team_competition_season_mapping (CPO 2026-06-17, Phase 1).
+-- Consistency guard for dim_team_competition_season_mapping.
 -- The mapping must hold EXACTLY the team↔competition↔season set that the fixtures fact holds
 -- — no missing members, no extras. A cross-model invariant between the core mapping and
 -- fct_fixture (the canonical fixtures fact): it catches the membership logic drifting from

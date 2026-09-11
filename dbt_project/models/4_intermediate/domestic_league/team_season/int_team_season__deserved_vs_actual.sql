@@ -4,10 +4,10 @@
   TEAM deserved-vs-actual read (points-space). One row per (team_sk, season_sk): the points the
   team's process deserved, versus the points it actually has.
 
-  Method (CPO-locked 2026-07-22, escalations.log): deserved signal = shots_on_goal_difference_per_match
+  Method (locked — a change is a product decision, not a builder's): deserved signal = shots_on_goal_difference_per_match
   (SoT for - against per match). Within each league-season, fit ordinary least squares of
   points-per-match on that signal, then deserved_points = the fitted points-per-match, CAPPED INTO
-  [0, 3], * the team's own games played. The cap is mechanical (CPO 2026-09-06, escalations.log):
+  [0, 3], * the team's own games played. The cap is mechanical:
   points per match is a bounded outcome and least squares is an unbounded predictor, so a fitted rate
   can land fractionally outside a support it cannot actually leave. deserved_points_gap =
   points_won_sum_season - deserved_points, so NEGATIVE = under-
@@ -25,7 +25,7 @@
   ~0.25 points per match per unit of SoT difference, near 9.8 points over a 38-game season. Rank
   space was abandoned because a fitted line there can predict positions that do not exist.
 
-  DOMESTIC LEAGUES ONLY (CPO 2026-07-22). deserved_rank ranks all teams in a competition 1..N, but a
+  DOMESTIC LEAGUES ONLY. deserved_rank ranks all teams in a competition 1..N, but a
   group-stage tournament's actual standing is a position WITHIN a group (1..4) — not comparable, so
   every tournament team carried a large false gap (mean absolute rank gap 3.43 domestic against
   8.29-21.46 for the tournament types, over 224 rows). The previous gate assumed knockouts carry no
@@ -65,8 +65,8 @@
   team's fitted rate is scaled by its own games played, which then differ.
 
   ⚠️ THE CAP BREAKS THAT IDENTITY, by exactly the amount it shaves, and nothing compensates. The
-  qualifier above is not decoration: a completed season could carry a capped row, and this comment
-  claimed an unconditional 0 until analytics-engineer-reviewer caught it. In practice the breakage is
+  qualifier above is not decoration: a completed season could carry a capped row, so the 0 is
+  NOT unconditional. In practice the breakage is
   far inside the mid-season approximation already accepted here — the one capped row in prod moves
   its league's sum by 0.026 points against a mid-season spread measured in whole points, and no
   COMPLETED season carries a capped row today. Stated rather than relied on, because "no completed
@@ -170,7 +170,7 @@ gated as (
         -- Telling MLS apart from Liga MX needs a real "is this one continuous competition" signal,
         -- which does not exist yet and is a design decision, not a builder's assumption. Until it
         -- does, this withholds rather than publishes: the conservative direction, at the cost of a
-        -- read MLS could probably support. (football-analytics-expert-reviewer, 2026-07-22.)
+        -- read MLS could probably support.
         (c.distinct_actual_ranks = c.teams) as actual_table_is_single_ladder
     from joined as j
     inner join coverage as c
@@ -215,7 +215,7 @@ rated as (
     from fitted as f
 ),
 
--- MECHANICAL CAP AT THE BOUNDS (CPO-ruled 2026-09-06, escalations.log). Points per match lives in
+-- MECHANICAL CAP AT THE BOUNDS. Points per match lives in
 -- [0, 3] by the rules of the competition, and ordinary least squares is an unbounded predictor, so
 -- it will occasionally put a team fractionally outside a support it cannot actually leave. Capping
 -- is the pragmatic treatment of that bounded outcome; the principled alternative is a model that

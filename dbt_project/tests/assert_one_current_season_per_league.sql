@@ -22,8 +22,8 @@
 -- which the first two halves CANNOT see. Revert the model's `rank()` to `row_number()` and exactly
 -- ONE row per league carries the flag: the distinct-season count is still 1, that row's season is
 -- still the max, and a cardinality-plus-recency test stays GREEN while the flag is false on every
--- other row of the season. `analytics-engineer-reviewer` found that gap; the mutations I had run
--- (ascending order, two seasons flagged) both missed it because neither changes the season SET.
+-- other row of the season. The obvious mutations (ascending order, two seasons flagged) both miss
+-- that gap because neither changes the season SET.
 -- A flagged season must therefore be flagged ENTIRELY.
 
 with import_mart_leaderboards as (

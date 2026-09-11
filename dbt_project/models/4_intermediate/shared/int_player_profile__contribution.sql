@@ -5,14 +5,14 @@
   (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
   int_player_profile__yoy). "Involved in 45% of Bayern's goals."
 
-  Metric definition (CPO, AskUserQuestion 2026-07-03):
+  Metric definition:
     - numerator = scorer_points_player = goals_total + goals_assists (summed over the player's appearances-with-stats)
     - denominator = team_goals_season = the club's goals_for over ALL its matches that competition-season (the
       authoritative scoreline), NOT just the matches the player appeared in.
     - contribution_player_pct = scorer_points_player / team_goals_season. Range [0, 1] (a player's G+A over his
       appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
 
-  Honest limit (CPO-accepted): player stats are sparse (many matches lack statistics_players). Where the
+  Honest limit, accepted by design: player stats are sparse (many matches lack statistics_players). Where the
   player's stats are missing for a game he played, his involvements there go uncounted while the whole-season
   denominator stays complete — so the share UNDERSTATES for players with coverage gaps. Absence is honest.
 

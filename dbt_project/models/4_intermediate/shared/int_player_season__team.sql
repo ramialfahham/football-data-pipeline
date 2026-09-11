@@ -2,7 +2,7 @@
 
 {#
   GAP-16 — the player's team per competition-season: the club of their MOST RECENT finished match
-  that season (Option B, CPO-ruled 2026-06-30 — deterministic + byte-stable, where the roster
+  that season (chosen because it is deterministic and byte-stable, where the roster
   affiliation source has no transfer date so cannot give a stable "latest team that season").
   is_current_team flags the single season-row holding the player's globally most-recent finished
   match (their current club). dbt owns "which team is current"; the consumption layer never re-ranks.

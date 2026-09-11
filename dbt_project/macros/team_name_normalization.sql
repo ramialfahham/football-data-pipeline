@@ -25,7 +25,7 @@ trim(
   is user-visible and expensive to change once published -- treat any edit here as
   a URL migration, not a refactor.
 
-  THE RULE (CPO ruling on E3, 2026-07-27, recorded in .claude/task/escalations.log):
+  THE RULE:
   fold to the base letter where one exists; expand only where none does.
     u-umlaut HAS a base letter  -> Bayern Munchen  -> bayern-munchen
     sharp-s has NONE            -> Rot-Weiss Essen -> rot-weiss-essen

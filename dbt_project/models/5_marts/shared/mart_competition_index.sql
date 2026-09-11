@@ -7,8 +7,8 @@
     that, and #62 is the fix.
 
     ORDERING. This mart carries the ordering INPUTS as facts and does not pre-bake the answer.
-    The page spec declares the ORDER BY (CPO, 2026-08-16: sorting is arrangement, not a fact a
-    visitor reads). The approved rule is:
+    The page spec declares the ORDER BY (sorting is arrangement, not a fact a visitor reads).
+    The rule is:
 
         has an upcoming fixture       -- the 20 dormant competitions cannot compete on proximity
         days until next kickoff       -- BUCKETED BY CALENDAR DAY, not by timestamp
@@ -20,12 +20,12 @@
     played first. Bucketing by day is deliberate: the raw clock would rank the Eredivisie above
     the Premier League on a shared matchday for kicking off at 10:15 instead of 19:00.
 
-    The registry's `sort_order` is deliberately ABSENT — declared obsolete by the CPO on
-    2026-08-16. Its last consumer on the site was the home page's browse block, DROPPED
-    2026-08-19; it now feeds only `build_nav()`/`nav.json`, an export target with no frontend
-    consumer. Either way it is not this model's ordering basis, and this model does not remove it.
+    The registry's `sort_order` is deliberately ABSENT — it is obsolete. Its last consumer on the
+    site was the home page's browse block, since dropped; it now feeds only
+    `build_nav()`/`nav.json`, an export target with no frontend consumer. Either way it is not
+    this model's ordering basis, and this model does not remove it.
 
-    LABELS. English name AND i18n key, never a translated string (#62, 2026-08-14).
+    LABELS. English name AND i18n key, never a translated string.
     region_label_i18n_key is NULL when the region is a country, because a country name is an
     entity name rather than chrome.
 #}
@@ -109,7 +109,7 @@ select
     -- Which relationship is populated IS the answer (#69 step 5): league_country is NULL for
     -- every international/continental competition (the base layer turns the provider's 'World'
     -- sentinel into NULL, never a corrected string), so testing it directly replaces the
-    -- competition_types.single_country flag the CPO rejected on 2026-08-16 -- there is no
+    -- competition_types.single_country flag that was considered and rejected -- there is no
     -- second taxonomy statement to keep in sync with the FK.
     coalesce(leagues.league_country, confed.label_en) as region_label_en,
     case

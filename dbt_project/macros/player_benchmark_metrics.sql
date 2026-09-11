@@ -5,14 +5,14 @@
   value + rank + percentile) cannot drift apart — the player analog of team_benchmark_metrics().
 
   Each entry: key = the metric_catalogue metric_id; col = the column in int_player_season_position__metrics;
-  pos = the position groups this metric is benchmarked for (eligibility — CPO ruling 2026-06-23 B3); floor
+  pos = the position groups this metric is benchmarked for (eligibility); floor
   (optional) = an extra per-row qualifier on top of the global minutes >= 270 (finishing needs >= 10 shots
   on target in the position); num/den (optional, the 5 RATIO metrics only) = numerator/denominator
   expressions over the same int_player_season_position__metrics atoms, so the mart can carry the volume
   behind each % for the no-naked-% triple {num} of {den} · {pct}% on the Stats screen (GAP-21, #391). Only
   the MART reads num/den; the engine (int_player_competition_benchmarks) ignores them.
 
-  Eligibility rule (CPO B3): benchmark a metric for a position only when non-degenerate for that group.
+  Eligibility rule: benchmark a metric for a position only when non-degenerate for that group.
   Because the peer pool is already position-specific, the only dead boards are at the GK<->outfield
   boundary, so eligibility is essentially binary: GK = the 4 keeper metrics (shot-stopping + distribution);
   DEF = MID = ATT = the other 16. No finer outfield split — a CB's goals_per90 is ranked only vs other CBs.

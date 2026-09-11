@@ -6,15 +6,15 @@
   within its competition-season. Season-to-date, composed from int_team_season__metrics (the
   canonical whole-season team rollup) + dim_team identity — NOT mart-from-mart.
 
-  FOUR boards (CPO 2026-08-10), single-metric like the reduced player boards: goals_per_match,
+  FOUR boards, single-metric like the reduced player boards: goals_per_match,
   shots_on_goal_per_match, passes_per_match, duels_per_match. All four are higher_better in the
   metric catalogue, so one shared DESC order is correct for every board — a lower-is-better board
   would need its own direction and there is none here.
 
   rank = DENSE_RANK over the board's metric desc within (league_code, season_api_year): ties share a
   rank, no ranks are skipped, and the top-10 cut is inclusive of ties (the mart_leaderboards
-  convention). The partition is per league by CPO ruling 2026-08-18 — "one team per league, same as
-  players" — so a board is each league's rank-1 team collected and ordered, and the ranking never
+  convention). The partition is per league — one team per league, same as players — so a board
+  is each league's rank-1 team collected and ordered, and the ranking never
   crosses league_code. That also satisfies the block's rule that club and national-team
   competitions are never mixed: every competition is already its own ranking.
 
@@ -106,13 +106,13 @@ ranked as (
         -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
         -- ties sharing a rank, and the top-10 cut being inclusive of them, are a documented consumer
         -- contract. But a consumer that must show ONE team per league cannot use it — measured
-        -- against prod 2026-09-09, 2 of 259 league-board-seasons have more than one rank-1 team.
+        -- against prod, 2 of 259 league-board-seasons have more than one rank-1 team.
         -- Rare, but the block claims one team per league, and deciding WHICH is ranking, so it
-        -- belongs here (CPO 2026-09-09: "All ranking and ordering lives in the warehouse. The page
-        -- renders the order it is served.").
-        -- ⛔ NO SPORTING TIE-BREAK EXISTS HERE, AND THAT IS RULED, NOT AN OVERSIGHT. The player mart
-        -- breaks a tie on fewer MINUTES played, and teams have no minutes. `season_games_played` was
-        -- proposed as the analogue and the CPO rejected it — "will not work most of the time" — for
+        -- belongs here: all ranking and ordering lives in the warehouse, and the page renders the
+        -- order it is served.
+        -- ⛔ NO SPORTING TIE-BREAK EXISTS HERE, AND THAT IS DELIBERATE, NOT AN OVERSIGHT. The player
+        -- mart breaks a tie on fewer MINUTES played, and teams have no minutes. `season_games_played`
+        -- is the obvious analogue and was rejected — it will not work most of the time — for
         -- two reasons, the second being the real one: it barely discriminates (3.6 distinct game
         -- counts per league-season on average, and in 72 of 235 every team is level), and for a RATE
         -- fewer games is not better, it is LESS EVIDENCE for the same rate.

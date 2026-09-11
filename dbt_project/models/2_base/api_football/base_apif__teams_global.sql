@@ -1,9 +1,9 @@
 -- Global team entity: one row per team_api_id (latest ingest across league_code rows).
 -- Feeds dim_team. Grain: team_api_id.
 --
--- Applies the CPO-owned name corrections here rather than in dim_team so the core
--- dimension publishes an entity that is already settled (CPO ruling, 2026-07-27: base is
--- where these preparations happen, the dim propagates the result). Why it matters beyond
+-- Applies the hand-curated name corrections here rather than in dim_team so the core
+-- dimension publishes an entity that is already settled: base is where these preparations
+-- happen, the dim propagates the result. Why it matters beyond
 -- spelling: the provider's /teams endpoint sends a short label of unverified quality
 -- ("Rangers", "Lokomotiv"), and it is the ONLY team name in the product -- it drives the
 -- fixture card, the page H1, the <title>, the meta description and the URL slug, so 18

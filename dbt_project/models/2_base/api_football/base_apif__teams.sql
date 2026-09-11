@@ -83,7 +83,7 @@ stg_fixture_level as (
     where team_id is not null
 ),
 
--- Fixture participants and the CPO-owned team-id corrections, exactly as the three fixture-level
+-- Fixture participants and the hand-curated team-id corrections, exactly as the three fixture-level
 -- base models apply them (seeds/fixture_team_id_overrides.csv). Only fixtures whose two
 -- participants are BOTH known are kept, so the participant checks never hit the
 -- NOT IN (value, NULL) -> UNKNOWN trap.

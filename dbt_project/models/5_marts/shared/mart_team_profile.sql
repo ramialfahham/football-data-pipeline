@@ -197,7 +197,7 @@ select
     d.deserved_points_gap,
     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
-    -- with no league season. Ruled a warehouse fact (CPO 2026-08-02), so the export and the page
+    -- with no league season. A warehouse fact, so the export and the page
     -- SELECT this flag instead of each re-deciding it; three copies of the rule had already
     -- drifted apart. Last in the list because ST06 puts calculations after simple targets.
     row_number() over (

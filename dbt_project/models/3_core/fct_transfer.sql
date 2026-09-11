@@ -3,9 +3,8 @@
 {#
   Dated player transfers (moves). One row per distinct move: which player moved from
   which team to which team, on which date, plus the provider's raw type string. The
-  dated source of the player affiliation timeline (a later PR derives valid_from /
-  valid_to + chronological order). Reinstated 2026-06-14 (transfers chain rebuild;
-  reverses #420).
+  dated source of the player affiliation timeline (valid_from / valid_to and the
+  chronological order are derived downstream).
 
   player_sk is the API player id (= dim_player.player_sk); team_in_sk / team_out_sk are
   API team ids (= dim_team.team_sk). team_in_sk or team_out_sk may be null when the

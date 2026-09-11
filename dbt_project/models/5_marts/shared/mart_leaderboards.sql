@@ -12,11 +12,11 @@
   the top-10 cut is inclusive of ties (the mart_top_scorers convention). Only players with a positive
   value on a board are ranked (a leaderboard shows positive performers).
 
-  RATE boards add a qualification rule (CPO, #506) so a tiny sample can't game a rate: minutes >= 270
+  RATE boards add a qualification rule so a tiny sample can't game a rate: minutes >= 270
   (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass / duels /
   dribble / finishing are outfield (excl. GK); save is GK-only. finishing also needs
   shots_on_goal_player >= 10 (minutes don't bound shot count, so a 1-shot 1-goal player would otherwise
-  read a perfect rate). finishing_efficiency_player_pct is now open-play conversion in [0, 1] (CPO Option A).
+  read a perfect rate). finishing_efficiency_player_pct is open-play conversion in [0, 1].
   sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
 
   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
@@ -141,11 +141,11 @@ ranked as (
         -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
         -- ties SHARING a rank is a documented consumer contract here, and the top-10 cut is
         -- inclusive of them. But a consumer that must show ONE player per league cannot use it —
-        -- measured against prod 2026-09-09, 12 of the 28 league-boards the Home block renders have
-        -- more than one rank-1 player. Deciding which of them is shown is ranking, so it belongs
-        -- here and not in the export (CPO 2026-09-09, escalations.log: "All ranking and ordering
-        -- lives in the warehouse. The page renders the order it is served.").
-        -- ⭐ FEWER MINUTES WINS (CPO, same day): the same tally in less time is the better
+        -- measured against prod, 12 of the 28 league-boards the Home block renders have more than
+        -- one rank-1 player. Deciding which of them is shown is ranking, so it belongs here and
+        -- not in the export: all ranking and ordering lives in the warehouse, and the page renders
+        -- the order it is served.
+        -- ⭐ FEWER MINUTES WINS: the same tally in less time is the better
         -- performance, and that reads identically on every board — fewer minutes for the same
         -- passes or assists is also the better return. It settles 11 of those 12 ties.
         -- ⚠ `player_sk` last is MEANINGLESS AND SAID TO BE. It exists so the one tie that survives
@@ -170,8 +170,8 @@ ranked as (
 -- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
 -- a single served column and compares nothing itself. `league_leader_order` above answers "who
 -- represents this league"; this answers "in what order do those leaders appear".
--- CPO 2026-09-09 (escalations.log): "All ranking and ordering lives in the warehouse. The page
--- renders the order it is served." Same three ruled keys as the within-league order, for the same
+-- All ranking and ordering lives in the warehouse; the page renders the order it is served.
+-- Same three keys as the within-league order, for the same
 -- reason — fewer minutes for the same tally is the better performance, and player_sk is a stable
 -- last resort that means nothing (GitLab #112 is open to find a better one).
 --
@@ -239,9 +239,9 @@ select
     finishing_efficiency_player_pct,
     -- WHICH SEASON a consumer should show, served as a fact rather than chosen downstream.
     -- The Home block shows one league's current-season leader; without this the export would have
-    -- to pick a season itself, which is the window-selection shape analytics-engineer-reviewer
-    -- FAILed twice under GAP-32. Same answer #846 reached for mart_player_profile's
-    -- is_featured_season: serve the pick, let consumption filter on it.
+    -- to pick a season itself, which is window selection — a warehouse decision the consumption
+    -- layer must not make. Same answer as mart_player_profile's is_featured_season: serve the
+    -- pick, let consumption filter on it.
     -- Latest season per LEAGUE, not per player: the flag answers "is this the season the site is
     -- currently showing for this competition", so every row of a league agrees. ST06 puts
     -- calculations after simple targets, hence its position last.

@@ -5,7 +5,7 @@
   raw stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
   competition's type/entity classification and the dimensions windows need.
 
-  "Finished" includes AWD (technical loss) and WO (walkover) since 2026-09-06 (CPO, escalations.log):
+  "Finished" includes AWD (technical loss) and WO (walkover):
   those are official results the league table counts, and excluding them left 24 fixtures
   contributing nothing — FC Utrecht showing 4 games where its league had played 5. They carry a
   scoreline and NO stat line, which is what `is_awarded_result` exists to say; the coverage gates
@@ -35,7 +35,7 @@ types as (
 ),
 
 -- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
--- (CPO Option A, 2026-06-24). event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
+-- (open-play = goals minus penalties minus own goals credited). event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
 -- = an own goal THIS team scored into its own net — which counts for the OPPONENT, so it is joined
 -- as the opponent's own goals downstream. The remaining goals ('Normal Goal') are open play. Only
 -- the components are event-derived; goals_for stays the authoritative scoreline.
@@ -141,7 +141,7 @@ with_stats as (
         opp.shots_total as opponent_shots_total,
         opp.shots_inside_box as opponent_shots_inside_box,
         opp.corner_kicks as opponent_corner_kicks,
-        -- open-play goal split (CPO Option A): goals_for stays the authoritative scoreline; this
+        -- open-play goal split: goals_for stays the authoritative scoreline; this
         -- team's penalties and the own goals credited to it (the OPPONENT's own-goal events) are
         -- subtracted downstream to get goals_open_play. Catalogued as goals_penalty / goals_own.
         coalesce(ev_own.penalty_goals, 0) as goals_penalty,

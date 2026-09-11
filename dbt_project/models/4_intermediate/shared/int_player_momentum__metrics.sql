@@ -55,7 +55,7 @@ player_agg as (
         wl.season_api_year,
         wl.entity_type,
         wl.window_type,
-        -- pitch time required, same rule as the season models (CPO 2026-07-23): the provider lists
+        -- pitch time required, same rule as the season models: the provider lists
         -- whole matchday squads, so count(*) counted unused substitutes as appearances. 0 is now a
         -- legitimate value (named in the squad for window legs but never brought on).
         countif(coalesce(p.minutes_played, 0) > 0) as games_in_window,

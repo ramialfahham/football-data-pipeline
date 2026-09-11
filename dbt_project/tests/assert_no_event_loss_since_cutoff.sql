@@ -21,19 +21,20 @@
 -- blind spot exactly where it matters most: if a fixture loses ALL of its events, base holds zero
 -- rows for it, the grouped CTE produces no row, and an inner join silently drops every one of that
 -- fixture's events from the result — the TOTAL-loss case, undetectable at any cutoff, forever.
--- The known #75 incident was partial for all 5 fixtures, so measuring against it could not reveal
--- the gap; analytics-engineer-reviewer found it by reading the join. Scoping on `fct_fixture`
+-- The known incident was partial for all 5 fixtures, so measuring against it could not reveal
+-- the gap; it shows only in the join. Scoping on `fct_fixture`
 -- (one row per fixture, always present) removes the dependency on base having survivors.
 --
 -- ⚠ SCOPED BY KICKOFF DATE, and the reason is not tidiness. The known backlog (5 fixtures, 29
--- events, kickoffs 2026-08-08 and 2026-08-15) is UNREPAIRABLE — verified live against the
+-- events, both kickoffs before the cutoff) is UNREPAIRABLE — verified live against the
 -- provider, which no longer returns those events — so asserting over it would block every build on
 -- damage nobody can fix. The cutoff excludes it permanently and unambiguously, because a kickoff
 -- date never moves (unlike an ingest timestamp, which those fixtures kept refreshing while their
 -- 3-day retry window stayed open).
 -- ⚠ Consequence stated rather than hidden: this is INERT for fixtures before the cutoff. Its logic
--- is PROVEN — 0 rows at the shipped cutoff and exactly the 29 known rows at 2026-08-01, both RUN
--- against prod — but a green run over a window with no fixtures in it is not evidence.
+-- is PROVEN — 0 rows at the shipped cutoff and exactly the 29 known rows with the cutoff moved
+-- before the backlog, both RUN against prod — but a green run over a window with no fixtures in
+-- it is not evidence.
 -- ⚠ Do NOT raise the cutoff to silence a future failure. A new failure means new loss, which is
 -- the thing this exists to catch. Lower it once the backlog is resolved, and record why.
 
