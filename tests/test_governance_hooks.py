@@ -9,6 +9,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import pathlib
 import re
 import shutil
 import subprocess
@@ -371,6 +372,61 @@ def test_stop_never_loops(repo):
     (repo / "stray.md").write_text("drift")
     out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop", "stop_hook_active": True}, repo)
     assert out.strip() == ""
+
+
+# --- parked work in the stash (added 2026-09-11, CPO-approved protected-path edit) ---
+def _stash(repo, label: str) -> None:
+    """Park one tracked change under `label`. Leaves the tree CLEAN, which is the whole point."""
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 2")
+    subprocess.run(["git", "stash", "push", "-m", label, "--", "dbt_project/models/allowed.sql"],
+                   cwd=repo, check=True, capture_output=True)
+
+
+def test_stop_blocked_by_a_parked_stash_even_on_a_clean_tree(repo):
+    """The case the check exists for: work parked in the stash, tree clean.
+
+    ⚠ CLEAN TREE IS LOAD-BEARING. The FAST_GATES correctness check short-circuits on a clean tree
+    to save 2.9s per conversational turn, so a stash check placed there would never fire on the
+    one case that matters. This asserts it fires anyway, i.e. it runs before that short-circuit.
+    """
+    write_contract(repo)
+    _stash(repo, "parked: some real work")
+    assert subprocess.run(["git", "status", "--porcelain"], cwd=repo, capture_output=True,
+                          text=True).stdout.strip() == "", "precondition: tree must be clean"
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert '"decision": "block"' in out and "parked work" in out and "some real work" in out
+    assert "parked/" in out, "the message must tell the agent where parked work belongs"
+
+
+def test_stop_blocks_a_temp_stash_too(repo):
+    """No label is exempt. The first draft let a `TEMP-` stash pass for 24h, on the premise that
+    the contract stash-dance would otherwise be blocked; the dance is intra-turn and the gate is
+    turn-end, so the only `TEMP-` stash the gate can see is a forgotten one — the #41 case — and
+    `TEMP-40-mrB` sat under that label for days. This pins the exemption's absence."""
+    write_contract(repo)
+    _stash(repo, "TEMP-contract-amend")
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert '"decision": "block"' in out and "TEMP-contract-amend" in out
+
+
+def test_stop_passes_on_an_empty_stash(repo):
+    write_contract(repo)
+    assert subprocess.run(["git", "stash", "list"], cwd=repo, capture_output=True,
+                          text=True).stdout.strip() == "", "precondition: empty stack"
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert out.strip() == ""
+
+
+def test_stop_stash_check_precedes_the_dirty_tree_short_circuit():
+    """Pins the ORDERING, by structure: the parked-stash check must run before the
+    `_dirty_outside_task_dir` short-circuit in `main()`. A mutation that moves it below turns this
+    red, which the behavioural test above also catches — this one names the cause."""
+    src = pathlib.Path(HOOKS, "stop_gate.py").read_text(encoding="utf-8")
+    body = src[src.index("def main("):]
+    assert body.index("_parked_stashes(root)") < body.index("_dirty_outside_task_dir(root)"), (
+        "the stash check must run before the dirty-tree check, or a clean tree with a forgotten "
+        "stash passes silently"
+    )
 
 
 # --------------------------------------------------------------------------- #

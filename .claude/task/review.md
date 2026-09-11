@@ -1,114 +1,109 @@
-# Review — fix/dead-ref-boundary-off-by-one — 2026-09-11
+# Review — feat/stash-check-in-stop-gate — 2026-09-11
 
-diff_sha256: 92181879779e415bfaea7552d4aca0aa8bddf21bdc6ac323a3676700460a1038
+diff_sha256: b4964772efe33a1e9946f5d37e8394b796c1fbb0c728376475ba671946fc7c85
 
-rounds: 8
+rounds: 4
 
-scope-auditor: FAIL ×7 (rounds 1-7), PASS at round 8.
-platform-reviewer: FAIL ×4 (rounds 1-4), PASS at round 5.
+cto-reviewer: FAIL ×3 (rounds 1-3), PASS at round 4.
+platform-reviewer: PASS at round 1 (`1a1062f4…`), PASS at round 2 (`34ca4bcd…`, after the code
+  changed). The code has not changed since; rounds 3-4 are record-only, so the PASS carries.
+scope-auditor: FAIL at round 1, PASS at round 2, FAIL at round 3, PASS at round 4.
 
-⛔ **NO REVIEWER PASSED THIS BRANCH UNTIL ITS FINAL ROUND.** Eleven FAIL verdicts on a single test
-file. Every one was real; not one was disputed on substance except where the code disproved it.
-Recorded because the pattern in them is the finding, and it is the same pattern the context-cleanup
-work exists to fix:
+Hashes: round 1 `1a1062f42b5acb1a8b006fb1bc2e8d766188a8a55bb4fd21035c5d8e4cde80a1`; round 2
+`34ca4bcd45e6ec106a4ae1ddf4a7b1a701603aa4cd5c637f718b7257bdcd90e4`; round 3
+`56d88786b82a1b933f5f547ec40d12048af47ba648d33dc6a3fb7ca223aca38a`; round 4 above.
 
-| rounds | what was found | by |
-|---|---|---|
-| 1-2 | defects IN THE MECHANISM — 4-of-256 silencing coverage proven by a cherry-picked mutation; two entity-escape classes; the CPO quote unlogged and then self-attested | both |
-| 3-6 | defects in MY PROSE ABOUT the mechanism — the same cost/limit overclaim relocated three times under different words; a test cited by a name that no longer existed; a limitation disclosed in a docstring but not the contract | scope-auditor |
-| 3-4 | two more regex classes, the last a silent false negative | platform |
-
-The mechanism was sound from round 2. Rounds 3-6 were paid for by how I described it, and that is
-the direct cost of reviewers reading the diff: reasoning goes into the contract, the contract
-becomes the thing under review, and its looseness costs rounds the code never would. That is step 7
-on GitLab #115, demonstrated rather than argued.
+THE MECHANISM WAS SOUND FROM ROUND 2 (platform PASS twice; cto-reviewer rounds 2-3 both say the
+hook "is fine on its own terms"). Rounds 2-3 were paid for by the RECORD — three consecutive
+misattributions of real sentences to the wrong place, the third inside the paragraph written to
+cure the second. That is the self-attestation problem of `escalations.log` (#115 step 5) shown
+live, and it is why round 4's fix came with a script that greps every cited quote against the
+entry it names rather than another careful read.
 
 rounds_cap_override: The CPO directed that the context cleanup finish before product work resumes
-(`escalations.log`, `2026-09-10 chore/dead-issue-references`, his words quoted). Rounds 4-7 were
-run to clear standing FAILs rather than to ship past them — the commit gate refuses a standing FAIL,
-and every fix was reviewed again rather than asserted. ⚠ RECORDED PRECISELY: he did not rule on the
-cap itself, and this override does not claim he did.
+(`escalations.log`, `2026-09-10 chore/dead-issue-references`, his words quoted there), and the
+commit gate refuses a standing FAIL. Round 4 was run to clear round 3's FAIL BY REVIEW rather than
+to ship past it, exactly as `!172` recorded the same override. ⚠ RECORDED PRECISELY: he did not
+rule on the cap itself, and this override does not claim he did.
 
-## scope-auditor
-VERDICT: PASS (round 8)
+## cto-reviewer
+VERDICT: PASS (round 4)
 risks_checked:
-- Round 7 FAIL — the fifth limitation (`#217e`) was pinned in a test and absent from the contract:
-  THE IDENTICAL DEFECT IT HAD FAILED IN ROUND 6 for the fourth limitation, repeated one round later
-  on the very next item. Fixed by checking every known limitation for presence in all three
-  artifacts by the CLAIM rather than a word — which surfaced that the evidence file was missing
-  both regex limitations, not just the fifth.
-- Round 8 PASS — cross-checked all five limitations across contract, evidence and test for consistent
-  behaviour, root cause and verification; confirmed every cited test name resolves; confirmed no
-  artifact calls the silent gap "harmless" or "fixed". Non-blocking note: the cost table's "one
-  deletion per collision" sits close to the silent-gap concession and a fast reader could conflate
-  them. Both are stated; left as-is.
-- Round 1 FAIL — the contract quoted the CPO's cleanup standard as its justification, unlogged.
-- Round 2 FAIL — I logged it; it held, correctly, that a log entry written by the builder in the
-  branch under review after being caught corroborates nothing but the builder's assertion. ⭐ That
-  objection is UNANSWERABLE AND STRUCTURAL: every entry in `escalations.log` is authored by the party
-  it constrains. Recorded against step 4 on #115. The branch no longer leans on the quote at all —
-  the justification is the technical argument that no value of the constant is both correct and
-  stable.
-- Round 2 FAIL — "no regeneration ever" beside a conceded gap requiring regeneration. Fixed.
-- Round 3 FAIL — "correct forever" beside the conceded collision. Same class, relocated. Fixed.
-- Round 4 FAIL — `impact_map` called the coverage gap "harmless" while `decisions_taken` called it
-  "the worse property". Same class, a THIRD time, under a word my grep did not cover. Fixed by
-  reading for the claim rather than the phrasing.
-- Round 5 FAIL — "a named event with a one-line fix" understated the collision decay, because the
-  set has dense runs. ACCEPTED. ⚠ Its conclusion that the guard would then "fail on every issue
-  GitLab files for weeks" was REJECTED with evidence: the guard fires on citation, not existence,
-  verified by running `_dead_refs` with 280 in the set against prose not citing it. **It withdrew
-  the conclusion in round 6 after reading the code.**
-- Round 6 FAIL — the contract cited `test_the_dead_set_cannot_silently_collide_with_live_issues`,
-  a function that no longer existed after a rename: a dead pointer inside the contract for the
-  branch about dead pointers. Fixed by checking every cited test name against `def` lines
-  mechanically. Also: the `#217` limitation lived only in a docstring. Fixed — now in
-  `decisions_taken` and `acceptance_criteria`.
+- Round 4 PASS: traced every quote the round-3 fix touched to its named entry — "do as
+  recommended" and the "[NEW]" step line to `chore/dead-issue-references` (log 8780-8782, 8799);
+  the content disclaimer to `chore/authority-map-in-claude-md` (8769-8770), which the log itself
+  marks as pre-dating the stash step; "go" (8749) and "yes" (8846) to their own entries. The
+  carry-forward to the revised plan is framed as the builder's reading in both files, not as the
+  record's words. No sentence attributes step-content approval or the conversion to the CPO; both
+  files affirm the opposite, with merge as where he rules. Five dead/superseded confirmed against
+  the list. No code change since round 2. `rounds_cap_override` present and non-placeholder.
+- Round 1 FAIL, three findings. (1) The `TEMP-`/24h exemption was a guard-invariant weakening the
+  CPO was never shown: the explanation he said "yes" to states the rule unconditionally. CHECKED
+  AGAINST THE TRANSCRIPT — true. ACCEPTED: the exemption is removed; its premise ("every contract
+  amendment becomes impossible") was false anyway — the stash-dance is intra-turn, the gate is
+  turn-end. (2) "This branch calls itself step 4, which the previous contract said is where
+  `escalations.log` is restructured." ANSWERED WITH EVIDENCE: GitLab #115 numbers "4 — where
+  parked work lives", "5 — split `escalations.log`". (3) "The ten-stash conversion was told
+  after, not asked before." True; first answered as "ran under the approved plan step".
+- Round 2 FAIL, one finding: that answer quoted "a stash is not a store" as the recommendation
+  he said "do as recommended" to — real in the transcript, absent from the log — and "do as
+  recommended" approved the plan, not the step's content. ACCEPTED: the conversion is now recorded
+  as my own initiative, told afterwards, not approved; the recommendation is logged verbatim and
+  attributed as mine.
+- Round 3 FAIL, one finding (scope-auditor found the same): the rewrite attributed "each step's
+  own decisions are still his" to the entry that records "do as recommended"; it is in the
+  earlier entry that day, about the original six-step plan. ACCEPTED: each quote now names its
+  entry, the carry-forward is stated as my reading, and all ten cited quotes were checked by
+  script against the entry they name — ALL OK.
+- Held across all three rounds by this reviewer: the "yes" is scoped to the gate only;
+  fail-open preserved; ordering pinned; thresholds declared; routing correct; cost ~10ms.
 
 ## platform-reviewer
-VERDICT: PASS (round 5)
-⚠ Given on the hash preceding this one. The only change since in its territory is a docstring
-paragraph in the test file disclosing the uncited-number gap — no regex, assertion or set member
-changed. Not re-run for a paragraph of disclosure text; recorded as such rather than silently.
+VERDICT: PASS (round 2)
 risks_checked:
-- Round 5 PASS — hunted for a sixth class and found three theoretical continuations
-  (`#151-anchor`, five-plus-digit runs, hex-form `&#x…;` entities), none present in either guarded
-  file, all of the same accepted class. Re-derived the `#217e` backtracking by hand and confirmed
-  `[]`. Verified by hand that the set is 256 strictly-increasing non-overlapping members. ⭐ STATED
-  ITS LIMIT PLAINLY: it cannot recompute the SHA-256 without code execution, so the digest's hex
-  value is verified only by the builder's run, with CI's `test:python` as the independent backstop
-  at merge — and judged that split sufficient because the mechanism is sound regardless of the
-  specific value.
-- Round 1 FAIL — the "cannot be silenced" claim protected 4 of 256 members, and the mutation offered
-  as proof deleted `151`, the one member that was pinned. A cherry-picked mutation presented as a
-  general property. Fixed with a sha256 digest over the sorted set; re-proven by deleting `600`, a
-  middle member pinned by nothing.
-- Round 1 FAIL — `&#153;` (HTML numeric entity) matched as issue 153.
-- Round 2 FAIL — `&amp;#753;` defeats a one-character lookbehind. Its suggested `(?<!&amp;)` would
-  lose to `&amp;amp;#753;` — chasing escape DEPTH is an infinite regress. Excluding `;` closes every
-  depth at once; depths 1-3 pinned.
-- Round 3 FAIL — `#217` is textually identical as issue and as three-digit CSS colour. NOT FIXED,
-  deliberately: any context rule trades the false positive for a false negative, and a guard that
-  misses what it exists to catch has failed at its job. Pinned as a documented limitation.
-- Round 4 FAIL — the mirror: `#217e` is a silent false NEGATIVE, undisclosed while the positive side
-  was pinned. Now pinned symmetrically, with the reason (`#217e` is itself a valid `#RGBA` colour, so
-  the ambiguity is genuine both ways) and the check that no such form exists in either guarded file.
-- Stated plainly across rounds that it cannot recompute the SHA-256 without code execution, and
-  verified the set's cardinality of 256 by hand instead. The digest was verified by the builder.
-- Verified the `;` exclusion costs no real coverage: grepped the whole repo for `;#\d` and found no
-  legitimate citation form using that adjacency.
+- Round 1 PASS on `1a1062f4…`: fail-open traced on every path; parse checked against colons,
+  detached HEAD, embedded NUL; ordering confirmed in source against both `_dirty_outside_task_dir`
+  calls; `stop_hook_active` once-only unchanged; `timeout=10` fine; each test's revert/mutation
+  traced; `repo` fixture isolation confirmed. Noted `except ValueError` failing CLOSED for a
+  malformed `%ct` — gone with the exemption.
+- Round 2 PASS on `34ca4bcd…` after the exemption's removal: fail-open on every path of the
+  reduced `_parked_stashes`; blank lines dropped, a git failure is `returncode != 0` → `[]`; the
+  block reason goes through `json.dumps` so any stash message is JSON-safe; the "another
+  worktree's dance" sentence is accurate because `stop_hook_active` is checked before the stash
+  check; the mutation evidence's delta reading is sound — the two `test_ci_backstop_*` baseline
+  failures read `scripts/check_task_artifacts.py`, absent from the scratch copy, and each mutation
+  names its newly-failing tests; no leftover exemption code or superseded tests anywhere.
+- Rounds 3-4: `.claude/hooks/stop_gate.py` and `tests/test_governance_hooks.py` are byte-identical
+  to round 2 (record-only changes since). Full suite on that code: 302 passed in 358.64s.
+
+## scope-auditor
+VERDICT: PASS (round 4)
+risks_checked:
+- Round 4 PASS: the content disclaimer now attributed to `chore/authority-map-in-claude-md`, where
+  log 8769-8770 carries it verbatim; "do as recommended" to `chore/dead-issue-references`
+  (8776-8782). Contract `decisions_taken` and the log's SEQUENCE paragraph make the identical
+  claim, both flagging the carry-forward as "my reading". CPO attributions bounded to the quoted
+  "yes" and "do as recommended"; the conversion and the live/dead split logged as the builder's
+  initiative. The round-3 amendment matches the log's own account (seventh instance). Diff scope:
+  exactly the four in-scope files.
+- Round 1 FAIL: "six" dead/superseded `parked/*` branches in the contract (twice) and the log's
+  prose, against an enumerated list of FIVE. Fixed in all three places; the miscount recorded.
+- Round 2 PASS: count consistent across artifacts and the list; exemption fully removed and its
+  absence pinned by `test_stop_blocks_a_temp_stash_too`; the quoted "yes" and "do as recommended"
+  are the only CPO attributions; limitations disclosed consistently; scope exact; thresholds
+  declared. Noted six evidence bullets against five criteria — the ruff line moved to a
+  `done_when` section; now exactly five.
+- Round 3 FAIL: the same misattribution cto-reviewer found — the disclaimer sentence placed in the
+  wrong entry. Fixed as above. Held: the contract and log SEQUENCE paragraphs make the same claim;
+  the recommendation text is marked as the builder's words; the amendments block is honest.
 
 ## escalations
-
-`2026-09-10 fix/dead-ref-boundary-off-by-one` — the CPO's standard for the cleanup ("does not
-require us to do that same cleanup again in the future") and his request for a tracker reference,
-which is GitLab #115. Written after round 1; see the scope-auditor section for why that does not
-make it corroboration.
+- None raised. The one §10 question surfaced — is the `TEMP-` exemption the CPO's decision? — was
+  resolved by REMOVING it, which ships exactly the rule he approved. The conversion of the ten
+  stashes is recorded as my initiative, not his ruling; merging this MR is where he rules on it.
 
 ## Found and NOT fixed, all disclosed in the contract
-
-- A previously-uncited dead number entering the guarded files is not caught (the set is closed over
-  what the repo cites, not over every GitHub issue that ever existed). Silent.
-- A three-digit all-decimal CSS colour is read as an issue. Loud; pinned.
-- A reference abutting a hex letter is missed. Silent; pinned; no such form exists in either file.
-- `escalations.log` is self-attested. Structural; step 4 on #115.
+- `escalations.log` is self-attested: this entry is written by the party it authorises. #115 step 5.
+- The hook blocks ONCE; a stash this session cannot pop (another worktree's) costs one nag per
+  turn end while it exists — the same loud-net design as the two existing conditions.
+- Deleting the five dead/superseded `parked/*` branches — reserved to the CPO.

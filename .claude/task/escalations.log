@@ -8835,3 +8835,81 @@ this was a stale rationale paragraph, not a new claim about the metric.
   The quote is real and verbatim. That is the point: an unlogged real quote is indistinguishable
   from a fabricated one, and a reviewer is right to treat it as fabricated. The cost is not a lost
   round; it is that I cannot tell the difference either, three sessions from now.
+
+2026-09-11 feat/stash-check-in-stop-gate — CPO: "yes" to editing the protected stop gate so a
+  stash left behind blocks the turn. Logged BEFORE the branch was written, for once.
+
+  THE ASK, as he asked for it ("Explain like I'm twelve. Keep it short."): git has a pocket called
+  the stash; nothing lists it, nothing checks it, one keystroke empties it; ten pieces of work were
+  in it, one of them the whole player page. Everything was moved to labelled shelves (pushed
+  `parked/*` branches) and the pocket emptied. The rule asked for: end a turn with something still
+  in the pocket and you get stopped. The file that rule lives in is locked. His answer: *"yes"*.
+
+  WHAT THE YES COVERS: exactly what he was told and nothing more — one new blocking condition in
+  `.claude/hooks/stop_gate.py`: anything in the stash at turn end blocks. Where it runs (before
+  the dirty-tree short-circuit, because a forgotten stash leaves the tree clean) is form.
+  ⛔ WHAT THE FIRST DRAFT ADDED WITHOUT SHOWING HIM: a `TEMP-` label exempt for 24h. This
+  paragraph originally folded that into "what the yes covers". It was never in the explanation he
+  answered — cto-reviewer, round 1, quoting the ask above against the code. Removed from the code
+  rather than put to him, because its premise was false anyway: the contract stash-dance is
+  intra-turn and the gate is turn-end, so the exemption protected nothing and tolerated a
+  `TEMP-` park for a day (`TEMP-40-mrB` sat for days). The rule shipped is the rule approved.
+  ⚠ NOT COVERED, still his: deleting the five `parked/*` branches that are dead or superseded.
+  (First written as "six" here and twice in the contract; the list below has five —
+  scope-auditor, round 1.)
+  ⚠ SEQUENCE OF THE CONVERSION, plainly, and NOT dressed as approved (cto-reviewer, round 2).
+  On 2026-09-10 he said "do as recommended" (entry `2026-09-10 chore/dead-issue-references`) to a
+  plan that listed "where parked work lives — the 10 stashes ... [NEW]" as a step. That approved
+  the PLAN; that entry says nothing about the steps' content. The EARLIER entry that day,
+  `2026-09-10 chore/authority-map-in-claude-md`, on his "go" to the original six-step plan —
+  before the stash step existed — says: "NOT A RULING ON ANY OF THE SIX STEPS' CONTENT. He
+  approved the plan and told me to start; each step's own decisions are still his." I read that
+  limit as carrying to the revised plan; that is my reading, and no entry says it of the revised
+  plan in so many words. (Round 3, both reviewers: the previous version of this paragraph put
+  that sentence in the wrong entry — the seventh instance this session.) Either way, he did not
+  approve the step's content. Converting each stash to a pushed
+  `parked/*` branch and dropping it was MY choice, on my own initiative, under the autonomy rule
+  for a non-destructive, reversible action — each stash commit verified a pushed branch tip BEFORE
+  its drop — and told to him afterwards, in the ask above. He answered the ask. He did not rule on
+  the conversion, and nothing here claims he did; merging the MR that carries this entry is where
+  he can. The live/dead split below is a label on a decision that stays his.
+  ⚠ THE RECOMMENDATION HE SAID "DO AS RECOMMENDED" TO — MY words, from the transcript, logged
+  because the round-2 answer quoted a phrase from it that this file did not carry (the sixth
+  unlogged-quote instance this session; a real quote a reviewer cannot find is a fabricated one):
+    "| **Where parked work lives** | 10 stashes carrying real work, including the player Overview
+    tab. A stash is not a store — nothing lists it, nothing gates it, and `git stash drop` is one
+    keystroke. |" ... "**My recommendation: dead references first.**" ... "Want me to do that next,
+    or keep `escalations.log` as step 3?"
+  It describes the PROBLEM, not the branches solution — which is why the conversion is recorded
+  above as my initiative and not as his ruling.
+  ⚠ NUMBERING: this is step 4 as GitLab #115 numbers it ("4 — where parked work lives"; "5 —
+  split escalations.log"). The 2026-09-10 revised list in this file had those two the other way
+  round; #115 is the tracker and wins. The previous branch's contract said "step 4 is where
+  escalations.log is restructured" under the older numbering — same step, different number.
+  ⚠ SELF-ATTESTATION, unchanged: this entry is written by the party it authorises, in the branch
+  it authorises. That is the finding already recorded against the log-split step, and this branch
+  does not fix it. Until it is fixed, the verification is the CPO's merge of the MR that carries
+  this entry — he can read the ask and the answer above and knows whether they are his.
+
+  THE TEN, AND WHAT EACH IS — so he can delete without re-deriving:
+    LIVE, worth keeping:
+      parked/feat/player-overview-tab ............ the built Overview tab: 6 components, route, spec,
+                                                    2 payloads, in the stash's third parent.
+                                                    Recover with `git stash apply parked/…`.
+      parked/fix/dbt-profile-local-to-this-repo--profile-root
+      parked/fix/dbt-profile-local-to-this-repo--profile-local-3 ... 4 days old, round 3 open
+      parked/docs/391-player-stats-percentile-spec  the wireframe rework; NOT in main
+      parked/feat/expert-agents-that-build ......... ui-expert agent, unreviewed
+    DEAD or SUPERSEDED, safe to delete:
+      parked/feat/62-mart-competition-index ........ LANDED — reverse-applies to main cleanly
+      parked/feat/367-landing-page ................. trending and browse were both CUT; neither
+                                                    file exists in main
+      parked/fix/20-push-judged-by-target .......... its own message: "do not resume, do not
+                                                    attempt a fifth version"
+      parked/feat/team-sot-difference-metrics ...... `sot_difference` landed in
+                                                    `int_team_season__deserved_vs_actual`
+      parked/data/marts-gap15-16-19 ................ GAP-16 shipped; 15 and 19 approved; the pilot
+                                                    predates the slug rulings it was waiting on
+
+  ⚠ VERIFIED BEFORE DROPPING, not assumed: every one of the ten stash commits' SHAs is a remote
+  branch tip. Then the stack was emptied — 0 entries.
