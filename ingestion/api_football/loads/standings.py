@@ -3,7 +3,7 @@
 Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
 the full standings history on every call.
 
-APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
+APPEND ONLY (raw appends and never deletes). The run appends its
 snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__standings`
 selects the newest row per league_code, so the older ones are simply not selected — they
 are there for the case this rule exists for, a later answer that carries LESS than the one
@@ -67,8 +67,8 @@ def load_standings_if_enabled(
         )
         return
     try:
-        # Append only. The delete that used to follow this write was removed 2026-08-17 (CPO:
-        # raw appends and never deletes). `stg_apif__standings` already selects the newest row
+        # Append only. The delete that used to follow this write is gone (raw appends and
+        # never deletes). `stg_apif__standings` already selects the newest row
         # per league_code, so the older rows are simply not selected — and they are still there
         # if a later snapshot turns out to be worse than what we already held.
         load_json_to_bq(

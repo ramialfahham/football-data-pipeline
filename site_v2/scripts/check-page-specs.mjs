@@ -96,7 +96,7 @@ export function collectMartNames() {
   return new Set(files.map((f) => f.slice(f.lastIndexOf(sep) + 1).replace(/\.sql$/, "")));
 }
 
-// --- block SOURCE types (CPO ruling 2026-08-03) ----------------------------------------------
+// --- block SOURCE types ---------------------------------------------------------------------
 // A block's source is `type:name`; an unprefixed value means `mart:`, so every spec written
 // before this ruling keeps working untouched.
 //
@@ -109,12 +109,12 @@ export function collectMartNames() {
 // uses. Before this, describing either honestly was impossible, and the only way to satisfy the
 // checker was to copy the registry into a model -- breaking a rule to please a gate.
 //
-// ⚠ The browse block was DROPPED 2026-08-19, so `registry` has no declaring spec today. The type
+// ⚠ The browse block was DROPPED, so `registry` has no declaring spec today. The type
 // stays: the zero-file rule that motivated it is unchanged and the registry remains a legitimate
 // source for any future block. Read the paragraph above as the type's ORIGIN, not as a claim that
 // something currently declares it.
 //
-// ADDING A TYPE IS ONE ENTRY HERE. That is deliberate: the CPO's instruction was "a setup that is
+// ADDING A TYPE IS ONE ENTRY HERE. That is deliberate: the requirement is "a setup that is
 // flexible enough to integrate whatever additional content". Note the scope of that flexibility:
 // this is the VOCABULARY for naming a source, not the machinery for having one. A news or
 // editorial surface would still need ingestion, storage and a page.
@@ -255,7 +255,7 @@ export function readSpec(path, issues) {
 
 /** The SEO block (#844). Pure: takes the spec and the known EN keys, pushes issues.
  *
- * Every page BUILDS with an SEO surface declared, or it does not build — that is the CPO ruling
+ * Every page BUILDS with an SEO surface declared, or it does not build — that is the requirement
  * this implements ("SEO optimization has to be ensured during the whole process of building the
  * website"). A reviewer looking at finished pages cannot ensure anything. */
 export function validateSeo(where, spec, i18nKeys, issues) {
@@ -388,7 +388,7 @@ export function main() {
   if (realPages.length === 0) {
     // Almost certainly the Layout-import detection regex broke (e.g. Layout.astro moved), not
     // that every real page was actually removed -- fail loudly rather than silently "pass" on
-    // zero pages checked (scope-auditor flagged this exact silent-regression shape).
+    // zero pages checked (the exact silent-regression shape).
     console.error(
       `check-page-specs: found 0 pages importing layouts/Layout.astro under ${rel(PAGES_DIR)}/** -- ` +
         "this almost certainly means the Layout-import detection broke, not that every real page " +

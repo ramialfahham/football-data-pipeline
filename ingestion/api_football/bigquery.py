@@ -153,7 +153,7 @@ def load_json_to_bq(
         This is the standard mode for reference tables (fixtures, standings, etc.).
 
         When append=False, the table is OVERWRITTEN (WRITE_TRUNCATE) — every row, every
-        competition. ⚠ `append` is a REQUIRED keyword since 2026-08-17 and must stay one: it
+        competition. ⚠ `append` is a REQUIRED keyword and must stay one: it once
         defaulted to False, so a single omitted argument truncated a table shared by 45
         competitions, silently and with no DELETE to notice. Exactly two callers pass False and
         both mean it, because their tables hold one current-state row: `completeness.py`
@@ -166,7 +166,7 @@ def load_json_to_bq(
 
     Pass ``ingested_at`` (UTC ISO string) when the caller needs the row's exact stamp
     afterwards. No caller does today: the merge-on-write that needed it — to delete strictly
-    BEFORE its own write — was removed on 2026-08-17 (raw appends and never deletes). Kept as
+    BEFORE its own write — is gone (raw appends and never deletes). Kept as
     a general facility for a caller that must correlate rows across tables in one run, and
     because it is the only way to make a write's stamp deterministic in a test. Mirrors the
     same parameter on ``load_json_payload_rows_to_bq``. Ignored when ``as_json_payload=False``,
@@ -233,7 +233,7 @@ def load_json_payload_rows_to_bq(
     approach BigQuery's 100 MB per-row JSON limit (mirrors RAW_APIF_FIXTURE_DETAILS, which
     stores one row per fetch of a fixture). Pass ``ingested_at`` (UTC ISO string) when the
     caller needs the row's exact stamp afterwards; no caller does today, since the delete that
-    needed it was removed on 2026-08-17 (raw appends and never deletes). Returns the number of
+    needed it is gone (raw appends and never deletes). Returns the number of
     rows written (0 for empty input).
     """
     if not payloads:
@@ -267,17 +267,16 @@ def load_json_payload_rows_to_bq(
     return len(payloads)
 
 
-# REMOVED 2026-08-17: `delete_superseded_league_rows`, the whole-league merge-on-write of
-# #33 item 8b. It deleted every prior row for a league once a fetch was judged COMPLETE, and
-# "complete" means only that the call did not error — an empty error-free response qualifies
-# (`http_client.result_is_complete`, and that is a deliberate CPO decision of 2026-08-03). So a
-# provider answering with nothing on one quiet night destroyed that competition's stored history
-# past the 7-day time-travel window, with no signal anywhere.
+# REMOVED: `delete_superseded_league_rows`, the whole-league merge-on-write of #33 item 8b. It
+# deleted every prior row for a league once a fetch was judged COMPLETE, and "complete" means
+# only that the call did not error — an empty error-free response qualifies
+# (`http_client.result_is_complete`, deliberately). So a provider answering with nothing on one
+# quiet night destroyed that competition's stored history past the 7-day time-travel window,
+# with no signal anywhere.
 #
-# CPO ruling 2026-08-17: raw appends and never deletes, for every table. Base decides.
-# Do NOT restore this as a regression fix; see `.claude/task/escalations.log` for the full record.
-# The scan-cost reason it existed is gone: staging became a stored TABLE on 2026-08-13 (#33 items
-# 9/10), so each raw table is parsed once a night, not once per test.
+# The rule: raw appends and never deletes, for every table. Base decides. Do NOT restore this as
+# a regression fix. The scan-cost reason it existed is gone: staging became a stored TABLE (#33
+# items 9/10), so each raw table is parsed once a night, not once per test.
 
 
 def _scalar(

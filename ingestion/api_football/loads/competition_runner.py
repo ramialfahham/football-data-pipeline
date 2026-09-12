@@ -125,10 +125,10 @@ def run_cheap_phases(
         # #33 item 14 — coaches change rarely; re-fetch on a 7-day cadence per league.
         # When not due the phase is skipped ENTIRELY: no fetch, and therefore no write.
         #
-        # RAW_APIF_COACHES is APPEND-ONLY, and since 2026-08-17 so is every other raw table
-        # (CPO: raw appends and never deletes). `stg_apif__coaches` additionally reads ALL
-        # snapshots to preserve every coach ever seen (CPO ruling 2026-06-23). So skipping
-        # loses nothing: the stored snapshots stay and base still dedups to the latest.
+        # RAW_APIF_COACHES is APPEND-ONLY, and so is every other raw table (raw appends and
+        # never deletes). `stg_apif__coaches` additionally reads ALL snapshots to preserve every
+        # coach ever seen. So skipping loses nothing: the stored snapshots stay and base still
+        # dedups to the latest.
         coaches_seen = (coaches_last_ingest or {}).get(league_code)
         if should_refetch(league_code, coaches_seen, utcnow()):
             _ingestion_phase(league_code, "coaches")
@@ -166,8 +166,8 @@ def run_squads_for_competition(
 
     REQUIRED, with no default, and that is the guard. The orchestrator is this function's
     only caller, so a default would mean dropping the argument at the one call site
-    silently restores the per-competition scan with every test still green — the gap
-    `platform-reviewer` found at round 1. Omitting it is now a TypeError.
+    silently restores the per-competition scan with every test still green. Omitting it is a
+    TypeError instead.
     """
     try:
         _ingestion_phase(result.league_code, "squad /players batch")
@@ -199,7 +199,7 @@ def run_transfers_for_competition(
         # single most expensive phase in the run at 26.7 min. Skipped ENTIRELY when not due:
         # RAW_APIF_TRANSFERS is one row per league read latest-per-league in staging, so a
         # partial write would HIDE the complete row from every model downstream. It no longer
-        # DELETES it (raw appends and never deletes, 2026-08-17), so this is recoverable now —
+        # DELETES it (raw appends and never deletes), so this is recoverable now —
         # but a hidden snapshot is still a wrong warehouse until the next good run.
         seen = (transfers_last_ingest or {}).get(result.league_code)
         if not should_refetch(result.league_code, seen, utcnow()):
@@ -211,7 +211,7 @@ def run_transfers_for_competition(
             # The completeness gate fails a run when a per-team gap persists across TWO runs, on
             # the reasoning that one bad run heals on the next night's fetch. A skipped league
             # cannot heal — there is no fetch — so it must be told, or a pre-existing gap trips a
-            # gate built for nightly fetches. That is exactly how the 2026-08-14 nightly died on
+            # gate built for nightly fetches. That is exactly how one nightly died on
             # UCL/TRANSFERS.
             ctx.record_skipped(result.league_code, "TRANSFERS")
             return

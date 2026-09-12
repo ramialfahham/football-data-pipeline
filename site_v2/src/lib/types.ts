@@ -283,16 +283,14 @@ export interface LandingUpcomingGroup {
   fixtures: LandingFixture[];
 }
 
-/** ONE module, of the THREE the CPO composed on 2026-08-08 (docs/wireframes/10_home.md §0):
- *  next matches -> Top players -> Top teams. Top players/Top teams are specified and not built
- *  (six warehouse gaps, GAP-24..GAP-29, plus an unapproved layout), so they arrive in their own
- *  PR and add their own keys here.
+/** The landing payload's shapes for the THREE composed modules (docs/wireframes/10_home.md §0):
+ *  next matches -> Top players -> Top teams; the two boards blocks' rows follow below.
  *
  *  Three interface sets were removed and none is coming back in this shape: the stats teasers
- *  (LandingScorer / LandingStandingRow / LandingStats) and TrendingStory, both cut 2026-08-08 —
- *  and BrowseCompetition / LandingBrowse, cut 2026-08-19 (CPO: "drop the browse section". Its
- *  only value was reachability into the long-tail team/player pages, both already blocked on
- *  data-quality work, so a competitions-only version had nothing left to solve). */
+ *  (LandingScorer / LandingStandingRow / LandingStats) and TrendingStory, both cut — and
+ *  BrowseCompetition / LandingBrowse, cut ("drop the browse section": its only value was
+ *  reachability into the long-tail team/player pages, both already blocked on data-quality
+ *  work, so a competitions-only version had nothing left to solve). */
 /** One row of a Top players board: a league's rank-1 player on that board (#40).
  *
  *  `league_name` is carried even though the board has one row per league, because the reader

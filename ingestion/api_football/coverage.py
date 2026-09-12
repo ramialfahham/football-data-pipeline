@@ -95,8 +95,8 @@ def read_coverage(
 
     Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
     fixture legitimately has more than one row: the table is append-only and a
-    retried fixture keeps one row per attempt (CPO 2026-08-17, "raw keeps both
-    versions"). The aggregate answers "do we hold statistics for this fixture
+    retried fixture keeps one row per attempt ("raw keeps both versions"). The
+    aggregate answers "do we hold statistics for this fixture
     anywhere", which is order-independent — a per-row read would let an older
     empty-statistics row mask a newer complete one and re-fetch it every run.
 

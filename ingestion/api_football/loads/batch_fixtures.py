@@ -17,7 +17,7 @@ faithfully — no $.response unnesting, no dedup — and base resolves the versi
 entity key with latest-ingest-wins.
 
 ⚠ Raw therefore holds every version the provider ever gave us, including versions that
-contradict each other. That is deliberate (CPO 2026-08-17: "raw keeps both versions").
+contradict each other. That is deliberate ("raw keeps both versions").
 The delete that used to run here destroyed 29 real events across 5 fixtures because a
 retry chasing late statistics returned fewer events, and one row bundles lineups, events,
 statistics and player stats together.
@@ -70,7 +70,7 @@ def _read_fetched_coverage(
     has_statistics is True when the fixture's statistics array is non-empty.
     Returns an empty dict when the table does not exist (first run).
 
-    AGGREGATED PER FIXTURE, and since 2026-08-17 that is load-bearing rather than defensive:
+    AGGREGATED PER FIXTURE, and under append-only raw that is load-bearing rather than defensive:
     the table is append-only, so a retried fixture holds one row per attempt as a matter of
     course. Reading row-by-row into a dict would make the answer depend on which row happened to
     land last, and BigQuery does not promise an order — an older empty-statistics row could mask
@@ -78,8 +78,8 @@ def _read_fetched_coverage(
     burning quota to no effect. LOGICAL_OR answers the question actually being asked, "do we hold
     statistics for this fixture anywhere", and is order-independent.
 
-    ⚠ This aggregation shipped in `!56` for a narrower reason and turned out to be the
-    precondition the append-only ruling needed. Do not "simplify" it back to a per-row read.
+    ⚠ This aggregation shipped for a narrower reason and turned out to be the precondition the
+    append-only rule needed. Do not "simplify" it back to a per-row read.
     """
     table_id = _fixture_details_table_id()
     try:
@@ -154,15 +154,15 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
     return out
 
 
-# REMOVED 2026-08-17: `_delete_fixtures`, the delete-on-retry. This is the one that cost real
+# REMOVED: `_delete_fixtures`, the delete-on-retry. This is the one that cost real
 # data. A fixture row bundles lineups, events, statistics and player stats TOGETHER, so a retry
 # chasing late statistics could come back richer in one section and poorer in another, and the
 # delete made the poorer answer the only surviving one. MEASURED on fixture 1564795: 27 events
 # stored, 17 returned by the retry, an entire penalty shootout destroyed and unrecoverable
 # because the provider no longer returns it.
 #
-# CPO ruling 2026-08-17, verbatim: "raw keeps both versions." Extended the same day to every raw
-# table. Both payloads now land and BASE decides: `base_apif__fixture_events` dedups
+# The rule, verbatim: "raw keeps both versions." It applies to every raw table. Both payloads
+# now land and BASE decides: `base_apif__fixture_events` dedups
 # `partition by (league_code, fixture_id, event_index) order by raw_ingested_at desc`, which on
 # that fixture yields 27 — indices 0-16 from the new payload, 17-26 surviving from the old.
 # Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
@@ -231,8 +231,7 @@ def _fetch_and_persist_batch(
     """Call GET /fixtures?ids=... and append one row per fixture returned.
 
     Nothing is deleted. A retried fixture gains a second row and base resolves the two by
-    entity key (CPO 2026-08-17, "raw keeps both versions" — see the note above
-    `_insert_fixture_rows`).
+    entity key ("raw keeps both versions" — see the note above `_insert_fixture_rows`).
 
     #896 still applies, and still returns before the write: a batch the provider did not answer
     cleanly is discarded whole and retried next run. It is no longer the thing standing between

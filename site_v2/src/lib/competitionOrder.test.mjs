@@ -1,4 +1,4 @@
-// Pins the CPO-approved ordering rule (escalations.log, 2026-08-16) against the exact failure
+// Pins the ordering rule (`competitionOrder.mjs`'s header) against the exact failure
 // modes it was written to prevent: a raw-clock tiebreak beating the calendar-day bucket, and a
 // no-upcoming competition outranking one that has a fixture coming up.
 
@@ -72,8 +72,8 @@ test("no-upcoming rows sort most-recently-played first, never-played sorts last 
 
 test("groupAndOrderCompetitions orders categories by their own earliest-sorting member", () => {
   // "qualifying" category's only member kicks off TODAY; "domestic_league" category's only
-  // member kicks off next week. The 2026-08-16 note's own example: national teams rank ahead of
-  // club leagues during a break, with no special case beyond applying the same key one level up.
+  // member kicks off next week. The rule's own example: national teams rank ahead of club
+  // leagues during a break, with no special case beyond applying the same key one level up.
   const qualifier = row({
     league_code: "WCQ", competition_type: "qualifying",
     category_label_en: "National team qualifiers", category_label_i18n_key: "compTypeQualifying",
@@ -97,8 +97,8 @@ test("groupAndOrderCompetitions sorts rows within each category too", () => {
 });
 
 // --------------------------------------------------------------------------------------------
-// orderUpcomingGroups — the home page's "Next matches", ordered by the SAME key (CPO 2026-08-18).
-// The home page shipped before the 2026-08-16 ruling and ordered purely on which competition
+// orderUpcomingGroups — the home page's "Next matches", ordered by the SAME key (one shared rule).
+// The home page shipped before the ordering rule and ordered purely on which competition
 // kicked off soonest; these pin the two behaviours that changes.
 
 /** A landing group as `group_upcoming_fixtures` emits it. */
@@ -107,7 +107,7 @@ function group(league_code, region_rank, ...kickoffs) {
 }
 
 test("home groups on the SAME day order by region_rank, not by clock time", () => {
-  // The exact noise the 2026-08-16 ruling names: the Eredivisie kicking off at 10:15 must not
+  // The exact noise the ordering rule names: the Eredivisie kicking off at 10:15 must not
   // outrank the Premier League at 19:00 on the same day. Pure chronology — what the home page did
   // before — returns ["ED", "PL"], so this fails against the old behaviour rather than either way.
   const ed = group("ED", 1, "2026-08-20 10:15:00+00:00");

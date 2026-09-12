@@ -50,7 +50,7 @@ def load_player_squads_batch(
                 ctx.errors,
                 error_context=f"player_squads {league_code} team_id={team_id}",
             )
-            # #896 applied to the CAPTURE side (2026-08-17). Withhold the entry, not just the
+            # #896 applied to the CAPTURE side. Withhold the entry, not just the
             # write: `captured_team_seasons` reads `$.team_id` PRESENCE over all rows, so storing a
             # rate-limited empty squad marks this team done and no later run ever re-fetches it.
             # Nothing is deleted here — the damage is a permanent hole, which is why no row-count,

@@ -101,7 +101,7 @@ def result_is_complete(data: dict) -> bool:
     run whose fourth season was rate-limited would still record the snapshot as complete.
 
     An empty response with no error counts as COMPLETE: that is the provider reporting no rows, and
-    it is indistinguishable from one (CPO decision, 2026-08-03). Stopping at the deliberate page cap
+    it is indistinguishable from one — a deliberate rule. Stopping at the deliberate page cap
     also counts as complete, because that cap has always bounded the stored snapshot.
     """
     return not (data.get("errors") or []) and not errors_quota._http_quota_exhausted

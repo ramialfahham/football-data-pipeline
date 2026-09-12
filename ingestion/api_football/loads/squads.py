@@ -4,12 +4,12 @@ Storage model: ONE row per (team, season) PER FETCH (each row's ``response`` car
 ``{team_id, season, players_payload}`` entry), not one giant per-league row — so no row
 approaches BigQuery's 100 MB per-row JSON limit, for any league.
 
-APPEND ONLY (CPO ruling 2026-08-17: raw appends and never deletes). Each run appends the
+APPEND ONLY (raw appends and never deletes). Each run appends the
 freshly-fetched per-(team,season) rows and removes nothing, so a key that is re-fetched
 accumulates one row per fetch. Staging reads all rows faithfully (no latest-snapshot qualify)
 and base assembles current-per-entity by entity-key dedup with latest-ingest-wins, so the extra
 rows merge there rather than duplicating. The per-key delete this loader used to issue was the
-best-shaped one in the codebase and still destroyed four squads on 2026-08-02; see the note
+best-shaped one in the codebase and still destroyed four squads in one night; see the note
 where it was removed, below.
 
 ONLY A COMPLETE FETCH IS WRITTEN (#896), and that guard is unchanged. A response carrying a
@@ -37,13 +37,13 @@ from ..fixture_scheduling import players_response_for_team
 from .context import PipelineContext
 
 
-# REMOVED 2026-08-17: `_delete_superseded_player_rows`, the per-(team, season) merge. It was the
+# REMOVED: `_delete_superseded_player_rows`, the per-(team, season) merge. It was the
 # best-shaped delete in the codebase — keyed at the right grain, quota-cut safe — and it still
-# destroyed four squads on 2026-08-02, because an empty error-free /players response counts as a
+# destroyed four squads in one night, because an empty error-free /players response counts as a
 # complete answer and superseded the roster it could not replace. Correct grain does not rescue a
 # delete whose trigger cannot tell "no players" from "we lost the players".
 #
-# CPO ruling 2026-08-17: raw appends and never deletes, for every table. Base decides —
+# The rule: raw appends and never deletes, for every table. Base decides —
 # `base_apif__player_team_season` and `base_apif__players` already dedup on entity keys with
 # latest-ingest-wins, so a second row for a key merges rather than duplicating.
 # Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
@@ -165,7 +165,7 @@ def load_squad_players_batch(
             # would mark the (team, season) captured in `captured_player_team_seasons`, and a
             # historical season would then never be re-fetched, turning a transient rate limit into
             # a permanent hole. Before this guard a rate-limited response also deleted the good rows
-            # it failed to replace: on 2026-08-02 UCL 340 went 25 players to 0, UEL 573 24 to 0,
+            # it failed to replace: in one night UCL 340 went 25 players to 0, UEL 573 24 to 0,
             # UECL 20034 23 to 0, and APD 463 46 to 40 when the limit hit mid-pagination.
             if not complete:
                 incomplete_keys.append(f"{team_id}-{season}")
@@ -190,8 +190,8 @@ def load_squad_players_batch(
 
     if rows:
         try:
-            # Append only. The per-key delete that used to follow this write was removed
-            # 2026-08-17 (CPO: raw appends and never deletes). `stg_apif__players` already reads
+            # Append only. The per-key delete that used to follow this write is gone (raw
+            # appends and never deletes). `stg_apif__players` already reads
             # ALL rows with no latest-snapshot qualify, and base assembles current-per-entity, so
             # an extra row per (team, season) merges there instead of duplicating.
             load_json_payload_rows_to_bq(

@@ -7,7 +7,7 @@ exists. "Matches" is the one that most clearly earns a page -- it is the product
 is the natural hub for fixture pages, reachable today only from the home page's short teaser.
 ⚠ `/{locale}/matches/` is not in `site_architecture.md` §3 at all (#49).
 
-CPO directions, 2026-08-10, all applied:
+Design directions for this page, all applied:
   1. short league names ("Bundesliga"), from a single source of truth;
   2. league LOGOS beside each group;
   3. grouped by competition -- club AND national-team competitions;
@@ -18,8 +18,8 @@ CPO directions, 2026-08-10, all applied:
      imports it. Consistency by construction, not by rule;
   8. **kickoffs in VENUE-LOCAL time.**
 
-⚠ (4) IS TWO PAGES, NOT TWO TABS -- the CPO's own ruling the same day (#46): a tab is different
-content, so it gets its own URL. The bar still LOOKS like tabs; each is an `<a>` and the active
+⚠ (4) IS TWO PAGES, NOT TWO TABS (#46): a tab is different content, so it gets its own URL.
+The bar still LOOKS like tabs; each is an `<a>` and the active
 one carries `.is-on` instead of a `:checked` radio. That class is exactly the edit #46 creates.
 
 `site_v2/src/styles/system.css` is inlined verbatim so the mock uses the shipped design system.
@@ -54,7 +54,7 @@ E = html.escape
 #
 # Group tuple: (slug, name, kind, matchday, [(home, away, time, zone)])
 #
-# ⚠ THE WINDOW IS NOT A DATE RANGE. CPO 2026-08-10: *"every next match (in terms of next match
+# ⚠ THE WINDOW IS NOT A DATE RANGE. The rule: *"every next match (in terms of next match
 # day) from the competitions we have in the data, but not the matches after that"* — the reason
 # being that a match beyond the next round has nothing meaningful to send a reader to.
 #
@@ -112,15 +112,15 @@ NEXT_ROUNDS = [
     ]),
 ]
 
-# PAST: each competition's LAST FINISHED MATCHDAY -- the exact mirror of the next view (CPO
-# 2026-08-10, superseding the "whole current season" ruling of an hour earlier).
+# PAST: each competition's LAST FINISHED MATCHDAY -- the exact mirror of the next view
+# (superseding an earlier "whole current season" rule).
 #
 # \u26a0 BUILT TO TAKE MORE HISTORY LATER. Nothing about the shape assumes one round: a competition
 # already holds a LIST of date groups, so a deeper window is more entries in that list and no
 # redesign. Only the query changes. That is why the last round is expressed as a list of one
 # rather than a special case.
 #
-# \u26a0 NO KICK-OFF on a played match (CPO 2026-08-10) \u2014 once it is finished, the time it started is
+# \u26a0 NO KICK-OFF on a played match \u2014 once it is finished, the time it started is
 # not information. The date stays, as the group heading it always was.
 #
 # (league_code, kind, [(date, [(home, hg, away, ag)])])
@@ -157,7 +157,7 @@ COPY = {
     "h1":        ("Matches", "Ottelut", False),
     "tabNext":   ("Next matches", "Seuraavat ottelut", True),
     "tabPast":   ("Past matches", "Menneet ottelut", True),
-    # \u26a0 TWO LINES WERE CUT HERE, CPO 2026-08-10.
+    # \u26a0 TWO LINES WERE CUT HERE.
     #  1. a scope line ("Kick-off times are local to the venue \u2014 scores are not live"). Every
     #     row already carries its own zone, so the first half restated it and the second was a
     #     disclaimer nobody asked for.
@@ -210,7 +210,7 @@ def tabbar(active):
 
 
 # ⚠ NO FILTER IS DRAWN. It was a season chip plus a row of competition chips, and it is gone:
-#   * the SEASON half is ruled out -- one season only, "to reduce complexity" (CPO 2026-08-10);
+#   * the SEASON half is ruled out -- one season only, "to reduce complexity";
 #   * the COMPETITION half is UNDECIDED -- "don't know yet" -- and its chips linked AWAY to each
 #     competition's own results page rather than filtering this one, so it was not a filter at
 #     all. The competition heading already does that job.
@@ -257,7 +257,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 .mhead { padding: 16px 0 2px; }
 .mhead h1 { font-size: clamp(22px, 5cqw, 28px); font-weight: 700; line-height: 1.03; margin: 0; }
 /* no `.scope` rule: the line it styled is gone, and a rule kept for a deleted element is the
-   trace that outlives the thing (it fired five times on !27). `.lede` stays defined in
+   trace that outlives the thing (it fired five times on one removal). `.lede` stays defined in
    system.css and is simply unused here — that one is not mine to delete. */
 
 /* the tab bar as LINKS (#46): system.css binds `.tab`'s active look to `#tab-*:checked`, which
@@ -348,7 +348,7 @@ def check_data():
     # competitions was here and is exactly the kind of thing that goes stale the day a
     # competition is onboarded.
     known = {c["league_code"] for c in ACTIVE}
-    # ⚠ ONE GROUP PER COMPETITION on each view (CPO 2026-08-10): each competition contributes
+    # ⚠ ONE GROUP PER COMPETITION on each view: each competition contributes
     # its NEXT matchday and nothing after it. With the day headings gone, a competition can no
     # longer appear twice at all -- so this is now a plain duplicate check.
     for label, rounds in (("next", NEXT_ROUNDS), ("past", PAST_ROUNDS)):
@@ -375,7 +375,7 @@ def check_data():
     for code, _kind, dates in PAST_ROUNDS:
         for _date, matches in dates:
             for m in matches:
-                # ⚠ a played row carries NO kick-off and therefore no timezone (CPO 2026-08-10).
+                # ⚠ a played row carries NO kick-off and therefore no timezone.
                 # Four fields exactly: home, its goals, away, its goals.
                 assert len(m) == 4, "%s: a played row still carries a kick-off" % code
     blob = repr(NEXT_ROUNDS) + repr(PAST_ROUNDS)

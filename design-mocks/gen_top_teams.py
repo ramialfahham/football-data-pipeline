@@ -6,7 +6,7 @@ Two things are read from the repo so the mock cannot drift from the product:
   1. every display name comes from `label_en` in dbt_project/seeds/metric_catalogue.csv,
      looked up by (metric_id, entity) -- the catalogue's real grain. Two of the ids used
      here carry BOTH a team and a player row, so keying on metric_id alone silently takes
-     the wrong label; that is the exact bug !27 fixed in export_metric_definitions_json.py.
+     the wrong label; that is the exact bug export_metric_definitions_json.py once had.
      An unknown id is a hard failure, never a fallback string.
   2. site_v2/src/styles/system.css is inlined verbatim, so the mock uses the shipped
      design system rather than a lookalike.
@@ -77,14 +77,14 @@ FI = {
 # that is a real property of a pooled board and the design has to survive it.
 
 """
-FOUR boards, the CPO's cut of 2026-08-10, in his stated order:
+FOUR boards, the locked cut (#41) in its stated order:
 
     goals -> shots on target -> passes -> duels
 
 Every board is ONE shape: one metric, ONE value column, no column-header row -- matching Top
 players. The rendered mock is the proof: 4 boards, 28 rows, 28 value cells.
 
-Against §0's six, all ruled by the CPO on 2026-08-10:
+Against §0's six, all ruled together:
   * "% Points captured" dropped as a board; `points_capture` is shown nowhere.
   * "Ø Defensive actions" dropped.
   * "Ø Key passes" dropped from the passes board.
@@ -152,7 +152,7 @@ BOARDS = [
 
 E = html.escape
 
-# The crest slot, TEAMS ONLY (CPO 2026-08-10). Production renders the club crest IMAGE.
+# The crest slot, TEAMS ONLY. Production renders the club crest IMAGE.
 # ⚠ The mock draws a neutral placeholder instead of the design system's text-initials
 # fallback: the mock must not hotlink (#36), and initials read as if the abbreviation were
 # the design. Inline SVG -- no external fetch.
@@ -169,7 +169,7 @@ RATE_WINDOW = {"_per_match": {"en": " per match", "fi": " per ottelu"},
 
 
 def board_title(metric_id, lab, loc="en"):
-    """A board name SPELLS OUT the format sigil instead of carrying it (CPO 2026-08-10).
+    """A board name SPELLS OUT the format sigil instead of carrying it.
 
     "Ø Goals" reads badly as a heading, but plain "Goals" is WRONG -- these are per-match
     rates, and a bare noun reads as a season total. So the sigil is expanded into the words
@@ -200,7 +200,7 @@ def direction(metric_id, entity="team"):
 
 
 def check_order(board):
-    """EVERY board ranks DESCENDING -- most first (CPO 2026-08-10), without exception.
+    """EVERY board ranks DESCENDING -- most first, without exception.
 
     The two "against" boards were dropped in the same session, so no `lower_better` metric
     is left and descending now AGREES with every board's catalogue `direction`. The assert
@@ -232,7 +232,7 @@ def board_html(board):
         '<span class="fi probe" lang="fi">%s</span>'
         "</span></div>" % (E(title_en), E(title_fi))
     )
-    # ONE metric per board (CPO 2026-08-10), so there is NO column-header row: the title is
+    # ONE metric per board, so there is NO column-header row: the title is
     # the only label the number needs, and a header would only repeat it.
     parts.append('<div class="bgrid">')
     for i, (abbr, team, league, value) in enumerate(board["rows"], start=1):
@@ -307,7 +307,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 .bhd { padding-bottom: 7px; border-bottom: 1px solid var(--div); }
 .bt { font-size: 14px; font-weight: 700; color: var(--ink); }
 
-/* ONE metric per board (CPO 2026-08-10) -> ONE value column and no header row.
+/* ONE metric per board -> ONE value column and no header row.
    The track list is still written out WHOLE and read with a single var() as the ENTIRE
    value: `repeat(var(--n), ...)` is invalid CSS, because the repeat count must be a
    literal integer and a custom property there silently invalidates the whole
@@ -328,7 +328,7 @@ a.brow:hover .nm { text-decoration: underline; text-underline-offset: 2px; }
 
 .brow .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; }
 /* ONE LINE IF IT FITS, STACKED IF NOT -- decided PER BOARD, never per row
-   (CPO 2026-08-10: "they all stack together or not").
+   ("they all stack together or not").
    flex-wrap decided it per row, so one board rendered rows 1/5/6 inline and 2/3/4/7
    stacked: right for each row, ragged as a block. CSS cannot ask whether a SIBLING
    wrapped, so the trigger has to be something every row shares -- the board's own width.

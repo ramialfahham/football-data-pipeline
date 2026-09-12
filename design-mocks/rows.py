@@ -1,7 +1,7 @@
 """THE match row — one implementation, imported by every mock that shows a match.
 
-CPO direction, 2026-08-10: *"make sure that displaying of next matches is consistent on every
-page"*. It was not. Four treatments were in the tree or in these mocks:
+The direction: *"make sure that displaying of next matches is consistent on every page"*. It
+was not. Four treatments were in the tree or in these mocks:
 
     .fxrow    home hero (`home/HeroFixtures.astro`)        upcoming
     .nextfx   team page (`team/TeamFixtures.astro`)        upcoming, a single highlighted card
@@ -86,8 +86,8 @@ def _sides(kind, home, away, hg=None, ag=None):
 
 
 def upcoming_row(kind, home, away, time, zone, href="#"):
-    """An upcoming match. The right column is the kickoff in VENUE-LOCAL time (CPO 2026-08-10),
-    and `zone` is REQUIRED — every row, every page, no exception.
+    """An upcoming match. The right column is the kickoff in VENUE-LOCAL time, and `zone` is
+    REQUIRED — every row, every page, no exception.
 
     ⚠ AN EARLIER VERSION MADE IT CONDITIONAL and it was rejected on sight. The zone sat on the
     GROUP head where a competition has one country, and moved onto the ROW only where a
@@ -95,7 +95,7 @@ def upcoming_row(kind, home, away, time, zone, href="#"):
     whichever nation is at home). Both variants then appeared on one screen, a group-level "CET"
     above one block and per-row "CET"/"EET" in the next.
 
-    CPO, 2026-08-10: *"this is a repetitive content block ... it has to be consistent everywhere
+    The rule: *"this is a repetitive content block ... it has to be consistent everywhere
     we show this type of content block"*. **A reusable block must not change shape according to
     its context.** So the zone is part of the time, always — repeating "CET" down a Bundesliga
     list is the price, and it is the right price.
@@ -111,8 +111,8 @@ def upcoming_row(kind, home, away, time, zone, href="#"):
 
 
 def result_row(kind, home, hg, away, ag, href="#"):
-    """A played match. THE SAME ROW as `upcoming_row` (CPO 2026-08-10: *"let's keep the design
-    consistent with the next matches block design"*) — same sides, same badges. The score goes
+    """A played match. THE SAME ROW as `upcoming_row` (*"let's keep the design consistent
+    with the next matches block design"*) — same sides, same badges. The score goes
     inline at the end of each side, so home and away need no extra label, and the kick-off column
     is dropped: a finished match's start time is not information.
 
@@ -120,7 +120,7 @@ def result_row(kind, home, hg, away, ag, href="#"):
     and red for a Loss pill, so a draw leaves both sides muted, which is the honest reading.
 
     ⚠ ALWAYS A LINK. An earlier version rendered played rows inert because the match report page
-    does not exist (#861). CPO ruling: *"we are creating the pages one by one. there will always
+    does not exist (#861). The rule: *"we are creating the pages one by one. there will always
     be some page that's not wired ... until we have created all of them"* — so an unbuilt target
     no longer blocks the design. Nothing is exposed meanwhile: the site is unpublished and every
     page is noindex.
@@ -134,7 +134,7 @@ def result_row(kind, home, hg, away, ag, href="#"):
     # to nothing and overlapped the rows. Four rounds of layout "fixes" chased that and none could
     # have worked, because none of them touched the cause. A block's modifier must not reuse a
     # class the design system already defines; `check_row_consistency.py` now enforces that.
-    # ⚠ NO KICK-OFF ON A PLAYED ROW (CPO 2026-08-10). Once a match is finished the time it started
+    # ⚠ NO KICK-OFF ON A PLAYED ROW. Once a match is finished the time it started
     # tells a reader nothing — the score is the whole content — so the right-hand column is
     # dropped rather than filled with something less useful. This is the standard's OMIT rule, not
     # a move: the slot is absent, and nothing else takes it over.
@@ -145,7 +145,7 @@ def result_row(kind, home, hg, away, ag, href="#"):
 def date_head(label):
     """A DATE inside a competition group. The second and last level of grouping.
 
-    ⚠ This replaced the date-on-every-row version, which the CPO could not scan: *"now it's hard
+    ⚠ This replaced the date-on-every-row version, which could not be scanned: *"now it's hard
     to see when the games are"*. A round runs Friday to Sunday, so the date repeated down the
     right-hand column as a value when it is really a heading. As a divider it is read once and
     the rows underneath carry only a kick-off.
@@ -159,8 +159,8 @@ def date_head(label):
 def group_head(slug, name):
     """THE GROUP: one competition. League logo + competition name. Nothing else.
 
-    ⚠ NO MATCHDAY (CPO 2026-08-10: *"leave out the match day — you can see that on the details
-    page anyway"*). It also could not be shown honestly: the warehouse stores the provider's raw
+    ⚠ NO MATCHDAY (*"leave out the match day — you can see that on the details page
+    anyway"*). It also could not be shown honestly: the warehouse stores the provider's raw
     `"Regular Season - 25"`, which shipped untranslated to all three locales once already (#866),
     and turning it into a phase plus a number is taxonomy mapping the consumption layer forbids.
 
@@ -192,7 +192,7 @@ def group_head(slug, name):
 # The row's own CSS. Imported by every mock so the rendered result cannot drift either.
 ROW_CSS = """
 /* ================================================================ *
- *  THE MATCH ROW — one component, every page (CPO 2026-08-10).      *
+ *  THE MATCH ROW — one component, every page.                       *
  *  Base `.fxrow` / `.fxgroup` / `.crest.xs` live in system.css;     *
  *  everything here is the shared DELTA, defined once.               *
  * ================================================================ */
@@ -250,7 +250,7 @@ ROW_CSS = """
    TONE + WEIGHT, never by hue: green stays reserved for "better value", red for a Loss pill, and
    a draw leaves both sides muted. */
 /* ⚠ A PLAYED ROW IS THE NEXT-MATCH ROW PLUS A SCORE. NOTHING ELSE.
-   CPO, 2026-08-10: *"this shouldn't be much different from next match design"* — and it had
+   The rule: *"this shouldn't be much different from next match design"* — and it had
    become very different. Three things were added chasing a layout collapse, none of them asked
    for, each able to cause one, and all three are now gone:
      * `.side` was converted from system.css's flex to a three-track grid;

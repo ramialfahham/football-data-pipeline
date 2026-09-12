@@ -1,57 +1,77 @@
-# Acceptance evidence — sweep 3 of 4: decision history out of the tests
+# Acceptance evidence — sweep 4 of 4: decision history out of site_v2, ingestion and design-mocks
 
 criteria_demonstrated:
-  - EVERY FLAGGED LINE IN `tests/` IS GONE. Before: `count_tree` over `tests/` → 245 lines in 28
-    files (`test_governance_hooks.py` 103, `test_export_landing.py` 18, then 26 files with 1–10;
-    by marker: date 102, review credit 86, product owner 23, round 24, MR 10). After: **0 lines,
-    0 files** (`sweep_size.py tests` → `total: 0`). Every line was rewritten by hand, every edit
-    passing the edit-time hook. The rule applied: keep what the test pins and why the case
-    exists; drop who found it and in which round. Examples: `test_governance_hooks.py`'s
-    fixture comment keeps "a one-sided test passes while broken" and loses "(cto-reviewer,
-    <date>)"; the acceptance-gate docstrings keep "the test would have passed with
-    `ACCEPTANCE_TRIGGER = ''`, i.e. firing on everything" and lose "Caught by platform-reviewer
-    at opus, round 1"; `test_refetch_cadence.py` keeps "It looked like a stagger and was a silent
-    cadence cut, and the rule is 'every 7 days'" and loses "the CPO's ruling was";
-    `test_no_dead_issue_refs.py` keeps "a test that would still pass with the change reverted is
-    not coverage" and loses "`platform-reviewer` FAILed round 4 on exactly that". The lines the
-    guard cannot see were swept by eye: both split-line credits
-    (`test_nightly_entrypoint_parity.py` "each found by a / reviewer" → "none found by anything
-    mechanical"; `test_incomplete_snapshot_not_written.py` "Found in review round 1 by / two
-    reviewers independently" → removed) and both plural rounds (`test_governance_hooks.py`
-    "#370 rounds 6-12" → "spent seven rounds that way"; "CTO findings, rounds 2-3" → removed).
-    Routing-key mentions in docstrings (11, e.g. "routes to `cto-reviewer`") are reworded to the
-    role ("routes to the CTO", "the display reviewer") — the keys stay exact in the code lines
-    that use them. Two stale facts corrected because the why was false as written:
-    `test_refetch_cadence.py` said nothing read the freshness thresholds and named an unmerged
-    branch — `scripts/check_raw_freshness.py` (the hourly `fdp-freshness` sentinel) reads them
-    and is named now; `test_export_site_data.py`'s fixture-date comment keeps the ordering
-    argument with month names instead of ISO dates that read as history.
-  - NO BEHAVIOUR CHANGE, PROVEN ON EVERY TOUCHED FILE. `prove_py_comments_only.py` (docstrings
-    by `ast`, comments by `tokenize`, blank lines dropped) over the 28 modified test files
-    (the pin file was measured before its constants changed): **27 identical, 1 differs** — the
-    one is `GOOD_BODY` in `test_governance_hooks.py`, a review.md FIXTURE string re-joined from
-    implicit-concatenation parts so its `## analytics-engineer-reviewer` header no longer starts
-    a source line (the guard read it as a comment line); its VALUE is byte-identical to HEAD's
-    (`ast.literal_eval` of both: `True`), declared in the contract's amendment. `ruff check
-    --config .ruff-ci.toml tests/` → All checks passed. `pytest tests/` → **1,057 passed, 1 skipped, 14 subtests
-    passed** in 11:08 — the same count as `main` (measured in this session before the sweep).
-  - THE PIN MOVES BY EXACTLY THE LINES REMOVED. Whole-tree `count_tree` before: (495, 84); after:
-    **(250, 56)** — 495 − 245 = 250 and 84 − 28 = 56, measured, not computed. `PINNED_LINES =
-    250`, `PINNED_FILES = 56`.
-  - NOTHING LOAD-BEARING LOST. Every docstring that named a defect class still names it: the
-    one-sided-coverage class (`test_governance_hooks.py`, six sites), the "passed either way"
-    class (acceptance gate, base resolution), the hand-copied-list class (routing enumeration,
-    doc parity), the double-count (`test_dropped_call_visibility.py`), the shortened cadence
-    (`test_refetch_cadence.py`), the truncate-at-open hazard (`test_declare_missing_columns.py`),
-    the shape-test-beaten-by-rewrites (`test_alert_policy_recipe.py`). Numbers kept where they
-    were the why: 26 dropped calls, 3,539 team-seasons, 25 → 0 players, 48 tracked files, 1,024
-    / 16,384 characters, 4 of 256 members.
-  - THE HANDOVER STATES THE CURRENT STATE OF #115: sweeps 1–2 merged, sweep 3 this branch, sweep
-    4 sized (250 lines, 56 files), step 9 remaining.
+  - EVERY FLAGGED LINE IN THE FOUR TREES IS GONE, AND THE WHOLE TREE IS AT ZERO. Before: `count_tree`
+    → 250 lines in 56 files (`site_v2/src` 99 / 18, `ingestion` 62 / 18, `design-mocks` 72 / 15,
+    `site_v2/scripts` 17 / 5; by marker: date 172, product owner 56, review credit 13, MR 7,
+    round 2). After: **(0, 0)** for the whole repository. Every line was rewritten by hand, every
+    edit passing the edit-time hook. The rule applied: keep the why, drop who decided and when.
+    Examples: `strings.ts` keeps "a suffix is EARNED by equity, not a way to build it" and every
+    quoted ruling as the rule ("more precise than just Vorlagen", "they all stack together or
+    not"), and loses "CPO reversed his earlier ruling on <date> after seo-expert-reviewer argued
+    it"; the loaders keep "raw appends and never deletes … Base decides" and the measured damage
+    ("UCL 340 went 25 players to 0") and lose "(CPO ruling <date>)" and "on <date>";
+    `design-mocks/rows.py` keeps every design quote ("this shouldn't be much different from next
+    match design") and loses "CPO, <date>:". Provenance of user-visible copy is kept as the RULE
+    (§10: "Supplied copy", "approved copy", "the product owner's call") without the title and
+    date. Two stale facts corrected because the why was false as written: `index.astro` and
+    `types.ts` said Top teams was "specified and NOT built" — it is built (#41, wired at
+    `index.astro:77`); the header now says all three modules are built.
+  - NO BEHAVIOUR CHANGE, PROVEN PER LANGUAGE. Non-Python (`prove_noncomment_lines.py`: the
+    sequence of non-comment lines by the guard's own `comment_lines`, per language): **23
+    identical, 0 differ, of 23** `.ts`/`.mjs`/`.astro`/`.css` files. Python
+    (`prove_py_comments_only.py`, `ast` + `tokenize`): **27 identical, 7 differ, of 34** — the
+    pin file, and six `design-mocks` generators whose changed lines are comments the stripper
+    cannot see: nine CSS `/* … */` comment lines INSIDE the Python string each generator emits as
+    the mock's stylesheet (`gen_competitions.py` 1, `gen_competition_hub.py` 1, `gen_matches.py` 1,
+    `gen_top_players.py` 2, `gen_top_teams.py` 2, `rows.py` 2), and four lines in two module-level
+    bare triple-quoted strings used as block comments (`gen_top_players.py:84-106`,
+    `gen_top_teams.py:79-99`). The guard counts the CSS lines as comment lines (they are, in the
+    emitted CSS) but cannot see their CONTINUATION lines (a `.py` file has no block-comment pairs)
+    nor a bare string that is not a docstring — the platform-reviewer's grep found eight such
+    lines after the guard reported zero, all swept by hand. Proof the nine change nothing rendered:
+    `render_mocks.py` ran every generator on the working tree and on HEAD's generators
+    (stash-dance, in-turn), captured the seven emitted `.html` files with CSS comments stripped,
+    and `diff -r` → **identical** (re-run after the eight extra lines: identical). Proof the four
+    change nothing at all: `ast.parse` shows both strings as bare `Expr(Constant)` statements
+    after the module docstring, referenced by nothing. The generators that do not run (`gen_competitions.py`
+    "undeclared type change — missing intercontinental_super_cup"; `gen_block_standard.py` "no
+    entry for BPL, EKS, TSL") fail identically on HEAD and on the branch — pre-existing drift
+    between the mocks and the registry, out of scope. `pytest tests/` → **1,057 passed, 1 skipped, 14 subtests
+    passed** (9:08; the same count as `main`); `npm test` in `site_v2` → **83 pass, 0 fail**
+    (the same as `main`); `ruff check --config .ruff-ci.toml ingestion/ design-mocks/` → "All
+    checks passed!".
+  - THE PIN IS ZERO. Whole-tree `count_tree` before: (250, 56); after: **(0, 0)** — measured, and
+    equal to 250 − 250, 56 − 56. `PINNED_LINES = 0`, `PINNED_FILES = 0`; from here any new line
+    carrying history is a CI failure and an edit-time deny.
+  - NOTHING LOAD-BEARING LOST. `strings.ts` still says which strings are locked/approved/supplied
+    copy and why each wording was chosen (the Finnish `kunto`/`muoto`, the masculine `Der
+    Top-Spieler` warning, the four-string trap on the deserved block); every loader's docstring
+    still names the incident class it guards against (the rate-limited HTTP 200 that looked like
+    an empty squad; the delete whose trigger cannot tell "no players" from "we lost the players")
+    and the numbers (26 dropped calls, ~23 of 1,265 teams, 27 → 17 events); every mock header
+    still names its wireframe, its issue and the rules it renders; `registry.py`'s two cost fields
+    still say they are cost decisions (§10).
+  - THE HANDOVER STATES STEP 8 DONE: guard merged, four sweeps, pin 850 → 0, step 9 next.
 
 ## What is NOT demonstrated
-- The remaining 250 lines (`site_v2/src` 99 / 18 files, `site_v2/scripts` 17 / 5, `ingestion`
-  62 / 18, `design-mocks` 72 / 15) are untouched — sweep 4.
-- Narrative lines with no marker and no credit ("both caught in review", "caught in review, not
-  by any static check", "reviewers drew the false inference three times") stay: they name the
-  class of failure, not a person or a round.
+- The guard is blind to two comment shapes in Python: a CSS block comment's continuation lines
+  inside a string, and a bare triple-quoted string used as a block comment. Both were swept by
+  eye here and are at zero; a future line of either shape will not be counted or denied. Widening
+  the definition is reserved; the shapes are named so the next builder knows the grep to run.
+- Comment lines with no marker were not shortened — out of scope, and a separate question for
+  the CPO (the sweep removes who/when; it does not edit for length).
+- `gen_competitions.py` and `gen_block_standard.py` do not render on `main` either; their drift
+  from the registry (three new competitions, one renamed type) is a design-mocks maintenance item,
+  not this sweep's.
+- STRING LITERALS THAT ARE PROGRAM OUTPUT are outside the comment/docstring definition and
+  deliberately untouched — changing them changes what a mock renders or a check prints, which
+  criterion 2 forbids. The complete list in `design-mocks/` (grep `CPO|20\d\d-\d\d-\d\d` over
+  `*.py`, minus comments): rendered mock text in `gen_competition_hub.py:232` (a `<p>` in the
+  emitted page), `gen_competitions.py:700` (a `<p>`), `gen_navmap.py:67,257,351` and
+  `gen_sitemap.py:51,62,81` (the sitemap/navmap pages' own labels); printed check labels in
+  `check_home.py:40`, `check_teams.py:100,111`, `check_players.py:97,111`; a fixture URL in
+  `gen_navmap.py:171`. The guard's `count_tree` classes none of them as a comment line (verified
+  per line with `comment_lines`), so the (0, 0) claim is exact. Message strings and assertion
+  messages in `tests/` are the same class. Whether the definition should widen to output strings
+  is reserved.

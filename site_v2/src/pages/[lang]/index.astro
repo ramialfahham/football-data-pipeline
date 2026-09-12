@@ -6,14 +6,12 @@
 // unblocks go-live. `INDEXABLE` itself stays `false`: flipping it is #377, gated on #799, #852/#843,
 // #845 and #861, none of which this PR touches.
 //
-// TWO modules today, of the THREE the CPO composed on 2026-08-08 (10_home.md §0, that spec's
-// stated authority): next matches -> Top players -> Top teams. Top players lands here with #40 MR B;
-// its warehouse half shipped in !153 and its four registered gaps (GAP-27..GAP-30) are all closed.
-// Top teams is specified and NOT built — GAP-29's `mart_team_leaderboards` landed 2026-09-02, so
-// what it still needs is the block, its export payload and the render wiring, in its own MR.
+// ALL THREE modules of the composition (10_home.md §0, that spec's stated authority): next
+// matches -> Top players (#40) -> Top teams (#41). Both boards blocks read served leaderboard
+// rows; their registered gaps are closed.
 //
-// Browse (the fourth module in the original 2026-06-10 composition) is DROPPED, not deferred (CPO,
-// 2026-08-19): its only real value was reachability into the long-tail team/player pages, and those
+// Browse (the fourth module in the original composition) is DROPPED, not deferred: its only real
+// value was reachability into the long-tail team/player pages, and those
 // are exactly the entity types blocked on the team/player-name data-quality work, so a
 // competitions-only version had nothing left to solve — the competitions pool is small enough that
 // the competitions index page already covers it. The Browse component (formerly this file's
@@ -22,11 +20,10 @@
 // keys are removed with it. `build_nav`/`fetch_nav`/`nav.json` themselves are NOT removed — that
 // export target is independently selectable (`--entities nav`) and outlives this block.
 //
-// One block was dropped in an earlier round. The stats teasers (the 2026-06-10 order's fourth
-// module, before browse became the fourth) were ruled useless on 2026-08-08 and are replaced by
-// Top players/Top teams. Trending is absent from the composition, and the version built here was
-// stale against the last ruling that touched it anyway (CPO 2026-08-04 dropped winless runs; the
-// mart still served them).
+// One block was dropped earlier. The stats teasers (the original order's fourth module, before
+// browse became the fourth) were ruled useless and are replaced by Top players/Top teams.
+// Trending is absent from the composition, and the version built here was stale against the last
+// streak ruling anyway (winless runs dropped; the mart still served them).
 //
 // The page COMPOSES components and holds no styling; it derives no facts and performs no
 // arithmetic. Everything it shows is a served value from landing.json, which the export shaped and

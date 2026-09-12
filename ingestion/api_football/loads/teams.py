@@ -3,7 +3,7 @@
 Each run fetches all seasons and writes a fresh complete snapshot row; the API returns
 the full team list on every call.
 
-APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
+APPEND ONLY (raw appends and never deletes). The run appends its
 snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__teams`
 selects the newest row per league_code, so the older ones are simply not selected — they
 are there for the case this rule exists for, a later answer that carries LESS than the one
@@ -73,8 +73,8 @@ def load_teams_merge_and_extend_ids(
             teams_merged_envelope["results"] = len(teams_merged_envelope["response"])
             teams_merged_envelope["paging"] = {"current": 1, "total": 1}
             if complete:
-                # Append only. The delete that used to follow this write was removed
-                # 2026-08-17 (CPO: raw appends and never deletes). `stg_apif__teams` already
+                # Append only. The delete that used to follow this write is gone (raw
+                # appends and never deletes). `stg_apif__teams` already
                 # selects the newest row per league_code, so older rows are not selected — and
                 # they survive, which is what makes a shrunken later snapshot recoverable.
                 load_json_to_bq(

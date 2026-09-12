@@ -348,7 +348,7 @@ def _write_fanout_cursor(
         payload,
         as_json_payload=True,
         # DELIBERATE WRITE_TRUNCATE: the cursor is pipeline state, one current row per league, not
-        # entity data. Stated explicitly since `append` became required (2026-08-17).
+        # entity data. Stated explicitly because `append` is a required keyword.
         append=False,
     )
 
@@ -534,8 +534,8 @@ def squads_response_for_team(
     (which pulls /players per team×season into RAW_APIF_PLAYERS); this is the cheaper current-squad
     endpoint and carries the shirt number.
 
-    Returns ``(rows, complete)``. ⚠ It returned a BARE LIST until 2026-08-17, unlike its two
-    siblings above, and that is what made the hole: a rate-limited answer arrives as HTTP 200 with
+    Returns ``(rows, complete)``. ⚠ It once returned a BARE LIST, unlike its two siblings
+    above, and that is what made the hole: a rate-limited answer arrives as HTTP 200 with
     the error in the body, so `rows` came back empty and looked successful. The caller wrote it,
     which marked the `(team, season)` captured in `captured_team_seasons` — and that reader keys on
     `$.team_id` PRESENCE, so the team was never fetched again."""
@@ -564,7 +564,7 @@ def profiles_response_for_player(
     paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1). The
     page-keyed directory form is far thinner; the per-player form carries the full bio.
 
-    Returns ``(rows, complete)`` since 2026-08-17. A bare list here meant a rate-limited answer was
+    Returns ``(rows, complete)``. A bare list here once meant a rate-limited answer was
     stored as an empty bio, and `_existing_player_ids` keys on `$.player_id` presence — so that
     player's name, DOB and nationality stayed blank forever, on the surface that also drives the
     URL slug."""
@@ -592,7 +592,7 @@ def player_teams_response_for_player(
 
     paginate=False: a `player=` query returns one page (verified player=5 → paging.total=1).
 
-    Returns ``(rows, complete)`` since 2026-08-17, for the same reason as the profiles helper
+    Returns ``(rows, complete)``, for the same reason as the profiles helper
     above: an empty career stored from a rate-limited call is permanent, because the player is
     then skipped by `_existing_player_ids` on every later run."""
     data = fetch_merged_paged(

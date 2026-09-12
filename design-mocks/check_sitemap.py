@@ -111,7 +111,7 @@ def check_url_less_switches_found():
 
 
 def check_ruled_out_is_marked():
-    """Country hubs were ruled out on 2026-08-10. A map that still shows them as planned would
+    """Country hubs are ruled out. A map that still shows them as planned would
     re-open a closed decision."""
     node = [n for n in NODES if "country-slug" in n[1]]
     if not node:

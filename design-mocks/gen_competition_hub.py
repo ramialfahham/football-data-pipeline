@@ -12,7 +12,7 @@ to nothing:
 
 So this page's first job is structural: it is the hub those two declarations already promise.
 
-TWO BLOCKS, in the CPO's order (2026-08-10): next matches, then the table.
+TWO BLOCKS, in the composed order: next matches, then the table.
 
 ⚠ A top-scorers board was in the first draft and was CUT. Leaderboards are not homeless --
 site_architecture.md reserves /{competition-slug}/top-scorers/ and content_architecture.md's
@@ -37,8 +37,8 @@ import html
 import re
 from pathlib import Path
 
-# ⚠ `result_row` is deliberately NOT imported. The hub carries no played fixtures any more
-# (CPO 2026-08-10) — importing it "in case" is the scaffolding that reads as a live feature.
+# ⚠ `result_row` is deliberately NOT imported. The hub carries no played fixtures any more —
+# importing it "in case" is the scaffolding that reads as a live feature.
 from gen_block_standard import short
 from interaction import INTERACTION_CSS
 from rows import CREST, ROW_CSS, date_head, upcoming_row
@@ -57,13 +57,13 @@ OUT = Path(__file__).with_name("competition_hub_mock.html")
 
 COMPETITION = {
     # \u26a0 the SHORT name, from the one source the block standard uses -- not the registry's legal
-    # form ("1. Fu\u00dfball-Bundesliga"), which the CPO rejected on 2026-08-10.
+    # form ("1. Fu\u00dfball-Bundesliga"), which is rejected for display.
     "name": short("BL1"),
     "country": "Germany",
     "tier": 1,
     "season_label": "2024-25",
     "slug": "bundesliga",
-    # venue-local (CPO 2026-08-10). A single-country domestic league has ONE zone, so it is
+    # venue-local. A single-country domestic league has ONE zone, so it is
     # declared once in the header and never repeated on a row. ⚠ Not true for every
     # competition: MLS spans four US zones and Liga MX three, and a national-team competition
     # is played in whichever nation is at home -- those declare the zone per row instead.
@@ -105,7 +105,7 @@ NEXT_ROUND = ("Matchday 25", "25. kierros", [
     ("FC St. Pauli", "VfL Wolfsburg", "Sun 2 Mar", "19:30"),
 ])
 
-# \u26a0 A LAST_ROUND results block was here and is GONE (CPO 2026-08-10). Past matches belong on
+# \u26a0 A LAST_ROUND results block was here and is GONE. Past matches belong on
 # the competition's own results page, the same ruling that gives the Matches page a separate
 # Past view. Kept as a note rather than commented-out data: dead data left in place is what a
 # later reader restores by accident.
@@ -143,9 +143,9 @@ LEDE_FI = ("<b>{leader}</b> johtaa {played} ottelun j\u00e4lkeen, "
 
 E = html.escape
 
-# ⚠ CREST and both match-row builders are IMPORTED from `rows.py`, not defined here. The CPO
-# ruled on 2026-08-10 that a match must display identically on every page, and four different
-# treatments were in the tree. One module, imported by every mock, is what makes that true by
+# ⚠ CREST and both match-row builders are IMPORTED from `rows.py`, not defined here. The rule
+# is that a match must display identically on every page, and four different treatments were
+# in the tree. One module, imported by every mock, is what makes that true by
 # construction; `check_row_consistency.py` proves the rendered markup matches.
 
 
@@ -201,7 +201,7 @@ def header_html():
        E(COMPETITION["country"]), COMPETITION["tier"], E(COMPETITION["season_label"]),
        lede["en"], lede["fi"])
 # ⚠ NO timezone line in this header. It had one, and that plus the Matches page's per-row zone
-# was two placements of one idea. The zone is on the row, everywhere (CPO 2026-08-10).
+# was two placements of one idea. The zone is on the row, everywhere.
 
 
 def matches_html():
@@ -331,7 +331,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
    404 again. */
 
 /* ---- matches: NOTHING HERE. The row's markup and CSS both come from `rows.py`, shared with
-        the Matches page (CPO 2026-08-10). A per-page copy is precisely what produced four
+        the Matches page. A per-page copy is precisely what produced four
         different match treatments across the site. ---- */
 
 /* ---- standings table. A NEW component: system.css has no table.

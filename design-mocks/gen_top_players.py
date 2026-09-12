@@ -10,7 +10,7 @@ the `label_en` verbatim.
 
 Every board is `higher_better` ranked descending, so no board disagrees with its metric's
 `direction`. The keeper board (`shots_on_goal_against`, lower_better, ranked most-first)
-was the one exception in either block, and it was dropped on 2026-08-10. The guard that
+was the one exception in either block, and it was dropped. The guard that
 demanded an explicit ruling for such a board is KEPT, so reintroducing one cannot pass
 silently.
 
@@ -20,7 +20,7 @@ Two things are read from the repo so the mock cannot drift from the product:
   1. every display name comes from `label_en` in dbt_project/seeds/metric_catalogue.csv,
      looked up by (metric_id, entity) -- the catalogue's real grain. Two of the ids used
      here carry BOTH a team and a player row, so keying on metric_id alone silently takes
-     the wrong label; that is the exact bug !27 fixed in export_metric_definitions_json.py.
+     the wrong label; that is the exact bug export_metric_definitions_json.py once had.
      An unknown id is a hard failure, never a fallback string.
   2. site_v2/src/styles/system.css is inlined verbatim, so the mock uses the shipped
      design system rather than a lookalike.
@@ -62,12 +62,12 @@ def label(metric_id, entity="player"):
 
 # ------------------------------------------------------- Finnish width probe
 #
-# These four Finnish labels SHIPPED and are the CPO's; they live in METRIC_LABELS_FI in
+# These four Finnish labels SHIPPED as approved copy; they live in METRIC_LABELS_FI in
 # site_v2/src/i18n/strings.ts under the `playerMetrics.*` keys.
 # ⚠ The second element says "this is a width probe, not approved copy" and is now False for all
 # four — but the renderer discards it (`fi_raw, _ = FI[rank_id]`) and hardcodes `class="fi probe"`,
 # so the mock still dots them as unapproved. Left as-is deliberately: changing it would alter the
-# artifact the CPO reviewed, which is a design change and not this task's job.
+# reviewed artifact, which is a design change and not a copy fix.
 FI = {
     "goals_player": ("Maalit", False),
     "assists_player": ("Maalisyötöt", False),
@@ -82,7 +82,7 @@ FI = {
 # legend at the foot of the page says so, and it must keep saying so.
 
 """
-FOUR boards, the CPO's set of 2026-08-10, in his order, ALL ranked descending:
+FOUR boards, the locked set (#40) in its locked order, ALL ranked descending:
 
     goals -> assists -> passes -> key passes
 
@@ -97,7 +97,7 @@ Against #40's five two-column boards:
   * ⚠ `pass_accuracy_pct` leaving does NOT fix the pass-accuracy defect. That number is
     still rendered on the stats pages; it is re-filed as its own GitLab issue.
   * ⚠ THERE IS NO GOALKEEPER BOARD any more. Dribbles, duels, shots on target and shots on
-    target faced were all dropped on 2026-08-10, and the last of those was the keeper's
+    target faced were all dropped, and the last of those was the keeper's
     only representation on the home page. The four survivors are all attacking/possession
     metrics, so an outfield creator can top every board and a keeper can top none.
 
@@ -160,7 +160,7 @@ BOARDS = [
 E = html.escape
 
 # The crest slot. Production renders the club crest IMAGE -- the TEAM logo, on player rows
-# as well as team rows (CPO 2026-08-10).
+# as well as team rows.
 # ⚠ The mock draws a neutral placeholder rather than the design system's text-initials
 # fallback: the mock must not hotlink (#36), and initials read as if the abbreviation were
 # the design. Inline SVG -- no external fetch.
@@ -177,7 +177,7 @@ RATE_WINDOW = {"_per_match": {"en": " per match", "fi": " per ottelu"},
 
 
 def board_title(metric_id, lab, loc="en"):
-    """A board name SPELLS OUT the format sigil instead of carrying it (CPO 2026-08-10).
+    """A board name SPELLS OUT the format sigil instead of carrying it.
 
     "Ø Goals" reads badly as a heading, but plain "Goals" is WRONG -- these are per-match
     rates, and a bare noun reads as a season total. So the sigil is expanded into the words
@@ -208,7 +208,7 @@ def direction(metric_id, entity="player"):
 
 
 def check_order(board):
-    """EVERY board ranks DESCENDING -- most first (CPO 2026-08-10), without exception.
+    """EVERY board ranks DESCENDING -- most first, without exception.
 
     The two "against" boards were dropped in the same session, so no `lower_better` metric
     is left and descending now AGREES with every board's catalogue `direction`. The assert
@@ -244,7 +244,7 @@ def board_html(board):
         '<span class="fi probe" lang="fi">%s</span>'
         "</span></div>" % (E(title_en), E(title_fi))
     )
-    # ONE metric per board (CPO 2026-08-10), so there is NO column-header row: the title is
+    # ONE metric per board, so there is NO column-header row: the title is
     # the only label the number needs, and a header would only repeat it.
     parts.append('<div class="bgrid">')
     for i, (abbr, team, league, value) in enumerate(board["rows"], start=1):
@@ -319,7 +319,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 .bhd { padding-bottom: 7px; border-bottom: 1px solid var(--div); }
 .bt { font-size: 14px; font-weight: 700; color: var(--ink); }
 
-/* ONE metric per board (CPO 2026-08-10) -> ONE value column and no header row.
+/* ONE metric per board -> ONE value column and no header row.
    The track list is still written out WHOLE and read with a single var() as the ENTIRE
    value: `repeat(var(--n), ...)` is invalid CSS, because the repeat count must be a
    literal integer and a custom property there silently invalidates the whole
@@ -340,7 +340,7 @@ a.brow:hover .nm { text-decoration: underline; text-underline-offset: 2px; }
 
 .brow .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; }
 /* ONE LINE IF IT FITS, STACKED IF NOT -- decided PER BOARD, never per row
-   (CPO 2026-08-10: "they all stack together or not").
+   ("they all stack together or not").
    flex-wrap decided it per row, so one board rendered rows 1/5/6 inline and 2/3/4/7
    stacked: right for each row, ragged as a block. CSS cannot ask whether a SIBLING
    wrapped, so the trigger has to be something every row shares -- the board's own width.

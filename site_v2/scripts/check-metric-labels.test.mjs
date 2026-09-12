@@ -1,7 +1,7 @@
 // Metric labels resolve from the catalogue, per locale (#370).
 //
 // Runs in `npm test`, which `prebuild` runs, so this gates the BUILD and not only CI. Each test below
-// is one of the acceptance criteria the CPO locked on 2026-07-31.
+// is one of #370's locked acceptance criteria.
 //
 // Parses the TypeScript as TEXT rather than importing it, which is the house pattern here:
 // `check-page-specs.mjs` extracts the EN key set from `strings.ts` the same way, because `node --test`
@@ -141,7 +141,7 @@ test("the CPO-validated MVP labels are byte-identical to site/i18n", () => {
       const validated = corpus[loc][id]?.label;
       if (!validated) continue;
       // EN diverges for finishing_efficiency_pct by design: v2's locked label is kept and the corpus's
-      // "% Conversion rate" is a §10 pick reserved to the CPO. Recorded in the task contract.
+      // "% Conversion rate" is a §10 pick still open.
       if (loc === "EN" && id === "finishing_efficiency_pct") continue;
       compared += 1;
       if (val !== validated) drift.push(`${loc}.${id}: "${val}" != validated "${validated}"`);
@@ -196,8 +196,8 @@ test("every team board label the block renders is a bare sigil label, not a wind
   async () => {
   // ⛔ REPLACES a test that fed `boardTitle` a per-90 metric id and asserted it came back
   // unexpanded. That test pinned the WRONG guard: `boardTitle` used to read
-  // `metricId.endsWith("_per_match")`, and `analytics-engineer-reviewer` FAILed it as a taxonomy
-  // judgement made in the frontend from an id's spelling — which this catalogue already proves
+  // `metricId.endsWith("_per_match")`, which is a taxonomy judgement made in the frontend from
+  // an id's spelling — which this catalogue already proves
   // unsafe (`shots_on_goal_per_match` carries `metrics.shots_on_target_per_match.label`).
   //
   // The real premise is that the four boards this block renders are per-match rates, and that is
