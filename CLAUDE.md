@@ -164,6 +164,12 @@ every session that learned something had to delete something. None of this is cu
   the issue, and `git blame` reaches all three from any line
   (`dbt_project/docs/engineering_standards.md` §1.2 has the recipe). 429 such lines existed on
   2026-09-11; #115 step 8 adds the hook that ratchets them down.
+- **A live host's network address never goes into a committed file — the task artifacts
+  included.** `host_fingerprint_gate.py` refuses the write and
+  `tests/test_no_host_fingerprint_in_tree.py` pins the tree at zero. It slipped once, as a grep
+  pattern copied from a reviewer's verdict into `review.md` to prove the address was gone. A host's
+  size, city and open ports are the same class and no pattern can catch them: describe the host,
+  say the value lives in the provider's console.
 - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
   blocks the turn once if any fails. Do not end a turn on a red gate silently.
 - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,

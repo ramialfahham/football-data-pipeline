@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-12**, on `chore/115-step9-memory-budget`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-12**, on `feat/126-no-host-fingerprint-guard`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -23,20 +23,20 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 
 ## ⛔ WHERE WE ARE
 
-**The context-engineering cleanup, GitLab #115, finishes with this branch (#125, step 9 of 9).
-Product work resumes after its merge, with the player page (#118).** Steps 1–8 merged
-(`!169`–`!181`): the comment guard's pin is at 0 and it is a pure ratchet. Step 9: the memory
-folder is cut from 108 files to **50** (index 17,152 → 7,669 chars, largest note 20,407 → 4,232),
-and `.claude/hooks/memory_budget_gate.py` holds those three numbers as budgets that move down only —
-adding a note means removing one. The `ci-runner-01` facts moved from memory into
-`docs/operations_guide.md`. After the merge: tick step 9 and close #115; then #118.
-**Nothing is blocked on the CPO.**
+**The context-engineering cleanup, GitLab #115, is DONE and closed — nine steps, nine mechanisms
+(`!169`–`!182`).** The comment guard's pin is at 0; the memory folder is 50 notes under
+`memory_budget_gate.py`'s three measured budgets, which move down only. This branch (#126) is its
+one follow-up: on `!182` the CI runner's public address went into a committed file twice — a doc
+(caught by review) and then `review.md`, as the grep pattern a reviewer used to prove it was gone
+(not caught; pushed; the branch rewritten). `host_fingerprint_gate.py` now refuses
+writing a public address into any file inside the repo, task artifacts included, and
+`tests/test_no_host_fingerprint_in_tree.py` pins the tree at zero. **After its merge, product work
+resumes with the player page (#118). Nothing is blocked on the CPO.**
 
 **What changed in how we work, 2026-09-11 — read `CLAUDE.md` "Which source answers which
 question" and `docs/working_agreement.md` §1 / §11:**
 - A requirement lives in a **GitLab issue** in the `Task` template shape (What exactly / Why / How);
-  the plan is the issue's How and is what plan mode shows. One issue per major task; his words:
-  "some small exceptions".
+  the plan is the issue's How. One issue per major task; his words: "some small exceptions".
 - A decision is recorded by the thing it changes — never a log. **`escalations.log` is FROZEN**; a
   new entry is a defect. A locked-file approval is quoted in the contract AND in the commit
   message's `Locked files` line, character-identical; `glab mr create --fill` puts it on the MR.
@@ -46,7 +46,7 @@ question" and `docs/working_agreement.md` §1 / §11:**
 - **The stop gate blocks a turn that ends with anything in `git stash`** (`!173`). The contract
   stash-dance is intra-turn; parked work goes on a pushed `parked/<branch>`. Ten such branches
   exist; five are dead (`!173`'s MR lists them) and deleting them is his.
-- Memory answers none of the four questions. A product fact found only in memory is not a fact.
+- Memory answers none of the four questions; it is 50 notes under a hook-enforced budget.
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
 (stash commit; untracked files in its third parent — `git stash apply parked/feat/player-overview-tab`)
