@@ -1,643 +1,599 @@
-diff --git a/.claude/hooks/host_fingerprint_gate.py b/.claude/hooks/host_fingerprint_gate.py
-new file mode 100644
-index 00000000..1d312f1f
---- /dev/null
-+++ b/.claude/hooks/host_fingerprint_gate.py
-@@ -0,0 +1,124 @@
-+#!/usr/bin/env python
-+"""Host-fingerprint gate — a live host's network address has no place in a public repo.
-+
-+Denies an `Edit`, `Write` or `MultiEdit` whose written text puts a public network address into
-+ANY file inside the repo — any tree, any extension, the committed task artifacts under
-+`.claude/task/**` included, because that is where it slipped: a reviewer's grep pattern, copied
-+into `review.md` as proof that an address was gone, carried the address. A public address is one
-+of:
-+
-+  IPv4 — four bounded octets, outside the loopback, private, link-local, multicast and reserved
-+         ranges (`127.x`, `10.x`, `172.16-31.x`, `192.168.x`, `169.254.x`, `224+.x`, the
-+         unspecified and broadcast addresses pass — they identify no host of ours)
-+  IPv6 — a global-unicast literal: a leading `2xxx`/`3xxx` group and at least three more colon
-+         groups (a time or a date has fewer; a hash has no colons)
-+
-+What the rule can recognise is the address. A hostname, a provider, a city, a hardware size or a
-+port list has no pattern and stays judgment — the deny text names them, so the moment of writing
-+is the moment of the reminder. Such facts live in the provider's console; a doc says where, not
-+what. Accepted false positive: a four-part version string reads as an IPv4 (none in the tree).
-+
-+The check reads only the text being written, not the whole file, and never echoes the value in
-+the deny. Paths outside the repo (memory, plans, scratchpad) pass. `NotebookEdit` writes
-+`new_source`, never read here. `tests/test_no_host_fingerprint_in_tree.py` imports the patterns
-+and the range test below and pins the tracked tree at zero. Fails OPEN on any unexpected error,
-+like every hook in this directory.
-+"""
-+
-+from __future__ import annotations
-+
-+import os
-+import re
-+import sys
-+from collections.abc import Iterator
-+
-+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-+from _command_utils import emit_deny, read_event  # noqa: E402
-+
-+_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
-+# Four octets not glued to a word character, and not one part of a longer dotted number
-+# (`1.2.3.4.5`): a dot before or after counts only when a digit sits on its other side, so an
-+# address at the end of a sentence still matches.
-+IPV4 = re.compile(rf"(?<!\w)(?<!\d\.){_OCTET}(?:\.{_OCTET}){{3}}(?!\w)(?!\.\d)")
-+IPV6 = re.compile(r"(?<![\w:])[23][0-9a-fA-F]{3}(?::[0-9a-fA-F]{0,4}){3,7}(?![\w:])")
-+
-+
-+def ipv4_is_public(literal: str) -> bool:
-+    """True when the four octets name a host on the public internet."""
-+    a, b, c, d = (int(x) for x in literal.split("."))
-+    if a in (0, 10, 127) or a >= 224:
-+        return False
-+    if a == 172 and 16 <= b <= 31:
-+        return False
-+    if a == 192 and b == 168:
-+        return False
-+    if a == 169 and b == 254:
-+        return False
-+    if (a, b, c, d) == (255, 255, 255, 255):
-+        return False
-+    return True
-+
-+
-+def flagged_lines(text: str) -> Iterator[tuple[int, str]]:
-+    """(1-based line number, kind) for every line carrying a public address literal."""
-+    for n, line in enumerate(text.splitlines(), 1):
-+        if any(ipv4_is_public(m.group(0)) for m in IPV4.finditer(line)):
-+            yield n, "IPv4"
-+        elif IPV6.search(line):
-+            yield n, "IPv6"
-+
-+
-+def _written_texts(tool_input: dict) -> list[str]:
-+    texts = []
-+    if isinstance(tool_input.get("new_string"), str):
-+        texts.append(tool_input["new_string"])
-+    if isinstance(tool_input.get("content"), str):
-+        texts.append(tool_input["content"])
-+    for edit in tool_input.get("edits") or []:
-+        if isinstance(edit, dict) and isinstance(edit.get("new_string"), str):
-+            texts.append(edit["new_string"])
-+    return texts
-+
-+
-+def _repo_root() -> str:
-+    env = os.environ.get("CLAUDE_PROJECT_DIR")
-+    if env:
-+        return os.path.abspath(env)
-+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-+
-+
-+def main() -> int:
-+    event = read_event()
-+    try:
-+        tool_input = event.get("tool_input") or {}
-+        file_path = tool_input.get("file_path") or ""
-+        if not file_path:
-+            return 0
-+        try:
-+            rel = os.path.relpath(os.path.abspath(file_path), _repo_root())
-+        except ValueError:
-+            return 0
-+        if rel.startswith(".."):
-+            return 0
-+        rel = rel.replace("\\", "/")
-+        hits = []
-+        for text in _written_texts(tool_input):
-+            hits.extend(flagged_lines(text))
-+        if not hits:
-+            return 0
-+        shown = ", ".join(f"line {n} ({kind})" for n, kind in hits[:3])
-+        emit_deny(
-+            f"HOST FINGERPRINT GATE: this write puts a public network address into `{rel}` at "
-+            f"{shown}. A live host's address has no place in a public repo — not in a doc, not in "
-+            "a task artifact, not as a grep pattern proving it is gone. Describe the host and say "
-+            "where its address lives (the provider's console); the same goes for its size, its "
-+            "city and its open ports, which no pattern can catch. If this is a version string, "
-+            "spell it another way."
-+        )
-+    except Exception:
-+        return 0
-+    return 0
-+
-+
-+if __name__ == "__main__":
-+    sys.exit(main())
-diff --git a/.claude/settings.json b/.claude/settings.json
-index f6575c01..92a53f73 100644
---- a/.claude/settings.json
-+++ b/.claude/settings.json
-@@ -75,6 +75,12 @@
-             "shell": "bash",
-             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/memory_budget_gate.py\"",
-             "statusMessage": "Checking the memory budget..."
-+          },
-+          {
-+            "type": "command",
-+            "shell": "bash",
-+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/host_fingerprint_gate.py\"",
-+            "statusMessage": "Checking for a host address..."
-           }
-         ]
-       }
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 0af0e66b..6f8ff7d1 100644
+index 6f8ff7d1..2fbab952 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,35 +1,32 @@
--# Task contract — memory cut to behaviour rules, with size budgets a hook enforces
-+# Task contract — no live host address in any committed file: an edit-time guard and a pinned count
+@@ -1,33 +1,28 @@
+-# Task contract — no live host address in any committed file: an edit-time guard and a pinned count
++# Task contract — the roadmap has one home
  
  objective: >
--  The agent's memory folder (`~/.claude/projects/D--Projects-football-data-pipeline/memory/`,
--  outside the repo) holds 108 files + the index — 477,078 chars; the index `MEMORY.md`, loaded into
--  every session, 17,152 chars over 103 lines. 34 files are dead weight (13 handovers superseded by
--  `.claude/active_work.md`; 21 repeating a repo fact or describing a state that changed), the rest
--  say the same rules several times in files of 8–20 KB. This branch cuts the folder to behaviour
--  rules and pointers, then adds the guard: an edit-time hook that refuses a write into the folder
--  when it would push the index, a note or the file count past a budget — the three budgets pinned
--  to what the cut measured, ratcheting down only. #115 step 9, the last.
-+  On `!182` the CI runner's public address went into a committed file twice — first into
-+  `docs/operations_guide.md` (caught by the cto-reviewer, removed), then as the grep pattern a
-+  reviewer used to prove it was gone, copied into `.claude/task/review.md`, which is committed and
-+  was pushed to the public repo before anyone noticed. The branch was rewritten. A review caught
-+  it once and not the second time, because the second copy sat inside the review's own record.
-+  This branch adds the guard: an edit-time hook that refuses writing a public network address into
-+  any file inside the repo, task artifacts included, and a CI test that pins the count of such
-+  literals in the tracked tree at zero — measured today: zero public, one loopback.
+-  On `!182` the CI runner's public address went into a committed file twice — first into
+-  `docs/operations_guide.md` (caught by the cto-reviewer, removed), then as the grep pattern a
+-  reviewer used to prove it was gone, copied into `.claude/task/review.md`, which is committed and
+-  was pushed to the public repo before anyone noticed. The branch was rewritten. A review caught
+-  it once and not the second time, because the second copy sat inside the review's own record.
+-  This branch adds the guard: an edit-time hook that refuses writing a public network address into
+-  any file inside the repo, task artifacts included, and a CI test that pins the count of such
+-  literals in the tracked tree at zero — measured today: zero public, one loopback.
++  The roadmap now lives in GitLab: seven milestones in the site's menu order (Home, Competitions,
++  Matches, Teams, Players, Standings, Stats) and one review issue per page under each (#127–#140),
++  every page rechecked and approved by the product owner before it is built. Four documents also
++  carried a roadmap — two dead, two partial. This branch deletes the two dead ones and turns the
++  two partial sections into a pointer at the milestones, so there is exactly one roadmap.
  
  refs: >
--  GitLab #125 (this task, `Task` template; the What/Why/How below are copied from it). #115 step 9
--  ("memory cut to behaviour-changing rules, and size budgets per surface … Mechanism owed: a
--  budget, so adding requires removing"). The rule the cut applies: `CLAUDE.md` "Which source
--  answers which question" — memory answers none of the four. The pattern the hook copies:
--  `.claude/hooks/comment_history_gate.py` (`!177`) and the pinned-count ratchet of
--  `tests/test_no_decision_history_in_code.py`.
-+  GitLab #126 (this task, `Task` template; the What/Why/How below are copied from it). The
-+  product owner's requirement, 2026-09-12, in chat, after the slip on `!182`: "So it actually
-+  slipped. We must not allow this in the future." The pattern the guard copies:
-+  `.claude/hooks/comment_history_gate.py` + `tests/test_no_decision_history_in_code.py` (`!177`).
+-  GitLab #126 (this task, `Task` template; the What/Why/How below are copied from it). The
+-  product owner's requirement, 2026-09-12, in chat, after the slip on `!182`: "So it actually
+-  slipped. We must not allow this in the future." The pattern the guard copies:
+-  `.claude/hooks/comment_history_gate.py` + `tests/test_no_decision_history_in_code.py` (`!177`).
++  GitLab #141 (this task, `Task` template; the What/Why/How below are copied from it). The
++  product owner's words, 2026-09-12, in chat: "go, create the milestones and delete the dead
++  docs", after "we need a single source of truth that we adhere to and where we track our
++  progress". `CLAUDE.md` "Which source answers which question": what is next is the GitLab
++  tracker, never a document.
  
- protected_override: >
--  `.claude/hooks/memory_budget_gate.py` (new) and `.claude/settings.json` (one hook registration).
--  The product owner's go to this step's plan is recorded verbatim in `decisions_taken` below, in
--  the commit message and in the MR head; under working_agreement §11 the durable approval is his
--  merge of this MR.
-+  `.claude/hooks/host_fingerprint_gate.py` (new) and `.claude/settings.json` (one hook
-+  registration). The product owner's words that require this mechanism are quoted in
-+  `decisions_taken` below, in the commit message and in the MR head; under working_agreement §11
-+  the durable approval is his merge of this MR.
+-protected_override: >
+-  `.claude/hooks/host_fingerprint_gate.py` (new) and `.claude/settings.json` (one hook
+-  registration). The product owner's words that require this mechanism are quoted in
+-  `decisions_taken` below, in the commit message and in the MR head; under working_agreement §11
+-  the durable approval is his merge of this MR.
++protected_override: none — no protected path is touched (`.github/ISSUE_TEMPLATE/` is not
++  `.github/workflows/`).
  
  scope_paths:
--  - .claude/hooks/memory_budget_gate.py
-+  - .claude/hooks/host_fingerprint_gate.py
-   - .claude/settings.json
--  - tests/test_memory_budget_gate.py
-+  - tests/test_no_host_fingerprint_in_tree.py
-   - docs/agent_guardrails.md
--  - docs/operations_guide.md
-   - CLAUDE.md
+-  - .claude/hooks/host_fingerprint_gate.py
+-  - .claude/settings.json
+-  - tests/test_no_host_fingerprint_in_tree.py
+-  - docs/agent_guardrails.md
+-  - CLAUDE.md
++  - docs/agent_company_roadmap.md
++  - docs/backlog.md
++  - docs/north_star.md
++  - docs/site_architecture.md
++  - .github/ISSUE_TEMPLATE/config.yml
    - .claude/active_work.md
    - .claude/task/contract.md
-@@ -38,99 +35,78 @@ scope_paths:
+   - .claude/task/review.md
+@@ -35,78 +30,45 @@ scope_paths:
    - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: one new hook, one registration entry, one test file, one guardrails row, one
--    operations-guide section (the CI-runner facts moving in from memory), the `CLAUDE.md` memory
--    section, the handover. Outside the repo: the memory folder — deletions, merges, rewrites and a
--    rebuilt index, none of which the patch shows; the evidence carries them.
+-  writers: one new hook, one registration entry, one test file, one guardrails row, one line in
+-    `CLAUDE.md`, the handover.
++  writers: two files deleted; one section each in `north_star.md` and `site_architecture.md`
++    replaced by a pointer; one link in the dormant GitHub issue-template config repointed; the
++    handover.
+ 
+-  downstream (a guard's blast radius is every future edit): the hook fires on every `Edit`,
+-    `Write`, `MultiEdit` and `NotebookEdit` whose target is INSIDE the repo — any extension, any
+-    tree, `.claude/task/**` included, because that is where the slip happened. It reads only the
+-    written text (`content`, `new_string`, `edits[].new_string`) and denies when a line carries a
+-    public IPv4 literal (four bounded octets, not loopback, private, link-local, multicast, the
+-    unspecified or broadcast address) or a global-unicast IPv6 literal (a leading `2xxx`/`3xxx`
+-    group followed by at least three more colon groups). Paths outside the repo (memory, plans,
+-    scratchpad), and any text without such a literal, pass with no output. `NotebookEdit` writes
+-    `new_source`, never read here, so it passes. Any exception → return 0, no output: fails OPEN.
+-    The test imports the hook's patterns and its range test, walks `git ls-files`, and pins the
+-    tree at zero, so the CI count and the edit-time deny cannot drift apart. No other hook, the
+-    review hash, routing or CI job changes.
++  downstream: nothing reads these files — `git grep` for the two deleted names finds one
++    reference, the issue-template config, which is repointed here. No code, model, script, test,
++    CI job or site source reads `north_star.md` or `site_architecture.md`. `tests/test_no_dead_issue_refs.py`
++    covers `CLAUDE.md` and the handover only; the GitHub-era numbers removed from
++    `site_architecture.md` §7 were not in its scope.
+ 
+-  what stops being enforced if it is wrong: nothing enforced today — no gate looked for this;
+-    gitleaks (`validate:secrets`) scans for credential shapes, not addresses. If the hook
+-    mis-denies, the message names the file and line and the way out (describe the host, keep the
+-    value in the provider's console).
++  what stops being enforced if it is wrong: nothing — prose only.
+ 
+-  layer_rules: n/a. deploy_order: none.
 -
--  downstream (a guard's blast radius is every future memory write): the hook fires on every
--    `Edit`, `Write`, `MultiEdit` and `NotebookEdit`. It acts ONLY when the target path matches
--    `…/.claude/projects/<slug>/memory/<name>.md`; every other path returns 0 with no output, so no
--    repo edit, task artifact, plan file or scratchpad file is touched by it. On a memory path it
--    computes the RESULTING file (Write: `content`; Edit: the file on disk with `old_string` →
--    `new_string` applied, `replace_all` honoured; MultiEdit: the edits in order) and denies when
--    (a) the file is `MEMORY.md` and the result exceeds `INDEX_MAX_CHARS`, (b) any other note and
--    the result exceeds `FILE_MAX_CHARS`, or (c) the path does not exist yet and the folder already
--    holds `MAX_FILES` notes. A result no larger than the file on disk always passes, so an
--    over-budget file can always be cut. `NotebookEdit` writes `new_source`, which the hook does
--    not read, so it passes. Any exception → return 0, no output: fails OPEN like every hook here.
--    The test drives the hook as a subprocess on a temp folder of the same shape; the real folder
--    is measured by `--report` in the evidence. `task_contract_gate.py` keeps ignoring paths outside
--    the repo — this hook is the only one that looks there. Every other hook, the review hash,
--    routing and CI: untouched.
--
--  what stops being enforced if it is wrong: nothing enforced today — the folder had no gate. If
--    the hook mis-denies, the message names the surface, the measured size and the budget, and the
--    way out is to cut the note or delete one first.
--
--  layer_rules: n/a.
--
--  deploy_order: none.
--
--  blast_radius: a NEW DENY on memory writes only. Bounded by the path test. The one edit it can
--    make harder is a large memory write in a hurry — by design; the budget is the mechanism.
-+  writers: one new hook, one registration entry, one test file, one guardrails row, one line in
-+    `CLAUDE.md`, the handover.
-+
-+  downstream (a guard's blast radius is every future edit): the hook fires on every `Edit`,
-+    `Write`, `MultiEdit` and `NotebookEdit` whose target is INSIDE the repo — any extension, any
-+    tree, `.claude/task/**` included, because that is where the slip happened. It reads only the
-+    written text (`content`, `new_string`, `edits[].new_string`) and denies when a line carries a
-+    public IPv4 literal (four bounded octets, not loopback, private, link-local, multicast, the
-+    unspecified or broadcast address) or a global-unicast IPv6 literal (a leading `2xxx`/`3xxx`
-+    group followed by at least three more colon groups). Paths outside the repo (memory, plans,
-+    scratchpad), and any text without such a literal, pass with no output. `NotebookEdit` writes
-+    `new_source`, never read here, so it passes. Any exception → return 0, no output: fails OPEN.
-+    The test imports the hook's patterns and its range test, walks `git ls-files`, and pins the
-+    tree at zero, so the CI count and the edit-time deny cannot drift apart. No other hook, the
-+    review hash, routing or CI job changes.
-+
-+  what stops being enforced if it is wrong: nothing enforced today — no gate looked for this;
-+    gitleaks (`validate:secrets`) scans for credential shapes, not addresses. If the hook
-+    mis-denies, the message names the file and line and the way out (describe the host, keep the
-+    value in the provider's console).
-+
-+  layer_rules: n/a. deploy_order: none.
-+
-+  blast_radius: a NEW DENY on edits, bounded to lines carrying an address literal. Accepted false
-+    positive, named in the hook and the test: a bare four-part version string (four dotted
-+    numbers with nothing before them) reads as an IPv4 and is denied; none exists in the tree
-+    today, a `v` prefix is enough to pass, and the deny says what to do. The guard's first catch
-+    was this contract's own first draft, which spelt that example out as four digits.
+-  blast_radius: a NEW DENY on edits, bounded to lines carrying an address literal. Accepted false
+-    positive, named in the hook and the test: a bare four-part version string (four dotted
+-    numbers with nothing before them) reads as an IPv4 and is denied; none exists in the tree
+-    today, a `v` prefix is enough to pass, and the deny says what to do. The guard's first catch
+-    was this contract's own first draft, which spelt that example out as four digits.
++  layer_rules: n/a. deploy_order: none. blast_radius: none in behaviour; in prose, a reader of
++    either section now finds one line and a link instead of a stale sequence.
  
  acceptance_criteria:
--  - The memory folder is cut to behaviour rules and pointers: the 13 `session_handoff_*` and every
--    `project_*` that repeats a repo fact (named per file) or describes a changed state are deleted;
--    the nine same-rule clusters are merged; every surviving note is the rule, why, and how to
--    apply, without dates or PR narrative. Reported two-sided: files before/after by class, chars
--    before/after, the merge map.
--  - The three memory-only facts have a home or are gone: `ci-runner-01` → `docs/operations_guide.md`;
--    the guardrails plugin → a `reference_` note; the semantic-layer intention dropped.
--  - `.claude/hooks/memory_budget_gate.py` is wired and its three budgets equal the measured
--    landing (`--report`): file count, index chars, largest note chars. On the real folder, one
--    char over any budget is denied with the hook's own text; a shrinking edit of an over-budget
--    file passes.
--  - `tests/test_memory_budget_gate.py` covers each deny and each pass on a temp folder, plus
--    non-memory path ignored and malformed stdin fails open; `pytest tests/` green with `main`'s
--    count plus the new tests; ruff clean on the hook and the test.
--  - `docs/agent_guardrails.md` has the row; `CLAUDE.md` "Memory files" names the budgets and the
--    hook and its key-files lines point at files that exist; `MEMORY.md` links all resolve; the
--    handover states #115 done and product work next.
-+  - `.claude/hooks/host_fingerprint_gate.py` is wired and denies, on the real repo, writing a
-+    runtime-built public IPv4 or IPv6 literal into a code file, a doc, and `.claude/task/review.md`;
-+    a loopback, private or link-local literal passes; the deny does not echo the value.
-+  - `tests/test_no_host_fingerprint_in_tree.py` pins the tracked tree at zero such literals
-+    (measured two-sided: 0 public, 1 loopback in `design-mocks/README.md`), proves the patterns
-+    both ways on runtime-built samples, and imports the hook's definition rather than copying it;
-+    `pytest tests/` green with `main`'s count plus the new tests; ruff clean.
-+  - Mutations shown red: widen the private-range test to admit a public address → the sample
-+    test fails; drop the IPv6 pattern → its sample fails; a scratch file with a public address in
-+    the tree → the pinned count fails.
-+  - `docs/agent_guardrails.md` has the row; `CLAUDE.md` "Operational notes" has the line; the
-+    handover states #126 done and #118 next.
+-  - `.claude/hooks/host_fingerprint_gate.py` is wired and denies, on the real repo, writing a
+-    runtime-built public IPv4 or IPv6 literal into a code file, a doc, and `.claude/task/review.md`;
+-    a loopback, private or link-local literal passes; the deny does not echo the value.
+-  - `tests/test_no_host_fingerprint_in_tree.py` pins the tracked tree at zero such literals
+-    (measured two-sided: 0 public, 1 loopback in `design-mocks/README.md`), proves the patterns
+-    both ways on runtime-built samples, and imports the hook's definition rather than copying it;
+-    `pytest tests/` green with `main`'s count plus the new tests; ruff clean.
+-  - Mutations shown red: widen the private-range test to admit a public address → the sample
+-    test fails; drop the IPv6 pattern → its sample fails; a scratch file with a public address in
+-    the tree → the pinned count fails.
+-  - `docs/agent_guardrails.md` has the row; `CLAUDE.md` "Operational notes" has the line; the
+-    handover states #126 done and #118 next.
++  - `docs/agent_company_roadmap.md` and `docs/backlog.md` are gone; `git grep` for either name
++    over the tree finds nothing.
++  - `docs/north_star.md` "Next milestone" and `docs/site_architecture.md` §7's go-live bullet
++    each point at the GitLab milestones in one line, keeping the non-roadmap facts (the quality
++    bar; Firebase hosting, no MVP to switch from, no redirects); no GitHub-era issue number
++    remains in either section.
++  - `.github/ISSUE_TEMPLATE/config.yml` links the milestones, not the deleted file.
++  - The handover names the milestones as the roadmap and #127 (Home) as the first review.
  
  decisions_taken: >
--  CPO, 2026-09-12, in chat: "go" — to the plan as revised after his objection that the budgets
--  "seem quite arbitrary": the budgets are MEASURED, NOT CHOSEN. The cut happens first; the hook's
--  three constants are then pinned to what the cut landed on (file count, index size, largest
--  note) and ratchet down only — the same pattern as the comment guard's pin. Nothing else in the
--  step is a choice: the cut applies `CLAUDE.md`'s rule (memory holds behaviour feedback and
--  pointers, never a product fact), and the rewrite applies the sweeps' rule (keep the why, drop
--  the who and when).
+-  CPO, 2026-09-12, in chat: "So it actually slipped. We must not allow this in the future." — the
+-  requirement. The shape is the builder's, in the repo's established form: an edit-time deny plus
+-  a pinned CI count, the two halves importing one definition.
 -
--  THE THREE MEMORY-ONLY FACTS: the builder's disposition, stated in the plan he approved —
--  `ci-runner-01` facts move to `docs/operations_guide.md` (the doc that owns operations); the
--  guardrails-plugin pointer becomes `reference_guardrails_plugin.md`; the semantic-layer
--  intention is dropped (an issue if it is ever wanted).
--
--  THRESHOLD — NEW MECHANISM: yes — a new deny on memory writes, approved above; the numbers are
--  measurements. THRESHOLD — RECURRING COST: none.
-+  CPO, 2026-09-12, in chat: "So it actually slipped. We must not allow this in the future." — the
-+  requirement. The shape is the builder's, in the repo's established form: an edit-time deny plus
-+  a pinned CI count, the two halves importing one definition.
-+
-+  WHAT THE RULE CAN RECOGNISE: a network address literal. A hostname, a provider name, a city, a
-+  hardware size or a port list has no pattern; those remain judgment, and the guard's deny text
-+  names them so the moment of writing is the moment of the reminder.
-+
-+  THRESHOLD — NEW MECHANISM: yes, required above. THRESHOLD — RECURRING COST: none (one more
-+  subprocess per edit, like the four gates already in that matcher group).
+-  WHAT THE RULE CAN RECOGNISE: a network address literal. A hostname, a provider name, a city, a
+-  hardware size or a port list has no pattern; those remain judgment, and the guard's deny text
+-  names them so the moment of writing is the moment of the reminder.
++  CPO, 2026-09-12, in chat: "go, create the milestones and delete the dead docs". The milestones
++  and the review issues were created before this branch (GitLab #127–#140, milestones 1–7);
++  this branch is the documentation half of that instruction.
+ 
+-  THRESHOLD — NEW MECHANISM: yes, required above. THRESHOLD — RECURRING COST: none (one more
+-  subprocess per edit, like the four gates already in that matcher group).
++  THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
  
  decisions_reserved:
--  - A SessionStart report line; closing the shell-write bypass; any widening of the hook's
--    path test beyond the memory folder.
-+  - Extending `.gitleaks.toml` with an address rule (a second rule set with `useDefault`
-+    semantics of its own); scanning git history; hostnames or provider names as a pattern.
+-  - Extending `.gitleaks.toml` with an address rule (a second rule set with `useDefault`
+-    semantics of its own); scanning git history; hostnames or provider names as a pattern.
++  - The wireframe overview's status table (`docs/wireframes/00_overview.md`) — corrected page by
++    page as each review issue closes, not here. Whether the dormant `.github/ISSUE_TEMPLATE/`
++    directory should exist at all.
  
  done_when:
--  - The five criteria proven; the hook's `--report` on the real folder equals its three constants;
--    the four mutations shown; `pytest tests/` and ruff green; the MR head lists the deletions by
--    class and the merge map.
-+  - The four criteria proven; `pytest tests/` and ruff green; the three mutations shown red.
+-  - The four criteria proven; `pytest tests/` and ruff green; the three mutations shown red.
++  - The four criteria proven; `pytest tests/test_no_dead_issue_refs.py` green.
  
  amendments:
--  - After round 1 (cto-reviewer): the "CI runner" section written into `docs/operations_guide.md`
--    carried the runner's public IPv4, host size and city, and its exact firewall rule — a live
--    host's fingerprint moved from a private note into a public repo, beside the description of the
--    prod credential's WIF binding. Never in the tracked tree before this branch, and not a
--    disclosure his "go" covered (the plan said "the facts move into the operations guide", not
--    which facts). Removed: the address, the specs, the city, the firewall rule. Kept: that one
--    small Hetzner VM is the only runner, its registration, why no group, no GCP credentials on the
--    host, the IPv6 clone failure and its fix, the console keyboard trap, SSH by key only. The
--    address lives in the Hetzner account, which the section now says.
--  - After round 1 (platform-reviewer): three defects in the machinery, all fixed and each proven
--    by mutation. (1) `test_budgets_only_ever_move_down` compared the three budgets as ONE tuple,
--    which Python compares lexicographically — a lowered first budget would have hidden a raised
--    third; now three assertions, and the mutation (`MAX_FILES` 49, `FILE_MAX_CHARS` 999999) goes
--    red. (2) The universal-newline read the hook relies on had no test that could fail on the
--    Linux runner (every fixture wrote LF); a new test writes a CRLF note as BYTES at exactly the
--    budget after normalisation and over it raw, and the mutation (`newline=""`) goes red. (3)
--    `--report` on a missing folder crashed with a traceback; it now prints "no memory folder at …"
--    and exits 1, pinned by a test. Criterion 4's test count is 29, not 27.
-+  - After round 1 (platform-reviewer): (1) the IPv4 pattern's trailing lookahead rejected any
-+    following dot, so an address glued to a full stop — the ordinary prose case, and the shape
-+    that leaked — passed both the hook and the pin. The lookarounds now reject a neighbouring dot
-+    only when a digit sits on its other side (a longer dotted number), so `… is <address>.`
-+    matches and `1.2.3.4.5` still does not; a parametrised test pins eight surroundings (full
-+    stop, parentheses, backticks, a port, a URL, bare, `key=`, a comma), and the mutation back to
-+    the old lookahead goes red on the full-stop case. (2) The pin's "the walk sees files" half was
-+    asserted against one README's loopback lines — a coupling to content the guard itself permits
-+    to change; it now asserts only that at least one non-public address line was seen. Tests 38 →
-+    46; criterion 2's count updated.
-+  - After round 1 (scope-auditor): the evidence carried the full-suite placeholder while the
-+    suite ran — filled with the measured result before round 2, and the suite re-run after (1).
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 3f40832f..249a6b92 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -164,6 +164,12 @@ every session that learned something had to delete something. None of this is cu
-   the issue, and `git blame` reaches all three from any line
-   (`dbt_project/docs/engineering_standards.md` §1.2 has the recipe). 429 such lines existed on
-   2026-09-11; #115 step 8 adds the hook that ratchets them down.
-+- **A live host's network address never goes into a committed file — the task artifacts
-+  included.** `host_fingerprint_gate.py` refuses the write and
-+  `tests/test_no_host_fingerprint_in_tree.py` pins the tree at zero. It slipped once, as a grep
-+  pattern copied from a reviewer's verdict into `review.md` to prove the address was gone. A host's
-+  size, city and open ports are the same class and no pattern can catch them: describe the host,
-+  say the value lives in the provider's console.
- - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
-   blocks the turn once if any fails. Do not end a turn on a red gate silently.
- - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 98281549..52c16f9c 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -57,6 +57,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
- | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
- | `memory_budget_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `~/.claude/projects/<slug>/memory/*.md` | **Denies** a write to the agent's memory folder when the RESULTING file would exceed its surface's budget — the index `MEMORY.md`, or any other note — or when a new note would push the count past the cap: adding a note means removing one. Measures the file the tool call will produce (a `Write`'s content; an `Edit` or `MultiEdit` applied to the file on disk), in characters; a result no larger than the file on disk always passes, so an over-budget note can always be cut. The three budgets are pinned to what the folder MEASURED after the cut that introduced them (50 notes, a 7,669-character index, a 4,232-character largest note) and move down only — the same shape as the comment guard's pinned count. Memory is the one surface no other gate looks at (`task_contract_gate.py` deliberately ignores paths outside the repo), and it is where two 2026-09 sessions took a product fact the repo contradicted; a budget is what makes the cut hold. `--report` prints the three measurements; `tests/test_memory_budget_gate.py` drives every deny and pass on a temp folder. A shell write into the folder bypasses it, as it bypasses the comment gate; the repo's rule already forbids shell writes for files. |
-+| `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on any path inside the repo | **Denies** a write whose text puts a public network address — an IPv4 outside the loopback, private, link-local, multicast and reserved ranges, or a global-unicast IPv6 — into any file inside the repo, `.claude/task/**` included. That is where it slipped: a CI runner's address went into a doc (caught by review), then into `review.md` as the grep pattern a reviewer had used to prove it was gone (not caught — the copy sat inside the review's own record), and was pushed to the public repo before anyone noticed. The deny names the file and line and never echoes the value; it also names what no pattern can catch — a host's size, city and open ports — so the moment of writing is the moment of the reminder. Reads only the written text; paths outside the repo pass; fails open. `tests/test_no_host_fingerprint_in_tree.py` imports the same patterns and pins the tracked tree at zero (measured: zero public, the mocks README's loopback preview address passes). Accepted false positive: a bare four-part version string; a `v` prefix is enough to pass. A shell write bypasses it like every edit-time gate; the pin catches that at CI. |
+-  - After round 1 (platform-reviewer): (1) the IPv4 pattern's trailing lookahead rejected any
+-    following dot, so an address glued to a full stop — the ordinary prose case, and the shape
+-    that leaked — passed both the hook and the pin. The lookarounds now reject a neighbouring dot
+-    only when a digit sits on its other side (a longer dotted number), so `… is <address>.`
+-    matches and `1.2.3.4.5` still does not; a parametrised test pins eight surroundings (full
+-    stop, parentheses, backticks, a port, a URL, bare, `key=`, a comma), and the mutation back to
+-    the old lookahead goes red on the full-stop case. (2) The pin's "the walk sees files" half was
+-    asserted against one README's loopback lines — a coupling to content the guard itself permits
+-    to change; it now asserts only that at least one non-public address line was seen. Tests 38 →
+-    46; criterion 2's count updated.
+-  - After round 1 (scope-auditor): the evidence carried the full-suite placeholder while the
+-    suite ran — filled with the measured result before round 2, and the suite re-run after (1).
++  - none yet.
+diff --git a/.github/ISSUE_TEMPLATE/config.yml b/.github/ISSUE_TEMPLATE/config.yml
+index b8b195a4..24d0eb9b 100644
+--- a/.github/ISSUE_TEMPLATE/config.yml
++++ b/.github/ISSUE_TEMPLATE/config.yml
+@@ -1,5 +1,5 @@
+ blank_issues_enabled: false
+ contact_links:
+-  - name: Operations roadmap
+-    url: https://github.com/ramialfahham/football-data-pipeline/blob/main/docs/agent_company_roadmap.md
+-    about: Read the operating model, decision gates, and budget guardrails first.
++  - name: Roadmap and tracker (GitLab)
++    url: https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones
++    about: This GitHub repository is dormant. The roadmap and every issue live in the GitLab project.
+diff --git a/docs/agent_company_roadmap.md b/docs/agent_company_roadmap.md
+deleted file mode 100644
+index b122dae2..00000000
+--- a/docs/agent_company_roadmap.md
++++ /dev/null
+@@ -1,301 +0,0 @@
+-# Agent Company Roadmap (Lean, Ambitious, Controlled)
+-
+-## Purpose
+-
+-Run Matchday Pilot like an agent company: high automation, clear ownership, and minimal founder interrupts.
+-
+-This roadmap is intentionally scope-controlled.
+-
+-## Active operating mode (effective 2026-05-20)
+-
+-Current mode is chat-driven delivery:
+-
+-1. Founder posts a product brief in chat.
+-2. Assistant implements the change in-repo.
+-3. Assistant opens a PR.
+-4. PR autopilot handles merge enablement.
+-5. Deploy workflow ships on `main`.
+-6. Assistant confirms live status in chat.
+-
+-Paused until further notice:
+-- issue dispatch/heartbeat flows
+-- board status sync
+-- idea intake form
+-- any automation triggered by issue labels or project board state
+-
+-Role definitions in this roadmap are documentation context only. They are not autonomous workers.
+-
+----
+-
+-## Bookmark-first UI links
+-
+-Replace `ramialfahham/football-data-pipeline` only if the repo moves.
+-
+-### Product and data outputs
+-
+-- Live app landing: `https://ramialfahham.github.io/football-data-pipeline/`
+-
+-### Control plane
+-
+-- Repository home: `https://github.com/ramialfahham/football-data-pipeline`
+-- Actions overview: `https://github.com/ramialfahham/football-data-pipeline/actions`
+-- Failed runs filter: `https://github.com/ramialfahham/football-data-pipeline/actions?query=status%3Afailure`
+-- Scheduled ingest + dbt workflow: `https://github.com/ramialfahham/football-data-pipeline/actions/workflows/dbt-scheduled.yml`
+-- Pages deploy workflow: `https://github.com/ramialfahham/football-data-pipeline/actions/workflows/pages-match-preview.yml`
+-- CI validate workflow: `https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml`
+-- Data build workflow: `https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml`
+-- UI checks workflow: `https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-ui.yml`
+-
+-### Decision and review inboxes
+-
+-- Open PRs: `https://github.com/ramialfahham/football-data-pipeline/pulls`
+-- Open issues: `https://github.com/ramialfahham/football-data-pipeline/issues`
+-- Decision-needed issues (create label): `https://github.com/ramialfahham/football-data-pipeline/issues?q=is%3Aissue%20is%3Aopen%20label%3Adecision-needed`
+-- Chat-driven workflow: `docs/chat_driven_workflow.md`
+-- Board request sync: `docs/board_request_sync.md`
+-- CI failure watchdog: `docs/ci_failure_watchdog.md`
+-- PR merge autopilot guide: `docs/pr_autopilot.md`
+-- Project status sync guide: `docs/project_status_sync.md`
+-
+----
+-
+-## Operating model (who does what)
+-
+-- `CPO (you)`: approve only gated decisions.
+-- `Football Analytics Expert` + `BI Analyst`: metric truth and product framing.
+-- `Analytics Engineer` + `Data Engineer`: ingestion, dbt, tests, reliability.
+-- `UI Expert`: frontend implementation after approved spec.
+-- `QA`: release gate.
+-- `Data Scientist / ML Expert`: prediction design, model validation, explainability, and drift monitoring.
+-- `Product Ops / Portfolio Manager` (funnel owner): intake, scoring, sequencing, and anti-scope-creep enforcement.
+-- `CFO` + `Legal Counsel`: cost/licensing/compliance approvals.
+-
+-Do not skip role order for product-facing changes:
+-1. Product/UX definition
+-2. Data validation
+-3. Frontend build
+-4. QA sign-off
+-
+----
+-
+-## Idea funnel and working mode (how and when to bring ideas)
+-
+-### Where ideas go
+-
+-- Capture all ideas in GitHub Issues with label `idea`.
+-- Every idea includes: user value, target competitions, target languages, and expected cost impact (`low`/`medium`/`high`).
+-- No direct implementation from chat ideas; every idea must pass funnel stages first.
+-
+-### Issue creation responsibilities
+-
+-- `CPO (you)` creates strategic idea issues and true decision issues.
+-- Agents may create execution follow-up issues when a large idea must be split into shippable slices.
+-- Dispatch workflow adds status comments directly on active issues; use those for run-level context.
+-
+-### Weekly funnel rhythm
+-
+-1. **Collect** (continuous): ideas land in `idea` queue.
+-2. **Triage** (1x/week): funnel owner removes duplicates and clarifies scope.
+-3. **Score** (1x/week): apply intake score and budget screen.
+-4. **Select**: move only top items into `Next`; keep one objective in `Now`.
+-5. **Decide**: escalate only gate-triggering items to CPO.
+-
+-### Capacity split (default)
+-
+-- 60% reliability and data trust
+-- 25% product improvements (analytics content, UX polish)
+-- 15% exploration (predictions, new competitions, new languages)
+-
+-If reliability degrades, exploration drops to `0%` until recovery.
+-
+-### Intake template (required fields)
+-
+-- Why this is important
+-- What exactly has to be done
+-- Definition of done (acceptance checks)
+-- Scope boundary ("what we will not do")
+-
+-Optional context only when relevant:
+-- Competitions impacted (`league_code`)
+-- Languages impacted
+-- Budget note (Cursor/API/infra)
+-
+----
+-
+-## Decision-needed gates (founder interrupt policy)
+-
+-You are required only for:
+-
+-1. Scope/cost changes:
+-   - history window
+-   - ingest profile
+-   - fanout and cost caps
+-2. Product gate failures:
+-   - data gate fail
+-   - UX gate fail
+-3. Legal/commercial risk:
+-   - API/data license uncertainty
+-   - tracking/privacy changes
+-   - branding/IP concerns
+-4. Stage transitions:
+-   - architecture spend step-up
+-   - new competition rollout with meaningful quota/cost impact
+-5. Prediction/ML decisions:
+-   - new model family choice
+-   - explainability method change
+-   - promotion from shadow mode to user-facing predictions
+-
+-If none of the above is triggered, agents proceed autonomously.
+-
+----
+-
+-## Anti-scope-creep protocol (non-negotiable)
+-
+-### 1) One active objective
+-
+-Keep exactly one `Now` objective at a time:
+-- Example: "Reliable daily ingest + match preview publish."
+-
+-Everything else is `Next` or `Later`.
+-
+-### 2) WIP limits
+-
+-- Max 1 in-progress platform initiative.
+-- Max 2 in-progress tactical tasks.
+-- No third task starts before one closes.
+-
+-### 3) Intake score (before work starts)
+-
+-Every new idea gets a score from 1 (low) to 5 (high):
+-- User value
+-- Strategic fit (North Star)
+-- Cost impact
+-- Delivery risk
+-- Reuse potential
+-
+-Only start items with:
+-- value >= 4
+-- strategic fit >= 4
+-- cost impact <= 3 (unless explicitly approved)
+-
+-### 4) Definition of done freeze
+-
+-Before implementation, freeze:
+-- exact outcome
+-- touched systems
+-- verification checks
+-
+-No silent scope expansion mid-task.
+-
+-### 5) Kill rule
+-
+-Stop or defer any item that:
+-- adds complexity without measurable user value,
+-- requires budget increase without pre-approval,
+-- blocks critical reliability work.
+-
+----
+-
+-## Budget guardrails (starting defaults)
+-
+-Adjust numbers after one operating cycle.
+-
+-### Cursor budget guardrails
+-
+-- Soft cap: 3 substantial agent execution cycles per day.
+-- Hard cap: 5 cycles per day.
+-- Rule: if soft cap is hit, only reliability and release-blocking work continues.
+-
+-### API budget guardrails
+-
+-- Soft cap: 70 requests/day per key.
+-- Hard cap: 90 requests/day per key (assuming free-tier style constraints).
+-- Rule: when soft cap is hit, prioritize upcoming fixtures and defer archive fanout.
+-
+-### Spend escalation trigger
+-
+-Escalate budget only if both are true:
+-- reliability SLO is stable,
+-- at least one growth or retention signal improves after previous investments.
+-
+----
+-
+-## Roadmap by stage (no calendar promises)
+-
+-## Stage 0 - Autonomous reliability baseline
+-
+-Goal: zero-surprise pipeline and predictable publish flow.
+-
+-Deliverables:
+-- decision-needed label and issue template
+-- PR template with Data Gate and UX Gate checkboxes
+-- workflow health dashboard habit (Actions failures monitored daily)
+-
+-Exit criteria:
+-- scheduled ingest/build/deploy are stable,
+-- founder interruptions happen only for gate events.
+-
+-## Stage 1 - Product quality and trust
+-
+-Goal: every surfaced metric is clear, tested, and explainable.
+-
+-Deliverables:
+-- metric catalogue ownership enforced
+-- null/missing behavior explicit in product copy and specs
+-- stricter test coverage for critical marts
+-
+-Exit criteria:
+-- no unresolved metric ambiguity in release PRs,
+-- quality gates pass consistently.
+-
+-## Stage 2 - Explainable prediction foundation
+-
+-Goal: ship prediction capability early, but transparently and safely.
+-
+-Deliverables:
+-- `Data Scientist / ML Expert` role operating with Football Analytics + BI alignment
+-- baseline explainable models (e.g. calibrated logistic/Poisson-style approach) before complex black-box models
+-- feature and target definitions documented per competition
+-- prediction outputs include confidence and explanation fields
+-- shadow-mode validation before user-visible rollout
+-
+-Exit criteria:
+-- prediction quality exceeds agreed baseline on holdout windows,
+-- explanations are readable by non-technical fans,
+-- legal/commercial and UX gates pass.
+-
+-## Stage 3 - Lean growth instrumentation
+-
+-Goal: measure usage and sharing without heavy overhead.
+-
+-Deliverables:
+-- privacy-friendly event tracking for funnel steps
+-- share rate and retention reporting loop
+-- decision reports tied to product changes
+-
+-Exit criteria:
+-- roadmap prioritization uses behavioral evidence, not intuition.
+-
+-## Stage 4 - Scale preparation
+-
+-Goal: prepare architecture and economics for larger reach.
+-
+-Deliverables:
+-- explicit build-vs-buy decisions per subsystem
+-- API and infrastructure cost thresholds documented
+-- migration path for backend/API layer when static export is insufficient
+-
+-Exit criteria:
+-- stage-transition decisions are evidence-based and financially bounded.
+-
+----
+-
+-## Weekly founder control loop (lightweight)
+-
+-1. Check Actions failure view.
+-2. Check decision-needed issue queue.
+-3. Approve, defer, or reject only gated items.
+-4. Re-confirm `Now` objective and WIP limits.
+-5. Move one `Next` item into `Now` only after closure.
+-
+-Keep this loop short and strict.
+diff --git a/docs/backlog.md b/docs/backlog.md
+deleted file mode 100644
+index 0ab0c694..00000000
+--- a/docs/backlog.md
++++ /dev/null
+@@ -1,70 +0,0 @@
+-# Product Backlog
+-
+-**Owner:** CPO
+-**Last updated:** 2026-05-03
+-
+-Items are in priority order within each track. Status values: `not started` · `in progress` · `blocked` · `done`.
+-
+----
+-
+-## Track 1 — WC 2026 pipeline (sequential)
+-
+-| # | Item | Why | Status | Lead |
+-|---|------|-----|--------|------|
+-| W1 | Ingest WC26 fixtures + staging models | Prerequisite for everything WC26. Registry is `in_progress`. | not started | Data Engineer |
+-| W2 | WC26 participants seed (`seeds/wc26_participants.csv`, 48 teams) | Needed to filter qualifier form data to actual WC participants. Inter-confederation playoffs done — unblocked. | not started | Data Engineer |
+-| W3 | WC26 qualifier form ingestion (`/fixtures?team={id}&last=10` per team) | Pre-tournament form comes from qualifiers, not a single league. 48 API calls for initial backfill. | not started | Data Engineer |
+-| W4 | WC26 intermediate — form source transition logic | Switches from qualifier form to tournament form after the first WC match. Scoped to WC26. | not started | Analytics Engineer |
+-| W5 | Activate `statistics_fixtures` for WC26 when API makes it available | Not live as of 2026-04-27. Monitor coverage flag via `/leagues?id=1&season=2026` and flip when ready. | blocked on provider | Data Engineer |
+-
+----
+-
+-## Track 2 — UI (parallel with Track 1)
+-
+-| # | Item | Why | Status | Lead |
+-|---|------|-----|--------|------|
+-| U1 | Landing page — competition cards | Entry point for multi-competition. Must ship before BL1 season ends so WC26 gets a card automatically on go-live — no UI changes needed. | not started | UI Expert |
+-| U3 | Multilingual support (DE / EN / FI / ES / FR / IT / NL / PT) | North star requirement. Browser locale default + manual switcher. Must ship before WC26 goes live. | not started | UI Expert |
+-| U2 | Multi-competition routing for WC26 (fixture list + detail) | Current UI is hardcoded to BL1. WC26 needs its own fixture and detail views. | not started | UI Expert |
+-
+----
+-
+-## Prerequisite for Big 5 + BL2 onboarding
+-
+-| # | Item | Why | Status | Lead |
+-|---|------|-----|--------|------|
+-| P3 | `history_seasons` field in registry + ingestion honours it | Without prior season data the UI is empty on matchday 1. Rule: domestic league joining mid-cycle → `history_seasons: 1`; joining at season start → `history_seasons: 0`. At ~1,500–2,000 API calls per season, one previous season fits within the 7,500/day budget. Must be done before any Big 5 or BL2 onboarding starts. | not started | Analytics Engineer + Data Engineer |
+-
+----
+-
+-## Planned — Big 5 leagues + BL2 (post WC26)
+-
+-Onboarding order to be decided by CPO. All require P3 to be complete first.
+-
+-| # | Competition | `league_code` | Registry status |
+-|---|-------------|---------------|-----------------|
+-| L1 | Premier League | PL | planned |
+-| L2 | La Liga | PD | planned |
+-| L3 | Serie A | SA | planned |
+-| L4 | Ligue 1 | L1 | planned |
+-| L5 | 2. Bundesliga | BL2 | planned |
+-
+----
+-
+-## Planned — product features (post WC26)
+-
+-| # | Item | Why | Status | Lead |
+-|---|------|-----|--------|------|
+-| U4 | Visualizations — radar charts, shot maps, trend lines | Makes the product feel premium and shareable. | backlog | UI Expert + Football Analytics Expert |
+-| U5 | Sharing — match card export / group chat integration | Core stickiness mechanism. | backlog | UI Expert + Growth Expert |
+-| P1 | Predictions — rule-based (form + home advantage) | North star future feature. Scope once WC26 is live. | backlog | Football Analytics Expert + Analytics Engineer |
+-| P2 | Live match companion | Real-time stats during matches. | backlog | UI Expert + Data Engineer |
+-
+----
+-
+-## Notes
+-
+-- **API budget:** 7,500 requests/day. Each domestic league season costs ~1,500–2,000 calls. Plan backfills accordingly — see `docs/operations_guide.md`.
+-- **WC26 history:** qualifiers serve as the history window. `history_seasons: 0` for the main tournament; qualifier form is handled via the team-based form endpoint (W3).
+-- **Competition registry** (`docs/competition_registry.yml`) is the authoritative source for status, API IDs, and form strategy. The backlog reflects product priority — the registry reflects technical readiness.
+-- **Never show empty states.** If a competition has no current matches, fall back to previous season data or qualifier data. The product must always have something relevant to show.
+diff --git a/docs/north_star.md b/docs/north_star.md
+index 62227a5f..aee553a0 100644
+--- a/docs/north_star.md
++++ b/docs/north_star.md
+@@ -100,6 +100,10 @@ Multiple revenue streams, built in layers:
  
- ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
+ Quality bar first. Growth comes after the product deserves it.
  
-diff --git a/tests/test_no_host_fingerprint_in_tree.py b/tests/test_no_host_fingerprint_in_tree.py
-new file mode 100644
-index 00000000..e2e7414c
---- /dev/null
-+++ b/tests/test_no_host_fingerprint_in_tree.py
-@@ -0,0 +1,234 @@
-+"""A live host's network address has no place in the repo — the guard, both halves.
++The roadmap itself is not written here. It is the GitLab milestones, in the site's menu order —
++Home, Competitions, Matches, Teams, Players, Standings, Stats — with one review issue per page
++under each: https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones
 +
-+Half one is `.claude/hooks/host_fingerprint_gate.py`: it denies an `Edit`, `Write` or
-+`MultiEdit` whose written text puts a public IPv4 or IPv6 literal into any file inside the repo,
-+task artifacts included. Half two is the pin below: the tracked tree holds zero such literals,
-+and this test fails the build if one appears.
-+
-+Everything here imports the hook's own patterns and range test, so the CI count and the
-+edit-time deny cannot drift apart. Every sample address is BUILT at runtime from integers, never
-+written as a literal, because a literal public address in this file would itself be a flagged
-+line — the hook reads text, not intent, and this file is inside the repo.
-+"""
-+
-+from __future__ import annotations
-+
-+import json
-+import os
-+import subprocess
-+import sys
-+
-+import pytest
-+
-+REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-+HOOKS = os.path.join(REPO, ".claude", "hooks")
-+sys.path.insert(0, HOOKS)
-+import host_fingerprint_gate as gate  # noqa: E402
-+
-+HOOK = os.path.join(HOOKS, "host_fingerprint_gate.py")
-+
-+
-+def v4(*octets: int) -> str:
-+    return ".".join(str(o) for o in octets)
-+
-+
-+def v6(*groups: str) -> str:
-+    return ":".join(groups)
-+
-+
-+PUBLIC_V4 = v4(203, 0, 113, 7)            # the documentation range: public-shaped, nobody's host
-+PUBLIC_V6 = v6("2a01", "4f9", "c013", "24af", "", "1")
-+
-+
-+def _run(event, cwd: str) -> str:
-+    env = dict(os.environ, CLAUDE_PROJECT_DIR=cwd)
-+    r = subprocess.run(
-+        [sys.executable, HOOK],
-+        input=event if isinstance(event, str) else json.dumps(event),
-+        capture_output=True, text=True, cwd=cwd, env=env, timeout=60,
-+    )
-+    assert r.returncode == 0, r.stderr
-+    return r.stdout
-+
-+
-+def _denied(out: str) -> bool:
-+    return '"permissionDecision": "deny"' in out
-+
-+
-+def _write_event(path: str, content: str) -> dict:
-+    return {"hook_event_name": "PreToolUse", "tool_name": "Write",
-+            "tool_input": {"file_path": path, "content": content}}
-+
-+
-+# ---------------------------------------------------------------- the pattern, both ways
-+
-+@pytest.mark.parametrize("literal", [
-+    PUBLIC_V4,
-+    v4(8, 8, 8, 8),
-+    v4(37, 27, 14, 1),
-+    v4(172, 32, 0, 1),                    # one past the private block
-+    v4(1, 2, 3, 4),                       # the accepted false positive: a bare version string
-+])
-+def test_a_public_ipv4_is_flagged(literal):
-+    assert list(gate.flagged_lines(f"host {literal} here")) == [(1, "IPv4")]
-+
-+
-+@pytest.mark.parametrize("template", [
-+    "The runner's address is {}.",          # glued to a full stop — the ordinary prose case
-+    "({})",
-+    "`{}`",
-+    "{}:22",
-+    "http://{}/path",
-+    "{}",
-+    "address={}",
-+    "at {},",
-+])
-+def test_a_public_ipv4_is_flagged_whatever_surrounds_it(template):
-+    assert list(gate.flagged_lines(template.format(PUBLIC_V4))) == [(1, "IPv4")]
-+
-+
-+@pytest.mark.parametrize("literal", [
-+    v4(127, 0, 0, 1),
-+    v4(10, 1, 2, 3),
-+    v4(172, 16, 0, 1),
-+    v4(172, 31, 255, 255),
-+    v4(192, 168, 1, 1),
-+    v4(169, 254, 1, 1),
-+    v4(224, 0, 0, 1),
-+    v4(0, 0, 0, 0),
-+    v4(255, 255, 255, 255),
-+])
-+def test_a_non_public_ipv4_passes(literal):
-+    assert gate.IPV4.search(literal), "the pattern must SEE it — the range test is what passes it"
-+    assert list(gate.flagged_lines(f"bind {literal}")) == []
-+
-+
-+@pytest.mark.parametrize("text", [
-+    "version 1.7.19 of the tool",
-+    "v" + v4(1, 2, 3, 4) + "-rc1",
-+    "at 2026-09-12 07:51:22",
-+    "the score was 3.2.1",
-+    v4(256, 1, 1, 1),
-+    v4(1, 2, 3, 4) + ".5",
-+])
-+def test_things_shaped_like_numbers_but_not_addresses_pass(text):
-+    assert list(gate.flagged_lines(text)) == []
-+
-+
-+def test_a_global_ipv6_is_flagged_and_short_colon_runs_are_not():
-+    assert list(gate.flagged_lines("box " + PUBLIC_V6)) == [(1, "IPv6")]
-+    assert list(gate.flagged_lines(v6("2001", "db8", "", "1"))) == [(1, "IPv6")]
-+    assert list(gate.flagged_lines("at 2026:12:30 it ran")) == []
-+    assert list(gate.flagged_lines("fe80::1 is link-local")) == []
-+    assert list(gate.flagged_lines("sha " + "2a01" + "4f9c" * 8)) == []
-+
-+
-+def test_line_numbers_and_kinds_are_reported_per_line():
-+    text = f"one\n{PUBLIC_V4}\nthree\n{PUBLIC_V6}\n"
-+    assert list(gate.flagged_lines(text)) == [(2, "IPv4"), (4, "IPv6")]
-+
-+
-+# ---------------------------------------------------------------- the hook as the harness runs it
-+
-+@pytest.fixture
-+def repo(tmp_path):
-+    (tmp_path / ".claude" / "task").mkdir(parents=True)
-+    (tmp_path / "docs").mkdir()
-+    return tmp_path
-+
-+
-+@pytest.mark.parametrize("rel", ["docs/operations_guide.md", ".claude/task/review.md",
-+                                 "scripts/x.py", "README.md"])
-+def test_a_public_address_is_denied_anywhere_inside_the_repo(repo, rel):
-+    out = _run(_write_event(str(repo / rel), f"the box is at {PUBLIC_V4}\n"), str(repo))
-+    assert _denied(out)
-+    reason = json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"]
-+    assert rel.replace("\\", "/") in reason and "line 1 (IPv4)" in reason
-+    assert PUBLIC_V4 not in reason, "the deny must not echo the value"
-+
-+
-+def test_an_edit_and_a_multiedit_are_checked_on_their_new_strings(repo):
-+    path = str(repo / "docs" / "x.md")
-+    edit = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
-+            "tool_input": {"file_path": path, "old_string": "a", "new_string": PUBLIC_V6}}
-+    multi = {"hook_event_name": "PreToolUse", "tool_name": "MultiEdit",
-+             "tool_input": {"file_path": path, "edits": [
-+                 {"old_string": "a", "new_string": "fine"},
-+                 {"old_string": "b", "new_string": f"at {PUBLIC_V4}"}]}}
-+    assert _denied(_run(edit, str(repo)))
-+    assert _denied(_run(multi, str(repo)))
-+
-+
-+def test_a_loopback_or_private_address_passes(repo):
-+    text = f"serve on {v4(127, 0, 0, 1)}:8899 and {v4(192, 168, 0, 10)}\n"
-+    assert _run(_write_event(str(repo / "docs" / "x.md"), text), str(repo)) == ""
-+
-+
-+def test_a_path_outside_the_repo_is_not_governed(repo, tmp_path_factory):
-+    outside = tmp_path_factory.mktemp("memory") / "note.md"
-+    assert _run(_write_event(str(outside), f"box {PUBLIC_V4}\n"), str(repo)) == ""
-+
-+
-+@pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}',
-+                                  '{"tool_input": {"file_path": 3}}'])
-+def test_malformed_input_fails_open(junk, repo):
-+    assert _run(junk, str(repo)) == ""
-+
-+
-+def test_the_hook_is_wired_beside_the_other_edit_time_gates():
-+    with open(os.path.join(REPO, ".claude", "settings.json"), encoding="utf-8") as f:
-+        settings = json.load(f)
-+    groups = [g for g in settings["hooks"]["PreToolUse"]
-+              if any("host_fingerprint_gate.py" in h["command"] for h in g["hooks"])]
-+    assert len(groups) == 1
-+    assert set(groups[0]["matcher"].split("|")) >= {"Edit", "Write", "MultiEdit"}
-+
-+
-+# ---------------------------------------------------------------- the pin
-+
-+def _tracked_text_files() -> list[str]:
-+    out = subprocess.run(["git", "ls-files", "-z"], cwd=REPO, capture_output=True,
-+                         text=True, check=True).stdout
-+    return [p for p in out.split("\0") if p]
-+
-+
-+def _scan_tree() -> tuple[list[tuple[str, int]], list[tuple[str, int]]]:
-+    """(public hits, non-public IPv4 sightings) over every tracked text file."""
-+    public, seen = [], []
-+    for rel in _tracked_text_files():
-+        path = os.path.join(REPO, rel)
-+        try:
-+            with open(path, "rb") as f:
-+                raw = f.read()
-+        except OSError:
-+            continue
-+        if b"\0" in raw:
-+            continue
-+        text = raw.decode("utf-8", errors="replace")
-+        for n, _kind in gate.flagged_lines(text):
-+            public.append((rel, n))
-+        for n, line in enumerate(text.splitlines(), 1):
-+            if gate.IPV4.search(line) and not any(
-+                    gate.ipv4_is_public(m.group(0)) for m in gate.IPV4.finditer(line)):
-+                seen.append((rel, n))
-+    return public, seen
-+
-+
-+def test_the_tracked_tree_holds_no_public_address():
-+    """The pin, measured two-sided: zero public literals, and the walk is proven to see files by
-+    the non-public address lines it passes over (today the mocks README's loopback preview
-+    server) — at least one, wherever the tree happens to keep them."""
-+    public, seen = _scan_tree()
-+    assert public == [], f"public address literals in the tree: {public}"
-+    assert seen, "the walk saw no address-shaped line at all — is it reading the tree?"
-+
-+
-+def test_definition_is_imported_not_copied():
-+    """This file must not carry its own address pattern — every check above goes through the
-+    hook's `IPV4`, `IPV6` and `ipv4_is_public`, so a change to the definition changes the pin."""
-+    with open(__file__, encoding="utf-8") as f:
-+        src = f.read()
-+    assert "import host_fingerprint_gate as gate" in src
-+    compiled = "re." + "compile("
-+    assert compiled not in src.replace('"re." + "compile("', "")
-+    assert ("def " + "ipv4_is_public") not in src
+ ---
+ 
+ ## Technical north star
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 3f59fc30..52763d8a 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -286,11 +286,12 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
+ ```
+ 
+ - v2 deploys to **Firebase Hosting** (`.web.app`, unlisted, `noindex`). **There is no live MVP for it
+-  to serve behind** — `site/` went offline 2026-07-21 and its Pages deployment was deleted, so #377 is
+-  v2's own go-live on `matchdaypilot.com`: legal/imprint (#799) → CPO sign-off → connect the custom
+-  domain → drop `noindex` and publish the sitemap. **No parity check, no switch, and no redirects from
+-  old URLs** (the old URLs are gone and were never indexed under the new domain). Retiring `site/` +
+-  the legacy export is a cleanup PR that no longer blocks anything.
++  to serve behind** — `site/` went offline 2026-07-21 and its Pages deployment was deleted, so v2 has
++  its own go-live on `matchdaypilot.com`. **No parity check, no switch, and no redirects from old
++  URLs** (the old URLs are gone and were never indexed under the new domain). The road to that
++  go-live is the GitLab milestones, in the site's menu order, one review issue per page:
++  https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones — go-live items follow the
++  last page there, not a sequence written here.
+ - Monetization hooks: templates keep a named slot (header/in-content) rendering nothing —
+   placeholders only, no implementation.
+ 
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -651,9 +607,6 @@ index 00000000..e2e7414c
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |   24 +-
-#    .claude/task/acceptance_evidence.md |  144 ++---
-#    .claude/task/review.md              |  136 +----
-#    .claude/task/review_input.patch     | 1114 +++++++++++++++--------------------
-#    4 files changed, 553 insertions(+), 865 deletions(-)
+#   .claude/active_work.md | 44 ++++++++++++++++++++------------------------
+#    1 file changed, 20 insertions(+), 24 deletions(-)
 # ============================================================================

@@ -286,11 +286,12 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
 ```
 
 - v2 deploys to **Firebase Hosting** (`.web.app`, unlisted, `noindex`). **There is no live MVP for it
-  to serve behind** — `site/` went offline 2026-07-21 and its Pages deployment was deleted, so #377 is
-  v2's own go-live on `matchdaypilot.com`: legal/imprint (#799) → CPO sign-off → connect the custom
-  domain → drop `noindex` and publish the sitemap. **No parity check, no switch, and no redirects from
-  old URLs** (the old URLs are gone and were never indexed under the new domain). Retiring `site/` +
-  the legacy export is a cleanup PR that no longer blocks anything.
+  to serve behind** — `site/` went offline 2026-07-21 and its Pages deployment was deleted, so v2 has
+  its own go-live on `matchdaypilot.com`. **No parity check, no switch, and no redirects from old
+  URLs** (the old URLs are gone and were never indexed under the new domain). The road to that
+  go-live is the GitLab milestones, in the site's menu order, one review issue per page:
+  https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones — go-live items follow the
+  last page there, not a sequence written here.
 - Monetization hooks: templates keep a named slot (header/in-content) rendering nothing —
   placeholders only, no implementation.
 

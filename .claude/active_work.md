@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-12**, on `feat/126-no-host-fingerprint-guard`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-12**, on `chore/141-roadmap-one-home`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -23,15 +23,20 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 
 ## ⛔ WHERE WE ARE
 
-**The context-engineering cleanup, GitLab #115, is DONE and closed — nine steps, nine mechanisms
-(`!169`–`!182`).** The comment guard's pin is at 0; the memory folder is 50 notes under
-`memory_budget_gate.py`'s three measured budgets, which move down only. This branch (#126) is its
-one follow-up: on `!182` the CI runner's public address went into a committed file twice — a doc
-(caught by review) and then `review.md`, as the grep pattern a reviewer used to prove it was gone
-(not caught; pushed; the branch rewritten). `host_fingerprint_gate.py` now refuses
-writing a public address into any file inside the repo, task artifacts included, and
-`tests/test_no_host_fingerprint_in_tree.py` pins the tree at zero. **After its merge, product work
-resumes with the player page (#118). Nothing is blocked on the CPO.**
+**The context-engineering cleanup (#115) and its follow-up guard (#126) are merged and closed.**
+The comment guard's pin is at 0; memory is 50 notes under `memory_budget_gate.py`'s measured
+budgets; `host_fingerprint_gate.py` refuses a public address in any committed file.
+
+**THE ROADMAP IS THE GITLAB MILESTONES, IN THE SITE'S MENU ORDER: Home · Competitions · Matches ·
+Teams · Players · Standings · Stats.** One review issue per page under each (#127–#140): what is on
+the page, where each block's data comes from, what it links to and from — rechecked and approved by
+the CPO on the issue BEFORE anything is built or rebuilt, built pages included, because the earlier
+agreements may be stale. Build issues are filed only against an approved review. Go-live items
+(legal pages, domain, dropping `noindex`) follow the last page. This branch (#141) deletes the two
+dead roadmap documents and points the two partial sections at the milestones. **Next: the Home
+review, #127 — put the built page beside its block-by-block data sources and what is missing (the
+menu items lead nowhere; the mock generator still renders the dropped Browse block), and record his
+approval or changes on the issue. Nothing is blocked on the CPO.**
 
 **What changed in how we work, 2026-09-11 — read `CLAUDE.md` "Which source answers which
 question" and `docs/working_agreement.md` §1 / §11:**
@@ -66,20 +71,11 @@ in one session he asked "you waiting for something?".
 
 ## ⛔ WHAT 2026-09-08 CHANGED IN PROD — read before trusting an older measurement
 
-**!156** — `AWD`/`WO` count as played for RESULTS, `status_short` uppercased at staging; the coverage
-gates moved to `games_expecting_team_stats` (played minus awarded) at all 35 sites, so 32
-team-seasons gain a match and **none loses a statistical metric**.
-**!157** — the seed is now **`fixture_team_id_overrides`** and applies to all three fixture-level
-feeds plus `base_apif__teams`' key union, not events only.
-**!159 (freshness guard)** — `SUSP`/`INT` no longer alarm at all: a suspended match is valid status
-information, not a defect, and one stuck fixture was skipping 672 models a night. The guard keeps
-error severity on the seven genuinely-playing statuses at 6h. A dead test that compared a column to
-itself was deleted, and `assert_team_season_games_not_short_of_standings` replaces it — it warns when
-we hold FEWER games than the league's own table records, whatever the cause. It is WARN and RED on
-**3 rows** by design: Trabzonspor + Gaziantep FK (the Turkish forfeit — #110) and Al Wehda
-AFCCL 2021 (5 fixtures never ingested — a different problem, do not file it under #110).
-⭐ **PROD WAS REPAIRED BY HAND and is CORRECT**: `data:build:main` re-run to green and the two
-incremental facts `--full-refresh`ed. **Nothing is owed operationally.**
+Awarded results count as played (`games_expecting_team_stats` at every gate); the override seed is
+`fixture_team_id_overrides` for all three fixture-level feeds; the freshness guard ignores
+`SUSP`/`INT`. `assert_team_season_games_not_short_of_standings` is WARN and RED on **3 rows by
+design**: Trabzonspor + Gaziantep FK (the Turkish forfeit — #110) and Al Wehda AFCCL 2021 (5
+fixtures never ingested — a different problem, not #110). **Prod is correct; nothing is owed.**
 
 ⛔⛔ **THE TRAP THAT NEARLY SHIPPED, AND IT WILL RECUR: A CORRECTION IN BASE DOES NOT REACH AN
 INCREMENTAL FACT.** The fanout facts filter `raw_ingested_at > max(target)`, which a finished fixture
