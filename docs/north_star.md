@@ -100,6 +100,10 @@ Multiple revenue streams, built in layers:
 
 Quality bar first. Growth comes after the product deserves it.
 
+The roadmap itself is not written here. It is the GitLab milestones, in the site's menu order —
+Home, Competitions, Matches, Teams, Players, Standings, Stats — with one review issue per page
+under each: https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones
+
 ---
 
 ## Technical north star
