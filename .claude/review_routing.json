@@ -197,7 +197,8 @@
   },
   "artifact_only": [
     ".claude/task/**",
-    ".claude/active_work.md"
+    ".claude/active_work.md",
+    "docs/tracker/**"
   ],
   "artifact_only_never": [
     ".claude/task/contract.md"
@@ -211,7 +212,8 @@
     ".claude/task/REVIEW_TEMPLATE.md",
     ".claude/active_work.md",
     ".claude/task/acceptance_evidence.md",
-    ".claude/task/rendered_page_evidence.md"
+    ".claude/task/rendered_page_evidence.md",
+    "docs/tracker/**"
   ],
   "review_exclude_paths": [
     ".claude/task/review.md",
@@ -221,7 +223,8 @@
     ".claude/task/audit_reviewer_outputs.md",
     ".claude/task/TEMPLATE.md",
     ".claude/task/REVIEW_TEMPLATE.md",
-    ".claude/active_work.md"
+    ".claude/active_work.md",
+    "docs/tracker/**"
   ],
 
   "_doc_review_summarise_paths": [

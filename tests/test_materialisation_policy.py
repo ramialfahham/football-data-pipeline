@@ -277,6 +277,11 @@ def _is_bookkeeping(rel: str) -> bool:
         # If that file ever becomes editable from this worktree, delete this line and fix it.
         or rel == ".claude/active_work.md"
         or rel == "docs/product_direction_threads.md"
+        # The generated backup of the GitLab tracker quotes every issue body verbatim, old ones
+        # included — history, not a live claim, the same class as the line above. It has one
+        # writer (`scripts/snapshot_tracker.py`) and a hook that refuses hand edits, so nothing
+        # a fix here could reach lives there.
+        or rel.startswith("docs/tracker/")
         or rel == "tests/test_materialisation_policy.py"
     )
 

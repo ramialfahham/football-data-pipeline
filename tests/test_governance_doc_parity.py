@@ -130,8 +130,11 @@ COVERED_FILES = (
 #   .claude/active_work.md  the handover, rewritten every session (routing files it
 #                       under `artifact_only` for the same reason)
 #   docs/audits/        dated snapshots of what was true on the day
+#   docs/tracker/       the generated backup of the GitLab tracker: every issue body quoted
+#                       verbatim, old ones included, one writer (the script), a hook against
+#                       hand edits — read only when GitLab is unreachable, never a rule
 #   tests/              this file, which quotes every claim shape it checks
-SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/audits/", "tests/")
+SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/audits/", "docs/tracker/", "tests/")
 
 
 def normalise(rel: str) -> str:
