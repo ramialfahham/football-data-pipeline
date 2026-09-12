@@ -1,21 +1,21 @@
-"""Raw appends and NEVER deletes — the merge-on-write is gone (CPO 2026-08-17).
+"""Raw appends and NEVER deletes — the merge-on-write is gone.
 
 WHAT THIS FILE IS NOW
 ---------------------
 It was the file that pinned #33 item 8b: three loaders had to append a whole-league snapshot
-and then DELETE that league's older rows. It now pins the opposite, because the CPO reversed
-that decision after two independent assessments found the same root cause.
+and then DELETE that league's older rows. It now pins the opposite, because that decision was
+reversed after two independent assessments found the same root cause.
 
 The reversal in one sentence: the delete fired whenever a fetch was judged COMPLETE, and
 "complete" means only that the call did not error — `http_client.result_is_complete` counts an
-empty error-free response as complete, deliberately (CPO 2026-08-03). So a provider answering
-with nothing, or with less than it gave us yesterday, destroyed the stored history past the
-7-day time-travel window with no signal anywhere. Measured damage before the reversal: 29
-events across 5 fixtures (`escalations.log` 2026-08-17) and four squads on 2026-08-02
-(`squads.py`). Retention is now base's decision, which is where the layer model always put it.
+empty error-free response as complete, deliberately. So a provider answering with nothing, or
+with less than it gave us yesterday, destroyed the stored history past the 7-day time-travel
+window with no signal anywhere. Measured damage before the reversal: 29 events across 5
+fixtures and four squads in one night (`squads.py`). Retention is now base's decision, which is
+where the layer model always put it.
 
 Do NOT restore a delete here to "bound the table". The scan-cost argument that bought it is
-spent: staging became a stored table on 2026-08-13, so each raw table is parsed once a night
+spent: staging became a stored table, so each raw table is parsed once a night
 rather than once per test. If growth ever needs bounding, it is compaction by version count,
 never a delete at write time, and never keyed on time (biennial competitions lose their only
 row — #892).
@@ -214,7 +214,7 @@ def test_the_players_loader_appends_and_deletes_nothing(monkeypatch):
 
     It was keyed per (team, season) rather than per league, so a quota cut left un-fetched
     keys alone — genuinely careful. It did not help: an empty error-free /players response is
-    a COMPLETE answer, so it superseded the roster it could not replace, and on 2026-08-02
+    a COMPLETE answer, so it superseded the roster it could not replace, and one night
     UCL 340 went 25 players to 0. Correct grain does not rescue a delete whose trigger cannot
     tell "no players" from "we lost the players".
     """
@@ -313,8 +313,8 @@ def test_coaches_was_never_a_merge_loader_and_still_is_not(monkeypatch):
 
     Kept from the original file, inverted in meaning: it used to prove the converted set
     excluded coaches, and now proves the set is empty. `stg_apif__coaches` reads ALL snapshots
-    by CPO ruling (escalations.log, 2026-06-23) to preserve every coach ever seen — the same
-    reasoning that has now been applied to every other table.
+    to preserve every coach ever seen — the same reasoning that has now been applied to every
+    other table.
     """
     writes = _Writes()
     client = _Client()

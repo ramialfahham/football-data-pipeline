@@ -3,12 +3,12 @@
 No BigQuery — fabricated rows only, so python-ci validates the logic offline.
 
 The load-bearing test here is `test_shape_landing_payload_carries_only_the_built_modules`. Two
-blocks were cut from this page on 2026-08-08 — the stats teasers and trending — and BOTH had put
-business logic in the export: eligibility judgement and competition ranking in the first case,
-storyline ranking in the second (which is why `mart_landing_trending` was written at all). A third,
-browse, was dropped 2026-08-19 (CPO: "drop the browse section") — registry-driven, not a
-layering violation, but removed for the same reason the key set is asserted exactly: the payload
-shape is the cheapest place to catch any of the three coming back.
+blocks were cut from this page — the stats teasers and trending — and BOTH had put business
+logic in the export: eligibility judgement and competition ranking in the first case, storyline
+ranking in the second (which is why `mart_landing_trending` was written at all). A third, browse,
+was dropped ("drop the browse section") — registry-driven, not a layering violation, but removed
+for the same reason the key set is asserted exactly: the payload shape is the cheapest place to
+catch any of the three coming back.
 """
 
 import csv
@@ -69,9 +69,9 @@ def test_group_upcoming_fixtures_groups_by_competition_in_kickoff_order():
 
 
 def test_group_upcoming_fixtures_caps_nothing():
-    """⚠ INVERTED 2026-08-18. This test asserted the opposite — that the helper capped at a
-    `limit` — and the CPO retired that cap ("we will show what we have, more matches will come,
-    because we ingest more competitions"). The `limit` parameter is gone, so the old assertion
+    """⚠ INVERTED. This test asserted the opposite — that the helper capped at a `limit` —
+    and that cap is retired ("we will show what we have, more matches will come, because we
+    ingest more competitions"). The `limit` parameter is gone, so the old assertion
     could not merely be relaxed; keeping the case and flipping its expectation is what pins the
     new behaviour at the same spot the old one guarded.
 
@@ -101,7 +101,7 @@ def test_group_upcoming_fixtures_keeps_a_null_crest_null():
 def test_group_upcoming_fixtures_omits_a_competition_with_no_fixture_in_the_window():
     """Acceptance criterion 1: a competition with nothing coming up does not appear at all.
 
-    ⚠ REWORKED 2026-08-18. This used `limit=1` to manufacture the "outside the window" case, and
+    ⚠ REWORKED. This used `limit=1` to manufacture the "outside the window" case, and
     that parameter is gone with the retired cap. The property under test is unchanged and still
     worth pinning — a competition contributing NO fixture must not produce an empty group — so the
     window is now expressed by simply not handing the helper any BSA fixture, which is what the
@@ -122,23 +122,22 @@ def test_group_upcoming_fixtures_handles_an_empty_calendar():
 #
 # Three blocks' worth of tests stood here and went with their blocks.
 #
-# The stats teasers took ten with them (2026-08-08) — six on
-# `eligible_stats_competitions`, four on `pick_stats_competition`. Trending took
-# seven (2026-08-08), led by one that asserted the export followed the mart's
-# `trending_rank` instead of re-sorting by run length. Browse's own tests were
-# never written in the export (it called `build_nav`, tested elsewhere) — only
-# its key in the payload-shape assertions below, updated in place 2026-08-19. All
-# seventeen removed were good tests of code that should never have been in the
-# export: they pinned eligibility judgement and business ranking, which
-# `layering.md` puts in dbt.
+# The stats teasers took ten with them — six on `eligible_stats_competitions`,
+# four on `pick_stats_competition`. Trending took seven, led by one that asserted
+# the export followed the mart's `trending_rank` instead of re-sorting by run
+# length. Browse's own tests were never written in the export (it called
+# `build_nav`, tested elsewhere) — only its key in the payload-shape assertions
+# below, updated in place. All seventeen removed were good tests of code that
+# should never have been in the export: they pinned eligibility judgement and
+# business ranking, which `layering.md` puts in dbt.
 #
 # They are deleted rather than migrated because none of the three blocks
-# survives. The stats teasers were ruled useless (CPO 2026-08-08) and are
-# replaced by the mart-backed Top players / Top teams; trending was cut the same
-# day and was stale against the 2026-08-04 ruling anyway; browse was DROPPED
-# (CPO 2026-08-19: "drop the browse section") once its only remaining
-# justification — reachability into the long-tail team/player pages — turned out
-# to apply to exactly the two entity types already blocked on data-quality work.
+# survives. The stats teasers were ruled useless and are replaced by the
+# mart-backed Top players / Top teams; trending was cut alongside and was stale
+# against the last streak ruling anyway; browse was DROPPED ("drop the browse
+# section") once its only remaining justification — reachability into the
+# long-tail team/player pages — turned out to apply to exactly the two entity
+# types already blocked on data-quality work.
 #
 # What those tests knew is not lost. The three defects the stats tests pinned (a
 # season that has not kicked off, a group competition's within-group ranks, a
@@ -166,7 +165,7 @@ def test_shape_landing_payload_carries_only_the_built_modules():
 def test_shape_landing_payload_omits_top_players_when_no_board_survived():
     """#40: a board with no data is not rendered, and if NO board has data the block itself does
     not render. So an empty result must be ABSENT, not an empty list — otherwise the page has to
-    guard against a key that means "nothing", which is the empty-state the CPO ruled out.
+    guard against a key that means "nothing", which is the empty-state that is ruled out.
     """
     for empty in ([], None):
         payload = shape_landing_payload(
@@ -229,8 +228,8 @@ def test_top_players_renders_the_order_the_warehouse_served():
 
     ⚠ THIS TEST ASSERTED THE OPPOSITE AND THE OPPOSITE WAS WRONG. It used to hand the shaper
     unordered rows and require it to sort them by value, which is ranking in the consumption layer;
-    `analytics-engineer-reviewer` FAILed that and the CPO ruled on 2026-09-09 that "all ranking and
-    ordering lives in the warehouse. The page renders the order it is served."
+    the ruling is "all ranking and ordering lives in the warehouse. The page renders the order it
+    is served."
     So the rows below arrive in the order the query's ORDER BY produced, and the assertion is that
     the shaper left them alone. Flipping the expectation in the same test, rather than deleting it,
     is what pins the new behaviour where the old one was guarded.
@@ -266,7 +265,7 @@ def test_top_players_does_not_reorder_what_it_is_given():
 
 def test_top_players_keeps_board_order_and_caps_each_at_seven():
     """The four boards render in a FIXED order — Goals, Assists, Passes, Key passes — regardless of
-    the order the mart returned them, and each is cut at 7 (CPO 2026-08-10, raised from 5).
+    the order the mart returned them, and each is cut at 7 (raised from 5).
 
     NINE DISTINCT LEAGUES, and that stays deliberate even though the shaper no longer dedupes. The
     query now returns one row per league (`league_leader_order = 1`), so nine rows means nine
@@ -302,7 +301,7 @@ def test_top_players_keeps_board_order_and_caps_each_at_seven():
 #     property of the warehouse column plus that clause.
 #
 # Keeping either as a unit test would mean re-implementing the rule in the test to check it, which
-# is the tautology `analytics-engineer-reviewer` names. What replaces them at THIS level is
+# is a tautology. What replaces them at THIS level is
 # `test_top_players_does_not_reorder_what_it_is_given` above: the shaper's own contract is now
 # "group, preserve, cap", and that is what a unit test can honestly hold it to.
 # --------------------------------------------------------------------------- #
@@ -347,7 +346,7 @@ def test_board_label_keys_are_the_player_rows_not_the_team_ones():
     right. `assert_metric_catalogue_unique_by_entity` enforces uniqueness per (metric_id, entity),
     NOT globally, so a team row sharing one of these ids is permitted by the catalogue's own guards
     and would make an unfiltered lookup take whichever row `csv.DictReader` reached first — the bug
-    `!27` fixed in export_metric_definitions_json.py. This keeps that door shut and pins the key to
+    export_metric_definitions_json.py once had. This keeps that door shut and pins the key to
     the seed rather than to a literal, so renaming it in the catalogue fails here instead of
     silently shipping a board with the old name.
     """
@@ -435,7 +434,7 @@ def test_top_teams_rows_carry_the_served_slug():
 
 
 def test_top_teams_keeps_board_order_and_caps_each_at_seven():
-    """The four boards render in the CPO's fixed order regardless of what the mart returned, and
+    """The four boards render in their fixed order regardless of what the mart returned, and
     each is cut at 7. Nine DISTINCT leagues, because the query returns one team per league."""
     nine = ("PL", "PD", "BL1", "ED", "L1", "LP", "SA", "PPL", "TSL")
     rows = []
@@ -471,7 +470,7 @@ def test_the_team_board_set_is_all_per_match_rates():
 
     `boardTitle()` turns the served label `Ø Goals` into the heading `Goals per match` (#41). An
     earlier version guarded that by reading `metric_id.endsWith("_per_match")` in TypeScript, and
-    `analytics-engineer-reviewer` FAILed it: classifying a metric is a taxonomy judgement, which
+    that was wrong: classifying a metric is a taxonomy judgement, which
     `layering.md` §Consumption layer keeps out of the frontend. It was also simply UNSAFE — an id's
     spelling is not a fact about the metric, and this catalogue proves it, since
     `shots_on_goal_per_match` carries the label key `metrics.shots_on_target_per_match.label`

@@ -1,7 +1,7 @@
 """A run that drops API calls must not look clean (#898).
 
-The 2026-08-02 nightly dropped 26 API calls and reported `conclusion: success`. So did 9 other runs
-since 2026-07-16. Four independent causes, each pinned here:
+One nightly dropped 26 API calls and reported `conclusion: success`. So did 9 other runs in the
+preceding fortnight. Four independent causes, each pinned here:
 
 1. The per-minute limit arrives as HTTP 200 with the error in the body, so `raise_for_status()` saw
    a healthy response and the 429 retry branch never fired. Zero retries.
@@ -9,8 +9,8 @@ since 2026-07-16. Four independent causes, each pinned here:
 3. (not fixed here, out of scope) the completeness gate covers fanout entities only.
 4. `ctx.errors` never reached the job summary.
 
-The threshold policy is the CPO's, 2026-08-03: visible on every run, fail only when the same
-endpoint drops on two consecutive runs. A single bad run must stay green, because failing skips the
+The threshold policy: visible on every run, fail only when the same endpoint drops on two
+consecutive runs. A single bad run must stay green, because failing skips the
 dbt build and daily freshness is a hard requirement.
 """
 
@@ -35,7 +35,7 @@ def _clean_run_state():
     errors_quota.reset_minute_rate_limit_counts()
 
 
-# The exact message the provider sends, from the 2026-08-02 nightly log.
+# The exact message the provider sends, copied from a nightly log.
 _MINUTE_LIMIT = {
     "rateLimit": "Too many requests. You have exceeded the limit of requests per minute of your subscription."
 }
@@ -67,8 +67,8 @@ class TestPerMinuteDetection:
 class TestDroppedCallsAreCountedByEndpoint:
     """Counted at the HTTP layer, once per call whose final attempt was still rejected.
 
-    Review round 1 FAILED an earlier version that counted inside `append_api_errors`, keyed off the
-    caller's context string. `loads/fixtures.py` appends per season AND again on the merged
+    An earlier version counted inside `append_api_errors`, keyed off the caller's context
+    string, and double-counted. `loads/fixtures.py` appends per season AND again on the merged
     envelope, and `_merge_merged_paged` carries the earlier seasons' error text forward, so the
     same drop was counted twice. Counting where the call happens removes the whole class: the tally
     no longer depends on how many times any caller reports the same error.
@@ -93,7 +93,7 @@ class TestDroppedCallsAreCountedByEndpoint:
         assert errors_quota.minute_rate_limit_counts() == {}
 
     def test_append_api_errors_does_not_count(self):
-        # REGRESSION GUARD for the round 1 defect. `append_api_errors` must stay a pure reporter:
+        # REGRESSION GUARD for the double-count. `append_api_errors` must stay a pure reporter:
         # it is called twice against overlapping error data in loads/fixtures.py, so any counting
         # side effect there double-counts by construction.
         sink: list[str] = []
@@ -218,8 +218,8 @@ class TestRetryOnPerMinuteLimit:
 
 class TestStagnationGate:
     def test_one_bad_run_does_not_fail(self):
-        # The whole point of the CPO ruling: a transient limit self-heals, and failing would skip
-        # the dbt build and cost daily freshness.
+        # The whole point of the threshold policy: a transient limit self-heals, and failing
+        # would skip the dbt build and cost daily freshness.
         assert detect_stagnant_dropped_calls({"players": 11}, {}) == []
         assert detect_stagnant_dropped_calls({"players": 11}, {"coaches": 3}) == []
 
@@ -244,8 +244,8 @@ class TestStagnationGate:
 
 
 class TestGateRespectsTheOperatorKillSwitches:
-    """Review round 1 FAILED an earlier version that ORed this signal into the exit condition in
-    the orchestrator, bypassing both documented escape hatches.
+    """An earlier version ORed this signal into the exit condition in the orchestrator,
+    bypassing both documented escape hatches.
 
     The pre-existing `stagnant_statistics` signal is subordinate to `report["skipped"]`
     (API_FOOTBALL_SKIP_COMPLETENESS_CHECK) and to `fail_on_incomplete()`

@@ -122,8 +122,8 @@ def _run_entrypoint(tmp_path, new_data: str) -> list[str]:
     """RUN the entrypoint with `python` and `dbt` stubbed out, and return what it invoked.
 
     Executing it is the point. An earlier version of this test asserted the ORDER of three
-    regex matches in the file — gate before `exit 0` before `dbt build` — and a reviewer showed
-    it was decoration: changing the condition to `if [ "$NEW_DATA" != "true" ] || true; then`
+    regex matches in the file — gate before `exit 0` before `dbt build` — and that was
+    decoration: changing the condition to `if [ "$NEW_DATA" != "true" ] || true; then`
     makes the gate fire on EVERY run, silently killing the nightly build forever, while all
     three markers keep their positions and the test stays green. Textual position cannot see
     boolean structure. This runs the real script and observes what it actually does.
@@ -231,7 +231,7 @@ def test_the_alert_policies_carry_only_fields_the_api_accepts():
     An earlier version instead asserted that no `_` key survived `strip()`, which was
     tautological: the value tested WAS the output of `strip()`. Worse, the break-it check that
     "proved" it edited `strip()` — the test's own helper — rather than the subject. Breaking the
-    harness is not breaking the subject, and a reviewer caught it.
+    harness is not breaking the subject.
 
     It does NOT claim the deployed policies match this file; nothing applies it automatically.
     That gap is stated in the README rather than implied away by a test.
@@ -274,12 +274,12 @@ def test_the_alert_policies_carry_only_fields_the_api_accepts():
 def test_no_policy_refers_to_another_policy_by_a_name_that_does_not_exist():
     """FIX THE CLASS, not the instance.
 
-    Renaming a policy left stale references behind THREE times in this task, each found by a
-    reviewer rather than by anything mechanical:
-      1. `deploy/nightly/README.md` quick-reference table (round 3)
-      2. `deploy/nightly/README.md` "open incidents" curl filter (round 3)
+    Renaming a policy left stale references behind THREE times, none found by anything
+    mechanical:
+      1. `deploy/nightly/README.md` quick-reference table
+      2. `deploy/nightly/README.md` "open incidents" curl filter
       3. `alert-policy.json`'s own `fdp-nightly execution failed` documentation, pointing at the
-         renamed sibling (round 4)
+         renamed sibling
 
     The third is the one that made a manual sweep clearly insufficient: it is JSON referencing
     JSON, so a README-vs-JSON comparison could never see it. These strings are what Cloud
@@ -302,7 +302,7 @@ def test_no_policy_refers_to_another_policy_by_a_name_that_does_not_exist():
     # legitimately referenced in the runbook commands inside `documentation.content`. Listed
     # rather than pattern-matched: the first version of this guard matched every backticked
     # `fdp…` token and flagged `fdp-freshness`, a real job, as a missing policy. A guard that
-    # cries wolf gets deleted, which would put us back where round 4 found us.
+    # cries wolf gets deleted, which would put us back to no guard at all.
     JOB_NAMES = {"fdp-nightly", "fdp-freshness"}
 
     referenced: set[str] = set()

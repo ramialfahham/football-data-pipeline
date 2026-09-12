@@ -16,8 +16,8 @@ symptom is an absence, and absences are exactly what this repo's tests do not lo
 
 WHAT THE FIX IS, and what it deliberately is NOT. The fix is to WITHHOLD THE WRITE when the fetch
 was incomplete. It is NOT to widen what counts as complete: an EMPTY response with NO error stays
-complete and is still written, per the CPO ruling of 2026-08-03, because that is the provider
-genuinely reporting nothing and refusing it would re-fetch 3,539 historical team-seasons nightly
+complete and is still written, by rule, because that is the provider genuinely reporting
+nothing and refusing it would re-fetch 3,539 historical team-seasons nightly
 forever. `test_empty_but_clean_response_is_still_complete` pins that half, without which a "fix"
 that simply refuses empty answers would pass every other test here.
 """
@@ -58,7 +58,7 @@ def _rate_limited():
 
 
 def _clean_empty():
-    """Empty and error-free — the provider genuinely has nothing. COMPLETE by CPO ruling."""
+    """Empty and error-free — the provider genuinely has nothing. COMPLETE by rule."""
     return {"response": [], "errors": [], "results": 0, "paging": {"current": 1, "total": 1}}
 
 
@@ -99,7 +99,7 @@ def test_per_entity_helpers_report_incompleteness(helper, args, monkeypatch):
     ids=["squads", "profiles", "player_teams"],
 )
 def test_empty_but_clean_response_is_still_complete(helper, args, monkeypatch):
-    """The other half of the rule (CPO 2026-08-03), and it must not be collateral damage.
+    """The other half of the rule, and it must not be collateral damage.
 
     An empty error-free answer IS complete. Without this, a "fix" that refused every empty
     response would pass the test above and quietly re-fetch thousands of keys every night.
@@ -186,7 +186,7 @@ def test_transfers_with_no_team_ids_writes_nothing(monkeypatch):
     With an empty team set the fetch loop never runs, so `complete` stays True and an EMPTY
     whole-league payload is written as fact. `stg_apif__transfers` reads the latest row per league,
     so that empty snapshot hides the real transfer history from every model downstream — and under
-    the merge-on-write this loader carried until `!59`, it deleted that history outright.
+    the merge-on-write this loader once carried, it deleted that history outright.
     """
     written: list = []
     monkeypatch.setattr(tr, "load_json_to_bq", lambda *a, **k: written.append(k))

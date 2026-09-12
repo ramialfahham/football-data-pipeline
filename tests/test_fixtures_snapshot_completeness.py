@@ -14,7 +14,7 @@ These tests pin:
 - an empty / quota-exhausted FRESH fetch writes NOTHING — the prior good snapshot stays "latest"
   (data-engineer review Finding 2).
 
-Per the CPO sample-payload rule (2026-06-12), the parsing/merge behaviour is exercised against a REAL
+Per the sample-payload rule, the parsing/merge behaviour is exercised against a REAL
 committed `/fixtures` payload (tests/fixtures/apif/bl1_fixtures_next_merged.json — a slice captured from
 RAW), sliced by season to simulate the cached snapshot vs a single-season fetch. All BigQuery and HTTP
 interactions are mocked — no live GCP connection required.

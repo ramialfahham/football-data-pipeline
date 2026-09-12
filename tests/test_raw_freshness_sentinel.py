@@ -110,8 +110,8 @@ def _install_healthy_bigquery(monkeypatch):
     masked: `test:python` in CI runs with no GCP credentials (the job merges `<<: *python`
     only, no `*gcp_job`, no `id_tokens:`), so `bigquery.Client()` raises, `main()` returns 2
     through the "BigQuery unavailable" branch, and the assertion held whether or not the defect
-    it names had been reintroduced. A reviewer caught that; it is the same "silently exercises
-    the wrong thing" class this file warns about elsewhere, applied to this file itself.
+    it names had been reintroduced — the same "silently exercises the wrong thing" class this
+    file warns about elsewhere, applied to this file itself.
     """
     class _Meta:
         modified = datetime.now(timezone.utc)

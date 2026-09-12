@@ -213,7 +213,7 @@ def test_prior_snapshot_readers_do_not_requery_when_given_the_payload():
 
 
 def test_a_first_run_still_costs_one_snapshot_read_not_four(monkeypatch):
-    """The regression `data-engineer-reviewer` found at round 1.
+    """The regression the first version of the hoist introduced.
 
     `read_prior_snapshot()` returns None on a FIRST run — no snapshot table yet, or the
     previous run skipped the completeness check. While None doubled as the "caller supplied
@@ -277,7 +277,7 @@ def test_completeness_check_cannot_be_handed_injected_coverage():
     ],
 )
 def test_hoisted_values_are_required_arguments(func_path, argname):
-    """No defaults on the orchestrator-facing hoists (`platform-reviewer`, round 1).
+    """No defaults on the orchestrator-facing hoists.
 
     Each of these has exactly ONE caller: the orchestrator. With a default, deleting the
     keyword argument at that single call site restores a per-competition or duplicated
@@ -327,8 +327,8 @@ def _calls_inside_any_loop(func) -> set[str]:
 def test_the_hoisted_reads_are_not_issued_inside_a_loop(reader):
     """The property this whole change is about, pinned where the defect actually lives.
 
-    `platform-reviewer` found at round 2 that requiring the argument closes only the
-    narrowest revert path — deleting the keyword. Move the computation back INSIDE the
+    Requiring the argument closes only the narrowest revert path — deleting the
+    keyword. Move the computation back INSIDE the
     per-competition loop and keep passing it, and every other test in this file stays green
     while the O(competitions^2) scan is fully restored: the callee still receives a value on
     every call, so no callee-level assertion can see it. The defect is in the CALLER's call

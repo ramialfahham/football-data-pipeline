@@ -2,9 +2,9 @@
 
 WHY THIS EXISTS
 ---------------
-On 2026-05-25 a cost fix landed and Thread 1 of docs/product_direction_threads.md was closed with
-"architecture signed off". On 2026-05-27, two days later, an unrelated refactor rewrote the same
-models and the optimisation went with them. Nothing failed, because all ~865 dbt tests ask whether
+A cost fix landed and Thread 1 of docs/product_direction_threads.md was closed with
+"architecture signed off". Two days later an unrelated refactor rewrote the same models and
+the optimisation went with them. Nothing failed, because all ~865 dbt tests ask whether
 a NUMBER is correct and none asks whether something became expensive. The regression was invisible
 until the bill arrived, and it stayed invisible for two months.
 
@@ -74,7 +74,7 @@ EXPECTED = {
 # ⚠ KEYED BY LAYER SINCE #33 items 9/10. It was a flat base-only tuple, and when `1_staging`
 # became a table three new prose sites appeared (CLAUDE.md, layering.md, engineering_standards.md)
 # that NOTHING guarded — the precise regression class this file exists for, reintroduced for the
-# layer the change was about. Two reviewers caught it. A layer with prose sites belongs here;
+# layer the change was about. A layer with prose sites belongs here;
 # `3_core`/`4_intermediate`/`5_marts` are absent because no document states their materialisation
 # in the pinned token form.
 POLICY_SITES = {
@@ -157,7 +157,7 @@ def test_every_policy_site_quotes_the_configured_layer_materialisation():
 
     Named for LAYER, not base: it was `..._base_materialisation` while looping over every layer,
     which is the same prose-drifted-from-behaviour defect this file exists to prevent, committed
-    inside the file that prevents it. Two reviewers flagged it independently.
+    inside the file that prevents it.
     """
     configured = _configured_materialisations()
     missing, stale = [], []
@@ -215,7 +215,7 @@ def test_check_layer_contract_rejects_any_per_model_materialisation(tmp_path, mo
 def test_staging_models_never_override_materialisation_per_model():
     """The same rule, on the layer that only just started needing it (#33 item 10).
 
-    Staging became a table on 2026-08-12 because a view stores nothing and all 59 staging tests
+    Staging became a table because a view stores nothing and all 59 staging tests
     re-executed the raw JSON parse. That saving survives only while the layer keeps deciding
     centrally: one model opting back into `view` reinstates the rescan for its own tests, and
     nothing else fails, which is precisely how the May 2026 regression this file exists for went
@@ -266,11 +266,11 @@ def _is_bookkeeping(rel: str) -> bool:
         rel.startswith(".claude/task/")
         # ⚠ THE ONE EXCLUSION HERE THAT IS NOT SELF-REFERENTIAL PAPERWORK, so it carries the
         # heaviest justification. `.claude/active_work.md` is the PRODUCT stream's handover and a
-        # standing CPO ruling forbids editing it from the pipeline worktree — recorded verbatim in
+        # standing ruling forbids editing it from the pipeline worktree — recorded in the frozen
         # `.claude/task/escalations.log` under "THE `.claude/active_work.md` OWNERSHIP RULING",
         # where a blinded reviewer can check it. An earlier version of this line cited only a
-        # GitLab issue, which a reviewer cannot read, and `scope-auditor` correctly FAILed it:
-        # an authority the builder can see and the reviewer cannot is not an authority.
+        # GitLab issue, which a reviewer cannot read: an authority the builder can see and the
+        # reviewer cannot is not an authority.
         # This exclusion is NOT a false-positive defence — the guard caught a REAL stale claim
         # there (line 184, "staging is still a VIEW"). It is excluded because it cannot be fixed
         # from here, and the staleness is reported to the owning stream rather than swallowed.

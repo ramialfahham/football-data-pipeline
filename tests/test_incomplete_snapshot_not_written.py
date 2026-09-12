@@ -14,8 +14,8 @@ and then write the partial payload as if it were whole:
 
 Raw is append-only, so this is recoverable: the partial wins in staging, but the complete prior
 row survives in `raw` and the next good run supersedes it. It was NOT recoverable under #33 item
-8b, where the partial write also DELETED the complete prior row — that merge was reversed on
-2026-08-17 (CPO: raw appends and never deletes).
+8b, where the partial write also DELETED the complete prior row — that merge was reversed
+(raw appends and never deletes).
 
 ⚠ THE REVERSAL IS NOT A REASON TO DROP THIS GUARD, and that is the point worth keeping. Staging
 reads latest-per-league, so a partial snapshot still hides the good one from every model
@@ -102,8 +102,7 @@ def _patch_transfers(module, monkeypatch, fetch):
     it never ran `fixture_scheduling.py`'s real `result_is_complete(data)` — the actual #896
     guard for RAW_APIF_TRANSFERS, the 6.99 GiB table this whole change exists for — and it
     reimplemented only the body-error half, missing the latched-quota half entirely. Reverting
-    the real guard to `complete = True` left the entire suite green. Found in review round 1 by
-    two reviewers independently.
+    the real guard to `complete = True` left the entire suite green.
     """
     monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: fetch())
 
@@ -236,8 +235,8 @@ def test_a_quota_cut_on_a_single_iteration_is_caught(
 
     `test_a_mid_loop_quota_cut_discards_the_snapshot` above runs two iterations, and every one
     of these loaders has a PRE-EXISTING top-of-loop `if _http_quota_exhausted: break` that fires
-    on the second one. `platform-reviewer` showed at round 2 that this masks the new code for all
-    four loaders: drop the quota half of the new check — keep only `if data.get("errors")` — and
+    on the second one. That masks the new code for all four loaders: drop the quota half of the
+    new check — keep only `if data.get("errors")` — and
     those four cases still pass, because the old top-of-loop guard catches it independently.
 
     With exactly ONE team / ONE season the loop body runs once, so the top-of-loop check never
@@ -275,9 +274,9 @@ def test_transfers_helper_reports_completeness_itself(payload, expected_complete
     """Pin `transfers_response_for_team`'s OWN completeness signal, directly.
 
     The loader-level tests above reach this function through `load_transfers_batch`, and
-    `load_transfers_batch` has a pre-existing per-iteration quota check of its own. Two
-    reviewers showed round 1's transfers cases could pass on THAT check while this function's
-    new `result_is_complete` call was reverted — right answer, wrong code path. This test calls
+    `load_transfers_batch` has a pre-existing per-iteration quota check of its own. The
+    loader-level transfers cases could pass on THAT check while this function's new
+    `result_is_complete` call was reverted — right answer, wrong code path. This test calls
     the helper directly, so nothing else can supply the verdict for it.
     """
     monkeypatch.setattr(fixture_scheduling, "fetch_merged_paged", lambda *a, **k: payload)
@@ -296,7 +295,7 @@ def test_transfers_helper_reports_completeness_itself(payload, expected_complete
 def test_empty_but_clean_response_still_counts_as_complete(monkeypatch):
     """An empty response with NO error is a COMPLETE answer and must still be written.
 
-    Measured 2026-07-30..08-03: ~23 of 1,265 teams genuinely have no coach on every run, which
+    Measured over five nightlies: ~23 of 1,265 teams genuinely have no coach on every run, which
     is why COACHES is reported and never gates. If the guard treated "empty" as "incomplete",
     those leagues would stop being written entirely — trading one silent failure for another.
     """

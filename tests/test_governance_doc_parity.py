@@ -3,12 +3,12 @@
 `.claude/review_routing.json` is the source of truth for which paths confer which
 reviewers, and `task_contract_gate.py` for which paths are protected. Neither the
 COUNT nor the LIST is derived anywhere: both are restated as English prose, by
-hand, across eleven sites. MR !4 added exactly ONE routing row, and that one-line
+hand, across eleven sites. One MR added exactly ONE routing row, and that one-line
 change cost eleven prose edits and three review rounds (GitLab #1).
 
 The failure mode is not carelessness. It is that nothing can tell you a
-hand-copied list is incomplete — a stale "eight" is valid prose, and round 1 of
-that review missed the protected-path axis entirely because both lists happened
+hand-copied list is incomplete — a stale "eight" is valid prose, and the first
+pass at it missed the protected-path axis entirely because both lists happened
 to be identical eight-item sets, so one grep looked exhaustive.
 
 So these tests derive every number and every list from the two sources and check
@@ -18,9 +18,9 @@ THREE TRAPS THESE TESTS ARE BUILT AROUND, each of which has already cost this re
 a round:
 
 1. A LINE-BASED GREP MISSES A PHRASE STRADDLING A LINE BREAK. Four of the eleven
-   sites wrap mid-claim (`cto-reviewer.md` breaks between "all nine" and "guard
+   sites wrap mid-claim (the CTO brief breaks between "all nine" and "guard
    paths"; `working_agreement.md` and `agent_guardrails.md` break inside "on all
-   nine, plus platform-reviewer on exactly three"). A first sweep while writing
+   nine, plus platform on exactly three"). A first sweep while writing
    this found seven of eleven for exactly that reason. Everything here reads whole
    files and normalises: blockquote markers stripped, then all whitespace collapsed.
 
@@ -43,7 +43,7 @@ established claim SHAPES. A count written in a genuinely new sentence form ("the
 CTO covers a dozen paths") is not caught. The enumeration axis has no such hole,
 because it matches on paths rather than words. Closing the count hole means either
 dropping the counts from prose entirely (GitLab #1's option 2) or generating them,
-both of which are CPO calls that were considered and not taken.
+both of which are product-owner calls that were considered and not taken.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ def _routing_paths() -> dict:
 
 
 def shared_guard_paths() -> set[str]:
-    """Guard paths where `platform-reviewer` is routed alongside the CTO."""
+    """Guard paths where the platform reviewer is routed alongside the CTO."""
     rows = _routing_paths()
     return {p for p in protected_paths() if "platform-reviewer" in rows.get(p, [])}
 
@@ -126,7 +126,7 @@ COVERED_FILES = (
 # Files that RECORD rather than GOVERN. A superseded number in one of these is the
 # point of the file, not drift in it, and none of them is a rule anybody follows.
 #   .claude/task/       per-task paperwork, replaced every task, including the
-#                       append-only escalations.log of past CPO rulings
+#                       frozen escalations.log of past rulings
 #   .claude/active_work.md  the handover, rewritten every session (routing files it
 #                       under `artifact_only` for the same reason)
 #   docs/audits/        dated snapshots of what was true on the day
@@ -170,8 +170,8 @@ def _as_int(token: str) -> int | None:
 # Test 1 — the identity every "nine" depends on.
 # --------------------------------------------------------------------------- #
 def test_every_protected_path_is_routed_to_the_cto():
-    """A guard path is a PROTECTED path that routes to `cto-reviewer`, and the
-    docs use the two terms interchangeably. That only holds while the sets agree.
+    """A guard path is a PROTECTED path that routes to the CTO, and the docs use
+    the two terms interchangeably. That only holds while the sets agree.
 
     Add a protected path and forget its routing row and the prose "nine" silently
     means two different things in two places: nine files the gate blocks, eight
@@ -385,12 +385,12 @@ PROSE_SUBSETS = {
 
 # Real incomplete lists that cannot be fixed from the task that finds them —
 # typically because they sit on a PROTECTED path and correcting one needs a
-# CPO-approved governance task carrying `protected_override`. Recorded rather than
+# governance task carrying `protected_override`. Recorded rather than
 # exempted, and `test_known_incomplete_lists_have_not_been_fixed` fails the moment
 # one IS corrected, so an entry cannot outlive its defect.
 #
 # EMPTY IS THE CORRECT STEADY STATE, and it got here the intended way. The single
-# entry recorded the `platform-reviewer.md` territory sentence omitting
+# entry recorded the platform brief's territory sentence omitting
 # `.gitlab-ci.yml` (GitLab #22, found by this file on its first run in #1). When
 # that sentence was fixed under an override, the paired test went RED and named
 # the entry to delete — the exemption could not outlive the defect, which is the

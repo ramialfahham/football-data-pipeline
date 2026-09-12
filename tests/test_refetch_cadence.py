@@ -40,13 +40,14 @@ REPO = Path(__file__).resolve().parents[1]
 SOURCES_YML = REPO / "dbt_project" / "models" / "1_staging" / "api_football" / "sources.yml"
 
 # The tables this task put on a cadence. They differ in how staging READS them, and that is
-# what matters now that both are append-only (CPO 2026-08-17, raw appends and never deletes):
+# what matters now that both are append-only (raw appends and never deletes):
 #   TRANSFERS is read latest-per-league, so a partial write HIDES the complete row from every
 #   model downstream until the next good run. It no longer DELETES it — that was 8b, reversed.
-#   COACHES is read across ALL snapshots to preserve every coach ever seen (CPO 2026-06-23),
-#   so a partial write only adds noise that base dedups away.
-# An earlier version of this file called both merge-on-write; a reviewer caught it. A later one
-# called TRANSFERS destructive after that stopped being true; a reviewer caught that too.
+#   COACHES is read across ALL snapshots to preserve every coach ever seen, so a partial write
+#   only adds noise that base dedups away.
+# An earlier version of this file called both merge-on-write; a later one called TRANSFERS
+# destructive after that stopped being true. Both were wrong in the same way: describing the
+# raw layer from memory instead of from how staging reads it.
 CADENCED_TABLES = {"RAW_APIF_TRANSFERS", "RAW_APIF_COACHES"}
 
 NOW = datetime(2026, 8, 10, 4, 0, tzinfo=timezone.utc)
@@ -101,12 +102,12 @@ def test_the_stagger_is_stable_across_processes():
 
 @pytest.mark.parametrize("code", ["BL1", "PL", "SA", "WC", "MLS", "J1", "FAC", "UCL"])
 def test_every_league_actually_gets_the_ruled_cadence(code):
-    """THE ONE MY FIRST VERSION LACKED, and a reviewer found the bug instead.
+    """THE ONE THE FIRST VERSION LACKED — the bug it would have caught was found in review instead.
 
     The first implementation computed `due_after = interval - offset` on EVERY call, which
     permanently SHORTENED the interval: a league with offset 6 re-fetched every single day and
     only offset 0 ever got 7 days. It looked like a stagger and was a silent cadence cut, and
-    the CPO's ruling was "every 7 days" — not "somewhere between 1 and 7 depending on a hash".
+    the rule is "every 7 days" — not "somewhere between 1 and 7 depending on a hash".
 
     This simulates a year of nightly runs and asserts the observed gap between re-fetches is
     exactly the ruled interval for EVERY league, not just the lucky ones. It fails on the old
@@ -193,8 +194,8 @@ def test_a_skipped_league_writes_nothing_at_all(monkeypatch):
 
     A skip must not fetch AND must not write. RAW_APIF_TRANSFERS is one row per league, read
     latest-per-league in staging, so a write of a partial payload hides the complete row from
-    every model downstream — the #37 defect. Since 2026-08-17 the complete row survives in raw
-    (append-only), so that is recoverable by re-running rather than permanent; the guard stays
+    every model downstream — the #37 defect. Now that raw is append-only the complete row
+    survives there, so that is recoverable by re-running rather than permanent; the guard stays
     because a hidden snapshot is still a wrong warehouse until the next good run. Asserted by
     running the real orchestration path with the loader replaced by a recorder: zero calls, not
     "a call with less data".
@@ -240,7 +241,7 @@ class _FakeCtx:
 
 
 def test_a_skipped_league_is_recorded_for_the_completeness_gate(monkeypatch):
-    """THE 2026-08-14 NIGHTLY, pinned at the call site that actually fixes it.
+    """THE NIGHTLY THAT FAILED ON A SKIPPED LEAGUE, pinned at the call site that actually fixes it.
 
     The completeness gate fails a run when a per-team gap persists across two runs, because a
     normal gap heals on the next night's fetch. A league skipped by this cadence cannot heal, so
@@ -300,12 +301,11 @@ def test_freshness_thresholds_exceed_the_cadence(table):
     The code cadence and the dbt freshness thresholds are only correct relative to each other.
     At the old 54h, a table refreshed every 7 days sits permanently past `error_after`.
 
-    Nothing on this branch reads those thresholds — `dbt source freshness` is invoked nowhere,
-    and the consumer is the hourly sentinel on the separate, unmerged #39 Stage 2 branch (!30).
-    So today this is inert; once !30 lands, unraised thresholds would email EVERY DAY about a
-    pipeline behaving exactly as ruled, which ends with somebody muting the alert and leaving
-    the pipeline unwatched again. This test is what keeps the two halves in step regardless of
-    which merges first.
+    The consumer of those thresholds is the hourly sentinel `scripts/check_raw_freshness.py`
+    (`fdp-freshness`); `dbt source freshness` itself is invoked nowhere. Unraised thresholds
+    would email EVERY DAY about a pipeline behaving exactly as ruled, which ends with somebody
+    muting the alert and leaving the pipeline unwatched again. This test is what keeps the two
+    halves in step.
 
     So `error_after` must exceed the cadence plus one whole extra cycle. Change
     REFETCH_INTERVAL_DAYS to 14 without touching sources.yml and this fails, which is the point.

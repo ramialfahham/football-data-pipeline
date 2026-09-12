@@ -2,8 +2,8 @@
 
 WHY THIS EXISTS
 ---------------
-The first two properties were repaired on 2026-08-08 under GitLab #33, and both share the shape
-this repo keeps getting caught by: breaking them produces no red anywhere.
+The first two properties were repaired under GitLab #33, and both share the shape this repo
+keeps getting caught by: breaking them produces no red anywhere.
 
   * `API_FOOTBALL_SKIP_INGEST_LOCK=1` sat in three CI ingest invocations and disabled the BigQuery
     ingest lease. `docs/operations_guide.md:149` forbids it — "Local debugging only; never
@@ -19,7 +19,7 @@ this repo keeps getting caught by: breaking them produces no red anywhere.
     anchor used to make MR/prod drift structurally impossible; splitting it traded that guarantee
     for a comment, so the guarantee is re-established here as an assertion.
 
-  * `git worktree prune` must run before `git worktree add` (GitLab #65, 2026-08-13). The
+  * `git worktree prune` must run before `git worktree add` (GitLab #65). The
     self-hosted runner keeps the project directory between jobs but gives each job a fresh `/tmp`,
     so a worktree registration in the persisted `.git/worktrees/` outlives the directory it points
     at and the next `add` dies with "missing but already registered worktree". Delete the prune and
@@ -36,8 +36,7 @@ text grep would flag the documentation of the defect as the defect.
 The lock check reads `variables:` as well as script lines. An env var set through a `variables:`
 mapping — global, `default:`, or per job — reaches the ingest exactly as an inline assignment does,
 and `orchestrator.py:95` literally tells the operator to set that variable when the lease is held.
-A guard that only read script text would miss the most idiomatic way to reintroduce the flag
-(platform-reviewer, round 1).
+A guard that only read script text would miss the most idiomatic way to reintroduce the flag.
 
 WHAT IS DELIBERATELY *NOT* PINNED HERE
 --------------------------------------
@@ -278,7 +277,7 @@ def _mr_dbt_invocations() -> tuple[str, str]:
 def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
     """`--favor-state` belongs on data:build:mr's BUILD line and must never return to its TEST line.
 
-    THE DEFECT THIS PINS (GitLab #92, fixed 2026-08-27). Both invocations carried
+    THE DEFECT THIS PINS (GitLab #92). Both invocations carried
     `--defer --favor-state`. `--favor-state` resolves every `ref()` to the DEFERRED (prod) relation
     even when the current run has just built that model. On the `dbt build` line that is correct and
     load-bearing — a model being BUILT must take its upstreams from prod rather than from a
@@ -297,7 +296,7 @@ def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
     tests simply go back to reporting on the wrong database. Before this assertion the only thing
     standing in the way was a comment, and a confident comment is precisely what let the defect
     survive in the first place (the paragraph above the line asserted the isolation the flag
-    prevented). platform-reviewer's round-1 finding, and it was right.
+    prevented).
 
     BOTH HALVES ARE ASSERTED, deliberately. Pinning only the test line would let someone "restore
     symmetry" by stripping the flag from the BUILD line instead — which breaks isolation in the
@@ -336,15 +335,15 @@ def test_the_mr_singular_test_gate_reads_the_branch_not_prod() -> None:
 
 
 def test_each_merge_request_builds_into_its_own_datasets() -> None:
-    """No merge request may read another one's tables. #92 second half, 2026-08-27.
+    """No merge request may read another one's tables. #92 second half.
 
     THE DEFECT THIS PINS, which only became reachable once the half above landed. Every merge
     request used to build into ONE shared set of `ci_*` datasets. While the singular tests read
     PRODUCTION that was invisible; the moment they read the ci datasets instead, a merge request
-    that rebuilt nothing began reading whatever another branch had left there. `!115`, which changes
-    no models, went red on THREE tests against tables `!114` had built an hour earlier — headline
-    error "Unrecognized name: points_capture; Did you mean points_capture_pct?", the exact mirror of
-    the failure that started #92.
+    that rebuilt nothing began reading whatever another branch had left there. One merge request
+    that changed no models went red on THREE tests against tables a sibling had built an hour
+    earlier — headline error "Unrecognized name: points_capture; Did you mean
+    points_capture_pct?", the exact mirror of the failure that started #92.
 
     BOTH HALVES OF THE ISOLATION ARE ASSERTED, and the second is not decoration.
     `macros/generate_schema_name.sql` prefixes a model that HAS a custom schema with `target.name`,
@@ -352,9 +351,9 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
     for a model with NO `+schema` — which is the whole `2_base` layer and EVERY seed,
     `metric_catalogue` among them. Their isolation rests entirely on the profile's `dataset:` line.
     Pinning only the target name would let someone revert `dataset:` to a shared literal and put the
-    base tables and the seed back in one shared dataset, silently, reinstating the `!115` failure on
-    the very relation two dbt guards were rewritten to depend on. platform-reviewer found that
-    omission in an earlier version of this test.
+    base tables and the seed back in one shared dataset, silently, reinstating that failure on
+    the very relation two dbt guards were rewritten to depend on — an omission an earlier version
+    of this test had.
 
     A literal `--target ci` anywhere in the job, or a `DBT_CI_TARGET` that does not carry the merge
     request id, restores the shared workspace with every test and the whole pipeline still green —

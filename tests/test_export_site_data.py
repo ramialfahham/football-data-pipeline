@@ -75,11 +75,11 @@ def test_display_group_of_type_covers_the_renamed_and_new_types():
     Only the seed lookup actually resolves a competition_type, so the assertion belongs here.
     """
     m = _display_group_of_type()
-    # renamed 2026-08-12: the entity-named type became format-named
+    # renamed: the entity-named type became format-named
     assert "continental_club" not in m, "the old type name is back in the seed"
     assert m["continental_cup"] == "continental-club"
-    # added 2026-08-12 — a global club tournament and an intercontinental one-off, split because
-    # the taxonomy splits tournament from super cup at every other level
+    # a global club tournament and an intercontinental one-off, split because the taxonomy
+    # splits tournament from super cup at every other level
     assert m["club_world_cup"] == "continental-club"
     assert m["intercontinental_super_cup"] == "continental-club"
 
@@ -230,8 +230,8 @@ def test_player_slug_still_drops_undecomposable_letters():
     """Pins the KNOWN, deliberate gap so it is visible rather than discovered.
 
     `_kebab` folds via NFKD then drops whatever is left non-ASCII, so a character with no
-    decomposition vanishes instead of transliterating. The CPO ruled transliteration (E3),
-    and it landed for TEAM slugs, which are now derived in the warehouse. Player slugs still
+    decomposition vanishes instead of transliterating. Transliteration is the rule, and it
+    landed for TEAM slugs, which are now derived in the warehouse. Player slugs still
     run through this function, so they still lose the letter. When player slugs move to the
     warehouse this test should start failing -- and the fix is to delete it, not to widen it.
     """
@@ -253,7 +253,7 @@ def test_shape_team_payload_identity_from_latest_and_seasons_desc():
     p = shape_team_payload(_mark_featured(rows))
     assert p["team_id"] == 157
     # SERVED by mart_team_profile, not computed here, and carrying no provider id (#852).
-    # The old assertion was "bayern-munchen-157" -- that id is exactly what the CPO ruled out.
+    # The old assertion was "bayern-munchen-157" -- that id is exactly what is ruled out.
     assert p["slug"] == "bayern-munchen"              # from the 2025 (latest) row
     assert p["name"] == "Bayern München"
     # GAP-01: founded year + venue from the latest row; venue is a nested block
@@ -707,7 +707,7 @@ def test_shape_player_payload_attaches_career_and_national_total_omits_null_team
          "club_latest_kickoff_at": "2019-06-01T20:00:00"},
     ]
     p = shape_player_payload(_mark_featured(profiles), [], None, career)
-    # club_latest desc: Spurs 2024-05-19, England 2023-07-09, Bayern 2022-05-14. Spurs rows contiguous
+    # club_latest desc: Spurs (May 2024), England (Jul 2023), Bayern (May 2022). Spurs rows contiguous
     # (2024, 2020), then England (2023, 2021), then Bayern; the null-team row is omitted.
     assert [(c["team"]["team_id"], c["season"]) for c in p["career"]] == [
         (47, 2024), (47, 2020), (500, 2023), (500, 2021), (157, 2022)
@@ -830,7 +830,7 @@ def test_featured_season_row_refuses_to_choose():
 
 
 # ------------------------------------------------------------------------------------------
-# The landing hero's MATCHDAY selection (CPO 2026-08-18, replacing the fixed count of 12).
+# The landing hero's MATCHDAY selection (replacing the fixed count of 12).
 
 
 def _hero_fixtures(*specs):
@@ -850,15 +850,15 @@ _HERO_TEAMS = {
 
 
 def test_hero_grouping_truncates_nothing():
-    """The count of 12 is gone (CPO 2026-08-18): this function groups everything it is handed.
+    """The count of 12 is gone: this function groups everything it is handed.
 
     ⚠ The fixture set deliberately holds THIRTEEN matches — one more than the retired cap — so
     this FAILS against the old `fixtures[:12]` slice instead of passing either way.
 
     ⚠ WHICH day is shown is NOT tested here, because it is no longer decided here: the matchday
-    restriction is a WHERE clause in `fetch_landing_payload`'s query (analytics-engineer-reviewer,
-    round 1 — computing it in Python was the same layer violation #846 fixed for seasons). A unit
-    test asserting a day filter in this function would now be asserting the wrong thing.
+    restriction is a WHERE clause in `fetch_landing_payload`'s query (computing it in Python was
+    the same layer violation #846 fixed for seasons). A unit test asserting a day filter in this
+    function would now be asserting the wrong thing.
     """
     thirteen = [("PL", f"2026-08-20 1{i % 10}:00:00+00:00") for i in range(13)]
     groups = group_upcoming_fixtures(
@@ -886,8 +886,8 @@ def test_hero_carries_region_rank_from_the_served_meta():
 #
 # A `test_hero_matchday_selection_lives_in_the_query_not_in_python` existed here briefly and was
 # DELETED, not relaxed: it asserted `"min(fixture_date)" in inspect.getsource(...)`, which is a grep
-# dressed as a test. analytics-engineer-reviewer was right that it pinned a string rather than the
-# property that matters, and that it would have to be rewritten — not merely loosened — the day the
+# dressed as a test. It pinned a string rather than the property that matters, and it would have
+# had to be rewritten — not merely loosened — the day the
 # decision moves into the warehouse (GAP-32).
 #
 # The placement is enforced by the layer contract and by review, not by a text assertion. What IS
