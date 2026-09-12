@@ -1,137 +1,119 @@
-# Review — chore/115-step8-sweep-frontend-ingestion — 2026-09-12
+# Review — chore/115-step9-memory-budget — 2026-09-12
 
-diff_sha256: be548b7966194a71398e1220eed648e4be035b1ef896121989b02cb5524344f3
+diff_sha256: 4aef0034fd17e6a743a1d559a030faba619ec0d8addb8e1d7dd46cd797c0954b
 
-rounds: 3
+rounds: 2
 
-bi-analyst-reviewer: PASS at round 1 (`c931e1ef…`), PASS at round 3 (every `site_v2/src` blob SHA
-  identical to round 1's; the contract's false-why declaration covers the two files it flagged)
-platform-reviewer: FAIL at round 1 (`c931e1ef…`), PASS at round 3
-data-engineer-reviewer: PASS at round 1 (`c931e1ef…`), PASS at round 3 (all 18 ingestion blob
-  SHAs identical to round 1's)
-scope-auditor: FAIL at round 1, PASS at round 2 (`a6f9a5d5…`), PASS at round 3 (its first
-  round-3 verdict flagged six string literals in `design-mocks` as unswept; re-classified on
-  re-read as printed check labels and rendered mock text — program output, outside the
-  comment/docstring definition and protected by criterion 2 — and withdrawn)
+cto-reviewer: FAIL at round 1 (`c93c245b…`), PASS at round 2
+platform-reviewer: FAIL at round 1 (`c93c245b…`), PASS at round 2
+scope-auditor: PASS at round 1 (`c93c245b…`), PASS at round 2
 
-Round 2 → 3. The platform-reviewer's round-1 finding: eight history lines in `design-mocks` the
-guard cannot see — CSS comment CONTINUATION lines inside emitted stylesheet strings
-(`gen_top_players.py:343`, `gen_top_teams.py:331`, `gen_matches.py:260`,
-`gen_competition_hub.py:334`) and a bare triple-quoted block comment in two generators
-(`gen_top_players.py:84-106`, `gen_top_teams.py:79-99`). All eight swept by hand; the rendered
-mocks re-diffed (identical, CSS comments stripped); `ast` shows the two bare strings as no-op
-statements; criterion 2's exception list is now thirteen lines in six files; an amendment names
-the guard's blind spot. Whole-tree count still (0, 0).
+Round 1 → 2. cto-reviewer: the new operations-guide section published the CI runner's public
+address, host size, city and firewall rule — a live host's fingerprint in a public repo, beside
+the WIF description of the prod credential, never in the tracked tree before and not a disclosure
+his "go" covered. Removed; the section now says the address is in the Hetzner account.
+platform-reviewer: (1) the budget pin compared the three numbers as one tuple — lexicographic, so
+a lowered first budget would hide a raised third — now three assertions; (2) the universal-newline
+read had no test that could fail on Linux — a CRLF note written as bytes now pins it; (3)
+`--report` crashed on a missing folder — now a message and exit 1, tested. Each fix proven by a
+mutation that goes red. Two contract amendments record both. The memory folder itself, the hook's
+gating path and its wiring are unchanged from round 1.
 
-Round 1 → 2 (contract only): `decisions_taken` names the false-why correction rule (sweeps 1
-and 3 applied and declared it; omitted here) and the two files it applied to (`index.astro`,
-`types.ts`); a second amendment bullet.
+### cto-reviewer — round 1
+Verdict then: FAIL (resolved at round 2)
+- Approval form, the budgets as measurements (same class as the comment guard's pin), the guard
+  invariants (fail open, path scope, shrink always passes), recurring cost, the routing: all clean.
+- Finding 1: `docs/operations_guide.md` published the runner's IPv4, provider/city, OS stack, SSH
+  policy and firewall rule into a public repo — a §10 "permanent once published" class the
+  contract did not name. → Removed and declared (amendment 1).
 
 ### platform-reviewer — round 1
-Verdict then: FAIL (resolved at round 3)
-- `site_v2/scripts/*.mjs`: comment lines only; the parsers read double-quoted entries, none
-  depends on a comment. The pin at zero: the `<=` half is the whole guard, the `==` half implied;
-  nothing assumes a non-zero pin; the hook still fails open. The five declared string lines each
-  traced to its enclosing `MOCK_CSS`/`PAGE_CSS`/`ROW_CSS` string and its `<style>` sink; "rendered
-  identical with CSS comments stripped" is the right comparison; the emitted `.html` is gitignored.
-  The two non-running generators fail on `main` identically (registry drift: BPL/EKS/TSL,
-  `intercontinental_super_cup`); `design-mocks` is referenced by no CI job — not a blocker.
-  `check_*.py`: docstrings and `#` only; every checker strips `/* */` before scanning.
-- Findings 1–4: eight further history lines in comment position that neither the pin nor the
-  hook can see (CSS continuation lines inside strings; a bare triple-quoted string that is not a
-  docstring) → all swept, declared, and proven at round 3.
+Verdict then: FAIL (resolved at round 2)
+- `resulting_text` for Write/Edit/MultiEdit, the path test on both path styles, the cap
+  arithmetic, the index exclusion, fail-open, the wiring, the slug derivation, the ops-guide
+  section against `.gitlab-ci.yml` and the handover, ruff: all clean.
+- Findings 1–3: the tuple-comparison pin; the untested CRLF branch; `--report` on a missing folder.
+  → All three fixed, each with a mutation shown red (amendment 2).
 
-## bi-analyst-reviewer
-VERDICT: PASS (round 1)
+## cto-reviewer
+VERDICT: PASS (round 2)
 risks_checked:
-- `strings.ts` hunks (patch 1779–2176): every changed line a `//`, `/**` or `*` comment; no
-  `key: "value"` entry touched in EN, DE, FI, `METRIC_LABELS_*` or `playerMetrics.*`;
-  `metricRows.ts` header comment only, the 16-row array untouched.
-- Provenance as rule: "Supplied copy (§10)", "confirmed copy", "APPROVED COPY (#41)", "(LOCKED)" each
-  still signal settled wording; none reduced to unmarked prose.
-- ≥12 rewrites read end to end (em dash, brand suffix, `kunto`/`muoto`, `Der Top-Spieler`, per-board
-  stacking, `overflow-wrap` measurements): rule, number and reasoning survive.
-- `index.astro`: both blocks imported (33–34) and rendered (73–74), no hunk in imports or JSX; the
-  corrected claim is true of the code as it stood — a content fix, not user-facing, no fabricated
-  field, so not a display/binding defect.
-- Every `.astro` hunk a `//` frontmatter or `{/* */}` comment; no markup, prop or expression.
-- `system.css` boxed headers measured character by character: both lines keep their width (71 and
-  74), borders unchanged; no rule/property/value line altered.
+- The operations-guide section re-read in full: the public IPv4, host size, city and firewall rule
+  are gone (a grep for the address → 0 hits in the doc and the patch). What remains — provider name, docker
+  executor, `concurrent = 2`, SSH by key with the passphrase recovery fact, `GIT_STRATEGY=clone`,
+  the IPv6 recipe, the console keyboard, per-project registration and why no group — is
+  architecture and recovery knowledge, not a network fingerprint; nothing left says where the box
+  is or what ports are open. The retained WIF attribute path is the repo's own path, public by the
+  repo URL; the real WIF identifiers stay redacted placeholders in `.gitlab-ci.yml`. Nothing
+  further to strike.
+- The hook diffed function by function against round 1: `is_memory_path`, `note_count`, `measure`,
+  `resulting_text`, `check`, `_default_folder` and `main`'s PreToolUse branch byte-identical;
+  only `report()` gained the missing-folder guard. `protected_override`, `impact_map` and
+  `decisions_taken` untouched — the round-1 authority clearance stands on the same text.
+- Amendment 2's fixes touch `report()` (the human-facing CLI path, not the gating path) and the
+  test file: no change to fail-open, path scope or the ratchet-only claim.
 findings:
 - none
 
 ## platform-reviewer
-VERDICT: PASS (round 3)
+VERDICT: PASS (round 2)
 risks_checked:
-- Hunt 6 grep re-run over `design-mocks/*.py`: the eight comment-position lines gone (each read
-  from disk); the fourteen remaining hits are rendered mock content, printed check labels or a
-  fixture URL — string literals outside §1.2, classified in round 1. No ninth line.
-- Regenerated patch, design-mocks region: every `+`/`-` line a `#` comment, docstring, CSS
-  `/* … */` comment inside an emitted stylesheet string, or a line of the two no-op bare strings;
-  no selector, property, value, assertion, regex or expected string changed; the delta versus
-  round 1 is exactly the eight lines; only four generators carry new blob SHAs.
-- Criterion 2's exception list counted from the patch: nine CSS lines + four bare-string lines =
-  thirteen in six files, matching the contract exactly; the bare strings are not `body[0]`, so
-  `ast` sees `Expr(Constant)` — the blind spot the amendment names; widening reserved.
-- Proof shape valid: the rewritten continuation lines sit inside the same `/* … */` blocks, the
-  bare strings are never emitted, the `.html` stays gitignored.
-- Round-1 items untouched by the delta stand: scripts comment-only, the pin at zero, the hook
-  fails open, the two non-running generators pre-existing with no CI consumer, no dependency,
-  credential or hosting change.
+- Finding 1 re-read: three independent assertions with a docstring naming the lexicographic trap;
+  the mutation (`MAX_FILES` 49, `FILE_MAX_CHARS` 999999) traced by hand — the third assertion
+  fails. Closed.
+- Finding 2 re-read: the CRLF note is built with `write_bytes` and a literal `b"\r\n"`, so it does
+  not depend on `os.linesep`; the arithmetic hand-computed — 4,655 raw / 4,232 normalised chars —
+  and the `newline=""` mutation traced: `measure()` reads 4,655 and the first assertion fails on
+  its own (the same-length Edit would pass under both forms via the shrink rule and does not
+  discriminate by itself; the test as a whole still goes red). Holds.
+- Finding 3 re-read: `report()` checks `os.path.isdir` before `measure()` — ahead of any code that
+  could raise — and the test pins exit 1, the message and no traceback.
+- The gating path (`is_memory_path`, `resulting_text`, `check`, `main`'s PreToolUse branch)
+  byte-for-byte identical to round 1; only `report()` changed.
+- 20 test functions with the two parametrisations (×5, ×6) = 29 collected, matching the amended
+  criterion 4.
+- The operations-guide section after the redaction still agrees with the handover's
+  passphrase-key note; no new contradiction.
+- The contract's amendments record both reviewers' findings accurately, including the exact
+  mutations, matching what was re-verified on disk.
 findings:
 - none
-
-## data-engineer-reviewer
-VERDICT: PASS (round 1)
-risks_checked:
-- Every hunk in the 18 ingestion files (patch lines 851–1451): comment or docstring only; the
-  three hotspots (`bigquery.py:270` REMOVED block, `squads.py:40` REMOVED block, `registry.py:34-40`
-  field comments) comment-only; `append=False,` beneath the reworded `completeness.py` comment
-  untouched.
-- Safety reasons still true against the code: the three delete helpers absent from `ingestion/`
-  (referenced only in `REMOVED:` comments); `load_json_to_bq`'s `append` still keyword-only with no
-  default; `result_is_complete` unchanged and the empty-response rule literally true; the
-  `(rows, complete)` docstrings and the rate-limited-HTTP-200 mechanism intact; the 29-events and
-  "no players vs we lost the players" sentences survive.
-- Dates that were data became number-preserving phrasing ("five nightlies", "sit idle for months");
-  `~23 of 1,265` untouched — the same pattern as sweeps 1–3.
-- `registry.py`: both cost fields still flagged as governed decisions; `ingest_active` now points at
-  §10 explicitly; defaults and types unchanged.
-- No fetch/write/delete/gate/skip/table/key/quota change anywhere.
-findings:
-- none
-
-### scope-auditor — round 1
-Verdict then: FAIL (resolved at round 2)
-- Scope, the five declared string lines, the two non-running generators, credentials, thresholds,
-  `decisions_reserved`: all clean.
-- Finding 1–2: `index.astro:9-11` and `types.ts:283-289` replace a false build-status claim ("Top
-  teams … not built") with the true one — a content correction, not attribution-stripping, and not
-  named in `decisions_taken` or `amendments`. → The contract now names the rule sweeps 1 and 3
-  applied and declared ("a why that is false as written is corrected, not preserved") and both
-  files; re-audited at round 2.
 
 ## scope-auditor
-VERDICT: PASS (round 3)
+VERDICT: PASS (round 2)
 risks_checked:
-- Round 3 — contract criteria 1–2 and `decisions_reserved` re-read against the six disputed lines
-  (`check_home.py:40`, `check_teams.py:100`, `check_players.py:97,111`,
-  `gen_competition_hub.py:232`, `gen_competitions.py:700`, `gen_sitemap.py:62,81`): each is a
-  `print`/`check` argument or `<p>` text inside an emitted HTML string — printed or rendered
-  output, which criterion 2 forbids changing; the comment/docstring scope excludes them by
-  definition, not by oversight. The first round-3 verdict misapplied the guard's blind-spot
-  precedent (CSS `/* */` comments and a no-op bare string — discarded before rendering) to a
-  materially different class; withdrawn.
-- Round 3 — the round-2 PASS stands on re-check: scope unchanged, false-why correction true and
-  declared, no credentials, no undeclared threshold or mechanism, `decisions_reserved` untouched.
-- Round 2 — delta contract-only: the file list and every non-contract `index` line unchanged
-  from round 1.
-- Round 2 — the false-why rule now declared and named for both files; the precedent checked on
-  disk (`sources.yml`'s "reads them" language; `test_refetch_cadence.py`'s threshold docstring) —
-  the same rule already applied and merged in `!178`/`!180`, not a new licence.
-- Round 2 — the corrected claim true: `index.astro:33-34,73-74` imports and renders both blocks;
-  `TopTeams.astro` exists.
-- Round 2 — two amendment bullets account for the contract's changes; `protected_override: none`
-  and both thresholds hold; reserved decisions untouched; no credential-shaped content.
+- Round 2 — amendment 1 verified against the diff: the runner section holds no address, size, city
+  or firewall rule (a grep for each of the five removed values → 0 hits in the patch); every
+  item the amendment says was kept is present verbatim. (The auditor's grep pattern, which spelt
+  the values out, was copied into this file at round 2 and pushed once; it was removed and the
+  branch rewritten before merge so the pushed history does not carry it.)
+- Round 2 — amendment 2 verified against the diff: three separate asserts; the CRLF test writes
+  raw bytes; `report()` guards `isdir` and its test pins exit 1 and the message. 20 functions +
+  (5 + 6 − 2) = 29 tests, matching the amended criterion 4.
+- Round 2 — the changed-file set is the same seven repo files; nothing new in scope;
+  `decisions_reserved` untouched by the delta.
+- Round 2 — the redaction belongs in `amendments`, not `decisions_taken`: a reviewer-found
+  correction in the safe direction, and amendment 1 states the disclosure was not something his
+  "go" covered. No addition needed.
+- Round 1 (the items below stand; the credential bullet's "public IPv4" is now moot, removed at
+  round 2) — scope: every file in the patch (the hook, `settings.json`, the test, `agent_guardrails.md`,
+  `operations_guide.md`, `CLAUDE.md`, `contract.md`) is in `scope_paths`; nothing outside it.
+- §11 authority form: `protected_override` names the new hook and `settings.json`;
+  `decisions_taken` quotes the dated "go" with the objection it answered, matching the plan file's
+  "measured, not chosen" section in substance.
+- Thresholds: NEW MECHANISM yes (approved), RECURRING COST none — the hook fires at edit time only,
+  no scheduled job, no warehouse or API cost.
+- `decisions_reserved` untouched: the matcher stays `Edit|Write|MultiEdit|NotebookEdit`
+  (`settings.json:53-78`), the shell-write bypass is named open in the evidence, `_MEMORY_PATH`
+  (`memory_budget_gate.py:51`) stays scoped to the folder's top-level `.md` files.
+- Numbers against disk: the live folder holds exactly 50 notes + `MEMORY.md`; the index lists 50
+  files with no dangling link; 18 `def test_` with two parametrisations (5 + 6) = 27; `CLAUDE.md`'s
+  paragraph, the hook's constants and the test's pin agree (50 / 7,669 / 4,232).
+- Doc sync: the guardrails row and the `CLAUDE.md` section present, as the criteria require.
+- Credential sweep of the whole diff: a public IPv4, an SA name pattern and a WIF attribute path —
+  infrastructure description, no key, token or password; `API_FOOTBALL_API_KEY` handling untouched.
+- `operations_guide.md` placement: the GitLab section under the GitHub-era H2 is disclosed in the
+  evidence as a separate un-fixed doc item — matches disk, not a dodge.
+- `amendments: none yet` true for round 1.
 findings:
 - none

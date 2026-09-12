@@ -1,28 +1,36 @@
-# Task contract — sweep 4 of 4: decision history out of site_v2, ingestion and design-mocks
+# Task contract — memory cut to behaviour rules, with size budgets a hook enforces
 
 objective: >
-  250 comment and docstring lines in `site_v2/src/` (99), `ingestion/` (62), `design-mocks/` (72)
-  and `site_v2/scripts/` (17) — 56 files, `strings.ts` alone 47 — carry a date, "CPO", a review
-  credit, "round N" or an MR number. This sweep rewrites each such line as the why alone, or
-  removes it when it was only history, lowers the guard's pin to zero, and brings the handover to
-  the current state of #115. No behaviour change: no code line, string value, style rule or
-  rendered output changes.
+  The agent's memory folder (`~/.claude/projects/D--Projects-football-data-pipeline/memory/`,
+  outside the repo) holds 108 files + the index — 477,078 chars; the index `MEMORY.md`, loaded into
+  every session, 17,152 chars over 103 lines. 34 files are dead weight (13 handovers superseded by
+  `.claude/active_work.md`; 21 repeating a repo fact or describing a state that changed), the rest
+  say the same rules several times in files of 8–20 KB. This branch cuts the folder to behaviour
+  rules and pointers, then adds the guard: an edit-time hook that refuses a write into the folder
+  when it would push the index, a note or the file count past a budget — the three budgets pinned
+  to what the cut measured, ratcheting down only. #115 step 9, the last.
 
 refs: >
-  GitLab #124 (this task, `Task` template; the What/Why/How below are copied from it). #115 step 8,
-  the last of the four sweeps the CPO said "do it" to on 2026-09-11 ("four sweeps, one per
-  reviewer territory, each lowering the pin … Each line keeps the why and drops the who/when").
-  The rule: `engineering_standards.md` §1.2 (`!176`). The guard: `!177`, refined in `!179`.
-  Sweeps 1–3: `!178`, `!179`, `!180`.
+  GitLab #125 (this task, `Task` template; the What/Why/How below are copied from it). #115 step 9
+  ("memory cut to behaviour-changing rules, and size budgets per surface … Mechanism owed: a
+  budget, so adding requires removing"). The rule the cut applies: `CLAUDE.md` "Which source
+  answers which question" — memory answers none of the four. The pattern the hook copies:
+  `.claude/hooks/comment_history_gate.py` (`!177`) and the pinned-count ratchet of
+  `tests/test_no_decision_history_in_code.py`.
 
-protected_override: none — no protected path is touched.
+protected_override: >
+  `.claude/hooks/memory_budget_gate.py` (new) and `.claude/settings.json` (one hook registration).
+  The product owner's go to this step's plan is recorded verbatim in `decisions_taken` below, in
+  the commit message and in the MR head; under working_agreement §11 the durable approval is his
+  merge of this MR.
 
 scope_paths:
-  - site_v2/src/**
-  - site_v2/scripts/**
-  - ingestion/**
-  - design-mocks/**
-  - tests/test_no_decision_history_in_code.py
+  - .claude/hooks/memory_budget_gate.py
+  - .claude/settings.json
+  - tests/test_memory_budget_gate.py
+  - docs/agent_guardrails.md
+  - docs/operations_guide.md
+  - CLAUDE.md
   - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/review.md
@@ -30,102 +38,99 @@ scope_paths:
   - .claude/task/acceptance_evidence.md
 
 impact_map: >
-  writers: comment and docstring lines only, in up to 56 files across four trees; the pin
-    constants in one test file; the handover.
+  writers: one new hook, one registration entry, one test file, one guardrails row, one
+    operations-guide section (the CI-runner facts moving in from memory), the `CLAUDE.md` memory
+    section, the handover. Outside the repo: the memory folder — deletions, merges, rewrites and a
+    rebuilt index, none of which the patch shows; the evidence carries them.
 
-  downstream: `ingestion/` is the nightly (Cloud Run `fdp-nightly`) and the `test:python` suite;
-    `site_v2/src` and `site_v2/scripts` are the Astro build, `validate:ui` and `npm test`;
-    `design-mocks/` is the mock generator (`design-mocks/README.md`), run by hand. A comment cannot
-    change any of their output — EVIDENCE: for every touched Python file, the source with comments
-    and docstrings removed (`ast` + `tokenize`) is byte-identical before and after; for every
-    touched `.ts`/`.mjs`/`.astro`/`.css` file, the sequence of NON-comment lines (by the guard's
-    own `comment_lines`, per language) is identical before and after; `pytest tests/`, `npm test`
-    in `site_v2`, ruff and `validate-local`'s UI gate green with the same counts as `main`.
+  downstream (a guard's blast radius is every future memory write): the hook fires on every
+    `Edit`, `Write`, `MultiEdit` and `NotebookEdit`. It acts ONLY when the target path matches
+    `…/.claude/projects/<slug>/memory/<name>.md`; every other path returns 0 with no output, so no
+    repo edit, task artifact, plan file or scratchpad file is touched by it. On a memory path it
+    computes the RESULTING file (Write: `content`; Edit: the file on disk with `old_string` →
+    `new_string` applied, `replace_all` honoured; MultiEdit: the edits in order) and denies when
+    (a) the file is `MEMORY.md` and the result exceeds `INDEX_MAX_CHARS`, (b) any other note and
+    the result exceeds `FILE_MAX_CHARS`, or (c) the path does not exist yet and the folder already
+    holds `MAX_FILES` notes. A result no larger than the file on disk always passes, so an
+    over-budget file can always be cut. `NotebookEdit` writes `new_source`, which the hook does
+    not read, so it passes. Any exception → return 0, no output: fails OPEN like every hook here.
+    The test drives the hook as a subprocess on a temp folder of the same shape; the real folder
+    is measured by `--report` in the evidence. `task_contract_gate.py` keeps ignoring paths outside
+    the repo — this hook is the only one that looks there. Every other hook, the review hash,
+    routing and CI: untouched.
 
-  what stops being enforced if it is wrong: nothing — no enforcement line changes. The one
-    class a comment sweep can break in these trees is a check that READS comment text:
-    `site_v2/scripts/check-page-specs.mjs` and `check-metric-labels.test.mjs` parse `strings.ts`
-    by its double-quoted entries, not its comments — verified by running `npm test`; the mock
-    generators' `check_*.py` read the rendered mocks, not the generators' comments.
+  what stops being enforced if it is wrong: nothing enforced today — the folder had no gate. If
+    the hook mis-denies, the message names the surface, the measured size and the budget, and the
+    way out is to cut the note or delete one first.
 
-  layer_rules: n/a — no logic moves between layers; `scripts/export_*.py` is not touched.
+  layer_rules: n/a.
+
   deploy_order: none.
 
-  blast_radius: none in behaviour. In prose: `strings.ts`'s label comments must still say which
-    labels are locked and why a wording was chosen ("football Finnish uses `kunto` for form");
-    a loader's docstring must still say what incident class it guards against; a mock's header
-    must still name the wireframe it renders.
+  blast_radius: a NEW DENY on memory writes only. Bounded by the path test. The one edit it can
+    make harder is a large memory write in a hurry — by design; the budget is the mechanism.
 
 acceptance_criteria:
-  - Every comment or docstring line in the four trees that carries a date, "CPO", a review
-    credit, "round N" or `!N` is rewritten as the why alone, or removed when it was only history
-    — 250 lines in 56 files today. `count_tree` over the whole repo → (0, 0).
-  - No behaviour change: for every touched Python file the text with comments and docstrings
-    stripped is byte-identical before and after, EXCEPT the pin constants and thirteen lines in
-    six `design-mocks` generators that are comments the `ast` stripper cannot see: nine CSS
-    `/* … */` comment lines inside the Python STRING each generator emits as the mock's stylesheet
-    (`gen_competitions.py` 1, `gen_competition_hub.py` 1, `gen_matches.py` 1, `gen_top_players.py`
-    2, `gen_top_teams.py` 2, `rows.py` 2), and four lines in two module-level bare triple-quoted
-    strings used as block comments (`gen_top_players.py:84-106`, `gen_top_teams.py:79-99` — no-op
-    expression statements, never emitted). The proof for the nine is the rendered mocks, CSS
-    comments stripped, byte-identical between HEAD's generators and the branch's; for the four,
-    `ast` shows them as bare `Expr(Constant)` statements that nothing reads; for every touched
-    `.ts`/`.mjs`/`.astro`/`.css`
-    file the non-comment line sequence is identical; `pytest tests/` (same count as `main`),
-    `npm test` in `site_v2` (same count), ruff and the UI gate are green.
-  - The pin in `tests/test_no_decision_history_in_code.py` is lowered to what `count_tree`
-    measures: 250 → 0 lines, 56 → 0 files.
-  - Nothing load-bearing is lost: a locked display rule, a loader's safety reason, a mock's
-    wireframe pointer still say what they enforce and why — without who ruled it or when.
-  - The handover states step 8 done (guard merged, four sweeps merged, pin at zero) and step 9
-    next.
+  - The memory folder is cut to behaviour rules and pointers: the 13 `session_handoff_*` and every
+    `project_*` that repeats a repo fact (named per file) or describes a changed state are deleted;
+    the nine same-rule clusters are merged; every surviving note is the rule, why, and how to
+    apply, without dates or PR narrative. Reported two-sided: files before/after by class, chars
+    before/after, the merge map.
+  - The three memory-only facts have a home or are gone: `ci-runner-01` → `docs/operations_guide.md`;
+    the guardrails plugin → a `reference_` note; the semantic-layer intention dropped.
+  - `.claude/hooks/memory_budget_gate.py` is wired and its three budgets equal the measured
+    landing (`--report`): file count, index chars, largest note chars. On the real folder, one
+    char over any budget is denied with the hook's own text; a shrinking edit of an over-budget
+    file passes.
+  - `tests/test_memory_budget_gate.py` covers each deny and each pass on a temp folder, plus
+    non-memory path ignored and malformed stdin fails open; `pytest tests/` green with `main`'s
+    count plus the new tests; ruff clean on the hook and the test.
+  - `docs/agent_guardrails.md` has the row; `CLAUDE.md` "Memory files" names the budgets and the
+    hook and its key-files lines point at files that exist; `MEMORY.md` links all resolve; the
+    handover states #115 done and product work next.
 
 decisions_taken: >
-  THE REWRITE RULE, as in sweeps 1–3: keep the why (the rule, the deviation, its cost, the
-  mechanism, the number, a pointer to the design doc or issue); drop who decided and when (a
-  title, a name, a date, a log pointer, a reviewer credit, a round, an MR). A comment that was
-  ONLY history is removed. A quoted ruling that IS the rule (`strings.ts`: "more precise than just
-  Vorlagen") stays as the rule; the date and the title beside it go.
+  CPO, 2026-09-12, in chat: "go" — to the plan as revised after his objection that the budgets
+  "seem quite arbitrary": the budgets are MEASURED, NOT CHOSEN. The cut happens first; the hook's
+  three constants are then pinned to what the cut landed on (file count, index size, largest
+  note) and ratchet down only — the same pattern as the comment guard's pin. Nothing else in the
+  step is a choice: the cut applies `CLAUDE.md`'s rule (memory holds behaviour feedback and
+  pointers, never a product fact), and the rewrite applies the sweeps' rule (keep the why, drop
+  the who and when).
 
-  A WHY THAT IS FALSE AS WRITTEN IS CORRECTED, NOT PRESERVED — the rule sweeps 1 and 3 applied and
-  declared (`sources.yml`'s "nothing reads them"; `test_refetch_cadence.py`'s "unmerged branch").
-  Two comments here said the Top teams block was "specified and NOT built" beside code that
-  imports and renders it (`site_v2/src/pages/[lang]/index.astro` header, `site_v2/src/lib/types.ts`
-  landing docblock); they now say all three home modules are built. Stripping only the date from
-  a false sentence would leave a false sentence with no history to explain it. Comment text only;
-  no string, markup or type changes.
+  THE THREE MEMORY-ONLY FACTS: the builder's disposition, stated in the plan he approved —
+  `ci-runner-01` facts move to `docs/operations_guide.md` (the doc that owns operations); the
+  guardrails-plugin pointer becomes `reference_guardrails_plugin.md`; the semantic-layer
+  intention is dropped (an issue if it is ever wanted).
 
-  THE GUARD'S DEFINITION IS NOT TOUCHED. Lines the definition cannot see are swept by eye and
-  named in the evidence, so the two-sided count stays honest.
-
-  THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
+  THRESHOLD — NEW MECHANISM: yes — a new deny on memory writes, approved above; the numbers are
+  measurements. THRESHOLD — RECURRING COST: none.
 
 decisions_reserved:
-  - Widening the pattern to `#N`; any change to the guard's definition; shortening comments that
-    carry no marker; #115 step 9.
+  - A SessionStart report line; closing the shell-write bypass; any widening of the hook's
+    path test beyond the memory folder.
 
 done_when:
-  - The five criteria proven; `pytest tests/` green at the zero pin with the same count as
-    `main`; `npm test` in `site_v2` green with the same count; `ruff check --config
-    .ruff-ci.toml` on every touched `.py` clean; the two stripping comparisons over every touched
-    file → identical except the pin.
+  - The five criteria proven; the hook's `--report` on the real folder equals its three constants;
+    the four mutations shown; `pytest tests/` and ruff green; the MR head lists the deletions by
+    class and the merge map.
 
 amendments:
-  - Criterion 2 names the five CSS-comment-in-string lines in four `design-mocks` generators and
-    their proof (rendered mocks identical with CSS comments stripped). Found when the `ast`
-    stripper reported them as string changes: the generators build the mock's `<style>` block
-    from a Python string, so a CSS comment there is a comment to the guard and to the browser but
-    a literal to Python. Leaving them would have left the pin at 5 with a permanently-denied
-    edit path into those strings. Also recorded: `gen_competitions.py` and
-    `gen_block_standard.py` do not run on `main` either (the mocks have drifted from the
-    registry) — pre-existing, out of scope, named in the evidence.
-  - After round 1 (scope-auditor): `decisions_taken` names the false-why correction rule and the
-    two files it applied to (`index.astro`, `types.ts`) — the rule sweeps 1 and 3 used and
-    declared, omitted here by oversight; the auditor found the change undeclared, not wrong.
-  - After round 1 (platform-reviewer): eight more history lines the guard cannot see — CSS
-    comment CONTINUATION lines inside emitted stylesheet strings (four files) and a bare
-    triple-quoted block comment in two generators — found by a reviewer's grep and swept; the
-    criterion-2 exception list grows from five lines in four files to thirteen in six, with the
-    `ast` proof for the two bare strings added. The guard's blind spot for these shapes (a `.py`
-    file has no block-comment pairs; a bare string is not a docstring) is named in the evidence;
-    widening the definition stays reserved.
+  - After round 1 (cto-reviewer): the "CI runner" section written into `docs/operations_guide.md`
+    carried the runner's public IPv4, host size and city, and its exact firewall rule — a live
+    host's fingerprint moved from a private note into a public repo, beside the description of the
+    prod credential's WIF binding. Never in the tracked tree before this branch, and not a
+    disclosure his "go" covered (the plan said "the facts move into the operations guide", not
+    which facts). Removed: the address, the specs, the city, the firewall rule. Kept: that one
+    small Hetzner VM is the only runner, its registration, why no group, no GCP credentials on the
+    host, the IPv6 clone failure and its fix, the console keyboard trap, SSH by key only. The
+    address lives in the Hetzner account, which the section now says.
+  - After round 1 (platform-reviewer): three defects in the machinery, all fixed and each proven
+    by mutation. (1) `test_budgets_only_ever_move_down` compared the three budgets as ONE tuple,
+    which Python compares lexicographically — a lowered first budget would have hidden a raised
+    third; now three assertions, and the mutation (`MAX_FILES` 49, `FILE_MAX_CHARS` 999999) goes
+    red. (2) The universal-newline read the hook relies on had no test that could fail on the
+    Linux runner (every fixture wrote LF); a new test writes a CRLF note as BYTES at exactly the
+    budget after normalisation and over it raw, and the mutation (`newline=""`) goes red. (3)
+    `--report` on a missing folder crashed with a traceback; it now prints "no memory folder at …"
+    and exits 1, pinned by a test. Criterion 4's test count is 29, not 27.

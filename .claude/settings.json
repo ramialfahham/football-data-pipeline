@@ -69,6 +69,12 @@
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/comment_history_gate.py\"",
             "statusMessage": "Checking comments for decision history..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/memory_budget_gate.py\"",
+            "statusMessage": "Checking the memory budget..."
           }
         ]
       }
