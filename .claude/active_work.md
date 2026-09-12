@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-12**, on `chore/141-roadmap-one-home`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-12**, on `feat/142-tracker-snapshot`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -32,10 +32,13 @@ Teams · Players · Standings · Stats.** One review issue per page under each (
 the page, where each block's data comes from, what it links to and from — rechecked and approved by
 the CPO on the issue BEFORE anything is built or rebuilt, built pages included, because the earlier
 agreements may be stale. Build issues are filed only against an approved review. Go-live items
-(legal pages, domain, dropping `noindex`) follow the last page. This branch (#141) deletes the two
-dead roadmap documents and points the two partial sections at the milestones. **Next: the Home
-review, #127 — put the built page beside its block-by-block data sources and what is missing (the
-menu items lead nowhere; the mock generator still renders the dropped Browse block), and record his
+(legal pages, domain, dropping `noindex`) follow the last page. The two dead roadmap documents are
+gone (`!184`). **The tracker has a backup in the repo** (this branch, #142):
+`docs/tracker/gitlab_snapshot.md`, written only by `python scripts/snapshot_tracker.py` — run it
+at the END of every session before the handover commit; a hook refuses any hand edit, a test
+checks its checksum, and it is read only when GitLab is unreachable. **Next: the Home review,
+#127 — put the built page beside its block-by-block data sources and what is missing (the menu
+items lead nowhere; the mock generator still renders the dropped Browse block), and record his
 approval or changes on the issue. Nothing is blocked on the CPO.**
 
 **What changed in how we work, 2026-09-11 — read `CLAUDE.md` "Which source answers which

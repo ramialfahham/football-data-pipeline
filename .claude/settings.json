@@ -81,6 +81,12 @@
             "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/host_fingerprint_gate.py\"",
             "statusMessage": "Checking for a host address..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/tracker_snapshot_gate.py\"",
+            "statusMessage": "Checking the tracker snapshot is not hand-edited..."
           }
         ]
       }
