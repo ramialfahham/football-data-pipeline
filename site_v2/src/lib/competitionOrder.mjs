@@ -1,7 +1,6 @@
-// CPO-approved ordering rule (.claude/task/escalations.log, 2026-08-16): mart_competition_index
-// carries ordering FACTS only (next/last kickoff, region_rank); this page applies the actual
-// ORDER BY, per the CPO's correction of an earlier draft that wanted to pre-bake it in the mart —
-// "I don't agree that sorting has to be decided in the mart."
+// The ordering rule: mart_competition_index carries ordering FACTS only (next/last kickoff,
+// region_rank); this page applies the actual ORDER BY. An earlier draft wanted to pre-bake it in
+// the mart and was corrected — "I don't agree that sorting has to be decided in the mart."
 //
 // Sort key, in order: has an upcoming fixture > days to next kickoff BUCKETED BY CALENDAR DAY
 // (not the raw timestamp — a same-day tiebreak by clock time would rank a 10:15 kickoff above a
@@ -9,14 +8,14 @@
 // next kickoff time (deterministic same-day tiebreak) > league_code (full determinism).
 // Competitions with nothing upcoming sort last, most-recently-played first.
 //
-// The SAME key orders the category headings too (2026-08-16 note: "apply the same key to the
-// category headings, ordered by each group's earliest next kickoff") — that is where national
+// The SAME key orders the category headings too ("apply the same key to the category headings,
+// ordered by each group's earliest next kickoff") — that is where national
 // teams rank ahead of club leagues during an international break, with no special case.
 //
 // Plain JS, not TypeScript: this module is imported directly by `competitionOrder.test.mjs` under
 // bare `node --test`, which only supports `.ts` imports via Node's native type-stripping — on by
 // default since Node >=22.18/23.6, but NOT guaranteed by this repo's declared `engines: >=22`
-// floor (platform-reviewer finding, #62 step 5 round 1). Every other test in this codebase that
+// floor (#62 step 5). Every other test in this codebase that
 // needs something from a `.ts` file text-scans it instead
 // (`site_v2/scripts/check-metric-labels.test.mjs`'s own documented reason) rather than depending
 // on that capability; this file follows the same house pattern by not being TypeScript at all.
@@ -71,10 +70,10 @@ export function compareCompetitions(a, b) {
 
 /**
  * Orders the home page's "Next matches" groups with the SAME key, so the two surfaces that rank
- * competitions against each other cannot drift apart (CPO 2026-08-18: one shared rule).
+ * competitions against each other cannot drift apart: one shared rule.
  *
- * The home page shipped (#367) before the 2026-08-16 ruling and ordered purely by whichever
- * competition kicked off soonest — the raw-clock noise that ruling exists to remove. Every group
+ * The home page shipped (#367) before the ordering rule and ordered purely by whichever
+ * competition kicked off soonest — the raw-clock noise that rule exists to remove. Every group
  * here has an upcoming fixture by construction, so only the day -> region_rank -> time ->
  * league_code part of the key can fire; it is still the same function, not a reduced copy.
  *

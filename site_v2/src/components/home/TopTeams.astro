@@ -5,8 +5,8 @@
 //
 // Four boards, ONE metric each, top 7, ranked descending, one team per league across the same pool.
 // The warehouse decides all of it — `league_leader_order` picks the league's team and
-// `board_leader_order` orders them (CPO 2026-09-09: "all ranking and ordering lives in the
-// warehouse; the page renders the order it is served"). The rank shown is the row's index in an
+// `board_leader_order` orders them ("all ranking and ordering lives in the warehouse; the page
+// renders the order it is served"). The rank shown is the row's index in an
 // already ordered list, a display ordinal, not a served column: a served rank would be the team's
 // rank WITHIN its league, which is 1 on every row.
 //
@@ -25,7 +25,7 @@
 // `boardTitle()`, which formats the SERVED label. #41 rules it in two steps: the sigil reads badly
 // as a heading, and a bare noun reads as a season total. This file does not build that string
 // itself, and neither function decides what kind of metric it has: every board in this block is a
-// per-match rate by the CPO's locked board set, asserted against the catalogue's own
+// per-match rate by the locked board set, asserted against the catalogue's own
 // `denominator_expr` in `test_the_team_board_set_is_all_per_match_rates`.
 //
 // A board with no data never arrives — the export omits it — so there is no empty state here, and

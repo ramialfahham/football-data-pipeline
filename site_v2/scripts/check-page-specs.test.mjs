@@ -41,8 +41,8 @@ const SEO_OK = {
 };
 const SEO_KEYS = ["seoTitleKey", "seoDescKey"];
 
-/** validateSpec's third argument is now a per-TYPE map of accepted names (CPO ruling 2026-08-03),
- * not a bare Set of mart names. Most tests below only care about marts, so this builds the map. */
+/** validateSpec's third argument is a per-TYPE map of accepted names, not a bare Set of mart
+ * names. Most tests below only care about marts, so this builds the map. */
 const martSources = (...names) => ({ mart: new Set(names) });
 
 test("specPathFor mirrors the real page paths this repo has today", () => {
@@ -190,13 +190,13 @@ test("real mart directory has at least the marts both committed specs reference"
   }
 });
 
-// --- block source types (CPO ruling 2026-08-03) ----------------------------------------------
+// --- block source types ---------------------------------------------------------------------
 // The gate used to accept only marts. The home page THEN HAD a browse block reading the
 // competition registry, and its hero reads a core model, so the vocabulary was generalised to
 // `type:name`. These lock the two properties that ruling depended on: old specs keep working, and
 // the guarantee that a declared source must EXIST is not weakened for any type.
 //
-// ⚠ That browse block was DROPPED 2026-08-19, so `registry` has no declaring spec today. The type
+// ⚠ That browse block was DROPPED, so `registry` has no declaring spec today. The type
 // and these tests stay: the zero-file rule that motivated it is unchanged, and the registry
 // remains a legitimate source any future block may declare. The synthetic specs below use
 // registry sources as TEST FIXTURES, not as claims about what the site currently ships.
@@ -269,7 +269,7 @@ test("every declared source type resolves against the REAL repo", () => {
 test("page-spec.schema.json's required/enum fields match this checker's hardcoded equivalents", () => {
   // The runtime checker does not load this schema file (see its own top comment for why) -- this
   // is the automated cross-check that keeps the hand-written schema doc and the hand-rolled
-  // checker from silently diverging (2026-07-26 review finding).
+  // checker from silently diverging.
   const schema = JSON.parse(readFileSync(SCHEMA_FILE, "utf8"));
   assert.deepEqual(schema.required, ["page", "entity", "blocks", "seo"]);
   assert.deepEqual(new Set(schema.properties.entity.enum), ENTITY_VALUES);

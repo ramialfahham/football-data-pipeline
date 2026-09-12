@@ -54,7 +54,7 @@ def load_player_teams_global(
                     ctx.errors,
                     error_context=f"player_teams {league_code} player_id={player_id}",
                 )
-                # #896 applied to the CAPTURE side (2026-08-17), same reader and same permanence as
+                # #896 applied to the CAPTURE side, same reader and same permanence as
                 # player_profiles: `_existing_player_ids` keys on `$.player_id` presence, so an
                 # empty career stored from a rate-limited call is never re-fetched.
                 if not complete:

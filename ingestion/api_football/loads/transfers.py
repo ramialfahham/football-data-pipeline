@@ -5,7 +5,7 @@ row. Transfers are not season-scoped — one /transfers?team= call returns all o
 team's players' moves. Fetching by team returns each move twice (once per involved
 team); the base model dedups.
 
-APPEND ONLY since 2026-08-17 (CPO: raw appends and never deletes). The run appends its
+APPEND ONLY (raw appends and never deletes). The run appends its
 snapshot and removes nothing, so every earlier snapshot survives. `stg_apif__transfers`
 selects the newest row per league_code, so the older ones are simply not selected — they
 are there for the case this rule exists for, a later answer that carries LESS than the one
@@ -31,11 +31,11 @@ def load_transfers_batch(
     league_code: str,
     team_ids: set[int],
 ) -> None:
-    # ⚠ THE GUARD `coaches.py:38` HAS AND THIS ONE DID NOT, until 2026-08-17. With an empty
+    # ⚠ THE GUARD `coaches.py:38` HAS AND THIS ONE ONCE LACKED. With an empty
     # `team_ids` the fetch loop below never runs, `complete` stays True, and an EMPTY whole-league
     # payload is written as fact. `stg_apif__transfers` reads the latest row per league, so that
     # empty snapshot hides the real transfer history from every model downstream. Under the
-    # merge-on-write this loader carried until `!59` it also DELETED it outright.
+    # merge-on-write this loader once carried it also DELETED it outright.
     # Reachable: `fixtures.py` returns an empty team set on an empty fixtures response, and
     # `competition_runner.py` calls this unconditionally. Compounding it, `completeness.py` drops
     # leagues with no `team_ids` from the expected set, so the check that exists to catch this is
@@ -90,8 +90,8 @@ def load_transfers_batch(
         )
         return
     try:
-        # Append only. The delete that used to follow this write was removed 2026-08-17 (CPO:
-        # raw appends and never deletes). `stg_apif__transfers` already selects the newest row
+        # Append only. The delete that used to follow this write is gone (raw appends and
+        # never deletes). `stg_apif__transfers` already selects the newest row
         # per league_code. This loader is the sharpest illustration of why the delete had to
         # go: with an empty `team_ids` the loop above never runs, `complete` stays True, and
         # the delete would wipe the league's entire transfer history behind an empty payload

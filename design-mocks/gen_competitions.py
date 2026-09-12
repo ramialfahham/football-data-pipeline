@@ -6,7 +6,7 @@ plural/singular confusion cost a review round; keep it in writing.
 
 ## THE PROVENANCE RULE (#58) IS THIS FILE'S CONTRACT
 
-CPO 2026-08-10: *"we need to clarify where the data come from that populate the content. I want
+The rule: *"we need to clarify where the data come from that populate the content. I want
 the content as much data-backed as possible without any hard-coding. Your mockups always follow
 some instinct without clarifying where the data come from."*
 
@@ -48,11 +48,11 @@ E = html.escape
 
 # =============================================================== THE TAXONOMY SEED
 #
-# ⚠ GROUPED BY `competition_type` — THE TAXONOMY (CPO 2026-08-10, #57). `display_group` was the
-# rollup this page used to group by; it is now DELETED from the seed entirely (CPO 2026-08-11,
-# see below), so it is not a filter here either.
+# ⚠ GROUPED BY `competition_type` — THE TAXONOMY (#57). `display_group` was the rollup this
+# page used to group by; it is now DELETED from the seed entirely (see below), so it is not a
+# filter here either.
 #
-# ⚠ NO LABEL IS TYPED IN THIS FILE. CPO: *"the single source of truth for the displayed name is
+# ⚠ NO LABEL IS TYPED IN THIS FILE. The rule: *"the single source of truth for the displayed name is
 # this seed file, same idea as in the metric layer; the mapping to other languages happens in a
 # different file."* Both label columns mirror `metric_catalogue.csv`, and DE/FI live in
 # `strings.ts` keyed by `label_i18n_key`, exactly as `METRIC_LABELS_DE` / `METRIC_LABELS_FI` do.
@@ -81,7 +81,7 @@ CONFED_PROPOSED = Path(__file__).with_name("confederations.proposed.csv")
 # fails on any difference that is NOT. That is what keeps the guard real while the seed is being
 # reshaped: an accidental extra type, a silently dropped one, or a re-appearing column all fail.
 
-# CPO 2026-08-11: *"display_group doesn't seem to have a reasonable use case -> delete it"*.
+# The ruling: *"display_group doesn't seem to have a reasonable use case -> delete it"*.
 # It grouped by FORMAT for club competitions (`leagues`, `cups`) and by GEOGRAPHY for the rest
 # (`continental-club`, `national-teams`), so one axis changed halfway through; it overloaded BLANK
 # to mean "not browsable"; and once `club_world_cup` existed none of its four values fitted. No
@@ -89,7 +89,7 @@ CONFED_PROPOSED = Path(__file__).with_name("confederations.proposed.csv")
 # consumer is the home page's browse chips, which regroup by `competition_type` like this page.
 DROPPED_COLUMNS = {"display_group"}
 
-# ⚠ NAMING RULE (CPO 2026-08-11): a type that holds ONE specific competition is named for it; a
+# ⚠ NAMING RULE: a type that holds ONE specific competition is named for it; a
 # type that holds a CLASS is named generically. Three types are singular by nature and all three
 # are FIFA's. `world_championship` -> `world_cup` and `continental_club` -> `continental_cup`,
 # because the latter named the ENTITY where every other type names the FORMAT.
@@ -98,7 +98,7 @@ RENAMED_TYPES = {"continental_club": "continental_cup", "world_championship": "w
 # ⚠ TWO NEW TYPES, and they are two rather than one because the Club World Cup is a TOURNAMENT
 # while the FIFA Intercontinental Cup is a one-off between titleholders — the same split the
 # taxonomy already makes at domestic and continental level. Folding them together was this
-# design's error, corrected 2026-08-11.
+# design's error, since corrected.
 NEW_TYPES = {"club_world_cup", "intercontinental_cup"}
 
 # ⚠ AND THE REGISTRY EDIT THE PROPOSAL IMPLIES, applied IN MEMORY because the registry is a repo
@@ -180,7 +180,7 @@ def loc(key):
 #   proposed  - a real source that does not exist yet, proposed by this design
 #   gap       - NO source; the value on the page is a stand-in and is marked as one
 #
-# \u26a0 REWRITTEN 2026-08-11 AS COLUMNS OF ONE MART, not as a list of files (**#62**). CPO: *"if we
+# \u26a0 REWRITTEN AS COLUMNS OF ONE MART, not as a list of files (**#62**). The rule: *"if we
 # allow this now some file here, warehouse there, some other file here etc. ... We need a
 # consistent approach on how the contents of the website of any page are populated."*
 #
@@ -491,7 +491,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 .cgroup > .gh { padding-bottom: 10px; border-bottom: 2px solid var(--div);
                 font-size: 17px; font-weight: 700; color: var(--ink); }
 
-/* ⚠ ONE WIDTH FOR EVERY PAGE. CPO 2026-08-11: *"i want consistent width for all pages of the
+/* ⚠ ONE WIDTH FOR EVERY PAGE. The rule: *"i want consistent width for all pages of the
    website. period."* `system.css`'s 680px stands and this page does not touch it. An earlier
    version set `.inner { max-width: 1080px }` here, and a later one kept a toggle to compare a
    site-wide change — both struck. There is nothing to compare; the width is settled. */

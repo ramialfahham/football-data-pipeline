@@ -369,7 +369,7 @@ test("the REAL fixture templates fit two long names inside the BUDGET, not just 
   // which would have sent me shortening a template that was never too long. A guard that fails on
   // impossible data is as useless as one that never fires.
   //
-  // The pairings no longer carry a competition: the title stopped naming one on 2026-08-03. The
+  // The pairings no longer carry a competition: the title no longer names one. The
   // widest real pairing in the whole upcoming set is the German cup tie below, measured across all
   // 26 competitions rather than picked by eye.
   const pairings = [
@@ -446,7 +446,7 @@ test("specForPath: the literal route wins the collision, in EITHER array order",
 });
 
 test("specTie: an EQUAL-specificity overlap is reported, not silently resolved", () => {
-  // The counterexample platform-reviewer built, kept verbatim as the fixture. Both routes have
+  // The counterexample that found the hole, kept verbatim as the fixture. Both routes have
   // exactly one literal segment ("foo" / "bar") and both match /en/foo/bar/x/, so the specificity
   // rule cannot separate them and whichever wins would come down to directory-walk order — the
   // very order-dependence specForPath exists to remove. The gate must fail CLOSED here.
@@ -473,7 +473,7 @@ test("specTie: a tie at the TOP level is caught even when a less-specific spec a
   // THREE matching specs at specificities [2, 2, 1]. This is the case that pins `Math.max`:
   // with only two matching specs, one per level, `max` and `min` pick different levels but both
   // end up with a single winner, so `winners.length > 1` is false either way and the mutation
-  // survives. platform-reviewer found exactly that hole in the two-spec fixture above.
+  // survives — exactly the hole the two-spec fixture above had.
   //   Math.max -> top = 2, winners = the two specificity-2 specs -> TIE reported (correct)
   //   Math.min -> top = 1, winners = the one specificity-1 spec  -> [] (silently resolved)
   // It is the shape a growing spec set produces as soon as routes nest under a dynamic segment.

@@ -3,9 +3,9 @@
 WHY
 ---
 `transfers` and `coaches` re-download identical data every night: 26.7 + 18.7 = 45 of the 105
-ingestion minutes measured on the 2026-08-09 nightly, and roughly 3,800 of ~8,300 daily API
-calls. Transfers move in bursts (January, summer); managers change rarely. CPO ruling: re-fetch
-both every 7 days per league.
+ingestion minutes measured on one nightly, and roughly 3,800 of ~8,300 daily API calls.
+Transfers move in bursts (January, summer); managers change rarely. The rule: re-fetch both
+every 7 days per league.
 
 This is not restoring something that was lost. `git log -S` across all history shows neither
 loader ever had skip-if-present logic. Five other loaders do — `players`, `player_squads`,
@@ -19,15 +19,15 @@ docstring got COACHES wrong by asserting both were the same:
 
   RAW_APIF_TRANSFERS — `stg_apif__transfers` reads latest-per-league, so a partial write HIDES
   the complete snapshot from every model downstream. ⚠ It no longer DESTROYS it: this table was
-  merge-on-write under #33 item 8b, and that was REVERSED on 2026-08-17 (CPO: raw appends and
-  never deletes), so the complete row survives in raw and a bad write is recoverable by
+  merge-on-write under #33 item 8b, and that was REVERSED (raw appends and never deletes), so
+  the complete row survives in raw and a bad write is recoverable by
   re-running rather than unrecoverable past time travel. The reason to keep the skip is
   unchanged — a hidden snapshot is still a wrong warehouse until the next good run.
 
   RAW_APIF_COACHES — the same, and it always was. `stg_apif__coaches` reads ALL snapshots to
-  preserve every coach ever seen (CPO ruling 2026-06-23), so a partial write appends a thin
-  snapshot that base then dedups. Coaches was the one table 8b never touched; since 2026-08-17
-  every table has the property that used to make it special.
+  preserve every coach ever seen, so a partial write appends a thin snapshot that base then
+  dedups. Coaches was the one table 8b never touched; since the reversal every table has the
+  property that used to make it special.
 
 Either way a league that is not due is skipped ENTIRELY at the call site: no fetch, no write.
 Its stored rows are untouched and staging reads exactly what it read yesterday. That is why no
@@ -51,8 +51,8 @@ from google.cloud import bigquery
 
 from .settings import DATASET_ID, GCP_PROJECT_ID
 
-# The CPO's ruling, in one place. Both loaders share it; a per-table cadence would be a second
-# thing to keep in step with sources.yml for no benefit while the ruling covers both.
+# The cadence rule, in one place. Both loaders share it; a per-table cadence would be a second
+# thing to keep in step with sources.yml for no benefit while the rule covers both.
 REFETCH_INTERVAL_DAYS = 7
 
 # How many days the freshness thresholds in sources.yml must exceed the cadence before the
@@ -117,7 +117,7 @@ def should_refetch(
 
     # The stagger is a SLOT IN THE CALENDAR, not a shortened interval. Each league is due on
     # exactly one day in every `interval_days`, chosen by its own offset, so every league gets
-    # the full cadence the CPO ruled and the work spreads across the week.
+    # the full ruled cadence and the work spreads across the week.
     #
     # An earlier version computed `due_after = interval_days - offset` on every call, which
     # looked equivalent and was not: it PERMANENTLY shortened the interval, so a league with

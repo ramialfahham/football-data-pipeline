@@ -43,7 +43,7 @@ check("no by-competition / by-country axes", 'class="colhead"' not in body
 check("one chip row", body.count('class="linkrow"') == 1, str(body.count('class="linkrow"')))
 check("12 chips, the registry's active competitions",
       body.count('class="linkchip"') == 12, str(body.count('class="linkchip"')))
-# ⚠ anchors here per the CPO; the SHIPPED component still emits <span> because the
+# ⚠ anchors here by design direction; the SHIPPED component still emits <span> because the
 # competition hub does not exist yet and an anchor would 404.
 check("chips are anchors in this mock", body.count('<a class="linkchip"') == 12)
 

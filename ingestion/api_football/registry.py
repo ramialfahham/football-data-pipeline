@@ -32,11 +32,11 @@ class Competition:
         None  # from registry; used to bound season discovery for non-split-year competitions
     )
     history_seasons: int | None = (
-        None  # CPO-approved backfill window (number of season start years)
+        None  # the approved backfill window (number of season start years); a cost decision
     )
     # hard: incomplete fanout fails the run; soft: report only
     ingest_completeness_gate: str = "soft"
-    # CPO-controlled: False = skip ingestion entirely without changing status
+    # A cost switch (§10): False = skip ingestion entirely without changing status
     ingest_active: bool = True
 
 

@@ -389,7 +389,7 @@ def _load_api_football(request):
                 # A single bad run stays green on purpose: the per-minute limit self-heals, and
                 # failing skips the dbt build (every post-ingest step is gated on this step
                 # succeeding), which would cost daily freshness. Two runs running means it is not
-                # healing, and that IS worth a day of staleness. CPO decision, 2026-08-03.
+                # healing, and that IS worth a day of staleness.
                 parts.append(
                     "dropped calls not healing: "
                     + ", ".join(

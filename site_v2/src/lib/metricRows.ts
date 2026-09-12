@@ -2,7 +2,7 @@
 // per window) and the team page Performance tab (vs the league / vs last season).
 //
 // This is DISPLAY CONFIG, not computation: order + groups + tiers come from
-// docs/wireframes/metrics_display.md (CPO-locked 2026-06-11); `format` + `direction`
+// docs/wireframes/metrics_display.md (LOCKED); `format` + `direction`
 // mirror dbt_project/seeds/metric_catalogue.csv (the metric SSoT) — the frontend
 // renders these definitions, it does not invent them. Until the catalogue exposes
 // group/tier/order columns (GAP-09) this file is their frontend home, per that doc.

@@ -158,7 +158,7 @@ export function titleWidthPx(text, fontPx = TITLE_FONT_PX) {
     else if (W_WIDE.has(ch)) em += 0.85;
     // \p{Lu}, not A-Z. An ASCII range drops Ö/Ä/Ü/Å into the narrow generic bucket and understates
     // them — in a site whose own live locales are German and Finnish, where those letters are
-    // native. Caught by cto-reviewer.
+    // native.
     else if (/\p{Lu}/u.test(ch)) em += 0.68;
     else em += 0.5;
   }
@@ -542,7 +542,7 @@ export async function main(distDir = DIST_DIR) {
   // The 600-660px zone is ACCEPTED truncation, not a failure — but silence about it is how "a
   // handful of genuine edge cases" quietly becomes half the corpus and nobody notices until they
   // read Search Console by hand. TITLE_PX_BUDGET was documented as "used for reporting" and had no
-  // runtime effect at all until cto-reviewer pointed that out. Counted and always printed.
+  // runtime effect at all. Counted and always printed.
   const truncating = pages
     .filter((p) => p.head.title && !isRootRedirect(p.path))
     .map((p) => titleWidthPx(p.head.title))

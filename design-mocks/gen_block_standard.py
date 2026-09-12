@@ -9,7 +9,7 @@ WHY IT EXISTS: the same content was rendered four different ways. `home/HeroFixt
 built this week added a fifth. Then within that, the Matches page grouped by DAY and the
 competition page by MATCHDAY.
 
-⚠ NOTHING IS HARD-CODED (CPO 2026-08-10). Every value on the block comes from the data model,
+⚠ NOTHING IS HARD-CODED. Every value on the block comes from the data model,
 and the ANATOMY table below names the column for each one. The competition set here is read out
 of `docs/competition_registry.yml` at render time; the only typed values are the short display
 names, which have no readable source yet — `dim_league` needs the warehouse — and they are
@@ -39,10 +39,10 @@ _REG = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
 ACTIVE = [c for c in _REG["competitions"] if c.get("status") == "active"]
 
 # ⚠ STAND-IN ONLY, and guarded below. In production the display name comes from
-# `dim_league.league_name` — one source of truth, per the CPO on 2026-08-10. Today the export
+# `dim_league.league_name` — one source of truth, by rule. Today the export
 # takes it from TWO places (`export_site_data.py:821` uses dim_league for the fixture page,
 # `:609` uses the registry for everything else), and the registry's is the long legal form
-# ("1. Fußball-Bundesliga"), which the CPO rejected. There is no readable short name in the repo,
+# ("1. Fußball-Bundesliga"), which is rejected for display. There is no readable short name in the repo,
 # so these are typed here and DELETED when the warehouse is reachable.
 SHORT_NAME = {
     "BL1": "Bundesliga", "BL2": "2. Bundesliga", "PL": "Premier League", "PD": "La Liga",

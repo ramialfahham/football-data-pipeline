@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-11**, on `chore/115-step8-sweep-tests`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-12**, on `chore/115-step8-sweep-frontend-ingestion`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -24,12 +24,11 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 ## ⛔ WHERE WE ARE
 
 **The context-engineering cleanup, GitLab #115, is the only work in flight. Product work resumes
-after it, with the player page (#118).** Steps 1–7 merged (`!169`–`!176`). Step 8: the guard is
-merged (`!177`: `comment_history_gate.py` + the two-sided pin in `tests/test_no_decision_history_in_code.py`);
-the sweeps go one reviewer territory at a time, each lowering the pin — dbt done (`!178`), hooks +
-scripts done (`!179`), `tests/` is this branch (#123, 245 → 0), then `site_v2` + `ingestion` +
-`design-mocks` (250 lines, 56 files). Step 9 (memory cut to behaviour rules, size budgets) remains.
-**Nothing is blocked on the CPO.**
+after it, with the player page (#118).** Steps 1–7 merged (`!169`–`!176`). Step 8 completes with
+this branch (#124): the guard (`!177`, `comment_history_gate.py` + the two-sided pin) and four
+sweeps (`!178` dbt, `!179` hooks + scripts, `!180` tests, this one: `site_v2` + `ingestion` +
+`design-mocks`) take the pin from 850 to **0** — the guard is now a pure ratchet. Step 9 (memory
+cut to behaviour rules, size budgets) is next. **Nothing is blocked on the CPO.**
 
 **What changed in how we work, 2026-09-11 — read `CLAUDE.md` "Which source answers which
 question" and `docs/working_agreement.md` §1 / §11:**

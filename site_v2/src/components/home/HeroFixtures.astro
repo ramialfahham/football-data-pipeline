@@ -2,11 +2,11 @@
 // Landing module 1 — the fixtures hero (10_home.md §5(1)).
 //
 // THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date — grouped by
-// competition. The SELECTION and the grouping are the export's (GAP-02, superseded 2026-08-18:
-// the fixed count of 12 is retired). ⚠ This component DOES sort: the group order is applied here
+// competition. The SELECTION and the grouping are the export's (GAP-02, superseded: the fixed
+// count of 12 is retired). ⚠ This component DOES sort: the group order is applied here
 // with the site-wide ordering key, not served. See the frontmatter below.
 //
-// LAYOUT, per the CPO's reaction to the first rendered version: the two teams STACK, each with its
+// LAYOUT, per the review of the first rendered version: the two teams STACK, each with its
 // crest, and the kickoff sits in its own right-hand column. The first version put "A vs B" on one
 // line with no crest, which read as a spreadsheet and made the team names hard to pick out.
 // Crests are the primary recognition cue in a fixture list, so their absence was the bigger half.
@@ -36,7 +36,7 @@ const { groups, lang } = Astro.props;
 
 // ⚠ ORDER IS APPLIED HERE, not served. The payload's group order is first-appearance (a
 // deterministic export diff); the display order is the site-wide key, shared with the competitions
-// page so the two cannot drift (CPO 2026-08-18). Day first, then region_rank — which is what stops
+// page so the two cannot drift (one shared rule). Day first, then region_rank — which is what stops
 // a 10:15 kickoff outranking a 19:00 one on the same day.
 const ordered = orderUpcomingGroups(groups);
 ---
@@ -51,7 +51,7 @@ const ordered = orderUpcomingGroups(groups);
       {/* HEADING LINK — a section heading leads to what the section is about
           (site_architecture.md §3 "Navigation"; #52). The chevron is present AT REST, because a
           hover-only affordance does not exist on a phone.
-          ⚠ It was plain text until 2026-09-04 for a reason that no longer holds: the competition
+          ⚠ It was plain text for a reason that no longer holds: the competition
           hub did not exist, so linking it would have emitted a guaranteed 404 on every home page.
           The hub now ships as a scaffold, so the link is real.
           Falls back to plain text when the payload carries no slug — a competition we cannot

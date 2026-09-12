@@ -1,6 +1,6 @@
 """Prove the "Next matches" block is IDENTICAL on every surface that shows it.
 
-CPO, 2026-08-10: *"this is a repetitive content block ... it has to be consistent everywhere we
+The rule: *"this is a repetitive content block ... it has to be consistent everywhere we
 show this type of content block"*. `rows.py` makes that true by construction; this file proves
 it of the RENDERED output, which is the only thing a reader ever sees.
 
@@ -57,8 +57,8 @@ ROW = re.compile(r'<(a|div) class="(fxrow[^"]*)"[^>]*>(.*?)</\1>', re.S)
 GH = re.compile(r'<div class="gh">(.*?)</div>\s*(?=<div class="dh"|<a|<div class="fxrow|\n)', re.S)
 
 # ⚠ `rep` / `repoff` are GONE. A "Report" / "No report yet" chip occupied the played row's right
-# column — the slot that carries the kick-off on every other row — and was removed when the CPO
-# ruled the played row must be the same row (2026-08-10). Removing them from this set is what
+# column — the slot that carries the kick-off on every other row — and was removed when the
+# played row was ruled to be the same row. Removing them from this set is what
 # makes their return a failure rather than a silent tolerance.
 KNOWN_ROW_CLASSES = {"sides", "side", "crest", "xs", "nm", "when", "t", "rowtz",
                      "g", "winner", "num"}
@@ -218,8 +218,8 @@ def check_row_vocabulary_is_closed():
 def check_time_slots_are_right():
     """4. Every UPCOMING row carries its own timezone, and nothing else does. A conditional
     zone put two shapes of one block on a single screen."""
-    # ⚠ UPCOMING rows carry a kick-off and a zone; PLAYED rows carry NEITHER (CPO 2026-08-10 —
-    # a finished match's start time is not information). Both halves are asserted, so dropping a
+    # ⚠ UPCOMING rows carry a kick-off and a zone; PLAYED rows carry NEITHER (a finished
+    # match's start time is not information). Both halves are asserted, so dropping a
     # zone from an upcoming row and re-adding a kick-off to a played one are each a failure.
     counts = []
     for name, doc in DOCS.items():

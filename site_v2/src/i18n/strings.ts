@@ -1,5 +1,5 @@
 // Fixture-page chrome strings (DE / EN / FI). The ~two dozen UI labels the fixture
-// template needs. Metric ROW labels are the CPO-locked display strings in
+// template needs. Metric ROW labels are the locked display strings in
 // lib/metricRows.ts (identical across locales for now); wiring per-locale metric
 // labels from the catalogue i18n keys is a follow-up (#370). Fresh to site_v2 — the
 // MVP's site/i18n/ is a separate surface. Translations are standard football-UI terms;
@@ -118,8 +118,8 @@ const EN: Dict = {
   // NO NUMBERS in these until #838 lands: `points` is a synthetic 3-1-0 tally computed regardless of
   // the competition's rules, so a templated "N points" would write a known-false figure into a
   // surface search engines cache independently of the page.
-  // Colon, not an em dash. CPO 2026-07-28: the dash "looks terribly like AI generated" — and he is
-  // right that it is a tell, especially as a clause separator. A colon is the conventional
+  // Colon, not an em dash: the dash "looks terribly like AI generated", and it is a tell,
+  // especially as a clause separator. A colon is the conventional
   // entity-then-descriptor form in a page title, reads as edited rather than generated, and costs
   // two characters less against a budget these titles already overrun.
   // The middle is deliberately SHORT. It is byte-identical on all 3,250 team pages, so it
@@ -128,8 +128,8 @@ const EN: Dict = {
   // middle put the team title at 64 characters for "Manchester United" and 71 for "Borussia
   // Mönchengladbach", pushing the brand out of the result entirely. Spending the budget on a
   // constant and losing the variable is the wrong way round.
-  // NO brand suffix. CPO reversed his earlier "keep the brand" ruling on 2026-07-28 after
-  // seo-expert-reviewer argued it: a suffix is EARNED by equity, not a way to build it. It cost 17
+  // NO brand suffix — a reversal of an earlier "keep the brand" rule: a suffix is EARNED by
+  // equity, not a way to build it. It cost 17
   // characters — 28-36% of the title budget — on ~9,750 team page/locale combinations, and with
   // 3,250 identical suffixes Google reads it as boilerplate and truncates it anyway. The brand does
   // NOT leave the page: Layout.astro emits `og:site_name` unconditionally. Reinstate when branded
@@ -144,8 +144,8 @@ const EN: Dict = {
   // Parentheses, same as DE and FI. "in {competition}" has the IDENTICAL defect English-side that
   // it had in German: "in THE Premier League" and "in THE Championship" take an article, "in Serie
   // A" and "in Ligue 1" do not, and a template cannot know which it has. I fixed German for exactly
-  // this reason in this same PR and left English alone — treating it as the trusted baseline, which
-  // is the failure this contract's own amendment 3 records. bi-analyst-reviewer caught it.
+  // this reason and left English alone — treating it as the trusted baseline, which is its own
+  // failure class.
   seoTeamDesc: "{team} ({competition}): form, fixtures, squad and season statistics.",
   // NO descriptive middle on the fixture title. It carries TWO entity names plus a competition, so
   // any middle at all overruns: with "Form & Stats" the German came to 69 and the Finnish to 65.
@@ -153,8 +153,8 @@ const EN: Dict = {
   // what kind of page this is, and the competition is the part that distinguishes a league meeting
   // from a cup tie. The keyword was costing the differentiator.
   // Shape matches seoTeamTitle above — `{entity}: <descriptor>`, no brand suffix — for the SAME
-  // reason recorded there: the CPO removed the brand suffix on 2026-07-28 because a suffix is
-  // earned by equity, and an identical one on every page reads as boilerplate.
+  // reason recorded there: a suffix is earned by equity, and an identical one on every page
+  // reads as boilerplate.
   //
   // The competition is NOT in the title, and that is researched rather than preferred. Sofascore
   // ("SJK vs HJK live score, H2H and lineups | Sofascore") and FBref ("... Match Report - <date> |
@@ -182,21 +182,19 @@ const EN: Dict = {
   footerAbout: "About",
   footerImprintPending: "Imprint (pending)",
   footerDataSource: "Data: API-Football",
-  // --- landing (#367). PLACEHOLDER COPY: every string below is the CPO's (§10) and is drafted
-  // here only so the page renders for his review. The DE/FI variants are literal translations of
-  // the drafts, not authored copy — they are replaced in the same single copy pass.
+  // --- landing (#367). PLACEHOLDER COPY: every string below is the product owner's (§10) and
+  // is drafted here only so the page renders for review. The DE/FI variants are literal
+  // translations of the drafts, not authored copy — they are replaced in the same single copy pass.
   seoHomeTitle: "Football stats and match previews",
   seoHomeDesc: "Upcoming matches from every competition we cover.",
   homeNext: "Next matches",
-  // Top players (#40). The block NAME is the CPO's, 2026-08-08: plain nouns, matching the
-  // vocabulary the page already uses, and a matched pair with "Top teams" so the two read as
-  // siblings. "Player leaders" was rejected — "leader" collides with captaincy in football.
+  // Top players (#40). The block NAME is approved copy: plain nouns, matching the vocabulary
+  // the page already uses, and a matched pair with "Top teams" so the two read as siblings.
+  // "Player leaders" was rejected — "leader" collides with captaincy in football.
   homeTopPlayers: "Top players",
-  // ⚠ APPROVED WORDING, RE-RULED 2026-09-10 — superseding the 2026-08-18 approval, at the CPO's
-  // own instigation ("now talk about the top players copy as well. we have to change it", then
-  // "Approved"). `escalations.log`, `2026-09-10 feat/41-top-teams-block`, Ruling 4. Both home
-  // blocks now read one shape; the previous string was "Season totals to date. The top player from
-  // each league: …", which was only true mid-season.
+  // ⚠ APPROVED WORDING (#41), superseding an earlier approval. Both home blocks read one shape;
+  // the previous string was "Season totals to date. The top player from each league: …", which
+  // was only true mid-season.
   // "totals" is gone and nothing is lost: player boards are counts and team boards are rates, but
   // that distinction lives in the board HEADINGS (#41) — the team headings say "per match" and the
   // player headings are bare nouns, which is exactly what #41 says reads as a season total.
@@ -207,21 +205,17 @@ const EN: Dict = {
   // The league list is the SHOWN group's members, injected from the data — not a fixed seven.
   homeTopPlayersIntro: "Current season. The top player from each league in the rankings: {leagues}.",
   homeTopTeams: "Top teams",
-  // ⭐ THE CPO'S OWN WORDS, APPROVED 2026-09-10 — `escalations.log`, entry
-  // `2026-09-10 feat/41-top-teams-block`, Rulings 2 and 3. He dictated the second half verbatim in
-  // all three locales and approved the window phrase, which he had asked me to propose. Nothing
-  // here is a draft and nothing is awaiting sign-off.
-  //   · "in the rankings" says WHERE the pick comes from — his addition; no draft had it.
-  //   · "leader" is still deliberately absent. He turned down "Player leaders / Team leaders" as
-  //     the block name on 2026-08-08 because "leader" collides with captaincy in football and
-  //     translates awkwardly, and the spec records the objection applying to this sentence too.
+  // ⭐ APPROVED COPY (#41), the second half dictated verbatim in all three locales. Nothing here
+  // is a draft and nothing is awaiting sign-off.
+  //   · "in the rankings" says WHERE the pick comes from; no draft had it.
+  //   · "leader" is still deliberately absent: "Player leaders / Team leaders" was turned down as
+  //     the block name because "leader" collides with captaincy in football and translates
+  //     awkwardly, and the spec records the objection applying to this sentence too.
   //   · The sentence sits above all four boards, so it names no metric.
-  // ⛔ THIS COMMENT SAID THE OPPOSITE UNTIL ROUND 3, and `scope-auditor` and `bi-analyst-reviewer`
-  // FAILed it independently. It called the value below "the wireframe's own draft, VERBATIM" and
-  // "STILL AWAITING THE CPO" while the value was in fact his approved ruling, and it justified a
-  // "Season to date" wording he had already rejected. Rounds 1 and 2 FAILed for unapproved copy
-  // LOOKING approved; this was the mirror image, and it is the same
-  // accumulate-instead-of-replace failure either way. Replaced, not amended.
+  // ⛔ A comment here once said the opposite — it called the value below a wireframe draft still
+  // awaiting approval while it was the approved wording, and it justified a "Season to date"
+  // wording already rejected. Unapproved copy LOOKING approved and approved copy looking
+  // unapproved are the same accumulate-instead-of-replace failure. Replaced, not amended.
   homeTopTeamsIntro: "Current season. The top team from each league in the rankings: {leagues}.",
   // The words the Ø sigil stands for, spelled out in a board heading (#41). NOT new copy: the same
   // phrasing is already approved in `heroVerdictUnder`/`heroCaption`, which say "per match",
@@ -320,7 +314,6 @@ const DE: Dict = {
   // between a subject and its only finite verb, not a clause break: splitting it leaves "Kommt
   // mit dem nächsten Release." — a finite verb with no subject, which German reads as an
   // imperative. EN "Landing…" and FI "Tulossa…" are non-finite fragments and split safely.
-  // bi-analyst-reviewer FAIL, round 1; CPO ruling 2026-08-06.
   comingPerformance: "Jede Kennzahl im Vergleich zur Liga und zur Vorsaison kommt mit dem nächsten Release.",
   comingSquad: "Der komplette Kader mit Einsatzminuten und Scorerwerten je Spieler kommt mit dem nächsten Release.",
   // squad tab
@@ -346,7 +339,7 @@ const DE: Dict = {
   // ⚠ FOUR strings on the deserved-vs-actual block name this metric — the two sentences below, the
   // tile label in METRIC_LABELS_DE, the axis (`axPlay`) and the caption (`heroCaption`). Nothing binds
   // them, so revising one silently leaves three disagreeing. Change them together or not at all.
-  // Wording is the CPO's (§10); `Torschussdifferenz` and `pro Spiel` are both his.
+  // Wording is the product owner's (§10); `Torschussdifferenz` and `pro Spiel` are approved terms.
   heroVerdictUnder: "Ein Spiel wie das von {team}, eine Torschussdifferenz von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie blieben {gap} unter dem, was sie sich erspielt haben.",
   heroVerdictOver: "Ein Spiel wie das von {team}, eine Torschussdifferenz von {sotd} pro Spiel, bringt normalerweise etwa {deserved} Punkte. Sie holten {gap} mehr, als sie sich erspielt haben.",
   heroCaption: "Jeder Punkt ist eine {competition}-Mannschaft, eingeordnet nach der Torschussdifferenz pro Spiel (links nach rechts) gegen die geholten Punkte (oben = mehr). Die gestrichelte Linie ist der Punkteschnitt, den ein solches Spiel normalerweise bringt.",
@@ -375,7 +368,7 @@ const DE: Dict = {
   // Parentheses in the description, not the en dash Gemini supplied: same anti-AI-tell reason, and
   // they sidestep the article problem too — "(Premier League)" needs no case-marked article, where
   // "in der/im {competition}" would need one the template cannot know.
-  // "Kader" and "Spiele" are reused verbatim from the CPO-approved description below, so the two
+  // "Kader" and "Spiele" are reused verbatim from the approved description below, so the two
   // surfaces name the same things with the same words.
   seoTeamTitle: "{team}: Statistiken, Form, Kader & Spiele",
   seoTeamDesc: "{team} ({competition}): Form, Spiele, Kader und Saisonstatistiken.",
@@ -412,16 +405,14 @@ const DE: Dict = {
   seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken.",
   homeNext: "Nächste Spiele",
   homeTopPlayers: "Top-Spieler",
-  // ⚠ `Der Top-Spieler` is grammatically MASCULINE and blocks a women's competition (CPO,
-  // 2026-09-10: "If we ever include women's football teams we have to change it properly (at least
-  // in German)"). `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
+  // ⚠ `Der Top-Spieler` is grammatically MASCULINE and blocks a women's competition ("If we
+  // ever include women's football teams we have to change it properly (at least in German)").
+  // `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
   // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
   homeTopPlayersIntro: "Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}.",
   homeTopTeams: "Top-Mannschaften",
-  // The CPO's words, 2026-09-10 (Rulings 2 and 3). It mirrors the DE players line above — both are
-  // his, both re-ruled the same day — and avoids "Führende", the German trap the "leader" rejection
-  // points at. ⚠ This comment quoted "Der beste Spieler jeder Liga" as the shape it mirrors until
-  // the round-4 sweep; that string no longer exists, so the comment named a model that was gone.
+  // Approved copy (#41). It mirrors the DE players line above — both approved together — and
+  // avoids "Führende", the German trap the "leader" rejection points at.
   homeTopTeamsIntro: "Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: {leagues}.",
   perMatch: "pro Spiel",
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
@@ -459,8 +450,8 @@ const FI: Dict = {
   eyebrowPreview: "Otteluennakko",
   // "kunto", not "muoto": muoto is shape/format, and the football sense of form is kunto —
   // corroborated by the MVP corpus, which renders "form window" as `kuntojakso`
-  // (site/i18n/fi.json). CPO correction #867, extended to this key by CPO ruling 2026-08-06;
-  // the deferral noted at seoTeamTitle below is now closed.
+  // (site/i18n/fi.json). The #867 correction, extended to this key; the deferral noted at
+  // seoTeamTitle below is now closed.
   secForm: "Kuntovertailu",
   secRecent: "Viimeisimmät ottelut",
   secPlayers: "Seurattavat pelaajat",
@@ -496,13 +487,13 @@ const FI: Dict = {
   // locales shipped the same <meta description>. Caught only after the cross-locale check was
   // tightened to fail on any GROUP of locales sharing a value rather than on all three matching —
   // the weaker form saw German differ and concluded the template was working.
-  // "vs." to match this locale's own fixture TITLE. I had switched these to an en dash on the
-  // unverified claim that Finnish football writing prefers one; the CPO's source uses "vs.", and
-  // the page was contradicting itself — title "Palmeiras vs. Atletico-MG", description
+  // "vs." to match this locale's own fixture TITLE. These were once switched to an en dash on the
+  // unverified claim that Finnish football writing prefers one; the validated source uses "vs.",
+  // and the page was contradicting itself — title "Palmeiras vs. Atletico-MG", description
   // "Palmeiras – Atletico-MG".
   // ⚠ RESIDUAL: this now differs from the EN string only by the full stop after "vs". The audit's
   // byte-identical check passes, but only just, and passing it is not the same as being localised.
-  // A real Finnish description is copy, so it is the CPO's call, not a fix I can make quietly.
+  // A real Finnish description is copy, so it is the product owner's call (§10), not a quiet fix.
   aboutWithH2h: "{home} vs. {away} · {round}. Joukkueet ovat kohdanneet {meetings} kertaa: {record}.",
   aboutNoH2h: "{home} vs. {away} · {round}.",
   posF: "Hyökkäys", posM: "Keskikenttä", posD: "Puolustus", posG: "Maalivahti",
@@ -540,12 +531,12 @@ const FI: Dict = {
   // heroSot* removed (#370): the three Finnish tile labels moved to METRIC_LABELS_FI.
   // ⚠ Same four-string trap as the German block above — these two sentences, the tile label, `axPlay`
   // and `heroCaption` all name this metric and nothing binds them. Change them together or not at all.
-  // Wording is the CPO's (§10). `maalilaukauksien ero` is nominative here, as an appositive.
+  // Wording is the product owner's (§10). `maalilaukauksien ero` is nominative here, as an appositive.
   heroVerdictUnder: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} jäi {gap} alle sen, minkä loi.",
   heroVerdictOver: "Tällainen peli, maalilaukauksien ero {sotd} ottelua kohden, tuottaa yleensä noin {deserved} pistettä. {team} sai {gap} enemmän kuin loi.",
-  // ⚠ `eron` is a GENITIVE ending I inferred, not the CPO's word — his noun is `maalilaukauksien ero`.
-  // The case is governed by the later `mukaan`. Finnish inflection is where #867 went wrong four times,
-  // so this is unverified against a Finnish source; the CPO approved it knowing that.
+  // ⚠ `eron` is an inferred GENITIVE ending, not a supplied word — the supplied noun is
+  // `maalilaukauksien ero`. The case is governed by the later `mukaan`. Finnish inflection is where
+  // #867 went wrong four times, so this is unverified against a Finnish source; approved knowing that.
   heroCaption: "Jokainen piste on {competition}-joukkue, sijoitettuna maalilaukauksien eron ottelua kohden (vasemmalta oikealle) ja kerättyjen pisteiden (ylös = enemmän) mukaan. Katkoviiva on pistemäärä, jonka tällainen peli yleensä tuottaa.",
   heroNoData: "Ansaittu vs. toteutunut -tarkastelu vaatii yhden sarjataulukon, joten se näytetään vain sarjoille.",
   axPoints: "Kerätyt pisteet",
@@ -566,23 +557,23 @@ const FI: Dict = {
   // Finnish takes an appositive rather than a genitive: a proper noun cannot be inflected from a
   // template, so "{team}: ..." (not "{team}n tilastot") is the only form that stays grammatical
   // for every club name.
-  // CPO-supplied, 2026-07-28 (§10 — user-visible copy is his call). "kunto", not "muoto": muoto is
-  // shape/format, and the football sense of form is kunto — corroborated by the MVP corpus, which
-  // renders "form window" as `kuntojakso` (site/i18n/fi.json). `secForm` above carried the same
-  // error; the CPO ruled on it 2026-08-06 and it is now `Kuntovertailu`, so that deferral is closed.
-  // "ja" in the team title and "&" in the fixture title are both the CPO's own choices, kept as he
-  // wrote them; only the length changed.
+  // Supplied copy (§10 — user-visible copy is the product owner's), verbatim. "kunto", not
+  // "muoto": muoto is shape/format, and the football sense of form is kunto — corroborated by the
+  // MVP corpus, which renders "form window" as `kuntojakso` (site/i18n/fi.json). `secForm` above
+  // carried the same error and is now `Kuntovertailu`, so that deferral is closed.
+  // "ja" in the team title and "&" in the fixture title are both supplied choices, kept as
+  // written; only the length changed.
   seoTeamTitle: "{team}: tilastot, kunto, kokoonpano ja ottelut",
   // Was "{team} sarjassa {competition}: …". `sarjassa` is inessive and governs a case the bare
   // borrowed league name cannot carry ("Premier Leaguessa" / "Valioliigassa"), so the template read
   // as machine translation. Parentheses instead: no case, no inflection, and they work for a
   // league name in any language. Same form as the EN and DE descriptions.
   seoTeamDesc: "{team} ({competition}): kunto, ottelut, kokoonpano ja kauden tilastot.",
-  // The capital K is the CPO's, verbatim. The previous note here said not to swap "vs." for an en
+  // The capital K is supplied, verbatim. The previous note here said not to swap "vs." for an en
   // dash "without a Finnish source" — THE SOURCE NOW EXISTS: Yle and MTV Uutiset pair
   // Veikkausliiga teams as "KuPS–HJK", tight en dash, no spaces. That is also what gets FI under
   // the limit: "vs." overflowed by 1px on one competition (661 against a 660 hard cap), the tight
-  // en dash lands at 634px. CPO approved 2026-08-03 with the source on the table.
+  // en dash lands at 634px. Approved with the source on the table.
   // Worst real fixture: 573px, the widest headroom of the three. See the EN entry for the reasoning.
   seoFixtureTitle: "{home}–{away}: Ennakko",
   // --- chrome (site-wide header/footer, #825) ---
@@ -601,7 +592,7 @@ const FI: Dict = {
   footerImprintPending: "Vastuutiedot (tulossa)",
   // `Tietolähde` is the validated corpus's own term for "data source" ("Tietolähde ei
   // toimittanut tätä arvoa", site/i18n/fi.json), so this is a real translation rather than the
-  // English string left in place. CPO ruling 2026-08-06.
+  // English string left in place.
   footerDataSource: "Tietolähde: API-Football",
   // --- landing (#367). PLACEHOLDER, see the EN block.
   seoHomeTitle: "Jalkapallotilastot ja otteluennakot",
@@ -610,9 +601,8 @@ const FI: Dict = {
   homeTopPlayers: "Kärkipelaajat",
   homeTopPlayersIntro: "Tämä kausi. Kunkin sarjan kärkipelaaja ranking-listoilla: {leagues}.",
   homeTopTeams: "Kärkijoukkueet",
-  // The CPO's words, 2026-09-10 (Rulings 2 and 3), mirroring the FI players line above —
-  // `kärkipelaaja` there, `kärkijoukkue` here. ⚠ This comment quoted the superseded
-  // "Kunkin sarjan paras pelaaja" as the model until the round-4 sweep.
+  // Approved copy (#41), mirroring the FI players line above — `kärkipelaaja` there,
+  // `kärkijoukkue` here.
   homeTopTeamsIntro: "Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: {leagues}.",
   perMatch: "ottelua kohden",
   homeNoFixtures: "Ei otteluita tällä hetkellä.",
@@ -687,15 +677,15 @@ export function positionLabel(lang: Lang, code: string | null | undefined): stri
  *  labels from "on target" to "on goal", so they now match ids that have said `shots_on_goal_*` all
  *  along. Those four are the ONLY EN strings here that have ever moved; every other one is still
  *  byte-identical to what shipped with #370.
- *  ⚠ `% Goals per shot on goal` remains a divergence from the CPO's MVP corpus, which calls that
- *  metric `% Conversion rate` — two approved English names for one metric, a §10 pick left to him,
- *  recorded in the contract and skipped by name in `check-metric-labels.test.mjs`. Step 5 changed
- *  the wording, not the divergence.
+ *  ⚠ `% Goals per shot on goal` remains a divergence from the validated MVP corpus, which calls
+ *  that metric `% Conversion rate` — two approved English names for one metric, a §10 pick still
+ *  open, skipped by name in `check-metric-labels.test.mjs`. Step 5 changed the wording, not the
+ *  divergence.
  *  ⛔ DE and FI did NOT move, by the same ruling: both already say "goal shots" (`Ø Torschüsse`,
  *  `Ø Maalilaukaukset`), which is why only English was out of step.
- *  DE/FI provenance: 10 are the CPO's validated MVP corpus (`site/i18n/*.json`), test-pinned so they
- *  cannot drift; the rest were written for this task and externally verified, EXCEPT the three
- *  Finnish forms the CPO supplied himself.
+ *  DE/FI provenance: 10 are the validated MVP corpus (`site/i18n/*.json`), test-pinned so they
+ *  cannot drift; the rest were written for #370 and externally verified, EXCEPT the three
+ *  Finnish forms that were supplied rather than verified.
  * ================================================================================================ */
 
 type MetricLabels = Record<string, string>;
@@ -745,14 +735,14 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.clean_sheets_pct.label": "% Zu-Null-Spiele",
   "metrics.shots_per_match.label": "Ø Schüsse",
   "metrics.shots_inside_box_pct.label": "% Schüsse aus dem Strafraum",
-  // CPO-SUPPLIED, 2026-07-31, verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
+  // SUPPLIED COPY (§10), verbatim: Torschüsse / Torschüsse gegen / Torschussdifferenz. This
   // replaces `Schüsse aufs Tor`, and it is the compact form Bundesliga, kicker and sport.de all use
   // as a stat label. It also makes the German internally consistent, since `saves_pct` already reads
   // `% Gehaltene Torschüsse`. The Ø prefix is retained: the underlying metrics are per-match, and
   // without it `Torschüsse` reads as a season total.
-  // ⚠ He chose `Torschussdifferenz` after being shown, with measurements, that an 18-character
-  // compound clips in the 71px hero tile at 375px exactly as the Finnish compounds do. That is a
-  // knowing decision, not an oversight; the fix belongs in the design system, not in his copy.
+  // ⚠ `Torschussdifferenz` was chosen knowing, from measurements, that an 18-character compound
+  // clips in the 71px hero tile at 375px exactly as the Finnish compounds do. That is a knowing
+  // decision, not an oversight; the fix belongs in the design system, not in the copy.
   "metrics.shots_on_target_per_match.label": "Ø Torschüsse",
   "metrics.shots_on_goal_against_per_match.label": "Ø Torschüsse gegen",
   "metrics.shots_on_goal_difference_per_match.label": "Ø Torschussdifferenz",
@@ -772,11 +762,11 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.corners_per_match.label": "Ø Ecken",
   "metrics.corners_against_per_match.label": "Ø Ecken gegen",
   "metrics.saves_pct.label": "% Gehaltene Torschüsse",
-  // Top players' four boards (#40). CPO-CONFIRMED 2026-09-08. He ruled the assists label is
-  // "Torvorlagen", in his words *"more precise than just Vorlagen"* — the draft carried the bare
-  // "Vorlagen", and "Assists" (current in German football media) was not taken, consistent with
-  // every other metric name in this file being a German word.
-  // "Tore" and "Pässe" are additionally the stems of the CPO-validated legacy corpus in
+  // Top players' four boards (#40), confirmed copy. The assists label is "Torvorlagen" —
+  // *"more precise than just Vorlagen"* — the draft carried the bare "Vorlagen", and "Assists"
+  // (current in German football media) was not taken, consistent with every other metric name in
+  // this file being a German word.
+  // "Tore" and "Pässe" are additionally the stems of the validated legacy corpus in
   // site/i18n/de.json (`Ø Tore`, `Ø Pässe`); the sigil is dropped because these are season TOTALS
   // (catalogue `format: integer`), not per-match rates.
   "playerMetrics.scorerPoints.goals": "Tore",
@@ -795,40 +785,39 @@ const METRIC_LABELS_FI: MetricLabels = {
   // "% Torjuntaosuus" below, so no separate "osuus" compound is needed.
   "metrics.shots_per_match.label": "Ø Laukaukset",
   "metrics.shots_inside_box_pct.label": "% Laukaukset boksista",
-  // These three are CPO-SUPPLIED, 2026-07-31, including `vastaan`, which keeps Finnish parallel to
-  // the German `gegen`. He chose them after being shown that his validated corpus and the old hero
-  // tiles used two different forms for the same metric. His first form for the third one was
-  // `maalilaukaisujen ero` and he revised it himself — see the note above that entry. An earlier
-  // version of this comment claimed he supplied `laukaisujen` "verbatim", six lines above the note
-  // recording that he had moved off it; no string below has ever contained that stem.
+  // These three are SUPPLIED COPY (§10), including `vastaan`, which keeps Finnish parallel to the
+  // German `gegen`. They were chosen after the validated corpus and the old hero tiles were shown
+  // to use two different forms for the same metric. The first supplied form for the third one was
+  // `maalilaukaisujen ero`, later revised — see the note above that entry; no string below has
+  // ever contained the `laukaisujen` stem.
   // Capitalisation after the Ø/% prefix is house style, matching every other entry.
   "metrics.shots_on_target_per_match.label": "Ø Maalilaukaukset",
   "metrics.shots_on_goal_against_per_match.label": "Ø Maalilaukaukset vastaan",
-  // CPO revised this on 2026-07-31 from `maalilaukaisujen ero` to `maalilaukauksien ero`, which is the
-  // genitive plural of `maalilaukaus` and so matches `maalilaukaukset` above; `laukaisujen` came off a
-  // different stem (`laukaisu`) and was internally inconsistent.
+  // Revised from `maalilaukaisujen ero` to `maalilaukauksien ero`, which is the genitive plural of
+  // `maalilaukaus` and so matches `maalilaukaukset` above; `laukaisujen` came off a different stem
+  // (`laukaisu`) and was internally inconsistent.
   "metrics.shots_on_goal_difference_per_match.label": "Ø Maalilaukauksien ero",
   "metrics.finishing_efficiency_pct.label": "% Viimeistelytehokkuus",
   // Veikkausliiga's own reporting uses kaksinkamppailut, and reports duels won as a percentage.
   "metrics.duels_per_match.label": "Ø Kaksinkamppailut",
   "metrics.duels_won_pct.label": "% Voitetut kaksinkamppailut",
-  // CPO-confirmed 2026-07-31. I could not verify this one against a Finnish source — Veikkausliiga's
-  // stats pages serve a broken certificate chain — and said so before he confirmed it.
+  // Confirmed copy, unverified against a Finnish source — Veikkausliiga's stats pages serve a
+  // broken certificate chain — and confirmed knowing that.
   "metrics.defensive_actions_per_match.label": "Ø Puolustustoimet",
   "metrics.passes_per_match.label": "Ø Syötöt",
   "metrics.passes_accuracy_pct.label": "% Syöttötarkkuus",
-  // CPO-confirmed 2026-07-31, same unverified caveat as Puolustustoimet.
+  // Confirmed copy, same unverified caveat as Puolustustoimet.
   "metrics.passes_key_per_match.label": "Ø Avainsyötöt",
   "metrics.corners_per_match.label": "Ø Kulmapotkut",
   "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
   "metrics.saves_pct.label": "% Torjuntaosuus",
-  // Top players' four boards (#40). CPO-CONFIRMED 2026-09-08, together with the DE block above;
-  // he changed only the German assists label and let these four stand.
-  // They were flagged rather than assumed for a reason worth keeping: `10_home.md` §10 records his
-  // ruling that DE/FI are "needed before go-live, not before the block is built" — but this block
+  // Top players' four boards (#40), confirmed copy together with the DE block above; only the
+  // German assists label changed on confirmation and these four stood.
+  // They were flagged rather than assumed for a reason worth keeping: `10_home.md` §10 records the
+  // rule that DE/FI are "needed before go-live, not before the block is built" — but this block
   // RENDERS them, and metricLabel() falls back to English and then to EMPTY, so leaving them out
   // ships either an English word or a BLANK board title to a Finnish reader.
-  // "Maalit" and "Syötöt" are the stems of the CPO-validated legacy corpus in site/i18n/fi.json
+  // "Maalit" and "Syötöt" are the stems of the validated legacy corpus in site/i18n/fi.json
   // (`Ø Maalit`, `Ø Syötöt`); "Avainsyötöt" matches the per-match form already in this block above.
   "playerMetrics.scorerPoints.goals": "Maalit",
   "playerMetrics.scorerPoints.assists": "Maalisyötöt",
@@ -860,14 +849,13 @@ export function metricLabel(lang: Lang, labelKey: string): string {
 
 /** A ranked board's TITLE: the metric's localised label with the Ø sigil spelled out.
  *
- * CPO 2026-08-10 (#41), in two steps: "Ø Goals" reads badly as a heading, but a bare "Goals" is
+ * The rule (#41), in two steps: "Ø Goals" reads badly as a heading, but a bare "Goals" is
  * WRONG because these are per-match rates and a bare noun reads as a season total. So the sigil is
  * expanded into the words it stands for — `Ø Goals` becomes `Goals per match`.
  *
  * ⛔ THIS FUNCTION DOES NOT DECIDE WHAT KIND OF METRIC IT IS BEING GIVEN, and an earlier version
  * did — it read `metricId.endsWith("_per_match")` to avoid appending "per match" to a per-90 label
- * ("Ø Dribbles completed per 90"). `analytics-engineer-reviewer` FAILed that, and it was wrong on
- * BOTH counts:
+ * ("Ø Dribbles completed per 90"). That was wrong on BOTH counts:
  *   · MISPLACED — classifying a metric from a string is a taxonomy judgement, which
  *     `layering.md` §Consumption layer puts in the warehouse. Its own test applies: a second
  *     frontend would have had to re-implement the same regex to render the same heading.

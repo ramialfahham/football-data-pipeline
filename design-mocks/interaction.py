@@ -1,6 +1,6 @@
 """THE INTERACTION STANDARD — what is clickable, where the click boundary is, how it signals.
 
-CPO, 2026-08-10: *"mouse-over hover and then underlined club names is so 90s ... we need a
+The direction: *"mouse-over hover and then underlined club names is so 90s ... we need a
 consistent approach: standardized where to click, which elements redirect where, standardizing
 the elements"*.
 

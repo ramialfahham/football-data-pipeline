@@ -33,7 +33,7 @@ export function getStaticPaths() {
   // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
   // leaders changes this set on the next export with no code change here.
   // Deduped by slug, because a player can lead more than one board — Dybala held rank 1 on both
-  // assists and key passes in the 2026-09-08 data — and two identical params would be a duplicate
+  // assists and key passes in one export — and two identical params would be a duplicate
   // route, not two pages.
   const data = landing as unknown as Landing;
   const rows = new Map<string, LandingBoardRow>();

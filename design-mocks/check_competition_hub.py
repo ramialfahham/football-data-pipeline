@@ -111,7 +111,7 @@ def check_track_parity(css=None):
 
 
 def check_crest_survives_both_widths():
-    """2. The crest is on every table row at BOTH widths -- the CPO ruled every row carries it."""
+    """2. The crest is on every table row at BOTH widths -- every row carries it, by rule."""
     if re.search(r"\.ctab[^{]*\.crest[^{]*\{[^}]*display:\s*none", G.MOCK_CSS):
         return bad("crest on every row", "a rule hides the table crest at some width")
     rows = re.findall(r'<div class="ctab-row">.*?</span></div>', DOC, re.S)
@@ -132,7 +132,7 @@ def check_every_team_links():
 
 
 def check_only_the_next_round():
-    """4. The hub carries the NEXT ROUND AND NOTHING ELSE (CPO 2026-08-10). Past matches belong
+    """4. The hub carries the NEXT ROUND AND NOTHING ELSE. Past matches belong
     on the competition's own results page.
 
     This replaced a check that counted played rows and asserted they were inert. The rule
@@ -155,7 +155,7 @@ def check_only_the_next_round():
 def check_cut_block_left_no_trace():
     """5. THE CUT LEAVES NOTHING BEHIND. A top-scorers board was in the first draft and was
     removed; "a deleted module leaves traces that do not carry its name" fired five times on
-    !27, so sweep by CONCEPT -- the row component, the board grid, the catalogue machinery
+    one removal, so sweep by CONCEPT -- the row component, the board grid, the catalogue machinery
     that existed only to name it, and the section heading key."""
     # ⚠ SCANNED WITH COMMENTS STRIPPED, and narrowed rather than dropped. The first version
     # fired on a CSS comment that names `.brow` to explain why a league table is NOT that

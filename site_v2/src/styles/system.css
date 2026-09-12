@@ -206,7 +206,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .err { padding: 40px; color: #f26d6d; font-size: 14px; white-space: pre-wrap; }
 
 /* ================================================================ *
- *  TEAM PAGE — blocks transcribed from the CPO-approved mock         *
+ *  TEAM PAGE — blocks transcribed from the approved mock             *
  *  (artifact f6348775). Same token contract as above: colour =      *
  *  meaning (green reserved for "better value"), hierarchy by         *
  *  tone/weight/size. Shared blocks are REUSED from the system above  *
@@ -269,7 +269,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .hero .verdict b { color: var(--ink); font-weight: 700; }
 .hero .heronums { display: flex; gap: 8px; margin: 0 0 18px; }
 .hero .hn { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; min-width: 0; display: flex; flex-direction: column; }
-/* `overflow-wrap: anywhere` (#370, CPO-approved 2026-07-31): metric names are localised now, and
+/* `overflow-wrap: anywhere` (#370): metric names are localised now, and
    German and Finnish build single long compounds where English uses several short words. MEASURED at
    375px, where this box is 71px: `Ø Maalilaukaukset` needs 78 and `Ø Torschussdifferenz` needs 89, so
    the text ran into the tile's padding with nowhere to break — the default `overflow-wrap: normal`
@@ -278,7 +278,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
    `min-width: 0` actually sizes against. Every future compounding locale (Dutch next) needs this. */
 .hero .hn .hl { font-size: 11px; color: var(--muted); line-height: 1.3; overflow-wrap: anywhere; }
 .hero .hn .hv { font-size: 17px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: auto; padding-top: 8px; }
-/* Stack the hero tiles on phones (#370, CPO-approved). Three side by side leave 71px per label, and
+/* Stack the hero tiles on phones (#370). Three side by side leave 71px per label, and
    `overflow-wrap: anywhere` above then breaks a German or Finnish compound at an arbitrary letter with
    no hyphen — `Ø / Torschussdiffe / renz`. `hyphens: auto` cannot help: this engine ships no de/fi
    hyphenation dictionary. Stacked, the label gets ~231px (the 301px tile less padding, the value and
@@ -341,10 +341,10 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .vs-h { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
 .vs-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .vs-row:last-child { border-bottom: 0; }
-/* Same rule, same reason, and this is the surface that measured WORST (#370, CPO-approved
-   2026-07-31): at 375px this column is 77px and 9 of the 16 Performance rows overflowed it in
+/* Same rule, same reason, and this is the surface that measured WORST (#370): at 375px this
+   column is 77px and 9 of the 16 Performance rows overflowed it in
    Finnish, `% Viimeistelytehokkuus` by 53px — far enough to run the label into the bar column beside
-   it. Note that string is from the CPO's own validated corpus, so the gap is pre-existing in this
+   it. Note that string is from the validated corpus, so the gap is pre-existing in this
    file and localising the labels merely exposed it. `.mlabel` on the fixture page deliberately does
    NOT get this: it was measured too and is fine, because `.mmid` centres rather than stretches so its
    box grows to fit. Fix what measured over, not every label that might. */
@@ -369,7 +369,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 
 /* ================================================================ *
  *  FOUNDATION SHELL — global header/footer + responsive layout system   *
- *  (#825). Transcribed from the CPO-approved foundation mock (artifact  *
+ *  (#825). Transcribed from the approved foundation mock (artifact      *
  *  87d14109, "looks good for now"). Same token contract as above — no   *
  *  new colours, no new type scale. THE SHELL'S three breakpoints are    *
  *  all viewport (@media) and min-width, distinct from the component-    *
@@ -425,7 +425,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .drawer a:last-child, .drawer span:last-child { border-bottom: 0; }
 
 /* ---- generic page grid (main + rail) — a system primitive, not yet wired ---- *
- * into any page: which pages get a rail and what fills it is reserved (CPO).   *
+ * into any page: which pages get a rail and what fills it is reserved (§10).   *
  * Available for a future page (home, competition hub, leaderboards) to opt     *
  * into via `.shell > .page-grid > main + aside.rail`.                          */
 .shell { max-width: 1100px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px) 48px; }
@@ -576,8 +576,8 @@ a.cnm .nm { text-decoration: none; }
 .brow:last-child { border-bottom: 0; }
 .brow .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; }
 
-/* ONE LINE IF IT FITS, STACKED IF NOT — decided PER BOARD, never per row (CPO 2026-08-10: "they
-   all stack together or not"). flex-wrap decides it per ROW, which rendered one board with rows
+/* ONE LINE IF IT FITS, STACKED IF NOT — decided PER BOARD, never per row ("they all stack
+   together or not"). flex-wrap decides it per ROW, which rendered one board with rows
    1/5/6 inline and 2/3/4/7 stacked: right for each row, ragged as a block. CSS cannot ask whether
    a SIBLING wrapped, so the trigger must be something every row shares — the board's own width.
    `nowrap` is what enforces it: without it one over-long row could still wrap alone. */
@@ -620,7 +620,7 @@ a.brow:active { background: var(--sunk); }
    reaches 4px BEYOND the border box; a `.brow`'s border-box bottom IS the divider, and the next row
    sits flush against it. Measured at 375px, focusing row 3 of the Goals board: the ring spanned
    y=373.5..438.3 against dividers at 377.5 and 434.3 — 4px straight through the line at BOTH ends
-   and into both neighbouring rows. !151 shipped exactly this, invisible at desktop width.
+   and into both neighbouring rows. An earlier version shipped exactly this, invisible at desktop width.
    ⭐ A negative offset rather than padding, and that is DERIVED: `a.cnm` could spend room outward
    because it had unused space around it, and a row has none — its neighbour is flush, and giving it
    padding would move the divider it is measured against. So the ring goes inward instead. At -2px
@@ -637,7 +637,7 @@ a.brow:focus-visible { outline-offset: -2px; }
 /* .seg is shared with the fixture page's W1/W2 toggle (2 short, equal-width labels, never wraps).
    The region filter has 8 labels of very different lengths ("All" vs "North & Central America")
    and genuinely overflows at mobile widths without wrapping (measured: scrollWidth 645 vs
-   clientWidth 375 at the 375px preset, #62 step 5 round 1). .wrap opts a specific .seg instance
+   clientWidth 375 at the 375px preset, #62 step 5). .wrap opts a specific .seg instance
    into wrapping and lets each button size to its own content instead of sharing width equally —
    equal-width made no sense once labels stopped being similar lengths. Entity filter (3 short,
    similar-length labels) stays on the plain .seg behaviour. */

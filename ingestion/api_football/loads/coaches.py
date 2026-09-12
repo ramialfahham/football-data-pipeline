@@ -43,7 +43,7 @@ def load_coaches(
     # #896: one row per league, latest-per-league in staging, so a partial supersedes a good
     # snapshot. Complete or discard — see the same guard in loads/transfers.py.
     # NOTE the empty-response subtlety this must NOT get wrong: ~23 of 1,265 teams genuinely
-    # have no coach on every run (measured 2026-07-30..08-03, which is why COACHES never gates
+    # have no coach on every run (measured over five nightlies, which is why COACHES never gates
     # completeness). An empty response with NO error is a COMPLETE answer and must stay one;
     # only `result_is_complete` — body error or latched quota flag — marks the run partial.
     complete = True

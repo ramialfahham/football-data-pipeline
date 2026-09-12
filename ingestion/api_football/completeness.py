@@ -47,11 +47,11 @@ FANOUT_ENTITIES = (
 PER_TEAM_ENTITIES = ("PLAYERS", "SQUADS", "TRANSFERS", "COACHES")
 
 # ...but only these may FAIL a run. COACHES is reported and never gates: ~23 of 1,265 teams have no
-# coach on every single run (measured stable over five days, 2026-07-30 to 08-03), because the
+# coach on every single run (measured stable over five nightlies), because the
 # provider genuinely has none for them. Gating that would be permanently red, and a permanently-red
 # gate trains everyone to ignore the alarm — which is exactly how ten green runs came to mean
 # nothing. The other three measured 0 missing when this was introduced, so the gate starts green and
-# can only fire on a real regression. CPO decision, 2026-08-03.
+# can only fire on a real regression.
 PER_TEAM_GATED = ("PLAYERS", "SQUADS", "TRANSFERS")
 
 # API-Football ``fixture.status.short`` codes where the match has concluded and
@@ -206,7 +206,7 @@ def _latest_snapshot_timestamps(
     That costs 19.6x on the largest raw table we have.
 
     A fixed lookback window is NOT an alternative. Poll-mode competitions go months between
-    refreshes (WC last on 2026-07-20, CWC on 2026-06-22), so a recent-days filter would return zero
+    refreshes (WC and CWC sit idle for months at a time), so a recent-days filter would return zero
     rows for them and report those leagues as 100% missing.
     """
     table_id = f"{GCP_PROJECT_ID}.{DATASET_ID}.{table_name}"
@@ -403,8 +403,8 @@ def per_team_missing_by_league_entity(
 def skipped_exemption_note(exempt: list[str] | None) -> str | None:
     """The line the run prints when the gate exempts a deliberately-skipped pair, or None.
 
-    EXTRACTED SO IT CAN BE TESTED. It began as an inline `print` in the orchestrator, and
-    `platform-reviewer` pointed out that nothing could reach it: `_load_api_football` is
+    EXTRACTED SO IT CAN BE TESTED. It began as an inline `print` in the orchestrator, which
+    nothing could reach: `_load_api_football` is
     deliberately never driven end to end by any test, so the contract's promise that the
     exemption is "asserted by a test on the emitted text" was false as written. A guarantee that
     an exemption is never silent is worth exactly as much as its test.
@@ -435,8 +435,8 @@ def detect_stagnant_per_team_gaps(
     ⚠ ``skipped`` HOLDS THE PAIRS THAT WERE NOT FETCHED AT ALL THIS RUN, and they are exempt.
     The whole rule above rests on "the next night's fetch would have healed it". #33 item 14 put
     transfers on a 7-day per-league cadence that skips the phase ENTIRELY, and a league that was
-    never fetched cannot heal by construction — so a pre-existing gap sat unfetched and failed the
-    2026-08-14 nightly (`UCL/TRANSFERS (1 then 1 teams missing)`), with `exit(3)` before dbt ran.
+    never fetched cannot heal by construction — so a pre-existing gap sat unfetched and failed a
+    nightly (`UCL/TRANSFERS (1 then 1 teams missing)`), with `exit(3)` before dbt ran.
 
     THIS NARROWS THE GUARD, IT DOES NOT REMOVE IT, and the distinction is the point. A pair that
     WAS fetched on both runs and is still short of teams is still flagged, which is the case the
@@ -475,7 +475,7 @@ def detect_stagnant_per_team_gaps(
 # exist yet. With `payload=None` as the "unsupplied" sentinel, those runs made all three
 # readers fetch for themselves — 1 hoisted read + 3 re-reads = 4, one MORE than the 3 this
 # change set out to remove, in exactly the case each reader's docstring says it exists for.
-# Caught in review round 1. A unique sentinel keeps the two cases apart.
+# A unique sentinel keeps the two cases apart.
 _UNREAD = object()
 
 
@@ -561,7 +561,7 @@ def detect_stagnant_dropped_calls(
 
     A single bad run is deliberately NOT a failure: the per-minute limit is transient and self-heals,
     and failing would skip the dbt build and cost daily freshness. Two consecutive runs on the same
-    endpoint means it is not healing (CPO decision, 2026-08-03).
+    endpoint means it is not healing.
     """
     if not prior:
         return []
@@ -605,9 +605,9 @@ def persist_fixture_statistics_missing(
         payload,
         as_json_payload=True,
         # DELIBERATE WRITE_TRUNCATE: this table holds one current-state row, and the stagnation
-        # check compares this run against the stored one. Stated explicitly since `append` became
-        # a required keyword (2026-08-17) — the destructive mode must be written down, not
-        # inherited from a default.
+        # check compares this run against the stored one. Stated explicitly because `append` is
+        # a required keyword — the destructive mode must be written down, not inherited from a
+        # default.
         append=False,
     )
 

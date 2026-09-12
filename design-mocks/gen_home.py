@@ -1,6 +1,6 @@
 """Compose the whole home page: next matches -> Top players -> Top teams -> browse.
 
-That order is §0's composition (CPO 2026-08-08). The two stats blocks slot BETWEEN the two
+That order is §0's composition. The two stats blocks slot BETWEEN the two
 shipped modules, and browse holds the bottom slot deliberately so the follow-up inserts
 rather than rearranges.
 
@@ -38,7 +38,7 @@ E = html.escape
 
 # ------------------------------------------------------------ next matches
 #
-# ⚠ REBUILT ON THE SHARED BLOCK, 2026-08-10. This section carried its own copy of the
+# ⚠ REBUILT ON THE SHARED BLOCK. This section carried its own copy of the
 # `.fxgroup`/`.fxrow` markup, which is how one piece of content ended up with four different
 # treatments across the site. It now calls `rows.py` -- the same functions the Matches page and
 # the competition page call -- so the three surfaces cannot drift.
@@ -62,7 +62,7 @@ FIXTURES = [
     ("ED", [("Sun 15 Feb", [("PSV", "Feyenoord", "14:30")])]),
 ]
 
-# ⚠ FLAT (CPO 2026-08-10): one row of chips, no "by competition" / "by country" axes. Both
+# ⚠ FLAT: one row of chips, no "by competition" / "by country" axes. Both
 # axes listed the SAME twelve competitions, so the second was a repeat of the first with a
 # country heading above it.
 #
@@ -94,7 +94,7 @@ def next_matches():
 def browse():
     """Flat: the section head, then one row of chips.
 
-    ⚠ Chips are rendered as ANCHORS here, per the CPO's "it's fine if they redirect to the
+    ⚠ Chips are rendered as ANCHORS here, per "it's fine if they redirect to the
     leagues". The SHIPPED component emits `<span>` on purpose -- the competition hub
     (/{locale}/{slug}/) does not exist yet, so an anchor today is a guaranteed 404 behind
     every chip. system.css scopes the hover affordance to `a.linkchip`, so the tag swap is

@@ -1,7 +1,7 @@
 """NEGATIVE CONTROLS for `gen_competitions.py`'s guards.
 
 ⚠ A CHECK THAT HAS ONLY EVER BEEN SEEN GREEN PROVES NOTHING. Three checks in this folder passed
-on real defects on 2026-08-10 until they were made to fail first. So each guard below is handed a
+on real defects until they were made to fail first. So each guard below is handed a
 reconstruction of the defect it exists to catch, and must go RED.
 
 Every reconstruction is a REAL failure mode, not an invented one:
@@ -15,7 +15,7 @@ Every reconstruction is a REAL failure mode, not an invented one:
    7. a shipped competition_type silently DROPPED       -> same
    8. an UNDECLARED rename                              -> same
    9. `display_group` creeping back into the proposal   -> the deleted column returning
-  10. a blank label                                     -> "blanks are not allowed" (CPO)
+  10. a blank label                                     -> "blanks are not allowed"
   11. two types sharing a label                         -> two headings reading the same
   12. the registry already corrected                    -> the in-memory edit applied twice
 
