@@ -206,8 +206,14 @@ Claude memory for this project lives at:
 Read `MEMORY.md` there for the index. It holds how to work with Rami and what has gone wrong
 before — never the answer to any of the four questions above ("Which source answers which
 question"). Key files:
-- `feedback_engineering.md` — engineering principles and past corrections
+- `feedback_engineering.md` — the quality bar and the corrections behind it
 - `user_profile.md` — who Rami is and how he works
+
+**The folder has a budget, and `.claude/hooks/memory_budget_gate.py` enforces it**: at most 50
+notes, an index of at most 7,669 characters, no note over 4,232 characters — the numbers the folder
+measured after #115 step 9 cut it from 108 files, and they move down only. Adding a note means
+removing or merging one; a note is the rule, why, and how to apply it. `python
+.claude/hooks/memory_budget_gate.py --report` shows where the folder stands.
 
 ## Cursor integration
 

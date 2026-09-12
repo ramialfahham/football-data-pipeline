@@ -1,77 +1,100 @@
-# Acceptance evidence — sweep 4 of 4: decision history out of site_v2, ingestion and design-mocks
+# Acceptance evidence — memory cut to behaviour rules, with size budgets a hook enforces
 
 criteria_demonstrated:
-  - EVERY FLAGGED LINE IN THE FOUR TREES IS GONE, AND THE WHOLE TREE IS AT ZERO. Before: `count_tree`
-    → 250 lines in 56 files (`site_v2/src` 99 / 18, `ingestion` 62 / 18, `design-mocks` 72 / 15,
-    `site_v2/scripts` 17 / 5; by marker: date 172, product owner 56, review credit 13, MR 7,
-    round 2). After: **(0, 0)** for the whole repository. Every line was rewritten by hand, every
-    edit passing the edit-time hook. The rule applied: keep the why, drop who decided and when.
-    Examples: `strings.ts` keeps "a suffix is EARNED by equity, not a way to build it" and every
-    quoted ruling as the rule ("more precise than just Vorlagen", "they all stack together or
-    not"), and loses "CPO reversed his earlier ruling on <date> after seo-expert-reviewer argued
-    it"; the loaders keep "raw appends and never deletes … Base decides" and the measured damage
-    ("UCL 340 went 25 players to 0") and lose "(CPO ruling <date>)" and "on <date>";
-    `design-mocks/rows.py` keeps every design quote ("this shouldn't be much different from next
-    match design") and loses "CPO, <date>:". Provenance of user-visible copy is kept as the RULE
-    (§10: "Supplied copy", "approved copy", "the product owner's call") without the title and
-    date. Two stale facts corrected because the why was false as written: `index.astro` and
-    `types.ts` said Top teams was "specified and NOT built" — it is built (#41, wired at
-    `index.astro:77`); the header now says all three modules are built.
-  - NO BEHAVIOUR CHANGE, PROVEN PER LANGUAGE. Non-Python (`prove_noncomment_lines.py`: the
-    sequence of non-comment lines by the guard's own `comment_lines`, per language): **23
-    identical, 0 differ, of 23** `.ts`/`.mjs`/`.astro`/`.css` files. Python
-    (`prove_py_comments_only.py`, `ast` + `tokenize`): **27 identical, 7 differ, of 34** — the
-    pin file, and six `design-mocks` generators whose changed lines are comments the stripper
-    cannot see: nine CSS `/* … */` comment lines INSIDE the Python string each generator emits as
-    the mock's stylesheet (`gen_competitions.py` 1, `gen_competition_hub.py` 1, `gen_matches.py` 1,
-    `gen_top_players.py` 2, `gen_top_teams.py` 2, `rows.py` 2), and four lines in two module-level
-    bare triple-quoted strings used as block comments (`gen_top_players.py:84-106`,
-    `gen_top_teams.py:79-99`). The guard counts the CSS lines as comment lines (they are, in the
-    emitted CSS) but cannot see their CONTINUATION lines (a `.py` file has no block-comment pairs)
-    nor a bare string that is not a docstring — the platform-reviewer's grep found eight such
-    lines after the guard reported zero, all swept by hand. Proof the nine change nothing rendered:
-    `render_mocks.py` ran every generator on the working tree and on HEAD's generators
-    (stash-dance, in-turn), captured the seven emitted `.html` files with CSS comments stripped,
-    and `diff -r` → **identical** (re-run after the eight extra lines: identical). Proof the four
-    change nothing at all: `ast.parse` shows both strings as bare `Expr(Constant)` statements
-    after the module docstring, referenced by nothing. The generators that do not run (`gen_competitions.py`
-    "undeclared type change — missing intercontinental_super_cup"; `gen_block_standard.py` "no
-    entry for BPL, EKS, TSL") fail identically on HEAD and on the branch — pre-existing drift
-    between the mocks and the registry, out of scope. `pytest tests/` → **1,057 passed, 1 skipped, 14 subtests
-    passed** (9:08; the same count as `main`); `npm test` in `site_v2` → **83 pass, 0 fail**
-    (the same as `main`); `ruff check --config .ruff-ci.toml ingestion/ design-mocks/` → "All
-    checks passed!".
-  - THE PIN IS ZERO. Whole-tree `count_tree` before: (250, 56); after: **(0, 0)** — measured, and
-    equal to 250 − 250, 56 − 56. `PINNED_LINES = 0`, `PINNED_FILES = 0`; from here any new line
-    carrying history is a CI failure and an edit-time deny.
-  - NOTHING LOAD-BEARING LOST. `strings.ts` still says which strings are locked/approved/supplied
-    copy and why each wording was chosen (the Finnish `kunto`/`muoto`, the masculine `Der
-    Top-Spieler` warning, the four-string trap on the deserved block); every loader's docstring
-    still names the incident class it guards against (the rate-limited HTTP 200 that looked like
-    an empty squad; the delete whose trigger cannot tell "no players" from "we lost the players")
-    and the numbers (26 dropped calls, ~23 of 1,265 teams, 27 → 17 events); every mock header
-    still names its wireframe, its issue and the rules it renders; `registry.py`'s two cost fields
-    still say they are cost decisions (§10).
-  - THE HANDOVER STATES STEP 8 DONE: guard merged, four sweeps, pin 850 → 0, step 9 next.
+  - THE MEMORY FOLDER IS CUT TO BEHAVIOUR RULES AND POINTERS. `memory_budget_gate.py --report` on
+    a backup of the folder as it was (`scratchpad/memory_before/`, 109 files) versus the live
+    folder now — two-sided: **files 108 → 50; index 17,152 → 7,669 chars; largest note 20,407 →
+    4,232 chars; total 477,078 → 116,101 chars.** By class: STALE 22 deleted (13 `session_handoff_*`
+    superseded by `.claude/active_work.md`; `governance_artifact_commit_ordering`,
+    `project_architecture`, `project_competition_benchmarks_design`, `project_gitlab_migration`,
+    `project_leaderboards_roster_design`, `project_metric_layer_two_seeds` — `metric_definitions.csv`
+    no longer exists, `project_player_page_design` — the "three tabs" file, `project_season_model_naming_parked`
+    — a dead GitHub issue, `project_vision` — "Matchday IQ" and GitHub Pages); FOLD 12 deleted, each
+    fact grep-verified in the repo (`project_dbt_mcp_server` → `agent_guardrails.md`;
+    `project_dbt_shared_ci_prod_datasets` → `CLAUDE.md`; `project_metrics_context_model` →
+    `docs/metrics_context_model.md`; `project_mvp_retired` → `CLAUDE.md` + `north_star.md`;
+    `project_no_api_predictions` → `north_star.md`; `project_player_model_redesign` and
+    `project_team_model_redesign` → `layering.md`; `project_player_stat_nulls_zero` →
+    `metric_layer.md`; `project_provider_name_is_identity` → `site_architecture.md`;
+    `project_slug_assigned_not_derived` → `base.yml` + #95; `project_team_metric_rank_correlation_sweep`
+    → the model header + `active_work.md`; `project_v2_frontend_design` → `ui_design_brief.md`);
+    `project_semantic_layer_ai_ready` dropped (an intention with no requirement). Behaviour lines
+    inside deleted files moved first: the three mock-delivery rules and "one tab at a time" →
+    `feedback_design_discipline.md`; "suspect stale prod state, prove a data-semantics claim from
+    ground truth" → `feedback_verify_by_running.md`. MERGE MAP (29 → 9): escalation
+    (`decide_dont_escalate` + `stop_micro_escalating` + `premature_escalation` + `one_decision_at_a_time`
+    → `feedback_escalation_discipline`); git (`branch_discipline` + `branch_workflow` +
+    `git_push_tracking` + `git_tool_discipline` → `feedback_git_discipline`); governance
+    (`governance_review_mechanics` + `governance_edit_gate_scope` + `review_exclude_false_positive` +
+    `sibling_pr_rebase_rebind` → `feedback_governance_review_mechanics`); never-merge (`never_merge` +
+    `never_ship_unreviewed` + `remove_the_permission_not_parse_the_command` → `feedback_never_merge`);
+    design (`design_off_the_cuff` + `design_spec_altitude` + `v2_design_schema_first` →
+    `feedback_design_discipline`); metrics (`metric_catalogue_governance` + `metric_direction_judgement`
+    + `metric_formula_vs_availability` + `metric_calc_layer_placement` → `feedback_metric_governance`);
+    continuity (`handover_discipline` + `continuity_writeback` → `feedback_continuity`); tracker
+    (`tracker_not_documents` + `doc_clutter_discipline` + `issues_for_upcoming_work` →
+    `feedback_tracker_not_documents`); verify (`verify_by_running` + `verify_the_test_fails` →
+    `feedback_verify_by_running`); plus consumption (`consumption_layer_contract` +
+    `export_is_consumption_too` → `feedback_consumption_layer_contract`, found while rewriting) and
+    `percentile_display_phrasing` deleted (the rule is `metrics_display.md`, LOCKED).
+    `project_repo_portfolio` → `feedback_repo_tone` (a preference, not a product fact). Every one of
+    the 50 survivors was rewritten to the rule, why, and how to apply; `MEMORY.md` rebuilt with one
+    line per file — 50 links, 50 files, 0 missing, 0 dangling; every `[[link]]` in every note
+    resolves (checked by script: 0 broken).
+  - THE THREE MEMORY-ONLY FACTS HAVE A HOME OR ARE GONE. `ci-runner-01` → `docs/operations_guide.md`
+    "The CI runner (GitLab)" (one small Hetzner VM as the only runner, per-project registration
+    and why no group, why it exists, no GCP credentials on the host, the IPv6 clone failure and its
+    non-persistent fix, the console keyboard, SSH by key only); one stale claim in the memory ("the
+    SSH key is rejected") corrected to the handover's current fact (the key is passphrase-protected).
+    NOT moved, on the cto-reviewer's round-1 finding: the host's public address, size, city and
+    firewall rule — a live host's fingerprint has no place in a public repo; the section says the
+    address is in the Hetzner account; a grep for the address over the tracked tree → 0. `project_guardrails_plugin` →
+    `reference_guardrails_plugin.md`, cut to the pointer and the one live gotcha.
+    `project_semantic_layer_ai_ready` dropped.
+  - THE HOOK IS WIRED AND ITS BUDGETS EQUAL THE MEASURED LANDING. `MAX_FILES = 50`,
+    `INDEX_MAX_CHARS = 7669`, `FILE_MAX_CHARS = 4232`; `--report` on the live folder → `files 50/50,
+    index 7669/7669, largest 4232/4232 (feedback_no_hacky_solutions.md)`, exit 0; on the backup →
+    `files 108/50, index 17152/7669, largest 20407/4232 … OVER BUDGET`, exit 1. Six mutations on the
+    REAL folder through the hook as the harness calls it (stdin event → stdout decision): a 51st note
+    → DENIED ("the folder already holds 50 notes and the cap is 50 …"); an existing note rewritten to
+    4,233 chars → DENIED ("… 4,233 characters; its budget is 4,232 …"); the same at 4,232 → allowed;
+    `MEMORY.md` +1 char → DENIED ("… the index `MEMORY.md` 7,670 characters; its budget is 7,669");
+    the largest note −1 char → allowed; the largest note +1 char → DENIED. And live in this session:
+    a real `Write` of a 51st note was refused by the gate with the same text.
+  - THE TEST COVERS EACH DENY AND EACH PASS. `tests/test_memory_budget_gate.py`: 29 tests, each
+    deny with a passing twin one character inside the budget — the path test on both slash styles
+    and five ignored paths; Write at/over the note budget; Edit measured on the resulting file;
+    `replace_all` counted per occurrence; MultiEdit applied in order; shrinking an over-budget note
+    passes; an Edit whose `old_string` is absent is left to the tool; a CRLF note written as bytes
+    measures like LF text (at the budget after normalisation, over it raw — the no-op Edit passes,
+    one char more is denied); the index's own budget; the index never counts as a note; a new note
+    at the cap denied until one is removed; editing an existing note at the cap passes; one below
+    the cap admits exactly one; six malformed inputs fail open; `--report` output pinned, its exit
+    code over budget, and its message on a missing folder; the hook wired for Edit/Write/MultiEdit
+    in `settings.json`; the three budgets pinned at ≤ the measured values by three separate
+    assertions. Mutations run and watched go red: `MAX_FILES` 49 + `FILE_MAX_CHARS` 999999 → the pin
+    test fails (a tuple comparison passed it); `_read_text` with `newline=""` → the CRLF test fails.
+    `pytest tests/` → **1,084 passed, 1 skipped, 14 subtests passed** (12:09) on the 27-test
+    version; the two added tests pass in the file's own run (29 passed). `ruff check --config .ruff-ci.toml` on the hook and the test →
+    "All checks passed!".
+  - THE DOCS AND THE HANDOVER ARE CURRENT. `docs/agent_guardrails.md` has the row; `CLAUDE.md`
+    "Memory files" names the three budgets, the hook and `--report`, and its two key-files lines
+    point at files that exist (`feedback_engineering.md`, `user_profile.md`);
+    `tests/test_no_dead_issue_refs.py` still passes (6 passed) with the `#115` mention;
+    `.claude/active_work.md` states #115 done with this branch and #118 next (15,890 chars, under
+    the 16,000 budget).
 
 ## What is NOT demonstrated
-- The guard is blind to two comment shapes in Python: a CSS block comment's continuation lines
-  inside a string, and a bare triple-quoted string used as a block comment. Both were swept by
-  eye here and are at zero; a future line of either shape will not be counted or denied. Widening
-  the definition is reserved; the shapes are named so the next builder knows the grep to run.
-- Comment lines with no marker were not shortened — out of scope, and a separate question for
-  the CPO (the sweep removes who/when; it does not edit for length).
-- `gen_competitions.py` and `gen_block_standard.py` do not render on `main` either; their drift
-  from the registry (three new competitions, one renamed type) is a design-mocks maintenance item,
-  not this sweep's.
-- STRING LITERALS THAT ARE PROGRAM OUTPUT are outside the comment/docstring definition and
-  deliberately untouched — changing them changes what a mock renders or a check prints, which
-  criterion 2 forbids. The complete list in `design-mocks/` (grep `CPO|20\d\d-\d\d-\d\d` over
-  `*.py`, minus comments): rendered mock text in `gen_competition_hub.py:232` (a `<p>` in the
-  emitted page), `gen_competitions.py:700` (a `<p>`), `gen_navmap.py:67,257,351` and
-  `gen_sitemap.py:51,62,81` (the sitemap/navmap pages' own labels); printed check labels in
-  `check_home.py:40`, `check_teams.py:100,111`, `check_players.py:97,111`; a fixture URL in
-  `gen_navmap.py:171`. The guard's `count_tree` classes none of them as a comment line (verified
-  per line with `comment_lines`), so the (0, 0) claim is exact. Message strings and assertion
-  messages in `tests/` are the same class. Whether the definition should widen to output strings
-  is reserved.
+- A shell write (`>`, `tee`, `sed -i`) into the memory folder bypasses the hook, as it bypasses
+  `comment_history_gate.py`; the repo's rule already forbids shell writes for files. Closing it is
+  reserved.
+- The harness rewrites a note's frontmatter (`node_type`, `originSessionId`, `modified`) after a
+  write, adding ~100 characters outside any tool call; the budgets were measured after that
+  rewrite settled, so the largest note sits exactly at its budget and a later harness rewrite of
+  it is not gated. A subsequent tool write to it must shrink it or be denied — the ratchet, working.
+- The rest of `docs/operations_guide.md` "CI/CD guardrails" is GitHub-era prose (workflows, Pages)
+  that no longer describes CI; the new runner section sits beneath it unchanged. Rewriting that
+  section is a separate doc item, not this step's.
+- The memory folder is outside the patch. Reviewers cannot diff it; this file and the backup in the
+  scratchpad are the record. The 13 deleted handovers and the 21 deleted `project_*` files can be
+  read in `scratchpad/memory_before/` for the rest of this session only.

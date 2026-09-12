@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-12**, on `chore/115-step8-sweep-frontend-ingestion`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-12**, on `chore/115-step9-memory-budget`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -23,12 +23,14 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 
 ## ⛔ WHERE WE ARE
 
-**The context-engineering cleanup, GitLab #115, is the only work in flight. Product work resumes
-after it, with the player page (#118).** Steps 1–7 merged (`!169`–`!176`). Step 8 completes with
-this branch (#124): the guard (`!177`, `comment_history_gate.py` + the two-sided pin) and four
-sweeps (`!178` dbt, `!179` hooks + scripts, `!180` tests, this one: `site_v2` + `ingestion` +
-`design-mocks`) take the pin from 850 to **0** — the guard is now a pure ratchet. Step 9 (memory
-cut to behaviour rules, size budgets) is next. **Nothing is blocked on the CPO.**
+**The context-engineering cleanup, GitLab #115, finishes with this branch (#125, step 9 of 9).
+Product work resumes after its merge, with the player page (#118).** Steps 1–8 merged
+(`!169`–`!181`): the comment guard's pin is at 0 and it is a pure ratchet. Step 9: the memory
+folder is cut from 108 files to **50** (index 17,152 → 7,669 chars, largest note 20,407 → 4,232),
+and `.claude/hooks/memory_budget_gate.py` holds those three numbers as budgets that move down only —
+adding a note means removing one. The `ci-runner-01` facts moved from memory into
+`docs/operations_guide.md`. After the merge: tick step 9 and close #115; then #118.
+**Nothing is blocked on the CPO.**
 
 **What changed in how we work, 2026-09-11 — read `CLAUDE.md` "Which source answers which
 question" and `docs/working_agreement.md` §1 / §11:**

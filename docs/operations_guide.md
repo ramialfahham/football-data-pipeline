@@ -280,6 +280,45 @@ Local equivalent hard-fail check:
 python .\scripts\check_layer_contract.py
 ```
 
+### The CI runner (GitLab)
+
+GitLab CI for this account runs on **one self-hosted runner, `ci-runner-01`**, and nothing else:
+`shared_runners_enabled=false` on the project, so a dead box means pipelines **queue** until it
+returns — they do not fail over. None of this is visible in the repo; it is GitLab and Hetzner
+configuration.
+
+- **The box.** A small Hetzner Cloud VM (its address and console are in the Hetzner account,
+  not here) running GitLab Runner with the docker executor, untagged, `concurrent = 2`. Root SSH
+  by key only — the dev machine's key is passphrase-protected, so `ssh -o BatchMode=yes` fails
+  `publickey`; that is not a broken key. Config: `/etc/gitlab-runner/config.toml`, with
+  `environment = ["GIT_STRATEGY=clone"]` on each `[[runners]]` entry, because a persistent build
+  directory kept a `git worktree` registration whose path no longer existed and failed every MR
+  build (the repo-side prune in `.gitlab-ci.yml` covers the same case).
+- **Registered per project**, one `[[runners]]` entry each — no GitLab group. A group buys only
+  automatic availability for new projects and costs a project-path change, which breaks the
+  Workload Identity Federation binding pinned to `attribute.project_path/rami.al-fahham/football-data-pipeline`
+  (the prod warehouse credential). To add a project: `POST /user/runners`
+  (`runner_type=project_type`, `run_untagged=true`, `access_level=not_protected`), then
+  `gitlab-runner register --non-interactive --token …` on the box.
+- **Why it exists.** Measured over one month, 86 pipelines used 401 of the 400 free GitLab
+  minutes, ~745 min/month go-forward even with the nightly on Cloud Run. Jobs on the runner cost
+  no GitLab minutes — but only once the shared runners were disabled: with both fleets enabled and
+  no `tags:` in `.gitlab-ci.yml`, 96 of 100 jobs landed on GitLab's fleet.
+- **The runner host needs no GCP credentials.** CI authenticates with a GitLab-issued OIDC token
+  exchanged at Google STS (`.gitlab-ci.yml`, `aud: https://gitlab.com`), which works from any
+  host. Attaching the pipeline service account to the VM would be worse: ambient prod credentials
+  for every job, bypassing the WIF attribute condition.
+- **Outbound IPv6 breaks git clones.** The box prefers its IPv6 route and GitLab's edge refuses it
+  for git: every job fails in ~4 s at `Getting source from Git repository` with `RPC failed; HTTP
+  403` while the runner stays online and picks up jobs. `ip -6 route del default` fixes it for
+  the session; it does not survive a reboot unless made persistent (`gai.conf` precedence or
+  disabling IPv6). Before re-checking GitLab status, the token, the job-token allowlist, clock
+  skew or the code: `curl -sS ifconfig.me` on the box — an IPv6 address is the tell.
+- **The Hetzner web console's keyboard drops Shift** (`:`→`;`, `>`→`.`, `_`→`-`, `%`→`5`), so a
+  redirect typed there silently becomes an argument. Console commands use only letters, digits,
+  hyphens, dots, slashes and spaces; the noVNC clipboard is unreliable too. Root password via
+  Rescue → reset root password.
+
 ### Simple operations playbook (lean baseline)
 
 - **Where to check failed runs:** GitHub Actions tab → `ci-validate`, `ci-data-build`, `ci-ui`, or `dbt-scheduled` workflow runs.
