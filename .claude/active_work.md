@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-12**, on `feat/142-tracker-snapshot`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-12**, on `chore/session-end-2026-09-12`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -33,10 +33,11 @@ the page, where each block's data comes from, what it links to and from — rech
 the CPO on the issue BEFORE anything is built or rebuilt, built pages included, because the earlier
 agreements may be stale. Build issues are filed only against an approved review. Go-live items
 (legal pages, domain, dropping `noindex`) follow the last page. The two dead roadmap documents are
-gone (`!184`). **The tracker has a backup in the repo** (this branch, #142):
-`docs/tracker/gitlab_snapshot.md`, written only by `python scripts/snapshot_tracker.py` — run it
-at the END of every session before the handover commit; a hook refuses any hand edit, a test
-checks its checksum, and it is read only when GitLab is unreachable. **Next: the Home review,
+gone (`!184`). **The tracker has a backup in the repo** (`!185`): `docs/tracker/gitlab_snapshot.md`,
+written only by `python scripts/snapshot_tracker.py` — run it at the END of every session before
+the handover commit; a hook refuses any hand edit, a test checks its checksum, and it is read only
+when GitLab is unreachable. ⚠ Its checksum is self-consistency, not provenance — a forged shell
+write passes; forbidden by rule, and the CPO knows. **Next: the Home review,
 #127 — put the built page beside its block-by-block data sources and what is missing (the menu
 items lead nowhere; the mock generator still renders the dropped Browse block), and record his
 approval or changes on the issue. Nothing is blocked on the CPO.**
@@ -53,7 +54,7 @@ question" and `docs/working_agreement.md` §1 / §11:**
   `glab mr update <n> --description` right after the hook opens the MR.
 - **The stop gate blocks a turn that ends with anything in `git stash`** (`!173`). The contract
   stash-dance is intra-turn; parked work goes on a pushed `parked/<branch>`. Ten such branches
-  exist; five are dead (`!173`'s MR lists them) and deleting them is his.
+  exist; five are dead (`!173` lists them) and deleting them is his.
 - Memory answers none of the four questions; it is 50 notes under a hook-enforced budget.
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
