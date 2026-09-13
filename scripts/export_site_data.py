@@ -1451,7 +1451,7 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     """Read the landing module that exists today: upcoming fixtures.
 
     THREE BigQuery reads, unchanged by dropping browse below (it was registry-driven and read
-    nothing either way): `core.fct_fixture` and `core.dim_team` for the hero, plus
+    nothing either way): `mart_next_matchday` and `core.dim_team` for the hero, plus
     `mart_competition_index` for `region_rank` (below). The stats teasers
     (`mart_leaderboards` + `mart_standings`) and trending (`mart_landing_trending`) were removed,
     and browse (registry-driven, read nothing) was dropped (see `shape_landing_payload`) — their
@@ -1474,26 +1474,14 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
         if league_code in meta:
             meta[league_code].update(served)
 
-    # Same upcoming-fixture definition the fixture pages use, so the hero can never advertise a
-    # match that has no page.
-    # THE MATCHDAY IS SELECTED HERE, IN THE QUERY — not in Python. An earlier draft took
-    # `min(date)` over the fetched rows and filtered in a loop, which is the same shape as the
-    # season-picking this file already had to move OUT of Python
-    # under #846 (`_featured_season_row`: "picking here was window selection in the consumption
-    # layer"). The `fixture_date >= current_date()` window on the line below has always lived in
-    # this WHERE clause; restricting it to the first day with football belongs in exactly the same
-    # place, expressed declaratively, rather than as a second selection pass downstream.
+    # THE MATCHDAY IS SERVED, NOT SELECTED. `mart_next_matchday` is every competition's next round
+    # — the warehouse decides which round that is and which fixtures belong to it; this read
+    # takes the table whole. The fixture pages use the same upcoming definition the mart does, so
+    # the hero can never advertise a match that has no page.
     fixtures = _query(client, f"""
-        with upcoming as (
-            select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
-                   fixture_date, home_team_sk, away_team_sk
-            from `{GCP_PROJECT}.core.fct_fixture`
-            where status_short in ('NS', 'TBD') and fixture_date >= current_date()
-        )
         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
                home_team_sk, away_team_sk
-        from upcoming
-        where fixture_date = (select min(fixture_date) from upcoming)
+        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_next_matchday`
     """)
     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
 

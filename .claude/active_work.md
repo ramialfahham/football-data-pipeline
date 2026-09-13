@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-12**, on `chore/session-end-2026-09-12`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-13**, on `feat/143-home-approved-design`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -23,12 +23,23 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 
 ## ⛔ WHERE WE ARE
 
-**The context-engineering cleanup (#115) and its follow-up guard (#126) are merged and closed.**
-The comment guard's pin is at 0; memory is 50 notes under `memory_budget_gate.py`'s measured
-budgets; `host_fingerprint_gate.py` refuses a public address in any committed file.
+**HOME IS APPROVED (#127, 2026-09-13) AND ITS BUILD IS ON `feat/143-home-approved-design`.** The
+approved design is the `The approved design` section of #127's description — the authority for
+Home; `10_home.md` is corrected to it, not rewritten (#100 still owns the reduction). Rulings that
+landed elsewhere: #101 weights **80/10/10** (build item, scope + season trap on the issue); #114
+team tie-break = **underlying total** (build item); Stats → **Leaderboards** (milestone 7, #139,
+#140 renamed; metric names on Home boards link there once built); menu and footer links go live
+per page. #143 builds the Home-owned parts: the round-per-competition window (SQL in the export),
+the 3-row `<details>` fold (`FixtureRow.astro` extracted — Astro frontmatter cannot hold JSX), no
+team-board floor (`>= 1`; benchmark gates untouched), wireframe/overview/mock corrected. The
+committed `landing.json` sample (≤2 per competition) cannot show the fold and was NOT refreshed
+(a set roll-forward would pin 232 fixture payloads); evidence is from the dev server with a
+fresh export placed then reverted. Stated to the CPO in the MR head, not decided: a postponed
+match keeps its round name, so a straggler renders as a one-match matchday for a few days (BL1
+3/season, BSA 16). Go-live items (About, Imprint) have no tracker issue yet — his call to file.
 
 **THE ROADMAP IS THE GITLAB MILESTONES, IN THE SITE'S MENU ORDER: Home · Competitions · Matches ·
-Teams · Players · Standings · Stats.** One review issue per page under each (#127–#140): what is on
+Teams · Players · Standings · Leaderboards.** One review issue per page under each (#127–#140): what is on
 the page, where each block's data comes from, what it links to and from — rechecked and approved by
 the CPO on the issue BEFORE anything is built or rebuilt, built pages included, because the earlier
 agreements may be stale. Build issues are filed only against an approved review. Go-live items
@@ -37,25 +48,17 @@ gone (`!184`). **The tracker has a backup in the repo** (`!185`): `docs/tracker/
 written only by `python scripts/snapshot_tracker.py` — run it at the END of every session before
 the handover commit; a hook refuses any hand edit, a test checks its checksum, and it is read only
 when GitLab is unreachable. ⚠ Its checksum is self-consistency, not provenance — a forged shell
-write passes; forbidden by rule, and the CPO knows. **Next: the Home review,
-#127 — put the built page beside its block-by-block data sources and what is missing (the menu
-items lead nowhere; the mock generator still renders the dropped Browse block), and record his
-approval or changes on the issue. Nothing is blocked on the CPO.**
+write passes; forbidden by rule, and the CPO knows. **Next: land #143's MR, then the
+Competitions hub review, #128, the same way as Home (built page beside its data sources and
+links; rulings one at a time; consolidate into the issue description; he ticks).**
 
-**What changed in how we work, 2026-09-11 — read `CLAUDE.md` "Which source answers which
-question" and `docs/working_agreement.md` §1 / §11:**
-- A requirement lives in a **GitLab issue** in the `Task` template shape (What exactly / Why / How);
-  the plan is the issue's How. One issue per major task; his words: "some small exceptions".
-- A decision is recorded by the thing it changes — never a log. **`escalations.log` is FROZEN**; a
-  new entry is a defect. A locked-file approval is quoted in the contract AND in the commit
-  message's `Locked files` line, character-identical; `glab mr create --fill` puts it on the MR.
-- The MR head is the CPO's check: `Closes #N`, the checklist ticked with a link per tick, `Locked
-  files`, everything else folded. **His merge is the approval.** Set the head with
-  `glab mr update <n> --description` right after the hook opens the MR.
-- **The stop gate blocks a turn that ends with anything in `git stash`** (`!173`). The contract
-  stash-dance is intra-turn; parked work goes on a pushed `parked/<branch>`. Ten such branches
-  exist; five are dead (`!173` lists them) and deleting them is his.
-- Memory answers none of the four questions; it is 50 notes under a hook-enforced budget.
+**How we work since 2026-09-11** is in `CLAUDE.md` "Which source answers which question" and
+`docs/working_agreement.md` §1 / §11: the requirement is the GitLab issue (Task template), the
+plan is its How, a decision is recorded by the thing it changes (`escalations.log` is FROZEN), the
+MR head is his check (`Closes #N`, ticks with links, `Locked files`) and **his merge is the
+approval** — set it with `glab mr update <n> --description` right after the hook opens the MR.
+**The stop gate blocks a turn that ends with anything in `git stash`**; parked work goes on a
+pushed `parked/<branch>` (ten exist, five dead per `!173`, deleting them is his).
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
 (stash commit; untracked files in its third parent — `git stash apply parked/feat/player-overview-tab`)
@@ -100,10 +103,8 @@ read-only against prod measures what the LOGIC computes, never what the incremen
 ## ⛔ THE ROUND CAP (3) — the override practice, settled by use, never ruled
 
 Past the cap, write a `rounds_cap_override:` in `review.md` that clears a standing FAIL BY REVIEW
-and says explicitly that he did not rule on the cap (`!172`, `!173`, `!174` all did). Do not ask him.
-Keep rounds down by checking a claim before asserting it — every extra round on `!173`/`!174` was a
-quote I had not checked against its source. ⚠ **Never ask him to approve routine mechanics**
-(commit, push, retry a pipeline, regenerate an artifact, rebase). Ask about the RULE, do the rest.
+and says he did not rule on the cap (`!172`–`!174` did). Keep rounds down by checking a claim
+before asserting it. ⚠ **Never ask him to approve routine mechanics** — ask about the RULE.
 
 ## ⛔ PARKED: the dbt profile MR — TWO OPEN FAILS
 
@@ -164,16 +165,15 @@ TEST encoding an invariant ABOUT a rate.
 design is DEFENDED against, not the ones that come to mind.
 **5. A reviewer's flagged-but-not-failed trade-off is still a trade-off** — twice it was a real loss
 of coverage with a fix the reviewer had judged impossible.
-**6. REWRITE THE DESIGN, REWRITE THE PAPERWORK.** !159 changed design twice; both times acceptance
-criteria describing the previous design were left standing and a reviewer had to find them.
+**6. REWRITE THE DESIGN, REWRITE THE PAPERWORK.** Acceptance criteria describing a previous
+design were left standing twice on !159, and a reviewer had to find them.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
-⛔⛔ **A REBASE CONFLICT CAN BE diff3, WHICH HAS FOUR MARKER KINDS.** I grepped for `<<<<<<<`,
-`=======`, `>>>>>>>` and missed **`|||||||`**, committing it into `escalations.log` above the rulings
-the contract cites. `git add` marks a file resolved WITHOUT reading it, and `dbt parse`, SQLFluff,
-four gates and CI's `validate:governance` ALL passed with it committed. **Grep all four**, and prove
-a union structurally (`diff -q` each side against the resolved head/tail; check the lengths sum).
+⛔⛔ **A REBASE CONFLICT CAN BE diff3, WHICH HAS FOUR MARKER KINDS** — `|||||||` too. `git add`
+marks a file resolved WITHOUT reading it, and every gate and CI passed with a marker committed.
+**Grep all four**, and prove a union structurally (`diff -q` each side against the resolved
+head/tail; check the lengths sum).
 ⚠ **On a sibling-MR rebase the CODE merges cleanly and the PAPERWORK collides** — `contract.md`
 and `review.md` are per-task and one side wins; regenerate and re-review. (The log is frozen, so
 its union problem is gone.)

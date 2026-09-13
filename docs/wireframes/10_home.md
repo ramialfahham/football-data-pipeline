@@ -1,8 +1,18 @@
 # 10 — Home (landing) (#391)
 
+> ⭐ **THE AUTHORITY FOR HOME IS GITLAB #127** ("The approved design", CPO 2026-09-13), which
+> rechecked every block, its data source and its links. Where this file and #127 disagree, #127
+> wins; the passages that disagreed on 2026-09-13 are corrected in place and marked `#127`.
+> What #127 changed against this file: the Next matches window is EACH COMPETITION'S NEXT
+> MATCHDAY (its next round), every competition with an upcoming matchday always, **3 rows visible
+> and the rest folded**; the team boards have **no games floor**; a board's metric name links to
+> the Leaderboards page (#139), a row to the player or team page; the menu item Stats is renamed
+> Leaderboards. #143 builds the Home-owned parts.
+
 > Field-bound against `shape_landing_payload` (written 2026-08-03, revised 2026-08-08, revised
-> again 2026-08-19). The page reads exactly one warehouse model today: `core.fct_fixture`, for the
-> hero.
+> again 2026-08-19). ~~The page reads exactly one warehouse model today: `core.fct_fixture`, for the
+> hero.~~ The hero reads `mart_next_matchday` (#127 / #143, GAP-32 closed); the boards read
+> `mart_leaderboards` and `mart_team_leaderboards`.
 > ~~`mart_leaderboards` / `mart_standings`~~ — bound ONLY to the stats-teasers module, removed
 > 2026-08-08.
 > ~~`mart_team_profile` / `mart_landing_trending`~~ — bound ONLY to the trending module, cut
@@ -420,8 +430,9 @@ live and unchanged.
   `mart_team_profile.sql:195`. What does not exist is top-N-per-metric ACROSS teams:
   `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite
   shape. So this is a new mart composing an existing model, not a reshape of the benchmark.~~
-  ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards` (GAP-29) — four boards, `>= 3` finished games
-  to be ranked, `dense_rank` DESC partitioned `(league_code, season_api_year, metric_key)`. It reads
+  ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards` (GAP-29) — four boards, ~~`>= 3` finished games
+  to be ranked~~ **no games floor (#127: a team ranks from its first finished game)**, `dense_rank`
+  DESC partitioned `(league_code, season_api_year, metric_key)`. It reads
   `int_team_season__metrics`, the whole-season projection of the cumulative model this bullet names.
   ⚠ **"All eleven team metrics" is the NINE-BOARD-era framing**; the 2026-08-10 reduction left FOUR,
   and only those four are boards.
@@ -639,7 +650,7 @@ shipped; browse then left the composition entirely — see §0.
 
 | Payload key | Upstream |
 |---|---|
-| `upcoming[]` | `core.fct_fixture` (the same `status_short in ('NS','TBD')` filter `fetch_fixture_payloads` uses), joined to `core.dim_team` / `core.dim_league` for names and crests |
+| `upcoming[]` | `mart_next_matchday` — every competition's next round, read whole (~~`core.fct_fixture` with the `status_short in ('NS','TBD')` filter~~ — that read moved into the mart under #143, GAP-32), joined to `core.dim_team` for names and crests |
 | ~~`browse`~~ | ⛔ **DROPPED 2026-08-19** (CPO: "drop the browse section"). Was `build_nav()` over `docs/competition_registry.yml` — the identical structure `nav.json` carries. `build_nav`/`fetch_nav` still produce `nav.json` independently; only this page's use of them is gone |
 | ~~`trending[]`~~ | ⛔ **REMOVED 2026-08-08** with the trending block. `mart_landing_trending` was written for this key and is deleted; `mart_team_profile` is no longer read by this page |
 | ~~`stats`~~ | ⛔ **REMOVED 2026-08-08** with the stats-teasers module. `mart_leaderboards` and `mart_standings` are no longer read by this page at all |
@@ -770,9 +781,14 @@ is the noise this block carried until 2026-08-18.
 | Home / away name + crest | `…fixtures[].home.name` / `.crest`, `.away.name` / `.crest` | crest falls back to a monogram, as on 01 |
 | Link target | `…fixtures[].slug` | `/{locale}/{competition_slug}/matches/{slug}/` |
 
-**GAP-02 resolved here — SUPERSEDED 2026-08-18. The window is THE NEXT MATCHDAY: every fixture on
-the earliest upcoming kickoff date.** The original resolution was "the next 12 fixtures by kickoff,
-not a calendar day"; the count is retired.
+**GAP-02 resolved here — SUPERSEDED 2026-08-18, and again by #127 (2026-09-13). The window is
+EACH COMPETITION'S NEXT MATCHDAY: the round of its earliest fixture not yet started, every upcoming
+fixture of that round.** Every competition with an upcoming matchday is on the block, always — on
+Monday the Bundesliga already shows next weekend's round — and each shows its **3 earliest kickoffs
+with the rest folded** under a native "show all" (no script). ~~The window is the next matchday:
+every fixture on the earliest upcoming kickoff date.~~ The 2026-08-18 rule was one calendar day;
+measured 2026-09-12 it rendered 94 uncapped rows on a Saturday, and #127 replaced it. The original
+resolution was "the next 12 fixtures by kickoff, not a calendar day"; the count is retired.
 
 ⚠ **Why the count went** (CPO 2026-08-18: *"we will show what we have, more matches will come,
 because we ingest more competitions"*). Twelve was reasoned — see the measurement below — but it
@@ -785,8 +801,9 @@ arbitrary cut.
 rendering one row on some days. The rule is *the next day that HAS matches*, which is a different
 rule and is **never empty by construction**. The table below is retained because it is still the
 evidence for that distinction, and for the honest upper bound: the busiest day sampled carried 57
-fixtures. If a busy matchday reads too long, that is a CPO call on the block (**#908** parks a
-"more matches" control) — not a new number reintroduced here.
+fixtures. ~~If a busy matchday reads too long, that is a CPO call on the block (**#908** parks a
+"more matches" control) — not a new number reintroduced here.~~ That call was made on #127: the
+fold above IS the "more matches" control, and 3 is its number.
 
 ⚠ **OPEN, BOTH DIRECTIONS — and the second one is easy to forget.** The rule makes the block's
 length follow the football calendar, so it is variable by design:
@@ -977,6 +994,12 @@ Static site, no islands on this screen. Every element is a link. The kickoff tim
 same progressive-enhancement timezone script the other screens use. Search lives in the header
 (09_chrome), not in this page's markup.
 
+**#127 (2026-09-13) adds two interactions, neither scripted:** the Next matches fold — a native
+`<details>` per competition holding every row past the third, its summary reading "Show all {n}"
+— and, once the Leaderboards page exists (#139), the board title of every Top players and Top
+teams board links to it. Until then the titles are plain text; a row links to the player or team
+page as built.
+
 ## 8. SEO
 
 | | |
@@ -1065,7 +1088,8 @@ register is the authority — check it, not this summary.
   `tier` and `season_type` are ALREADY projected into the seed (8 columns, verified). Only the
   authored pool field remains.~~
 - **GAP-29** — ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards`: four boards, ranked DESC and
-  partitioned `(league_code, season_api_year, metric_key)`, `>= 3` finished games to qualify.
+  partitioned `(league_code, season_api_year, metric_key)`, ~~`>= 3` finished games to qualify~~
+  no games floor since #127 (2026-09-13).
   ~~LIVE. A team-boards mart; `mart_team_competition_benchmarks` is the opposite shape.~~
 - **GAP-30** — LIVE, registered 2026-08-18. `assists_player` is not a ranked board, so the reduced set's
   second board has no rank-1 to take.
@@ -1075,5 +1099,7 @@ Not corrected here on purpose: neither was falsified by this change, and the lis
 already says **the register is the authority — check it, not this summary**. Tracked as **#103**.
 - ~~**GAP-31** — a pooled rank across the pool.~~ **WITHDRAWN 2026-08-18**: the block is one player
   per league, so the per-league rank the mart already computes is the one it needs.
-- **GAP-32** — LIVE, registered 2026-08-18. Belongs to the fixtures hero, not these blocks: the
-  matchday is selected in the export rather than served by the warehouse. CPO ruled ship-as-is.
+- **GAP-32** — ~~LIVE, registered 2026-08-18. Belongs to the fixtures hero, not these blocks: the
+  matchday is selected in the export rather than served by the warehouse. CPO ruled ship-as-is.~~
+  **CLOSED 2026-09-13** (#143, CPO "Path A"): the matchday is served by `mart_next_matchday`;
+  the export reads it whole.

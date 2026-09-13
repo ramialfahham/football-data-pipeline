@@ -18,9 +18,12 @@
   crosses league_code. That also satisfies the block's rule that club and national-team
   competitions are never mixed: every competition is already its own ranking.
 
-  Qualification is the >= 3 finished games gate that int_team_competition_benchmark_metrics_long
-  already applies. The player mart's minutes/position floors have no analogue here: team metrics are
-  per-match rates already, so the games gate IS the small-sample guard.
+  NO GAMES FLOOR. A team ranks from its first finished game: early-season boards are thin and
+  understood to be, and comparable sites show leaderboards from day one (GitLab #127). The
+  >= 3 finished games gate that int_team_competition_benchmark_metrics_long applies is that
+  model's rule for a DISTRIBUTION, where a one-game rate would distort the percentiles; a
+  ranking has no such distortion to guard. The player mart's minutes/position floors have no
+  analogue here either.
 
   UNPIVOT rather than mart_leaderboards' union-all loop, because all four boards share one rule —
   the union there exists to give each rate board its own qualification WHERE. BigQuery UNPIVOT
@@ -44,7 +47,7 @@
 
 with season as (
     select * from {{ ref('int_team_season__metrics') }}
-    where season_games_played >= 3
+    where season_games_played >= 1
 ),
 
 -- One row per (team-season, board). UNPIVOT drops nulls, so a team missing a metric through a

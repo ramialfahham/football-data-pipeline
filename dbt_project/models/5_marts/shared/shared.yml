@@ -1918,10 +1918,10 @@ models:
       every board.
 
       The rank is per league by design: a board is each league's leading team collected and ordered,
-      never a ranking across competitions. Teams need three finished games to be ranked, which is
-      the small-sample guard — team metrics are per-match rates already, so the minutes and position
-      floors the player boards use have no analogue. A team with no value for a metric is absent
-      from that board rather than ranked on a null.
+      never a ranking across competitions. A team ranks from its first finished game — there is
+      no games floor, so early-season boards carry one-game rates by design — and the minutes and
+      position floors the player boards use have no analogue. A team with no value for a metric is
+      absent from that board rather than ranked on a null.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -1938,7 +1938,7 @@ models:
           expression: "sort_value > 0"
           name: mart_team_leaderboards_sort_value_positive
       - dbt_utils.expression_is_true:
-          expression: "season_games_played >= 3"
+          expression: "season_games_played >= 1"
           name: mart_team_leaderboards_games_gate_holds
     columns:
       - name: team_leaderboard_sk
@@ -2021,7 +2021,7 @@ models:
       - name: team_logo_url
         description: "Denormalised from dim_team; nullable."
       - name: season_games_played
-        description: "Finished games behind the ranked value this competition-season. Always >= 3 — the qualification gate."
+        description: "Finished games behind the ranked value this competition-season. Always >= 1: a team ranks from its first finished game; there is no games floor."
         tests: [not_null]
 
   - name: mart_team_market_value
@@ -2061,6 +2061,63 @@ models:
       - name: team_country
       - name: prompt_version
         description: "{{ doc('prompt_version') }}"
+
+  - name: mart_next_matchday
+    description: >
+      Every competition's next matchday: one row per upcoming fixture in the round of that
+      competition's earliest fixture not yet started. Grain: fixture_sk.
+
+      Upcoming means a scheduled status (NS or TBD) and a date on or after the build day, so a
+      fixture left at NS in the past is excluded. Every competition with an upcoming fixture is
+      present, cups and tournaments included; nothing is capped or ordered here. A postponed
+      match keeps its original round name, so a rescheduled straggler can be a one-match matchday
+      until it is played.
+
+      The Home page's Next matches block reads this table whole; the page orders the competitions
+      and folds rows past the third. Rebuilt nightly, so it is correct as of the morning it was
+      built.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "fixtures"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "status_short in ('NS', 'TBD')"
+          name: next_matchday_is_scheduled
+      - dbt_utils.expression_is_true:
+          expression: "fixture_date >= current_date()"
+          name: next_matchday_is_not_in_the_past
+    columns:
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: round_name
+        description: "The provider's round label, e.g. Regular Season - 4 or Round of 32. One value per competition in this table: the round that is the competition's next matchday."
+        tests: [not_null]
+      - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
+      - name: fixture_date
+        description: "{{ doc('fixture_date') }}"
+        tests: [not_null]
+      - name: status_short
+        description: "{{ doc('status_short') }}"
+      - name: home_team_sk
+        description: "{{ doc('home_team_sk') }}"
+      - name: away_team_sk
+        description: "{{ doc('away_team_sk') }}"
 
   - name: mart_team_fixtures
     description: >

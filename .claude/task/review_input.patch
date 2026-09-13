@@ -1,712 +1,1266 @@
-diff --git a/.claude/hooks/tracker_snapshot_gate.py b/.claude/hooks/tracker_snapshot_gate.py
-new file mode 100644
-index 00000000..fc8c0df2
---- /dev/null
-+++ b/.claude/hooks/tracker_snapshot_gate.py
-@@ -0,0 +1,63 @@
-+#!/usr/bin/env python
-+"""Tracker-snapshot gate — the tracker's backup in the repo has exactly one writer.
-+
-+`docs/tracker/` holds `gitlab_snapshot.md`, a generated copy of every GitLab milestone and
-+issue, written only by `scripts/snapshot_tracker.py` and read only when GitLab is unreachable.
-+A backup that anyone can edit becomes a second roadmap, so this hook denies every `Edit`,
-+`Write` and `MultiEdit` whose target is inside `docs/tracker/` in this repo. The script writes
-+with Python's own file write, which no edit-time hook sees — that is the one door, and
-+`tests/test_tracker_snapshot.py` checks the header checksum so a change that did not also
-+rewrite the header fails CI. A deliberate shell write that recomputes the header is not caught
-+by either half; it is forbidden by rule, like `--no-verify`. Every other path returns 0 with no
-+output. Fails OPEN on any unexpected error, like
-+every hook in this directory.
-+"""
-+
-+from __future__ import annotations
-+
-+import os
-+import sys
-+
-+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-+from _command_utils import emit_deny, read_event  # noqa: E402
-+
-+GOVERNED = "docs/tracker/"
-+
-+
-+def _repo_root() -> str:
-+    env = os.environ.get("CLAUDE_PROJECT_DIR")
-+    if env:
-+        return os.path.abspath(env)
-+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-+
-+
-+def is_governed(file_path: str) -> bool:
-+    try:
-+        rel = os.path.relpath(os.path.abspath(file_path), _repo_root())
-+    except ValueError:
-+        return False
-+    # Case-folded: on Windows `Docs/Tracker/` is the same folder, and relpath keeps the caller's
-+    # spelling of the segments past the shared prefix.
-+    return rel.replace("\\", "/").lower().startswith(GOVERNED)
-+
-+
-+def main() -> int:
-+    event = read_event()
-+    try:
-+        tool_input = event.get("tool_input") or {}
-+        file_path = tool_input.get("file_path") or ""
-+        if not file_path or not is_governed(file_path):
-+            return 0
-+        emit_deny(
-+            f"TRACKER SNAPSHOT GATE: `{GOVERNED}` is the generated backup of the GitLab tracker "
-+            "and has one writer, `scripts/snapshot_tracker.py`. It is never edited by hand and "
-+            "never cited while GitLab is up — the GitLab issue is the source. To refresh it, run "
-+            "`python scripts/snapshot_tracker.py`."
-+        )
-+    except Exception:
-+        return 0
-+    return 0
-+
-+
-+if __name__ == "__main__":
-+    sys.exit(main())
-diff --git a/.claude/review_routing.json b/.claude/review_routing.json
-index eb0873c7..fe41d691 100644
---- a/.claude/review_routing.json
-+++ b/.claude/review_routing.json
-@@ -197,7 +197,8 @@
-   },
-   "artifact_only": [
-     ".claude/task/**",
--    ".claude/active_work.md"
-+    ".claude/active_work.md",
-+    "docs/tracker/**"
-   ],
-   "artifact_only_never": [
-     ".claude/task/contract.md"
-@@ -211,7 +212,8 @@
-     ".claude/task/REVIEW_TEMPLATE.md",
-     ".claude/active_work.md",
-     ".claude/task/acceptance_evidence.md",
--    ".claude/task/rendered_page_evidence.md"
-+    ".claude/task/rendered_page_evidence.md",
-+    "docs/tracker/**"
-   ],
-   "review_exclude_paths": [
-     ".claude/task/review.md",
-@@ -221,7 +223,8 @@
-     ".claude/task/audit_reviewer_outputs.md",
-     ".claude/task/TEMPLATE.md",
-     ".claude/task/REVIEW_TEMPLATE.md",
--    ".claude/active_work.md"
-+    ".claude/active_work.md",
-+    "docs/tracker/**"
-   ],
- 
-   "_doc_review_summarise_paths": [
-diff --git a/.claude/settings.json b/.claude/settings.json
-index 92a53f73..ec9a150d 100644
---- a/.claude/settings.json
-+++ b/.claude/settings.json
-@@ -81,6 +81,12 @@
-             "shell": "bash",
-             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/host_fingerprint_gate.py\"",
-             "statusMessage": "Checking for a host address..."
-+          },
-+          {
-+            "type": "command",
-+            "shell": "bash",
-+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/tracker_snapshot_gate.py\"",
-+            "statusMessage": "Checking the tracker snapshot is not hand-edited..."
-           }
-         ]
-       }
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 2fbab952..a68ca830 100644
+index a68ca830..5108eb0e 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,28 +1,42 @@
--# Task contract — the roadmap has one home
-+# Task contract — the tracker has a backup in the repo: a generated snapshot nobody can edit, cite, or let drift
+@@ -1,161 +1,155 @@
+-# Task contract — the tracker has a backup in the repo: a generated snapshot nobody can edit, cite, or let drift
++# Task contract — Home: build the approved design (matchday window with fold, no team floor, documents corrected)
  
  objective: >
--  The roadmap now lives in GitLab: seven milestones in the site's menu order (Home, Competitions,
--  Matches, Teams, Players, Standings, Stats) and one review issue per page under each (#127–#140),
--  every page rechecked and approved by the product owner before it is built. Four documents also
--  carried a roadmap — two dead, two partial. This branch deletes the two dead ones and turns the
--  two partial sections into a pointer at the milestones, so there is exactly one roadmap.
-+  GitHub's suspension kept the repository and lost every issue. On GitLab the tracker — the
-+  roadmap milestones, the fourteen page reviews, every approval recorded on an issue — has no
-+  copy anywhere. This branch adds `scripts/snapshot_tracker.py`, which writes every milestone
-+  and every issue (open and closed, with bodies) into `docs/tracker/gitlab_snapshot.md`
-+  through the existing `glab` login, and the three guarantees that keep that file a backup and
-+  not a second roadmap: a hook that refuses any edit to it, a test that fails on any change the
-+  script did not make, and a line in `CLAUDE.md` that says it is read only when GitLab is
-+  unreachable. It is regenerated at the end of every session and rides in the handover commit,
-+  excluded from the review patch and the review hash.
+-  GitHub's suspension kept the repository and lost every issue. On GitLab the tracker — the
+-  roadmap milestones, the fourteen page reviews, every approval recorded on an issue — has no
+-  copy anywhere. This branch adds `scripts/snapshot_tracker.py`, which writes every milestone
+-  and every issue (open and closed, with bodies) into `docs/tracker/gitlab_snapshot.md`
+-  through the existing `glab` login, and the three guarantees that keep that file a backup and
+-  not a second roadmap: a hook that refuses any edit to it, a test that fails on any change the
+-  script did not make, and a line in `CLAUDE.md` that says it is read only when GitLab is
+-  unreachable. It is regenerated at the end of every session and rides in the handover commit,
+-  excluded from the review patch and the review hash.
++  The CPO approved the Home design on GitLab #127 (2026-09-13). This branch builds the parts Home
++  owns: the Next matches block shows each competition's whole next matchday (its next round) with
++  3 rows visible and the rest folded; a team ranks on a Home team board from its first finished
++  game; the wireframe, the overview and the mock generator are corrected to the approved design.
++  The header, footer and metric-name links are NOT built here (each goes live when its page is
++  built — #127); the rotation (#101), the team tie-break (#114) and the Leaderboards hub (#139)
++  are owned elsewhere.
  
  refs: >
--  GitLab #141 (this task, `Task` template; the What/Why/How below are copied from it). The
--  product owner's words, 2026-09-12, in chat: "go, create the milestones and delete the dead
--  docs", after "we need a single source of truth that we adhere to and where we track our
--  progress". `CLAUDE.md` "Which source answers which question": what is next is the GitLab
--  tracker, never a document.
-+  GitLab #142 (this task, `Task` template; the What/Why/How below are copied from it). The
-+  product owner's words, 2026-09-12, in chat: "what if gitlab will be suspended as well. then
-+  the roadmap is lost" → "only if we don't produce two sources that contradict each other" →
-+  "go", to the three guarantees stated in the reply before it (nobody can edit it; it cannot be
-+  cited; it cannot drift far). `CLAUDE.md` "Which source answers which question": the GitLab
-+  issue answers "what is required"; that stays.
- 
--protected_override: none — no protected path is touched (`.github/ISSUE_TEMPLATE/` is not
--  `.github/workflows/`).
-+protected_override: >
-+  `.claude/hooks/tracker_snapshot_gate.py` (new), `.claude/settings.json` (one hook
-+  registration), `.claude/review_routing.json` (three list entries for `docs/tracker/**`). The
-+  product owner's words that require this mechanism are quoted in `decisions_taken` below, in
-+  the commit message and in the MR head; under working_agreement §11 the durable approval is his
-+  merge of this MR.
+-  GitLab #142 (this task, `Task` template; the What/Why/How below are copied from it). The
+-  product owner's words, 2026-09-12, in chat: "what if gitlab will be suspended as well. then
+-  the roadmap is lost" → "only if we don't produce two sources that contradict each other" →
+-  "go", to the three guarantees stated in the reply before it (nobody can edit it; it cannot be
+-  cited; it cannot drift far). `CLAUDE.md` "Which source answers which question": the GitLab
+-  issue answers "what is required"; that stays.
+-
+-protected_override: >
+-  `.claude/hooks/tracker_snapshot_gate.py` (new), `.claude/settings.json` (one hook
+-  registration), `.claude/review_routing.json` (three list entries for `docs/tracker/**`). The
+-  product owner's words that require this mechanism are quoted in `decisions_taken` below, in
+-  the commit message and in the MR head; under working_agreement §11 the durable approval is his
+-  merge of this MR.
++  GitLab #143 (this task, `Task` template; the What exactly lines below are its acceptance
++  criteria verbatim). GitLab #127 "The approved design" (the rulings, consolidated in the issue
++  description; approved in chat 2026-09-13: "approved", then "do it" on #143's How).
  
  scope_paths:
--  - docs/agent_company_roadmap.md
--  - docs/backlog.md
--  - docs/north_star.md
--  - docs/site_architecture.md
--  - .github/ISSUE_TEMPLATE/config.yml
-+  - scripts/snapshot_tracker.py
-+  - docs/tracker/gitlab_snapshot.md
-+  - .claude/hooks/tracker_snapshot_gate.py
-+  - .claude/settings.json
-+  - .claude/review_routing.json
-+  - tests/test_tracker_snapshot.py
-+  - tests/test_materialisation_policy.py
-+  - tests/test_governance_doc_parity.py
-+  - docs/agent_guardrails.md
-+  - CLAUDE.md
+-  - scripts/snapshot_tracker.py
+-  - docs/tracker/gitlab_snapshot.md
+-  - .claude/hooks/tracker_snapshot_gate.py
+-  - .claude/settings.json
+-  - .claude/review_routing.json
+-  - tests/test_tracker_snapshot.py
+-  - tests/test_materialisation_policy.py
+-  - tests/test_governance_doc_parity.py
+-  - docs/agent_guardrails.md
+-  - CLAUDE.md
++  - scripts/export_site_data.py
++  - tests/test_export_landing.py
++  - site_v2/src/components/home/HeroFixtures.astro
++  - site_v2/src/components/home/FixtureRow.astro
++  - site_v2/src/data/landing.json
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/styles/system.css
++  - site_v2/src/lib/types.ts
++  - dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
++  - dbt_project/docs/layering.md
++  - docs/wireframes/99_gaps_register.md
++  - docs/site_architecture.md
++  - docs/wireframes/10_home.md
++  - docs/wireframes/00_overview.md
++  - design-mocks/gen_home.py
++  - design-mocks/check_home.py
++  - design-mocks/home_mock.html
    - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
-@@ -30,45 +44,118 @@ scope_paths:
+   - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: two files deleted; one section each in `north_star.md` and `site_architecture.md`
--    replaced by a pointer; one link in the dormant GitHub issue-template config repointed; the
--    handover.
-+  writers: one script (reads GitLab through `glab api`, writes one markdown file), one generated
-+    file, one hook, one registration entry, three routing entries, one test file, one guardrails
-+    row, one `CLAUDE.md` table row plus one operational line, the handover.
- 
--  downstream: nothing reads these files — `git grep` for the two deleted names finds one
--    reference, the issue-template config, which is repointed here. No code, model, script, test,
--    CI job or site source reads `north_star.md` or `site_architecture.md`. `tests/test_no_dead_issue_refs.py`
--    covers `CLAUDE.md` and the handover only; the GitHub-era numbers removed from
--    `site_architecture.md` §7 were not in its scope.
-+  downstream (a guard's blast radius is every future edit): the hook fires on every `Edit`,
-+    `Write`, `MultiEdit` and `NotebookEdit` and denies ONLY when the target is inside
-+    `docs/tracker/` in this repo; every other path returns 0 with no output. The script writes
-+    the file with Python's own file write, which no edit-time hook sees — by design: the script
-+    is the one writer. The routing entries: `hash_exclude_paths` and `review_exclude_paths` gain
-+    `docs/tracker/**`, so a snapshot refresh never moves a review binding and is never pasted to
-+    a reviewer; `artifact_only` gains it, so a commit touching only the snapshot (with or
-+    without the handover) is review-exempt like the handover itself. `git_discipline.py` and
-+    `check_task_artifacts.py` read those lists as `fnmatch` patterns — `**` is fine there (the
-+    lists already use it). The test pins the header's checksum against the body, the hook's deny
-+    and pass, and the three routing entries. Nothing else reads `docs/tracker/`.
- 
--  what stops being enforced if it is wrong: nothing — prose only.
-+  what stops being enforced if it is wrong: nothing enforced today — the tracker had no backup.
-+    If the hook mis-denies, the message says the file is generated and names the script. If the
-+    checksum test fails, the file was changed by something other than the script: regenerate.
- 
--  layer_rules: n/a. deploy_order: none. blast_radius: none in behaviour; in prose, a reader of
--    either section now finds one line and a link instead of a stale sequence.
-+  layer_rules: n/a. deploy_order: none.
+-  writers: one script (reads GitLab through `glab api`, writes one markdown file), one generated
+-    file, one hook, one registration entry, three routing entries, one test file, one guardrails
+-    row, one `CLAUDE.md` table row plus one operational line, the handover.
+-
+-  downstream (a guard's blast radius is every future edit): the hook fires on every `Edit`,
+-    `Write`, `MultiEdit` and `NotebookEdit` and denies ONLY when the target is inside
+-    `docs/tracker/` in this repo; every other path returns 0 with no output. The script writes
+-    the file with Python's own file write, which no edit-time hook sees — by design: the script
+-    is the one writer. The routing entries: `hash_exclude_paths` and `review_exclude_paths` gain
+-    `docs/tracker/**`, so a snapshot refresh never moves a review binding and is never pasted to
+-    a reviewer; `artifact_only` gains it, so a commit touching only the snapshot (with or
+-    without the handover) is review-exempt like the handover itself. `git_discipline.py` and
+-    `check_task_artifacts.py` read those lists as `fnmatch` patterns — `**` is fine there (the
+-    lists already use it). The test pins the header's checksum against the body, the hook's deny
+-    and pass, and the three routing entries. Nothing else reads `docs/tracker/`.
+-
+-  what stops being enforced if it is wrong: nothing enforced today — the tracker had no backup.
+-    If the hook mis-denies, the message says the file is generated and names the script. If the
+-    checksum test fails, the file was changed by something other than the script: regenerate.
+-
+-  layer_rules: n/a. deploy_order: none.
+-
+-  blast_radius: a NEW DENY on edits under one path that holds one generated file; three routing
+-    entries that EXEMPT that path from review — the risk is a second roadmap accreting there
+-    unreviewed. What closes it and what does not: the hook closes every tool edit; the checksum
+-    test catches every change that did not also rewrite the header (a slip, a tool that bypassed
+-    the hook, a merge accident); a DELIBERATE write by a shell route that also recomputes the
+-    header passes the test — the checksum is self-consistency, not provenance, and nothing in
+-    CI can re-read GitLab without a token. That residual is the same class as deleting the
+-    handover or committing with `--no-verify`: forbidden by rule (`CLAUDE.md`), not prevented by
+-    mechanism, and no wider than the handover already carries (an artifact-only, hash-excluded
+-    file every session writes by hand with no hook on it at all).
++  writers: `scripts/export_site_data.py::fetch_landing_payload` (the landing query — the only
++    writer of `landing.json`'s `upcoming[]`); `mart_team_leaderboards` (one WHERE clause);
++    `HeroFixtures.astro` (the only renderer of `upcoming[]`).
 +
-+  blast_radius: a NEW DENY on edits under one path that holds one generated file; three routing
-+    entries that EXEMPT that path from review — the risk is a second roadmap accreting there
-+    unreviewed. What closes it and what does not: the hook closes every tool edit; the checksum
-+    test catches every change that did not also rewrite the header (a slip, a tool that bypassed
-+    the hook, a merge accident); a DELIBERATE write by a shell route that also recomputes the
-+    header passes the test — the checksum is self-consistency, not provenance, and nothing in
-+    CI can re-read GitLab without a token. That residual is the same class as deleting the
-+    handover or committing with `--no-verify`: forbidden by rule (`CLAUDE.md`), not prevented by
-+    mechanism, and no wider than the handover already carries (an artifact-only, hash-excluded
-+    file every session writes by hand with no hook on it at all).
++  downstream: `mart_team_leaderboards` is a LEAF — `dbt ls --select mart_team_leaderboards+
++    --resource-type model --resource-type test` (run 2026-09-13 against a scratchpad dev profile,
++    target `dev_scratch`) lists the model, its 19 schema tests and 3 singular tests
++    (`assert_mart_team_leaderboards_all_boards_present`, `…_every_board_has_a_leader`,
++    `…_one_leader_per_league`) and NO downstream model. Its only other reader is the export's
++    Top teams query (`league_leader_order = 1 and is_current_season`), which selects and does not
++    compute. The `season_games_played >= 3` expression test in `shared.yml` and the column
++    description that says "Always >= 3" move with the gate; the benchmark models' own gate
++    (`int_team_competition_benchmark_metrics_long`, `int_team_competition_benchmarks`,
++    `int_team_season__deserved_vs_actual`) is a different rule and is untouched — two-sided
++    sweep of `>= 3` under `dbt_project/models`: 2 move (the mart's WHERE and its yml test), 6 stay
++    (all benchmark or deserved-vs-actual). `landing.json`'s `upcoming[]` keeps its shape (the
++    `round` key already exists on every fixture); the only frontend reader is `HeroFixtures.astro`
++    plus `orderUpcomingGroups`, whose input is unchanged.
++
++  layer_rules: marts = consumption; the mart keeps ranking and ordering, the export keeps
++    selecting (the round is chosen in SQL, not Python — the #846 rule), the page keeps rendering
++    (the 3-row cut is presentation; every fixture stays in the payload and in the HTML).
++    `check_layer_contract.py` unaffected (no per-model materialisation change, no new file).
++
++  deploy_order: none. The mart is a view; removing the gate widens its rows at the next nightly
++    and the export reads whatever is there. No migration, no incremental model touched.
++
++  blast_radius: `mart_team_leaderboards` gains rows for teams with 1–2 finished games; a league
++    whose new season has 1–2 finished games flips `is_current_season` to the NEW season
++    earlier than before (today it waits for 3 games and shows last season's leaders under a
++    current-season label — the trap #101 records). Home's Top teams may therefore show a
++    one-game rate in the first week of a season, which is the ruling. `landing.json` changes
++    content (whole rounds instead of one day: measured 2026-09-13, 20 competitions, 94 matches
++    on the old rule vs the union of their next rounds on the new one); no other export target
++    changes.
  
  acceptance_criteria:
--  - `docs/agent_company_roadmap.md` and `docs/backlog.md` are gone; `git grep` for either name
--    over the tree finds nothing.
--  - `docs/north_star.md` "Next milestone" and `docs/site_architecture.md` §7's go-live bullet
--    each point at the GitLab milestones in one line, keeping the non-roadmap facts (the quality
--    bar; Firebase hosting, no MVP to switch from, no redirects); no GitHub-era issue number
--    remains in either section.
--  - `.github/ISSUE_TEMPLATE/config.yml` links the milestones, not the deleted file.
--  - The handover names the milestones as the roadmap and #127 (Home) as the first review.
-+  - `python scripts/snapshot_tracker.py` writes `docs/tracker/gitlab_snapshot.md` from the live
-+    tracker through `glab`: every milestone, every issue open and closed with its body, grouped
-+    by milestone in a deterministic order; the header names the script, the UTC time, the sha256
-+    of the body, and says in one line that the file is a backup, read only when GitLab is
-+    unreachable, never edited. The first snapshot is committed.
-+  - Nobody can edit it: on the real repo an `Edit` and a `Write` to `docs/tracker/gitlab_snapshot.md`
-+    are refused with the hook's own text; a `Write` to `docs/tracker/anything.md` too; a write
-+    anywhere else passes. `tests/test_tracker_snapshot.py`: the checksum in the committed
-+    snapshot's header equals the sha256 of its body; changing one character → red (mutation
-+    shown); the hook denies and passes as above on a temp repo; malformed stdin fails open; the
-+    hook is wired; `docs/tracker/**` is in all three routing lists.
-+  - It cannot be cited: `CLAUDE.md`'s table gains the one row; the operational notes gain the
-+    session-end line ("run the snapshot before the handover commit").
-+  - It cannot drift far: the routing entries are in place, proven by `--staged-hash` being
-+    unchanged before and after a snapshot regeneration on this branch, and by the patch not
-+    containing the file; the handover names the routine.
-+  - `pytest tests/` green with `main`'s count plus the new tests; ruff clean on the script, the
-+    hook and the test.
+-  - `python scripts/snapshot_tracker.py` writes `docs/tracker/gitlab_snapshot.md` from the live
+-    tracker through `glab`: every milestone, every issue open and closed with its body, grouped
+-    by milestone in a deterministic order; the header names the script, the UTC time, the sha256
+-    of the body, and says in one line that the file is a backup, read only when GitLab is
+-    unreachable, never edited. The first snapshot is committed.
+-  - Nobody can edit it: on the real repo an `Edit` and a `Write` to `docs/tracker/gitlab_snapshot.md`
+-    are refused with the hook's own text; a `Write` to `docs/tracker/anything.md` too; a write
+-    anywhere else passes. `tests/test_tracker_snapshot.py`: the checksum in the committed
+-    snapshot's header equals the sha256 of its body; changing one character → red (mutation
+-    shown); the hook denies and passes as above on a temp repo; malformed stdin fails open; the
+-    hook is wired; `docs/tracker/**` is in all three routing lists.
+-  - It cannot be cited: `CLAUDE.md`'s table gains the one row; the operational notes gain the
+-    session-end line ("run the snapshot before the handover commit").
+-  - It cannot drift far: the routing entries are in place, proven by `--staged-hash` being
+-    unchanged before and after a snapshot regeneration on this branch, and by the patch not
+-    containing the file; the handover names the routine.
+-  - `pytest tests/` green with `main`'s count plus the new tests; ruff clean on the script, the
+-    hook and the test.
++  - The Next matches block shows, for every competition with a fixture not yet started, that competition's whole next matchday (the round of its earliest upcoming fixture), not the earliest calendar day. On a Monday the Bundesliga shows next weekend's nine matches.
++  - Each competition shows its 3 earliest kickoffs; the rest are folded under a "show all" on the block, opened without JavaScript.
++  - The order of competitions is unchanged: the day the matchday starts, then region rank, then kickoff, then code.
++  - A team appears on a Home Top teams board from its first finished game: `mart_team_leaderboards` no longer requires 3 games.
++  - `docs/wireframes/10_home.md` describes the page as approved on #127 and names #127 as the authority; `docs/wireframes/00_overview.md` points at #127 for Home.
++  - `design-mocks/gen_home.py` renders three blocks; the Browse block and its markup are gone from the generator and the mock.
  
  decisions_taken: >
--  CPO, 2026-09-12, in chat: "go, create the milestones and delete the dead docs". The milestones
--  and the review issues were created before this branch (GitLab #127–#140, milestones 1–7);
--  this branch is the documentation half of that instruction.
-+  CPO, 2026-09-12, in chat: "go" — to the three guarantees put to him after his condition "only
-+  if we don't produce two sources that contradict each other": (1) nobody can edit it — a hook
-+  refuses the write and a checksum test fails any change the script did not make (CORRECTED at
-+  round 1, see amendments: the test fails any change that did not also rewrite the header; a
-+  deliberate forgery by shell is forbidden by rule, not prevented — told to him); (2) it cannot
-+  be cited — the `CLAUDE.md` table keeps the GitLab issue as the source and names the snapshot a
-+  backup read only when GitLab is unreachable; (3) it cannot drift far — regenerated at the end
-+  of every session, stamped with the time.
-+
-+  THE SHAPE IS THE BUILDER'S: one script, one generated markdown file, one hook in the shape of
-+  the other edit-time gates, three routing entries so a refresh is never a reviewed diff.
- 
--  THRESHOLD — NEW MECHANISM: none. THRESHOLD — RECURRING COST: none.
-+  THRESHOLD — NEW MECHANISM: yes, required above. THRESHOLD — RECURRING COST: none (a `glab`
-+  read of the tracker once per session, on the product owner's own login; no schedule).
+-  CPO, 2026-09-12, in chat: "go" — to the three guarantees put to him after his condition "only
+-  if we don't produce two sources that contradict each other": (1) nobody can edit it — a hook
+-  refuses the write and a checksum test fails any change the script did not make (CORRECTED at
+-  round 1, see amendments: the test fails any change that did not also rewrite the header; a
+-  deliberate forgery by shell is forbidden by rule, not prevented — told to him); (2) it cannot
+-  be cited — the `CLAUDE.md` table keeps the GitLab issue as the source and names the snapshot a
+-  backup read only when GitLab is unreachable; (3) it cannot drift far — regenerated at the end
+-  of every session, stamped with the time.
+-
+-  THE SHAPE IS THE BUILDER'S: one script, one generated markdown file, one hook in the shape of
+-  the other edit-time gates, three routing entries so a refresh is never a reviewed diff.
+-
+-  THRESHOLD — NEW MECHANISM: yes, required above. THRESHOLD — RECURRING COST: none (a `glab`
+-  read of the tracker once per session, on the product owner's own login; no schedule).
++  1. THE WINDOW IS THE ROUND, chosen in SQL. #127: "Window: each competition's next matchday, not
++  a calendar day — the round (the fixture's round name) of its earliest fixture not yet started."
++  Implemented as: upcoming = not started (`NS`/`TBD`) and dated today or later; per competition,
++  the round of the earliest such fixture (by date, then kickoff); every upcoming fixture of that
++  round is served. Stated consequence, measured on prod over the 2025 season: a postponed match
++  keeps its original round name, so for the days between a round's end and its straggler the
++  block shows that competition as a one-match matchday (BL1 3 stragglers over 7 days late in
++  306 fixtures, PL 1, BSA 16, MLS 13). Accepted as the ruled definition; recorded on #143.
++  2. THE FOLD IS PRESENTATION. #127: "3 visible, the rest folded under a 'show all' on the block;
++  no JavaScript needed." A native `<details>`/`<summary>`; the 3 are the first three rows of the
++  kickoff-ordered list the export serves; the constant lives in the component, ruled on #127.
++  The summary copy "Show all {n}" (DE "Alle {n} anzeigen", FI "Näytä kaikki {n}") is new i18n
++  copy for a control the CPO described in those words ("something like a show all button").
++  3. NO FLOOR. #127: "No floor. A team appears on a Home team board from its first finished game."
++  The mart's WHERE, its yml expression test and the column description move together; the
++  expression test becomes `season_games_played >= 1` (a guard narrowed, not deleted). The
++  benchmark gate stays. The docstring paragraph on qualification is rewritten to say the
++  mart has no games floor and why.
++  4. THE WIREFRAME IS CORRECTED, NOT REWRITTEN. #100 (reduce `10_home.md` to the current design)
++  stays open; this branch adds a header line naming #127 as the authority and strikes/corrects
++  the passages that now disagree (§5 (1) the one-day window; the `>= 3` gate on the team boards;
++  the unlinked board titles), and the overview's inventory row for Home. No new mechanism, no
++  recurring cost.
++  5. THE MOCK RENDERS THE APPROVED DESIGN: three blocks, Browse gone, and the Next matches block
++  shows one competition with 3 visible rows and a fold — the mock is the rendering of #127
++  (`00_overview.md`: "the GitLab issue for that surface, with design-mocks/ as its rendering").
++  `check_home.py`'s assertions move with it.
  
  decisions_reserved:
--  - The wireframe overview's status table (`docs/wireframes/00_overview.md`) — corrected page by
--    page as each review issue closes, not here. Whether the dormant `.github/ISSUE_TEMPLATE/`
--    directory should exist at all.
-+  - Merge-request heads in the snapshot (decisions live there too); a mirror of the repository
-+    itself (an account or credential decision); an automated schedule instead of the session-end
-+    routine; CI verifying the snapshot against live GitLab (needs a read token in CI — a
-+    credential decision), which is the only thing that would turn the checksum from
-+    self-consistency into provenance.
+-  - Merge-request heads in the snapshot (decisions live there too); a mirror of the repository
+-    itself (an account or credential decision); an automated schedule instead of the session-end
+-    routine; CI verifying the snapshot against live GitLab (needs a read token in CI — a
+-    credential decision), which is the only thing that would turn the checksum from
+-    self-consistency into provenance.
++  - none open for this branch: the design is CPO-approved on #127 and #143's How is the plan he said "do it" to. The straggler consequence in decisions_taken (1) is REPORTED to him in the MR head, not decided here — if he wants a different definition of "next matchday" it is a #127 amendment.
  
  done_when:
--  - The four criteria proven; `pytest tests/test_no_dead_issue_refs.py` green.
-+  - The five criteria proven; the mutation shown red; `pytest tests/` and ruff green; the first
-+    snapshot committed and the patch free of it.
+-  - The five criteria proven; the mutation shown red; `pytest tests/` and ruff green; the first
+-    snapshot committed and the patch free of it.
++  - `python -m pytest tests/test_export_landing.py tests/test_export_site_data.py -q` green, including a new test that pins the round selection to the query (no `min(fixture_date)`, a per-competition round pick).
++  - `.venv/Scripts/dbt.exe parse` green; `python -m sqlfluff lint dbt_project/models/5_marts/shared/mart_team_leaderboards.sql --templater jinja --dialect bigquery` clean.
++  - `python scripts/check_description_hygiene.py` green (the column description changed).
++  - `python design-mocks/gen_home.py && python design-mocks/check_home.py` → ALL PASS, with no `Browse` in `home_mock.html`.
++  - Dev server: `/en/` renders every competition group with ≤3 `.fxrow` outside `<details>` and the remainder inside; `read_page` shows the summary text; `/de/` and `/fi/` show the translated summary.
++  - `rendered_page_evidence.md` / `acceptance_evidence.md` demonstrate each criterion from the built output.
  
  amendments:
--  - none yet.
-+  - After round 1 (cto-reviewer): the checksum was represented — in this contract's
-+    `blast_radius`, in the evidence, and to the product owner — as failing "any change the script
-+    did not make". It does not: the header is computed by the same process that writes the body,
-+    so a writer who bypasses the hook by a shell route AND recomputes the header passes the test.
-+    The claim is corrected everywhere it was made (this contract, the evidence, the `CLAUDE.md`
-+    row, the guardrails row, the test's docstring, the hook's docstring) to what the pair actually
-+    gives: the hook closes every tool edit, the checksum catches every slip, and a deliberate
-+    forgery is a rule-forbidden act of the `--no-verify` class, no wider an exposure than the
-+    handover already carries. Provenance would need CI to re-read GitLab, which needs a token —
-+    reserved as the product owner's credential decision. The product owner is told in the report
-+    that the guarantee he approved was overstated in that one respect. No code changes; the
-+    routing exemption stays, with its residual named rather than claimed closed.
-+  - After round 1 (platform-reviewer): `is_governed` compared the path case-sensitively, and on
-+    Windows `Docs/Tracker/gitlab_snapshot.md` is the same file — a spelling away from silent. Now
-+    case-folded before the prefix test; three case variants pinned by a parametrised test; the
-+    mutation (fold removed) goes red on all three. Tests 22 → 25.
-+  - After the full-suite run: `tests/test_materialisation_policy.py`, which walks every tracked
-+    file for a superseded materialisation claim, read an old issue body quoted in the snapshot
-+    ("Staging as view") as a claim of the repo and failed twice. The snapshot is a quotation of
-+    the tracker, exactly the class its `_is_bookkeeping` already exempts for
-+    `docs/product_direction_threads.md` ("history, not a live claim"), so `docs/tracker/` joins
-+    that exclusion with the same reason — the test file is added to `scope_paths` for that one
-+    line. The other tree-wide walker, the host-fingerprint pin, deliberately keeps scanning it:
-+    an address in an issue body should fail CI. Criterion 5's suite count: measured on the final
-+    code once this lands.
-+  - After the second full-suite run: one more tree walker of the same class —
-+    `tests/test_governance_doc_parity.py` requires every file that mentions a guard or protected
-+    path to be either checked (`COVERED_FILES`) or exempted with a reason (`SWEEP_EXEMPT`); the
-+    snapshot quotes issue bodies that name those paths. It joins `SWEEP_EXEMPT` beside
-+    `docs/audits/` ("dated snapshots of what was true on the day") with its own reason line — a
-+    file that RECORDS, not one that GOVERNS. The test file joins `scope_paths` for that one entry.
-+    That makes three tree walkers exempting the snapshot for the same reason and one (the address
-+    pin) deliberately not; the pattern is named in the evidence so the next walker's author knows
-+    which side the snapshot falls on.
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 249a6b92..e8844443 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -44,6 +44,7 @@ found nowhere in it is not a fact.
- | **What is required, and what is next?** | the **GitLab issue** (`glab issue list`; the `Task` template: What exactly / Why / How) |
- | **Where are we right now?** | [.claude/active_work.md](.claude/active_work.md) — current state only, never history or requirements |
- | **How do we work?** | [docs/working_agreement.md](docs/working_agreement.md), then this file |
-+| *(backup only)* the tracker's last state, when GitLab is unreachable | [docs/tracker/gitlab_snapshot.md](docs/tracker/gitlab_snapshot.md) — generated by `scripts/snapshot_tracker.py`, never edited by hand (a hook refuses every tool edit; a test fails any change that did not also rewrite the header checksum — a deliberate shell write that forges the header is forbidden by rule, like `--no-verify`, not prevented), never cited while GitLab is up; refreshed at the end of every session |
- 
- ⛔ **Memory answers none of these.** The memory files under `~/.claude/projects/…/memory/` are the
- agent's notes — compressed by the agent, reviewed by nobody. A product fact found only in memory is
-@@ -170,6 +171,10 @@ every session that learned something had to delete something. None of this is cu
-   pattern copied from a reviewer's verdict into `review.md` to prove the address was gone. A host's
-   size, city and open ports are the same class and no pattern can catch them: describe the host,
-   say the value lives in the provider's console.
-+- **At the end of every session, before the handover commit, run `python scripts/snapshot_tracker.py`.**
-+  It rewrites the tracker's backup from GitLab; the file rides in the handover commit outside the
-+  review patch and hash (`docs/tracker/**` is artifact-only). Skipping it is the only way the backup
-+  goes stale.
- - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
-   blocks the turn once if any fails. Do not end a turn on a red gate silently.
- - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index 52c16f9c..e6831f84 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -58,6 +58,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
- | `memory_budget_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `~/.claude/projects/<slug>/memory/*.md` | **Denies** a write to the agent's memory folder when the RESULTING file would exceed its surface's budget — the index `MEMORY.md`, or any other note — or when a new note would push the count past the cap: adding a note means removing one. Measures the file the tool call will produce (a `Write`'s content; an `Edit` or `MultiEdit` applied to the file on disk), in characters; a result no larger than the file on disk always passes, so an over-budget note can always be cut. The three budgets are pinned to what the folder MEASURED after the cut that introduced them (50 notes, a 7,669-character index, a 4,232-character largest note) and move down only — the same shape as the comment guard's pinned count. Memory is the one surface no other gate looks at (`task_contract_gate.py` deliberately ignores paths outside the repo), and it is where two 2026-09 sessions took a product fact the repo contradicted; a budget is what makes the cut hold. `--report` prints the three measurements; `tests/test_memory_budget_gate.py` drives every deny and pass on a temp folder. A shell write into the folder bypasses it, as it bypasses the comment gate; the repo's rule already forbids shell writes for files. |
- | `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on any path inside the repo | **Denies** a write whose text puts a public network address — an IPv4 outside the loopback, private, link-local, multicast and reserved ranges, or a global-unicast IPv6 — into any file inside the repo, `.claude/task/**` included. That is where it slipped: a CI runner's address went into a doc (caught by review), then into `review.md` as the grep pattern a reviewer had used to prove it was gone (not caught — the copy sat inside the review's own record), and was pushed to the public repo before anyone noticed. The deny names the file and line and never echoes the value; it also names what no pattern can catch — a host's size, city and open ports — so the moment of writing is the moment of the reminder. Reads only the written text; paths outside the repo pass; fails open. `tests/test_no_host_fingerprint_in_tree.py` imports the same patterns and pins the tracked tree at zero (measured: zero public, the mocks README's loopback preview address passes). Accepted false positive: a bare four-part version string; a `v` prefix is enough to pass. A shell write bypasses it like every edit-time gate; the pin catches that at CI. |
-+| `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `docs/tracker/**` | **Denies** every edit under `docs/tracker/`, which holds `gitlab_snapshot.md` — the generated backup of every GitLab milestone and issue, written only by `scripts/snapshot_tracker.py` through the existing `glab` login. GitHub's suspension kept the repository and lost every issue; this file is what the tracker would be restored from. A backup that can be edited becomes a second roadmap, so it has one writer: the hook closes the tool door, and `tests/test_tracker_snapshot.py` recomputes the header's sha256 against the body, so any change that did not also rewrite the header fails CI. That is self-consistency, not provenance: a deliberate shell write that recomputes the header passes, and only CI re-reading GitLab (a token, the CPO's decision) would close it — the residual is the `--no-verify` class, forbidden by rule, no wider than the handover's. `docs/tracker/**` is in `hash_exclude_paths`, `review_exclude_paths` and `artifact_only`, so a refresh never moves a review binding and is never a reviewed diff — which is the reason nothing else may touch it. Read only when GitLab is unreachable (`CLAUDE.md`, the source table); refreshed at the end of every session. Fails open. |
- 
- ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
- 
-diff --git a/scripts/snapshot_tracker.py b/scripts/snapshot_tracker.py
+-  - After round 1 (cto-reviewer): the checksum was represented — in this contract's
+-    `blast_radius`, in the evidence, and to the product owner — as failing "any change the script
+-    did not make". It does not: the header is computed by the same process that writes the body,
+-    so a writer who bypasses the hook by a shell route AND recomputes the header passes the test.
+-    The claim is corrected everywhere it was made (this contract, the evidence, the `CLAUDE.md`
+-    row, the guardrails row, the test's docstring, the hook's docstring) to what the pair actually
+-    gives: the hook closes every tool edit, the checksum catches every slip, and a deliberate
+-    forgery is a rule-forbidden act of the `--no-verify` class, no wider an exposure than the
+-    handover already carries. Provenance would need CI to re-read GitLab, which needs a token —
+-    reserved as the product owner's credential decision. The product owner is told in the report
+-    that the guarantee he approved was overstated in that one respect. No code changes; the
+-    routing exemption stays, with its residual named rather than claimed closed.
+-  - After round 1 (platform-reviewer): `is_governed` compared the path case-sensitively, and on
+-    Windows `Docs/Tracker/gitlab_snapshot.md` is the same file — a spelling away from silent. Now
+-    case-folded before the prefix test; three case variants pinned by a parametrised test; the
+-    mutation (fold removed) goes red on all three. Tests 22 → 25.
+-  - After the full-suite run: `tests/test_materialisation_policy.py`, which walks every tracked
+-    file for a superseded materialisation claim, read an old issue body quoted in the snapshot
+-    ("Staging as view") as a claim of the repo and failed twice. The snapshot is a quotation of
+-    the tracker, exactly the class its `_is_bookkeeping` already exempts for
+-    `docs/product_direction_threads.md` ("history, not a live claim"), so `docs/tracker/` joins
+-    that exclusion with the same reason — the test file is added to `scope_paths` for that one
+-    line. The other tree-wide walker, the host-fingerprint pin, deliberately keeps scanning it:
+-    an address in an issue body should fail CI. Criterion 5's suite count: measured on the final
+-    code once this lands.
+-  - After the second full-suite run: one more tree walker of the same class —
+-    `tests/test_governance_doc_parity.py` requires every file that mentions a guard or protected
+-    path to be either checked (`COVERED_FILES`) or exempted with a reason (`SWEEP_EXEMPT`); the
+-    snapshot quotes issue bodies that name those paths. It joins `SWEEP_EXEMPT` beside
+-    `docs/audits/` ("dated snapshots of what was true on the day") with its own reason line — a
+-    file that RECORDS, not one that GOVERNS. The test file joins `scope_paths` for that one entry.
+-    That makes three tree walkers exempting the snapshot for the same reason and one (the address
+-    pin) deliberately not; the pattern is named in the evidence so the next walker's author knows
+-    which side the snapshot falls on.
++  - 2026-09-13: + site_v2/src/components/home/FixtureRow.astro — authority: standing rule (one
++    row markup, rendered twice — visible and folded; Astro frontmatter cannot hold JSX, so the
++    shared row is a component, the way `rows.py` already shares it across the mocks); content:
++    the fixture row extracted verbatim from HeroFixtures.astro.
++  - 2026-09-13: + site_v2/src/data/landing.json — authority: standing rule (`site_v2/src/data/README.md`:
++    the committed sample is a SET rolled forward as maintenance, never on a block's way past);
++    content: NOT committed on this branch — the fresh export is placed here only to render the
++    fold in the dev server for `rendered_page_evidence.md`, then reverted with
++    `git checkout -- site_v2/src/data/landing.json` before the commit. The committed sample
++    (max 2 fixtures per competition) keeps its shape and cannot show the fold.
++  - 2026-09-13: + dbt_project/models/5_marts/shared/mart_next_matchday.sql,
++    dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql,
++    docs/wireframes/99_gaps_register.md, docs/site_architecture.md, dbt_project/docs/layering.md
++    — authority: the CPO, in chat 2026-09-13, on the blinded question "who decides which round is
++    a competition's next matchday — the warehouse, or the export": "Path A" (the warehouse serves
++    it as a mart; the export only filters; GAP-32 closes). Raised by analytics-engineer-reviewer
++    round 1 (the round selection in the export's SQL is window selection in the consumption layer,
++    and GAP-32 left the classification unsettled). Content: `mart_next_matchday` — one row per
++    upcoming fixture in its competition's next round, from `fct_fixture`, nightly, pinned by the
++    singular test; the landing query becomes a plain `select … from mart_next_matchday`; GAP-32
++    marked CLOSED; the landing row of `site_architecture.md`'s mart map and the mart table in
++    `layering.md` name the mart; `10_home.md`'s model bindings corrected. `decisions_taken` (1) is
++    superseded by this amendment where they differ. The mart's NAME is the builder's proposal from
++    the CPO's own words ("the next matchday of every competition"), stated in the MR head for him
++    to rename.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index a658c73e..d89e2b81 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -331,6 +331,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
+ | `mart_leaderboards` | (player_sk, season_sk, metric_key) | view | LONG per-board player leaderboards (10 count boards); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share. |
+ | `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | view | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Four boards, all per-match and all higher-is-better: goals, shots on goal, passes, duels. Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + `dim_team`; `>= 3` finished games to be ranked; top-10 per board, DENSE_RANK ties share. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
++| `mart_next_matchday` | fixture_sk | table | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. |
+ | `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+ | `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
+ | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | Current league standings per team-season. |
+diff --git a/dbt_project/models/5_marts/shared/mart_next_matchday.sql b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
 new file mode 100644
-index 00000000..7f012026
+index 00000000..c1fd1c3f
 --- /dev/null
-+++ b/scripts/snapshot_tracker.py
-@@ -0,0 +1,122 @@
-+"""Snapshot the GitLab tracker into the repo — a BACKUP, never a second roadmap.
++++ b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+@@ -0,0 +1,70 @@
++{#
++  mart_next_matchday — every competition's next matchday: one row per upcoming fixture in the
++  round of that competition's earliest fixture not yet started. The Home page's Next matches
++  block reads it whole; the export filters nothing and decides nothing (GAP-32 closed here —
++  the matchday used to be chosen in the export's own query).
 +
-+Writes `docs/tracker/gitlab_snapshot.md`: every milestone and every issue, open and closed,
-+with its body, grouped by milestone in a deterministic order, fetched through the `glab` login
-+already on this machine (no token of its own). The header carries the UTC time and a sha256 of
-+the body; `tests/test_tracker_snapshot.py` recomputes it, so any change the script did not
-+make fails CI, and `.claude/hooks/tracker_snapshot_gate.py` refuses an Edit or Write to the
-+folder, so no session can change the file by hand. The file is read only when GitLab is
-+unreachable — `CLAUDE.md` "Which source answers which question" — and is regenerated at the
-+end of every session, riding in the handover commit outside the review patch and hash.
++  "Upcoming" is a scheduled status (NS / TBD) AND a date on or after the build day: a fixture
++  the provider never advanced past NS but dated in the past is not a next matchday. The build
++  is nightly, so the table is correct as of the morning it was built and the export runs after
++  it in the same run.
 +
-+Usage: python scripts/snapshot_tracker.py [--project 85168767] [--out docs/tracker/gitlab_snapshot.md]
-+"""
++  A postponed match keeps its original round name, so between a round's end and its
++  rescheduled straggler the competition's next matchday is that one match. That is the ruled
++  definition; the straggler counts and the alternative are on GitLab #143.
 +
-+from __future__ import annotations
++  Every competition with an upcoming fixture is present, cups and tournaments alike; nothing is
++  capped and nothing is ordered here — the page applies the site-wide competition ordering key
++  and folds rows past the third. league_code discriminates the competition and is not a
++  BigQuery partition or cluster key.
 +
-+import argparse
-+import hashlib
-+import io
-+import json
-+import os
-+import subprocess
-+import sys
-+from datetime import datetime, timezone
++  Grain: fixture_sk.
++#}
 +
-+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-+DEFAULT_PROJECT = "85168767"
-+DEFAULT_OUT = os.path.join("docs", "tracker", "gitlab_snapshot.md")
++with upcoming as (
++    select
++        fixture_sk,
++        league_code,
++        season_api_year,
++        round_name,
++        kickoff_datetime,
++        fixture_date,
++        status_short,
++        home_team_sk,
++        away_team_sk
++    from {{ ref('fct_fixture') }}
++    where
++        status_short in ('NS', 'TBD')
++        and fixture_date >= current_date()
++),
 +
-+BANNER = (
-+    "GENERATED by scripts/snapshot_tracker.py — a BACKUP of the GitLab tracker, read only when "
-+    "GitLab is unreachable, never edited by hand. The GitLab issue is the source of what is "
-+    "required; this file is what would be restored from."
++-- The round of each competition's earliest upcoming fixture; kickoff then fixture_sk break a
++-- same-day tie deterministically (the round is the same either way on a normal matchday).
++next_round as (
++    select
++        league_code,
++        season_api_year,
++        round_name
++    from upcoming
++    qualify row_number() over (
++        partition by league_code
++        order by fixture_date asc, kickoff_datetime asc, fixture_sk asc
++    ) = 1
 +)
 +
-+
-+def glab_json(path: str) -> list | dict:
-+    """One `glab api` GET, decoded as UTF-8 bytes (the console's text mode is cp1252)."""
-+    r = subprocess.run(["glab", "api", path], capture_output=True)
-+    if r.returncode != 0:
-+        sys.exit(f"glab api {path} failed: {r.stderr.decode('utf-8', 'replace')[:300]}")
-+    return json.loads(r.stdout.decode("utf-8"))
-+
-+
-+def paginated(project: str, resource: str, query: str = "") -> list[dict]:
-+    items: list[dict] = []
-+    page = 1
-+    while True:
-+        batch = glab_json(f"projects/{project}/{resource}?per_page=100&page={page}{query}")
-+        if not batch:
-+            return items
-+        items.extend(batch)
-+        if len(batch) < 100:
-+            return items
-+        page += 1
-+
-+
-+def render(milestones: list[dict], issues: list[dict]) -> str:
-+    by_ms: dict[int | None, list[dict]] = {}
-+    for i in issues:
-+        key = i["milestone"]["id"] if i.get("milestone") else None
-+        by_ms.setdefault(key, []).append(i)
-+    for group in by_ms.values():
-+        group.sort(key=lambda i: i["iid"])
-+
-+    out: list[str] = []
-+    out.append("# GitLab tracker snapshot\n")
-+    out.append(f"{len(milestones)} milestones, {len(issues)} issues "
-+               f"({sum(1 for i in issues if i['state'] == 'opened')} open, "
-+               f"{sum(1 for i in issues if i['state'] == 'closed')} closed).\n")
-+
-+    out.append("## Milestones\n")
-+    for m in sorted(milestones, key=lambda m: m["title"]):
-+        out.append(f"- **{m['title']}** ({m['state']}, milestone {m['iid']}): {m.get('description') or ''}".rstrip())
-+    out.append("")
-+
-+    ordered = sorted(milestones, key=lambda m: m["title"])
-+    for m in ordered:
-+        out.append(f"## {m['title']}\n")
-+        for i in by_ms.get(m["id"], []):
-+            out.extend(_issue(i))
-+    out.append("## No milestone\n")
-+    for i in by_ms.get(None, []):
-+        out.extend(_issue(i))
-+    return "\n".join(out).rstrip() + "\n"
-+
-+
-+def _issue(i: dict) -> list[str]:
-+    labels = ", ".join(i.get("labels") or [])
-+    head = f"### #{i['iid']} {i['title']}"
-+    meta = (f"_{i['state']} · created {i['created_at'][:10]}"
-+            + (f" · closed {i['closed_at'][:10]}" if i.get("closed_at") else "")
-+            + (f" · labels: {labels}" if labels else "") + "_")
-+    body = (i.get("description") or "").replace("\r\n", "\n").rstrip()
-+    return [head, "", meta, "", body, ""]
-+
-+
-+def main() -> int:
-+    ap = argparse.ArgumentParser()
-+    ap.add_argument("--project", default=DEFAULT_PROJECT)
-+    ap.add_argument("--out", default=DEFAULT_OUT)
-+    a = ap.parse_args()
-+
-+    milestones = paginated(a.project, "milestones", "&state=all")
-+    issues = paginated(a.project, "issues", "&state=all&scope=all")
-+    body = render(milestones, issues)
-+    digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
-+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-+    header = (f"<!-- {BANNER} -->\n"
-+              f"<!-- snapshot: {stamp} · sha256(body): {digest} -->\n\n")
-+
-+    out_path = a.out if os.path.isabs(a.out) else os.path.join(REPO, a.out)
-+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-+    with io.open(out_path, "w", encoding="utf-8", newline="\n") as f:
-+        f.write(header + body)
-+    print(f"wrote {os.path.relpath(out_path, REPO)}: {len(milestones)} milestones, "
-+          f"{len(issues)} issues, {len(header) + len(body):,} chars, sha256 {digest[:12]}…")
-+    return 0
-+
-+
-+if __name__ == "__main__":
-+    sys.exit(main())
-diff --git a/tests/test_governance_doc_parity.py b/tests/test_governance_doc_parity.py
-index 53e4dae0..74052f6a 100644
---- a/tests/test_governance_doc_parity.py
-+++ b/tests/test_governance_doc_parity.py
-@@ -130,8 +130,11 @@ COVERED_FILES = (
- #   .claude/active_work.md  the handover, rewritten every session (routing files it
- #                       under `artifact_only` for the same reason)
- #   docs/audits/        dated snapshots of what was true on the day
-+#   docs/tracker/       the generated backup of the GitLab tracker: every issue body quoted
-+#                       verbatim, old ones included, one writer (the script), a hook against
-+#                       hand edits — read only when GitLab is unreachable, never a rule
- #   tests/              this file, which quotes every claim shape it checks
--SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/audits/", "tests/")
-+SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/audits/", "docs/tracker/", "tests/")
++select
++    u.fixture_sk,
++    u.league_code,
++    u.season_api_year,
++    u.round_name,
++    u.kickoff_datetime,
++    u.fixture_date,
++    u.status_short,
++    u.home_team_sk,
++    u.away_team_sk
++from upcoming as u
++inner join next_round as n
++    on
++        u.league_code = n.league_code
++        and u.season_api_year = n.season_api_year
++        and u.round_name = n.round_name
+diff --git a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+index a3ee9f04..75ffb377 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+@@ -18,9 +18,12 @@
+   crosses league_code. That also satisfies the block's rule that club and national-team
+   competitions are never mixed: every competition is already its own ranking.
  
+-  Qualification is the >= 3 finished games gate that int_team_competition_benchmark_metrics_long
+-  already applies. The player mart's minutes/position floors have no analogue here: team metrics are
+-  per-match rates already, so the games gate IS the small-sample guard.
++  NO GAMES FLOOR. A team ranks from its first finished game: early-season boards are thin and
++  understood to be, and comparable sites show leaderboards from day one (GitLab #127). The
++  >= 3 finished games gate that int_team_competition_benchmark_metrics_long applies is that
++  model's rule for a DISTRIBUTION, where a one-game rate would distort the percentiles; a
++  ranking has no such distortion to guard. The player mart's minutes/position floors have no
++  analogue here either.
  
- def normalise(rel: str) -> str:
-diff --git a/tests/test_materialisation_policy.py b/tests/test_materialisation_policy.py
-index f750f732..95e00f18 100644
---- a/tests/test_materialisation_policy.py
-+++ b/tests/test_materialisation_policy.py
-@@ -277,6 +277,11 @@ def _is_bookkeeping(rel: str) -> bool:
-         # If that file ever becomes editable from this worktree, delete this line and fix it.
-         or rel == ".claude/active_work.md"
-         or rel == "docs/product_direction_threads.md"
-+        # The generated backup of the GitLab tracker quotes every issue body verbatim, old ones
-+        # included — history, not a live claim, the same class as the line above. It has one
-+        # writer (`scripts/snapshot_tracker.py`) and a hook that refuses hand edits, so nothing
-+        # a fix here could reach lives there.
-+        or rel.startswith("docs/tracker/")
-         or rel == "tests/test_materialisation_policy.py"
-     )
+   UNPIVOT rather than mart_leaderboards' union-all loop, because all four boards share one rule —
+   the union there exists to give each rate board its own qualification WHERE. BigQuery UNPIVOT
+@@ -44,7 +47,7 @@
  
-diff --git a/tests/test_tracker_snapshot.py b/tests/test_tracker_snapshot.py
+ with season as (
+     select * from {{ ref('int_team_season__metrics') }}
+-    where season_games_played >= 3
++    where season_games_played >= 1
+ ),
+ 
+ -- One row per (team-season, board). UNPIVOT drops nulls, so a team missing a metric through a
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index bb6ff2e2..c710f249 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1918,10 +1918,10 @@ models:
+       every board.
+ 
+       The rank is per league by design: a board is each league's leading team collected and ordered,
+-      never a ranking across competitions. Teams need three finished games to be ranked, which is
+-      the small-sample guard — team metrics are per-match rates already, so the minutes and position
+-      floors the player boards use have no analogue. A team with no value for a metric is absent
+-      from that board rather than ranked on a null.
++      never a ranking across competitions. A team ranks from its first finished game — there is
++      no games floor, so early-season boards carry one-game rates by design — and the minutes and
++      position floors the player boards use have no analogue. A team with no value for a metric is
++      absent from that board rather than ranked on a null.
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -1938,7 +1938,7 @@ models:
+           expression: "sort_value > 0"
+           name: mart_team_leaderboards_sort_value_positive
+       - dbt_utils.expression_is_true:
+-          expression: "season_games_played >= 3"
++          expression: "season_games_played >= 1"
+           name: mart_team_leaderboards_games_gate_holds
+     columns:
+       - name: team_leaderboard_sk
+@@ -2021,7 +2021,7 @@ models:
+       - name: team_logo_url
+         description: "Denormalised from dim_team; nullable."
+       - name: season_games_played
+-        description: "Finished games behind the ranked value this competition-season. Always >= 3 — the qualification gate."
++        description: "Finished games behind the ranked value this competition-season. Always >= 1: a team ranks from its first finished game; there is no games floor."
+         tests: [not_null]
+ 
+   - name: mart_team_market_value
+@@ -2062,6 +2062,63 @@ models:
+       - name: prompt_version
+         description: "{{ doc('prompt_version') }}"
+ 
++  - name: mart_next_matchday
++    description: >
++      Every competition's next matchday: one row per upcoming fixture in the round of that
++      competition's earliest fixture not yet started. Grain: fixture_sk.
++
++      Upcoming means a scheduled status (NS or TBD) and a date on or after the build day, so a
++      fixture left at NS in the past is excluded. Every competition with an upcoming fixture is
++      present, cups and tournaments included; nothing is capped or ordered here. A postponed
++      match keeps its original round name, so a rescheduled straggler can be a one-match matchday
++      until it is played.
++
++      The Home page's Next matches block reads this table whole; the page orders the competitions
++      and folds rows past the third. Rebuilt nightly, so it is correct as of the morning it was
++      built.
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "fixtures"]
++    tests:
++      - dbt_utils.expression_is_true:
++          expression: "status_short in ('NS', 'TBD')"
++          name: next_matchday_is_scheduled
++      - dbt_utils.expression_is_true:
++          expression: "fixture_date >= current_date()"
++          name: next_matchday_is_not_in_the_past
++    columns:
++      - name: fixture_sk
++        description: "{{ doc('fixture_sk') }}"
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: round_name
++        description: "The provider's round label, e.g. Regular Season - 4 or Round of 32. One value per competition in this table: the round that is the competition's next matchday."
++        tests: [not_null]
++      - name: kickoff_datetime
++        description: "{{ doc('kickoff_datetime') }}"
++      - name: fixture_date
++        description: "{{ doc('fixture_date') }}"
++        tests: [not_null]
++      - name: status_short
++        description: "{{ doc('status_short') }}"
++      - name: home_team_sk
++        description: "{{ doc('home_team_sk') }}"
++      - name: away_team_sk
++        description: "{{ doc('away_team_sk') }}"
++
+   - name: mart_team_fixtures
+     description: >
+       Every fixture from one team's perspective, upcoming and finished alike. Each fixture appears
+diff --git a/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql b/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
 new file mode 100644
-index 00000000..b106a740
+index 00000000..2f741eda
 --- /dev/null
-+++ b/tests/test_tracker_snapshot.py
-@@ -0,0 +1,175 @@
-+"""The tracker's backup in the repo has one writer — the guard, both halves.
++++ b/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
+@@ -0,0 +1,75 @@
++-- mart_next_matchday is exactly "each competition's next round, whole": for every competition
++-- with an upcoming fixture in fct_fixture, the mart holds ONE round, it is the round of that
++-- competition's earliest upcoming fixture, and every upcoming fixture of that round is in it.
++--
++-- Checked against fct_fixture rather than against the mart's own CTEs, so a rewrite of the mart
++-- that drifts from the definition (a calendar-day window, a cap, a round chosen by anything but
++-- the earliest date) fails here even when the mart's schema tests stay green.
++--
++-- Returns a row (= fails) per competition where any of the three properties does not hold.
++with upcoming as (
++    select
++        fixture_sk,
++        league_code,
++        season_api_year,
++        round_name,
++        fixture_date,
++        kickoff_datetime
++    from {{ ref('fct_fixture') }}
++    where
++        status_short in ('NS', 'TBD')
++        and fixture_date >= current_date()
++),
 +
-+`docs/tracker/gitlab_snapshot.md` is written only by `scripts/snapshot_tracker.py`. Half one is
-+`.claude/hooks/tracker_snapshot_gate.py`, which denies an `Edit`, `Write` or `MultiEdit` under
-+`docs/tracker/`. Half two is the checksum pin below: the header's sha256 must equal the body's,
-+so any change that did not also rewrite the header fails CI. That is self-consistency, not
-+provenance — a deliberate shell write that recomputes the header passes, and is forbidden by
-+rule. The routing entries keep a refresh out of the review patch and the review hash, so the
-+file is never a reviewed diff — which is exactly why nothing else may touch it.
-+"""
++expected_round as (
++    select
++        league_code,
++        season_api_year,
++        round_name
++    from upcoming
++    qualify row_number() over (
++        partition by league_code
++        order by fixture_date asc, kickoff_datetime asc, fixture_sk asc
++    ) = 1
++),
 +
-+from __future__ import annotations
++expected_rows as (
++    select
++        u.league_code,
++        count(*) as n_expected
++    from upcoming as u
++    inner join expected_round as e
++        on
++            u.league_code = e.league_code
++            and u.season_api_year = e.season_api_year
++            and u.round_name = e.round_name
++    group by u.league_code
++),
 +
-+import hashlib
-+import json
-+import os
-+import re
-+import subprocess
-+import sys
++served as (
++    select
++        league_code,
++        count(distinct round_name) as n_rounds,
++        min(round_name) as served_round,
++        count(*) as n_served
++    from {{ ref('mart_next_matchday') }}
++    group by league_code
++)
 +
-+import pytest
++select
++    e.league_code,
++    e.round_name as expected_round,
++    s.served_round,
++    s.n_rounds,
++    x.n_expected,
++    s.n_served
++from expected_round as e
++inner join expected_rows as x
++    on e.league_code = x.league_code
++left join served as s
++    on e.league_code = s.league_code
++where
++    s.league_code is null
++    or s.n_rounds != 1
++    or s.served_round != e.round_name
++    or s.n_served != x.n_expected
+diff --git a/design-mocks/check_home.py b/design-mocks/check_home.py
+index 03ca6b98..fbc23a2d 100644
+--- a/design-mocks/check_home.py
++++ b/design-mocks/check_home.py
+@@ -16,9 +16,10 @@ def check(name, cond, detail=""):
+ 
+ print("composition")
+ order = re.findall(r'<span class="eyebrow">([^<]+)</span>', body)
+-check("§0's order: next matches -> Top players -> Top teams -> browse",
+-      order == ["Next matches", "Top players", "Top teams", "Browse"], " -> ".join(order))
+-check("browse is LAST, so the follow-up inserts and never rearranges", order[-1] == "Browse")
++check("the approved order: next matches -> Top players -> Top teams, nothing after",
++      order == ["Next matches", "Top players", "Top teams"], " -> ".join(order))
++check("no Browse block, no chip row", "Browse" not in body and 'class="linkrow"' not in body
++      and 'class="linkchip"' not in body)
+ 
+ print("\nthe two designed blocks came from their own generators")
+ titles = re.findall(r'<span class="bt"><span class="en">([^<]+)</span>', body)
+@@ -35,22 +36,27 @@ print("\nshipped modules mirrored, not approximated")
+ check("next matches uses .fxgroup/.gh/.fxrow", all(
+     c in body for c in ('class="fxgroup"', 'class="gh"', 'class="fxrow"', 'class="sides"',
+                         'class="when"')))
+-check("12 fixtures, the fixed list §0 specifies", body.count('class="fxrow"') == 12,
+-      str(body.count('class="fxrow"')))
+-print("\nbrowse is FLAT (CPO 2026-08-10)")
+-check("no by-competition / by-country axes", 'class="colhead"' not in body
+-      and 'class="subhead"' not in body)
+-check("one chip row", body.count('class="linkrow"') == 1, str(body.count('class="linkrow"')))
+-check("12 chips, the registry's active competitions",
+-      body.count('class="linkchip"') == 12, str(body.count('class="linkchip"')))
+-# ⚠ anchors here by design direction; the SHIPPED component still emits <span> because the
+-# competition hub does not exist yet and an anchor would 404.
+-check("chips are anchors in this mock", body.count('<a class="linkchip"') == 12)
++check("19 fixtures: the fixed list plus the Bundesliga's whole nine-match round",
++      body.count('class="fxrow"') == 19, str(body.count('class="fxrow"')))
 +
-+REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-+HOOKS = os.path.join(REPO, ".claude", "hooks")
-+sys.path.insert(0, HOOKS)
-+import tracker_snapshot_gate as gate  # noqa: E402
++print("\nthe fold: 3 visible per competition, the rest inside <details> (#127)")
++groups = body.split('<div class="fxgroup">')[1:]
++outside = [g.split("<details", 1)[0].count('class="fxrow"') for g in groups]
++check("no competition shows more than 3 rows outside the fold", max(outside) <= 3, str(outside))
++folds = re.findall(r'<details class="fxmore"><summary><span class="lbl">Show all (\d+)</span>', body)
++check("exactly one competition folds, and it is the nine-match round", folds == ["9"], str(folds))
++bl1 = next(g for g in groups if "<details" in g)
++check("the Bundesliga shows 3 rows, folds 6",
++      bl1.split("<details", 1)[0].count('class="fxrow"') == 3
++      and bl1.split("<details", 1)[1].count('class="fxrow"') == 6)
++check("the fold needs no script: a native <details>/<summary>, chevron in the summary",
++      '<details class="fxmore"><summary>' in body and body.count('</details>') == 1
++      and 'class="chev"' in bl1.split("</summary>", 1)[0])
+ 
+ print("\nno regression on the block rules")
+ check("no column-header row anywhere", '<span class="bh v">' not in body)
+ check("crest on every board row and every fixture side",
+-      body.count('class="crest xs"') == 56 + 24, str(body.count('class="crest xs"')))
++      body.count('class="crest xs"') == 56 + 38, str(body.count('class="crest xs"')))
+ check("no external fetch", not re.search(r'(src|href)\s*=\s*"(https?:)?//', h))
+ check("no <script>", "<script" not in h.lower())
+ 
+diff --git a/design-mocks/gen_home.py b/design-mocks/gen_home.py
+index 29d186ef..ee8cee3c 100644
+--- a/design-mocks/gen_home.py
++++ b/design-mocks/gen_home.py
+@@ -1,21 +1,19 @@
+-"""Compose the whole home page: next matches -> Top players -> Top teams -> browse.
++"""Compose the whole home page: next matches -> Top players -> Top teams.
+ 
+-That order is §0's composition. The two stats blocks slot BETWEEN the two
+-shipped modules, and browse holds the bottom slot deliberately so the follow-up inserts
+-rather than rearranges.
++Three blocks, the composition approved on GitLab #127 (the authority for Home).
+ 
+ ⚠ What is real and what is not:
+   * Top players / Top teams markup is imported from the two block generators, so this page
+     cannot drift from the mocks that were approved.
+-  * Next matches and Browse are MOCKED here, but their markup mirrors the shipped components
+-    (`HeroFixtures.astro`, `BrowseGrid.astro`) class for class -- `.fxgroup > .gh`, `.fxrow`
+-    with `.sides`/`.side`/`.when`, and `.colhead`/`.subhead`/`.linkrow`/`.linkchip`. Browse
+-    chips are `<span>`, not `<a>`, exactly as shipped: the competition hub does not exist
+-    yet, and system.css scopes the hover affordance to `a.linkchip`.
++  * Next matches is MOCKED here, but its markup mirrors the shipped component
++    (`HeroFixtures.astro`) class for class -- `.fxgroup > .gh`, `.fxrow` with
++    `.sides`/`.side`/`.when`, and the `<details class="fxmore">` fold that holds every row
++    past the third ("3 visible, the rest folded"). The Bundesliga group below carries a whole
++    nine-match round so the fold renders; the others fit above it.
+   * Every number is placeholder.
+ 
+-Purpose is COMPOSITION and PAGE LENGTH, which is the open item: 4+4 boards at top 7 is 56
+-board rows on a page that measured 4126px on mobile with only two modules built.
++Purpose is COMPOSITION and PAGE LENGTH: 4+4 boards at top 7 is 56 board rows, and the fold is
++what keeps a full weekend's fixtures from doubling that.
+ """
+ import html
+ import sys
+@@ -53,8 +51,15 @@ FIXTURES = [
+             ("Sun 15 Feb", [("Brentford", "Everton", "15:00")])]),
+     ("PD", [("Sat 14 Feb", [("Real Madrid", "Athletic Club", "21:00")]),
+             ("Sun 15 Feb", [("Barcelona", "Real Valladolid", "18:30")])]),
+-    ("BL1", [("Sat 14 Feb", [("1. FC Heidenheim", "Bayer 04 Leverkusen", "15:30"),
+-                             ("Bayern München", "Borussia Mönchengladbach", "18:30")])]),
++    ("BL1", [("Fri 13 Feb", [("1. FC Heidenheim", "Bayer 04 Leverkusen", "20:30")]),
++             ("Sat 14 Feb", [("Bayern München", "Borussia Mönchengladbach", "15:30"),
++                             ("VfL Wolfsburg", "SC Freiburg", "15:30"),
++                             ("FC Augsburg", "1. FC Union Berlin", "15:30"),
++                             ("VfB Stuttgart", "Borussia Dortmund", "15:30"),
++                             ("Werder Bremen", "1. FSV Mainz 05", "15:30"),
++                             ("RB Leipzig", "Eintracht Frankfurt", "18:30")]),
++             ("Sun 15 Feb", [("TSG Hoffenheim", "1. FC Köln", "15:30"),
++                             ("FC St. Pauli", "Hamburger SV", "17:30")])]),
+     ("SA", [("Sat 14 Feb", [("Inter", "Atalanta", "20:45")]),
+             ("Sun 15 Feb", [("Napoli", "Lecce", "18:00")])]),
+     ("L1", [("Sat 14 Feb", [("Paris Saint-Germain", "Lens", "21:00")]),
+@@ -62,15 +67,13 @@ FIXTURES = [
+     ("ED", [("Sun 15 Feb", [("PSV", "Feyenoord", "14:30")])]),
+ ]
+ 
+-# ⚠ FLAT: one row of chips, no "by competition" / "by country" axes. Both
+-# axes listed the SAME twelve competitions, so the second was a repeat of the first with a
+-# country heading above it.
+-#
+-# These are the twelve the registry marks `status: active`, names verbatim from its `name`
+-# field -- so the mock cannot invent a competition or a label.
+-BROWSE = ["Premier League", "La Liga", "1. Fußball-Bundesliga", "Serie A", "Ligue 1",
+-          "Liga Portugal", "Eredivisie", "2. Fußball-Bundesliga", "Liga MX",
+-          "Saudi Pro League", "Major League Soccer", "Veikkausliiga"]
++# Rows a competition shows before the fold; the rest sit inside `<details class="fxmore">`,
++# mirroring `HeroFixtures.astro`.
++VISIBLE_ROWS = 3
 +
-+sys.path.insert(0, os.path.join(REPO, "scripts"))
-+import snapshot_tracker  # noqa: E402
++CHEV = ('<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
++        '<path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" '
++        'stroke-linecap="round" stroke-linejoin="round"></path></svg>')
+ 
+ 
+ def sechead(label):
+@@ -78,32 +81,37 @@ def sechead(label):
+ 
+ 
+ def next_matches():
+-    """THE SHARED BLOCK. No markup is written here — every element comes from `rows.py`."""
++    """THE SHARED BLOCK. Row and heading markup comes from `rows.py`; this composes the fold.
 +
-+HOOK = os.path.join(HOOKS, "tracker_snapshot_gate.py")
-+SNAPSHOT = os.path.join(REPO, "docs", "tracker", "gitlab_snapshot.md")
-+HEADER_RE = re.compile(r"<!-- snapshot: (\d{4}-\d\d-\d\d \d\d:\d\d UTC) · sha256\(body\): ([0-9a-f]{64}) -->")
++    A date head travels with the first row it applies to, so a date that begins inside the
++    fold is folded with its rows and a date that straddles the cut is shown once, above.
++    """
+     out = ["<section>", sechead("Next matches")]
+     for code, dates in FIXTURES:
+         out.append('<div class="fxgroup">%s' % group_head(slug(code), short(code)))
++        rows = []
+         for date, matches in dates:
+-            out.append(date_head(date))
+-            for home, away, time in matches:
+-                out.append(upcoming_row("club", home, away, time, ZONE[code] or "—"))
++            for i, (home, away, time) in enumerate(matches):
++                rows.append((date if i == 0 else None,
++                             upcoming_row("club", home, away, time, ZONE[code] or "—")))
++        visible, folded = rows[:VISIBLE_ROWS], rows[VISIBLE_ROWS:]
++        for date, row in visible:
++            if date:
++                out.append(date_head(date))
++            out.append(row)
++        if folded:
++            out.append('<details class="fxmore"><summary><span class="lbl">Show all %d</span>%s'
++                       '</summary>' % (len(rows), CHEV))
++            for date, row in folded:
++                if date:
++                    out.append(date_head(date))
++                out.append(row)
++            out.append("</details>")
+         out.append("</div>")
+     out.append("</section>")
+     return "\n".join(out)
+ 
+ 
+-def browse():
+-    """Flat: the section head, then one row of chips.
+-
+-    ⚠ Chips are rendered as ANCHORS here, per "it's fine if they redirect to the
+-    leagues". The SHIPPED component emits `<span>` on purpose -- the competition hub
+-    (/{locale}/{slug}/) does not exist yet, so an anchor today is a guaranteed 404 behind
+-    every chip. system.css scopes the hover affordance to `a.linkchip`, so the tag swap is
+-    the whole edit when the hub lands.
+-    """
+-    chips = "".join('<a class="linkchip" href="#">%s</a>' % E(c) for c in BROWSE)
+-    return '<section>%s<div class="linkrow">%s</div></section>' % (sechead("Browse"), chips)
+-
+-
+ def block(mod, eyebrow, intro):
+     boards = "\n".join(mod.board_html(b) for b in mod.BOARDS)
+     return ('<section>%s<p class="tt-intro">%s</p>\n%s</section>'
+@@ -117,7 +125,6 @@ page = "\n".join([
+     next_matches(),
+     block(P, "Top players", "Season totals to date. " + POOL),
+     block(T, "Top teams", "Season to date. " + POOL),
+-    browse(),
+ ])
+ 
+ system_css = T.SYSTEM_CSS.read_text(encoding="utf-8")
+@@ -125,7 +132,7 @@ system_css = T.SYSTEM_CSS.read_text(encoding="utf-8")
+ OUT.write_text("""<!doctype html>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+-<title>Home -- all four modules (mock)</title>
++<title>Home -- three blocks (mock)</title>
+ <style>
+ %s
+ %s
+@@ -141,7 +148,7 @@ OUT.write_text("""<!doctype html>
+   <label for="t-light"><span class="box"></span>Light</label>
+   <label for="t-phone"><span class="box"></span>Phone 375px</label>
+   <label for="t-fi"><span class="box"></span>Finnish (width probe)</label>
+-  <span class="hint">next matches &rarr; Top players &rarr; Top teams &rarr; browse</span>
++  <span class="hint">next matches &rarr; Top players &rarr; Top teams</span>
+ </div>
+ 
+ <div class="stage">
+@@ -153,15 +160,14 @@ OUT.write_text("""<!doctype html>
+ </div>
+ 
+ <div class="legend">
+-  <b>Composition mock.</b> The order is &sect;0's: next matches &rarr; Top players &rarr; Top teams
+-  &rarr; browse. <b>Top players and Top teams are generated from the same code as their own
+-  mocks</b>, so this page cannot drift from what was approved. Next matches and Browse are mocked,
+-  but mirror the shipped components class for class &mdash; browse chips are
+-  <b>&lt;span&gt;</b> not <b>&lt;a&gt;</b>, as shipped, because the competition hub does not exist
+-  yet. Every number is placeholder.
++  <b>Composition mock.</b> The order is the approved one: next matches &rarr; Top players &rarr;
++  Top teams. <b>Top players and Top teams are generated from the same code as their own
++  mocks</b>, so this page cannot drift from what was approved. Next matches is mocked but mirrors
++  the shipped component class for class, including the fold: a competition shows three rows and
++  the rest open under &ldquo;Show all&rdquo;. Every number is placeholder.
+ </div>
+ """ % (system_css, ROW_CSS, INTERACTION_CSS, T.MOCK_CSS, page), encoding="utf-8")
+ 
+ print("wrote", OUT, OUT.stat().st_size, "bytes")
+ print("board rows:", sum(len(b["rows"]) for b in P.BOARDS) + sum(len(b["rows"]) for b in T.BOARDS))
+-print("fixtures:", sum(len(r) for _, r in FIXTURES))
++print("fixtures:", sum(len(m) for _, dates in FIXTURES for _, m in dates))
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 52763d8a..885e1932 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -238,7 +238,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
+ 
+ | Template | Export file(s) (`data/…`) | Upstream marts |
+ |---|---|---|
+-| Landing | `landing.json` | `core.fct_fixture` + `core.dim_team` (the next-matchday hero), plus `mart_competition_index` for `region_rank` — read `fetch_landing_payload` in `scripts/export_site_data.py` for the live list, which is the authority. ⚠ NOT `mart_team_profile`: the trending block it fed was cut 2026-08-08, as the browse block was dropped 2026-08-19. Top players / Top teams will add marts here when built |
++| Landing | `landing.json` | `mart_next_matchday` (every competition's next round, read whole) + `core.dim_team` (the next-matchday hero), plus `mart_competition_index` for `region_rank` — read `fetch_landing_payload` in `scripts/export_site_data.py` for the live list, which is the authority. ⚠ NOT `mart_team_profile`: the trending block it fed was cut 2026-08-08, as the browse block was dropped 2026-08-19. Top players / Top teams will add marts here when built |
+ | Competitions index / country hub | `competition_index.json` (#62 step 4) | `mart_competition_index` |
+ | Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
+ | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 34da5b9b..c39ff450 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -137,7 +137,7 @@ not made here. See 09_chrome.md §10 for the full note.
+ | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
+ | 08 | [08_browse.md](08_browse.md) | Competitions index + country hubs | **competitions index built** 2026-08-18 (#62 step 5); country hubs (`/football/{country-slug}/`) still pending | 4 |
+ | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
+-| 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
++| 10 | [10_home.md](10_home.md) | Home (pins the homepage spec → unblocks `landing.json`) | **built**, three blocks; **approved on GitLab #127** (2026-09-13, "The approved design") — the authority for Home; the wireframe is corrected to it and #143 builds the Home-owned changes | 5 |
+ | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
+ | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
+ | 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
+diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
+index a0ced6de..62e80f33 100644
+--- a/docs/wireframes/10_home.md
++++ b/docs/wireframes/10_home.md
+@@ -1,8 +1,18 @@
+ # 10 — Home (landing) (#391)
+ 
++> ⭐ **THE AUTHORITY FOR HOME IS GITLAB #127** ("The approved design", CPO 2026-09-13), which
++> rechecked every block, its data source and its links. Where this file and #127 disagree, #127
++> wins; the passages that disagreed on 2026-09-13 are corrected in place and marked `#127`.
++> What #127 changed against this file: the Next matches window is EACH COMPETITION'S NEXT
++> MATCHDAY (its next round), every competition with an upcoming matchday always, **3 rows visible
++> and the rest folded**; the team boards have **no games floor**; a board's metric name links to
++> the Leaderboards page (#139), a row to the player or team page; the menu item Stats is renamed
++> Leaderboards. #143 builds the Home-owned parts.
++
+ > Field-bound against `shape_landing_payload` (written 2026-08-03, revised 2026-08-08, revised
+-> again 2026-08-19). The page reads exactly one warehouse model today: `core.fct_fixture`, for the
+-> hero.
++> again 2026-08-19). ~~The page reads exactly one warehouse model today: `core.fct_fixture`, for the
++> hero.~~ The hero reads `mart_next_matchday` (#127 / #143, GAP-32 closed); the boards read
++> `mart_leaderboards` and `mart_team_leaderboards`.
+ > ~~`mart_leaderboards` / `mart_standings`~~ — bound ONLY to the stats-teasers module, removed
+ > 2026-08-08.
+ > ~~`mart_team_profile` / `mart_landing_trending`~~ — bound ONLY to the trending module, cut
+@@ -420,8 +430,9 @@ live and unchanged.
+   `mart_team_profile.sql:195`. What does not exist is top-N-per-metric ACROSS teams:
+   `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite
+   shape. So this is a new mart composing an existing model, not a reshape of the benchmark.~~
+-  ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards` (GAP-29) — four boards, `>= 3` finished games
+-  to be ranked, `dense_rank` DESC partitioned `(league_code, season_api_year, metric_key)`. It reads
++  ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards` (GAP-29) — four boards, ~~`>= 3` finished games
++  to be ranked~~ **no games floor (#127: a team ranks from its first finished game)**, `dense_rank`
++  DESC partitioned `(league_code, season_api_year, metric_key)`. It reads
+   `int_team_season__metrics`, the whole-season projection of the cumulative model this bullet names.
+   ⚠ **"All eleven team metrics" is the NINE-BOARD-era framing**; the 2026-08-10 reduction left FOUR,
+   and only those four are boards.
+@@ -639,7 +650,7 @@ shipped; browse then left the composition entirely — see §0.
+ 
+ | Payload key | Upstream |
+ |---|---|
+-| `upcoming[]` | `core.fct_fixture` (the same `status_short in ('NS','TBD')` filter `fetch_fixture_payloads` uses), joined to `core.dim_team` / `core.dim_league` for names and crests |
++| `upcoming[]` | `mart_next_matchday` — every competition's next round, read whole (~~`core.fct_fixture` with the `status_short in ('NS','TBD')` filter~~ — that read moved into the mart under #143, GAP-32), joined to `core.dim_team` for names and crests |
+ | ~~`browse`~~ | ⛔ **DROPPED 2026-08-19** (CPO: "drop the browse section"). Was `build_nav()` over `docs/competition_registry.yml` — the identical structure `nav.json` carries. `build_nav`/`fetch_nav` still produce `nav.json` independently; only this page's use of them is gone |
+ | ~~`trending[]`~~ | ⛔ **REMOVED 2026-08-08** with the trending block. `mart_landing_trending` was written for this key and is deleted; `mart_team_profile` is no longer read by this page |
+ | ~~`stats`~~ | ⛔ **REMOVED 2026-08-08** with the stats-teasers module. `mart_leaderboards` and `mart_standings` are no longer read by this page at all |
+@@ -770,9 +781,14 @@ is the noise this block carried until 2026-08-18.
+ | Home / away name + crest | `…fixtures[].home.name` / `.crest`, `.away.name` / `.crest` | crest falls back to a monogram, as on 01 |
+ | Link target | `…fixtures[].slug` | `/{locale}/{competition_slug}/matches/{slug}/` |
+ 
+-**GAP-02 resolved here — SUPERSEDED 2026-08-18. The window is THE NEXT MATCHDAY: every fixture on
+-the earliest upcoming kickoff date.** The original resolution was "the next 12 fixtures by kickoff,
+-not a calendar day"; the count is retired.
++**GAP-02 resolved here — SUPERSEDED 2026-08-18, and again by #127 (2026-09-13). The window is
++EACH COMPETITION'S NEXT MATCHDAY: the round of its earliest fixture not yet started, every upcoming
++fixture of that round.** Every competition with an upcoming matchday is on the block, always — on
++Monday the Bundesliga already shows next weekend's round — and each shows its **3 earliest kickoffs
++with the rest folded** under a native "show all" (no script). ~~The window is the next matchday:
++every fixture on the earliest upcoming kickoff date.~~ The 2026-08-18 rule was one calendar day;
++measured 2026-09-12 it rendered 94 uncapped rows on a Saturday, and #127 replaced it. The original
++resolution was "the next 12 fixtures by kickoff, not a calendar day"; the count is retired.
+ 
+ ⚠ **Why the count went** (CPO 2026-08-18: *"we will show what we have, more matches will come,
+ because we ingest more competitions"*). Twelve was reasoned — see the measurement below — but it
+@@ -785,8 +801,9 @@ arbitrary cut.
+ rendering one row on some days. The rule is *the next day that HAS matches*, which is a different
+ rule and is **never empty by construction**. The table below is retained because it is still the
+ evidence for that distinction, and for the honest upper bound: the busiest day sampled carried 57
+-fixtures. If a busy matchday reads too long, that is a CPO call on the block (**#908** parks a
+-"more matches" control) — not a new number reintroduced here.
++fixtures. ~~If a busy matchday reads too long, that is a CPO call on the block (**#908** parks a
++"more matches" control) — not a new number reintroduced here.~~ That call was made on #127: the
++fold above IS the "more matches" control, and 3 is its number.
+ 
+ ⚠ **OPEN, BOTH DIRECTIONS — and the second one is easy to forget.** The rule makes the block's
+ length follow the football calendar, so it is variable by design:
+@@ -977,6 +994,12 @@ Static site, no islands on this screen. Every element is a link. The kickoff tim
+ same progressive-enhancement timezone script the other screens use. Search lives in the header
+ (09_chrome), not in this page's markup.
+ 
++**#127 (2026-09-13) adds two interactions, neither scripted:** the Next matches fold — a native
++`<details>` per competition holding every row past the third, its summary reading "Show all {n}"
++— and, once the Leaderboards page exists (#139), the board title of every Top players and Top
++teams board links to it. Until then the titles are plain text; a row links to the player or team
++page as built.
++
+ ## 8. SEO
+ 
+ | | |
+@@ -1065,7 +1088,8 @@ register is the authority — check it, not this summary.
+   `tier` and `season_type` are ALREADY projected into the seed (8 columns, verified). Only the
+   authored pool field remains.~~
+ - **GAP-29** — ✅ **SHIPPED 2026-09-02** as `mart_team_leaderboards`: four boards, ranked DESC and
+-  partitioned `(league_code, season_api_year, metric_key)`, `>= 3` finished games to qualify.
++  partitioned `(league_code, season_api_year, metric_key)`, ~~`>= 3` finished games to qualify~~
++  no games floor since #127 (2026-09-13).
+   ~~LIVE. A team-boards mart; `mart_team_competition_benchmarks` is the opposite shape.~~
+ - **GAP-30** — LIVE, registered 2026-08-18. `assists_player` is not a ranked board, so the reduced set's
+   second board has no rank-1 to take.
+@@ -1075,5 +1099,7 @@ Not corrected here on purpose: neither was falsified by this change, and the lis
+ already says **the register is the authority — check it, not this summary**. Tracked as **#103**.
+ - ~~**GAP-31** — a pooled rank across the pool.~~ **WITHDRAWN 2026-08-18**: the block is one player
+   per league, so the per-league rank the mart already computes is the one it needs.
+-- **GAP-32** — LIVE, registered 2026-08-18. Belongs to the fixtures hero, not these blocks: the
+-  matchday is selected in the export rather than served by the warehouse. CPO ruled ship-as-is.
++- **GAP-32** — ~~LIVE, registered 2026-08-18. Belongs to the fixtures hero, not these blocks: the
++  matchday is selected in the export rather than served by the warehouse. CPO ruled ship-as-is.~~
++  **CLOSED 2026-09-13** (#143, CPO "Path A"): the matchday is served by `mart_next_matchday`;
++  the export reads it whole.
+diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
+index 813a2b70..0774c890 100644
+--- a/docs/wireframes/99_gaps_register.md
++++ b/docs/wireframes/99_gaps_register.md
+@@ -40,5 +40,5 @@
+ | GAP-29 | 10 home | mart | There is no team equivalent of `mart_leaderboards`. The **Top teams** block needs top-N per metric ACROSS teams; `mart_team_competition_benchmarks` ranks ONE team against its own league, which is the opposite shape | A new mart composing `int_team_season__metrics_cumulative`, which already carries the metrics season-to-date behind the same `>= 3 finished games` gate the pool-selection rule uses. A new mart, not a reshape of the benchmark | **design approved** (CPO 2026-08-08); build not started. **Re-verified LIVE 2026-08-18** against the reduced design: `find dbt_project/models/5_marts -iname "*leaderboard*"` returns `mart_leaderboards.sql` ONLY, so nothing team-side exists. The reduction cut this block to FOUR boards — `goals_per_match`, `shots_on_goal_per_match`, `passes_per_match`, `duels_per_match` — and **all four are confirmed present** in `int_team_season__metrics_cumulative.sql`, so the disposition holds and the surface is smaller than when it was written. **Pooling shape RULED 2026-08-18: one team per league, same as Top players** (CPO: "one team per league, same as players") — when this mart is built, partition the rank by `(league_code, season_api_year, metric_key)`, the way `mart_team_competition_benchmarks` already does; that makes the per-league rank free and no pooled-across-leagues computation is ever needed, same mechanism as GAP-31's withdrawal. ⚠ GAP-31's own problem statement already covered this block too ("both reduced blocks" rank across the pool, its disposition naming GAP-29 by cross-reference) — today's ruling settles the team half GAP-31 already raised, not a previously-unasked question. **SHIPPED 2026-09-02** as `mart_team_leaderboards` — four boards, `>= 3` finished games to be ranked, `dense_rank` DESC partitioned `(league_code, season_api_year, metric_key)` exactly as this row specified. ⭐ **This closes the LAST of Home's four warehouse gaps** (GAP-27, GAP-28, GAP-30 all shipped the same day). ⚠ **A closed register is NOT a built page**: the block, its export payload and the `competition_group` → render wiring are all still unwritten. Measured on live prod data before shipping, not asserted: **9,438 rows over 44 leagues and 865 (league, season, board) groups**; 4 boards; ranks 1–10; **0** duplicate-grain rows; **0** non-positive values; **0** rows under the games gate; **0** rows with no club. All four board metrics confirmed `higher_better` in the catalogue, so one shared DESC is correct for every board and GAP-26's ascending-board hazard does not arise. ⭐ **UNPIVOT, not `mart_leaderboards`' union-all loop** — the player mart unions because each rate board carries its own qualification WHERE; all four team boards share one rule. Source is `int_team_season__metrics`, deliberately NOT `int_team_competition_benchmark_metrics_long`: that model is declared the single source of the BENCHMARK metric set, and a third consumer would couple Home's boards to it. ⛔⛔ **A MUTATION SURVIVED AND CHANGED THE SHIP.** Dropping `metric_key` from the partition — the exact way the one-team-per-league ruling gets violated — was caught by NOTHING: the grain stays unique (each team-season-board still appears once, so the rank is wrong, not duplicated), all four boards still appear, and every range test passes; only 2,297 of 9,438 rows survive and nothing asserted a row count. So the ruling was about to ship guarded by nothing. `assert_mart_team_leaderboards_every_board_has_a_leader` was ADDED for it: **0 of 865 groups healthy vs 34 of 266 mutated**. ⚠ Its sibling `assert_..._all_boards_present` exists because `accepted_values` is blind to a REMOVED board — a smaller set is still a subset — which is GAP-30's lesson one step on | — |
+ | GAP-30 | 10 home | mart | **`assists_player` is not a ranked board.** The reduced **Top players** set is goals → assists → passes → key passes (CPO 2026-08-10). Three of those four are already boards in `mart_leaderboards`; `assists_player` is not — it exists as a COLUMN on the mart (and on `int_player_season__metrics`) but never appears in the `count_boards` list, so no rank is computed for it. Verified 2026-08-18: `grep -c "'assists_player'"` on `mart_leaderboards.sql` = 0 | Add `'assists_player'` to `count_boards`. The column already exists and the ranked loop is generic over the list, so this is one line — the same shape GAP-24 proposed for its (now void) four, applied to the metric the reduction actually kept | **SHIPPED 2026-09-02.** ⚠ **This cell read "NOT YET RULED" and that was a stale status field, not an open question** — the design requiring the board was ruled on 2026-08-10 (#40, goals → assists → passes → key passes), so adding it implements an approved design. The CPO said so directly when it was put to him as a decision: *"So what's the question. The player block has assists in the mockup."* Registering a gap does not un-rule the design above it. `'assists_player'` added to `count_boards`; boards 14 → 15 (10 COUNT + 5 RATE), and the `metric_key` `accepted_values` list updated with it — that test is the only thing pinning the board set and nothing offline checks it (#96), so it would have failed in CI alone. Verified: compiled SQL has 15 union-all branches, the new one carrying `where assists_player > 0` and the unchanged `partition by league_code, season_api_year`; removing the key again returns it to 14. Adds **30,863** rows to a mart of 158,198. Supersedes the board half of GAP-24 | — |
+ | GAP-31 | ~~10 home~~ | mart | ~~**The rank grain is per-league, but the design ranks across the pool.** `mart_leaderboards` computes `dense_rank() over (partition by league_code, season_api_year ...)` — verified 2026-08-18 — so it answers "top scorer IN the Bundesliga". Both reduced blocks instead rank across the seven pooled leagues as one field ("Ranked across pooled leagues: …", real page copy), which is a different computation over a different partition, not a filter of the existing one. Distinct from GAP-28: knowing WHICH leagues form the pool does not by itself produce a pooled rank~~ | ~~Decide where the pooled rank lives — a pool-partitioned rank alongside the per-league one on `mart_leaderboards`, or a separate pooled mart (which is also GAP-29's shape for teams, so the two should be settled together). ⚠ Ties and the top-7 cut behave differently pooled than per-league, so the existing DENSE_RANK/inclusive-ties convention must be restated for the pool, not assumed~~ | **WITHDRAWN** (CPO 2026-08-18): the block is **one player per league**, not a pooled ranking — *"One per league -> yes, it's not a leaderboard in the defined pool."* Each pool league's rank-1 player is collected and ordered by value, and `mart_leaderboards` ALREADY ranks within `(league_code, season_api_year)`, so the rank this entry asks for has no consumer. ⚠ Not "resolved": nothing was built, and the per-league-vs-pooled question returns for any future block that genuinely ranks across competitions. ⚠ The ambiguity was created by the MOCK, not the spec — its invented numbers rendered 7 rows across 7 distinct leagues on every board, which read as a rule while `10_home.md` said "pooled". A placeholder dataset can assert a design nobody chose. ⚠ **The team half this entry also raised (cross-referenced to GAP-29 above) is now settled too** — GAP-29's row carries the same-shape ruling, same day: one team per league, not a pooled rank. GAP-27/28/30 are untouched by either ruling and stay live | — |
+-| GAP-32 | 10 home | mart | **"The next matchday" is decided in the export, not served by the warehouse.** `fetch_landing_payload` selects the hero's fixtures with `where fixture_date = (select min(fixture_date) from upcoming)` — the export authors the rule. analytics-engineer-reviewer FAILed this twice (2026-08-18), arguing it is window selection, which `layering.md` §Consumption layer forbids in `scripts/export_site_data.py`, and that the #846 precedent (`_featured_season_row`) resolved the identical "pick from a set" shape by computing `is_featured_season` as a TESTED MART COLUMN and leaving the export only filtering on it. No equivalent served fact exists. ⚠ The builder's counter, recorded because the disagreement is real: the same `WHERE` clause has always carried `status_short in ('NS','TBD') and fixture_date >= current_date()` — also a window — and has never been flagged; the contract explicitly ALLOWS "select, filter" | Serve the matchday as a warehouse fact and reduce the export to filtering on it. ⚠ Not a small change: the hero reads `core.fct_fixture` **directly**, so there is no mart for such a column to live on — that direct read is itself a separately-flagged layer defect, and the two should be fixed together. Deciding which mart owns upcoming fixtures is a design question, not a detail fix | **CPO RULED 2026-08-18: ship the SQL version, register this gap.** Reasons given: consistent with the adjacent long-accepted window filter; the "proper" fix needs a warehouse home for upcoming fixtures that does not exist; that is its own task. Explicitly NOT a licence to treat the classification as settled — it is registered so the next session inherits the dispute rather than rediscovering it | — |
++| GAP-32 | 10 home | mart | **"The next matchday" is decided in the export, not served by the warehouse.** `fetch_landing_payload` selects the hero's fixtures with `where fixture_date = (select min(fixture_date) from upcoming)` — the export authors the rule. analytics-engineer-reviewer FAILed this twice (2026-08-18), arguing it is window selection, which `layering.md` §Consumption layer forbids in `scripts/export_site_data.py`, and that the #846 precedent (`_featured_season_row`) resolved the identical "pick from a set" shape by computing `is_featured_season` as a TESTED MART COLUMN and leaving the export only filtering on it. No equivalent served fact exists. ⚠ The builder's counter, recorded because the disagreement is real: the same `WHERE` clause has always carried `status_short in ('NS','TBD') and fixture_date >= current_date()` — also a window — and has never been flagged; the contract explicitly ALLOWS "select, filter" | Serve the matchday as a warehouse fact and reduce the export to filtering on it. ⚠ Not a small change: the hero reads `core.fct_fixture` **directly**, so there is no mart for such a column to live on — that direct read is itself a separately-flagged layer defect, and the two should be fixed together. Deciding which mart owns upcoming fixtures is a design question, not a detail fix | **CPO RULED 2026-08-18: ship the SQL version, register this gap.** Reasons given: consistent with the adjacent long-accepted window filter; the "proper" fix needs a warehouse home for upcoming fixtures that does not exist; that is its own task. Explicitly NOT a licence to treat the classification as settled — it is registered so the next session inherits the dispute rather than rediscovering it **CLOSED 2026-09-13 (CPO, on #143: "Path A"): the matchday is a warehouse fact.** `mart_next_matchday` holds every upcoming fixture of each competition's next round (the round of its earliest fixture not yet started), rebuilt nightly, pinned by `assert_mart_next_matchday_is_each_competitions_earliest_round`; the export reads it whole with no WHERE. The direct `core.fct_fixture` read that the disposition said had to go first is gone with it. | #143 |
+ | GAP-33 | 10 home | seed | **Which `competition_group` a render uses, and how it rotates when a group is out of season.** GAP-28 shipped the groups — `elite` 7 · `europe` 3 · `international` 2 · `calendar` 6 · `secondary` 1 — but not the selection. ⚠ **The groups are not simultaneously in season**, which is what makes this a data question rather than a preference: `elite`/`europe`/`international` run split-year (roughly Aug–May) and `calendar` runs calendar-year (roughly Feb–Nov), so a home page hardcoded to `elite` is empty for two months a year and one hardcoded to `calendar` is wrong for the other ten | Decide what drives the choice — fixed rotation, random, or a rule keyed on which groups actually hold current-season data. **Only the third solves the seasonality**; the first two work around it. Needs a warehouse definition of "in season" for a group rather than a date range in a component — the `>= 3 finished games` gate the benchmark models already use is the candidate, and the retired four-pool design carried exactly that gate, so its selection paragraph in `10_home.md` survives as input even though its pool names do not. ⚠ Whatever is decided lives in the warehouse or the export, never as a league list in a component: that would be a third copy of a fact the registry owns | **NOT YET RULED** — registered 2026-09-02 when GAP-28 shipped. CPO: *"I would like to have a mechanism for showing the others as well, by rotation or randomly, no idea, especially when a league group is not active but another is -> file it, should not block us here."* Shape so far, from him: the page uses `elite`, or `europe`+`international` **merged into one board**, or `calendar` | [#101](https://gitlab.com/rami.al-fahham/football-data-pipeline/-/issues/101) |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index e99b5e63..f52d2ef4 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -1451,7 +1451,7 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+     """Read the landing module that exists today: upcoming fixtures.
+ 
+     THREE BigQuery reads, unchanged by dropping browse below (it was registry-driven and read
+-    nothing either way): `core.fct_fixture` and `core.dim_team` for the hero, plus
++    nothing either way): `mart_next_matchday` and `core.dim_team` for the hero, plus
+     `mart_competition_index` for `region_rank` (below). The stats teasers
+     (`mart_leaderboards` + `mart_standings`) and trending (`mart_landing_trending`) were removed,
+     and browse (registry-driven, read nothing) was dropped (see `shape_landing_payload`) — their
+@@ -1474,26 +1474,14 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+         if league_code in meta:
+             meta[league_code].update(served)
+ 
+-    # Same upcoming-fixture definition the fixture pages use, so the hero can never advertise a
+-    # match that has no page.
+-    # THE MATCHDAY IS SELECTED HERE, IN THE QUERY — not in Python. An earlier draft took
+-    # `min(date)` over the fetched rows and filtered in a loop, which is the same shape as the
+-    # season-picking this file already had to move OUT of Python
+-    # under #846 (`_featured_season_row`: "picking here was window selection in the consumption
+-    # layer"). The `fixture_date >= current_date()` window on the line below has always lived in
+-    # this WHERE clause; restricting it to the first day with football belongs in exactly the same
+-    # place, expressed declaratively, rather than as a second selection pass downstream.
++    # THE MATCHDAY IS SERVED, NOT SELECTED. `mart_next_matchday` is every competition's next round
++    # — the warehouse decides which round that is and which fixtures belong to it; this read
++    # takes the table whole. The fixture pages use the same upcoming definition the mart does, so
++    # the hero can never advertise a match that has no page.
+     fixtures = _query(client, f"""
+-        with upcoming as (
+-            select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
+-                   fixture_date, home_team_sk, away_team_sk
+-            from `{GCP_PROJECT}.core.fct_fixture`
+-            where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+-        )
+         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
+                home_team_sk, away_team_sk
+-        from upcoming
+-        where fixture_date = (select min(fixture_date) from upcoming)
++        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_next_matchday`
+     """)
+     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
+ 
+diff --git a/site_v2/src/components/home/FixtureRow.astro b/site_v2/src/components/home/FixtureRow.astro
+new file mode 100644
+index 00000000..a81bfc7e
+--- /dev/null
++++ b/site_v2/src/components/home/FixtureRow.astro
+@@ -0,0 +1,38 @@
++---
++// One upcoming-fixture row of the Next matches block: the two teams stacked with their crests,
++// the kickoff in its own right-hand column. Rendered for the visible rows and the folded ones
++// alike, so the two cannot drift. Links to the match page; falls back to a linkless row when the
++// payload carries no competition slug — the same guard the group heading uses.
++import Crest from "../ui/Crest.astro";
++import { formatShortDate, formatTime } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { localeHref } from "../../lib/href";
++import type { LandingFixture } from "../../lib/types";
++
++interface Props {
++  fx: LandingFixture;
++  competitionSlug?: string | null;
++  lang: Lang;
++}
++const { fx, competitionSlug, lang } = Astro.props;
++---
++
++<a
++  class="fxrow"
++  href={competitionSlug ? localeHref(lang, `${competitionSlug}/matches/${fx.slug}/`) : undefined}
++>
++  <span class="sides">
++    <span class="side">
++      <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />
++      <span class="nm">{fx.home.name}</span>
++    </span>
++    <span class="side">
++      <Crest name={fx.away.name} crest={fx.away.crest} size="xs" />
++      <span class="nm">{fx.away.name}</span>
++    </span>
++  </span>
++  <span class="when">
++    <b class="t">{formatTime(fx.kickoff, lang)}</b>
++    <span class="d">{formatShortDate(fx.kickoff, lang)}</span>
++  </span>
++</a>
+diff --git a/site_v2/src/components/home/HeroFixtures.astro b/site_v2/src/components/home/HeroFixtures.astro
+index bb51efcf..3ae40227 100644
+--- a/site_v2/src/components/home/HeroFixtures.astro
++++ b/site_v2/src/components/home/HeroFixtures.astro
+@@ -1,10 +1,11 @@
+ ---
+ // Landing module 1 — the fixtures hero (10_home.md §5(1)).
+ //
+-// THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date — grouped by
+-// competition. The SELECTION and the grouping are the export's (GAP-02, superseded: the fixed
+-// count of 12 is retired). ⚠ This component DOES sort: the group order is applied here
+-// with the site-wide ordering key, not served. See the frontmatter below.
++// THE NEXT MATCHDAY — each competition's next round, every upcoming fixture of it — grouped by
++// competition. The SELECTION and the grouping are the export's (GitLab #127). ⚠ This component
++// DOES sort: the group order is applied here with the site-wide ordering key, not served. See the
++// frontmatter below. It also FOLDS: the first three rows of a group show, the rest sit inside a
++// native <details>, so every fixture is in the HTML and none needs a script to reach.
+ //
+ // LAYOUT, per the review of the first rendered version: the two teams STACK, each with its
+ // crest, and the kickoff sits in its own right-hand column. The first version put "A vs B" on one
+@@ -19,9 +20,8 @@
+ // is taxonomy mapping, which the consumption layer forbids. So this page would have become a
+ // fourth surface for that defect, and the most visible one. The round stays on the fixture page
+ // (already listed in #866) until the warehouse serves a localisable phase.
+-import Crest from "../ui/Crest.astro";
++import FixtureRow from "./FixtureRow.astro";
+ import SectionHead from "../ui/SectionHead.astro";
+-import { formatShortDate, formatTime } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+ import { localeHref } from "../../lib/href";
+@@ -39,6 +39,10 @@ const { groups, lang } = Astro.props;
+ // page so the two cannot drift (one shared rule). Day first, then region_rank — which is what stops
+ // a 10:15 kickoff outranking a 19:00 one on the same day.
+ const ordered = orderUpcomingGroups(groups);
++
++// Rows shown before the fold, per competition (GitLab #127: "3 visible, the rest folded"). The
++// served list is kickoff-ordered, so the first three are the earliest kickoffs.
++const VISIBLE_ROWS = 3;
+ ---
+ 
+ <section>
+@@ -70,29 +74,20 @@ const ordered = orderUpcomingGroups(groups);
+         )}
+       </div>
+ 
+-      {group.fixtures.map((fx) => (
+-        <a
+-          class="fxrow"
+-          href={group.competition_slug
+-            ? localeHref(lang, `${group.competition_slug}/matches/${fx.slug}/`)
+-            : undefined}
+-        >
+-          <span class="sides">
+-            <span class="side">
+-              <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />
+-              <span class="nm">{fx.home.name}</span>
+-            </span>
+-            <span class="side">
+-              <Crest name={fx.away.name} crest={fx.away.crest} size="xs" />
+-              <span class="nm">{fx.away.name}</span>
+-            </span>
+-          </span>
+-          <span class="when">
+-            <b class="t">{formatTime(fx.kickoff, lang)}</b>
+-            <span class="d">{formatShortDate(fx.kickoff, lang)}</span>
+-          </span>
+-        </a>
+-      ))}
++      {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <FixtureRow fx={fx} competitionSlug={group.competition_slug} lang={lang} />)}
++
++      {group.fixtures.length > VISIBLE_ROWS && (
++        <details class="fxmore">
++          <summary>
++            <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
++            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
++                    stroke-linecap="round" stroke-linejoin="round"></path>
++            </svg>
++          </summary>
++          {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <FixtureRow fx={fx} competitionSlug={group.competition_slug} lang={lang} />)}
++        </details>
++      )}
+     </div>
+   ))}
+ </section>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 7b9d3d1a..b657323b 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -222,6 +222,7 @@ const EN: Dict = {
+   // "pro Spiel" and "ottelua kohden". Keyed here so the heading can reuse it per locale.
+   perMatch: "per match",
+   homeNoFixtures: "No matches scheduled right now.",
++  homeShowAll: "Show all {n}",
+   // Competitions index page (#62 step 5) — category labels (competition_types.csv
+   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
+   // live export actually uses (docs/wireframes/00_overview.md's binding rule): a
+@@ -416,6 +417,7 @@ const DE: Dict = {
+   homeTopTeamsIntro: "Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: {leagues}.",
+   perMatch: "pro Spiel",
+   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
++  homeShowAll: "Alle {n} anzeigen",
+   compTypeDomesticLeague: "Nationale Ligen",
+   compTypeDomesticCup: "Nationale Pokale",
+   compTypeContinentalCup: "Kontinentale Vereinspokale",
+@@ -606,6 +608,7 @@ const FI: Dict = {
+   homeTopTeamsIntro: "Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: {leagues}.",
+   perMatch: "ottelua kohden",
+   homeNoFixtures: "Ei otteluita tällä hetkellä.",
++  homeShowAll: "Näytä kaikki {n}",
+   compTypeDomesticLeague: "Kansalliset sarjat",
+   compTypeDomesticCup: "Kansalliset cupit",
+   compTypeContinentalCup: "Mantereiden seuracupit",
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 59173025..7c692d80 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -538,6 +538,20 @@ a.cnm .nm { text-decoration: none; }
+ .fxrow .when { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+ .fxrow .when .t { display: block; font-size: 16px; font-weight: 700; color: var(--ink); }
+ .fxrow .when .d { font-size: 12px; color: var(--muted); }
++/* THE FOLD — a competition's rows past the third sit in a native <details>; the summary is the
++   "show all" control and reads as one more row (same divider, same height rhythm), with the
++   heading's chevron turned down once open. No script: the element does the toggling. */
++.fxmore > summary {
++  display: flex; align-items: center; justify-content: space-between; gap: 12px;
++  padding: 12px 0; cursor: pointer; list-style: none;
++  font-size: 13px; font-weight: 600; color: var(--ink-2);
++}
++.fxmore > summary::-webkit-details-marker { display: none; }
++.fxmore > summary .chev { transform: rotate(90deg); }
++.fxmore[open] > summary .chev { transform: rotate(-90deg); }
++.fxmore > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
++.fxmore > .fxrow:first-of-type { border-top: 1px solid var(--line); }
++.fxmore > .fxrow:last-child { border-bottom: 0; }
+ /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
+ .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
+ 
+diff --git a/tests/test_export_landing.py b/tests/test_export_landing.py
+index 0b760079..99da5a17 100644
+--- a/tests/test_export_landing.py
++++ b/tests/test_export_landing.py
+@@ -117,6 +117,50 @@ def test_group_upcoming_fixtures_handles_an_empty_calendar():
+     assert group_upcoming_fixtures([], _TEAMS, _META) == []
+ 
+ 
++def test_the_hero_reads_the_next_matchday_mart_whole(monkeypatch):
++    """The window is EACH COMPETITION'S NEXT MATCHDAY, and the WAREHOUSE decides it:
++    mart_next_matchday holds every upcoming fixture of each competition's next round, and the
++    export reads that table whole - no WHERE, no window, no ranking, no second pass in Python.
++
++    Offline, so the SQL text is what can be pinned: the read is FROM the mart, and none of the
++    selection vocabulary that used to live here (min(fixture_date), row_number, qualify,
++    current_date, a where) is in it. The rows the fake returns are then carried through
++    unfiltered and grouped by competition.
++    """
++    captured: list[str] = []
++
++    def fake_query(client, sql):
++        captured.append(sql)
++        if "mart_next_matchday" in sql:
++            return [
++                _fixture(11, "BL1", "2026-09-18T18:30:00Z", rnd="Regular Season - 4"),
++                _fixture(12, "BL1", "2026-09-20T15:30:00Z", rnd="Regular Season - 4"),
++                _fixture(13, "MLS", "2026-09-19T23:00:00Z", home=3, away=1,
++                         rnd="Regular Season - 26"),
++            ]
++        if "core.dim_team" in sql:
++            return list(_TEAMS.values())
++        return []
++
++    monkeypatch.setattr(export_site_data, "_query", fake_query)
++    monkeypatch.setattr(export_site_data, "_warehouse_competition_meta", lambda client: {})
++
++    payload = export_site_data.fetch_landing_payload(object())
++
++    hero_sql = next(s for s in captured if "mart_next_matchday" in s)
++    assert "core.fct_fixture" not in hero_sql, "the hero reads the mart, not the fact"
++    lowered = " ".join(hero_sql.lower().split())
++    for token in ("where", "min(fixture_date)", "row_number", "qualify", "current_date"):
++        assert token not in lowered, f"selection vocabulary in the export: {token!r}"
++
++    groups = {g["league_code"]: g for g in payload["upcoming"]}
++    assert [f["fixture_id"] for f in groups["BL1"]["fixtures"]] == [11, 12], (
++        "every served fixture of the round is carried; the page folds, the export does not cut"
++    )
++    assert {f["round"] for f in groups["BL1"]["fixtures"]} == {"Regular Season - 4"}
++    assert [f["fixture_id"] for f in groups["MLS"]["fixtures"]] == [13]
 +
 +
-+def _split(text: str) -> tuple[str, str]:
-+    head, _, body = text.partition("\n\n")
-+    return head, body
-+
-+
-+# ---------------------------------------------------------------- the checksum pin
-+
-+def test_the_committed_snapshot_is_exactly_what_the_script_wrote():
-+    with open(SNAPSHOT, encoding="utf-8") as f:
-+        text = f.read()
-+    head, body = _split(text)
-+    assert snapshot_tracker.BANNER in head, "the banner names the file for what it is"
-+    m = HEADER_RE.search(head)
-+    assert m, "the header carries the UTC stamp and the body's sha256"
-+    assert hashlib.sha256(body.encode("utf-8")).hexdigest() == m.group(2), (
-+        "the body was changed without rewriting the header — regenerate with scripts/snapshot_tracker.py")
-+
-+
-+def test_a_single_character_change_breaks_the_checksum(tmp_path):
-+    with open(SNAPSHOT, encoding="utf-8") as f:
-+        text = f.read()
-+    head, body = _split(text)
-+    digest = HEADER_RE.search(head).group(2)
-+    mutated = body[:200] + ("x" if body[200] != "x" else "y") + body[201:]
-+    assert hashlib.sha256(mutated.encode("utf-8")).hexdigest() != digest
-+
-+
-+def test_render_is_deterministic_and_groups_by_milestone():
-+    milestones = [{"id": 2, "iid": 2, "title": "2 · B", "state": "active", "description": "b"},
-+                  {"id": 1, "iid": 1, "title": "1 · A", "state": "active", "description": "a"}]
-+    issues = [
-+        {"iid": 5, "title": "five", "state": "opened", "created_at": "2026-09-01T00:00:00Z",
-+         "labels": [], "description": "body 5", "milestone": {"id": 2}},
-+        {"iid": 3, "title": "three", "state": "closed", "created_at": "2026-08-01T00:00:00Z",
-+         "closed_at": "2026-08-02T00:00:00Z", "labels": ["bug"], "description": "body 3",
-+         "milestone": {"id": 1}},
-+        {"iid": 4, "title": "four", "state": "opened", "created_at": "2026-08-01T00:00:00Z",
-+         "labels": [], "description": "", "milestone": None},
-+    ]
-+    a = snapshot_tracker.render(milestones, issues)
-+    b = snapshot_tracker.render(list(reversed(milestones)), list(reversed(issues)))
-+    assert a == b, "input order must not change the output"
-+    assert a.index("## 1 · A") < a.index("### #3 three") < a.index("## 2 · B") < a.index("### #5 five")
-+    assert a.index("## No milestone") < a.index("### #4 four")
-+    assert "closed · created 2026-08-01 · closed 2026-08-02 · labels: bug" in a
-+
-+
-+# ---------------------------------------------------------------- the hook as the harness runs it
-+
-+def _run(event, repo: str) -> str:
-+    env = dict(os.environ, CLAUDE_PROJECT_DIR=repo)
-+    r = subprocess.run([sys.executable, HOOK],
-+                       input=event if isinstance(event, str) else json.dumps(event),
-+                       capture_output=True, text=True, cwd=repo, env=env, timeout=60)
-+    assert r.returncode == 0, r.stderr
-+    return r.stdout
-+
-+
-+def _denied(out: str) -> bool:
-+    return '"permissionDecision": "deny"' in out
-+
-+
-+@pytest.fixture
-+def repo(tmp_path):
-+    (tmp_path / "docs" / "tracker").mkdir(parents=True)
-+    (tmp_path / "docs" / "tracker" / "gitlab_snapshot.md").write_text("x\n", encoding="utf-8")
-+    return tmp_path
-+
-+
-+@pytest.mark.parametrize("tool,extra", [
-+    ("Write", {"content": "hand edit\n"}),
-+    ("Edit", {"old_string": "x", "new_string": "y"}),
-+    ("MultiEdit", {"edits": [{"old_string": "x", "new_string": "y"}]}),
-+])
-+def test_every_write_under_the_folder_is_denied(repo, tool, extra):
-+    path = str(repo / "docs" / "tracker" / "gitlab_snapshot.md")
-+    out = _run({"tool_name": tool, "tool_input": {"file_path": path, **extra}}, str(repo))
-+    assert _denied(out)
-+    reason = json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"]
-+    assert "scripts/snapshot_tracker.py" in reason
-+
-+
-+@pytest.mark.parametrize("spelling", ["Docs/Tracker", "DOCS/TRACKER", "docs/Tracker"])
-+def test_a_differently_cased_spelling_of_the_folder_is_denied(repo, spelling):
-+    """On Windows these name the same folder as `docs/tracker`, and relpath keeps the caller's
-+    case past the shared prefix — so the check must fold case or the hook is a spelling away
-+    from silent."""
-+    path = os.path.join(str(repo), *spelling.split("/"), "gitlab_snapshot.md")
-+    assert _denied(_run({"tool_name": "Write", "tool_input": {"file_path": path, "content": "n"}}, str(repo)))
-+
-+
-+def test_a_new_file_under_the_folder_is_denied_too(repo):
-+    path = str(repo / "docs" / "tracker" / "notes.md")
-+    assert _denied(_run({"tool_name": "Write", "tool_input": {"file_path": path, "content": "n"}}, str(repo)))
-+
-+
-+@pytest.mark.parametrize("rel", ["docs/north_star.md", "docs/trackers/x.md", "README.md",
-+                                 ".claude/task/review.md", "scripts/snapshot_tracker.py"])
-+def test_every_other_path_passes(repo, rel):
-+    path = str(repo / rel)
-+    assert _run({"tool_name": "Write", "tool_input": {"file_path": path, "content": "ok"}}, str(repo)) == ""
-+
-+
-+def test_a_path_outside_the_repo_passes(repo, tmp_path_factory):
-+    outside = tmp_path_factory.mktemp("elsewhere") / "docs" / "tracker" / "gitlab_snapshot.md"
-+    outside.parent.mkdir(parents=True)
-+    assert _run({"tool_name": "Write", "tool_input": {"file_path": str(outside), "content": "ok"}}, str(repo)) == ""
-+
-+
-+@pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}',
-+                                  '{"tool_input": {"file_path": 3}}'])
-+def test_malformed_input_fails_open(junk, repo):
-+    assert _run(junk, str(repo)) == ""
-+
-+
-+def test_is_governed_is_the_same_test_the_hook_uses(repo, monkeypatch):
-+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(repo))
-+    assert gate.is_governed(str(repo / "docs" / "tracker" / "gitlab_snapshot.md"))
-+    assert not gate.is_governed(str(repo / "docs" / "tracker.md"))
-+
-+
-+# ---------------------------------------------------------------- wiring and routing
-+
-+def test_the_hook_is_wired_beside_the_other_edit_time_gates():
-+    with open(os.path.join(REPO, ".claude", "settings.json"), encoding="utf-8") as f:
-+        settings = json.load(f)
-+    groups = [g for g in settings["hooks"]["PreToolUse"]
-+              if any("tracker_snapshot_gate.py" in h["command"] for h in g["hooks"])]
-+    assert len(groups) == 1
-+    assert set(groups[0]["matcher"].split("|")) >= {"Edit", "Write", "MultiEdit"}
-+
-+
-+def test_a_snapshot_refresh_is_never_a_reviewed_diff():
-+    """The three routing lists: excluded from the hash, excluded from the patch, artifact-only
-+    for the commit gate — and never in `artifact_only_never`, which would make it reviewed."""
-+    with open(os.path.join(REPO, ".claude", "review_routing.json"), encoding="utf-8") as f:
-+        routing = json.load(f)
-+    for key in ("hash_exclude_paths", "review_exclude_paths", "artifact_only"):
-+        assert "docs/tracker/**" in routing[key], key
-+    assert not any(p.startswith("docs/tracker") for p in routing["artifact_only_never"])
+ # --------------------------------------------------------------------------- #
+ # Payload assembly
+ #
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -720,10 +1274,9 @@ index 00000000..b106a740
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md              |   13 +-
-#    .claude/task/acceptance_evidence.md |   88 +-
-#    .claude/task/review.md              |  139 +-
-#    .claude/task/review_input.patch     | 1218 ++---
-#    docs/tracker/gitlab_snapshot.md     | 8472 +++++++++++++++++++++++++++++++++++
-#    5 files changed, 9312 insertions(+), 618 deletions(-)
+#   .claude/active_work.md                 |   70 +-
+#    .claude/task/acceptance_evidence.md    |  150 +--
+#    .claude/task/rendered_page_evidence.md |  259 ++---
+#    .claude/task/review_input.patch        | 1907 ++++++++++++++++++++------------
+#    4 files changed, 1409 insertions(+), 977 deletions(-)
 # ============================================================================

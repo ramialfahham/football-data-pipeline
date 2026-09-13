@@ -16,9 +16,10 @@ def check(name, cond, detail=""):
 
 print("composition")
 order = re.findall(r'<span class="eyebrow">([^<]+)</span>', body)
-check("§0's order: next matches -> Top players -> Top teams -> browse",
-      order == ["Next matches", "Top players", "Top teams", "Browse"], " -> ".join(order))
-check("browse is LAST, so the follow-up inserts and never rearranges", order[-1] == "Browse")
+check("the approved order: next matches -> Top players -> Top teams, nothing after",
+      order == ["Next matches", "Top players", "Top teams"], " -> ".join(order))
+check("no Browse block, no chip row", "Browse" not in body and 'class="linkrow"' not in body
+      and 'class="linkchip"' not in body)
 
 print("\nthe two designed blocks came from their own generators")
 titles = re.findall(r'<span class="bt"><span class="en">([^<]+)</span>', body)
@@ -35,22 +36,27 @@ print("\nshipped modules mirrored, not approximated")
 check("next matches uses .fxgroup/.gh/.fxrow", all(
     c in body for c in ('class="fxgroup"', 'class="gh"', 'class="fxrow"', 'class="sides"',
                         'class="when"')))
-check("12 fixtures, the fixed list §0 specifies", body.count('class="fxrow"') == 12,
-      str(body.count('class="fxrow"')))
-print("\nbrowse is FLAT (CPO 2026-08-10)")
-check("no by-competition / by-country axes", 'class="colhead"' not in body
-      and 'class="subhead"' not in body)
-check("one chip row", body.count('class="linkrow"') == 1, str(body.count('class="linkrow"')))
-check("12 chips, the registry's active competitions",
-      body.count('class="linkchip"') == 12, str(body.count('class="linkchip"')))
-# ⚠ anchors here by design direction; the SHIPPED component still emits <span> because the
-# competition hub does not exist yet and an anchor would 404.
-check("chips are anchors in this mock", body.count('<a class="linkchip"') == 12)
+check("19 fixtures: the fixed list plus the Bundesliga's whole nine-match round",
+      body.count('class="fxrow"') == 19, str(body.count('class="fxrow"')))
+
+print("\nthe fold: 3 visible per competition, the rest inside <details> (#127)")
+groups = body.split('<div class="fxgroup">')[1:]
+outside = [g.split("<details", 1)[0].count('class="fxrow"') for g in groups]
+check("no competition shows more than 3 rows outside the fold", max(outside) <= 3, str(outside))
+folds = re.findall(r'<details class="fxmore"><summary><span class="lbl">Show all (\d+)</span>', body)
+check("exactly one competition folds, and it is the nine-match round", folds == ["9"], str(folds))
+bl1 = next(g for g in groups if "<details" in g)
+check("the Bundesliga shows 3 rows, folds 6",
+      bl1.split("<details", 1)[0].count('class="fxrow"') == 3
+      and bl1.split("<details", 1)[1].count('class="fxrow"') == 6)
+check("the fold needs no script: a native <details>/<summary>, chevron in the summary",
+      '<details class="fxmore"><summary>' in body and body.count('</details>') == 1
+      and 'class="chev"' in bl1.split("</summary>", 1)[0])
 
 print("\nno regression on the block rules")
 check("no column-header row anywhere", '<span class="bh v">' not in body)
 check("crest on every board row and every fixture side",
-      body.count('class="crest xs"') == 56 + 24, str(body.count('class="crest xs"')))
+      body.count('class="crest xs"') == 56 + 38, str(body.count('class="crest xs"')))
 check("no external fetch", not re.search(r'(src|href)\s*=\s*"(https?:)?//', h))
 check("no <script>", "<script" not in h.lower())
 

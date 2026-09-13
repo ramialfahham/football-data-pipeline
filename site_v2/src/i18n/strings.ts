@@ -222,6 +222,7 @@ const EN: Dict = {
   // "pro Spiel" and "ottelua kohden". Keyed here so the heading can reuse it per locale.
   perMatch: "per match",
   homeNoFixtures: "No matches scheduled right now.",
+  homeShowAll: "Show all {n}",
   // Competitions index page (#62 step 5) — category labels (competition_types.csv
   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
   // live export actually uses (docs/wireframes/00_overview.md's binding rule): a
@@ -416,6 +417,7 @@ const DE: Dict = {
   homeTopTeamsIntro: "Aktuelle Saison. Die Top-Mannschaft jeder Liga in den Ranglisten: {leagues}.",
   perMatch: "pro Spiel",
   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
+  homeShowAll: "Alle {n} anzeigen",
   compTypeDomesticLeague: "Nationale Ligen",
   compTypeDomesticCup: "Nationale Pokale",
   compTypeContinentalCup: "Kontinentale Vereinspokale",
@@ -606,6 +608,7 @@ const FI: Dict = {
   homeTopTeamsIntro: "Tämä kausi. Kunkin sarjan kärkijoukkue ranking-listoilla: {leagues}.",
   perMatch: "ottelua kohden",
   homeNoFixtures: "Ei otteluita tällä hetkellä.",
+  homeShowAll: "Näytä kaikki {n}",
   compTypeDomesticLeague: "Kansalliset sarjat",
   compTypeDomesticCup: "Kansalliset cupit",
   compTypeContinentalCup: "Mantereiden seuracupit",
