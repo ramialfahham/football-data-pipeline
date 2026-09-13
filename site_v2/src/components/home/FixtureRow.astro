@@ -1,0 +1,38 @@
+---
+// One upcoming-fixture row of the Next matches block: the two teams stacked with their crests,
+// the kickoff in its own right-hand column. Rendered for the visible rows and the folded ones
+// alike, so the two cannot drift. Links to the match page; falls back to a linkless row when the
+// payload carries no competition slug — the same guard the group heading uses.
+import Crest from "../ui/Crest.astro";
+import { formatShortDate, formatTime } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { localeHref } from "../../lib/href";
+import type { LandingFixture } from "../../lib/types";
+
+interface Props {
+  fx: LandingFixture;
+  competitionSlug?: string | null;
+  lang: Lang;
+}
+const { fx, competitionSlug, lang } = Astro.props;
+---
+
+<a
+  class="fxrow"
+  href={competitionSlug ? localeHref(lang, `${competitionSlug}/matches/${fx.slug}/`) : undefined}
+>
+  <span class="sides">
+    <span class="side">
+      <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />
+      <span class="nm">{fx.home.name}</span>
+    </span>
+    <span class="side">
+      <Crest name={fx.away.name} crest={fx.away.crest} size="xs" />
+      <span class="nm">{fx.away.name}</span>
+    </span>
+  </span>
+  <span class="when">
+    <b class="t">{formatTime(fx.kickoff, lang)}</b>
+    <span class="d">{formatShortDate(fx.kickoff, lang)}</span>
+  </span>
+</a>

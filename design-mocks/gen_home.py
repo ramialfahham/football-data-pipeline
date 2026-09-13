@@ -1,21 +1,19 @@
-"""Compose the whole home page: next matches -> Top players -> Top teams -> browse.
+"""Compose the whole home page: next matches -> Top players -> Top teams.
 
-That order is §0's composition. The two stats blocks slot BETWEEN the two
-shipped modules, and browse holds the bottom slot deliberately so the follow-up inserts
-rather than rearranges.
+Three blocks, the composition approved on GitLab #127 (the authority for Home).
 
 ⚠ What is real and what is not:
   * Top players / Top teams markup is imported from the two block generators, so this page
     cannot drift from the mocks that were approved.
-  * Next matches and Browse are MOCKED here, but their markup mirrors the shipped components
-    (`HeroFixtures.astro`, `BrowseGrid.astro`) class for class -- `.fxgroup > .gh`, `.fxrow`
-    with `.sides`/`.side`/`.when`, and `.colhead`/`.subhead`/`.linkrow`/`.linkchip`. Browse
-    chips are `<span>`, not `<a>`, exactly as shipped: the competition hub does not exist
-    yet, and system.css scopes the hover affordance to `a.linkchip`.
+  * Next matches is MOCKED here, but its markup mirrors the shipped component
+    (`HeroFixtures.astro`) class for class -- `.fxgroup > .gh`, `.fxrow` with
+    `.sides`/`.side`/`.when`, and the `<details class="fxmore">` fold that holds every row
+    past the third ("3 visible, the rest folded"). The Bundesliga group below carries a whole
+    nine-match round so the fold renders; the others fit above it.
   * Every number is placeholder.
 
-Purpose is COMPOSITION and PAGE LENGTH, which is the open item: 4+4 boards at top 7 is 56
-board rows on a page that measured 4126px on mobile with only two modules built.
+Purpose is COMPOSITION and PAGE LENGTH: 4+4 boards at top 7 is 56 board rows, and the fold is
+what keeps a full weekend's fixtures from doubling that.
 """
 import html
 import sys
@@ -53,8 +51,15 @@ FIXTURES = [
             ("Sun 15 Feb", [("Brentford", "Everton", "15:00")])]),
     ("PD", [("Sat 14 Feb", [("Real Madrid", "Athletic Club", "21:00")]),
             ("Sun 15 Feb", [("Barcelona", "Real Valladolid", "18:30")])]),
-    ("BL1", [("Sat 14 Feb", [("1. FC Heidenheim", "Bayer 04 Leverkusen", "15:30"),
-                             ("Bayern München", "Borussia Mönchengladbach", "18:30")])]),
+    ("BL1", [("Fri 13 Feb", [("1. FC Heidenheim", "Bayer 04 Leverkusen", "20:30")]),
+             ("Sat 14 Feb", [("Bayern München", "Borussia Mönchengladbach", "15:30"),
+                             ("VfL Wolfsburg", "SC Freiburg", "15:30"),
+                             ("FC Augsburg", "1. FC Union Berlin", "15:30"),
+                             ("VfB Stuttgart", "Borussia Dortmund", "15:30"),
+                             ("Werder Bremen", "1. FSV Mainz 05", "15:30"),
+                             ("RB Leipzig", "Eintracht Frankfurt", "18:30")]),
+             ("Sun 15 Feb", [("TSG Hoffenheim", "1. FC Köln", "15:30"),
+                             ("FC St. Pauli", "Hamburger SV", "17:30")])]),
     ("SA", [("Sat 14 Feb", [("Inter", "Atalanta", "20:45")]),
             ("Sun 15 Feb", [("Napoli", "Lecce", "18:00")])]),
     ("L1", [("Sat 14 Feb", [("Paris Saint-Germain", "Lens", "21:00")]),
@@ -62,15 +67,13 @@ FIXTURES = [
     ("ED", [("Sun 15 Feb", [("PSV", "Feyenoord", "14:30")])]),
 ]
 
-# ⚠ FLAT: one row of chips, no "by competition" / "by country" axes. Both
-# axes listed the SAME twelve competitions, so the second was a repeat of the first with a
-# country heading above it.
-#
-# These are the twelve the registry marks `status: active`, names verbatim from its `name`
-# field -- so the mock cannot invent a competition or a label.
-BROWSE = ["Premier League", "La Liga", "1. Fußball-Bundesliga", "Serie A", "Ligue 1",
-          "Liga Portugal", "Eredivisie", "2. Fußball-Bundesliga", "Liga MX",
-          "Saudi Pro League", "Major League Soccer", "Veikkausliiga"]
+# Rows a competition shows before the fold; the rest sit inside `<details class="fxmore">`,
+# mirroring `HeroFixtures.astro`.
+VISIBLE_ROWS = 3
+
+CHEV = ('<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+        '<path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" '
+        'stroke-linecap="round" stroke-linejoin="round"></path></svg>')
 
 
 def sechead(label):
@@ -78,30 +81,35 @@ def sechead(label):
 
 
 def next_matches():
-    """THE SHARED BLOCK. No markup is written here — every element comes from `rows.py`."""
+    """THE SHARED BLOCK. Row and heading markup comes from `rows.py`; this composes the fold.
+
+    A date head travels with the first row it applies to, so a date that begins inside the
+    fold is folded with its rows and a date that straddles the cut is shown once, above.
+    """
     out = ["<section>", sechead("Next matches")]
     for code, dates in FIXTURES:
         out.append('<div class="fxgroup">%s' % group_head(slug(code), short(code)))
+        rows = []
         for date, matches in dates:
-            out.append(date_head(date))
-            for home, away, time in matches:
-                out.append(upcoming_row("club", home, away, time, ZONE[code] or "—"))
+            for i, (home, away, time) in enumerate(matches):
+                rows.append((date if i == 0 else None,
+                             upcoming_row("club", home, away, time, ZONE[code] or "—")))
+        visible, folded = rows[:VISIBLE_ROWS], rows[VISIBLE_ROWS:]
+        for date, row in visible:
+            if date:
+                out.append(date_head(date))
+            out.append(row)
+        if folded:
+            out.append('<details class="fxmore"><summary><span class="lbl">Show all %d</span>%s'
+                       '</summary>' % (len(rows), CHEV))
+            for date, row in folded:
+                if date:
+                    out.append(date_head(date))
+                out.append(row)
+            out.append("</details>")
         out.append("</div>")
     out.append("</section>")
     return "\n".join(out)
-
-
-def browse():
-    """Flat: the section head, then one row of chips.
-
-    ⚠ Chips are rendered as ANCHORS here, per "it's fine if they redirect to the
-    leagues". The SHIPPED component emits `<span>` on purpose -- the competition hub
-    (/{locale}/{slug}/) does not exist yet, so an anchor today is a guaranteed 404 behind
-    every chip. system.css scopes the hover affordance to `a.linkchip`, so the tag swap is
-    the whole edit when the hub lands.
-    """
-    chips = "".join('<a class="linkchip" href="#">%s</a>' % E(c) for c in BROWSE)
-    return '<section>%s<div class="linkrow">%s</div></section>' % (sechead("Browse"), chips)
 
 
 def block(mod, eyebrow, intro):
@@ -117,7 +125,6 @@ page = "\n".join([
     next_matches(),
     block(P, "Top players", "Season totals to date. " + POOL),
     block(T, "Top teams", "Season to date. " + POOL),
-    browse(),
 ])
 
 system_css = T.SYSTEM_CSS.read_text(encoding="utf-8")
@@ -125,7 +132,7 @@ system_css = T.SYSTEM_CSS.read_text(encoding="utf-8")
 OUT.write_text("""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Home -- all four modules (mock)</title>
+<title>Home -- three blocks (mock)</title>
 <style>
 %s
 %s
@@ -141,7 +148,7 @@ OUT.write_text("""<!doctype html>
   <label for="t-light"><span class="box"></span>Light</label>
   <label for="t-phone"><span class="box"></span>Phone 375px</label>
   <label for="t-fi"><span class="box"></span>Finnish (width probe)</label>
-  <span class="hint">next matches &rarr; Top players &rarr; Top teams &rarr; browse</span>
+  <span class="hint">next matches &rarr; Top players &rarr; Top teams</span>
 </div>
 
 <div class="stage">
@@ -153,15 +160,14 @@ OUT.write_text("""<!doctype html>
 </div>
 
 <div class="legend">
-  <b>Composition mock.</b> The order is &sect;0's: next matches &rarr; Top players &rarr; Top teams
-  &rarr; browse. <b>Top players and Top teams are generated from the same code as their own
-  mocks</b>, so this page cannot drift from what was approved. Next matches and Browse are mocked,
-  but mirror the shipped components class for class &mdash; browse chips are
-  <b>&lt;span&gt;</b> not <b>&lt;a&gt;</b>, as shipped, because the competition hub does not exist
-  yet. Every number is placeholder.
+  <b>Composition mock.</b> The order is the approved one: next matches &rarr; Top players &rarr;
+  Top teams. <b>Top players and Top teams are generated from the same code as their own
+  mocks</b>, so this page cannot drift from what was approved. Next matches is mocked but mirrors
+  the shipped component class for class, including the fold: a competition shows three rows and
+  the rest open under &ldquo;Show all&rdquo;. Every number is placeholder.
 </div>
 """ % (system_css, ROW_CSS, INTERACTION_CSS, T.MOCK_CSS, page), encoding="utf-8")
 
 print("wrote", OUT, OUT.stat().st_size, "bytes")
 print("board rows:", sum(len(b["rows"]) for b in P.BOARDS) + sum(len(b["rows"]) for b in T.BOARDS))
-print("fixtures:", sum(len(r) for _, r in FIXTURES))
+print("fixtures:", sum(len(m) for _, dates in FIXTURES for _, m in dates))

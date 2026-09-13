@@ -1,10 +1,11 @@
 ---
 // Landing module 1 — the fixtures hero (10_home.md §5(1)).
 //
-// THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date — grouped by
-// competition. The SELECTION and the grouping are the export's (GAP-02, superseded: the fixed
-// count of 12 is retired). ⚠ This component DOES sort: the group order is applied here
-// with the site-wide ordering key, not served. See the frontmatter below.
+// THE NEXT MATCHDAY — each competition's next round, every upcoming fixture of it — grouped by
+// competition. The SELECTION and the grouping are the export's (GitLab #127). ⚠ This component
+// DOES sort: the group order is applied here with the site-wide ordering key, not served. See the
+// frontmatter below. It also FOLDS: the first three rows of a group show, the rest sit inside a
+// native <details>, so every fixture is in the HTML and none needs a script to reach.
 //
 // LAYOUT, per the review of the first rendered version: the two teams STACK, each with its
 // crest, and the kickoff sits in its own right-hand column. The first version put "A vs B" on one
@@ -19,9 +20,8 @@
 // is taxonomy mapping, which the consumption layer forbids. So this page would have become a
 // fourth surface for that defect, and the most visible one. The round stays on the fixture page
 // (already listed in #866) until the warehouse serves a localisable phase.
-import Crest from "../ui/Crest.astro";
+import FixtureRow from "./FixtureRow.astro";
 import SectionHead from "../ui/SectionHead.astro";
-import { formatShortDate, formatTime } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { localeHref } from "../../lib/href";
@@ -39,6 +39,10 @@ const { groups, lang } = Astro.props;
 // page so the two cannot drift (one shared rule). Day first, then region_rank — which is what stops
 // a 10:15 kickoff outranking a 19:00 one on the same day.
 const ordered = orderUpcomingGroups(groups);
+
+// Rows shown before the fold, per competition (GitLab #127: "3 visible, the rest folded"). The
+// served list is kickoff-ordered, so the first three are the earliest kickoffs.
+const VISIBLE_ROWS = 3;
 ---
 
 <section>
@@ -70,29 +74,20 @@ const ordered = orderUpcomingGroups(groups);
         )}
       </div>
 
-      {group.fixtures.map((fx) => (
-        <a
-          class="fxrow"
-          href={group.competition_slug
-            ? localeHref(lang, `${group.competition_slug}/matches/${fx.slug}/`)
-            : undefined}
-        >
-          <span class="sides">
-            <span class="side">
-              <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />
-              <span class="nm">{fx.home.name}</span>
-            </span>
-            <span class="side">
-              <Crest name={fx.away.name} crest={fx.away.crest} size="xs" />
-              <span class="nm">{fx.away.name}</span>
-            </span>
-          </span>
-          <span class="when">
-            <b class="t">{formatTime(fx.kickoff, lang)}</b>
-            <span class="d">{formatShortDate(fx.kickoff, lang)}</span>
-          </span>
-        </a>
-      ))}
+      {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <FixtureRow fx={fx} competitionSlug={group.competition_slug} lang={lang} />)}
+
+      {group.fixtures.length > VISIBLE_ROWS && (
+        <details class="fxmore">
+          <summary>
+            <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </summary>
+          {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <FixtureRow fx={fx} competitionSlug={group.competition_slug} lang={lang} />)}
+        </details>
+      )}
     </div>
   ))}
 </section>

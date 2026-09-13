@@ -137,7 +137,7 @@ not made here. See 09_chrome.md §10 for the full note.
 | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
 | 08 | [08_browse.md](08_browse.md) | Competitions index + country hubs | **competitions index built** 2026-08-18 (#62 step 5); country hubs (`/football/{country-slug}/`) still pending | 4 |
 | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
-| 10 | 10_home.md | Home (pins the homepage spec → unblocks `landing.json`) | pending | 5 |
+| 10 | [10_home.md](10_home.md) | Home (pins the homepage spec → unblocks `landing.json`) | **built**, three blocks; **approved on GitLab #127** (2026-09-13, "The approved design") — the authority for Home; the wireframe is corrected to it and #143 builds the Home-owned changes | 5 |
 | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
 | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
 | 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |

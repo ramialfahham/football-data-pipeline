@@ -117,6 +117,50 @@ def test_group_upcoming_fixtures_handles_an_empty_calendar():
     assert group_upcoming_fixtures([], _TEAMS, _META) == []
 
 
+def test_the_hero_reads_the_next_matchday_mart_whole(monkeypatch):
+    """The window is EACH COMPETITION'S NEXT MATCHDAY, and the WAREHOUSE decides it:
+    mart_next_matchday holds every upcoming fixture of each competition's next round, and the
+    export reads that table whole - no WHERE, no window, no ranking, no second pass in Python.
+
+    Offline, so the SQL text is what can be pinned: the read is FROM the mart, and none of the
+    selection vocabulary that used to live here (min(fixture_date), row_number, qualify,
+    current_date, a where) is in it. The rows the fake returns are then carried through
+    unfiltered and grouped by competition.
+    """
+    captured: list[str] = []
+
+    def fake_query(client, sql):
+        captured.append(sql)
+        if "mart_next_matchday" in sql:
+            return [
+                _fixture(11, "BL1", "2026-09-18T18:30:00Z", rnd="Regular Season - 4"),
+                _fixture(12, "BL1", "2026-09-20T15:30:00Z", rnd="Regular Season - 4"),
+                _fixture(13, "MLS", "2026-09-19T23:00:00Z", home=3, away=1,
+                         rnd="Regular Season - 26"),
+            ]
+        if "core.dim_team" in sql:
+            return list(_TEAMS.values())
+        return []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    monkeypatch.setattr(export_site_data, "_warehouse_competition_meta", lambda client: {})
+
+    payload = export_site_data.fetch_landing_payload(object())
+
+    hero_sql = next(s for s in captured if "mart_next_matchday" in s)
+    assert "core.fct_fixture" not in hero_sql, "the hero reads the mart, not the fact"
+    lowered = " ".join(hero_sql.lower().split())
+    for token in ("where", "min(fixture_date)", "row_number", "qualify", "current_date"):
+        assert token not in lowered, f"selection vocabulary in the export: {token!r}"
+
+    groups = {g["league_code"]: g for g in payload["upcoming"]}
+    assert [f["fixture_id"] for f in groups["BL1"]["fixtures"]] == [11, 12], (
+        "every served fixture of the round is carried; the page folds, the export does not cut"
+    )
+    assert {f["round"] for f in groups["BL1"]["fixtures"]} == {"Regular Season - 4"}
+    assert [f["fixture_id"] for f in groups["MLS"]["fixtures"]] == [13]
+
+
 # --------------------------------------------------------------------------- #
 # Payload assembly
 #
