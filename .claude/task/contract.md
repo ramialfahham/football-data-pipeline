@@ -1,92 +1,33 @@
-# Task contract — Competitions hub: build the approved design (#144)
+# Task contract — session end 2026-09-14: tracker snapshot refreshed
 
 objective: >
-  The CPO approved the Competitions hub on GitLab #128 (2026-09-14). This branch builds the parts
-  the page owns: every row links to its competition's page; the empty-group collapse decides from
-  the filter state instead of on-screen visibility (the defect that hid the whole list after a
-  background load); the six competition kinds with no German or Finnish label get them, and a gate
-  fails when any kind in the seed lacks a language; the wireframe and the overview are corrected
-  to #128. Not here: the dead `display_group` column (#57), the country table (#69), the
-  competition page itself (#129), the footer link (#127).
+  The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
+  (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py` after
+  the session's MR (`!189`, #144) merged, so the backup carries #144 closed, #128 approved and
+  today's notes on #57, #69, #128. The handover (`.claude/active_work.md`) merged current in
+  `!189` except its "next" line, which this commit points at the competition page review (#129).
+  This contract replaces the merged #144 contract, whose scope did not list the snapshot.
 
 refs: >
-  GitLab #144 (this task, `Task` template; the What exactly lines below are its acceptance
-  criteria verbatim). GitLab #128 "The approved design" (the rulings, consolidated in the issue
-  description; all three boxes ticked by the CPO 2026-09-14, then "go" on #144's How).
+  `CLAUDE.md` "At the end of every session, before the handover commit, run
+  `python scripts/snapshot_tracker.py`"; `!185` (the snapshot mechanism, #142).
 
 scope_paths:
-  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
-  - site_v2/src/styles/system.css
-  - site_v2/src/i18n/strings.ts
-  - scripts/check_copy_gate.py
-  - tests/test_governance_hooks.py
-  - docs/wireframes/08_browse.md
-  - docs/wireframes/00_overview.md
+  - docs/tracker/gitlab_snapshot.md
   - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
-  - .claude/task/acceptance_evidence.md
-  - .claude/task/rendered_page_evidence.md
-
-impact_map: >
-  writers: none in the warehouse or the export — no model, seed, or export line changes; the
-    row's `slug` is already served by `mart_competition_index` and carried by
-    `competition_index.json` (48 rows). `CompetitionIndexGrid.astro` is the only renderer of that
-    payload; `system.css` gains hover/active rules for `a.comp-row` beside the existing
-    `a.brow` ones; `strings.ts` gains six `compType*` keys in all three locales (EN carries only the
-    eight shown kinds today; the six get EN verbatim from the seed's `label_en`, plus DE and FI); `check_copy_gate.py` gains a fifth check reading `competition_types.csv`
-    and `confederations.csv` `label_i18n_key` columns and requiring each in all three locales.
-  downstream: `[competition]/index.astro` builds one page per `competition_index.json` row, so
-    every href this page emits has a page (`audit-seo` fails the build otherwise). The copy gate
-    runs in `validate:governance` and in the Stop hook; a seed key with a missing language now
-    reddens both — today's tree passes once the six keys are added (measured before commit).
-  layer_rules: consumption only — the page renders served fields (`slug`, `entity_type`,
-    `confederation`) and decides nothing; the collapse predicate is presentation of filter state.
-  deploy_order: none. Static site; no warehouse change.
-  blast_radius: 48 new links per language page (144); the collapse behaviour changes only in the
-    case that was broken (a load while not displayed); six new strings in three locales; one new
-    gate check that can fail CI on a future seed row without translations — which is its purpose.
-
-acceptance_criteria:
-  - Every row on `/{lang}/competitions/` is a link to that competition's page (`/{lang}/{competition}/`); 48 links on each language's page, none to a page that does not build.
-  - A page loaded in a background tab shows all eight groups when switched to: a group is hidden only when the checked filters leave it no row, decided from the filter state, never from on-screen visibility.
-  - Every competition kind in the seed has a German and a Finnish label, the six without one today included (domestic super cups, continental club qualifiers, Intercontinental Cup, domestic club friendlies, international club friendlies, national team friendlies); a build gate fails when any kind in the seed lacks a language.
-  - `docs/wireframes/08_browse.md` describes the page as approved on #128 and names #128 as the authority; the country-hub pages it still describes are struck; `docs/wireframes/00_overview.md` points at #128 for the competitions index.
 
 decisions_taken: >
-  1. ROW LINKS. #128: "a row links to that competition's page". The row becomes `<a class="comp-row"
-  href={localeHref(lang, slug + "/")}>` with the hover/active treatment `a.brow` already has, so
-  the two list rows on the site read alike. The "not links, on purpose" passage in `08_browse.md`
-  §6 is struck: its reason (the competition page did not exist) no longer holds.
-  2. THE COLLAPSE PREDICATE. #128: "hide a group from the filter state, never from on-screen
-  visibility". The radios carry a `value` (the entity type or confederation code; empty for All);
-  the script reads the two checked values and hides a group when no row's `data-entity-type` /
-  `data-confederation` matches both. Same script, same trigger (`change` + once on load), same
-  progressive-enhancement stance; the `offsetParent` test is gone.
-  3. THE SIX LABELS. #128: "add the missing translations". EN verbatim from the seed's `label_en`;
-  DE and FI drafted by the builder and STATED IN THE MR HEAD for the CPO to correct — wording is
-  his (§10); his merge is the approval. The Finnish follows the existing pairs ("Kansalliset
-  cupit", "Mantereiden seuracupit", "Maajoukkueiden karsinnat").
-  4. THE GUARD. #128: "a guard so every kind in the seed has all three, not only the kinds on the
-  page". A fifth check in `check_copy_gate.py` (the gate that already owns locale completeness):
-  every `label_i18n_key` in `dbt_project/seeds/competition_types.csv` and `confederations.csv`
-  must be a key in EN, DE and FI. Pinned in `tests/test_governance_hooks.py` beside the gate's
-  existing tests, with the red case shown (a seed key absent from one locale → finding).
-  Not a new mechanism: an existing gate gains a check of the same kind it already makes.
-  5. THE WIREFRAME IS CORRECTED, NOT REWRITTEN. A header line naming #128 as the authority;
-  §6 (rows are links now), §7 (the collapse reads filter state) corrected in place; the
-  overview's row 08 drops "country hubs … still pending" (in no menu, no issue — #128 struck
-  them) and names #128.
+  None. A generated file regenerated by its one writer, on a branch from `gitlab/main` after the
+  merge; one sentence of the handover updated. No code, no model, no document edited by hand.
 
 decisions_reserved:
-  - none open for this branch: the design is CPO-approved on #128 and #144's How is the plan he said "go" to. The DE/FI wording of six labels is drafted here and put to him in the MR head, not decided.
+  - none: the snapshot is generated by `scripts/snapshot_tracker.py` and this contract changes nothing else.
 
 done_when:
-  - Dev server `/en/competitions/`: `document.querySelectorAll('a.comp-row[href]').length === 48`, every href resolving to a built page (`npm run build` + `audit-seo` OK); `/de/` and `/fi/` the same.
-  - Dev server: load the page in a background tab, front it → all 8 groups visible; check "National teams" → the club-only groups hidden, the rest shown; check "Africa" → only groups with an African row shown; back to All/All → 8.
-  - `python scripts/check_copy_gate.py` ok with the six keys; RED shown by removing one DE key (mutation), then restored.
-  - `python -m pytest tests/test_governance_hooks.py -q -k copy_gate` green, including the new seed-keys test shown red against a gate without check 5.
-  - `check_ui_i18n_metrics.py`, `check_layer_contract.py` green; the mock generator untouched.
+  - `python scripts/snapshot_tracker.py` run once; `python -m pytest tests/test_tracker_snapshot.py -q` green.
+  - The MR merges with the snapshot, the handover line and this contract only.
 
 amendments: (none)

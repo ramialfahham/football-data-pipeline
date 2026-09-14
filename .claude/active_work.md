@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-14**, on `feat/144-competitions-hub-approved-design`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-14**, on `chore/session-end-2026-09-14`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -32,8 +32,7 @@ NOT refreshed — a set roll-forward would pin 232 fixture payloads; rolling it 
 a block's job. Rulings elsewhere: #101 (80/10/10), #114 (underlying total), Stats → **Leaderboards**
 (milestone 7). Go-live items (About, Imprint) have no tracker issue — his call to file.
 
-**THE COMPETITIONS HUB IS APPROVED (#128, 2026-09-14) AND ITS BUILD IS ON
-`feat/144-competitions-hub-approved-design`.** #144 builds: every row links to its competition's
+**THE COMPETITIONS HUB IS DONE (#128 approved, #144 merged as `!189`, 2026-09-14).** #144 built: every row links to its competition's
 page; the empty-group collapse decides from the FILTER STATE (`offsetParent` hid all eight groups
 after a background load — seen live); six competition kinds get DE/FI labels and
 `check_copy_gate.py` check 5 reads the seeds' `label_i18n_key` so no kind can lack a language;
@@ -53,7 +52,7 @@ gone (`!184`). **The tracker has a backup in the repo** (`!185`): `docs/tracker/
 written only by `python scripts/snapshot_tracker.py` — run it at the END of every session before
 the handover commit; a hook refuses any hand edit, a test checks its checksum, and it is read only
 when GitLab is unreachable. ⚠ Its checksum is self-consistency, not provenance — a forged shell
-write passes; forbidden by rule, and the CPO knows. **Next: land #144's MR, then the
+write passes; forbidden by rule, and the CPO knows. **Next: the
 competition page review, #129 (the scaffold at `/{lang}/{competition}/`; `04_competition_hub.md`
 does not exist — `ui_design_brief.md` §6.5 is its only field contract), the same way.**
 
