@@ -31,8 +31,8 @@ The checks, each traceable to a real defect:
      show today; a kind with no competition yet had an English label in the
      seed and nothing in `strings.ts`, so its heading would have rendered in
      English on the DE and FI pages the day one was onboarded (six such kinds
-     on 2026-09-14). The seed is the list of keys that can reach a page; this
-     check reads it, not the pages.
+     when this check was added). The seed is the list of keys that can reach a
+     page; this check reads it, not the pages.
 
 Exit 1 on any finding, and on an absent or unparseable `strings.ts`. Fails CLOSED,
 as a CI check should.

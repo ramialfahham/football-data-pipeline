@@ -1,15 +1,18 @@
 # Review — feat/144-competitions-hub-approved-design — 2026-09-14
 
-diff_sha256: bac0350c46fb9d66179bdfc24196a7dcd05b95b2be655ee685b2a32faf284016
+diff_sha256: 597a745cd0191e24ebe3dc8939dd8f50ec89fb36f290a42aceb34292caaa4f98
 
-rounds: 3
+rounds: 4
+rounds_cap_override: round 4 is a two-word docstring fix after CI (`test_no_decision_history_in_code.py` flagged two dates in the round-3 commit's docstrings); no standing FAIL by review; the CPO did not rule on the cap — the override practice of !172–!174.
 
 Rounds are per reviewer. Round 1: scope-auditor PASS, bi-analyst-reviewer PASS,
 platform-reviewer FAIL (two findings in the copy gate's new check: a renamed `label_i18n_key`
 column read as zero keys and passed; an absent seed file raised a bare traceback). Round 2
 (platform only; fix + test): FAIL on one residual — the `except (OSError, KeyError)` let a
 non-UTF-8 seed or a malformed CSV escape as a traceback. Round 3 (platform only; `except
-Exception`, cp1252 test case): PASS. The patch and hash were regenerated before every round;
+Exception`, cp1252 test case): PASS. Round 4 (platform only, haiku): CI's comment-history test
+flagged two dates in docstrings of the round-3 commit; both replaced with "when the check was
+added"; PASS. The patch and hash were regenerated before every round;
 the round-1 PASSes cover the site, string and wireframe files, which did not change afterwards.
 
 ## scope-auditor
@@ -37,6 +40,8 @@ risks_checked:
   try/except turns an absent file into the FAIL line; the new test goes red against the
   guard-less reader. Verdict then: FAIL (resolved at round 3) — `except (OSError, KeyError)`
   narrower than the message's claim.
+- Round 4: the two docstrings carry no date, reviewer, round or MR reference; the comment-history
+  test passes; no functional change.
 - Round 1: the `SEED_LABEL_FILES` monkeypatch reaches the reader (module global read at call
   time); `test_copy_gate_fails_on_a_seed_key_no_locale_carries` genuinely reds with check 5
   disabled; `encoding="utf-8", newline=""` correct on Windows; a blank cell skipped is right (the

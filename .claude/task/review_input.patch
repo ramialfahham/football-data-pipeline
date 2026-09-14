@@ -181,7 +181,7 @@ index 51088d3a..14a97491 100644
    has-upcoming-fixture → days-to-next-kickoff bucketed by calendar day → `region_rank` → kickoff
    time → `league_code`; no-upcoming rows sort last, most-recently-played first. The SAME key
 diff --git a/scripts/check_copy_gate.py b/scripts/check_copy_gate.py
-index 8630608e..153491f1 100644
+index 8630608e..428d6056 100644
 --- a/scripts/check_copy_gate.py
 +++ b/scripts/check_copy_gate.py
 @@ -25,6 +25,14 @@ The checks, each traceable to a real defect:
@@ -194,8 +194,8 @@ index 8630608e..153491f1 100644
 +     show today; a kind with no competition yet had an English label in the
 +     seed and nothing in `strings.ts`, so its heading would have rendered in
 +     English on the DE and FI pages the day one was onboarded (six such kinds
-+     on 2026-09-14). The seed is the list of keys that can reach a page; this
-+     check reads it, not the pages.
++     when this check was added). The seed is the list of keys that can reach a
++     page; this check reads it, not the pages.
  
  Exit 1 on any finding, and on an absent or unparseable `strings.ts`. Fails CLOSED,
  as a CI check should.
@@ -465,10 +465,10 @@ index 7c692d80..b72318d4 100644
  #filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
  #filter-entity-national:checked ~ .categories [data-entity-type="club"] { display: none; }
 diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index d8b1edfa..e9af873f 100644
+index d8b1edfa..e39dd199 100644
 --- a/tests/test_governance_hooks.py
 +++ b/tests/test_governance_hooks.py
-@@ -1028,6 +1028,89 @@ def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
+@@ -1028,6 +1028,90 @@ def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
      assert gate.main() == 1, "an em dash inside a metric label must be reported like any other"
  
  
@@ -485,7 +485,8 @@ index d8b1edfa..e9af873f 100644
 +    """Check 5 (#128, #144). A competition kind can sit in the seed with an English label and
 +    no string in ANY locale — check 2 is blind to it (it compares de/fi against en, and en has
 +    no such key either) and checks 1-4 see only keys already in the file. Six kinds were in that
-+    state on 2026-09-14. The seed is the list of keys that can reach a page; the gate reads it."""
++    state when the check was added. The seed is the list of keys that can reach a page; the gate
++    reads it."""
 +    gate = _copy_gate()
 +    f = tmp_path / "strings.ts"
 +    f.write_text(_strings_fixture(), encoding="utf-8")
@@ -574,6 +575,7 @@ index d8b1edfa..e9af873f 100644
 #   .claude/active_work.md                 |  76 ++--
 #    .claude/task/acceptance_evidence.md    | 125 +++---
 #    .claude/task/rendered_page_evidence.md |  95 ++---
-#    .claude/task/review_input.patch        | 696 +++++++++++++++++++++++++--------
-#    4 files changed, 658 insertions(+), 334 deletions(-)
+#    .claude/task/review.md                 |  62 ++-
+#    .claude/task/review_input.patch        | 705 +++++++++++++++++++++++++--------
+#    5 files changed, 721 insertions(+), 342 deletions(-)
 # ============================================================================

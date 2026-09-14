@@ -1041,7 +1041,8 @@ def test_copy_gate_fails_on_a_seed_key_no_locale_carries(tmp_path, monkeypatch):
     """Check 5 (#128, #144). A competition kind can sit in the seed with an English label and
     no string in ANY locale — check 2 is blind to it (it compares de/fi against en, and en has
     no such key either) and checks 1-4 see only keys already in the file. Six kinds were in that
-    state on 2026-09-14. The seed is the list of keys that can reach a page; the gate reads it."""
+    state when the check was added. The seed is the list of keys that can reach a page; the gate
+    reads it."""
     gate = _copy_gate()
     f = tmp_path / "strings.ts"
     f.write_text(_strings_fixture(), encoding="utf-8")
