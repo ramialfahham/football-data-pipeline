@@ -1,5 +1,14 @@
 # Competitions index — `/{locale}/competitions/` (#62 step 5, GitLab #54)
 
+> ⭐ **THE AUTHORITY FOR THIS PAGE IS GITLAB #128** ("The approved design", CPO 2026-09-14), which
+> rechecked the filters, the groups, the order, the row, the competition set and the links. Where
+> this file and #128 disagree, #128 wins; the passages that disagreed on 2026-09-14 are corrected
+> in place and marked `#128`. What #128 changed against this file: **every row links to its
+> competition's page**; the empty-group collapse decides from the **filter state**, never from
+> on-screen visibility; every competition kind in the seed carries all three languages; the
+> country under a row is shown in the reader's language (#69). No country-hub pages exist or are
+> planned under this page. #144 builds the page-owned parts.
+
 ## 1. Purpose
 
 Every competition we carry, grouped and browsable: the site's "everything we cover" page, and
@@ -68,13 +77,13 @@ itself is narrower here.
 
 ## 6. States
 
-- **Rows are NOT links, on purpose.** #54 describes each row as a "row target" linking to the
-  competition's own page. That page (#47, the competition hub) is confirmed not built — only the
-  fixture page exists under `[competition]/`. Linking today would be the exact "browse-chip 404"
-  #47's own issue text names as a failure mode, matching the site's standing no-dead-links
-  convention. Rows carry full content (crest, name, region) with no anchor, no hover-lift, no
-  chevron — those affordances would falsely signal clickability. They become real links, with the
-  hover/chevron treatment, in the MR that ships #47.
+- **Every row is a link to its competition's page** (`/{locale}/{competition-slug}/`; #128,
+  built by #144) with the same hover/active treatment as the Home boards' rows. ~~Rows are NOT
+  links, on purpose. #54 describes each row as a "row target" linking to the competition's own
+  page. That page (#47, the competition hub) is confirmed not built — only the fixture page exists
+  under `[competition]/`. Linking today would be the exact "browse-chip 404" #47's own issue
+  text names as a failure mode.~~ The page exists for every row: `[competition]/index.astro`
+  builds one per `competition_index.json` row.
 - **Every category always shows its heading**, including one with a single member — never hidden
   for looking sparse.
 - **A category with zero visible rows under the active filter disappears entirely** — no
@@ -92,9 +101,13 @@ itself is narrower here.
 - Category collapse (zero visible rows → hide the whole category) is the one place this page uses
   real JS: doing it in pure CSS would need a hand-written rule per (entity × region) combination
   (up to ~24) to express "zero rows survive BOTH active filters at once", which `:checked` sibling
-  selectors can express but not maintainably. A small inline script re-evaluates each category's
-  visible-row count on every filter `change` and toggles `[hidden]`. Progressive enhancement only:
-  the unfiltered page is already correct without it (every rendered category has ≥1 row).
+  selectors can express but not maintainably. A small inline script decides it on every filter
+  `change` (and once on load) **from the filter state** — the two checked radios' values against
+  each row's `data-entity-type` / `data-confederation` — and toggles `[hidden]` (#128). ~~re-evaluates
+  each category's visible-row count~~: it used `offsetParent`, which is null for every row while
+  the tab is not displayed, so a page loaded in a background tab hid all eight categories until a
+  filter was touched. Progressive enhancement only: the unfiltered page is already correct without
+  it (every rendered category has ≥1 row).
 - Ordering (`lib/competitionOrder.mjs`, unit-tested) is applied once at render time, not stored:
   has-upcoming-fixture → days-to-next-kickoff bucketed by calendar day → `region_rank` → kickoff
   time → `league_code`; no-upcoming rows sort last, most-recently-played first. The SAME key

@@ -1,179 +1,563 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 5108eb0e..524786b2 100644
+index 524786b2..7b313e52 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,155 +1,33 @@
--# Task contract — Home: build the approved design (matchday window with fold, no team floor, documents corrected)
-+# Task contract — session end 2026-09-13: tracker snapshot refreshed
+@@ -1,33 +1,92 @@
+-# Task contract — session end 2026-09-13: tracker snapshot refreshed
++# Task contract — Competitions hub: build the approved design (#144)
  
  objective: >
--  The CPO approved the Home design on GitLab #127 (2026-09-13). This branch builds the parts Home
--  owns: the Next matches block shows each competition's whole next matchday (its next round) with
--  3 rows visible and the rest folded; a team ranks on a Home team board from its first finished
--  game; the wireframe, the overview and the mock generator are corrected to the approved design.
--  The header, footer and metric-name links are NOT built here (each goes live when its page is
--  built — #127); the rotation (#101), the team tie-break (#114) and the Leaderboards hub (#139)
--  are owned elsewhere.
-+  The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
-+  (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py` after
-+  the session's MR (`!187`, #143) merged, so the backup carries #143 closed and today's notes on
-+  #101, #114, #127, #139, #143. The handover (`.claude/active_work.md`) merged current in `!187`
-+  and needs no edit. This contract replaces the merged #143 contract, whose scope did not list the
-+  snapshot; it exists only so the gate can see the refresh.
+-  The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
+-  (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py` after
+-  the session's MR (`!187`, #143) merged, so the backup carries #143 closed and today's notes on
+-  #101, #114, #127, #139, #143. The handover (`.claude/active_work.md`) merged current in `!187`
+-  and needs no edit. This contract replaces the merged #143 contract, whose scope did not list the
+-  snapshot; it exists only so the gate can see the refresh.
++  The CPO approved the Competitions hub on GitLab #128 (2026-09-14). This branch builds the parts
++  the page owns: every row links to its competition's page; the empty-group collapse decides from
++  the filter state instead of on-screen visibility (the defect that hid the whole list after a
++  background load); the six competition kinds with no German or Finnish label get them, and a gate
++  fails when any kind in the seed lacks a language; the wireframe and the overview are corrected
++  to #128. Not here: the dead `display_group` column (#57), the country table (#69), the
++  competition page itself (#129), the footer link (#127).
  
  refs: >
--  GitLab #143 (this task, `Task` template; the What exactly lines below are its acceptance
--  criteria verbatim). GitLab #127 "The approved design" (the rulings, consolidated in the issue
--  description; approved in chat 2026-09-13: "approved", then "do it" on #143's How).
-+  `CLAUDE.md` "At the end of every session, before the handover commit, run
-+  `python scripts/snapshot_tracker.py`"; `!185` (the snapshot mechanism, #142).
+-  `CLAUDE.md` "At the end of every session, before the handover commit, run
+-  `python scripts/snapshot_tracker.py`"; `!185` (the snapshot mechanism, #142).
++  GitLab #144 (this task, `Task` template; the What exactly lines below are its acceptance
++  criteria verbatim). GitLab #128 "The approved design" (the rulings, consolidated in the issue
++  description; all three boxes ticked by the CPO 2026-09-14, then "go" on #144's How).
  
  scope_paths:
--  - scripts/export_site_data.py
--  - tests/test_export_landing.py
--  - site_v2/src/components/home/HeroFixtures.astro
--  - site_v2/src/components/home/FixtureRow.astro
--  - site_v2/src/data/landing.json
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/styles/system.css
--  - site_v2/src/lib/types.ts
--  - dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
--  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
--  - dbt_project/docs/layering.md
--  - docs/wireframes/99_gaps_register.md
--  - docs/site_architecture.md
--  - docs/wireframes/10_home.md
--  - docs/wireframes/00_overview.md
--  - design-mocks/gen_home.py
--  - design-mocks/check_home.py
--  - design-mocks/home_mock.html
-+  - docs/tracker/gitlab_snapshot.md
+-  - docs/tracker/gitlab_snapshot.md
++  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
++  - site_v2/src/styles/system.css
++  - site_v2/src/i18n/strings.ts
++  - scripts/check_copy_gate.py
++  - tests/test_governance_hooks.py
++  - docs/wireframes/08_browse.md
++  - docs/wireframes/00_overview.md
    - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--  - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
--
--impact_map: >
--  writers: `scripts/export_site_data.py::fetch_landing_payload` (the landing query — the only
--    writer of `landing.json`'s `upcoming[]`); `mart_team_leaderboards` (one WHERE clause);
--    `HeroFixtures.astro` (the only renderer of `upcoming[]`).
--
--  downstream: `mart_team_leaderboards` is a LEAF — `dbt ls --select mart_team_leaderboards+
--    --resource-type model --resource-type test` (run 2026-09-13 against a scratchpad dev profile,
--    target `dev_scratch`) lists the model, its 19 schema tests and 3 singular tests
--    (`assert_mart_team_leaderboards_all_boards_present`, `…_every_board_has_a_leader`,
--    `…_one_leader_per_league`) and NO downstream model. Its only other reader is the export's
--    Top teams query (`league_leader_order = 1 and is_current_season`), which selects and does not
--    compute. The `season_games_played >= 3` expression test in `shared.yml` and the column
--    description that says "Always >= 3" move with the gate; the benchmark models' own gate
--    (`int_team_competition_benchmark_metrics_long`, `int_team_competition_benchmarks`,
--    `int_team_season__deserved_vs_actual`) is a different rule and is untouched — two-sided
--    sweep of `>= 3` under `dbt_project/models`: 2 move (the mart's WHERE and its yml test), 6 stay
--    (all benchmark or deserved-vs-actual). `landing.json`'s `upcoming[]` keeps its shape (the
--    `round` key already exists on every fixture); the only frontend reader is `HeroFixtures.astro`
--    plus `orderUpcomingGroups`, whose input is unchanged.
--
--  layer_rules: marts = consumption; the mart keeps ranking and ordering, the export keeps
--    selecting (the round is chosen in SQL, not Python — the #846 rule), the page keeps rendering
--    (the 3-row cut is presentation; every fixture stays in the payload and in the HTML).
--    `check_layer_contract.py` unaffected (no per-model materialisation change, no new file).
--
--  deploy_order: none. The mart is a view; removing the gate widens its rows at the next nightly
--    and the export reads whatever is there. No migration, no incremental model touched.
--
--  blast_radius: `mart_team_leaderboards` gains rows for teams with 1–2 finished games; a league
--    whose new season has 1–2 finished games flips `is_current_season` to the NEW season
--    earlier than before (today it waits for 3 games and shows last season's leaders under a
--    current-season label — the trap #101 records). Home's Top teams may therefore show a
--    one-game rate in the first week of a season, which is the ruling. `landing.json` changes
--    content (whole rounds instead of one day: measured 2026-09-13, 20 competitions, 94 matches
--    on the old rule vs the union of their next rounds on the new one); no other export target
--    changes.
--
--acceptance_criteria:
--  - The Next matches block shows, for every competition with a fixture not yet started, that competition's whole next matchday (the round of its earliest upcoming fixture), not the earliest calendar day. On a Monday the Bundesliga shows next weekend's nine matches.
--  - Each competition shows its 3 earliest kickoffs; the rest are folded under a "show all" on the block, opened without JavaScript.
--  - The order of competitions is unchanged: the day the matchday starts, then region rank, then kickoff, then code.
--  - A team appears on a Home Top teams board from its first finished game: `mart_team_leaderboards` no longer requires 3 games.
--  - `docs/wireframes/10_home.md` describes the page as approved on #127 and names #127 as the authority; `docs/wireframes/00_overview.md` points at #127 for Home.
--  - `design-mocks/gen_home.py` renders three blocks; the Browse block and its markup are gone from the generator and the mock.
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
++
++impact_map: >
++  writers: none in the warehouse or the export — no model, seed, or export line changes; the
++    row's `slug` is already served by `mart_competition_index` and carried by
++    `competition_index.json` (48 rows). `CompetitionIndexGrid.astro` is the only renderer of that
++    payload; `system.css` gains hover/active rules for `a.comp-row` beside the existing
++    `a.brow` ones; `strings.ts` gains six `compType*` keys in all three locales (EN carries only the
++    eight shown kinds today; the six get EN verbatim from the seed's `label_en`, plus DE and FI); `check_copy_gate.py` gains a fifth check reading `competition_types.csv`
++    and `confederations.csv` `label_i18n_key` columns and requiring each in all three locales.
++  downstream: `[competition]/index.astro` builds one page per `competition_index.json` row, so
++    every href this page emits has a page (`audit-seo` fails the build otherwise). The copy gate
++    runs in `validate:governance` and in the Stop hook; a seed key with a missing language now
++    reddens both — today's tree passes once the six keys are added (measured before commit).
++  layer_rules: consumption only — the page renders served fields (`slug`, `entity_type`,
++    `confederation`) and decides nothing; the collapse predicate is presentation of filter state.
++  deploy_order: none. Static site; no warehouse change.
++  blast_radius: 48 new links per language page (144); the collapse behaviour changes only in the
++    case that was broken (a load while not displayed); six new strings in three locales; one new
++    gate check that can fail CI on a future seed row without translations — which is its purpose.
++
++acceptance_criteria:
++  - Every row on `/{lang}/competitions/` is a link to that competition's page (`/{lang}/{competition}/`); 48 links on each language's page, none to a page that does not build.
++  - A page loaded in a background tab shows all eight groups when switched to: a group is hidden only when the checked filters leave it no row, decided from the filter state, never from on-screen visibility.
++  - Every competition kind in the seed has a German and a Finnish label, the six without one today included (domestic super cups, continental club qualifiers, Intercontinental Cup, domestic club friendlies, international club friendlies, national team friendlies); a build gate fails when any kind in the seed lacks a language.
++  - `docs/wireframes/08_browse.md` describes the page as approved on #128 and names #128 as the authority; the country-hub pages it still describes are struck; `docs/wireframes/00_overview.md` points at #128 for the competitions index.
  
  decisions_taken: >
--  1. THE WINDOW IS THE ROUND, chosen in SQL. #127: "Window: each competition's next matchday, not
--  a calendar day — the round (the fixture's round name) of its earliest fixture not yet started."
--  Implemented as: upcoming = not started (`NS`/`TBD`) and dated today or later; per competition,
--  the round of the earliest such fixture (by date, then kickoff); every upcoming fixture of that
--  round is served. Stated consequence, measured on prod over the 2025 season: a postponed match
--  keeps its original round name, so for the days between a round's end and its straggler the
--  block shows that competition as a one-match matchday (BL1 3 stragglers over 7 days late in
--  306 fixtures, PL 1, BSA 16, MLS 13). Accepted as the ruled definition; recorded on #143.
--  2. THE FOLD IS PRESENTATION. #127: "3 visible, the rest folded under a 'show all' on the block;
--  no JavaScript needed." A native `<details>`/`<summary>`; the 3 are the first three rows of the
--  kickoff-ordered list the export serves; the constant lives in the component, ruled on #127.
--  The summary copy "Show all {n}" (DE "Alle {n} anzeigen", FI "Näytä kaikki {n}") is new i18n
--  copy for a control the CPO described in those words ("something like a show all button").
--  3. NO FLOOR. #127: "No floor. A team appears on a Home team board from its first finished game."
--  The mart's WHERE, its yml expression test and the column description move together; the
--  expression test becomes `season_games_played >= 1` (a guard narrowed, not deleted). The
--  benchmark gate stays. The docstring paragraph on qualification is rewritten to say the
--  mart has no games floor and why.
--  4. THE WIREFRAME IS CORRECTED, NOT REWRITTEN. #100 (reduce `10_home.md` to the current design)
--  stays open; this branch adds a header line naming #127 as the authority and strikes/corrects
--  the passages that now disagree (§5 (1) the one-day window; the `>= 3` gate on the team boards;
--  the unlinked board titles), and the overview's inventory row for Home. No new mechanism, no
--  recurring cost.
--  5. THE MOCK RENDERS THE APPROVED DESIGN: three blocks, Browse gone, and the Next matches block
--  shows one competition with 3 visible rows and a fold — the mock is the rendering of #127
--  (`00_overview.md`: "the GitLab issue for that surface, with design-mocks/ as its rendering").
--  `check_home.py`'s assertions move with it.
-+  None. A generated file regenerated by its one writer, on a branch from `gitlab/main` after the
-+  merge. No code, no model, no document edited by hand.
+-  None. A generated file regenerated by its one writer, on a branch from `gitlab/main` after the
+-  merge. No code, no model, no document edited by hand.
++  1. ROW LINKS. #128: "a row links to that competition's page". The row becomes `<a class="comp-row"
++  href={localeHref(lang, slug + "/")}>` with the hover/active treatment `a.brow` already has, so
++  the two list rows on the site read alike. The "not links, on purpose" passage in `08_browse.md`
++  §6 is struck: its reason (the competition page did not exist) no longer holds.
++  2. THE COLLAPSE PREDICATE. #128: "hide a group from the filter state, never from on-screen
++  visibility". The radios carry a `value` (the entity type or confederation code; empty for All);
++  the script reads the two checked values and hides a group when no row's `data-entity-type` /
++  `data-confederation` matches both. Same script, same trigger (`change` + once on load), same
++  progressive-enhancement stance; the `offsetParent` test is gone.
++  3. THE SIX LABELS. #128: "add the missing translations". EN verbatim from the seed's `label_en`;
++  DE and FI drafted by the builder and STATED IN THE MR HEAD for the CPO to correct — wording is
++  his (§10); his merge is the approval. The Finnish follows the existing pairs ("Kansalliset
++  cupit", "Mantereiden seuracupit", "Maajoukkueiden karsinnat").
++  4. THE GUARD. #128: "a guard so every kind in the seed has all three, not only the kinds on the
++  page". A fifth check in `check_copy_gate.py` (the gate that already owns locale completeness):
++  every `label_i18n_key` in `dbt_project/seeds/competition_types.csv` and `confederations.csv`
++  must be a key in EN, DE and FI. Pinned in `tests/test_governance_hooks.py` beside the gate's
++  existing tests, with the red case shown (a seed key absent from one locale → finding).
++  Not a new mechanism: an existing gate gains a check of the same kind it already makes.
++  5. THE WIREFRAME IS CORRECTED, NOT REWRITTEN. A header line naming #128 as the authority;
++  §6 (rows are links now), §7 (the collapse reads filter state) corrected in place; the
++  overview's row 08 drops "country hubs … still pending" (in no menu, no issue — #128 struck
++  them) and names #128.
  
  decisions_reserved:
--  - none open for this branch: the design is CPO-approved on #127 and #143's How is the plan he said "do it" to. The straggler consequence in decisions_taken (1) is REPORTED to him in the MR head, not decided here — if he wants a different definition of "next matchday" it is a #127 amendment.
-+  - none: the snapshot is generated by `scripts/snapshot_tracker.py` and this contract changes nothing else.
+-  - none: the snapshot is generated by `scripts/snapshot_tracker.py` and this contract changes nothing else.
++  - none open for this branch: the design is CPO-approved on #128 and #144's How is the plan he said "go" to. The DE/FI wording of six labels is drafted here and put to him in the MR head, not decided.
  
  done_when:
--  - `python -m pytest tests/test_export_landing.py tests/test_export_site_data.py -q` green, including a new test that pins the round selection to the query (no `min(fixture_date)`, a per-competition round pick).
--  - `.venv/Scripts/dbt.exe parse` green; `python -m sqlfluff lint dbt_project/models/5_marts/shared/mart_team_leaderboards.sql --templater jinja --dialect bigquery` clean.
--  - `python scripts/check_description_hygiene.py` green (the column description changed).
--  - `python design-mocks/gen_home.py && python design-mocks/check_home.py` → ALL PASS, with no `Browse` in `home_mock.html`.
--  - Dev server: `/en/` renders every competition group with ≤3 `.fxrow` outside `<details>` and the remainder inside; `read_page` shows the summary text; `/de/` and `/fi/` show the translated summary.
--  - `rendered_page_evidence.md` / `acceptance_evidence.md` demonstrate each criterion from the built output.
-+  - `python scripts/snapshot_tracker.py` run once; `python -m pytest tests/test_tracker_snapshot.py -q` green (the header checksum matches the body).
-+  - The MR merges with the snapshot and this contract only.
+-  - `python scripts/snapshot_tracker.py` run once; `python -m pytest tests/test_tracker_snapshot.py -q` green (the header checksum matches the body).
+-  - The MR merges with the snapshot and this contract only.
++  - Dev server `/en/competitions/`: `document.querySelectorAll('a.comp-row[href]').length === 48`, every href resolving to a built page (`npm run build` + `audit-seo` OK); `/de/` and `/fi/` the same.
++  - Dev server: load the page in a background tab, front it → all 8 groups visible; check "National teams" → the club-only groups hidden, the rest shown; check "Africa" → only groups with an African row shown; back to All/All → 8.
++  - `python scripts/check_copy_gate.py` ok with the six keys; RED shown by removing one DE key (mutation), then restored.
++  - `python -m pytest tests/test_governance_hooks.py -q -k copy_gate` green, including the new seed-keys test shown red against a gate without check 5.
++  - `check_ui_i18n_metrics.py`, `check_layer_contract.py` green; the mock generator untouched.
  
--amendments:
--  - 2026-09-13: + site_v2/src/components/home/FixtureRow.astro — authority: standing rule (one
--    row markup, rendered twice — visible and folded; Astro frontmatter cannot hold JSX, so the
--    shared row is a component, the way `rows.py` already shares it across the mocks); content:
--    the fixture row extracted verbatim from HeroFixtures.astro.
--  - 2026-09-13: + site_v2/src/data/landing.json — authority: standing rule (`site_v2/src/data/README.md`:
--    the committed sample is a SET rolled forward as maintenance, never on a block's way past);
--    content: NOT committed on this branch — the fresh export is placed here only to render the
--    fold in the dev server for `rendered_page_evidence.md`, then reverted with
--    `git checkout -- site_v2/src/data/landing.json` before the commit. The committed sample
--    (max 2 fixtures per competition) keeps its shape and cannot show the fold.
--  - 2026-09-13: + dbt_project/models/5_marts/shared/mart_next_matchday.sql,
--    dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql,
--    docs/wireframes/99_gaps_register.md, docs/site_architecture.md, dbt_project/docs/layering.md
--    — authority: the CPO, in chat 2026-09-13, on the blinded question "who decides which round is
--    a competition's next matchday — the warehouse, or the export": "Path A" (the warehouse serves
--    it as a mart; the export only filters; GAP-32 closes). Raised by analytics-engineer-reviewer
--    round 1 (the round selection in the export's SQL is window selection in the consumption layer,
--    and GAP-32 left the classification unsettled). Content: `mart_next_matchday` — one row per
--    upcoming fixture in its competition's next round, from `fct_fixture`, nightly, pinned by the
--    singular test; the landing query becomes a plain `select … from mart_next_matchday`; GAP-32
--    marked CLOSED; the landing row of `site_architecture.md`'s mart map and the mart table in
--    `layering.md` name the mart; `10_home.md`'s model bindings corrected. `decisions_taken` (1) is
--    superseded by this amendment where they differ. The mart's NAME is the builder's proposal from
--    the CPO's own words ("the next matchday of every competition"), stated in the MR head for him
--    to rename.
-+amendments: (none)
+ amendments: (none)
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index c39ff450..a5d4b0c9 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -135,7 +135,7 @@ not made here. See 09_chrome.md §10 for the full note.
+ | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
+ | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
+ | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
+-| 08 | [08_browse.md](08_browse.md) | Competitions index + country hubs | **competitions index built** 2026-08-18 (#62 step 5); country hubs (`/football/{country-slug}/`) still pending | 4 |
++| 08 | [08_browse.md](08_browse.md) | Competitions index | **built** 2026-08-18 (#62 step 5); **approved on GitLab #128** (2026-09-14, "The approved design") — the authority for the page; #144 builds the row links, the collapse fix and the missing labels. ~~Country hubs (`/football/{country-slug}/`) still pending~~ — in no menu and no issue; struck by #128 | 4 |
+ | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
+ | 10 | [10_home.md](10_home.md) | Home (pins the homepage spec → unblocks `landing.json`) | **built**, three blocks; **approved on GitLab #127** (2026-09-13, "The approved design") — the authority for Home; the wireframe is corrected to it and #143 builds the Home-owned changes | 5 |
+ | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |
+diff --git a/docs/wireframes/08_browse.md b/docs/wireframes/08_browse.md
+index 51088d3a..14a97491 100644
+--- a/docs/wireframes/08_browse.md
++++ b/docs/wireframes/08_browse.md
+@@ -1,5 +1,14 @@
+ # Competitions index — `/{locale}/competitions/` (#62 step 5, GitLab #54)
+ 
++> ⭐ **THE AUTHORITY FOR THIS PAGE IS GITLAB #128** ("The approved design", CPO 2026-09-14), which
++> rechecked the filters, the groups, the order, the row, the competition set and the links. Where
++> this file and #128 disagree, #128 wins; the passages that disagreed on 2026-09-14 are corrected
++> in place and marked `#128`. What #128 changed against this file: **every row links to its
++> competition's page**; the empty-group collapse decides from the **filter state**, never from
++> on-screen visibility; every competition kind in the seed carries all three languages; the
++> country under a row is shown in the reader's language (#69). No country-hub pages exist or are
++> planned under this page. #144 builds the page-owned parts.
++
+ ## 1. Purpose
+ 
+ Every competition we carry, grouped and browsable: the site's "everything we cover" page, and
+@@ -68,13 +77,13 @@ itself is narrower here.
+ 
+ ## 6. States
+ 
+-- **Rows are NOT links, on purpose.** #54 describes each row as a "row target" linking to the
+-  competition's own page. That page (#47, the competition hub) is confirmed not built — only the
+-  fixture page exists under `[competition]/`. Linking today would be the exact "browse-chip 404"
+-  #47's own issue text names as a failure mode, matching the site's standing no-dead-links
+-  convention. Rows carry full content (crest, name, region) with no anchor, no hover-lift, no
+-  chevron — those affordances would falsely signal clickability. They become real links, with the
+-  hover/chevron treatment, in the MR that ships #47.
++- **Every row is a link to its competition's page** (`/{locale}/{competition-slug}/`; #128,
++  built by #144) with the same hover/active treatment as the Home boards' rows. ~~Rows are NOT
++  links, on purpose. #54 describes each row as a "row target" linking to the competition's own
++  page. That page (#47, the competition hub) is confirmed not built — only the fixture page exists
++  under `[competition]/`. Linking today would be the exact "browse-chip 404" #47's own issue
++  text names as a failure mode.~~ The page exists for every row: `[competition]/index.astro`
++  builds one per `competition_index.json` row.
+ - **Every category always shows its heading**, including one with a single member — never hidden
+   for looking sparse.
+ - **A category with zero visible rows under the active filter disappears entirely** — no
+@@ -92,9 +101,13 @@ itself is narrower here.
+ - Category collapse (zero visible rows → hide the whole category) is the one place this page uses
+   real JS: doing it in pure CSS would need a hand-written rule per (entity × region) combination
+   (up to ~24) to express "zero rows survive BOTH active filters at once", which `:checked` sibling
+-  selectors can express but not maintainably. A small inline script re-evaluates each category's
+-  visible-row count on every filter `change` and toggles `[hidden]`. Progressive enhancement only:
+-  the unfiltered page is already correct without it (every rendered category has ≥1 row).
++  selectors can express but not maintainably. A small inline script decides it on every filter
++  `change` (and once on load) **from the filter state** — the two checked radios' values against
++  each row's `data-entity-type` / `data-confederation` — and toggles `[hidden]` (#128). ~~re-evaluates
++  each category's visible-row count~~: it used `offsetParent`, which is null for every row while
++  the tab is not displayed, so a page loaded in a background tab hid all eight categories until a
++  filter was touched. Progressive enhancement only: the unfiltered page is already correct without
++  it (every rendered category has ≥1 row).
+ - Ordering (`lib/competitionOrder.mjs`, unit-tested) is applied once at render time, not stored:
+   has-upcoming-fixture → days-to-next-kickoff bucketed by calendar day → `region_rank` → kickoff
+   time → `league_code`; no-upcoming rows sort last, most-recently-played first. The SAME key
+diff --git a/scripts/check_copy_gate.py b/scripts/check_copy_gate.py
+index 8630608e..153491f1 100644
+--- a/scripts/check_copy_gate.py
++++ b/scripts/check_copy_gate.py
+@@ -25,6 +25,14 @@ The checks, each traceable to a real defect:
+      for a key whose EN value contains a lowercase alphabetic word. Numbers,
+      symbols, brand names and pure abbreviations are exempt, because those are
+      legitimately identical across locales.
++  5. SEED KEYS RESOLVABLE. Every `label_i18n_key` the warehouse seeds publish
++     (competition kinds, confederations) exists in every locale. Check 2 sees
++     only keys that are already in EN, and check 1-4 see only keys the pages
++     show today; a kind with no competition yet had an English label in the
++     seed and nothing in `strings.ts`, so its heading would have rendered in
++     English on the DE and FI pages the day one was onboarded (six such kinds
++     on 2026-09-14). The seed is the list of keys that can reach a page; this
++     check reads it, not the pages.
+ 
+ Exit 1 on any finding, and on an absent or unparseable `strings.ts`. Fails CLOSED,
+ as a CI check should.
+@@ -46,6 +54,7 @@ honest while it is temporary and someone is counting the days.
+ """
+ from __future__ import annotations
+ 
++import csv
+ import json
+ import pathlib
+ import re
+@@ -62,6 +71,11 @@ MIN_KEYS = 20
+ # Floor for the metric-label maps (#370). 18 metrics get a name today; 15 leaves room for a row to be
+ # retired without a false alarm, while still tripping if the quoted-dotted-key regex breaks.
+ MIN_METRIC_KEYS = 15
++# The seeds whose `label_i18n_key` column names a key a page will resolve through `t()`.
++SEED_LABEL_FILES = (
++    REPO_ROOT / "dbt_project" / "seeds" / "competition_types.csv",
++    REPO_ROOT / "dbt_project" / "seeds" / "confederations.csv",
++)
+ 
+ # Terms the validated corpus settles. term -> (wrong, right, why)
+ # Only entries evidenced by the corpus or by a correction the product owner made belong here.
+@@ -128,6 +142,23 @@ def _metric_labels(text: str) -> dict[str, dict[str, str]]:
+     return out
+ 
+ 
++def _seed_label_keys(paths=None) -> dict[str, list[str]]:
++    """`label_i18n_key` values per seed file, in file order; a blank cell is skipped (the
++    seeds' own not_null tests own that defect). Reads `SEED_LABEL_FILES` at call time so a
++    test can point it at a fixture."""
++    keys: dict[str, list[str]] = {}
++    for path in (paths or SEED_LABEL_FILES):
++        with open(path, encoding="utf-8", newline="") as f:
++            reader = csv.DictReader(f)
++            # Fail closed: a renamed or missing column must not read as "no keys to check" — a
++            # gate over zero keys always passes (the same floor MIN_KEYS holds on the strings side).
++            if "label_i18n_key" not in (reader.fieldnames or []):
++                raise KeyError(f"{path.name}: no label_i18n_key column (header: {reader.fieldnames})")
++            rows = list(reader)
++        keys[path.name] = [r["label_i18n_key"] for r in rows if (r["label_i18n_key"] or "").strip()]
++    return keys
++
++
+ def _corpus_leaves(obj) -> list[str]:
+     if isinstance(obj, dict):
+         return [s for v in obj.values() for s in _corpus_leaves(v)]
+@@ -244,6 +275,24 @@ def main() -> int:
+                 "no self-serve exemption comment; see the note above check 4."
+             )
+ 
++    # 5. every seed-published label key resolves in every locale
++    # Any read failure (absent file, renamed column, non-UTF-8 bytes, malformed CSV) is the gate's
++    # own FAIL line — the `check_competition_type_seed.py` pattern — never a bare traceback.
++    try:
++        seed_keys = _seed_label_keys()
++    except Exception as e:  # noqa: BLE001
++        print(f"FAIL: cannot read the seed label keys: {type(e).__name__}: {e}")
++        return 1
++    for seed_name, keys in seed_keys.items():
++        for key in keys:
++            for loc in LOCALES:
++                if key not in dicts[loc]:
++                    findings.append(
++                        f"seed key unresolvable: {seed_name} publishes label_i18n_key `{key}` "
++                        f"and {loc} has no such string. A page resolves the heading by this key "
++                        "the day a competition of that kind is onboarded; add it in every locale."
++                    )
++
+     if findings:
+         print(f"COPY GATE: {len(findings)} finding(s)\n")
+         for f in findings:
+@@ -255,7 +304,8 @@ def main() -> int:
+     total = sum(len(dicts[loc]) for loc in LOCALES)
+     print(f"COPY GATE ok: {total} strings across {len(LOCALES)} locales "
+           f"({total - metric_count} chrome + {metric_count} metric labels), "
+-          f"{sum(len(v) for v in corpus.values())} corpus strings consulted")
++          f"{sum(len(v) for v in corpus.values())} corpus strings consulted, "
++          f"{sum(len(v) for v in seed_keys.values())} seed label keys resolvable in every locale")
+     return 0
+ 
+ 
+diff --git a/site_v2/src/components/competitions/CompetitionIndexGrid.astro b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+index 5fb5883d..15c0efb0 100644
+--- a/site_v2/src/components/competitions/CompetitionIndexGrid.astro
++++ b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+@@ -5,22 +5,21 @@
+ // single-select filter axes (entity_type, confederation) via the zero-JS `.seg-in`/`.seg-btn`
+ // radio pattern already used elsewhere (system.css) for the row-hiding itself.
+ //
+-// Rows are NOT yet links. #54 describes them as row targets, but the page each row would link to
+-// (#47, the competition hub) is not built — linking there today would be the exact "browse-chip
+-// 404" #47's own issue text names as a failure mode, so these rows are inert <span>s too, matching
+-// the site's standing no-dead-links convention. They become real anchors (with the hover-lift +
+-// chevron affordance) in the MR that ships #47.
++// Every row is a link to its competition's page (GitLab #128); the page exists for every row
++// because `[competition]/index.astro` builds one per competition_index.json row.
+ //
+-// Category disappearance under a filter needs the count of rows STILL VISIBLE after BOTH axes
+-// apply at once (e.g. "Clubs + Oceania" can legitimately empty a category that neither axis
+-// alone would empty) — a check pure CSS :checked sibling selectors can't express without an
+-// unreadable combinatorial blow-up (3 entity states x 8 region states). A small inline script
+-// does the equivalent grouping at filter-change time instead of build time: after every change,
+-// walk the categories and toggle [hidden] on any with zero visible rows.
++// Category disappearance under a filter needs the count of rows that SURVIVE BOTH axes at once
++// (e.g. "Clubs + Oceania" can legitimately empty a category that neither axis alone would empty)
++// — a check pure CSS :checked sibling selectors can't express without an unreadable combinatorial
++// blow-up (3 entity states x 8 region states). A small inline script decides it from the FILTER
++// STATE: the two checked radios' values against each row's data attributes. Never from on-screen
++// visibility — `offsetParent` is null for every row while the tab is not displayed, so a page
++// loaded in a background tab hid all eight categories until a filter was touched.
+ // The unfiltered page (no JS) already shows every non-empty category correctly; JS only handles
+ // filtering, so nothing breaks if it fails to load.
+ import Crest from "../ui/Crest.astro";
+ import { t } from "../../i18n/strings";
++import { localeHref } from "../../lib/href";
+ import { groupAndOrderCompetitions } from "../../lib/competitionOrder";
+ import type { Lang } from "../../lib/format";
+ import type { CompetitionIndexRow } from "../../lib/types";
+@@ -54,17 +53,13 @@ const REGION_FILTERS: { id: string; value: string | null; labelKey: string | nul
+ ---
+ 
+ <section class="compindex">
+-  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-all" checked />
+-  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-club" />
+-  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-national" />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-all" checked />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-uefa" />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-conmebol" />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-concacaf" />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-caf" />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-afc" />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-ofc" />
+-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-fifa" />
++  {/* The radio's value is what the collapse script matches rows against; "All" is empty. */}
++  {ENTITY_FILTERS.map((f) => (
++    <input class="seg-in" type="radio" name="entity-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
++  ))}
++  {REGION_FILTERS.map((f) => (
++    <input class="seg-in" type="radio" name="region-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
++  ))}
+ 
+   <div class="seg" role="group" aria-label={t(lang, "filterByType")}>
+     {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
+@@ -81,15 +76,20 @@ const REGION_FILTERS: { id: string; value: string | null; labelKey: string | nul
+         <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
+         <div class="comp-grid">
+           {cat.rows.map((row) => (
+-            <div class="comp-row" data-entity-type={row.entity_type} data-confederation={row.confederation}>
++            <a
++              class="comp-row"
++              href={localeHref(lang, `${row.slug}/`)}
++              data-entity-type={row.entity_type}
++              data-confederation={row.confederation}
++            >
+               <Crest name={row.competition_name} crest={row.logo_url} size="xs" />
+-              <div class="comp-meta">
+-                <div class="comp-name">{row.competition_name}</div>
+-                <div class="comp-region">
++              <span class="comp-meta">
++                <span class="comp-name">{row.competition_name}</span>
++                <span class="comp-region">
+                   {row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en}
+-                </div>
+-              </div>
+-            </div>
++                </span>
++              </span>
++            </a>
+           ))}
+         </div>
+       </div>
+@@ -100,11 +100,23 @@ const REGION_FILTERS: { id: string; value: string | null; labelKey: string | nul
+ <script>
+   // Progressive enhancement only — see the frontmatter comment above. The unfiltered page is
+   // already correct without this: every category present in the DOM has at least one row.
++  // Decided from the FILTER STATE (the two checked radios against each row's data attributes),
++  // never from layout: `offsetParent` is null for every row while the tab is not displayed.
++  function checkedValue(name: string): string {
++    const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
++    return el?.value ?? "";
++  }
+   function applyEmptyCategoryCollapse() {
++    const entity = checkedValue("entity-filter");
++    const region = checkedValue("region-filter");
+     document.querySelectorAll<HTMLElement>(".comp-category").forEach((cat) => {
+-      const rows = cat.querySelectorAll<HTMLElement>(".comp-row");
+-      const anyVisible = Array.from(rows).some((r) => r.offsetParent !== null);
+-      cat.hidden = rows.length > 0 && !anyVisible;
++      const rows = Array.from(cat.querySelectorAll<HTMLElement>(".comp-row"));
++      const anyMatch = rows.some(
++        (r) =>
++          (!entity || r.dataset.entityType === entity) &&
++          (!region || r.dataset.confederation === region),
++      );
++      cat.hidden = rows.length > 0 && !anyMatch;
+     });
+   }
+   document
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index b657323b..d25edb17 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -235,6 +235,12 @@ const EN: Dict = {
+   compTypeQualifying: "National team qualifiers",
+   compTypeContinentalChampionship: "Continental championships",
+   compTypeWorldChampionship: "World Cup",
++  compTypeDomesticSuperCup: "Domestic super cups",
++  compTypeClubQualifying: "Continental club qualifiers",
++  compTypeIntercontinentalSuperCup: "Intercontinental Cup",
++  compTypeClubFriendlyDomestic: "Domestic club friendlies",
++  compTypeClubFriendlyInternational: "International club friendlies",
++  compTypeNationalTeamFriendly: "National team friendlies",
+   confedAfc: "Asia",
+   confedCaf: "Africa",
+   confedConcacaf: "North & Central America",
+@@ -426,6 +432,12 @@ const DE: Dict = {
+   compTypeQualifying: "Nationalmannschafts-Qualifikation",
+   compTypeContinentalChampionship: "Kontinentale Meisterschaften",
+   compTypeWorldChampionship: "Weltmeisterschaft",
++  compTypeDomesticSuperCup: "Nationale Superpokale",
++  compTypeClubQualifying: "Kontinentale Vereinsqualifikation",
++  compTypeIntercontinentalSuperCup: "Interkontinental-Pokal",
++  compTypeClubFriendlyDomestic: "Nationale Vereinsfreundschaftsspiele",
++  compTypeClubFriendlyInternational: "Internationale Vereinsfreundschaftsspiele",
++  compTypeNationalTeamFriendly: "Länderspiel-Freundschaftsspiele",
+   confedAfc: "Asien",
+   confedCaf: "Afrika",
+   confedConcacaf: "Nord- und Mittelamerika",
+@@ -617,6 +629,12 @@ const FI: Dict = {
+   compTypeQualifying: "Maajoukkueiden karsinnat",
+   compTypeContinentalChampionship: "Mantereiden mestaruuskilpailut",
+   compTypeWorldChampionship: "MM-kisat",
++  compTypeDomesticSuperCup: "Kansalliset supercupit",
++  compTypeClubQualifying: "Mantereiden seurakarsinnat",
++  compTypeIntercontinentalSuperCup: "Mannertenvälinen cup",
++  compTypeClubFriendlyDomestic: "Kansalliset seurojen harjoitusottelut",
++  compTypeClubFriendlyInternational: "Kansainväliset seurojen harjoitusottelut",
++  compTypeNationalTeamFriendly: "Maajoukkueiden harjoitusottelut",
+   confedAfc: "Aasia",
+   confedCaf: "Afrikka",
+   confedConcacaf: "Pohjois- ja Keski-Amerikka",
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 7c692d80..b72318d4 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -672,12 +672,18 @@ a.brow:focus-visible { outline-offset: -2px; }
+   padding: 8px 4px;
+   min-width: 0;
+ }
+-.comp-meta { min-width: 0; }
++.comp-meta { display: block; min-width: 0; }
+ .comp-name {
+-  font-size: 14px; font-weight: 600; color: var(--ink);
++  display: block; font-size: 14px; font-weight: 600; color: var(--ink);
+   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+ }
+-.comp-region { font-size: 12px; color: var(--muted); margin-top: 1px; }
++.comp-region { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
++/* The row is a link: the same hover/active treatment as `a.brow`, the ring drawn inside for the
++   same reason (the grid gap is 8px; a 4px outward ring would touch the neighbour). */
++a.comp-row { border-radius: 9px; }
++@media (hover: hover) { a.comp-row:hover { background: var(--surface); } }
++a.comp-row:active { background: var(--sunk); }
++a.comp-row:focus-visible { outline-offset: -2px; }
+ 
+ #filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
+ #filter-entity-national:checked ~ .categories [data-entity-type="club"] { display: none; }
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index d8b1edfa..e9af873f 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -1028,6 +1028,89 @@ def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
+     assert gate.main() == 1, "an em dash inside a metric label must be reported like any other"
+ 
+ 
++def _seed_fixture(tmp_path, keys):
++    """A one-file seed carrying `label_i18n_key` values, the shape check 5 reads."""
++    p = tmp_path / "competition_types.csv"
++    p.write_text("competition_type,label_i18n_key,label_en\n"
++                 + "".join(f"t{i},{k},Label {i}\n" for i, k in enumerate(keys)),
++                 encoding="utf-8")
++    return p
++
++
++def test_copy_gate_fails_on_a_seed_key_no_locale_carries(tmp_path, monkeypatch):
++    """Check 5 (#128, #144). A competition kind can sit in the seed with an English label and
++    no string in ANY locale — check 2 is blind to it (it compares de/fi against en, and en has
++    no such key either) and checks 1-4 see only keys already in the file. Six kinds were in that
++    state on 2026-09-14. The seed is the list of keys that can reach a page; the gate reads it."""
++    gate = _copy_gate()
++    f = tmp_path / "strings.ts"
++    f.write_text(_strings_fixture(), encoding="utf-8")
++    monkeypatch.setattr(gate, "STRINGS", f)
++    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (_seed_fixture(tmp_path, ["key1", "compTypeGhost"]),))
++
++    text = f.read_text(encoding="utf-8")
++    dicts = gate._dicts(text)
++    assert all("compTypeGhost" not in dicts[loc] for loc in ("en", "de", "fi")), (
++        "the fixture must reproduce the blind spot: the key is in NO locale, so check 2 is silent")
++    assert gate.main() == 1, "a seed-published key absent from every locale must fail the gate"
++
++
++def test_copy_gate_passes_when_every_seed_key_resolves(tmp_path, monkeypatch):
++    """The other side: seed keys the file carries in all three locales are not findings, and a
++    blank `label_i18n_key` cell is left to the seed's own not_null test rather than reported
++    here twice."""
++    gate = _copy_gate()
++    f = tmp_path / "strings.ts"
++    f.write_text(_strings_fixture(), encoding="utf-8")
++    monkeypatch.setattr(gate, "STRINGS", f)
++    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (_seed_fixture(tmp_path, ["key1", "key7", ""]),))
++    assert gate._seed_label_keys() == {"competition_types.csv": ["key1", "key7"]}
++    assert gate.main() == 0
++
++
++def test_copy_gate_fails_closed_on_a_seed_without_the_key_column(tmp_path, monkeypatch):
++    """A renamed or missing `label_i18n_key` column must FAIL, not read as zero keys to check —
++    a gate over zero keys always passes, the floor `MIN_KEYS` already holds on the strings side.
++    The reader raises; `main()` turns it into the gate's own FAIL line and exit 1, never a bare
++    traceback. Same for an absent seed file."""
++    gate = _copy_gate()
++    f = tmp_path / "strings.ts"
++    f.write_text(_strings_fixture(), encoding="utf-8")
++    monkeypatch.setattr(gate, "STRINGS", f)
++
++    renamed = tmp_path / "competition_types.csv"
++    renamed.write_text("competition_type,i18n_key,label_en\nt0,key1,Label 0\n", encoding="utf-8")
++    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (renamed,))
++    with pytest.raises(KeyError):
++        gate._seed_label_keys()
++    assert gate.main() == 1, "a seed without the key column must fail the gate, not pass over zero keys"
++
++    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (tmp_path / "does_not_exist.csv",))
++    assert gate.main() == 1, "an absent seed file must fail the gate with its own message"
++
++    # Not UTF-8 (a Windows "save as" writes cp1252): a decode error is a ValueError, not an
++    # OSError, and must land on the same FAIL line.
++    latin = tmp_path / "competition_types.csv"
++    latin.write_bytes("competition_type,label_i18n_key,label_en\nt0,key1,Nationale Superpokale \xe4\n".encode("cp1252"))
++    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (latin,))
++    assert gate.main() == 1, "a non-UTF-8 seed must fail the gate, not raise through it"
++
++
++def test_copy_gate_reads_the_real_seeds():
++    """Pins the two seed paths and that every key they publish resolves today, so the check
++    cannot be silently pointed at a file that does not exist (an absent file must raise, not
++    pass over zero keys)."""
++    gate = _copy_gate()
++    keys = gate._seed_label_keys()
++    assert set(keys) == {"competition_types.csv", "confederations.csv"}
++    assert len(keys["competition_types.csv"]) >= 14 and len(keys["confederations.csv"]) >= 7
++    dicts = gate._dicts(gate.STRINGS.read_text(encoding="utf-8"))
++    for name, ks in keys.items():
++        for k in ks:
++            for loc in ("en", "de", "fi"):
++                assert k in dicts[loc], f"{name}: {k} missing from {loc}"
++
++
+ def test_routing_has_no_duplicate_keys():
+     """`paths` is a JSON OBJECT, so two identical pattern keys are not a merge —
+     `json.load` keeps the LAST one and the other reviewer requirement vanishes
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -187,6 +571,9 @@ index 5108eb0e..524786b2 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   docs/tracker/gitlab_snapshot.md | 105 +++++++++++++++++++++++++++++++++++++---
-#    1 file changed, 99 insertions(+), 6 deletions(-)
+#   .claude/active_work.md                 |  76 ++--
+#    .claude/task/acceptance_evidence.md    | 125 +++---
+#    .claude/task/rendered_page_evidence.md |  95 ++---
+#    .claude/task/review_input.patch        | 696 +++++++++++++++++++++++++--------
+#    4 files changed, 658 insertions(+), 334 deletions(-)
 # ============================================================================

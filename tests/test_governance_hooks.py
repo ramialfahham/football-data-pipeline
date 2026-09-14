@@ -1028,6 +1028,89 @@ def test_copy_gate_sees_metric_labels_as_ordinary_copy(tmp_path, monkeypatch):
     assert gate.main() == 1, "an em dash inside a metric label must be reported like any other"
 
 
+def _seed_fixture(tmp_path, keys):
+    """A one-file seed carrying `label_i18n_key` values, the shape check 5 reads."""
+    p = tmp_path / "competition_types.csv"
+    p.write_text("competition_type,label_i18n_key,label_en\n"
+                 + "".join(f"t{i},{k},Label {i}\n" for i, k in enumerate(keys)),
+                 encoding="utf-8")
+    return p
+
+
+def test_copy_gate_fails_on_a_seed_key_no_locale_carries(tmp_path, monkeypatch):
+    """Check 5 (#128, #144). A competition kind can sit in the seed with an English label and
+    no string in ANY locale — check 2 is blind to it (it compares de/fi against en, and en has
+    no such key either) and checks 1-4 see only keys already in the file. Six kinds were in that
+    state on 2026-09-14. The seed is the list of keys that can reach a page; the gate reads it."""
+    gate = _copy_gate()
+    f = tmp_path / "strings.ts"
+    f.write_text(_strings_fixture(), encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", f)
+    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (_seed_fixture(tmp_path, ["key1", "compTypeGhost"]),))
+
+    text = f.read_text(encoding="utf-8")
+    dicts = gate._dicts(text)
+    assert all("compTypeGhost" not in dicts[loc] for loc in ("en", "de", "fi")), (
+        "the fixture must reproduce the blind spot: the key is in NO locale, so check 2 is silent")
+    assert gate.main() == 1, "a seed-published key absent from every locale must fail the gate"
+
+
+def test_copy_gate_passes_when_every_seed_key_resolves(tmp_path, monkeypatch):
+    """The other side: seed keys the file carries in all three locales are not findings, and a
+    blank `label_i18n_key` cell is left to the seed's own not_null test rather than reported
+    here twice."""
+    gate = _copy_gate()
+    f = tmp_path / "strings.ts"
+    f.write_text(_strings_fixture(), encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", f)
+    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (_seed_fixture(tmp_path, ["key1", "key7", ""]),))
+    assert gate._seed_label_keys() == {"competition_types.csv": ["key1", "key7"]}
+    assert gate.main() == 0
+
+
+def test_copy_gate_fails_closed_on_a_seed_without_the_key_column(tmp_path, monkeypatch):
+    """A renamed or missing `label_i18n_key` column must FAIL, not read as zero keys to check —
+    a gate over zero keys always passes, the floor `MIN_KEYS` already holds on the strings side.
+    The reader raises; `main()` turns it into the gate's own FAIL line and exit 1, never a bare
+    traceback. Same for an absent seed file."""
+    gate = _copy_gate()
+    f = tmp_path / "strings.ts"
+    f.write_text(_strings_fixture(), encoding="utf-8")
+    monkeypatch.setattr(gate, "STRINGS", f)
+
+    renamed = tmp_path / "competition_types.csv"
+    renamed.write_text("competition_type,i18n_key,label_en\nt0,key1,Label 0\n", encoding="utf-8")
+    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (renamed,))
+    with pytest.raises(KeyError):
+        gate._seed_label_keys()
+    assert gate.main() == 1, "a seed without the key column must fail the gate, not pass over zero keys"
+
+    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (tmp_path / "does_not_exist.csv",))
+    assert gate.main() == 1, "an absent seed file must fail the gate with its own message"
+
+    # Not UTF-8 (a Windows "save as" writes cp1252): a decode error is a ValueError, not an
+    # OSError, and must land on the same FAIL line.
+    latin = tmp_path / "competition_types.csv"
+    latin.write_bytes("competition_type,label_i18n_key,label_en\nt0,key1,Nationale Superpokale \xe4\n".encode("cp1252"))
+    monkeypatch.setattr(gate, "SEED_LABEL_FILES", (latin,))
+    assert gate.main() == 1, "a non-UTF-8 seed must fail the gate, not raise through it"
+
+
+def test_copy_gate_reads_the_real_seeds():
+    """Pins the two seed paths and that every key they publish resolves today, so the check
+    cannot be silently pointed at a file that does not exist (an absent file must raise, not
+    pass over zero keys)."""
+    gate = _copy_gate()
+    keys = gate._seed_label_keys()
+    assert set(keys) == {"competition_types.csv", "confederations.csv"}
+    assert len(keys["competition_types.csv"]) >= 14 and len(keys["confederations.csv"]) >= 7
+    dicts = gate._dicts(gate.STRINGS.read_text(encoding="utf-8"))
+    for name, ks in keys.items():
+        for k in ks:
+            for loc in ("en", "de", "fi"):
+                assert k in dicts[loc], f"{name}: {k} missing from {loc}"
+
+
 def test_routing_has_no_duplicate_keys():
     """`paths` is a JSON OBJECT, so two identical pattern keys are not a merge —
     `json.load` keeps the LAST one and the other reviewer requirement vanishes

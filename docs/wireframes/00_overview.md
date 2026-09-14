@@ -135,7 +135,7 @@ not made here. See 09_chrome.md §10 for the full note.
 | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
 | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
 | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
-| 08 | [08_browse.md](08_browse.md) | Competitions index + country hubs | **competitions index built** 2026-08-18 (#62 step 5); country hubs (`/football/{country-slug}/`) still pending | 4 |
+| 08 | [08_browse.md](08_browse.md) | Competitions index | **built** 2026-08-18 (#62 step 5); **approved on GitLab #128** (2026-09-14, "The approved design") — the authority for the page; #144 builds the row links, the collapse fix and the missing labels. ~~Country hubs (`/football/{country-slug}/`) still pending~~ — in no menu and no issue; struck by #128 | 4 |
 | 09 | [09_chrome.md](09_chrome.md) | Nav/header/footer/search/locale/404 | **spec'd + built** 2026-07-26 (header/footer/nav/search-chrome/theme-toggle; locale-switch mechanism + 404 page deferred) | 4 |
 | 10 | [10_home.md](10_home.md) | Home (pins the homepage spec → unblocks `landing.json`) | **built**, three blocks; **approved on GitLab #127** (2026-09-13, "The approved design") — the authority for Home; the wireframe is corrected to it and #143 builds the Home-owned changes | 5 |
 | 11 | [11_team_squad.md](11_team_squad.md) | Team → Squad (roster + per-player apps/mins-per-app/goals/assists) | **built** 2026-07-24 | #391 ⁑ |

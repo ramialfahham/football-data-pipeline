@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-13**, on `feat/143-home-approved-design`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-14**, on `feat/144-competitions-hub-approved-design`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -23,20 +23,25 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 
 ## ⛔ WHERE WE ARE
 
-**HOME IS APPROVED (#127, 2026-09-13) AND ITS BUILD IS ON `feat/143-home-approved-design`.** The
-approved design is the `The approved design` section of #127's description — the authority for
-Home; `10_home.md` is corrected to it, not rewritten (#100 still owns the reduction). Rulings that
-landed elsewhere: #101 weights **80/10/10** (build item, scope + season trap on the issue); #114
-team tie-break = **underlying total** (build item); Stats → **Leaderboards** (milestone 7, #139,
-#140 renamed; metric names on Home boards link there once built); menu and footer links go live
-per page. #143 builds the Home-owned parts: the round-per-competition window (SQL in the export),
-the 3-row `<details>` fold (`FixtureRow.astro` extracted — Astro frontmatter cannot hold JSX), no
-team-board floor (`>= 1`; benchmark gates untouched), wireframe/overview/mock corrected. The
-committed `landing.json` sample (≤2 per competition) cannot show the fold and was NOT refreshed
-(a set roll-forward would pin 232 fixture payloads); evidence is from the dev server with a
-fresh export placed then reverted. Stated to the CPO in the MR head, not decided: a postponed
-match keeps its round name, so a straggler renders as a one-match matchday for a few days (BL1
-3/season, BSA 16). Go-live items (About, Imprint) have no tracker issue yet — his call to file.
+**HOME IS DONE (#127 approved, #143 merged as `!187`, 2026-09-13).** The approved design is the
+`The approved design` section of #127. The next matchday is a warehouse fact: `mart_next_matchday`
+(the CPO's "Path A" after the warehouse reviewer failed the export-side round selection; GAP-32
+closed), read whole by the export; the block folds past three rows; the team boards have no floor.
+⚠ The committed `landing.json` sample (≤2 fixtures per competition) cannot show the fold and was
+NOT refreshed — a set roll-forward would pin 232 fixture payloads; rolling it is maintenance, not
+a block's job. Rulings elsewhere: #101 (80/10/10), #114 (underlying total), Stats → **Leaderboards**
+(milestone 7). Go-live items (About, Imprint) have no tracker issue — his call to file.
+
+**THE COMPETITIONS HUB IS APPROVED (#128, 2026-09-14) AND ITS BUILD IS ON
+`feat/144-competitions-hub-approved-design`.** #144 builds: every row links to its competition's
+page; the empty-group collapse decides from the FILTER STATE (`offsetParent` hid all eight groups
+after a background load — seen live); six competition kinds get DE/FI labels and
+`check_copy_gate.py` check 5 reads the seeds' `label_i18n_key` so no kind can lack a language;
+`08_browse.md` and the overview row 08 corrected to #128. The DE/FI wording of the six labels is
+the builder's draft, put to the CPO in the MR head. Rulings that landed elsewhere: **#57** —
+delete the `display_group` column (a competition we ingest is one we show; friendlies would get
+their own group); **#69** — the country table, first consumer this page (countries are English on
+every page today; regions are translated). Both are their own build items.
 
 **THE ROADMAP IS THE GITLAB MILESTONES, IN THE SITE'S MENU ORDER: Home · Competitions · Matches ·
 Teams · Players · Standings · Leaderboards.** One review issue per page under each (#127–#140): what is on
@@ -48,9 +53,9 @@ gone (`!184`). **The tracker has a backup in the repo** (`!185`): `docs/tracker/
 written only by `python scripts/snapshot_tracker.py` — run it at the END of every session before
 the handover commit; a hook refuses any hand edit, a test checks its checksum, and it is read only
 when GitLab is unreachable. ⚠ Its checksum is self-consistency, not provenance — a forged shell
-write passes; forbidden by rule, and the CPO knows. **Next: land #143's MR, then the
-Competitions hub review, #128, the same way as Home (built page beside its data sources and
-links; rulings one at a time; consolidate into the issue description; he ticks).**
+write passes; forbidden by rule, and the CPO knows. **Next: land #144's MR, then the
+competition page review, #129 (the scaffold at `/{lang}/{competition}/`; `04_competition_hub.md`
+does not exist — `ui_design_brief.md` §6.5 is its only field contract), the same way.**
 
 **How we work since 2026-09-11** is in `CLAUDE.md` "Which source answers which question" and
 `docs/working_agreement.md` §1 / §11: the requirement is the GitLab issue (Task template), the
@@ -111,24 +116,20 @@ before asserting it. ⚠ **Never ask him to approve routine mechanics** — ask 
 Branch `fix/dbt-profile-local-to-this-repo`; the WIP is on
 `parked/fix/dbt-profile-local-to-this-repo--profile-root` (and `…--profile-local-3`). The repo-local
 `profiles.yml` at the ROOT is the fix (dbt reads `--profiles-dir` → `DBT_PROFILES_DIR` → **CWD** →
-`~/.dbt`; `--project-dir` does NOT move it, and every CI job does `cd dbt_project`, so a root profile
-can never shadow CI's). Open: (1) a stale `decisions_taken` paragraph saying the file goes in
-`dbt_project/`; (2) **`.mcp.json` sets `DBT_PROFILES_DIR: C:/Users/Rami/.dbt`** — a PROTECTED path
-that outranks the whole fix. ⚠ There is deliberately **no `prod` target** in the local profile; that
-absence is the safety mechanism. A prod target needs `dataset: dbt_analytics` to resolve the base
-models, which is exactly the line that overwrites prod's base tables and seeds if a build ever
-selects one — so it is only ever safe with an explicit `--select` naming core models.
+`~/.dbt`; every CI job does `cd dbt_project`, so a root profile never shadows CI's). Open: (1) a
+stale `decisions_taken` paragraph saying the file goes in `dbt_project/`; (2) **`.mcp.json` sets
+`DBT_PROFILES_DIR: C:/Users/Rami/.dbt`**, a PROTECTED path that outranks the fix. ⚠ Deliberately
+**no `prod` target** in the local profile: a prod target needs `dataset: dbt_analytics`, the line
+that overwrites prod's base tables and seeds if a build ever selects one. Meanwhile `dbt ls` /
+`parse` / `compile` work with a throwaway profile in the scratchpad (`DBT_PROFILES_DIR`, target
+`dev_scratch`) — `~/.dbt/profiles.yml` currently holds ANOTHER project's profile; never edit it.
 
 ## ⛔ OPEN — DEFECTS TO FIX (not decisions to wait on)
 
-  - **#110 — a forfeit the provider labels `FT`.** An awarded result is official and counts, and
-    `!156` already stops one destroying a season via `games_expecting_team_stats`. But that column
-    keys on `status_short`, and the provider often files a forfeit as `FT` with a score and no stat
-    line — so 18 of 19 Süper Lig 2022 team-seasons are blank. ⚠ **Not the same as the other 435**
-    blanked team-seasons, which are correct: measured, of 9,515 fixtures with no team statistics,
-    ZERO have statistics in the raw payload that our models discard. The provider supplied nothing
-    and the rule applies. The fix needs a competition-relative signal (a fixture with no stats in a
-    league where 90%+ have them), not a blanket rule. Everything measured is on the issue.
+  - **#110 — a forfeit the provider labels `FT`** with a score and no stat line, so 18 of 19 Süper
+    Lig 2022 team-seasons are blank. The other 435 blanked team-seasons are CORRECT (measured: of
+    9,515 fixtures with no team statistics, ZERO have any in the raw payload). The fix needs a
+    competition-relative signal, not a blanket rule. Everything measured is on the issue.
   - **#111 — no test compares a metric to its own formula.** The catalogue publishes
     `base_relation` + `numerator_expr` + `denominator_expr`; the models compute the same metric in
     SQL; nothing checks they agree. `assert_metric_catalogue_expr_resolvable` already parses those
@@ -139,12 +140,9 @@ selects one — so it is only ever safe with an explicit `--select` naming core 
   - **The mid-season deserved-vs-actual line and its start matchday** — both open, and they gate
     showing that hero on live data.
   - **`fix/raw-players-row-chunking` is UNMERGED and its mechanism is ABSENT from main.** Commit
-    `1f822a2` chunks the `RAW_APIF_PLAYERS` snapshot under BigQuery's 100MB per-row limit, citing
-    *"LIBER failed… UEL 81.8MB / UCL 78.7MB imminent."* The FIXTURE landed on main, the fix did not.
-    Settle superseded-or-abandoned before those rosters grow.
-  - **#101's rotation MR**, when built: a league whose new season has started but has no FINISHED
-    matches produces no rows, so `is_current_season` falls back to the last season WITH data — the
-    block would show last season's leaders under "Season totals to date".
+    `1f822a2` chunks the `RAW_APIF_PLAYERS` snapshot under BigQuery's 100MB per-row limit (UEL
+    81.8MB / UCL 78.7MB when written). Settle superseded-or-abandoned before those rosters grow.
+  - **#101** carries its season trap on the issue now (recorded 2026-09-13).
   - **#99 / #102 / #96 / #98** — export board keys pinned by no test; `mart_leaderboards` is
     player-only under an unprefixed name; no offline gate checks `accepted_values`.
 
