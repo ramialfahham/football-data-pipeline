@@ -5,22 +5,21 @@
 // single-select filter axes (entity_type, confederation) via the zero-JS `.seg-in`/`.seg-btn`
 // radio pattern already used elsewhere (system.css) for the row-hiding itself.
 //
-// Rows are NOT yet links. #54 describes them as row targets, but the page each row would link to
-// (#47, the competition hub) is not built — linking there today would be the exact "browse-chip
-// 404" #47's own issue text names as a failure mode, so these rows are inert <span>s too, matching
-// the site's standing no-dead-links convention. They become real anchors (with the hover-lift +
-// chevron affordance) in the MR that ships #47.
+// Every row is a link to its competition's page (GitLab #128); the page exists for every row
+// because `[competition]/index.astro` builds one per competition_index.json row.
 //
-// Category disappearance under a filter needs the count of rows STILL VISIBLE after BOTH axes
-// apply at once (e.g. "Clubs + Oceania" can legitimately empty a category that neither axis
-// alone would empty) — a check pure CSS :checked sibling selectors can't express without an
-// unreadable combinatorial blow-up (3 entity states x 8 region states). A small inline script
-// does the equivalent grouping at filter-change time instead of build time: after every change,
-// walk the categories and toggle [hidden] on any with zero visible rows.
+// Category disappearance under a filter needs the count of rows that SURVIVE BOTH axes at once
+// (e.g. "Clubs + Oceania" can legitimately empty a category that neither axis alone would empty)
+// — a check pure CSS :checked sibling selectors can't express without an unreadable combinatorial
+// blow-up (3 entity states x 8 region states). A small inline script decides it from the FILTER
+// STATE: the two checked radios' values against each row's data attributes. Never from on-screen
+// visibility — `offsetParent` is null for every row while the tab is not displayed, so a page
+// loaded in a background tab hid all eight categories until a filter was touched.
 // The unfiltered page (no JS) already shows every non-empty category correctly; JS only handles
 // filtering, so nothing breaks if it fails to load.
 import Crest from "../ui/Crest.astro";
 import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
 import { groupAndOrderCompetitions } from "../../lib/competitionOrder";
 import type { Lang } from "../../lib/format";
 import type { CompetitionIndexRow } from "../../lib/types";
@@ -54,17 +53,13 @@ const REGION_FILTERS: { id: string; value: string | null; labelKey: string | nul
 ---
 
 <section class="compindex">
-  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-all" checked />
-  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-club" />
-  <input class="seg-in" type="radio" name="entity-filter" id="filter-entity-national" />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-all" checked />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-uefa" />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-conmebol" />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-concacaf" />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-caf" />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-afc" />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-ofc" />
-  <input class="seg-in" type="radio" name="region-filter" id="filter-region-fifa" />
+  {/* The radio's value is what the collapse script matches rows against; "All" is empty. */}
+  {ENTITY_FILTERS.map((f) => (
+    <input class="seg-in" type="radio" name="entity-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+  ))}
+  {REGION_FILTERS.map((f) => (
+    <input class="seg-in" type="radio" name="region-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+  ))}
 
   <div class="seg" role="group" aria-label={t(lang, "filterByType")}>
     {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
@@ -81,15 +76,20 @@ const REGION_FILTERS: { id: string; value: string | null; labelKey: string | nul
         <div class="colhead">{t(lang, cat.labelI18nKey)}</div>
         <div class="comp-grid">
           {cat.rows.map((row) => (
-            <div class="comp-row" data-entity-type={row.entity_type} data-confederation={row.confederation}>
+            <a
+              class="comp-row"
+              href={localeHref(lang, `${row.slug}/`)}
+              data-entity-type={row.entity_type}
+              data-confederation={row.confederation}
+            >
               <Crest name={row.competition_name} crest={row.logo_url} size="xs" />
-              <div class="comp-meta">
-                <div class="comp-name">{row.competition_name}</div>
-                <div class="comp-region">
+              <span class="comp-meta">
+                <span class="comp-name">{row.competition_name}</span>
+                <span class="comp-region">
                   {row.region_label_i18n_key ? t(lang, row.region_label_i18n_key) : row.region_label_en}
-                </div>
-              </div>
-            </div>
+                </span>
+              </span>
+            </a>
           ))}
         </div>
       </div>
@@ -100,11 +100,23 @@ const REGION_FILTERS: { id: string; value: string | null; labelKey: string | nul
 <script>
   // Progressive enhancement only — see the frontmatter comment above. The unfiltered page is
   // already correct without this: every category present in the DOM has at least one row.
+  // Decided from the FILTER STATE (the two checked radios against each row's data attributes),
+  // never from layout: `offsetParent` is null for every row while the tab is not displayed.
+  function checkedValue(name: string): string {
+    const el = document.querySelector<HTMLInputElement>(`input[name="${name}"]:checked`);
+    return el?.value ?? "";
+  }
   function applyEmptyCategoryCollapse() {
+    const entity = checkedValue("entity-filter");
+    const region = checkedValue("region-filter");
     document.querySelectorAll<HTMLElement>(".comp-category").forEach((cat) => {
-      const rows = cat.querySelectorAll<HTMLElement>(".comp-row");
-      const anyVisible = Array.from(rows).some((r) => r.offsetParent !== null);
-      cat.hidden = rows.length > 0 && !anyVisible;
+      const rows = Array.from(cat.querySelectorAll<HTMLElement>(".comp-row"));
+      const anyMatch = rows.some(
+        (r) =>
+          (!entity || r.dataset.entityType === entity) &&
+          (!region || r.dataset.confederation === region),
+      );
+      cat.hidden = rows.length > 0 && !anyMatch;
     });
   }
   document

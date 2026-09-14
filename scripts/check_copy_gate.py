@@ -25,6 +25,14 @@ The checks, each traceable to a real defect:
      for a key whose EN value contains a lowercase alphabetic word. Numbers,
      symbols, brand names and pure abbreviations are exempt, because those are
      legitimately identical across locales.
+  5. SEED KEYS RESOLVABLE. Every `label_i18n_key` the warehouse seeds publish
+     (competition kinds, confederations) exists in every locale. Check 2 sees
+     only keys that are already in EN, and check 1-4 see only keys the pages
+     show today; a kind with no competition yet had an English label in the
+     seed and nothing in `strings.ts`, so its heading would have rendered in
+     English on the DE and FI pages the day one was onboarded (six such kinds
+     when this check was added). The seed is the list of keys that can reach a
+     page; this check reads it, not the pages.
 
 Exit 1 on any finding, and on an absent or unparseable `strings.ts`. Fails CLOSED,
 as a CI check should.
@@ -46,6 +54,7 @@ honest while it is temporary and someone is counting the days.
 """
 from __future__ import annotations
 
+import csv
 import json
 import pathlib
 import re
@@ -62,6 +71,11 @@ MIN_KEYS = 20
 # Floor for the metric-label maps (#370). 18 metrics get a name today; 15 leaves room for a row to be
 # retired without a false alarm, while still tripping if the quoted-dotted-key regex breaks.
 MIN_METRIC_KEYS = 15
+# The seeds whose `label_i18n_key` column names a key a page will resolve through `t()`.
+SEED_LABEL_FILES = (
+    REPO_ROOT / "dbt_project" / "seeds" / "competition_types.csv",
+    REPO_ROOT / "dbt_project" / "seeds" / "confederations.csv",
+)
 
 # Terms the validated corpus settles. term -> (wrong, right, why)
 # Only entries evidenced by the corpus or by a correction the product owner made belong here.
@@ -126,6 +140,23 @@ def _metric_labels(text: str) -> dict[str, dict[str, str]]:
     for m in _METRIC_DICT_RE.finditer(text):
         out[m.group(1).lower()] = dict(_METRIC_ENTRY_RE.findall(m.group(2)))
     return out
+
+
+def _seed_label_keys(paths=None) -> dict[str, list[str]]:
+    """`label_i18n_key` values per seed file, in file order; a blank cell is skipped (the
+    seeds' own not_null tests own that defect). Reads `SEED_LABEL_FILES` at call time so a
+    test can point it at a fixture."""
+    keys: dict[str, list[str]] = {}
+    for path in (paths or SEED_LABEL_FILES):
+        with open(path, encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            # Fail closed: a renamed or missing column must not read as "no keys to check" — a
+            # gate over zero keys always passes (the same floor MIN_KEYS holds on the strings side).
+            if "label_i18n_key" not in (reader.fieldnames or []):
+                raise KeyError(f"{path.name}: no label_i18n_key column (header: {reader.fieldnames})")
+            rows = list(reader)
+        keys[path.name] = [r["label_i18n_key"] for r in rows if (r["label_i18n_key"] or "").strip()]
+    return keys
 
 
 def _corpus_leaves(obj) -> list[str]:
@@ -244,6 +275,24 @@ def main() -> int:
                 "no self-serve exemption comment; see the note above check 4."
             )
 
+    # 5. every seed-published label key resolves in every locale
+    # Any read failure (absent file, renamed column, non-UTF-8 bytes, malformed CSV) is the gate's
+    # own FAIL line — the `check_competition_type_seed.py` pattern — never a bare traceback.
+    try:
+        seed_keys = _seed_label_keys()
+    except Exception as e:  # noqa: BLE001
+        print(f"FAIL: cannot read the seed label keys: {type(e).__name__}: {e}")
+        return 1
+    for seed_name, keys in seed_keys.items():
+        for key in keys:
+            for loc in LOCALES:
+                if key not in dicts[loc]:
+                    findings.append(
+                        f"seed key unresolvable: {seed_name} publishes label_i18n_key `{key}` "
+                        f"and {loc} has no such string. A page resolves the heading by this key "
+                        "the day a competition of that kind is onboarded; add it in every locale."
+                    )
+
     if findings:
         print(f"COPY GATE: {len(findings)} finding(s)\n")
         for f in findings:
@@ -255,7 +304,8 @@ def main() -> int:
     total = sum(len(dicts[loc]) for loc in LOCALES)
     print(f"COPY GATE ok: {total} strings across {len(LOCALES)} locales "
           f"({total - metric_count} chrome + {metric_count} metric labels), "
-          f"{sum(len(v) for v in corpus.values())} corpus strings consulted")
+          f"{sum(len(v) for v in corpus.values())} corpus strings consulted, "
+          f"{sum(len(v) for v in seed_keys.values())} seed label keys resolvable in every locale")
     return 0
 
 

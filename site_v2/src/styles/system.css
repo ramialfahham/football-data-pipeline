@@ -672,12 +672,18 @@ a.brow:focus-visible { outline-offset: -2px; }
   padding: 8px 4px;
   min-width: 0;
 }
-.comp-meta { min-width: 0; }
+.comp-meta { display: block; min-width: 0; }
 .comp-name {
-  font-size: 14px; font-weight: 600; color: var(--ink);
+  display: block; font-size: 14px; font-weight: 600; color: var(--ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.comp-region { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.comp-region { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
+/* The row is a link: the same hover/active treatment as `a.brow`, the ring drawn inside for the
+   same reason (the grid gap is 8px; a 4px outward ring would touch the neighbour). */
+a.comp-row { border-radius: 9px; }
+@media (hover: hover) { a.comp-row:hover { background: var(--surface); } }
+a.comp-row:active { background: var(--sunk); }
+a.comp-row:focus-visible { outline-offset: -2px; }
 
 #filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
 #filter-entity-national:checked ~ .categories [data-entity-type="club"] { display: none; }
