@@ -185,7 +185,7 @@ COPY = {
     "secWorse":            ("Worse than the table says",    "Heikompia kuin taulukko kertoo",        False),
     "factGoalsPerMatch":   ("Goals per match",              "Maalia per ottelu",                     False),
     "factHomeWins":        ("Home wins",                    "Kotivoitot",                            False),
-    "factBiggestMargin":   ("Biggest margin",               "Suurin ero",                            False),
+    "factBiggestMargin":   ("Biggest margin",               "Suurin voitto",                         False),
     "factMostGoals":       ("Most goals in a match",        "Eniten maaleja ottelussa",              False),
     "factLongestUnbeaten": ("Longest unbeaten run",         "Pisin tappioton putki",                 False),
     "factLongestWinless":  ("Longest winless run",          "Pisin voitoton putki",                  False),

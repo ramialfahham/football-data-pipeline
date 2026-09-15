@@ -1653,8 +1653,8 @@ models:
 
       Built over the finished legs of int_legs__team_match, so every count reconciles with the
       team-season rollups. Tallies of match results at competition grain, not catalogue metrics:
-      no team or player is measured here. Ties on the biggest margin and the most goals go to
-      the earlier fixture. A run is the longest unbroken stretch of the season, not the current
+      no team or player is measured here. A tie on the biggest margin goes to the match with more
+      goals, a tie on the most goals to the bigger margin, then the earlier kickoff. A run is the longest unbroken stretch of the season, not the current
       one. Home and away wins are null for national-team competitions, whose matches are mostly
       played at neutral venues.
     meta:
@@ -1712,7 +1712,7 @@ models:
       - name: drawn_matches
         description: "Matches drawn."
       - name: biggest_margin_fixture_sk
-        description: "The finished match with the largest goal margin; the earlier match on a tie."
+        description: "The finished match with the largest goal margin; on a tie the match with more goals, then the earlier one."
         tests:
           - relationships:
               to: ref('fct_fixture')
@@ -1730,7 +1730,7 @@ models:
       - name: biggest_margin_kickoff_datetime
         description: "Kickoff of that match, UTC."
       - name: most_goals_fixture_sk
-        description: "The finished match with the most goals, both sides; the earlier match on a tie."
+        description: "The finished match with the most goals, both sides; on a tie the match with the bigger margin, then the earlier one."
         tests:
           - relationships:
               to: ref('fct_fixture')

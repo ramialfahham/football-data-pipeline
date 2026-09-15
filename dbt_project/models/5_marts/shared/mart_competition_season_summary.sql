@@ -11,8 +11,9 @@
   tallies of match results at competition grain, not catalogue metrics: no team or player is
   being measured, and a page renders them as facts of the season next to the table.
 
-  Ties on the biggest margin and on the most goals go to the earlier fixture (kickoff, then
-  fixture_sk). A run is the longest unbroken stretch of the season for a team, ordered by
+  A tie on the biggest margin goes to the match with more goals, a tie on the most goals to the
+  match with the bigger margin; what is still tied goes to the earlier kickoff, and the fixture
+  id decides only when two matches share all three. A run is the longest unbroken stretch of the season for a team, ordered by
   kickoff — not the run it is on at the moment, which the team profile carries separately — and
   the arrays hold every team that shares the longest one, in team_sk order. A run of one match
   is not a run: until some team has strung two together the run is NULL and its holders empty,
@@ -100,7 +101,11 @@ biggest_margin as (
         on m.fixture_sk = a.fixture_sk
     qualify row_number() over (
         partition by m.league_code, m.season_api_year
-        order by abs(m.goals_home - m.goals_away) desc, m.kickoff_datetime asc, m.fixture_sk asc
+        order by
+            abs(m.goals_home - m.goals_away) desc,
+            m.goals_home + m.goals_away desc,
+            m.kickoff_datetime asc,
+            m.fixture_sk asc
     ) = 1
 ),
 
@@ -120,7 +125,11 @@ most_goals as (
         on m.fixture_sk = a.fixture_sk
     qualify row_number() over (
         partition by m.league_code, m.season_api_year
-        order by m.goals_home + m.goals_away desc, m.kickoff_datetime asc, m.fixture_sk asc
+        order by
+            m.goals_home + m.goals_away desc,
+            abs(m.goals_home - m.goals_away) desc,
+            m.kickoff_datetime asc,
+            m.fixture_sk asc
     ) = 1
 ),
 

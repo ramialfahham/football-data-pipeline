@@ -1,8 +1,9 @@
 # Review — feat/149-competition-overview — 2026-09-15
 
-diff_sha256: 0e98cb2f7b755f2f7bca8c78dff8445f3b01a6ff8a2cd9b1913434851e9d00a5
+diff_sha256: 9c8285211c006a459925444ece2db0789f0c85346cb17b4c8aa14988f22ea2a7
 
-rounds: 3
+rounds: 4
+rounds_cap_override: the fourth round reviewed no open finding but two changes the CPO ordered on the MR in this session ("tie by id is really ridiculous and absurd"; "Höchster Sieg, aber dann auch Suurin voitto") — his instruction to build them is the continue; rounds one to three closed every finding.
 
 ## scope-auditor
 VERDICT: PASS
@@ -84,6 +85,13 @@ risks_checked:
   reads correctly, no other field moved. Position by gap is a sound total order; null handling
   and the domestic-league scope inherit the siblings'; the CPO's quoted answer covers the row's
   existence and meaning.
+
+## round 4 — the CPO's two rulings on the MR
+- analytics-engineer-reviewer (delta) PASS: the tie rule (more goals, then bigger margin, then the
+  earlier kickoff, the id only when all three are shared) is a total, deterministic order; the
+  singular test still holds; descriptions and the contract record the authority.
+- bi-analyst-reviewer (delta) PASS: the Finnish "Suurin voitto" for Biggest margin, two cells
+  (strings.ts and the mock), the copy gate OK; no other surface touched.
 
 ## escalations
 - The deserved-boards ordering (round 1, analytics-engineer-reviewer): two written rules in

@@ -103,7 +103,7 @@ acceptance_criteria:
   - The table's column headings read # · P · W · D · L · Goals · GD · Pts with one crest-and-club cell per row; Freiburg's row reads 3 3 0 0 10:1 +9 9; every row is one <a class="ctab-row"> linking to /en/teams/{slug}/; at 375px the W, D, L and Goals cells are display:none and the heading cells sit at the same x as the row cells.
   - Next matches shows every row of the competition's next matchday from the payload as <a class="fxrow"> links to /en/{competition}/matches/{slug}/, with no competition heading and no fold.
   - Deserved points shows the explanation paragraph, then "Better than the table says" with three rows ordered by deserved_points_gap ascending (Mainz first, Diff "−2.7") and "Worse than the table says" with three rows ordered descending (Dortmund first, Diff "+2.7"); Diff is the bold cell.
-  - The season in numbers renders one .frow per non-null fact with label, value and context; for BL1 2026: Goals per match "3.9" / "104 goals in 27 matches", Biggest margin "0–5" / "Hamburger SV vs 1. FSV Mainz 05, <the served round text>" (the earliest of the season's three 5–0s, per the #129 tie rule "ties on a margin or a goal count go to the earlier fixture"); the two played-match facts carry no link (a played match has no page on this site, the #129 ruling "played matches have no page"); the run facts link to the first team named and the match that matters links to its fixture page; no .frow exists for a fact whose value is null.
+  - The season in numbers renders one .frow per non-null fact with label, value and context; for BL1 2026: Goals per match "3.9" / "104 goals in 27 matches", Biggest margin "0–5" / "Hamburger SV vs 1. FSV Mainz 05, <the served round text>" (the season's three 5–0s tie on margin and on goals, so the earliest, per the tie rule ruled on the MR: more goals, then bigger margin, then the earlier kickoff); the two played-match facts carry no link (a played match has no page on this site, the #129 ruling "played matches have no page"); the run facts link to the first team named and the match that matters links to its fixture page; no .frow exists for a fact whose value is null.
   - A competition with no standings renders no TABLE section; a competition with no deserved points renders no DESERVED POINTS section; a competition with no next matchday renders no NEXT MATCHES section (shown on one cup and one tournament page in the evidence).
   - `node --test` and `node scripts/check-page-specs.mjs` pass in site_v2; the competition spec has `stub` removed and lists the five marts; STUB_PAGES no longer lists the competition page.
   - `python scripts/check_copy_gate.py` passes with every new key in EN, DE and FI.
@@ -133,8 +133,11 @@ decisions_taken: >
   (the team profile's streak columns are the CURRENT run, a different measurement). (3) Home
   wins and away wins are NULL for national-team competitions (`entity_type = 'national'`), the
   closest served fact to "no home wins at neutral venues" — the warehouse holds no venue
-  neutrality; reserved below in case the CPO wants another rule. (4) Ties on the biggest
-  margin and the most goals go to the earlier fixture; a run of one match is no run — the runs
+  neutrality; reserved below in case the CPO wants another rule. (4) Ties: the CPO ruled on the
+  MR (2026-09-15, "tie by id is really ridiculous") that a tie on the biggest margin goes to the
+  match with more goals, a tie on the most goals to the bigger margin, then the earlier kickoff,
+  the fixture id only when all three are shared — superseding the earlier "the earlier fixture"
+  (recorded on #129); a run of one match is no run — the runs
   are NULL until some team has strung two matches together (seen on the cup render, where after
   one round every one of 36 clubs "held" a run of 1). (5) The page reads
   `competitions/{league_code}/{season}.json` and picks the latest season present — selection on
@@ -179,3 +182,7 @@ amendments:
     the export selects by the served rank and the page renders the order it is served. Content:
     that column, its catalogue row and generated docs block, its schema tests; the export's
     `sorted()` on the gap and the name tie-break removed.
+  - 2026-09-15 (on MR !191, no new path): the CPO's two rulings — the tie rule for the biggest
+    margin and the most goals (more goals / bigger margin, then the earlier kickoff, the id only
+    when all three are shared) written into `mart_competition_season_summary`, its yml and
+    `decisions_taken` (4) and criterion 5; and the Finnish "Suurin voitto" for Biggest margin.

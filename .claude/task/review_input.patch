@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4b3f48c7..552304ef 100644
+index 4b3f48c7..8b51eb4c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,33 +1,181 @@
+@@ -1,33 +1,188 @@
 -# Task contract — session end 2026-09-14: tracker snapshot refreshed
 +# Task contract — #149: the competition page's Overview tab, built to #129
  
@@ -119,7 +119,7 @@ index 4b3f48c7..552304ef 100644
 +  - The table's column headings read # · P · W · D · L · Goals · GD · Pts with one crest-and-club cell per row; Freiburg's row reads 3 3 0 0 10:1 +9 9; every row is one <a class="ctab-row"> linking to /en/teams/{slug}/; at 375px the W, D, L and Goals cells are display:none and the heading cells sit at the same x as the row cells.
 +  - Next matches shows every row of the competition's next matchday from the payload as <a class="fxrow"> links to /en/{competition}/matches/{slug}/, with no competition heading and no fold.
 +  - Deserved points shows the explanation paragraph, then "Better than the table says" with three rows ordered by deserved_points_gap ascending (Mainz first, Diff "−2.7") and "Worse than the table says" with three rows ordered descending (Dortmund first, Diff "+2.7"); Diff is the bold cell.
-+  - The season in numbers renders one .frow per non-null fact with label, value and context; for BL1 2026: Goals per match "3.9" / "104 goals in 27 matches", Biggest margin "0–5" / "Hamburger SV vs 1. FSV Mainz 05, <the served round text>" (the earliest of the season's three 5–0s, per the #129 tie rule "ties on a margin or a goal count go to the earlier fixture"); the two played-match facts carry no link (a played match has no page on this site, the #129 ruling "played matches have no page"); the run facts link to the first team named and the match that matters links to its fixture page; no .frow exists for a fact whose value is null.
++  - The season in numbers renders one .frow per non-null fact with label, value and context; for BL1 2026: Goals per match "3.9" / "104 goals in 27 matches", Biggest margin "0–5" / "Hamburger SV vs 1. FSV Mainz 05, <the served round text>" (the season's three 5–0s tie on margin and on goals, so the earliest, per the tie rule ruled on the MR: more goals, then bigger margin, then the earlier kickoff); the two played-match facts carry no link (a played match has no page on this site, the #129 ruling "played matches have no page"); the run facts link to the first team named and the match that matters links to its fixture page; no .frow exists for a fact whose value is null.
 +  - A competition with no standings renders no TABLE section; a competition with no deserved points renders no DESERVED POINTS section; a competition with no next matchday renders no NEXT MATCHES section (shown on one cup and one tournament page in the evidence).
 +  - `node --test` and `node scripts/check-page-specs.mjs` pass in site_v2; the competition spec has `stub` removed and lists the five marts; STUB_PAGES no longer lists the competition page.
 +  - `python scripts/check_copy_gate.py` passes with every new key in EN, DE and FI.
@@ -151,8 +151,11 @@ index 4b3f48c7..552304ef 100644
 +  (the team profile's streak columns are the CURRENT run, a different measurement). (3) Home
 +  wins and away wins are NULL for national-team competitions (`entity_type = 'national'`), the
 +  closest served fact to "no home wins at neutral venues" — the warehouse holds no venue
-+  neutrality; reserved below in case the CPO wants another rule. (4) Ties on the biggest
-+  margin and the most goals go to the earlier fixture; a run of one match is no run — the runs
++  neutrality; reserved below in case the CPO wants another rule. (4) Ties: the CPO ruled on the
++  MR (2026-09-15, "tie by id is really ridiculous") that a tie on the biggest margin goes to the
++  match with more goals, a tie on the most goals to the bigger margin, then the earlier kickoff,
++  the fixture id only when all three are shared — superseding the earlier "the earlier fixture"
++  (recorded on #129); a run of one match is no run — the runs
 +  are NULL until some team has strung two matches together (seen on the cup render, where after
 +  one round every one of 36 clubs "held" a run of 1). (5) The page reads
 +  `competitions/{league_code}/{season}.json` and picks the latest season present — selection on
@@ -201,6 +204,10 @@ index 4b3f48c7..552304ef 100644
 +    the export selects by the served rank and the page renders the order it is served. Content:
 +    that column, its catalogue row and generated docs block, its schema tests; the export's
 +    `sorted()` on the gap and the name tie-break removed.
++  - 2026-09-15 (on MR !191, no new path): the CPO's two rulings — the tie rule for the biggest
++    margin and the most goals (more goals / bigger margin, then the earlier kickoff, the id only
++    when all three are shared) written into `mart_competition_season_summary`, its yml and
++    `decisions_taken` (4) and criterion 5; and the Finnish "Suurin voitto" for Biggest margin.
 diff --git a/.gitignore b/.gitignore
 index 28f47af3..5334b186 100644
 --- a/.gitignore
@@ -436,10 +443,10 @@ index c20cb0a1..542a162c 100644
  from ranked
 diff --git a/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
 new file mode 100644
-index 00000000..781c9a43
+index 00000000..2d879f47
 --- /dev/null
 +++ b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
-@@ -0,0 +1,247 @@
+@@ -0,0 +1,256 @@
 +{{ config(materialized='table') }}
 +
 +{#
@@ -453,8 +460,9 @@ index 00000000..781c9a43
 +  tallies of match results at competition grain, not catalogue metrics: no team or player is
 +  being measured, and a page renders them as facts of the season next to the table.
 +
-+  Ties on the biggest margin and on the most goals go to the earlier fixture (kickoff, then
-+  fixture_sk). A run is the longest unbroken stretch of the season for a team, ordered by
++  A tie on the biggest margin goes to the match with more goals, a tie on the most goals to the
++  match with the bigger margin; what is still tied goes to the earlier kickoff, and the fixture
++  id decides only when two matches share all three. A run is the longest unbroken stretch of the season for a team, ordered by
 +  kickoff — not the run it is on at the moment, which the team profile carries separately — and
 +  the arrays hold every team that shares the longest one, in team_sk order. A run of one match
 +  is not a run: until some team has strung two together the run is NULL and its holders empty,
@@ -542,7 +550,11 @@ index 00000000..781c9a43
 +        on m.fixture_sk = a.fixture_sk
 +    qualify row_number() over (
 +        partition by m.league_code, m.season_api_year
-+        order by abs(m.goals_home - m.goals_away) desc, m.kickoff_datetime asc, m.fixture_sk asc
++        order by
++            abs(m.goals_home - m.goals_away) desc,
++            m.goals_home + m.goals_away desc,
++            m.kickoff_datetime asc,
++            m.fixture_sk asc
 +    ) = 1
 +),
 +
@@ -562,7 +574,11 @@ index 00000000..781c9a43
 +        on m.fixture_sk = a.fixture_sk
 +    qualify row_number() over (
 +        partition by m.league_code, m.season_api_year
-+        order by m.goals_home + m.goals_away desc, m.kickoff_datetime asc, m.fixture_sk asc
++        order by
++            m.goals_home + m.goals_away desc,
++            abs(m.goals_home - m.goals_away) desc,
++            m.kickoff_datetime asc,
++            m.fixture_sk asc
 +    ) = 1
 +),
 +
@@ -904,7 +920,7 @@ index d362c41e..9f8f6d8a 100644
      -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
      -- with no league season. A warehouse fact, so the export and the page
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index c710f249..218e9085 100644
+index c710f249..bf015660 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
 @@ -652,6 +652,8 @@ models:
@@ -982,8 +998,8 @@ index c710f249..218e9085 100644
 +
 +      Built over the finished legs of int_legs__team_match, so every count reconciles with the
 +      team-season rollups. Tallies of match results at competition grain, not catalogue metrics:
-+      no team or player is measured here. Ties on the biggest margin and the most goals go to
-+      the earlier fixture. A run is the longest unbroken stretch of the season, not the current
++      no team or player is measured here. A tie on the biggest margin goes to the match with more
++      goals, a tie on the most goals to the bigger margin, then the earlier kickoff. A run is the longest unbroken stretch of the season, not the current
 +      one. Home and away wins are null for national-team competitions, whose matches are mostly
 +      played at neutral venues.
 +    meta:
@@ -1041,7 +1057,7 @@ index c710f249..218e9085 100644
 +      - name: drawn_matches
 +        description: "Matches drawn."
 +      - name: biggest_margin_fixture_sk
-+        description: "The finished match with the largest goal margin; the earlier match on a tie."
++        description: "The finished match with the largest goal margin; on a tie the match with more goals, then the earlier one."
 +        tests:
 +          - relationships:
 +              to: ref('fct_fixture')
@@ -1059,7 +1075,7 @@ index c710f249..218e9085 100644
 +      - name: biggest_margin_kickoff_datetime
 +        description: "Kickoff of that match, UTC."
 +      - name: most_goals_fixture_sk
-+        description: "The finished match with the most goals, both sides; the earlier match on a tie."
++        description: "The finished match with the most goals, both sides; on a tie the match with the bigger margin, then the earlier one."
 +        tests:
 +          - relationships:
 +              to: ref('fct_fixture')
@@ -2052,7 +2068,7 @@ index 4935e4d9..8fb9f872 100644
 +        sys.exit(1)
 +    print("\nall checks passed")
 diff --git a/design-mocks/gen_competition_hub.py b/design-mocks/gen_competition_hub.py
-index 3d3cd13b..09e35c18 100644
+index 3d3cd13b..667c0b88 100644
 --- a/design-mocks/gen_competition_hub.py
 +++ b/design-mocks/gen_competition_hub.py
 @@ -1,160 +1,205 @@
@@ -2354,7 +2370,7 @@ index 3d3cd13b..09e35c18 100644
 +    "secWorse":            ("Worse than the table says",    "Heikompia kuin taulukko kertoo",        False),
 +    "factGoalsPerMatch":   ("Goals per match",              "Maalia per ottelu",                     False),
 +    "factHomeWins":        ("Home wins",                    "Kotivoitot",                            False),
-+    "factBiggestMargin":   ("Biggest margin",               "Suurin ero",                            False),
++    "factBiggestMargin":   ("Biggest margin",               "Suurin voitto",                         False),
 +    "factMostGoals":       ("Most goals in a match",        "Eniten maaleja ottelussa",              False),
 +    "factLongestUnbeaten": ("Longest unbeaten run",         "Pisin tappioton putki",                 False),
 +    "factLongestWinless":  ("Longest winless run",          "Pisin voitoton putki",                  False),
@@ -3651,7 +3667,7 @@ index ee8acaf6..d54fe0b5 100644
  ];
  
 diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index d25edb17..aed3cf4d 100644
+index d25edb17..f5e48467 100644
 --- a/site_v2/src/i18n/strings.ts
 +++ b/site_v2/src/i18n/strings.ts
 @@ -267,6 +267,44 @@ const EN: Dict = {
@@ -3776,7 +3792,7 @@ index d25edb17..aed3cf4d 100644
 +  compFactHomeWins: "Kotivoitot",
 +  compFactOf: "{count} / {of}",
 +  compFactDrawsAway: "{draws} tasapeliä, {awayWins} vierasvoittoa",
-+  compFactBiggestMargin: "Suurin ero",
++  compFactBiggestMargin: "Suurin voitto",
 +  compFactMostGoals: "Eniten maaleja ottelussa",
 +  compFactLongestUnbeaten: "Pisin tappioton putki",
 +  compFactLongestWinless: "Pisin voitoton putki",
@@ -4554,6 +4570,7 @@ index aa696957..20fc985d 100644
 #
 #   .claude/task/acceptance_evidence.md    |   95 +-
 #    .claude/task/rendered_page_evidence.md |  119 +-
-#    .claude/task/review_input.patch        | 4624 +++++++++++++++++++++++++++++++-
-#    3 files changed, 4657 insertions(+), 181 deletions(-)
+#    .claude/task/review.md                 |   94 +-
+#    .claude/task/review_input.patch        | 4625 +++++++++++++++++++++++++++++++-
+#    4 files changed, 4744 insertions(+), 189 deletions(-)
 # ============================================================================

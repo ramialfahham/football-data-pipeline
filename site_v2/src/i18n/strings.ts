@@ -757,7 +757,7 @@ const FI: Dict = {
   compFactHomeWins: "Kotivoitot",
   compFactOf: "{count} / {of}",
   compFactDrawsAway: "{draws} tasapeliä, {awayWins} vierasvoittoa",
-  compFactBiggestMargin: "Suurin ero",
+  compFactBiggestMargin: "Suurin voitto",
   compFactMostGoals: "Eniten maaleja ottelussa",
   compFactLongestUnbeaten: "Pisin tappioton putki",
   compFactLongestWinless: "Pisin voitoton putki",
