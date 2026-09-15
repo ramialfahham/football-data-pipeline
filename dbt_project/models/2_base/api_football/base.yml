@@ -153,6 +153,10 @@ models:
         tests: [not_null]
       - name: standing_rank
         tests: [not_null]
+      - name: goals_for_all
+        description: Goals scored across all matches of the section, from the provider's standings row.
+      - name: goals_against_all
+        description: Goals conceded across all matches of the section, from the provider's standings row.
 
   - name: base_apif__fixture_statistics
     description: >

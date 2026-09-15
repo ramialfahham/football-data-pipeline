@@ -16,6 +16,8 @@ with src as (
         wins_all,
         draws_all,
         losses_all,
+        goals_for_all,
+        goals_against_all,
         raw_ingested_at
     from {{ ref('stg_apif__standings') }}
     where
@@ -52,5 +54,7 @@ select
     wins_all,
     draws_all,
     losses_all,
+    goals_for_all,
+    goals_against_all,
     raw_ingested_at
 from deduped_standings

@@ -41,11 +41,9 @@ All pages live under a locale prefix. Trailing slashes; lowercase kebab-case slu
 /{locale}/                                                   landing
 /{locale}/competitions/                                      all competitions (grouped by type)
 /{locale}/football/{country-slug}/                           country hub (e.g. /football/germany/)
-/{locale}/{competition-slug}/                                competition hub (current season)
+/{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
 /{locale}/{competition-slug}/{season-slug}/                  competition season archive
-/{locale}/{competition-slug}/table/                          standings (+ group tables)
-/{locale}/{competition-slug}/fixtures/                       fixtures & results
-/{locale}/{competition-slug}/top-scorers/                    leaderboard (more: /stats/{metric-slug}/)
+/{locale}/{competition-slug}/<tab>/                          the Matchdays, Teams and Players tabs — each a standalone page; its URL is ruled with that tab's review on GitLab #129 (the earlier /table/, /fixtures/, /top-scorers/ rows are superseded by the four-tab ruling of 2026-09-15)
 /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report)
 /{locale}/teams/{team-slug}/                                 team profile
 /{locale}/players/{player-slug}/                             player profile
@@ -240,7 +238,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
 |---|---|---|
 | Landing | `landing.json` | `mart_next_matchday` (every competition's next round, read whole) + `core.dim_team` (the next-matchday hero), plus `mart_competition_index` for `region_rank` — read `fetch_landing_payload` in `scripts/export_site_data.py` for the live list, which is the authority. ⚠ NOT `mart_team_profile`: the trending block it fed was cut 2026-08-08, as the browse block was dropped 2026-08-19. Top players / Top teams will add marts here when built |
 | Competitions index / country hub | `competition_index.json` (#62 step 4) | `mart_competition_index` |
-| Competition hub + season | `competitions/{league_code}/{season}.json` | `mart_standings`, `mart_matchday_insights`, `mart_leaderboards` |
+| Competition page, Overview | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | `mart_competition_index` (header), `mart_standings` (the table, with `table_kind`), `mart_next_matchday` (next matches + the match-that-matters flag), `mart_team_profile` (deserved points), `mart_competition_season_summary` (the season in numbers) — read `fetch_competition_payloads` for the live list |
 | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
 | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
 | Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_match_log` |

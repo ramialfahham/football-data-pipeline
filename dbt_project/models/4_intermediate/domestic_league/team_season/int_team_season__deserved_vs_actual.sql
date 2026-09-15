@@ -251,7 +251,17 @@ ranked as (
                     partition by d.league_code, d.season_sk
                     order by d.deserved_points desc
                 )
-        end as deserved_rank
+        end as deserved_rank,
+        -- A TOTAL order over the gap, most negative first, so a page that shows "the three teams
+        -- with fewer points than deserved" and "the three with more" reads the ends of one served
+        -- order and never sorts or tie-breaks itself; the team id breaks an exact tie.
+        case
+            when d.deserved_points is not null
+                then row_number() over (
+                    partition by d.league_code, d.season_sk
+                    order by d.points_won_sum_season - d.deserved_points asc, d.team_sk asc
+                )
+        end as deserved_points_gap_rank
     from deserved as d
 )
 
@@ -277,6 +287,7 @@ select
     -- served value sits exactly on a bound. NULL, not false, where there is no fit at all.
     deserved_points_was_capped,
     deserved_rank,
+    deserved_points_gap_rank,
     -- negative = under-performing (fewer points than the process deserved); null when not fittable
     points_won_sum_season - deserved_points as deserved_points_gap
 from ranked

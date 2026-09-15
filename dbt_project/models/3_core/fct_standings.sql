@@ -31,6 +31,8 @@ select
     cs.wins_all as wins,
     cs.draws_all as draws,
     cs.losses_all as losses,
+    cs.goals_for_all as goals_scored,
+    cs.goals_against_all as goals_conceded,
     cs.raw_ingested_at
 from import_base_apif__standings as cs
 inner join import_dim_competition_season as sk

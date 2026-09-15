@@ -16,7 +16,7 @@ preview_start url http://127.0.0.1:8899/<file>.html
 | Generator | Page | Issue | Check |
 |---|---|---|---|
 | `gen_competitions.py` | `/{locale}/competitions/` — the index | **#54** | `python gen_competitions.py` + `prove_region_checks_fail.py` |
-| `gen_competition_hub.py` | `/{locale}/{slug}/` — one league | #47 | `check_competition_hub.py` |
+| `gen_competition_hub.py` | `/{locale}/{slug}/` — the competition page, Overview tab, four kinds (`league`, `groups`, `cup`, `offseason`), one file each | #129 (the approved design), #149 (the build) | `check_competition_hub.py` |
 | `gen_matches.py` · `gen_home.py` · `gen_block_standard.py` | the "Next matches" block | #50 | `check_row_consistency.py` |
 | `gen_interaction.py` | the interaction standard | #52 | `scan_clickables.py` |
 

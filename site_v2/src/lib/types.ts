@@ -381,3 +381,85 @@ export interface CompetitionIndex {
   type: string;
   competitions: CompetitionIndexRow[];
 }
+
+/** competitions/{league_code}/{season}.json — one competition-season's page payload, every block
+ *  a mart read whole or filtered by served columns (fetch_competition_payloads). Selection and
+ *  ordering by served columns only; the page picks and renders, it never computes. */
+export interface TeamRef {
+  team_id: number | null;
+  name: string | null;
+  slug: string | null;
+  crest: string | null;
+}
+
+export interface FixtureRef {
+  fixture_id: number;
+  slug: string;
+  kickoff: string | null;
+  round: string | null;
+  home: TeamRef;
+  away: TeamRef;
+  goals_home?: number | null;
+  goals_away?: number | null;
+  is_match_that_matters?: boolean;
+}
+
+/** The provider's official standings row as published, plus the section kind the warehouse
+ *  resolved from the section name. Every column is mart_standings' own. */
+export interface StandingRow {
+  group_name: string | null;
+  table_kind: "league" | "group" | "conference" | "split_round" | "ranking";
+  team_sk: number;
+  team_name: string | null;
+  team_slug: string | null;
+  team_logo_url: string | null;
+  standing_rank: number;
+  points: number | null;
+  goals_scored: number | null;
+  goals_conceded: number | null;
+  goals_diff: number | null;
+  form: string | null;
+  played: number | null;
+  wins: number | null;
+  draws: number | null;
+  losses: number | null;
+}
+
+export interface DeservedRow extends TeamRef {
+  points: number | null;
+  deserved_points: number | null;
+  deserved_points_gap: number | null;
+  deserved_points_gap_rank: number | null;
+}
+
+export interface SeasonSummary {
+  matches_played: number | null;
+  total_goals: number | null;
+  goals_per_match: number | null;
+  home_wins: number | null;
+  away_wins: number | null;
+  drawn_matches: number | null;
+  biggest_margin: FixtureRef | null;
+  most_goals: FixtureRef | null;
+  longest_unbeaten_run: number | null;
+  longest_unbeaten_teams: TeamRef[];
+  longest_winless_run: number | null;
+  longest_winless_teams: TeamRef[];
+}
+
+export interface CompetitionPayload {
+  type: string;
+  league_code: string;
+  season: number;
+  slug: string | null;
+  name: string | null;
+  crest: string | null;
+  region_label_en: string | null;
+  region_label_i18n_key: string | null;
+  competition_type: string | null;
+  entity_type: "club" | "national" | null;
+  standings: StandingRow[];
+  next_matchday: FixtureRef[];
+  deserved: DeservedRow[];
+  summary: SeasonSummary | null;
+}

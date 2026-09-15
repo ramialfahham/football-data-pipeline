@@ -1,160 +1,205 @@
-"""Render the COMPETITION HUB page -- /{locale}/{competition-slug}/ -- as a standalone mock.
+"""Render the COMPETITION PAGE, Overview tab -- /{locale}/{competition-slug}/ -- as standalone
+mocks, one per kind of competition, to the design approved on GitLab #129.
 
-Design-only. Reads nothing from BigQuery; every number is PLACEHOLDER.
+Design-only. Reads nothing from BigQuery. The league's numbers are the Bundesliga 2026/27 after
+three matchdays as the warehouse held them when the design was approved, so the page is judged
+against numbers that could occur; club names are real because their WIDTH is what is tested.
 
-The page does not exist. site_v2/src/pages holds home, [competition]/matches/[fixture] and
-teams/[team]; the competition itself has no page, which is why the browse chips on the home
-page are inert <span> and why BOTH shipped entity specs declare an inbound_hub that resolves
-to nothing:
+FOUR KINDS, one file each (kind names as arguments, or all when none is given):
+  league     a domestic league: table, next matchday, deserved points, the season in numbers
+  groups     a tournament in its knockout: one table per group (the provider's ranking table
+             dropped), the next round, the season in numbers; no deserved points
+  cup        a knockout cup: header, next round, the season in numbers; no table
+  offseason  a league between seasons: the final table, deserved points, the season in
+             numbers; no next matches
 
-    teams/team.spec.json                    "inbound_hub": "competition"
-    competition/matches/fixture.spec.json   "inbound_hub": "competition"
+Every block a page can show is here with the same class names the built components emit
+(`.ctab`, `.fxrow`, `.frow`, `.comp-tabs`), and the block's CSS is system.css's own, inlined
+verbatim. A block with nothing to show is absent -- no heading over nothing.
 
-So this page's first job is structural: it is the hub those two declarations already promise.
+The tab bar: Overview active, the three other tabs inert labels until each page is built.
 
-TWO BLOCKS, in the composed order: next matches, then the table.
-
-⚠ A top-scorers board was in the first draft and was CUT. Leaderboards are not homeless --
-site_architecture.md reserves /{competition-slug}/top-scorers/ and content_architecture.md's
-competition tab set has a Scorers tab -- so a 7-row board on the hub was a teaser for a page
-that does not exist, which is the browse-chip 404 one layer up. It also picked ONE of the nine
-boards mart_leaderboards already produces per competition-season, with no ruling behind the
-pick. The hub links to that page when it is built; it does not preview it.
-
-⚠ Consequence worth knowing: with the board gone this page renders NO metric_catalogue metric
-at all. The table's column headers are page chrome (the catalogue has no played/wins/draws/
-losses/goal-difference row, and its one `points_won` row is the SYNTHETIC 3-1-0 tally, a
-different number from the provider standings points this table shows). So there is deliberately
-no catalogue lookup in this file -- not an omission, and nothing to leave scaffolded for it.
-
-site_v2/src/styles/system.css is inlined verbatim, so the mock uses the shipped design system
-rather than a lookalike.
-
-No JavaScript: the review surface is a static snapshot, so script never runs. The three toggles
-are :checked + sibling combinators.
+No competition crest asset: the mock draws the neutral placeholder, never a hotlink.
+No JavaScript: the review surface is a static snapshot. The three toggles are :checked + sibling
+combinators.
 """
 import html
 import re
+import sys
 from pathlib import Path
 
-# ⚠ `result_row` is deliberately NOT imported. The hub carries no played fixtures any more —
-# importing it "in case" is the scaffolding that reads as a live feature.
 from gen_block_standard import short
 from interaction import INTERACTION_CSS
 from rows import CREST, ROW_CSS, date_head, upcoming_row
 
 REPO = Path(__file__).resolve().parent.parent
 SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
-OUT = Path(__file__).with_name("competition_hub_mock.html")
-
-# --------------------------------------------------------------- sample data
-#
-# PLACEHOLDER. Bundesliga 2024-25 shape at matchday 24: real club names (their WIDTH is the
-# thing being tested -- "Borussia Monchengladbach" is the longest team name in the twelve
-# active competitions' top flights) with invented but internally consistent numbers.
-# check_competition_hub.py asserts the invariants: W+D+L == played, points == 3W+D, and the
-# goal differences sum to zero.
-
-COMPETITION = {
-    # \u26a0 the SHORT name, from the one source the block standard uses -- not the registry's legal
-    # form ("1. Fu\u00dfball-Bundesliga"), which is rejected for display.
-    "name": short("BL1"),
-    "country": "Germany",
-    "tier": 1,
-    "season_label": "2024-25",
-    "slug": "bundesliga",
-    # venue-local. A single-country domestic league has ONE zone, so it is
-    # declared once in the header and never repeated on a row. ⚠ Not true for every
-    # competition: MLS spans four US zones and Liga MX three, and a national-team competition
-    # is played in whichever nation is at home -- those declare the zone per row instead.
-    "zone": "CET",
-}
-
-# team, played, W, D, L, GD, points
-TABLE = [
-    ("Bayern M\u00fcnchen",            24, 18, 4,  2,  51, 58),
-    ("Bayer 04 Leverkusen",            24, 15, 6,  3,  30, 51),
-    ("Eintracht Frankfurt",            24, 13, 6,  5,  19, 45),
-    ("Borussia Dortmund",              24, 11, 5,  8,  12, 38),
-    ("RB Leipzig",                     24, 10, 7,  7,   6, 37),
-    ("SC Freiburg",                    24, 10, 6,  8,  -2, 36),
-    ("1. FSV Mainz 05",                24, 10, 5,  9,   4, 35),
-    ("Werder Bremen",                  24,  9, 6,  9,  -5, 33),
-    ("VfB Stuttgart",                  24,  9, 5, 10,   2, 32),
-    ("Borussia M\u00f6nchengladbach",  24,  8, 7,  9,  -3, 31),
-    ("VfL Wolfsburg",                  24,  8, 6, 10,   1, 30),
-    ("FC Augsburg",                    24,  8, 5, 11,  -8, 29),
-    ("Union Berlin",                   24,  7, 6, 11, -12, 27),
-    ("FC St. Pauli",                   24,  7, 4, 13, -13, 25),
-    ("TSG Hoffenheim",                 24,  6, 6, 12, -18, 24),
-    ("1. FC Heidenheim",               24,  5, 5, 14, -21, 20),
-    ("VfL Bochum",                     24,  4, 6, 14, -20, 18),
-    ("Holstein Kiel",                  24,  4, 5, 15, -23, 17),
-]
-
-# home, away, kickoff day, kickoff time -- the NEXT round, so every row has a fixture page
-NEXT_ROUND = ("Matchday 25", "25. kierros", [
-    ("Bayern M\u00fcnchen", "VfB Stuttgart", "Fri 28 Feb", "20:30"),
-    ("Borussia M\u00f6nchengladbach", "SC Freiburg", "Sat 1 Mar", "15:30"),
-    ("Union Berlin", "Bayer 04 Leverkusen", "Sat 1 Mar", "15:30"),
-    ("FC Augsburg", "Werder Bremen", "Sat 1 Mar", "15:30"),
-    ("1. FC Heidenheim", "Holstein Kiel", "Sat 1 Mar", "15:30"),
-    ("VfL Bochum", "RB Leipzig", "Sat 1 Mar", "18:30"),
-    ("Eintracht Frankfurt", "TSG Hoffenheim", "Sun 2 Mar", "15:30"),
-    ("1. FSV Mainz 05", "Borussia Dortmund", "Sun 2 Mar", "17:30"),
-    ("FC St. Pauli", "VfL Wolfsburg", "Sun 2 Mar", "19:30"),
-])
-
-# \u26a0 A LAST_ROUND results block was here and is GONE. Past matches belong on
-# the competition's own results page, the same ruling that gives the Matches page a separate
-# Past view. Kept as a note rather than commented-out data: dead data left in place is what a
-# later reader restores by accident.
-
-# --------------------------------------------------------------------- copy
-#
-# EN is the proposal. FI is a WIDTH PROBE: none of these keys exists in strings.ts yet, so
-# every Finnish string below is a plausible worst case for measuring, NOT approved copy --
-# rendered with a dotted underline. `crumbHome` / `crumbMatches` DO exist ("Etusivu",
-# "Ottelut") and are marked as real.
-
-COPY = {
-    #  key            en                 fi                            fi_is_probe
-    "crumbHome":     ("Home",            "Etusivu",                    False),
-    "secMatches":    ("Next matches",    "Seuraavat ottelut",          True),
-    "secTable":      ("Table",           "Sarjataulukko",              True),
-    "colPos":        ("#",               "#",                          False),
-    "colPlayed":     ("P",               "O",                          True),
-    "colWins":       ("W",               "V",                          True),
-    "colDraws":      ("D",               "T",                          True),
-    "colLosses":     ("L",               "H",                          True),
-    "colGoalDiff":   ("GD",              "ME",                         True),
-    "colPoints":     ("Pts",             "P",                          True),
-}
-
-# The narrative line. site_architecture.md section 6 REQUIRES a data-to-text sentence per page
-# (anti-thin-content, generated in the export from real mart values) -- it is not decoration
-# invented to fill the top of the page. Every fact in it is a mart_standings column.
-LEDE_EN = ("<b>{leader}</b> lead after {played} matches, "
-           "{gap} points clear of <b>{second}</b>.")
-LEDE_FI = ("<b>{leader}</b> johtaa {played} ottelun j\u00e4lkeen, "
-           "{gap} pistett\u00e4 edell\u00e4 joukkuetta <b>{second}</b>.")
-
-# --------------------------------------------------------------------- build
 
 E = html.escape
 
-# ⚠ CREST and both match-row builders are IMPORTED from `rows.py`, not defined here. The rule
-# is that a match must display identically on every page, and four different treatments were
-# in the tree. One module, imported by every mock, is what makes that true by
-# construction; `check_row_consistency.py` proves the rendered markup matches.
+# --------------------------------------------------------------- the data
+
+# (rank, name, played, w, d, l, goals for, goals against, gd, pts, deserved, gap) -- the gap is
+# actual minus deserved, the catalogue's sign.
+LEAGUE_TABLE = [
+    (1, "SC Freiburg", 3, 3, 0, 0, 10, 1, 9, 9, 7.2, 1.8),
+    (2, "Borussia Dortmund", 3, 3, 0, 0, 8, 2, 6, 9, 6.3, 2.7),
+    (3, "FC Augsburg", 3, 2, 1, 0, 9, 3, 6, 7, 5.8, 1.2),
+    (4, "Bayern München", 3, 2, 1, 0, 7, 2, 5, 7, 7.4, -0.4),
+    (5, "RB Leipzig", 3, 2, 0, 1, 9, 3, 6, 6, 5.8, 0.2),
+    (6, "SV Elversberg", 3, 2, 0, 1, 8, 7, 1, 6, 4.4, 1.6),
+    (7, "Bayer 04 Leverkusen", 3, 1, 1, 1, 8, 5, 3, 4, 6.0, -2.0),
+    (8, "1. FSV Mainz 05", 3, 1, 1, 1, 6, 3, 3, 4, 6.7, -2.7),
+    (9, "Eintracht Frankfurt", 3, 1, 1, 1, 7, 8, -1, 4, 2.9, 1.1),
+    (10, "SV Werder Bremen", 3, 1, 1, 1, 5, 6, -1, 4, 4.0, 0.0),
+    (11, "FC Schalke 04", 3, 1, 1, 1, 3, 4, -1, 4, 2.0, 2.0),
+    (12, "1. FC Köln", 3, 1, 1, 1, 5, 7, -2, 4, 4.2, -0.2),
+    (13, "TSG 1899 Hoffenheim", 3, 1, 0, 2, 6, 7, -1, 3, 4.9, -1.9),
+    (14, "VfB Stuttgart", 3, 1, 0, 2, 6, 8, -2, 3, 3.1, -0.1),
+    (15, "SC Paderborn 07", 3, 0, 1, 2, 0, 4, -4, 1, 1.1, -0.1),
+    (16, "1. FC Union Berlin", 3, 0, 1, 2, 4, 10, -6, 1, 3.1, -2.1),
+    (17, "Borussia Mönchengladbach", 3, 0, 0, 3, 3, 12, -9, 0, 0.0, 0.0),
+    (18, "Hamburger SV", 3, 0, 0, 3, 0, 12, -12, 0, 1.5, -1.5),
+]
+
+# home, away, day, time -- the next round, every row a fixture with a page
+LEAGUE_ROUND = ("Matchday 4", "4. kierros", [
+    ("Bayern München", "1. FC Union Berlin", "Fri 18 Sep", "20:30"),
+    ("Hamburger SV", "1. FC Köln", "Sat 19 Sep", "15:30"),
+    ("Borussia Mönchengladbach", "1. FSV Mainz 05", "Sat 19 Sep", "15:30"),
+    ("Eintracht Frankfurt", "SC Freiburg", "Sat 19 Sep", "15:30"),
+    ("SV Werder Bremen", "FC Augsburg", "Sat 19 Sep", "15:30"),
+    ("VfB Stuttgart", "Borussia Dortmund", "Sat 19 Sep", "18:30"),
+    ("Bayer 04 Leverkusen", "RB Leipzig", "Sun 20 Sep", "15:30"),
+    ("FC Schalke 04", "SV Elversberg", "Sun 20 Sep", "17:30"),
+    ("SC Paderborn 07", "TSG 1899 Hoffenheim", "Sun 20 Sep", "19:30"),
+])
+
+# label key, value, context -- the season in numbers, the fact rows of the league
+LEAGUE_FACTS = [
+    ("factGoalsPerMatch", "3.9", "104 goals in 27 matches"),
+    ("factHomeWins", "14 of 27", "5 draws, 8 away wins"),
+    ("factBiggestMargin", "0–5", "Hamburger SV vs 1. FSV Mainz 05, Matchday 2"),
+    ("factMostGoals", "3–4", "Borussia Mönchengladbach vs SV Elversberg, Matchday 2"),
+    ("factLongestUnbeaten", "3 matches", "FC Augsburg, Bayern München, Borussia Dortmund, SC Freiburg"),
+    ("factLongestWinless", "3 matches", "Borussia Mönchengladbach, Hamburger SV, 1. FC Union Berlin, SC Paderborn 07"),
+]
+LEAGUE_MATTERS = ("Eintracht Frankfurt vs SC Freiburg", "Sat 19 Sep, 15:30")
+
+# a tournament with groups (Euro 2024 as held), in its knockout
+GROUP_TABLES = {
+    "Group A": [("Germany", 3, 2, 1, 0, 8, 2, 6, 7), ("Switzerland", 3, 1, 2, 0, 5, 3, 2, 5),
+                ("Hungary", 3, 1, 0, 2, 2, 5, -3, 3), ("Scotland", 3, 0, 1, 2, 2, 7, -5, 1)],
+    "Group B": [("Spain", 3, 3, 0, 0, 5, 0, 5, 9), ("Italy", 3, 1, 1, 1, 3, 3, 0, 4),
+                ("Croatia", 3, 0, 2, 1, 3, 6, -3, 2), ("Albania", 3, 0, 1, 2, 3, 5, -2, 1)],
+    "Group C": [("England", 3, 1, 2, 0, 2, 1, 1, 5), ("Denmark", 3, 0, 3, 0, 2, 2, 0, 3),
+                ("Slovenia", 3, 0, 3, 0, 2, 2, 0, 3), ("Serbia", 3, 0, 2, 1, 1, 2, -1, 2)],
+    "Group D": [("Austria", 3, 2, 0, 1, 6, 4, 2, 6), ("France", 3, 1, 2, 0, 2, 1, 1, 5),
+                ("Netherlands", 3, 1, 1, 1, 4, 4, 0, 4), ("Poland", 3, 0, 1, 2, 3, 6, -3, 1)],
+    "Group E": [("Romania", 3, 1, 1, 1, 4, 3, 1, 4), ("Belgium", 3, 1, 1, 1, 2, 1, 1, 4),
+                ("Slovakia", 3, 1, 1, 1, 3, 3, 0, 4), ("Ukraine", 3, 1, 1, 1, 2, 4, -2, 4)],
+    "Group F": [("Portugal", 3, 2, 0, 1, 5, 3, 2, 6), ("Türkiye", 3, 2, 0, 1, 5, 5, 0, 6),
+                ("Georgia", 3, 1, 1, 1, 4, 4, 0, 4), ("Czechia", 3, 0, 1, 2, 3, 5, -2, 1)],
+}
+GROUP_ROUND = ("Round of 16", "Neljännesvälierät", [
+    ("Switzerland", "Italy", "Sat 29 Jun", "18:00"),
+    ("Germany", "Denmark", "Sat 29 Jun", "21:00"),
+    ("England", "Slovakia", "Sun 30 Jun", "18:00"),
+    ("Spain", "Georgia", "Sun 30 Jun", "21:00"),
+    ("France", "Belgium", "Mon 1 Jul", "18:00"),
+    ("Portugal", "Slovenia", "Mon 1 Jul", "21:00"),
+    ("Romania", "Netherlands", "Tue 2 Jul", "18:00"),
+    ("Austria", "Türkiye", "Tue 2 Jul", "21:00"),
+])
+GROUP_FACTS = [
+    ("factGoalsPerMatch", "2.3", "81 goals in 36 matches"),
+    ("factBiggestMargin", "5–1", "Germany vs Scotland, Group Stage 1"),
+    ("factMostGoals", "5–1", "Germany vs Scotland, Group Stage 1"),
+    ("factLongestUnbeaten", "3 matches", "Germany, Spain, Switzerland, England, Denmark, Slovenia, France, Belgium, Romania, Slovakia, Ukraine"),
+    ("factLongestWinless", "3 matches", "Scotland, Albania, Denmark, Slovenia, Serbia, Poland, Czechia"),
+]
+
+# a knockout cup: no table at all
+CUP_ROUND = ("Round of 32", "32 parhaan kierros", [
+    ("Bayer 04 Leverkusen", "1. FC Nürnberg", "Tue 27 Oct", "18:00"),
+    ("Borussia Dortmund", "SV Sandhausen", "Tue 27 Oct", "20:45"),
+    ("FC St. Pauli", "Hamburger SV", "Wed 28 Oct", "18:00"),
+    ("Bayern München", "1. FC Heidenheim", "Wed 28 Oct", "20:45"),
+])
+CUP_FACTS = [
+    ("factGoalsPerMatch", "4.6", "148 goals in 32 matches"),
+    ("factHomeWins", "2 of 32", "4 draws, 26 away wins"),
+    ("factBiggestMargin", "0–11", "SC St. Tönis vs Eintracht Frankfurt, Round of 64"),
+    ("factMostGoals", "0–11", "SC St. Tönis vs Eintracht Frankfurt, Round of 64"),
+]
+
+KINDS = {
+    "league": dict(name=short("BL1"), region="Germany", season="Season 2026/27",
+                   round_label="Matchday 4", tab_second="tabMatchdays", zone="CET",
+                   tables={"Bundesliga": LEAGUE_TABLE}, deserved=True,
+                   next_round=LEAGUE_ROUND, facts=LEAGUE_FACTS, matters=LEAGUE_MATTERS),
+    "groups": dict(name="Euro 2024", region="Europe", season="Season 2024",
+                   round_label="Round of 16", tab_second="tabRounds", zone="CEST",
+                   tables=GROUP_TABLES, deserved=False,
+                   next_round=GROUP_ROUND, facts=GROUP_FACTS, matters=None),
+    "cup": dict(name="DFB-Pokal", region="Germany", season="Season 2026/27",
+                round_label="Round of 32", tab_second="tabRounds", zone="CET",
+                tables={}, deserved=False,
+                next_round=CUP_ROUND, facts=CUP_FACTS, matters=None),
+    "offseason": dict(name=short("BL1"), region="Germany", season="Season 2026/27",
+                      round_label="Matchday 34", tab_second="tabMatchdays", zone="CET",
+                      tables={"Bundesliga": LEAGUE_TABLE}, deserved=True,
+                      next_round=None, facts=LEAGUE_FACTS, matters=None),
+}
+
+# --------------------------------------------------------------------- copy
+
+# EN is the built copy (strings.ts, `comp*` keys). FI is a WIDTH PROBE where marked: a probe is a
+# plausible worst case for measuring, NOT approved copy, and renders with a dotted underline.
+COPY = {
+    #  key                   en                              fi                                       fi_is_probe
+    "crumbHome":           ("Home",                         "Etusivu",                               False),
+    "navCompetitions":     ("Competitions",                 "Kilpailut",                             False),
+    "tabOverview":         ("Overview",                     "Yleiskatsaus",                          False),
+    "tabMatchdays":        ("Matchdays",                    "Kierrokset",                            False),
+    "tabRounds":           ("Rounds",                       "Kierrokset",                            False),
+    "tabTeams":            ("Teams",                        "Joukkueet",                             False),
+    "tabPlayers":          ("Players",                      "Pelaajat",                              False),
+    "secTable":            ("Table",                        "Sarjataulukko",                         False),
+    "secMatches":          ("Next matches",                 "Seuraavat ottelut",                     False),
+    "secDeserved":         ("Deserved points",              "Ansaitut pisteet",                      False),
+    "secFacts":            ("The season in numbers",        "Kausi numeroina",                       False),
+    "colPos":              ("#",                            "#",                                     False),
+    "colPlayed":           ("P",                            "O",                                     False),
+    "colWins":             ("W",                            "V",                                     False),
+    "colDraws":            ("D",                            "T",                                     False),
+    "colLosses":           ("L",                            "H",                                     False),
+    "colGoals":            ("Goals",                        "Maalit",                                False),
+    "colGoalDiff":         ("GD",                           "ME",                                    False),
+    "colPoints":           ("Pts",                          "P",                                     False),
+    "colDeserved":         ("Deserved",                     "Ansaitut",                              False),
+    "colDiff":             ("Diff",                         "Ero",                                   False),
+    "deservedExplainer":   ("Deserved points are the points a team's shot balance usually earns. Shot balance is shots on goal created minus shots on goal conceded. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
+                            "Ansaitut pisteet ovat pisteet, jotka joukkueen laukaustase yleensä tuottaa. Laukaustase on luodut laukaukset maalia kohti miinus päästetyt laukaukset maalia kohti. Joukkueet, joilla on vähemmän pisteitä kuin ansaittu, ovat parempia kuin taulukko kertoo; joukkueet, joilla on enemmän, ovat heikompia.", False),
+    "secBetter":           ("Better than the table says",   "Parempia kuin taulukko kertoo",         False),
+    "secWorse":            ("Worse than the table says",    "Heikompia kuin taulukko kertoo",        False),
+    "factGoalsPerMatch":   ("Goals per match",              "Maalia per ottelu",                     False),
+    "factHomeWins":        ("Home wins",                    "Kotivoitot",                            False),
+    "factBiggestMargin":   ("Biggest margin",               "Suurin ero",                            False),
+    "factMostGoals":       ("Most goals in a match",        "Eniten maaleja ottelussa",              False),
+    "factLongestUnbeaten": ("Longest unbeaten run",         "Pisin tappioton putki",                 False),
+    "factLongestWinless":  ("Longest winless run",          "Pisin voitoton putki",                  False),
+    "factMatters":         ("The match that matters next",  "Seuraava avainottelu",                  False),
+}
+
+# --------------------------------------------------------------------- build
 
 
 def slugify(name):
-    """The mock's stand-in for the team slug published on dim_team. Good enough for an href
-    in a static mock; the real one folds to the base letter per site_architecture.md section 3
-    and is ASSIGNED in the warehouse, not derived here (#852)."""
-    s = (name.replace("\u00fc", "u").replace("\u00f6", "o").replace("\u00e4", "a")
-             .replace("\u00df", "ss").replace(".", "").lower())
+    """The mock's stand-in for the team slug published on dim_team; the real one is ASSIGNED in
+    the warehouse, not derived here."""
+    s = (name.replace("ü", "u").replace("ö", "o").replace("ä", "a")
+             .replace("ß", "ss").replace(".", "").lower())
     return re.sub(r"[^a-z0-9]+", "-", s).strip("-")
 
 
@@ -166,118 +211,160 @@ def loc(key):
             % (E(en), cls, E(fi)))
 
 
+def _cols(r):
+    """(name, played, w, d, l, gf, ga, gd, pts) from a league row (rank first, deserved after)
+    or a group row (nine fields)."""
+    return tuple(r[1:10]) if len(r) > 9 else tuple(r)
+
+
 def team_cell(name):
-    """A team name is a LINK on every row of the table -- that is the hub's whole job.
-    THE NAME MUST NEVER TRUNCATE, so `.nm` here overrides system.css's ellipsis."""
-    return ('<a class="tm" href="/en/teams/%s/"><span class="crest xs">%s</span>'
-            '<span class="nm">%s</span></a>' % (slugify(name), CREST, E(name)))
+    """Crest + name inside the row; the ROW is the link, never the name alone."""
+    return ('<span class="tm"><span class="crest xs">%s</span>'
+            '<span class="nm">%s</span></span>' % (CREST, E(name)))
 
 
-def header_html():
-    leader, second = TABLE[0], TABLE[1]
-    lede = {
-        "en": LEDE_EN.format(leader=E(leader[0]), played=leader[1],
-                             gap=leader[6] - second[6], second=E(second[0])),
-        "fi": LEDE_FI.format(leader=E(leader[0]), played=leader[1],
-                             gap=leader[6] - second[6], second=E(second[0])),
-    }
+def header_html(k):
     return """
       <nav class="crumb">
         <a class="lnk" href="/en/">%s</a>
         <span class="sep">&rsaquo;</span>
+        <a class="lnk" href="/en/competitions/">%s</a>
+        <span class="sep">&rsaquo;</span>
         <span class="here">%s</span>
       </nav>
 
-      <header class="chead">
-        <h1>%s</h1>
-        <p class="meta">%s <span class="dot">&middot;</span> Tier %d
-           <span class="dot">&middot;</span> <b>%s</b></p>
+      <header class="thead">
+        <div class="crest">%s</div>
+        <div class="tid">
+          <h1>%s</h1>
+          <div class="meta">%s &middot; %s &middot; %s</div>
+        </div>
       </header>
 
-      <div class="lede">
-        <p><span class="en">%s</span><span class="fi probe" lang="fi">%s</span></p>
-      </div>
-""" % (loc("crumbHome"), E(COMPETITION["name"]), E(COMPETITION["name"]),
-       E(COMPETITION["country"]), COMPETITION["tier"], E(COMPETITION["season_label"]),
-       lede["en"], lede["fi"])
-# ⚠ NO timezone line in this header. It had one, and that plus the Matches page's per-row zone
-# was two placements of one idea. The zone is on the row, everywhere.
+      <nav class="tabs comp-tabs" aria-label="Competition sections">
+        <span class="tab on" aria-current="page">%s</span>
+        <span class="tab" aria-disabled="true">%s</span>
+        <span class="tab" aria-disabled="true">%s</span>
+        <span class="tab" aria-disabled="true">%s</span>
+      </nav>
+""" % (loc("crumbHome"), loc("navCompetitions"), E(k["name"]), CREST, E(k["name"]),
+       E(k["region"]), E(k["season"]), E(k["round_label"]),
+       loc("tabOverview"), loc(k["tab_second"]), loc("tabTeams"), loc("tabPlayers"))
 
 
-def matches_html():
-    _up_en, _up_fi, upcoming = NEXT_ROUND
+def table_html(k):
+    if not k["tables"]:
+        return ""
+    head = ('<div class="ctab-head">'
+            '<span class="h rk">%s</span><span class="h nmh"></span>'
+            '<span class="h">%s</span>'
+            '<span class="h wdl">%s</span><span class="h wdl">%s</span><span class="h wdl">%s</span>'
+            '<span class="h wdl">%s</span>'
+            '<span class="h">%s</span><span class="h">%s</span></div>'
+            % (loc("colPos"), loc("colPlayed"), loc("colWins"), loc("colDraws"),
+               loc("colLosses"), loc("colGoals"), loc("colGoalDiff"), loc("colPoints")))
+    blocks = []
+    for section, rows_ in k["tables"].items():
+        rows = []
+        for pos, r in enumerate(rows_, 1):
+            name, played, w, d, lost, gf, ga, gd, pts = _cols(r)
+            rows.append(
+                '<a class="ctab-row" href="/en/teams/%s/">'
+                '<span class="rk num">%d</span>%s'
+                '<span class="n num">%d</span>'
+                '<span class="n num wdl">%d</span><span class="n num wdl">%d</span>'
+                '<span class="n num wdl">%d</span>'
+                '<span class="n num wdl">%d:%d</span>'
+                '<span class="n num gd">%s</span><span class="n num pts">%d</span>'
+                '</a>' % (slugify(name), pos, team_cell(name), played, w, d, lost, gf, ga,
+                          ("+%d" % gd) if gd > 0 else str(gd), pts))
+        heading = ('<div class="gh"><span class="nm">%s</span></div>' % E(section)
+                   if len(k["tables"]) > 1 else "")
+        blocks.append('<div class="ctab-section">%s<div class="ctab">%s\n%s</div></div>'
+                      % (heading, head, "\n".join(rows)))
+    return """
+      <section>
+        <div class="sechead"><span class="eyebrow">%s</span></div>
+%s
+      </section>
+""" % (loc("secTable"), "\n".join(blocks))
 
-    # ⚠ THE SHARED BLOCK, from `rows.py` -- the same functions the home page and the Matches
-    # page call. Kick-off is venue-local with the zone on every row.
-    #
-    # ⚠ NO `group_head` CALL. The block's level 1 is the competition, and on this page the
-    # competition is the <h1> -- an earlier version rendered "Bundesliga" as a group heading
-    # directly beneath "Bundesliga". A block may OMIT a level the page already supplies; it may
-    # never MOVE information between slots. So here the block starts at level 2, the date.
+
+def matches_html(k):
+    if not k["next_round"]:
+        return ""
+    _en, _fi, upcoming = k["next_round"]
     body = []
     for date in dict.fromkeys(day for _h, _a, day, _t in upcoming):
         body.append(date_head(date))
         for home, away, day, time in upcoming:
             if day == date:
-                body.append(upcoming_row("club", home, away, time, COMPETITION["zone"]))
-
+                body.append(upcoming_row("club", home, away, time, k["zone"]))
     return """
       <section>
         <div class="sechead"><span class="eyebrow">%s</span></div>
-
         <div class="fxgroup">
 %s
         </div>
-        <p class="bnote">The NEXT round only. ⚠ A &ldquo;latest results&rdquo; group was here
-           and was cut (CPO 2026-08-10): past matches belong on the competition's own results
-           page, the same ruling that gives the Matches page a separate Past view. Nothing on
-           this page is a played fixture, so nothing on it is inert.</p>
       </section>
 """ % (loc("secMatches"), "\n".join(body))
 
 
-def table_html():
-    head = ('<div class="ctab-head">'
-            '<span class="h rk">%s</span><span class="h nmh"></span>'
-            '<span class="h">%s</span>'
-            '<span class="h wdl">%s</span><span class="h wdl">%s</span><span class="h wdl">%s</span>'
-            '<span class="h">%s</span><span class="h">%s</span></div>'
-            % (loc("colPos"), loc("colPlayed"), loc("colWins"), loc("colDraws"),
-               loc("colLosses"), loc("colGoalDiff"), loc("colPoints")))
-
-    rows = []
-    for pos, (name, played, w, d, lost, gd, pts) in enumerate(TABLE, 1):
-        rows.append(
-            '<div class="ctab-row">'
-            '<span class="rk num">%d</span>%s'
-            '<span class="n num">%d</span>'
-            '<span class="n num wdl">%d</span><span class="n num wdl">%d</span>'
-            '<span class="n num wdl">%d</span>'
-            '<span class="n num gd">%s</span><span class="n num pts">%d</span>'
-            '</div>' % (pos, team_cell(name), played, w, d, lost,
-                        ("+%d" % gd) if gd > 0 else str(gd), pts)
-        )
-
+def deserved_html(k):
+    if not k["deserved"]:
+        return ""
+    table = next(iter(k["tables"].values()))
+    ordered = sorted(table, key=lambda r: r[11])
+    boards = [("secBetter", ordered[:3]), ("secWorse", list(reversed(ordered[-3:])))]
+    out = []
+    for key, rows_ in boards:
+        rows = ['<div class="ctab-head"><span class="h nmh"></span><span class="h">%s</span>'
+                '<span class="h">%s</span><span class="h">%s</span></div>'
+                % (loc("colDeserved"), loc("colPoints"), loc("colDiff"))]
+        for r in rows_:
+            gap = r[11]
+            sign = "+" if gap > 0 else ("−" if gap < 0 else "")
+            rows.append('<a class="ctab-row" href="/en/teams/%s/">%s'
+                        '<span class="n num">%.1f</span><span class="n num">%d</span>'
+                        '<span class="n num pts">%s%.1f</span></a>'
+                        % (slugify(r[1]), team_cell(r[1]), r[10], r[9], sign, abs(gap)))
+        out.append('<div class="board"><div class="bhd"><span class="bt">%s</span></div>'
+                   '<div class="ctab dp">%s</div></div>' % (loc(key), "".join(rows)))
     return """
       <section>
         <div class="sechead"><span class="eyebrow">%s</span></div>
-        <div class="ctab">
+        <p class="bsub">%s</p>
 %s
+      </section>
+""" % (loc("secDeserved"), loc("deservedExplainer"), "\n".join(out))
+
+
+def facts_html(k):
+    rows = []
+    for key, value, context in k["facts"]:
+        rows.append('<div class="frow"><span class="fl">%s</span><span class="fv">'
+                    '<span class="fvv"><b>%s</b></span><span class="sub">%s</span></span></div>'
+                    % (loc(key), E(value), E(context)))
+    if k["matters"]:
+        match, when = k["matters"]
+        rows.append('<a class="frow" href="#"><span class="fl">%s</span><span class="fv">'
+                    '<span class="fvv"><b>%s</b></span><span class="sub">%s</span></span></a>'
+                    % (loc("factMatters"), E(match), E(when)))
+    if not rows:
+        return ""
+    return """
+      <section>
+        <div class="sechead"><span class="eyebrow">%s</span></div>
+        <div class="facts">
 %s
         </div>
-        <p class="bnote">&ldquo;Table&rdquo; is the display name; <code>mart_standings</code>
-           is the data name. Provider standings points, not the synthetic 3-1-0 tally.
-           No promotion/relegation shading: the registry does not carry the zone rules, and
-           we do not invent them. No goals-for/against column exists to add &mdash; the mart
-           carries <code>goals_diff</code> only.</p>
       </section>
-""" % (loc("secTable"), head, "\n".join(rows))
+""" % (loc("secFacts"), "\n".join(rows))
 
 
 MOCK_CSS = """
 /* ---------------------------------------------------------------- *
- *  MOCK HARNESS ONLY -- not part of the design. Copied from          *
- *  gen_top_teams.py so the two mocks review identically.             *
+ *  MOCK HARNESS ONLY -- not part of the design.                      *
  * ---------------------------------------------------------------- */
 body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .ctl { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 18px;
@@ -309,81 +396,17 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 #t-fi:checked ~ .stage .fi { display: inline; }
 #t-fi:checked ~ .stage .probe { text-decoration: underline dotted currentColor; text-underline-offset: 3px; }
 
-.crest.xs svg { width: 15px; height: 15px; display: block; color: var(--muted); }
-.bnote { font-size: 11px; color: var(--muted); margin: 10px 0 0; font-style: italic; opacity: .8; line-height: 1.5; }
-.bnote code { font-style: normal; font-size: 10.5px; }
-
-/* ================================================================ *
- *  COMPETITION HUB -- the actual proposal. TWO blocks:              *
- *  next matches, then the table.                                    *
- * ================================================================ */
-
-/* ---- header. No competition crest: we hold no competition logo, and a placeholder
-        would be an invented asset. `.chead` mirrors `.thead` on the team page minus the
-        crest slot, so the two entity headers read as siblings. ---- */
-.chead { padding: 16px 0 4px; }
-.chead h1 { font-size: clamp(22px, 5cqw, 28px); font-weight: 700; line-height: 1.03; margin: 0; text-wrap: balance; }
-.chead .meta { font-size: 13px; color: var(--muted); margin-top: 6px; }
-.chead .meta b { color: var(--ink-2); font-weight: 600; }
-.chead .meta .dot { opacity: .5; padding: 0 2px; }
-/* No season selector in v1: this URL is the CURRENT season and there are no archive pages
-   for a switcher to reach. Adding the control before its targets exist is the browse-chip
-   404 again. */
-
-/* ---- matches: NOTHING HERE. The row's markup and CSS both come from `rows.py`, shared with
-        the Matches page. A per-page copy is precisely what produced four
-        different match treatments across the site. ---- */
-
-/* ---- standings table. A NEW component: system.css has no table.
-        `.rmatch` is a played-result row keyed to a W/D/L chip, `.vs-row` is a
-        metric/bar/value row, `.brow` is a ranked leaderboard row with ONE value column --
-        a league table is 5-8 aligned numeric columns and is none of them.
-
-   ⚠ THE TRACK COUNT MUST EQUAL THE VISIBLE CELL COUNT AT BOTH WIDTHS, or every row after
-   the overflow point silently wraps into an implicit row and the columns stop aligning.
-   A row emits 8 cells (rank, team, P, W, D, L, GD, Pts) and the head emits 8 to match --
-   `.nmh` is an empty header over the team column, which is the one column with no label.
-   NARROW hides the three `.wdl` cells -> 5 visible against a 5-track list.
-   WIDE shows all 8 against an 8-track list. The crest stays INSIDE the team link at both
-   widths; giving it its own track was the first draft and it left an empty column at wide
-   and no crest at all. check_competition_hub.py counts both. ---- */
-.ctab { container-type: inline-size; margin-top: 4px; --gap: 8px;
-        --cols: 1.25rem minmax(0, 1fr) 1.7rem 2.2rem 2rem; }
-.ctab-head, .ctab-row {
-  display: grid; grid-template-columns: var(--cols);
-  align-items: center; column-gap: var(--gap);
-}
-.ctab-head { padding-bottom: 8px; border-bottom: 1px solid var(--div); }
-.ctab-row { padding: 9px 0; border-bottom: 1px solid var(--line); }
-.ctab-row:last-child { border-bottom: 0; }
-.ctab .wdl { display: none; }
-@container (min-width: 470px) {
-  .ctab { --gap: 10px; --cols: 1.4rem minmax(0, 1fr) 1.9rem 1.7rem 1.7rem 1.7rem 2.4rem 2.2rem; }
-  .ctab .wdl { display: block; }
-}
-.ctab .h { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted); text-align: right; }
-.ctab .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-.ctab .n { font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-/* rung 1 -- the number that matters on a league table */
-.ctab .n.pts { font-size: 15px; font-weight: 700; color: var(--ink); }
-.ctab .n.gd { color: var(--ink-2); }
-
-/* the team link: crest + name, name NEVER truncates (system.css ellipsises .nm) */
-.ctab .tm { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.ctab .tm .nm {
-  min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink);
-  white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word;
-  line-height: 1.25;
-}
-a.tm:hover .nm { text-decoration: underline; text-underline-offset: 2px; }
+.crest svg { width: 26px; height: 26px; display: block; color: var(--muted); }
+.crest.xs svg { width: 15px; height: 15px; }
 """
 
 
-def build():
+def build(kind):
+    k = KINDS[kind]
     return """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Competition hub -- /en/bundesliga/ (mock)</title>
+<title>Competition page, Overview -- %s (mock)</title>
 <style>
 %s
 %s
@@ -391,9 +414,6 @@ def build():
 %s
 </style>
 
-<!-- The inputs are DIRECT children of body, ahead of everything they drive: `~` only
-     reaches siblings, so an input nested inside its own <label> inside .ctl could never
-     match .stage. Same structure system.css uses for .seg-in. -->
 <input class="toggle" type="checkbox" id="t-light">
 <input class="toggle" type="checkbox" id="t-phone">
 <input class="toggle" type="checkbox" id="t-fi">
@@ -401,7 +421,7 @@ def build():
 <div class="ctl">
   <label for="t-light"><span class="box"></span>Light</label>
   <label for="t-phone"><span class="box"></span>Phone 375px</label>
-  <label for="t-fi"><span class="box"></span>Finnish (width probe)</label>
+  <label for="t-fi"><span class="box"></span>Finnish</label>
   <span class="hint">no JS &middot; toggles are :checked + sibling combinators</span>
 </div>
 
@@ -411,59 +431,47 @@ def build():
 %s
 %s
 %s
+%s
+%s
     </div>
   </div>
 </div>
 
 <div class="legend">
-  <b>Mock &mdash; /en/bundesliga/, the competition hub.</b> Two blocks: next matches, then
-  the table. Every number is placeholder; club names are real because their WIDTH is what is
-  being tested.
-  <b>The top-scorers board was cut</b> &mdash; leaderboards belong on
-  /{competition-slug}/top-scorers/ and the Scorers tab, both already in the IA, so a board
-  here was a teaser for a page that does not exist.
-  With it gone the page renders no <b>metric_catalogue</b> metric at all: the table's column
-  headers are page chrome, and the catalogue's one <b>points_won</b> row is the synthetic
-  3-1-0 tally rather than the provider standings points shown here.
-  Finnish is a width probe: <span class="probe" style="text-decoration: underline dotted">dotted</span>
-  strings do not exist in strings.ts and are not approved copy. Only <b>Etusivu</b> is real.
-  Round names render as &ldquo;Matchday 25&rdquo;; the mart stores the provider's
-  <b>&ldquo;Regular Season - 25&rdquo;</b>, which has to be parsed before it can be localised.
+  <b>Mock &mdash; the competition page, Overview tab, kind &ldquo;%s&rdquo;.</b>
+  Table &middot; Next matches &middot; Deserved points &middot; The season in numbers, each only
+  where its mart serves something. The design is GitLab #129; this file renders it.
 </div>
-""" % (SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, MOCK_CSS,
-       header_html(), matches_html(), table_html())
+""" % (kind, SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, MOCK_CSS,
+       header_html(k), table_html(k), matches_html(k), deserved_html(k), facts_html(k), kind)
 
 
 def check_data():
-    """The table is placeholder, but it has to be a LEGAL table or the design is being
-    judged against numbers that could not occur."""
-    gd_total = 0
-    prev_pts = None
-    for name, played, w, d, lost, gd, pts in TABLE:
-        assert w + d + lost == played, "%s: W+D+L != played" % name
-        assert 3 * w + d == pts, "%s: points != 3W+D" % name
-        if prev_pts is not None:
-            assert pts <= prev_pts, "%s: table not ordered by points" % name
-        prev_pts = pts
-        gd_total += gd
-    assert gd_total == 0, "goal differences sum to %d, not 0" % gd_total
-    assert len({t[0] for t in TABLE}) == len(TABLE), "duplicate team in the table"
-    print("  table invariants hold (%d teams, W+D+L, 3W+D, GD sums to 0)" % len(TABLE))
+    """Placeholder or not, every table has to be a LEGAL table."""
+    for kind, k in KINDS.items():
+        for section, rows_ in k["tables"].items():
+            prev_pts = None
+            gd_total = 0
+            for r in rows_:
+                name, played, w, d, lost, gf, ga, gd, pts = _cols(r)
+                assert w + d + lost == played, "%s/%s: W+D+L != played" % (kind, name)
+                assert 3 * w + d == pts, "%s/%s: points != 3W+D" % (kind, name)
+                assert gf - ga == gd, "%s/%s: goals do not give the goal difference" % (kind, name)
+                assert prev_pts is None or pts <= prev_pts, "%s/%s: not ordered by points" % (kind, name)
+                prev_pts = pts
+                gd_total += gd
+            assert gd_total == 0, "%s/%s: goal differences sum to %d" % (kind, section, gd_total)
+    print("  table invariants hold for every kind")
 
 
-def check_fixture_teams_are_in_the_table():
-    """Every club in either round must be one of the table's clubs -- a fixture against a
-    club that is not in the league is placeholder data that could not occur."""
-    known = {t[0] for t in TABLE}
-    seen = {h for h, a, _d, _t in NEXT_ROUND[2]} | {a for _h, a, _d, _t in NEXT_ROUND[2]}
-    stray = sorted(seen - known)
-    assert not stray, "clubs in a fixture but not in the table: %s" % stray
-    assert len(seen) == len(known), "%d clubs play, %d are in the table" % (len(seen), len(known))
-    print("  fixtures use the table's %d clubs, all of them, none extra" % len(known))
+def out_path(kind):
+    return Path(__file__).with_name("competition_hub_mock_%s.html" % kind)
 
 
 if __name__ == "__main__":
     check_data()
-    check_fixture_teams_are_in_the_table()
-    OUT.write_text(build(), encoding="utf-8")
-    print("  wrote %s (%.0f KB)" % (OUT.name, OUT.stat().st_size / 1024))
+    wanted = sys.argv[1:] or list(KINDS)
+    for kind in wanted:
+        path = out_path(kind)
+        path.write_text(build(kind), encoding="utf-8")
+        print("  wrote %s (%.0f KB)" % (path.name, path.stat().st_size / 1024))

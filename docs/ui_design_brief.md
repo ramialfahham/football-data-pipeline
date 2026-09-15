@@ -56,6 +56,15 @@ CPO note: none of these is to be copied; each contributes one thing.
 - **Images**: team crests + player photos come from the provider CDN (small PNGs,
   variable quality); design needs a graceful fallback (monogram/initials).
 - Labels/wording are i18n keys — design with realistic longest-language strings.
+- **Row links**: a row that leads somewhere is ONE link, the whole row, and it lights up on
+  hover (background on hover, sunk on press, the focus ring drawn inside). An underline is for a
+  word inside running text (a breadcrumb, a sentence), never for a name inside a row. One shared
+  rule in `system.css` carries it for every row link the site has.
+- **Nothing renders empty**: a block whose data is not served is absent — no heading over
+  nothing, no placeholder rows, no dashes standing in for a block. A single value that is
+  missing inside a rendered row shows "–".
+- **Names and labels hold together**: a team name, a "Matchday N", a date never break inside
+  themselves; a wrap falls between them.
 
 ## 5. Navigation & page inventory (fixed by site_architecture.md)
 

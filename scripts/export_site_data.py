@@ -627,24 +627,98 @@ def build_nav(competitions: list[dict]) -> dict:
     }
 
 
+def _team_ref(team: dict | None) -> dict:
+    """The identity a page needs to name and link a team: id, name, slug, crest."""
+    return {
+        "team_id": int(team["team_sk"]) if team and team.get("team_sk") is not None else None,
+        "name": (team or {}).get("team_name"),
+        "slug": (team or {}).get("team_slug"),
+        "crest": (team or {}).get("team_logo_url"),
+    }
+
+
+def _fixture_ref(kickoff, round_name, home: dict | None, away: dict | None,
+                 fixture_id: int, goals_home=None, goals_away=None) -> dict:
+    """A match the page names and links: slug, kickoff, round, both sides, the score if played."""
+    ref = {
+        "fixture_id": fixture_id,
+        "slug": fixture_slug(kickoff, (home or {}).get("team_name"), (away or {}).get("team_name"),
+                             fixture_id),
+        "kickoff": kickoff,
+        "round": round_name,
+        "home": _team_ref(home),
+        "away": _team_ref(away),
+    }
+    if goals_home is not None or goals_away is not None:
+        ref["goals_home"] = goals_home
+        ref["goals_away"] = goals_away
+    return ref
+
+
+def shape_season_summary(row: dict | None, teams: dict) -> dict | None:
+    """One competition-season's headline facts, each team and fixture resolved to what a page
+    needs to name and link it. A null fact stays null: the page renders no row for it. No number
+    is computed here — every value is a column of mart_competition_season_summary."""
+    if not row:
+        return None
+
+    def _match(prefix: str) -> dict | None:
+        if row.get(f"{prefix}_fixture_sk") is None:
+            return None
+        return _fixture_ref(
+            row.get(f"{prefix}_kickoff_datetime"), row.get(f"{prefix}_round_name"),
+            teams.get(int(row[f"{prefix}_home_team_sk"])) if row.get(f"{prefix}_home_team_sk") is not None else None,
+            teams.get(int(row[f"{prefix}_away_team_sk"])) if row.get(f"{prefix}_away_team_sk") is not None else None,
+            int(row[f"{prefix}_fixture_sk"]),
+            row.get(f"{prefix}_goals_home"), row.get(f"{prefix}_goals_away"),
+        )
+
+    def _holders(key: str) -> list[dict]:
+        return [_team_ref(teams.get(int(sk))) for sk in (row.get(key) or [])]
+
+    return {
+        "matches_played": row.get("matches_played"),
+        "total_goals": row.get("total_goals"),
+        "goals_per_match": row.get("goals_per_match_played"),
+        "home_wins": row.get("home_wins"),
+        "away_wins": row.get("away_wins"),
+        "drawn_matches": row.get("drawn_matches"),
+        "biggest_margin": _match("biggest_margin"),
+        "most_goals": _match("most_goals"),
+        "longest_unbeaten_run": row.get("longest_unbeaten_run"),
+        "longest_unbeaten_teams": _holders("longest_unbeaten_team_sks"),
+        "longest_winless_run": row.get("longest_winless_run"),
+        "longest_winless_teams": _holders("longest_winless_team_sks"),
+    }
+
+
 def shape_competition_payload(league_code: str, season: int, meta: dict,
-                              standings: list[dict], top_scorers: list[dict],
-                              fixtures: list[dict]) -> dict:
-    """A competition-season hub: standings + top scorers + fixtures list."""
+                              standings: list[dict], next_matchday: list[dict],
+                              deserved: list[dict], summary: dict | None) -> dict:
+    """A competition-season page: header facts, the standings sections, the next matchday, the
+    deserved-points rows and the season summary. Selection and ordering by served columns only:
+    standings by section then rank, the matchday by kickoff, deserved rows by the served gap rank."""
+    meta = meta or {}
     return {
         "type": "competition",
         "league_code": league_code,
         "season": season,
-        "slug": (meta or {}).get("slug"),
-        "name": (meta or {}).get("name"),
-        "country": (meta or {}).get("country"),
-        "confederation": (meta or {}).get("confederation"),
-        "tier": (meta or {}).get("tier"),
+        "slug": meta.get("slug"),
+        "name": meta.get("name"),
+        "crest": meta.get("logo_url"),
+        "region_label_en": meta.get("region_label_en"),
+        "region_label_i18n_key": meta.get("region_label_i18n_key"),
+        "competition_type": meta.get("competition_type"),
+        "entity_type": meta.get("entity_type"),
         "standings": sorted(
             standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
         ),
-        "top_scorers": sorted(top_scorers, key=lambda r: r.get("rank") or 999),
-        "fixtures": sorted(fixtures, key=lambda r: r.get("kickoff_datetime") or datetime.min),
+        "next_matchday": sorted(next_matchday, key=lambda r: r.get("kickoff") or datetime.max),
+        "deserved": sorted(
+            [r for r in deserved if r.get("deserved_points_gap_rank") is not None],
+            key=lambda r: r["deserved_points_gap_rank"],
+        ),
+        "summary": summary,
     }
 
 
@@ -1062,70 +1136,110 @@ _STANDING_DROP = {"standing_sk", "season_sk", "league_sk", "competition_type",
                   "group_description"}
 
 
+_COMPETITION_PAGE_META = ("logo_url", "region_label_en", "region_label_i18n_key",
+                          "competition_type", "entity_type")
+
+
+def _competition_page_meta(client) -> dict[str, dict]:
+    """league_code -> the header facts the competition page shows, from `mart_competition_index`:
+    the crest, the region label and its copy key, the competition and entity kind. The name and
+    the slug come through `_warehouse_competition_meta` and the registry as everywhere else."""
+    return {
+        row["league_code"]: {k: row.get(k) for k in _COMPETITION_PAGE_META}
+        for row in _query(client, f"select league_code, {', '.join(_COMPETITION_PAGE_META)} "
+                                  f"from `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_index`")
+    }
+
+
 def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REGISTRY_PATH) -> list[dict]:
+    """competitions/{league_code}/{season}.json — one per competition-season with standings.
+
+    Every block is a mart read whole or filtered by served columns: the standings row as
+    published (with its section kind), the next matchday with the warehouse's "match that
+    matters" flag, the team profile's deserved-points columns, the season summary. Team identity
+    is joined from dim_team so a row can be named and linked; nothing is computed."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     meta = {
-        c["league_code"]: {
-            "name": c.get("name"), "slug": c.get("slug"),
-            "country": c.get("country"), "confederation": c.get("confederation"),
-            "tier": c.get("tier"),
-        }
+        c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
         for c in _registry_competitions(registry_path)
     }
-    combos = sorted({
-        (r["league_code"], int(r["season_api_year"]))
-        for r in _query(client, f"select distinct league_code, season_api_year "
-                                f"from `{GCP_PROJECT}.core.fct_fixture`")
-    })
-    if sample:
-        combos = combos[:sample]
-    if not combos:
-        return []
-    combo_in = ", ".join(f"'{lc}-{s}'" for lc, s in combos)
+    for league_code, served in _warehouse_competition_meta(client).items():
+        if league_code in meta:
+            meta[league_code].update(served)
+    for league_code, served in _competition_page_meta(client).items():
+        if league_code in meta:
+            meta[league_code].update(served)
+    for m in meta.values():
+        m.pop("region_rank", None)
 
+    teams = {
+        int(r["team_sk"]): r
+        for r in _query(client, f"select team_sk, team_name, team_slug, team_logo_url "
+                                f"from `{GCP_PROJECT}.core.dim_team`")
+    }
     standings = _group2(
         _query(client, f"select * from `{marts}.mart_standings`"),
         "league_code", "season_api_year",
     )
-    scorers = _group2(
-        _query(client, f"select * from `{marts}.mart_leaderboards` where metric_key = 'goals_player'"),
-        "league_code", "season_api_year",
-    )
-    teams = {
-        int(r["team_sk"]): r
-        for r in _query(client, f"select team_sk, team_name, team_logo_url "
-                                f"from `{GCP_PROJECT}.core.dim_team`")
-    }
-    fixtures = _group2(
+    matchday = _group2(
         _query(client, f"""
             select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
-                   status_short, home_team_sk, away_team_sk, goals_home, goals_away
-            from `{GCP_PROJECT}.core.fct_fixture`
-            where concat(league_code, '-', cast(season_api_year as string)) in ({combo_in})
+                   home_team_sk, away_team_sk, is_match_that_matters
+            from `{marts}.mart_next_matchday`
         """),
         "league_code", "season_api_year",
     )
+    deserved = _group2(
+        _query(client, f"""
+            select league_code, season_api_year, team_sk, points, deserved_points,
+                   deserved_points_gap, deserved_points_gap_rank
+            from `{marts}.mart_team_profile`
+        """),
+        "league_code", "season_api_year",
+    )
+    summaries = {
+        (r["league_code"], int(r["season_api_year"])): r
+        for r in _query(client, f"select * from `{marts}.mart_competition_season_summary`")
+    }
 
-    def _fx(r: dict) -> dict:
-        h = teams.get(int(r["home_team_sk"])) if r.get("home_team_sk") is not None else None
-        a = teams.get(int(r["away_team_sk"])) if r.get("away_team_sk") is not None else None
+    # A competition-season has a page when any block has something to show: a cup has no
+    # standings but a next round and a season summary.
+    combos = sorted(set(standings) | set(matchday) | set(summaries))
+    if sample:
+        combos = combos[:sample]
+    if not combos:
+        return []
+
+    def _standing(r: dict) -> dict:
+        row = _drop(r, _STANDING_DROP)
+        row["team_slug"] = (teams.get(int(r["team_sk"])) or {}).get("team_slug")
+        return row
+
+    def _next(r: dict) -> dict:
+        home = teams.get(int(r["home_team_sk"])) if r.get("home_team_sk") is not None else None
+        away = teams.get(int(r["away_team_sk"])) if r.get("away_team_sk") is not None else None
+        ref = _fixture_ref(r.get("kickoff_datetime"), r.get("round_name"), home, away,
+                           int(r["fixture_sk"]))
+        ref["is_match_that_matters"] = bool(r.get("is_match_that_matters"))
+        return ref
+
+    def _deserved(r: dict) -> dict:
         return {
-            "fixture_id": int(r["fixture_sk"]),
-            "kickoff_datetime": r.get("kickoff_datetime"),
-            "round": r.get("round_name"),
-            "status": r.get("status_short"),
-            "home": {"team_id": r.get("home_team_sk"), "name": (h or {}).get("team_name"),
-                     "crest": (h or {}).get("team_logo_url"), "goals": r.get("goals_home")},
-            "away": {"team_id": r.get("away_team_sk"), "name": (a or {}).get("team_name"),
-                     "crest": (a or {}).get("team_logo_url"), "goals": r.get("goals_away")},
+            **_team_ref(teams.get(int(r["team_sk"]))),
+            "points": r.get("points"),
+            "deserved_points": r.get("deserved_points"),
+            "deserved_points_gap": r.get("deserved_points_gap"),
+            "deserved_points_gap_rank": r.get("deserved_points_gap_rank"),
         }
 
     payloads = []
     for (lc, season) in combos:
-        st = [_drop(r, _STANDING_DROP) for r in standings.get((lc, season), [])]
         payloads.append(shape_competition_payload(
-            lc, season, meta.get(lc), st,
-            scorers.get((lc, season), []), [_fx(r) for r in fixtures.get((lc, season), [])],
+            lc, season, meta.get(lc),
+            [_standing(r) for r in standings.get((lc, season), [])],
+            [_next(r) for r in matchday.get((lc, season), [])],
+            [_deserved(r) for r in deserved.get((lc, season), [])],
+            shape_season_summary(summaries.get((lc, season)), teams),
         ))
     return payloads
 

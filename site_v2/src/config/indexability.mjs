@@ -41,12 +41,9 @@ export const INDEXABLE = false;
  * open. Adding an entry here is how a scaffold ships honestly; it should not stay for long,
  * because that is what re-blocks #377.
  *
- * `[lang]/[competition]/index.astro` — the competition hub, added because the navigation rule in
- * `site_architecture.md` §3 makes a section heading link to what the section is about, so Next
- * matches' competition heading needs a destination. The route, its canonical, its hreflang set and
- * its locale-distinct title are all true today; only the CONTENT is missing, and **#47** owns it.
- * Every competition in `mart_competition_index` gets one, so this array grows no entries as the
- * registry grows — the page count does, the stub list does not.
+ * The competition page (`[lang]/[competition]/index.astro`) was the first entry here, as the
+ * scaffold Next matches' competition heading needed a destination for; it left the list when its
+ * Overview tab was built to the design approved on GitLab #129.
  *
  * `[lang]/players/[player].astro` — the player profile, added with the Home page's Top players
  * block (**#40**), whose every board row links to its player. `audit-seo.mjs` check 8 fails the
@@ -56,7 +53,6 @@ export const INDEXABLE = false;
  * happens to link to, so like the competition entry above it is ONE row however many pages emit.
  */
 export const STUB_PAGES = [
-  "[lang]/[competition]/index.astro",
   "[lang]/players/[player].astro",
 ];
 

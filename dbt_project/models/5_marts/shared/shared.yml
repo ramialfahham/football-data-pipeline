@@ -652,6 +652,8 @@ models:
         description: "{{ doc('deserved_points') }}"
       - name: deserved_points_gap
         description: "{{ doc('deserved_points_gap') }}"
+      - name: deserved_points_gap_rank
+        description: "{{ doc('deserved_points_gap_rank') }}"
       - name: team_founded_year
         description: "Club founded year, from dim_team. Nullable — sparse in the provider feed."
       - name: venue_name
@@ -1081,9 +1083,15 @@ models:
       for a domestic league, and one section per group for a group stage. Grain: (league_code,
       season_api_year, group_name, team_sk).
 
-      Rank, points, form and W/D/L. The provider's zone annotation ("Promotion - Champions League",
-      "Relegation") is carried verbatim in group_description but never interpreted, so there is no
-      derived qualification or relegation field.
+      Rank, points, form, W/D/L, goals scored and conceded, goal difference: every value is the
+      provider's official standings row as published, nothing computed from fixtures. The
+      provider's zone annotation ("Promotion - Champions League", "Relegation") is carried
+      verbatim in group_description but never interpreted, so there is no derived qualification
+      or relegation field.
+
+      table_kind classifies the section (league, group, conference, split_round, ranking)
+      through the standings_table_kinds seed, so a page filters on a served column and never on
+      a section name.
 
       Filtering to competition_type = 'domestic_league' gives a club's league position on its own,
       which is the form a team's fixture context needs.
@@ -1106,6 +1114,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "played is null or played = wins + draws + losses"
           name: mart_standings_played_equals_results
+      - dbt_utils.expression_is_true:
+          expression: "goals_scored is null or goals_conceded is null or goals_diff = goals_scored - goals_conceded"
+          name: mart_standings_goals_reconcile_with_goal_difference
     columns:
       - name: standing_sk
         description: "FK to fct_standings; surrogate from (league_code, season, team, group_name)."
@@ -1129,6 +1140,12 @@ models:
         tests: [not_null]
       - name: group_name
         description: "Standings section: league name (single-table), group ('Group A'), or phase. Distinguishes group tables and split-season sections."
+      - name: table_kind
+        description: "What kind of table the section is: league (the competition's own ladder), group, conference, split_round (a split season's championship, relegation, qualifying or play-off round, an Apertura or Clausura), or ranking (the provider's cross-group ranking of second- or third-placed teams). Resolved from the section name through the standings_table_kinds seed; a name no pattern matches is league."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["league", "group", "conference", "split_round", "ranking"]
       - name: competition_type
         description: "From competition_registry + competition_types seeds."
       - name: entity_type
@@ -1151,6 +1168,10 @@ models:
         tests: [not_null]
       - name: points
         description: "Accumulated points in the section."
+      - name: goals_scored
+        description: "Goals scored in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
+      - name: goals_conceded
+        description: "Goals conceded in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
       - name: form
         description: "Recent results string from the API (e.g. WWDLW)."
       - name: group_description
@@ -1622,6 +1643,118 @@ models:
       - name: standing_played
       - name: standing_goals_diff
       - name: standing_form
+
+  - name: mart_competition_season_summary
+    description: >
+      One row per competition-season with the season's headline numbers: matches and goals,
+      goals per match, how results split between home wins, away wins and draws, the match with
+      the biggest margin, the match with the most goals, and the longest unbeaten and winless
+      runs of the season with every team that holds them. Grain: (league_code, season_api_year).
+
+      Built over the finished legs of int_legs__team_match, so every count reconciles with the
+      team-season rollups. Tallies of match results at competition grain, not catalogue metrics:
+      no team or player is measured here. Ties on the biggest margin and the most goals go to
+      the earlier fixture. A run is the longest unbroken stretch of the season, not the current
+      one. Home and away wins are null for national-team competitions, whose matches are mostly
+      played at neutral venues.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "competition"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year]
+      - dbt_utils.expression_is_true:
+          expression: "home_wins is null or matches_played = home_wins + away_wins + drawn_matches"
+          name: competition_season_summary_results_sum_to_matches
+      - dbt_utils.expression_is_true:
+          expression: "matches_played >= 1"
+          name: competition_season_summary_has_matches
+      - dbt_utils.expression_is_true:
+          expression: "abs(goals_per_match_played - total_goals / matches_played) < 0.01"
+          name: competition_season_summary_goals_per_match_is_goals_over_matches
+      - dbt_utils.expression_is_true:
+          expression: "biggest_margin_fixture_sk is null or (biggest_margin_goals_home is not null and biggest_margin_goals_away is not null and most_goals_goals_home is not null and most_goals_goals_away is not null)"
+          name: competition_season_summary_referenced_fixtures_carry_their_scores
+      - dbt_utils.expression_is_true:
+          expression: "(longest_unbeaten_run is null) = (array_length(longest_unbeaten_team_sks) = 0) and (longest_winless_run is null) = (array_length(longest_winless_team_sks) = 0)"
+          name: competition_season_summary_runs_and_holders_appear_together
+      - dbt_utils.expression_is_true:
+          expression: "longest_unbeaten_run is null or longest_unbeaten_run >= 2"
+          name: competition_season_summary_a_run_is_two_matches_or_more
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: competition_type
+        description: "From competition_registry + competition_types seeds."
+      - name: entity_type
+        tests:
+          - accepted_values:
+              values: ["club", "national"]
+      - name: matches_played
+        description: "Finished matches of the season, both scores known."
+        tests: [not_null]
+      - name: total_goals
+        description: "Goals scored in those matches, both sides."
+        tests: [not_null]
+      - name: goals_per_match_played
+        description: "Total goals divided by matches played, two decimals. A tally of the season, not the team metric of the same idea."
+      - name: home_wins
+        description: "Matches the home side won; null for national-team competitions."
+      - name: away_wins
+        description: "Matches the away side won; null for national-team competitions."
+      - name: drawn_matches
+        description: "Matches drawn."
+      - name: biggest_margin_fixture_sk
+        description: "The finished match with the largest goal margin; the earlier match on a tie."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: biggest_margin_home_team_sk
+        description: "{{ doc('home_team_sk') }}"
+      - name: biggest_margin_away_team_sk
+        description: "{{ doc('away_team_sk') }}"
+      - name: biggest_margin_goals_home
+        description: "Home goals of that match."
+      - name: biggest_margin_goals_away
+        description: "Away goals of that match."
+      - name: biggest_margin_round_name
+        description: "The provider's round text of that match."
+      - name: biggest_margin_kickoff_datetime
+        description: "Kickoff of that match, UTC."
+      - name: most_goals_fixture_sk
+        description: "The finished match with the most goals, both sides; the earlier match on a tie."
+        tests:
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: most_goals_home_team_sk
+        description: "{{ doc('home_team_sk') }}"
+      - name: most_goals_away_team_sk
+        description: "{{ doc('away_team_sk') }}"
+      - name: most_goals_goals_home
+        description: "Home goals of that match."
+      - name: most_goals_goals_away
+        description: "Away goals of that match."
+      - name: most_goals_round_name
+        description: "The provider's round text of that match."
+      - name: most_goals_kickoff_datetime
+        description: "Kickoff of that match, UTC."
+      - name: longest_unbeaten_run
+        description: "The longest stretch of matches without a loss any team had in the season; null until some team has strung two together, a run of one match being no run."
+      - name: longest_unbeaten_team_sks
+        description: "Every team that had a run of that length, in team_sk order."
+      - name: longest_winless_run
+        description: "The longest stretch of matches without a win any team had in the season; null until some team has strung two together, a run of one match being no run."
+      - name: longest_winless_team_sks
+        description: "Every team that had a run of that length, in team_sk order."
 
   - name: mart_head_to_head
     description: >
@@ -2118,6 +2251,13 @@ models:
         description: "{{ doc('home_team_sk') }}"
       - name: away_team_sk
         description: "{{ doc('away_team_sk') }}"
+      - name: is_match_that_matters
+        description: "True on at most one fixture per competition: the one of the matchday whose two teams have the lowest sum of table positions, ties to the earlier kickoff then fixture_sk. A position is a team's rank in the one standings section it belongs to that season; where either side has none (a knockout round, a split season) no fixture of that competition is flagged."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
 
   - name: mart_team_fixtures
     description: >

@@ -195,6 +195,7 @@ select
     d.deserved_points,
     d.deserved_rank,
     d.deserved_points_gap,
+    d.deserved_points_gap_rank,
     -- The season this team's page opens on (#846). Exactly one row per team is true: the most
     -- recent DOMESTIC LEAGUE season, falling back to the most recent season of any type for a team
     -- with no league season. A warehouse fact, so the export and the page

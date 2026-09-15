@@ -313,6 +313,16 @@ league-season (the slope is then undefined rather than flat).
 {% enddocs %}
 
 
+{% docs deserved_points_gap_rank %}
+Position of the team within its league-season by deserved_points_gap, most negative first: 1 =
+the team with the fewest points relative to what its on-target process deserved. A total order
+(row_number over the gap, then the team id), so the three lowest and the three highest
+positions name exactly six teams and a page reads the ends of the served order instead of
+ranking. Not aggregated from match legs; computed by ordering the deserved_points_gap metric.
+Domestic leagues only. Null exactly whenever deserved_points_gap is null.
+{% enddocs %}
+
+
 {% docs deserved_rank %}
 Rank of the team within its league-season by deserved_points (descending; 1 = most points
 deserved) - the process-deserved table position. Not aggregated from match legs; computed by
