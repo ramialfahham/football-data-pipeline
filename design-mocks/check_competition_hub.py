@@ -12,7 +12,6 @@ RED on it -- a check only ever seen green proves nothing.
 """
 import re
 import sys
-from pathlib import Path
 
 import gen_competition_hub as G   # noqa: E402  (the mock's own data is the expectation)
 

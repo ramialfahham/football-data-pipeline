@@ -1,9 +1,9 @@
 # Review — feat/149-competition-overview — 2026-09-15
 
-diff_sha256: 9c8285211c006a459925444ece2db0789f0c85346cb17b4c8aa14988f22ea2a7
+diff_sha256: ae8dccc81377a853e5c765e2d4e9c86a928a5978a0f438d19e4f339bba640042
 
-rounds: 4
-rounds_cap_override: the fourth round reviewed no open finding but two changes the CPO ordered on the MR in this session ("tie by id is really ridiculous and absurd"; "Höchster Sieg, aber dann auch Suurin voitto") — his instruction to build them is the continue; rounds one to three closed every finding.
+rounds: 5
+rounds_cap_override: the fourth and fifth rounds (a CI lint on one dead import) reviewed no open finding; the fourth reviewed no open finding but two changes the CPO ordered on the MR in this session ("tie by id is really ridiculous and absurd"; "Höchster Sieg, aber dann auch Suurin voitto") — his instruction to build them is the continue; rounds one to three closed every finding.
 
 ## scope-auditor
 VERDICT: PASS
@@ -92,6 +92,9 @@ risks_checked:
   singular test still holds; descriptions and the contract record the authority.
 - bi-analyst-reviewer (delta) PASS: the Finnish "Suurin voitto" for Biggest margin, two cells
   (strings.ts and the mock), the copy gate OK; no other surface touched.
+
+## round 5 — CI lint
+- `lint:python` failed on one unused import (`pathlib.Path`) in `design-mocks/check_competition_hub.py`, a leftover of the rewrite that no local gate runs (`ruff` runs in CI only); removed, `ruff check . --config .ruff-ci.toml` clean locally. No reviewer territory beyond a dead import.
 
 ## escalations
 - The deserved-boards ordering (round 1, analytics-engineer-reviewer): two written rules in

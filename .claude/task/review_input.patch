@@ -1577,10 +1577,10 @@ index be48279e..c7e41922 100644
  | `gen_interaction.py` | the interaction standard | #52 | `scan_clickables.py` |
  
 diff --git a/design-mocks/check_competition_hub.py b/design-mocks/check_competition_hub.py
-index 4935e4d9..8fb9f872 100644
+index 4935e4d9..cfd0714a 100644
 --- a/design-mocks/check_competition_hub.py
 +++ b/design-mocks/check_competition_hub.py
-@@ -1,22 +1,21 @@
+@@ -1,22 +1,20 @@
 -"""Checks for competition_hub_mock.html.
 +"""Checks for the competition page mocks (competition_hub_mock_<kind>.html, four kinds).
  
@@ -1600,7 +1600,7 @@ index 4935e4d9..8fb9f872 100644
  """
  import re
  import sys
- from pathlib import Path
+-from pathlib import Path
  
 -HTML = Path(__file__).with_name("competition_hub_mock.html")
  import gen_competition_hub as G   # noqa: E402  (the mock's own data is the expectation)
@@ -1609,7 +1609,7 @@ index 4935e4d9..8fb9f872 100644
  FAILS = []
  
  
-@@ -24,31 +23,30 @@ def ok(name):
+@@ -24,31 +22,30 @@ def ok(name):
      print("  PASS  %s" % name)
  
  
@@ -1655,7 +1655,7 @@ index 4935e4d9..8fb9f872 100644
          m = re.search(r"--cols:\s*([^;]+);", b)
          if m:
              out.append(m.group(1).strip())
-@@ -56,245 +54,212 @@ def track_lists(css):
+@@ -56,245 +53,212 @@ def track_lists(css):
  
  
  def n_tracks(decl):
@@ -4570,7 +4570,7 @@ index aa696957..20fc985d 100644
 #
 #   .claude/task/acceptance_evidence.md    |   95 +-
 #    .claude/task/rendered_page_evidence.md |  119 +-
-#    .claude/task/review.md                 |   94 +-
-#    .claude/task/review_input.patch        | 4625 +++++++++++++++++++++++++++++++-
-#    4 files changed, 4744 insertions(+), 189 deletions(-)
+#    .claude/task/review.md                 |  102 +-
+#    .claude/task/review_input.patch        | 4641 +++++++++++++++++++++++++++++++-
+#    4 files changed, 4768 insertions(+), 189 deletions(-)
 # ============================================================================
