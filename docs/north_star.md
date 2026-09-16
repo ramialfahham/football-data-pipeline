@@ -12,6 +12,17 @@ Not a statistics database. Not a betting tool. A product that makes fans feel sm
 
 **Platform / media product.** Millions of users, partnerships with leagues or broadcasters, data licensing. This is built to be big.
 
+**Everything scales with the number of competitions ingested, and scale is never the argument.**
+Whether something is built is decided by its value to the fan. How many pages, rows or
+competitions it produces is never an argument for or against it; the engineering is there to
+carry whatever the product decides, and a build that cannot is the defect. Adding a competition
+adds its pages, its data and its nightly rebuild by itself: no per-competition code, no cap on
+pages, no manual step. The warehouse half of this is machine-checked (`CLAUDE.md`, "Scalability
+rules"); the site build owes the same.
+**Money is a different question and it is always asked.** Recurring spend (warehouse bytes
+scanned, provider calls, hosting) is measured before a feature runs nightly and put to the CPO
+with the number; it is his call, every time. Scale is not a cost argument; a bill is.
+
 ---
 
 ## Who it's for

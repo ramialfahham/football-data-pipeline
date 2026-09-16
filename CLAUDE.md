@@ -95,6 +95,12 @@ rebuilt from scratch against a design its issue had already approved.
   `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
 - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
+- **Scale is never the argument** — a feature is built or not on its value to the fan; its page,
+  row or competition count is a consequence, never an input, and a build that cannot carry it is
+  the defect. Money is the separate question and is always asked: recurring spend is measured
+  and put to the CPO with the number (the "Cost is non-negotiable" bullet below). The rule is
+  `docs/north_star.md` "Scale ambition"; on 2026-09-16 a session argued against a product
+  feature from its page count, which is exactly what it forbids.
 - **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home; the hybrid-browse block was dropped 2026-08-19). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**. v2 has its own go-live.
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
