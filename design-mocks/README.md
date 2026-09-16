@@ -17,6 +17,10 @@ preview_start url http://127.0.0.1:8899/<file>.html
 |---|---|---|---|
 | `gen_competitions.py` | `/{locale}/competitions/` — the index | **#54** | `python gen_competitions.py` + `prove_region_checks_fail.py` |
 | `gen_competition_hub.py` | `/{locale}/{slug}/` — the competition page, Overview tab, four kinds (`league`, `groups`, `cup`, `offseason`), one file each | #129 (the approved design), #149 (the build) | `check_competition_hub.py` |
+| `gen_overview_after_teams.py` | the Overview tab as approved: the Deserved points table as a full table, the six fact rows as links, the three-tab bar — an overlay on `gen_competition_hub.py` | #129 · #151 (the build) | none yet — #153 |
+| `gen_competition_matchdays.py` | `/{locale}/{slug}/fixtures/` — the Matchdays tab: the picker, the Schedule block, the Next and Top match tags | #129 · #150 (the build) | none yet — #153 |
+| `gen_competition_teams.py` | the Rankings tab: Team rankings (12 boards) and Player rankings (13 boards) as striped single-value tables in the catalogue's groups | #129 · #151 · #152 (the groups) | none yet — #153 |
+| `gen_home_with_rules.py` | Home with the page-wide rules of the #129 review: boards as single-value tables, 13px block names, the 14px heading gap, the accent on the ordered-by number, one hover tint — an overlay on `gen_home.py` | #127 (Home's corrections) | none yet — #153 |
 | `gen_matches.py` · `gen_home.py` · `gen_block_standard.py` | the "Next matches" block | #50 | `check_row_consistency.py` |
 | `gen_interaction.py` | the interaction standard | #52 | `scan_clickables.py` |
 
@@ -106,7 +110,48 @@ Several were written after a defect got past the earlier ones:
   presence of key phrases **whitespace-collapsed** (a line-based match misses a phrase that wraps).
 - `section_sizes.py` — per-section character counts, for deciding what to trim.
 
-## Every number in the mocks is placeholder
+## The competition-page renders of record (#129, approved 2026-09-16)
 
-The player and team names are real; the values attached to them are invented and were never
-measured. Nothing here has been run against BigQuery.
+The four generators in the surfaces table above render the design the CPO approved on #129 —
+`gen_overview_after_teams.py`, `gen_competition_matchdays.py`, `gen_competition_teams.py`,
+`gen_home_with_rules.py`. They were written in a session scratchpad during the review and
+brought here the same day under #153, so the approved design is reproducible from the repo.
+Two are overlays: they import the repo generator (`gen_competition_hub.py`, `gen_home.py`),
+patch its copy or its board renderer, and add the rules' CSS after the stylesheet — the repo
+generator itself is untouched until its build issue lands. ⚠ `gen_home_with_rules.py` imports
+`gen_home`, which writes `home_mock.html` as a side effect of the import.
+
+Each takes the output file name as its one argument:
+
+```
+python gen_overview_after_teams.py   competition-overview_<date>_<nn>.html
+python gen_competition_matchdays.py  competition-matchdays_<date>_<nn>.html
+python gen_competition_teams.py      competition-rankings_<date>_<nn>.html
+python gen_home_with_rules.py        home_<date>_<nn>.html
+```
+
+The four renders the CPO approved are `competition-overview_2026-09-16_01.html`,
+`competition-matchdays_2026-09-16_01.html`, `competition-rankings_2026-09-16_01.html` and
+`home_2026-09-16_01.html`. Re-running the generators reproduces the Matchdays and Rankings
+renders byte for byte; the Overview and Home renders differ only in a `<title>` and a CSS comment
+that carried a date (code comments carry no dates here). `design-mocks/*.html` is gitignored, so
+the renders live on disk only; whether review renders are tracked is decided under #153.
+
+**They read real data.** Five pulls sit beside them, each the JSON the `bq` CLI wrote from prod
+on 2026-09-16, unchanged:
+
+| File | Rows | What it is |
+|---|---|---|
+| `bl1_fixtures.json` | 306 | every Bundesliga 2026/27 fixture from `core.fct_fixture`: kick-off, round, status, score |
+| `bl1_md3_shots.json` | 9 | matchday 3's shots and shots on goal per side, from core's fixture team stats |
+| `bl1_team_metrics.json` | 18 | each club's season metrics from `mart_team_profile` |
+| `bl1_team_cards.json` | 18 | each club's season yellow and red cards, summed from `fct_fixture_team_stats` over finished matches — two metrics not yet in the catalogue |
+| `bl1_player_metrics.json` | 417 | each player's season metrics from `mart_player_profile` |
+
+They also read the committed Bundesliga payload `site_v2/src/data/competitions/BL1/2026.json`
+(the table, the deserved points, the next matchday and its flagged match).
+
+## Every number in the OTHER mocks is placeholder
+
+Outside the four generators above, the player and team names are real; the values attached to
+them are invented and were never measured, and nothing was run against BigQuery.
