@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-14**, on `chore/session-end-2026-09-14`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-16**, on `chore/session-end-2026-09-16`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -23,24 +23,47 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 
 ## ⛔ WHERE WE ARE
 
-**HOME IS DONE (#127 approved, #143 merged as `!187`, 2026-09-13).** The approved design is the
-`The approved design` section of #127. The next matchday is a warehouse fact: `mart_next_matchday`
-(the CPO's "Path A" after the warehouse reviewer failed the export-side round selection; GAP-32
-closed), read whole by the export; the block folds past three rows; the team boards have no floor.
-⚠ The committed `landing.json` sample (≤2 fixtures per competition) cannot show the fold and was
-NOT refreshed — a set roll-forward would pin 232 fixture payloads; rolling it is maintenance, not
-a block's job. Rulings elsewhere: #101 (80/10/10), #114 (underlying total), Stats → **Leaderboards**
-(milestone 7). Go-live items (About, Imprint) have no tracker issue — his call to file.
+**HOME IS DONE (#127 approved, #143 merged as `!187`, 2026-09-13).** The design is #127's
+`The approved design`; the next matchday is a warehouse fact (`mart_next_matchday`, read whole;
+GAP-32 closed); the block folds past three rows; the team boards have no floor. ⚠ The committed
+`landing.json` sample cannot show the fold and was not refreshed (a set roll-forward pins 232
+fixture payloads — maintenance, not a block's job). Rulings elsewhere: #101 (80/10/10), #114
+(underlying total), Stats → **Leaderboards** (milestone 7). Go-live items (About, Imprint) have no
+issue — his call to file.
 
-**THE COMPETITIONS HUB IS DONE (#128 approved, #144 merged as `!189`, 2026-09-14).** #144 built: every row links to its competition's
-page; the empty-group collapse decides from the FILTER STATE (`offsetParent` hid all eight groups
-after a background load — seen live); six competition kinds get DE/FI labels and
-`check_copy_gate.py` check 5 reads the seeds' `label_i18n_key` so no kind can lack a language;
-`08_browse.md` and the overview row 08 corrected to #128. The DE/FI wording of the six labels is
-the builder's draft, put to the CPO in the MR head. Rulings that landed elsewhere: **#57** —
-delete the `display_group` column (a competition we ingest is one we show; friendlies would get
-their own group); **#69** — the country table, first consumer this page (countries are English on
-every page today; regions are translated). Both are their own build items.
+**THE COMPETITION PAGE'S OVERVIEW TAB IS DONE (#129 approved and ticked, #149 merged as
+`!191`, 2026-09-16).** The design is #129's `The approved design`;
+the tabs are **Overview · Matchdays · Teams · Players** (Rounds for a cup), the three unbuilt
+ones inert labels until built (the build fails on a link to a missing page). Overview order:
+Table · Next matches · Deserved points · The season in numbers; a block with nothing served is
+absent; after a season everything but Next matches stays. New warehouse facts: `goals_scored` /
+`goals_conceded` on the standings row (the provider's, never summed — the facts-versus-metrics
+rule is now in `docs/metric_layer.md`); `table_kind` on `mart_standings` from the
+`standings_table_kinds` seed (every one of 300+ section names resolves; tested from core);
+`is_match_that_matters` on `mart_next_matchday`; `mart_competition_season_summary` (tallies,
+biggest-margin and most-goals fixtures — ties: more goals / bigger margin, then the earlier
+kickoff; runs null until a team strings two; home/away wins null for national teams);
+`deserved_points_gap_rank` on the team profile (a catalogue row) so the two boards read the ends
+of a served order — the CPO's answer to the reviewer's "ranking in the export" finding, after two
+written rules disagreed. Diff = actual minus deserved, the catalogue's sign (Mainz −2.7 under
+"Better than the table says"). The **fact row** is a defined block type (label · value ·
+context; `ui_design_brief.md` §4 has it with the row-link and nothing-renders-empty rules). ⚠ The
+committed sample is the Bundesliga 2026/27 payload plus 16 team and 9 fixture payloads (~8 MB,
+allowlisted in `.gitignore`); the deploy export still runs `--entities teams,fixtures`, so
+production shows the sample — a go-live item, not filed. ⚠ The new marts exist in prod only after
+the first nightly past the merge. DE/FI copy of the page reviewed cell by cell by the CPO (one
+change: "Suurin voitto"). Run `ruff check . --config .ruff-ci.toml` before pushing — CI runs it, no
+local gate does. **Next: the Matchdays tab review on #129,
+block by block, re-rendered after every ruling (his standing demand — `SendUserFile`, a fresh file name each
+time; the pane cannot show local files, a re-sent name shows stale); then Teams, then Players; each gets its own build issue.**
+Open dependencies the page picks up when they land: #105 season label, #145 sentence, #146 venue
+clock, #148 round phase (the header and the fact rows show the provider's round text until then),
+#69 country key.
+
+**THE COMPETITIONS HUB IS DONE (#128 approved, #144 merged as `!189`, 2026-09-14).** Rows link to
+the competition page; the empty-group collapse decides from the filter state; every competition
+kind has DE/FI labels and `check_copy_gate.py` check 5 holds it. Rulings elsewhere: **#57** (delete
+`display_group`), **#69** (the country table; countries are English on every page today).
 
 **THE ROADMAP IS THE GITLAB MILESTONES, IN THE SITE'S MENU ORDER: Home · Competitions · Matches ·
 Teams · Players · Standings · Leaderboards.** One review issue per page under each (#127–#140): what is on
@@ -52,9 +75,7 @@ gone (`!184`). **The tracker has a backup in the repo** (`!185`): `docs/tracker/
 written only by `python scripts/snapshot_tracker.py` — run it at the END of every session before
 the handover commit; a hook refuses any hand edit, a test checks its checksum, and it is read only
 when GitLab is unreachable. ⚠ Its checksum is self-consistency, not provenance — a forged shell
-write passes; forbidden by rule, and the CPO knows. **Next: the
-competition page review, #129 (the scaffold at `/{lang}/{competition}/`; `04_competition_hub.md`
-does not exist — `ui_design_brief.md` §6.5 is its only field contract), the same way.**
+write passes; forbidden by rule, and the CPO knows. The competition page's Overview is built (above); its other three tabs are next.
 
 **How we work since 2026-09-11** is in `CLAUDE.md` "Which source answers which question" and
 `docs/working_agreement.md` §1 / §11: the requirement is the GitLab issue (Task template), the
@@ -82,27 +103,19 @@ in one session he asked "you waiting for something?".
 
 ## ⛔ WHAT 2026-09-08 CHANGED IN PROD — read before trusting an older measurement
 
-Awarded results count as played (`games_expecting_team_stats` at every gate); the override seed is
-`fixture_team_id_overrides` for all three fixture-level feeds; the freshness guard ignores
-`SUSP`/`INT`. `assert_team_season_games_not_short_of_standings` is WARN and RED on **3 rows by
-design**: Trabzonspor + Gaziantep FK (the Turkish forfeit — #110) and Al Wehda AFCCL 2021 (5
-fixtures never ingested — a different problem, not #110). **Prod is correct; nothing is owed.**
+Awarded results count as played; the override seed is `fixture_team_id_overrides` for all three
+fixture-level feeds; the freshness guard ignores `SUSP`/`INT`.
+`assert_team_season_games_not_short_of_standings` is WARN and RED on 3 rows by design (#110 plus
+Al Wehda AFCCL 2021). **Prod is correct; nothing is owed.**
 
-⛔⛔ **THE TRAP THAT NEARLY SHIPPED, AND IT WILL RECUR: A CORRECTION IN BASE DOES NOT REACH AN
-INCREMENTAL FACT.** The fanout facts filter `raw_ingested_at > max(target)`, which a finished fixture
-never advances. **Only three models in the project are incremental** — `fct_fixture_event`,
-`fct_fixture_player_stats`, `fct_fixture_team_stats` — everything else is a table, so check rather
-than assume either way. ⚠ A self-heal clause CANNOT always be copied: the player/team-stats surrogate
-keys INCLUDE `team_id`, so correcting it changes the key and a merge INSERTS the corrected row and
-strands the old one. `event_sk` excludes `team_id`, which is the only reason its self-heal works.
-**The fix is a one-off `dbt build --full-refresh --select <facts>`, and it is the CPO's to run**
-(`dbt build` is banned here).
-⚠ Check a refresh is lossless first: compare the fact's row count to its base. Equal = nothing
-accumulated. On 2026-09-08 player stats and team stats matched exactly, but **`fct_fixture_event` was
-858,032 against a base of 858,015** — 17 rows it retains that base no longer emits. That +17 is why
-these stay incremental instead of becoming tables.
-⭐ **The repo's whole verification method is BLIND to this.** Compiling a model and running it
-read-only against prod measures what the LOGIC computes, never what the incremental TABLE contains.
+⛔⛔ **A CORRECTION IN BASE DOES NOT REACH AN INCREMENTAL FACT.** Only three models are
+incremental — `fct_fixture_event`, `fct_fixture_player_stats`, `fct_fixture_team_stats`; their
+filter `raw_ingested_at > max(target)` never advances for a finished fixture, and the stats keys
+INCLUDE `team_id`, so a merge inserts a corrected row and strands the old one. **The fix is a
+one-off `dbt build --full-refresh --select <facts>`, the CPO's to run.** Check it is lossless
+first (fact rows vs base): on 2026-09-08 `fct_fixture_event` held 17 rows base no longer emits.
+⭐ Compiling a model and running it read-only against prod measures the LOGIC, never what the
+incremental TABLE contains.
 
 ## ⛔ THE ROUND CAP (3) — the override practice, settled by use, never ruled
 
@@ -145,25 +158,17 @@ that overwrites prod's base tables and seeds if a build ever selects one. Meanwh
   - **#99 / #102 / #96 / #98** — export board keys pinned by no test; `mart_leaderboards` is
     player-only under an unprefixed name; no offline gate checks `accepted_values`.
 
-## ⛔ WHAT ACTUALLY FINDS DEFECTS — !156, !157 and !159, 13 review rounds
+## ⛔ WHAT ACTUALLY FINDS DEFECTS — the blinded review and CI, almost never a gate
 
-**1. The blinded review, then CI. Almost never a gate.** Every FAIL across those three MRs came from
-a reviewer or the MR pipeline. `dbt parse`, SQLFluff and the offline gates were green over all of
-them — including over a git conflict marker committed into the ruling log.
-**2. ⛔ ALMOST EVERY DEFECT WAS A CLAIM I ASSERTED WITHOUT OPENING THE FILE** — which model is
-incremental, how many keys move, which test exists, that a column named `played` came from the
-standings (it was an alias of our own count, so a whole test could never fail), that I had logged the
-rulings I cited. **Open the file; do not recall it.** This is the single highest-yield habit change
-available.
-**3. A CLASS RECURS UNTIL YOU SWEEP THE RIGHT TREE.** "A gate moved, a divisor did not" hit three
-times on !156; round 3 swept every RATE in the two gate files and missed the third, which was in a
-TEST encoding an invariant ABOUT a rate.
-**4. Report every sweep two-sided** ("1 moves, 4 stay") and mutation-test against the mutation the
-design is DEFENDED against, not the ones that come to mind.
-**5. A reviewer's flagged-but-not-failed trade-off is still a trade-off** — twice it was a real loss
-of coverage with a fix the reviewer had judged impossible.
-**6. REWRITE THE DESIGN, REWRITE THE PAPERWORK.** Acceptance criteria describing a previous
-design were left standing twice on !159, and a reviewer had to find them.
+Across `!156`/`!157`/`!159` (13 rounds) and `!191` (5 rounds) every FAIL came from a reviewer or
+the pipeline; parse, lint and the offline gates were green over all of them. **Almost every
+defect was a claim asserted without opening the file** — open it, do not recall it. A class recurs
+until the RIGHT tree is swept, two-sided ("1 moves, 4 stay"); mutation-test against the mutation
+the design is defended against; a reviewer's flagged-but-not-failed trade-off is still a trade-off;
+**rewrite the design, rewrite the paperwork** (acceptance criteria describing a previous design
+were found by reviewers on `!159` and on `!191`). What `!191` added: an invented locale format
+(a German score colon) with no authority; a catalogue flag set against its own direction; a
+`ruff` finding only CI runs.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
