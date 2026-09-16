@@ -331,6 +331,15 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(deserved_points is null and deserved_rank is null) or (deserved_points is not null and deserved_rank is not null)"
           name: int_team_season_deserved_rank_tracks_points
+      # The gap rank is a TOTAL order over the gap and appears exactly with it: null together,
+      # and where present unique within the league-season (row_number, never a shared rank).
+      - dbt_utils.expression_is_true:
+          expression: "(deserved_points is null and deserved_points_gap_rank is null) or (deserved_points is not null and deserved_points_gap_rank >= 1)"
+          name: int_team_season_deserved_points_gap_rank_tracks_points
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_sk, deserved_points_gap_rank]
+          where: "deserved_points_gap_rank is not null"
+          name: int_team_season_deserved_points_gap_rank_is_a_total_order
       # a published read requires a single-ladder table — the condition is inside the gate, and this
       # asserts it held rather than trusting the gate to have applied it.
       - dbt_utils.expression_is_true:
@@ -445,6 +454,8 @@ models:
         description: "{{ doc('deserved_rank') }}"
       - name: deserved_points_gap
         description: "{{ doc('deserved_points_gap') }}"
+      - name: deserved_points_gap_rank
+        description: "{{ doc('deserved_points_gap_rank') }}"
       - name: league_sk
         description: "{{ doc('league_sk') }}"
       - name: season_api_year

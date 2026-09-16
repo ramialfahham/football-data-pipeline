@@ -19,6 +19,7 @@ from scripts.export_site_data import (
     fixture_slug,
     shape_competition_index,
     shape_competition_payload,
+    shape_season_summary,
     shape_fixture_payload,
     shape_leaderboards,
     shape_matchstats,
@@ -148,35 +149,115 @@ def test_shape_top_players_selects_by_rank_and_joins_names():
     assert "top_player_rank" not in top[0]                 # selection key dropped
 
 
-def test_shape_competition_payload_sorts_sections():
+def test_shape_competition_payload_orders_every_block_by_served_columns():
+    """Standings by section then rank, the matchday by kickoff, deserved rows by the served gap
+    rank (1 = the most under-rewarded team) — the export orders by served columns, it never ranks."""
     p = shape_competition_payload(
-        "BL1", 2025, {"name": "Bundesliga", "slug": "bundesliga"},
-        standings=[{"group_name": "", "standing_rank": 2}, {"group_name": "", "standing_rank": 1}],
-        top_scorers=[{"rank": 2}, {"rank": 1}],
-        fixtures=[{"kickoff_datetime": "2025-09-02"}, {"kickoff_datetime": "2025-09-01"}],
+        "BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"},
+        standings=[{"group_name": "Bundesliga", "standing_rank": 2},
+                   {"group_name": "Bundesliga", "standing_rank": 1}],
+        next_matchday=[{"fixture_id": 2, "kickoff": "2026-09-19T13:30:00"},
+                       {"fixture_id": 1, "kickoff": "2026-09-18T18:30:00"}],
+        deserved=[{"name": "Dortmund", "deserved_points": 6.3, "deserved_points_gap": 2.7, "deserved_points_gap_rank": 3},
+                  {"name": "Mainz", "deserved_points": 6.7, "deserved_points_gap": -2.7, "deserved_points_gap_rank": 1},
+                  {"name": "Köln", "deserved_points": 4.2, "deserved_points_gap": -0.2, "deserved_points_gap_rank": 2}],
+        summary=None,
     )
     assert p["type"] == "competition" and p["slug"] == "bundesliga"
     assert [s["standing_rank"] for s in p["standings"]] == [1, 2]
-    assert [s["rank"] for s in p["top_scorers"]] == [1, 2]
-    assert [f["kickoff_datetime"] for f in p["fixtures"]] == ["2025-09-01", "2025-09-02"]
+    assert [f["fixture_id"] for f in p["next_matchday"]] == [1, 2]
+    assert [d["name"] for d in p["deserved"]] == ["Mainz", "Köln", "Dortmund"]
+    assert p["summary"] is None
 
 
-def test_shape_competition_payload_surfaces_registry_identity():
+def test_shape_competition_payload_drops_deserved_rows_the_warehouse_did_not_rank():
     p = shape_competition_payload(
-        "BL1", 2025,
-        {"name": "Bundesliga", "slug": "bundesliga",
-         "country": "Germany", "confederation": "UEFA", "tier": 1},
-        standings=[], top_scorers=[], fixtures=[],
+        "BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"}, standings=[], next_matchday=[],
+        deserved=[{"name": "A", "deserved_points": None, "deserved_points_gap": None, "deserved_points_gap_rank": None},
+                  {"name": "B", "deserved_points": 3.0, "deserved_points_gap": 1.0, "deserved_points_gap_rank": 1}],
+        summary=None,
     )
-    assert p["country"] == "Germany"
-    assert p["confederation"] == "UEFA"
-    assert p["tier"] == 1
+    assert [d["name"] for d in p["deserved"]] == ["B"]
+
+
+def test_shape_competition_payload_surfaces_the_served_header_facts():
+    p = shape_competition_payload(
+        "BL1", 2026,
+        {"name": "Bundesliga", "slug": "bundesliga", "logo_url": "https://x/78.png",
+         "region_label_en": "Germany", "region_label_i18n_key": "regionGermany",
+         "competition_type": "domestic_league", "entity_type": "club"},
+        standings=[], next_matchday=[], deserved=[], summary=None,
+    )
+    assert p["crest"] == "https://x/78.png"
+    assert p["region_label_en"] == "Germany" and p["region_label_i18n_key"] == "regionGermany"
+    assert p["competition_type"] == "domestic_league" and p["entity_type"] == "club"
 
 
 def test_shape_competition_payload_identity_absent_is_none():
     p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
-                                  standings=[], top_scorers=[], fixtures=[])
-    assert p["country"] is None and p["confederation"] is None and p["tier"] is None
+                                  standings=[], next_matchday=[], deserved=[], summary=None)
+    assert p["crest"] is None and p["region_label_en"] is None and p["entity_type"] is None
+
+
+_SUMMARY_TEAMS = {
+    160: {"team_sk": 160, "team_name": "SC Freiburg", "team_slug": "sc-freiburg", "team_logo_url": "c160"},
+    163: {"team_sk": 163, "team_name": "Borussia Mönchengladbach", "team_slug": "gladbach", "team_logo_url": "c163"},
+    1660: {"team_sk": 1660, "team_name": "SV Elversberg", "team_slug": "sv-elversberg", "team_logo_url": None},
+}
+
+
+def _summary_row(**overrides) -> dict:
+    row = {
+        "matches_played": 27, "total_goals": 104, "goals_per_match_played": 3.85,
+        "home_wins": 14, "away_wins": 8, "drawn_matches": 5,
+        "biggest_margin_fixture_sk": 1575154, "biggest_margin_home_team_sk": 160,
+        "biggest_margin_away_team_sk": 163, "biggest_margin_goals_home": 5,
+        "biggest_margin_goals_away": 0, "biggest_margin_round_name": "Regular Season - 3",
+        "biggest_margin_kickoff_datetime": "2026-09-12T13:30:00",
+        "most_goals_fixture_sk": 1575153, "most_goals_home_team_sk": 163,
+        "most_goals_away_team_sk": 1660, "most_goals_goals_home": 3, "most_goals_goals_away": 4,
+        "most_goals_round_name": "Regular Season - 2",
+        "most_goals_kickoff_datetime": "2026-09-05T13:30:00",
+        "longest_unbeaten_run": 3, "longest_unbeaten_team_sks": [160],
+        "longest_winless_run": 3, "longest_winless_team_sks": [163, 1660],
+    }
+    row.update(overrides)
+    return row
+
+
+def test_shape_season_summary_resolves_teams_and_fixtures_to_what_the_page_links():
+    s = shape_season_summary(_summary_row(), _SUMMARY_TEAMS)
+    assert s["matches_played"] == 27 and s["total_goals"] == 104 and s["goals_per_match"] == 3.85
+    assert s["home_wins"] == 14 and s["away_wins"] == 8 and s["drawn_matches"] == 5
+    bm = s["biggest_margin"]
+    assert bm["fixture_id"] == 1575154 and bm["goals_home"] == 5 and bm["goals_away"] == 0
+    assert bm["slug"] == "2026-09-12-sc-freiburg-vs-borussia-monchengladbach"
+    assert bm["home"]["slug"] == "sc-freiburg" and bm["away"]["name"] == "Borussia Mönchengladbach"
+    assert bm["round"] == "Regular Season - 3"
+    assert s["most_goals"]["away"] == {"team_id": 1660, "name": "SV Elversberg",
+                                       "slug": "sv-elversberg", "crest": None}
+    assert s["longest_unbeaten_run"] == 3
+    assert [t["slug"] for t in s["longest_unbeaten_teams"]] == ["sc-freiburg"]
+    assert [t["slug"] for t in s["longest_winless_teams"]] == ["gladbach", "sv-elversberg"]
+
+
+def test_shape_season_summary_keeps_a_null_fact_null_and_a_missing_row_none():
+    s = shape_season_summary(
+        _summary_row(home_wins=None, away_wins=None, biggest_margin_fixture_sk=None,
+                     longest_unbeaten_team_sks=[]),
+        _SUMMARY_TEAMS,
+    )
+    assert s["home_wins"] is None and s["away_wins"] is None
+    assert s["biggest_margin"] is None
+    assert s["longest_unbeaten_teams"] == []
+    assert shape_season_summary(None, _SUMMARY_TEAMS) is None
+
+
+def test_shape_season_summary_computes_nothing():
+    """Every value is a served column repeated; a row whose served ratio disagrees with its own
+    counts is passed through as served, never recomputed here."""
+    s = shape_season_summary(_summary_row(goals_per_match_played=9.99), _SUMMARY_TEAMS)
+    assert s["goals_per_match"] == 9.99
 
 
 def test_fixture_slug_date_home_vs_away():

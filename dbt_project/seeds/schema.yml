@@ -108,6 +108,40 @@ seeds:
           - not_null
           - unique
 
+  - name: standings_table_kinds
+    description: >
+      Classifies a standings section by its provider name into the kind of table it is, so a page
+      can render one table per group, drop the provider's cross-group ranking tables, and show a
+      split season's rounds under their own headings without ever matching on a name itself.
+      Hand-authored, four rows; the patterns are case-insensitive regular expressions matched in
+      priority order against the section name, and a name no row matches is the competition's
+      own league table.
+
+      Measured against every distinct section name the standings fact held when the seed was
+      written: ranking tables ("Ranking of third-placed teams"), groups ("Group A", "GROUP B",
+      "Groups - Group A", "UEFA Champions League: Group A", "Apertura - Group B"), conferences and
+      regions (MLS Eastern/Western Conference, AFC East/West Region, J-League East/West), and
+      split-season rounds (Championship / Relegation / Qualifying Round, play-off groups, Apertura,
+      Clausura, "1st Phase", "Regular Season"). Everything else — "Bundesliga", "Ligue 1 ",
+      "K-League 1 2025", "UEFA Champions League", "League Round" — is the league table.
+    columns:
+      - name: priority
+        description: The order the patterns are tried in; the lowest number that matches wins.
+        tests:
+          - not_null
+          - unique
+      - name: pattern
+        description: A BigQuery regular expression, matched case-insensitively against the section name.
+        tests:
+          - not_null
+          - unique
+      - name: table_kind
+        description: "The kind the pattern assigns: ranking, group, conference or split_round. The unmatched default, league, has no row."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["ranking", "group", "conference", "split_round"]
+
   - name: competition_registry
     description: >
       Every competition the platform tracks, with the fields the registry authors by hand:

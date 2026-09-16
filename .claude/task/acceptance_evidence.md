@@ -1,52 +1,47 @@
-# Acceptance evidence — Competitions hub: build the approved design (#144)
+# Acceptance evidence — competition page, Overview tab: build the approved design (#149)
+
+Every item read from the running page (Astro dev server) on the committed sample; the numbers and
+selectors are in `rendered_page_evidence.md`.
 
 criteria_demonstrated:
-  - EVERY ROW IS A LINK TO ITS COMPETITION'S PAGE. `CompetitionIndexGrid.astro` renders the row as
-    `<a class="comp-row" href={localeHref(lang, slug + "/")}>`; `slug` is a served column of
-    `mart_competition_index` on all 48 rows of `competition_index.json`. Dev server `/en/competitions/`:
-    `document.querySelectorAll('a.comp-row[href]').length` → **48**, first three hrefs
-    `/en/belgian-pro-league/`, `/en/ligue-1/`, `/en/serie-a/`; `/de/competitions/` in a background
-    tab → **48**. Production build (`npm run build`): `dist/en/competitions/index.html` carries 48
-    `<a class="comp-row"`, `dist/fi/competitions/index.html` 48 distinct `/fi/{slug}/` hrefs; the
-    build's `audit-seo` checked 307 pages OK, so every href resolves to an emitted page
-    (`[competition]/index.astro` builds one per row). Hover/active/focus rules for `a.comp-row`
-    mirror `a.brow`; `.comp-name`/`.comp-region`/`.comp-meta` are `display: block` spans inside the
-    anchor (measured `display: block` on `.comp-name`).
-  - THE COLLAPSE DECIDES FROM THE FILTER STATE. Each radio now carries a `value` (`""` for All,
-    `club`/`national`, the confederation code); the script reads the two checked values and hides a
-    group when no row's `data-entity-type` / `data-confederation` matches both. `offsetParent` is
-    gone from the source and from `dist/en/competitions/index.html` (0 occurrences). Dev server,
-    driven through the real `change` events: National teams → Continental championships, World Cup,
-    National team qualifiers shown, the other five hidden; Africa → Continental club cups,
-    Continental championships, National team qualifiers shown; Clubs + Africa → only Continental
-    club cups; Clubs + Oceania → all eight hidden (no OFC club competition is onboarded); All/All →
-    all eight shown. Background load: `/de/competitions/` opened in a tab that was never fronted
-    (`document.visibilityState === "hidden"`) → `hidden: [false ×8]`, 48 links — the case that
-    hid all eight groups on 2026-09-14.
-  - EVERY KIND IN THE SEED HAS THREE LANGUAGES, AND A GATE HOLDS IT. `strings.ts` gains
-    `compTypeDomesticSuperCup`, `compTypeClubQualifying`, `compTypeIntercontinentalSuperCup`,
-    `compTypeClubFriendlyDomestic`, `compTypeClubFriendlyInternational`,
-    `compTypeNationalTeamFriendly` in EN (verbatim from the seed's `label_en`), DE and FI.
-    `check_copy_gate.py` check 5 reads `competition_types.csv` and `confederations.csv`
-    (`label_i18n_key`) and requires each key in all three locales: `COPY GATE ok: 495 strings …
-    21 seed label keys resolvable in every locale`. MUTATION shown red twice: one DE key renamed
-    → 3 findings (checks 2 and 5); one key deleted from ALL THREE locales → 3 "seed key
-    unresolvable" findings (check 2 silent, check 5 the only catcher). Tests in
-    `tests/test_governance_hooks.py`: `test_copy_gate_fails_on_a_seed_key_no_locale_carries`
-    (a fixture seed publishing a key no locale has → `main() == 1`),
-    `test_copy_gate_passes_when_every_seed_key_resolves` (blank cells skipped, resolvable keys pass),
-    `test_copy_gate_reads_the_real_seeds` (both seed paths, ≥14 and ≥7 keys, all resolvable),
-    `test_copy_gate_fails_closed_on_a_seed_without_the_key_column` (a seed whose header lacks
-    `label_i18n_key` → the reader raises and `main()` prints `FAIL: cannot read the seed label
-    keys` and returns 1; an absent seed file → the same; a cp1252-saved seed (a decode error, not an
-    OSError) → the same; never zero keys, never a traceback — platform round-1 and round-2
-    findings, each shown red against the previous reader: 1 failed);
-    with check 5 disabled in the gate (`seed_keys = {}`) the first FAILS (1 failed); restored, 10
-    copy-gate tests pass (11 with the fail-closed test). `check_ui_i18n_metrics.py` and `check_layer_contract.py` green; `ruff check . --config .ruff-ci.toml` (CI's lint) all checks passed.
-  - THE WIREFRAME AND THE OVERVIEW POINT AT #128. `docs/wireframes/08_browse.md` opens with the
-    authority block (#128 wins; what it changed: row links, filter-state collapse, all kinds in
-    three languages, the country in the reader's language via #69, no country hubs); §6's "Rows
-    are NOT links, on purpose" is struck and replaced; §7's collapse paragraph says the script
-    reads the filter state and why `offsetParent` failed. `docs/wireframes/00_overview.md` row 08
-    reads "Competitions index", **built**, **approved on GitLab #128**, with "country hubs … still
-    pending" struck (in no menu, no issue).
+  - THE PAGE RENDERS THE HEADER, THE TAB BAR AND THE FOUR BLOCKS IN ORDER, IN THREE LOCALES.
+    `/en/bundesliga/`: h1 `Bundesliga`, meta `Germany · Season 2026 · Regular Season - 4` (crest
+    rendered from the served `logo_url`), tabs `Overview` (`span.tab.on[aria-current=page]`),
+    `Matchdays`, `Teams`, `Players` — four `SPAN`s, none with an href; `.eyebrow` in DOM order
+    `Table`, `Next matches`, `Deserved points`, `The season in numbers`. `/de/bundesliga/`:
+    `Tabelle`, `Nächste Spiele`, `Verdiente Punkte`, `Die Saison in Zahlen`; `/fi/bundesliga/`:
+    `Sarjataulukko`, `Seuraavat ottelut`, `Ansaitut pisteet`, `Kausi numeroina`.
+  - THE TABLE. Heading cells `#`, ``, `P`, `W`, `D`, `L`, `Goals`, `GD`, `Pts`; Freiburg's row
+    `1 SC Freiburg 3 3 0 0 10:1 +9 9` as `<a class="ctab-row" href="/en/teams/sc-freiburg/">`;
+    18 such rows, every href `/en/teams/{slug}/`. At 375px the four `.wdl` cells compute
+    `display: none` and heading and row cells sit at identical x (`alignedHead: true` at both
+    375px and 700px).
+  - NEXT MATCHES. `a.fxrow[href]` → 9, the payload's whole next matchday, first href
+    `/en/bundesliga/matches/2026-09-18-bayern-munchen-vs-1-fc-union-berlin/`; no `details.fxmore`
+    (no fold) and no `.fxgroup .gh` (no competition heading).
+  - DESERVED POINTS. The explanation paragraph (`.bsub`), then `Better than the table says` with
+    `1. FSV Mainz 05 -2.7`, `1. FC Union Berlin -2.1`, `Bayer 04 Leverkusen -2.0` (the served
+    `deserved_points_gap_rank` 1, 2, 3 — the warehouse's order; the gap keeps the catalogue's
+    actual-minus-deserved sign) and `Worse than
+    the table says` with `Borussia Dortmund +2.7`, `FC Schalke 04 +2.0`, `SC Freiburg +1.8`; the
+    Diff cell computes `font-weight: 700`, the other two numbers are plain.
+  - THE SEASON IN NUMBERS. Seven `.frow`s, each label · value · context: `Goals per match | 3.9 |
+    104 goals in 27 matches`; `Biggest margin | 0–5 | Hamburger SV vs 1. FSV Mainz 05, Regular
+    Season - 2` — the earliest 5–0 of the season, which is what the tie rule ruled on #129 picks
+    (the Freiburg 5–0 of Matchday 3 came later); the two match facts are `DIV`s without an href,
+    because a played match has no page on this site (the criterion as first drafted said they
+    link — corrected in the contract with that ruling as the authority); the two run facts and
+    the match that matters are `A`s (`/en/teams/bayern-munchen/`, `/en/teams/borussia-
+    monchengladbach/`, `/en/bundesliga/matches/2026-09-19-eintracht-frankfurt-vs-sc-freiburg/`).
+    No `.frow` for a null fact: the cup page renders no run rows while its runs are null.
+  - BLOCKS ABSENT WHERE NOTHING IS SERVED. `/en/dfb-pokal/` (no standings, no deserved points):
+    `.eyebrow` → `Next matches`, `The season in numbers` only, tabs read `Rounds`. `/en/euro/`
+    (finished, national teams): `.eyebrow` → `Table`, `The season in numbers` only; six group
+    tables `Group A`…`Group F` and no ranking table; no Home wins row.
+  - `cd site_v2 && npm test` → 90 pass (7 new in `competitionPayload.test.mjs`);
+    `node scripts/check-page-specs.mjs` → `6 page(s) validated … OK`; the competition spec has no
+    `stub` key and lists `mart_competition_index`, `mart_standings`, `mart_next_matchday`,
+    `mart_team_profile`, `mart_competition_season_summary`; `STUB_PAGES` holds only the player
+    page.
+  - `python scripts/check_copy_gate.py` → `COPY GATE ok: 606 strings across 3 locales …`, every
+    new `comp*` key present in EN, DE and FI.

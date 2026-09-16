@@ -1,0 +1,131 @@
+---
+// The season in numbers: one fact row per served fact (mart_competition_season_summary, plus the
+// next matchday's flagged fixture). A fact row is label · value · context; wide screens put the
+// value and its context on the right, a phone stacks them. A null served value is no row. Team
+// facts link to the first team named; the match that matters links to its match page; a played
+// match has no page and its row does not link. Names, rounds and dates never break inside
+// themselves. A score reads home–away with the en dash, as every score on the site does.
+import SectionHead from "../ui/SectionHead.astro";
+import { decimal1, formatShortDate, formatTime, integer } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import { matchThatMatters, seasonFacts } from "../../lib/competitionPayload.mjs";
+import type { FixtureRef, SeasonSummary, TeamRef } from "../../lib/types";
+
+interface Props {
+  summary: SeasonSummary | null;
+  nextMatchday: FixtureRef[];
+  competitionSlug: string | null;
+  lang: Lang;
+}
+const { summary, nextMatchday, competitionSlug, lang } = Astro.props;
+
+interface Piece {
+  text: string;
+  nb?: boolean;
+}
+interface Row {
+  label: string;
+  value: Piece[];
+  context: Piece[];
+  href?: string;
+}
+
+const vs = t(lang, "compVs");
+
+function teamHref(team: TeamRef | undefined): string | undefined {
+  return team?.slug ? localeHref(lang, `teams/${team.slug}/`) : undefined;
+}
+function score(fx: FixtureRef): string {
+  return `${integer(fx.goals_home, lang)}–${integer(fx.goals_away, lang)}`;
+}
+function matchPieces(fx: FixtureRef): Piece[] {
+  const pieces: Piece[] = [
+    { text: fx.home.name ?? "", nb: true },
+    { text: ` ${vs} ` },
+    { text: fx.away.name ?? "", nb: true },
+  ];
+  if (fx.round) pieces.push({ text: ", " }, { text: fx.round, nb: true });
+  return pieces;
+}
+function teamPieces(teams: TeamRef[]): Piece[] {
+  return teams.flatMap((team, i) =>
+    i < teams.length - 1
+      ? [{ text: team.name ?? "", nb: true }, { text: ", " }]
+      : [{ text: team.name ?? "", nb: true }],
+  );
+}
+
+const rows: Row[] = [];
+for (const fact of seasonFacts(summary)) {
+  const v = fact.value;
+  const c = fact.context;
+  if (fact.key === "goalsPerMatch") {
+    rows.push({
+      label: t(lang, "compFactGoalsPerMatch"),
+      value: [{ text: decimal1(v.number, lang) }],
+      context: [{ text: t(lang, "compFactGoalsInMatches", { goals: integer(c.goals, lang), matches: integer(c.matches, lang) }) }],
+    });
+  } else if (fact.key === "homeWins") {
+    rows.push({
+      label: t(lang, "compFactHomeWins"),
+      value: [{ text: t(lang, "compFactOf", { count: integer(v.count, lang), of: integer(v.of, lang) }) }],
+      context: [{ text: t(lang, "compFactDrawsAway", { draws: integer(c.draws, lang), awayWins: integer(c.awayWins, lang) }) }],
+    });
+  } else if (fact.key === "biggestMargin" || fact.key === "mostGoals") {
+    rows.push({
+      label: t(lang, fact.key === "biggestMargin" ? "compFactBiggestMargin" : "compFactMostGoals"),
+      value: [{ text: score(c.match) }],
+      context: matchPieces(c.match),
+    });
+  } else {
+    rows.push({
+      label: t(lang, fact.key === "longestUnbeaten" ? "compFactLongestUnbeaten" : "compFactLongestWinless"),
+      value: [{ text: t(lang, "compFactMatches", { n: integer(v.matches, lang) }) }],
+      context: teamPieces(c.teams),
+      href: teamHref(c.teams[0]),
+    });
+  }
+}
+const matters = matchThatMatters(nextMatchday);
+if (matters) {
+  rows.push({
+    label: t(lang, "compFactMatchThatMatters"),
+    value: [
+      { text: matters.home.name ?? "", nb: true },
+      { text: ` ${vs} ` },
+      { text: matters.away.name ?? "", nb: true },
+    ],
+    context: [{ text: formatShortDate(matters.kickoff, lang), nb: true }, { text: `, ${formatTime(matters.kickoff, lang)}` }],
+    href: competitionSlug ? localeHref(lang, `${competitionSlug}/matches/${matters.slug}/`) : undefined,
+  });
+}
+---
+
+{rows.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "compSecFacts")} />
+    <div class="facts">
+      {rows.map((row) =>
+        row.href ? (
+          <a class="frow" href={row.href}>
+            <span class="fl">{row.label}</span>
+            <span class="fv">
+              <span class="fvv"><b>{row.value.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
+              <span class="sub">{row.context.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
+            </span>
+          </a>
+        ) : (
+          <div class="frow">
+            <span class="fl">{row.label}</span>
+            <span class="fv">
+              <span class="fvv"><b>{row.value.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
+              <span class="sub">{row.context.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
+            </span>
+          </div>
+        ),
+      )}
+    </div>
+  </section>
+)}

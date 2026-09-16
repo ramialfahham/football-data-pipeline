@@ -1,0 +1,795 @@
+{
+  "type": "competition",
+  "league_code": "BL1",
+  "season": 2026,
+  "slug": "bundesliga",
+  "name": "Bundesliga",
+  "crest": "https://media.api-sports.io/football/leagues/78.png",
+  "region_label_en": "Germany",
+  "region_label_i18n_key": null,
+  "competition_type": "domestic_league",
+  "entity_type": "club",
+  "standings": [
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 160,
+      "team_name": "SC Freiburg",
+      "team_logo_url": "https://media.api-sports.io/football/teams/160.png",
+      "standing_rank": 1,
+      "points": 9,
+      "goals_scored": 10,
+      "goals_conceded": 1,
+      "goals_diff": 9,
+      "form": "WWW",
+      "played": 3,
+      "wins": 3,
+      "draws": 0,
+      "losses": 0,
+      "table_kind": "league",
+      "team_slug": "sc-freiburg"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 165,
+      "team_name": "Borussia Dortmund",
+      "team_logo_url": "https://media.api-sports.io/football/teams/165.png",
+      "standing_rank": 2,
+      "points": 9,
+      "goals_scored": 8,
+      "goals_conceded": 2,
+      "goals_diff": 6,
+      "form": "WWW",
+      "played": 3,
+      "wins": 3,
+      "draws": 0,
+      "losses": 0,
+      "table_kind": "league",
+      "team_slug": "borussia-dortmund"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 170,
+      "team_name": "FC Augsburg",
+      "team_logo_url": "https://media.api-sports.io/football/teams/170.png",
+      "standing_rank": 3,
+      "points": 7,
+      "goals_scored": 9,
+      "goals_conceded": 3,
+      "goals_diff": 6,
+      "form": "DWW",
+      "played": 3,
+      "wins": 2,
+      "draws": 1,
+      "losses": 0,
+      "table_kind": "league",
+      "team_slug": "fc-augsburg"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 157,
+      "team_name": "Bayern München",
+      "team_logo_url": "https://media.api-sports.io/football/teams/157.png",
+      "standing_rank": 4,
+      "points": 7,
+      "goals_scored": 7,
+      "goals_conceded": 2,
+      "goals_diff": 5,
+      "form": "WDW",
+      "played": 3,
+      "wins": 2,
+      "draws": 1,
+      "losses": 0,
+      "table_kind": "league",
+      "team_slug": "bayern-munchen"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 173,
+      "team_name": "RB Leipzig",
+      "team_logo_url": "https://media.api-sports.io/football/teams/173.png",
+      "standing_rank": 5,
+      "points": 6,
+      "goals_scored": 9,
+      "goals_conceded": 3,
+      "goals_diff": 6,
+      "form": "WLW",
+      "played": 3,
+      "wins": 2,
+      "draws": 0,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "rb-leipzig"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 1660,
+      "team_name": "SV Elversberg",
+      "team_logo_url": "https://media.api-sports.io/football/teams/1660.png",
+      "standing_rank": 6,
+      "points": 6,
+      "goals_scored": 8,
+      "goals_conceded": 7,
+      "goals_diff": 1,
+      "form": "LWW",
+      "played": 3,
+      "wins": 2,
+      "draws": 0,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "sv-elversberg"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 168,
+      "team_name": "Bayer 04 Leverkusen",
+      "team_logo_url": "https://media.api-sports.io/football/teams/168.png",
+      "standing_rank": 7,
+      "points": 4,
+      "goals_scored": 8,
+      "goals_conceded": 5,
+      "goals_diff": 3,
+      "form": "DWL",
+      "played": 3,
+      "wins": 1,
+      "draws": 1,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "bayer-04-leverkusen"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 164,
+      "team_name": "1. FSV Mainz 05",
+      "team_logo_url": "https://media.api-sports.io/football/teams/164.png",
+      "standing_rank": 8,
+      "points": 4,
+      "goals_scored": 6,
+      "goals_conceded": 3,
+      "goals_diff": 3,
+      "form": "LWD",
+      "played": 3,
+      "wins": 1,
+      "draws": 1,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "1-fsv-mainz-05"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 169,
+      "team_name": "Eintracht Frankfurt",
+      "team_logo_url": "https://media.api-sports.io/football/teams/169.png",
+      "standing_rank": 9,
+      "points": 4,
+      "goals_scored": 7,
+      "goals_conceded": 8,
+      "goals_diff": -1,
+      "form": "WLD",
+      "played": 3,
+      "wins": 1,
+      "draws": 1,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "eintracht-frankfurt"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 162,
+      "team_name": "SV Werder Bremen",
+      "team_logo_url": "https://media.api-sports.io/football/teams/162.png",
+      "standing_rank": 10,
+      "points": 4,
+      "goals_scored": 5,
+      "goals_conceded": 6,
+      "goals_diff": -1,
+      "form": "DWL",
+      "played": 3,
+      "wins": 1,
+      "draws": 1,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "sv-werder-bremen"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 174,
+      "team_name": "FC Schalke 04",
+      "team_logo_url": "https://media.api-sports.io/football/teams/174.png",
+      "standing_rank": 11,
+      "points": 4,
+      "goals_scored": 3,
+      "goals_conceded": 4,
+      "goals_diff": -1,
+      "form": "WDL",
+      "played": 3,
+      "wins": 1,
+      "draws": 1,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "fc-schalke-04"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 192,
+      "team_name": "1. FC Köln",
+      "team_logo_url": "https://media.api-sports.io/football/teams/192.png",
+      "standing_rank": 12,
+      "points": 4,
+      "goals_scored": 5,
+      "goals_conceded": 7,
+      "goals_diff": -2,
+      "form": "DLW",
+      "played": 3,
+      "wins": 1,
+      "draws": 1,
+      "losses": 1,
+      "table_kind": "league",
+      "team_slug": "1-fc-koln"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 167,
+      "team_name": "TSG 1899 Hoffenheim",
+      "team_logo_url": "https://media.api-sports.io/football/teams/167.png",
+      "standing_rank": 13,
+      "points": 3,
+      "goals_scored": 6,
+      "goals_conceded": 7,
+      "goals_diff": -1,
+      "form": "WLL",
+      "played": 3,
+      "wins": 1,
+      "draws": 0,
+      "losses": 2,
+      "table_kind": "league",
+      "team_slug": "tsg-1899-hoffenheim"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 172,
+      "team_name": "VfB Stuttgart",
+      "team_logo_url": "https://media.api-sports.io/football/teams/172.png",
+      "standing_rank": 14,
+      "points": 3,
+      "goals_scored": 6,
+      "goals_conceded": 8,
+      "goals_diff": -2,
+      "form": "LWL",
+      "played": 3,
+      "wins": 1,
+      "draws": 0,
+      "losses": 2,
+      "table_kind": "league",
+      "team_slug": "vfb-stuttgart"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 185,
+      "team_name": "SC Paderborn 07",
+      "team_logo_url": "https://media.api-sports.io/football/teams/185.png",
+      "standing_rank": 15,
+      "points": 1,
+      "goals_scored": 0,
+      "goals_conceded": 4,
+      "goals_diff": -4,
+      "form": "LLD",
+      "played": 3,
+      "wins": 0,
+      "draws": 1,
+      "losses": 2,
+      "table_kind": "league",
+      "team_slug": "sc-paderborn-07"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 182,
+      "team_name": "1. FC Union Berlin",
+      "team_logo_url": "https://media.api-sports.io/football/teams/182.png",
+      "standing_rank": 16,
+      "points": 1,
+      "goals_scored": 4,
+      "goals_conceded": 10,
+      "goals_diff": -6,
+      "form": "LLD",
+      "played": 3,
+      "wins": 0,
+      "draws": 1,
+      "losses": 2,
+      "table_kind": "league",
+      "team_slug": "1-fc-union-berlin"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 163,
+      "team_name": "Borussia Mönchengladbach",
+      "team_logo_url": "https://media.api-sports.io/football/teams/163.png",
+      "standing_rank": 17,
+      "points": 0,
+      "goals_scored": 3,
+      "goals_conceded": 12,
+      "goals_diff": -9,
+      "form": "LLL",
+      "played": 3,
+      "wins": 0,
+      "draws": 0,
+      "losses": 3,
+      "table_kind": "league",
+      "team_slug": "borussia-monchengladbach"
+    },
+    {
+      "group_name": "Bundesliga",
+      "team_sk": 175,
+      "team_name": "Hamburger SV",
+      "team_logo_url": "https://media.api-sports.io/football/teams/175.png",
+      "standing_rank": 18,
+      "points": 0,
+      "goals_scored": 0,
+      "goals_conceded": 12,
+      "goals_diff": -12,
+      "form": "LLL",
+      "played": 3,
+      "wins": 0,
+      "draws": 0,
+      "losses": 3,
+      "table_kind": "league",
+      "team_slug": "hamburger-sv"
+    }
+  ],
+  "next_matchday": [
+    {
+      "fixture_id": 1575167,
+      "slug": "2026-09-18-bayern-munchen-vs-1-fc-union-berlin",
+      "kickoff": "2026-09-18 18:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 157,
+        "name": "Bayern München",
+        "slug": "bayern-munchen",
+        "crest": "https://media.api-sports.io/football/teams/157.png"
+      },
+      "away": {
+        "team_id": 182,
+        "name": "1. FC Union Berlin",
+        "slug": "1-fc-union-berlin",
+        "crest": "https://media.api-sports.io/football/teams/182.png"
+      },
+      "is_match_that_matters": false
+    },
+    {
+      "fixture_id": 1575170,
+      "slug": "2026-09-19-eintracht-frankfurt-vs-sc-freiburg",
+      "kickoff": "2026-09-19 13:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 169,
+        "name": "Eintracht Frankfurt",
+        "slug": "eintracht-frankfurt",
+        "crest": "https://media.api-sports.io/football/teams/169.png"
+      },
+      "away": {
+        "team_id": 160,
+        "name": "SC Freiburg",
+        "slug": "sc-freiburg",
+        "crest": "https://media.api-sports.io/football/teams/160.png"
+      },
+      "is_match_that_matters": true
+    },
+    {
+      "fixture_id": 1575172,
+      "slug": "2026-09-19-sv-werder-bremen-vs-fc-augsburg",
+      "kickoff": "2026-09-19 13:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 162,
+        "name": "SV Werder Bremen",
+        "slug": "sv-werder-bremen",
+        "crest": "https://media.api-sports.io/football/teams/162.png"
+      },
+      "away": {
+        "team_id": 170,
+        "name": "FC Augsburg",
+        "slug": "fc-augsburg",
+        "crest": "https://media.api-sports.io/football/teams/170.png"
+      },
+      "is_match_that_matters": false
+    },
+    {
+      "fixture_id": 1575174,
+      "slug": "2026-09-19-borussia-monchengladbach-vs-1-fsv-mainz-05",
+      "kickoff": "2026-09-19 13:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 163,
+        "name": "Borussia Mönchengladbach",
+        "slug": "borussia-monchengladbach",
+        "crest": "https://media.api-sports.io/football/teams/163.png"
+      },
+      "away": {
+        "team_id": 164,
+        "name": "1. FSV Mainz 05",
+        "slug": "1-fsv-mainz-05",
+        "crest": "https://media.api-sports.io/football/teams/164.png"
+      },
+      "is_match_that_matters": false
+    },
+    {
+      "fixture_id": 1575171,
+      "slug": "2026-09-19-hamburger-sv-vs-1-fc-koln",
+      "kickoff": "2026-09-19 13:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 175,
+        "name": "Hamburger SV",
+        "slug": "hamburger-sv",
+        "crest": "https://media.api-sports.io/football/teams/175.png"
+      },
+      "away": {
+        "team_id": 192,
+        "name": "1. FC Köln",
+        "slug": "1-fc-koln",
+        "crest": "https://media.api-sports.io/football/teams/192.png"
+      },
+      "is_match_that_matters": false
+    },
+    {
+      "fixture_id": 1575168,
+      "slug": "2026-09-19-vfb-stuttgart-vs-borussia-dortmund",
+      "kickoff": "2026-09-19 16:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 172,
+        "name": "VfB Stuttgart",
+        "slug": "vfb-stuttgart",
+        "crest": "https://media.api-sports.io/football/teams/172.png"
+      },
+      "away": {
+        "team_id": 165,
+        "name": "Borussia Dortmund",
+        "slug": "borussia-dortmund",
+        "crest": "https://media.api-sports.io/football/teams/165.png"
+      },
+      "is_match_that_matters": false
+    },
+    {
+      "fixture_id": 1575169,
+      "slug": "2026-09-20-bayer-04-leverkusen-vs-rb-leipzig",
+      "kickoff": "2026-09-20 13:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 168,
+        "name": "Bayer 04 Leverkusen",
+        "slug": "bayer-04-leverkusen",
+        "crest": "https://media.api-sports.io/football/teams/168.png"
+      },
+      "away": {
+        "team_id": 173,
+        "name": "RB Leipzig",
+        "slug": "rb-leipzig",
+        "crest": "https://media.api-sports.io/football/teams/173.png"
+      },
+      "is_match_that_matters": false
+    },
+    {
+      "fixture_id": 1575173,
+      "slug": "2026-09-20-fc-schalke-04-vs-sv-elversberg",
+      "kickoff": "2026-09-20 15:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 174,
+        "name": "FC Schalke 04",
+        "slug": "fc-schalke-04",
+        "crest": "https://media.api-sports.io/football/teams/174.png"
+      },
+      "away": {
+        "team_id": 1660,
+        "name": "SV Elversberg",
+        "slug": "sv-elversberg",
+        "crest": "https://media.api-sports.io/football/teams/1660.png"
+      },
+      "is_match_that_matters": false
+    },
+    {
+      "fixture_id": 1575175,
+      "slug": "2026-09-20-sc-paderborn-07-vs-tsg-1899-hoffenheim",
+      "kickoff": "2026-09-20 17:30:00+00:00",
+      "round": "Regular Season - 4",
+      "home": {
+        "team_id": 185,
+        "name": "SC Paderborn 07",
+        "slug": "sc-paderborn-07",
+        "crest": "https://media.api-sports.io/football/teams/185.png"
+      },
+      "away": {
+        "team_id": 167,
+        "name": "TSG 1899 Hoffenheim",
+        "slug": "tsg-1899-hoffenheim",
+        "crest": "https://media.api-sports.io/football/teams/167.png"
+      },
+      "is_match_that_matters": false
+    }
+  ],
+  "deserved": [
+    {
+      "team_id": 164,
+      "name": "1. FSV Mainz 05",
+      "slug": "1-fsv-mainz-05",
+      "crest": "https://media.api-sports.io/football/teams/164.png",
+      "points": 4,
+      "deserved_points": 6.704815259437108,
+      "deserved_points_gap": -2.704815259437108,
+      "deserved_points_gap_rank": 1
+    },
+    {
+      "team_id": 182,
+      "name": "1. FC Union Berlin",
+      "slug": "1-fc-union-berlin",
+      "crest": "https://media.api-sports.io/football/teams/182.png",
+      "points": 1,
+      "deserved_points": 3.0937708416700014,
+      "deserved_points_gap": -2.0937708416700014,
+      "deserved_points_gap_rank": 2
+    },
+    {
+      "team_id": 168,
+      "name": "Bayer 04 Leverkusen",
+      "slug": "bayer-04-leverkusen",
+      "crest": "https://media.api-sports.io/football/teams/168.png",
+      "points": 4,
+      "deserved_points": 6.027744431105776,
+      "deserved_points_gap": -2.027744431105776,
+      "deserved_points_gap_rank": 3
+    },
+    {
+      "team_id": 167,
+      "name": "TSG 1899 Hoffenheim",
+      "slug": "tsg-1899-hoffenheim",
+      "crest": "https://media.api-sports.io/football/teams/167.png",
+      "points": 3,
+      "deserved_points": 4.899293050553555,
+      "deserved_points_gap": -1.8992930505535552,
+      "deserved_points_gap_rank": 4
+    },
+    {
+      "team_id": 175,
+      "name": "Hamburger SV",
+      "slug": "hamburger-sv",
+      "crest": "https://media.api-sports.io/football/teams/175.png",
+      "points": 0,
+      "deserved_points": 1.5139389088968915,
+      "deserved_points_gap": -1.5139389088968915,
+      "deserved_points_gap_rank": 5
+    },
+    {
+      "team_id": 157,
+      "name": "Bayern München",
+      "slug": "bayern-munchen",
+      "crest": "https://media.api-sports.io/football/teams/157.png",
+      "points": 7,
+      "deserved_points": 7.381886087768441,
+      "deserved_points_gap": -0.38188608776844113,
+      "deserved_points_gap_rank": 6
+    },
+    {
+      "team_id": 192,
+      "name": "1. FC Köln",
+      "slug": "1-fc-koln",
+      "crest": "https://media.api-sports.io/football/teams/192.png",
+      "points": 4,
+      "deserved_points": 4.222222222222222,
+      "deserved_points_gap": -0.22222222222222232,
+      "deserved_points_gap_rank": 7
+    },
+    {
+      "team_id": 172,
+      "name": "VfB Stuttgart",
+      "slug": "vfb-stuttgart",
+      "crest": "https://media.api-sports.io/football/teams/172.png",
+      "points": 3,
+      "deserved_points": 3.0937708416700014,
+      "deserved_points_gap": -0.09377084167000138,
+      "deserved_points_gap_rank": 8
+    },
+    {
+      "team_id": 185,
+      "name": "SC Paderborn 07",
+      "slug": "sc-paderborn-07",
+      "crest": "https://media.api-sports.io/football/teams/185.png",
+      "points": 1,
+      "deserved_points": 1.062558356676003,
+      "deserved_points_gap": -0.06255835667600307,
+      "deserved_points_gap_rank": 9
+    },
+    {
+      "team_id": 163,
+      "name": "Borussia Mönchengladbach",
+      "slug": "borussia-monchengladbach",
+      "crest": "https://media.api-sports.io/football/teams/163.png",
+      "points": 0,
+      "deserved_points": 0.0,
+      "deserved_points_gap": 0.0,
+      "deserved_points_gap_rank": 10
+    },
+    {
+      "team_id": 162,
+      "name": "SV Werder Bremen",
+      "slug": "sv-werder-bremen",
+      "crest": "https://media.api-sports.io/football/teams/162.png",
+      "points": 4,
+      "deserved_points": 3.9965319461117783,
+      "deserved_points_gap": 0.0034680538882216894,
+      "deserved_points_gap_rank": 11
+    },
+    {
+      "team_id": 173,
+      "name": "RB Leipzig",
+      "slug": "rb-leipzig",
+      "crest": "https://media.api-sports.io/football/teams/173.png",
+      "points": 6,
+      "deserved_points": 5.802054154995332,
+      "deserved_points_gap": 0.19794584500466783,
+      "deserved_points_gap_rank": 12
+    },
+    {
+      "team_id": 169,
+      "name": "Eintracht Frankfurt",
+      "slug": "eintracht-frankfurt",
+      "crest": "https://media.api-sports.io/football/teams/169.png",
+      "points": 4,
+      "deserved_points": 2.868080565559557,
+      "deserved_points_gap": 1.131919434440443,
+      "deserved_points_gap_rank": 13
+    },
+    {
+      "team_id": 170,
+      "name": "FC Augsburg",
+      "slug": "fc-augsburg",
+      "crest": "https://media.api-sports.io/football/teams/170.png",
+      "points": 7,
+      "deserved_points": 5.802054154995332,
+      "deserved_points_gap": 1.1979458450046678,
+      "deserved_points_gap_rank": 14
+    },
+    {
+      "team_id": 1660,
+      "name": "SV Elversberg",
+      "slug": "sv-elversberg",
+      "crest": "https://media.api-sports.io/football/teams/1660.png",
+      "points": 6,
+      "deserved_points": 4.447912498332666,
+      "deserved_points_gap": 1.5520875016673337,
+      "deserved_points_gap_rank": 15
+    },
+    {
+      "team_id": 160,
+      "name": "SC Freiburg",
+      "slug": "sc-freiburg",
+      "crest": "https://media.api-sports.io/football/teams/160.png",
+      "points": 9,
+      "deserved_points": 7.156195811657996,
+      "deserved_points_gap": 1.8438041883420038,
+      "deserved_points_gap_rank": 16
+    },
+    {
+      "team_id": 174,
+      "name": "FC Schalke 04",
+      "slug": "fc-schalke-04",
+      "crest": "https://media.api-sports.io/football/teams/174.png",
+      "points": 4,
+      "deserved_points": 1.96531946111778,
+      "deserved_points_gap": 2.03468053888222,
+      "deserved_points_gap_rank": 17
+    },
+    {
+      "team_id": 165,
+      "name": "Borussia Dortmund",
+      "slug": "borussia-dortmund",
+      "crest": "https://media.api-sports.io/football/teams/165.png",
+      "points": 9,
+      "deserved_points": 6.253434707216221,
+      "deserved_points_gap": 2.746565292783779,
+      "deserved_points_gap_rank": 18
+    }
+  ],
+  "summary": {
+    "matches_played": 27,
+    "total_goals": 104,
+    "goals_per_match": 3.85,
+    "home_wins": 14,
+    "away_wins": 8,
+    "drawn_matches": 5,
+    "biggest_margin": {
+      "fixture_id": 1575154,
+      "slug": "2026-09-06-hamburger-sv-vs-1-fsv-mainz-05",
+      "kickoff": "2026-09-06 13:30:00+00:00",
+      "round": "Regular Season - 2",
+      "home": {
+        "team_id": 175,
+        "name": "Hamburger SV",
+        "slug": "hamburger-sv",
+        "crest": "https://media.api-sports.io/football/teams/175.png"
+      },
+      "away": {
+        "team_id": 164,
+        "name": "1. FSV Mainz 05",
+        "slug": "1-fsv-mainz-05",
+        "crest": "https://media.api-sports.io/football/teams/164.png"
+      },
+      "goals_home": 0,
+      "goals_away": 5
+    },
+    "most_goals": {
+      "fixture_id": 1575153,
+      "slug": "2026-09-05-borussia-monchengladbach-vs-sv-elversberg",
+      "kickoff": "2026-09-05 13:30:00+00:00",
+      "round": "Regular Season - 2",
+      "home": {
+        "team_id": 163,
+        "name": "Borussia Mönchengladbach",
+        "slug": "borussia-monchengladbach",
+        "crest": "https://media.api-sports.io/football/teams/163.png"
+      },
+      "away": {
+        "team_id": 1660,
+        "name": "SV Elversberg",
+        "slug": "sv-elversberg",
+        "crest": "https://media.api-sports.io/football/teams/1660.png"
+      },
+      "goals_home": 3,
+      "goals_away": 4
+    },
+    "longest_unbeaten_run": 3,
+    "longest_unbeaten_teams": [
+      {
+        "team_id": 157,
+        "name": "Bayern München",
+        "slug": "bayern-munchen",
+        "crest": "https://media.api-sports.io/football/teams/157.png"
+      },
+      {
+        "team_id": 160,
+        "name": "SC Freiburg",
+        "slug": "sc-freiburg",
+        "crest": "https://media.api-sports.io/football/teams/160.png"
+      },
+      {
+        "team_id": 165,
+        "name": "Borussia Dortmund",
+        "slug": "borussia-dortmund",
+        "crest": "https://media.api-sports.io/football/teams/165.png"
+      },
+      {
+        "team_id": 170,
+        "name": "FC Augsburg",
+        "slug": "fc-augsburg",
+        "crest": "https://media.api-sports.io/football/teams/170.png"
+      }
+    ],
+    "longest_winless_run": 3,
+    "longest_winless_teams": [
+      {
+        "team_id": 163,
+        "name": "Borussia Mönchengladbach",
+        "slug": "borussia-monchengladbach",
+        "crest": "https://media.api-sports.io/football/teams/163.png"
+      },
+      {
+        "team_id": 175,
+        "name": "Hamburger SV",
+        "slug": "hamburger-sv",
+        "crest": "https://media.api-sports.io/football/teams/175.png"
+      },
+      {
+        "team_id": 182,
+        "name": "1. FC Union Berlin",
+        "slug": "1-fc-union-berlin",
+        "crest": "https://media.api-sports.io/football/teams/182.png"
+      },
+      {
+        "team_id": 185,
+        "name": "SC Paderborn 07",
+        "slug": "sc-paderborn-07",
+        "crest": "https://media.api-sports.io/football/teams/185.png"
+      }
+    ]
+  }
+}

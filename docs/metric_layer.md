@@ -85,6 +85,25 @@ starts, substitute appearances, minutes) which are dimensions. ⚠ Exempt is not
 `points_won` *is* in the team model and clears the guard through the `_sum_season` exemption.
 `league_rank` is a standings lookup and is a catalogue row for the glossary only.
 
+## Facts from the provider, metrics from the warehouse
+
+Two kinds of number reach a page, and the catalogue governs one of them.
+
+- **Facts taken from the provider as published.** A match score. The official league table:
+  rank, played, won, drawn, lost, goals scored and conceded, goal difference, points, form. The
+  league publishes these and the provider passes them on; the warehouse does not compute them and
+  must not — the official table carries deductions, halved points and tie-break orders that no
+  recomputation from fixtures reproduces. They live in `fct_standings` and `mart_standings` as the
+  row was published, and a page renders them as they are. Tallies of match results at a grain no
+  team or player is measured on — a competition-season's matches, goals, home wins, the biggest
+  margin, the longest run — are the same kind: results counted, not a metric defined.
+- **Metrics the warehouse computes.** Everything in the catalogue: goals per match, deserved
+  points, shots on goal difference. One formula, one model, the guards above.
+
+The two never mix inside one block: a table is the provider's row, a board is catalogue metrics.
+Where they overlap — the provider's points and the catalogue's `points_won` tally — a
+reconciliation test guards the pair rather than one replacing the other.
+
 ## What this is NOT
 
 There is no bespoke metric engine, and no test that re-derives a metric from the raw legs to

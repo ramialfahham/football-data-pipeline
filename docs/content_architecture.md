@@ -69,15 +69,17 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 |---|---|---|---|---|
 | **Identity** | Team header | team | `dim_team` (+ founded/venue, + standing chip) | ✓ (founded/venue #613; coach pending) |
 | | Player header | player | `dim_player` (+ current club, + birth date) | ✓ (current club #611, birth date #609) |
-| | Competition header | comp | registry / dim | ✓ (name/slug + country/confederation/tier surfaced) |
+| | Competition header | comp | `mart_competition_index` (name, crest, region; season label #105; round phase #148) | ✓ built on the competition page (#149) |
 | **Performance** | Form (recent) | team, player | `mart_momentum__{team,player}` (+ `_window` drill-down) | ✓ (player `_window` gap) |
 | | Season (this season; per-game toggle) | team, player | the Season block (player: #480) | ✓ team · ✓ player (per-club foundation #630, wired via `mart_player_profile`) |
 | | Season-over-season | team, player | YoY model | ✓ team · ✓ player (#638 + #648, via `mart_player_profile`) |
 | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_{team,player}_competition_benchmarks` | ✓ player wired (#627; screen 12 #625) · ✓ team wired (GAP-23; rank-based screen 14 #664) |
 | | Single fixture | team, player | `mart_team_fixture_stats`/`mart_player_fixture_stats` | ✓ |
-| **Standings / rank** | League / group table | team | standings mart (#322) | ✓ |
+| **Standings / rank** | League / group table | team | `mart_standings` — the provider's row as published, with `table_kind` | ✓ built on the competition page (#149): one table per section, ranking tables dropped |
 | | Standing-as-context | team | standings mart | ✓ |
+| | Deserved points (better / worse than the table says) | team | `mart_team_profile` | ✓ built on the competition page (#149) |
 | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
+| **Facts** | Fact row (label · value · context) — the season in numbers | comp | `mart_competition_season_summary` + the flag on `mart_next_matchday` | ✓ built on the competition page (#149); the block type recurs on team, player and match pages |
 | **Schedule** | Upcoming / Results | team, player | `mart_team_fixtures` (filter) | ✓ (team fixtures #607) |
 | | Matchday schedule | comp | fixtures by round (derive) | ~ |
 | **Listings** | Squad / roster | team→players | `mart_roster` + `mart_player_career` (per-player season stats) | ✓ (Squad tab BUILT 2026-07-24: roster identity + per-player apps/mins-per-app/goals/assists joined from `mart_player_career`; #619 wired the roster, GAP-22 the stats) |
@@ -119,7 +121,7 @@ full wireframe specs in `docs/wireframes/` already describe in prose — not a r
 |---|---|
 | **Team** | **Overview** (header + form + season highlights + standing + next + key players + deserved-vs-actual teaser) · **Matches** (upcoming + results) · **Stats** (season per-game + vs-benchmark + season-over-season + deserved-vs-actual + streaks) · **Squad** (roster + per-player apps/mins-per-app/goals/assists) · **History** (past-season records, all-time, coach) |
 | **Player** | **Overview** (header + form + season highlights + position + next) · **Matches** (log → fixture) · **Stats** (season per-game + percentile-vs-peers + season-over-season) · **Career** (clubs + per-competition totals + caps) |
-| **Competition** | **Table** · **Fixtures** (by matchday) · **Scorers** (leaderboards) · **Teams** (directory) · **Seasons** (archive) · **Stats** (league-wide → benchmark) |
+| **Competition** | **Overview** (header + table + next matchday + deserved points + the season in numbers) · **Matchdays** (every round, results and upcoming; "Rounds" for a cup) · **Teams** (deserved points in full + top-3 team boards) · **Players** (top-3 player boards) — ruled on GitLab #129, 2026-09-15; the Overview is built (#149), the other three are reviewed there before they are built |
 | **Coach** | **Overview** (current club + clubs managed) |
 | **Fixture** | match preview + key players + (post-match) fixture stats + lineups |
 | **Home** | fixtures-first (next matches; Top players + Top teams specified, not built) |

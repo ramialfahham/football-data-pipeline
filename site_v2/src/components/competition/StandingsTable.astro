@@ -1,0 +1,70 @@
+---
+// The competition's table: one grid per standings section, every value the provider's official
+// row as published (mart_standings). Columns # · crest · club · P · W · D · L · Goals · GD · Pts;
+// the whole row is the link to the team page. The heading and the rows share one fixed track
+// list per breakpoint, so a heading can never sit off its numbers; W, D, L and Goals hide on a
+// narrow phone. The provider's cross-group ranking tables are not sections here.
+import Crest from "../ui/Crest.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { integer, signedInteger } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import { standingsSections } from "../../lib/competitionPayload.mjs";
+import type { StandingRow } from "../../lib/types";
+
+interface Props {
+  standings: StandingRow[];
+  lang: Lang;
+}
+const { standings, lang } = Astro.props;
+const sections = standingsSections(standings);
+const showSectionNames = sections.length > 1;
+---
+
+{sections.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "compSecTable")} />
+    {sections.map((sec) => (
+      <div class="ctab-section">
+        {showSectionNames && <div class="gh"><span class="nm">{sec.name}</span></div>}
+        <div class="ctab">
+          <div class="ctab-head">
+            <span class="h rk">{t(lang, "compColPos")}</span>
+            <span class="h nmh"></span>
+            <span class="h">{t(lang, "compColPlayed")}</span>
+            <span class="h wdl">{t(lang, "compColWins")}</span>
+            <span class="h wdl">{t(lang, "compColDraws")}</span>
+            <span class="h wdl">{t(lang, "compColLosses")}</span>
+            <span class="h wdl">{t(lang, "compColGoals")}</span>
+            <span class="h">{t(lang, "compColGoalDiff")}</span>
+            <span class="h">{t(lang, "compColPoints")}</span>
+          </div>
+          {sec.rows.map((row) => (
+            <a
+              class="ctab-row"
+              href={row.team_slug ? localeHref(lang, `teams/${row.team_slug}/`) : undefined}
+            >
+              <span class="rk num">{row.standing_rank}</span>
+              <span class="tm">
+                <Crest name={row.team_name} crest={row.team_logo_url} size="xs" />
+                <span class="nm">{row.team_name}</span>
+              </span>
+              <span class="n num">{integer(row.played, lang)}</span>
+              <span class="n num wdl">{integer(row.wins, lang)}</span>
+              <span class="n num wdl">{integer(row.draws, lang)}</span>
+              <span class="n num wdl">{integer(row.losses, lang)}</span>
+              <span class="n num wdl">
+                {row.goals_scored != null && row.goals_conceded != null
+                  ? `${integer(row.goals_scored, lang)}:${integer(row.goals_conceded, lang)}`
+                  : "–"}
+              </span>
+              <span class="n num gd">{signedInteger(row.goals_diff, lang)}</span>
+              <span class="n num pts">{integer(row.points, lang)}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+  </section>
+)}

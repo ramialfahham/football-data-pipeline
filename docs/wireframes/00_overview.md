@@ -37,11 +37,14 @@ The pattern the documents already demonstrate: **once a screen's wireframe is wr
 that screen's §6 subsection.** §6.3 (Landing) carries exactly that marker and points at
 [`10_home.md`](10_home.md) §0.
 
-⛔ **SO §6 IS STILL LIVE FOR ANY SCREEN WITH NO WIREFRAME — TODAY THAT IS THE COMPETITION HUB.**
-`04_competition_hub.md` is `pending` in the inventory below and does not exist, while
-`ui_design_brief.md` §6.5 is an un-superseded field list for that page. A reader who took row 1 to
-mean "the brief is look-and-feel" would skip the only field contract that screen has. That is the
-defect `bi-analyst-reviewer` FAILed this branch for.
+⛔ **SO §6 IS STILL LIVE FOR ANY SCREEN WITH NO WIREFRAME AND NO APPROVED ISSUE.** The competition
+page was that screen until 2026-09-15: `04_competition_hub.md` does not exist, and
+`ui_design_brief.md` §6.5 was its only field list. **GitLab #129 ("The approved design") now
+supersedes §6.5 for the competition page's Overview tab** — four tabs, and the Overview's four
+blocks with their marts, ruled block by block; the three other tabs are shaped there and their
+content is reviewed on the same issue. A reader who took row 1 to mean "the brief is look-and-feel"
+would have skipped the only field contract that screen had; that was the defect
+`bi-analyst-reviewer` FAILed an earlier branch for.
 
 ⏳ **OPEN, AND NOT DECIDED HERE:** §6.1 (Fixture), §6.2 (Team profile) and §6.4 (Player profile) have
 wireframes and carry NO supersession marker, unlike §6.3. Whether they should is a question for the
@@ -131,7 +134,7 @@ not made here. See 09_chrome.md §10 for the full note.
 | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
 | 02 | [02_team_profile.md](02_team_profile.md) | Team profile ⭐ | **spec'd** | 2 |
 | 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
-| 04 | 04_competition_hub.md | Competition hub + season + table + fixtures + top scorers | pending | 3 |
+| 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Teams · Players | **Overview approved on GitLab #129** (2026-09-15, "The approved design") — the authority for the page; #149 builds the Overview tab. No wireframe file: the issue's block list and its data-model table are the field contract. The three other tabs are reviewed on #129 before they are built | 3 |
 | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
 | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
 | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |

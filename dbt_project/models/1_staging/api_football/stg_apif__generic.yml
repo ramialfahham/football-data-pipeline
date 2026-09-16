@@ -61,6 +61,10 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]
+      - name: goals_for_all
+        description: Goals scored across all matches of the section, as the provider's standings row reports them ($.all.goals.for).
+      - name: goals_against_all
+        description: Goals conceded across all matches of the section, as the provider's standings row reports them ($.all.goals.against).
 
   - name: stg_apif__teams
     description: >

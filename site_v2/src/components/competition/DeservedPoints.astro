@@ -1,0 +1,59 @@
+---
+// Deserved points on the competition page: the explanation, then two three-row boards from the
+// served deserved order (mart_team_profile: points, deserved_points, deserved_points_gap). The gap
+// is the catalogue's, actual minus deserved, so "better than the table says" carries the negative
+// numbers and "worse" the positive ones. Rows in the table's style; the bold sits on Diff, the
+// number the boards are ordered by. Renders nothing unless the model fitted this competition.
+import Crest from "../ui/Crest.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { decimal1, integer, signedDelta } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import { deservedBoards } from "../../lib/competitionPayload.mjs";
+import type { DeservedRow } from "../../lib/types";
+
+interface Props {
+  deserved: DeservedRow[];
+  lang: Lang;
+}
+const { deserved, lang } = Astro.props;
+const boards = deservedBoards(deserved);
+const list = boards
+  ? [
+      { key: "compBetter", rows: boards.better as DeservedRow[] },
+      { key: "compWorse", rows: boards.worse as DeservedRow[] },
+    ]
+  : [];
+---
+
+{boards && (
+  <section>
+    <SectionHead label={t(lang, "compSecDeserved")} />
+    <p class="bsub">{t(lang, "compDeservedExplainer")}</p>
+    {list.map((board) => (
+      <div class="board">
+        <div class="bhd"><span class="bt">{t(lang, board.key)}</span></div>
+        <div class="ctab dp">
+          <div class="ctab-head">
+            <span class="h nmh"></span>
+            <span class="h">{t(lang, "compColDeserved")}</span>
+            <span class="h">{t(lang, "compColPoints")}</span>
+            <span class="h">{t(lang, "compColDiff")}</span>
+          </div>
+          {board.rows.map((row) => (
+            <a class="ctab-row" href={row.slug ? localeHref(lang, `teams/${row.slug}/`) : undefined}>
+              <span class="tm">
+                <Crest name={row.name} crest={row.crest} size="xs" />
+                <span class="nm">{row.name}</span>
+              </span>
+              <span class="n num">{decimal1(row.deserved_points, lang)}</span>
+              <span class="n num">{integer(row.points, lang)}</span>
+              <span class="n num pts">{signedDelta(row.deserved_points_gap, "decimal_1", lang).value}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    ))}
+  </section>
+)}

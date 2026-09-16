@@ -1,0 +1,31 @@
+---
+// The competition page's tab bar. Each tab is a standalone page; only the Overview exists, so the
+// other three render as labels without a link until each page is built — the build refuses a link
+// to a page it did not emit, and a tab's URL is settled with that tab's review. A cup or tournament
+// reads "Rounds" where a league reads "Matchdays".
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+
+interface Props {
+  lang: Lang;
+  hasMatchdays: boolean;
+}
+const { lang, hasMatchdays } = Astro.props;
+
+const tabs = [
+  { key: "overview", label: t(lang, "compTabOverview"), active: true },
+  { key: "matchdays", label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"), active: false },
+  { key: "teams", label: t(lang, "compTabTeams"), active: false },
+  { key: "players", label: t(lang, "compTabPlayers"), active: false },
+];
+---
+
+<nav class="tabs comp-tabs" aria-label={t(lang, "compTabsAria")}>
+  {tabs.map((tb) =>
+    tb.active ? (
+      <span class="tab on" aria-current="page">{tb.label}</span>
+    ) : (
+      <span class="tab" aria-disabled="true">{tb.label}</span>
+    ),
+  )}
+</nav>

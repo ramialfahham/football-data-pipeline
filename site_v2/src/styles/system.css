@@ -627,8 +627,15 @@ a.cnm .nm { text-decoration: none; }
    inside a target that is the entire row. Neutral ramp only; --accent is reserved. */
 a.brow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; }
 a.brow .nm { text-decoration: none; }
-@media (hover: hover) { a.brow:hover { background: var(--surface); } }
-a.brow:active { background: var(--sunk); }
+/* THE ROW-LINK RULE, site-wide: a row that leads somewhere is ONE link, the whole row, and it
+   lights on hover; an underline is for a word inside text, never for a name inside a row. One
+   selector list for every row link the site has, so a new surface joins it rather than restyling it. */
+@media (hover: hover) {
+  a.brow:hover, a.comp-row:hover, a.fxrow:hover, a.ctab-row:hover, a.frow:hover { background: var(--surface); }
+}
+a.brow:active, a.comp-row:active, a.fxrow:active, a.ctab-row:active, a.frow:active { background: var(--sunk); }
+a.fxrow, a.ctab-row, a.frow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; color: inherit; text-decoration: none; }
+a.fxrow:focus-visible, a.ctab-row:focus-visible, a.frow:focus-visible { outline-offset: -2px; }
 /* ⚠ THE RING IS DRAWN INSIDE, and the reason is measured, not stylistic — same defect class as
    `a.cnm` above. `.fx a:focus-visible` draws `outline: 2px solid` at `outline-offset: 2px`, so it
    reaches 4px BEYOND the border box; a `.brow`'s border-box bottom IS the divider, and the next row
@@ -678,11 +685,10 @@ a.brow:focus-visible { outline-offset: -2px; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .comp-region { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
-/* The row is a link: the same hover/active treatment as `a.brow`, the ring drawn inside for the
-   same reason (the grid gap is 8px; a 4px outward ring would touch the neighbour). */
+/* The row is a link: hover and active come from the shared row-link rule above `a.brow`; the ring
+   is drawn inside for the same reason (the grid gap is 8px; a 4px outward ring would touch the
+   neighbour). */
 a.comp-row { border-radius: 9px; }
-@media (hover: hover) { a.comp-row:hover { background: var(--surface); } }
-a.comp-row:active { background: var(--sunk); }
 a.comp-row:focus-visible { outline-offset: -2px; }
 
 #filter-entity-club:checked ~ .categories [data-entity-type="national"] { display: none; }
@@ -707,6 +713,76 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 #filter-region-ofc:checked ~ .seg .seg-btn[for="filter-region-ofc"],
 #filter-region-fifa:checked ~ .seg .seg-btn[for="filter-region-fifa"] {
   background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+}
+
+/* ---- competition page ---- */
+/* The tab bar as links to standalone pages: the active tab is marked by class, not by a radio,
+   and a tab whose page is not built yet is a label without a link. */
+.comp-tabs .tab.on { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+.comp-tabs .tab[aria-disabled="true"] { cursor: default; }
+.comp-tabs .tab[aria-disabled="true"]:hover { color: var(--muted); }
+
+/* The standings table. A grid, not a <table>: the heading and every row are one grid each, so the
+   track list is FIXED per breakpoint and shared — self-sizing tracks size per grid and let the
+   heading drift off the numbers. Narrow hides W, D, L and Goals (zero-width tracks, the cells
+   display:none); the crest and the name never hide. Every cell is pinned to its own track so a
+   hidden cell leaves its empty track behind instead of shifting the cells after it. */
+.ctab-section { margin-top: 10px; }
+.ctab-section + .ctab-section { margin-top: 22px; }
+.ctab-section > .gh { padding-bottom: 7px; border-bottom: 1px solid var(--div); }
+.ctab-section > .gh .nm { font-size: 14px; font-weight: 700; color: var(--ink); }
+.ctab { margin-top: 4px; --cols: 2rem minmax(0, 1fr) 2.3rem 0 0 0 0 2.8rem 2.6rem; }
+.ctab-head, .ctab-row { display: grid; grid-template-columns: var(--cols); align-items: center; column-gap: 0; }
+.ctab .n, .ctab .h { padding-left: 8px; }
+.ctab-head { padding-bottom: 8px; border-bottom: 1px solid var(--div); }
+.ctab-row { padding: 9px 0; border-bottom: 1px solid var(--line); }
+.ctab-row:last-child { border-bottom: 0; }
+.ctab-row:nth-child(odd) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.ctab-head > :nth-child(1), .ctab-row > :nth-child(1) { grid-column: 1; }
+.ctab-head > :nth-child(2), .ctab-row > :nth-child(2) { grid-column: 2; }
+.ctab-head > :nth-child(3), .ctab-row > :nth-child(3) { grid-column: 3; }
+.ctab-head > :nth-child(4), .ctab-row > :nth-child(4) { grid-column: 4; }
+.ctab-head > :nth-child(5), .ctab-row > :nth-child(5) { grid-column: 5; }
+.ctab-head > :nth-child(6), .ctab-row > :nth-child(6) { grid-column: 6; }
+.ctab-head > :nth-child(7), .ctab-row > :nth-child(7) { grid-column: 7; }
+.ctab-head > :nth-child(8), .ctab-row > :nth-child(8) { grid-column: 8; }
+.ctab-head > :nth-child(9), .ctab-row > :nth-child(9) { grid-column: 9; }
+.ctab .wdl { display: none; }
+@container (min-width: 470px) {
+  .ctab { --cols: 2rem minmax(0, 1fr) 2.3rem 2.3rem 2.3rem 2.3rem 3.9rem 2.8rem 2.6rem; }
+  .ctab .wdl { display: block; }
+}
+.ctab .h { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted); text-align: right; }
+.ctab .rk { font-size: 12px; font-weight: 700; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; padding-right: 8px; }
+.ctab .h.rk { text-align: right; }
+.ctab .n { font-size: 13px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+/* the number that matters on a league table: points, in the accent */
+.ctab .n.pts { font-size: 15px; font-weight: 700; color: var(--accent); }
+.ctab .n.gd { color: var(--ink-2); }
+.ctab .tm { display: flex; align-items: center; gap: 9px; min-width: 0; }
+/* the name never truncates: system.css ellipsises .nm elsewhere, a table row wraps instead */
+.ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; line-height: 1.25; }
+
+/* The deserved-points boards: the table's rows with three numbers, club · Deserved · Pts · Diff;
+   the bold sits on Diff, the number the board is ordered by. */
+.bsub { margin: 2px 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.ctab.dp, .ctab.dp.ctab { --cols: minmax(0, 1fr) 4.2rem 2.8rem 3.4rem; }
+.ctab.dp .n.pts { color: var(--ink); }
+
+/* The fact row: label · value · context. Wide: the label left, value and context right-aligned;
+   a phone stacks the three, left-aligned. Only the value is weighted. */
+.facts { margin-top: 4px; container-type: inline-size; }
+.frow { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 14px; align-items: start; padding: 9px 0; border-bottom: 1px solid var(--line); color: inherit; }
+.frow:last-child { border-bottom: 0; }
+.frow .fl { font-size: 14px; color: var(--ink); line-height: 20px; }
+.frow .fv { min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: right; }
+.frow .fvv { font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 20px; }
+.frow .fvv b { font-weight: 600; }
+.frow .sub { font-size: 12px; color: var(--muted); }
+.nb { white-space: nowrap; }
+@container (max-width: 420px) {
+  .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .frow .fv { text-align: left; }
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

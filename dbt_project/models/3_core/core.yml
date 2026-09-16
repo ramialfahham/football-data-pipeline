@@ -610,6 +610,10 @@ models:
         description: "{{ doc('draws') }}"
       - name: losses
         description: "{{ doc('losses') }}"
+      - name: goals_scored
+        description: "Goals scored in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
+      - name: goals_conceded
+        description: "Goals conceded in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

@@ -297,6 +297,25 @@ site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/529.json
 !site_v2/src/data/teams/536.json
 !site_v2/src/data/teams/4716.json
+# The 18 clubs of the Bundesliga table on the committed competition page sample (GitLab #149):
+# every table row and deserved-points row links to its team page. 157 and 182 were already here.
+# Refresh with the competition sample: the clubs change when the sample season does.
+!site_v2/src/data/teams/160.json
+!site_v2/src/data/teams/162.json
+!site_v2/src/data/teams/163.json
+!site_v2/src/data/teams/164.json
+!site_v2/src/data/teams/165.json
+!site_v2/src/data/teams/167.json
+!site_v2/src/data/teams/168.json
+!site_v2/src/data/teams/169.json
+!site_v2/src/data/teams/170.json
+!site_v2/src/data/teams/172.json
+!site_v2/src/data/teams/173.json
+!site_v2/src/data/teams/174.json
+!site_v2/src/data/teams/175.json
+!site_v2/src/data/teams/185.json
+!site_v2/src/data/teams/192.json
+!site_v2/src/data/teams/1660.json
 site_v2/src/data/fixtures/*.json
 # The 2026-09-01 matchday: 4 fixtures across 3 competitions, exactly what `landing.json` links to.
 #
@@ -315,6 +334,23 @@ site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/1603007.json
 !site_v2/src/data/fixtures/1628894.json
 !site_v2/src/data/fixtures/1629056.json
+# The Bundesliga's Matchday 4 (2026-09-18 to 20): the nine rows of the committed competition page
+# sample's Next matches block, each a link to its match page (GitLab #149). The same replace-never-
+# add rule as the set above; refresh together with competitions/BL1/2026.json.
+!site_v2/src/data/fixtures/1575167.json
+!site_v2/src/data/fixtures/1575168.json
+!site_v2/src/data/fixtures/1575169.json
+!site_v2/src/data/fixtures/1575170.json
+!site_v2/src/data/fixtures/1575171.json
+!site_v2/src/data/fixtures/1575172.json
+!site_v2/src/data/fixtures/1575173.json
+!site_v2/src/data/fixtures/1575174.json
+!site_v2/src/data/fixtures/1575175.json
+# The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
+# matchdays. Every competition the index lists gets a page; only this one carries content in the
+# committed build, and the 18 teams and 9 fixtures above are what it links to.
+site_v2/src/data/competitions/**/*.json
+!site_v2/src/data/competitions/BL1/2026.json
 
 # CPO working documents dropped in the repo ROOT (exports of planning conversations, briefs).
 # Not project source, so not committed -- and not deleted either: the contract and stop gates flag
