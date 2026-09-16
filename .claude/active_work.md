@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-16**, on `chore/session-end-2026-09-16`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-16 (evening)**, on `chore/session-end-2026-09-16b`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -23,59 +23,57 @@ PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a brok
 
 ## ⛔ WHERE WE ARE
 
-**HOME IS DONE (#127 approved, #143 merged as `!187`, 2026-09-13).** The design is #127's
-`The approved design`; the next matchday is a warehouse fact (`mart_next_matchday`, read whole;
-GAP-32 closed); the block folds past three rows; the team boards have no floor. ⚠ The committed
-`landing.json` sample cannot show the fold and was not refreshed (a set roll-forward pins 232
-fixture payloads — maintenance, not a block's job). Rulings elsewhere: #101 (80/10/10), #114
-(underlying total), Stats → **Leaderboards** (milestone 7). Go-live items (About, Imprint) have no
-issue — his call to file.
+**THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16) — content-wise done; the CPO will NOT
+re-check pages by eye.** The design is #129's `The approved design`: **three tabs, Overview ·
+Matchdays · Rankings** (Rounds for a cup), header identical on every tab, no page title, no sentence
+outside the Overview. Overview = Table · **Deserved points table** (full table by deserved points:
+# · club · Balance · Deserved · Pts · Diff) · The season in numbers (six fact rows, every one a link
+to a leaderboard, #140); **Next matches struck** (the Matchdays tab opens on it). Matchdays =
+`/fixtures/`, the picker ‹ MATCHDAY N › with a Next tag, the **Schedule** block, every row a link
+(played → match page #132; unplayed → preview page, form as of today), **Top match** tag on the
+flagged row, TBC for no kick-off. Rankings = two blocks **Team rankings** (12 boards) and **Player
+rankings** (13 boards), the metric groups from the catalogue (#152: `duels` → `one_on_one`,
+"One-on-one"), boards as striped tables, five rows, dense rank shown, no zero rows on a most-first
+board. The four renders of record: `competition-overview`, `competition-matchdays`,
+`competition-rankings`, `home`, all `_2026-09-16_01.html`, in the session scratchpad
+(`C:/Users/Rami/AppData/Local/Temp/claude/D--Projects-football-data-pipeline/<session>/scratchpad`)
+with their generators `gen_competition_matchdays.py`, `gen_competition_teams.py`,
+`gen_overview_after_teams.py`, `gen_home_with_rules.py` and the data pulls — **#153 brings them
+into `design-mocks/`; do that before anything else is rendered.**
 
-**THE COMPETITION PAGE'S OVERVIEW TAB IS DONE (#129 approved and ticked, #149 merged as
-`!191`, 2026-09-16).** The design is #129's `The approved design`;
-the tabs are **Overview · Matchdays · Teams · Players** (Rounds for a cup), the three unbuilt
-ones inert labels until built (the build fails on a link to a missing page). Overview order:
-Table · Next matches · Deserved points · The season in numbers; a block with nothing served is
-absent; after a season everything but Next matches stays. New warehouse facts: `goals_scored` /
-`goals_conceded` on the standings row (the provider's, never summed — the facts-versus-metrics
-rule is now in `docs/metric_layer.md`); `table_kind` on `mart_standings` from the
-`standings_table_kinds` seed (every one of 300+ section names resolves; tested from core);
-`is_match_that_matters` on `mart_next_matchday`; `mart_competition_season_summary` (tallies,
-biggest-margin and most-goals fixtures — ties: more goals / bigger margin, then the earlier
-kickoff; runs null until a team strings two; home/away wins null for national teams);
-`deserved_points_gap_rank` on the team profile (a catalogue row) so the two boards read the ends
-of a served order — the CPO's answer to the reviewer's "ranking in the export" finding, after two
-written rules disagreed. Diff = actual minus deserved, the catalogue's sign (Mainz −2.7 under
-"Better than the table says"). The **fact row** is a defined block type (label · value ·
-context; `ui_design_brief.md` §4 has it with the row-link and nothing-renders-empty rules). ⚠ The
-committed sample is the Bundesliga 2026/27 payload plus 16 team and 9 fixture payloads (~8 MB,
-allowlisted in `.gitignore`); the deploy export still runs `--entities teams,fixtures`, so
-production shows the sample — a go-live item, not filed. ⚠ The new marts exist in prod only after
-the first nightly past the merge. DE/FI copy of the page reviewed cell by cell by the CPO (one
-change: "Suurin voitto"). Run `ruff check . --config .ruff-ci.toml` before pushing — CI runs it, no
-local gate does. **Next: the Matchdays tab review on #129,
-block by block, re-rendered after every ruling (his standing demand — `SendUserFile`, a fresh file name each
-time; the pane cannot show local files, a re-sent name shows stale); then Teams, then Players; each gets its own build issue.**
-Open dependencies the page picks up when they land: #105 season label, #145 sentence, #146 venue
-clock, #148 round phase (the header and the fact rows show the provider's round text until then),
-#69 country key.
+**Build issues, all gated on #153:** **#150** Matchdays (the competition-season fixtures mart,
+the picker, the tag; the build must carry every unplayed match page of every competition — a
+founding requirement, `docs/north_star.md` "Scale ambition", merged today as `!193`: value decides
+what is built, scale is never the argument, money is always asked with the number) · **#151** the
+Rankings tab + the Overview rework + the page-wide rules (13px block names; 14px heading gap;
+ordered-by number bold accent everywhere, fact values included; one hover tint for every row link,
+visible against a stripe; stripes counted from the head row; every title at the block's left
+edge; tab bar fits at 375px; the card metrics; `clean_sheets` → format `integer`, `points_won`
+keeps `13/15`) · **#152** metric groups (key, `metric_group_order`, names as copy in EN/DE/FI;
+closes #98) · **#153 the design-system mechanism: the element inventory in the block standard,
+CSS only in `system.css`, a cross-page measured check in `validate:ui`, a lint on page CSS, the
+render naming rule `<page>_<YYYY-MM-DD>_<nn>.html`.** Home's corrections are on **#127** (boards
+as single-value tables, the Top match tag on its rows, the page rules).
 
-**THE COMPETITIONS HUB IS DONE (#128 approved, #144 merged as `!189`, 2026-09-14).** Rows link to
-the competition page; the empty-group collapse decides from the filter state; every competition
-kind has DE/FI labels and `check_copy_gate.py` check 5 holds it. Rulings elsewhere: **#57** (delete
-`display_group`), **#69** (the country table; countries are English on every page today).
+⚠ **The day's lesson, his words: "you just change things and break things hidden somewhere else …
+this way we will never complete this website."** Every new or changed element today (picker, tag,
+table head, hover tint, heading size, stripe start, title edge) reached Home or the Table unseen.
+**Before rendering anything: list every element used, mark the site's / changed / new; a new or
+changed element is put to him and rendered on EVERY page it touches before it is ruled.** Measure,
+never eyeball. No "clean stop" mid-page. Memory: `feedback_design_discipline.md`.
+
+**Next:** #153 first (it gates #150/#151), then the builds; the roadmap continues with the Matches
+milestone (#130, #131, #132 — #132 carries the future-match-page direction and the clean-sheets
+pointer). Open dependencies the page picks up when they land: #105, #145, #146, #148, #69.
+
+**HOME IS DONE (#127 approved, #143 merged as `!187`)** — with today's corrections on #127. **THE
+COMPETITIONS HUB IS DONE (#128, `!189`).** Go-live items (About, Imprint) have no issue — his call.
 
 **THE ROADMAP IS THE GITLAB MILESTONES, IN THE SITE'S MENU ORDER: Home · Competitions · Matches ·
-Teams · Players · Standings · Leaderboards.** One review issue per page under each (#127–#140): what is on
-the page, where each block's data comes from, what it links to and from — rechecked and approved by
-the CPO on the issue BEFORE anything is built or rebuilt, built pages included, because the earlier
-agreements may be stale. Build issues are filed only against an approved review. Go-live items
-(legal pages, domain, dropping `noindex`) follow the last page. The two dead roadmap documents are
-gone (`!184`). **The tracker has a backup in the repo** (`!185`): `docs/tracker/gitlab_snapshot.md`,
-written only by `python scripts/snapshot_tracker.py` — run it at the END of every session before
-the handover commit; a hook refuses any hand edit, a test checks its checksum, and it is read only
-when GitLab is unreachable. ⚠ Its checksum is self-consistency, not provenance — a forged shell
-write passes; forbidden by rule, and the CPO knows. The competition page's Overview is built (above); its other three tabs are next.
+Teams · Players · Standings · Leaderboards.** One review issue per page (#127–#140), approved by
+the CPO on the issue before anything is built; build issues only against an approved review.
+**The tracker has a backup in the repo** (`docs/tracker/gitlab_snapshot.md`, written only by
+`python scripts/snapshot_tracker.py`, run at the END of every session before the handover commit).
 
 **How we work since 2026-09-11** is in `CLAUDE.md` "Which source answers which question" and
 `docs/working_agreement.md` §1 / §11: the requirement is the GitLab issue (Task template), the
