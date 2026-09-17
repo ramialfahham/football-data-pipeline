@@ -36,15 +36,15 @@ Playwright, 375/700, EN/FI, 82 renders green, 252 failures on the tree before), 
 and **!198** (`feat/153-check-in-ci`, ON TOP OF !196: the check in CI — `validate:ui` on
 `mcr.microsoft.com/playwright/python:v1.63.0-noble`, `needs: [build:site-v2]` in the `build` stage,
 one `ui_paths` anchor for both jobs, `build:site-v2` keeps `site_v2/dist` as an artifact; the job
-runs the lint, the inventory tests and the check; pinned by tests, including "every package a job
-file imports is in `requirements-ui.txt`" — the first pipeline was red on exactly that, PyYAML;
-green now: `18 pages · 72 renders · 0 failures` in 65 s). The throwaway 11px proof is DONE on
-`proof/153-red-on-the-built-site` (!199, CLOSED, never merged, the branch kept): locally the
-check red on 15 of 18 pages, 60 renders; in CI the job red in 35 s — at the inventory-tests step,
-whose green fixture reads the live stylesheet, one step before the check. **One question on !198's
-head, his call:** run the check before the tests (per-page lines and screenshots on a stylesheet
-defect) or leave the order — recommended leave. **When !198 merges, #153 closes; then #150/#151
-do not merge until the check passes on their pages and on Home.**
+runs the lint, the CHECK, then the inventory tests (the check first, pinned: the tests' green
+fixture reads the live stylesheet and would stop the job before the check reached the pages);
+pinned by tests, including "every package a job file imports is in `requirements-ui.txt`" — the
+first pipeline was red on exactly that, PyYAML; green now: `72 renders · 0 failures` in 62 s).
+The throwaway 11px proof is DONE, twice: !199 (CLOSED) went red one step early, at the fixture —
+his reply "fail"; !200 (`proof/153-red-at-the-check-step`, CLOSED, never merged, branch kept) red
+AT THE CHECK: 60 `Block heading` lines on 15 of 18 pages, the artifact with 60 screenshots, in
+67 s. Nothing open on !198 but his merge. **When !198 merges, #153 closes; then #150/#151 do not
+merge until the check passes on their pages and on Home.**
 ⚠ The commit gate runs from the project root: a `git worktree` commit is judged against the MAIN
 tree's index — rebind a sibling branch from the main tree, stashing by explicit path.
 
