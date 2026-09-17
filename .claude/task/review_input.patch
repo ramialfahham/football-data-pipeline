@@ -15111,7 +15111,7 @@ index 00000000..a27de51d
 +    assert "INVENTORY ERROR" in proc.stderr
 diff --git a/tests/test_design_mock_renders.py b/tests/test_design_mock_renders.py
 new file mode 100644
-index 00000000..08890952
+index 00000000..caaaa6b6
 --- /dev/null
 +++ b/tests/test_design_mock_renders.py
 @@ -0,0 +1,143 @@
@@ -15238,7 +15238,7 @@ index 00000000..08890952
 +        render.main(["gen_stub.py", "Bad_Page"])
 +    with pytest.raises(SystemExit):
 +        render.main(["gen_missing.py", "stub-page"])
-+    assert os.listdir(tmp_path / "renders") == written
++    assert sorted(os.listdir(tmp_path / "renders")) == written
 +
 +
 +def test_render_refuses_a_name_the_folder_already_holds(tmp_path, monkeypatch):
@@ -15257,7 +15257,7 @@ index 00000000..08890952
 +    with pytest.raises(SystemExit, match="refusing to overwrite"):
 +        render.main(["gen_stub.py", "stub-page"])
 +    assert existing.read_text(encoding="utf-8") == "OF RECORD"
-+    assert os.listdir(renders) == [existing.name]
++    assert sorted(os.listdir(renders)) == [existing.name]
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -15273,7 +15273,7 @@ index 00000000..08890952
 #
 #   .claude/task/acceptance_evidence.md    |    94 +-
 #    .claude/task/rendered_page_evidence.md |   163 +-
-#    .claude/task/review.md                 |    39 +-
-#    .claude/task/review_input.patch        | 15314 ++++++++++++++++++++++++++++++-
-#    4 files changed, 15343 insertions(+), 267 deletions(-)
+#    .claude/task/review.md                 |    58 +-
+#    .claude/task/review_input.patch        | 15357 ++++++++++++++++++++++++++++++-
+#    4 files changed, 15406 insertions(+), 266 deletions(-)
 # ============================================================================

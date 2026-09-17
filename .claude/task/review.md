@@ -1,6 +1,6 @@
 # Review — feat/153-design-inventory — 2026-09-17
 
-diff_sha256: fca2edd17c833ea8964b6070a7ba138943135165e0f84a5a5f3a11d3afb9f0f1
+diff_sha256: ff88a5fef87b4a46a215b0096289bd78267a8e8a5723981f9bdc1ceb57edade3
 
 rounds: 2
 
@@ -11,7 +11,9 @@ CPO"; platform-reviewer's verdict then was a fail (resolved at round 2): the `vi
 left two packages unpinned. Round 2: the row is `proposed` and in `decisions_reserved`, the
 fixtures carry the picker and the RED proof covers both kinds, every package is pinned; both
 reviewers PASS. The cumulative diff includes the stacked base branch (!195); its files are
-outside this contract's scope by design and reviewed there.
+outside this contract's scope by design and reviewed there. Rebased onto !195 after its round 4
+(two `sorted()` calls in its test, a CI-found Linux ordering trap): the hash above is the
+rebased branch's; nothing of this branch's own changed.
 
 ## scope-auditor
 VERDICT: PASS
