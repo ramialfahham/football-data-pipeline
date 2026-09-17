@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-16 (evening)**, on `chore/session-end-2026-09-16b`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-17**, on `feat/153-design-inventory`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -14,74 +14,74 @@ right after creating a branch**, and push with `git push gitlab <b>:<b>`, verify
 ⛔⛔ **DO NOT TOUCH `glab auth` OR INSTALL A PROJECT TOKEN. 2026-09-03 cost a full day.** ONE
 credential per MACHINE — re-authing it broke two other repos. The safeguard that the agent never
 merges is **branch protection** plus the memory rule **never merge**; NOT a token, NOT a hook.
-⛔ **`fix/merge-guard-covers-the-api` IS DEAD** — 11 rounds, judged over-engineering, DISCARDED.
-⛔⛔ **CI HAS NO FALLBACK.** `shared_runners_enabled=false`, so **`ci-runner-01` is the ONLY runner**
-— a dead box means pipelines QUEUE, they do not fail over. ⚠ `~/.ssh/id_ed25519` is
-PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a broken key.
+⛔ `fix/merge-guard-covers-the-api` IS DEAD (11 rounds, over-engineering, discarded). ⛔⛔ **CI HAS NO
+FALLBACK:** `ci-runner-01` is the ONLY runner — a dead box means pipelines QUEUE. `~/.ssh/id_ed25519`
+is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a broken key.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`.
 
 ## ⛔ WHERE WE ARE
 
-**THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16) — content-wise done; the CPO will NOT
-re-check pages by eye.** The design is #129's `The approved design`: **three tabs, Overview ·
-Matchdays · Rankings** (Rounds for a cup), header identical on every tab, no page title, no sentence
-outside the Overview. Overview = Table · **Deserved points table** (full table by deserved points:
-# · club · Balance · Deserved · Pts · Diff) · The season in numbers (six fact rows, every one a link
-to a leaderboard, #140); **Next matches struck** (the Matchdays tab opens on it). Matchdays =
-`/fixtures/`, the picker ‹ MATCHDAY N › with a Next tag, the **Schedule** block, every row a link
-(played → match page #132; unplayed → preview page, form as of today), **Top match** tag on the
-flagged row, TBC for no kick-off. Rankings = two blocks **Team rankings** (12 boards) and **Player
-rankings** (13 boards), the metric groups from the catalogue (#152: `duels` → `one_on_one`,
-"One-on-one"), boards as striped tables, five rows, dense rank shown, no zero rows on a most-first
-board. The four renders of record: `competition-overview`, `competition-matchdays`,
-`competition-rankings`, `home`, all `_2026-09-16_01.html`, in the session scratchpad
-(`C:/Users/Rami/AppData/Local/Temp/claude/D--Projects-football-data-pipeline/<session>/scratchpad`)
-with their generators `gen_competition_matchdays.py`, `gen_competition_teams.py`,
-`gen_overview_after_teams.py`, `gen_home_with_rules.py` and the data pulls — **#153 brings them
-into `design-mocks/`; do that before anything else is rendered.**
+**#153, THE DESIGN-SYSTEM MECHANISM, IS FOUR-FIFTHS BUILT AND WAITING ON HIS MERGE.** Two MRs, stacked:
+**!195** (`feat/153-design-mocks-of-record`: the four generators of record and their five `bq`
+pulls in `design-mocks/`, the render naming rule — `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`,
+tracked, `render.py` picks the number, never overwritten; #153 items 4+5) and **!196**
+(`feat/153-design-inventory`, ON TOP OF !195 — merge !195 first: the block standard
+`docs/wireframes/block_standard.md` (40 elements · selector · rule · `Measured as` · status · ruled
+on, and the 18 pages the check measures), every element's CSS in `system.css` alone (the mocks lost
+`ROW_CSS`, `INTERACTION_CSS`, the board CSS and the four overlays' CSS; `gen_diagnostic.py` gone),
+`scripts/check_page_css.py` (the lint), `scripts/check_design_inventory.py` (the measured check:
+Playwright, 375/700, EN/FI, 82 renders green, 252 failures on the tree before), a RED fixture,
+`requirements-ui.txt`, the built competition tab bar to the three approved tabs; #153 items 1–3).
+**NEXT = MR 3, the CI wiring (#153 item 2's "runs in `validate:ui`"): `.gitlab-ci.yml` is a
+PROTECTED path — its contract needs `protected_override` quoting his answer "Headless Chromium via
+Playwright, Python" (2026-09-16, in chat) and an `impact_map`. The approved plan
+(`~/.claude/plans/streamed-twirling-horizon.md`, MR 3) has the job shape: `build:site-v2` keeps
+`dist/` as an artifact; `validate:ui` on `mcr.microsoft.com/playwright/python:v1.63.0-noble`,
+`needs: [build:site-v2]` in the SAME stage, one `changes:` anchor for both jobs, the lint + the
+inventory tests + the check; pins in the test; only the three known `if:` spellings.**
+Then #150/#151 do not merge until the check passes on their pages and on Home.
 
-**Build issues, all gated on #153:** **#150** Matchdays (the competition-season fixtures mart,
-the picker, the tag; the build must carry every unplayed match page of every competition — a
-founding requirement, `docs/north_star.md` "Scale ambition", merged today as `!193`: value decides
-what is built, scale is never the argument, money is always asked with the number) · **#151** the
-Rankings tab + the Overview rework + the page-wide rules (13px block names; 14px heading gap;
-ordered-by number bold accent everywhere, fact values included; one hover tint for every row link,
-visible against a stripe; stripes counted from the head row; every title at the block's left
-edge; tab bar fits at 375px; the card metrics; `clean_sheets` → format `integer`, `points_won`
-keeps `13/15`) · **#152** metric groups (key, `metric_group_order`, names as copy in EN/DE/FI;
-closes #98) · **#153 the design-system mechanism: the element inventory in the block standard,
-CSS only in `system.css`, a cross-page measured check in `validate:ui`, a lint on page CSS, the
-render naming rule `<page>_<YYYY-MM-DD>_<nn>.html`.** Home's corrections are on **#127** (boards
-as single-value tables, the Top match tag on its rows, the page rules).
+**Two questions on !196's head for him:** the DE label of the Rankings tab ("Rankings" provisional;
+EN "Rankings", FI "Rankingit" are the mock's) and the breadcrumb's current-page colour (the site:
+the page you are on `ink-2`, links muted; the mocks had it inverted; the inventory row is
+`proposed` — measured, never fails — until he rules; then `ruled` and the stylesheet follows).
+**Ruled 2026-09-17 in chat, written into #129:** (a) "Home with line, Rankings without" — two
+headings: the competition group head over match rows keeps its 2px line, the metric group heading
+over boards has none; (b) "head only" — a table's rows carry no line, the head rule is the only
+one. The variant renders he saw are `design-mocks/renders/*_2026-09-17_0[12].html`. ⚠ **A ruling
+request is ONE question, then a 2×2 table (page × variant → file), then the recommendation** —
+four files with a caption got "What am I supposed to decide?"; and his answer may split by context.
 
-⚠ **The day's lesson, his words: "you just change things and break things hidden somewhere else …
-this way we will never complete this website."** Every new or changed element today (picker, tag,
-table head, hover tint, heading size, stripe start, title edge) reached Home or the Table unseen.
-**Before rendering anything: list every element used, mark the site's / changed / new; a new or
-changed element is put to him and rendered on EVERY page it touches before it is ruled.** Measure,
-never eyeball. No "clean stop" mid-page. Memory: `feedback_design_discipline.md`.
+**THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.**
+#129's `The approved design` is the text: three tabs, Overview · Matchdays · Rankings. **Build
+issues, gated on #153:** **#150** Matchdays · **#151** Rankings + the Overview rework · **#152**
+metric groups; Home's corrections on **#127**. The page-wide rules now live in the block standard
+and `system.css`, measured — the builds compose from them and add nothing of their own.
 
-**Next:** #153 first (it gates #150/#151), then the builds; the roadmap continues with the Matches
-milestone (#130, #131, #132 — #132 carries the future-match-page direction and the clean-sheets
-pointer). Open dependencies the page picks up when they land: #105, #145, #146, #148, #69.
+**The measured check is the arbiter now.** `python scripts/check_design_inventory.py --dist
+site_v2/dist` (build first: `cd site_v2 && npm run build`; park any untracked export payload under
+`site_v2/src/data/competitions/` first — `DFBP`, `EURO` sit in the session scratchpad
+`parked_data/`, or the SEO audit refuses the build); `--no-built` for the mocks alone; `--page
+name=file.html` for one file. An element not in `block_standard.md` is a design decision: put to
+him and rendered on every page it touches before it is ruled. `gen_competitions.py` (#54's index)
+does not run against today's registry (`intercontinental_super_cup` missing from its map) and is
+off the pages list until it does; the two standards sheets and the three diagrams are not pages.
 
-**HOME IS DONE (#127 approved, #143 merged as `!187`)** — with today's corrections on #127. **THE
-COMPETITIONS HUB IS DONE (#128, `!189`).** Go-live items (About, Imprint) have no issue — his call.
+**HOME IS DONE (#127, `!187`) and THE COMPETITIONS HUB (#128, `!189`).** Go-live items (About,
+Imprint) have no issue — his call. **The roadmap is the GitLab milestones in the site's menu
+order: Home · Competitions · Matches · Teams · Players · Standings · Leaderboards** — one review
+issue per page (#127–#140), approved on the issue before anything is built; after #153 and the
+competition builds comes the Matches milestone (#130, #131, #132); dependencies the page picks up
+when they land: #105, #145, #146, #148, #69. The tracker's backup `docs/tracker/gitlab_snapshot.md`
+is written only by `python scripts/snapshot_tracker.py`, at the END of every session.
 
-**THE ROADMAP IS THE GITLAB MILESTONES, IN THE SITE'S MENU ORDER: Home · Competitions · Matches ·
-Teams · Players · Standings · Leaderboards.** One review issue per page (#127–#140), approved by
-the CPO on the issue before anything is built; build issues only against an approved review.
-**The tracker has a backup in the repo** (`docs/tracker/gitlab_snapshot.md`, written only by
-`python scripts/snapshot_tracker.py`, run at the END of every session before the handover commit).
-
-**How we work since 2026-09-11** is in `CLAUDE.md` "Which source answers which question" and
-`docs/working_agreement.md` §1 / §11: the requirement is the GitLab issue (Task template), the
-plan is its How, a decision is recorded by the thing it changes (`escalations.log` is FROZEN), the
-MR head is his check (`Closes #N`, ticks with links, `Locked files`) and **his merge is the
-approval** — set it with `glab mr update <n> --description` right after the hook opens the MR.
-**The stop gate blocks a turn that ends with anything in `git stash`**; parked work goes on a
-pushed `parked/<branch>` (ten exist, five dead per `!173`, deleting them is his).
+**How we work since 2026-09-11** is `CLAUDE.md` "Which source answers which question" and
+`docs/working_agreement.md` §1 / §11: the requirement is the issue (Task template), the plan its
+How, a decision is recorded by the thing it changes (`escalations.log` FROZEN), the MR head is his
+check and **his merge is the approval** — set the head with `glab mr update <n> --description`
+right after the hook opens the MR. **The stop gate blocks a turn ending with anything in
+`git stash`**; parked work goes on a pushed `parked/<branch>` (ten exist, five dead per `!173`).
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
 (stash commit; untracked files in its third parent — `git stash apply parked/feat/player-overview-tab`)
@@ -93,11 +93,18 @@ metric is defined, which model computes it, what makes it NULL, what CI will fai
 incomplete-data rule lives there — a metric is NULL unless its inputs cover every match in the
 window, and a thinly covered competition showing blank is correct output.
 
-⚠ **HE HAS SAID, MORE THAN ONCE, THAT THE VOLUME IS THE PROBLEM** (*"A wallpaper of text"*; *"Explain
-like I'm twelve. Keep it short."*). Give him the decision and the consequence, in two sentences.
-Process detail, round counts, gate mechanics and hash rebinding go in the repo — never in a message
-to him. Commit, push, retry, rebase and regenerate WITHOUT asking. And keep working — three times
-in one session he asked "you waiting for something?".
+⚠ **THE VOLUME IS THE PROBLEM** (*"A wallpaper of text"*; *"Explain like I'm twelve. Keep it
+short."*). The decision and the consequence, two sentences; process detail, round counts and gate
+mechanics stay in the repo. Commit, push, retry, rebase and regenerate WITHOUT asking; keep working.
+
+⚠ **THE NIGHTLY OF 2026-09-17 IS RED — prod marts are a day stale.** `fdp-nightly-67bcm` failed
+`assert_fct_fixture_no_stale_live` (one PD fixture, `fixture_sk` 1570385, kicked off 2026-09-16
+19:30 UTC, still `2H` in the 04:05 ingest) and `dbt build` skipped 671 downstream models, so
+`mart_next_matchday` in prod still lacks #149's `is_match_that_matters`. Consequence: !196's
+`data:build:mr` (triggered by `scripts/check_*.py`, a `.data_paths_mr` path) runs the singular
+tests deferred to prod and fails three of them; nothing in !196 touches dbt. Retry that job once a
+nightly is green. Whether the fixture's status refreshes tonight is the provider's; if it does not,
+it is the stale-live class the test documents — his call, not a code change.
 
 ## ⛔ WHAT 2026-09-08 CHANGED IN PROD — read before trusting an older measurement
 
@@ -123,16 +130,13 @@ before asserting it. ⚠ **Never ask him to approve routine mechanics** — ask 
 
 ## ⛔ PARKED: the dbt profile MR — TWO OPEN FAILS
 
-Branch `fix/dbt-profile-local-to-this-repo`; the WIP is on
-`parked/fix/dbt-profile-local-to-this-repo--profile-root` (and `…--profile-local-3`). The repo-local
-`profiles.yml` at the ROOT is the fix (dbt reads `--profiles-dir` → `DBT_PROFILES_DIR` → **CWD** →
-`~/.dbt`; every CI job does `cd dbt_project`, so a root profile never shadows CI's). Open: (1) a
-stale `decisions_taken` paragraph saying the file goes in `dbt_project/`; (2) **`.mcp.json` sets
-`DBT_PROFILES_DIR: C:/Users/Rami/.dbt`**, a PROTECTED path that outranks the fix. ⚠ Deliberately
-**no `prod` target** in the local profile: a prod target needs `dataset: dbt_analytics`, the line
-that overwrites prod's base tables and seeds if a build ever selects one. Meanwhile `dbt ls` /
-`parse` / `compile` work with a throwaway profile in the scratchpad (`DBT_PROFILES_DIR`, target
-`dev_scratch`) — `~/.dbt/profiles.yml` currently holds ANOTHER project's profile; never edit it.
+Branch `fix/dbt-profile-local-to-this-repo`; WIP on `parked/fix/dbt-profile-local-to-this-repo--profile-root`.
+The repo-local `profiles.yml` at the ROOT is the fix (dbt reads `--profiles-dir` → `DBT_PROFILES_DIR`
+→ **CWD** → `~/.dbt`; every CI job does `cd dbt_project`). Open: (1) a stale `decisions_taken`
+paragraph saying `dbt_project/`; (2) **`.mcp.json` sets `DBT_PROFILES_DIR: C:/Users/Rami/.dbt`**, a
+PROTECTED path that outranks the fix. **No `prod` target** in the local profile, ever (it is the
+line that overwrites prod's base tables). `dbt ls` / `parse` / `compile` work with a throwaway
+profile in the scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` holds ANOTHER project's.
 
 ## ⛔ OPEN — DEFECTS TO FIX (not decisions to wait on)
 
@@ -158,15 +162,13 @@ that overwrites prod's base tables and seeds if a build ever selects one. Meanwh
 
 ## ⛔ WHAT ACTUALLY FINDS DEFECTS — the blinded review and CI, almost never a gate
 
-Across `!156`/`!157`/`!159` (13 rounds) and `!191` (5 rounds) every FAIL came from a reviewer or
-the pipeline; parse, lint and the offline gates were green over all of them. **Almost every
-defect was a claim asserted without opening the file** — open it, do not recall it. A class recurs
-until the RIGHT tree is swept, two-sided ("1 moves, 4 stay"); mutation-test against the mutation
-the design is defended against; a reviewer's flagged-but-not-failed trade-off is still a trade-off;
-**rewrite the design, rewrite the paperwork** (acceptance criteria describing a previous design
-were found by reviewers on `!159` and on `!191`). What `!191` added: an invented locale format
-(a German score colon) with no authority; a catalogue flag set against its own direction; a
-`ruff` finding only CI runs.
+Across `!156`–`!159`, `!191`, `!195` and `!196` every FAIL came from a reviewer or the pipeline;
+the offline gates were green over all of them. **Almost every defect was a claim asserted without
+opening the file** — open it. A class recurs until the RIGHT tree is swept, two-sided; mutation-test
+against the mutation the design is defended against (a guard no test reaches is not a guard:
+`!195` round 2); **rewrite the design, rewrite the paperwork**; a row marked ruled while a note
+says "put to him" is a decision taken (`!196` round 1); an unsorted directory listing passes on
+Windows and fails on Linux (`!195`, found by CI).
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
