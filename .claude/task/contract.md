@@ -1,11 +1,11 @@
-# Task contract — session end 2026-09-17: tracker snapshot refreshed, handover at #153 four-fifths built
+# Task contract — session end 2026-09-17: tracker snapshot refreshed, handover at #153 fully built
 
 objective: >
   The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
   (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py`, and
-  bring the handover (`.claude/active_work.md`) to the current state — #153's items 1–5 built on
-  two stacked MRs (!195, !196) awaiting the CPO's merge, the CI wiring next, the two rulings of
-  the day and the two questions on the MR head — under 16,000 characters.
+  bring the handover (`.claude/active_work.md`) to the current state — #153 fully built: !195
+  merged, !196 and !198 (the CI wiring) stacked and awaiting the CPO's merge, the two rulings of
+  the day, the one default and the one open proof on the MR heads — under 16,000 characters.
 
 refs: >
   `CLAUDE.md` "At the end of every session, before the handover commit, run
@@ -31,4 +31,6 @@ done_when:
   - `len()` of `.claude/active_work.md` under 16,000 characters; the stop gate accepts it.
   - The MR merges with the snapshot, the handover and this contract only.
 
-amendments: (none)
+amendments: >
+  Second commit, the same evening: the handover moved on — !195 merged, the CI wiring built and
+  open as !198 — so the objective above says so; the snapshot regenerated once more. Same scope.

@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-17**, on `feat/153-design-inventory`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-17 (night)**, on `chore/session-end-2026-09-17`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -14,7 +14,7 @@ right after creating a branch**, and push with `git push gitlab <b>:<b>`, verify
 ⛔⛔ **DO NOT TOUCH `glab auth` OR INSTALL A PROJECT TOKEN. 2026-09-03 cost a full day.** ONE
 credential per MACHINE — re-authing it broke two other repos. The safeguard that the agent never
 merges is **branch protection** plus the memory rule **never merge**; NOT a token, NOT a hook.
-⛔ `fix/merge-guard-covers-the-api` IS DEAD (11 rounds, over-engineering, discarded). ⛔⛔ **CI HAS NO
+⛔ `fix/merge-guard-covers-the-api` IS DEAD (discarded as over-engineering). ⛔⛔ **CI HAS NO
 FALLBACK:** `ci-runner-01` is the ONLY runner — a dead box means pipelines QUEUE. `~/.ssh/id_ed25519`
 is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a broken key.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
@@ -22,30 +22,33 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#153, THE DESIGN-SYSTEM MECHANISM, IS FOUR-FIFTHS BUILT AND WAITING ON HIS MERGE.** Two MRs, stacked:
-**!195** (`feat/153-design-mocks-of-record`: the four generators of record and their five `bq`
-pulls in `design-mocks/`, the render naming rule — `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`,
-tracked, `render.py` picks the number, never overwritten; #153 items 4+5) and **!196**
-(`feat/153-design-inventory`, ON TOP OF !195 — merge !195 first: the block standard
+**#153, THE DESIGN-SYSTEM MECHANISM, IS FULLY BUILT AND WAITING ON HIS MERGE.** **!195** MERGED
+2026-09-17 (the four generators of record and their five `bq` pulls in `design-mocks/`, the render
+naming rule — `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`, tracked, `render.py` picks the
+number, never overwritten; #153 items 4+5). Two MRs open, stacked — merge in order: **!196**
+(`feat/153-design-inventory`: the block standard
 `docs/wireframes/block_standard.md` (40 elements · selector · rule · `Measured as` · status · ruled
 on, and the 18 pages the check measures), every element's CSS in `system.css` alone (the mocks lost
 `ROW_CSS`, `INTERACTION_CSS`, the board CSS and the four overlays' CSS; `gen_diagnostic.py` gone),
 `scripts/check_page_css.py` (the lint), `scripts/check_design_inventory.py` (the measured check:
 Playwright, 375/700, EN/FI, 82 renders green, 252 failures on the tree before), a RED fixture,
 `requirements-ui.txt`, the built competition tab bar to the three approved tabs; #153 items 1–3).
-**NEXT = MR 3, the CI wiring (#153 item 2's "runs in `validate:ui`"): `.gitlab-ci.yml` is a
-PROTECTED path — its contract needs `protected_override` quoting his answer "Headless Chromium via
-Playwright, Python" (2026-09-16, in chat) and an `impact_map`. The approved plan
-(`~/.claude/plans/streamed-twirling-horizon.md`, MR 3) has the job shape: `build:site-v2` keeps
-`dist/` as an artifact; `validate:ui` on `mcr.microsoft.com/playwright/python:v1.63.0-noble`,
-`needs: [build:site-v2]` in the SAME stage, one `changes:` anchor for both jobs, the lint + the
-inventory tests + the check; pins in the test; only the three known `if:` spellings.**
-Then #150/#151 do not merge until the check passes on their pages and on Home.
+and **!198** (`feat/153-check-in-ci`, ON TOP OF !196: the check in CI — `validate:ui` on
+`mcr.microsoft.com/playwright/python:v1.63.0-noble`, `needs: [build:site-v2]` in the `build` stage,
+one `ui_paths` anchor for both jobs, `build:site-v2` keeps `site_v2/dist` as an artifact; the job
+runs the lint, the inventory tests and the check; pinned by tests, including "every package a job
+file imports is in `requirements-ui.txt`" — the first pipeline was red on exactly that, PyYAML;
+green now: `18 pages · 72 renders · 0 failures` in 65 s). **Open on !198's head, his call:** the
+plan's throwaway 11px commit proving the job red on the built site was NOT made — every commit is
+bound to a reviewed hash, and the RED-proof test in the same job stands in. **When !198 merges,
+#153 closes; then #150/#151 do not merge until the check passes on their pages and on Home.**
+⚠ The commit gate runs from the project root: a `git worktree` commit is judged against the MAIN
+tree's index — rebind a sibling branch from the main tree, stashing by explicit path.
 
-**Two questions on !196's head for him:** the DE label of the Rankings tab ("Rankings" provisional;
-EN "Rankings", FI "Rankingit" are the mock's) and the breadcrumb's current-page colour (the site:
-the page you are on `ink-2`, links muted; the mocks had it inverted; the inventory row is
-`proposed` — measured, never fails — until he rules; then `ruled` and the stylesheet follows).
+**One default on !196's head for him:** the breadcrumb's current-page colour (the site: the page
+you are on `ink-2`, links muted; the mocks had it inverted; the inventory row is `proposed` —
+measured, never fails — until he rules; then `ruled` and the stylesheet follows). The DE tab
+label is ruled: "Rankings" in all three languages, written into #129.
 **Ruled 2026-09-17 in chat, written into #129:** (a) "Home with line, Rankings without" — two
 headings: the competition group head over match rows keeps its 2px line, the metric group heading
 over boards has none; (b) "head only" — a table's rows carry no line, the head rule is the only
@@ -73,15 +76,15 @@ Imprint) have no issue — his call. **The roadmap is the GitLab milestones in t
 order: Home · Competitions · Matches · Teams · Players · Standings · Leaderboards** — one review
 issue per page (#127–#140), approved on the issue before anything is built; after #153 and the
 competition builds comes the Matches milestone (#130, #131, #132); dependencies the page picks up
-when they land: #105, #145, #146, #148, #69. The tracker's backup `docs/tracker/gitlab_snapshot.md`
-is written only by `python scripts/snapshot_tracker.py`, at the END of every session.
+when they land: #105, #145, #146, #148, #69. `docs/tracker/gitlab_snapshot.md` is written only by
+`python scripts/snapshot_tracker.py`, at the END of every session.
 
 **How we work since 2026-09-11** is `CLAUDE.md` "Which source answers which question" and
 `docs/working_agreement.md` §1 / §11: the requirement is the issue (Task template), the plan its
 How, a decision is recorded by the thing it changes (`escalations.log` FROZEN), the MR head is his
 check and **his merge is the approval** — set the head with `glab mr update <n> --description`
 right after the hook opens the MR. **The stop gate blocks a turn ending with anything in
-`git stash`**; parked work goes on a pushed `parked/<branch>` (ten exist, five dead per `!173`).
+`git stash`**; parked work goes on a pushed `parked/<branch>` (ten exist, half dead).
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
 (stash commit; untracked files in its third parent — `git stash apply parked/feat/player-overview-tab`)
@@ -94,15 +97,15 @@ incomplete-data rule lives there — a metric is NULL unless its inputs cover ev
 window, and a thinly covered competition showing blank is correct output.
 
 ⚠ **THE VOLUME IS THE PROBLEM** (*"A wallpaper of text"*; *"Explain like I'm twelve. Keep it
-short."*). The decision and the consequence, two sentences; process detail, round counts and gate
-mechanics stay in the repo. Commit, push, retry, rebase and regenerate WITHOUT asking; keep working.
+short."*). The decision and the consequence, two sentences; process detail stays in the repo.
+Commit, push, retry, rebase and regenerate WITHOUT asking; keep working.
 
 ⚠ **THE NIGHTLY OF 2026-09-17 IS RED — prod marts are a day stale.** `fdp-nightly-67bcm` failed
 `assert_fct_fixture_no_stale_live` (one PD fixture, `fixture_sk` 1570385, kicked off 2026-09-16
 19:30 UTC, still `2H` in the 04:05 ingest) and `dbt build` skipped 671 downstream models, so
-`mart_next_matchday` in prod still lacks #149's `is_match_that_matters`. Consequence: !196's
-`data:build:mr` (triggered by `scripts/check_*.py`, a `.data_paths_mr` path) runs the singular
-tests deferred to prod and fails three of them; nothing in !196 touches dbt. Retry that job once a
+`mart_next_matchday` in prod still lacks #149's `is_match_that_matters`. Consequence: `data:build:mr`
+on !196 and !198 (triggered by `scripts/check_*.py`, a `.data_paths_mr` path) runs the singular
+tests deferred to prod and fails three of them; neither MR touches dbt. Retry both jobs once a
 nightly is green. Whether the fixture's status refreshes tonight is the provider's; if it does not,
 it is the stale-live class the test documents — his call, not a code change.
 
@@ -162,13 +165,12 @@ profile in the scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` holds AN
 
 ## ⛔ WHAT ACTUALLY FINDS DEFECTS — the blinded review and CI, almost never a gate
 
-Across `!156`–`!159`, `!191`, `!195` and `!196` every FAIL came from a reviewer or the pipeline;
-the offline gates were green over all of them. **Almost every defect was a claim asserted without
-opening the file** — open it. A class recurs until the RIGHT tree is swept, two-sided; mutation-test
-against the mutation the design is defended against (a guard no test reaches is not a guard:
-`!195` round 2); **rewrite the design, rewrite the paperwork**; a row marked ruled while a note
-says "put to him" is a decision taken (`!196` round 1); an unsorted directory listing passes on
-Windows and fails on Linux (`!195`, found by CI).
+Across `!156`–`!159`, `!191`, `!195`–`!198` every FAIL came from a reviewer or the pipeline; the
+offline gates were green over all of them. **Almost every defect was a claim asserted without
+opening the file** — open it. Sweep the RIGHT tree, two-sided; mutation-test against the mutation
+the design is defended against (`!195` round 2); a row marked ruled while a note says "put to him"
+is a decision taken (`!196` round 1); Windows green, Linux red: an unsorted listing (`!195`), a
+package the workstation has and the job's image does not (`!198`) — both found by CI.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
@@ -186,22 +188,21 @@ open MR's source branch CLOSES the MR.
 ⚠ **The push guard refuses EVERY push while standing on main.** Branch to a throwaway to push
 deletions. It reads the CURRENT branch, so `checkout && push` in one call is blocked as a whole.
 ⛔⛔ **`--review-patch` PRINTS; only a REDIRECT writes the file.** Run bare it leaves the previous
-round's patch on disk, exit 0 — that served reviewers a stale diff on `!132` and `!151`, and on !156
-a patch generated BEFORE a fix made a reviewer FAIL on something already fixed.
-**Regenerate it immediately before every round, after `git add -u`.**
+round's patch on disk, exit 0 (stale diffs served on `!132`, `!151`, `!156`). **Regenerate it
+immediately before every round, after `git add -u`.**
 ⭐ Free tell: `--staged-hash` printing `e3b0c442…` = `sha256("")`, an empty staged diff.
 ⚠ **CP1252, NOT UTF-8, IN BOTH DIRECTIONS on this machine.** `subprocess.run(..., text=True)` and the
 `bq` CLI's CSV output are both cp1252. Capture BYTES, decode utf-8 first with a cp1252 fallback.
-⚠ **SQLFluff exits 1 ON SUCCESS when stdout is redirected** (emoji + CP1252). Read exit codes BARE
-and UNREDIRECTED, or set `PYTHONIOENCODING=utf-8`.
+⚠ **SQLFluff exits 1 ON SUCCESS when stdout is redirected** (emoji + CP1252). Read exit codes
+bare, or set `PYTHONIOENCODING=utf-8`.
 
 ## Method that works
 
 Contract FIRST on a clean tree (stash by explicit path with a `TEMP-` label; after the edit
 `git stash pop` REFUSES because the stash carries the pre-edit contract — restore with
-`git checkout stash@{0} -- <paths>` then `git stash drop`, inside the same turn). Then gates unpiped
-with exit codes read bare, mutations watched RED, blinded reviewers, `review.md` with
-`--staged-hash`. Rounds are PER REVIEWER. Each section needs `## <exact-routing-key>`, `VERDICT:`,
-then `risks_checked:`. ⚠ **`contract.md` is INSIDE the review hash**; amend BEFORE the round.
+`git checkout stash@{0} -- <paths>` then `git stash drop`, inside the same turn). Then gates with
+exit codes read bare, mutations watched RED, blinded reviewers, `review.md` with `--staged-hash`.
+Rounds are PER REVIEWER; each section `## <exact-routing-key>`, `VERDICT:`, `risks_checked:`.
+⚠ **`contract.md` is INSIDE the review hash**; amend BEFORE the round.
 ⚠ `acceptance_evidence.md` needs `criteria_demonstrated:` at **column 0** — `## criteria_demonstrated:`
 is invisible to the parser — with one 15+ character bullet per criterion.

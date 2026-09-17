@@ -1,10 +1,10 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e1b31614..1a0a0178 100644
+index e1b31614..e4ddbe5c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
 @@ -1,17 +1,15 @@
 -# Task contract — session end 2026-09-16 (evening): tracker snapshot refreshed, handover at the fully approved competition page
-+# Task contract — session end 2026-09-17: tracker snapshot refreshed, handover at #153 four-fifths built
++# Task contract — session end 2026-09-17: tracker snapshot refreshed, handover at #153 fully built
  
  objective: >
    The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
@@ -14,9 +14,9 @@ index e1b31614..1a0a0178 100644
 -  tabs, the build issues gated on the design-system mechanism #153 — under 16,000 characters.
 -  This contract replaces the merged `!193` contract.
 +  (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py`, and
-+  bring the handover (`.claude/active_work.md`) to the current state — #153's items 1–5 built on
-+  two stacked MRs (!195, !196) awaiting the CPO's merge, the CI wiring next, the two rulings of
-+  the day and the two questions on the MR head — under 16,000 characters.
++  bring the handover (`.claude/active_work.md`) to the current state — #153 fully built: !195
++  merged, !196 and !198 (the CI wiring) stacked and awaiting the CPO's merge, the two rulings of
++  the day, the one default and the one open proof on the MR heads — under 16,000 characters.
  
  refs: >
    `CLAUDE.md` "At the end of every session, before the handover commit, run
@@ -26,7 +26,7 @@ index e1b31614..1a0a0178 100644
  
  scope_paths:
    - docs/tracker/gitlab_snapshot.md
-@@ -19,27 +17,18 @@ scope_paths:
+@@ -19,16 +17,14 @@ scope_paths:
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
@@ -46,10 +46,10 @@ index e1b31614..1a0a0178 100644
  
  done_when:
    - `python scripts/snapshot_tracker.py` run once; `python -m pytest tests/test_tracker_snapshot.py -q` green.
-   - `len()` of `.claude/active_work.md` under 16,000 characters; the stop gate accepts it.
+@@ -36,10 +32,5 @@ done_when:
    - The MR merges with the snapshot, the handover and this contract only.
  
--amendments: >
+ amendments: >
 -  2026-09-16, after the first commit: `tests/test_no_dead_issue_refs.py` added to scope_paths.
 -  Authority: the test's own instruction — "GitLab has issued a number that is in the set, so a
 -  live reference was being flagged — remove that ONE entry and update the count and digest here,
@@ -57,7 +57,8 @@ index e1b31614..1a0a0178 100644
 -  (the Rankings build issue and the design-system issue); the handover cites both and the
 -  guard flagged them. No CPO decision: the builder's mechanic the test itself prescribes.
 -
-+amendments: (none)
++  Second commit, the same evening: the handover moved on — !195 merged, the CI wiring built and
++  open as !198 — so the objective above says so; the snapshot regenerated once more. Same scope.
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -71,8 +72,9 @@ index e1b31614..1a0a0178 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          | 178 ++++++++++++++++++++--------------------
-#    .claude/task/review_input.patch | 154 ++++++++++------------------------
-#    docs/tracker/gitlab_snapshot.md |  14 ++--
-#    3 files changed, 143 insertions(+), 203 deletions(-)
+#   .claude/active_work.md          | 197 ++++++++++++++++++++--------------------
+#    .claude/task/review.md          |  28 ++----
+#    .claude/task/review_input.patch | 154 +++++++++----------------------
+#    docs/tracker/gitlab_snapshot.md |  20 ++--
+#    4 files changed, 165 insertions(+), 234 deletions(-)
 # ============================================================================
