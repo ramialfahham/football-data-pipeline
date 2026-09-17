@@ -1,8 +1,8 @@
 # Review — feat/153-check-in-ci — 2026-09-17
 
-diff_sha256: f3bc804e907a9a9d5c591f9c958aee11617440a68c6a898d42c877a1155e2c59
+diff_sha256: 6b0f71dcac10d2346935d341ee7fd8d33a2d9c378f76b2127cb48fad66c494f0
 
-rounds: 1
+rounds: 3
 
 Round 1: all four PASS. The cumulative diff includes the stacked base branch (!196); its
 files are outside this contract's scope by design and reviewed there. This MR's own change is
@@ -11,10 +11,25 @@ the validate-local skill's mapping table and the contract. Every pin went red on
 mutation of its property before the review (needs, image tag, script step, artifact path, rules
 anchor, stage) and green on restore.
 
+Round 2, after the first pipeline: `validate:ui` went red on the three CI-pin tests themselves,
+which parse the CI file with PyYAML — absent from `requirements-ui.txt`, present on the
+workstation from `requirements.txt`. Round 1's platform verdict had asserted the job's imports
+were covered; the pipeline showed otherwise. The fix: `PyYAML==6.0.3` pinned in
+`requirements-ui.txt` (added to `scope_paths`, the round recorded in `amendments`), and a test
+that walks the imports of the test file and the three scripts the job runs and fails on any not
+pinned there — red on the first pipeline's state, green with the pin. scope-auditor,
+platform-reviewer and cto-reviewer re-ran on the three staged files; bi-analyst-reviewer's
+round-1 PASS stands, none of its surfaces changed. platform-reviewer's verdict at round 2 was
+a fail (resolved at round 3): the coverage test walked a hand-written list of four files and
+missed `check_ui_i18n_metrics.py`, which the job also runs. Round 3: the test derives its
+files from the job's own script lines and follows imports into `scripts/` siblings; red on
+an `import requests` added to the i18n script, red without the PyYAML pin, green on the tree.
+
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: the diff is confined to the four files in `scope_paths`; the `design-mocks/README.md` and other hunks in the patch belong to the stacked base branch and were not re-reviewed.
+- Round 2: the scope widening is one path, `requirements-ui.txt`, matching the fix's footprint; the amendment's account matches the mechanism (`_ci()` imports `yaml` to parse the CI file; the new test walks the AST of the test file and the three scripts, maps `yaml` to `pyyaml`, fails when the distribution is absent); the pin is an exact pin of a library the repo already uses, in a file round 1 had already established as carrying every package the job needs — a bug-fix-level implementation detail, not a §10 dependency decision; the three staged files are the only change since round 1; the AST walk reaches the deferred `import yaml` inside a function body.
+- Round 1: the diff is confined to the four files in `scope_paths`; the `design-mocks/README.md` and other hunks in the patch belong to the stacked base branch and were not re-reviewed.
 - `protected_override`: the quoted blinded answer and the plan-mode approval match the plan file's "MR 3" section and its "Decided in this planning" item 1 — no contradiction.
 - `validate:ui` and `build:site-v2` share the widened `*ui_paths` anchor, identical `rules` with `*not_on_schedule` first, the same `build` stage — matching `impact_map`'s "what fires it" and "failure behaviour" exactly.
 - Image/pin: the image tag's version equals `requirements-ui.txt`'s `playwright==` pin and the test pins the equality plus the install line — `decisions_taken`'s claim is evidenced.
@@ -25,6 +40,8 @@ risks_checked:
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
+- Round 3: the coverage test derives its files from `validate:ui`'s own script lines — the regex traced against the job's real list, catching `python scripts/x.py --flag` and `python -m pytest tests/x.py -q`; the final `>=` assertion pins that `check_ui_i18n_metrics.py` is reached; `assert queue` catches an empty walk and a captured non-existent path errors the test rather than passing it; sibling resolution checked against all 33 files in `scripts/` — no third-party name collides today, and the failure direction if one ever did is a spurious fail, not a silent pass; no relative imports in `scripts/`; the regex runs on parsed YAML, so a commented line cannot match.
+- Round 2 (a fail, resolved at round 3): the coverage test walked a hand-written list of four files and omitted `scripts/check_ui_i18n_metrics.py`, run by the same job in the same environment — stdlib-only today, but the test promised every package the job imports and structurally could not see a future third-party import there. Also checked then: the `PyYAML==6.0.3` pin matches the file's convention; the deferred `from playwright.sync_api import ...` in the check and the test and the `import yaml` inside `_ci()` are all caught by `ast.walk`; `sys.stdlib_module_names` exists on the image's 3.12; the two local modules excluded; one `pip install` call, no ordering issue; the contract's amendment accurate and its scope entry matching the file touched.
 - Artifact hand-off: `build:site-v2` declares `artifacts.paths: [site_v2/dist]` relative to the project root although it `cd site_v2`s to build; `validate:ui` never `cd`s and reads `--dist site_v2/dist` — both ends match.
 - `--artifacts artifacts/design_inventory` matches the on-failure `artifacts.paths`; `check_design_inventory.py` creates the folder when the flag is given and writes `failures.json` and screenshots on hard failures, so the artifact is non-empty when it matters.
 - CLI shape: `check_design_inventory.py` accepts `--dist` (default `site_v2/dist`) and `--artifacts`; `check_page_css.py` takes only an optional `--inventory`.
@@ -46,6 +63,7 @@ risks_checked:
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
+- Round 2: the `PyYAML==6.0.3` pin fills a gap in the already-ruled "own small requirements file, pinned" mechanism for a package the repo already depends on (`requirements.txt`'s `PyYAML>=6.0`) — no new dependency, no new mechanism, no fresh approval needed; `*requirements*.txt` routes to cto and platform and the contract declares it; the floor-in-one-file, exact-pin-in-the-other pattern already exists for `pytest` and needs no guard now; the coverage test fails closed (an unpinned import fails the assertion, which fails the job) and catches the deferred playwright import inside a function body; the hand-maintained file list it walked was noted as platform territory — resolved in round 3 by deriving the list from the job's script lines. `.gitlab-ci.yml` untouched this round.
 - `protected_override` quotes a blinded two-path CPO ruling naming exactly this shape (the Playwright image, the pinned `requirements-ui.txt`, "no money; a minute or two per pipeline", the single runner) and the diff stays inside it: no mechanism beyond the job wiring `decisions_taken` enumerates.
 - `impact_map` non-placeholder: writers, what fires it, what imports it, what stops being enforced, failure behaviour, deploy order, blast radius.
 - Routing: `.gitlab-ci.yml` is one of the three guard paths carrying both cto and platform, per `review_routing.json` and the doc-parity test.

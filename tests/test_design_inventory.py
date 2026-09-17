@@ -321,11 +321,61 @@ def _ci():
     return yaml.safe_load((REPO / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
 
-def _playwright_pin():
+def _ui_pins():
+    pins = {}
     for line in (REPO / "requirements-ui.txt").read_text(encoding="utf-8").splitlines():
-        if line.startswith("playwright=="):
-            return line.split("==", 1)[1].strip()
-    raise AssertionError("requirements-ui.txt has no exact playwright pin")
+        if line and not line.startswith("#"):
+            name, version = line.split("==", 1)
+            pins[name.strip().lower()] = version.strip()
+    return pins
+
+
+def _playwright_pin():
+    return _ui_pins().get("playwright") or pytest.fail("requirements-ui.txt has no exact playwright pin")
+
+
+# import name -> distribution name where the two differ
+_DIST = {"yaml": "pyyaml"}
+
+
+def _imports_of(path: Path) -> set[str]:
+    import ast
+
+    names = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            names |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names.add(node.module.split(".")[0])
+    return names
+
+
+def test_every_package_the_job_imports_is_in_its_requirements_file():
+    """The job installs requirements-ui.txt alone, so every module a file its script names
+    imports anywhere - top level or deferred, directly or through a sibling in scripts/ -
+    must be pinned there or stdlib. The files come from the job's own script lines, so a
+    step added to the job is covered without editing this test."""
+    import re
+
+    script = " ".join(_ci()["validate:ui"]["script"])
+    queue = [REPO / p for p in re.findall(r"\b((?:scripts|tests)/[\w/]+\.py)\b", script)]
+    assert queue, "the job's script names no python file"
+    seen, imported = set(), set()
+    while queue:
+        f = queue.pop()
+        if f in seen:
+            continue
+        seen.add(f)
+        for name in _imports_of(f):
+            sibling = REPO / "scripts" / (name + ".py")
+            if sibling.exists():
+                queue.append(sibling)
+            else:
+                imported.add(name)
+    third_party = imported - set(sys.stdlib_module_names) - {"__future__"}
+    missing = sorted(m for m in third_party if _DIST.get(m, m).lower() not in _ui_pins())
+    assert not missing, "imported by the job but not in requirements-ui.txt: %s" % missing
+    assert {f.name for f in seen} >= {"check_ui_i18n_metrics.py", "check_page_css.py", "design_inventory.py", "check_design_inventory.py", "test_design_inventory.py"}
 
 
 def test_validate_ui_needs_the_site_build_and_shares_its_rules_and_stage():

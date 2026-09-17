@@ -17,6 +17,7 @@ refs: >
 
 scope_paths:
   - .gitlab-ci.yml
+  - requirements-ui.txt
   - tests/test_design_inventory.py
   - .claude/skills/validate-local/SKILL.md
   - .claude/task/contract.md
@@ -89,4 +90,9 @@ done_when:
   - The MR pipeline runs `build:site-v2` then `validate:ui` green (the check's summary line in the job log); a throwaway commit setting `.eyebrow` to 11px turns `validate:ui` red on every page, then is reverted — pasted into the MR head.
   - The MR open against `main` from the stacked branch, `Locked files:` carrying the quote above.
 
-amendments: (none)
+amendments: >
+  Round 2: `requirements-ui.txt` added to scope. The first pipeline turned `validate:ui` red on
+  the three CI-pin tests themselves — they parse the CI file with PyYAML, which the job's
+  requirements file did not carry (the workstation had it from `requirements.txt`, so the
+  tests were green locally). `PyYAML==6.0.3` pinned there, exact like the file's other pins.
+  The pins still run in `test:python` as well, where `requirements.txt` provides it.

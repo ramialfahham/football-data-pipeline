@@ -42,10 +42,10 @@ index b3b57811..68394146 100644
  | gitleaks secret scan | `validate:secrets` |
  | `sqlfluff lint models` | `data:build:mr` |
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 099fc304..0b63797c 100644
+index 099fc304..7a6b9420 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,93 +1,92 @@
+@@ -1,93 +1,98 @@
 -# Task contract — #153, step one: the four review generators and their data pulls into `design-mocks/`
 +# Task contract — #153, the measured check in CI: `validate:ui` renders and measures every page on every MR
  
@@ -97,6 +97,7 @@ index 099fc304..0b63797c 100644
 -  - design-mocks/render.py
 -  - tests/test_design_mock_renders.py
 +  - .gitlab-ci.yml
++  - requirements-ui.txt
 +  - tests/test_design_inventory.py
 +  - .claude/skills/validate-local/SKILL.md
    - .claude/task/contract.md
@@ -200,7 +201,7 @@ index 099fc304..0b63797c 100644
 +  - The MR pipeline runs `build:site-v2` then `validate:ui` green (the check's summary line in the job log); a throwaway commit setting `.eyebrow` to 11px turns `validate:ui` red on every page, then is reverted — pasted into the MR head.
 +  - The MR open against `main` from the stacked branch, `Locked files:` carrying the quote above.
  
--amendments: >
+ amendments: >
 -  2026-09-17, after the first commit, on a clean tree: the render naming rule (#153 item 4) added
 -  to this branch, because it runs the generators this branch brought in and a second branch
 -  would stack on this one. Authority: the #153 plan approved in plan mode on 2026-09-17, and the
@@ -214,7 +215,11 @@ index 099fc304..0b63797c 100644
 -  temporary folder; the README section corrected (the renders are tracked, not disk-only).
 -  done_when gains: the test green; `render.py` run twice for one page writes `_01` then `_02`
 -  (deleted before the commit); the four renders of record byte-identical after the move.
-+amendments: (none)
++  Round 2: `requirements-ui.txt` added to scope. The first pipeline turned `validate:ui` red on
++  the three CI-pin tests themselves — they parse the CI file with PyYAML, which the job's
++  requirements file did not carry (the workstation had it from `requirements.txt`, so the
++  tests were green locally). `PyYAML==6.0.3` pinned there, exact like the file's other pins.
++  The pins still run in `test:python` as well, where `requirements.txt` provides it.
 diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
 index 2ae9050b..075e6002 100644
 --- a/.gitlab-ci.yml
@@ -7579,16 +7584,18 @@ index 00000000..7086cc44
 +| home legacy | mock | `gen_home.py` | `home_mock.html` | toggle | Block heading, Competition group head, Legacy board value |
 diff --git a/requirements-ui.txt b/requirements-ui.txt
 new file mode 100644
-index 00000000..ea79a161
+index 00000000..c7422fa7
 --- /dev/null
 +++ b/requirements-ui.txt
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,9 @@
 +# The measured design check (scripts/check_design_inventory.py) and its tests. Pinned exactly:
 +# the playwright package must match the browser image validate:ui runs on, and an unpinned
 +# package turns a CI run into a lottery. tzdata is the IANA zone database zoneinfo needs on
-+# Windows, where the generators render kick-offs in the venue clock.
++# Windows, where the generators render kick-offs in the venue clock. PyYAML: the tests pin the
++# CI job's shape by parsing .gitlab-ci.yml.
 +playwright==1.63.0
 +pytest==9.0.3
++PyYAML==6.0.3
 +tzdata==2026.1
 diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
 new file mode 100644
@@ -9101,10 +9108,10 @@ index 00000000..66d98a8d
 +</body>
 diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
 new file mode 100644
-index 00000000..f5013c56
+index 00000000..219dcbbd
 --- /dev/null
 +++ b/tests/test_design_inventory.py
-@@ -0,0 +1,352 @@
+@@ -0,0 +1,402 @@
 +"""The block standard's machine side: the parser fails closed, the lint finds page CSS, and the
 +measured check goes RED on the defects it exists for.
 +
@@ -9428,11 +9435,61 @@ index 00000000..f5013c56
 +    return yaml.safe_load((REPO / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 +
 +
-+def _playwright_pin():
++def _ui_pins():
++    pins = {}
 +    for line in (REPO / "requirements-ui.txt").read_text(encoding="utf-8").splitlines():
-+        if line.startswith("playwright=="):
-+            return line.split("==", 1)[1].strip()
-+    raise AssertionError("requirements-ui.txt has no exact playwright pin")
++        if line and not line.startswith("#"):
++            name, version = line.split("==", 1)
++            pins[name.strip().lower()] = version.strip()
++    return pins
++
++
++def _playwright_pin():
++    return _ui_pins().get("playwright") or pytest.fail("requirements-ui.txt has no exact playwright pin")
++
++
++# import name -> distribution name where the two differ
++_DIST = {"yaml": "pyyaml"}
++
++
++def _imports_of(path: Path) -> set[str]:
++    import ast
++
++    names = set()
++    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
++        if isinstance(node, ast.Import):
++            names |= {a.name.split(".")[0] for a in node.names}
++        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
++            names.add(node.module.split(".")[0])
++    return names
++
++
++def test_every_package_the_job_imports_is_in_its_requirements_file():
++    """The job installs requirements-ui.txt alone, so every module a file its script names
++    imports anywhere - top level or deferred, directly or through a sibling in scripts/ -
++    must be pinned there or stdlib. The files come from the job's own script lines, so a
++    step added to the job is covered without editing this test."""
++    import re
++
++    script = " ".join(_ci()["validate:ui"]["script"])
++    queue = [REPO / p for p in re.findall(r"\b((?:scripts|tests)/[\w/]+\.py)\b", script)]
++    assert queue, "the job's script names no python file"
++    seen, imported = set(), set()
++    while queue:
++        f = queue.pop()
++        if f in seen:
++            continue
++        seen.add(f)
++        for name in _imports_of(f):
++            sibling = REPO / "scripts" / (name + ".py")
++            if sibling.exists():
++                queue.append(sibling)
++            else:
++                imported.add(name)
++    third_party = imported - set(sys.stdlib_module_names) - {"__future__"}
++    missing = sorted(m for m in third_party if _DIST.get(m, m).lower() not in _ui_pins())
++    assert not missing, "imported by the job but not in requirements-ui.txt: %s" % missing
++    assert {f.name for f in seen} >= {"check_ui_i18n_metrics.py", "check_page_css.py", "design_inventory.py", "check_design_inventory.py", "test_design_inventory.py"}
 +
 +
 +def test_validate_ui_needs_the_site_build_and_shares_its_rules_and_stage():
@@ -9470,9 +9527,9 @@ index 00000000..f5013c56
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |    94 +-
-#    .claude/task/rendered_page_evidence.md |   163 +-
-#    .claude/task/review.md                 |    76 +-
-#    .claude/task/review_input.patch        | 13947 +++++++++++++++++++++++++------
-#    4 files changed, 11447 insertions(+), 2833 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   94 +-
+#    .claude/task/rendered_page_evidence.md |  163 +-
+#    .claude/task/review.md                 |   76 +-
+#    .claude/task/review_input.patch        | 6908 ++++++++++++++++++++++----------
+#    4 files changed, 5027 insertions(+), 2214 deletions(-)
 # ============================================================================
