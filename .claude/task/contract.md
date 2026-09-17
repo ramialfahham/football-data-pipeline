@@ -30,6 +30,12 @@ scope_paths:
   - design-mocks/competition-rankings_2026-09-16_01.html
   - design-mocks/home_2026-09-16_01.html
   - design-mocks/README.md
+  - design-mocks/renders/competition-overview_2026-09-16_01.html
+  - design-mocks/renders/competition-matchdays_2026-09-16_01.html
+  - design-mocks/renders/competition-rankings_2026-09-16_01.html
+  - design-mocks/renders/home_2026-09-16_01.html
+  - design-mocks/render.py
+  - tests/test_design_mock_renders.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -71,4 +77,17 @@ done_when:
   - The offline gates (`validate-local`) green; the MR open against `main` with `Closes` not set
     (this is one item of #153, not the whole issue).
 
-amendments: (none)
+amendments: >
+  2026-09-17, after the first commit, on a clean tree: the render naming rule (#153 item 4) added
+  to this branch, because it runs the generators this branch brought in and a second branch
+  would stack on this one. Authority: the #153 plan approved in plan mode on 2026-09-17, and the
+  CPO's answer to the blinded question on where a review render lives — "Track them in git, in a
+  renders folder" (2026-09-16, in chat). Content: `design-mocks/renders/` with the four renders of
+  record moved in (tracked: the gitignore's `design-mocks/*.html` does not reach a subfolder);
+  `design-mocks/render.py`, which computes the next `<page>_<YYYY-MM-DD>_<nn>` for a page from
+  the folder (the number counts up per page across dates, never resets) and refuses an existing
+  name; `tests/test_design_mock_renders.py`, which fails on a name outside the pattern, a gap in
+  a page's numbering, or a render the folder holds that git does not track — proven red on a
+  temporary folder; the README section corrected (the renders are tracked, not disk-only).
+  done_when gains: the test green; `render.py` run twice for one page writes `_01` then `_02`
+  (deleted before the commit); the four renders of record byte-identical after the move.
