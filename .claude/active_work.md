@@ -38,10 +38,13 @@ and **!198** (`feat/153-check-in-ci`, ON TOP OF !196: the check in CI — `valid
 one `ui_paths` anchor for both jobs, `build:site-v2` keeps `site_v2/dist` as an artifact; the job
 runs the lint, the inventory tests and the check; pinned by tests, including "every package a job
 file imports is in `requirements-ui.txt`" — the first pipeline was red on exactly that, PyYAML;
-green now: `18 pages · 72 renders · 0 failures` in 65 s). **Open on !198's head, his call:** the
-plan's throwaway 11px commit proving the job red on the built site was NOT made — every commit is
-bound to a reviewed hash, and the RED-proof test in the same job stands in. **When !198 merges,
-#153 closes; then #150/#151 do not merge until the check passes on their pages and on Home.**
+green now: `18 pages · 72 renders · 0 failures` in 65 s). The throwaway 11px proof is DONE on
+`proof/153-red-on-the-built-site` (!199, CLOSED, never merged, the branch kept): locally the
+check red on 15 of 18 pages, 60 renders; in CI the job red in 35 s — at the inventory-tests step,
+whose green fixture reads the live stylesheet, one step before the check. **One question on !198's
+head, his call:** run the check before the tests (per-page lines and screenshots on a stylesheet
+defect) or leave the order — recommended leave. **When !198 merges, #153 closes; then #150/#151
+do not merge until the check passes on their pages and on Home.**
 ⚠ The commit gate runs from the project root: a `git worktree` commit is judged against the MAIN
 tree's index — rebind a sibling branch from the main tree, stashing by explicit path.
 
@@ -54,13 +57,13 @@ headings: the competition group head over match rows keeps its 2px line, the met
 over boards has none; (b) "head only" — a table's rows carry no line, the head rule is the only
 one. The variant renders he saw are `design-mocks/renders/*_2026-09-17_0[12].html`. ⚠ **A ruling
 request is ONE question, then a 2×2 table (page × variant → file), then the recommendation** —
-four files with a caption got "What am I supposed to decide?"; and his answer may split by context.
+four files with a caption got "What am I supposed to decide?"; his answer may split by context.
 
 **THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.**
 #129's `The approved design` is the text: three tabs, Overview · Matchdays · Rankings. **Build
 issues, gated on #153:** **#150** Matchdays · **#151** Rankings + the Overview rework · **#152**
-metric groups; Home's corrections on **#127**. The page-wide rules now live in the block standard
-and `system.css`, measured — the builds compose from them and add nothing of their own.
+metric groups; Home's corrections on **#127**. The page-wide rules live in the block standard and
+`system.css`, measured — the builds compose from them and add nothing of their own.
 
 **The measured check is the arbiter now.** `python scripts/check_design_inventory.py --dist
 site_v2/dist` (build first: `cd site_v2 && npm run build`; park any untracked export payload under
@@ -91,10 +94,9 @@ right after the hook opens the MR. **The stop gate blocks a turn ending with any
 and carries a KNOWN-WRONG default-season rule (see #118). The four-tab decision (2026-07-27) is
 preserved on `archive/docs-handover-player-tabs-and-seo` and recorded in #118.
 
-⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`.** It is short and it is the map: where a
-metric is defined, which model computes it, what makes it NULL, what CI will fail you on. The
-incomplete-data rule lives there — a metric is NULL unless its inputs cover every match in the
-window, and a thinly covered competition showing blank is correct output.
+⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`** — where a metric is defined, which
+model computes it, what makes it NULL, what CI fails you on. A metric is NULL unless its inputs
+cover every match in the window; a thinly covered competition showing blank is correct output.
 
 ⚠ **THE VOLUME IS THE PROBLEM** (*"A wallpaper of text"*; *"Explain like I'm twelve. Keep it
 short."*). The decision and the consequence, two sentences; process detail stays in the repo.
@@ -114,22 +116,19 @@ it is the stale-live class the test documents — his call, not a code change.
 Awarded results count as played; the override seed is `fixture_team_id_overrides` for all three
 fixture-level feeds; the freshness guard ignores `SUSP`/`INT`.
 `assert_team_season_games_not_short_of_standings` is WARN and RED on 3 rows by design (#110 plus
-Al Wehda AFCCL 2021). **Prod is correct; nothing is owed.**
+Al Wehda AFCCL 2021). **Prod is correct.**
 
-⛔⛔ **A CORRECTION IN BASE DOES NOT REACH AN INCREMENTAL FACT.** Only three models are
-incremental — `fct_fixture_event`, `fct_fixture_player_stats`, `fct_fixture_team_stats`; their
-filter `raw_ingested_at > max(target)` never advances for a finished fixture, and the stats keys
-INCLUDE `team_id`, so a merge inserts a corrected row and strands the old one. **The fix is a
-one-off `dbt build --full-refresh --select <facts>`, the CPO's to run.** Check it is lossless
-first (fact rows vs base): on 2026-09-08 `fct_fixture_event` held 17 rows base no longer emits.
-⭐ Compiling a model and running it read-only against prod measures the LOGIC, never what the
-incremental TABLE contains.
+⛔⛔ **A CORRECTION IN BASE DOES NOT REACH AN INCREMENTAL FACT** (`fct_fixture_event`,
+`fct_fixture_player_stats`, `fct_fixture_team_stats`): a merge inserts the corrected row and
+strands the old one. **The fix is a one-off `dbt build --full-refresh --select <facts>`, his to
+run**, checked lossless first — on 2026-09-08 `fct_fixture_event` held 17 rows base no longer
+emits. Compiling a model read-only against prod measures the LOGIC, never the TABLE's contents.
 
 ## ⛔ THE ROUND CAP (3) — the override practice, settled by use, never ruled
 
 Past the cap, write a `rounds_cap_override:` in `review.md` that clears a standing FAIL BY REVIEW
-and says he did not rule on the cap (`!172`–`!174` did). Keep rounds down by checking a claim
-before asserting it. ⚠ **Never ask him to approve routine mechanics** — ask about the RULE.
+and says he did not rule on the cap. Keep rounds down by checking a claim before asserting it.
+⚠ **Never ask him to approve routine mechanics** — ask about the RULE.
 
 ## ⛔ PARKED: the dbt profile MR — TWO OPEN FAILS
 
@@ -139,7 +138,7 @@ The repo-local `profiles.yml` at the ROOT is the fix (dbt reads `--profiles-dir`
 paragraph saying `dbt_project/`; (2) **`.mcp.json` sets `DBT_PROFILES_DIR: C:/Users/Rami/.dbt`**, a
 PROTECTED path that outranks the fix. **No `prod` target** in the local profile, ever (it is the
 line that overwrites prod's base tables). `dbt ls` / `parse` / `compile` work with a throwaway
-profile in the scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` holds ANOTHER project's.
+profile in the scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` is ANOTHER project's.
 
 ## ⛔ OPEN — DEFECTS TO FIX (not decisions to wait on)
 
@@ -149,10 +148,10 @@ profile in the scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` holds AN
     competition-relative signal, not a blanket rule. Everything measured is on the issue.
   - **#111 — no test compares a metric to its own formula.** The catalogue publishes
     `base_relation` + `numerator_expr` + `denominator_expr`; the models compute the same metric in
-    SQL; nothing checks they agree. `assert_metric_catalogue_expr_resolvable` already parses those
-    expressions and binds them — it just never evaluates them. No dbt unit tests exist either.
+    SQL; nothing checks they agree. `assert_metric_catalogue_expr_resolvable` parses and binds
+    those expressions — it never evaluates them. No dbt unit tests exist either.
   - **#109** — no end-to-end dbt test strategy, and no rule for when a NULL is a defect rather than
-    the honest answer. Filed at the CPO's instruction; #111 is one concrete piece of it.
+    the honest answer. Filed at his instruction; #111 is one concrete piece of it.
   - **#108** — rounding is business logic and `DeservedHero.astro:79` does it in the browser.
   - **The mid-season deserved-vs-actual line and its start matchday** — both open, and they gate
     showing that hero on live data.
@@ -179,11 +178,11 @@ marks a file resolved WITHOUT reading it, and every gate and CI passed with a ma
 **Grep all four**, and prove a union structurally (`diff -q` each side against the resolved
 head/tail; check the lengths sum).
 ⚠ **On a sibling-MR rebase the CODE merges cleanly and the PAPERWORK collides** — `contract.md`
-and `review.md` are per-task and one side wins; regenerate and re-review. (The log is frozen, so
-its union problem is gone.)
+and `review.md` are per-task and one side wins; regenerate and re-review.
 ⛔⛔ **"MERGED" IS A CLAIM TO VERIFY, and `--is-ancestor` IS NOT THE CHECK** — it called 20 of 22
 landed branches unmerged. Use `git cherry gitlab/main <branch>` (`+` = not upstream). Deleting an
-open MR's source branch CLOSES the MR.
+open MR's source branch CLOSES the MR. ⚠ A stacked branch that reverts its base's change shows
+NO hunk in the cumulative patch vs `main` — give reviewers the diff vs the parent commit too.
 ⚠ **`git pull` on main hits the DEAD GitHub `origin` and 403s.** Use `git pull --ff-only gitlab main`.
 ⚠ **The push guard refuses EVERY push while standing on main.** Branch to a throwaway to push
 deletions. It reads the CURRENT branch, so `checkout && push` in one call is blocked as a whole.

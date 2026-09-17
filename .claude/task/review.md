@@ -1,15 +1,18 @@
 # Review — chore/session-end-2026-09-17 — 2026-09-17
 
-diff_sha256: deda97fdd2ddd4183392e3697a0cc4c6d397576035e624b6ec6dac77e7a75bfa
+diff_sha256: 10c3bb34c4b0d08451e77720ee3f874a17bb623ad83860e841f05bbfa7cbd8d2
 
-rounds: 2
+rounds: 3
 
 Round 2, the same evening: the handover moved on (!195 merged; the CI wiring built and open as
 !198) — the contract's objective says so, the handover rewritten, the snapshot regenerated.
+Round 3, the same night: the throwaway proof done on its own closed MR (!199); the handover's
+open item is the step-order question; the snapshot regenerated again.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
+- Round 3: no CPO attribution invented in the handover (the instruction is quoted only in the proof's own reviewed contract); "recommended leave" sits under "his call" with both options laid out — a recommendation, not a ruling; the compressed incremental-fact paragraph still names exactly the three incremental models in `dbt_project/models`; the reviewed patch is the contract only, scope unchanged, `decisions_taken` none; the amendment's claims match the handover.
 - Round 2: the reviewed patch is the contract only, as routing excludes the handover and the snapshot; `decisions_taken: None` holds — text describing state, no code, model or hand-written document; the amendment replaces the prior one honestly, git holds the old; "!195 merged" and the DE label "Rankings" are unverifiable with read-only tools and flagged as such, internally consistent with the contract and the prior handover; the throwaway-proof sentence is labelled open and "his call", a thing not done and why, not a decision taken; no credential-shaped string.
 - The two 2026-09-17 rulings quoted verbatim, dated, "in chat, written into #129" — the CPO's words, not a paraphrase or an invented decision.
 - The Playwright and tracked-renders choices dated 2026-09-16 "in chat"; the naming rule stated as built fact from !195, not as a new decision.
