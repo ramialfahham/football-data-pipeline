@@ -155,6 +155,8 @@ pipeline that does not run.
 | `check_task_artifacts.py` | `validate:governance` (needs `GIT_DEPTH: 0`) |
 | `dbt deps` + `dbt parse` | `validate:governance` |
 | `check_ui_i18n_metrics.py` + JSON validity | `validate:ui` |
+| `check_page_css.py` | `validate:ui` |
+| `check_design_inventory.py --dist site_v2/dist` + `pytest tests/test_design_inventory.py` (the RED proof, with Chromium) | `validate:ui` (needs `build:site-v2`, on the Playwright image) |
 | `pytest tests/` | `test:python` |
 | gitleaks secret scan | `validate:secrets` |
 | `sqlfluff lint models` | `data:build:mr` |

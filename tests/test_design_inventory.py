@@ -306,3 +306,47 @@ def test_the_check_refuses_an_inventory_it_cannot_read(tmp_path):
     )
     assert proc.returncode == 2
     assert "INVENTORY ERROR" in proc.stderr
+
+
+# --- the check in CI ------------------------------------------------------------------------
+# `validate:ui` measures the site `build:site-v2` built, so its shape is pinned here: the
+# `needs`, the shared rules (GitLab refuses a pipeline whose `needs:` target its own rules
+# excluded), the shared stage (a `needs:` target may not sit in a later stage), the artifact
+# the check reads, the browser image equal to the playwright pin, and the three steps.
+
+
+def _ci():
+    import yaml
+
+    return yaml.safe_load((REPO / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+
+def _playwright_pin():
+    for line in (REPO / "requirements-ui.txt").read_text(encoding="utf-8").splitlines():
+        if line.startswith("playwright=="):
+            return line.split("==", 1)[1].strip()
+    raise AssertionError("requirements-ui.txt has no exact playwright pin")
+
+
+def test_validate_ui_needs_the_site_build_and_shares_its_rules_and_stage():
+    ci = _ci()
+    ui, build = ci["validate:ui"], ci["build:site-v2"]
+    assert ui["needs"] == ["build:site-v2"]
+    assert ui["stage"] == build["stage"]
+    assert ui["rules"] == build["rules"]
+    assert "site_v2/dist" in build["artifacts"]["paths"]
+
+
+def test_validate_ui_runs_on_the_browser_image_the_playwright_pin_matches():
+    ci = _ci()
+    image = ci["validate:ui"]["image"]
+    assert image.startswith("mcr.microsoft.com/playwright/python:v")
+    assert image.split(":v", 1)[1].split("-", 1)[0] == _playwright_pin()
+    assert "requirements-ui.txt" in " ".join(ci["validate:ui"]["before_script"])
+
+
+def test_validate_ui_runs_the_lint_the_red_proof_and_the_measured_check():
+    script = " ".join(_ci()["validate:ui"]["script"])
+    assert "scripts/check_page_css.py" in script
+    assert "tests/test_design_inventory.py" in script
+    assert "scripts/check_design_inventory.py --dist site_v2/dist" in script
