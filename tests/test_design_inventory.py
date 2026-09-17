@@ -400,3 +400,7 @@ def test_validate_ui_runs_the_lint_the_red_proof_and_the_measured_check():
     assert "scripts/check_page_css.py" in script
     assert "tests/test_design_inventory.py" in script
     assert "scripts/check_design_inventory.py --dist site_v2/dist" in script
+    # the check before its tests: the green fixture is measured against the live stylesheet, so
+    # tests first would stop a stylesheet defect at the fixture, without the pages' lines and
+    # screenshots
+    assert script.index("scripts/check_design_inventory.py") < script.index("tests/test_design_inventory.py")

@@ -96,3 +96,15 @@ amendments: >
   requirements file did not carry (the workstation had it from `requirements.txt`, so the
   tests were green locally). `PyYAML==6.0.3` pinned there, exact like the file's other pins.
   The pins still run in `test:python` as well, where `requirements.txt` provides it.
+  Round 3 (the platform reviewer's finding): the coverage test no longer walks a hand-written
+  list of files — it takes every `scripts/*.py` and `tests/*.py` the job's own script lines
+  name and follows imports into `scripts/` siblings, so a step added to the job is covered
+  without editing the test; a final assertion pins that the five files known today are reached.
+  Round 4, after the proof on !199: the measured check now runs BEFORE the inventory tests in
+  `validate:ui`. The tests' green fixture is measured against the live stylesheet, so with the
+  tests first a stylesheet defect stopped the job at the fixture — one fixture page, two lines,
+  no screenshots — and the check never reached the built pages; the proof the CPO asked for
+  ("Do the throwaway proof on its own branch") showed exactly that and he called it a fail. With
+  the check first, a page or stylesheet defect yields the per-page lines and the screenshot
+  artifact; the RED-proof tests still run on every green tree and guard the check's own code.
+  Enforcement is unchanged: the job is red if either step fails. A pin holds the order.

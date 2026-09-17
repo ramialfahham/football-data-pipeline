@@ -497,8 +497,11 @@ validate:ui:
       done
     - python scripts/check_ui_i18n_metrics.py
     - python scripts/check_page_css.py
-    - python -m pytest tests/test_design_inventory.py -q
+    # The check before its tests: the tests' green fixture reads the live stylesheet, so with
+    # them first a stylesheet defect stops the job at the fixture and the per-page lines and
+    # screenshots never appear. Either step red is the job red.
     - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
+    - python -m pytest tests/test_design_inventory.py -q
   artifacts:
     when: on_failure
     paths:

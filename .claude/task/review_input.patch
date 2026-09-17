@@ -42,10 +42,10 @@ index b3b57811..68394146 100644
  | gitleaks secret scan | `validate:secrets` |
  | `sqlfluff lint models` | `data:build:mr` |
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 099fc304..7a6b9420 100644
+index 099fc304..f9524012 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,93 +1,98 @@
+@@ -1,93 +1,110 @@
 -# Task contract — #153, step one: the four review generators and their data pulls into `design-mocks/`
 +# Task contract — #153, the measured check in CI: `validate:ui` renders and measures every page on every MR
  
@@ -220,8 +220,20 @@ index 099fc304..7a6b9420 100644
 +  requirements file did not carry (the workstation had it from `requirements.txt`, so the
 +  tests were green locally). `PyYAML==6.0.3` pinned there, exact like the file's other pins.
 +  The pins still run in `test:python` as well, where `requirements.txt` provides it.
++  Round 3 (the platform reviewer's finding): the coverage test no longer walks a hand-written
++  list of files — it takes every `scripts/*.py` and `tests/*.py` the job's own script lines
++  name and follows imports into `scripts/` siblings, so a step added to the job is covered
++  without editing the test; a final assertion pins that the five files known today are reached.
++  Round 4, after the proof on !199: the measured check now runs BEFORE the inventory tests in
++  `validate:ui`. The tests' green fixture is measured against the live stylesheet, so with the
++  tests first a stylesheet defect stopped the job at the fixture — one fixture page, two lines,
++  no screenshots — and the check never reached the built pages; the proof the CPO asked for
++  ("Do the throwaway proof on its own branch") showed exactly that and he called it a fail. With
++  the check first, a page or stylesheet defect yields the per-page lines and the screenshot
++  artifact; the RED-proof tests still run on every green tree and guard the check's own code.
++  Enforcement is unchanged: the job is red if either step fails. A pin holds the order.
 diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 2ae9050b..075e6002 100644
+index 2ae9050b..c9454b54 100644
 --- a/.gitlab-ci.yml
 +++ b/.gitlab-ci.yml
 @@ -359,15 +359,25 @@ workflow:
@@ -292,13 +304,16 @@ index 2ae9050b..075e6002 100644
      - apt-get update -qq && apt-get install -y -qq nodejs
    script:
      - python -m json.tool site/i18n/en.json > /dev/null
-@@ -467,6 +496,14 @@ validate:ui:
+@@ -467,6 +496,17 @@ validate:ui:
          node --check "$f" && echo "SYNTAX OK: $f" || { echo "SYNTAX ERROR in $f"; exit 1; }
        done
      - python scripts/check_ui_i18n_metrics.py
 +    - python scripts/check_page_css.py
-+    - python -m pytest tests/test_design_inventory.py -q
++    # The check before its tests: the tests' green fixture reads the live stylesheet, so with
++    # them first a stylesheet defect stops the job at the fixture and the per-page lines and
++    # screenshots never appear. Either step red is the job red.
 +    - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
++    - python -m pytest tests/test_design_inventory.py -q
 +  artifacts:
 +    when: on_failure
 +    paths:
@@ -307,7 +322,7 @@ index 2ae9050b..075e6002 100644
    rules:
      - *not_on_schedule
      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-@@ -561,12 +598,19 @@ build:site-v2:
+@@ -561,12 +601,19 @@ build:site-v2:
      - test -f dist/de/index.html
      - test -f dist/en/index.html
      - test -f dist/fi/index.html
@@ -9108,10 +9123,10 @@ index 00000000..66d98a8d
 +</body>
 diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
 new file mode 100644
-index 00000000..219dcbbd
+index 00000000..eb062a1a
 --- /dev/null
 +++ b/tests/test_design_inventory.py
-@@ -0,0 +1,402 @@
+@@ -0,0 +1,406 @@
 +"""The block standard's machine side: the parser fails closed, the lint finds page CSS, and the
 +measured check goes RED on the defects it exists for.
 +
@@ -9514,6 +9529,10 @@ index 00000000..219dcbbd
 +    assert "scripts/check_page_css.py" in script
 +    assert "tests/test_design_inventory.py" in script
 +    assert "scripts/check_design_inventory.py --dist site_v2/dist" in script
++    # the check before its tests: the green fixture is measured against the live stylesheet, so
++    # tests first would stop a stylesheet defect at the fixture, without the pages' lines and
++    # screenshots
++    assert script.index("scripts/check_design_inventory.py") < script.index("tests/test_design_inventory.py")
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -9529,7 +9548,7 @@ index 00000000..219dcbbd
 #
 #   .claude/task/acceptance_evidence.md    |   94 +-
 #    .claude/task/rendered_page_evidence.md |  163 +-
-#    .claude/task/review.md                 |   76 +-
-#    .claude/task/review_input.patch        | 6908 ++++++++++++++++++++++----------
-#    4 files changed, 5027 insertions(+), 2214 deletions(-)
+#    .claude/task/review.md                 |   94 +-
+#    .claude/task/review_input.patch        | 6959 ++++++++++++++++++++++----------
+#    4 files changed, 5099 insertions(+), 2211 deletions(-)
 # ============================================================================
