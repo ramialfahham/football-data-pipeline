@@ -1,6 +1,6 @@
 # Review — feat/153-design-inventory — 2026-09-17
 
-diff_sha256: ff88a5fef87b4a46a215b0096289bd78267a8e8a5723981f9bdc1ceb57edade3
+diff_sha256: 9533fe18eaa7faabc511e93e343e97a19be1842b2fbee2545d30173b07e19731
 
 rounds: 2
 
@@ -12,8 +12,9 @@ left two packages unpinned. Round 2: the row is `proposed` and in `decisions_res
 fixtures carry the picker and the RED proof covers both kinds, every package is pinned; both
 reviewers PASS. The cumulative diff includes the stacked base branch (!195); its files are
 outside this contract's scope by design and reviewed there. Rebased onto !195 after its round 4
-(two `sorted()` calls in its test, a CI-found Linux ordering trap): the hash above is the
-rebased branch's; nothing of this branch's own changed.
+(two `sorted()` calls in its test, a CI-found Linux ordering trap). !195 then merged, so the
+base moved to its tip and the cumulative diff is this branch's own files only: the hash above
+is that diff's; nothing of this branch's own changed.
 
 ## scope-auditor
 VERDICT: PASS
