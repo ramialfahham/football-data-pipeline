@@ -28,8 +28,7 @@ sys.path.insert(0, str(HERE))
 import gen_top_players as P  # noqa: E402
 import gen_top_teams as T  # noqa: E402
 from gen_block_standard import ZONE, short, slug  # noqa: E402
-from interaction import INTERACTION_CSS  # noqa: E402
-from rows import ROW_CSS, date_head, group_head, upcoming_row  # noqa: E402
+from rows import date_head, group_head, upcoming_row  # noqa: E402
 
 OUT = HERE / "home_mock.html"
 E = html.escape
@@ -136,8 +135,6 @@ OUT.write_text("""<!doctype html>
 <style>
 %s
 %s
-%s
-%s
 </style>
 
 <input class="toggle" type="checkbox" id="t-light">
@@ -166,7 +163,7 @@ OUT.write_text("""<!doctype html>
   the shipped component class for class, including the fold: a competition shows three rows and
   the rest open under &ldquo;Show all&rdquo;. Every number is placeholder.
 </div>
-""" % (system_css, ROW_CSS, INTERACTION_CSS, T.MOCK_CSS, page), encoding="utf-8")
+""" % (system_css, T.MOCK_CSS, page), encoding="utf-8")
 
 print("wrote", OUT, OUT.stat().st_size, "bytes")
 print("board rows:", sum(len(b["rows"]) for b in P.BOARDS) + sum(len(b["rows"]) for b in T.BOARDS))

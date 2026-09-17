@@ -16,13 +16,19 @@ all_css, body = h.split("</style>", 1)
 
 MARK = "MOCK HARNESS ONLY"
 assert MARK in all_css, "cannot locate the mock CSS block"
-mock_css_raw = all_css[all_css.index(MARK):]
+# the board's CSS is the stylesheet's own RANKED BOARD section (inlined), the mock adds none;
+# the harness block after the marker carries only the toggles
+BOARD = "RANKED BOARD"
+assert BOARD in all_css and "Competitions index" in all_css, "cannot locate the board section of system.css"
+mock_css_raw = all_css[all_css.index(BOARD):all_css.index("Competitions index")]
+harness_css_raw = all_css[all_css.index(MARK):]
 def strip(s):
     return re.sub(r"/\*.*?\*/", "", s, flags=re.S)
 
 
 
 mock_css = strip(mock_css_raw)
+harness_css = strip(harness_css_raw)
 
 ok = True
 
@@ -36,9 +42,9 @@ def check(name, cond, detail=""):
 print("toggle wiring (mock's own toggles only)")
 ids = re.findall(r'<input class="toggle" type="checkbox" id="([\w-]+)"', body)
 check("three toggles are body-level siblings", sorted(ids) == ["t-fi", "t-light", "t-phone"], str(ids))
-for sel in sorted(set(re.findall(r"#(t-[\w-]+):checked", mock_css))):
+for sel in sorted(set(re.findall(r"#(t-[\w-]+):checked", harness_css))):
     check("#%s has a matching sibling input" % sel, sel in ids)
-check("every mock toggle is actually used", all(any("#%s:checked" % i in mock_css for _ in [0]) for i in ids))
+check("every mock toggle is actually used", all(any("#%s:checked" % i in harness_css for _ in [0]) for i in ids))
 check("no leftover t-light-x", "t-light-x" not in h)
 check("no <script> anywhere", "<script" not in h.lower())
 check("no external fetch", not re.search(r'(src|href)\s*=\s*"(https?:)?//', h))
@@ -75,7 +81,7 @@ check("neither child sets display outside the query, so flex governs inline",
       and "display" not in re.search(r"\.board \.sub \{ min-width[^}]*\}", mock_css).group(0))
 check("threshold clears the widest PLAYER row (name cell = board - 142px, widest needs ~331px)",
       int(cq.group(1)) >= 473, "%spx" % cq.group(1))
-check("no media query decides the stack", "@media" not in mock_css)
+check("no media query decides the stack", not re.search(r"@media[^{]*width", mock_css))
 check("name can shrink inside the flex row",
       "min-width: 0" in re.search(r"\.board \.nm\s*\{([^}]*)\}", mock_css).group(1))
 check("the BASE sub rule sets no display, so the inline branch stays flex",

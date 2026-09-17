@@ -1,98 +1,65 @@
-# Rendered page evidence — `feat/149-competition-overview` (#149, the competition page's Overview tab built to #129)
+# Rendered page evidence — `feat/153-design-inventory` (#153 items 1–3)
 
-Read from the RUNNING page (Astro dev server, `preview_start` name `v2`), on the committed sample
-`competitions/BL1/2026.json` (the Bundesliga 2026/27 after three matchdays, produced by
-`fetch_competition_payloads` against prod with the new warehouse objects inlined) and, for the
-cup and the tournament, on `DFBP/2026.json` and `EURO/2024.json` placed locally (git-ignored).
-Structure is the DOM; every value names what it was read from.
+Read by `scripts/check_design_inventory.py` (headless Chromium, Playwright 1.63.0, viewports
+375×900 and 700×900, `reduced_motion: reduce`, one context per viewport) from `site_v2/dist`
+built by `astro build` on the committed sample (`competitions/BL1/2026.json`; the untracked
+`DFBP` and `EURO` payloads parked outside the tree, or the SEO audit refuses the build) and
+from a fresh render of every mock generator the block standard lists. Every number is what the
+check printed or what a probe beside it read from the same DOM.
 
-## 1. `/en/bundesliga/` at 700px — the four blocks in order
+## 1. The full run
 
-`document.title` → `Bundesliga: Overview`; `h1` → `Bundesliga`; `.tid .meta` →
-`Germany · Season 2026 · Regular Season - 4` (the region label from `mart_competition_index`,
-the served season year until #105, the provider's round text until #148).
-`.comp-tabs .tab` → `Overview` (`<span class="tab on" aria-current="page">`), `Matchdays`,
-`Teams`, `Players` — all four `SPAN`, none with an `href`.
-`.eyebrow` in DOM order → `Table`, `Next matches`, `Deserved points`, `The season in numbers`.
+`python scripts/check_design_inventory.py --langs en,fi,de` →
+`18 pages · 2 viewports · 3 languages · 82 renders · 0 failures · 0 warnings`, exit 0.
+Built: Home, Competitions index, Competition overview (`en/bundesliga/`), Match page
+(`en/bundesliga/matches/2026-09-18-bayern-munchen-vs-1-fc-union-berlin/`), Team page
+(`en/teams/1-fc-koln/`), each in en/fi/de. Mocks (en, fi by the FI toggle): competition-overview,
+competition-matchdays, competition-rankings, home, competition-hub league/groups/cup/offseason,
+matches next/past, top players, top teams, home legacy.
 
-## 2. The table
+## 2. What the same check measured BEFORE the consolidation (the mocks, `--no-built`)
 
-`.ctab-head` children → `#`, ``, `P`, `W`, `D`, `L`, `Goals`, `GD`, `Pts` (nine cells; the
-empty one heads the crest-and-club column). First row → `<a class="ctab-row"
-href="/en/teams/sc-freiburg/">`, text `1 SC Freiburg 3 3 0 0 10:1 +9 9`. `a.ctab-row` in the
-Table section → 18, every one with an `/en/teams/{slug}/` href. Heading cells and row cells at the
-same x positions: `[38, 70, 366, 403, 440, 476, 513, 576, 620]` for both (`alignedHead: true`).
-`.wdl` cells all `display: block` at 700px.
+`16 pages · 2 viewports · 2 languages · 54 renders · 252 failures` on the tree as it stood after
+!195, among them: `Block heading · font-size=13px · measured 11px` on every older mock;
+`Block heading gap · gap(next)=14px · measured 49.0px` on the approved Matchdays render and the
+four hub kinds (34px group margin + 15px date-heading padding), `23.0px` on the offseason hub
+(the fact row's 9px), `43.0px` on the legacy Home; `Row link · hover · measured rgb(22, 25, 32)`
+(the surface) on every older mock and `press · measured ink@11%` on the four newest (the
+overlay's `.fx a:hover` outranked `:active`); `Fact row value · measured 14px / 600 / ink`;
+`Ordered-by number · measured ink` on the deserved boards; `Table row · border 1px`; `Tab bar ·
+scrollWidth 355 > clientWidth 343` (EN) and `398 > 343` (FI) on the four-tab hub; `Tag ·
+text-transform none · font-weight 400` on the Next tag; `Breadcrumb current page · measured
+rgb(139, 144, 153)` (the mock CSS inverted the site's colours).
 
-At **375px** (mobile preset): heading and row cells again at identical x; the four `.wdl` cells
-`display: none`; the longest name (`Borussia Mönchengladbach`) 35px tall = two lines, nothing
-truncated; `document.documentElement.scrollWidth > innerWidth` → `false`.
+## 3. The built pages before the last two stylesheet rules
 
-## 3. Next matches
+`--no-built` off, `--langs en,fi,de`: `Team page · Block heading gap · measured 35.0px` (the
+hero card's inner margin — resolved by reading a bordered box's edge as the first line, which is
+what a reader sees), `Match page · measured nothing` (the segment control's 1×1 radio was taken
+for a sibling), `Competition overview · measured 27.0px` (the first match row's 12px padding
+under "Next matches": the rule now zeroes it, as it zeroes a first fact row's). Then
+`Team page · 29.0px` at 375 (the first year-over-year row's 10px padding) and `19.0px` at 700
+(the label baseline-aligned 5px under its 18px number): the row's padding is zeroed like a fact
+row's — the second row too in the two-column layout — and the first line is the topmost edge
+inside the sibling, the number, not the label.
 
-`a.fxrow[href]` → 9; first `/en/bundesliga/matches/2026-09-18-bayern-munchen-vs-1-fc-union-berlin/`.
-`details.fxmore` → 0 (no fold). `.fxgroup .gh` → 0 (no competition heading — the h1 is the
-competition).
+## 4. The Matchdays picker after the nesting (fresh render, 375px)
 
-## 4. Deserved points
+Visible matchday at load: `4`; after the visible step's next arrow: `5`; after prev twice: `3`;
+`#md-3` focused, ArrowRight: `4` checked, `4` visible. `.mdstep` laid out: 1 of 34.
+Markup vs the render of record with the nesting normalised away: 0 residual diff lines over 538.
 
-`.bsub` → "Deserved points are the points a team's shot balance usually earns. …".
-Board 1 `.bt` → `Better than the table says`, rows (`.nm` + `.pts`) → `1. FSV Mainz 05 -2.7`,
-`1. FC Union Berlin -2.1`, `Bayer 04 Leverkusen -2.0`. Board 2 → `Worse than the table says`:
-`Borussia Dortmund +2.7`, `FC Schalke 04 +2.0`, `SC Freiburg +1.8`. The Diff cell's computed
-`font-weight` → `700`; Deserved and Pts cells carry `.n.num` without `.pts`. Each row an
-`a.ctab-row` with an `/en/teams/{slug}/` href.
+## 5. The built competition tab bar
 
-## 5. The season in numbers
+`dist/{lang}/bundesliga/index.html` → en `Overview | Matchdays | Rankings`, de `Übersicht |
+Spieltage | Rankings`, fi `Yleiskatsaus | Kierrokset | Rankingit`; the check's `Tab bar · fits`
+and `Tab · one-line` pass at 375 in all three. The four-tab bar it replaces measured
+`355 > 343` (EN) and `398 > 343` (FI) on the hub mock before this branch.
 
-`.frow` → 7, as `[tag, href, label, value, context]`:
+## 6. The RED proof
 
-| # | tag | href | label | value | context |
-|---|---|---|---|---|---|
-| 1 | DIV | — | Goals per match | 3.9 | 104 goals in 27 matches |
-| 2 | DIV | — | Home wins | 14 of 27 | 5 draws, 8 away wins |
-| 3 | DIV | — | Biggest margin | 0–5 | Hamburger SV vs 1. FSV Mainz 05, Regular Season - 2 |
-| 4 | DIV | — | Most goals in a match | 3–4 | Borussia Mönchengladbach vs SV Elversberg, Regular Season - 2 |
-| 5 | A | /en/teams/bayern-munchen/ | Longest unbeaten run | 3 matches | Bayern München, SC Freiburg, Borussia Dortmund, FC Augsburg |
-| 6 | A | /en/teams/borussia-monchengladbach/ | Longest winless run | 3 matches | Borussia Mönchengladbach, Hamburger SV, 1. FC Union Berlin, SC Paderborn 07 |
-| 7 | A | /en/bundesliga/matches/2026-09-19-eintracht-frankfurt-vs-sc-freiburg/ | The match that matters next | Eintracht Frankfurt vs SC Freiburg | 19 Sept, 13:30 |
-
-Rows 3 and 4 do not link: a played match has no page. At 375px `.frow` computes one grid column
-and `.fv` `text-align: left` (stacked).
-
-## 6. German and Finnish
-
-`/de/bundesliga/`: title `Bundesliga: Überblick`; meta `Germany · Saison 2026 · Regular Season - 4`;
-tabs `Übersicht`, `Spieltage`, `Teams`, `Spieler`; sections `Tabelle`, `Nächste Spiele`,
-`Verdiente Punkte`, `Die Saison in Zahlen`; headings `#`, ``, `Sp.`, `S`, `U`, `N`, `Tore`,
-`Diff.`, `Pkt.`; goals `10:1`; first Diff `-2,7`; facts `Tore pro Spiel | 3,9 | 104 Tore in 27
-Spielen`, `Heimsiege | 14 von 27 | 5 Unentschieden, 8 Auswärtssiege`, `Höchster Sieg | 0–5 |
-Hamburger SV gegen 1. FSV Mainz 05, …`. `link[rel=alternate]` → `de`, `en`, `fi`, `x-default`
-(→ `/en/bundesliga/`); canonical `https://matchdaypilot.com/de/bundesliga/`.
-`/fi/bundesliga/`: title `Bundesliga: yleiskatsaus`; tabs `Yleiskatsaus`, `Kierrokset`,
-`Joukkueet`, `Pelaajat`; sections `Sarjataulukko`, `Seuraavat ottelut`, `Ansaitut pisteet`,
-`Kausi numeroina`; headings `O`, `V`, `T`, `H`, `Maalit`, `ME`, `P`; boards `Parempia kuin
-taulukko kertoo`, `Heikompia kuin taulukko kertoo`.
-
-## 7. A cup and a tournament — blocks absent where nothing is served
-
-`/en/dfb-pokal/` (DFBP 2026, no standings, no deserved points): title `DFB-Pokal: Overview`;
-meta `Germany · Season 2026 · Round of 32`; tabs `Overview`, `Rounds`, `Teams`, `Players`;
-`.eyebrow` → `Next matches`, `The season in numbers` only; `a.fxrow` → 16; facts `Goals per
-match | 4.6`, `Home wins | 2 of 32`, `Biggest margin | 0–11 | SC St. Tönis vs Eintracht
-Frankfurt, Round of 64`, `Most goals in a match | 0–11 | …`; no run rows (the mart serves NULL
-until a team has strung two matches together — the first render of this page showed a "run" of 1
-held by all 36 clubs, which is what the rule now prevents).
-`/en/euro/` (EURO 2024, finished): meta `Europe · Season 2024`; `.eyebrow` → `Table`, `The
-season in numbers` only (no next matchday, no deserved points); `.ctab-section .gh .nm` → `Group
-A` … `Group F` (six tables, the provider's "Ranking of third-placed teams" not rendered);
-`a.ctab-row` → 24; facts `Goals per match | 2.3`, `Biggest margin | 5–1`, `Most goals in a match
-| 5–1`, `Longest unbeaten run | 7 matches`, `Longest winless run | 4 matches`; no Home wins row
-(null for national-team competitions).
-
-## 8. Gates
-
-`node --test` → 90 pass; `node scripts/check-page-specs.mjs` → 6 pages OK;
-`python scripts/check_copy_gate.py` → OK, 606 strings, every `comp*` key in EN/DE/FI;
-`python design-mocks/gen_competition_hub.py` + `check_competition_hub.py` → 10 checks pass
-across the four kinds; `python -m pytest tests -q` → 1166 passed.
+`red.html` at 375 and 700: `Block heading · measured 11px`; `Block heading gap · measured 34.0px`;
+`Row link · hover · rgb(22, 25, 32)` and `press · rgb(22, 25, 32)`; `Table row · border 1px` and
+`[table 1] · row 1 measured color(srgb 0.945098 0.952941 0.968627 / 0.05), expected plain`;
+`Tab bar · scrollWidth 376 > clientWidth 343` (375 only); `Fact row value · 14px / 600 / ink`.
+`green.html`: `2 renders · 0 failures`. An empty page: `expected inventory elements · measured 0`.

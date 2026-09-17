@@ -7,8 +7,7 @@ one thing while the pages do another.
 import html
 from pathlib import Path
 
-from interaction import INTERACTION_CSS
-from rows import ROW_CSS, date_head, group_head, result_row, upcoming_row
+from rows import date_head, group_head, result_row, upcoming_row
 
 REPO = Path(__file__).resolve().parent.parent
 SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
@@ -93,8 +92,6 @@ def build():
 <style>
 %s
 %s
-%s
-%s
 </style>
 <div class="wrap fx">
 
@@ -149,7 +146,7 @@ def build():
      comes from one module (<code>interaction.py</code>) that every surface imports, so a page
      cannot invent its own.</p>
 </div>
-""" % (SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, PAGE_CSS,
+""" % (SYSTEM_CSS.read_text(encoding="utf-8"), PAGE_CSS,
        "\n".join('<div class="pr"><div class="t">%s</div><div class="b">%s</div></div>' % (t, b)
                  for t, b in PRINCIPLES),
        group_head("bundesliga", "Bundesliga"), rows,

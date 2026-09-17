@@ -76,6 +76,7 @@ python scripts/check_description_hygiene.py
 python scripts/sync_metric_docs_blocks.py --check
 python scripts/check_task_artifacts.py
 python scripts/check_ui_i18n_metrics.py
+python scripts/check_page_css.py
 python -m json.tool site/i18n/en.json > /dev/null
 python -m json.tool site/i18n/de.json > /dev/null
 python -m json.tool site/i18n/fi.json > /dev/null
@@ -86,6 +87,21 @@ python -m pytest tests/ -q
 
 Expected: `check_layer_contract.py` prints `Layer contract checks passed.`;
 `check_registry_var_sync.py` prints `OK (N competitions)`; pytest is all-green.
+
+### Tier 1b — the measured design check (needs a browser and a built site)
+
+`scripts/check_design_inventory.py` renders every design-mock generator and every built page
+type the block standard (`docs/wireframes/block_standard.md`) lists, at 375px and 700px in EN
+and FI, in headless Chromium, and measures every element against the inventory. It needs
+`pip install -r requirements-ui.txt`, once `python -m playwright install chromium`, and a
+built site (`cd site_v2 && npm run build`; park any untracked export payload under
+`site_v2/src/data` first, or the SEO audit refuses the build). Without the built site, run it
+with `--no-built` for the mocks alone. The lint above (`check_page_css.py`) needs no browser.
+
+```bash
+python scripts/check_design_inventory.py --dist site_v2/dist
+python -m pytest tests/test_design_inventory.py -q     # the RED proof runs where Chromium is
+```
 
 ### Tier 2 — needs BigQuery auth (run if `bq` works locally)
 

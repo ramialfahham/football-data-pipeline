@@ -165,14 +165,14 @@ def check_blocks_per_kind():
 
 
 def check_tabs_inert():
-    """Overview is the active tab; the three others are labels without a link."""
+    """Overview is the active tab; the two others are labels without a link."""
     page = stage_html(doc("league"))
     tabs = re.findall(r'<(span|a) class="tab[^"]*"[^>]*>', page)
     links = [t for t in tabs if t == "a"]
-    if len(tabs) != 4 or links or 'class="tab on"' not in page:
+    if len(tabs) != 3 or links or 'class="tab on"' not in page:
         bad("tabs inert", "%d tabs, %d links" % (len(tabs), len(links)))
         return
-    ok("tabs inert (4 tabs, Overview active, none a link)")
+    ok("tabs inert (3 tabs, Overview active, none a link)")
 
 
 def check_deserved_sign():

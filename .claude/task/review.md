@@ -1,43 +1,58 @@
-# Review — feat/153-design-mocks-of-record — 2026-09-17
+# Review — feat/153-design-inventory — 2026-09-17
 
-diff_sha256: 856b210063ca6a25ccc0e994780cc41763417bfe871906608bcc48e3389d1fc6
+diff_sha256: fca2edd17c833ea8964b6070a7ba138943135165e0f84a5a5f3a11d3afb9f0f1
 
-rounds: 4
-rounds_cap_override: round 4 is a two-line fix for a defect CI found after round 3 (a directory listing
-  compared unsorted, which Linux orders differently from Windows); no reviewer FAIL stands and
-  the CPO did not rule on the cap.
+rounds: 2
 
-Round 1 (2026-09-16, the four generators and five pulls): scope-auditor PASS. Round 2 (the render
-naming rule added under the contract's amendment): scope-auditor PASS; platform-reviewer's verdict
-then was a fail (resolved at round 3): the overwrite guard in `render.py` was reached by no test,
-so deleting it left every test green. Round 3: a test reaches the guard through `main()` with the
-name picker patched to return an existing name; the guard replaced by `if False:` turns it red.
-Round 4: CI's `test:python` (Linux) failed one assertion that compared `os.listdir` unsorted;
-both listings in the test are now `sorted()`; platform-reviewer PASS.
+Round 1: bi-analyst-reviewer PASS, cto-reviewer PASS; scope-auditor's verdict then was a fail
+(resolved at round 2): the breadcrumb inventory row was `ruled` while its note said "put to the
+CPO"; platform-reviewer's verdict then was a fail (resolved at round 2): the `visible` and
+`min-box` assertion kinds (the picker rows) were exercised by no test, and `requirements-ui.txt`
+left two packages unpinned. Round 2: the row is `proposed` and in `decisions_reserved`, the
+fixtures carry the picker and the RED proof covers both kinds, every package is pinned; both
+reviewers PASS. The cumulative diff includes the stacked base branch (!195); its files are
+outside this contract's scope by design and reviewed there.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: every file in the cumulative diff (`design-mocks/render.py`, `tests/test_design_mock_renders.py`, the four `design-mocks/renders/*.html`, `design-mocks/README.md`, `.claude/task/contract.md`, the round-1 generators and JSON pulls) matches `scope_paths` exactly; nothing extra touched.
-- New mechanism (`render.py`'s naming and refuse-overwrite): a §10-class decision, carried by the contract's `amendments:` block — the #153 plan approved in plan mode 2026-09-17 and the CPO's answer to the blinded question, "Track them in git, in a renders folder" (2026-09-16, in chat) — not taken silently.
-- `escalations.log` untouched (frozen); the amendment cites the chat answer and fabricates no log entry.
-- The gitignore claim checked: `.gitignore:239` is `design-mocks/*.html`, a single-level glob that does not reach `design-mocks/renders/`, unchanged in the diff; the test verifies it independently through `git check-ignore`.
-- `design-mocks/README.md` updated in the same branch for the new folder and rule (doc-sync).
-- Implementation matches the amendment's prose word for word (the pattern, the per-page counter that never resets, the refusal, the four test rules); no quiet extension of the rule.
-- Secrets swept across the full patch including the four HTML renders: only CSS "design token" comments.
-- Impact map: only `design-mocks/**` and `tests/**` touched — no structural path, none required.
+- The round-1 finding: "Breadcrumb current page" is `status=proposed`, its Rule cell states both versions (the shipped site's `ink-2` current page with muted links; #52's mock CSS inverted), its "Ruled on" reads "put to the CPO on the #153 MR; measured, never fails, until ruled"; `decisions_reserved` carries the question with both versions and the resolution path — no product decision asserted as settled.
+- A second silent `proposed` row: `tests/test_design_inventory.py` pins `proposed == ["Breadcrumb current page"]`; the table holds only the one.
+- `requirements-ui.txt` completeness: `decisions_taken` names `playwright`, `pytest` and `tzdata` together, with "no recurring cost until the CI MR".
+- The `visible`/`min-box` kinds: `red.html` and the RED test exercise "Matchday picker" and "Picker arrow".
+- Credentials: the whole cumulative patch grepped for key/secret/token/password patterns — only CSS "design token" vocabulary.
+- Scope: the file list diffed against `scope_paths`; the only files outside it (`render.py`, the five `bl1_*.json`, `gen_diagnostic.py`, `tests/test_design_mock_renders.py`) belong to the stacked base branch the contract names.
+- Round 1, still holding: the `!important` on the 14px gap rule, the `.md` picker nesting and the masthead margin are implementation of already-authorised changes; rulings (a) and (b) recorded as given, not decided; the three-tab bar, the `compTabRankings` copy and the page-spec key list named with authority; the `impact_map` evidenced (the `Layout.astro:7` import chain, a consumption-only surface).
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 4: lines 124 and 143 of the test wrap `os.listdir` in `sorted()`; every other directory listing in the two files this branch adds (`_problems`'s `iterdir`, `render.numbers()`'s `glob`) was already sorted; the regenerated patch shows nothing else changed since round 3.
-- The round-2 finding closed: `test_render_refuses_a_name_the_folder_already_holds` reaches the guard through `render.main()` via a monkeypatched `next_name`, asserts `SystemExit` matching "refusing to overwrite", the pre-existing file's content and the folder listing unchanged; the mutation (guard replaced by `if False:`) turns it red.
-- `__import__("datetime")` replaced by a plain import in the test; `render.py` imports `datetime as dt`; no `__import__` remains.
-- The rest of `render.py` and the test file unchanged since round 2: `parse_name`, `numbers`, `next_name`, `main`'s other exits (usage, missing generator, generator that writes nothing) and the two-writes happy path are as reviewed.
-- Path handling: `render.py` passes an absolute path as the generator's one argument and each generator does `HERE / sys.argv[1]`, where an absolute right operand wins on both path flavours.
-- `git check-ignore --no-index`: exit 1 means nothing ignored; only stdout is read, so it is not treated as an error.
-- The `NAME` regex checked by hand against the four real file names; the comment-history markers traced against every comment and docstring line (the docstring's `home_2026-09-17_02.html` sits after `_`, so the date marker does not fire); ruff's default set clean.
-- The README's description of the refusal matches the code and the test.
+- The picker fixture renders through the real `system.css` cascade: `red.html`'s `.md > .mdnav { display: block }` ties `system.css`'s `.md > .mdnav, .md > section { display: none }` and loads later, so every step lays out (visible 1 → 3); `.mdstep .step { width: 20px; height: 20px }` beats the 34px at equal specificity (34 → 20). `compare()` and `measure_page()` wire both kinds to real DOM measurements and the test's strings match `compare()`'s output.
+- `requirements-ui.txt`: three exact pins, the convention `requirements.txt` uses; the repo has no lockfile, so none is missing.
+- The breadcrumb `proposed` status is pinned as the sole proposed row and does not weaken "a proposed row is measured but never fails".
+- Round 1, still holding: the browser tests skip cleanly in `test:python` (no playwright installed there, `ImportError` before any launch); the check decodes generator output from bytes with utf-8 and a replacement, the tests pass `encoding="utf-8"` and `PYTHONIOENCODING`; the http servers use ephemeral ports and daemon threads and shut down in a `finally` that covers the early return; the `.sechead + *` rule's mutation is what `red.html` reconstructs (34px, 49px) and the RED proof fails on it; the lint's `class:list` computed-expression blind spot has no instance in the tree; `check_row_consistency.py`'s two CSS assertions moved to the lint by design.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Every row of `block_standard.md`'s Elements table traced against `system.css`: selector, rule text and `Measured as` match the shipped declarations (13px block heading; the 14px gap zeroed with `!important`; the competition group head's 2px line excluding `.rkgroup`; the metric group heading's 0px; the table head's 1px as the only line; the row's 0px with the stripe verified against `StandingsTable.astro`'s DOM order, so "first plain, from row 2" is the pseudo-class's real effect; the ordered-by number on `DeservedPoints.astro`'s Diff column; board name, sub-line, spacing; tag; picker; hover and press tints; chevron; the prose-link underline exception; the breadcrumb).
+- The two rulings of 2026-09-17 implemented: `.fxgroup:not(.rkgroup) > .gh` keeps its 2px line, `.rkgroup > .gh` has none; the row's `border-bottom` removed, the head's kept.
+- The three-tab bar: `compTabTeams`/`compTabPlayers` removed and `compTabRankings` added in EN/FI/DE (DE left as the untranslated placeholder, an open item, not invented copy) and in `index.spec.json`; no leftover references in the tree.
+- `Masthead.astro`'s inline style deleted and the equivalent `.mast .eyebrow` rule added — no behaviour lost, no duplicate.
+- `docs/wireframes/metrics_display.md` (LOCKED) untouched; only `00_overview.md`'s owner row and the new `block_standard.md` under `docs/wireframes/`.
+- `rendered_page_evidence.md` names the tool, the pages, the before/after counts and a DE run for the tab bar; the RED proof asserts an exact failing set through a real subprocess run.
+- No metric creep, no naked percentage, no new displayed number; the parser and the lint fail closed as documented.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Playwright: the CPO's blinded answer of 2026-09-16 quoted in `decisions_taken`; not wired into CI here (`validate:ui` at `.gitlab-ci.yml:438` unrelated and untouched).
+- Renders in git: the CPO's answer quoted; scope confined to `design-mocks/renders/*_2026-09-17_*.html`.
+- `pytest` already a dependency; `tzdata` needed by `zoneinfo` on Windows and, since round 1, named in `decisions_taken` and pinned.
+- `BORROWED` in `check_row_consistency.py` grew by the row classes that moved into the stylesheet; the collision guard still fires on any unlisted class — the rule keeping up, not a loosening.
+- `!important` on the 14px gap rule: an existing #129 invariant enforced with ordinary CSS, as the file already does elsewhere — not a new mechanism.
+- `gen_diagnostic.py` deleted with authority and reason in `amendments`.
+- No recurring cost: no CI job, `.gitlab-ci.yml` untouched and out of scope; the check runs locally and in tests that skip without a browser. No guard path touched. No credential-shaped string.
 
 ## escalations
 (none)

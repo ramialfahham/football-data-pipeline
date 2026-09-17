@@ -1,3 +1,8 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Competition page, Overview -- groups (mock)</title>
+<style>
 /* ================================================================ *
  *  MATCHDAY IQ — v2 DESIGN SYSTEM  (global; every screen imports it) *
  *                                                                    *
@@ -57,21 +62,10 @@ img { max-width: 100%; }
 .fx .seg-in:focus-visible ~ .seg { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 9px; }
 .inner { max-width: 680px; margin: 0 auto; padding: 0 clamp(16px, 4cqw, 28px) 40px; }
 .num { font-variant-numeric: tabular-nums; }
-.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 section { margin-top: 36px; }
 .sechead { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
 .sechead::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-/* One distance from a block name to the block's first line: the heading's 14px, and nothing added
-   by the content — whatever opens the block loses its own top space, and a padded date heading or
-   fact row opening it loses its top padding. `!important` because this rule exists to beat every
-   content rule below it, whatever its specificity: the content never adds to the gap. */
-.sechead + * { margin-top: 0 !important; }
-.sechead + .fxgroup > .dh:first-child,
-.sechead + .fxgroup > .fxrow:first-child,
-.sechead + .facts > .frow:first-child { padding-top: 0 !important; }
-.sechead + .split .colhead:first-child { margin-top: 0 !important; }
-.sechead + .yoygrid > .yrow:first-child { padding-top: 0 !important; }
-@container (min-width: 520px) { .sechead + .yoygrid > .yrow:nth-child(2) { padding-top: 0 !important; } }
 .win-note { font-size: 11px; font-weight: 600; color: var(--muted); }
 
 .crumb { font-size: 13px; color: var(--muted); padding: 18px 0 0; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -79,7 +73,6 @@ section { margin-top: 36px; }
 
 /* ---- masthead ---- */
 .mast { text-align: center; padding: 14px 0 26px; border-bottom: 1px solid var(--line); }
-.mast .eyebrow { margin-top: 14px; }
 .mast .kick { font-size: 13px; color: var(--muted); margin-top: 8px; }
 .mast .kick b { color: var(--ink-2); font-weight: 600; }
 .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: clamp(8px, 3cqw, 20px); margin-top: 20px; }
@@ -214,12 +207,6 @@ section { margin-top: 36px; }
    than marker-scoped so a chip gets the affordance back the moment it becomes a link, with no
    second edit and no class to remember. */
 a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
-/* The ONE place an underline stays: a link inside running text, which has no structure of its own
-   to signal with. `.fx a` above resets decoration at (0,1,1), so these carry the `.fx` prefix. */
-.fx .lede a, .fx .bnote a, .fx p a, .fx .sub a {
-  text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--div); color: var(--ink);
-}
-.fx .lede a:hover, .fx .bnote a:hover, .fx p a:hover, .fx .sub a:hover { text-decoration-color: var(--ink-2); }
 .footnote { margin-top: 30px; font-size: 11px; color: var(--muted); text-align: center; opacity: .8; }
 .err { padding: 40px; color: #f26d6d; font-size: 14px; white-space: pre-wrap; }
 
@@ -495,27 +482,13 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
  * every comparable fixture list uses. Names are sentence case at 15px: the first version of this
  * block wrapped each group in `.mgroup`, whose uppercase/letter-spaced/centred/muted rules INHERIT,
  * so every team name rendered as heading chrome. */
-/* LEVEL 1 — the competition group head over match rows (the #50 standard): more space above, a
-   26px logo, a 17px name and a full-weight rule, so a change of competition is noticed while
-   scrolling. The metric group heading on the Rankings tab (`.rkgroup`) shares the size and the
-   air and carries no line: there the lines belong to the tables' heads. */
-.fxgroup { margin-top: 34px; }
-.fxgroup:first-of-type { margin-top: 14px; }
+.fxgroup { margin-top: 26px; }
+.fxgroup:first-of-type { margin-top: 10px; }
 .fxgroup > .gh {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding-bottom: 10px; border-bottom: 2px solid var(--div);
+  padding-bottom: 7px; border-bottom: 1px solid var(--div);
 }
-.fxgroup > .gh .nm { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.2; }
-.fxgroup > .gh .cnm { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.fxgroup > .gh .cnm .chev { margin-left: 2px; }
-.clogo { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); }
-.clogo svg { width: 26px; height: 26px; display: block; }
-.rkgroup > .gh { border-bottom: 0; padding-bottom: 0; }
-/* LEVEL 2 — the date, once per day inside the group, never repeated down a column. */
-.fxgroup .dh {
-  font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--muted); padding: 15px 0 6px;
-}
+.fxgroup > .gh .nm { font-size: 14px; font-weight: 700; color: var(--ink); }
 
 /* HEADING LINK — a section heading that leads to the thing the section is about
    (docs/site_architecture.md §3 "Navigation", the header+row rule; GitLab #52).
@@ -533,10 +506,10 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
    A symmetric 6px/6px put the ring's bottom at y=168.2 against `.gh`'s divider at y=165.8 — a
    2.3px overshoot straight through the line — while leaving 16px unused above. 9px/3px keeps the
    33px target and spends it where the room actually is.
-   ⭐ The 3px is DERIVED, not tuned: 3px padding + the ring's 4px reach = 7px, which must not
-   exceed `.gh`'s own padding-bottom, so the ring never crosses the divider. With the group head's
-   10px padding-bottom the clearance is 3px; if that padding ever shrinks below 7px, this must
-   shrink with it. */
+   ⭐ The 3px is DERIVED, not tuned: 3px padding + the ring's 4px reach = 7px = `.gh`'s own
+   padding-bottom, so the ring lands exactly on the divider's inner edge and not a pixel past it.
+   That is the largest downward growth available. If `.gh`'s padding-bottom changes, this must
+   change with it — measured clearance today is 0.7px, which is the sub-pixel border, not slack. */
 a.cnm {
   display: inline-flex; align-items: center; gap: 6px; min-width: 0;
   padding-block: 9px 3px; margin-block: -9px -3px;
@@ -563,33 +536,13 @@ a.cnm .nm { text-decoration: none; }
 .fxrow:last-child { border-bottom: 0; }
 .fxrow .sides { display: grid; gap: 8px; min-width: 0; }
 .fxrow .side { display: flex; align-items: center; gap: 10px; min-width: 0; }
-/* The name never truncates: the row exists to send people to a match, and a clipped name defeats
-   it. `overflow-wrap: normal` keeps the minimum width at the longest word, so a name wraps at a
-   space and can never collapse into a column of letters when the score competes for the space. */
 .fxrow .side .nm {
   font-size: 15px; color: var(--ink); min-width: 0;
-  white-space: normal; overflow: visible; text-overflow: clip;
-  overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fxrow .when { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .fxrow .when .t { display: block; font-size: 16px; font-weight: 700; color: var(--ink); }
 .fxrow .when .d { font-size: 12px; color: var(--muted); }
-/* The venue's zone under the kick-off, on every unplayed row: a quiet suffix, the way a flight
-   schedule does it, because it repeats down a single-country list. */
-.fxrow .when .rowtz { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted); letter-spacing: .04em; margin-top: 1px; }
-/* A played row is the next-match row plus a score at the end of each side; the winner by tone and
-   weight, never by hue — green stays "better value", red stays the Loss pill. */
-.fxrow .side .g { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
-.fxrow .side .g.winner { color: var(--ink); font-weight: 700; }
-/* The tag: Next on the picker's title, Top match on the flagged row before the kick-off. One style. */
-.nexttag, .fxrow .topmatch {
-  display: inline-block; padding: 1px 7px; border-radius: 999px; background: var(--accent);
-  color: var(--pill-ink, #fff); font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; white-space: nowrap;
-}
-.nexttag { margin-left: 8px; }
-.fxrow .topmatch { align-self: center; margin-right: 10px; }
-.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
 /* THE FOLD — a competition's rows past the third sit in a native <details>; the summary is the
    "show all" control and reads as one more row (same divider, same height rhythm), with the
    heading's chevron turned down once open. No script: the element does the toggling. */
@@ -671,8 +624,7 @@ a.cnm .nm { text-decoration: none; }
 .board .sub { min-width: 0; font-size: 11.5px; color: var(--muted); overflow-wrap: break-word; }
 /* Right-aligned, matching .pstat. */
 .brow .v { font-size: 15px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-/* the number the board is ordered by: bold 15px in the accent, as every ordered-by number */
-.brow .v b { color: var(--accent); font-weight: 700; font-size: 15px; }
+.brow .v b { color: var(--ink); font-weight: 700; }
 
 /* ROW TARGET (site_architecture.md §3 "Navigation"): the whole row is the link, so the whole row
    responds — never the name inside it. ⚠ The mock underlined .nm on hover; that predates the
@@ -683,10 +635,8 @@ a.brow .nm { text-decoration: none; }
 /* THE ROW-LINK RULE, site-wide: a row that leads somewhere is ONE link, the whole row, and it
    lights on hover; an underline is for a word inside text, never for a name inside a row. One
    selector list for every row link the site has, so a new surface joins it rather than restyling it. */
-/* ONE hover tint, ink at 11%: twice the table stripe, so it shows against a striped row too.
-   `:active` follows at the same specificity so a press wins over the hover it happens under. */
 @media (hover: hover) {
-  a.brow:hover, a.comp-row:hover, a.fxrow:hover, a.ctab-row:hover, a.frow:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
+  a.brow:hover, a.comp-row:hover, a.fxrow:hover, a.ctab-row:hover, a.frow:hover { background: var(--surface); }
 }
 a.brow:active, a.comp-row:active, a.fxrow:active, a.ctab-row:active, a.frow:active { background: var(--sunk); }
 a.fxrow, a.ctab-row, a.frow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; color: inherit; text-decoration: none; }
@@ -776,27 +726,6 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .comp-tabs .tab.on { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
 .comp-tabs .tab[aria-disabled="true"] { cursor: default; }
 .comp-tabs .tab[aria-disabled="true"]:hover { color: var(--muted); }
-/* The tab bar fits its tabs in one row at 375px in every language: the tabs share the width and
-   the side padding is what the label needs, not 16px each side. */
-.comp-tabs .tab { flex: 1 1 auto; text-align: center; padding-inline: clamp(6px, 2cqw, 16px); }
-@container (max-width: 430px) { .comp-tabs .tab { font-size: 13px; letter-spacing: -.01em; } }
-
-/* The matchday picker (the Matchdays tab): its own full-width line under the tab bar, the arrows
-   pinned to the two edges and the title centred so nothing shifts between matchdays. One matchday
-   on screen at a time, with no script: each matchday's radio, picker step and schedule sit in one
-   `.md` wrapper, and the checked radio shows its own wrapper's contents. */
-.md-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.md > .mdnav, .md > section { display: none; }
-.md:has(> .md-in:checked) > .mdnav, .md:has(> .md-in:checked) > section { display: block; }
-.fx .md-in:focus-visible + .mdnav { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
-.mdnav { margin-top: 22px; }
-.mdstep { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--div); }
-.mdstep .mdtitle { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
-.mdstep .mdtitle .num { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
-.mdstep .step { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--line); color: var(--ink-2); cursor: pointer; }
-.mdstep .step svg { width: 16px; height: 16px; }
-.mdstep .step:hover { background: var(--surface); }
-.mdstep .step.off { visibility: hidden; }
 
 /* The standings table. A grid, not a <table>: the heading and every row are one grid each, so the
    track list is FIXED per breakpoint and shared — self-sizing tracks size per grid and let the
@@ -810,10 +739,9 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .ctab { margin-top: 4px; --cols: 2rem minmax(0, 1fr) 2.3rem 0 0 0 0 2.8rem 2.6rem; }
 .ctab-head, .ctab-row { display: grid; grid-template-columns: var(--cols); align-items: center; column-gap: 0; }
 .ctab .n, .ctab .h { padding-left: 8px; }
-/* The head's rule is the table's only line; the stripes separate the rows, counted from the head
-   so the first row is plain. */
 .ctab-head { padding-bottom: 8px; border-bottom: 1px solid var(--div); }
-.ctab-row { padding: 9px 0; }
+.ctab-row { padding: 9px 0; border-bottom: 1px solid var(--line); }
+.ctab-row:last-child { border-bottom: 0; }
 .ctab-row:nth-child(odd) { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .ctab-head > :nth-child(1), .ctab-row > :nth-child(1) { grid-column: 1; }
 .ctab-head > :nth-child(2), .ctab-row > :nth-child(2) { grid-column: 2; }
@@ -840,26 +768,11 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 /* the name never truncates: system.css ellipsises .nm elsewhere, a table row wraps instead */
 .ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; line-height: 1.25; }
 
-/* The block explainer: one sentence under a block name. */
+/* The deserved-points boards: the table's rows with three numbers, club · Deserved · Pts · Diff;
+   the bold sits on Diff, the number the board is ordered by. */
 .bsub { margin: 2px 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
-/* Two more table kinds, each one fixed track list. `.dp`: the built Overview's deserved-points
-   boards (club · Deserved · Pts · Diff) until #151 replaces them with `.dpt`, the full deserved
-   table (# · club · Balance · Deserved · Pts · Diff). The ordered-by number keeps the accent in both. */
 .ctab.dp, .ctab.dp.ctab { --cols: minmax(0, 1fr) 4.2rem 2.8rem 3.4rem; }
-.ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem 4.2rem 2.6rem 3.2rem; }
-/* A board is a single-value table: the Table's striped rows and grid (# · crest name · value), one
-   fixed track list; the board's name is the head, with its chevron, and its rule the only line.
-   A player's row carries the club under the name. */
-.ctab.rkt, .ctab.rkt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem; margin-top: 0; }
-.ctab.rkt .tm .ent { display: flex; flex-direction: column; min-width: 0; }
-.ctab.rkt .tm .ent .sub { font-size: 12px; color: var(--muted); line-height: 1.2; }
-.ctab.rkt .ctab-head { padding-bottom: 7px; }
-.ctab.rkt .ctab-head .nmh { text-align: left; padding-left: 0; grid-column: 1 / 3; }
-.ctab.rkt .ctab-head .rk { display: none; }
-.ctab.rkt .ctab-head .nmh .bt { display: inline-flex; align-items: center; gap: 6px; }
-.ctab.rkt .ctab-head .nmh .bt .nm { font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: 0; text-transform: none; }
-/* "fewest first" beside a board's name */
-.bnote { font-size: 12px; color: var(--muted); margin-left: 6px; }
+.ctab.dp .n.pts { color: var(--ink); }
 
 /* The fact row: label · value · context. Wide: the label left, value and context right-aligned;
    a phone stacks the three, left-aligned. Only the value is weighted. */
@@ -869,8 +782,7 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .frow .fl { font-size: 14px; color: var(--ink); line-height: 20px; }
 .frow .fv { min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: right; }
 .frow .fvv { font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 20px; }
-/* the value is the number the row is about: bold 15px in the accent, as every ordered-by number */
-.frow .fvv b { font-weight: 700; font-size: 15px; color: var(--accent); }
+.frow .fvv b { font-weight: 600; }
 .frow .sub { font-size: 12px; color: var(--muted); }
 .nb { white-space: nowrap; }
 @container (max-width: 420px) {
@@ -879,3 +791,323 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+
+/* ================================================================ *
+ *  THE MATCH ROW — one component, every page.                       *
+ *  Base `.fxrow` / `.fxgroup` / `.crest.xs` live in system.css;     *
+ *  everything here is the shared DELTA, defined once.               *
+ * ================================================================ */
+
+/* LEVEL 1 — the competition. Deliberately heavier than the 14px label this started as: the
+   complaint was "you scroll down and barely notice that the competition has changed". More space
+   above, a bigger logo, a 17px name and a full-weight rule underneath. A `<span class="cnm here">`
+   on the competition's own page renders identically to the `<a>` — same convention as the nav and
+   the breadcrumb, so being on the page is a state, not a different block. */
+.fxgroup { margin-top: 34px; }
+.fxgroup:first-of-type { margin-top: 14px; }
+.fxgroup > .gh { padding-bottom: 10px; border-bottom: 2px solid var(--div); }
+.fxgroup > .gh .cnm { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.fxgroup > .gh .cnm .chev { margin-left: 2px; }
+.clogo { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); }
+.clogo svg { width: 26px; height: 26px; display: block; }
+.fxgroup > .gh .nm { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+/* ⚠ NO hover rule here. How a clickable thing signals itself is owned by `interaction.py`, in one
+   place, for every surface — this file owns what the block IS, not what it DOES. Two underline-on-
+   hover rules lived here and are gone: they pointed the affordance at a word inside a row whose
+   target was the row. */
+
+/* LEVEL 2 — the date, inside the competition. Read once, not repeated down a column. */
+.fxgroup .dh {
+  font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); padding: 15px 0 6px;
+}
+
+/* The right column: kick-off + venue-local zone. No date — that is the `.dh` heading above.
+   The zone is on EVERY row, always, never on a group head: it was conditional once and a
+   conditional block is two blocks. Quiet suffix to the time, the way a flight schedule does it,
+   because it repeats down a single-country list. */
+.fxrow .when .rowtz { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted);
+                      letter-spacing: .04em; margin-top: 1px; }
+
+
+/* ⚠ THE NAME MUST NEVER TRUNCATE. system.css ellipsises `.fxrow .side .nm`, which is right on
+   the home page's short teaser and wrong on a full list: these pages exist to send people to a
+   match, and "Brighton & Hove Albio…" on a phone defeats that. The row grows instead. */
+/* ⚠ `overflow-wrap: break-word` WAS HERE AND CAUSED THE COLLAPSE. It was added to stop names
+   truncating, and it does — but it also makes the element's MIN-CONTENT width one character. A
+   name that may shrink to its min-content will, the moment anything competes for the space, and
+   the club name renders as a vertical stack of letters. The score is what applies that pressure,
+   which is why only played rows broke.
+   `normal` keeps the minimum at the longest WORD ("Mönchengladbach"), so the name still wraps
+   instead of truncating and can never fall below a readable width. A pathological single long
+   word now overflows its column slightly rather than destroying the row — the right failure. */
+.fxrow .side .nm {
+  white-space: normal; overflow: visible; text-overflow: clip;
+  overflow-wrap: normal; word-break: normal; hyphens: none;
+  line-height: 1.25;
+}
+
+/* the score, inline at the end of each side — so home/away needs no extra label. The winner by
+   TONE + WEIGHT, never by hue: green stays reserved for "better value", red for a Loss pill, and
+   a draw leaves both sides muted. */
+/* ⚠ A PLAYED ROW IS THE NEXT-MATCH ROW PLUS A SCORE. NOTHING ELSE.
+   The rule: *"this shouldn't be much different from next match design"* — and it had
+   become very different. Three things were added chasing a layout collapse, none of them asked
+   for, each able to cause one, and all three are now gone:
+     * `.side` was converted from system.css's flex to a three-track grid;
+     * the score was given a fixed min-width, its own padding and 16px bold;
+     * the kick-off was down-weighted on played rows only.
+   `.side` keeps the shipped flex layout. The score is one declaration: pushed to the end of the
+   side, muted, tabular so the digits line up. The winner is tone and weight only — green stays
+   reserved for "better value", red for a Loss pill, so a draw leaves both sides muted. */
+.fxrow .side .g { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fxrow .side .g.winner { color: var(--ink); font-weight: 700; }
+
+/* A played row needs NO right-column rules of its own: it uses the same kick-off + zone slot as
+   every other row. A "Report" / "No report yet" chip lived here and is gone — it put a second
+   kind of thing in the slot that carries the kick-off everywhere else, which is this standard's
+   own omit-never-move rule broken by the standard itself. */
+
+
+/* ================================================================ *
+ *  INTERACTION STANDARD — one place, every surface.                 *
+ *  Clickability is visible AT REST; hover only confirms it.         *
+ *  The thing that responds is the thing you click.                  *
+ *  Colour moves along the NEUTRAL ramp only: --accent is reserved   *
+ *  for "better value" and --loss for a Loss pill.                   *
+ * ================================================================ */
+
+/* ---- 1. ROW TARGET -------------------------------------------- *
+ * The whole row is the link, so the whole row responds. The lift is
+ * inset past the text so it reads as one object rather than a
+ * highlighted line of type. No underline anywhere inside it. */
+a.fxrow, a.brow, a.tm-row {
+  border-radius: 9px;
+  margin-inline: -12px; padding-inline: 12px;
+  transition: background-color .12s ease;
+}
+/* ⚠ hover is gated: on a touch device `:hover` can stick after a tap and leave a row looking
+   permanently selected. `:active` below is the touch feedback. */
+@media (hover: hover) {
+  a.fxrow:hover, a.brow:hover, a.tm-row:hover { background: var(--surface); }
+}
+a.fxrow:active, a.brow:active, a.tm-row:active { background: var(--sunk); }
+
+/* ⚠ NO TEXT DECORATION INSIDE A ROW TARGET. This is the rule that replaces
+   `a.fxrow:hover .nm { text-decoration: underline }` — it underlined ONE of the two club names
+   in a row whose target is neither of them. */
+a.fxrow .nm, a.brow .nm, a.tm-row .nm { text-decoration: none; }
+
+/* ---- 2. CHIP / BUTTON TARGET ---------------------------------- *
+ * Already carries its own border at rest, which is the affordance.
+ * Hover raises it one rung; active fills it. */
+@media (hover: hover) {
+  a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
+}
+a.linkchip:active { background: var(--sunk); border-color: var(--ink-2); color: var(--ink); }
+
+/* ---- 3. HEADING LINK ------------------------------------------ *
+ * A competition heading that leads somewhere carries a CHEVRON at rest.
+ * That is the whole point: the reader knows it is a link before touching
+ * it, which an underline-on-hover never told them. */
+.chev {
+  width: 15px; height: 15px; flex: 0 0 auto; color: var(--muted);
+  transition: transform .12s ease, color .12s ease;
+}
+a:hover > .chev, a:hover .chev { color: var(--ink-2); }
+@media (hover: hover) {
+  a.cnm:hover .chev { transform: translateX(2px); }
+}
+/* the heading text itself only moves along the ramp — never underlined */
+a.cnm .nm { text-decoration: none; }
+
+/* ---- 4. PROSE LINK -------------------------------------------- *
+ * The ONE place an underline stays: running text has no structure of its
+ * own to signal with, and colour alone is not an accessible signal. */
+/* ⚠ THE `.fx` PREFIX IS LOAD-BEARING. `system.css` has `.fx a { text-decoration: none }` at
+   specificity (0,1,1); a bare `p a` is (0,0,2) and LOSES, so the underline silently never
+   appeared. Measured, not assumed — the rendered link reported `text-decoration-line: none`. */
+.fx .lede a, .fx .bnote a, .fx p a, .fx .sub a {
+  text-decoration: underline; text-underline-offset: 2px;
+  text-decoration-color: var(--div); color: var(--ink);
+}
+.fx .lede a:hover, .fx .bnote a:hover, .fx p a:hover, .fx .sub a:hover {
+  text-decoration-color: var(--ink-2);
+}
+
+/* ---- 5. BREADCRUMB -------------------------------------------- *
+ * A link and the current page must differ AT REST, not on hover. */
+.crumb a { color: var(--ink-2); text-decoration: none; }
+.crumb .here { color: var(--muted); }
+@media (hover: hover) { .crumb a:hover { color: var(--ink); } }
+
+/* ---- 6. FOCUS ------------------------------------------------- *
+ * Keyboard focus is a SEPARATE signal from hover and survives every choice
+ * above. system.css already outlines `.fx a:focus-visible`; these two give
+ * the row and chip targets a radius that matches their own shape. */
+.fx a.fxrow:focus-visible,
+.fx a.brow:focus-visible,
+.fx a.tm-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 9px; }
+
+@media (prefers-reduced-motion: reduce) {
+  a.fxrow, a.brow, a.tm-row, .chev { transition: none; }
+}
+
+
+/* ---------------------------------------------------------------- *
+ *  MOCK HARNESS ONLY -- not part of the design.                      *
+ * ---------------------------------------------------------------- */
+body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.ctl { position: sticky; top: 0; z-index: 9; display: flex; flex-wrap: wrap; gap: 18px;
+       padding: 12px 16px; background: #14161c; border-bottom: 1px solid #2b2f38; color: #c7ccd4; font-size: 13px; }
+.ctl label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+.ctl .hint { color: #7c828c; font-size: 12px; }
+.toggle { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ctl .box { width: 15px; height: 15px; border-radius: 4px; border: 1px solid #4a505b; background: #0d0f13; flex: 0 0 auto; }
+#t-light:checked ~ .ctl label[for="t-light"] .box,
+#t-phone:checked ~ .ctl label[for="t-phone"] .box,
+#t-fi:checked    ~ .ctl label[for="t-fi"]    .box { background: #3bb072; border-color: #3bb072; }
+.toggle:focus-visible ~ .ctl label .box { outline: 2px solid #3bb072; outline-offset: 2px; }
+.stage { margin: 0 auto; transition: max-width .15s; }
+.legend { max-width: 680px; margin: 0 auto; padding: 14px 16px 40px; color: #7c828c; font-size: 12px; line-height: 1.6; }
+.legend b { color: #c7ccd4; }
+
+#t-phone:checked ~ .stage { max-width: 375px; box-shadow: 0 0 0 1px #2b2f38; }
+
+#t-light:checked ~ .stage .fx {
+  --page: #f3f3f0; --surface: #fbfbf9; --sunk: #edece7; --line: #e2e1da; --div: #cfcec5;
+  --ink: #141410; --ink-2: #4c4c45; --muted: #77776e;
+  --accent: #0a6e3a;
+  --win: #157f43; --draw: #6f756d; --loss: #b23b3b; --pill-ink: #fff;
+  --track: #e7e6e0;
+}
+
+.fi { display: none; }
+#t-fi:checked ~ .stage .en { display: none; }
+#t-fi:checked ~ .stage .fi { display: inline; }
+#t-fi:checked ~ .stage .probe { text-decoration: underline dotted currentColor; text-underline-offset: 3px; }
+
+.crest svg { width: 26px; height: 26px; display: block; color: var(--muted); }
+.crest.xs svg { width: 15px; height: 15px; }
+
+
+/* variant: b_lines.css */
+/* (b) A: as approved on the Overview, a 1px line under every row (no change) */
+
+</style>
+
+<input class="toggle" type="checkbox" id="t-light">
+<input class="toggle" type="checkbox" id="t-phone">
+<input class="toggle" type="checkbox" id="t-fi">
+
+<div class="ctl">
+  <label for="t-light"><span class="box"></span>Light</label>
+  <label for="t-phone"><span class="box"></span>Phone 375px</label>
+  <label for="t-fi"><span class="box"></span>Finnish</label>
+  <span class="hint">no JS &middot; toggles are :checked + sibling combinators</span>
+</div>
+
+<div class="stage">
+  <div class="fx">
+    <div class="inner">
+
+      <nav class="crumb">
+        <a class="lnk" href="/en/"><span class="en">Home</span><span class="fi" lang="fi">Etusivu</span></a>
+        <span class="sep">&rsaquo;</span>
+        <a class="lnk" href="/en/competitions/"><span class="en">Competitions</span><span class="fi" lang="fi">Kilpailut</span></a>
+        <span class="sep">&rsaquo;</span>
+        <span class="here">Euro 2024</span>
+      </nav>
+
+      <header class="thead">
+        <div class="crest"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></div>
+        <div class="tid">
+          <h1>Euro 2024</h1>
+          <div class="meta">Europe &middot; Season 2024 &middot; Round of 16</div>
+        </div>
+      </header>
+
+      <nav class="tabs comp-tabs" aria-label="Competition sections">
+        <span class="tab on" aria-current="page"><span class="en">Overview</span><span class="fi" lang="fi">Yleiskatsaus</span></span>
+        <span class="tab" aria-disabled="true"><span class="en">Rounds</span><span class="fi" lang="fi">Kierrokset</span></span>
+        <span class="tab" aria-disabled="true"><span class="en">Teams</span><span class="fi" lang="fi">Joukkueet</span></span>
+        <span class="tab" aria-disabled="true"><span class="en">Players</span><span class="fi" lang="fi">Pelaajat</span></span>
+      </nav>
+
+
+      <section>
+        <div class="sechead"><span class="eyebrow"><span class="en">Table</span><span class="fi" lang="fi">Sarjataulukko</span></span></div>
+<div class="ctab-section"><div class="gh"><span class="nm">Group A</span></div><div class="ctab"><div class="ctab-head"><span class="h rk"><span class="en">#</span><span class="fi" lang="fi">#</span></span><span class="h nmh"></span><span class="h"><span class="en">P</span><span class="fi" lang="fi">O</span></span><span class="h wdl"><span class="en">W</span><span class="fi" lang="fi">V</span></span><span class="h wdl"><span class="en">D</span><span class="fi" lang="fi">T</span></span><span class="h wdl"><span class="en">L</span><span class="fi" lang="fi">H</span></span><span class="h wdl"><span class="en">Goals</span><span class="fi" lang="fi">Maalit</span></span><span class="h"><span class="en">GD</span><span class="fi" lang="fi">ME</span></span><span class="h"><span class="en">Pts</span><span class="fi" lang="fi">P</span></span></div>
+<a class="ctab-row" href="/en/teams/germany/"><span class="rk num">1</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Germany</span></span><span class="n num">3</span><span class="n num wdl">2</span><span class="n num wdl">1</span><span class="n num wdl">0</span><span class="n num wdl">8:2</span><span class="n num gd">+6</span><span class="n num pts">7</span></a>
+<a class="ctab-row" href="/en/teams/switzerland/"><span class="rk num">2</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Switzerland</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">2</span><span class="n num wdl">0</span><span class="n num wdl">5:3</span><span class="n num gd">+2</span><span class="n num pts">5</span></a>
+<a class="ctab-row" href="/en/teams/hungary/"><span class="rk num">3</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Hungary</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">0</span><span class="n num wdl">2</span><span class="n num wdl">2:5</span><span class="n num gd">-3</span><span class="n num pts">3</span></a>
+<a class="ctab-row" href="/en/teams/scotland/"><span class="rk num">4</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Scotland</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">1</span><span class="n num wdl">2</span><span class="n num wdl">2:7</span><span class="n num gd">-5</span><span class="n num pts">1</span></a></div></div>
+<div class="ctab-section"><div class="gh"><span class="nm">Group B</span></div><div class="ctab"><div class="ctab-head"><span class="h rk"><span class="en">#</span><span class="fi" lang="fi">#</span></span><span class="h nmh"></span><span class="h"><span class="en">P</span><span class="fi" lang="fi">O</span></span><span class="h wdl"><span class="en">W</span><span class="fi" lang="fi">V</span></span><span class="h wdl"><span class="en">D</span><span class="fi" lang="fi">T</span></span><span class="h wdl"><span class="en">L</span><span class="fi" lang="fi">H</span></span><span class="h wdl"><span class="en">Goals</span><span class="fi" lang="fi">Maalit</span></span><span class="h"><span class="en">GD</span><span class="fi" lang="fi">ME</span></span><span class="h"><span class="en">Pts</span><span class="fi" lang="fi">P</span></span></div>
+<a class="ctab-row" href="/en/teams/spain/"><span class="rk num">1</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Spain</span></span><span class="n num">3</span><span class="n num wdl">3</span><span class="n num wdl">0</span><span class="n num wdl">0</span><span class="n num wdl">5:0</span><span class="n num gd">+5</span><span class="n num pts">9</span></a>
+<a class="ctab-row" href="/en/teams/italy/"><span class="rk num">2</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Italy</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">3:3</span><span class="n num gd">0</span><span class="n num pts">4</span></a>
+<a class="ctab-row" href="/en/teams/croatia/"><span class="rk num">3</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Croatia</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">2</span><span class="n num wdl">1</span><span class="n num wdl">3:6</span><span class="n num gd">-3</span><span class="n num pts">2</span></a>
+<a class="ctab-row" href="/en/teams/albania/"><span class="rk num">4</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Albania</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">1</span><span class="n num wdl">2</span><span class="n num wdl">3:5</span><span class="n num gd">-2</span><span class="n num pts">1</span></a></div></div>
+<div class="ctab-section"><div class="gh"><span class="nm">Group C</span></div><div class="ctab"><div class="ctab-head"><span class="h rk"><span class="en">#</span><span class="fi" lang="fi">#</span></span><span class="h nmh"></span><span class="h"><span class="en">P</span><span class="fi" lang="fi">O</span></span><span class="h wdl"><span class="en">W</span><span class="fi" lang="fi">V</span></span><span class="h wdl"><span class="en">D</span><span class="fi" lang="fi">T</span></span><span class="h wdl"><span class="en">L</span><span class="fi" lang="fi">H</span></span><span class="h wdl"><span class="en">Goals</span><span class="fi" lang="fi">Maalit</span></span><span class="h"><span class="en">GD</span><span class="fi" lang="fi">ME</span></span><span class="h"><span class="en">Pts</span><span class="fi" lang="fi">P</span></span></div>
+<a class="ctab-row" href="/en/teams/england/"><span class="rk num">1</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">England</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">2</span><span class="n num wdl">0</span><span class="n num wdl">2:1</span><span class="n num gd">+1</span><span class="n num pts">5</span></a>
+<a class="ctab-row" href="/en/teams/denmark/"><span class="rk num">2</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Denmark</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">3</span><span class="n num wdl">0</span><span class="n num wdl">2:2</span><span class="n num gd">0</span><span class="n num pts">3</span></a>
+<a class="ctab-row" href="/en/teams/slovenia/"><span class="rk num">3</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Slovenia</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">3</span><span class="n num wdl">0</span><span class="n num wdl">2:2</span><span class="n num gd">0</span><span class="n num pts">3</span></a>
+<a class="ctab-row" href="/en/teams/serbia/"><span class="rk num">4</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Serbia</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">2</span><span class="n num wdl">1</span><span class="n num wdl">1:2</span><span class="n num gd">-1</span><span class="n num pts">2</span></a></div></div>
+<div class="ctab-section"><div class="gh"><span class="nm">Group D</span></div><div class="ctab"><div class="ctab-head"><span class="h rk"><span class="en">#</span><span class="fi" lang="fi">#</span></span><span class="h nmh"></span><span class="h"><span class="en">P</span><span class="fi" lang="fi">O</span></span><span class="h wdl"><span class="en">W</span><span class="fi" lang="fi">V</span></span><span class="h wdl"><span class="en">D</span><span class="fi" lang="fi">T</span></span><span class="h wdl"><span class="en">L</span><span class="fi" lang="fi">H</span></span><span class="h wdl"><span class="en">Goals</span><span class="fi" lang="fi">Maalit</span></span><span class="h"><span class="en">GD</span><span class="fi" lang="fi">ME</span></span><span class="h"><span class="en">Pts</span><span class="fi" lang="fi">P</span></span></div>
+<a class="ctab-row" href="/en/teams/austria/"><span class="rk num">1</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Austria</span></span><span class="n num">3</span><span class="n num wdl">2</span><span class="n num wdl">0</span><span class="n num wdl">1</span><span class="n num wdl">6:4</span><span class="n num gd">+2</span><span class="n num pts">6</span></a>
+<a class="ctab-row" href="/en/teams/france/"><span class="rk num">2</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">France</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">2</span><span class="n num wdl">0</span><span class="n num wdl">2:1</span><span class="n num gd">+1</span><span class="n num pts">5</span></a>
+<a class="ctab-row" href="/en/teams/netherlands/"><span class="rk num">3</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Netherlands</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">4:4</span><span class="n num gd">0</span><span class="n num pts">4</span></a>
+<a class="ctab-row" href="/en/teams/poland/"><span class="rk num">4</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Poland</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">1</span><span class="n num wdl">2</span><span class="n num wdl">3:6</span><span class="n num gd">-3</span><span class="n num pts">1</span></a></div></div>
+<div class="ctab-section"><div class="gh"><span class="nm">Group E</span></div><div class="ctab"><div class="ctab-head"><span class="h rk"><span class="en">#</span><span class="fi" lang="fi">#</span></span><span class="h nmh"></span><span class="h"><span class="en">P</span><span class="fi" lang="fi">O</span></span><span class="h wdl"><span class="en">W</span><span class="fi" lang="fi">V</span></span><span class="h wdl"><span class="en">D</span><span class="fi" lang="fi">T</span></span><span class="h wdl"><span class="en">L</span><span class="fi" lang="fi">H</span></span><span class="h wdl"><span class="en">Goals</span><span class="fi" lang="fi">Maalit</span></span><span class="h"><span class="en">GD</span><span class="fi" lang="fi">ME</span></span><span class="h"><span class="en">Pts</span><span class="fi" lang="fi">P</span></span></div>
+<a class="ctab-row" href="/en/teams/romania/"><span class="rk num">1</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Romania</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">4:3</span><span class="n num gd">+1</span><span class="n num pts">4</span></a>
+<a class="ctab-row" href="/en/teams/belgium/"><span class="rk num">2</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Belgium</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">2:1</span><span class="n num gd">+1</span><span class="n num pts">4</span></a>
+<a class="ctab-row" href="/en/teams/slovakia/"><span class="rk num">3</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Slovakia</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">3:3</span><span class="n num gd">0</span><span class="n num pts">4</span></a>
+<a class="ctab-row" href="/en/teams/ukraine/"><span class="rk num">4</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Ukraine</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">2:4</span><span class="n num gd">-2</span><span class="n num pts">4</span></a></div></div>
+<div class="ctab-section"><div class="gh"><span class="nm">Group F</span></div><div class="ctab"><div class="ctab-head"><span class="h rk"><span class="en">#</span><span class="fi" lang="fi">#</span></span><span class="h nmh"></span><span class="h"><span class="en">P</span><span class="fi" lang="fi">O</span></span><span class="h wdl"><span class="en">W</span><span class="fi" lang="fi">V</span></span><span class="h wdl"><span class="en">D</span><span class="fi" lang="fi">T</span></span><span class="h wdl"><span class="en">L</span><span class="fi" lang="fi">H</span></span><span class="h wdl"><span class="en">Goals</span><span class="fi" lang="fi">Maalit</span></span><span class="h"><span class="en">GD</span><span class="fi" lang="fi">ME</span></span><span class="h"><span class="en">Pts</span><span class="fi" lang="fi">P</span></span></div>
+<a class="ctab-row" href="/en/teams/portugal/"><span class="rk num">1</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Portugal</span></span><span class="n num">3</span><span class="n num wdl">2</span><span class="n num wdl">0</span><span class="n num wdl">1</span><span class="n num wdl">5:3</span><span class="n num gd">+2</span><span class="n num pts">6</span></a>
+<a class="ctab-row" href="/en/teams/turkiye/"><span class="rk num">2</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Türkiye</span></span><span class="n num">3</span><span class="n num wdl">2</span><span class="n num wdl">0</span><span class="n num wdl">1</span><span class="n num wdl">5:5</span><span class="n num gd">0</span><span class="n num pts">6</span></a>
+<a class="ctab-row" href="/en/teams/georgia/"><span class="rk num">3</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Georgia</span></span><span class="n num">3</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">1</span><span class="n num wdl">4:4</span><span class="n num gd">0</span><span class="n num pts">4</span></a>
+<a class="ctab-row" href="/en/teams/czechia/"><span class="rk num">4</span><span class="tm"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Czechia</span></span><span class="n num">3</span><span class="n num wdl">0</span><span class="n num wdl">1</span><span class="n num wdl">2</span><span class="n num wdl">3:5</span><span class="n num gd">-2</span><span class="n num pts">1</span></a></div></div>
+      </section>
+
+
+      <section>
+        <div class="sechead"><span class="eyebrow"><span class="en">Next matches</span><span class="fi" lang="fi">Seuraavat ottelut</span></span></div>
+        <div class="fxgroup">
+<div class="dh">Sat 29 Jun</div>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Switzerland</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Italy</span></span></span><span class="when"><b class="t">18:00</b><span class="rowtz">CEST</span></span></a>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Germany</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Denmark</span></span></span><span class="when"><b class="t">21:00</b><span class="rowtz">CEST</span></span></a>
+<div class="dh">Sun 30 Jun</div>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">England</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Slovakia</span></span></span><span class="when"><b class="t">18:00</b><span class="rowtz">CEST</span></span></a>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Spain</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Georgia</span></span></span><span class="when"><b class="t">21:00</b><span class="rowtz">CEST</span></span></a>
+<div class="dh">Mon 1 Jul</div>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">France</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Belgium</span></span></span><span class="when"><b class="t">18:00</b><span class="rowtz">CEST</span></span></a>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Portugal</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Slovenia</span></span></span><span class="when"><b class="t">21:00</b><span class="rowtz">CEST</span></span></a>
+<div class="dh">Tue 2 Jul</div>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Romania</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Netherlands</span></span></span><span class="when"><b class="t">18:00</b><span class="rowtz">CEST</span></span></a>
+<a class="fxrow" href="#"><span class="sides"><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Austria</span></span><span class="side"><span class="crest xs"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.2l6.6 2.35v5.65c0 3.95-2.73 7.15-6.6 8.95-3.87-1.8-6.6-5-6.6-8.95V5.55L12 3.2z" fill="none" stroke="currentColor" stroke-width="1.6" opacity=".42"/></svg></span><span class="nm">Türkiye</span></span></span><span class="when"><b class="t">21:00</b><span class="rowtz">CEST</span></span></a>
+        </div>
+      </section>
+
+
+
+      <section>
+        <div class="sechead"><span class="eyebrow"><span class="en">The season in numbers</span><span class="fi" lang="fi">Kausi numeroina</span></span></div>
+        <div class="facts">
+<div class="frow"><span class="fl"><span class="en">Goals per match</span><span class="fi" lang="fi">Maalia per ottelu</span></span><span class="fv"><span class="fvv"><b>2.3</b></span><span class="sub">81 goals in 36 matches</span></span></div>
+<div class="frow"><span class="fl"><span class="en">Biggest margin</span><span class="fi" lang="fi">Suurin voitto</span></span><span class="fv"><span class="fvv"><b>5–1</b></span><span class="sub">Germany vs Scotland, Group Stage 1</span></span></div>
+<div class="frow"><span class="fl"><span class="en">Most goals in a match</span><span class="fi" lang="fi">Eniten maaleja ottelussa</span></span><span class="fv"><span class="fvv"><b>5–1</b></span><span class="sub">Germany vs Scotland, Group Stage 1</span></span></div>
+<div class="frow"><span class="fl"><span class="en">Longest unbeaten run</span><span class="fi" lang="fi">Pisin tappioton putki</span></span><span class="fv"><span class="fvv"><b>3 matches</b></span><span class="sub">Germany, Spain, Switzerland, England, Denmark, Slovenia, France, Belgium, Romania, Slovakia, Ukraine</span></span></div>
+<div class="frow"><span class="fl"><span class="en">Longest winless run</span><span class="fi" lang="fi">Pisin voitoton putki</span></span><span class="fv"><span class="fvv"><b>3 matches</b></span><span class="sub">Scotland, Albania, Denmark, Slovenia, Serbia, Poland, Czechia</span></span></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <b>Mock &mdash; the competition page, Overview tab, kind &ldquo;groups&rdquo;.</b>
+  Table &middot; Next matches &middot; Deserved points &middot; The season in numbers, each only
+  where its mart serves something. The design is GitLab #129; this file renders it.
+</div>

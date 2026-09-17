@@ -1,8 +1,8 @@
-"""The Overview re-rendered with the rulings that closed the #129 review, without editing the repo's generator
-(that lands with the build): tab bar Overview · Matchdays · Team stats · Players; Deserved
-points as the FULL TABLE right after the Table (shots on goal for:against, the balance, Deserved,
-Pts, Diff), the Better / Worse boards dropped; one 14px gap from every block name to its first
-line. Real data: the committed Bundesliga payload + mart_team_profile (the README dates the pull)."""
+"""The Overview re-rendered with the rulings that closed the #129 review, without editing the
+repo's generator (that lands with the build): Deserved points as the FULL TABLE right after the
+Table (the shot balance, Deserved, Pts, Diff), the Better / Worse boards dropped, the six fact
+rows as links. Real data: the committed Bundesliga payload + mart_team_profile (the README dates
+the pull)."""
 import json
 import sys
 from pathlib import Path
@@ -14,7 +14,6 @@ sys.path.insert(0, str(HERE))
 import gen_competition_hub as g  # noqa: E402
 from gen_competition_hub import E, loc, team_cell  # noqa: E402
 
-g.COPY["tabTeams"] = ("Rankings", "Rankingit", True)
 g.COPY["colSog"] = ("Shots on goal", "Laukaukset maalia kohti", True)
 g.COPY["colSogDiff"] = ("Balance", "Tase", True)
 g.COPY["secDeserved"] = ("Deserved points table", "Ansaittujen pisteiden taulukko", False)
@@ -74,27 +73,6 @@ def facts_html(k):
 """ % (loc("secFacts"), "\n".join(rows))
 
 
-EXTRA_CSS = """
-/* the deserved table's own track list: # · club · SoG for:against · balance · Deserved · Pts · Diff */
-.ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem 4.2rem 2.6rem 3.2rem; }
-/* the ordered-by number: bold, 15px, the accent, as the standings Pts (one rule, every block) */
-.brow .v b { color: var(--accent); }
-.frow .fvv b { color: var(--accent); font-weight: 700; font-size: 15px; }
-/* on a striped table the hover is twice the stripe, or it cannot be seen */
-@media (hover: hover) { .fx a.brow:hover, .fx a.comp-row:hover, .fx a.fxrow:hover, .fx a.ctab-row:hover, .fx a.frow:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); } }
-/* the block name, a step larger everywhere (was 11px): it got buried */
-.sechead .eyebrow { font-size: 13px; }
-/* ONE gap from a block name to its first line: the heading's 14px, nothing added by the content */
-section > .sechead + .fxgroup { margin-top: 0; }
-section > .sechead + .fxgroup > .dh:first-child { padding-top: 0; }
-section > .sechead + .ctab-section { margin-top: 0; }
-section > .sechead + .ctab { margin-top: 0; }
-section > .sechead + .bsub { margin-top: 0; }
-section > .sechead + .facts { margin-top: 0; }
-section > .sechead + .facts > .frow:first-child { padding-top: 0; }
-"""
-
-
 def build():
     k = g.KINDS["league"]
     return """<!doctype html>
@@ -102,9 +80,6 @@ def build():
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Competition page, Overview -- Bundesliga (mock)</title>
 <style>
-%s
-%s
-%s
 %s
 %s
 </style>
@@ -137,17 +112,10 @@ def build():
   Table &middot; Deserved points (the full table) &middot; The season in numbers; Next matches struck (the Matchdays tab opens on it).
   Shots on goal are per match, the catalogue's measure; totals are not defined.
 </div>
-""" % (g.SYSTEM_CSS.read_text(encoding="utf-8"), g.ROW_CSS, g.INTERACTION_CSS, g.MOCK_CSS, EXTRA_CSS,
+""" % (g.SYSTEM_CSS.read_text(encoding="utf-8"), g.MOCK_CSS,
        g.header_html(k), "", g.table_html(k), deserved_table_html(), facts_html(k))
 
 
-def three_tabs(html_):
-    """The repo generator draws four tabs; the fourth (Players) is gone since the three-tab ruling."""
-    fourth = '        <span class="tab" aria-disabled="true">%s</span>\n' % g.loc("tabPlayers")
-    assert html_.count(fourth) == 1
-    return html_.replace(fourth, "")
-
-
 out = HERE / (sys.argv[1] if len(sys.argv) > 1 else "competition_overview_after_teams_v2.html")
-out.write_text(three_tabs(build()), encoding="utf-8")
+out.write_text(build(), encoding="utf-8")
 print("wrote", out.name)

@@ -17,15 +17,23 @@ preview_start url http://127.0.0.1:8899/<file>.html
 |---|---|---|---|
 | `gen_competitions.py` | `/{locale}/competitions/` — the index | **#54** | `python gen_competitions.py` + `prove_region_checks_fail.py` |
 | `gen_competition_hub.py` | `/{locale}/{slug}/` — the competition page, Overview tab, four kinds (`league`, `groups`, `cup`, `offseason`), one file each | #129 (the approved design), #149 (the build) | `check_competition_hub.py` |
-| `gen_overview_after_teams.py` | the Overview tab as approved: the Deserved points table as a full table, the six fact rows as links, the three-tab bar — an overlay on `gen_competition_hub.py` | #129 · #151 (the build) | none yet — #153 |
-| `gen_competition_matchdays.py` | `/{locale}/{slug}/fixtures/` — the Matchdays tab: the picker, the Schedule block, the Next and Top match tags | #129 · #150 (the build) | none yet — #153 |
-| `gen_competition_teams.py` | the Rankings tab: Team rankings (12 boards) and Player rankings (13 boards) as striped single-value tables in the catalogue's groups | #129 · #151 · #152 (the groups) | none yet — #153 |
-| `gen_home_with_rules.py` | Home with the page-wide rules of the #129 review: boards as single-value tables, 13px block names, the 14px heading gap, the accent on the ordered-by number, one hover tint — an overlay on `gen_home.py` | #127 (Home's corrections) | none yet — #153 |
+| `gen_overview_after_teams.py` | the Overview tab as approved: the Deserved points table as a full table, the six fact rows as links, the three-tab bar — an overlay on `gen_competition_hub.py` | #129 · #151 (the build) | `scripts/check_design_inventory.py` |
+| `gen_competition_matchdays.py` | `/{locale}/{slug}/fixtures/` — the Matchdays tab: the picker, the Schedule block, the Next and Top match tags | #129 · #150 (the build) | `scripts/check_design_inventory.py` |
+| `gen_competition_teams.py` | the Rankings tab: Team rankings (12 boards) and Player rankings (13 boards) as striped single-value tables in the catalogue's groups | #129 · #151 · #152 (the groups) | `scripts/check_design_inventory.py` |
+| `gen_home_with_rules.py` | Home with the page-wide rules of the #129 review: boards as single-value tables, 13px block names, the 14px heading gap, the accent on the ordered-by number, one hover tint — an overlay on `gen_home.py` | #127 (Home's corrections) | `scripts/check_design_inventory.py` |
 | `gen_matches.py` · `gen_home.py` · `gen_block_standard.py` | the "Next matches" block | #50 | `check_row_consistency.py` |
 | `gen_interaction.py` | the interaction standard | #52 | `scan_clickables.py` |
 
 Shared, imported by every surface — **do not re-implement**: `rows.py` (the match row + group
-head), `interaction.py` (every clickable affordance).
+head markup), `interaction.py` (the chevron and the interaction standard's text).
+
+**No mock carries CSS of its own beyond its harness** (the toggles, the stage, the legend). Every
+element's CSS is `site_v2/src/styles/system.css`, inlined verbatim; the element, its rule and
+its measurements are `docs/wireframes/block_standard.md` (the block standard). Two scripts hold
+it: `scripts/check_page_css.py` fails a generator (or a module it imports) whose CSS string
+touches an inventory class, and `scripts/check_design_inventory.py` renders every generator the
+block standard lists at 375px and 700px in EN and FI and measures every element. A page-level
+class that happens to share a name with an element's is renamed, not argued about.
 
 **Proposed seed shapes** live beside the generators and are read by them, because `!27` needs a
 clean tree: `competition_types.proposed.csv` (the shipped seed + `scope`, `label_i18n_key`,
@@ -118,10 +126,10 @@ The four generators in the surfaces table above render the design the CPO approv
 `gen_overview_after_teams.py`, `gen_competition_matchdays.py`, `gen_competition_teams.py`,
 `gen_home_with_rules.py`. They were written in a session scratchpad during the review and
 brought here the same day under #153, so the approved design is reproducible from the repo.
-Two are overlays: they import the repo generator (`gen_competition_hub.py`, `gen_home.py`),
-patch its copy or its board renderer, and add the rules' CSS after the stylesheet — the repo
-generator itself is untouched until its build issue lands. ⚠ `gen_home_with_rules.py` imports
-`gen_home`, which writes `home_mock.html` as a side effect of the import.
+Two are overlays: they import the repo generator (`gen_competition_hub.py`, `gen_home.py`) and
+patch its copy or its board renderer — the repo generator itself is untouched until its build
+issue lands. ⚠ `gen_home_with_rules.py` imports `gen_home`, which writes `home_mock.html` as a
+side effect of the import.
 
 ### A render sent for review is a file of record — `renders/<page>_<YYYY-MM-DD>_<nn>.html`
 

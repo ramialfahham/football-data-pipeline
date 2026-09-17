@@ -1,47 +1,53 @@
-# Acceptance evidence — competition page, Overview tab: build the approved design (#149)
+# Acceptance evidence — #153, items 1–3: the element inventory, one stylesheet, the lint, the measured check
 
-Every item read from the running page (Astro dev server) on the committed sample; the numbers and
-selectors are in `rendered_page_evidence.md`.
+Every item read from a built site (`astro build` on the committed sample, the two untracked export
+payloads parked outside the tree) or from a fresh render of the generators, by the check itself
+or by a script beside it; the numbers are in `rendered_page_evidence.md`.
 
 criteria_demonstrated:
-  - THE PAGE RENDERS THE HEADER, THE TAB BAR AND THE FOUR BLOCKS IN ORDER, IN THREE LOCALES.
-    `/en/bundesliga/`: h1 `Bundesliga`, meta `Germany · Season 2026 · Regular Season - 4` (crest
-    rendered from the served `logo_url`), tabs `Overview` (`span.tab.on[aria-current=page]`),
-    `Matchdays`, `Teams`, `Players` — four `SPAN`s, none with an href; `.eyebrow` in DOM order
-    `Table`, `Next matches`, `Deserved points`, `The season in numbers`. `/de/bundesliga/`:
-    `Tabelle`, `Nächste Spiele`, `Verdiente Punkte`, `Die Saison in Zahlen`; `/fi/bundesliga/`:
-    `Sarjataulukko`, `Seuraavat ottelut`, `Ansaitut pisteet`, `Kausi numeroina`.
-  - THE TABLE. Heading cells `#`, ``, `P`, `W`, `D`, `L`, `Goals`, `GD`, `Pts`; Freiburg's row
-    `1 SC Freiburg 3 3 0 0 10:1 +9 9` as `<a class="ctab-row" href="/en/teams/sc-freiburg/">`;
-    18 such rows, every href `/en/teams/{slug}/`. At 375px the four `.wdl` cells compute
-    `display: none` and heading and row cells sit at identical x (`alignedHead: true` at both
-    375px and 700px).
-  - NEXT MATCHES. `a.fxrow[href]` → 9, the payload's whole next matchday, first href
-    `/en/bundesliga/matches/2026-09-18-bayern-munchen-vs-1-fc-union-berlin/`; no `details.fxmore`
-    (no fold) and no `.fxgroup .gh` (no competition heading).
-  - DESERVED POINTS. The explanation paragraph (`.bsub`), then `Better than the table says` with
-    `1. FSV Mainz 05 -2.7`, `1. FC Union Berlin -2.1`, `Bayer 04 Leverkusen -2.0` (the served
-    `deserved_points_gap_rank` 1, 2, 3 — the warehouse's order; the gap keeps the catalogue's
-    actual-minus-deserved sign) and `Worse than
-    the table says` with `Borussia Dortmund +2.7`, `FC Schalke 04 +2.0`, `SC Freiburg +1.8`; the
-    Diff cell computes `font-weight: 700`, the other two numbers are plain.
-  - THE SEASON IN NUMBERS. Seven `.frow`s, each label · value · context: `Goals per match | 3.9 |
-    104 goals in 27 matches`; `Biggest margin | 0–5 | Hamburger SV vs 1. FSV Mainz 05, Regular
-    Season - 2` — the earliest 5–0 of the season, which is what the tie rule ruled on #129 picks
-    (the Freiburg 5–0 of Matchday 3 came later); the two match facts are `DIV`s without an href,
-    because a played match has no page on this site (the criterion as first drafted said they
-    link — corrected in the contract with that ruling as the authority); the two run facts and
-    the match that matters are `A`s (`/en/teams/bayern-munchen/`, `/en/teams/borussia-
-    monchengladbach/`, `/en/bundesliga/matches/2026-09-19-eintracht-frankfurt-vs-sc-freiburg/`).
-    No `.frow` for a null fact: the cup page renders no run rows while its runs are null.
-  - BLOCKS ABSENT WHERE NOTHING IS SERVED. `/en/dfb-pokal/` (no standings, no deserved points):
-    `.eyebrow` → `Next matches`, `The season in numbers` only, tabs read `Rounds`. `/en/euro/`
-    (finished, national teams): `.eyebrow` → `Table`, `The season in numbers` only; six group
-    tables `Group A`…`Group F` and no ranking table; no Home wins row.
-  - `cd site_v2 && npm test` → 90 pass (7 new in `competitionPayload.test.mjs`);
-    `node scripts/check-page-specs.mjs` → `6 page(s) validated … OK`; the competition spec has no
-    `stub` key and lists `mart_competition_index`, `mart_standings`, `mart_next_matchday`,
-    `mart_team_profile`, `mart_competition_season_summary`; `STUB_PAGES` holds only the player
-    page.
-  - `python scripts/check_copy_gate.py` → `COPY GATE ok: 606 strings across 3 locales …`, every
-    new `comp*` key present in EN, DE and FI.
+  - THE MEASURED CHECK IS GREEN ON EVERY LISTED PAGE. `python scripts/check_design_inventory.py
+    --langs en,fi,de` (the built site at `site_v2/dist`, every mock generator rendered fresh):
+    `18 pages · 2 viewports · 3 languages · 82 renders · 0 failures · 0 warnings`, exit 0 — the
+    5 built page types in EN/FI/DE and the 13 mock pages in EN/FI (a mock has no DE), at 375 and
+    700. The same command with `--langs en,fi` (the inventory's own languages): `18 pages · 2
+    viewports · 2 languages · 72 renders · 0 failures`.
+  - THE LINT IS GREEN ON THE TREE AND RED ON THE TREE BEFORE IT. `python scripts/check_page_css.py`:
+    `page-css lint: 57 files scanned, 0 finding(s)`, exit 0. Run against the base commit's
+    `site_v2/src` and `design-mocks` (exported with `git archive HEAD`): `57 files scanned, 128
+    findings` — `Masthead.astro:25 · style= on <div> · eyebrow` (1), `rows.py` (11),
+    `interaction.py` (15), `gen_competition_matchdays.py` (17), `gen_competition_teams.py` (20),
+    `gen_overview_after_teams.py` (12), `gen_home_with_rules.py` (15), `gen_top_players.py` (16),
+    `gen_top_teams.py` (16), `gen_matches.py` (3), `gen_block_standard.py` (2).
+  - THE RED PROOF. `python -m pytest tests/test_design_inventory.py -q`: `31 passed` (Chromium
+    installed here, so the three browser tests ran). `red.html` fails on exactly `Block heading`
+    (measured 11px), `Block heading gap` (measured 34.0px), `Row link` (hover and press measured
+    `rgb(22, 25, 32)`, the surface), `Table row` (row 1 measured the tint; border 1px),
+    `Tab bar` (`scrollWidth 376 > clientWidth 343`) and `Fact row value` (14px/600/ink);
+    `green.html` passes with `0 failures`, every exercised row matched.
+  - THE BUILT OVERVIEW SHOWS THREE TABS AND THE BAR FITS IN THREE LANGUAGES. `dist/en/bundesliga/`:
+    `nav.tabs.comp-tabs` → `Overview` (`span.tab.on[aria-current=page]`), `Matchdays`, `Rankings`;
+    `/de/`: `Übersicht`, `Spieltage`, `Rankings`; `/fi/`: `Yleiskatsaus`, `Kierrokset`,
+    `Rankingit`. The check's `Tab bar · fits` and `Tab · one-line` pass for `Competition overview`
+    at 375 and 700 in en, fi and de (part of the 82-render run above; the DE run is what the
+    `--langs en,fi,de` invocation adds).
+  - THE FOUR GENERATORS OF RECORD RE-RENDER TO THE SAME MARKUP. Everything outside `<style>`:
+    `competition-rankings` identical, `home` identical, `competition-overview` differs in one line
+    (the `<title>`, which lost its date on !195), `competition-matchdays` differs only by the
+    picker nesting — with each matchday's `.md` wrapper, radio and `nav.mdnav` normalised away
+    and `section.md[data-md]` read as `section`, the residual diff is 0 lines over 538; 34 steps
+    and 34 titles identical in order, 34 radios, matchday 4 checked in both. The nested picker
+    switches by the arrow labels (4 → 5 → 4 → 3) and by ArrowRight on the checked radio (3 → 4),
+    one step visible at every point. All four fresh renders measure green (above).
+  - THE INVENTORY DOCUMENT. `docs/wireframes/block_standard.md` carries 40 element rows (every
+    element of the approved plan's table, two of them split into the competition group head and
+    the metric group heading per the ruling "Home with line, Rankings without") with selector,
+    rule, `Measured as`, status and where ruled, and 18 page rows; `python
+    scripts/design_inventory.py --count` → `40 elements, 95 assertions, 18 pages`;
+    `docs/wireframes/00_overview.md`'s owner table gains the row "What is an ELEMENT …" pointing
+    at it. `grep -c "Measured as" docs/wireframes/block_standard.md` → 3, not the 1 the criterion
+    wrote: the table header plus the two sentences of the reading guide that name the column;
+    the criterion's intent — one table with that column, parsed — holds and is what the parser
+    enforces (`ELEMENT_COLUMNS`, a renamed column is exit 2).
+  - NO PAGE CSS. `grep -rn "<style" site_v2/src` prints nothing; `grep -rn 'style=' site_v2/src
+    --include=*.astro` finds only the data-driven bar widths on `.w/.d/.l`, `.fill` and
+    `.vs-fill` (no inventory class); the lint's own output above is 0 findings.
