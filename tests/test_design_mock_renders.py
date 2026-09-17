@@ -121,7 +121,7 @@ def test_render_writes_the_next_name_and_never_over_an_existing_file(tmp_path, m
         render.main(["gen_stub.py", "Bad_Page"])
     with pytest.raises(SystemExit):
         render.main(["gen_missing.py", "stub-page"])
-    assert os.listdir(tmp_path / "renders") == written
+    assert sorted(os.listdir(tmp_path / "renders")) == written
 
 
 def test_render_refuses_a_name_the_folder_already_holds(tmp_path, monkeypatch):
@@ -140,4 +140,4 @@ def test_render_refuses_a_name_the_folder_already_holds(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="refusing to overwrite"):
         render.main(["gen_stub.py", "stub-page"])
     assert existing.read_text(encoding="utf-8") == "OF RECORD"
-    assert os.listdir(renders) == [existing.name]
+    assert sorted(os.listdir(renders)) == [existing.name]

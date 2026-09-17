@@ -1,14 +1,19 @@
 # Review — feat/153-design-mocks-of-record — 2026-09-17
 
-diff_sha256: 01d4ad98d3b426be79832930389c0377048f9cbcf2f7531654f47ca5415b29a4
+diff_sha256: 856b210063ca6a25ccc0e994780cc41763417bfe871906608bcc48e3389d1fc6
 
-rounds: 3
+rounds: 4
+rounds_cap_override: round 4 is a two-line fix for a defect CI found after round 3 (a directory listing
+  compared unsorted, which Linux orders differently from Windows); no reviewer FAIL stands and
+  the CPO did not rule on the cap.
 
 Round 1 (2026-09-16, the four generators and five pulls): scope-auditor PASS. Round 2 (the render
 naming rule added under the contract's amendment): scope-auditor PASS; platform-reviewer's verdict
 then was a fail (resolved at round 3): the overwrite guard in `render.py` was reached by no test,
 so deleting it left every test green. Round 3: a test reaches the guard through `main()` with the
 name picker patched to return an existing name; the guard replaced by `if False:` turns it red.
+Round 4: CI's `test:python` (Linux) failed one assertion that compared `os.listdir` unsorted;
+both listings in the test are now `sorted()`; platform-reviewer PASS.
 
 ## scope-auditor
 VERDICT: PASS
@@ -25,6 +30,7 @@ risks_checked:
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
+- Round 4: lines 124 and 143 of the test wrap `os.listdir` in `sorted()`; every other directory listing in the two files this branch adds (`_problems`'s `iterdir`, `render.numbers()`'s `glob`) was already sorted; the regenerated patch shows nothing else changed since round 3.
 - The round-2 finding closed: `test_render_refuses_a_name_the_folder_already_holds` reaches the guard through `render.main()` via a monkeypatched `next_name`, asserts `SystemExit` matching "refusing to overwrite", the pre-existing file's content and the folder listing unchanged; the mutation (guard replaced by `if False:`) turns it red.
 - `__import__("datetime")` replaced by a plain import in the test; `render.py` imports `datetime as dt`; no `__import__` remains.
 - The rest of `render.py` and the test file unchanged since round 2: `parse_name`, `numbers`, `next_name`, `main`'s other exits (usage, missing generator, generator that writes nothing) and the two-writes happy path are as reviewed.
