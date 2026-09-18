@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-17 (night)**, on `chore/session-end-2026-09-17`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-18**, on `chore/session-end-2026-09-18`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,40 +22,43 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#153, THE DESIGN-SYSTEM MECHANISM, IS FULLY BUILT AND WAITING ON HIS MERGE.** **!195** MERGED
-2026-09-17 (the four generators of record and their five `bq` pulls in `design-mocks/`, the render
-naming rule — `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`, tracked, `render.py` picks the
-number, never overwritten; #153 items 4+5). **!196** MERGED 2026-09-18
-(`feat/153-design-inventory`: the block standard
-`docs/wireframes/block_standard.md` (40 elements · selector · rule · `Measured as` · status · ruled
-on, and the 18 pages the check measures), every element's CSS in `system.css` alone (the mocks lost
-`ROW_CSS`, `INTERACTION_CSS`, the board CSS and the four overlays' CSS; `gen_diagnostic.py` gone),
-`scripts/check_page_css.py` (the lint), `scripts/check_design_inventory.py` (the measured check:
-Playwright, 375/700, EN/FI, 82 renders green, 252 failures on the tree before), a RED fixture,
-`requirements-ui.txt`, the built competition tab bar to the three approved tabs; #153 items 1–3).
-and **!198** OPEN, the one MR left (`feat/153-check-in-ci`: the check in CI — `validate:ui` on
-`mcr.microsoft.com/playwright/python:v1.63.0-noble`, `needs: [build:site-v2]` in the `build` stage,
-one `ui_paths` anchor for both jobs, `build:site-v2` keeps `site_v2/dist` as an artifact; the job
-runs the lint, the CHECK, then the inventory tests (the check first, pinned: the tests' green
-fixture reads the live stylesheet and would stop the job before the check reached the pages);
-pinned by tests, including "every package a job file imports is in `requirements-ui.txt`" — the
-first pipeline was red on exactly that, PyYAML; green now: `72 renders · 0 failures` in 62 s).
-The throwaway 11px proof is DONE, twice: !199 (CLOSED) went red one step early, at the fixture —
-his reply "fail"; !200 (`proof/153-red-at-the-check-step`, CLOSED, never merged, branch kept) red
-AT THE CHECK: 60 `Block heading` lines on 15 of 18 pages, the artifact with 60 screenshots, in
-67 s. Nothing open on !198 but his merge. **When !198 merges, #153 closes; then #150/#151 do not
-merge until the check passes on their pages and on Home.**
-⚠ The commit gate runs from the project root: a `git worktree` commit is judged against the MAIN
-tree's index — rebind a sibling branch from the main tree, stashing by explicit path.
+**#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED** (!195, !196, !198, 2026-09-17/18): the
+block standard `docs/wireframes/block_standard.md` (40 elements · selector · rule · `Measured as` ·
+status · ruled on; the 18 pages the check measures), every element's CSS in `system.css` alone, the
+lint `scripts/check_page_css.py`, the measured check `scripts/check_design_inventory.py` (Playwright,
+375/700, EN/FI), the render naming rule `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`
+(`render.py` picks the number, never overwritten), and `validate:ui` running the lint, the CHECK,
+then the inventory tests on every MR (the check first, pinned; proven red at the check on !200, a
+closed throwaway branch kept as the record). **#150/#151 do not merge until the check passes on
+their pages and on Home.** ⚠ The commit gate runs from the project root: a `git worktree` commit is
+judged against the MAIN tree's index — rebind a sibling branch from the main tree, stashing by
+explicit path.
 
-**One default on !196's head for him:** the breadcrumb's current-page colour (the site: the page
-you are on `ink-2`, links muted; the mocks had it inverted; the inventory row is `proposed` —
-measured, never fails — until he rules; then `ruled` and the stylesheet follows). The DE tab
-label is ruled: "Rankings" in all three languages, written into #129.
-**Ruled 2026-09-17 in chat, written into #129:** (a) "Home with line, Rankings without" — two
-headings: the competition group head over match rows keeps its 2px line, the metric group heading
-over boards has none; (b) "head only" — a table's rows carry no line, the head rule is the only
-one. The variant renders he saw are `design-mocks/renders/*_2026-09-17_0[12].html`. ⚠ **A ruling
+**#109, THE DBT TESTING STRATEGY, IS TWO STEPS OF THREE DONE — NEXT = STEP 3, in a fresh chat.**
+Step 1 (!201, merged): the connective rules in `dbt_project/docs/engineering_standards.md` §3.1–3.5
+(the column class decides the tests; a rate is one definition gated by its inputs, a range test on
+every rate, the guard generated from the catalogue; severity by one question, "would a fan see a
+wrong number"; `store_failures` on every singular test; what holds each rule). The census behind
+them is a comment on #109. Step 2 (!202, merged): the guard — `dbt_project/tests/
+assert_form_window_rates_inputs_covered.sql` and `assert_season_rates_inputs_covered.sql`, built at
+run time from `metric_catalogue.csv` (pattern: `assert_metric_catalogue_expr_resolvable.sql`), the
+first two tests with `store_failures`; one coverage count per input in `int_team_momentum__metrics`
+and `int_team_season_record`, every rate gated on its own inputs in `mart_team_momentum` and
+`int_team_season__metrics_cumulative`; the player-derived rates follow `metric_layer.md`'s rule
+(about 1,200 form windows and 1,500 team-seasons went to "—"; corners per match now shows in more);
+the NULL sentence on 38 team-rate blocks composed by `sync_metric_docs_blocks.py`. The nightly of
+2026-09-18 had failed on `shots_on_goal_pct` > 1 — that gate is fixed: **check that the first
+nightly after the merge is green.** **Step 3, the plan is §3.5 and the census:** `store_failures`
+on the other 49 singular tests; a range test on the 92 rates without one; the severity audit of
+the 941 `error` tests under §3.3; the three remaining mechanisms — every listed column described
+(365 undescribed today; a rule to add to `check_description_hygiene.py`), a yml-vs-projection
+check, a `relationships` sweep of the `_sk` columns. Plan mode; contract first; the warehouse
+reviewer routes on `dbt_project/**`.
+
+**One default still open, merged as a default:** the breadcrumb's current-page colour keeps the
+site's (the page you are on `ink-2`, links muted; the mocks had it inverted); its inventory row is
+`proposed` — measured, never fails — until he rules. The 2026-09-17 rulings (the two heading
+lines, the table's head rule only, the DE tab label "Rankings") are written into #129. ⚠ **A ruling
 request is ONE question, then a 2×2 table (page × variant → file), then the recommendation** —
 four files with a caption got "What am I supposed to decide?"; his answer may split by context.
 
@@ -67,12 +70,11 @@ metric groups; Home's corrections on **#127**. The page-wide rules live in the b
 
 **The measured check is the arbiter now.** `python scripts/check_design_inventory.py --dist
 site_v2/dist` (build first: `cd site_v2 && npm run build`; park any untracked export payload under
-`site_v2/src/data/competitions/` first — `DFBP`, `EURO` sit in the session scratchpad
-`parked_data/`, or the SEO audit refuses the build); `--no-built` for the mocks alone; `--page
-name=file.html` for one file. An element not in `block_standard.md` is a design decision: put to
-him and rendered on every page it touches before it is ruled. `gen_competitions.py` (#54's index)
-does not run against today's registry (`intercontinental_super_cup` missing from its map) and is
-off the pages list until it does; the two standards sheets and the three diagrams are not pages.
+`site_v2/src/data/competitions/` first, or the SEO audit refuses the build); `--no-built` for the
+mocks alone; `--page name=file.html` for one file. An element not in `block_standard.md` is a
+design decision: put to him and rendered on every page it touches before it is ruled.
+`gen_competitions.py` (#54's index) does not run against today's registry and is off the pages
+list until it does; the two standards sheets and the three diagrams are not pages.
 
 **HOME IS DONE (#127, `!187`) and THE COMPETITIONS HUB (#128, `!189`).** Go-live items (About,
 Imprint) have no issue — his call. **The roadmap is the GitLab milestones in the site's menu
@@ -102,14 +104,13 @@ cover every match in the window; a thinly covered competition showing blank is c
 short."*). The decision and the consequence, two sentences; process detail stays in the repo.
 Commit, push, retry, rebase and regenerate WITHOUT asking; keep working.
 
-⚠ **THE NIGHTLY OF 2026-09-17 IS RED — prod marts are a day stale.** `fdp-nightly-67bcm` failed
-`assert_fct_fixture_no_stale_live` (one PD fixture, `fixture_sk` 1570385, kicked off 2026-09-16
-19:30 UTC, still `2H` in the 04:05 ingest) and `dbt build` skipped 671 downstream models, so
-`mart_next_matchday` in prod still lacks #149's `is_match_that_matters`. Consequence: `data:build:mr`
-on !196 and !198 (triggered by `scripts/check_*.py`, a `.data_paths_mr` path) runs the singular
-tests deferred to prod and fails three of them; neither MR touches dbt. Retry both jobs once a
-nightly is green. Whether the fixture's status refreshes tonight is the provider's; if it does not,
-it is the stale-live class the test documents — his call, not a code change.
+⚠ **THE NIGHTLY HAS BEEN RED TWO NIGHTS, for two different reasons, both handled.** 2026-09-17:
+one PD fixture stuck at `2H` (`assert_fct_fixture_no_stale_live`) — cleared itself the next
+night. 2026-09-18: `shots_on_goal_pct` > 1 for two UEL teams (the provider sent shots on goal
+without total shots for two play-off games; the form gate read one input) — fixed by !202,
+merged. A red nightly with `severity: error` skips every dependent mart, and an MR's
+`data:build:mr` then fails the singular tests it defers to prod — retry them after a green
+nightly, do not chase them in the MR.
 
 ## ⛔ WHAT 2026-09-08 CHANGED IN PROD — read before trusting an older measurement
 
