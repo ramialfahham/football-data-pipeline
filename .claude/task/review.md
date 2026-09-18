@@ -1,17 +1,17 @@
-# Review — docs/mirror-token-note — 2026-09-18
+# Review — chore/handover-next-is-150 — 2026-09-18
 
-diff_sha256: 0ffcf1f08771681aaf990c93a0b83c61ab7206c92dd34aa1cdb92b58d943efd2
+diff_sha256: 2858453962828b00d578bba5cc9488a54d126a41c2d5e76e847496c1f1129d09
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: `CLAUDE.md` and the contract are the only files in the diff, both in `scope_paths`.
-- Secrets: the new text names the token's type, that it expires, and two permission names; no token value, no expiry date, no credential-shaped string; GitHub's error message is system output.
-- CPO authority: `refs` quotes "go ahead as recommended" with the date and the recommendation it answered.
-- Single-bullet change: only the GitHub-mirror bullet grows; the bullets before and after are untouched.
-- §10: operational documentation of a known fact, not a product, naming, mechanism or cost decision; `decisions_reserved` correctly empty.
+- CPO attribution: the "#150 first" quote at the top of "WHERE WE ARE" matches `refs` exactly; the other references to him are paraphrase of merged rulings, no invented ruling.
+- Scope: only `.claude/active_work.md` and the contract are in the diff, both in `scope_paths`; no §10 decision smuggled in; `decisions_taken: None` is accurate.
+- The mirror paragraph names !204, !206, !207 as merged and #154 as the deferred runbook rewrite; the badge and token items are no longer listed as open.
+- Character cap: estimated well under 16,000 by line count (the builder's direct `len()` read 15,734); no conflict marker of any kind.
+- The tracker snapshot is not regenerated; the contract says why (regenerated minutes earlier; #154 is the only tracker change since and the next session end carries it).
 
 ## escalations
 (none)
