@@ -1,35 +1,34 @@
-# Task contract — CLAUDE.md: what the mirror token needs when it is renewed
+# Task contract — handover: next is #150, then #109 step 3; the mirror items are closed
 
 objective: >
-  One sentence added to the GitHub-mirror bullet in `CLAUDE.md`: the token is a fine-grained
-  personal access token, it expires, and its replacement needs Contents AND Workflows
-  read/write on the one repository — without Workflows GitHub rejects the mirror push because
-  `.github/workflows/README.md` counts as a workflow. Today that fact lives only in the
-  handover, which is rewritten every session.
+  Bring `.claude/active_work.md` to the state after the CPO's ruling of 2026-09-18, "#150 first":
+  the next unit of work is #150 (competition page, Matchdays tab) in a fresh chat, plan mode; #109
+  step 3 follows it, still gated on the 2026-09-19 nightly being green; the README badge (!206) and
+  the token note (!207) are merged, the runbook rewrite is #154. Under 16,000 characters.
 
 refs: >
-  CPO in chat, 2026-09-18: "go ahead as recommended", to the recommendation "one sentence in
-  the mirror bullet of `CLAUDE.md`". The rejection itself was observed on the first mirror
-  sync, 2026-09-18 (`refusing to allow a Personal Access Token to create or update workflow
-  .github/workflows/README.md without workflow scope`).
+  CPO in chat, 2026-09-18: "merged, #150 first", answering the recommendation "#150 first; the
+  nightly check is a two-minute read at the start of whichever chat comes first, and step 3 can
+  follow the builds". !206, !207 merged 2026-09-18; #154 filed 2026-09-18.
 
 scope_paths:
-  - CLAUDE.md
+  - .claude/active_work.md
+  - tests/test_no_dead_issue_refs.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
 
 decisions_taken: >
-  The home is `CLAUDE.md`, not `.github/workflows/README.md`: the same bullet already says
-  where the token lives and who handles it, and it is not a protected path. The expiry date is
-  not written — a date in a durable file goes stale; the sentence says the token expires and
-  where the date is read (GitLab's mirror row shows a red error when it lapses).
+  None. The handover's "next" pointer and the mirror paragraph rewritten to what he decided and
+  merged; the tracker snapshot is not regenerated because the previous handover commit regenerated
+  it minutes ago and the only tracker change since is #154, which the snapshot at the next session
+  end will carry.
 
 decisions_reserved:
   - none.
 
 done_when:
-  - `git diff --stat gitlab/main -- CLAUDE.md` shows one bullet changed; the added text names both permissions and the reason.
-  - `python -m pytest tests/test_governance_doc_parity.py tests/test_no_dead_issue_refs.py -q` green.
+  - `.claude/active_work.md` names #150 as next and #109 step 3 after it; the badge and token items are no longer listed as open; `len()` under 16,000.
 
-amendments: (none)
+amendments:
+  - 2026-09-18, after `test:python` failed on !208: `tests/test_no_dead_issue_refs.py` added to scope. Its `DEAD_GITHUB_ISSUES` list began at 154; GitLab issued #154 today (the runbook rewrite), so the handover's reference tripped the guard. The test's own assertion text prescribes the fix — remove a number only when GitLab has genuinely issued it — and the self-test that pins the guard fires is moved to the next dead number. No other change to the test.

@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-18**, on `chore/session-end-2026-09-18-b`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-18**, on `chore/handover-next-is-150`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,19 +22,19 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**GITHUB IS A READ-ONLY MIRROR OF `main` SINCE 2026-09-18** (his ruling; !204, merged, wrote it
-into `CLAUDE.md`, `.github/workflows/README.md`, the README and the skills). GitLab pushes `main`
-only (push mirror, *Mirror only protected branches*); Actions are disabled at the repository level
-— **the mirror push IS a push to GitHub `main`, and seven workflows trigger on it, so that setting
-must never be flipped** (`.github/workflows/README.md` says why). The token is a fine-grained PAT
-in GitLab's mirror settings, **his, expires 2026-12-17**; its replacement needs **Contents AND
-Workflows read/write** — without Workflows, GitHub rejects the push because `.github/workflows/
-README.md` counts as a workflow (cost one round on setup). `origin` is now reachable and equals
-GitLab's `main` after each sync; still never the base and never pushed to. **Open, his:** the README
-CI badge — the two dead GitHub Actions badges are gone; a live GitLab badge 404s to visitors
-because pipelines are members-only (`public_jobs: false`), so it is "make pipelines public" or a
-static badge; put to him in chat 2026-09-18, unanswered. Also unfiled: `docs/operations_guide.md`
-and `docs/development_workflow.md:62` still describe GitHub Actions as live CI (a runbook rewrite).
+**NEXT = #150, THE COMPETITION PAGE'S MATCHDAYS TAB, in a fresh chat** — his ruling 2026-09-18,
+"#150 first", ahead of #109 step 3. Plan mode; contract first; the design is #129's approved text
+and the block standard, the check is the arbiter (below); the display reviewer routes on
+`site_v2/src/**`. **At the start of that chat, read the 2026-09-19 04:00 UTC nightly** (the first
+after !202): green clears #109 step 3 to follow the builds; red is diagnosed first.
+
+**GITHUB IS A READ-ONLY MIRROR OF `main` SINCE 2026-09-18** (his ruling; !204, !206, !207 merged —
+`CLAUDE.md`'s mirror bullet is the durable text, including what the token's renewal needs).
+GitLab pushes `main` only; **Actions are disabled at the repository level and that setting is
+never flipped** (`.github/workflows/README.md` says why). `origin` equals GitLab's `main` after
+each sync; still never the base, never pushed to. Pipelines stay members-only (his call), so the
+README carries a static `CI · GitLab` badge. The runbook rewrite (operations guide and development
+workflow still describe GitHub Actions as live CI) is **#154**, unscheduled.
 
 **#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED** (!195, !196, !198): the block standard
 `docs/wireframes/block_standard.md`, `system.css`, the lint `scripts/check_page_css.py`, the
@@ -43,7 +43,7 @@ measured check `scripts/check_design_inventory.py`, `validate:ui` running all th
 runs from the project root: a `git worktree` commit is judged against the MAIN tree's index —
 rebind a sibling branch from the main tree, stashing by explicit path.
 
-**#109, THE DBT TESTING STRATEGY, IS TWO STEPS OF THREE DONE — NEXT = STEP 3, in a fresh chat.**
+**#109, THE DBT TESTING STRATEGY, IS TWO STEPS OF THREE DONE — STEP 3 FOLLOWS #150, in a fresh chat.**
 Step 1 (!201, merged): the connective rules in `dbt_project/docs/engineering_standards.md` §3.1–3.5
 (the column class decides the tests; a rate is one definition gated by its inputs, a range test on
 every rate, the guard generated from the catalogue; severity by one question, "would a fan see a
@@ -52,9 +52,9 @@ them is a comment on #109. Step 2 (!202, merged): the two rate guards in `dbt_pr
 assert_*_rates_inputs_covered.sql`, generated at run time from `metric_catalogue.csv`, the first
 tests with `store_failures`; every rate gated on the coverage count of each of its inputs (about
 1,200 form windows and 1,500 team-seasons went to "—", correctly). The nightly of
-2026-09-18 had failed on `shots_on_goal_pct` > 1 — that gate is fixed: **check that the nightly of
-2026-09-19 (04:00 UTC, the first after !202) is green BEFORE starting step 3** — it had not run
-when the 2026-09-18 session ended. **Step 3, the plan is §3.5 and the census:** `store_failures`
+2026-09-18 had failed on `shots_on_goal_pct` > 1 — that gate is fixed; **the 2026-09-19 nightly
+must be green before step 3 starts** (see the top of this section). **Step 3, the plan is §3.5
+and the census:** `store_failures`
 on the other 49 singular tests; a range test on the 92 rates without one; the severity audit of
 the 941 `error` tests under §3.3; the three remaining mechanisms — every listed column described
 (365 undescribed today; a rule to add to `check_description_hygiene.py`), a yml-vs-projection
