@@ -1,143 +1,43 @@
-# Task contract — #153, items 1–3: the element inventory, one stylesheet, the lint, the measured check
+# Task contract — session end 2026-09-17: tracker snapshot refreshed, handover at #153 fully built
 
 objective: >
-  The competition page review (#129) changed six site-wide rules and introduced four elements one
-  page at a time, and each reached another page unseen. #153 asks for the mechanism: one
-  inventory of the site's elements with their rules and measurements, in a document of the design
-  chain; every element's CSS in `site_v2/src/styles/system.css` only; a lint that fails page or
-  mock CSS restyling an inventory selector; a check that renders every design-mock generator and
-  every built page type at 375px and 700px in EN and FI and measures them against the inventory.
-  This MR builds the inventory, the consolidation, the lint and the check and proves them
-  locally; the CI wiring (a protected file) is the next MR. Branch stacked on
-  `feat/153-design-mocks-of-record` (!195: the generators, the pulls, the render naming rule).
+  The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
+  (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py`, and
+  bring the handover (`.claude/active_work.md`) to the current state — #153 fully built: !195
+  and !196 merged, !198 (the CI wiring) awaiting the CPO's merge, the proof done on its own
+  closed MRs (!199, !200), the two rulings of the day, the one default on !196's head — under
+  16,000 characters.
 
 refs: >
-  #153 (items 1–3 of "What exactly"; its How, rewritten 2026-09-17 to the approved plan); #129
-  (the approved design and the rules that bind every block); #127 (Home's corrections of
-  2026-09-16); #50 (the match row standard); #52 (the interaction standard); the #153 plan
-  approved in plan mode on 2026-09-17 (`~/.claude/plans/streamed-twirling-horizon.md`).
+  `CLAUDE.md` "At the end of every session, before the handover commit, run
+  `python scripts/snapshot_tracker.py`"; #153; !195; !196; #129 (the two rulings written in today).
 
 scope_paths:
-  - docs/wireframes/block_standard.md
-  - docs/wireframes/00_overview.md
-  - site_v2/src/styles/system.css
-  - site_v2/src/components/competition/CompetitionTabs.astro
-  - site_v2/src/components/fixture/Masthead.astro
-  - site_v2/src/i18n/strings.ts
-  - site_v2/src/specs/competition/index.spec.json
-  - design-mocks/rows.py
-  - design-mocks/interaction.py
-  - design-mocks/gen_top_teams.py
-  - design-mocks/gen_top_players.py
-  - design-mocks/gen_home.py
-  - design-mocks/gen_matches.py
-  - design-mocks/gen_block_standard.py
-  - design-mocks/gen_competition_hub.py
-  - design-mocks/gen_competition_matchdays.py
-  - design-mocks/gen_competition_teams.py
-  - design-mocks/gen_overview_after_teams.py
-  - design-mocks/gen_home_with_rules.py
-  - design-mocks/gen_competitions.py
-  - design-mocks/gen_interaction.py
-  - design-mocks/gen_diagnostic.py
-  - design-mocks/check_row_consistency.py
-  - design-mocks/check_home.py
-  - design-mocks/check_players.py
-  - design-mocks/check_teams.py
-  - design-mocks/check_competition_hub.py
-  - design-mocks/scan_clickables.py
-  - design-mocks/README.md
-  - design-mocks/renders/*_2026-09-17_*.html
-  - scripts/design_inventory.py
-  - scripts/check_page_css.py
-  - scripts/check_design_inventory.py
-  - tests/test_design_inventory.py
-  - tests/fixtures/design_inventory/red.html
-  - tests/fixtures/design_inventory/green.html
-  - requirements-ui.txt
-  - .claude/skills/validate-local/SKILL.md
+  - docs/tracker/gitlab_snapshot.md
+  - .claude/active_work.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
-  - .claude/task/acceptance_evidence.md
-  - .claude/task/rendered_page_evidence.md
-
-impact_map: >
-  writers: none in the warehouse — no raw writer, no dbt model, no export script changes. The
-  structural surface touched is consumption: `site_v2/src/styles/system.css` (the one stylesheet,
-  imported once by `site_v2/src/layouts/Layout.astro:7`, so every built page reads it),
-  `CompetitionTabs.astro` (the competition page's tab bar, four tabs today → the three approved
-  on #129), `Masthead.astro` (one inline `style=` on an `.eyebrow`), `strings.ts` (one copy key
-  for the Rankings tab).
-  downstream: every built page type — Home, the competitions index, the competition Overview, the
-  match page, the team page, the player stub — takes the stylesheet's values: block names 13px
-  (11 today), the hover tint ink 11% (`--surface` today), fact values bold 15px accent, the
-  ordered-by number's colour on the deserved table, the tab bar's fit rule, plus the row rules the
-  site lacked (`.dh`, `.rowtz`, `.g.winner`, names wrapping). Counted from the pages list in
-  `docs/wireframes/block_standard.md`; the measured check reads every one of them.
-  layer_rules: none of `check_layer_contract`'s; the export selects and renders (#129's binding
-  rule) and nothing here computes. `scripts/check_ui_i18n_metrics.py` and `check_copy_gate.py`
-  cover the copy key.
-  deploy_order: nothing reaches a host on merge — `deploy:site-v2` is manual-only (`web` source);
-  the built site is unlisted and `noindex`. No warehouse ordering, no nightly interaction.
-  blast_radius: every built page's CSS values as listed; no number a page displays changes (the
-  values are the same mart columns, styled). The design-mock generators lose their own CSS
-  strings and read the stylesheet alone, so their renders change by the consolidated CSS only —
-  the markup is diffed byte-identical against the renders of record as an acceptance criterion.
-
-acceptance_criteria:
-  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0 with every page in the inventory's pages list rendered at 375 and 700 in EN and FI, from a local `astro build` of the committed sample data; the summary line and any WARN lines pasted.
-  - `python scripts/check_page_css.py` exits 0 on the tree; run against the tree BEFORE the consolidation it reports the six mock CSS strings and the Masthead attribute (pasted).
-  - `python -m pytest tests/test_design_inventory.py -q` green, including the RED proof: `tests/fixtures/design_inventory/red.html` fails on exactly the block heading (11px), the heading gap (49px and 23px), the hover tint (`--surface`), the stripe phase (from row 1) and the tab-bar fit, and `green.html` passes with every exercised inventory row matched at least once.
-  - The built competition Overview at `/en/bundesliga/` shows three tabs — Overview · Matchdays · Rankings — and `nav.tabs` measures `scrollWidth <= clientWidth` at 375px in EN, DE and FI (the check's output for the DE run pasted too).
-  - Each of the four generators of record re-rendered after the consolidation: the HTML outside `<style>` is byte-identical to the corresponding `design-mocks/renders/*_2026-09-16_01.html` (a diff restricted to the markup pasted as empty) — except the Matchdays render, where the picker's radio, step and schedule of each matchday are nested in one `.md[data-md]` wrapper so the switching is generic CSS; that diff is pasted and contains nothing but the nesting. All four rendered pages measure green.
-  - `docs/wireframes/block_standard.md` carries every element of the approved plan's table with selector, rule, `Measured as`, status and where it was ruled; `docs/wireframes/00_overview.md`'s owner table names it; `grep -c "Measured as" docs/wireframes/block_standard.md` is 1 and `python scripts/design_inventory.py --count` prints the row counts.
-  - `grep -rn "<style" site_v2/src` prints nothing, and no CSS string in `design-mocks/*.py` touches an inventory class (the lint's own output).
 
 decisions_taken: >
-  Two were the CPO's at planning, to blinded two-path questions in chat on 2026-09-16: the check
-  measures pages in headless Chromium via Playwright for Python ("Headless Chromium via
-  Playwright, Python"), and review renders are tracked in git in a renders folder. The plan
-  carrying them and this MR's content was approved in plan mode on 2026-09-17. Taken here under
-  it, as implementation: the inventory document's shape (two tables, a small readable "Measured
-  as" notation the check parses, failing closed on anything unknown); the check's flags, report
-  shape and tolerances (±0.5px, ±1/255 colour); the lint's scan set; the design mocks losing every
-  CSS string that touches an inventory class (`ROW_CSS`, `INTERACTION_CSS`, the board `MOCK_CSS`
-  in `gen_top_*`, the four overlays' CSS) and their checks losing the assertions about that CSS
-  and the stale `competition_hub_mock.html` input; the picker's per-matchday switching made
-  generic CSS by nesting each matchday's radio, picker step and schedule in one `.md[data-md]`
-  wrapper; the three-tab bar in `CompetitionTabs.astro` (ruled on #129: "three tabs, Overview ·
-  Matchdays · Rankings"; without it the built Overview fails the tab-bar measurement); the
-  `compTabRankings` copy EN "Rankings" and FI "Rankingit" from the approved mock. The document's
-  name `block_standard.md` is #153's own words ("the block standard"). Thresholds: one new
-  dependency for the check, `playwright` in `requirements-ui.txt` (the CPO's answer above),
-  pinned exactly beside `pytest` (already in `requirements.txt`) and `tzdata` (the IANA zone
-  database `zoneinfo` needs on Windows, where the generators render kick-offs in the venue
-  clock); no recurring cost until the CI MR, where it is stated with the number.
+  None. A generated file regenerated by its one writer, on a branch from `gitlab/main`; the
+  handover's state paragraphs rewritten to what is true now. No code, no model, no document
+  edited by hand.
 
 decisions_reserved:
-  - (a) RULED 2026-09-17, in chat, after both variants were rendered on Home and Rankings (`design-mocks/renders/home_2026-09-17_02.html`, `competition-rankings_2026-09-17_02.html`): "Home with line, Rankings without" — two headings, each as approved: the competition group head over match rows keeps its 2px line (#50), the metric group heading over boards carries none. Written into #129's Rankings section; nothing changes on either page.
-  - (b) RULED 2026-09-17, in chat, after both variants were rendered on the Overview and the group-stage page (`competition-overview_2026-09-17_02.html`, `competition-hub-groups_2026-09-17_01/02.html`): "head only" — the head rule is a table's only line; the Table and the Deserved table lose their row lines. Written into #129's Table block.
-  - The DE copy of the Rankings tab label (EN "Rankings", FI "Rankingit" are the approved mock's; #129 gives no DE), put to the CPO on the MR.
-  - The breadcrumb's current-page colour: the shipped site has the current page `ink-2` and the links muted; #52's mock CSS had the two inverted, and every render inlined it. Neither was ruled on its own. The inventory row is `proposed` (measured and reported, never fails) with the site's value, and the question goes to the CPO on the MR; whichever he rules, the row becomes `ruled` with that value and the stylesheet follows.
-  - Any element or rule not in the approved plan's table is a CPO decision on its page's issue and is not decided here; an element the check finds on a page and the inventory does not name is reported, not styled.
+  - none: the snapshot is generated by `scripts/snapshot_tracker.py` and the handover records state the CPO already ruled today; this contract changes nothing else.
 
 done_when:
-  - The two rulings recorded on #129 (edited in place) and in the inventory's rows.
-  - Every acceptance criterion demonstrated in `.claude/task/acceptance_evidence.md` from built or rendered output.
-  - `ruff check . --config .ruff-ci.toml` clean; the fast offline gates green; `python -m pytest tests/ -q` green (the browser tests skip where Chromium is absent and run where it is).
-  - `python .claude/hooks/comment_history_gate.py` flags nothing in the new and edited code files.
-  - The MR open against `main` from the stacked branch with the checklist ticked and `Locked files: none`; rebased onto `main` once !195 merges.
+  - `python scripts/snapshot_tracker.py` run once; `python -m pytest tests/test_tracker_snapshot.py -q` green.
+  - `len()` of `.claude/active_work.md` under 16,000 characters; the stop gate accepts it.
+  - The MR merges with the snapshot, the handover and this contract only.
 
 amendments: >
-  2026-09-17, before the first commit, on a clean tree: `design-mocks/gen_competitions.py`,
-  `gen_interaction.py` and `gen_diagnostic.py` added — the first two inline the shared mock CSS
-  the consolidation removes (`ROW_CSS`, `INTERACTION_CSS`) exactly as the six generators already
-  listed do, and were missed from the list; the third exists only to compare `system.css` with
-  `ROW_CSS` layer by layer and has no purpose once the two are one, so it is deleted. Authority:
-  this contract's own decision that the design mocks lose every CSS string touching an inventory
-  class (the approved plan, MR 2 step 4); no new decision.
-  2026-09-17, same day, on a clean tree: `site_v2/src/specs/competition/index.spec.json` added —
-  the page spec lists the tab bar's copy keys, and `check-page-specs.mjs` fails a key the EN
-  dictionary no longer has; the three-tab bar (already in `decisions_taken`, ruled on #129)
-  replaces `compTabTeams` and `compTabPlayers` with `compTabRankings` there too. No new decision.
+  Second commit, the same evening: the handover moved on — !195 merged, the CI wiring built and
+  open as !198 — so the objective above says so; the snapshot regenerated once more. Same scope.
+  Third commit, the same night: the throwaway proof done on its own branch at the CPO's
+  instruction (!199, closed); the handover's open item is now the step-order question on !198's
+  head; the snapshot regenerated again. Same scope.
+  Fourth commit, the next morning: !196 merged and this branch rebased onto it (the three
+  paperwork files collided, this branch's versions kept); the handover says !196 is merged and
+  !198 alone awaits the merge; the snapshot regenerated. Same scope.

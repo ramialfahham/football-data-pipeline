@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-16 (evening)**, on `chore/session-end-2026-09-16b`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-17 (night)**, on `chore/session-end-2026-09-17`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -14,125 +14,131 @@ right after creating a branch**, and push with `git push gitlab <b>:<b>`, verify
 ⛔⛔ **DO NOT TOUCH `glab auth` OR INSTALL A PROJECT TOKEN. 2026-09-03 cost a full day.** ONE
 credential per MACHINE — re-authing it broke two other repos. The safeguard that the agent never
 merges is **branch protection** plus the memory rule **never merge**; NOT a token, NOT a hook.
-⛔ **`fix/merge-guard-covers-the-api` IS DEAD** — 11 rounds, judged over-engineering, DISCARDED.
-⛔⛔ **CI HAS NO FALLBACK.** `shared_runners_enabled=false`, so **`ci-runner-01` is the ONLY runner**
-— a dead box means pipelines QUEUE, they do not fail over. ⚠ `~/.ssh/id_ed25519` is
-PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a broken key.
+⛔ `fix/merge-guard-covers-the-api` IS DEAD (discarded as over-engineering). ⛔⛔ **CI HAS NO
+FALLBACK:** `ci-runner-01` is the ONLY runner — a dead box means pipelines QUEUE. `~/.ssh/id_ed25519`
+is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a broken key.
 ⚠ **A GROUP MOVE IS COMING**; it changes the project PATH, breaking remote URLs, the WIF binding on
 `attribute.project_path`, and every hardcoded `rami.al-fahham/football-data-pipeline`.
 
 ## ⛔ WHERE WE ARE
 
-**THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16) — content-wise done; the CPO will NOT
-re-check pages by eye.** The design is #129's `The approved design`: **three tabs, Overview ·
-Matchdays · Rankings** (Rounds for a cup), header identical on every tab, no page title, no sentence
-outside the Overview. Overview = Table · **Deserved points table** (full table by deserved points:
-# · club · Balance · Deserved · Pts · Diff) · The season in numbers (six fact rows, every one a link
-to a leaderboard, #140); **Next matches struck** (the Matchdays tab opens on it). Matchdays =
-`/fixtures/`, the picker ‹ MATCHDAY N › with a Next tag, the **Schedule** block, every row a link
-(played → match page #132; unplayed → preview page, form as of today), **Top match** tag on the
-flagged row, TBC for no kick-off. Rankings = two blocks **Team rankings** (12 boards) and **Player
-rankings** (13 boards), the metric groups from the catalogue (#152: `duels` → `one_on_one`,
-"One-on-one"), boards as striped tables, five rows, dense rank shown, no zero rows on a most-first
-board. The four renders of record: `competition-overview`, `competition-matchdays`,
-`competition-rankings`, `home`, all `_2026-09-16_01.html`, in the session scratchpad
-(`C:/Users/Rami/AppData/Local/Temp/claude/D--Projects-football-data-pipeline/<session>/scratchpad`)
-with their generators `gen_competition_matchdays.py`, `gen_competition_teams.py`,
-`gen_overview_after_teams.py`, `gen_home_with_rules.py` and the data pulls — **#153 brings them
-into `design-mocks/`; do that before anything else is rendered.**
+**#153, THE DESIGN-SYSTEM MECHANISM, IS FULLY BUILT AND WAITING ON HIS MERGE.** **!195** MERGED
+2026-09-17 (the four generators of record and their five `bq` pulls in `design-mocks/`, the render
+naming rule — `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`, tracked, `render.py` picks the
+number, never overwritten; #153 items 4+5). **!196** MERGED 2026-09-18
+(`feat/153-design-inventory`: the block standard
+`docs/wireframes/block_standard.md` (40 elements · selector · rule · `Measured as` · status · ruled
+on, and the 18 pages the check measures), every element's CSS in `system.css` alone (the mocks lost
+`ROW_CSS`, `INTERACTION_CSS`, the board CSS and the four overlays' CSS; `gen_diagnostic.py` gone),
+`scripts/check_page_css.py` (the lint), `scripts/check_design_inventory.py` (the measured check:
+Playwright, 375/700, EN/FI, 82 renders green, 252 failures on the tree before), a RED fixture,
+`requirements-ui.txt`, the built competition tab bar to the three approved tabs; #153 items 1–3).
+and **!198** OPEN, the one MR left (`feat/153-check-in-ci`: the check in CI — `validate:ui` on
+`mcr.microsoft.com/playwright/python:v1.63.0-noble`, `needs: [build:site-v2]` in the `build` stage,
+one `ui_paths` anchor for both jobs, `build:site-v2` keeps `site_v2/dist` as an artifact; the job
+runs the lint, the CHECK, then the inventory tests (the check first, pinned: the tests' green
+fixture reads the live stylesheet and would stop the job before the check reached the pages);
+pinned by tests, including "every package a job file imports is in `requirements-ui.txt`" — the
+first pipeline was red on exactly that, PyYAML; green now: `72 renders · 0 failures` in 62 s).
+The throwaway 11px proof is DONE, twice: !199 (CLOSED) went red one step early, at the fixture —
+his reply "fail"; !200 (`proof/153-red-at-the-check-step`, CLOSED, never merged, branch kept) red
+AT THE CHECK: 60 `Block heading` lines on 15 of 18 pages, the artifact with 60 screenshots, in
+67 s. Nothing open on !198 but his merge. **When !198 merges, #153 closes; then #150/#151 do not
+merge until the check passes on their pages and on Home.**
+⚠ The commit gate runs from the project root: a `git worktree` commit is judged against the MAIN
+tree's index — rebind a sibling branch from the main tree, stashing by explicit path.
 
-**Build issues, all gated on #153:** **#150** Matchdays (the competition-season fixtures mart,
-the picker, the tag; the build must carry every unplayed match page of every competition — a
-founding requirement, `docs/north_star.md` "Scale ambition", merged today as `!193`: value decides
-what is built, scale is never the argument, money is always asked with the number) · **#151** the
-Rankings tab + the Overview rework + the page-wide rules (13px block names; 14px heading gap;
-ordered-by number bold accent everywhere, fact values included; one hover tint for every row link,
-visible against a stripe; stripes counted from the head row; every title at the block's left
-edge; tab bar fits at 375px; the card metrics; `clean_sheets` → format `integer`, `points_won`
-keeps `13/15`) · **#152** metric groups (key, `metric_group_order`, names as copy in EN/DE/FI;
-closes #98) · **#153 the design-system mechanism: the element inventory in the block standard,
-CSS only in `system.css`, a cross-page measured check in `validate:ui`, a lint on page CSS, the
-render naming rule `<page>_<YYYY-MM-DD>_<nn>.html`.** Home's corrections are on **#127** (boards
-as single-value tables, the Top match tag on its rows, the page rules).
+**One default on !196's head for him:** the breadcrumb's current-page colour (the site: the page
+you are on `ink-2`, links muted; the mocks had it inverted; the inventory row is `proposed` —
+measured, never fails — until he rules; then `ruled` and the stylesheet follows). The DE tab
+label is ruled: "Rankings" in all three languages, written into #129.
+**Ruled 2026-09-17 in chat, written into #129:** (a) "Home with line, Rankings without" — two
+headings: the competition group head over match rows keeps its 2px line, the metric group heading
+over boards has none; (b) "head only" — a table's rows carry no line, the head rule is the only
+one. The variant renders he saw are `design-mocks/renders/*_2026-09-17_0[12].html`. ⚠ **A ruling
+request is ONE question, then a 2×2 table (page × variant → file), then the recommendation** —
+four files with a caption got "What am I supposed to decide?"; his answer may split by context.
 
-⚠ **The day's lesson, his words: "you just change things and break things hidden somewhere else …
-this way we will never complete this website."** Every new or changed element today (picker, tag,
-table head, hover tint, heading size, stripe start, title edge) reached Home or the Table unseen.
-**Before rendering anything: list every element used, mark the site's / changed / new; a new or
-changed element is put to him and rendered on EVERY page it touches before it is ruled.** Measure,
-never eyeball. No "clean stop" mid-page. Memory: `feedback_design_discipline.md`.
+**THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.**
+#129's `The approved design` is the text: three tabs, Overview · Matchdays · Rankings. **Build
+issues, gated on #153:** **#150** Matchdays · **#151** Rankings + the Overview rework · **#152**
+metric groups; Home's corrections on **#127**. The page-wide rules live in the block standard and
+`system.css`, measured — the builds compose from them and add nothing of their own.
 
-**Next:** #153 first (it gates #150/#151), then the builds; the roadmap continues with the Matches
-milestone (#130, #131, #132 — #132 carries the future-match-page direction and the clean-sheets
-pointer). Open dependencies the page picks up when they land: #105, #145, #146, #148, #69.
+**The measured check is the arbiter now.** `python scripts/check_design_inventory.py --dist
+site_v2/dist` (build first: `cd site_v2 && npm run build`; park any untracked export payload under
+`site_v2/src/data/competitions/` first — `DFBP`, `EURO` sit in the session scratchpad
+`parked_data/`, or the SEO audit refuses the build); `--no-built` for the mocks alone; `--page
+name=file.html` for one file. An element not in `block_standard.md` is a design decision: put to
+him and rendered on every page it touches before it is ruled. `gen_competitions.py` (#54's index)
+does not run against today's registry (`intercontinental_super_cup` missing from its map) and is
+off the pages list until it does; the two standards sheets and the three diagrams are not pages.
 
-**HOME IS DONE (#127 approved, #143 merged as `!187`)** — with today's corrections on #127. **THE
-COMPETITIONS HUB IS DONE (#128, `!189`).** Go-live items (About, Imprint) have no issue — his call.
+**HOME IS DONE (#127, `!187`) and THE COMPETITIONS HUB (#128, `!189`).** Go-live items (About,
+Imprint) have no issue — his call. **The roadmap is the GitLab milestones in the site's menu
+order: Home · Competitions · Matches · Teams · Players · Standings · Leaderboards** — one review
+issue per page (#127–#140), approved on the issue before anything is built; after #153 and the
+competition builds comes the Matches milestone (#130, #131, #132); dependencies the page picks up
+when they land: #105, #145, #146, #148, #69. `docs/tracker/gitlab_snapshot.md` is written only by
+`python scripts/snapshot_tracker.py`, at the END of every session.
 
-**THE ROADMAP IS THE GITLAB MILESTONES, IN THE SITE'S MENU ORDER: Home · Competitions · Matches ·
-Teams · Players · Standings · Leaderboards.** One review issue per page (#127–#140), approved by
-the CPO on the issue before anything is built; build issues only against an approved review.
-**The tracker has a backup in the repo** (`docs/tracker/gitlab_snapshot.md`, written only by
-`python scripts/snapshot_tracker.py`, run at the END of every session before the handover commit).
-
-**How we work since 2026-09-11** is in `CLAUDE.md` "Which source answers which question" and
-`docs/working_agreement.md` §1 / §11: the requirement is the GitLab issue (Task template), the
-plan is its How, a decision is recorded by the thing it changes (`escalations.log` is FROZEN), the
-MR head is his check (`Closes #N`, ticks with links, `Locked files`) and **his merge is the
-approval** — set it with `glab mr update <n> --description` right after the hook opens the MR.
-**The stop gate blocks a turn that ends with anything in `git stash`**; parked work goes on a
-pushed `parked/<branch>` (ten exist, five dead per `!173`, deleting them is his).
+**How we work since 2026-09-11** is `CLAUDE.md` "Which source answers which question" and
+`docs/working_agreement.md` §1 / §11: the requirement is the issue (Task template), the plan its
+How, a decision is recorded by the thing it changes (`escalations.log` FROZEN), the MR head is his
+check and **his merge is the approval** — set the head with `glab mr update <n> --description`
+right after the hook opens the MR. **The stop gate blocks a turn ending with anything in
+`git stash`**; parked work goes on a pushed `parked/<branch>` (ten exist, half dead).
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
 (stash commit; untracked files in its third parent — `git stash apply parked/feat/player-overview-tab`)
 and carries a KNOWN-WRONG default-season rule (see #118). The four-tab decision (2026-07-27) is
 preserved on `archive/docs-handover-player-tabs-and-seo` and recorded in #118.
 
-⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`.** It is short and it is the map: where a
-metric is defined, which model computes it, what makes it NULL, what CI will fail you on. The
-incomplete-data rule lives there — a metric is NULL unless its inputs cover every match in the
-window, and a thinly covered competition showing blank is correct output.
+⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`** — where a metric is defined, which
+model computes it, what makes it NULL, what CI fails you on. A metric is NULL unless its inputs
+cover every match in the window; a thinly covered competition showing blank is correct output.
 
-⚠ **HE HAS SAID, MORE THAN ONCE, THAT THE VOLUME IS THE PROBLEM** (*"A wallpaper of text"*; *"Explain
-like I'm twelve. Keep it short."*). Give him the decision and the consequence, in two sentences.
-Process detail, round counts, gate mechanics and hash rebinding go in the repo — never in a message
-to him. Commit, push, retry, rebase and regenerate WITHOUT asking. And keep working — three times
-in one session he asked "you waiting for something?".
+⚠ **THE VOLUME IS THE PROBLEM** (*"A wallpaper of text"*; *"Explain like I'm twelve. Keep it
+short."*). The decision and the consequence, two sentences; process detail stays in the repo.
+Commit, push, retry, rebase and regenerate WITHOUT asking; keep working.
+
+⚠ **THE NIGHTLY OF 2026-09-17 IS RED — prod marts are a day stale.** `fdp-nightly-67bcm` failed
+`assert_fct_fixture_no_stale_live` (one PD fixture, `fixture_sk` 1570385, kicked off 2026-09-16
+19:30 UTC, still `2H` in the 04:05 ingest) and `dbt build` skipped 671 downstream models, so
+`mart_next_matchday` in prod still lacks #149's `is_match_that_matters`. Consequence: `data:build:mr`
+on !196 and !198 (triggered by `scripts/check_*.py`, a `.data_paths_mr` path) runs the singular
+tests deferred to prod and fails three of them; neither MR touches dbt. Retry both jobs once a
+nightly is green. Whether the fixture's status refreshes tonight is the provider's; if it does not,
+it is the stale-live class the test documents — his call, not a code change.
 
 ## ⛔ WHAT 2026-09-08 CHANGED IN PROD — read before trusting an older measurement
 
 Awarded results count as played; the override seed is `fixture_team_id_overrides` for all three
 fixture-level feeds; the freshness guard ignores `SUSP`/`INT`.
 `assert_team_season_games_not_short_of_standings` is WARN and RED on 3 rows by design (#110 plus
-Al Wehda AFCCL 2021). **Prod is correct; nothing is owed.**
+Al Wehda AFCCL 2021). **Prod is correct.**
 
-⛔⛔ **A CORRECTION IN BASE DOES NOT REACH AN INCREMENTAL FACT.** Only three models are
-incremental — `fct_fixture_event`, `fct_fixture_player_stats`, `fct_fixture_team_stats`; their
-filter `raw_ingested_at > max(target)` never advances for a finished fixture, and the stats keys
-INCLUDE `team_id`, so a merge inserts a corrected row and strands the old one. **The fix is a
-one-off `dbt build --full-refresh --select <facts>`, the CPO's to run.** Check it is lossless
-first (fact rows vs base): on 2026-09-08 `fct_fixture_event` held 17 rows base no longer emits.
-⭐ Compiling a model and running it read-only against prod measures the LOGIC, never what the
-incremental TABLE contains.
+⛔⛔ **A CORRECTION IN BASE DOES NOT REACH AN INCREMENTAL FACT** (`fct_fixture_event`,
+`fct_fixture_player_stats`, `fct_fixture_team_stats`): a merge inserts the corrected row and
+strands the old one. **The fix is a one-off `dbt build --full-refresh --select <facts>`, his to
+run**, checked lossless first — on 2026-09-08 `fct_fixture_event` held 17 rows base no longer
+emits. Compiling a model read-only against prod measures the LOGIC, never the TABLE's contents.
 
 ## ⛔ THE ROUND CAP (3) — the override practice, settled by use, never ruled
 
 Past the cap, write a `rounds_cap_override:` in `review.md` that clears a standing FAIL BY REVIEW
-and says he did not rule on the cap (`!172`–`!174` did). Keep rounds down by checking a claim
-before asserting it. ⚠ **Never ask him to approve routine mechanics** — ask about the RULE.
+and says he did not rule on the cap. Keep rounds down by checking a claim before asserting it.
+⚠ **Never ask him to approve routine mechanics** — ask about the RULE.
 
 ## ⛔ PARKED: the dbt profile MR — TWO OPEN FAILS
 
-Branch `fix/dbt-profile-local-to-this-repo`; the WIP is on
-`parked/fix/dbt-profile-local-to-this-repo--profile-root` (and `…--profile-local-3`). The repo-local
-`profiles.yml` at the ROOT is the fix (dbt reads `--profiles-dir` → `DBT_PROFILES_DIR` → **CWD** →
-`~/.dbt`; every CI job does `cd dbt_project`, so a root profile never shadows CI's). Open: (1) a
-stale `decisions_taken` paragraph saying the file goes in `dbt_project/`; (2) **`.mcp.json` sets
-`DBT_PROFILES_DIR: C:/Users/Rami/.dbt`**, a PROTECTED path that outranks the fix. ⚠ Deliberately
-**no `prod` target** in the local profile: a prod target needs `dataset: dbt_analytics`, the line
-that overwrites prod's base tables and seeds if a build ever selects one. Meanwhile `dbt ls` /
-`parse` / `compile` work with a throwaway profile in the scratchpad (`DBT_PROFILES_DIR`, target
-`dev_scratch`) — `~/.dbt/profiles.yml` currently holds ANOTHER project's profile; never edit it.
+Branch `fix/dbt-profile-local-to-this-repo`; WIP on `parked/fix/dbt-profile-local-to-this-repo--profile-root`.
+The repo-local `profiles.yml` at the ROOT is the fix (dbt reads `--profiles-dir` → `DBT_PROFILES_DIR`
+→ **CWD** → `~/.dbt`; every CI job does `cd dbt_project`). Open: (1) a stale `decisions_taken`
+paragraph saying `dbt_project/`; (2) **`.mcp.json` sets `DBT_PROFILES_DIR: C:/Users/Rami/.dbt`**, a
+PROTECTED path that outranks the fix. **No `prod` target** in the local profile, ever (it is the
+line that overwrites prod's base tables). `dbt ls` / `parse` / `compile` work with a throwaway
+profile in the scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` is ANOTHER project's.
 
 ## ⛔ OPEN — DEFECTS TO FIX (not decisions to wait on)
 
@@ -142,10 +148,10 @@ that overwrites prod's base tables and seeds if a build ever selects one. Meanwh
     competition-relative signal, not a blanket rule. Everything measured is on the issue.
   - **#111 — no test compares a metric to its own formula.** The catalogue publishes
     `base_relation` + `numerator_expr` + `denominator_expr`; the models compute the same metric in
-    SQL; nothing checks they agree. `assert_metric_catalogue_expr_resolvable` already parses those
-    expressions and binds them — it just never evaluates them. No dbt unit tests exist either.
+    SQL; nothing checks they agree. `assert_metric_catalogue_expr_resolvable` parses and binds
+    those expressions — it never evaluates them. No dbt unit tests exist either.
   - **#109** — no end-to-end dbt test strategy, and no rule for when a NULL is a defect rather than
-    the honest answer. Filed at the CPO's instruction; #111 is one concrete piece of it.
+    the honest answer. Filed at his instruction; #111 is one concrete piece of it.
   - **#108** — rounding is business logic and `DeservedHero.astro:79` does it in the browser.
   - **The mid-season deserved-vs-actual line and its start matchday** — both open, and they gate
     showing that hero on live data.
@@ -158,15 +164,12 @@ that overwrites prod's base tables and seeds if a build ever selects one. Meanwh
 
 ## ⛔ WHAT ACTUALLY FINDS DEFECTS — the blinded review and CI, almost never a gate
 
-Across `!156`/`!157`/`!159` (13 rounds) and `!191` (5 rounds) every FAIL came from a reviewer or
-the pipeline; parse, lint and the offline gates were green over all of them. **Almost every
-defect was a claim asserted without opening the file** — open it, do not recall it. A class recurs
-until the RIGHT tree is swept, two-sided ("1 moves, 4 stay"); mutation-test against the mutation
-the design is defended against; a reviewer's flagged-but-not-failed trade-off is still a trade-off;
-**rewrite the design, rewrite the paperwork** (acceptance criteria describing a previous design
-were found by reviewers on `!159` and on `!191`). What `!191` added: an invented locale format
-(a German score colon) with no authority; a catalogue flag set against its own direction; a
-`ruff` finding only CI runs.
+Across `!156`–`!159`, `!191`, `!195`–`!198` every FAIL came from a reviewer or the pipeline; the
+offline gates were green over all of them. **Almost every defect was a claim asserted without
+opening the file** — open it. Sweep the RIGHT tree, two-sided; mutation-test against the mutation
+the design is defended against (`!195` round 2); a row marked ruled while a note says "put to him"
+is a decision taken (`!196` round 1); Windows green, Linux red: an unsorted listing (`!195`), a
+package the workstation has and the job's image does not (`!198`) — both found by CI.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 
@@ -175,31 +178,30 @@ marks a file resolved WITHOUT reading it, and every gate and CI passed with a ma
 **Grep all four**, and prove a union structurally (`diff -q` each side against the resolved
 head/tail; check the lengths sum).
 ⚠ **On a sibling-MR rebase the CODE merges cleanly and the PAPERWORK collides** — `contract.md`
-and `review.md` are per-task and one side wins; regenerate and re-review. (The log is frozen, so
-its union problem is gone.)
+and `review.md` are per-task and one side wins; regenerate and re-review.
 ⛔⛔ **"MERGED" IS A CLAIM TO VERIFY, and `--is-ancestor` IS NOT THE CHECK** — it called 20 of 22
 landed branches unmerged. Use `git cherry gitlab/main <branch>` (`+` = not upstream). Deleting an
-open MR's source branch CLOSES the MR.
+open MR's source branch CLOSES the MR. ⚠ A stacked branch that reverts its base's change shows
+NO hunk in the cumulative patch vs `main` — give reviewers the diff vs the parent commit too.
 ⚠ **`git pull` on main hits the DEAD GitHub `origin` and 403s.** Use `git pull --ff-only gitlab main`.
 ⚠ **The push guard refuses EVERY push while standing on main.** Branch to a throwaway to push
 deletions. It reads the CURRENT branch, so `checkout && push` in one call is blocked as a whole.
 ⛔⛔ **`--review-patch` PRINTS; only a REDIRECT writes the file.** Run bare it leaves the previous
-round's patch on disk, exit 0 — that served reviewers a stale diff on `!132` and `!151`, and on !156
-a patch generated BEFORE a fix made a reviewer FAIL on something already fixed.
-**Regenerate it immediately before every round, after `git add -u`.**
+round's patch on disk, exit 0 (stale diffs served on `!132`, `!151`, `!156`). **Regenerate it
+immediately before every round, after `git add -u`.**
 ⭐ Free tell: `--staged-hash` printing `e3b0c442…` = `sha256("")`, an empty staged diff.
 ⚠ **CP1252, NOT UTF-8, IN BOTH DIRECTIONS on this machine.** `subprocess.run(..., text=True)` and the
 `bq` CLI's CSV output are both cp1252. Capture BYTES, decode utf-8 first with a cp1252 fallback.
-⚠ **SQLFluff exits 1 ON SUCCESS when stdout is redirected** (emoji + CP1252). Read exit codes BARE
-and UNREDIRECTED, or set `PYTHONIOENCODING=utf-8`.
+⚠ **SQLFluff exits 1 ON SUCCESS when stdout is redirected** (emoji + CP1252). Read exit codes
+bare, or set `PYTHONIOENCODING=utf-8`.
 
 ## Method that works
 
 Contract FIRST on a clean tree (stash by explicit path with a `TEMP-` label; after the edit
 `git stash pop` REFUSES because the stash carries the pre-edit contract — restore with
-`git checkout stash@{0} -- <paths>` then `git stash drop`, inside the same turn). Then gates unpiped
-with exit codes read bare, mutations watched RED, blinded reviewers, `review.md` with
-`--staged-hash`. Rounds are PER REVIEWER. Each section needs `## <exact-routing-key>`, `VERDICT:`,
-then `risks_checked:`. ⚠ **`contract.md` is INSIDE the review hash**; amend BEFORE the round.
+`git checkout stash@{0} -- <paths>` then `git stash drop`, inside the same turn). Then gates with
+exit codes read bare, mutations watched RED, blinded reviewers, `review.md` with `--staged-hash`.
+Rounds are PER REVIEWER; each section `## <exact-routing-key>`, `VERDICT:`, `risks_checked:`.
+⚠ **`contract.md` is INSIDE the review hash**; amend BEFORE the round.
 ⚠ `acceptance_evidence.md` needs `criteria_demonstrated:` at **column 0** — `## criteria_demonstrated:`
 is invisible to the parser — with one 15+ character bullet per criterion.
