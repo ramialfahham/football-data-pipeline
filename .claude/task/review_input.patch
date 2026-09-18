@@ -1,403 +1,111 @@
-diff --git a/.claude/skills/onboard-competition/SKILL.md b/.claude/skills/onboard-competition/SKILL.md
-index fc7cf106..f47a8e42 100644
---- a/.claude/skills/onboard-competition/SKILL.md
-+++ b/.claude/skills/onboard-competition/SKILL.md
-@@ -175,9 +175,10 @@ git fetch gitlab main --quiet
- git checkout -B feat/onboard-{league_code_lower} gitlab/main
- ```
- 
--`gitlab`, not `origin`. `origin` is the GitHub remote, dormant while account access
--is unavailable, and branching from it starts the work on a stale tree — it was 27
--commits behind on 2026-08-07 (GitLab #24).
-+`gitlab`, not `origin`. `origin` is the GitHub remote — a read-only mirror that holds
-+only `main` and lags GitLab by a mirror cycle — and branching from it starts the work
-+on a tree that may be behind; before the mirror existed it was 27 commits behind on
-+2026-08-07 (GitLab #24).
- 
- ### Step 2 — Registry entry
- 
-diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
-index 68394146..51ea40e4 100644
---- a/.claude/skills/validate-local/SKILL.md
-+++ b/.claude/skills/validate-local/SKILL.md
-@@ -140,9 +140,9 @@ it before pushing — that failure would have turned into a red CI check.
- ## Mapping to CI (so this stays in sync)
- 
- GitLab job names since the 2026-08 migration. The GitHub workflow names this table
--used to carry (`ci-validate`, `ci-ui`, `python-ci`, `ci-data-build`) are dormant —
--GitHub Actions run nothing — so citing them here was a live-looking claim about a
--pipeline that does not run.
-+used to carry (`ci-validate`, `ci-ui`, `python-ci`, `ci-data-build`) run nothing —
-+GitHub is a read-only mirror of `main` with Actions disabled — so citing them here
-+was a live-looking claim about a pipeline that does not run.
- 
- | Gate | `.gitlab-ci.yml` job |
- |---|---|
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index adf41e27..b80c2095 100644
+index b80c2095..8ce63f55 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,34 +1,83 @@
--# Task contract — session end 2026-09-18: tracker snapshot refreshed, handover at #153 merged and #109 two steps of three
-+# Task contract — GitHub is a read-only mirror of `main`: replace every "dead / suspended / dormant, decided when access returns" line
+@@ -1,83 +1,37 @@
+-# Task contract — GitHub is a read-only mirror of `main`: replace every "dead / suspended / dormant, decided when access returns" line
++# Task contract — session end 2026-09-18 (b): tracker snapshot refreshed, handover at !204 merged (GitHub mirror live) and #109 step 3 next
  
  objective: >
--  The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
--  (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py`, and
--  bring the handover (`.claude/active_work.md`) to the current state — #153 done and merged
--  (!195, !196, !198), #109 steps 1 and 2 merged (!201, !202), step 3 next in a fresh chat, the
--  nightly to be checked green after the merge — under 16,000 characters.
-+  The GitHub account is back and the CPO ruled (chat, 2026-09-18): GitLab stays the system of
-+  record (CI, MRs, WIF); GitHub is a read-only push mirror of `main`, pushed from GitLab (set up
-+  2026-09-18, `Mirror only protected branches`, first sync `16db22bf`); GitHub Actions stay
-+  disabled (repository setting, confirmed before the first sync). Every line in the tree that
-+  still says GitHub is dead, suspended, dormant, or "decided when access returns" is replaced
-+  with that state; the two dead GitHub Actions badges in `README.md` go and its CI line names
-+  GitLab. Prose and comments only: no workflow is edited or re-enabled, no hook is edited, no
-+  behaviour changes.
+-  The GitHub account is back and the CPO ruled (chat, 2026-09-18): GitLab stays the system of
+-  record (CI, MRs, WIF); GitHub is a read-only push mirror of `main`, pushed from GitLab (set up
+-  2026-09-18, `Mirror only protected branches`, first sync `16db22bf`); GitHub Actions stay
+-  disabled (repository setting, confirmed before the first sync). Every line in the tree that
+-  still says GitHub is dead, suspended, dormant, or "decided when access returns" is replaced
+-  with that state; the two dead GitHub Actions badges in `README.md` go and its CI line names
+-  GitLab. Prose and comments only: no workflow is edited or re-enabled, no hook is edited, no
+-  behaviour changes.
++  The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
++  (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py`, and
++  bring the handover (`.claude/active_work.md`) to the current state — the GitHub push mirror
++  live (set up by the CPO 2026-09-18, `main` only, Actions disabled), !204 merged (the docs
++  sweep), the README badge question open, #109 step 3 next in a fresh chat after the
++  2026-09-19 04:00 UTC nightly is checked — under 16,000 characters.
  
  refs: >
--  `CLAUDE.md` "At the end of every session, before the handover commit, run
--  `python scripts/snapshot_tracker.py`"; #153; #109; #111; !198, !201, !202 (merged today).
-+  CPO ruling in chat, 2026-09-18 ("GitLab stays the system of record (CI, MRs, WIF); GitHub
-+  becomes a read-only mirror of `main` pushed from GitLab; GitHub Actions stay off ... one docs
-+  MR that replaces every 'GitHub is dead / account suspended / dormant, decided when access
-+  returns' line with the new state — `CLAUDE.md` ... and `.github/workflows/README.md` — and
-+  says the mirror is read-only and Actions are off. Do not re-enable any workflow."); README
-+  badges added on his "go, yes fix the readme badges too" (2026-09-18). The sweep that found
-+  the other spots: `grep -rn -i "suspended\|dormant\|account access\|access returns"`.
+-  CPO ruling in chat, 2026-09-18 ("GitLab stays the system of record (CI, MRs, WIF); GitHub
+-  becomes a read-only mirror of `main` pushed from GitLab; GitHub Actions stay off ... one docs
+-  MR that replaces every 'GitHub is dead / account suspended / dormant, decided when access
+-  returns' line with the new state — `CLAUDE.md` ... and `.github/workflows/README.md` — and
+-  says the mirror is read-only and Actions are off. Do not re-enable any workflow."); README
+-  badges added on his "go, yes fix the readme badges too" (2026-09-18). The sweep that found
+-  the other spots: `grep -rn -i "suspended\|dormant\|account access\|access returns"`.
++  `CLAUDE.md` "At the end of every session, before the handover commit, run
++  `python scripts/snapshot_tracker.py`"; !204 (merged 2026-09-18); #109; the CPO's
++  "merged, do the session end handover" (chat, 2026-09-18).
  
  scope_paths:
--  - docs/tracker/gitlab_snapshot.md
--  - .claude/active_work.md
-+  - CLAUDE.md
-+  - README.md
-+  - .github/workflows/README.md
-+  - .github/ISSUE_TEMPLATE/config.yml
-+  - .claude/skills/onboard-competition/SKILL.md
-+  - .claude/skills/validate-local/SKILL.md
-+  - scripts/check_task_artifacts.py
-+  - tests/test_governance_hooks.py
+-  - CLAUDE.md
+-  - README.md
+-  - .github/workflows/README.md
+-  - .github/ISSUE_TEMPLATE/config.yml
+-  - .claude/skills/onboard-competition/SKILL.md
+-  - .claude/skills/validate-local/SKILL.md
+-  - scripts/check_task_artifacts.py
+-  - tests/test_governance_hooks.py
++  - docs/tracker/gitlab_snapshot.md
++  - .claude/active_work.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-+  - .claude/task/acceptance_evidence.md
-+
-+protected_override: >
-+  `.github/workflows/README.md` is under a protected path. The CPO named it in the same ruling,
-+  2026-09-18, in chat: "one docs MR that replaces every ... line with the new state — `CLAUDE.md`
-+  (the `gh` line, the 'GitHub is RETAINED but DORMANT' bullet, the GitHub Pages line) and
-+  `.github/workflows/README.md` — and says the mirror is read-only and Actions are off. Do not
-+  re-enable any workflow." Only the README in that directory changes; every `.yml` there stays
-+  byte-identical. The MR head declares the locked file; his merge is the approval.
-+
-+impact_map: >
-+  writers: none — `.github/workflows/README.md` is prose read by people; no workflow, hook,
-+    script or test parses it (`grep -rn "workflows/README" --include=*.py --include=*.yml .`
-+    → only `CLAUDE.md` links to it).
-+  downstream: none — GitHub Actions are disabled at the repository level, so no file in
-+    `.github/workflows/` can fire; the mirror pushes `main` and nothing runs on arrival
-+    (verified: no Actions tab, no run, after the first sync of `16db22bf`).
-+  layer_rules: n/a — no dbt path in scope.
-+  deploy_order: none — no warehouse, site or CI job changes; the mirror carries the merged
-+    `main` to GitHub on its own within its cycle.
-+  blast_radius: `scripts/check_task_artifacts.py` and `tests/test_governance_hooks.py` change
-+    docstring/comment text and one test's name and assertion messages; `default_base()` logic is
-+    untouched and `python -m pytest tests/test_governance_hooks.py -q -k default_base` stays green.
-+    The two hook comments that also say "dormant" (`.claude/hooks/git_discipline.py:446`,
-+    `.claude/hooks/comment_history_gate.py:39`) are deliberately NOT in scope: a comment-only edit
-+    is not worth widening the protected surface; they are named in the MR head.
+-  - .claude/task/acceptance_evidence.md
+-
+-protected_override: >
+-  `.github/workflows/README.md` is under a protected path. The CPO named it in the same ruling,
+-  2026-09-18, in chat: "one docs MR that replaces every ... line with the new state — `CLAUDE.md`
+-  (the `gh` line, the 'GitHub is RETAINED but DORMANT' bullet, the GitHub Pages line) and
+-  `.github/workflows/README.md` — and says the mirror is read-only and Actions are off. Do not
+-  re-enable any workflow." Only the README in that directory changes; every `.yml` there stays
+-  byte-identical. The MR head declares the locked file; his merge is the approval.
+-
+-impact_map: >
+-  writers: none — `.github/workflows/README.md` is prose read by people; no workflow, hook,
+-    script or test parses it (`grep -rn "workflows/README" --include=*.py --include=*.yml .`
+-    → only `CLAUDE.md` links to it).
+-  downstream: none — GitHub Actions are disabled at the repository level, so no file in
+-    `.github/workflows/` can fire; the mirror pushes `main` and nothing runs on arrival
+-    (verified: no Actions tab, no run, after the first sync of `16db22bf`).
+-  layer_rules: n/a — no dbt path in scope.
+-  deploy_order: none — no warehouse, site or CI job changes; the mirror carries the merged
+-    `main` to GitHub on its own within its cycle.
+-  blast_radius: `scripts/check_task_artifacts.py` and `tests/test_governance_hooks.py` change
+-    docstring/comment text and one test's name and assertion messages; `default_base()` logic is
+-    untouched and `python -m pytest tests/test_governance_hooks.py -q -k default_base` stays green.
+-    The two hook comments that also say "dormant" (`.claude/hooks/git_discipline.py:446`,
+-    `.claude/hooks/comment_history_gate.py:39`) are deliberately NOT in scope: a comment-only edit
+-    is not worth widening the protected surface; they are named in the MR head.
  
  decisions_taken: >
--  None. A generated file regenerated by its one writer, on a branch from `gitlab/main`; the
--  handover's state paragraphs rewritten to what is true now. No code, no model, no document
--  edited by hand.
-+  One historical sentence is kept as written: `.github/workflows/README.md` "Why" opens with "The
-+  project migrated from GitHub to GitLab in 2026-08, after the GitHub account was suspended" — it
-+  says why the migration happened, not what GitHub is now, and rewording a true past fact to dodge
-+  a grep would be the wrong fix. The README's two dead GitHub Actions badges are removed with no
-+  GitLab badge in their place:
-+  the GitLab pipeline badge returns 404 to an anonymous viewer because the project's pipelines are
-+  not public (`public_jobs: false`), and making job logs public is a separate settings decision
-+  for the CPO. Everything else is a rewording of a known fact to the ruled state.
+-  One historical sentence is kept as written: `.github/workflows/README.md` "Why" opens with "The
+-  project migrated from GitHub to GitLab in 2026-08, after the GitHub account was suspended" — it
+-  says why the migration happened, not what GitHub is now, and rewording a true past fact to dodge
+-  a grep would be the wrong fix. The README's two dead GitHub Actions badges are removed with no
+-  GitLab badge in their place:
+-  the GitLab pipeline badge returns 404 to an anonymous viewer because the project's pipelines are
+-  not public (`public_jobs: false`), and making job logs public is a separate settings decision
+-  for the CPO. Everything else is a rewording of a known fact to the ruled state.
++  None. A generated file regenerated by its one writer, on a branch from `gitlab/main`; the
++  handover's state paragraphs rewritten to what is true now. No code, no model, no document
++  edited by hand.
  
  decisions_reserved:
--  - none: the snapshot is generated by `scripts/snapshot_tracker.py` and the handover records state the CPO already merged today; this contract changes nothing else.
-+  - Whether to make GitLab pipelines public so a CI badge can show on the mirror (`public_jobs`) — CPO, settings surface.
-+  - Whether to delete the ~70 pre-migration branches still on GitHub — CPO; the mirror neither writes nor deletes them.
-+  - `docs/operations_guide.md` §"GitHub Actions" and `docs/development_workflow.md:62` still describe GitHub Actions as live CI (stale since 2026-08, before this ruling); a rewrite of the operations runbook, not a line swap — out of scope, named in the MR head.
+-  - Whether to make GitLab pipelines public so a CI badge can show on the mirror (`public_jobs`) — CPO, settings surface.
+-  - Whether to delete the ~70 pre-migration branches still on GitHub — CPO; the mirror neither writes nor deletes them.
+-  - `docs/operations_guide.md` §"GitHub Actions" and `docs/development_workflow.md:62` still describe GitHub Actions as live CI (stale since 2026-08, before this ruling); a rewrite of the operations runbook, not a line swap — out of scope, named in the MR head.
++  - The README CI badge (live GitLab status badge, which needs public pipelines, or a static one) — CPO, put in chat 2026-09-18, unanswered; recorded in the handover as open.
++  - none else: the snapshot is generated by `scripts/snapshot_tracker.py` and the handover records state the CPO already merged today.
  
  done_when:
--  - `python scripts/snapshot_tracker.py` run once; `python -m pytest tests/test_tracker_snapshot.py -q` green.
--  - `len()` of `.claude/active_work.md` under 16,000 characters; the stop gate accepts it.
--  - The MR merges with the snapshot, the handover and this contract only.
-+  - `grep -rn -i "suspended\|access returns\|account access\|gh\` is dead" CLAUDE.md README.md .github .claude/skills scripts tests --include=*.md --include=*.py --include=*.yml` returns exactly one hit, the historical sentence at `.github/workflows/README.md` "Why" named in `decisions_taken`; every other hit in the sweep described a current state and is gone.
-+  - `CLAUDE.md` says GitHub is a read-only mirror of `main` pushed from GitLab, Actions off, `glab` for everything; `.github/workflows/README.md` says the same and keeps every "do not" and the prod-write warning.
-+  - `README.md` carries no badge pointing at github.com/…/actions and its CI bullet names GitLab CI.
-+  - `git diff --stat gitlab/main -- .github/workflows/*.yml .github/workflows/_paused` is empty.
-+  - `python -m pytest tests/test_governance_hooks.py -q` green; `python scripts/check_task_artifacts.py` green.
+-  - `grep -rn -i "suspended\|access returns\|account access\|gh\` is dead" CLAUDE.md README.md .github .claude/skills scripts tests --include=*.md --include=*.py --include=*.yml` returns exactly one hit, the historical sentence at `.github/workflows/README.md` "Why" named in `decisions_taken`; every other hit in the sweep described a current state and is gone.
+-  - `CLAUDE.md` says GitHub is a read-only mirror of `main` pushed from GitLab, Actions off, `glab` for everything; `.github/workflows/README.md` says the same and keeps every "do not" and the prod-write warning.
+-  - `README.md` carries no badge pointing at github.com/…/actions and its CI bullet names GitLab CI.
+-  - `git diff --stat gitlab/main -- .github/workflows/*.yml .github/workflows/_paused` is empty.
+-  - `python -m pytest tests/test_governance_hooks.py -q` green; `python scripts/check_task_artifacts.py` green.
++  - `python scripts/snapshot_tracker.py` run once; `python -m pytest tests/test_tracker_snapshot.py -q` green.
++  - `len()` of `.claude/active_work.md` under 16,000 characters; the stop gate accepts it.
++  - The MR merges with the snapshot, the handover and this contract only.
  
  amendments: (none)
-diff --git a/.github/ISSUE_TEMPLATE/config.yml b/.github/ISSUE_TEMPLATE/config.yml
-index 24d0eb9b..4f9ae417 100644
---- a/.github/ISSUE_TEMPLATE/config.yml
-+++ b/.github/ISSUE_TEMPLATE/config.yml
-@@ -2,4 +2,4 @@ blank_issues_enabled: false
- contact_links:
-   - name: Roadmap and tracker (GitLab)
-     url: https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones
--    about: This GitHub repository is dormant. The roadmap and every issue live in the GitLab project.
-+    about: This GitHub repository is a read-only mirror of `main`. The roadmap, every issue and every merge request live in the GitLab project.
-diff --git a/.github/workflows/README.md b/.github/workflows/README.md
-index 7b5f7c1b..8011c075 100644
---- a/.github/workflows/README.md
-+++ b/.github/workflows/README.md
-@@ -1,9 +1,10 @@
--# These workflows are DORMANT. Nothing here runs.
-+# These workflows are DISABLED. Nothing here runs.
- 
--**Status as of 2026-08-06.** CI for this repository is `.gitlab-ci.yml` at the repo root.
--Every workflow in this directory is inert: GitHub Actions execute none of them.
-+**Status as of 2026-09-18.** CI for this repository is `.gitlab-ci.yml` at the repo root.
-+GitHub Actions are **disabled at the repository level** (Settings → Actions → General → *Disable
-+actions*), so every workflow in this directory is inert whatever its triggers say.
- 
--This file exists because a dormant workflow and a live one look identical, and the eleven `.yml`
-+This file exists because a disabled workflow and a live one look identical, and the eleven `.yml`
- files here were last edited 2026-07-28, while they were still running. Nothing in the tree said
- they had stopped.
- 
-@@ -13,13 +14,16 @@ The project migrated from GitHub to GitLab in 2026-08, after the GitHub account
- The six quality gates, the nightly production build and the v2 site deploy were translated into
- `.gitlab-ci.yml` and run there.
- 
--**The GitHub repository is deliberately KEPT.** CPO ruling, 2026-08-06: the repo stays, and how it
--gets used is decided once account access returns. So these files are **not deleted, not moved and
--not edited** — re-activating any of them should be a decision, not a reconstruction.
-+**The GitHub repository is a read-only mirror of `main`.** CPO ruling, 2026-09-18, once the account
-+was back: GitLab stays the system of record (CI, MRs, issues, the WIF binding); GitLab pushes
-+`main` — and only `main` — to GitHub after every merge (a push mirror, *Mirror only protected
-+branches*); nothing is pushed there by hand, nothing is opened or merged there, and Actions stay
-+off. These files are **not deleted, not moved and not edited** — they are the record of what ran
-+before the migration, and re-activating any of them would be a decision, not a reconstruction.
- 
- ## What is here
- 
--**Dormant because the platform is dormant** — these ran until the migration:
-+**Stopped by the migration** — these ran until it:
- 
- | Workflow | GitLab equivalent |
- |---|---|
-@@ -42,7 +46,7 @@ never touched at retirement. It was dormant-by-decision before it was dormant-by
- was deliberately not translated: porting it would have resurrected a retired product and
- reinstated a recurring cost.
- 
--**Dormant by decision, before the migration** — `_paused/`:
-+**Paused by decision, before the migration** — `_paused/`:
- 
- - `cursor-dispatch.yml`
- - `pr-autopilot.yml`
-@@ -51,11 +55,12 @@ reinstated a recurring cost.
- Those two categories are not the same thing and are not merged here. One stopped because someone
- decided it should; the other stopped because the platform did.
- 
--## ⚠ If GitHub comes back — READ THIS BEFORE PUSHING ANYTHING
-+## ⚠ Why Actions must STAY disabled — read this before touching the setting
- 
--**These workflows are dormant, not disabled.** Nothing was turned off; the platform stopped
--running. So re-activation is NOT an act of enabling — **the first ordinary push to the GitHub
--`main` re-arms it.** Seven of the eleven trigger on `push: branches: [main]`:
-+**The mirror pushes to GitHub `main` after every merge, and seven of the eleven workflows trigger
-+on `push: branches: [main]`.** With Actions enabled, the mirror sync itself would run them; the
-+repository-level *Disable actions* setting is the only thing standing between a routine merge on
-+GitLab and the runs below. It was checked before the first sync on 2026-09-18. The seven:
- 
- `ci-data-build.yml` · `ci-site-v2.yml` · `ci-ui.yml` · `ci-validate.yml` ·
- `pages-match-preview.yml` · `python-ci.yml` · `security-secrets.yml`
-@@ -81,13 +86,13 @@ concurrently (#667)"*.
- prod writers through `resource_group: prod-warehouse-write`; a GitHub job writing prod is outside
- that group entirely, so it can merge the bare prod tables while GitLab is mid-build.
- 
--So a single catch-up push to a reactivated GitHub remote can, with nothing else done: run a full
--prod warehouse build concurrently with GitLab's, spend API quota, and republish a retired product.
-+So one mirror sync with Actions enabled can, with nothing else done: run a full prod warehouse
-+build concurrently with GitLab's, spend API quota, and republish a retired product.
- 
--**Before any push to a reactivated GitHub remote**, disable the workflows in the repository
--settings or move them into `_paused/` FIRST. Cost is a CPO decision (`CLAUDE.md`, "Cost is
--non-negotiable"), and two schedulers writing one warehouse is a cost change and a correctness
--hazard, not just a duplicate bill.
-+**Re-enabling Actions is therefore a CPO decision, never a click.** Cost is his (`CLAUDE.md`,
-+"Cost is non-negotiable"), and two schedulers writing one warehouse is a cost change and a
-+correctness hazard, not just a duplicate bill. If GitHub is ever to run anything again, the
-+workflows are moved into `_paused/` or rewritten FIRST, and the setting is flipped last.
- 
- ## Do not
- 
-diff --git a/CLAUDE.md b/CLAUDE.md
-index cb6a43c4..6e9612b4 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -6,7 +6,7 @@ Read this at the start of every session before doing anything else.
- 
- 1. Run `git branch --show-current` via **Bash** to confirm the active branch.
- 2. If the branch doesn't match the task, switch now **before writing any files**: `git checkout <target-branch>` or `git checkout -b <new-branch>`.
--3. **Use Bash for all commands** — git, bq, `glab`, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion. (`gh` is dead — the GitHub account is suspended. Use `glab`.)
-+3. **Use Bash for all commands** — git, bq, `glab`, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion. (Use `glab`, never `gh`: GitLab is the system of record and GitHub is a read-only mirror of `main` — nothing is opened, merged or configured there.)
- 4. If unsure which branch to use, ask the user before touching any file.
- 5. **Before creating a new branch**, run `glab mr list` and ask two questions: (a) is this work a hard dependency for an open MR? (b) does separating it into its own MR buy anything — independent reviewability, an earlier merge path? If it's a hard dependency and separation buys nothing, commit to the existing branch. If it can stand alone and merge first, a new branch is fine. See `docs/working_agreement.md` section 3a, which says the same.
- 
-@@ -69,7 +69,7 @@ with a row above, it loses and gets corrected.
- | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
- | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
- | **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen** (2026-09-11): cite a past entry, never add one. |
--| GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
-+| GitHub Actions tree — disabled, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
- 
- ⛔ **The two bold rows are load-bearing.** Until 2026-09-10 this file pointed at neither, and #41 was
- rebuilt from scratch against a design its issue had already approved.
-@@ -190,8 +190,8 @@ every session that learned something had to delete something. None of this is cu
-   that was true of the pre-#63 implementation, which hashed the RENDERED patch of a bare
-   `--staged`. It is now simply false and has been deleted rather than qualified.
-   `check_task_artifacts.py` still resolves the LIVE remote by default (`origin` is GitLab in CI
--  but the dormant GitHub one here), and a `review.md`-only commit is artifact-exempt, so rebinding
--  is free.
-+  but the GitHub mirror here, which only ever holds `main` and lags GitLab by a mirror cycle),
-+  and a `review.md`-only commit is artifact-exempt, so rebinding is free.
- - **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
-   the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is
-   LIFO and load-bearing WIP lives in it.
-@@ -256,11 +256,15 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
-   `scripts/check_description_hygiene.py` holds the line, measuring the RENDERED text; a
-   `{{ doc() }}` block is not a way around the limit. The standard is
-   `dbt_project/docs/engineering_standards.md` §2.
--- **GitHub is RETAINED but DORMANT.** Its Actions run nothing; `.github/workflows/` is a snapshot
--  of what ran before the 2026-08 migration and is deliberately kept unedited — see
--  `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
--  returns. Do not read that directory as the CI reference, and do not edit a workflow there to
--  "keep it in sync".
-+- **GitHub is a READ-ONLY MIRROR of `main`.** CPO ruling 2026-09-18: GitLab is the system of
-+  record — CI, MRs, issues, the WIF binding — and GitLab pushes `main` (and only `main`) to
-+  `github.com/ramialfahham/football-data-pipeline` on every merge (Settings → Repository →
-+  Mirroring repositories; the GitHub token lives there and only the CPO handles it). Nothing is
-+  pushed to GitHub by hand, nothing is opened or merged there, and **GitHub Actions are disabled
-+  at the repository level** — `.github/workflows/` is a snapshot of what ran before the 2026-08
-+  migration and is deliberately kept unedited; see `.github/workflows/README.md` for why a
-+  re-enable would be a prod-write hazard. Do not read that directory as the CI reference, and
-+  do not edit a workflow there to "keep it in sync".
- - **⭐ THE NIGHTLY LIVES IN CLOUD SCHEDULER, NOT IN CI.** Two ENABLED jobs in **europe-west1**:
-   **`fdp-nightly`** (`0 4 * * *`) runs the ingest and the full prod dbt build, and
-   **`fdp-freshness`** (`7 * * * *`) runs hourly. Moved there by the CPO after GitLab CI limitations
-@@ -282,4 +286,5 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
-   ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Whether
-   `fdp-freshness` needs to be hourly is a recurring-cost question and therefore the CPO's.
- - Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
--  GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.
-+  GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21, and the
-+  GitHub repository is a read-only mirror that hosts nothing.
-diff --git a/README.md b/README.md
-index 9aa68f9a..3cc5adbf 100644
---- a/README.md
-+++ b/README.md
-@@ -2,8 +2,6 @@
- 
- An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), then exported as JSON for a fan-facing web app. Multi-competition and multilingual.
- 
--[![CI](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml)
--[![Data Build](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml)
- [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
- [![dbt](https://img.shields.io/badge/dbt-1.7-FF694B?logo=dbt&logoColor=white)](https://www.getdbt.com/)
- [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
-@@ -27,7 +25,7 @@ flowchart LR
- - **Automated data-quality tests** gate every build.
- - **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
- - **Multilingual** (DE / EN / FI), multi-competition by design.
--- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and a scheduled daily run.
-+- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, validation, data build and security scanning on every merge request; the nightly build runs from Cloud Scheduler. The repository is developed on [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only mirror of `main`.
- - **v2 web app** with new information architecture and richer insights in active development.
- 
- ## Design decisions
-@@ -112,7 +110,7 @@ After install, hooks run automatically on every `git commit`. A failing hook blo
- pre-commit run --all-files
- ```
- 
--CI runs the same sqlfluff via `ci-validate` as defense-in-depth, but catching lint locally is fast (~5s on small diffs) and avoids round-tripping through GitHub.
-+CI runs the same sqlfluff in `validate:governance` as defense-in-depth, but catching lint locally is fast (~5s on small diffs) and avoids round-tripping through the pipeline.
- 
- Run dbt from the repo root with **`.venv`** activated:
- 
-diff --git a/scripts/check_task_artifacts.py b/scripts/check_task_artifacts.py
-index 6853f026..41ee0148 100644
---- a/scripts/check_task_artifacts.py
-+++ b/scripts/check_task_artifacts.py
-@@ -90,14 +90,15 @@ def default_base() -> str:
-     `origin` names two different repositories. Inside GitLab CI the clone sets it
-     to the GitLab project, which is why `.gitlab-ci.yml` passes `--base origin/...`
-     explicitly and is CORRECT to do so. On a working copy here, `origin` is the
--    GitHub remote — dormant while account access is unavailable — and it sits far
--    behind `gitlab/main`. So the bare command diffed against a stale tree and
--    reported required reviewers that were not required at all.
--
--    This is a PREFERENCE, not a retirement. GitHub is kept, and how it is used is
--    decided when access returns. `GOVERNANCE_BASE` still overrides everything, and
--    if `origin` becomes the live remote again this returns to `origin/main` with no
--    code change — either by unsetting the `gitlab` remote or by setting the env var.
-+    GitHub remote — a read-only mirror of `main`, pushed from GitLab, so it can
-+    only ever be as fresh as the last mirror cycle. Before the mirror existed it
-+    sat far behind `gitlab/main`, and the bare command diffed against a stale tree
-+    and reported required reviewers that were not required at all.
-+
-+    This is a PREFERENCE, not a retirement: GitLab is the system of record, so it
-+    is the base. `GOVERNANCE_BASE` still overrides everything, and if `origin`
-+    ever becomes the live remote again this returns to `origin/main` with no code
-+    change — either by unsetting the `gitlab` remote or by setting the env var.
- 
-     Resolved AFTER parsing, so the subprocess call never runs on the CI path where
-     `--base` is passed explicitly.
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index e39dd199..124ec53f 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -1714,21 +1714,22 @@ def _ci_module():
- #
- # `origin` names two different repositories. Inside GitLab CI it is the GitLab
- # project, which is why `.gitlab-ci.yml` passes `--base origin/...` and is right
--# to. On a working copy here it is the GitHub remote, dormant while account
--# access is unavailable, and dozens of commits behind `gitlab/main` — so
--# the bare command diffed against a stale tree and reported four required
--# reviewers that were not required at all.
-+# to. On a working copy here it is the GitHub remote — a read-only mirror of
-+# `main` pushed from GitLab, so at best one mirror cycle behind; before the
-+# mirror it was dozens of commits behind `gitlab/main` — so the bare command
-+# diffed against a stale tree and reported four required reviewers that were
-+# not required at all.
- #
--# These pin the resolution rather than the literal string, so the day `origin`
--# becomes live again the behaviour is a one-line change with a test that says
--# what it guarantees.
-+# These pin the resolution rather than the literal string, so if `origin` ever
-+# becomes the system of record again the behaviour is a one-line change with a
-+# test that says what it guarantees.
- # --------------------------------------------------------------------------- #
- def _add_remote(repo, name: str) -> None:
-     subprocess.run(["git", "remote", "add", name, f"https://example.invalid/{name}.git"],
-                    cwd=repo, check=True)
- 
- 
--def test_default_base_prefers_the_live_remote_over_a_dormant_origin(repo, monkeypatch):
-+def test_default_base_prefers_the_live_remote_over_the_mirror_origin(repo, monkeypatch):
-     ci = _ci_module()
-     monkeypatch.chdir(repo)
-     monkeypatch.delenv("GOVERNANCE_BASE", raising=False)
-@@ -1741,7 +1742,7 @@ def test_default_base_prefers_the_live_remote_over_a_dormant_origin(repo, monkey
-     _add_remote(repo, "gitlab")
-     assert ci.default_base() == "gitlab/main", (
-         "with a `gitlab` remote present the bare command must diff against it, not "
--        "against the dormant `origin`")
-+        "against `origin`, the GitHub mirror that lags it")
- 
- 
- def test_governance_base_env_still_overrides_everything(repo, monkeypatch):
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -411,7 +119,7 @@ index e39dd199..124ec53f 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |  83 +++---
-#    .claude/task/review_input.patch     | 512 ++++++++++++++++++++++++++----------
-#    2 files changed, 411 insertions(+), 184 deletions(-)
+#   .claude/active_work.md          | 74 +++++++++++++++++++++--------------------
+#    docs/tracker/gitlab_snapshot.md |  2 +-
+#    2 files changed, 39 insertions(+), 37 deletions(-)
 # ============================================================================
