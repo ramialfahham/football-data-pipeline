@@ -259,7 +259,11 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
 - **GitHub is a READ-ONLY MIRROR of `main`.** CPO ruling 2026-09-18: GitLab is the system of
   record — CI, MRs, issues, the WIF binding — and GitLab pushes `main` (and only `main`) to
   `github.com/ramialfahham/football-data-pipeline` on every merge (Settings → Repository →
-  Mirroring repositories; the GitHub token lives there and only the CPO handles it). Nothing is
+  Mirroring repositories; the GitHub token lives there and only the CPO handles it). ⚠ The token
+  is a fine-grained PAT that EXPIRES — the mirror row turns red when it does — and its
+  replacement needs **Contents AND Workflows, both read/write**, on that one repository:
+  without Workflows, GitHub rejects the push because `.github/workflows/README.md` counts as a
+  workflow (it did, on the first sync). Nothing is
   pushed to GitHub by hand, nothing is opened or merged there, and **GitHub Actions are disabled
   at the repository level** — `.github/workflows/` is a snapshot of what ran before the 2026-08
   migration and is deliberately kept unedited; see `.github/workflows/README.md` for why a
