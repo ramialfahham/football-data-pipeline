@@ -25,7 +25,7 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 **#153, THE DESIGN-SYSTEM MECHANISM, IS FULLY BUILT AND WAITING ON HIS MERGE.** **!195** MERGED
 2026-09-17 (the four generators of record and their five `bq` pulls in `design-mocks/`, the render
 naming rule — `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`, tracked, `render.py` picks the
-number, never overwritten; #153 items 4+5). Two MRs open, stacked — merge in order: **!196**
+number, never overwritten; #153 items 4+5). **!196** MERGED 2026-09-18
 (`feat/153-design-inventory`: the block standard
 `docs/wireframes/block_standard.md` (40 elements · selector · rule · `Measured as` · status · ruled
 on, and the 18 pages the check measures), every element's CSS in `system.css` alone (the mocks lost
@@ -33,7 +33,7 @@ on, and the 18 pages the check measures), every element's CSS in `system.css` al
 `scripts/check_page_css.py` (the lint), `scripts/check_design_inventory.py` (the measured check:
 Playwright, 375/700, EN/FI, 82 renders green, 252 failures on the tree before), a RED fixture,
 `requirements-ui.txt`, the built competition tab bar to the three approved tabs; #153 items 1–3).
-and **!198** (`feat/153-check-in-ci`, ON TOP OF !196: the check in CI — `validate:ui` on
+and **!198** OPEN, the one MR left (`feat/153-check-in-ci`: the check in CI — `validate:ui` on
 `mcr.microsoft.com/playwright/python:v1.63.0-noble`, `needs: [build:site-v2]` in the `build` stage,
 one `ui_paths` anchor for both jobs, `build:site-v2` keeps `site_v2/dist` as an artifact; the job
 runs the lint, the CHECK, then the inventory tests (the check first, pinned: the tests' green

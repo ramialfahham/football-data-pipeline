@@ -4,9 +4,9 @@ objective: >
   The end-of-session bookkeeping `CLAUDE.md` requires: rewrite the tracker's backup
   (`docs/tracker/gitlab_snapshot.md`) from GitLab with `python scripts/snapshot_tracker.py`, and
   bring the handover (`.claude/active_work.md`) to the current state — #153 fully built: !195
-  merged, !196 and !198 (the CI wiring) stacked and awaiting the CPO's merge, the proof done on
-  its own closed MR (!199), the two rulings of the day, the one default and the one question on
-  the MR heads — under 16,000 characters.
+  and !196 merged, !198 (the CI wiring) awaiting the CPO's merge, the proof done on its own
+  closed MRs (!199, !200), the two rulings of the day, the one default on !196's head — under
+  16,000 characters.
 
 refs: >
   `CLAUDE.md` "At the end of every session, before the handover commit, run
@@ -38,3 +38,6 @@ amendments: >
   Third commit, the same night: the throwaway proof done on its own branch at the CPO's
   instruction (!199, closed); the handover's open item is now the step-order question on !198's
   head; the snapshot regenerated again. Same scope.
+  Fourth commit, the next morning: !196 merged and this branch rebased onto it (the three
+  paperwork files collided, this branch's versions kept); the handover says !196 is merged and
+  !198 alone awaits the merge; the snapshot regenerated. Same scope.
