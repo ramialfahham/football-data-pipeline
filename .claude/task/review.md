@@ -1,6 +1,6 @@
 # Review — feat/153-check-in-ci — 2026-09-17
 
-diff_sha256: f4212106670474dc7db0bc1d2da1095d7a0e8411488a465778b2f286291c36f3
+diff_sha256: 52b3ceec59bb9835bb605e8a2b1d085664ec78e0a0341dc6b8259f67a9fbf4e2
 
 rounds: 4
 rounds_cap_override: round 4 swaps two script lines after the throwaway proof the CPO asked for
@@ -33,8 +33,10 @@ Round 4, after the proof on !199: the check runs before the inventory tests in `
 so a page or stylesheet defect yields the per-page lines and the screenshot artifact instead of
 stopping at the fixture; a pin holds the order, red with the old order. scope-auditor,
 platform-reviewer and cto-reviewer re-ran; bi-analyst-reviewer's PASS stands. !196 then merged,
-so the base moved to its tip and the cumulative diff is this branch's own files only: the hash
-above is that diff's; nothing of this branch's own changed.
+so the base moved to its tip and the cumulative diff is this branch's own files only. Then !197
+merged (the session-end paperwork), so this branch was rebased onto `main` with its own three
+paperwork files kept; the hash above is the rebased branch's; nothing of this branch's own
+changed and the CI-pin tests pass on it.
 
 ## scope-auditor
 VERDICT: PASS
