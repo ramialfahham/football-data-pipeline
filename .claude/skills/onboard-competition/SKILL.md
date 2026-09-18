@@ -175,9 +175,10 @@ git fetch gitlab main --quiet
 git checkout -B feat/onboard-{league_code_lower} gitlab/main
 ```
 
-`gitlab`, not `origin`. `origin` is the GitHub remote, dormant while account access
-is unavailable, and branching from it starts the work on a stale tree — it was 27
-commits behind on 2026-08-07 (GitLab #24).
+`gitlab`, not `origin`. `origin` is the GitHub remote — a read-only mirror that holds
+only `main` and lags GitLab by a mirror cycle — and branching from it starts the work
+on a tree that may be behind; before the mirror existed it was 27 commits behind on
+2026-08-07 (GitLab #24).
 
 ### Step 2 — Registry entry
 

@@ -1714,21 +1714,22 @@ def _ci_module():
 #
 # `origin` names two different repositories. Inside GitLab CI it is the GitLab
 # project, which is why `.gitlab-ci.yml` passes `--base origin/...` and is right
-# to. On a working copy here it is the GitHub remote, dormant while account
-# access is unavailable, and dozens of commits behind `gitlab/main` — so
-# the bare command diffed against a stale tree and reported four required
-# reviewers that were not required at all.
+# to. On a working copy here it is the GitHub remote — a read-only mirror of
+# `main` pushed from GitLab, so at best one mirror cycle behind; before the
+# mirror it was dozens of commits behind `gitlab/main` — so the bare command
+# diffed against a stale tree and reported four required reviewers that were
+# not required at all.
 #
-# These pin the resolution rather than the literal string, so the day `origin`
-# becomes live again the behaviour is a one-line change with a test that says
-# what it guarantees.
+# These pin the resolution rather than the literal string, so if `origin` ever
+# becomes the system of record again the behaviour is a one-line change with a
+# test that says what it guarantees.
 # --------------------------------------------------------------------------- #
 def _add_remote(repo, name: str) -> None:
     subprocess.run(["git", "remote", "add", name, f"https://example.invalid/{name}.git"],
                    cwd=repo, check=True)
 
 
-def test_default_base_prefers_the_live_remote_over_a_dormant_origin(repo, monkeypatch):
+def test_default_base_prefers_the_live_remote_over_the_mirror_origin(repo, monkeypatch):
     ci = _ci_module()
     monkeypatch.chdir(repo)
     monkeypatch.delenv("GOVERNANCE_BASE", raising=False)
@@ -1741,7 +1742,7 @@ def test_default_base_prefers_the_live_remote_over_a_dormant_origin(repo, monkey
     _add_remote(repo, "gitlab")
     assert ci.default_base() == "gitlab/main", (
         "with a `gitlab` remote present the bare command must diff against it, not "
-        "against the dormant `origin`")
+        "against `origin`, the GitHub mirror that lags it")
 
 
 def test_governance_base_env_still_overrides_everything(repo, monkeypatch):

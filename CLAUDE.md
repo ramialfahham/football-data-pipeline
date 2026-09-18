@@ -6,7 +6,7 @@ Read this at the start of every session before doing anything else.
 
 1. Run `git branch --show-current` via **Bash** to confirm the active branch.
 2. If the branch doesn't match the task, switch now **before writing any files**: `git checkout <target-branch>` or `git checkout -b <new-branch>`.
-3. **Use Bash for all commands** — git, bq, `glab`, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion. (`gh` is dead — the GitHub account is suspended. Use `glab`.)
+3. **Use Bash for all commands** — git, bq, `glab`, python, curl, everything. Never use PowerShell; it runs commands as background tasks requiring file polling, which is slow and causes confusion. (Use `glab`, never `gh`: GitLab is the system of record and GitHub is a read-only mirror of `main` — nothing is opened, merged or configured there.)
 4. If unsure which branch to use, ask the user before touching any file.
 5. **Before creating a new branch**, run `glab mr list` and ask two questions: (a) is this work a hard dependency for an open MR? (b) does separating it into its own MR buy anything — independent reviewability, an earlier merge path? If it's a hard dependency and separation buys nothing, commit to the existing branch. If it can stand alone and merge first, a new branch is fine. See `docs/working_agreement.md` section 3a, which says the same.
 
@@ -69,7 +69,7 @@ with a row above, it loses and gets corrected.
 | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
 | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
 | **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen** (2026-09-11): cite a past entry, never add one. |
-| GitHub Actions tree — dormant, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+| GitHub Actions tree — disabled, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
 
 ⛔ **The two bold rows are load-bearing.** Until 2026-09-10 this file pointed at neither, and #41 was
 rebuilt from scratch against a design its issue had already approved.
@@ -190,8 +190,8 @@ every session that learned something had to delete something. None of this is cu
   that was true of the pre-#63 implementation, which hashed the RENDERED patch of a bare
   `--staged`. It is now simply false and has been deleted rather than qualified.
   `check_task_artifacts.py` still resolves the LIVE remote by default (`origin` is GitLab in CI
-  but the dormant GitHub one here), and a `review.md`-only commit is artifact-exempt, so rebinding
-  is free.
+  but the GitHub mirror here, which only ever holds `main` and lags GitLab by a mirror cycle),
+  and a `review.md`-only commit is artifact-exempt, so rebinding is free.
 - **Contract edits need a CLEAN tree.** Stash with EXPLICIT PATHS (never `--staged`, which sweeps
   the task artifacts too), amend, pop immediately, then check `git stash list` — the stack is
   LIFO and load-bearing WIP lives in it.
@@ -256,11 +256,15 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
   `scripts/check_description_hygiene.py` holds the line, measuring the RENDERED text; a
   `{{ doc() }}` block is not a way around the limit. The standard is
   `dbt_project/docs/engineering_standards.md` §2.
-- **GitHub is RETAINED but DORMANT.** Its Actions run nothing; `.github/workflows/` is a snapshot
-  of what ran before the 2026-08 migration and is deliberately kept unedited — see
-  `.github/workflows/README.md`. The repo stays; how it gets used is decided when account access
-  returns. Do not read that directory as the CI reference, and do not edit a workflow there to
-  "keep it in sync".
+- **GitHub is a READ-ONLY MIRROR of `main`.** CPO ruling 2026-09-18: GitLab is the system of
+  record — CI, MRs, issues, the WIF binding — and GitLab pushes `main` (and only `main`) to
+  `github.com/ramialfahham/football-data-pipeline` on every merge (Settings → Repository →
+  Mirroring repositories; the GitHub token lives there and only the CPO handles it). Nothing is
+  pushed to GitHub by hand, nothing is opened or merged there, and **GitHub Actions are disabled
+  at the repository level** — `.github/workflows/` is a snapshot of what ran before the 2026-08
+  migration and is deliberately kept unedited; see `.github/workflows/README.md` for why a
+  re-enable would be a prod-write hazard. Do not read that directory as the CI reference, and
+  do not edit a workflow there to "keep it in sync".
 - **⭐ THE NIGHTLY LIVES IN CLOUD SCHEDULER, NOT IN CI.** Two ENABLED jobs in **europe-west1**:
   **`fdp-nightly`** (`0 4 * * *`) runs the ingest and the full prod dbt build, and
   **`fdp-freshness`** (`7 * * * *`) runs hourly. Moved there by the CPO after GitLab CI limitations
@@ -282,4 +286,5 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
   ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Whether
   `fdp-freshness` needs to be hourly is a recurring-cost question and therefore the CPO's.
 - Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
-  GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21.
+  GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21, and the
+  GitHub repository is a read-only mirror that hosts nothing.

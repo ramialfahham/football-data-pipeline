@@ -140,9 +140,9 @@ it before pushing — that failure would have turned into a red CI check.
 ## Mapping to CI (so this stays in sync)
 
 GitLab job names since the 2026-08 migration. The GitHub workflow names this table
-used to carry (`ci-validate`, `ci-ui`, `python-ci`, `ci-data-build`) are dormant —
-GitHub Actions run nothing — so citing them here was a live-looking claim about a
-pipeline that does not run.
+used to carry (`ci-validate`, `ci-ui`, `python-ci`, `ci-data-build`) run nothing —
+GitHub is a read-only mirror of `main` with Actions disabled — so citing them here
+was a live-looking claim about a pipeline that does not run.
 
 | Gate | `.gitlab-ci.yml` job |
 |---|---|
