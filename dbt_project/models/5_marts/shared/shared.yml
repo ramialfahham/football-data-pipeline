@@ -155,7 +155,7 @@ models:
         description: "Window legs that COULD carry a team stat line — the window size minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat rate below is NULL unless its coverage count reaches this, so an awarded match is not read as a missing stat and does not blank a team's form figures."
         tests: [not_null]
       - name: games_with_team_stats
-        description: "Window legs with team stats present; denominator for per-match team-stat rates."
+        description: "Window legs with shots_total present — the coverage count of that one input, the gate and denominator of shots_per_match. Every rate here is NULL unless each input it reads is present in every non-awarded leg, each input by its own count in the builder. Never NULL."
         tests: [not_null]
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
@@ -165,6 +165,8 @@ models:
       - name: contributing_competitions
         description: "{{ doc('contributing_competitions') }}"
       - name: games_with_player_stats
+        description: "Window legs with a row in int_legs__team_from_players — the gate and denominator of the player-derived rates (passes_key_per_match through duels_won_pct), which are NULL unless every non-awarded leg is covered. Never NULL."
+        tests: [not_null]
       - name: points_won
         description: "{{ doc('points_won') }}"
       - name: clean_sheets

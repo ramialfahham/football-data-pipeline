@@ -266,10 +266,14 @@ calculated"); it is not repeated here. This section rules how that gate is built
   is silently too low.
 - **The guard is generated from the catalogue.** For every catalogue metric with a numerator and
   a denominator, one test: wherever the metric is not NULL, every input is present in every game
-  of its window. It is written once, from `metric_catalogue.csv`, never per rate by hand. The
-  catalogue does not yet say which per-game column each expression token reads — the coverage
-  counts live inside the consuming models today — so the guard needs that mapping added to the
-  catalogue first; it is #111's first step, and until it lands this bullet is a rule in progress.
+  of its window. The catalogue already names each input — the identifiers of `numerator_expr` and
+  `denominator_expr` that are columns of `base_relation`, the per-game leg models — so the guard
+  is built from the seed at run time, never per rate by hand; what each guard supplies is its
+  surface's window join and the entity rule (a team-feed input is present when its column is
+  non-null on the leg, a player-feed input when the game's player row exists at all). One guard
+  per window surface: `assert_form_window_rates_inputs_covered` and
+  `assert_season_rates_inputs_covered`. Player-entity metrics need no guard: a blank player stat
+  is a zero, so their inputs are always present.
 
 ### 3.3) Severity is decided by one question
 
@@ -293,13 +297,15 @@ instead of a count. A red test that has to be re-queried by hand to be read is h
 
 ### 3.5) What holds the rules
 
-Each rule above gets a mechanism, so it cannot decay into a preference. None of the four exists
-yet; each is a rule in progress until its mechanism lands, and the issue that owns it says so:
+Each rule above gets a mechanism, so it cannot decay into a preference. A rule whose mechanism
+has not landed is a rule in progress, and the issue that owns it says so:
 
 - every listed column has a description — a rule to add to `scripts/check_description_hygiene.py`,
   which today checks that every model, seed and source is described and what a description
   contains, not that every listed column has one;
-- the rate guard — the generated dbt test of §3.2, once the catalogue carries the input mapping;
+- the rate guard — the two generated dbt tests of §3.2, in place; the NULL sentence every team
+  rate's description must carry is composed by `scripts/sync_metric_docs_blocks.py` from the
+  catalogue's denominator, not typed per rate;
 - every documented column exists in the model's projection — a check beside the hygiene script;
 - every foreign key carries a `relationships` test — a script that lists the `_sk` columns
   without one, run in `validate:governance`.

@@ -67,7 +67,8 @@ Blocks per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 
 {% docs blocks_per_match %}
 Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage
-gaps.
+gaps. NULL unless every input of its formula is present for every match counted; an awarded
+result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
@@ -101,34 +102,40 @@ is the same measurement expressed as a proportion of the matches played.
 {% docs clean_sheets_pct %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
-number of matches.
+number of matches. NULL unless every input of its formula is present for every match counted;
+an awarded result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs clean_sheets_pct_delta_yoy__team %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
-number of matches. The change from the previous season to the current one, compared at the same
-point of the campaign: the current value minus the previous one. NULL when either side is
-missing, which covers a competition that carries no year-on-year comparison, a prior season
-that was never loaded, and a season whose first matches are not fully stat-covered.
+number of matches. NULL unless every input of its formula is present for every match counted;
+an awarded result (technical loss, walkover) is never counted against that. The change from the
+previous season to the current one, compared at the same point of the campaign: the current
+value minus the previous one. NULL when either side is missing, which covers a competition that
+carries no year-on-year comparison, a prior season that was never loaded, and a season whose
+first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs clean_sheets_pct_prev_season__team %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
-number of matches. Value for the season before, through the same number of matches as the
-current season has played so far, so the two are compared at the same point of a campaign
-rather than a part season against a full one.
+number of matches. NULL unless every input of its formula is present for every match counted;
+an awarded result (technical loss, walkover) is never counted against that. Value for the
+season before, through the same number of matches as the current season has played so far, so
+the two are compared at the same point of a campaign rather than a part season against a full
+one.
 {% enddocs %}
 
 
 {% docs clean_sheets_pct_this_season__team %}
 The share of matches the team finished without conceding a goal: matches with zero goals
 against divided by matches played. clean_sheets is the same measurement expressed as a whole
-number of matches. Value for the season now in progress, accumulated through the matches played
-so far.
+number of matches. NULL unless every input of its formula is present for every match counted;
+an awarded result (technical loss, walkover) is never counted against that. Value for the
+season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -157,56 +164,70 @@ than null.
 
 
 {% docs corners_against_per_match %}
-Average corner kicks conceded per match with available opponent stats.
+Average corner kicks conceded per match with available opponent stats. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that.
 {% enddocs %}
 
 
 {% docs corners_against_per_match_delta_yoy__team %}
-Average corner kicks conceded per match with available opponent stats. The change from the
-previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when either side is missing, which covers a competition that
-carries no year-on-year comparison, a prior season that was never loaded, and a season whose
-first matches are not fully stat-covered.
+Average corner kicks conceded per match with available opponent stats. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that. The change from the previous season to the current one, compared
+at the same point of the campaign: the current value minus the previous one. NULL when either
+side is missing, which covers a competition that carries no year-on-year comparison, a prior
+season that was never loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs corners_against_per_match_prev_season__team %}
-Average corner kicks conceded per match with available opponent stats. Value for the season
-before, through the same number of matches as the current season has played so far, so the two
-are compared at the same point of a campaign rather than a part season against a full one.
+Average corner kicks conceded per match with available opponent stats. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that. Value for the season before, through the same number of matches
+as the current season has played so far, so the two are compared at the same point of a
+campaign rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs corners_against_per_match_this_season__team %}
-Average corner kicks conceded per match with available opponent stats. Value for the season now
-in progress, accumulated through the matches played so far.
+Average corner kicks conceded per match with available opponent stats. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that. Value for the season now in progress, accumulated through the
+matches played so far.
 {% enddocs %}
 
 
 {% docs corners_per_match %}
-Average corner kicks won per match with available team stats.
+Average corner kicks won per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that.
 {% enddocs %}
 
 
 {% docs corners_per_match_delta_yoy__team %}
-Average corner kicks won per match with available team stats. The change from the previous
-season to the current one, compared at the same point of the campaign: the current value minus
-the previous one. NULL when either side is missing, which covers a competition that carries no
-year-on-year comparison, a prior season that was never loaded, and a season whose first matches
-are not fully stat-covered.
+Average corner kicks won per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. The change from the previous season to the current one, compared at
+the same point of the campaign: the current value minus the previous one. NULL when either side
+is missing, which covers a competition that carries no year-on-year comparison, a prior season
+that was never loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs corners_per_match_prev_season__team %}
-Average corner kicks won per match with available team stats. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
-compared at the same point of a campaign rather than a part season against a full one.
+Average corner kicks won per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. Value for the season before, through the same number of matches as
+the current season has played so far, so the two are compared at the same point of a campaign
+rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs corners_per_match_this_season__team %}
-Average corner kicks won per match with available team stats. Value for the season now in
-progress, accumulated through the matches played so far.
+Average corner kicks won per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. Value for the season now in progress, accumulated through the
+matches played so far.
 {% enddocs %}
 
 
@@ -218,33 +239,40 @@ Null when minutes is zero.
 
 {% docs defensive_actions_per_match %}
 Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player
-stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.
+stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs defensive_actions_per_match_delta_yoy__team %}
 Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player
-stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown. The change from
-the previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when either side is missing, which covers a competition that
-carries no year-on-year comparison, a prior season that was never loaded, and a season whose
-first matches are not fully stat-covered.
+stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that. The change from the previous season to the
+current one, compared at the same point of the campaign: the current value minus the previous
+one. NULL when either side is missing, which covers a competition that carries no year-on-year
+comparison, a prior season that was never loaded, and a season whose first matches are not
+fully stat-covered.
 {% enddocs %}
 
 
 {% docs defensive_actions_per_match_prev_season__team %}
 Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player
-stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown. Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
+stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that. Value for the season before, through the same
+number of matches as the current season has played so far, so the two are compared at the same
+point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs defensive_actions_per_match_this_season__team %}
 Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player
-stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown. Value for the
-season now in progress, accumulated through the matches played so far.
+stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that. Value for the season now in progress,
+accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -359,32 +387,38 @@ Dribble success rate. Null when dribbles_attempts is zero.
 
 {% docs duels_per_match %}
 Average duels contested per match. Aggregated from player stats; inherits player-stat coverage
-gaps. Volume context for the duel win rate.
+gaps. Volume context for the duel win rate. NULL unless every input of its formula is present
+for every match counted; an awarded result (technical loss, walkover) is never counted against
+that.
 {% enddocs %}
 
 
 {% docs duels_per_match_delta_yoy__team %}
 Average duels contested per match. Aggregated from player stats; inherits player-stat coverage
-gaps. Volume context for the duel win rate. The change from the previous season to the current
-one, compared at the same point of the campaign: the current value minus the previous one. NULL
-when either side is missing, which covers a competition that carries no year-on-year
-comparison, a prior season that was never loaded, and a season whose first matches are not
-fully stat-covered.
+gaps. Volume context for the duel win rate. NULL unless every input of its formula is present
+for every match counted; an awarded result (technical loss, walkover) is never counted against
+that. The change from the previous season to the current one, compared at the same point of the
+campaign: the current value minus the previous one. NULL when either side is missing, which
+covers a competition that carries no year-on-year comparison, a prior season that was never
+loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs duels_per_match_prev_season__team %}
 Average duels contested per match. Aggregated from player stats; inherits player-stat coverage
-gaps. Volume context for the duel win rate. Value for the season before, through the same
-number of matches as the current season has played so far, so the two are compared at the same
-point of a campaign rather than a part season against a full one.
+gaps. Volume context for the duel win rate. NULL unless every input of its formula is present
+for every match counted; an awarded result (technical loss, walkover) is never counted against
+that. Value for the season before, through the same number of matches as the current season has
+played so far, so the two are compared at the same point of a campaign rather than a part
+season against a full one.
 {% enddocs %}
 
 
 {% docs duels_per_match_this_season__team %}
 Average duels contested per match. Aggregated from player stats; inherits player-stat coverage
-gaps. Volume context for the duel win rate. Value for the season now in progress, accumulated
-through the matches played so far.
+gaps. Volume context for the duel win rate. NULL unless every input of its formula is present
+for every match counted; an awarded result (technical loss, walkover) is never counted against
+that. Value for the season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -394,30 +428,37 @@ Total duels contested.
 
 
 {% docs duels_won_pct %}
-Duel win rate. Null when duels_total is zero. Aggregated from player stats.
+Duel win rate. Null when duels_total is zero. Aggregated from player stats. NULL unless every
+input of its formula is present for every match counted; an awarded result (technical loss,
+walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs duels_won_pct_delta_yoy__team %}
-Duel win rate. Null when duels_total is zero. Aggregated from player stats. The change from the
-previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when either side is missing, which covers a competition that
-carries no year-on-year comparison, a prior season that was never loaded, and a season whose
-first matches are not fully stat-covered.
+Duel win rate. Null when duels_total is zero. Aggregated from player stats. NULL unless every
+input of its formula is present for every match counted; an awarded result (technical loss,
+walkover) is never counted against that. The change from the previous season to the current
+one, compared at the same point of the campaign: the current value minus the previous one. NULL
+when either side is missing, which covers a competition that carries no year-on-year
+comparison, a prior season that was never loaded, and a season whose first matches are not
+fully stat-covered.
 {% enddocs %}
 
 
 {% docs duels_won_pct_prev_season__team %}
-Duel win rate. Null when duels_total is zero. Aggregated from player stats. Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
+Duel win rate. Null when duels_total is zero. Aggregated from player stats. NULL unless every
+input of its formula is present for every match counted; an awarded result (technical loss,
+walkover) is never counted against that. Value for the season before, through the same number
+of matches as the current season has played so far, so the two are compared at the same point
+of a campaign rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs duels_won_pct_this_season__team %}
-Duel win rate. Null when duels_total is zero. Aggregated from player stats. Value for the
-season now in progress, accumulated through the matches played so far.
+Duel win rate. Null when duels_total is zero. Aggregated from player stats. NULL unless every
+input of its formula is present for every match counted; an awarded result (technical loss,
+walkover) is never counted against that. Value for the season now in progress, accumulated
+through the matches played so far.
 {% enddocs %}
 
 
@@ -441,6 +482,8 @@ Open-play goal conversion: open-play goals (goals minus penalties and own goals)
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
 unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
@@ -449,10 +492,12 @@ Open-play goal conversion: open-play goals (goals minus penalties and own goals)
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
 unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].
-The change from the previous season to the current one, compared at the same point of the
-campaign: the current value minus the previous one. NULL when either side is missing, which
-covers a competition that carries no year-on-year comparison, a prior season that was never
-loaded, and a season whose first matches are not fully stat-covered.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that. The change from the previous season
+to the current one, compared at the same point of the campaign: the current value minus the
+previous one. NULL when either side is missing, which covers a competition that carries no
+year-on-year comparison, a prior season that was never loaded, and a season whose first matches
+are not fully stat-covered.
 {% enddocs %}
 
 
@@ -461,9 +506,10 @@ Open-play goal conversion: open-play goals (goals minus penalties and own goals)
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
 unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].
-Value for the season before, through the same number of matches as the current season has
-played so far, so the two are compared at the same point of a campaign rather than a part
-season against a full one.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that. Value for the season before, through
+the same number of matches as the current season has played so far, so the two are compared at
+the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
 
@@ -472,7 +518,9 @@ Open-play goal conversion: open-play goals (goals minus penalties and own goals)
 goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties
 and own goals are excluded because they are not finishing the team's own on-target shots. Null
 unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].
-Value for the season now in progress, accumulated through the matches played so far.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that. Value for the season now in progress,
+accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -509,29 +557,34 @@ that was never loaded, and a season whose first matches are not fully stat-cover
 
 
 {% docs goals_against_per_match %}
-Average goals conceded per match.
+Average goals conceded per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs goals_against_per_match_delta_yoy__team %}
-Average goals conceded per match. The change from the previous season to the current one,
-compared at the same point of the campaign: the current value minus the previous one. NULL when
-either side is missing, which covers a competition that carries no year-on-year comparison, a
-prior season that was never loaded, and a season whose first matches are not fully
-stat-covered.
+Average goals conceded per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that. The
+change from the previous season to the current one, compared at the same point of the campaign:
+the current value minus the previous one. NULL when either side is missing, which covers a
+competition that carries no year-on-year comparison, a prior season that was never loaded, and
+a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs goals_against_per_match_prev_season__team %}
-Average goals conceded per match. Value for the season before, through the same number of
-matches as the current season has played so far, so the two are compared at the same point of a
-campaign rather than a part season against a full one.
+Average goals conceded per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season before, through the same number of matches as the current season has
+played so far, so the two are compared at the same point of a campaign rather than a part
+season against a full one.
 {% enddocs %}
 
 
 {% docs goals_against_per_match_this_season__team %}
-Average goals conceded per match. Value for the season now in progress, accumulated through the
-matches played so far.
+Average goals conceded per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -606,29 +659,34 @@ comparison. Null when minutes is zero.
 
 
 {% docs goals_per_match %}
-Average goals scored per match.
+Average goals scored per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs goals_per_match_delta_yoy__team %}
-Average goals scored per match. The change from the previous season to the current one,
-compared at the same point of the campaign: the current value minus the previous one. NULL when
-either side is missing, which covers a competition that carries no year-on-year comparison, a
-prior season that was never loaded, and a season whose first matches are not fully
-stat-covered.
+Average goals scored per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that. The
+change from the previous season to the current one, compared at the same point of the campaign:
+the current value minus the previous one. NULL when either side is missing, which covers a
+competition that carries no year-on-year comparison, a prior season that was never loaded, and
+a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs goals_per_match_prev_season__team %}
-Average goals scored per match. Value for the season before, through the same number of matches
-as the current season has played so far, so the two are compared at the same point of a
-campaign rather than a part season against a full one.
+Average goals scored per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season before, through the same number of matches as the current season has
+played so far, so the two are compared at the same point of a campaign rather than a part
+season against a full one.
 {% enddocs %}
 
 
 {% docs goals_per_match_this_season__team %}
-Average goals scored per match. Value for the season now in progress, accumulated through the
-matches played so far.
+Average goals scored per match. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -674,7 +732,8 @@ Interceptions per 90 minutes played. Minutes-normalised. Null when minutes is ze
 
 {% docs interceptions_per_match %}
 Average interceptions per match. Aggregated from player stats; inherits player-stat coverage
-gaps.
+gaps. NULL unless every input of its formula is present for every match counted; an awarded
+result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
@@ -719,29 +778,36 @@ rather than this one.
 
 
 {% docs passes_accuracy_pct %}
-Share of passes successfully completed. Null when passes_total is zero.
+Share of passes successfully completed. Null when passes_total is zero. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that.
 {% enddocs %}
 
 
 {% docs passes_accuracy_pct_delta_yoy__team %}
-Share of passes successfully completed. Null when passes_total is zero. The change from the
-previous season to the current one, compared at the same point of the campaign: the current
-value minus the previous one. NULL when either side is missing, which covers a competition that
-carries no year-on-year comparison, a prior season that was never loaded, and a season whose
-first matches are not fully stat-covered.
+Share of passes successfully completed. Null when passes_total is zero. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that. The change from the previous season to the current one, compared
+at the same point of the campaign: the current value minus the previous one. NULL when either
+side is missing, which covers a competition that carries no year-on-year comparison, a prior
+season that was never loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs passes_accuracy_pct_prev_season__team %}
-Share of passes successfully completed. Null when passes_total is zero. Value for the season
-before, through the same number of matches as the current season has played so far, so the two
-are compared at the same point of a campaign rather than a part season against a full one.
+Share of passes successfully completed. Null when passes_total is zero. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that. Value for the season before, through the same number of matches
+as the current season has played so far, so the two are compared at the same point of a
+campaign rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs passes_accuracy_pct_this_season__team %}
-Share of passes successfully completed. Null when passes_total is zero. Value for the season
-now in progress, accumulated through the matches played so far.
+Share of passes successfully completed. Null when passes_total is zero. NULL unless every input
+of its formula is present for every match counted; an awarded result (technical loss, walkover)
+is never counted against that. Value for the season now in progress, accumulated through the
+matches played so far.
 {% enddocs %}
 
 
@@ -765,29 +831,36 @@ minutes is zero.
 
 {% docs passes_key_per_match %}
 Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs passes_key_per_match_delta_yoy__team %}
 Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
-The change from the previous season to the current one, compared at the same point of the
-campaign: the current value minus the previous one. NULL when either side is missing, which
-covers a competition that carries no year-on-year comparison, a prior season that was never
-loaded, and a season whose first matches are not fully stat-covered.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that. The change from the previous season
+to the current one, compared at the same point of the campaign: the current value minus the
+previous one. NULL when either side is missing, which covers a competition that carries no
+year-on-year comparison, a prior season that was never loaded, and a season whose first matches
+are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs passes_key_per_match_prev_season__team %}
 Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
-Value for the season before, through the same number of matches as the current season has
-played so far, so the two are compared at the same point of a campaign rather than a part
-season against a full one.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that. Value for the season before, through
+the same number of matches as the current season has played so far, so the two are compared at
+the same point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs passes_key_per_match_this_season__team %}
 Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.
-Value for the season now in progress, accumulated through the matches played so far.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that. Value for the season now in progress,
+accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -832,29 +905,36 @@ Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is
 
 
 {% docs passes_per_match %}
-Average passes attempted per match with available team stats.
+Average passes attempted per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that.
 {% enddocs %}
 
 
 {% docs passes_per_match_delta_yoy__team %}
-Average passes attempted per match with available team stats. The change from the previous
-season to the current one, compared at the same point of the campaign: the current value minus
-the previous one. NULL when either side is missing, which covers a competition that carries no
-year-on-year comparison, a prior season that was never loaded, and a season whose first matches
-are not fully stat-covered.
+Average passes attempted per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. The change from the previous season to the current one, compared at
+the same point of the campaign: the current value minus the previous one. NULL when either side
+is missing, which covers a competition that carries no year-on-year comparison, a prior season
+that was never loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs passes_per_match_prev_season__team %}
-Average passes attempted per match with available team stats. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
-compared at the same point of a campaign rather than a part season against a full one.
+Average passes attempted per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. Value for the season before, through the same number of matches as
+the current season has played so far, so the two are compared at the same point of a campaign
+rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs passes_per_match_this_season__team %}
-Average passes attempted per match with available team stats. Value for the season now in
-progress, accumulated through the matches played so far.
+Average passes attempted per match with available team stats. NULL unless every input of its
+formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. Value for the season now in progress, accumulated through the
+matches played so far.
 {% enddocs %}
 
 
@@ -875,7 +955,9 @@ Penalties won.
 
 
 {% docs points_capture_pct %}
-Share of available points won (points / (3 * games)).
+Share of available points won (points / (3 * games)). NULL unless every input of its formula is
+present for every match counted; an awarded result (technical loss, walkover) is never counted
+against that.
 {% enddocs %}
 
 
@@ -899,32 +981,39 @@ fixtures can be understated rather than null.
 
 {% docs saves_pct %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games.
+conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+its formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that.
 {% enddocs %}
 
 
 {% docs saves_pct_delta_yoy__team %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. The change from the previous
-season to the current one, compared at the same point of the campaign: the current value minus
-the previous one. NULL when either side is missing, which covers a competition that carries no
-year-on-year comparison, a prior season that was never loaded, and a season whose first matches
-are not fully stat-covered.
+conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+its formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. The change from the previous season to the current one, compared at
+the same point of the campaign: the current value minus the previous one. NULL when either side
+is missing, which covers a competition that carries no year-on-year comparison, a prior season
+that was never loaded, and a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs saves_pct_prev_season__team %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. Value for the season before,
-through the same number of matches as the current season has played so far, so the two are
-compared at the same point of a campaign rather than a part season against a full one.
+conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+its formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. Value for the season before, through the same number of matches as
+the current season has played so far, so the two are compared at the same point of a campaign
+rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs saves_pct_this_season__team %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. Value for the season now in
-progress, accumulated through the matches played so far.
+conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+its formula is present for every match counted; an awarded result (technical loss, walkover) is
+never counted against that. Value for the season now in progress, accumulated through the
+matches played so far.
 {% enddocs %}
 
 
@@ -962,30 +1051,37 @@ total over several fixtures can be understated rather than null.
 
 
 {% docs shots_inside_box_pct %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero.
+Share of shots taken from inside the penalty area. Null when shots_total is zero. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs shots_inside_box_pct_delta_yoy__team %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero. The change
-from the previous season to the current one, compared at the same point of the campaign: the
-current value minus the previous one. NULL when either side is missing, which covers a
-competition that carries no year-on-year comparison, a prior season that was never loaded, and
-a season whose first matches are not fully stat-covered.
+Share of shots taken from inside the penalty area. Null when shots_total is zero. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that. The change from the previous season to the
+current one, compared at the same point of the campaign: the current value minus the previous
+one. NULL when either side is missing, which covers a competition that carries no year-on-year
+comparison, a prior season that was never loaded, and a season whose first matches are not
+fully stat-covered.
 {% enddocs %}
 
 
 {% docs shots_inside_box_pct_prev_season__team %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero. Value for the
-season before, through the same number of matches as the current season has played so far, so
-the two are compared at the same point of a campaign rather than a part season against a full
-one.
+Share of shots taken from inside the penalty area. Null when shots_total is zero. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that. Value for the season before, through the same
+number of matches as the current season has played so far, so the two are compared at the same
+point of a campaign rather than a part season against a full one.
 {% enddocs %}
 
 
 {% docs shots_inside_box_pct_this_season__team %}
-Share of shots taken from inside the penalty area. Null when shots_total is zero. Value for the
-season now in progress, accumulated through the matches played so far.
+Share of shots taken from inside the penalty area. Null when shots_total is zero. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that. Value for the season now in progress,
+accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -1000,7 +1096,8 @@ total over several fixtures can be understated rather than null. Totalled over t
 {% docs shots_on_goal_against_per_match %}
 Average shots on target conceded per match. The defensive companion to
 shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover
-every season game.
+every season game. NULL unless every input of its formula is present for every match counted;
+an awarded result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
@@ -1012,13 +1109,16 @@ Shots on target faced. Derived as saves + goals conceded.
 {% docs shots_on_goal_difference_per_match %}
 Average shots-on-target difference per match (on target for - against). The best non-outcome
 predictor of league position; the deserved process signal behind deserved-vs-actual. Null
-unless both own and opponent shots-on-target data cover every season game.
+unless both own and opponent shots-on-target data cover every season game. NULL unless every
+input of its formula is present for every match counted; an awarded result (technical loss,
+walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs shots_on_goal_pct %}
 Share of shots that were on goal. Total shots include blocked shots. Null when shots_total is
-zero.
+zero. NULL unless every input of its formula is present for every match counted; an awarded
+result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
@@ -1029,31 +1129,37 @@ Shots on goal per 90 minutes played. Minutes-normalised. Null when minutes is ze
 
 {% docs shots_on_goal_per_match %}
 Average shots on target per match, counted over the games whose shots-on-target data is present
-rather than every game played.
+rather than every game played. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs shots_on_goal_per_match_delta_yoy__team %}
 Average shots on target per match, counted over the games whose shots-on-target data is present
-rather than every game played. The change from the previous season to the current one, compared
-at the same point of the campaign: the current value minus the previous one. NULL when either
-side is missing, which covers a competition that carries no year-on-year comparison, a prior
-season that was never loaded, and a season whose first matches are not fully stat-covered.
+rather than every game played. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that. The
+change from the previous season to the current one, compared at the same point of the campaign:
+the current value minus the previous one. NULL when either side is missing, which covers a
+competition that carries no year-on-year comparison, a prior season that was never loaded, and
+a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs shots_on_goal_per_match_prev_season__team %}
 Average shots on target per match, counted over the games whose shots-on-target data is present
-rather than every game played. Value for the season before, through the same number of matches
-as the current season has played so far, so the two are compared at the same point of a
-campaign rather than a part season against a full one.
+rather than every game played. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season before, through the same number of matches as the current season has
+played so far, so the two are compared at the same point of a campaign rather than a part
+season against a full one.
 {% enddocs %}
 
 
 {% docs shots_on_goal_per_match_this_season__team %}
 Average shots on target per match, counted over the games whose shots-on-target data is present
-rather than every game played. Value for the season now in progress, accumulated through the
-matches played so far.
+rather than every game played. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -1094,31 +1200,37 @@ so far.
 
 {% docs shots_per_match %}
 Average total shots attempted per match with available team stats. Includes on-target,
-off-target and blocked shots.
+off-target and blocked shots. NULL unless every input of its formula is present for every match
+counted; an awarded result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs shots_per_match_delta_yoy__team %}
 Average total shots attempted per match with available team stats. Includes on-target,
-off-target and blocked shots. The change from the previous season to the current one, compared
-at the same point of the campaign: the current value minus the previous one. NULL when either
-side is missing, which covers a competition that carries no year-on-year comparison, a prior
-season that was never loaded, and a season whose first matches are not fully stat-covered.
+off-target and blocked shots. NULL unless every input of its formula is present for every match
+counted; an awarded result (technical loss, walkover) is never counted against that. The change
+from the previous season to the current one, compared at the same point of the campaign: the
+current value minus the previous one. NULL when either side is missing, which covers a
+competition that carries no year-on-year comparison, a prior season that was never loaded, and
+a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs shots_per_match_prev_season__team %}
 Average total shots attempted per match with available team stats. Includes on-target,
-off-target and blocked shots. Value for the season before, through the same number of matches
-as the current season has played so far, so the two are compared at the same point of a
-campaign rather than a part season against a full one.
+off-target and blocked shots. NULL unless every input of its formula is present for every match
+counted; an awarded result (technical loss, walkover) is never counted against that. Value for
+the season before, through the same number of matches as the current season has played so far,
+so the two are compared at the same point of a campaign rather than a part season against a
+full one.
 {% enddocs %}
 
 
 {% docs shots_per_match_this_season__team %}
 Average total shots attempted per match with available team stats. Includes on-target,
-off-target and blocked shots. Value for the season now in progress, accumulated through the
-matches played so far.
+off-target and blocked shots. NULL unless every input of its formula is present for every match
+counted; an awarded result (technical loss, walkover) is never counted against that. Value for
+the season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
@@ -1128,7 +1240,9 @@ Total shots (on and off target).
 
 
 {% docs shots_share_pct %}
-Share of all shots in the team's matches taken by the team. Null when no shots.
+Share of all shots in the team's matches taken by the team. Null when no shots. NULL unless
+every input of its formula is present for every match counted; an awarded result (technical
+loss, walkover) is never counted against that.
 {% enddocs %}
 
 
@@ -1139,6 +1253,8 @@ Tackles per 90 minutes played. Minutes-normalised. Null when minutes is zero.
 
 {% docs tackles_per_match %}
 Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.
+NULL unless every input of its formula is present for every match counted; an awarded result
+(technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 

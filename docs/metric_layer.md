@@ -75,6 +75,8 @@ pattern, and putting a ratio in the atoms model breaks it.
 | `assert_metric_meaning_complete` | a row is missing the fields that make it mean something |
 | `assert_metric_direction_lower_is_better_agree` | `direction` and `lower_is_better` contradict each other |
 | `assert_metric_catalogue_unique_by_entity` | one `metric_id` is defined twice for an entity |
+| `assert_form_window_rates_inputs_covered` | a team rate is shown on the form window while an input of its formula is missing from a non-awarded game of that window — the rule above, checked from the catalogue's own formula on every rate the surface carries |
+| `assert_season_rates_inputs_covered` | the same on the season surface, at every matchday |
 
 Plus the standard model tests: ratios asserted in 0–1, `not_null` and `relationships` on keys,
 `unique` on the grain.

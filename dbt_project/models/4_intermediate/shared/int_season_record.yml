@@ -48,7 +48,22 @@ models:
         # future change to how it is derived rather than a live defect.
         tests: [not_null]
       - name: games_with_team_stats
-        description: "Cumulative count of those matches with team stats present; denominator for per-match team-stat rates."
+        description: "Cumulative count of those matches with shots_total present — the coverage count of that one input, the gate of shots_per_match and one of the gates of shots_on_goal_pct, shots_inside_box_pct and shots_share_pct. The provider's stat line arrives in pieces, so it says nothing about passes, corners or shots inside the box; those inputs carry their own counts. Never NULL."
+        tests: [not_null]
+      - name: games_with_inside_box_stats
+        description: "Cumulative count of those matches with shots_inside_box present — one of the gates of shots_inside_box_pct. Never NULL."
+        tests: [not_null]
+      - name: games_with_passes_total_stats
+        description: "Cumulative count of those matches with passes_total present — the gate and denominator of passes_per_match and one of the gates of passes_accuracy_pct. Never NULL."
+        tests: [not_null]
+      - name: games_with_passes_accurate_stats
+        description: "Cumulative count of those matches with passes_accurate present — one of the gates of passes_accuracy_pct. Never NULL."
+        tests: [not_null]
+      - name: games_with_corner_stats
+        description: "Cumulative count of those matches with corner_kicks present — the gate and denominator of corners_per_match. Never NULL."
+        tests: [not_null]
+      - name: games_with_opp_shots_stats
+        description: "Cumulative count of those matches with opponent_shots_total present — one of the gates of shots_share_pct. Never NULL."
         tests: [not_null]
       - name: games_with_save_stats
         description: "Cumulative count of those matches with goalkeeper_saves present — saves_pct's own coverage bucket, used to NULL saves_pct on partial coverage."
@@ -84,8 +99,14 @@ models:
         description: "{{ doc('goals_against') }}"
       - name: clean_sheet_games
       - name: games_with_sot_stats
+        description: "Cumulative count of those matches with shots_on_goal present — the gate and denominator of shots_on_goal_per_match and one of the gates of shots_on_goal_pct, finishing_efficiency_pct and shots_on_goal_difference_per_match. Never NULL."
+        tests: [not_null]
       - name: games_with_opp_stats
+        description: "Cumulative count of those matches with opponent_corner_kicks present — the gate and denominator of corners_against_per_match. Never NULL."
+        tests: [not_null]
       - name: games_with_opp_sot_stats
+        description: "Cumulative count of those matches with opponent_shots_on_goal present — the gate and denominator of shots_on_goal_against_per_match and one of the gates of shots_on_goal_difference_per_match. Never NULL."
+        tests: [not_null]
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
@@ -111,6 +132,8 @@ models:
       - name: goalkeeper_saves
         description: "{{ doc('saves') }}"
       - name: games_with_player_stats
+        description: "Cumulative count of those matches with a row in int_legs__team_from_players — the gate and denominator of the player-derived rates (passes_key_per_match through duels_won_pct), which are NULL unless every non-awarded match is covered. Never NULL."
+        tests: [not_null]
       - name: key_passes
       - name: tackles
       - name: interceptions
