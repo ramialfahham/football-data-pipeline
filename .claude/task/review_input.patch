@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 548919d1..52810407 100644
+index 548919d1..3a03ce3c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,35 +1,32 @@
+@@ -1,35 +1,34 @@
 -# Task contract — CLAUDE.md: what the mirror token needs when it is renewed
 +# Task contract — handover: next is #150, then #109 step 3; the mirror items are closed
  
@@ -29,6 +29,7 @@ index 548919d1..52810407 100644
  scope_paths:
 -  - CLAUDE.md
 +  - .claude/active_work.md
++  - tests/test_no_dead_issue_refs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
@@ -51,7 +52,57 @@ index 548919d1..52810407 100644
 -  - `python -m pytest tests/test_governance_doc_parity.py tests/test_no_dead_issue_refs.py -q` green.
 +  - `.claude/active_work.md` names #150 as next and #109 step 3 after it; the badge and token items are no longer listed as open; `len()` under 16,000.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-09-18, after `test:python` failed on !208: `tests/test_no_dead_issue_refs.py` added to scope. Its `DEAD_GITHUB_ISSUES` list began at 154; GitLab issued #154 today (the runbook rewrite), so the handover's reference tripped the guard. The test's own assertion text prescribes the fix — remove a number only when GitLab has genuinely issued it — and the self-test that pins the guard fires is moved to the next dead number. No other change to the test.
+diff --git a/tests/test_no_dead_issue_refs.py b/tests/test_no_dead_issue_refs.py
+index d947b6c6..59b26997 100644
+--- a/tests/test_no_dead_issue_refs.py
++++ b/tests/test_no_dead_issue_refs.py
+@@ -59,7 +59,7 @@ INSTRUCTING_FILES = ("CLAUDE.md", ".claude/active_work.md")
+ 
+ # Every GitHub-era issue number this repo still refers to. Closed set — see the module docstring.
+ DEAD_GITHUB_ISSUES = frozenset({
+-    *range(154, 157), 163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
++    *range(155, 157), 163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
+     *range(217, 229), *range(232, 241), 247, *range(250, 263), 264, 266, 268, 272,
+     *range(276, 297), 299, *range(307, 315), *range(316, 330), 331, *range(361, 371), 372,
+     *range(374, 378), 391, *range(401, 404), 405, *range(407, 429), 430, *range(433, 435),
+@@ -119,7 +119,7 @@ def test_the_guard_can_actually_fire():
+     CSS colour in `docs/roles/ui_expert.md` cannot be mistaken for an issue.
+     """
+     assert _dead_refs("the authority is #753") == [753]
+-    assert _dead_refs("see #154 and #156") == [154, 156]
++    assert _dead_refs("see #155 and #156") == [155, 156]
+     # GitLab issues, live: #33 is the cost/scalability plan, #115 the context cleanup.
+     assert _dead_refs("#33 and #114 and #115 are live") == []
+     # The trailing-hex guard: a six-digit CSS colour is not issue 475569.
+@@ -202,8 +202,8 @@ def test_no_member_of_the_dead_set_can_be_removed_quietly():
+     digest = hashlib.sha256(
+         ",".join(str(n) for n in sorted(DEAD_GITHUB_ISSUES)).encode()
+     ).hexdigest()
+-    assert len(DEAD_GITHUB_ISSUES) == 254 and digest == (
+-        "8d434ce634c9b2c12094861f838f970480b1de49f273917d6e33c0dce2f349af"
++    assert len(DEAD_GITHUB_ISSUES) == 253 and digest == (
++        "5ac5e1d4bc9bc9942a0999d867316e772f2eb263dbf98491c67a9f1872da5618"
+     ), (
+         "DEAD_GITHUB_ISSUES changed. There is exactly one legitimate reason: GitLab has issued a "
+         "number that is in the set, so a live reference was being flagged — remove that ONE entry "
+@@ -216,10 +216,10 @@ def test_the_headroom_before_a_collision_is_stated():
+     """The set is closed, so the only way it goes wrong is GitLab reaching one of these numbers.
+ 
+     GitLab was at #115 when the set was enumerated and the lowest dead number was #151, so there
+-    were 35 issues of headroom. GitLab has since reached #151 and #153 (the Rankings build issue
+-    and the design-system issue), both entries are gone, and the floor is #154. Pinning both ends makes the collision arrive as a named test
+-    failure rather than as a
++    were 35 issues of headroom. GitLab has since reached #151, #153 and #154 (the Rankings build
++    issue, the design-system issue, the runbook rewrite), those entries are gone, and the floor is
++    #155. Pinning both ends makes the collision arrive as a named test failure rather than as a
+     confusing false positive on a live reference.
+     """
+-    assert min(DEAD_GITHUB_ISSUES) == 154
++    assert min(DEAD_GITHUB_ISSUES) == 155
+     assert 115 not in DEAD_GITHUB_ISSUES, "GitLab #115 is the context-cleanup issue and is live"
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -65,6 +116,8 @@ index 548919d1..52810407 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md | 36 ++++++++++++++++++------------------
-#    1 file changed, 18 insertions(+), 18 deletions(-)
+#   .claude/active_work.md          |  36 +++++++-------
+#    .claude/task/review.md          |  14 +++---
+#    .claude/task/review_input.patch | 103 +++++++++++++++++++---------------------
+#    3 files changed, 75 insertions(+), 78 deletions(-)
 # ============================================================================

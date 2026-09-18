@@ -13,6 +13,7 @@ refs: >
 
 scope_paths:
   - .claude/active_work.md
+  - tests/test_no_dead_issue_refs.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -29,4 +30,5 @@ decisions_reserved:
 done_when:
   - `.claude/active_work.md` names #150 as next and #109 step 3 after it; the badge and token items are no longer listed as open; `len()` under 16,000.
 
-amendments: (none)
+amendments:
+  - 2026-09-18, after `test:python` failed on !208: `tests/test_no_dead_issue_refs.py` added to scope. Its `DEAD_GITHUB_ISSUES` list began at 154; GitLab issued #154 today (the runbook rewrite), so the handover's reference tripped the guard. The test's own assertion text prescribes the fix — remove a number only when GitLab has genuinely issued it — and the self-test that pins the guard fires is moved to the next dead number. No other change to the test.
