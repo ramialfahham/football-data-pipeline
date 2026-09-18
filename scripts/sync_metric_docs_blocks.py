@@ -91,6 +91,26 @@ MIN_METRICS = 50
 # no phrasing to enumerate.
 WINDOW_PHRASING = re.compile(r"\bwindow\b", re.I)
 
+# A rate's NULL rule, derived rather than typed into every rate's description: every team
+# metric with a denominator is NULL unless each input of its formula is present in every match
+# the surface counts (engineering_standards.md section 3.1 asks every coverage-restricted column
+# to say so; docs/metric_layer.md owns the meaning). Worded without "window" - the sentence is
+# true on every surface that computes the rate, and WINDOW_PHRASING above refuses the word - and
+# without a file path, because its reader is in the BigQuery console.
+RATE_NULL_SENTENCE = (
+    "NULL unless every input of its formula is present for every match counted; an awarded "
+    "result (technical loss, walkover) is never counted against that."
+)
+
+
+def _definition(row: dict) -> str:
+    """The seed's description, with the NULL rule appended for a team rate."""
+    text = (row["description"] or "").strip()
+    is_team = (row.get("entity") or "").strip() == "team"
+    if is_team and (row.get("denominator_expr") or "").strip():
+        return text + " " + RATE_NULL_SENTENCE
+    return text
+
 # ─── DERIVED COLUMNS ────────────────────────────────────────────────────────────
 # 77 model columns are a catalogue metric with one standard affix on it:
 # `goals_against_sum_season`, `duels_won_pct_this_season`,
@@ -288,7 +308,7 @@ def _blocks(rows: list[dict]) -> dict[str, str]:
 
     blocks: dict[str, str] = {}
     for metric, group in by_metric.items():
-        texts = {(r["description"] or "").strip() for r in group}
+        texts = {_definition(r) for r in group}
         if len(texts) == 1:
             blocks[metric] = texts.pop()
             continue
@@ -304,7 +324,7 @@ def _blocks(rows: list[dict]) -> dict[str, str]:
             )
         for r in group:
             suffix = (r["entity"] or "").strip().replace(" ", "_")
-            blocks[metric + "__" + suffix] = (r["description"] or "").strip()
+            blocks[metric + "__" + suffix] = _definition(r)
     return blocks
 
 
@@ -413,7 +433,7 @@ def _derived_blocks(rows: list[dict], names: list[str],
     for r in rows:
         metric = r["metric_id"].strip()
         entity = (r["entity"] or "").strip().replace(" ", "_")
-        text = (r["description"] or "").strip()
+        text = _definition(r)
         # NO GUARD HERE against two rows sharing a metric AND an entity while
         # disagreeing. `_blocks()` runs first in `_render()` and already aborts on
         # exactly that, so a copy of the check here is unreachable — proven by

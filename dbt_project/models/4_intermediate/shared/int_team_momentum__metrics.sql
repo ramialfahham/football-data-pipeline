@@ -19,9 +19,9 @@
   Returns no row when a team has no finished matches yet (before phase for a
   club domestic_league). The mart will emit nulls; #326 fills the gap.
 
-  Player-derived columns (key_passes, tackles, …) inherit player-stat coverage
-  gaps: if none of the window legs have player data the column is NULL; if some do,
-  the sum covers only those matches. games_with_player_stats tracks coverage.
+  Player-derived columns (key_passes, tackles, …) are summed over the legs that carry
+  player data; games_with_player_stats counts those legs, and the mart shows a
+  player-derived rate only when every non-awarded leg is covered, like every other rate.
 
   Coverage rule (same-window): a ratio's numerator and denominator must cover the
   same games. Team stats (shots, passes, corners, saves) are sparse in lower
@@ -49,12 +49,15 @@ team_agg as (
         -- a coverage gap. The season surface makes the same distinction; leaving it out here would
         -- have the form figures and the season figures disagree about the same match.
         countif(not is_awarded_result) as games_expecting_team_stats,
-        -- per-input coverage: stats are sparse in lower leagues, so each rate
-        -- must divide over the games where its inputs actually exist
+        -- per-input coverage: the provider's stat line arrives in pieces, so every input a
+        -- rate reads has its own count and the mart gates the rate on each of them
+        -- (engineering_standards.md section 3.2) - never on a proxy for another column
         countif(shots_total is not null) as games_with_team_stats,
-        -- shots_on_goal can be null where shots_total isn't: the SoT rate needs
-        -- its own coverage count (same-window rule)
         countif(shots_on_goal is not null) as games_with_sot_stats,
+        countif(shots_inside_box is not null) as games_with_inside_box_stats,
+        countif(passes_total is not null) as games_with_passes_total_stats,
+        countif(passes_accurate is not null) as games_with_passes_accurate_stats,
+        countif(corner_kicks is not null) as games_with_corner_stats,
         countif(opponent_corner_kicks is not null) as games_with_opp_stats,
         -- save coverage: saves_pct is a team-feed (goalkeeper) metric, so it needs its own
         -- coverage count to NULL on partial coverage (universal incomplete-data rule)
@@ -131,6 +134,10 @@ select
     ta.games_expecting_team_stats,
     ta.games_with_team_stats,
     ta.games_with_sot_stats,
+    ta.games_with_inside_box_stats,
+    ta.games_with_passes_total_stats,
+    ta.games_with_passes_accurate_stats,
+    ta.games_with_corner_stats,
     ta.games_with_opp_stats,
     ta.games_with_save_stats,
     ta.contributing_competitions,

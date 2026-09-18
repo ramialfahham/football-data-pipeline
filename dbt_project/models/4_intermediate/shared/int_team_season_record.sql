@@ -109,13 +109,25 @@ select
     -- cascades, since int_team_season__deserved_vs_actual withholds a league-season unless EVERY
     -- team has a computable SoT figure. Ligue 1 2025's whole deserved read, from one fixture.
     sum(case when is_awarded_result then 0 else 1 end) over w as games_expecting_team_stats,
-    -- team-stat coverage (cumulative)
+    -- team-stat coverage (cumulative): the provider's stat line arrives in pieces, so every
+    -- input a rate reads has its own count and the rate is gated on each of them
+    -- (engineering_standards.md section 3.2) - never on a proxy for another column
     sum(case when shots_total is not null then 1 else 0 end) over w
         as games_with_team_stats,
     sum(case when shots_on_goal is not null then 1 else 0 end) over w
         as games_with_sot_stats,
+    sum(case when shots_inside_box is not null then 1 else 0 end) over w
+        as games_with_inside_box_stats,
+    sum(case when passes_total is not null then 1 else 0 end) over w
+        as games_with_passes_total_stats,
+    sum(case when passes_accurate is not null then 1 else 0 end) over w
+        as games_with_passes_accurate_stats,
+    sum(case when corner_kicks is not null then 1 else 0 end) over w
+        as games_with_corner_stats,
     sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
         as games_with_opp_stats,
+    sum(case when opponent_shots_total is not null then 1 else 0 end) over w
+        as games_with_opp_shots_stats,
     -- opponent shots-on-target coverage (cumulative), for
     -- shots_on_goal_difference_per_match / shots_on_goal_against_per_match:
     -- need their own opponent-SoT count, distinct from games_with_opp_stats (keyed on corners)

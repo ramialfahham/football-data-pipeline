@@ -437,6 +437,34 @@ def test_a_derived_block_is_ALWAYS_entity_suffixed(monkeypatch, tmp_path):
     assert "{% docs goals_this_season %}" not in text
 
 
+def test_a_team_rate_carries_the_null_rule_and_a_count_or_a_player_rate_does_not(monkeypatch, tmp_path):
+    """engineering_standards.md section 3.1: a coverage-restricted column states its NULL rule.
+    Every team rate is one, so the sentence is derived from the denominator, not typed per rate;
+    a count has no such rule and a player rate follows the entity rule (a blank player stat is
+    a zero), so neither carries it. The derived `_this_season` block composes the same way."""
+    rows = [_row("shots_on_goal_pct", "team", "Share of shots on goal.", "sum(shots_total)"),
+            _row("shots_total", "team", "Total shots."),
+            _row("saves_player_pct", "player", "Saves share.", "sum(saves + goals_against)")]
+    blocks = gen._blocks(rows)
+    assert blocks["shots_on_goal_pct"] == "Share of shots on goal. " + gen.RATE_NULL_SENTENCE
+    assert blocks["shots_total"] == "Total shots."
+    assert blocks["saves_player_pct"] == "Saves share."
+
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, rows))
+    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["shots_on_goal_pct_this_season"]))
+    assert _run(monkeypatch) == 0
+    text = gen.OUT.read_text(encoding="utf-8")
+    start = text.index("{% docs shots_on_goal_pct_this_season__team %}")
+    block = " ".join(text[start:text.index("{% enddocs %}", start)].split())
+    assert "Share of shots on goal. " + gen.RATE_NULL_SENTENCE in block
+
+
+def test_the_null_rule_sentence_can_never_trip_the_window_refusal():
+    """The generator refuses the word "window" in a block by design; the derived sentence is
+    composed into 38 blocks, so a rewording that used the word would abort every run."""
+    assert not gen.WINDOW_PHRASING.search(gen.RATE_NULL_SENTENCE)
+
+
 def test_only_the_entities_the_catalogue_defines_get_a_derived_block(monkeypatch, tmp_path):
     """A metric the catalogue never defined for an entity has NO block for it, so
     a column of that entity has nothing to point at and stays blank and VISIBLE.

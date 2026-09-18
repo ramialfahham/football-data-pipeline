@@ -20,8 +20,9 @@
   final-row select (guaranteeing byte-identity). HERE they mean "cumulative THROUGH THIS matchday",
   not the whole season. Formulas + coverage gates are lifted verbatim from int_team_season__metrics.
 
-  Incomplete-data → NULL: a team-feed rate is NULL unless its stat covers every
-  game through this matchday (games_with_* == games_played); scoreline + player-derived are not gated.
+  Incomplete-data → NULL: a rate is NULL unless each input it reads is present in every
+  non-awarded game through this matchday — the team-feed inputs by their own coverage counts,
+  the player-derived ones by games_with_player_stats; scoreline-only rates need no gate.
 #}
 
 with rec as (
@@ -54,30 +55,33 @@ select
     goals_penalty,
     goals_own,
     goals_for - goals_penalty - goals_own as goals_open_play,
-    -- team-feed sum columns: NULL ('—') on partial coverage through this matchday.
+    -- team-feed sum columns and every rate below: NULL ('—') unless each input read is present
+    -- in every non-awarded game through this matchday (engineering_standards.md section 3.2) -
+    -- the gate names each input's own coverage count, never a proxy for another column; the
+    -- guard assert_season_rates_inputs_covered fails the build where a gate is loose.
     case
         when games_with_team_stats < games_expecting_team_stats then null else shots_total
     end as total_shots_sum_season,
     case
-        when games_with_opp_stats < games_expecting_team_stats then null else opponent_shots_total
+        when games_with_opp_shots_stats < games_expecting_team_stats then null else opponent_shots_total
     end as opponent_total_shots_sum_season,
     case
-        when games_with_team_stats < games_expecting_team_stats then null else shots_inside_box
+        when games_with_inside_box_stats < games_expecting_team_stats then null else shots_inside_box
     end as shots_inside_box_sum_season,
     case
         when games_with_sot_stats < games_expecting_team_stats then null else shots_on_goal
     end as shots_on_goal_sum_season,
     case
-        when games_with_team_stats < games_expecting_team_stats then null else corner_kicks
+        when games_with_corner_stats < games_expecting_team_stats then null else corner_kicks
     end as corner_kicks_sum_season,
     case
         when games_with_opp_stats < games_expecting_team_stats then null else opponent_corner_kicks
     end as opponent_corner_kicks_sum_season,
     case
-        when games_with_team_stats < games_expecting_team_stats then null else passes_accurate
+        when games_with_passes_accurate_stats < games_expecting_team_stats then null else passes_accurate
     end as passes_accurate_sum_season,
     case
-        when games_with_team_stats < games_expecting_team_stats then null else passes_total
+        when games_with_passes_total_stats < games_expecting_team_stats then null else passes_total
     end as passes_total_sum_season,
     case
         when games_with_save_stats < games_expecting_team_stats then null else goalkeeper_saves
@@ -86,7 +90,7 @@ select
     safe_divide(points_won, 3 * games_played) as points_capture_pct,
     case
         when games_with_team_stats < games_expecting_team_stats then null
-        when games_with_opp_stats < games_expecting_team_stats then null
+        when games_with_opp_shots_stats < games_expecting_team_stats then null
         else safe_divide(shots_total, nullif(shots_total + opponent_shots_total, 0))
     end as shots_share_pct,
     safe_divide(clean_sheet_games, games_played) as clean_sheets_pct,
@@ -104,6 +108,7 @@ select
         else safe_divide(shots_on_goal, shots_total)
     end as shots_on_goal_pct,
     case
+        when games_with_inside_box_stats < games_expecting_team_stats then null
         when games_with_team_stats < games_expecting_team_stats then null
         else safe_divide(shots_inside_box, shots_total)
     end as shots_inside_box_pct,
@@ -146,16 +151,17 @@ select
         else safe_divide(goals_open_play_in_sot_games, shots_on_goal)
     end as finishing_efficiency_pct,
     case
-        when games_with_team_stats < games_expecting_team_stats then null
-        else safe_divide(passes_total, games_with_team_stats)
+        when games_with_passes_total_stats < games_expecting_team_stats then null
+        else safe_divide(passes_total, games_with_passes_total_stats)
     end as passes_per_match,
     case
-        when games_with_team_stats < games_expecting_team_stats then null
+        when games_with_passes_accurate_stats < games_expecting_team_stats then null
+        when games_with_passes_total_stats < games_expecting_team_stats then null
         else safe_divide(passes_accurate, passes_total)
     end as passes_accuracy_pct,
     case
-        when games_with_team_stats < games_expecting_team_stats then null
-        else safe_divide(corner_kicks, games_with_team_stats)
+        when games_with_corner_stats < games_expecting_team_stats then null
+        else safe_divide(corner_kicks, games_with_corner_stats)
     end as corners_per_match,
     case
         when games_with_opp_stats < games_expecting_team_stats then null
@@ -167,13 +173,34 @@ select
             goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
         )
     end as saves_pct,
-    safe_divide(key_passes, games_with_player_stats) as passes_key_per_match,
-    safe_divide(tackles, games_with_player_stats) as tackles_per_match,
-    safe_divide(interceptions, games_with_player_stats)
-        as interceptions_per_match,
-    safe_divide(blocks, games_with_player_stats) as blocks_per_match,
-    safe_divide(tackles + interceptions + blocks, games_with_player_stats)
-        as defensive_actions_per_match,
-    safe_divide(duels_total, games_with_player_stats) as duels_per_match,
-    safe_divide(duels_won, duels_total) as duels_won_pct
+    -- player-derived team metrics: a game without the player feed has no input, so these
+    -- follow the same rule as the team-feed rates (docs/metric_layer.md)
+    case
+        when games_with_player_stats < games_expecting_team_stats then null
+        else safe_divide(key_passes, games_with_player_stats)
+    end as passes_key_per_match,
+    case
+        when games_with_player_stats < games_expecting_team_stats then null
+        else safe_divide(tackles, games_with_player_stats)
+    end as tackles_per_match,
+    case
+        when games_with_player_stats < games_expecting_team_stats then null
+        else safe_divide(interceptions, games_with_player_stats)
+    end as interceptions_per_match,
+    case
+        when games_with_player_stats < games_expecting_team_stats then null
+        else safe_divide(blocks, games_with_player_stats)
+    end as blocks_per_match,
+    case
+        when games_with_player_stats < games_expecting_team_stats then null
+        else safe_divide(tackles + interceptions + blocks, games_with_player_stats)
+    end as defensive_actions_per_match,
+    case
+        when games_with_player_stats < games_expecting_team_stats then null
+        else safe_divide(duels_total, games_with_player_stats)
+    end as duels_per_match,
+    case
+        when games_with_player_stats < games_expecting_team_stats then null
+        else safe_divide(duels_won, duels_total)
+    end as duels_won_pct
 from rec
