@@ -21,8 +21,7 @@ from pathlib import Path
 
 import yaml
 
-from interaction import INTERACTION_CSS
-from rows import ROW_CSS, date_head, group_head, upcoming_row
+from rows import date_head, group_head, upcoming_row
 
 REPO = Path(__file__).resolve().parent.parent
 REGISTRY = REPO / "docs/competition_registry.yml"
@@ -190,8 +189,8 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 .wrap { max-width: 820px; margin: 0 auto; padding: 26px clamp(16px, 4vw, 28px) 70px; }
 h1 { font-size: 25px; margin: 0 0 6px; }
 h2 { font-size: 16px; margin: 40px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--div); }
-.sub { font-size: 13.5px; color: var(--ink-2); line-height: 1.7; margin: 0 0 10px; }
-.sub b { color: var(--ink); font-weight: 600; }
+.note { font-size: 13.5px; color: var(--ink-2); line-height: 1.7; margin: 0 0 10px; }
+.note b { color: var(--ink); font-weight: 600; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .spec { background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
         padding: 6px 20px 22px; margin-top: 12px; }
@@ -219,8 +218,6 @@ def build():
 <style>
 %s
 %s
-%s
-%s
 </style>
 <input class="toggle" type="checkbox" id="t-light">
 <input class="toggle" type="checkbox" id="t-phone">
@@ -232,7 +229,7 @@ def build():
 <div class="wrap fx">
 
   <h1>&ldquo;Next matches&rdquo; &mdash; the content block</h1>
-  <p class="sub">Defined once, used everywhere it appears. Two levels of grouping:
+  <p class="note">Defined once, used everywhere it appears. Two levels of grouping:
      <b>competition</b>, then <b>date</b>. The competition set below is read from the registry at
      render time.</p>
 
@@ -261,7 +258,7 @@ def build():
   </table>
 
   <h2>⚠ One value the block cannot render honestly yet</h2>
-  <p class="sub warn"><b>The venue-local timezone.</b>
+  <p class="note warn"><b>The venue-local timezone.</b>
      <code>fct_fixture.kickoff_timezone</code> exists, but every kickoff in the committed data is
      <code>+00:00</code> &mdash; it is the provider's <b>request</b> zone, not the venue's. For a
      single-country league the registry's <code>country</code> gives it. <b>%s</b> span several
@@ -269,7 +266,7 @@ def build():
      it shows one above.</p>
 
 </div>
-""" % (SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, MOCK_CSS,
+""" % (SYSTEM_CSS.read_text(encoding="utf-8"), MOCK_CSS,
        block(["BL1", "PL", "VL"]), block(["BL1"], own_page=True),
        "\n".join('<tr><td class="el">%s</td><td class="lv">%s</td><td>%s%s</td></tr>'
                  % (E(el), E(lv), src, ('<span class="why">%s</span>' % why) if why else "")

@@ -6,7 +6,7 @@
 
 ## Which document owns what — READ THIS BEFORE DESIGNING OR BUILDING A SCREEN
 
-Six documents govern what a screen shows. Each owns a different question, and they are listed here
+Seven documents govern what a screen shows. Each owns a different question, and they are listed here
 once so nobody has to guess. `CLAUDE.md`'s authority table points here rather than restating it.
 
 | Question | Owner |
@@ -16,6 +16,7 @@ once so nobody has to guess. `CLAUDE.md`'s authority table points here rather th
 | Which blocks compose the page, and which mart backs each? | [`docs/content_architecture.md`](../content_architecture.md) — the block library and tabbed compositions |
 | **What does this specific screen show, and is every field real?** | **these wireframes** where one exists for the screen — otherwise [`ui_design_brief.md`](../ui_design_brief.md) **§6**, which is a per-screen field contract in its own right ("what a mockup MAY show"; "if a stat is not listed below, we do not have it — do not draw it") |
 | How is a METRIC displayed — label, format, grouping, order, direction? | [`metrics_display.md`](metrics_display.md) — **LOCKED**; the catalogue seed owns what a metric IS, this owns how it renders |
+| What is an ELEMENT — its selector, its rule, its measurements — and which pages the check measures? | [`block_standard.md`](block_standard.md) — the block standard: every element's CSS is `site_v2/src/styles/system.css` and nowhere else; `scripts/check_design_inventory.py` measures every page it lists against it, `scripts/check_page_css.py` fails page CSS that touches an element (#153) |
 | What did the CPO approve it to LOOK like? | the **GitLab issue** for that surface, with `design-mocks/` as its rendering — see [`design-mocks/README.md`](../../design-mocks/README.md) |
 
 **On conflict: escalate to the CPO.** That rule is unchanged and deliberately absolute — no

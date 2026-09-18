@@ -75,11 +75,6 @@ def main():
                                   "mainnav", "iconbtn", "flinks")):
             print("  %-34s %s" % (sel, body))
 
-    print("\n\nHOVER RULES DEFINED IN THE SHARED BLOCK (rows.py)\n")
-    import rows as R
-    for m in re.finditer(r"([^{}]*:hover[^{}]*)\{([^}]*)\}", R.ROW_CSS):
-        print("  %-34s %s" % (" ".join(m.group(1).split()), " ".join(m.group(2).split())))
-
 
 if __name__ == "__main__":
     main()

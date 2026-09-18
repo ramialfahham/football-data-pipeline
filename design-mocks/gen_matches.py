@@ -20,7 +20,7 @@ Design directions for this page, all applied:
 
 ⚠ (4) IS TWO PAGES, NOT TWO TABS (#46): a tab is different content, so it gets its own URL.
 The bar still LOOKS like tabs; each is an `<a>` and the active
-one carries `.is-on` instead of a `:checked` radio. That class is exactly the edit #46 creates.
+one carries `.on`, the competition tab bar's class for the page you are on.
 
 `site_v2/src/styles/system.css` is inlined verbatim so the mock uses the shipped design system.
 No JavaScript: the review surface is a static snapshot, so script never runs.
@@ -29,8 +29,7 @@ import html
 from pathlib import Path
 
 from gen_block_standard import ACTIVE, ZONE, short, slug
-from interaction import INTERACTION_CSS
-from rows import ROW_CSS, date_head, group_head, result_row, upcoming_row
+from rows import date_head, group_head, result_row, upcoming_row
 
 REPO = Path(__file__).resolve().parent.parent
 SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
@@ -197,16 +196,16 @@ def rounds_html(rounds, played=False):
 
 
 def tabbar(active):
-    """⚠ LINKS, not radios (#46). The active one carries `.is-on`; system.css's `.tab` active
-    treatment is bound to `#tab-*:checked`, which no longer exists once tabs are pages.
+    """⚠ LINKS, not radios (#46): the competition page's tab bar, where the page you are on
+    carries `.on` and the stylesheet's `.comp-tabs` rules do the rest.
 
     In the mock the href is the SIBLING FILE, so the tabs are clickable from disk. In production
     they are `PROD[...]`."""
     out = []
     for key, page in (("tabNext", "next"), ("tabPast", "past")):
         out.append('<a class="tab%s" href="%s" title="%s">%s</a>'
-                   % (" is-on" if active == page else "", LOCAL[page], PROD[page], loc(key)))
-    return '<nav class="tabs">%s</nav>' % "".join(out)
+                   % (" on" if active == page else "", LOCAL[page], PROD[page], loc(key)))
+    return '<nav class="tabs comp-tabs">%s</nav>' % "".join(out)
 
 
 # ⚠ NO FILTER IS DRAWN. It was a season chip plus a row of competition chips, and it is gone:
@@ -245,7 +244,7 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 #t-fi:checked ~ .stage .fi { display: inline; }
 #t-fi:checked ~ .stage .probe { text-decoration: underline dotted currentColor; text-underline-offset: 3px; }
 .crest.xs svg { width: 15px; height: 15px; display: block; color: var(--muted); }
-.bnote { font-size: 11px; color: var(--muted); margin: 12px 0 0; font-style: italic; opacity: .8; line-height: 1.5; }
+.blocknote { font-size: 11px; color: var(--muted); margin: 12px 0 0; font-style: italic; opacity: .8; line-height: 1.5; }
 .pagelabel { max-width: 680px; margin: 34px auto 0; padding: 0 16px; color: #7c828c;
              font: 700 11px/1.6 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
 
@@ -260,10 +259,6 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
    trace that outlives the thing (it fired five times on one removal). `.lede` stays defined in
    system.css and is simply unused here — that one is not mine to delete. */
 
-/* the tab bar as LINKS (#46): system.css binds `.tab`'s active look to `#tab-*:checked`, which
-   no longer exists once tabs are pages, so the active state needs a class. */
-.tabs { margin-top: 16px; }
-.tab.is-on { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
 
 /* no day-heading rules: the day headings are GONE. The group is the round, on this page and on
    the competition hub alike, and the date rides on the row. A rule kept for a deleted element
@@ -298,15 +293,13 @@ def build(page):
                 "of date groups, so a wider window is more entries in that list.")
 
     stage = ('<div class="stage"><div class="fx"><div class="inner">%s'
-             '<p class="bnote">%s</p></div></div></div>' % (body, note))
+             '<p class="blocknote">%s</p></div></div></div>' % (body, note))
 
     return """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Matches -- %s (mock)</title>
 <style>
-%s
-%s
 %s
 %s
 </style>
@@ -340,7 +333,7 @@ def build(page):
   Finnish is a width probe: <span class="probe" style="text-decoration: underline dotted">dotted</span>
   strings do not exist in strings.ts and are not approved copy.
 </div>
-""" % (PROD[page], SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, MOCK_CSS, PROD[page], stage)
+""" % (PROD[page], SYSTEM_CSS.read_text(encoding="utf-8"), MOCK_CSS, PROD[page], stage)
 
 
 def check_data():

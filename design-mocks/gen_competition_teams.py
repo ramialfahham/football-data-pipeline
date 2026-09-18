@@ -17,8 +17,8 @@ sys.path.insert(0, str(HERE))
 
 from gen_competition_hub import COPY, E, MOCK_CSS, SYSTEM_CSS, loc, slugify, team_cell  # noqa: E402
 from gen_top_teams import FI, board_title, label  # noqa: E402
-from interaction import CHEVRON, INTERACTION_CSS  # noqa: E402
-from rows import CREST, ROW_CSS  # noqa: E402
+from interaction import CHEVRON  # noqa: E402
+from rows import CREST  # noqa: E402
 
 COPY.update({
     "tabTeamsHere":   ("Rankings", "Rankingit", True),
@@ -262,46 +262,6 @@ def player_boards_html(boards):
 """ % (loc("secPlayerRankings"), "\n".join(parts))
 
 
-TAB_CSS = """
-/* ---- Teams tab: one new track list for the full deserved table (# · club · Table · Deserved · Pts · Diff) ---- */
-.ctab.dpf, .ctab.dpf.ctab { --cols: 2rem minmax(0, 1fr) 3rem 4.6rem 2.8rem 3.4rem; }
-/* the ordered-by number: bold, 15px, the accent, as the standings Pts (one rule, every block) */
-.brow .v b { color: var(--accent); }
-/* the block name, a step larger everywhere (was 11px): it got buried */
-.sechead .eyebrow { font-size: 13px; }
-/* the metric group inside a rankings block: the Matches page level-1 group heading (17px, 2px rule), unchanged */
-.rkgroup .board:first-of-type { margin-top: 14px; }
-/* the 14px rule: block name to its first line is the heading gap alone */
-section > .sechead + .fxgroup { margin-top: 0; }
-/* the page title under the tab bar: the page name in full (the tab label is the short form) */
-.ptitle { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.2; margin: 26px 0 0; }
-/* the tab bar fits four tabs in one row at 375px in every language: the tabs share the width, the
-   side padding is what the label needs, not 16px each side */
-.comp-tabs { display: flex; }
-.comp-tabs .tab { flex: 1 1 auto; text-align: center; padding-inline: clamp(6px, 2cqw, 16px); }
-@container (max-width: 430px) { .comp-tabs .tab { font-size: 13px; letter-spacing: -.01em; } }
-.brow .ent .nm { white-space: normal; }
-/* the group heading over its boards is the standings' group heading, `.ctab-section` + `.gh`
-   from system.css, unchanged: the group carries that class and no rule of its own */
-.bnote { font-size: 12px; color: var(--muted); margin-left: 6px; }
-.board .bhd a.cnm { display: inline-flex; align-items: center; gap: 6px; }
-/* a ranking is a table: the Table block's striped rows and grid (# · crest name · value), one
-   fixed track list; the board title is the table's head, its rule the only line */
-.ctab.rkt, .ctab.rkt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem; margin-top: 0; }
-.ctab.rkt .ctab-row { border-bottom: 0; }
-.ctab.rkt .tm .ent { display: flex; flex-direction: column; min-width: 0; }
-.ctab.rkt .tm .ent .sub { font-size: 12px; color: var(--muted); line-height: 1.2; }
-/* the metric group keeps its size and its air, loses its rule: lines mean a table's head only */
-.rkgroup > .gh { border-bottom: 0; padding-bottom: 0; }
-.ctab.rkt .ctab-head { padding-bottom: 7px; }
-.ctab.rkt .ctab-head .nmh { text-align: left; padding-left: 0; grid-column: 1 / 3; }
-.ctab.rkt .ctab-head .rk { display: none; }
-.ctab.rkt .ctab-head .nmh .bt .nm { font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: 0; text-transform: none; }
-/* on a striped table the hover is twice the stripe, or it cannot be seen (the Table too) */
-@media (hover: hover) { .fx a.brow:hover, .fx a.comp-row:hover, .fx a.fxrow:hover, .fx a.ctab-row:hover, .fx a.frow:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); } }
-"""
-
-
 def build():
     boards = load_boards()
     return """<!doctype html>
@@ -309,9 +269,6 @@ def build():
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Competition page, Teams -- Bundesliga (mock)</title>
 <style>
-%s
-%s
-%s
 %s
 %s
 </style>
@@ -342,7 +299,7 @@ def build():
   Real data: deserved points for all 18 clubs as exported 2026-09-16; the four boards from the
   warehouse the same day, top 3 with ties as the warehouse ranks them (three matchdays played).
 </div>
-""" % (SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, MOCK_CSS, TAB_CSS,
+""" % (SYSTEM_CSS.read_text(encoding="utf-8"), MOCK_CSS,
        header_html("Bundesliga"), boards_html(boards), player_boards_html(load_player_boards()))
 
 

@@ -166,7 +166,7 @@ def group_head(slug, name):
 
     ⚠ THE COMPETITION MUST BE UNMISSABLE — *"you scroll down and barely notice that the
     competition has changed"*. Hence the larger name, the wider space above the group and the
-    heavier rule in `ROW_CSS`, rather than the 14px label this started as.
+    heavier rule in the stylesheet, rather than the 14px label this started as.
 
     The competition name is the link that makes a match list a HUB rather than a list: every
     group head is an outbound edge to a competition, every row one to a match.
@@ -188,82 +188,3 @@ def group_head(slug, name):
             '<span class="clogo">%s</span><span class="nm">%s</span>%s</a></div>'
             % (E(slug), LEAGUE_LOGO, E(name), CHEVRON))
 
-
-# The row's own CSS. Imported by every mock so the rendered result cannot drift either.
-ROW_CSS = """
-/* ================================================================ *
- *  THE MATCH ROW — one component, every page.                       *
- *  Base `.fxrow` / `.fxgroup` / `.crest.xs` live in system.css;     *
- *  everything here is the shared DELTA, defined once.               *
- * ================================================================ */
-
-/* LEVEL 1 — the competition. Deliberately heavier than the 14px label this started as: the
-   complaint was "you scroll down and barely notice that the competition has changed". More space
-   above, a bigger logo, a 17px name and a full-weight rule underneath. A `<span class="cnm here">`
-   on the competition's own page renders identically to the `<a>` — same convention as the nav and
-   the breadcrumb, so being on the page is a state, not a different block. */
-.fxgroup { margin-top: 34px; }
-.fxgroup:first-of-type { margin-top: 14px; }
-.fxgroup > .gh { padding-bottom: 10px; border-bottom: 2px solid var(--div); }
-.fxgroup > .gh .cnm { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.fxgroup > .gh .cnm .chev { margin-left: 2px; }
-.clogo { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); }
-.clogo svg { width: 26px; height: 26px; display: block; }
-.fxgroup > .gh .nm { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.2; }
-/* ⚠ NO hover rule here. How a clickable thing signals itself is owned by `interaction.py`, in one
-   place, for every surface — this file owns what the block IS, not what it DOES. Two underline-on-
-   hover rules lived here and are gone: they pointed the affordance at a word inside a row whose
-   target was the row. */
-
-/* LEVEL 2 — the date, inside the competition. Read once, not repeated down a column. */
-.fxgroup .dh {
-  font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-  color: var(--muted); padding: 15px 0 6px;
-}
-
-/* The right column: kick-off + venue-local zone. No date — that is the `.dh` heading above.
-   The zone is on EVERY row, always, never on a group head: it was conditional once and a
-   conditional block is two blocks. Quiet suffix to the time, the way a flight schedule does it,
-   because it repeats down a single-country list. */
-.fxrow .when .rowtz { display: block; font-size: 10.5px; font-weight: 600; color: var(--muted);
-                      letter-spacing: .04em; margin-top: 1px; }
-
-
-/* ⚠ THE NAME MUST NEVER TRUNCATE. system.css ellipsises `.fxrow .side .nm`, which is right on
-   the home page's short teaser and wrong on a full list: these pages exist to send people to a
-   match, and "Brighton & Hove Albio…" on a phone defeats that. The row grows instead. */
-/* ⚠ `overflow-wrap: break-word` WAS HERE AND CAUSED THE COLLAPSE. It was added to stop names
-   truncating, and it does — but it also makes the element's MIN-CONTENT width one character. A
-   name that may shrink to its min-content will, the moment anything competes for the space, and
-   the club name renders as a vertical stack of letters. The score is what applies that pressure,
-   which is why only played rows broke.
-   `normal` keeps the minimum at the longest WORD ("Mönchengladbach"), so the name still wraps
-   instead of truncating and can never fall below a readable width. A pathological single long
-   word now overflows its column slightly rather than destroying the row — the right failure. */
-.fxrow .side .nm {
-  white-space: normal; overflow: visible; text-overflow: clip;
-  overflow-wrap: normal; word-break: normal; hyphens: none;
-  line-height: 1.25;
-}
-
-/* the score, inline at the end of each side — so home/away needs no extra label. The winner by
-   TONE + WEIGHT, never by hue: green stays reserved for "better value", red for a Loss pill, and
-   a draw leaves both sides muted. */
-/* ⚠ A PLAYED ROW IS THE NEXT-MATCH ROW PLUS A SCORE. NOTHING ELSE.
-   The rule: *"this shouldn't be much different from next match design"* — and it had
-   become very different. Three things were added chasing a layout collapse, none of them asked
-   for, each able to cause one, and all three are now gone:
-     * `.side` was converted from system.css's flex to a three-track grid;
-     * the score was given a fixed min-width, its own padding and 16px bold;
-     * the kick-off was down-weighted on played rows only.
-   `.side` keeps the shipped flex layout. The score is one declaration: pushed to the end of the
-   side, muted, tabular so the digits line up. The winner is tone and weight only — green stays
-   reserved for "better value", red for a Loss pill, so a draw leaves both sides muted. */
-.fxrow .side .g { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
-.fxrow .side .g.winner { color: var(--ink); font-weight: 700; }
-
-/* A played row needs NO right-column rules of its own: it uses the same kick-off + zone slot as
-   every other row. A "Report" / "No report yet" chip lived here and is gone — it put a second
-   kind of thing in the slot that carries the kick-off everywhere else, which is this standard's
-   own omit-never-move rule broken by the standard itself. */
-"""

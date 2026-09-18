@@ -29,8 +29,7 @@ import sys
 from pathlib import Path
 
 from gen_block_standard import short
-from interaction import INTERACTION_CSS
-from rows import CREST, ROW_CSS, date_head, upcoming_row
+from rows import CREST, date_head, upcoming_row
 
 REPO = Path(__file__).resolve().parent.parent
 SYSTEM_CSS = REPO / "site_v2/src/styles/system.css"
@@ -163,8 +162,7 @@ COPY = {
     "tabOverview":         ("Overview",                     "Yleiskatsaus",                          False),
     "tabMatchdays":        ("Matchdays",                    "Kierrokset",                            False),
     "tabRounds":           ("Rounds",                       "Kierrokset",                            False),
-    "tabTeams":            ("Teams",                        "Joukkueet",                             False),
-    "tabPlayers":          ("Players",                      "Pelaajat",                              False),
+    "tabTeams":            ("Rankings",                     "Rankingit",                             True),
     "secTable":            ("Table",                        "Sarjataulukko",                         False),
     "secMatches":          ("Next matches",                 "Seuraavat ottelut",                     False),
     "secDeserved":         ("Deserved points",              "Ansaitut pisteet",                      False),
@@ -245,11 +243,10 @@ def header_html(k):
         <span class="tab on" aria-current="page">%s</span>
         <span class="tab" aria-disabled="true">%s</span>
         <span class="tab" aria-disabled="true">%s</span>
-        <span class="tab" aria-disabled="true">%s</span>
       </nav>
 """ % (loc("crumbHome"), loc("navCompetitions"), E(k["name"]), CREST, E(k["name"]),
        E(k["region"]), E(k["season"]), E(k["round_label"]),
-       loc("tabOverview"), loc(k["tab_second"]), loc("tabTeams"), loc("tabPlayers"))
+       loc("tabOverview"), loc(k["tab_second"]), loc("tabTeams"))
 
 
 def table_html(k):
@@ -410,8 +407,6 @@ def build(kind):
 <style>
 %s
 %s
-%s
-%s
 </style>
 
 <input class="toggle" type="checkbox" id="t-light">
@@ -442,7 +437,7 @@ def build(kind):
   Table &middot; Next matches &middot; Deserved points &middot; The season in numbers, each only
   where its mart serves something. The design is GitLab #129; this file renders it.
 </div>
-""" % (kind, SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, MOCK_CSS,
+""" % (kind, SYSTEM_CSS.read_text(encoding="utf-8"), MOCK_CSS,
        header_html(k), table_html(k), matches_html(k), deserved_html(k), facts_html(k), kind)
 
 

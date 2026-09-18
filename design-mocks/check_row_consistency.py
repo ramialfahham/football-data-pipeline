@@ -8,9 +8,12 @@ it of the RENDERED output, which is the only thing a reader ever sees.
 that is precisely where the inconsistency was spotted — `home/HeroFixtures.astro` had its own
 copy of the markup. A consistency check that skips a surface is worse than none.
 
-  home_mock.html              the home page's Next matches module
-  matches_mock.html           /matches/ and /matches/results/
-  competition_hub_mock.html   a competition's own page
+  home_mock.html                     the home page's Next matches module
+  matches_next_mock.html             /matches/ and matches_past_mock.html /matches/results/
+  competition_hub_mock_league.html   a competition's own page
+
+The row's CSS is the site's stylesheet, and only there: whether any surface restyles it is
+scripts/check_page_css.py's question, against the block standard, not this file's.
 
 Comparing the GENERATORS would prove nothing — they all import the same module. These checks
 read the emitted HTML and compare markup skeletons.
@@ -28,7 +31,7 @@ DOCS = {name: (HERE / f).read_text(encoding="utf-8") for name, f in (
     ("home", "home_mock.html"),
     ("matches-next", "matches_next_mock.html"),
     ("matches-past", "matches_past_mock.html"),
-    ("hub", "competition_hub_mock.html"),
+    ("hub", "competition_hub_mock_league.html"),
 )}
 
 # ⚠ FOUR files, because Matches is TWO pages. It was one stacked file with "Page 1"/"Page 2"
@@ -38,8 +41,6 @@ _stale = HERE / "matches_mock.html"
 if _stale.exists():
     sys.exit("FATAL: %s still exists. It is the stacked two-in-one file; re-run gen_matches.py."
              % _stale.name)
-
-import rows as R   # noqa: E402
 
 FAILS = []
 
@@ -167,8 +168,8 @@ SYSTEM_CSS = Path(__file__).resolve().parent.parent / "site_v2/src/styles/system
 # classes the block deliberately REUSES from the design system — everything else it emits must be
 # a name system.css has never heard of
 BORROWED = {"fxrow", "fxgroup", "gh", "sides", "side", "crest", "xs", "nm", "when", "t", "d",
-            "lnk", "num", "linkchip", "linkrow", "tab", "tabs", "here", "sep", "crumb",
-            "eyebrow", "sechead"}
+            "lnk", "num", "linkchip", "linkrow", "tab", "tabs", "on", "here", "sep", "crumb",
+            "eyebrow", "sechead", "dh", "rowtz", "g", "winner", "played", "clogo", "cnm", "chev"}
 
 
 def check_no_class_collides_with_the_design_system():
@@ -244,34 +245,6 @@ def check_time_slots_are_right():
        % ", ".join(counts))
 
 
-def check_shared_css_everywhere():
-    """5. Same markup with different CSS is not consistency."""
-    probe = ".fxrow .side .g { margin-left: auto;"
-    if probe not in R.ROW_CSS:
-        return bad("shared CSS everywhere", "the probe line is no longer in rows.ROW_CSS")
-    for name, doc in DOCS.items():
-        if R.ROW_CSS.strip() not in doc:
-            return bad("shared CSS everywhere", "rows.ROW_CSS is not inlined verbatim in %s" % name)
-    ok("shared CSS everywhere (rows.ROW_CSS inlined byte for byte in all %d)" % len(DOCS))
-
-
-def check_no_surface_redefines_the_row():
-    """6. A surface must not quietly restyle the shared block — that is how four treatments
-    appeared in the first place."""
-    for name, doc in DOCS.items():
-        css = doc.split("<style>", 1)[1].split("</style>", 1)[0].replace(R.ROW_CSS, "")
-        # ⚠ SPLIT ON THE MARKER FIRST, THEN STRIP COMMENTS: the marker lives inside a comment,
-        # so stripping first deletes it and the check reports system.css's own rules as overrides.
-        if "MOCK HARNESS ONLY" not in css:
-            return bad("no surface redefines the row", "%s: marker not found — check is blind" % name)
-        mine = re.sub(r"/\*.*?\*/", "", css.split("MOCK HARNESS ONLY", 1)[1], flags=re.S)
-        strays = re.findall(r"^[^{}\n]*\.(?:fxrow|fxgroup|clogo|dh)\b[^{}\n]*\{", mine, re.M)
-        if strays:
-            return bad("no surface redefines the row",
-                       "%s restyles the shared block: %s" % (name, [s.strip() for s in strays]))
-    ok("no surface redefines the row (no stray block rule in any surface's own CSS)")
-
-
 def prove_checks_fire():
     """Both comparisons must be shown to fail, or they are decoration."""
     global DOCS
@@ -313,8 +286,6 @@ if __name__ == "__main__":
     check_no_class_collides_with_the_design_system()
     check_row_vocabulary_is_closed()
     check_time_slots_are_right()
-    check_shared_css_everywhere()
-    check_no_surface_redefines_the_row()
     print("negative controls")
     prove_checks_fire()
     if FAILS:

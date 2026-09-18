@@ -19,8 +19,7 @@ REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 
 from gen_competition_hub import COPY, E, MOCK_CSS, SYSTEM_CSS, loc, slugify  # noqa: E402
-from interaction import INTERACTION_CSS  # noqa: E402
-from rows import CREST, ROW_CSS, date_head, result_row, upcoming_row  # noqa: E402
+from rows import CREST, date_head, result_row, upcoming_row  # noqa: E402
 
 COPY.update({
     "tabMatchdaysHere": ("Matchdays", "Kierrokset", False),
@@ -59,7 +58,6 @@ def ordinal(n):
 
 VENUE_TZ = ZoneInfo("Europe/Berlin")
 COPY["topMatch"] = ("Top match", "Huippuottelu", True)
-COPY["tabTeams"] = ("Rankings", "Rankingit", True)
 # the flagged match of the next matchday (is_match_that_matters on the committed payload)
 TOP_MATCH = {r["fixture_id"] for r in json.loads(
     (REPO / "site_v2/src/data/competitions/BL1/2026.json").read_text(encoding="utf-8"))["next_matchday"]
@@ -138,23 +136,22 @@ def header_html(name):
        loc("tabOverview"), loc("tabMatchdays"), loc("tabTeams"))
 
 
-def jump_html(rounds, nxt):
-    """The picker: one radio per matchday (CSS-only, the mechanism system.css already uses for the
-    team page's tabs), the next matchday checked on load. One matchday is visible at a time."""
-    radios = "".join('<input class="md-in" type="radio" name="md" id="md-%d"%s>'
-                     % (n, " checked" if n == nxt else "") for n in rounds)
+def step_html(rounds, n, nxt):
+    """One matchday's radio and picker step (CSS-only, the radio mechanism the team page's tabs
+    use). Each sits in its matchday's `.md` wrapper with the schedule, so the stylesheet shows the
+    checked wrapper's contents with no per-matchday rule; the next matchday is checked on load."""
     ns = list(rounds)
-    parts = []
-    for i, n in enumerate(ns):
-        prev_ = ('<label class="step prev" for="md-%d" aria-label="Matchday %d">%s</label>'
-                 % (ns[i - 1], ns[i - 1], CHEV_L) if i > 0 else '<span class="step prev off">%s</span>' % CHEV_L)
-        next_ = ('<label class="step next" for="md-%d" aria-label="Matchday %d">%s</label>'
-                 % (ns[i + 1], ns[i + 1], CHEV_R) if i + 1 < len(ns) else '<span class="step next off">%s</span>' % CHEV_R)
-        tag = ' <span class="nexttag">%s</span>' % loc("nextTag") if n == nxt else ""
-        title = ('<span class="mdtitle"><b class="num"><span class="en">Matchday %d</span>'
-                 '<span class="fi" lang="fi">%d. kierros</span></b>%s</span>' % (n, n, tag))
-        parts.append('<span class="mdstep" data-md="%d">%s%s%s</span>' % (n, prev_, title, next_))
-    return radios + '\n      <nav class="mdnav" aria-label="Pick a matchday">%s</nav>\n' % "".join(parts)
+    i = ns.index(n)
+    prev_ = ('<label class="step prev" for="md-%d" aria-label="Matchday %d">%s</label>'
+             % (ns[i - 1], ns[i - 1], CHEV_L) if i > 0 else '<span class="step prev off">%s</span>' % CHEV_L)
+    next_ = ('<label class="step next" for="md-%d" aria-label="Matchday %d">%s</label>'
+             % (ns[i + 1], ns[i + 1], CHEV_R) if i + 1 < len(ns) else '<span class="step next off">%s</span>' % CHEV_R)
+    tag = ' <span class="nexttag">%s</span>' % loc("nextTag") if n == nxt else ""
+    title = ('<span class="mdtitle"><b class="num"><span class="en">Matchday %d</span>'
+             '<span class="fi" lang="fi">%d. kierros</span></b>%s</span>' % (n, n, tag))
+    return ('<input class="md-in" type="radio" name="md" id="md-%d"%s>\n'
+            '      <nav class="mdnav" aria-label="Pick a matchday"><span class="mdstep">%s%s%s</span></nav>'
+            % (n, " checked" if n == nxt else "", prev_, title, next_))
 
 
 CHEV_L = ('<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
@@ -163,18 +160,6 @@ CHEV_L = ('<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
 CHEV_R = ('<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
           '<path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" '
           'stroke-linecap="round" stroke-linejoin="round"/></svg>')
-
-
-def picker_css(rounds):
-    show = ",\n".join('#md-%d:checked ~ section.md[data-md="%d"]' % (n, n) for n in rounds)
-    step = ",\n".join('#md-%d:checked ~ .mdnav .mdstep[data-md="%d"]' % (n, n) for n in rounds)
-    return """
-.md-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-section.md, .mdstep { display: none; }
-%s { display: block; }
-%s { display: flex; }
-.fx .md-in:focus-visible ~ .mdnav { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
-""" % (show, step)
 
 
 def fact_row(label_key, value, context, href="#"):
@@ -261,58 +246,28 @@ def matchday_html(n, fx, is_next, shots=None, payload=None):
     if payload and is_next:
         extra = matters_html(fx, payload)
     return """
-      <section class="md%s" data-md="%d">
+      <section%s>
         <div class="sechead"><span class="eyebrow">%s</span></div>
         <div class="fxgroup">
 %s
         </div>
 %s
       </section>
-""" % (" next" if is_next else "", n, loc("jumpLabel"), "\n".join(body), extra)
-
-
-TAB_CSS = """
-/* ---- Matchdays tab: the delta over the Overview's CSS (proposal, #129) ---- */
-.mdnav { margin-top: 22px; }
-.mdstep { align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--div); }
-.mdstep .mdtitle { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
-.mdstep .mdtitle .num { font-size: 13px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
-.mdstep .step { width: 34px; height: 34px; flex: 0 0 auto; display: grid; place-items: center;
-                border-radius: 9px; border: 1px solid var(--line); color: var(--ink-2); cursor: pointer; }
-.mdstep .step svg { width: 16px; height: 16px; }
-.mdstep .step:hover { background: var(--surface); }
-.mdstep .step.off { visibility: hidden; }
-/* the block name, a step larger everywhere (was 11px): it got buried */
-.sechead .eyebrow { font-size: 13px; }
-/* ONE hover tint for every row link, site-wide, visible against a stripe */
-@media (hover: hover) { .fx a.brow:hover, .fx a.comp-row:hover, .fx a.fxrow:hover, .fx a.ctab-row:hover, .fx a.frow:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); } }
-section.md .sub-block { margin-top: 34px; }
-section.md .sub-block .fxgroup { margin-top: 0; }
-section.md .sub-block .bsub { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 0 0 6px; }
-/* the Top match tag on the flagged row: the Next tag's style, in the row before the kick-off */
-.fxrow .topmatch { align-self: center; margin-right: 10px; padding: 1px 7px; border-radius: 999px;
-                   background: var(--accent); color: var(--pill-ink, #fff); font-size: 10px;
-                   font-weight: 700; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
-.fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
-.nexttag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
-           background: var(--accent); color: var(--pill-ink, #fff); font-size: 10px; letter-spacing: .08em; }
-"""
+""" % (' class="next"' if is_next else "", loc("jumpLabel"), "\n".join(body), extra)
 
 
 def build():
     rounds = by_round(load_fixtures())
     nxt = next_round(rounds)
-    sections = "\n".join(matchday_html(n, fx, n == nxt) for n, fx in rounds.items())
+    matchdays = "\n".join('<div class="md" data-md="%d">%s%s</div>'
+                          % (n, step_html(rounds, n, nxt), matchday_html(n, fx, n == nxt))
+                          for n, fx in rounds.items())
     played = sum(1 for fx in rounds.values() for f in fx if f["hg"] is not None)
     return """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Competition page, Matchdays -- Bundesliga (mock)</title>
 <style>
-%s
-%s
-%s
-%s
 %s
 %s
 </style>
@@ -333,7 +288,6 @@ def build():
     <div class="inner">
 %s
 %s
-%s
     </div>
   </div>
 </div>
@@ -344,8 +298,7 @@ def build():
   fixture as prod held it on 2026-09-16 &mdash; %d matches, %d played, matchday %d next (the
   Overview's Next matches rows). Kick-off in the venue's clock.
 </div>
-""" % (SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, MOCK_CSS, TAB_CSS,
-       picker_css(rounds), header_html("Bundesliga"), jump_html(rounds, nxt), sections,
+""" % (SYSTEM_CSS.read_text(encoding="utf-8"), MOCK_CSS, header_html("Bundesliga"), matchdays,
        sum(len(fx) for fx in rounds.values()), played, nxt)
 
 

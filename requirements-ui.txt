@@ -1,0 +1,7 @@
+# The measured design check (scripts/check_design_inventory.py) and its tests. Pinned exactly:
+# the playwright package must match the browser image validate:ui runs on, and an unpinned
+# package turns a CI run into a lottery. tzdata is the IANA zone database zoneinfo needs on
+# Windows, where the generators render kick-offs in the venue clock.
+playwright==1.63.0
+pytest==9.0.3
+tzdata==2026.1

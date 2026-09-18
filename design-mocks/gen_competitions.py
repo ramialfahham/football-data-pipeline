@@ -36,8 +36,8 @@ from pathlib import Path
 import yaml
 
 from gen_block_standard import ACTIVE, short
-from interaction import CHEVRON, INTERACTION_CSS
-from rows import LEAGUE_LOGO, ROW_CSS
+from interaction import CHEVRON
+from rows import LEAGUE_LOGO
 
 REPO = Path(__file__).resolve().parent.parent
 REGISTRY = REPO / "docs/competition_registry.yml"
@@ -646,8 +646,6 @@ def build():
 %s
 %s
 %s
-%s
-%s
 </style>
 
 <input class="toggle" type="checkbox" id="t-light">
@@ -750,7 +748,7 @@ def build():
   %s
 
 </div>
-""" % (SYSTEM_CSS.read_text(encoding="utf-8"), ROW_CSS, INTERACTION_CSS, PAGE_CSS, filter_css(),
+""" % (SYSTEM_CSS.read_text(encoding="utf-8"), PAGE_CSS, filter_css(),
        f_inputs,
        loc("crumbHome"), COPY["navCompetitions"][0], loc("navCompetitions"),
        n_comps, len(gs), f_bar, body,
