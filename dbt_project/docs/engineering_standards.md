@@ -231,13 +231,78 @@ Per-layer minimums:
 - `core`/`intermediate`: relationship and business-rule tests.
 - `marts`: consumer-contract tests (required columns, accepted value ranges, metric consistency).
 
-**Severity guideline:**
+The minimums say that every model has tests. The rules below say what a test asserts, so that a
+column is tested for what it is and a rate is guarded by its own inputs.
 
-| Situation | Severity |
-|---|---|
-| Pipeline logic error (duplicate rows from ingest, bad join) | `error` — must fix before merge |
-| Grain violation from source data quality issue (documented API bug, known ID collision) | `warn` — document the root cause in a YAML comment |
-| "Nice to have" coverage on non-critical fields | `warn` |
+### 3.1) What a column's tests are, by column class
+
+Every column listed in a `.yml` is one of four classes, and the class decides the tests. The
+description names the class by what it says.
+
+| Class | The description must say | Tests |
+|---|---|---|
+| **Key** — part of the grain, or a foreign key | what it identifies | `not_null`; `unique` / `unique_combination_of_columns` on the grain where the grain is new; `relationships` to the parent for every foreign key — the whole key graph, not where someone remembered |
+| **Required** — the row is invalid without it | what it is | `not_null` |
+| **Coverage-restricted** — NULL is the honest answer | the NULL rule in one sentence: "NULL unless …" / "NULL when …" | never `not_null`; a range test if it is a rate |
+| **Derived** — computed from other columns, always present | the formula in words | a range or consistency test where one exists |
+
+A `not_null` is added because the description says the column is never NULL, not because a
+reviewer would like it to be. A column listed without a description is a defect: the listing
+says the column matters, the missing sentence says nobody wrote down what it is or when it is NULL.
+
+### 3.2) A rate is one definition, gated by its inputs
+
+What a metric's NULL means is ruled in one place, `docs/metric_layer.md` ("Incomplete data is not
+calculated"); it is not repeated here. This section rules how that gate is built and tested.
+
+- **The gate is derived, not picked.** A rate's NULL gate covers every input its formula uses,
+  numerator and denominator, over the same set of games. A gate chosen by hand from a menu of
+  coverage counts is how a share of shots on goal came to divide three games of shots on goal by
+  one game of total shots.
+- **One definition per rate.** A rate is computed in one model; every other surface takes the
+  value or is bound to it by a test. The same rate computed twice with two gates is two numbers.
+- **Every rate has a range test** — between 0 and 1 for a share, at least 0 for a per-match
+  count. It is the backstop, not the guard: it catches a rate that is too high and never one that
+  is silently too low.
+- **The guard is generated from the catalogue.** For every catalogue metric with a numerator and
+  a denominator, one test: wherever the metric is not NULL, every input is present in every game
+  of its window. It is written once, from `metric_catalogue.csv`, never per rate by hand. The
+  catalogue does not yet say which per-game column each expression token reads — the coverage
+  counts live inside the consuming models today — so the guard needs that mapping added to the
+  catalogue first; it is #111's first step, and until it lands this bullet is a rule in progress.
+
+### 3.3) Severity is decided by one question
+
+**Would a fan see a wrong number if this condition held?** Yes → `error`. No — the condition is
+correct but worth seeing → `warn`. Nothing else decides it.
+
+An `error` inside `dbt build` skips every dependent model, so an `error` on a correct state
+stops the warehouse for nothing. Worked examples of the question:
+
+| Situation | The fan would see | Severity |
+|---|---|---|
+| Pipeline logic error (duplicate rows from ingest, bad join) | a wrong number | `error` — must fix before merge |
+| Grain violation from a documented source data quality issue (known API bug, known ID collision) | nothing wrong — the row is handled downstream | `warn` — the root cause in a YAML comment |
+| A correct state worth seeing (a cap that did not bind, a coverage floor reached) | nothing wrong | `warn` |
+| A rate outside its range | a wrong number | `error` |
+
+### 3.4) A red test is readable
+
+Every singular test sets `store_failures: true`, so a failure leaves its rows in the warehouse
+instead of a count. A red test that has to be re-queried by hand to be read is half a test.
+
+### 3.5) What holds the rules
+
+Each rule above gets a mechanism, so it cannot decay into a preference. None of the four exists
+yet; each is a rule in progress until its mechanism lands, and the issue that owns it says so:
+
+- every listed column has a description — a rule to add to `scripts/check_description_hygiene.py`,
+  which today checks that every model, seed and source is described and what a description
+  contains, not that every listed column has one;
+- the rate guard — the generated dbt test of §3.2, once the catalogue carries the input mapping;
+- every documented column exists in the model's projection — a check beside the hygiene script;
+- every foreign key carries a `relationships` test — a script that lists the `_sk` columns
+  without one, run in `validate:governance`.
 
 ## 4) Model Contracts and Metadata
 
