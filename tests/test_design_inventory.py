@@ -306,3 +306,101 @@ def test_the_check_refuses_an_inventory_it_cannot_read(tmp_path):
     )
     assert proc.returncode == 2
     assert "INVENTORY ERROR" in proc.stderr
+
+
+# --- the check in CI ------------------------------------------------------------------------
+# `validate:ui` measures the site `build:site-v2` built, so its shape is pinned here: the
+# `needs`, the shared rules (GitLab refuses a pipeline whose `needs:` target its own rules
+# excluded), the shared stage (a `needs:` target may not sit in a later stage), the artifact
+# the check reads, the browser image equal to the playwright pin, and the three steps.
+
+
+def _ci():
+    import yaml
+
+    return yaml.safe_load((REPO / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+
+def _ui_pins():
+    pins = {}
+    for line in (REPO / "requirements-ui.txt").read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith("#"):
+            name, version = line.split("==", 1)
+            pins[name.strip().lower()] = version.strip()
+    return pins
+
+
+def _playwright_pin():
+    return _ui_pins().get("playwright") or pytest.fail("requirements-ui.txt has no exact playwright pin")
+
+
+# import name -> distribution name where the two differ
+_DIST = {"yaml": "pyyaml"}
+
+
+def _imports_of(path: Path) -> set[str]:
+    import ast
+
+    names = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            names |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            names.add(node.module.split(".")[0])
+    return names
+
+
+def test_every_package_the_job_imports_is_in_its_requirements_file():
+    """The job installs requirements-ui.txt alone, so every module a file its script names
+    imports anywhere - top level or deferred, directly or through a sibling in scripts/ -
+    must be pinned there or stdlib. The files come from the job's own script lines, so a
+    step added to the job is covered without editing this test."""
+    import re
+
+    script = " ".join(_ci()["validate:ui"]["script"])
+    queue = [REPO / p for p in re.findall(r"\b((?:scripts|tests)/[\w/]+\.py)\b", script)]
+    assert queue, "the job's script names no python file"
+    seen, imported = set(), set()
+    while queue:
+        f = queue.pop()
+        if f in seen:
+            continue
+        seen.add(f)
+        for name in _imports_of(f):
+            sibling = REPO / "scripts" / (name + ".py")
+            if sibling.exists():
+                queue.append(sibling)
+            else:
+                imported.add(name)
+    third_party = imported - set(sys.stdlib_module_names) - {"__future__"}
+    missing = sorted(m for m in third_party if _DIST.get(m, m).lower() not in _ui_pins())
+    assert not missing, "imported by the job but not in requirements-ui.txt: %s" % missing
+    assert {f.name for f in seen} >= {"check_ui_i18n_metrics.py", "check_page_css.py", "design_inventory.py", "check_design_inventory.py", "test_design_inventory.py"}
+
+
+def test_validate_ui_needs_the_site_build_and_shares_its_rules_and_stage():
+    ci = _ci()
+    ui, build = ci["validate:ui"], ci["build:site-v2"]
+    assert ui["needs"] == ["build:site-v2"]
+    assert ui["stage"] == build["stage"]
+    assert ui["rules"] == build["rules"]
+    assert "site_v2/dist" in build["artifacts"]["paths"]
+
+
+def test_validate_ui_runs_on_the_browser_image_the_playwright_pin_matches():
+    ci = _ci()
+    image = ci["validate:ui"]["image"]
+    assert image.startswith("mcr.microsoft.com/playwright/python:v")
+    assert image.split(":v", 1)[1].split("-", 1)[0] == _playwright_pin()
+    assert "requirements-ui.txt" in " ".join(ci["validate:ui"]["before_script"])
+
+
+def test_validate_ui_runs_the_lint_the_red_proof_and_the_measured_check():
+    script = " ".join(_ci()["validate:ui"]["script"])
+    assert "scripts/check_page_css.py" in script
+    assert "tests/test_design_inventory.py" in script
+    assert "scripts/check_design_inventory.py --dist site_v2/dist" in script
+    # the check before its tests: the green fixture is measured against the live stylesheet, so
+    # tests first would stop a stylesheet defect at the fixture, without the pages' lines and
+    # screenshots
+    assert script.index("scripts/check_design_inventory.py") < script.index("tests/test_design_inventory.py")

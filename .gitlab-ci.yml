@@ -359,15 +359,25 @@ workflow:
   - deploy/nightly/entrypoint.sh
   - deploy/nightly/profiles.yml
 
+# ONE anchor for `build:site-v2` and `validate:ui`: the second needs the first's built site,
+# and GitLab refuses to construct a pipeline whose `needs:` target its own rules excluded, so
+# the two must fire on the same changes. It is the union of the legacy `site/` tree, the v2
+# site, the design mocks, the block standard and everything the measured check reads.
 .ui_paths: &ui_paths
   - site/**/*
+  - site_v2/**/*
+  - design-mocks/**/*
+  - docs/wireframes/block_standard.md
   - scripts/build_match_preview_site.sh
   - scripts/build_match_preview_site.ps1
   - scripts/export_pages_data.py
   - scripts/check_ui_i18n_metrics.py
-
-.site_v2_paths: &site_v2_paths
-  - site_v2/**/*
+  - scripts/check_page_css.py
+  - scripts/check_design_inventory.py
+  - scripts/design_inventory.py
+  - tests/test_design_inventory.py
+  - tests/fixtures/design_inventory/*
+  - requirements-ui.txt
   - .gitlab-ci.yml
 
 # ---------------------------------------------------------------------------
@@ -435,14 +445,33 @@ validate:secrets:
     - when: on_success
 
 # was: ci-ui.yml
+# The UI gate: the legacy `site/` checks it always ran, plus (#153) the design system held by a
+# mechanism — the page-CSS lint, the block standard's tests with their RED proof, and the
+# measured check that renders every design-mock generator and every built page type at 375px
+# and 700px in EN and FI in headless Chromium and measures every element against
+# `docs/wireframes/block_standard.md`. One page breaking while another is worked on turns this
+# job red. The built site comes from `build:site-v2`'s artifact, which is why this job sits in
+# the `build` stage (a `needs:` target may not be in a later stage) and shares its rules.
+# Microsoft's Playwright image carries the browsers, so nothing is downloaded per job; the
+# `playwright` package in `requirements-ui.txt` must match the image tag (pinned by
+# `tests/test_design_inventory.py`). `PIP_BREAK_SYSTEM_PACKAGES`: noble's system Python refuses
+# `pip install` without it. Node from apt (18 on noble) is only for `node --check`; jammy's 12
+# cannot parse the `??` the match-preview page uses.
 validate:ui:
-  <<: *python
-  stage: validate
+  stage: build
+  image: mcr.microsoft.com/playwright/python:v1.63.0-noble
+  needs: ["build:site-v2"]
+  variables:
+    PIP_BREAK_SYSTEM_PACKAGES: "1"
+  cache:
+    key:
+      files:
+        - requirements-ui.txt
+    paths:
+      - .cache/pip
   before_script:
     - python -m pip install --upgrade pip
-    - pip install -r requirements.txt
-    # node is needed only for `node --check`; the distro build is recent enough
-    # to parse the syntax used in the match-preview page.
+    - pip install -r requirements-ui.txt
     - apt-get update -qq && apt-get install -y -qq nodejs
   script:
     - python -m json.tool site/i18n/en.json > /dev/null
@@ -467,6 +496,17 @@ validate:ui:
         node --check "$f" && echo "SYNTAX OK: $f" || { echo "SYNTAX ERROR in $f"; exit 1; }
       done
     - python scripts/check_ui_i18n_metrics.py
+    - python scripts/check_page_css.py
+    # The check before its tests: the tests' green fixture reads the live stylesheet, so with
+    # them first a stylesheet defect stops the job at the fixture and the per-page lines and
+    # screenshots never appear. Either step red is the job red.
+    - python scripts/check_design_inventory.py --dist site_v2/dist --artifacts artifacts/design_inventory
+    - python -m pytest tests/test_design_inventory.py -q
+  artifacts:
+    when: on_failure
+    paths:
+      - artifacts/design_inventory
+    expire_in: 7 days
   rules:
     - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -561,12 +601,19 @@ build:site-v2:
     - test -f dist/de/index.html
     - test -f dist/en/index.html
     - test -f dist/fi/index.html
+  # The built site is what validate:ui measures; it needs this job, so both share
+  # one path anchor - GitLab refuses a pipeline whose needs: target its own rules
+  # excluded.
+  artifacts:
+    paths:
+      - site_v2/dist
+    expire_in: 1 day
   rules:
     - *not_on_schedule
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      changes: *site_v2_paths
+      changes: *ui_paths
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes: *site_v2_paths
+      changes: *ui_paths
     - if: $CI_PIPELINE_SOURCE == "web"
 
 # ---------------------------------------------------------------------------
