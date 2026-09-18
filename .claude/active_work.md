@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-18**, on `chore/session-end-2026-09-18`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-18**, on `chore/session-end-2026-09-18-b`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,33 +22,39 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED** (!195, !196, !198, 2026-09-17/18): the
-block standard `docs/wireframes/block_standard.md` (40 elements · selector · rule · `Measured as` ·
-status · ruled on; the 18 pages the check measures), every element's CSS in `system.css` alone, the
-lint `scripts/check_page_css.py`, the measured check `scripts/check_design_inventory.py` (Playwright,
-375/700, EN/FI), the render naming rule `design-mocks/renders/<page>_<YYYY-MM-DD>_<nn>.html`
-(`render.py` picks the number, never overwritten), and `validate:ui` running the lint, the CHECK,
-then the inventory tests on every MR (the check first, pinned; proven red at the check on !200, a
-closed throwaway branch kept as the record). **#150/#151 do not merge until the check passes on
-their pages and on Home.** ⚠ The commit gate runs from the project root: a `git worktree` commit is
-judged against the MAIN tree's index — rebind a sibling branch from the main tree, stashing by
-explicit path.
+**GITHUB IS A READ-ONLY MIRROR OF `main` SINCE 2026-09-18** (his ruling; !204, merged, wrote it
+into `CLAUDE.md`, `.github/workflows/README.md`, the README and the skills). GitLab pushes `main`
+only (push mirror, *Mirror only protected branches*); Actions are disabled at the repository level
+— **the mirror push IS a push to GitHub `main`, and seven workflows trigger on it, so that setting
+must never be flipped** (`.github/workflows/README.md` says why). The token is a fine-grained PAT
+in GitLab's mirror settings, **his, expires 2026-12-17**; its replacement needs **Contents AND
+Workflows read/write** — without Workflows, GitHub rejects the push because `.github/workflows/
+README.md` counts as a workflow (cost one round on setup). `origin` is now reachable and equals
+GitLab's `main` after each sync; still never the base and never pushed to. **Open, his:** the README
+CI badge — the two dead GitHub Actions badges are gone; a live GitLab badge 404s to visitors
+because pipelines are members-only (`public_jobs: false`), so it is "make pipelines public" or a
+static badge; put to him in chat 2026-09-18, unanswered. Also unfiled: `docs/operations_guide.md`
+and `docs/development_workflow.md:62` still describe GitHub Actions as live CI (a runbook rewrite).
+
+**#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED** (!195, !196, !198): the block standard
+`docs/wireframes/block_standard.md`, `system.css`, the lint `scripts/check_page_css.py`, the
+measured check `scripts/check_design_inventory.py`, `validate:ui` running all three on every MR.
+**#150/#151 do not merge until the check passes on their pages and on Home.** ⚠ The commit gate
+runs from the project root: a `git worktree` commit is judged against the MAIN tree's index —
+rebind a sibling branch from the main tree, stashing by explicit path.
 
 **#109, THE DBT TESTING STRATEGY, IS TWO STEPS OF THREE DONE — NEXT = STEP 3, in a fresh chat.**
 Step 1 (!201, merged): the connective rules in `dbt_project/docs/engineering_standards.md` §3.1–3.5
 (the column class decides the tests; a rate is one definition gated by its inputs, a range test on
 every rate, the guard generated from the catalogue; severity by one question, "would a fan see a
 wrong number"; `store_failures` on every singular test; what holds each rule). The census behind
-them is a comment on #109. Step 2 (!202, merged): the guard — `dbt_project/tests/
-assert_form_window_rates_inputs_covered.sql` and `assert_season_rates_inputs_covered.sql`, built at
-run time from `metric_catalogue.csv` (pattern: `assert_metric_catalogue_expr_resolvable.sql`), the
-first two tests with `store_failures`; one coverage count per input in `int_team_momentum__metrics`
-and `int_team_season_record`, every rate gated on its own inputs in `mart_team_momentum` and
-`int_team_season__metrics_cumulative`; the player-derived rates follow `metric_layer.md`'s rule
-(about 1,200 form windows and 1,500 team-seasons went to "—"; corners per match now shows in more);
-the NULL sentence on 38 team-rate blocks composed by `sync_metric_docs_blocks.py`. The nightly of
-2026-09-18 had failed on `shots_on_goal_pct` > 1 — that gate is fixed: **check that the first
-nightly after the merge is green.** **Step 3, the plan is §3.5 and the census:** `store_failures`
+them is a comment on #109. Step 2 (!202, merged): the two rate guards in `dbt_project/tests/
+assert_*_rates_inputs_covered.sql`, generated at run time from `metric_catalogue.csv`, the first
+tests with `store_failures`; every rate gated on the coverage count of each of its inputs (about
+1,200 form windows and 1,500 team-seasons went to "—", correctly). The nightly of
+2026-09-18 had failed on `shots_on_goal_pct` > 1 — that gate is fixed: **check that the nightly of
+2026-09-19 (04:00 UTC, the first after !202) is green BEFORE starting step 3** — it had not run
+when the 2026-09-18 session ended. **Step 3, the plan is §3.5 and the census:** `store_failures`
 on the other 49 singular tests; a range test on the 92 rates without one; the severity audit of
 the 941 `error` tests under §3.3; the three remaining mechanisms — every listed column described
 (365 undescribed today; a rule to add to `check_description_hygiene.py`), a yml-vs-projection
@@ -69,20 +75,18 @@ metric groups; Home's corrections on **#127**. The page-wide rules live in the b
 `system.css`, measured — the builds compose from them and add nothing of their own.
 
 **The measured check is the arbiter now.** `python scripts/check_design_inventory.py --dist
-site_v2/dist` (build first: `cd site_v2 && npm run build`; park any untracked export payload under
-`site_v2/src/data/competitions/` first, or the SEO audit refuses the build); `--no-built` for the
-mocks alone; `--page name=file.html` for one file. An element not in `block_standard.md` is a
-design decision: put to him and rendered on every page it touches before it is ruled.
-`gen_competitions.py` (#54's index) does not run against today's registry and is off the pages
-list until it does; the two standards sheets and the three diagrams are not pages.
+site_v2/dist` (build first; park any untracked export payload under `site_v2/src/data/` or the
+SEO audit refuses the build); `--no-built` for the mocks alone. An element not in
+`block_standard.md` is a design decision: put to him and rendered on every page it touches before
+it is ruled. `gen_competitions.py` (#54's index) is off the pages list until it runs against
+today's registry.
 
 **HOME IS DONE (#127, `!187`) and THE COMPETITIONS HUB (#128, `!189`).** Go-live items (About,
 Imprint) have no issue — his call. **The roadmap is the GitLab milestones in the site's menu
 order: Home · Competitions · Matches · Teams · Players · Standings · Leaderboards** — one review
 issue per page (#127–#140), approved on the issue before anything is built; after #153 and the
 competition builds comes the Matches milestone (#130, #131, #132); dependencies the page picks up
-when they land: #105, #145, #146, #148, #69. `docs/tracker/gitlab_snapshot.md` is written only by
-`python scripts/snapshot_tracker.py`, at the END of every session.
+when they land: #105, #145, #146, #148, #69.
 
 **How we work since 2026-09-11** is `CLAUDE.md` "Which source answers which question" and
 `docs/working_agreement.md` §1 / §11: the requirement is the issue (Task template), the plan its
@@ -104,11 +108,9 @@ cover every match in the window; a thinly covered competition showing blank is c
 short."*). The decision and the consequence, two sentences; process detail stays in the repo.
 Commit, push, retry, rebase and regenerate WITHOUT asking; keep working.
 
-⚠ **THE NIGHTLY HAS BEEN RED TWO NIGHTS, for two different reasons, both handled.** 2026-09-17:
-one PD fixture stuck at `2H` (`assert_fct_fixture_no_stale_live`) — cleared itself the next
-night. 2026-09-18: `shots_on_goal_pct` > 1 for two UEL teams (the provider sent shots on goal
-without total shots for two play-off games; the form gate read one input) — fixed by !202,
-merged. A red nightly with `severity: error` skips every dependent mart, and an MR's
+⚠ **THE NIGHTLY WAS RED ON 2026-09-17 AND 2026-09-18, both handled** (a stale `2H` fixture that
+cleared itself; `shots_on_goal_pct` > 1 from a one-input provider payload, fixed by !202). A red
+nightly with `severity: error` skips every dependent mart, and an MR's
 `data:build:mr` then fails the singular tests it defers to prod — retry them after a green
 nightly, do not chase them in the MR.
 
@@ -184,7 +186,7 @@ and `review.md` are per-task and one side wins; regenerate and re-review.
 landed branches unmerged. Use `git cherry gitlab/main <branch>` (`+` = not upstream). Deleting an
 open MR's source branch CLOSES the MR. ⚠ A stacked branch that reverts its base's change shows
 NO hunk in the cumulative patch vs `main` — give reviewers the diff vs the parent commit too.
-⚠ **`git pull` on main hits the DEAD GitHub `origin` and 403s.** Use `git pull --ff-only gitlab main`.
+⚠ **`git pull` on main pulls the GitHub MIRROR (`origin`), which lags GitLab by a sync.** Use `git pull --ff-only gitlab main`.
 ⚠ **The push guard refuses EVERY push while standing on main.** Branch to a throwaway to push
 deletions. It reads the CURRENT branch, so `checkout && push` in one call is blocked as a whole.
 ⛔⛔ **`--review-patch` PRINTS; only a REDIRECT writes the file.** Run bare it leaves the previous
