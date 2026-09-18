@@ -1,17 +1,17 @@
-# Review — docs/readme-ci-badge — 2026-09-18
+# Review — docs/mirror-token-note — 2026-09-18
 
-diff_sha256: d597b1ec85b0edcf85ef53fa8b15899d8ead97c815a501eac8c70d60fca5ac54
+diff_sha256: 0ffcf1f08771681aaf990c93a0b83c61ab7206c92dd34aa1cdb92b58d943efd2
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- CPO authority for the §10 content decision (a badge is user-visible and permanent once published): `refs` quotes the dated chat, 2026-09-18, "yes, static badge", after the static-or-public choice was put to him.
-- The badge's label (`CI` / `GitLab`) and link target (the repository page, not the pipelines page) match `decisions_taken`; the image is shields.io with a logo, the style of the row's other badges.
-- README change is surgical: one line inserted, no deletion, nothing reordered.
-- No credential or secret in the badge URL; README is not a protected or structural path, so no `impact_map` is owed; no new mechanism or recurring cost.
-- `decisions_reserved` correctly empty: the CPO decided static over public pipelines; the form is the builder's and is stated in the MR head.
+- Scope: `CLAUDE.md` and the contract are the only files in the diff, both in `scope_paths`.
+- Secrets: the new text names the token's type, that it expires, and two permission names; no token value, no expiry date, no credential-shaped string; GitHub's error message is system output.
+- CPO authority: `refs` quotes "go ahead as recommended" with the date and the recommendation it answered.
+- Single-bullet change: only the GitHub-mirror bullet grows; the bullets before and after are untouched.
+- §10: operational documentation of a known fact, not a product, naming, mechanism or cost decision; `decisions_reserved` correctly empty.
 
 ## escalations
 (none)
