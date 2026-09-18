@@ -2,8 +2,6 @@
 
 An ELT pipeline for football data: daily ingestion from API-Football into BigQuery, transformed with dbt across a medallion architecture (staging → base → core → intermediate → marts), then exported as JSON for a fan-facing web app. Multi-competition and multilingual.
 
-[![CI](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-validate.yml)
-[![Data Build](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml/badge.svg)](https://github.com/ramialfahham/football-data-pipeline/actions/workflows/ci-data-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![dbt](https://img.shields.io/badge/dbt-1.7-FF694B?logo=dbt&logoColor=white)](https://www.getdbt.com/)
 [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
@@ -27,7 +25,7 @@ flowchart LR
 - **Automated data-quality tests** gate every build.
 - **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
 - **Multilingual** (DE / EN / FI), multi-competition by design.
-- **CI/CD on GitHub Actions** — lint, validation, data build, security scanning, and a scheduled daily run.
+- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, validation, data build and security scanning on every merge request; the nightly build runs from Cloud Scheduler. The repository is developed on [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only mirror of `main`.
 - **v2 web app** with new information architecture and richer insights in active development.
 
 ## Design decisions
@@ -112,7 +110,7 @@ After install, hooks run automatically on every `git commit`. A failing hook blo
 pre-commit run --all-files
 ```
 
-CI runs the same sqlfluff via `ci-validate` as defense-in-depth, but catching lint locally is fast (~5s on small diffs) and avoids round-tripping through GitHub.
+CI runs the same sqlfluff in `validate:governance` as defense-in-depth, but catching lint locally is fast (~5s on small diffs) and avoids round-tripping through the pipeline.
 
 Run dbt from the repo root with **`.venv`** activated:
 

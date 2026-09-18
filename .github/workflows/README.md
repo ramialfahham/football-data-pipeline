@@ -1,9 +1,10 @@
-# These workflows are DORMANT. Nothing here runs.
+# These workflows are DISABLED. Nothing here runs.
 
-**Status as of 2026-08-06.** CI for this repository is `.gitlab-ci.yml` at the repo root.
-Every workflow in this directory is inert: GitHub Actions execute none of them.
+**Status as of 2026-09-18.** CI for this repository is `.gitlab-ci.yml` at the repo root.
+GitHub Actions are **disabled at the repository level** (Settings → Actions → General → *Disable
+actions*), so every workflow in this directory is inert whatever its triggers say.
 
-This file exists because a dormant workflow and a live one look identical, and the eleven `.yml`
+This file exists because a disabled workflow and a live one look identical, and the eleven `.yml`
 files here were last edited 2026-07-28, while they were still running. Nothing in the tree said
 they had stopped.
 
@@ -13,13 +14,16 @@ The project migrated from GitHub to GitLab in 2026-08, after the GitHub account 
 The six quality gates, the nightly production build and the v2 site deploy were translated into
 `.gitlab-ci.yml` and run there.
 
-**The GitHub repository is deliberately KEPT.** CPO ruling, 2026-08-06: the repo stays, and how it
-gets used is decided once account access returns. So these files are **not deleted, not moved and
-not edited** — re-activating any of them should be a decision, not a reconstruction.
+**The GitHub repository is a read-only mirror of `main`.** CPO ruling, 2026-09-18, once the account
+was back: GitLab stays the system of record (CI, MRs, issues, the WIF binding); GitLab pushes
+`main` — and only `main` — to GitHub after every merge (a push mirror, *Mirror only protected
+branches*); nothing is pushed there by hand, nothing is opened or merged there, and Actions stay
+off. These files are **not deleted, not moved and not edited** — they are the record of what ran
+before the migration, and re-activating any of them would be a decision, not a reconstruction.
 
 ## What is here
 
-**Dormant because the platform is dormant** — these ran until the migration:
+**Stopped by the migration** — these ran until it:
 
 | Workflow | GitLab equivalent |
 |---|---|
@@ -42,7 +46,7 @@ never touched at retirement. It was dormant-by-decision before it was dormant-by
 was deliberately not translated: porting it would have resurrected a retired product and
 reinstated a recurring cost.
 
-**Dormant by decision, before the migration** — `_paused/`:
+**Paused by decision, before the migration** — `_paused/`:
 
 - `cursor-dispatch.yml`
 - `pr-autopilot.yml`
@@ -51,11 +55,12 @@ reinstated a recurring cost.
 Those two categories are not the same thing and are not merged here. One stopped because someone
 decided it should; the other stopped because the platform did.
 
-## ⚠ If GitHub comes back — READ THIS BEFORE PUSHING ANYTHING
+## ⚠ Why Actions must STAY disabled — read this before touching the setting
 
-**These workflows are dormant, not disabled.** Nothing was turned off; the platform stopped
-running. So re-activation is NOT an act of enabling — **the first ordinary push to the GitHub
-`main` re-arms it.** Seven of the eleven trigger on `push: branches: [main]`:
+**The mirror pushes to GitHub `main` after every merge, and seven of the eleven workflows trigger
+on `push: branches: [main]`.** With Actions enabled, the mirror sync itself would run them; the
+repository-level *Disable actions* setting is the only thing standing between a routine merge on
+GitLab and the runs below. It was checked before the first sync on 2026-09-18. The seven:
 
 `ci-data-build.yml` · `ci-site-v2.yml` · `ci-ui.yml` · `ci-validate.yml` ·
 `pages-match-preview.yml` · `python-ci.yml` · `security-secrets.yml`
@@ -81,13 +86,13 @@ concurrently (#667)"*.
 prod writers through `resource_group: prod-warehouse-write`; a GitHub job writing prod is outside
 that group entirely, so it can merge the bare prod tables while GitLab is mid-build.
 
-So a single catch-up push to a reactivated GitHub remote can, with nothing else done: run a full
-prod warehouse build concurrently with GitLab's, spend API quota, and republish a retired product.
+So one mirror sync with Actions enabled can, with nothing else done: run a full prod warehouse
+build concurrently with GitLab's, spend API quota, and republish a retired product.
 
-**Before any push to a reactivated GitHub remote**, disable the workflows in the repository
-settings or move them into `_paused/` FIRST. Cost is a CPO decision (`CLAUDE.md`, "Cost is
-non-negotiable"), and two schedulers writing one warehouse is a cost change and a correctness
-hazard, not just a duplicate bill.
+**Re-enabling Actions is therefore a CPO decision, never a click.** Cost is his (`CLAUDE.md`,
+"Cost is non-negotiable"), and two schedulers writing one warehouse is a cost change and a
+correctness hazard, not just a duplicate bill. If GitHub is ever to run anything again, the
+workflows are moved into `_paused/` or rewritten FIRST, and the setting is flipped last.
 
 ## Do not
 

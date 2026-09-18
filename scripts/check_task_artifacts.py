@@ -90,14 +90,15 @@ def default_base() -> str:
     `origin` names two different repositories. Inside GitLab CI the clone sets it
     to the GitLab project, which is why `.gitlab-ci.yml` passes `--base origin/...`
     explicitly and is CORRECT to do so. On a working copy here, `origin` is the
-    GitHub remote — dormant while account access is unavailable — and it sits far
-    behind `gitlab/main`. So the bare command diffed against a stale tree and
-    reported required reviewers that were not required at all.
+    GitHub remote — a read-only mirror of `main`, pushed from GitLab, so it can
+    only ever be as fresh as the last mirror cycle. Before the mirror existed it
+    sat far behind `gitlab/main`, and the bare command diffed against a stale tree
+    and reported required reviewers that were not required at all.
 
-    This is a PREFERENCE, not a retirement. GitHub is kept, and how it is used is
-    decided when access returns. `GOVERNANCE_BASE` still overrides everything, and
-    if `origin` becomes the live remote again this returns to `origin/main` with no
-    code change — either by unsetting the `gitlab` remote or by setting the env var.
+    This is a PREFERENCE, not a retirement: GitLab is the system of record, so it
+    is the base. `GOVERNANCE_BASE` still overrides everything, and if `origin`
+    ever becomes the live remote again this returns to `origin/main` with no code
+    change — either by unsetting the `gitlab` remote or by setting the env var.
 
     Resolved AFTER parsing, so the subprocess call never runs on the CI path where
     `--base` is passed explicitly.
