@@ -1,6 +1,6 @@
 # Review — feat/153-check-in-ci — 2026-09-17
 
-diff_sha256: 2f02d4aa229716e53f6d370a75b79e417d842f1f1335e996f520697c735e6811
+diff_sha256: f4212106670474dc7db0bc1d2da1095d7a0e8411488a465778b2f286291c36f3
 
 rounds: 4
 rounds_cap_override: round 4 swaps two script lines after the throwaway proof the CPO asked for
@@ -32,7 +32,9 @@ an `import requests` added to the i18n script, red without the PyYAML pin, green
 Round 4, after the proof on !199: the check runs before the inventory tests in `validate:ui`,
 so a page or stylesheet defect yields the per-page lines and the screenshot artifact instead of
 stopping at the fixture; a pin holds the order, red with the old order. scope-auditor,
-platform-reviewer and cto-reviewer re-ran; bi-analyst-reviewer's PASS stands.
+platform-reviewer and cto-reviewer re-ran; bi-analyst-reviewer's PASS stands. !196 then merged,
+so the base moved to its tip and the cumulative diff is this branch's own files only: the hash
+above is that diff's; nothing of this branch's own changed.
 
 ## scope-auditor
 VERDICT: PASS
