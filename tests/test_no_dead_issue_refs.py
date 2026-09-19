@@ -59,7 +59,7 @@ INSTRUCTING_FILES = ("CLAUDE.md", ".claude/active_work.md")
 
 # Every GitHub-era issue number this repo still refers to. Closed set — see the module docstring.
 DEAD_GITHUB_ISSUES = frozenset({
-    *range(155, 157), 163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
+    163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
     *range(217, 229), *range(232, 241), 247, *range(250, 263), 264, 266, 268, 272,
     *range(276, 297), 299, *range(307, 315), *range(316, 330), 331, *range(361, 371), 372,
     *range(374, 378), 391, *range(401, 404), 405, *range(407, 429), 430, *range(433, 435),
@@ -119,7 +119,7 @@ def test_the_guard_can_actually_fire():
     CSS colour in `docs/roles/ui_expert.md` cannot be mistaken for an issue.
     """
     assert _dead_refs("the authority is #753") == [753]
-    assert _dead_refs("see #155 and #156") == [155, 156]
+    assert _dead_refs("see #163 and #178") == [163, 178]
     # GitLab issues, live: #33 is the cost/scalability plan, #115 the context cleanup.
     assert _dead_refs("#33 and #114 and #115 are live") == []
     # The trailing-hex guard: a six-digit CSS colour is not issue 475569.
@@ -131,7 +131,7 @@ def test_the_guard_can_actually_fire():
     assert _dead_refs("shown literally as &amp;#753; in the source") == []
     assert _dead_refs("and doubly as &amp;amp;#753; if quoted again") == []
     # A real reference in punctuation still matches — the exclusion costs no coverage.
-    assert _dead_refs("see (#753) and [#156]") == [156, 753]
+    assert _dead_refs("see (#753) and [#163]") == [163, 753]
 
 
 def test_a_short_all_digit_hex_colour_is_a_KNOWN_false_positive():
@@ -202,8 +202,8 @@ def test_no_member_of_the_dead_set_can_be_removed_quietly():
     digest = hashlib.sha256(
         ",".join(str(n) for n in sorted(DEAD_GITHUB_ISSUES)).encode()
     ).hexdigest()
-    assert len(DEAD_GITHUB_ISSUES) == 253 and digest == (
-        "5ac5e1d4bc9bc9942a0999d867316e772f2eb263dbf98491c67a9f1872da5618"
+    assert len(DEAD_GITHUB_ISSUES) == 251 and digest == (
+        "f9570f666e58f898b5216e3a4268b03f87ca6a8a3247c1d44472bba678b7e45c"
     ), (
         "DEAD_GITHUB_ISSUES changed. There is exactly one legitimate reason: GitLab has issued a "
         "number that is in the set, so a live reference was being flagged — remove that ONE entry "
@@ -216,10 +216,10 @@ def test_the_headroom_before_a_collision_is_stated():
     """The set is closed, so the only way it goes wrong is GitLab reaching one of these numbers.
 
     GitLab was at #115 when the set was enumerated and the lowest dead number was #151, so there
-    were 35 issues of headroom. GitLab has since reached #151, #153 and #154 (the Rankings build
-    issue, the design-system issue, the runbook rewrite), those entries are gone, and the floor is
-    #155. Pinning both ends makes the collision arrive as a named test failure rather than as a
+    were 35 issues of headroom. GitLab has since reached #151, #153, #154, #155 and #156 (the Rankings
+    build issue, the design-system issue, the runbook rewrite, the match-title collision, the
+    nightly site build), those entries are gone, and the floor is #163. Pinning both ends makes the collision arrive as a named test failure rather than as a
     confusing false positive on a live reference.
     """
-    assert min(DEAD_GITHUB_ISSUES) == 155
+    assert min(DEAD_GITHUB_ISSUES) == 163
     assert 115 not in DEAD_GITHUB_ISSUES, "GitLab #115 is the context-cleanup issue and is live"
