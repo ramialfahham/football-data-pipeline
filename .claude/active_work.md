@@ -30,7 +30,7 @@ spellings corrected); **played rows are inert until the match report page exists
 copy shipped as drafted (Schedule/Spielplan/Otteluohjelma, Nächster, Offen, Avoin, the titles); his
 merge is the ruling on it. `data:build:main` after the merge builds `mart_competition_fixtures`
 in prod; until the next `deploy:export` (manual, still `teams,fixtures`) production shows the
-committed sample, as it does for Home. **#150 is not blocked on #155** (his merge decided it).
+committed sample, as it does for Home. **#150 is not blocked on #155** (his merge decided it). **#156** (filed 2026-09-19 at his word): the nightly export, build and deploy from live data, the go-live item that ends the committed sample; the export and build half is worth running before go-live, since full-scale defects (#155) show only there.
 
 **#155 (filed 2026-09-19, Matches milestone): two unplayed meetings of the same clubs share the
 match preview page's title**, 12 pairings × 3 locales; the full-scale build (15,078 match pages,

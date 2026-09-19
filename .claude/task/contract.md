@@ -34,4 +34,5 @@ done_when:
   - `python -m pytest tests/test_no_dead_issue_refs.py -q` green; `python scripts/snapshot_tracker.py` run and its output committed.
 
 amendments:
+  - 2026-09-19, no path added: the CPO asked for the nightly site export, build and deploy to be filed; GitLab issued #156, another number the dead-issue guard held, so 156 leaves the set too (count 252 to 251, floor 163, the self-test pins moved to 163 and 178) and the handover names #156 under go-live. Rebased onto main after !209 merged: the three task files collided and this branch's versions were taken; the code and the handover merged clean.
   - 2026-09-19, no path added: the CPO merged !209 while this handover was open, so the handover's top paragraph is rewritten from "open, three questions on the head" to "merged"; the copy shipped as drafted and the merge is the ruling on it; the 2026-09-19 nightly succeeded, so #109 step 3 is unblocked.
