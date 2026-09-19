@@ -22,13 +22,25 @@ models:
     columns:
       - name: upcoming_fixture_sk
         description: "{{ doc('upcoming_fixture_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: leg_fixture_sk
         description: "The past match this row describes; joins to the per-fixture stat marts."
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: window_type
         description: >
           Which window this match belongs to: last_5 by default, or tournament_to_date /
@@ -69,6 +81,10 @@ models:
         description: "{{ doc('home_away') }}"
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: goals_for
         description: "{{ doc('goals') }}"
       - name: goals_against

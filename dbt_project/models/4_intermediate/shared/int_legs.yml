@@ -13,10 +13,18 @@ models:
     columns:
       - name: fixture_sk
         description: "{{ doc('fixture_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: league_code
         tests: [not_null]
       - name: competition_type
@@ -47,8 +55,16 @@ models:
               values: ["home", "away"]
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
@@ -58,6 +74,10 @@ models:
         description: "{{ doc('round_order') }}"
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: goals_for
         description: "{{ doc('goals') }}"
       - name: goals_against
@@ -96,13 +116,25 @@ models:
     columns:
       - name: fixture_sk
         description: "{{ doc('fixture_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: player_sk
         description: "{{ doc('player_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: league_code
         tests: [not_null]
       - name: entity_type
@@ -179,6 +211,10 @@ models:
         description: "{{ doc('round_order') }}"
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
 
   - name: int_legs__team_from_players
     description: >
@@ -191,10 +227,18 @@ models:
     columns:
       - name: fixture_sk
         description: "{{ doc('fixture_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: players_with_stats
         description: "Count of players with a stat row for this team-match (completeness signal)."
         tests: [not_null]
@@ -209,6 +253,10 @@ models:
         description: "{{ doc('round_order') }}"
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: key_passes
       - name: tackles
       - name: blocks

@@ -1,707 +1,1923 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e12160de..8b6d2111 100644
+index 8b6d2111..2b56c953 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,38 +1,71 @@
--# Task contract — handover: #150 merged as !209; next is #109 step 3
-+# Task contract — #109 step 3, MR A: store_failures on every singular test; severity by §3.3
+@@ -1,71 +1,129 @@
+-# Task contract — #109 step 3, MR A: store_failures on every singular test; severity by §3.3
++# Task contract — #109 step 3, MR B: range tests, the key graph, the sweep script
  
  objective: >
--  Bring `.claude/active_work.md` to the state after this session: #150 built, reviewed and merged
--  as !209 (2026-09-19, after the data build was retried green against the fresh prod table); #155
--  filed (the match preview title collision at full scale); the 2026-09-19 nightly green; the next
--  unit of work is #109 step 3. Under 16,000 characters. Refresh the tracker snapshot.
-+  Every singular test under `dbt_project/tests/` sets `store_failures = true` (engineering_standards.md
-+  §3.4: a red test leaves its rows in the warehouse, not a count), and every singular test's
-+  severity answers §3.3's one question — would a fan see a wrong number if this condition held.
-+  49 of 54 tests gain the config; 3 flip from `error` to `warn`. No model, no yml, no number on the
-+  site changes.
+-  Every singular test under `dbt_project/tests/` sets `store_failures = true` (engineering_standards.md
+-  §3.4: a red test leaves its rows in the warehouse, not a count), and every singular test's
+-  severity answers §3.3's one question — would a fan see a wrong number if this condition held.
+-  49 of 54 tests gain the config; 3 flip from `error` to `warn`. No model, no yml, no number on the
+-  site changes.
++  Every rate column carries its range backstop (engineering_standards.md §3.2), every foreign-key
++  `_sk` column carries `relationships` to its parent or a declared soft link (§3.1), the one model
++  with no test gets one, and `scripts/check_relationships_coverage.py` keeps the key graph covered
++  (§3.5). Tests and yml only: no model SQL changes, no column added or removed, no number on the
++  site moves.
  
  refs: >
--  The CPO's rulings in chat 2026-09-18 (the plan for #150 approved; the slug from the warehouse;
--  played rows inert until the report page exists) are recorded on !209's head and in its contract.
--  #155 filed 2026-09-19 by the build; `tests/test_no_dead_issue_refs.py` lists 155 as a dead number
--  and its own assertion text prescribes the fix: remove a number only when GitLab has genuinely issued
--  it, and move the self-test pin to the next dead number.
-+  #109, "Step 3 — the mechanisms and the sweep", MR A: the plan approved in chat 2026-09-19 and
-+  recorded on the issue. The rules are §3.3 and §3.4 of `dbt_project/docs/engineering_standards.md`
-+  (merged in !201). The form is the one the 5 tests that already carry it use
-+  (`{{ config(store_failures = true) }}`, e.g. `assert_season_rates_inputs_covered.sql`). The audit
-+  dataset is created by dbt per target: `dbt_test__audit` on prod and `ci_mr<IID>_dbt_test__audit`
-+  on the MR target hold the 5 existing tables today (`bq ls`, 2026-09-19).
+-  #109, "Step 3 — the mechanisms and the sweep", MR A: the plan approved in chat 2026-09-19 and
+-  recorded on the issue. The rules are §3.3 and §3.4 of `dbt_project/docs/engineering_standards.md`
+-  (merged in !201). The form is the one the 5 tests that already carry it use
+-  (`{{ config(store_failures = true) }}`, e.g. `assert_season_rates_inputs_covered.sql`). The audit
+-  dataset is created by dbt per target: `dbt_test__audit` on prod and `ci_mr<IID>_dbt_test__audit`
+-  on the MR target hold the 5 existing tables today (`bq ls`, 2026-09-19).
++  #109, "Step 3 — the mechanisms and the sweep", the MR B line, expanded in chat 2026-09-19 and
++  written to the issue with the soft-link decision. The rules are §3.1, §3.2, §3.5 of
++  `dbt_project/docs/engineering_standards.md` (!201). Measured on `main` at `d8a4ab3c`, read-only:
++  156 rate columns without a range test (3 signed differences get none); 80 foreign-key `_sk`
++  columns without `relationships`, of which 76 have zero orphans on prod and 4 (two leaf core
++  tables) have 7,502–134,025; 153 range conditions probed on prod with zero violations; 1,074 tests
++  parsed today.
  
  scope_paths:
--  - .claude/active_work.md
--  - tests/test_no_dead_issue_refs.py
--  - docs/tracker/gitlab_snapshot.md
-+  - dbt_project/tests/*.sql
+-  - dbt_project/tests/*.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/4_intermediate/shared/int_legs.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
++  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
++  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
++  - dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
++  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
++  - dbt_project/models/5_marts/shared/shared.yml
++  - scripts/check_relationships_coverage.py
++  - tests/test_check_relationships_coverage.py
++  - dbt_project/docs/engineering_standards.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-+  - .claude/active_work.md
-+  - docs/tracker/gitlab_snapshot.md
+   - .claude/active_work.md
+   - docs/tracker/gitlab_snapshot.md
  
- decisions_taken: >
--  None. The handover's top section rewritten to what was built and what is open; the dead-issue
--  guard's set loses 155 because GitLab issued it (the guard's own rule), the count, digest and floor
--  follow, the self-test that pins the guard fires moves to 156. No other change to the test.
-+  §3.4 applied as written: `store_failures = true` on the 49 singular tests without it, added to
-+  the existing `config(...)` where one exists, as its own line where none does. §3.3 applied to the
-+  54 singular tests, one line per test in the MR head. The three flips to `warn`:
-+  `assert_country_name_overrides_still_needed`, `assert_league_name_overrides_are_corrections`,
-+  `assert_team_name_overrides_still_needed` — a dead override row does nothing, the fan sees the
-+  right name either way, and the test is the reminder to delete it. Every other singular test
-+  stays `error`, including the seven `*_covers_active_competition_var` tests: an active
-+  competition with no rows is a wrong page, not a correct state, and the accepted red on an
-+  onboarding MR (#76) is a missing signal, not a wrong severity. The generic tests are ruled by
-+  their column class (§3.1 → §3.3's table) and are not touched here.
++impact_map: >
++  writers: none — no model SQL or seed changes; the 15 yml files gain tests and, on four columns,
++  a `meta.soft_link` key. dbt's `state:modified+` treats a test change as a change to the tested
++  node, so `data:build:mr` rebuilds the 37 touched models and everything downstream of them into
++  `ci_mr<IID>_*`, once per pipeline.
++  downstream: no column changes, so no downstream model's SQL or output changes; the only effect is
++  new tests that can turn a build red. Every one was measured on prod first (2026-09-19): the 76
++  `relationships` have zero orphans (one 286 MB query joining each child to its parent); the 153
++  range conditions have zero violating rows (one 44 MB query). A red on the MR target is a real
++  regression, not a stale count.
++  layer_rules: none touched — `check_layer_contract.py` reads materialisation and the staging tree;
++  tests are not in its scope.
++  deploy_order: nothing to sequence — the nightly picks the tests up at the next `dbt build`; a
++  test cannot break a table.
++  blast_radius: none on data. On the test surface: +153 range assertions (as ~40 yml blocks, the
++  intermediate models combining columns in one `expression_is_true` as they already do, the marts
++  one per column as they already do), +76 `relationships` at `error`, +3 tests on
++  `int_team__market_value_latest`, 4 soft links declared.
 +
-+  RECURRING COST, declared: with `store_failures` a test runs the same query as a CTAS into the
-+  audit dataset and then counts the small table. The extra billed work is the count, at
-+  BigQuery's 10 MB per-table minimum: 49 more tables per run of the singular suite (the nightly
-+  once, `data:build:main` twice, an MR pipeline once). The two `freshness_check` tests run only in
-+  the nightly's unfiltered `dbt build` (`deploy/nightly/entrypoint.sh`); the hourly `fdp-freshness`
-+  job is `scripts/check_raw_freshness.py`, a metadata sentinel that runs no dbt. Under 1 GB a day,
-+  under $0.15 a month. Storage is the failing rows only. No new mechanism: the materialisation, the
-+  dataset and the form are the ones step 2 and #150 already use.
+ decisions_taken: >
+-  §3.4 applied as written: `store_failures = true` on the 49 singular tests without it, added to
+-  the existing `config(...)` where one exists, as its own line where none does. §3.3 applied to the
+-  54 singular tests, one line per test in the MR head. The three flips to `warn`:
+-  `assert_country_name_overrides_still_needed`, `assert_league_name_overrides_are_corrections`,
+-  `assert_team_name_overrides_still_needed` — a dead override row does nothing, the fan sees the
+-  right name either way, and the test is the reminder to delete it. Every other singular test
+-  stays `error`, including the seven `*_covers_active_competition_var` tests: an active
+-  competition with no rows is a wrong page, not a correct state, and the accepted red on an
+-  onboarding MR (#76) is a missing signal, not a wrong severity. The generic tests are ruled by
+-  their column class (§3.1 → §3.3's table) and are not touched here.
++  §3.2 applied: a share is `null or between 0 and 1`, a per-match / per-90 count `null or >= 0`;
++  `shots_on_goal_difference_per_match` (3 surfaces) is signed and gets none, as
++  `int_team_season.yml`'s own comment already says. Year-over-year copies in `int_team_profile__yoy`
++  and `mart_team_profile` take the bounds `int_team_profile.yml` already fixed for the same
++  columns: structural ratios [0,1], the four provider-subset ratios >= 0 only (its comment says why:
++  a single provider game with numerator > denominator is a data reality, not a model bug).
++
++  §3.1 applied: `relationships` at `error` on the 76 foreign keys with zero orphans — a dangling
++  key is a wrong page (§3.3). The parent is resolved by name: a `3_core` column with `unique` is a
++  core key; a role prefix (`opponent_`, `home_`, `away_`, `upcoming_`, `leg_`, `biggest_margin_*`,
++  `most_goals_*`) points at the entity; `team_in_sk` / `team_out_sk` are `team_sk`; an entity
++  prefix (`team_season_sk`, `player_season_sk`, `player_club_season_sk`) is a composite key of its
++  own, and a `_sk` that is `unique` in its model or in its `unique_combination_of_columns` and has
++  no core parent is that model's own key.
++
++  THE DECLARED SOFT LINK — decided with the plan (the CPO's approval of the MR B plan in chat,
++  2026-09-19, recorded on #109): the four foreign keys that name clubs and players outside the
++  tracked competitions by design (`fct_transfer.team_in_sk` / `.team_out_sk` / `.player_sk`,
++  `dim_coach_team_mapping.team_sk`; 134,025 / 101,761 / 111,925 / 7,502 orphan rows on prod; both
++  tables are leaves nothing downstream reads, and both descriptions already say the link is
++  soft) carry `meta: soft_link: "<parent> — <why>"` instead of a `relationships` test. The
++  sweep script accepts a declared soft link and prints it in its census. The alternative, a
++  `relationships` at `warn`, was put with the plan and not taken: four warnings a night on rows
++  that never change.
++
++  NEW MECHANISM, declared for the CTO threshold: `scripts/check_relationships_coverage.py` is a
++  new offline governance script of the `check_*.py` class, with its pytest. Its own
++  `validate:governance` line is MR D's (a governance MR on `.gitlab-ci.yml`); until then the
++  rule is enforced by `tests/test_check_relationships_coverage.py`, whose last test runs the gate
++  on the real tree inside `test:python` on every merge request — the shape of
++  `test_materialisation_policy.py` and `test_persist_docs_policy.py`. The `meta.soft_link` key is a
++  new yml convention read only by that script, and `engineering_standards.md` §3.1 / §3.5 say so.
++  No recurring cost beyond the tests themselves: 173 more generic tests in the nightly (1,074 →
++  1,247), each a small query over columns of a table the build already scanned.
+ 
+-  RECURRING COST, declared: with `store_failures` a test runs the same query as a CTAS into the
+-  audit dataset and then counts the small table. The extra billed work is the count, at
+-  BigQuery's 10 MB per-table minimum: 49 more tables per run of the singular suite (the nightly
+-  once, `data:build:main` twice, an MR pipeline once). The two `freshness_check` tests run only in
+-  the nightly's unfiltered `dbt build` (`deploy/nightly/entrypoint.sh`); the hourly `fdp-freshness`
+-  job is `scripts/check_raw_freshness.py`, a metadata sentinel that runs no dbt. Under 1 GB a day,
+-  under $0.15 a month. Storage is the failing rows only. No new mechanism: the materialisation, the
+-  dataset and the form are the ones step 2 and #150 already use.
++  `int_team__market_value_latest.team_sk`: `not_null`, `unique`, `relationships` to `dim_team` —
++  one row per team is its stated grain; the model is empty today (its description says so), so
++  the tests pass vacuously until the snapshot fact is fed.
  
  decisions_reserved:
--  - none: !209 is merged, its head was his check; this commit records state.
-+  - none: the plan on #109 names the 3 flips and the 7 that stay; the MR head carries the full
-+    54-line table for his check, and his merge is the ruling on any line of it.
+-  - none: the plan on #109 names the 3 flips and the 7 that stay; the MR head carries the full
+-    54-line table for his check, and his merge is the ruling on any line of it.
++  - none: the plan on #109 names the ranges, the parents, the four soft links and the script's
++    rule; the MR head carries the counts and his merge is the ruling.
  
  done_when:
--  - `.claude/active_work.md` names !209 as merged, #155 as filed, the 2026-09-19 nightly as green and #109 step 3 as next; `len()` under 16,000.
--  - `python -m pytest tests/test_no_dead_issue_refs.py -q` green; `python scripts/snapshot_tracker.py` run and its output committed.
-+  - `grep -L "store_failures" dbt_project/tests/*.sql` prints nothing; `grep -l "store_failures = true" dbt_project/tests/*.sql | wc -l` is 54.
-+  - `grep -l "severity = 'warn'" dbt_project/tests/*.sql | wc -l` is 4 (the 3 flips plus `assert_team_season_games_not_short_of_standings`).
-+  - `.venv/Scripts/dbt.exe parse` green with a scratchpad profile; `python -m sqlfluff lint dbt_project/tests --templater jinja --dialect bigquery` reports nothing new against main.
-+  - `data:build:mr` green; after it, `bq ls ci_mr<IID>_dbt_test__audit` lists 52 tables — every
-+    singular test that job runs (the two `freshness_check` tests are excluded from every CI dbt
-+    job and run only in the nightly's unfiltered `dbt build`, which writes their two tables to
-+    prod's `dbt_test__audit`).
-+  - The MR head lists all 54 singular tests with the §3.3 answer and severity, one line each.
+-  - `grep -L "store_failures" dbt_project/tests/*.sql` prints nothing; `grep -l "store_failures = true" dbt_project/tests/*.sql | wc -l` is 54.
+-  - `grep -l "severity = 'warn'" dbt_project/tests/*.sql | wc -l` is 4 (the 3 flips plus `assert_team_season_games_not_short_of_standings`).
+-  - `.venv/Scripts/dbt.exe parse` green with a scratchpad profile; `python -m sqlfluff lint dbt_project/tests --templater jinja --dialect bigquery` reports nothing new against main.
+-  - `data:build:mr` green; after it, `bq ls ci_mr<IID>_dbt_test__audit` lists 52 tables — every
+-    singular test that job runs (the two `freshness_check` tests are excluded from every CI dbt
+-    job and run only in the nightly's unfiltered `dbt build`, which writes their two tables to
+-    prod's `dbt_test__audit`).
+-  - The MR head lists all 54 singular tests with the §3.3 answer and severity, one line each.
++  - `python scripts/check_relationships_coverage.py` exits 1 on `main` (80 findings) and 0 on the branch, printing the census with 4 soft links.
++  - `python -m pytest tests/test_check_relationships_coverage.py -q` green; each rule shown red once on a synthetic tree (foreign key without `relationships`; unresolved `_sk` that is not its model's own key; below the floor), green with `relationships` and green with a soft link.
++  - Mutation: one `relationships` block removed from a yml → the script exits 1 naming the column; restored → 0.
++  - `.venv/Scripts/dbt.exe parse` green with the scratchpad profile; `dbt ls --resource-type test` counts 1,074 + 153 range blocks' worth (reported as the exact number in the MR head) + 76 + 3.
++  - The re-count script shows 3 rate columns without a range test (the signed differences) and 0 foreign keys without `relationships` or a soft link.
++  - `data:build:mr` green: every new test PASS against the MR's own build.
  
  amendments:
--  - 2026-09-19, no path added: the CPO asked for the nightly site export, build and deploy to be filed; GitLab issued #156, another number the dead-issue guard held, so 156 leaves the set too (count 252 to 251, floor 163, the self-test pins moved to 163 and 178) and the handover names #156 under go-live. Rebased onto main after !209 merged: the three task files collided and this branch's versions were taken; the code and the handover merged clean.
--  - 2026-09-19, no path added: the CPO merged !209 while this handover was open, so the handover's top paragraph is rewritten from "open, three questions on the head" to "merged"; the copy shipped as drafted and the merge is the ruling on it; the 2026-09-19 nightly succeeded, so #109 step 3 is unblocked.
-+  - 2026-09-19: + docs/tracker/gitlab_snapshot.md — authority: the standing rule in `CLAUDE.md`
-+    ("At the end of every session, before the handover commit, run `python
-+    scripts/snapshot_tracker.py`"; `docs/tracker/**` is artifact-only, outside the review patch
-+    and hash); content: the generated tracker backup, never hand-edited. The first draft of this
-+    contract omitted the path.
-+  - 2026-09-19: the cost line and `done_when` corrected — the two `freshness_check` tests are not
-+    run hourly; `fdp-freshness` is a Python metadata sentinel, and the two tests run once a night in
-+    the unfiltered `dbt build` (analytics-engineer-reviewer, round 2). The declared cost goes down,
-+    not up. The commit message of the first commit carries the old sentence; this contract and the
-+    MR head are the corrected record.
-diff --git a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql b/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
-index effdbd95..cba7baf6 100644
---- a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
-+++ b/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
-@@ -18,6 +18,8 @@
- -- Reads the whole-season projection rather than the cumulative model: same formulas, one row per
- -- team-season instead of one per matchday, so a failure names a season rather than a matchday.
+-  - 2026-09-19: + docs/tracker/gitlab_snapshot.md — authority: the standing rule in `CLAUDE.md`
+-    ("At the end of every session, before the handover commit, run `python
+-    scripts/snapshot_tracker.py`"; `docs/tracker/**` is artifact-only, outside the review patch
+-    and hash); content: the generated tracker backup, never hand-edited. The first draft of this
+-    contract omitted the path.
+-  - 2026-09-19: the cost line and `done_when` corrected — the two `freshness_check` tests are not
+-    run hourly; `fdp-freshness` is a Python metadata sentinel, and the two tests run once a night in
+-    the unfiltered `dbt build` (analytics-engineer-reviewer, round 2). The declared cost goes down,
+-    not up. The commit message of the first commit carries the old sentence; this contract and the
+-    MR head are the corrected record.
++  - 2026-09-19: + dbt_project/docs/engineering_standards.md — authority: working_agreement.md §11,
++    "a rule → the document that owns that rule, edited in the same MR"; the soft link is an
++    exception to §3.1's "every foreign key carries relationships" and the plan approval put it
++    on #109 (the requirement) but not in the rule's own document (scope-auditor, round 1).
++    Content: §3.1 and §3.5 state the declared soft link in a few lines; nothing else moves.
++  - 2026-09-19: two round-1 corrections, no scope change. (1) The three player provider-subset
++    ratios (`passes_accuracy_player_pct`, `duels_won_player_pct`, `dribbles_success_player_pct`)
++    are bounded >= 0 only on `int_player_season_position__metrics` and `mart_player_momentum`,
++    not [0,1]: a position or a form window can be one game, and a provider game with numerator
++    > denominator is genuine data — the split `int_team_season__metrics_cumulative` already
++    makes (analytics-engineer-reviewer). `saves_player_pct` stays [0,1]. (2) The claim "not wired
++    into CI" was false the moment the pytest's last test ran the gate on the real tree in
++    `test:python`; the contract, the script's docstring and the test's say so now, and the script
++    prints its soft links on a red run too, with a test for the mixed case (platform-reviewer).
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index 7dd6c0b7..e0bd8673 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -250,6 +250,14 @@ A `not_null` is added because the description says the column is never NULL, not
+ reviewer would like it to be. A column listed without a description is a defect: the listing
+ says the column matters, the missing sentence says nobody wrote down what it is or when it is NULL.
  
-+{{ config(store_failures = true) }}
++**The declared soft link.** A foreign key into a universe wider than the warehouse's dimensions
++— transfers and coaching careers name clubs and players the tracked competitions never include —
++cannot carry `relationships`: the test would be red on correct data, and a permanently red
++`warn` teaches everyone to ignore warns. Such a column carries `meta: soft_link: "<parent> —
++<why>"` instead, next to the column, and nothing else counts as an exception. The sweep script
++accepts a declared soft link and prints every one on every run, so the exception is never
++silent; a foreign key with neither is a finding.
 +
- with season as (
-     select * from {{ ref('int_team_season__metrics') }}
- )
-diff --git a/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql b/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql
-index 43246a76..52c8ae3d 100644
---- a/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql
-@@ -1,6 +1,6 @@
- -- Active competitions with current-season fixture statistics coverage must have
- -- rows in base_apif__fixture_statistics. Registry/var sync: check_registry_var_sync.py.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
+ ### 3.2) A rate is one definition, gated by its inputs
  
- with expected_codes as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql b/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql
-index 70442421..f3cec4ff 100644
---- a/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql
-@@ -1,6 +1,6 @@
- -- Proves each vars.active_competition_league_codes value exists in base_apif__fixtures_next.
- -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
+ What a metric's NULL means is ruled in one place, `docs/metric_layer.md` ("Incomplete data is not
+@@ -307,8 +315,10 @@ has not landed is a rule in progress, and the issue that owns it says so:
+   rate's description must carry is composed by `scripts/sync_metric_docs_blocks.py` from the
+   catalogue's denominator, not typed per rate;
+ - every documented column exists in the model's projection — a check beside the hygiene script;
+-- every foreign key carries a `relationships` test — a script that lists the `_sk` columns
+-  without one, run in `validate:governance`.
++- every foreign key carries a `relationships` test or a declared soft link —
++  `scripts/check_relationships_coverage.py`, which resolves every `_sk` column to its parent by
++  name, lists the foreign keys without either, and prints the soft links; in place, to be run in
++  `validate:governance`.
  
- with expected as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql b/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql
-index 8cd96766..6ef365e8 100644
---- a/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql
-@@ -1,7 +1,7 @@
- -- Proves each vars.active_competition_league_codes value exists in base_apif__leagues.
- -- Does NOT prove the var matches docs/competition_registry.yml; that is
- -- scripts/check_registry_var_sync.py in CI. See dbt_project/dbt_project.yml.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
+ ## 4) Model Contracts and Metadata
  
- with expected as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql b/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql
-index 9cdaad6f..308361f4 100644
---- a/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql
-@@ -2,7 +2,7 @@
- -- base_apif__standings. Codes in vars.active_competition_league_codes but with
- -- has_coverage_standings false (e.g. WCQIP, WCQOC) are excluded — the API has no
- -- standings surface for them. Registry/var sync: scripts/check_registry_var_sync.py.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 5b28b325..b865f645 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -176,7 +176,11 @@ models:
+         tests: [not_null, unique]
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -944,6 +948,8 @@ models:
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+         tests: [not_null]
++        meta:
++          soft_link: "dim_player - transfers are global player events, so a player here need not play in a tracked competition and need not have a dim_player row"
+       - name: transfer_date
+         description: "The date the provider records the move on. It is the date the transfer was reported, not necessarily the date the player was first registered or first played."
+         tests: [not_null]
+@@ -954,8 +960,12 @@ models:
+         tests: [not_null]
+       - name: team_in_sk
+         description: "The club the player moved TO, as a team_sk. It joins to dim_team like any other, but not every club in a career appears there - youth, reserve and untracked clubs show up in transfers without a dimension row, so treat this as a soft link."
++        meta:
++          soft_link: "dim_team - youth, reserve and untracked clubs appear in transfers without a dim_team row"
+       - name: team_out_sk
+         description: "The club the player moved FROM, as a team_sk. The same soft link as team_in_sk: a club may appear here without a dim_team row."
++        meta:
++          soft_link: "dim_team - the same soft link as team_in_sk"
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
  
- with expected_codes as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql b/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql
-index ccf4df19..59690866 100644
---- a/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql
-@@ -1,6 +1,6 @@
- -- Proves each vars.active_competition_league_codes value exists in base_apif__teams.
- -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
+@@ -1029,6 +1039,8 @@ models:
+         tests: [not_null]
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
++        meta:
++          soft_link: "dim_team - a coaching career names youth, reserve and untracked clubs that have no dim_team row; team_api_id and team_name are kept for display"
+       - name: coach_api_id
+         description: "{{ doc('coach_api_id') }}"
+       - name: team_name
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index fbdc75f9..bb012e7b 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -57,6 +57,11 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
+           name: int_team_season_sot_against_non_negative
++      # Every other per-match count rate is a sum of non-negative counts over games played, so a
++      # negative is a sign-flip or a bad numerator.
++      - dbt_utils.expression_is_true:
++          expression: "(goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0)"
++          name: int_team_season_per_match_rates_non_negative
+     columns:
+       - name: team_season_sk
+         description: "Surrogate over (team_sk, season_sk); the model's grain key. Uniqueness tested at source (relied on by int_team_season__deserved_vs_actual)."
+@@ -83,8 +88,16 @@ models:
+         description: "{{ doc('shots_on_goal_against_per_match') }}"
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: entity_type
+       - name: stat_coverage_season_games
+       - name: player_stat_coverage_season_games
+@@ -200,6 +213,9 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
+           name: int_team_season_cumulative_sot_against_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "(goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0)"
++          name: int_team_season_cumulative_per_match_rates_non_negative
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+@@ -221,8 +237,16 @@ models:
+         tests: [not_null]
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: entity_type
+       - name: stat_coverage_season_games
+       - name: player_stat_coverage_season_games
+@@ -429,7 +453,11 @@ models:
+               field: team_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: league_code
+         description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in the registry, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
+         tests:
+@@ -458,6 +486,10 @@ models:
+         description: "{{ doc('deserved_points_gap_rank') }}"
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+       - name: entity_type
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index ae304212..8c7c08bf 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -52,10 +52,18 @@ models:
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: league_code
+         tests: [not_null]
+       - name: metric_key
+@@ -69,6 +77,10 @@ models:
+         tests: [not_null]
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
  
- with expected as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_competition_name_is_unique.sql b/dbt_project/tests/assert_competition_name_is_unique.sql
-index c90da224..121a1b9e 100644
---- a/dbt_project/tests/assert_competition_name_is_unique.sql
-+++ b/dbt_project/tests/assert_competition_name_is_unique.sql
-@@ -13,6 +13,8 @@
- -- it applies the browsable filter, so this checks the set that actually reaches a reader. A
- -- duplicate among non-browsable competitions is not a rendering defect.
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
+index aa68ff4f..cdd8cbfe 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs.yml
++++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
+@@ -13,10 +13,18 @@ models:
+     columns:
+       - name: fixture_sk
+         description: "{{ doc('fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: league_code
+         tests: [not_null]
+       - name: competition_type
+@@ -47,8 +55,16 @@ models:
+               values: ["home", "away"]
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+       - name: kickoff_datetime
+@@ -58,6 +74,10 @@ models:
+         description: "{{ doc('round_order') }}"
+       - name: opponent_team_sk
+         description: "{{ doc('opponent_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: goals_for
+         description: "{{ doc('goals') }}"
+       - name: goals_against
+@@ -96,13 +116,25 @@ models:
+     columns:
+       - name: fixture_sk
+         description: "{{ doc('fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: league_code
+         tests: [not_null]
+       - name: entity_type
+@@ -179,6 +211,10 @@ models:
+         description: "{{ doc('round_order') }}"
+       - name: opponent_team_sk
+         description: "{{ doc('opponent_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
  
-+{{ config(store_failures = true) }}
+   - name: int_legs__team_from_players
+     description: >
+@@ -191,10 +227,18 @@ models:
+     columns:
+       - name: fixture_sk
+         description: "{{ doc('fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: players_with_stats
+         description: "Count of players with a stat row for this team-match (completeness signal)."
+         tests: [not_null]
+@@ -209,6 +253,10 @@ models:
+         description: "{{ doc('round_order') }}"
+       - name: opponent_team_sk
+         description: "{{ doc('opponent_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: key_passes
+       - name: tackles
+       - name: blocks
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index e3637ee1..52a1b54e 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -17,10 +17,18 @@ models:
+     columns:
+       - name: upcoming_fixture_sk
+         description: "{{ doc('upcoming_fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+@@ -136,13 +144,25 @@ models:
+     columns:
+       - name: upcoming_fixture_sk
+         description: "{{ doc('upcoming_fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+index b804eac0..c7f61a77 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+@@ -22,13 +22,25 @@ models:
+     columns:
+       - name: upcoming_fixture_sk
+         description: "{{ doc('upcoming_fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: leg_fixture_sk
+         description: "The past match this row describes; joins to the per-fixture stat marts."
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: window_type
+         description: >
+           Which window this match belongs to: last_5 by default, or tournament_to_date /
+@@ -69,6 +81,10 @@ models:
+         description: "{{ doc('home_away') }}"
+       - name: opponent_team_sk
+         description: "{{ doc('opponent_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: goals_for
+         description: "{{ doc('goals') }}"
+       - name: goals_against
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+index c859e504..6175366e 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_club_season.yml
+@@ -55,7 +55,11 @@ models:
+               field: season_sk
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile.yml b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+index c5868e2c..61e2f3c5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile.yml
+@@ -116,7 +116,11 @@ models:
+               field: team_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: scorer_points_player
+         description: "{{ doc('scorer_points_player') }}"
+       - name: team_goals_season
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season__team.yml b/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
+index 229960ab..46009e5b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season__team.yml
+@@ -20,7 +20,11 @@ models:
+     columns:
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -29,7 +33,11 @@ models:
+         tests: [not_null]
+       - name: team_sk
+         description: "{{ doc('team_sk') }} Here it is the club of the player's most recent finished match that competition-season."
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: is_current_team
+         description: "True on the one season-row holding the player's globally most-recent finished match (their current club)."
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+index 4058f4fc..3d6f76ea 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position.yml
+@@ -21,16 +21,40 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "finishing_efficiency_player_pct is null or (finishing_efficiency_player_pct between 0 and 1)"
+           name: int_player_season_position_finishing_in_range
++      # saves_player_pct = saves / (saves + goals against) is bounded by construction, so [0,1]. The
++      # three provider-subset ratios (accurate/total, won/total, success/attempts) are >= 0 only:
++      # a position played in one or two legs is a real row here (no minutes floor), and a single
++      # game where the provider reports numerator > denominator is genuine data, not a model bug —
++      # the same split int_team_season__metrics_cumulative makes. The per-90 rates are non-negative
++      # counts scaled by minutes, so >= 0.
++      - dbt_utils.expression_is_true:
++          expression: "(saves_player_pct is null or saves_player_pct between 0 and 1) and (passes_accuracy_player_pct is null or passes_accuracy_player_pct >= 0) and (duels_won_player_pct is null or duels_won_player_pct >= 0) and (dribbles_success_player_pct is null or dribbles_success_player_pct >= 0)"
++          name: int_player_season_position_shares_in_range
++      - dbt_utils.expression_is_true:
++          expression: "(goals_per90 is null or goals_per90 >= 0) and (assists_per90 is null or assists_per90 >= 0) and (scorer_points_per90 is null or scorer_points_per90 >= 0) and (shots_on_goal_per90 is null or shots_on_goal_per90 >= 0) and (passes_key_per90 is null or passes_key_per90 >= 0) and (dribbles_success_per90 is null or dribbles_success_per90 >= 0) and (passes_per90 is null or passes_per90 >= 0) and (tackles_per90 is null or tackles_per90 >= 0) and (interceptions_per90 is null or interceptions_per90 >= 0) and (blocks_per90 is null or blocks_per90 >= 0) and (defensive_actions_per90 is null or defensive_actions_per90 >= 0) and (duels_won_per90 is null or duels_won_per90 >= 0) and (saves_per90 is null or saves_per90 >= 0)"
++          name: int_player_season_position_per90_rates_non_negative
+     columns:
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index 8330fc18..478d3438 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -18,7 +18,11 @@ models:
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: league_code
+         tests: [not_null]
+       - name: season_api_year
+@@ -26,7 +30,11 @@ models:
+         tests: [not_null]
+       - name: fixture_sk
+         description: "{{ doc('fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: entity_type
+         tests:
+           - accepted_values:
+@@ -75,10 +83,18 @@ models:
+         tests: [not_null]
+       - name: league_sk
+         description: "{{ doc('league_sk') }} Carried for the int_team_season__metrics projection."
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }} Carried for the projection's team_season_sk."
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: opponent_shots_total
+         description: >
+           Cumulative shots taken by this team's OPPONENTS through this match — the denominator
+@@ -158,10 +174,18 @@ models:
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
+       - name: league_code
+         tests: [not_null]
+       - name: season_api_year
+@@ -169,7 +193,11 @@ models:
+         tests: [not_null]
+       - name: fixture_sk
+         description: "{{ doc('fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: window_type
+         tests:
+           - not_null
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile.yml b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+index b221a7ad..bd1eb64f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile.yml
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile.yml
+@@ -30,14 +30,21 @@ models:
+       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
+       # where the provider reports numerator > denominator (a known API inconsistency) is not yet
+       # diluted, so >1 is genuine data, not a bug — bounded >= 0 only (a negative would be a real
+-      # sign-flip). Per-match count rates are unbounded, so not tested here.
++      # sign-flip). Per-match count rates have no upper bound; they are >= 0 like any count.
+       - dbt_utils.expression_is_true:
+           expression: "(shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0) and (passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0) and (passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
+           name: team_profile_yoy_subset_ratios_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "(goals_per_match_this_season is null or goals_per_match_this_season >= 0) and (goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0) and (shots_per_match_this_season is null or shots_per_match_this_season >= 0) and (shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0) and (duels_per_match_this_season is null or duels_per_match_this_season >= 0) and (defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0) and (passes_per_match_this_season is null or passes_per_match_this_season >= 0) and (passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0) and (corners_per_match_this_season is null or corners_per_match_this_season >= 0) and (corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0) and (goals_per_match_prev_season is null or goals_per_match_prev_season >= 0) and (goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0) and (shots_per_match_prev_season is null or shots_per_match_prev_season >= 0) and (shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0) and (duels_per_match_prev_season is null or duels_per_match_prev_season >= 0) and (defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0) and (passes_per_match_prev_season is null or passes_per_match_prev_season >= 0) and (passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0) and (corners_per_match_prev_season is null or corners_per_match_prev_season >= 0) and (corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0)"
++          name: team_profile_yoy_per_match_rates_non_negative
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: league_code
+         tests: [not_null]
+       - name: season_api_year
+@@ -176,10 +183,18 @@ models:
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: matches_in_season
+         tests: [not_null]
+       - name: league_code
+diff --git a/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml b/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
+index b0f5a987..d4d279eb 100644
+--- a/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
++++ b/dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
+@@ -15,6 +15,12 @@ models:
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: as_of_date
+         description: "{{ doc('as_of_date') }}"
+       - name: market_value_eur
+diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+index 91ba6667..5eaac80c 100644
+--- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
++++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
+@@ -32,6 +32,42 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+           name: tsi_finishing_efficiency_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "points_capture_pct is null or (points_capture_pct between 0 and 1)"
++          name: tsi_points_capture_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "goals_per_match is null or goals_per_match >= 0"
++          name: tsi_goals_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
++          name: tsi_goals_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_per_match is null or shots_per_match >= 0"
++          name: tsi_shots_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_share_pct is null or (shots_share_pct between 0 and 1)"
++          name: tsi_shots_share_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "shots_inside_box_pct is null or (shots_inside_box_pct between 0 and 1)"
++          name: tsi_shots_inside_box_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_pct is null or (shots_on_goal_pct between 0 and 1)"
++          name: tsi_shots_on_goal_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "passes_accuracy_pct is null or (passes_accuracy_pct between 0 and 1)"
++          name: tsi_passes_accuracy_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "passes_per_match is null or passes_per_match >= 0"
++          name: tsi_passes_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_per_match is null or corners_per_match >= 0"
++          name: tsi_corners_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
++          name: tsi_corners_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "saves_pct is null or (saves_pct between 0 and 1)"
++          name: tsi_saves_pct_in_range
+     columns:
+       - name: team_season_sk
+         tests: [not_null, unique]
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index f05d69ba..05733c33 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -126,13 +126,60 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "clean_sheets between 0 and games_in_window"
+           name: momentum_team_clean_sheets_in_range
++      - dbt_utils.expression_is_true:
++          expression: "goals_per_match is null or goals_per_match >= 0"
++          name: momentum_team_goals_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
++          name: momentum_team_goals_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_per_match is null or shots_per_match >= 0"
++          name: momentum_team_shots_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_per_match is null or shots_on_goal_per_match >= 0"
++          name: momentum_team_shots_on_goal_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_per_match is null or passes_per_match >= 0"
++          name: momentum_team_passes_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_per_match is null or corners_per_match >= 0"
++          name: momentum_team_corners_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
++          name: momentum_team_corners_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_key_per_match is null or passes_key_per_match >= 0"
++          name: momentum_team_passes_key_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "tackles_per_match is null or tackles_per_match >= 0"
++          name: momentum_team_tackles_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "interceptions_per_match is null or interceptions_per_match >= 0"
++          name: momentum_team_interceptions_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "blocks_per_match is null or blocks_per_match >= 0"
++          name: momentum_team_blocks_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
++          name: momentum_team_defensive_actions_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "duels_per_match is null or duels_per_match >= 0"
++          name: momentum_team_duels_per_match_non_negative
+     columns:
+       - name: upcoming_fixture_sk
+         description: "{{ doc('upcoming_fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -230,16 +277,43 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "top_player_rank >= 1"
+           name: momentum_player_rank_positive
++      - dbt_utils.expression_is_true:
++          expression: "saves_player_pct is null or (saves_player_pct between 0 and 1)"
++          name: momentum_player_saves_player_pct_in_range
++      # The three provider-subset ratios are >= 0 only: over a window as short as one match, a
++      # single game where the provider reports numerator > denominator is genuine data, not a
++      # model bug — the split int_team_season__metrics_cumulative makes.
++      - dbt_utils.expression_is_true:
++          expression: "dribbles_success_player_pct is null or dribbles_success_player_pct >= 0"
++          name: momentum_player_dribbles_success_player_pct_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_accuracy_player_pct is null or passes_accuracy_player_pct >= 0"
++          name: momentum_player_passes_accuracy_player_pct_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "duels_won_player_pct is null or duels_won_player_pct >= 0"
++          name: momentum_player_duels_won_player_pct_non_negative
+     columns:
+       - name: upcoming_fixture_sk
+         description: "{{ doc('upcoming_fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -334,10 +408,18 @@ models:
+     columns:
+       - name: upcoming_fixture_sk
+         description: "{{ doc('upcoming_fixture_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: league_code
+         description: "{{ doc('league_code') }} Here it is the UPCOMING fixture's competition; the past match's own competition is played_league_code."
+         tests: [not_null]
+@@ -367,7 +449,11 @@ models:
+               values: ["W", "D", "L"]
+       - name: opponent_team_sk
+         description: "{{ doc('opponent_team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: has_team_stats
+         description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
+         tests: [not_null]
+@@ -612,6 +698,149 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
+           name: team_profile_finishing_efficiency_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "goals_per_match is null or goals_per_match >= 0"
++          name: team_profile_goals_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
++          name: team_profile_goals_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_per_match is null or shots_per_match >= 0"
++          name: team_profile_shots_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_pct is null or (shots_on_goal_pct between 0 and 1)"
++          name: team_profile_shots_on_goal_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "shots_inside_box_pct is null or (shots_inside_box_pct between 0 and 1)"
++          name: team_profile_shots_inside_box_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "passes_accuracy_pct is null or (passes_accuracy_pct between 0 and 1)"
++          name: team_profile_passes_accuracy_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "passes_per_match is null or passes_per_match >= 0"
++          name: team_profile_passes_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_per_match is null or corners_per_match >= 0"
++          name: team_profile_corners_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
++          name: team_profile_corners_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "saves_pct is null or (saves_pct between 0 and 1)"
++          name: team_profile_saves_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_per_match is null or shots_on_goal_per_match >= 0"
++          name: team_profile_shots_on_goal_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
++          name: team_profile_shots_on_goal_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_key_per_match is null or passes_key_per_match >= 0"
++          name: team_profile_passes_key_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "duels_per_match is null or duels_per_match >= 0"
++          name: team_profile_duels_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
++          name: team_profile_defensive_actions_per_match_non_negative
++      # Year-over-year copies take the bounds int_team_profile.yml fixed for the same columns:
++      # structural ratios [0,1], the provider-subset ratios >= 0 only, per-match counts >= 0.
++      - dbt_utils.expression_is_true:
++          expression: "goals_per_match_this_season is null or goals_per_match_this_season >= 0"
++          name: team_profile_goals_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "goals_per_match_prev_season is null or goals_per_match_prev_season >= 0"
++          name: team_profile_goals_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0"
++          name: team_profile_goals_against_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0"
++          name: team_profile_goals_against_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "clean_sheets_pct_this_season is null or (clean_sheets_pct_this_season between 0 and 1)"
++          name: team_profile_clean_sheets_pct_this_season_in_range
++      - dbt_utils.expression_is_true:
++          expression: "clean_sheets_pct_prev_season is null or (clean_sheets_pct_prev_season between 0 and 1)"
++          name: team_profile_clean_sheets_pct_prev_season_in_range
++      - dbt_utils.expression_is_true:
++          expression: "shots_per_match_this_season is null or shots_per_match_this_season >= 0"
++          name: team_profile_shots_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_per_match_prev_season is null or shots_per_match_prev_season >= 0"
++          name: team_profile_shots_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0"
++          name: team_profile_shots_inside_box_pct_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0"
++          name: team_profile_shots_inside_box_pct_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0"
++          name: team_profile_shots_on_goal_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0"
++          name: team_profile_shots_on_goal_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "finishing_efficiency_pct_this_season is null or (finishing_efficiency_pct_this_season between 0 and 1)"
++          name: team_profile_finishing_efficiency_pct_this_season_in_range
++      - dbt_utils.expression_is_true:
++          expression: "finishing_efficiency_pct_prev_season is null or (finishing_efficiency_pct_prev_season between 0 and 1)"
++          name: team_profile_finishing_efficiency_pct_prev_season_in_range
++      - dbt_utils.expression_is_true:
++          expression: "duels_per_match_this_season is null or duels_per_match_this_season >= 0"
++          name: team_profile_duels_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "duels_per_match_prev_season is null or duels_per_match_prev_season >= 0"
++          name: team_profile_duels_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "duels_won_pct_this_season is null or duels_won_pct_this_season >= 0"
++          name: team_profile_duels_won_pct_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0"
++          name: team_profile_duels_won_pct_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0"
++          name: team_profile_defensive_actions_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0"
++          name: team_profile_defensive_actions_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_per_match_this_season is null or passes_per_match_this_season >= 0"
++          name: team_profile_passes_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_per_match_prev_season is null or passes_per_match_prev_season >= 0"
++          name: team_profile_passes_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0"
++          name: team_profile_passes_accuracy_pct_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0"
++          name: team_profile_passes_accuracy_pct_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0"
++          name: team_profile_passes_key_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0"
++          name: team_profile_passes_key_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_per_match_this_season is null or corners_per_match_this_season >= 0"
++          name: team_profile_corners_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_per_match_prev_season is null or corners_per_match_prev_season >= 0"
++          name: team_profile_corners_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0"
++          name: team_profile_corners_against_per_match_this_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0"
++          name: team_profile_corners_against_per_match_prev_season_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "saves_pct_this_season is null or (saves_pct_this_season between 0 and 1)"
++          name: team_profile_saves_pct_this_season_in_range
++      - dbt_utils.expression_is_true:
++          expression: "saves_pct_prev_season is null or (saves_pct_prev_season between 0 and 1)"
++          name: team_profile_saves_pct_prev_season_in_range
+     columns:
+       - name: is_featured_season
+         description: >
+@@ -630,7 +859,11 @@ models:
+               field: team_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -666,6 +899,10 @@ models:
+         description: "Home venue capacity, from dim_team. Nullable."
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+       - name: team_name
+@@ -889,6 +1126,45 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "clean_sheets between 0 and games_played"
+           name: std_team_clean_sheets_in_range
++      - dbt_utils.expression_is_true:
++          expression: "goals_per_match is null or goals_per_match >= 0"
++          name: std_team_goals_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
++          name: std_team_goals_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_per_match is null or shots_per_match >= 0"
++          name: std_team_shots_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "shots_on_goal_per_match is null or shots_on_goal_per_match >= 0"
++          name: std_team_shots_on_goal_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_per_match is null or passes_per_match >= 0"
++          name: std_team_passes_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_per_match is null or corners_per_match >= 0"
++          name: std_team_corners_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
++          name: std_team_corners_against_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "passes_key_per_match is null or passes_key_per_match >= 0"
++          name: std_team_passes_key_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "tackles_per_match is null or tackles_per_match >= 0"
++          name: std_team_tackles_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "interceptions_per_match is null or interceptions_per_match >= 0"
++          name: std_team_interceptions_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "blocks_per_match is null or blocks_per_match >= 0"
++          name: std_team_blocks_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
++          name: std_team_defensive_actions_per_match_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "duels_per_match is null or duels_per_match >= 0"
++          name: std_team_duels_per_match_non_negative
+     columns:
+       - name: upcoming_fixture_sk
+         description: "{{ doc('upcoming_fixture_sk') }}"
+@@ -1015,7 +1291,11 @@ models:
+               field: team_sk
+       - name: player_sk
+         description: "{{ doc('player_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -1307,6 +1587,9 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "saves_player <= shots_on_goal_against_player"
+           name: player_profile_saves_player_lte_faced
++      - dbt_utils.expression_is_true:
++          expression: "contribution_player_pct is null or (contribution_player_pct between 0 and 1)"
++          name: player_profile_contribution_player_pct_in_range
+     columns:
+       - name: is_featured_season
+         description: >
+@@ -1350,7 +1633,11 @@ models:
+               field: player_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -1388,6 +1675,10 @@ models:
+         description: "Affiliated club country, from dim_team."
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+       - name: player_name
+@@ -1638,6 +1929,10 @@ models:
+         tests: [not_null]
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: group_name
+       - name: league_rank
+         description: "{{ doc('league_rank') }}"
+@@ -1721,8 +2016,16 @@ models:
+               field: fixture_sk
+       - name: biggest_margin_home_team_sk
+         description: "{{ doc('home_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: biggest_margin_away_team_sk
+         description: "{{ doc('away_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: biggest_margin_goals_home
+         description: "Home goals of that match."
+       - name: biggest_margin_goals_away
+@@ -1739,8 +2042,16 @@ models:
+               field: fixture_sk
+       - name: most_goals_home_team_sk
+         description: "{{ doc('home_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: most_goals_away_team_sk
+         description: "{{ doc('away_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: most_goals_goals_home
+         description: "Home goals of that match."
+       - name: most_goals_goals_away
+@@ -2251,8 +2562,16 @@ models:
+         description: "{{ doc('status_short') }}"
+       - name: home_team_sk
+         description: "{{ doc('home_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: away_team_sk
+         description: "{{ doc('away_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: is_match_that_matters
+         description: "True on at most one fixture per competition: the one of the matchday whose two teams have the lowest sum of table positions, ties to the earlier kickoff then fixture_sk. A position is a team's rank in the one standings section it belongs to that season; where either side has none (a knockout round, a split season) no fixture of that competition is flagged."
+         tests:
+@@ -2340,7 +2659,11 @@ models:
+         description: "Final-time goals scored by the away team; null until the fixture is played."
+       - name: home_team_sk
+         description: "{{ doc('home_team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: home_team_name
+         description: "The home team's display name from dim_team."
+       - name: home_team_slug
+@@ -2349,7 +2672,11 @@ models:
+         description: "The home team's crest URL from dim_team."
+       - name: away_team_sk
+         description: "{{ doc('away_team_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: away_team_name
+         description: "The away team's display name from dim_team."
+       - name: away_team_slug
+@@ -2422,6 +2749,10 @@ models:
+         tests: [not_null]
+       - name: opponent_team_sk
+         description: "{{ doc('opponent_team_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: result
+         description: "W/D/L from int_legs__team_match for finished rows; null otherwise."
+         tests:
+@@ -2469,7 +2800,12 @@ models:
+     columns:
+       - name: player_team_season_sk
+         description: "Surrogate carried from dim_player_team_season_mapping (player, team, league_code, season)."
+-        tests: [not_null, unique]
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('dim_player_team_season_mapping')
++              field: player_team_season_sk
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+         tests:
+@@ -2492,6 +2828,10 @@ models:
+         tests: [not_null]
+       - name: season_sk
+         description: "{{ doc('season_sk') }} Nullable here: a roster season with no competition-season row."
++        tests:
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: competition_type
+         description: "From competition_registry; the mart is filtered to club types."
+       - name: entity_type
+@@ -2780,7 +3120,11 @@ models:
+               field: team_sk
+       - name: season_sk
+         description: "{{ doc('season_sk') }}"
+-        tests: [not_null]
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+         tests: [not_null]
+@@ -2811,6 +3155,10 @@ models:
+           one club together and in order; not a displayed metric.
+       - name: league_sk
+         description: "{{ doc('league_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_league')
++              field: league_sk
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
+       - name: player_name
+diff --git a/scripts/check_relationships_coverage.py b/scripts/check_relationships_coverage.py
+new file mode 100644
+index 00000000..8f041e60
+--- /dev/null
++++ b/scripts/check_relationships_coverage.py
+@@ -0,0 +1,240 @@
++"""Key-graph coverage gate — every foreign-key `_sk` column carries a `relationships` test.
 +
- with import_mart_competition_index as (
-     select * from {{ ref('mart_competition_index') }}
- )
-diff --git a/dbt_project/tests/assert_competition_season_summary_is_consistent.sql b/dbt_project/tests/assert_competition_season_summary_is_consistent.sql
-index a7d6ca91..cac189ec 100644
---- a/dbt_project/tests/assert_competition_season_summary_is_consistent.sql
-+++ b/dbt_project/tests/assert_competition_season_summary_is_consistent.sql
-@@ -9,6 +9,8 @@
- -- schema tests stay green.
- --
- -- Returns a row (= fails) per competition-season where any property does not hold.
-+{{ config(store_failures = true) }}
++Enforces `dbt_project/docs/engineering_standards.md` §3.1 ("`relationships` to the parent for
++every foreign key — the whole key graph, not where someone remembered") and is the mechanism
++§3.5 names for it. Measured when this was written: 80 foreign keys had no test, of 205 `_sk`
++columns.
 +
- with finished as (
-     select
-         fixture_sk,
-diff --git a/dbt_project/tests/assert_country_name_overrides_still_needed.sql b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
-index 3c9f9d18..8cfa6cbd 100644
---- a/dbt_project/tests/assert_country_name_overrides_still_needed.sql
-+++ b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
-@@ -16,6 +16,9 @@
- --
- -- Compares against STAGING (pre-override) rather than base or core, which is where the coalesce
- -- is applied and would therefore always agree with the seed.
-+--
-+-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
-+{{ config(severity = 'warn', store_failures = true) }}
- 
- with import_country_name_overrides as (
-     select * from {{ ref('country_name_overrides') }}
-diff --git a/dbt_project/tests/assert_event_team_in_fixture_participants.sql b/dbt_project/tests/assert_event_team_in_fixture_participants.sql
-index 2c211f29..7ffbf9c5 100644
---- a/dbt_project/tests/assert_event_team_in_fixture_participants.sql
-+++ b/dbt_project/tests/assert_event_team_in_fixture_participants.sql
-@@ -1,4 +1,4 @@
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- -- Integrity guard (#526): every non-null event team_sk must be one of its fixture's two
- -- participants. A violation means an event is attributed to a team that did not play the
-diff --git a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
-index 30bc00e8..1cd4111b 100644
---- a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
-+++ b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
-@@ -9,6 +9,8 @@
- -- mart that drops or reorders the resolution fails here.
- --
- -- Returns a row (= fails) per offending (league_code, season_api_year, group_name).
-+{{ config(store_failures = true) }}
++How a column is classified, from the model ymls alone:
 +
- with sections as (
-     select distinct
-         league_code,
-diff --git a/dbt_project/tests/assert_fanout_facts_not_empty.sql b/dbt_project/tests/assert_fanout_facts_not_empty.sql
-index 56e89283..bb0b5a2a 100644
---- a/dbt_project/tests/assert_fanout_facts_not_empty.sql
-+++ b/dbt_project/tests/assert_fanout_facts_not_empty.sql
-@@ -4,7 +4,7 @@
- -- silently blanks every downstream surface. fct_fixture_player_stats sat empty (0 rows)
- -- this way while its base had ~800k rows. The models now coalesce the max to the epoch so
- -- an empty table self-heals; this test fails loudly if any fanout fact is empty regardless.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- with counts as (
-     select 'fct_fixture_player_stats' as model_name, count(*) as row_count
-diff --git a/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql b/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql
-index d29e3e50..f6beddbd 100644
---- a/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql
-@@ -1,6 +1,6 @@
- -- Proves each var league_code has at least one row in fct_fixture.
- -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- with expected as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql b/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql
-index c7f82d8d..780e51df 100644
---- a/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql
-+++ b/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql
-@@ -1,5 +1,7 @@
- -- Fail if any finished fixture has null goals_home or goals_away.
- -- A finished match must always have both goal values; nulls indicate a failed or incomplete ingestion.
-+{{ config(store_failures = true) }}
++- A CORE KEY is a `3_core` column ending in `_sk` with a `unique` test. Its name is the key's
++  name everywhere (`team_sk`, `fixture_sk`, `season_sk`, …) and its model is the parent.
++- A column RESOLVES to a core key by its exact name, by a role prefix (`opponent_team_sk`,
++  `upcoming_fixture_sk`, `biggest_margin_home_team_sk` → the entity after the prefix), or by
++  one of the two spelled aliases (`team_in_sk`, `team_out_sk` → `team_sk`). An ENTITY prefix
++  does not resolve: `team_season_sk` is not a season key with a role, it is a composite key
++  of its own (`team` is itself an entity), and the same for `player_season_sk`,
++  `player_club_season_sk`.
++- A model's OWN KEY is a `_sk` column that is `unique` in that model, or part of its
++  `unique_combination_of_columns`, when it has no core parent — or the core key in its own
++  parent model. It needs no `relationships`.
++- Everything else that ends in `_sk` is a FOREIGN KEY and must carry `relationships`
++  (`dbt_utils.relationships_where` counts) or a declared SOFT LINK: `meta: soft_link: "<why>"`
++  on the column, for a key into a universe wider than the warehouse's dimensions (transfers
++  and coaching careers name clubs the tracked competitions never include). A soft link is
++  printed in the census on every run so it stays visible; it is never silent.
++- A `_sk` that resolves to nothing and is not its model's own key is a finding too: the key
++  is undeclared, and the fix is to declare the parent or the grain, not to rename the column.
 +
- select fixture_sk
- from {{ ref('fct_fixture') }}
- where
-diff --git a/dbt_project/tests/assert_fct_fixture_goals_plausible.sql b/dbt_project/tests/assert_fct_fixture_goals_plausible.sql
-index a9ee0eb3..3db01a23 100644
---- a/dbt_project/tests/assert_fct_fixture_goals_plausible.sql
-+++ b/dbt_project/tests/assert_fct_fixture_goals_plausible.sql
-@@ -1,5 +1,7 @@
- -- Fail if any finished fixture has goals outside the plausible range [0, 20].
- -- Catches swapped or corrupted goal values from the API.
-+{{ config(store_failures = true) }}
++Floors against an empty walk, as `check_description_hygiene.py` does: if the yml walk finds
++fewer models or fewer foreign keys than the repo plainly has, the gate fails rather than
++passing on nothing. Exit 1 on any finding, on an unparseable file, and below a floor. Fails
++CLOSED.
 +
- select fixture_sk
- from {{ ref('fct_fixture') }}
- where
-diff --git a/dbt_project/tests/assert_fct_fixture_no_stale_live.sql b/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
-index 7ff2d49f..cc60643f 100644
---- a/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
-+++ b/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
-@@ -1,4 +1,4 @@
--{{ config(tags=['freshness_check']) }}
-+{{ config(tags=['freshness_check'], store_failures = true) }}
- 
- -- Fail if any fixture is still ACTIVELY PLAYING more than 6 hours after its scheduled kickoff.
- -- A match cannot be in its second half, in extra time or in a penalty shootout that long after it
-diff --git a/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql b/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
-index 47235597..de100b1f 100644
---- a/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
-+++ b/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
-@@ -1,4 +1,4 @@
--{{ config(tags=['freshness_check']) }}
-+{{ config(tags=['freshness_check'], store_failures = true) }}
- 
- -- Fail if any fixture still shows NS long after scheduled kickoff, beyond the ingest SLA.
- --
-diff --git a/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql b/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
-index 4bdb580e..c8807eb4 100644
---- a/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
-@@ -1,5 +1,5 @@
- -- Same coverage rule as assert_base_fixture_statistics_covers_active_competition_var for fct.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- with expected_codes as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql b/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql
-index 6538ae91..52f7ad8f 100644
---- a/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql
-+++ b/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql
-@@ -1,6 +1,6 @@
- -- Same rule as assert_base_standings_covers_active_competition_var: only leagues
- -- with current-season has_coverage_standings must appear in fct_standings.
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- with expected_codes as (
-     {%- for code in var('active_competition_league_codes') %}
-diff --git a/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql b/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql
-index 4781a92b..a7b6e17b 100644
---- a/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql
-+++ b/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql
-@@ -1,6 +1,7 @@
- {{
-     config(
--        tags=["dq", "core", "market_value"]
-+        tags=["dq", "core", "market_value"],
-+        store_failures = true
-     )
- }}
- 
-diff --git a/dbt_project/tests/assert_league_name_overrides_are_corrections.sql b/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
-index f6b77bce..2c14f06d 100644
---- a/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
-+++ b/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
-@@ -12,6 +12,9 @@
- -- where the coalesce is applied and would therefore always agree with the seed.
- -- The dedup mirrors what base_apif__league_entity publishes — latest season, then latest
- -- ingest — so the comparison is against the provider row that actually reaches dim_league.
-+--
-+-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
-+{{ config(severity = 'warn', store_failures = true) }}
- 
- with import_stg_apif__leagues as (
-     select * from {{ ref('stg_apif__leagues') }}
-diff --git a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-index 9b41e0c0..f23e29ee 100644
---- a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-+++ b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-@@ -17,6 +17,8 @@
- -- ⚠ NOT scoped to a pool or a season, because the column is not. It is a global order over every
- -- league leader on a board; a consumer filtering to seven leagues inherits the relative order.
- 
-+{{ config(store_failures = true) }}
++Enforced today by `tests/test_check_relationships_coverage.py`, whose last test runs this gate
++on the real tree inside `test:python`; the `validate:governance` line `engineering_standards.md`
++§3.5 names is a separate governance change to `.gitlab-ci.yml`.
++"""
++from __future__ import annotations
 +
- with import_mart_leaderboards as (
-     select * from {{ ref('mart_leaderboards') }}
- ),
-diff --git a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-index bd73cfc2..373e70d8 100644
---- a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-+++ b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-@@ -17,6 +17,8 @@
- -- with no data in a league the block never shows is not a defect; asserting it would fail on
- -- competitions that legitimately carry no player stats.
- 
-+{{ config(store_failures = true) }}
++import pathlib
++import re
++import sys
 +
- {% set home_boards = [
-     'goals_player',
-     'assists_player',
-diff --git a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
-index 0980914b..2ca758f6 100644
---- a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
-+++ b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
-@@ -18,6 +18,8 @@
- -- something to show, which is a question about the pool it renders. This one asks whether a column
- -- means what it says, which is true of every row or the column is broken.
- 
-+{{ config(store_failures = true) }}
++import yaml
 +
- with import_mart_leaderboards as (
-     select * from {{ ref('mart_leaderboards') }}
- ),
-diff --git a/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql b/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
-index 2f741eda..13d085ac 100644
---- a/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
-+++ b/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
-@@ -7,6 +7,8 @@
- -- the earliest date) fails here even when the mart's schema tests stay green.
- --
- -- Returns a row (= fails) per competition where any of the three properties does not hold.
-+{{ config(store_failures = true) }}
++REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
++MODELS_DIR = REPO_ROOT / "dbt_project" / "models"
 +
- with upcoming as (
-     select
-         fixture_sk,
-diff --git a/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql b/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
-index 08bf39cf..7b455314 100644
---- a/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
-+++ b/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
-@@ -11,6 +11,8 @@
- -- this number, the model's board list and seeds' accepted_values together — which is the point.
- --
- -- Returns a row (= fails) when the count is anything other than 4.
-+{{ config(store_failures = true) }}
++# Floors, set well under what the repo has (about 100 models, 15 core keys, 180 foreign keys)
++# and well over zero, so ordinary deletion never trips them and a broken walk always does.
++MIN_MODELS = 50
++MIN_CORE_KEYS = 8
++MIN_FOREIGN_KEYS = 60
 +
- with observed as (
-     select count(distinct metric_key) as board_count
-     from {{ ref('mart_team_leaderboards') }}
-diff --git a/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql b/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
-index 4db5f19e..d999e29e 100644
---- a/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
-+++ b/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
-@@ -21,6 +21,8 @@
- -- survive the top-10 cut, and nothing asserts a row count.
- --
- -- Returns a row (= fails) for every board with no leader in a league-season.
-+{{ config(store_failures = true) }}
++CORE_LAYER = "3_core"
++ALIASES = {"team_in_sk": "team_sk", "team_out_sk": "team_sk"}
++RELATIONSHIP_TESTS = ("relationships", "dbt_utils.relationships_where")
++SK_RE = re.compile(r"_sk$")
 +
- with per_board as (
-     select
-         league_code,
-diff --git a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
-index 46b44f2d..ece7b19f 100644
---- a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
-+++ b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
-@@ -19,6 +19,8 @@
- -- The test still pins it, because an arbitrary key that is not STABLE would churn the committed
- -- payload between exports.
- 
-+{{ config(store_failures = true) }}
 +
- with import_mart_team_leaderboards as (
-     select * from {{ ref('mart_team_leaderboards') }}
- ),
-diff --git a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
-index aa935396..a66da670 100644
---- a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
-+++ b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
-@@ -1,6 +1,7 @@
- {{
-     config(
--        tags=["dq", "mart", "season_insights"]
-+        tags=["dq", "mart", "season_insights"],
-+        store_failures = true
-     )
- }}
- 
-diff --git a/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql b/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql
-index 0e924fcd..f143eb62 100644
---- a/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql
-+++ b/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql
-@@ -14,6 +14,7 @@
-   Mirrors assert_no_uncatalogued_season_metric: the ref()s live in the execute-guarded block, so the
-   dependencies are declared explicitly to order the test after the seed + leg models build.
- #}
-+{{ config(store_failures = true) }}
- -- depends_on: {{ ref('metric_catalogue') }}
- -- depends_on: {{ ref('int_legs__team_match') }}
- -- depends_on: {{ ref('int_legs__team_from_players') }}
-diff --git a/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql b/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
-index c0ca839d..9061aa24 100644
---- a/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
-+++ b/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
-@@ -3,6 +3,8 @@
- -- this grain and was failing; this enforces the real key. No instance is named
- -- here on purpose — step 4 of the naming programme renames every player id that
- -- currently collides, so a quoted example would date.
-+{{ config(store_failures = true) }}
++class Column:
++    __slots__ = ("model", "name", "tests", "meta", "rel")
 +
- select
-     metric_id,
-     entity,
-diff --git a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-index d4b55640..341c82ef 100644
---- a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-+++ b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-@@ -38,6 +38,7 @@
-   asymmetry and the per-merge-request naming are pinned in
-   `tests/test_ci_data_job_invariants.py`.
- #}
-+{{ config(store_failures = true) }}
- 
- select
-     metric_id,
-diff --git a/dbt_project/tests/assert_metric_meaning_complete.sql b/dbt_project/tests/assert_metric_meaning_complete.sql
-index 31a472d0..c8544d51 100644
---- a/dbt_project/tests/assert_metric_meaning_complete.sql
-+++ b/dbt_project/tests/assert_metric_meaning_complete.sql
-@@ -30,6 +30,7 @@
-   Both that asymmetry and the per-merge-request naming are pinned in
-   `tests/test_ci_data_job_invariants.py`.
- #}
-+{{ config(store_failures = true) }}
- 
- select
-     metric_id,
-diff --git a/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql b/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
-index 65ddbc16..99b117e5 100644
---- a/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
-+++ b/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
-@@ -18,6 +18,8 @@
- -- `games_expecting_team_stats` is projected out of mart_team_momentum for this test. Without it
- -- nothing on this surface can tell a correct gate from one reverted to games_in_window.
- 
-+{{ config(store_failures = true) }}
++    def __init__(self, model: str, entry: dict) -> None:
++        self.model = model
++        self.name = str(entry.get("name"))
++        raw = entry.get("tests") or entry.get("data_tests") or []
++        self.tests = [t if isinstance(t, str) else next(iter(t)) for t in raw if t]
++        self.meta = entry.get("meta") if isinstance(entry.get("meta"), dict) else {}
++        self.rel = any(t in RELATIONSHIP_TESTS for t in self.tests)
 +
- with momentum as (
-     select * from {{ ref('mart_team_momentum') }}
- )
-diff --git a/dbt_project/tests/assert_momentum_window_matches_momentum.sql b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
-index 86429bb2..5d306a7a 100644
---- a/dbt_project/tests/assert_momentum_window_matches_momentum.sql
-+++ b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
-@@ -4,6 +4,8 @@
- -- and neither surface may have a side the other lacks. Both consume
- -- int_team_momentum_window, so a mismatch means a build-order or join bug.
- 
-+{{ config(store_failures = true) }}
++    @property
++    def unique(self) -> bool:
++        return "unique" in self.tests
 +
- with list_counts as (
-     select
-         upcoming_fixture_sk,
-diff --git a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql b/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
-index b85bac8f..994da27b 100644
---- a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
-+++ b/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
-@@ -1,4 +1,4 @@
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- -- EVENT-LOSS DETECTOR (GitLab #75). Fails when `fct_fixture_event` holds an event that
- -- `base_apif__fixture_events` no longer has.
-diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
-index d78ac883..e20b2a92 100644
---- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
-+++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
-@@ -15,6 +15,7 @@
-   once Stage 1 renamed the player model column to `saves`.) A `team and player` catalogue row
-   satisfies both the team and the player model checks.
- #}
-+{{ config(store_failures = true) }}
- 
- -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
- -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
-diff --git a/dbt_project/tests/assert_one_current_season_per_league.sql b/dbt_project/tests/assert_one_current_season_per_league.sql
-index 4445083c..b988aab3 100644
---- a/dbt_project/tests/assert_one_current_season_per_league.sql
-+++ b/dbt_project/tests/assert_one_current_season_per_league.sql
-@@ -26,6 +26,8 @@
- -- that gap because neither changes the season SET.
- -- A flagged season must therefore be flagged ENTIRELY.
- 
-+{{ config(store_failures = true) }}
++    @property
++    def soft_link(self) -> str:
++        value = self.meta.get("soft_link")
++        return value.strip() if isinstance(value, str) else ""
 +
- with import_mart_leaderboards as (
-     select * from {{ ref('mart_leaderboards') }}
- ),
-diff --git a/dbt_project/tests/assert_one_featured_season_per_entity.sql b/dbt_project/tests/assert_one_featured_season_per_entity.sql
-index 48a4b01a..411bef8a 100644
---- a/dbt_project/tests/assert_one_featured_season_per_entity.sql
-+++ b/dbt_project/tests/assert_one_featured_season_per_entity.sql
-@@ -11,6 +11,7 @@
-   Covers both marts in one test: the rule is one rule, so a single failure surface keeps them from
-   drifting apart, which is the whole point of #846.
- #}
-+{{ config(store_failures = true) }}
- 
- with team_counts as (
-     select
-diff --git a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
-index e9d01bd4..0e68d380 100644
---- a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
-+++ b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
-@@ -8,6 +8,8 @@
- -- flags a knockout tie fails here even when the schema tests stay green.
- --
- -- Returns a row (= fails) per competition where the property does not hold.
-+{{ config(store_failures = true) }}
 +
- with upcoming as (
-     select
-         fixture_sk,
-diff --git a/dbt_project/tests/assert_player_momentum_window_matches_team.sql b/dbt_project/tests/assert_player_momentum_window_matches_team.sql
-index 8fcdf6bb..afe2e427 100644
---- a/dbt_project/tests/assert_player_momentum_window_matches_team.sql
-+++ b/dbt_project/tests/assert_player_momentum_window_matches_team.sql
-@@ -9,6 +9,8 @@
- --
- -- Any returned row is a defect.
- 
-+{{ config(store_failures = true) }}
++class Model:
++    __slots__ = ("name", "layer", "rel", "columns", "grain")
 +
- with player_sides as (
-     select distinct
-         upcoming_fixture_sk,
-diff --git a/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql b/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql
-index 29d8bd1c..1ffa1b21 100644
---- a/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql
-+++ b/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql
-@@ -1,4 +1,4 @@
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- -- Integrity guard: every non-null player-stat team_sk must be one of its fixture's two
- -- participants. A violation means a lineup is attributed to a team that did not play the fixture —
-diff --git a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
-index 20de93a1..904c7602 100644
---- a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
-+++ b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
-@@ -9,6 +9,8 @@
- -- separately by the team_sk relationships test in core.yml.) Returns offending rows in
- -- either direction; expect zero.
- 
-+{{ config(store_failures = true) }}
++    def __init__(self, name: str, layer: str, rel: str, entry: dict) -> None:
++        self.name = name
++        self.layer = layer
++        self.rel = rel
++        self.columns = [Column(name, c) for c in entry.get("columns") or []
++                        if isinstance(c, dict) and isinstance(c.get("name"), str)]
++        self.grain: set[str] = set()
++        for t in entry.get("tests") or entry.get("data_tests") or []:
++            if isinstance(t, dict) and "dbt_utils.unique_combination_of_columns" in t:
++                combo = (t["dbt_utils.unique_combination_of_columns"] or {}).get("combination_of_columns") or []
++                self.grain.update(str(c) for c in combo)
 +
- with fixture_membership as (
-     select distinct
-         league_code,
-diff --git a/dbt_project/tests/assert_team_name_overrides_still_needed.sql b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
-index 10b2c72c..03efe805 100644
---- a/dbt_project/tests/assert_team_name_overrides_still_needed.sql
-+++ b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
-@@ -7,6 +7,9 @@
- -- The dedup below deliberately mirrors base_apif__teams_global's own
- -- `qualify row_number() ... order by raw_ingested_at desc` so the comparison is against the
- -- same provider row that model would have published.
-+--
-+-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
-+{{ config(severity = 'warn', store_failures = true) }}
- 
- with import_base_apif__teams as (
-     select * from {{ ref('base_apif__teams') }}
-diff --git a/dbt_project/tests/assert_team_name_slug_alphabet.sql b/dbt_project/tests/assert_team_name_slug_alphabet.sql
-index bea75c59..a39fbbc7 100644
---- a/dbt_project/tests/assert_team_name_slug_alphabet.sql
-+++ b/dbt_project/tests/assert_team_name_slug_alphabet.sql
-@@ -19,6 +19,8 @@
- -- unmapped residue (Cyrillic homoglyphs, bidi marks), so extending this to them is part of
- -- their own slug work, not a silent inheritance.
- 
-+{{ config(store_failures = true) }}
 +
- with import_dim_team as (
-     select * from {{ ref('dim_team') }}
- ),
-diff --git a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
-index 27af97f5..ba44f1f1 100644
---- a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
-+++ b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
-@@ -1,7 +1,8 @@
- {{
-     config(
-         severity = 'warn',
--        tags=["dq", "core", "season_reconciliation"]
-+        tags=["dq", "core", "season_reconciliation"],
-+        store_failures = true
-     )
- }}
- 
-diff --git a/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql b/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
-index 7d78b948..b552c412 100644
---- a/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
-+++ b/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
-@@ -1,4 +1,4 @@
--{{ config(severity = 'error') }}
-+{{ config(severity = 'error', store_failures = true) }}
- 
- -- Integrity guard: every non-null team-stat team_sk must be one of its fixture's two participants.
- -- A violation means a match statistics line is attributed to a team that did not play the fixture —
-diff --git a/dbt_project/tests/assert_tournament_form_window.sql b/dbt_project/tests/assert_tournament_form_window.sql
-index 3a598d76..320271ba 100644
---- a/dbt_project/tests/assert_tournament_form_window.sql
-+++ b/dbt_project/tests/assert_tournament_form_window.sql
-@@ -17,6 +17,8 @@
- --
- -- Any returned row is a defect.
- 
-+{{ config(store_failures = true) }}
++def _rel(path: pathlib.Path) -> str:
++    try:
++        return path.relative_to(REPO_ROOT).as_posix()
++    except ValueError:
++        return path.as_posix()
 +
- with legs as (
-     select
-         upcoming_fixture_sk,
-diff --git a/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql b/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql
-index b912ece6..3150efc7 100644
---- a/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql
-+++ b/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql
-@@ -1,4 +1,6 @@
- -- Fail if fixture statistics staging is empty.
-+{{ config(store_failures = true) }}
 +
- select
-     1
-     as should_fail
++def load_models(models_dir: pathlib.Path) -> tuple[list[Model], list[str]]:
++    """Every model entry in every yml under the models tree. (models, unparseable)."""
++    models: list[Model] = []
++    unparseable: list[str] = []
++    for path in sorted(models_dir.rglob("*.yml")):
++        rel = _rel(path)
++        if "/target/" in f"/{rel}" or "/dbt_packages/" in f"/{rel}":
++            continue
++        try:
++            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
++        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
++            unparseable.append(f"{rel}: {exc.__class__.__name__}")
++            continue
++        if not isinstance(doc, dict):
++            continue
++        parts = path.relative_to(models_dir).parts
++        layer = parts[0] if len(parts) > 1 else ""
++        for entry in doc.get("models") or []:
++            if isinstance(entry, dict) and isinstance(entry.get("name"), str):
++                models.append(Model(entry["name"], layer, rel, entry))
++    return models, unparseable
++
++
++def core_keys(models: list[Model]) -> dict[str, str]:
++    """key column name -> the core model that owns it."""
++    owners: dict[str, str] = {}
++    for m in models:
++        if m.layer != CORE_LAYER:
++            continue
++        for c in m.columns:
++            if SK_RE.search(c.name) and c.unique:
++                owners[c.name] = m.name
++    return owners
++
++
++def resolve(column: str, keys: dict[str, str]) -> str | None:
++    """The core key a column points at, or None when it names no core key."""
++    if column in keys:
++        return column
++    if column in ALIASES:
++        return ALIASES[column]
++    entities = {k[:-3] for k in keys}
++    for key in keys:
++        if column.endswith("_" + key):
++            prefix = column[: -len(key) - 1]
++            # `opponent_team_sk` has a role prefix; `team_season_sk` has an entity prefix and
++            # is a composite key of its own, not a season key
++            if prefix.split("_")[0] in entities:
++                return None
++            return key
++    return None
++
++
++def classify(models: list[Model]) -> tuple[list[str], list[str], dict[str, int]]:
++    """(findings, soft links, census)."""
++    keys = core_keys(models)
++    findings: list[str] = []
++    soft: list[str] = []
++    census = {"models": len(models), "core_keys": len(keys), "foreign_keys": 0,
++              "covered": 0, "soft_links": 0, "own_keys": 0}
++    for m in models:
++        for c in m.columns:
++            if not SK_RE.search(c.name):
++                continue
++            key = resolve(c.name, keys)
++            if key == c.name and keys.get(key) == m.name:
++                census["own_keys"] += 1
++                continue
++            if key is None:
++                if c.unique or c.name in m.grain:
++                    census["own_keys"] += 1
++                else:
++                    findings.append(
++                        f"{m.name}.{c.name} ({m.rel}) - UNDECLARED KEY: names no core key and is "
++                        f"not this model's own key (no `unique`, not in its "
++                        f"unique_combination_of_columns)\n"
++                        "    why banned: a `_sk` nobody can place is either a foreign key with no "
++                        "parent or a grain nobody wrote down; declare one or the other"
++                    )
++                continue
++            census["foreign_keys"] += 1
++            if c.rel:
++                census["covered"] += 1
++            elif c.soft_link:
++                census["soft_links"] += 1
++                soft.append(f"{m.name}.{c.name} -> {keys[key]}.{key}: {c.soft_link}")
++            else:
++                findings.append(
++                    f"{m.name}.{c.name} ({m.rel}) - FOREIGN KEY WITHOUT relationships: "
++                    f"expected `relationships: {{to: ref('{keys[key]}'), field: {key}}}` "
++                    f"or a declared `meta: soft_link:`\n"
++                    "    why banned: engineering_standards.md section 3.1 - every foreign key "
++                    "carries relationships to its parent, the whole key graph"
++                )
++    return findings, soft, census
++
++
++def main(models_dir: pathlib.Path = MODELS_DIR) -> int:
++    if hasattr(sys.stdout, "reconfigure"):
++        sys.stdout.reconfigure(errors="replace")
++
++    models, unparseable = load_models(models_dir)
++    if unparseable:
++        print(f"FAIL: {len(unparseable)} file(s) could not be parsed, so their keys are unchecked:")
++        for bad in unparseable:
++            print(f"  - {bad}")
++        return 1
++
++    findings, soft, census = classify(models)
++
++    if (census["models"] < MIN_MODELS or census["core_keys"] < MIN_CORE_KEYS
++            or census["foreign_keys"] < MIN_FOREIGN_KEYS):
++        print(f"FAIL: discovery looks broken - {census['models']} models (floor {MIN_MODELS}), "
++              f"{census['core_keys']} core keys (floor {MIN_CORE_KEYS}), "
++              f"{census['foreign_keys']} foreign keys (floor {MIN_FOREIGN_KEYS}) under "
++              f"{_rel(models_dir)}. A coverage check that finds nothing always passes.")
++        return 1
++
++    status = "KEY GRAPH" if findings else "OK"
++    print(f"{status}: {census['foreign_keys']} foreign keys, {census['covered']} with relationships, "
++          f"{census['soft_links']} declared soft links, {census['own_keys']} own keys, "
++          f"{census['core_keys']} core keys, {census['models']} models")
++    for line in soft:
++        print(f"  soft link: {line}")
++
++    if findings:
++        print(f"\n{len(findings)} `_sk` column(s) without relationships\n")
++        for finding in findings:
++            print(f"  - {finding}")
++        print("\nThe standard is dbt_project/docs/engineering_standards.md section 3.1.")
++        return 1
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/test_check_relationships_coverage.py b/tests/test_check_relationships_coverage.py
+new file mode 100644
+index 00000000..2dd1a9a8
+--- /dev/null
++++ b/tests/test_check_relationships_coverage.py
+@@ -0,0 +1,187 @@
++"""Tests for `scripts/check_relationships_coverage.py`.
++
++Each rule is driven through `main()` against a synthetic models tree and shown RED on the
++defect it exists for, and the same tree without the defect is shown green — a gate that fires
++on everything is as useless as one that fires on nothing. The last test runs the gate on the
++real tree inside `test:python`, so a foreign key added without `relationships` or a declared
++soft link fails every merge request from here on — the same shape as
++`test_materialisation_policy.py` and `test_persist_docs_policy.py`.
++"""
++from __future__ import annotations
++
++import os
++import sys
++
++sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
++import check_relationships_coverage as gate  # noqa: E402
++
++CORE = """
++version: 2
++models:
++  - name: dim_team
++    columns:
++      - name: team_sk
++        tests: [not_null, unique]
++  - name: fct_fixture
++    columns:
++      - name: fixture_sk
++        tests: [not_null, unique]
++      - name: home_team_sk
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++"""
++
++MART = """
++version: 2
++models:
++  - name: mart_x
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [team_sk, season_api_year]
++    columns:
++      - name: team_sk
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: opponent_team_sk
++%(opponent)s
++      - name: team_season_sk
++        tests: [unique]
++"""
++
++COVERED = """        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk"""
++SOFT = """        meta:
++          soft_link: "dim_team - opponents outside the tracked competitions have no row\""""
++BARE = "        description: \"An opponent.\""
++
++
++def _tree(tmp_path, mart_body: str, core_body: str = CORE):
++    models = tmp_path / "models"
++    (models / "3_core").mkdir(parents=True)
++    (models / "5_marts").mkdir(parents=True)
++    (models / "3_core" / "core.yml").write_text(core_body, encoding="utf-8")
++    (models / "5_marts" / "marts.yml").write_text(mart_body, encoding="utf-8")
++    return models
++
++
++def _lower_floors(monkeypatch):
++    """The synthetic tree is tiny by design; the floors are tested on their own below."""
++    monkeypatch.setattr(gate, "MIN_MODELS", 0)
++    monkeypatch.setattr(gate, "MIN_CORE_KEYS", 0)
++    monkeypatch.setattr(gate, "MIN_FOREIGN_KEYS", 0)
++
++
++def test_a_foreign_key_without_relationships_is_red(tmp_path, monkeypatch, capsys):
++    _lower_floors(monkeypatch)
++    assert gate.main(_tree(tmp_path, MART % {"opponent": BARE})) == 1
++    out = capsys.readouterr().out
++    assert "mart_x.opponent_team_sk" in out
++    assert "ref('dim_team'), field: team_sk" in out
++
++
++def test_the_same_key_with_relationships_is_green(tmp_path, monkeypatch, capsys):
++    _lower_floors(monkeypatch)
++    assert gate.main(_tree(tmp_path, MART % {"opponent": COVERED})) == 0
++    assert "3 foreign keys, 3 with relationships, 0 declared soft links" in capsys.readouterr().out
++
++
++def test_a_declared_soft_link_is_green_and_printed(tmp_path, monkeypatch, capsys):
++    _lower_floors(monkeypatch)
++    assert gate.main(_tree(tmp_path, MART % {"opponent": SOFT})) == 0
++    out = capsys.readouterr().out
++    assert "1 declared soft links" in out
++    assert "soft link: mart_x.opponent_team_sk -> dim_team.team_sk: dim_team - opponents" in out
++
++
++def test_an_empty_soft_link_does_not_count(tmp_path, monkeypatch):
++    _lower_floors(monkeypatch)
++    body = MART % {"opponent": '        meta:\n          soft_link: "  "'}
++    assert gate.main(_tree(tmp_path, body)) == 1
++
++
++def test_a_soft_link_is_printed_even_when_another_column_fails(tmp_path, monkeypatch, capsys):
++    """The docstring promises a soft link is never silent; a red run must print it too."""
++    _lower_floors(monkeypatch)
++    body = (MART % {"opponent": SOFT}).replace(
++        "      - name: team_season_sk\n        tests: [unique]",
++        "      - name: mystery_sk\n        description: \"Nobody knows.\"")
++    assert gate.main(_tree(tmp_path, body)) == 1
++    out = capsys.readouterr().out
++    assert "soft link: mart_x.opponent_team_sk -> dim_team.team_sk" in out
++    assert "mart_x.mystery_sk" in out
++
++
++def test_an_undeclared_sk_that_is_not_the_models_own_key_is_red(tmp_path, monkeypatch, capsys):
++    _lower_floors(monkeypatch)
++    body = (MART % {"opponent": COVERED}).replace(
++        "      - name: team_season_sk\n        tests: [unique]",
++        "      - name: mystery_sk\n        description: \"Nobody knows.\"")
++    assert gate.main(_tree(tmp_path, body)) == 1
++    out = capsys.readouterr().out
++    assert "mart_x.mystery_sk" in out
++    assert "UNDECLARED KEY" in out
++
++
++def test_an_own_key_needs_no_parent(tmp_path, monkeypatch, capsys):
++    """`team_season_sk` is unique in mart_x and names no core key: an own key, not a finding.
++    The entity prefix rule is what keeps it from resolving to `season_sk`."""
++    _lower_floors(monkeypatch)
++    core = CORE + (
++        "  - name: dim_competition_season\n"
++        "    columns:\n"
++        "      - name: season_sk\n"
++        "        tests: [unique]\n"
++    )
++    assert gate.main(_tree(tmp_path, MART % {"opponent": COVERED}, core)) == 0
++    assert "3 foreign keys, 3 with relationships, 0 declared soft links, 4 own keys" in capsys.readouterr().out
++
++
++def test_resolve_role_prefix_vs_entity_prefix():
++    keys = {"team_sk": "dim_team", "season_sk": "dim_competition_season",
++            "fixture_sk": "fct_fixture", "player_sk": "dim_player"}
++    assert gate.resolve("team_sk", keys) == "team_sk"
++    assert gate.resolve("opponent_team_sk", keys) == "team_sk"
++    assert gate.resolve("biggest_margin_home_team_sk", keys) == "team_sk"
++    assert gate.resolve("upcoming_fixture_sk", keys) == "fixture_sk"
++    assert gate.resolve("team_in_sk", keys) == "team_sk"
++    assert gate.resolve("team_season_sk", keys) is None
++    assert gate.resolve("player_club_season_sk", keys) is None
++    assert gate.resolve("standing_sk", keys) is None
++
++
++def test_a_core_key_in_its_own_model_is_not_a_foreign_key(tmp_path, monkeypatch, capsys):
++    _lower_floors(monkeypatch)
++    assert gate.main(_tree(tmp_path, MART % {"opponent": COVERED})) == 0
++    assert "3 own keys, 2 core keys" in capsys.readouterr().out
++
++
++def test_below_the_floor_is_red(tmp_path, monkeypatch, capsys):
++    monkeypatch.setattr(gate, "MIN_MODELS", 0)
++    monkeypatch.setattr(gate, "MIN_CORE_KEYS", 0)
++    monkeypatch.setattr(gate, "MIN_FOREIGN_KEYS", 10)
++    assert gate.main(_tree(tmp_path, MART % {"opponent": COVERED})) == 1
++    assert "discovery looks broken" in capsys.readouterr().out
++
++
++def test_an_unparseable_file_fails_closed_and_names_it(tmp_path, monkeypatch, capsys):
++    _lower_floors(monkeypatch)
++    models = _tree(tmp_path, MART % {"opponent": COVERED})
++    (models / "5_marts" / "broken.yml").write_text("models: [\n", encoding="utf-8")
++    assert gate.main(models) == 1
++    assert "broken.yml" in capsys.readouterr().out
++
++
++def test_the_real_tree_is_covered(capsys):
++    """The gate on the repo itself: this is what enforces the rule on every merge request until
++    the script has its own `validate:governance` line."""
++    assert gate.main() == 0
++    out = capsys.readouterr().out
++    assert out.startswith("OK:")
++    assert "4 declared soft links" in out
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -715,9 +1931,6 @@ index b912ece6..3150efc7 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          | 119 +++---
-#    .claude/task/review.md          |  69 ++--
-#    .claude/task/review_input.patch | 878 +++++++++++++++++++++++++++++++---------
-#    docs/tracker/gitlab_snapshot.md |  22 +-
-#    4 files changed, 805 insertions(+), 283 deletions(-)
+#   .claude/task/review_input.patch | 2542 ++++++++++++++++++++++++++++-----------
+#    1 file changed, 1860 insertions(+), 682 deletions(-)
 # ============================================================================

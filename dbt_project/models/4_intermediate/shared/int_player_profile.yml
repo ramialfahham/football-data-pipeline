@@ -116,7 +116,11 @@ models:
               field: team_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: scorer_points_player
         description: "{{ doc('scorer_points_player') }}"
       - name: team_goals_season

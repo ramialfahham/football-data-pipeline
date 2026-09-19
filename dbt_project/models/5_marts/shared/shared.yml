@@ -126,13 +126,60 @@ models:
       - dbt_utils.expression_is_true:
           expression: "clean_sheets between 0 and games_in_window"
           name: momentum_team_clean_sheets_in_range
+      - dbt_utils.expression_is_true:
+          expression: "goals_per_match is null or goals_per_match >= 0"
+          name: momentum_team_goals_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
+          name: momentum_team_goals_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_per_match is null or shots_per_match >= 0"
+          name: momentum_team_shots_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_per_match is null or shots_on_goal_per_match >= 0"
+          name: momentum_team_shots_on_goal_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_per_match is null or passes_per_match >= 0"
+          name: momentum_team_passes_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_per_match is null or corners_per_match >= 0"
+          name: momentum_team_corners_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
+          name: momentum_team_corners_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_key_per_match is null or passes_key_per_match >= 0"
+          name: momentum_team_passes_key_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "tackles_per_match is null or tackles_per_match >= 0"
+          name: momentum_team_tackles_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "interceptions_per_match is null or interceptions_per_match >= 0"
+          name: momentum_team_interceptions_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "blocks_per_match is null or blocks_per_match >= 0"
+          name: momentum_team_blocks_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
+          name: momentum_team_defensive_actions_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "duels_per_match is null or duels_per_match >= 0"
+          name: momentum_team_duels_per_match_non_negative
     columns:
       - name: upcoming_fixture_sk
         description: "{{ doc('upcoming_fixture_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -230,16 +277,43 @@ models:
       - dbt_utils.expression_is_true:
           expression: "top_player_rank >= 1"
           name: momentum_player_rank_positive
+      - dbt_utils.expression_is_true:
+          expression: "saves_player_pct is null or (saves_player_pct between 0 and 1)"
+          name: momentum_player_saves_player_pct_in_range
+      # The three provider-subset ratios are >= 0 only: over a window as short as one match, a
+      # single game where the provider reports numerator > denominator is genuine data, not a
+      # model bug — the split int_team_season__metrics_cumulative makes.
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_player_pct is null or dribbles_success_player_pct >= 0"
+          name: momentum_player_dribbles_success_player_pct_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_accuracy_player_pct is null or passes_accuracy_player_pct >= 0"
+          name: momentum_player_passes_accuracy_player_pct_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_player_pct is null or duels_won_player_pct >= 0"
+          name: momentum_player_duels_won_player_pct_non_negative
     columns:
       - name: upcoming_fixture_sk
         description: "{{ doc('upcoming_fixture_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: player_sk
         description: "{{ doc('player_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -334,10 +408,18 @@ models:
     columns:
       - name: upcoming_fixture_sk
         description: "{{ doc('upcoming_fixture_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: league_code
         description: "{{ doc('league_code') }} Here it is the UPCOMING fixture's competition; the past match's own competition is played_league_code."
         tests: [not_null]
@@ -367,7 +449,11 @@ models:
               values: ["W", "D", "L"]
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: has_team_stats
         description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
         tests: [not_null]
@@ -612,6 +698,149 @@ models:
       - dbt_utils.expression_is_true:
           expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
           name: team_profile_finishing_efficiency_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "goals_per_match is null or goals_per_match >= 0"
+          name: team_profile_goals_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
+          name: team_profile_goals_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_per_match is null or shots_per_match >= 0"
+          name: team_profile_shots_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_pct is null or (shots_on_goal_pct between 0 and 1)"
+          name: team_profile_shots_on_goal_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "shots_inside_box_pct is null or (shots_inside_box_pct between 0 and 1)"
+          name: team_profile_shots_inside_box_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "passes_accuracy_pct is null or (passes_accuracy_pct between 0 and 1)"
+          name: team_profile_passes_accuracy_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "passes_per_match is null or passes_per_match >= 0"
+          name: team_profile_passes_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_per_match is null or corners_per_match >= 0"
+          name: team_profile_corners_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
+          name: team_profile_corners_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "saves_pct is null or (saves_pct between 0 and 1)"
+          name: team_profile_saves_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_per_match is null or shots_on_goal_per_match >= 0"
+          name: team_profile_shots_on_goal_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
+          name: team_profile_shots_on_goal_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_key_per_match is null or passes_key_per_match >= 0"
+          name: team_profile_passes_key_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "duels_per_match is null or duels_per_match >= 0"
+          name: team_profile_duels_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
+          name: team_profile_defensive_actions_per_match_non_negative
+      # Year-over-year copies take the bounds int_team_profile.yml fixed for the same columns:
+      # structural ratios [0,1], the provider-subset ratios >= 0 only, per-match counts >= 0.
+      - dbt_utils.expression_is_true:
+          expression: "goals_per_match_this_season is null or goals_per_match_this_season >= 0"
+          name: team_profile_goals_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "goals_per_match_prev_season is null or goals_per_match_prev_season >= 0"
+          name: team_profile_goals_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0"
+          name: team_profile_goals_against_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0"
+          name: team_profile_goals_against_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "clean_sheets_pct_this_season is null or (clean_sheets_pct_this_season between 0 and 1)"
+          name: team_profile_clean_sheets_pct_this_season_in_range
+      - dbt_utils.expression_is_true:
+          expression: "clean_sheets_pct_prev_season is null or (clean_sheets_pct_prev_season between 0 and 1)"
+          name: team_profile_clean_sheets_pct_prev_season_in_range
+      - dbt_utils.expression_is_true:
+          expression: "shots_per_match_this_season is null or shots_per_match_this_season >= 0"
+          name: team_profile_shots_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_per_match_prev_season is null or shots_per_match_prev_season >= 0"
+          name: team_profile_shots_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0"
+          name: team_profile_shots_inside_box_pct_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0"
+          name: team_profile_shots_inside_box_pct_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0"
+          name: team_profile_shots_on_goal_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0"
+          name: team_profile_shots_on_goal_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "finishing_efficiency_pct_this_season is null or (finishing_efficiency_pct_this_season between 0 and 1)"
+          name: team_profile_finishing_efficiency_pct_this_season_in_range
+      - dbt_utils.expression_is_true:
+          expression: "finishing_efficiency_pct_prev_season is null or (finishing_efficiency_pct_prev_season between 0 and 1)"
+          name: team_profile_finishing_efficiency_pct_prev_season_in_range
+      - dbt_utils.expression_is_true:
+          expression: "duels_per_match_this_season is null or duels_per_match_this_season >= 0"
+          name: team_profile_duels_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "duels_per_match_prev_season is null or duels_per_match_prev_season >= 0"
+          name: team_profile_duels_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct_this_season is null or duels_won_pct_this_season >= 0"
+          name: team_profile_duels_won_pct_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0"
+          name: team_profile_duels_won_pct_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0"
+          name: team_profile_defensive_actions_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0"
+          name: team_profile_defensive_actions_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_per_match_this_season is null or passes_per_match_this_season >= 0"
+          name: team_profile_passes_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_per_match_prev_season is null or passes_per_match_prev_season >= 0"
+          name: team_profile_passes_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0"
+          name: team_profile_passes_accuracy_pct_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0"
+          name: team_profile_passes_accuracy_pct_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0"
+          name: team_profile_passes_key_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0"
+          name: team_profile_passes_key_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_per_match_this_season is null or corners_per_match_this_season >= 0"
+          name: team_profile_corners_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_per_match_prev_season is null or corners_per_match_prev_season >= 0"
+          name: team_profile_corners_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0"
+          name: team_profile_corners_against_per_match_this_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0"
+          name: team_profile_corners_against_per_match_prev_season_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "saves_pct_this_season is null or (saves_pct_this_season between 0 and 1)"
+          name: team_profile_saves_pct_this_season_in_range
+      - dbt_utils.expression_is_true:
+          expression: "saves_pct_prev_season is null or (saves_pct_prev_season between 0 and 1)"
+          name: team_profile_saves_pct_prev_season_in_range
     columns:
       - name: is_featured_season
         description: >
@@ -630,7 +859,11 @@ models:
               field: team_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -666,6 +899,10 @@ models:
         description: "Home venue capacity, from dim_team. Nullable."
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: team_name
@@ -889,6 +1126,45 @@ models:
       - dbt_utils.expression_is_true:
           expression: "clean_sheets between 0 and games_played"
           name: std_team_clean_sheets_in_range
+      - dbt_utils.expression_is_true:
+          expression: "goals_per_match is null or goals_per_match >= 0"
+          name: std_team_goals_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
+          name: std_team_goals_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_per_match is null or shots_per_match >= 0"
+          name: std_team_shots_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_per_match is null or shots_on_goal_per_match >= 0"
+          name: std_team_shots_on_goal_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_per_match is null or passes_per_match >= 0"
+          name: std_team_passes_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_per_match is null or corners_per_match >= 0"
+          name: std_team_corners_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
+          name: std_team_corners_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "passes_key_per_match is null or passes_key_per_match >= 0"
+          name: std_team_passes_key_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "tackles_per_match is null or tackles_per_match >= 0"
+          name: std_team_tackles_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "interceptions_per_match is null or interceptions_per_match >= 0"
+          name: std_team_interceptions_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "blocks_per_match is null or blocks_per_match >= 0"
+          name: std_team_blocks_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "defensive_actions_per_match is null or defensive_actions_per_match >= 0"
+          name: std_team_defensive_actions_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "duels_per_match is null or duels_per_match >= 0"
+          name: std_team_duels_per_match_non_negative
     columns:
       - name: upcoming_fixture_sk
         description: "{{ doc('upcoming_fixture_sk') }}"
@@ -1015,7 +1291,11 @@ models:
               field: team_sk
       - name: player_sk
         description: "{{ doc('player_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -1307,6 +1587,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "saves_player <= shots_on_goal_against_player"
           name: player_profile_saves_player_lte_faced
+      - dbt_utils.expression_is_true:
+          expression: "contribution_player_pct is null or (contribution_player_pct between 0 and 1)"
+          name: player_profile_contribution_player_pct_in_range
     columns:
       - name: is_featured_season
         description: >
@@ -1350,7 +1633,11 @@ models:
               field: player_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -1388,6 +1675,10 @@ models:
         description: "Affiliated club country, from dim_team."
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: player_name
@@ -1638,6 +1929,10 @@ models:
         tests: [not_null]
       - name: season_sk
         description: "{{ doc('season_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: group_name
       - name: league_rank
         description: "{{ doc('league_rank') }}"
@@ -1721,8 +2016,16 @@ models:
               field: fixture_sk
       - name: biggest_margin_home_team_sk
         description: "{{ doc('home_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: biggest_margin_away_team_sk
         description: "{{ doc('away_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: biggest_margin_goals_home
         description: "Home goals of that match."
       - name: biggest_margin_goals_away
@@ -1739,8 +2042,16 @@ models:
               field: fixture_sk
       - name: most_goals_home_team_sk
         description: "{{ doc('home_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: most_goals_away_team_sk
         description: "{{ doc('away_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: most_goals_goals_home
         description: "Home goals of that match."
       - name: most_goals_goals_away
@@ -2251,8 +2562,16 @@ models:
         description: "{{ doc('status_short') }}"
       - name: home_team_sk
         description: "{{ doc('home_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: away_team_sk
         description: "{{ doc('away_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: is_match_that_matters
         description: "True on at most one fixture per competition: the one of the matchday whose two teams have the lowest sum of table positions, ties to the earlier kickoff then fixture_sk. A position is a team's rank in the one standings section it belongs to that season; where either side has none (a knockout round, a split season) no fixture of that competition is flagged."
         tests:
@@ -2340,7 +2659,11 @@ models:
         description: "Final-time goals scored by the away team; null until the fixture is played."
       - name: home_team_sk
         description: "{{ doc('home_team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: home_team_name
         description: "The home team's display name from dim_team."
       - name: home_team_slug
@@ -2349,7 +2672,11 @@ models:
         description: "The home team's crest URL from dim_team."
       - name: away_team_sk
         description: "{{ doc('away_team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: away_team_name
         description: "The away team's display name from dim_team."
       - name: away_team_slug
@@ -2422,6 +2749,10 @@ models:
         tests: [not_null]
       - name: opponent_team_sk
         description: "{{ doc('opponent_team_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: result
         description: "W/D/L from int_legs__team_match for finished rows; null otherwise."
         tests:
@@ -2469,7 +2800,12 @@ models:
     columns:
       - name: player_team_season_sk
         description: "Surrogate carried from dim_player_team_season_mapping (player, team, league_code, season)."
-        tests: [not_null, unique]
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_player_team_season_mapping')
+              field: player_team_season_sk
       - name: team_sk
         description: "{{ doc('team_sk') }}"
         tests:
@@ -2492,6 +2828,10 @@ models:
         tests: [not_null]
       - name: season_sk
         description: "{{ doc('season_sk') }} Nullable here: a roster season with no competition-season row."
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: competition_type
         description: "From competition_registry; the mart is filtered to club types."
       - name: entity_type
@@ -2780,7 +3120,11 @@ models:
               field: team_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -2811,6 +3155,10 @@ models:
           one club together and in order; not a displayed metric.
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: player_name

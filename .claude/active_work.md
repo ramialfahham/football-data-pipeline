@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-19**, on `feat/109-store-failures-and-severity`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-19**, on `feat/109-range-tests-and-key-graph`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,9 +22,9 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#109 STEP 3 IS IN FLIGHT: THE PLAN (FOUR MRs, A–D) IS ON THE ISSUE, APPROVED 2026-09-19; MR A IS
-OPEN AS !211; NEXT = MR B, in a fresh chat, plan mode, contract first** (the four MRs are below
-under #109). **#150 is merged** (!209, 2026-09-19; the 2026-09-19 nightly green). !209's rulings,
+**#109 STEP 3 IS IN FLIGHT: THE PLAN (FOUR MRs, A–D) IS ON THE ISSUE, APPROVED 2026-09-19; MR A
+MERGED (!211); MR B IS OPEN AS !212; NEXT = MR C, in a fresh chat, plan mode, contract first**
+(the four MRs are below under #109). **#150 is merged** (!209, 2026-09-19; the 2026-09-19 nightly green). !209's rulings,
 recorded in its contract: **the match slug comes from the warehouse**; **played rows are inert
 until the match report page exists**; the EN/DE/FI copy shipped as drafted, his merge the ruling.
 Until the next `deploy:export` (manual, still `teams,fixtures`) production shows the committed
@@ -62,22 +62,23 @@ rewrite (operations guide and development workflow still describe GitHub Actions
 rules, `engineering_standards.md` §3.1–3.5. Step 2 (!202): the two catalogue-generated rate guards
 `dbt_project/tests/assert_*_rates_inputs_covered.sql`. **Step 3 is four MRs, the text on #109
 ("Step 3 — the mechanisms and the sweep"), each its own contract, the warehouse reviewer on
-`dbt_project/**`, platform on `scripts/**`:** **A** (!211, open): `store_failures` on all 54
-singular tests, the §3.3 answer per test on its head, 3 flipped to `warn` (the three name-override
-tests). **B** (next): a range test on the 104 rate columns without one (`expression_is_true`, the
-form of the 72 existing; `shots_on_goal_difference_per_match` gets none — no range for a
-difference); `relationships` on every foreign-key `_sk` without one (parent by name; 106 `_sk`
-lack one, some are the model's own key — orphans measured on prod FIRST; an orphan is a defect or
-a `warn` with the cause, never a dropped test; `mart_competition_fixtures.home/away_team_sk` are
-two); one test on `int_team__market_value_latest`; `scripts/check_relationships_coverage.py` with
-its pytest and a red proof. **C**: the 359 undescribed listed columns (116 names; `league_code` 49,
-decided per site between the two blocks; a shared block for a repeated name only after reading every
-model it reaches), then the column rule in `check_description_hygiene.py`. **D**:
-`scripts/check_yml_vs_projection.py --catalog` (the reverse of `declare_missing_columns.py`) wired
-in `data:build:main` after `dbt docs generate` — DECIDED with the plan: post-merge, where the
+`dbt_project/**`, platform on `scripts/**`:** **A** (!211, merged): `store_failures` on all 54
+singular tests, 3 flipped to `warn`. **B** (!212, open): range tests on 153 rate columns (the 3
+signed differences get none); `relationships` at `error` on 76 foreign keys, each with zero orphans
+on prod; **the declared soft link** — `meta: soft_link:` on the 4 keys that name clubs and players
+outside the tracked competitions (transfers, coaching careers), stated in `engineering_standards.md`
+§3.1 — DECIDED with B's plan; `scripts/check_relationships_coverage.py` (its pytest's last test
+runs it on the real tree in `test:python`, so the rule is enforced from B on; the
+`validate:governance` line is D's). **C** (next): the 359 undescribed listed columns (116 names;
+`league_code` 49, decided per site between the two blocks; a shared block for a repeated name only
+after reading every model it reaches), then the column rule in `check_description_hygiene.py`.
+**D**: `scripts/check_yml_vs_projection.py --catalog` (the reverse of `declare_missing_columns.py`)
+wired in `data:build:main` after `dbt docs generate` — DECIDED with the plan: post-merge, where the
 catalogue is whole — plus the sweep in `validate:governance`; a governance MR (`protected_override`).
-B and C each rebuild most of the warehouse in `ci_mr<IID>_*` per pipeline (a description change is
-`state:modified` under `persist_docs`) — cents. No census script in the repo; recount before B and C.
+C rebuilds most of the warehouse in `ci_mr<IID>_*` per pipeline (a description change is
+`state:modified` under `persist_docs`) — cents. No census script in the repo; recount before C.
+⚠ Noted on B, not touched: `int_player_season__metrics` (in `int_team_season.yml`) still bounds the
+three player provider-subset ratios [0,1] at season grain.
 
 **One default still open, merged as a default:** the breadcrumb's current-page colour (`ink-2`,
 links muted; the mocks had it inverted); its inventory row is `proposed` until he rules. ⚠ **A
@@ -108,8 +109,7 @@ the hook opens the MR. **The stop gate blocks a turn ending with anything in `gi
 parked work goes on a pushed `parked/<branch>` (ten exist, half dead).
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
-(`git stash apply` it; a KNOWN-WRONG default-season rule, see #118); the four-tab decision is on
-`archive/docs-handover-player-tabs-and-seo` and recorded in #118.
+(a KNOWN-WRONG default-season rule, see #118); the four-tab decision is recorded in #118.
 
 ⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`.** A metric is NULL unless its
 inputs cover every match in the window; a thinly covered competition showing blank is correct.

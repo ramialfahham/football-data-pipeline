@@ -176,7 +176,11 @@ models:
         tests: [not_null, unique]
       - name: league_sk
         description: "{{ doc('league_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -944,6 +948,8 @@ models:
       - name: player_sk
         description: "{{ doc('player_sk') }}"
         tests: [not_null]
+        meta:
+          soft_link: "dim_player - transfers are global player events, so a player here need not play in a tracked competition and need not have a dim_player row"
       - name: transfer_date
         description: "The date the provider records the move on. It is the date the transfer was reported, not necessarily the date the player was first registered or first played."
         tests: [not_null]
@@ -954,8 +960,12 @@ models:
         tests: [not_null]
       - name: team_in_sk
         description: "The club the player moved TO, as a team_sk. It joins to dim_team like any other, but not every club in a career appears there - youth, reserve and untracked clubs show up in transfers without a dimension row, so treat this as a soft link."
+        meta:
+          soft_link: "dim_team - youth, reserve and untracked clubs appear in transfers without a dim_team row"
       - name: team_out_sk
         description: "The club the player moved FROM, as a team_sk. The same soft link as team_in_sk: a club may appear here without a dim_team row."
+        meta:
+          soft_link: "dim_team - the same soft link as team_in_sk"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
@@ -1029,6 +1039,8 @@ models:
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
+        meta:
+          soft_link: "dim_team - a coaching career names youth, reserve and untracked clubs that have no dim_team row; team_api_id and team_name are kept for display"
       - name: coach_api_id
         description: "{{ doc('coach_api_id') }}"
       - name: team_name

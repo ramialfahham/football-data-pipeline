@@ -30,14 +30,21 @@ models:
       # duels_won_pct = won/total): one provider stat over another. At a low cutoff N a single game
       # where the provider reports numerator > denominator (a known API inconsistency) is not yet
       # diluted, so >1 is genuine data, not a bug — bounded >= 0 only (a negative would be a real
-      # sign-flip). Per-match count rates are unbounded, so not tested here.
+      # sign-flip). Per-match count rates have no upper bound; they are >= 0 like any count.
       - dbt_utils.expression_is_true:
           expression: "(shots_inside_box_pct_this_season is null or shots_inside_box_pct_this_season >= 0) and (passes_accuracy_pct_this_season is null or passes_accuracy_pct_this_season >= 0) and (duels_won_pct_this_season is null or duels_won_pct_this_season >= 0) and (shots_inside_box_pct_prev_season is null or shots_inside_box_pct_prev_season >= 0) and (passes_accuracy_pct_prev_season is null or passes_accuracy_pct_prev_season >= 0) and (duels_won_pct_prev_season is null or duels_won_pct_prev_season >= 0)"
           name: team_profile_yoy_subset_ratios_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "(goals_per_match_this_season is null or goals_per_match_this_season >= 0) and (goals_against_per_match_this_season is null or goals_against_per_match_this_season >= 0) and (shots_per_match_this_season is null or shots_per_match_this_season >= 0) and (shots_on_goal_per_match_this_season is null or shots_on_goal_per_match_this_season >= 0) and (duels_per_match_this_season is null or duels_per_match_this_season >= 0) and (defensive_actions_per_match_this_season is null or defensive_actions_per_match_this_season >= 0) and (passes_per_match_this_season is null or passes_per_match_this_season >= 0) and (passes_key_per_match_this_season is null or passes_key_per_match_this_season >= 0) and (corners_per_match_this_season is null or corners_per_match_this_season >= 0) and (corners_against_per_match_this_season is null or corners_against_per_match_this_season >= 0) and (goals_per_match_prev_season is null or goals_per_match_prev_season >= 0) and (goals_against_per_match_prev_season is null or goals_against_per_match_prev_season >= 0) and (shots_per_match_prev_season is null or shots_per_match_prev_season >= 0) and (shots_on_goal_per_match_prev_season is null or shots_on_goal_per_match_prev_season >= 0) and (duels_per_match_prev_season is null or duels_per_match_prev_season >= 0) and (defensive_actions_per_match_prev_season is null or defensive_actions_per_match_prev_season >= 0) and (passes_per_match_prev_season is null or passes_per_match_prev_season >= 0) and (passes_key_per_match_prev_season is null or passes_key_per_match_prev_season >= 0) and (corners_per_match_prev_season is null or corners_per_match_prev_season >= 0) and (corners_against_per_match_prev_season is null or corners_against_per_match_prev_season >= 0)"
+          name: team_profile_yoy_per_match_rates_non_negative
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: league_code
         tests: [not_null]
       - name: season_api_year
@@ -176,10 +183,18 @@ models:
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: matches_in_season
         tests: [not_null]
       - name: league_code

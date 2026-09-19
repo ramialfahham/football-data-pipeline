@@ -52,10 +52,18 @@ models:
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: league_code
         tests: [not_null]
       - name: metric_key
@@ -69,6 +77,10 @@ models:
         tests: [not_null]
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
 
