@@ -1,0 +1,60 @@
+---
+// THE match row, one implementation for every list of matches: both sides stacked with their
+// crests; on an unplayed row the kick-off with its zone in the right-hand column, on a played row
+// the score at the end of each side and no kick-off column (a finished match's start time is not
+// information). The winner by weight, never by hue. The Top match tag sits before the kick-off on
+// the one flagged row of the next round, the row otherwise unchanged.
+//
+// A row is a link only when its target exists: an unplayed match links to its preview page; a
+// played match has no page yet, so it renders inert until the report page lands. `linkPlayed` is
+// the one switch that flips then; the markup is the same either way.
+//
+// The kick-off is rendered in UTC with that label until the warehouse serves the venue's clock
+// and zone (#146); a fixture whose time is not set yet shows the TBC copy in the time slot.
+import Crest from "./Crest.astro";
+import { formatTime } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { localeHref } from "../../lib/href";
+import { t } from "../../i18n/strings";
+import type { CompetitionFixture } from "../../lib/types";
+
+interface Props {
+  fx: CompetitionFixture;
+  competitionSlug: string | null;
+  lang: Lang;
+  topMatch?: boolean;
+  linkPlayed?: boolean;
+}
+const { fx, competitionSlug, lang, topMatch = false, linkPlayed = false } = Astro.props;
+
+const ZONE = "UTC";
+const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
+const linked = Boolean(competitionSlug && fx.slug) && (!played || linkPlayed);
+const href = linked ? localeHref(lang, `${competitionSlug}/matches/${fx.slug}/`) : undefined;
+const Row = linked ? "a" : "div";
+const homeWins = played && (fx.goals_home as number) > (fx.goals_away as number);
+const awayWins = played && (fx.goals_away as number) > (fx.goals_home as number);
+const time = fx.status === "TBD" ? t(lang, "compTBC") : formatTime(fx.kickoff, lang);
+---
+
+<Row class:list={["fxrow", { played }]} href={href}>
+  <span class="sides">
+    <span class="side">
+      <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />
+      <span class="nm">{fx.home.name}</span>
+      {played && <span class:list={["g", "num", { winner: homeWins }]}>{fx.goals_home}</span>}
+    </span>
+    <span class="side">
+      <Crest name={fx.away.name} crest={fx.away.crest} size="xs" />
+      <span class="nm">{fx.away.name}</span>
+      {played && <span class:list={["g", "num", { winner: awayWins }]}>{fx.goals_away}</span>}
+    </span>
+  </span>
+  {!played && topMatch && <span class="topmatch">{t(lang, "compTopMatch")}</span>}
+  {!played && (
+    <span class="when">
+      <b class="t">{time}</b>
+      <span class="rowtz">{ZONE}</span>
+    </span>
+  )}
+</Row>

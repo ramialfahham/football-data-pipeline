@@ -334,18 +334,17 @@ site_v2/src/data/fixtures/*.json
 !site_v2/src/data/fixtures/1603007.json
 !site_v2/src/data/fixtures/1628894.json
 !site_v2/src/data/fixtures/1629056.json
-# The Bundesliga's Matchday 4 (2026-09-18 to 20): the nine rows of the committed competition page
-# sample's Next matches block, each a link to its match page (GitLab #149). The same replace-never-
-# add rule as the set above; refresh together with competitions/BL1/2026.json.
-!site_v2/src/data/fixtures/1575167.json
-!site_v2/src/data/fixtures/1575168.json
-!site_v2/src/data/fixtures/1575169.json
-!site_v2/src/data/fixtures/1575170.json
-!site_v2/src/data/fixtures/1575171.json
-!site_v2/src/data/fixtures/1575172.json
-!site_v2/src/data/fixtures/1575173.json
-!site_v2/src/data/fixtures/1575174.json
-!site_v2/src/data/fixtures/1575175.json
+# Every unplayed Bundesliga 2026/27 fixture, matchdays 4 to 34 (ids 1575167 to 1575445, one
+# contiguous range): every unplayed row of the committed competition page sample's Matchdays tab
+# is a link to its match page, and the Overview's Next matches rows are the first nine of them
+# (GitLab #149, #150). The same replace-never-add rule as the set above; refresh together with
+# competitions/BL1/2026.json, and move the range's start as matchdays are played.
+!site_v2/src/data/fixtures/157516[7-9].json
+!site_v2/src/data/fixtures/15751[7-9][0-9].json
+!site_v2/src/data/fixtures/15752[0-9][0-9].json
+!site_v2/src/data/fixtures/15753[0-9][0-9].json
+!site_v2/src/data/fixtures/15754[0-3][0-9].json
+!site_v2/src/data/fixtures/157544[0-5].json
 # The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
 # matchdays. Every competition the index lists gets a page; only this one carries content in the
 # committed build, and the 18 teams and 9 fixtures above are what it links to.

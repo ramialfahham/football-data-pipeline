@@ -83,11 +83,15 @@ def test_group_upcoming_fixtures_caps_nothing():
     assert sum(len(g["fixtures"]) for g in groups) == 5, "every fixture handed in is grouped"
 
 
-def test_group_upcoming_fixtures_builds_the_fixture_slug_from_names():
-    groups = group_upcoming_fixtures(
-        [_fixture(10, "BSA", "2026-08-04T23:00:00Z")], _TEAMS, _META
-    )
+def test_group_upcoming_fixtures_carries_the_served_fixture_slug():
+    """The slug is mart_competition_fixtures' column, joined into the read; nothing here spells
+    a URL from names, so a row without a served slug links nowhere rather than somewhere wrong."""
+    row = _fixture(10, "BSA", "2026-08-04T23:00:00Z")
+    row["fixture_slug"] = "2026-08-04-palmeiras-vs-flamengo"
+    groups = group_upcoming_fixtures([row], _TEAMS, _META)
     assert groups[0]["fixtures"][0]["slug"] == "2026-08-04-palmeiras-vs-flamengo"
+    bare = group_upcoming_fixtures([_fixture(11, "BSA", "2026-08-04T23:00:00Z")], _TEAMS, _META)
+    assert bare[0]["fixtures"][0]["slug"] is None
 
 
 def test_group_upcoming_fixtures_keeps_a_null_crest_null():

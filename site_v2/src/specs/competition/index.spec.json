@@ -10,12 +10,12 @@
     "schema_org": "SportsOrganization",
     "links": {
       "inbound_hub": "competitionIndex",
-      "outbound": ["team", "fixture"]
+      "outbound": ["team", "fixture", "competition"]
     },
     "minimum_data": "A row in mart_competition_index gives the competition its page, header and tab bar. Each content block needs its own mart to have served something for the latest season in competitions/{league_code}/{season}.json: standings rows for the Table, next-matchday rows for Next matches, deserved_points on the team profile for Deserved points, a summary row for The season in numbers. A block with nothing served is absent; a competition with no payload at all shows header and tabs only. Whether that is enough for a page to be published is the minimum-data question, and it stays a rule over the served marts rather than a list in the frontend.",
     "page_count_driver": "count(competition_index.json .competitions) x count(locales)",
     "url_permanence": "permanent",
-    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The three other tabs (Matchdays, Teams, Players) are standalone pages whose URLs are settled with their own review; until each is built its tab is an inert label, so no link on this page points at a page the build did not emit."
+    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages: Matchdays at /{locale}/{competition-slug}/fixtures/, linked from the bar when the build emits it for this competition; Rankings is an inert label until built, so no link on this page points at a page the build did not emit."
   },
   "blocks": [
     {

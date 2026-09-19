@@ -98,7 +98,13 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
       round={payload?.next_matchday[0]?.round ?? null}
       lang={lang}
     />
-    <CompetitionTabs lang={lang} hasMatchdays={competitionType === "domestic_league"} />
+    <CompetitionTabs
+      lang={lang}
+      hasMatchdays={competitionType === "domestic_league"}
+      active="overview"
+      competitionSlug={competition.slug}
+      hasFixturesPage={Boolean(payload?.fixtures?.length)}
+    />
 
     {payload && (
       <>

@@ -2261,6 +2261,122 @@ models:
               values: [true, false]
               quote: false
 
+  - name: mart_competition_fixtures
+    description: >
+      Every match of a competition-season, played and unplayed: one row per fixture with both
+      teams named and linked, the round it belongs to, the score once played and the kick-off
+      until then. Grain: fixture_sk.
+
+      Rounds are the provider's labels, ordered within a competition-season by each round's first
+      kick-off; a league round also carries its matchday number. A fixture is played when it has a
+      finished leg in int_legs__team_match, the one definition of a result. The next round is the
+      round of the competition-season's earliest fixture not yet started, by mart_next_matchday's
+      rule, and that mart's match-that-matters flag is carried onto its fixture.
+
+      The fixture slug is the match's permanent URL segment, built from the kick-off date and the
+      two published team slugs. Rebuilt nightly, so the next-round flag is correct as of the
+      morning it was built.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "fixtures"]
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "not is_played or (goals_home is not null and goals_away is not null)"
+          name: competition_fixtures_played_has_a_score
+      - dbt_utils.expression_is_true:
+          expression: "not is_match_that_matters or is_next_round"
+          name: competition_fixtures_top_match_is_in_the_next_round
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_slug]
+          name: competition_fixtures_slug_unique_per_competition
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season_api_year, fixture_order]
+          name: competition_fixtures_order_unique_per_season
+    columns:
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: round_name
+        description: "The provider's round label, e.g. Regular Season - 4 or Round of 32."
+        tests: [not_null]
+      - name: round_order
+        description: "{{ doc('round_order') }}"
+      - name: round_sequence
+        description: "The round's rank among the competition-season's rounds, ordered by each round's first kick-off, 1 first. A postponed match keeps its round, so a match played late does not move its round."
+        tests: [not_null]
+      - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
+        tests: [not_null]
+      - name: fixture_date
+        description: "{{ doc('fixture_date') }}"
+        tests: [not_null]
+      - name: status_short
+        description: "{{ doc('status_short') }}"
+        tests: [not_null]
+      - name: is_played
+        description: "True when the fixture has a result: a finished leg in int_legs__team_match, which counts full time, extra time, penalties and an awarded result. A played fixture carries both scores."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
+      - name: goals_home
+        description: "Final-time goals scored by the home team; null until the fixture is played."
+      - name: goals_away
+        description: "Final-time goals scored by the away team; null until the fixture is played."
+      - name: home_team_sk
+        description: "{{ doc('home_team_sk') }}"
+        tests: [not_null]
+      - name: home_team_name
+        description: "The home team's display name from dim_team."
+      - name: home_team_slug
+        description: "The home team's permanent URL segment from dim_team."
+      - name: home_team_logo_url
+        description: "The home team's crest URL from dim_team."
+      - name: away_team_sk
+        description: "{{ doc('away_team_sk') }}"
+        tests: [not_null]
+      - name: away_team_name
+        description: "The away team's display name from dim_team."
+      - name: away_team_slug
+        description: "The away team's permanent URL segment from dim_team."
+      - name: away_team_logo_url
+        description: "The away team's crest URL from dim_team."
+      - name: fixture_slug
+        description: "The match's permanent URL segment: the kick-off date, the home team's slug, -vs-, the away team's slug, e.g. YYYY-MM-DD-bayern-munchen-vs-1-fc-union-berlin. Present on every row: both teams resolve on dim_team, whose slug is never null."
+        tests: [not_null]
+      - name: is_next_round
+        description: "True on every fixture, played or not, of the round mart_next_matchday serves as the competition's next matchday; false on every other row, including every row of a competition with no upcoming fixture."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
+      - name: is_match_that_matters
+        description: "mart_next_matchday's flag on the one fixture of the next round whose two teams have the lowest sum of table positions; false on every other row."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
+      - name: fixture_order
+        description: "The reading order of the competition-season's fixtures, 1 first: rounds in their sequence, and within a round by kick-off. Consumers render rows in this order and sort nothing."
+        tests: [not_null]
+
   - name: mart_team_fixtures
     description: >
       Every fixture from one team's perspective, upcoming and finished alike. Each fixture appears

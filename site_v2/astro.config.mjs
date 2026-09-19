@@ -9,6 +9,7 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import seoAudit from "./integrations/seo-audit.mjs";
+import builtPages from "./integrations/built-pages.mjs";
 import { SITEMAP_EXCLUDE } from "./src/config/indexability.mjs";
 
 export default defineConfig({
@@ -39,5 +40,6 @@ export default defineConfig({
   integrations: [
     sitemap({ filter: (page) => !SITEMAP_EXCLUDE.some((re) => re.test(new URL(page).pathname)) }),
     seoAudit(),
+    builtPages(),
   ],
 });

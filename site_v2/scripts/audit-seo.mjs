@@ -258,6 +258,14 @@ export function entityKey(path, locales) {
   return path;
 }
 
+/** True when one path is the other plus exactly one segment: an entity page and one of its tabs. */
+export function isTabOf(a, b) {
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  if (!long.startsWith(short)) return false;
+  const rest = long.slice(short.length).split("/").filter(Boolean);
+  return rest.length === 1;
+}
+
 /**
  * Pure: audit the whole generated set.
  *
@@ -340,7 +348,10 @@ export function auditSet(pages, opts) {
         if (!value) continue;
         const k = `${l} ${value}`;
         const first = seen[field].get(k);
-        if (first && first !== path) add(path, `${field} is not unique within "${l}" — same as ${first}: ${JSON.stringify(value)}`);
+        // The one h1 that may repeat: an entity page and its tab pages share one header by design
+        // (the competition page's Overview and Matchdays); the title carries the tab for search.
+        if (first && first !== path && !(field === "h1" && isTabOf(first, path)))
+          add(path, `${field} is not unique within "${l}" — same as ${first}: ${JSON.stringify(value)}`);
         else if (!first) seen[field].set(k, path);
       }
 

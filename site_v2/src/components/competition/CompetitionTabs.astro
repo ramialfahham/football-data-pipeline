@@ -1,28 +1,47 @@
 ---
-// The competition page's tab bar: Overview · Matchdays · Rankings. Each tab is a standalone page;
-// only the Overview exists, so the other two render as labels without a link until each page is
-// built — the build refuses a link to a page it did not emit, and a tab's URL is settled with that
-// tab's review. A cup or tournament reads "Rounds" where a league reads "Matchdays".
+// The competition page's tab bar: Overview · Matchdays · Rankings. Each tab is a standalone page
+// with this same bar; the tab of the page you are on is lit, a built sibling is a link, and a tab
+// whose page is not built (or not emitted for this competition) renders as a label without a link,
+// because the build refuses a link to a page it did not emit. A cup or tournament reads "Rounds"
+// where a league reads "Matchdays".
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+
+type TabKey = "overview" | "matchdays" | "rankings";
 
 interface Props {
   lang: Lang;
   hasMatchdays: boolean;
+  active?: TabKey;
+  competitionSlug?: string | null;
+  hasFixturesPage?: boolean;
 }
-const { lang, hasMatchdays } = Astro.props;
+const {
+  lang, hasMatchdays, active = "overview", competitionSlug = null, hasFixturesPage = false,
+} = Astro.props;
 
-const tabs = [
-  { key: "overview", label: t(lang, "compTabOverview"), active: true },
-  { key: "matchdays", label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"), active: false },
-  { key: "rankings", label: t(lang, "compTabRankings"), active: false },
+const tabs: { key: TabKey; label: string; href: string | null }[] = [
+  {
+    key: "overview",
+    label: t(lang, "compTabOverview"),
+    href: competitionSlug ? localeHref(lang, `${competitionSlug}/`) : null,
+  },
+  {
+    key: "matchdays",
+    label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"),
+    href: competitionSlug && hasFixturesPage ? localeHref(lang, `${competitionSlug}/fixtures/`) : null,
+  },
+  { key: "rankings", label: t(lang, "compTabRankings"), href: null },
 ];
 ---
 
 <nav class="tabs comp-tabs" aria-label={t(lang, "compTabsAria")}>
   {tabs.map((tb) =>
-    tb.active ? (
+    tb.key === active ? (
       <span class="tab on" aria-current="page">{tb.label}</span>
+    ) : tb.href ? (
+      <a class="tab" href={tb.href}>{tb.label}</a>
     ) : (
       <span class="tab" aria-disabled="true">{tb.label}</span>
     ),

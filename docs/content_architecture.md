@@ -81,7 +81,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
 | **Facts** | Fact row (label · value · context) — the season in numbers | comp | `mart_competition_season_summary` + the flag on `mart_next_matchday` | ✓ built on the competition page (#149); the block type recurs on team, player and match pages |
 | **Schedule** | Upcoming / Results | team, player | `mart_team_fixtures` (filter) | ✓ (team fixtures #607) |
-| | Matchday schedule | comp | fixtures by round (derive) | ~ |
+| | Matchday schedule | comp | mart_competition_fixtures (every fixture of the competition-season, by round; the next-round and top-match flags) | ✓ built on the competition page's Matchdays tab (#150) |
 | **Listings** | Squad / roster | team→players | `mart_roster` + `mart_player_career` (per-player season stats) | ✓ (Squad tab BUILT 2026-07-24: roster identity + per-player apps/mins-per-app/goals/assists joined from `mart_player_career`; #619 wired the roster, GAP-22 the stats) |
 | | Team directory | comp→teams | `dim_team_competition_season_mapping` | ✓ source |
 | | Player career (clubs + per-comp totals) | player | `mart_player_career` | ✓ wired (#634; screen 13 spec'd #632) — backfill effectively done (5–10 seasons deep) |
@@ -121,7 +121,7 @@ full wireframe specs in `docs/wireframes/` already describe in prose — not a r
 |---|---|
 | **Team** | **Overview** (header + form + season highlights + standing + next + key players + deserved-vs-actual teaser) · **Matches** (upcoming + results) · **Stats** (season per-game + vs-benchmark + season-over-season + deserved-vs-actual + streaks) · **Squad** (roster + per-player apps/mins-per-app/goals/assists) · **History** (past-season records, all-time, coach) |
 | **Player** | **Overview** (header + form + season highlights + position + next) · **Matches** (log → fixture) · **Stats** (season per-game + percentile-vs-peers + season-over-season) · **Career** (clubs + per-competition totals + caps) |
-| **Competition** | **Overview** (header + table + next matchday + deserved points + the season in numbers) · **Matchdays** (every round, results and upcoming; "Rounds" for a cup) · **Teams** (deserved points in full + top-3 team boards) · **Players** (top-3 player boards) — ruled on GitLab #129, 2026-09-15; the Overview is built (#149), the other three are reviewed there before they are built |
+| **Competition** | **Overview** (header + table + next matchday + deserved points + the season in numbers) · **Matchdays** (every round, results and upcoming, one round at a time; "Rounds" for a cup) · **Rankings** (team boards and player boards under metric groups) — ruled on GitLab #129, 2026-09-16 (three tabs, superseding the four of 2026-09-15); the Overview is built (#149), Matchdays is built (#150), Rankings is #151 |
 | **Coach** | **Overview** (current club + clubs managed) |
 | **Fixture** | match preview + key players + (post-match) fixture stats + lineups |
 | **Home** | fixtures-first (next matches; Top players + Top teams specified, not built) |

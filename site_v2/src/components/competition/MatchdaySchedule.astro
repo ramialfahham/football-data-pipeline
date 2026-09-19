@@ -1,0 +1,96 @@
+---
+// The Matchdays tab's picker and Schedule block, one matchday on screen at a time and no script.
+// Each round is one `.md` wrapper holding its radio, its picker line (‹ MATCHDAY N › with the Next
+// tag on the next round, the arrows pinned to the edges as labels for the neighbouring rounds) and
+// its Schedule section (the date heading once per day, then the match rows); the stylesheet shows
+// the checked wrapper's picker and section, the same radio mechanism the team page's tabs use.
+//
+// Which round is checked on load is a display default over served flags: the round the warehouse
+// flagged next; after the season, the last round with a played match; before it, the first. The
+// round order is the warehouse's round_sequence; a league round's title is its served matchday
+// number, any other round shows the provider's round name until the phase key lands (#148).
+import MatchRow from "../ui/MatchRow.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { formatDate } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { CompetitionRound } from "../../lib/types";
+
+interface Props {
+  rounds: CompetitionRound[];
+  competitionSlug: string | null;
+  lang: Lang;
+  isLeague: boolean;
+}
+const { rounds, competitionSlug, lang, isLeague } = Astro.props;
+
+const nextIndex = rounds.findIndex((r) => r.is_next_round);
+const lastPlayedIndex = rounds.reduce(
+  (acc, r, i) => (r.fixtures.some((f) => f.is_played) ? i : acc), -1,
+);
+const openIndex = nextIndex >= 0 ? nextIndex : lastPlayedIndex >= 0 ? lastPlayedIndex : 0;
+
+function title(r: CompetitionRound): string {
+  return isLeague && r.round_order != null
+    ? t(lang, "compFactMatchday", { n: r.round_order })
+    : r.round;
+}
+
+function days(r: CompetitionRound): [string | null, CompetitionRound["fixtures"]][] {
+  const byDay = new Map<string | null, CompetitionRound["fixtures"]>();
+  for (const fx of r.fixtures) {
+    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : null;
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day)!.push(fx);
+  }
+  return [...byDay.entries()];
+}
+
+const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
+---
+
+{rounds.map((r, i) => (
+  <div class="md" data-md={r.round_sequence ?? i + 1}>
+    <input class="md-in" type="radio" name="md" id={idOf(i)} checked={i === openIndex} />
+    <nav class="mdnav" aria-label={t(lang, "compPickerAria")}>
+      <span class="mdstep">
+        {i > 0 ? (
+          <label class="step prev" for={idOf(i - 1)} aria-label={title(rounds[i - 1])}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </label>
+        ) : (
+          <span class="step prev off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        )}
+        <span class="mdtitle">
+          <b class="num">{title(r)}</b>
+          {r.is_next_round && <span class="nexttag">{t(lang, "compNextTag")}</span>}
+        </span>
+        {i + 1 < rounds.length ? (
+          <label class="step next" for={idOf(i + 1)} aria-label={title(rounds[i + 1])}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </label>
+        ) : (
+          <span class="step next off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        )}
+      </span>
+    </nav>
+    <section>
+      <SectionHead label={t(lang, "compSecSchedule")} />
+      <div class="fxgroup">
+        {days(r).map(([day, fixtures]) => (
+          <>
+            <div class="dh">{formatDate(fixtures[0].kickoff, lang)}</div>
+            {fixtures.map((fx) => (
+              <MatchRow
+                fx={fx}
+                competitionSlug={competitionSlug}
+                lang={lang}
+                topMatch={r.is_next_round && fx.is_match_that_matters}
+              />
+            ))}
+          </>
+        ))}
+      </div>
+    </section>
+  </div>
+))}
