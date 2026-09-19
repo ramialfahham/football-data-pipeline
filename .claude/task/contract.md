@@ -21,6 +21,7 @@ scope_paths:
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/active_work.md
+  - docs/tracker/gitlab_snapshot.md
 
 decisions_taken: >
   §3.4 applied as written: `store_failures = true` on the 49 singular tests without it, added to
@@ -37,9 +38,11 @@ decisions_taken: >
   RECURRING COST, declared: with `store_failures` a test runs the same query as a CTAS into the
   audit dataset and then counts the small table. The extra billed work is the count, at
   BigQuery's 10 MB per-table minimum: 49 more tables per run of the singular suite (the nightly
-  once, `data:build:main` twice, an MR pipeline once) plus the two `freshness_check` tests hourly —
-  about 1 GB a day, about $0.15 a month. Storage is the failing rows only. No new mechanism: the
-  materialisation, the dataset and the form are the ones step 2 and #150 already use.
+  once, `data:build:main` twice, an MR pipeline once). The two `freshness_check` tests run only in
+  the nightly's unfiltered `dbt build` (`deploy/nightly/entrypoint.sh`); the hourly `fdp-freshness`
+  job is `scripts/check_raw_freshness.py`, a metadata sentinel that runs no dbt. Under 1 GB a day,
+  under $0.15 a month. Storage is the failing rows only. No new mechanism: the materialisation, the
+  dataset and the form are the ones step 2 and #150 already use.
 
 decisions_reserved:
   - none: the plan on #109 names the 3 flips and the 7 that stay; the MR head carries the full
@@ -49,7 +52,20 @@ done_when:
   - `grep -L "store_failures" dbt_project/tests/*.sql` prints nothing; `grep -l "store_failures = true" dbt_project/tests/*.sql | wc -l` is 54.
   - `grep -l "severity = 'warn'" dbt_project/tests/*.sql | wc -l` is 4 (the 3 flips plus `assert_team_season_games_not_short_of_standings`).
   - `.venv/Scripts/dbt.exe parse` green with a scratchpad profile; `python -m sqlfluff lint dbt_project/tests --templater jinja --dialect bigquery` reports nothing new against main.
-  - `data:build:mr` green; after it, `bq ls ci_mr<IID>_dbt_test__audit` lists 54 tables.
+  - `data:build:mr` green; after it, `bq ls ci_mr<IID>_dbt_test__audit` lists 52 tables — every
+    singular test that job runs (the two `freshness_check` tests are excluded from every CI dbt
+    job and run only in the nightly's unfiltered `dbt build`, which writes their two tables to
+    prod's `dbt_test__audit`).
   - The MR head lists all 54 singular tests with the §3.3 answer and severity, one line each.
 
-amendments: (none)
+amendments:
+  - 2026-09-19: + docs/tracker/gitlab_snapshot.md — authority: the standing rule in `CLAUDE.md`
+    ("At the end of every session, before the handover commit, run `python
+    scripts/snapshot_tracker.py`"; `docs/tracker/**` is artifact-only, outside the review patch
+    and hash); content: the generated tracker backup, never hand-edited. The first draft of this
+    contract omitted the path.
+  - 2026-09-19: the cost line and `done_when` corrected — the two `freshness_check` tests are not
+    run hourly; `fdp-freshness` is a Python metadata sentinel, and the two tests run once a night in
+    the unfiltered `dbt build` (analytics-engineer-reviewer, round 2). The declared cost goes down,
+    not up. The commit message of the first commit carries the old sentence; this contract and the
+    MR head are the corrected record.

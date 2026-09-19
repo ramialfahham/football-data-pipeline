@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e12160de..68ce00f8 100644
+index e12160de..8b6d2111 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,38 +1,55 @@
+@@ -1,38 +1,71 @@
 -# Task contract — handover: #150 merged as !209; next is #109 step 3
 +# Task contract — #109 step 3, MR A: store_failures on every singular test; severity by §3.3
  
@@ -39,6 +39,7 @@ index e12160de..68ce00f8 100644
    - .claude/task/review.md
    - .claude/task/review_input.patch
 +  - .claude/active_work.md
++  - docs/tracker/gitlab_snapshot.md
  
  decisions_taken: >
 -  None. The handover's top section rewritten to what was built and what is open; the dead-issue
@@ -58,9 +59,11 @@ index e12160de..68ce00f8 100644
 +  RECURRING COST, declared: with `store_failures` a test runs the same query as a CTAS into the
 +  audit dataset and then counts the small table. The extra billed work is the count, at
 +  BigQuery's 10 MB per-table minimum: 49 more tables per run of the singular suite (the nightly
-+  once, `data:build:main` twice, an MR pipeline once) plus the two `freshness_check` tests hourly —
-+  about 1 GB a day, about $0.15 a month. Storage is the failing rows only. No new mechanism: the
-+  materialisation, the dataset and the form are the ones step 2 and #150 already use.
++  once, `data:build:main` twice, an MR pipeline once). The two `freshness_check` tests run only in
++  the nightly's unfiltered `dbt build` (`deploy/nightly/entrypoint.sh`); the hourly `fdp-freshness`
++  job is `scripts/check_raw_freshness.py`, a metadata sentinel that runs no dbt. Under 1 GB a day,
++  under $0.15 a month. Storage is the failing rows only. No new mechanism: the materialisation, the
++  dataset and the form are the ones step 2 and #150 already use.
  
  decisions_reserved:
 -  - none: !209 is merged, its head was his check; this commit records state.
@@ -73,13 +76,25 @@ index e12160de..68ce00f8 100644
 +  - `grep -L "store_failures" dbt_project/tests/*.sql` prints nothing; `grep -l "store_failures = true" dbt_project/tests/*.sql | wc -l` is 54.
 +  - `grep -l "severity = 'warn'" dbt_project/tests/*.sql | wc -l` is 4 (the 3 flips plus `assert_team_season_games_not_short_of_standings`).
 +  - `.venv/Scripts/dbt.exe parse` green with a scratchpad profile; `python -m sqlfluff lint dbt_project/tests --templater jinja --dialect bigquery` reports nothing new against main.
-+  - `data:build:mr` green; after it, `bq ls ci_mr<IID>_dbt_test__audit` lists 54 tables.
++  - `data:build:mr` green; after it, `bq ls ci_mr<IID>_dbt_test__audit` lists 52 tables — every
++    singular test that job runs (the two `freshness_check` tests are excluded from every CI dbt
++    job and run only in the nightly's unfiltered `dbt build`, which writes their two tables to
++    prod's `dbt_test__audit`).
 +  - The MR head lists all 54 singular tests with the §3.3 answer and severity, one line each.
  
--amendments:
+ amendments:
 -  - 2026-09-19, no path added: the CPO asked for the nightly site export, build and deploy to be filed; GitLab issued #156, another number the dead-issue guard held, so 156 leaves the set too (count 252 to 251, floor 163, the self-test pins moved to 163 and 178) and the handover names #156 under go-live. Rebased onto main after !209 merged: the three task files collided and this branch's versions were taken; the code and the handover merged clean.
 -  - 2026-09-19, no path added: the CPO merged !209 while this handover was open, so the handover's top paragraph is rewritten from "open, three questions on the head" to "merged"; the copy shipped as drafted and the merge is the ruling on it; the 2026-09-19 nightly succeeded, so #109 step 3 is unblocked.
-+amendments: (none)
++  - 2026-09-19: + docs/tracker/gitlab_snapshot.md — authority: the standing rule in `CLAUDE.md`
++    ("At the end of every session, before the handover commit, run `python
++    scripts/snapshot_tracker.py`"; `docs/tracker/**` is artifact-only, outside the review patch
++    and hash); content: the generated tracker backup, never hand-edited. The first draft of this
++    contract omitted the path.
++  - 2026-09-19: the cost line and `done_when` corrected — the two `freshness_check` tests are not
++    run hourly; `fdp-freshness` is a Python metadata sentinel, and the two tests run once a night in
++    the unfiltered `dbt build` (analytics-engineer-reviewer, round 2). The declared cost goes down,
++    not up. The commit message of the first commit carries the old sentence; this contract and the
++    MR head are the corrected record.
 diff --git a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql b/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
 index effdbd95..cba7baf6 100644
 --- a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
@@ -687,3 +702,22 @@ index b912ece6..3150efc7 100644
  select
      1
      as should_fail
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/active_work.md          | 119 +++---
+#    .claude/task/review.md          |  69 ++--
+#    .claude/task/review_input.patch | 878 +++++++++++++++++++++++++++++++---------
+#    docs/tracker/gitlab_snapshot.md |  22 +-
+#    4 files changed, 805 insertions(+), 283 deletions(-)
+# ============================================================================
