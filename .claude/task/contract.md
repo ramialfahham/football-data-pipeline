@@ -1,11 +1,10 @@
-# Task contract — handover: #150 is built and open as !209; next is #109 step 3 after a green nightly
+# Task contract — handover: #150 merged as !209; next is #109 step 3
 
 objective: >
-  Bring `.claude/active_work.md` to the state after this session: #150 built, reviewed and open as
-  MR !209 with three questions on its head (the copy, whether it waits on #155, the two deferred
-  prod tests to retry after the 04:00 nightly); #155 filed (the match preview title collision at full
-  scale); the next unit of work is #109 step 3 once the 2026-09-19 nightly is green. Under 16,000
-  characters. Refresh the tracker snapshot.
+  Bring `.claude/active_work.md` to the state after this session: #150 built, reviewed and merged
+  as !209 (2026-09-19, after the data build was retried green against the fresh prod table); #155
+  filed (the match preview title collision at full scale); the 2026-09-19 nightly green; the next
+  unit of work is #109 step 3. Under 16,000 characters. Refresh the tracker snapshot.
 
 refs: >
   The CPO's rulings in chat 2026-09-18 (the plan for #150 approved; the slug from the warehouse;
@@ -28,10 +27,11 @@ decisions_taken: >
   follow, the self-test that pins the guard fires moves to 156. No other change to the test.
 
 decisions_reserved:
-  - none: every open question is on !209's head for the CPO; this commit records state.
+  - none: !209 is merged, its head was his check; this commit records state.
 
 done_when:
-  - `.claude/active_work.md` names !209 as open with its three questions, #155 as filed, #109 step 3 as next after a green nightly; `len()` under 16,000.
+  - `.claude/active_work.md` names !209 as merged, #155 as filed, the 2026-09-19 nightly as green and #109 step 3 as next; `len()` under 16,000.
   - `python -m pytest tests/test_no_dead_issue_refs.py -q` green; `python scripts/snapshot_tracker.py` run and its output committed.
 
-amendments: (none)
+amendments:
+  - 2026-09-19, no path added: the CPO merged !209 while this handover was open, so the handover's top paragraph is rewritten from "open, three questions on the head" to "merged"; the copy shipped as drafted and the merge is the ruling on it; the 2026-09-19 nightly succeeded, so #109 step 3 is unblocked.

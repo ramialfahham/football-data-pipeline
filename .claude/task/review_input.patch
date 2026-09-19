@@ -1,21 +1,20 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 3a03ce3c..1641b85a 100644
+index 3a03ce3c..de882e7c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
 @@ -1,34 +1,37 @@
 -# Task contract — handover: next is #150, then #109 step 3; the mirror items are closed
-+# Task contract — handover: #150 is built and open as !209; next is #109 step 3 after a green nightly
++# Task contract — handover: #150 merged as !209; next is #109 step 3
  
  objective: >
 -  Bring `.claude/active_work.md` to the state after the CPO's ruling of 2026-09-18, "#150 first":
 -  the next unit of work is #150 (competition page, Matchdays tab) in a fresh chat, plan mode; #109
 -  step 3 follows it, still gated on the 2026-09-19 nightly being green; the README badge (!206) and
 -  the token note (!207) are merged, the runbook rewrite is #154. Under 16,000 characters.
-+  Bring `.claude/active_work.md` to the state after this session: #150 built, reviewed and open as
-+  MR !209 with three questions on its head (the copy, whether it waits on #155, the two deferred
-+  prod tests to retry after the 04:00 nightly); #155 filed (the match preview title collision at full
-+  scale); the next unit of work is #109 step 3 once the 2026-09-19 nightly is green. Under 16,000
-+  characters. Refresh the tracker snapshot.
++  Bring `.claude/active_work.md` to the state after this session: #150 built, reviewed and merged
++  as !209 (2026-09-19, after the data build was retried green against the fresh prod table); #155
++  filed (the match preview title collision at full scale); the 2026-09-19 nightly green; the next
++  unit of work is #109 step 3. Under 16,000 characters. Refresh the tracker snapshot.
  
  refs: >
 -  CPO in chat, 2026-09-18: "merged, #150 first", answering the recommendation "#150 first; the
@@ -46,16 +45,16 @@ index 3a03ce3c..1641b85a 100644
  
  decisions_reserved:
 -  - none.
-+  - none: every open question is on !209's head for the CPO; this commit records state.
++  - none: !209 is merged, its head was his check; this commit records state.
  
  done_when:
 -  - `.claude/active_work.md` names #150 as next and #109 step 3 after it; the badge and token items are no longer listed as open; `len()` under 16,000.
-+  - `.claude/active_work.md` names !209 as open with its three questions, #155 as filed, #109 step 3 as next after a green nightly; `len()` under 16,000.
++  - `.claude/active_work.md` names !209 as merged, #155 as filed, the 2026-09-19 nightly as green and #109 step 3 as next; `len()` under 16,000.
 +  - `python -m pytest tests/test_no_dead_issue_refs.py -q` green; `python scripts/snapshot_tracker.py` run and its output committed.
  
--amendments:
+ amendments:
 -  - 2026-09-18, after `test:python` failed on !208: `tests/test_no_dead_issue_refs.py` added to scope. Its `DEAD_GITHUB_ISSUES` list began at 154; GitLab issued #154 today (the runbook rewrite), so the handover's reference tripped the guard. The test's own assertion text prescribes the fix — remove a number only when GitLab has genuinely issued it — and the self-test that pins the guard fires is moved to the next dead number. No other change to the test.
-+amendments: (none)
++  - 2026-09-19, no path added: the CPO merged !209 while this handover was open, so the handover's top paragraph is rewritten from "open, three questions on the head" to "merged"; the copy shipped as drafted and the merge is the ruling on it; the 2026-09-19 nightly succeeded, so #109 step 3 is unblocked.
 diff --git a/tests/test_no_dead_issue_refs.py b/tests/test_no_dead_issue_refs.py
 index 59b26997..d24c8790 100644
 --- a/tests/test_no_dead_issue_refs.py
@@ -117,7 +116,9 @@ index 59b26997..d24c8790 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          | 117 ++++++++++++++++++++--------------------
+#   .claude/active_work.md          | 114 +++++++++++++++++++-------------------
+#    .claude/task/review.md          |  31 ++++++-----
+#    .claude/task/review_input.patch | 118 ++++++++++++++++++++--------------------
 #    docs/tracker/gitlab_snapshot.md |  62 ++++++++++++++++++++-
-#    2 files changed, 120 insertions(+), 59 deletions(-)
+#    4 files changed, 194 insertions(+), 131 deletions(-)
 # ============================================================================

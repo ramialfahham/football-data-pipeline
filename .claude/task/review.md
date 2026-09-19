@@ -1,8 +1,11 @@
 # Review — chore/handover-150-open — 2026-09-19
 
-diff_sha256: bbdceb17799453038fe8c90f028746836c175435a1a0f854bd7a1ebf87e90cae
+diff_sha256: 8bb86835e9c7130c2c2f4ed1b7e71cfb873a736da633e6e9a809a41817a10c5d
 
-rounds: 1
+rounds: 2
+
+Round 2 (delta): !209 merged while this handover was open; the top paragraph and the contract's
+objective say "merged", the nightly green, #109 step 3 next. No code; the test file is unchanged.
 
 ## scope-auditor
 VERDICT: PASS
@@ -12,8 +15,8 @@ risks_checked:
 - `decisions_taken: None` is accurate: the guard loses 155 by its own remove-when-issued rule
   (253 → 252, floor 155 → 156, the self-test literals moved); no product decision in the handover.
 - CPO attribution: the three rulings named are paraphrases of what !209's head and contract record;
-  nothing new put in his mouth; the "next" pointer (#150 open as !209, #109 step 3 after a green
-  nightly) matches the contract.
+  nothing new put in his mouth; the "next" pointer matches the contract. Round 2: the merge is
+  the only new fact and it is stated as the merge ("his merge is the ruling on it"), not as words.
 
 ## platform-reviewer
 VERDICT: PASS

@@ -22,18 +22,15 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#150 IS BUILT AND OPEN AS !209 (2026-09-19); NEXT = #109 STEP 3, in a fresh chat, ONCE THE
-2026-09-19 04:00 UTC NIGHTLY IS GREEN** (read it first: `gcloud run jobs executions list --job
-fdp-nightly --region europe-west1 --limit 2`; red is diagnosed before anything else). !209's head
-carries what he decides: the EN/DE/FI copy (Schedule/Spielplan/Otteluohjelma, Nächster, Offen,
-Avoin, the titles), whether #150 waits on **#155**, and the recommendation (no). Its rulings in chat
-on 2026-09-18, recorded in its contract: the plan approved; **the match slug comes from the
-warehouse** (kick-off date + the two team slugs; the Python builder deleted, 37 spellings
-corrected); **played rows are inert until the match report page exists**. !209's first pipeline:
-every job green except `data:build:mr`, whose build of the new mart and its 28 tests passed and
-whose two failures are `mart_next_matchday`'s own singular tests deferred to a day-old prod table
-(the red 09-18 nightly) — **retry that job after the green nightly**, nothing to chase in the MR.
-**Do not merge, do not touch the branch: his merge is the approval.**
+**#150 IS MERGED (!209, 2026-09-19); THE 2026-09-19 NIGHTLY WAS GREEN (04:00 to 05:23 UTC); NEXT =
+#109 STEP 3, in a fresh chat, plan mode, contract first** (the plan is below under #109). !209's
+rulings, in chat on 2026-09-18 and recorded in its contract: the plan approved; **the match slug
+comes from the warehouse** (kick-off date + the two team slugs; the Python builder deleted, 37
+spellings corrected); **played rows are inert until the match report page exists**. The EN/DE/FI
+copy shipped as drafted (Schedule/Spielplan/Otteluohjelma, Nächster, Offen, Avoin, the titles); his
+merge is the ruling on it. `data:build:main` after the merge builds `mart_competition_fixtures`
+in prod; until the next `deploy:export` (manual, still `teams,fixtures`) production shows the
+committed sample, as it does for Home. **#150 is not blocked on #155** (his merge decided it).
 
 **#155 (filed 2026-09-19, Matches milestone): two unplayed meetings of the same clubs share the
 match preview page's title**, 12 pairings × 3 locales; the full-scale build (15,078 match pages,
