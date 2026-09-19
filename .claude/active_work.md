@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-18**, on `chore/handover-next-is-150`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-19**, on `chore/handover-150-open`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,11 +22,32 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**NEXT = #150, THE COMPETITION PAGE'S MATCHDAYS TAB, in a fresh chat** — his ruling 2026-09-18,
-"#150 first", ahead of #109 step 3. Plan mode; contract first; the design is #129's approved text
-and the block standard, the check is the arbiter (below); the display reviewer routes on
-`site_v2/src/**`. **At the start of that chat, read the 2026-09-19 04:00 UTC nightly** (the first
-after !202): green clears #109 step 3 to follow the builds; red is diagnosed first.
+**#150 IS BUILT AND OPEN AS !209 (2026-09-19); NEXT = #109 STEP 3, in a fresh chat, ONCE THE
+2026-09-19 04:00 UTC NIGHTLY IS GREEN** (read it first: `gcloud run jobs executions list --job
+fdp-nightly --region europe-west1 --limit 2`; red is diagnosed before anything else). !209's head
+carries what he decides: the EN/DE/FI copy (Schedule/Spielplan/Otteluohjelma, Nächster, Offen,
+Avoin, the titles), whether #150 waits on **#155**, and the recommendation (no). Its rulings in chat
+on 2026-09-18, recorded in its contract: the plan approved; **the match slug comes from the
+warehouse** (kick-off date + the two team slugs; the Python builder deleted, 37 spellings
+corrected); **played rows are inert until the match report page exists**. !209's first pipeline:
+every job green except `data:build:mr`, whose build of the new mart and its 28 tests passed and
+whose two failures are `mart_next_matchday`'s own singular tests deferred to a day-old prod table
+(the red 09-18 nightly) — **retry that job after the green nightly**, nothing to chase in the MR.
+**Do not merge, do not touch the branch: his merge is the approval.**
+
+**#155 (filed 2026-09-19, Matches milestone): two unplayed meetings of the same clubs share the
+match preview page's title**, 12 pairings × 3 locales; the full-scale build (15,078 match pages,
+8 GB heap, 14 min, no out-of-memory) fails `audit-seo` on exactly that and nothing else; #150's
+new `check-built-pages` (match pages = payloads × locales = the warehouse's unplayed count) is
+what found it. The title's wording is his; the fix is the fixture page's title template.
+
+**What #150 left behind:** `mart_competition_fixtures` (`fixture_slug`, `fixture_order`,
+`is_next_round` read from mart_next_matchday) is the mart #131 reads by date; the shared row is
+`site_v2/src/components/ui/MatchRow.astro` (`linkPlayed` flips when #132's report page lands;
+Home's `FixtureRow.astro` still has its own markup — converge under #131); the sample carries all
+279 unplayed Bundesliga payloads (`.gitignore` range 1575167–1575445; move its start as matchdays
+are played, refresh with `competitions/BL1/2026.json`). The new mart's `home/away_team_sk` have
+`not_null` but no `relationships` to dim_team — one line for step 3's `relationships` sweep.
 
 **GITHUB IS A READ-ONLY MIRROR OF `main` SINCE 2026-09-18** (his ruling; !204, !206, !207 merged —
 `CLAUDE.md`'s mirror bullet is the durable text, including what the token's renewal needs).
@@ -36,50 +57,36 @@ each sync; still never the base, never pushed to. Pipelines stay members-only (h
 README carries a static `CI · GitLab` badge. The runbook rewrite (operations guide and development
 workflow still describe GitHub Actions as live CI) is **#154**, unscheduled.
 
-**#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED** (!195, !196, !198): the block standard
-`docs/wireframes/block_standard.md`, `system.css`, the lint `scripts/check_page_css.py`, the
-measured check `scripts/check_design_inventory.py`, `validate:ui` running all three on every MR.
-**#150/#151 do not merge until the check passes on their pages and on Home.** ⚠ The commit gate
-runs from the project root: a `git worktree` commit is judged against the MAIN tree's index —
-rebind a sibling branch from the main tree, stashing by explicit path.
+**#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED** (!195, !196, !198): the block standard,
+`system.css`, the lint, the measured check, `validate:ui` running all three on every MR.
+**#151 does not merge until the check passes on its pages and on Home** (!209 did).
 
-**#109, THE DBT TESTING STRATEGY, IS TWO STEPS OF THREE DONE — STEP 3 FOLLOWS #150, in a fresh chat.**
-Step 1 (!201, merged): the connective rules in `dbt_project/docs/engineering_standards.md` §3.1–3.5
-(the column class decides the tests; a rate is one definition gated by its inputs, a range test on
-every rate, the guard generated from the catalogue; severity by one question, "would a fan see a
-wrong number"; `store_failures` on every singular test; what holds each rule). The census behind
-them is a comment on #109. Step 2 (!202, merged): the two rate guards in `dbt_project/tests/
-assert_*_rates_inputs_covered.sql`, generated at run time from `metric_catalogue.csv`, the first
-tests with `store_failures`; every rate gated on the coverage count of each of its inputs (about
-1,200 form windows and 1,500 team-seasons went to "—", correctly). The nightly of
-2026-09-18 had failed on `shots_on_goal_pct` > 1 — that gate is fixed; **the 2026-09-19 nightly
-must be green before step 3 starts** (see the top of this section). **Step 3, the plan is §3.5
-and the census:** `store_failures`
-on the other 49 singular tests; a range test on the 92 rates without one; the severity audit of
+**#109, THE DBT TESTING STRATEGY, IS TWO STEPS OF THREE DONE — STEP 3 IS NEXT, in a fresh chat.**
+Step 1 (!201): the connective rules in `dbt_project/docs/engineering_standards.md` §3.1–3.5 (the
+column class decides the tests; a rate is one definition gated by its inputs, a range test on every
+rate; severity by "would a fan see a wrong number"; `store_failures` on every singular test); the
+census is a comment on #109. Step 2 (!202): the two rate guards `dbt_project/tests/
+assert_*_rates_inputs_covered.sql`, generated from `metric_catalogue.csv` (about 1,200 form windows
+and 1,500 team-seasons went to "—", correctly); the 09-18 nightly's `shots_on_goal_pct` > 1 is what
+it fixed. **Step 3, the plan is §3.5 and the census:** `store_failures` on the other 49 singular tests; a range test on the 92 rates without one; the severity audit of
 the 941 `error` tests under §3.3; the three remaining mechanisms — every listed column described
 (365 undescribed today; a rule to add to `check_description_hygiene.py`), a yml-vs-projection
 check, a `relationships` sweep of the `_sk` columns. Plan mode; contract first; the warehouse
 reviewer routes on `dbt_project/**`.
 
-**One default still open, merged as a default:** the breadcrumb's current-page colour keeps the
-site's (the page you are on `ink-2`, links muted; the mocks had it inverted); its inventory row is
-`proposed` — measured, never fails — until he rules. The 2026-09-17 rulings (the two heading
-lines, the table's head rule only, the DE tab label "Rankings") are written into #129. ⚠ **A ruling
-request is ONE question, then a 2×2 table (page × variant → file), then the recommendation** —
-four files with a caption got "What am I supposed to decide?"; his answer may split by context.
+**One default still open, merged as a default:** the breadcrumb's current-page colour (`ink-2`,
+links muted; the mocks had it inverted); its inventory row is `proposed` until he rules. ⚠ **A
+ruling request is ONE question, then a 2×2 table (page × variant → file), then the recommendation.**
 
-**THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.**
-#129's `The approved design` is the text: three tabs, Overview · Matchdays · Rankings. **Build
-issues, gated on #153:** **#150** Matchdays · **#151** Rankings + the Overview rework · **#152**
-metric groups; Home's corrections on **#127**. The page-wide rules live in the block standard and
+**THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.** **Build
+issues:** **#150** Matchdays (!209) · **#151** Rankings + the Overview rework · **#152** metric
+groups. The page-wide rules live in the block standard and
 `system.css`, measured — the builds compose from them and add nothing of their own.
 
-**The measured check is the arbiter now.** `python scripts/check_design_inventory.py --dist
-site_v2/dist` (build first; park any untracked export payload under `site_v2/src/data/` or the
-SEO audit refuses the build); `--no-built` for the mocks alone. An element not in
-`block_standard.md` is a design decision: put to him and rendered on every page it touches before
-it is ruled. `gen_competitions.py` (#54's index) is off the pages list until it runs against
-today's registry.
+**The measured check is the arbiter.** `python scripts/check_design_inventory.py --dist
+site_v2/dist` (build first; park untracked export payloads under `site_v2/src/data/` or the SEO
+audit refuses the build). An element not in `block_standard.md` is a design decision: put to him
+and rendered on every page it touches before it is ruled.
 
 **HOME IS DONE (#127, `!187`) and THE COMPETITIONS HUB (#128, `!189`).** Go-live items (About,
 Imprint) have no issue — his call. **The roadmap is the GitLab milestones in the site's menu
@@ -96,23 +103,19 @@ right after the hook opens the MR. **The stop gate blocks a turn ending with any
 `git stash`**; parked work goes on a pushed `parked/<branch>` (ten exist, half dead).
 
 **Parked, real, not lost:** the built player Overview tab is on `parked/feat/player-overview-tab`
-(stash commit; untracked files in its third parent — `git stash apply parked/feat/player-overview-tab`)
-and carries a KNOWN-WRONG default-season rule (see #118). The four-tab decision (2026-07-27) is
-preserved on `archive/docs-handover-player-tabs-and-seo` and recorded in #118.
+(`git stash apply` it; a KNOWN-WRONG default-season rule, see #118); the four-tab decision is on
+`archive/docs-handover-player-tabs-and-seo` and recorded in #118.
 
-⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`** — where a metric is defined, which
-model computes it, what makes it NULL, what CI fails you on. A metric is NULL unless its inputs
-cover every match in the window; a thinly covered competition showing blank is correct output.
+⛔ **BEFORE TOUCHING ANY METRIC, READ `docs/metric_layer.md`.** A metric is NULL unless its
+inputs cover every match in the window; a thinly covered competition showing blank is correct.
 
 ⚠ **THE VOLUME IS THE PROBLEM** (*"A wallpaper of text"*; *"Explain like I'm twelve. Keep it
-short."*). The decision and the consequence, two sentences; process detail stays in the repo.
-Commit, push, retry, rebase and regenerate WITHOUT asking; keep working.
+short."*). The decision and the consequence, two sentences. Commit, push, retry, rebase and
+regenerate WITHOUT asking; keep working.
 
-⚠ **THE NIGHTLY WAS RED ON 2026-09-17 AND 2026-09-18, both handled** (a stale `2H` fixture that
-cleared itself; `shots_on_goal_pct` > 1 from a one-input provider payload, fixed by !202). A red
-nightly with `severity: error` skips every dependent mart, and an MR's
-`data:build:mr` then fails the singular tests it defers to prod — retry them after a green
-nightly, do not chase them in the MR.
+⚠ **THE NIGHTLY WAS RED ON 2026-09-17 AND 2026-09-18, both handled** (a stale `2H` fixture;
+`shots_on_goal_pct` > 1, fixed by !202). A red nightly skips every dependent mart, and an MR's
+`data:build:mr` then fails the singular tests it defers to prod — retry after a green nightly.
 
 ## ⛔ WHAT 2026-09-08 CHANGED IN PROD — read before trusting an older measurement
 
