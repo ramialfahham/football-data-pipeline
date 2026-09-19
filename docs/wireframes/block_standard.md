@@ -56,6 +56,7 @@
 | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 12px muted | `font-size=12px; color=muted` | ruled | #129 Rankings |
 | Board spacing | `.board + .board` | 26px between boards | `gap(prev)=26px` | ruled | #40, #41 (the shipped board) |
 | Legacy board value | `.brow .v b` | the built Home's boards until #127 rebuilds them as single-value tables: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+| Schedule block | `.md > section` | the Matchdays tab's only block, under its round's picker line: its name, then the date heading per day and the match rows; one round's block on screen at a time, no script | `visible=1; margin-top=36px` | ruled | #129 Matchdays |
 | Match row name | `.fxrow .side .nm` | a club's name, 15px ink, wraps and never truncates | `font-size=15px; color=ink; white-space=normal` | ruled | #50 |
 | Match row kick-off | `.fxrow .when .t` | the kick-off in the venue's clock, 16px bold ink; "TBC" when no time | `font-size=16px; font-weight=700; color=ink` | ruled | #50; #129 Matchdays; #146 |
 | Match row zone | `.fxrow .when .rowtz` | the zone label under the kick-off, on every unplayed row, 10.5px muted | `font-size=10.5px; color=muted` | ruled | #50; #146 |
@@ -105,6 +106,7 @@ and `gen_taxonomy.py` are diagrams.
 | Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value |
 | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link |
 | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar |
+| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
 | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading |
 | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar |
 | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |

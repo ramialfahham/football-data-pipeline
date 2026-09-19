@@ -14,16 +14,20 @@ That trap sprang once inside this branch's own life. The allowlist in `.gitignor
 `site_v2/src/data/**` block — is the authoritative list of what is tracked. (It is cited by block
 rather than by line range: the range written here was `249-270`, and it had already rotted.)
 
-Tracked today, 9 files:
+Tracked today (count with `git ls-files site_v2/src/data`; the number written here has been wrong before): the
+four root files below, the Bundesliga competition payload, 283 fixture payloads, 36 team payloads.
 
 - `competition_index.json` — the competitions index page's payload (#62 step 5), produced
   verbatim by `python scripts/export_site_data.py --entities competition_index`. All **48**
   browsable rows from `mart_competition_index` — small enough to commit whole rather than sample.
   Refreshed the same way as the others below: rerun the export, replace the file, in one commit.
-- `fixtures/*.json` — **4** real exported fixtures, produced verbatim by
-  `python scripts/export_site_data.py --entities fixtures`. They are exactly the matches
-  `landing.json` links to: the **2026-09-01** matchday, 4 fixtures across 3 competitions
-  (`CIT` ×2, `DFBP`, `SPL`).
+- `fixtures/*.json` — real exported fixtures, produced verbatim by
+  `python scripts/export_site_data.py --entities fixtures`. Two sets: the **4** matches
+  `landing.json` links to (the **2026-09-01** matchday, 4 fixtures across 3 competitions:
+  `CIT` ×2, `DFBP`, `SPL`), and every unplayed Bundesliga 2026/27 fixture (**279**, ids 1575167 to
+  1575445), because every unplayed row of the competition sample's Matchdays tab links to its match
+  page and the build refuses a link to a page it did not emit. Refresh the second set together with
+  `competitions/BL1/2026.json` and move the `.gitignore` range's start as matchdays are played.
   ⭐ **A deliberately thin set, and the CPO ruled it acceptable** — "we're doing infrastructure work
   and don't show anything now", so the sample is a BUILD INPUT, not a display. What matters is
   whether it still exercises the components, which was MEASURED before committing to it, not hoped:

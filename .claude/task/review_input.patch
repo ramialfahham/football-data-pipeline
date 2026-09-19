@@ -1,108 +1,2378 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 548919d1..3a03ce3c 100644
+index 3a03ce3c..88ea7644 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,35 +1,34 @@
--# Task contract — CLAUDE.md: what the mirror token needs when it is renewed
-+# Task contract — handover: next is #150, then #109 step 3; the mirror items are closed
+@@ -1,34 +1,129 @@
+-# Task contract — handover: next is #150, then #109 step 3; the mirror items are closed
++# Task contract — #150: the competition page's Matchdays tab
  
  objective: >
--  One sentence added to the GitHub-mirror bullet in `CLAUDE.md`: the token is a fine-grained
--  personal access token, it expires, and its replacement needs Contents AND Workflows
--  read/write on the one repository — without Workflows GitHub rejects the mirror push because
--  `.github/workflows/README.md` counts as a workflow. Today that fact lives only in the
--  handover, which is rewritten every session.
-+  Bring `.claude/active_work.md` to the state after the CPO's ruling of 2026-09-18, "#150 first":
-+  the next unit of work is #150 (competition page, Matchdays tab) in a fresh chat, plan mode; #109
-+  step 3 follows it, still gated on the 2026-09-19 nightly being green; the README badge (!206) and
-+  the token note (!207) are merged, the runbook rewrite is #154. Under 16,000 characters.
+-  Bring `.claude/active_work.md` to the state after the CPO's ruling of 2026-09-18, "#150 first":
+-  the next unit of work is #150 (competition page, Matchdays tab) in a fresh chat, plan mode; #109
+-  step 3 follows it, still gated on the 2026-09-19 nightly being green; the README badge (!206) and
+-  the token note (!207) are merged, the runbook rewrite is #154. Under 16,000 characters.
++  Build the competition page's Matchdays tab as approved on #129 ("The approved design", "Matchdays
++  tab", CPO 2026-09-16): the competition-season fixtures mart, the fixtures list on the competition
++  payload, the tab page at /{lang}/{competition}/fixtures/ with the picker and the Schedule block, the
++  build check that every unplayed match has a page, the nightly read measured, the copy, the documents.
  
  refs: >
--  CPO in chat, 2026-09-18: "go ahead as recommended", to the recommendation "one sentence in
--  the mirror bullet of `CLAUDE.md`". The rejection itself was observed on the first mirror
--  sync, 2026-09-18 (`refusing to allow a Personal Access Token to create or update workflow
--  .github/workflows/README.md without workflow scope`).
-+  CPO in chat, 2026-09-18: "merged, #150 first", answering the recommendation "#150 first; the
-+  nightly check is a two-minute read at the start of whichever chat comes first, and step 3 can
-+  follow the builds". !206, !207 merged 2026-09-18; #154 filed 2026-09-18.
+-  CPO in chat, 2026-09-18: "merged, #150 first", answering the recommendation "#150 first; the
+-  nightly check is a two-minute read at the start of whichever chat comes first, and step 3 can
+-  follow the builds". !206, !207 merged 2026-09-18; #154 filed 2026-09-18.
++  #150 (the build issue; its What exactly is the requirement); #129 "Matchdays tab — approved" and
++  "Rules that bind every block on every tab"; docs/wireframes/block_standard.md (Matchday picker,
++  Picker title, Picker arrow, Tag, Date heading, Match row *, Block heading gap, Row link);
++  design-mocks/renders/competition-matchdays_2026-09-16_01.html (the render of record); the plan
++  approved in chat 2026-09-18 (steps 1–5, one step's evidence before the next starts).
  
  scope_paths:
--  - CLAUDE.md
-+  - .claude/active_work.md
-+  - tests/test_no_dead_issue_refs.py
+-  - .claude/active_work.md
+-  - tests/test_no_dead_issue_refs.py
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_mart_competition_fixtures_one_row_per_fixture.sql
++  - dbt_project/tests/assert_mart_competition_fixtures_next_round_is_one_round.sql
++  - dbt_project/tests/assert_mart_competition_fixtures_team_slugs_resolve.sql
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
++  - tests/test_export_landing.py
++  - site_v2/src/pages/[[]lang]/[[]competition]/fixtures/index.astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
++  - site_v2/src/specs/competition/fixtures/index.spec.json
++  - site_v2/src/specs/competition/index.spec.json
++  - site_v2/src/components/competition/CompetitionTabs.astro
++  - site_v2/src/components/competition/MatchdaySchedule.astro
++  - site_v2/src/components/ui/MatchRow.astro
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/types.ts
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - site_v2/scripts/audit-seo.mjs
++  - site_v2/scripts/audit-seo.test.mjs
++  - site_v2/integrations/built-pages.mjs
++  - site_v2/astro.config.mjs
++  - site_v2/src/data/competitions/BL1/2026.json
++  - site_v2/src/data/fixtures/*.json
++  - site_v2/src/data/README.md
++  - .gitignore
++  - docs/wireframes/block_standard.md
++  - docs/wireframes/00_overview.md
++  - docs/site_architecture.md
++  - docs/content_architecture.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
++
++impact_map: >
++  writers: the new mart is a leaf written by dbt only; it reads fct_fixture, dim_team,
++    int_legs__team_match (the played definition, by semi-join, not restated) and mart_next_matchday
++    (the flag, by left join; mart-to-mart refs are established: mart_team_profile, mart_matchday_insights).
++    mart_next_matchday is unchanged.
++  downstream: `dbt ls --select mart_competition_fixtures+ --resource-type model` →
++    `football_data_pipeline.5_marts.shared.mart_competition_fixtures` alone (no downstream model);
++    the full `dbt ls --select mart_competition_fixtures+` lists the model, its three singular tests
++    (assert_mart_competition_fixtures_next_round_is_one_round, _one_row_per_fixture,
++    _team_slugs_resolve) and its schema tests (accepted_values x3, not_null x15, unique, relationships
++    to fct_fixture, competition_fixtures_played_has_a_score, _top_match_is_in_the_next_round,
++    _slug_unique_per_competition, _order_unique_per_season). Leaf mart. The export's competition
++    payload gains a key; the fixture slug the export writes at every call site is read from the mart.
++  layer_rules: marts select and present; league_code on every row; materialisation per layer config,
++    nothing per model (check_layer_contract.py).
++  deploy_order: additive. A new table and new tests; the nightly builds it after merge; until then the
++    committed sample carries its output, produced by the fetch with the compiled SQL inlined against
++    prod, read-only (the method !191 used).
++  blast_radius: no shipped number changes. Fixture slugs: 37 of 3,344 team names spell differently
++    under the ruled slug (measured 2026-09-18 on dim_team); the site is unpublished and noindex.
++
++acceptance_criteria:
++  - /en/bundesliga/fixtures/, /de/bundesliga/fixtures/ and /fi/bundesliga/fixtures/ are emitted with the Overview's header and tab bar, no sentence, and the breadcrumb Home › Competitions › Bundesliga (a link to /{lang}/bundesliga/) › the tab label.
++  - On the built page exactly one `.md-in` radio is checked and it belongs to the round whose picker carries the Next tag; each picker's arrows are labels for the neighbouring rounds; the first round's previous arrow and the last round's next arrow are `.step.off`.
++  - The picker is its own line under the tab bar and the Schedule block's `.sechead` follows it; `check_design_inventory.py --dist site_v2/dist` measures Block heading gap 14px, Matchday picker visible=1 with a 2px line, Picker arrow 34px, Tag, Date heading and Match row kick-off on the built page at 375px and 700px in EN and FI, and passes on Home and the Overview.
++  - Every unplayed row is `a.fxrow` with href /{lang}/bundesliga/matches/{fixture_slug}/ and the build emits that page (audit-seo's dead-link check green); played rows follow the step-3 ruling recorded in amendments.
++  - A played row shows both scores with the winner's goals `.g.winner`; an unplayed row shows the kick-off in UTC with the zone label `.rowtz`; a `TBD` fixture shows the TBC copy in the time slot.
++  - The flagged match of the next round carries the Top match tag before its kick-off; no other row on the page does.
++  - check-built-pages fails the build when the count of emitted match pages differs from fixture payloads × locales, or from the export's manifest when one is present; shown red once with a payload removed, then green.
++  - Every new label resolves in EN, DE and FI (check_copy_gate.py green) and the copy is listed on the MR for the CPO's ruling.
  
  decisions_taken: >
--  The home is `CLAUDE.md`, not `.github/workflows/README.md`: the same bullet already says
--  where the token lives and who handles it, and it is not a protected path. The expiry date is
--  not written — a date in a durable file goes stale; the sentence says the token expires and
--  where the date is read (GitLab's mirror row shows a red error when it lapses).
-+  None. The handover's "next" pointer and the mirror paragraph rewritten to what he decided and
-+  merged; the tracker snapshot is not regenerated because the previous handover commit regenerated
-+  it minutes ago and the only tracker change since is #154, which the snapshot at the next session
-+  end will carry.
+-  None. The handover's "next" pointer and the mirror paragraph rewritten to what he decided and
+-  merged; the tracker snapshot is not regenerated because the previous handover commit regenerated
+-  it minutes ago and the only tracker change since is #154, which the snapshot at the next session
+-  end will carry.
++  The fixture slug (CPO, in chat 2026-09-18, on the two paths put with the measurement): "Warehouse,
++  from the team slugs" — slug = kickoff UTC date + home team_slug + "-vs-" + away team_slug, one column
++  on the new mart; every fixture slug the export writes reads it, and the Python fixture_slug() goes.
++  The round shown in the picker: "Matchday {n}" for a domestic league, n = the trailing integer of the
++  provider's round text — the derivation int_legs__team_match already carries as round_order, computed
++  in the warehouse (the mart's round_order, the shared doc block's name); every other competition
++  kind shows the provider's round text until #148 lands and replaces both. Rounds are ordered by the
++  round's first kick-off (the mart's round_sequence), which is what "round order" means before #148.
++  The winner's bold score is the larger of the two served goal values, a formatting comparison of
++  two displayed numbers, not a result derivation (no W/D/L, no perspective).
++  The mock generator design-mocks/gen_competition_matchdays.py is already tracked and in the block
++  standard's Pages table (#153 item 5); it renders the approved design from real data and is not
++  touched here.
++  is_next_round: mart_next_matchday's round, read from that mart (every fixture of the round it
++  serves, played or not), never re-derived; a test recomputes the league-wide rule from fct_fixture
++  and asserts every mart_next_matchday fixture is flagged. fixture_order is the served reading order
++  (rounds in sequence, each by kick-off); the export orders by it and by nothing else. Which round opens: the flagged round, else the last
++  round with a played fixture, else the first — a display default over served flags, no value derived.
++  The played definition is not restated: a fixture is played when int_legs__team_match holds a leg
++  for it. Kick-off in UTC with the label "UTC" until #146; the raw season year in the title until #105.
++  THRESHOLD, NEW MECHANISM (for cto-reviewer): a build-done check, check-built-pages, wired like
++  audit-seo, that counts match pages against the fixture payloads and the export's manifest and asserts
++  the fixtures page's row and radio invariants.
++  THRESHOLD, RECURRING COST (for cto-reviewer): the export's reads for every unplayed match are
++  measured by dry run and put on the MR with the number before any full-scale run; the deploy export
++  is not widened by this task.
  
  decisions_reserved:
-   - none.
+-  - none.
++  - Copy: "Schedule / Spielplan / Otteluohjelma" and "Top match / Topspiel / Huippuottelu" are #129's; "Next" as a tag (DE "Nächster", not the existing fxNext "Nächstes"), "TBC / Offen / Avoin", the page title and description are drafts, listed on the MR for his ruling.
++  - The number: bytes and dollars per night for the full-scale export, before it runs at scale.
  
  done_when:
--  - `git diff --stat gitlab/main -- CLAUDE.md` shows one bullet changed; the added text names both permissions and the reason.
--  - `python -m pytest tests/test_governance_doc_parity.py tests/test_no_dead_issue_refs.py -q` green.
-+  - `.claude/active_work.md` names #150 as next and #109 step 3 after it; the badge and token items are no longer listed as open; `len()` under 16,000.
+-  - `.claude/active_work.md` names #150 as next and #109 step 3 after it; the badge and token items are no longer listed as open; `len()` under 16,000.
++  - dbt parse clean; SQLFluff clean on every changed model and test; the three singular tests run against prod with the compiled SQL inlined, each RED under a mutation first; data:build:mr green.
++  - pytest tests -q green; node --test green in site_v2; check-page-specs OK; check_copy_gate.py green.
++  - astro build of the committed sample green through audit-seo and check-built-pages; check_page_css.py and check_design_inventory.py --dist site_v2/dist green on every page; tests/test_design_inventory.py green.
++  - Blinded review: analytics-engineer, platform, bi-analyst, cto (the two thresholds), scope-auditor; review.md carries the --staged-hash; the MR head set right after the hook opens it.
  
--amendments: (none)
-+amendments:
-+  - 2026-09-18, after `test:python` failed on !208: `tests/test_no_dead_issue_refs.py` added to scope. Its `DEAD_GITHUB_ISSUES` list began at 154; GitLab issued #154 today (the runbook rewrite), so the handover's reference tripped the guard. The test's own assertion text prescribes the fix — remove a number only when GitLab has genuinely issued it — and the self-test that pins the guard fires is moved to the next dead number. No other change to the test.
-diff --git a/tests/test_no_dead_issue_refs.py b/tests/test_no_dead_issue_refs.py
-index d947b6c6..59b26997 100644
---- a/tests/test_no_dead_issue_refs.py
-+++ b/tests/test_no_dead_issue_refs.py
-@@ -59,7 +59,7 @@ INSTRUCTING_FILES = ("CLAUDE.md", ".claude/active_work.md")
+ amendments:
+-  - 2026-09-18, after `test:python` failed on !208: `tests/test_no_dead_issue_refs.py` added to scope. Its `DEAD_GITHUB_ISSUES` list began at 154; GitLab issued #154 today (the runbook rewrite), so the handover's reference tripped the guard. The test's own assertion text prescribes the fix — remove a number only when GitLab has genuinely issued it — and the self-test that pins the guard fires is moved to the next dead number. No other change to the test.
++  - 2026-09-19, review round 1: + docs/wireframes/00_overview.md — authority: CLAUDE.md names it the owner of the design chain's reading order, and #129's ruling of 2026-09-16 (three tabs, Overview · Matchdays · Rankings) plus the built state (#149 Overview, #150 Matchdays) are what the two sibling documents this branch already updated record; its competition-page row still names four tabs and the 2026-09-15 ruling. One row edited, nothing else. Same round: the impact_map's downstream field now carries the pasted `dbt ls` output (scope-auditor); the export orders rows by a served `fixture_order` column instead of a Python comparator, `is_next_round` is read from mart_next_matchday's round instead of re-derived, and `fixture_slug`'s description no longer names a null case (analytics-engineer); the built-pages check matches a row's class in any attribute order and the allowlist range starts at 1575167 exactly (platform). Round 2: the yml block of fixture_order had swallowed is_match_that_matters's tests under a duplicated key (analytics-engineer); the tests are back under their column, fixture_order carries not_null, and the pasted count above is 15 not_null.
++  - 2026-09-19, step 4, no path added: the full-scale build (every unplayed match, 15,078 match pages, the deploy job's heap) does not run out of memory and the page-count check passes on it; it fails audit-seo on one pre-existing defect of the match preview page (two meetings of the same clubs share one title, 12 pairings x 3 locales), filed as its own GitLab issue in the Matches milestone the same day. Whether #150 is blocked on it is the CPO's call, put on the MR; nothing of that page is touched here.
++  - 2026-09-19, step 3: + site_v2/scripts/audit-seo.mjs, + site_v2/scripts/audit-seo.test.mjs — authority: #129 header ("The header never changes with the tab (crest · name · meta line) … the browser title carries the page's long name for search") against the audit's check 5, which fails two pages of one locale sharing an h1; the audit's own comment says the h1 "renders the entity name", and a tab page renders the same entity. The assertion is NARROWED, not removed: an h1 may repeat only between a page and a page one path segment beneath it (an entity page and its tab); every other repeat still fails, and the test pins both sides.
++  - 2026-09-19, step 3: + site_v2/src/pages/[lang]/[competition]/index.astro (the Overview page) — authority: #150's What exactly ("the Overview's header and tab bar (three tabs …; this tab lit"), #129 header ("each a standalone page with an identical header and tab bar"): the shared tab bar links the built tabs both ways, so the Overview passes the competition slug and whether the fixtures page is emitted to the tab component. Two props on one component call; nothing else on the page changes.
++  - 2026-09-18, before step 3, no path added: the played rows. #129 says every row is a link (a played match to the match report page #132 designs); the build fails a link to a page it did not emit, and no played match has a page yet. Put to the CPO with three paths; his ruling: "Inert until the report page exists" — played rows show the score and are not links, unplayed rows link to their preview page, the row component carries one switch that flips when the report page lands. The acceptance criterion "played rows follow the step-3 ruling" is this.
++  - 2026-09-18, before step 2: + tests/test_export_landing.py — authority: the CPO's slug ruling of the same day ("Warehouse, from the team slugs": every fixture slug the export writes reads the warehouse's, the Python fixture_slug() goes); content: the landing test that pinned the Python spelling of the slug now pins that the served slug is carried through. No other change to the file.
+diff --git a/.gitignore b/.gitignore
+index 5334b186..aaeb573d 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -334,18 +334,17 @@ site_v2/src/data/fixtures/*.json
+ !site_v2/src/data/fixtures/1603007.json
+ !site_v2/src/data/fixtures/1628894.json
+ !site_v2/src/data/fixtures/1629056.json
+-# The Bundesliga's Matchday 4 (2026-09-18 to 20): the nine rows of the committed competition page
+-# sample's Next matches block, each a link to its match page (GitLab #149). The same replace-never-
+-# add rule as the set above; refresh together with competitions/BL1/2026.json.
+-!site_v2/src/data/fixtures/1575167.json
+-!site_v2/src/data/fixtures/1575168.json
+-!site_v2/src/data/fixtures/1575169.json
+-!site_v2/src/data/fixtures/1575170.json
+-!site_v2/src/data/fixtures/1575171.json
+-!site_v2/src/data/fixtures/1575172.json
+-!site_v2/src/data/fixtures/1575173.json
+-!site_v2/src/data/fixtures/1575174.json
+-!site_v2/src/data/fixtures/1575175.json
++# Every unplayed Bundesliga 2026/27 fixture, matchdays 4 to 34 (ids 1575167 to 1575445, one
++# contiguous range): every unplayed row of the committed competition page sample's Matchdays tab
++# is a link to its match page, and the Overview's Next matches rows are the first nine of them
++# (GitLab #149, #150). The same replace-never-add rule as the set above; refresh together with
++# competitions/BL1/2026.json, and move the range's start as matchdays are played.
++!site_v2/src/data/fixtures/157516[7-9].json
++!site_v2/src/data/fixtures/15751[7-9][0-9].json
++!site_v2/src/data/fixtures/15752[0-9][0-9].json
++!site_v2/src/data/fixtures/15753[0-9][0-9].json
++!site_v2/src/data/fixtures/15754[0-3][0-9].json
++!site_v2/src/data/fixtures/157544[0-5].json
+ # The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
+ # matchdays. Every competition the index lists gets a page; only this one carries content in the
+ # committed build, and the 18 teams and 9 fixtures above are what it links to.
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+new file mode 100644
+index 00000000..225be1b7
+--- /dev/null
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -0,0 +1,139 @@
++{#
++  mart_competition_fixtures — every match of a competition-season, played and unplayed, one row
++  per fixture, with both teams named and linked and the round it belongs to. The competition
++  page's Matchdays tab shows one competition-season of it, one round at a time; the export reads
++  the table whole and groups the rows by round.
++
++  Rounds. round_name is the provider's label. round_order is its trailing integer — a league's
++  matchday; null for a named cup round. round_sequence ranks a competition-season's rounds by
++  their first kick-off, the order the tab steps through them; a postponed match keeps its round,
++  so a straggler played late does not move its round.
++
++  Played. A fixture with a finished leg in int_legs__team_match — the one definition of a result
++  (full time, after extra time, on penalties, or awarded), never restated here.
++
++  is_next_round is mart_next_matchday's round, not a second derivation: every fixture of the
++  round that mart serves for the competition is flagged, played or not, so this table and the Home
++  page can never name different next matchdays. is_match_that_matters is that mart's flag carried
++  over, false on every other row. fixture_order is the reading order of a competition-season's
++  rows, rounds in sequence and each round by kick-off, so nothing downstream sorts.
++
++  fixture_slug is the match's permanent URL segment: the kick-off date, the home team's slug,
++  "-vs-", the away team's slug — the two published team slugs, so a team is spelt the same in its
++  own URL and in every match URL. A fixture whose team is unknown to dim_team gets no slug and
++  fails the tests, which name it, instead of the build inventing a URL.
++
++  Grain: fixture_sk. league_code discriminates the competition and is not a BigQuery partition
++  or cluster key.
++#}
++
++with fixtures as (
++    select
++        fixture_sk,
++        league_code,
++        season_api_year,
++        round_name,
++        kickoff_datetime,
++        fixture_date,
++        status_short,
++        goals_home,
++        goals_away,
++        home_team_sk,
++        away_team_sk
++    from {{ ref('fct_fixture') }}
++),
++
++teams as (
++    select
++        team_sk,
++        team_name,
++        team_slug,
++        team_logo_url
++    from {{ ref('dim_team') }}
++),
++
++played as (
++    select distinct fixture_sk
++    from {{ ref('int_legs__team_match') }}
++),
++
++flagged as (
++    select
++        fixture_sk,
++        is_match_that_matters
++    from {{ ref('mart_next_matchday') }}
++),
++
++next_round as (
++    select distinct
++        league_code,
++        season_api_year,
++        round_name
++    from {{ ref('mart_next_matchday') }}
++),
++
++rounds as (
++    select
++        league_code,
++        season_api_year,
++        round_name,
++        dense_rank() over (
++            partition by league_code, season_api_year
++            order by min(kickoff_datetime) asc, round_name asc
++        ) as round_sequence
++    from fixtures
++    group by league_code, season_api_year, round_name
++)
++
++select
++    f.fixture_sk,
++    f.league_code,
++    f.season_api_year,
++    f.round_name,
++    r.round_sequence,
++    f.kickoff_datetime,
++    f.fixture_date,
++    f.status_short,
++    f.goals_home,
++    f.goals_away,
++    f.home_team_sk,
++    h.team_name as home_team_name,
++    h.team_slug as home_team_slug,
++    h.team_logo_url as home_team_logo_url,
++    f.away_team_sk,
++    a.team_name as away_team_name,
++    a.team_slug as away_team_slug,
++    a.team_logo_url as away_team_logo_url,
++    safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
++    p.fixture_sk is not null as is_played,
++    case
++        when h.team_slug is not null and a.team_slug is not null
++            then concat(
++                format_date('%Y-%m-%d', f.fixture_date), '-', h.team_slug, '-vs-', a.team_slug
++            )
++    end as fixture_slug,
++    n.round_name is not null as is_next_round,
++    coalesce(m.is_match_that_matters, false) as is_match_that_matters,
++    row_number() over (
++        partition by f.league_code, f.season_api_year
++        order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
++    ) as fixture_order
++from fixtures as f
++inner join rounds as r
++    on
++        f.league_code = r.league_code
++        and f.season_api_year = r.season_api_year
++        and f.round_name = r.round_name
++left join teams as h
++    on f.home_team_sk = h.team_sk
++left join teams as a
++    on f.away_team_sk = a.team_sk
++left join played as p
++    on f.fixture_sk = p.fixture_sk
++left join flagged as m
++    on f.fixture_sk = m.fixture_sk
++left join next_round as n
++    on
++        f.league_code = n.league_code
++        and f.season_api_year = n.season_api_year
++        and f.round_name = n.round_name
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 6692f65c..f05d69ba 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -2261,6 +2261,122 @@ models:
+               values: [true, false]
+               quote: false
  
- # Every GitHub-era issue number this repo still refers to. Closed set — see the module docstring.
- DEAD_GITHUB_ISSUES = frozenset({
--    *range(154, 157), 163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
-+    *range(155, 157), 163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
-     *range(217, 229), *range(232, 241), 247, *range(250, 263), 264, 266, 268, 272,
-     *range(276, 297), 299, *range(307, 315), *range(316, 330), 331, *range(361, 371), 372,
-     *range(374, 378), 391, *range(401, 404), 405, *range(407, 429), 430, *range(433, 435),
-@@ -119,7 +119,7 @@ def test_the_guard_can_actually_fire():
-     CSS colour in `docs/roles/ui_expert.md` cannot be mistaken for an issue.
-     """
-     assert _dead_refs("the authority is #753") == [753]
--    assert _dead_refs("see #154 and #156") == [154, 156]
-+    assert _dead_refs("see #155 and #156") == [155, 156]
-     # GitLab issues, live: #33 is the cost/scalability plan, #115 the context cleanup.
-     assert _dead_refs("#33 and #114 and #115 are live") == []
-     # The trailing-hex guard: a six-digit CSS colour is not issue 475569.
-@@ -202,8 +202,8 @@ def test_no_member_of_the_dead_set_can_be_removed_quietly():
-     digest = hashlib.sha256(
-         ",".join(str(n) for n in sorted(DEAD_GITHUB_ISSUES)).encode()
-     ).hexdigest()
--    assert len(DEAD_GITHUB_ISSUES) == 254 and digest == (
--        "8d434ce634c9b2c12094861f838f970480b1de49f273917d6e33c0dce2f349af"
-+    assert len(DEAD_GITHUB_ISSUES) == 253 and digest == (
-+        "5ac5e1d4bc9bc9942a0999d867316e772f2eb263dbf98491c67a9f1872da5618"
-     ), (
-         "DEAD_GITHUB_ISSUES changed. There is exactly one legitimate reason: GitLab has issued a "
-         "number that is in the set, so a live reference was being flagged — remove that ONE entry "
-@@ -216,10 +216,10 @@ def test_the_headroom_before_a_collision_is_stated():
-     """The set is closed, so the only way it goes wrong is GitLab reaching one of these numbers.
++  - name: mart_competition_fixtures
++    description: >
++      Every match of a competition-season, played and unplayed: one row per fixture with both
++      teams named and linked, the round it belongs to, the score once played and the kick-off
++      until then. Grain: fixture_sk.
++
++      Rounds are the provider's labels, ordered within a competition-season by each round's first
++      kick-off; a league round also carries its matchday number. A fixture is played when it has a
++      finished leg in int_legs__team_match, the one definition of a result. The next round is the
++      round of the competition-season's earliest fixture not yet started, by mart_next_matchday's
++      rule, and that mart's match-that-matters flag is carried onto its fixture.
++
++      The fixture slug is the match's permanent URL segment, built from the kick-off date and the
++      two published team slugs. Rebuilt nightly, so the next-round flag is correct as of the
++      morning it was built.
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "medium"
++    config:
++      tags: ["marts", "football", "fixtures"]
++    tests:
++      - dbt_utils.expression_is_true:
++          expression: "not is_played or (goals_home is not null and goals_away is not null)"
++          name: competition_fixtures_played_has_a_score
++      - dbt_utils.expression_is_true:
++          expression: "not is_match_that_matters or is_next_round"
++          name: competition_fixtures_top_match_is_in_the_next_round
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, fixture_slug]
++          name: competition_fixtures_slug_unique_per_competition
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season_api_year, fixture_order]
++          name: competition_fixtures_order_unique_per_season
++    columns:
++      - name: fixture_sk
++        description: "{{ doc('fixture_sk') }}"
++        tests:
++          - not_null
++          - unique
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: round_name
++        description: "The provider's round label, e.g. Regular Season - 4 or Round of 32."
++        tests: [not_null]
++      - name: round_order
++        description: "{{ doc('round_order') }}"
++      - name: round_sequence
++        description: "The round's rank among the competition-season's rounds, ordered by each round's first kick-off, 1 first. A postponed match keeps its round, so a match played late does not move its round."
++        tests: [not_null]
++      - name: kickoff_datetime
++        description: "{{ doc('kickoff_datetime') }}"
++        tests: [not_null]
++      - name: fixture_date
++        description: "{{ doc('fixture_date') }}"
++        tests: [not_null]
++      - name: status_short
++        description: "{{ doc('status_short') }}"
++        tests: [not_null]
++      - name: is_played
++        description: "True when the fixture has a result: a finished leg in int_legs__team_match, which counts full time, extra time, penalties and an awarded result. A played fixture carries both scores."
++        tests:
++          - not_null
++          - accepted_values:
++              values: [true, false]
++              quote: false
++      - name: goals_home
++        description: "Final-time goals scored by the home team; null until the fixture is played."
++      - name: goals_away
++        description: "Final-time goals scored by the away team; null until the fixture is played."
++      - name: home_team_sk
++        description: "{{ doc('home_team_sk') }}"
++        tests: [not_null]
++      - name: home_team_name
++        description: "The home team's display name from dim_team."
++      - name: home_team_slug
++        description: "The home team's permanent URL segment from dim_team."
++      - name: home_team_logo_url
++        description: "The home team's crest URL from dim_team."
++      - name: away_team_sk
++        description: "{{ doc('away_team_sk') }}"
++        tests: [not_null]
++      - name: away_team_name
++        description: "The away team's display name from dim_team."
++      - name: away_team_slug
++        description: "The away team's permanent URL segment from dim_team."
++      - name: away_team_logo_url
++        description: "The away team's crest URL from dim_team."
++      - name: fixture_slug
++        description: "The match's permanent URL segment: the kick-off date, the home team's slug, -vs-, the away team's slug, e.g. YYYY-MM-DD-bayern-munchen-vs-1-fc-union-berlin. Present on every row: both teams resolve on dim_team, whose slug is never null."
++        tests: [not_null]
++      - name: is_next_round
++        description: "True on every fixture, played or not, of the round mart_next_matchday serves as the competition's next matchday; false on every other row, including every row of a competition with no upcoming fixture."
++        tests:
++          - not_null
++          - accepted_values:
++              values: [true, false]
++              quote: false
++      - name: is_match_that_matters
++        description: "mart_next_matchday's flag on the one fixture of the next round whose two teams have the lowest sum of table positions; false on every other row."
++        tests:
++          - not_null
++          - accepted_values:
++              values: [true, false]
++              quote: false
++      - name: fixture_order
++        description: "The reading order of the competition-season's fixtures, 1 first: rounds in their sequence, and within a round by kick-off. Consumers render rows in this order and sort nothing."
++        tests: [not_null]
++
+   - name: mart_team_fixtures
+     description: >
+       Every fixture from one team's perspective, upcoming and finished alike. Each fixture appears
+diff --git a/dbt_project/tests/assert_mart_competition_fixtures_next_round_is_one_round.sql b/dbt_project/tests/assert_mart_competition_fixtures_next_round_is_one_round.sql
+new file mode 100644
+index 00000000..76e9da8e
+--- /dev/null
++++ b/dbt_project/tests/assert_mart_competition_fixtures_next_round_is_one_round.sql
+@@ -0,0 +1,103 @@
++-- is_next_round on mart_competition_fixtures is exactly mart_next_matchday's round, whole: for a
++-- competition with an upcoming fixture in fct_fixture the flag sits on one (season, round), it is
++-- the round of that competition's earliest fixture not yet started — the rule mart_next_matchday
++-- applies, league-wide, not per season — and it sits on every fixture of that round, played or
++-- not; a competition with no upcoming fixture has no flag; and every fixture mart_next_matchday
++-- serves is flagged, so the two marts never disagree on the next matchday.
++--
++-- Recomputed from fct_fixture, not from either mart's CTEs, so a rewrite that flags per season,
++-- flags two rounds, flags a round's unplayed fixtures only, or flags by a calendar window fails
++-- here even when the schema tests stay green.
++--
++-- Returns a row (= fails) per competition where any property does not hold.
++{{ config(store_failures = true) }}
++
++with upcoming as (
++    select
++        fixture_sk,
++        league_code,
++        season_api_year,
++        round_name,
++        fixture_date,
++        kickoff_datetime
++    from {{ ref('fct_fixture') }}
++    where
++        status_short in ('NS', 'TBD')
++        and fixture_date >= current_date()
++),
++
++expected_round as (
++    select
++        league_code,
++        season_api_year,
++        round_name
++    from upcoming
++    qualify row_number() over (
++        partition by league_code
++        order by fixture_date asc, kickoff_datetime asc, fixture_sk asc
++    ) = 1
++),
++
++expected_rows as (
++    select
++        f.league_code,
++        count(*) as n_expected
++    from {{ ref('fct_fixture') }} as f
++    inner join expected_round as e
++        on
++            f.league_code = e.league_code
++            and f.season_api_year = e.season_api_year
++            and f.round_name = e.round_name
++    group by f.league_code
++),
++
++served as (
++    select
++        league_code,
++        count(distinct if(is_next_round, concat(season_api_year, ' ', round_name), null)) as n_rounds,
++        min(if(is_next_round, season_api_year, null)) as served_season,
++        min(if(is_next_round, round_name, null)) as served_round,
++        countif(is_next_round) as n_served
++    from {{ ref('mart_competition_fixtures') }}
++    group by league_code
++),
++
++home_page_rows as (
++    select
++        n.league_code,
++        countif(not coalesce(c.is_next_round, false)) as n_unflagged
++    from {{ ref('mart_next_matchday') }} as n
++    left join {{ ref('mart_competition_fixtures') }} as c
++        on n.fixture_sk = c.fixture_sk
++    group by n.league_code
++)
++
++select
++    s.league_code,
++    e.season_api_year as expected_season,
++    e.round_name as expected_round,
++    s.served_season,
++    s.served_round,
++    s.n_rounds,
++    x.n_expected,
++    s.n_served,
++    coalesce(h.n_unflagged, 0) as n_home_page_rows_unflagged
++from served as s
++left join expected_round as e
++    on s.league_code = e.league_code
++left join expected_rows as x
++    on s.league_code = x.league_code
++left join home_page_rows as h
++    on s.league_code = h.league_code
++where
++    (e.round_name is null and s.n_served != 0)
++    or (
++        e.round_name is not null
++        and (
++            s.n_rounds != 1
++            or s.served_season != e.season_api_year
++            or s.served_round != e.round_name
++            or s.n_served != x.n_expected
++        )
++    )
++    or coalesce(h.n_unflagged, 0) != 0
+diff --git a/dbt_project/tests/assert_mart_competition_fixtures_one_row_per_fixture.sql b/dbt_project/tests/assert_mart_competition_fixtures_one_row_per_fixture.sql
+new file mode 100644
+index 00000000..d6bc445c
+--- /dev/null
++++ b/dbt_project/tests/assert_mart_competition_fixtures_one_row_per_fixture.sql
+@@ -0,0 +1,32 @@
++-- mart_competition_fixtures is fct_fixture, whole: every fixture of every competition-season is
++-- in it exactly once and nothing else is. A filter on status, a season cap or a join that drops a
++-- fixture with an unknown team fails here even when the mart's unique test stays green.
++--
++-- Returns a row (= fails) per fixture missing from the mart, present in the mart but not in
++-- fct_fixture, or served more than once.
++{{ config(store_failures = true) }}
++
++with expected as (
++    select fixture_sk
++    from {{ ref('fct_fixture') }}
++),
++
++served as (
++    select
++        fixture_sk,
++        count(*) as n_served
++    from {{ ref('mart_competition_fixtures') }}
++    group by fixture_sk
++)
++
++select
++    coalesce(e.fixture_sk, s.fixture_sk) as fixture_sk,
++    e.fixture_sk is not null as in_fct_fixture,
++    coalesce(s.n_served, 0) as n_served
++from expected as e
++full outer join served as s
++    on e.fixture_sk = s.fixture_sk
++where
++    e.fixture_sk is null
++    or s.fixture_sk is null
++    or s.n_served != 1
+diff --git a/dbt_project/tests/assert_mart_competition_fixtures_team_slugs_resolve.sql b/dbt_project/tests/assert_mart_competition_fixtures_team_slugs_resolve.sql
+new file mode 100644
+index 00000000..295cf323
+--- /dev/null
++++ b/dbt_project/tests/assert_mart_competition_fixtures_team_slugs_resolve.sql
+@@ -0,0 +1,49 @@
++-- Every row of mart_competition_fixtures links both teams by the slug dim_team publishes, and the
++-- fixture slug is composed of exactly those two slugs and the kick-off date. A team missing from
++-- dim_team, a slug carried from anywhere but the dim, or a fixture slug built by another rule
++-- fails here; the frontend links only what resolves.
++--
++-- Returns a row (= fails) per fixture whose team slugs or fixture slug do not resolve.
++{{ config(store_failures = true) }}
++
++with dim as (
++    select
++        team_sk,
++        team_slug
++    from {{ ref('dim_team') }}
++),
++
++served as (
++    select
++        fixture_sk,
++        fixture_date,
++        home_team_sk,
++        away_team_sk,
++        home_team_slug,
++        away_team_slug,
++        fixture_slug
++    from {{ ref('mart_competition_fixtures') }}
++)
++
++select
++    s.fixture_sk,
++    s.home_team_sk,
++    s.away_team_sk,
++    s.home_team_slug,
++    s.away_team_slug,
++    s.fixture_slug,
++    h.team_slug as expected_home_slug,
++    a.team_slug as expected_away_slug
++from served as s
++left join dim as h
++    on s.home_team_sk = h.team_sk
++left join dim as a
++    on s.away_team_sk = a.team_sk
++where
++    h.team_slug is null
++    or a.team_slug is null
++    or s.home_team_slug is distinct from h.team_slug
++    or s.away_team_slug is distinct from a.team_slug
++    or s.fixture_slug is distinct from concat(
++        format_date('%Y-%m-%d', s.fixture_date), '-', h.team_slug, '-vs-', a.team_slug
++    )
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+index d97e8fcf..3045f44d 100644
+--- a/docs/content_architecture.md
++++ b/docs/content_architecture.md
+@@ -81,7 +81,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
+ | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
+ | **Facts** | Fact row (label · value · context) — the season in numbers | comp | `mart_competition_season_summary` + the flag on `mart_next_matchday` | ✓ built on the competition page (#149); the block type recurs on team, player and match pages |
+ | **Schedule** | Upcoming / Results | team, player | `mart_team_fixtures` (filter) | ✓ (team fixtures #607) |
+-| | Matchday schedule | comp | fixtures by round (derive) | ~ |
++| | Matchday schedule | comp | mart_competition_fixtures (every fixture of the competition-season, by round; the next-round and top-match flags) | ✓ built on the competition page's Matchdays tab (#150) |
+ | **Listings** | Squad / roster | team→players | `mart_roster` + `mart_player_career` (per-player season stats) | ✓ (Squad tab BUILT 2026-07-24: roster identity + per-player apps/mins-per-app/goals/assists joined from `mart_player_career`; #619 wired the roster, GAP-22 the stats) |
+ | | Team directory | comp→teams | `dim_team_competition_season_mapping` | ✓ source |
+ | | Player career (clubs + per-comp totals) | player | `mart_player_career` | ✓ wired (#634; screen 13 spec'd #632) — backfill effectively done (5–10 seasons deep) |
+@@ -121,7 +121,7 @@ full wireframe specs in `docs/wireframes/` already describe in prose — not a r
+ |---|---|
+ | **Team** | **Overview** (header + form + season highlights + standing + next + key players + deserved-vs-actual teaser) · **Matches** (upcoming + results) · **Stats** (season per-game + vs-benchmark + season-over-season + deserved-vs-actual + streaks) · **Squad** (roster + per-player apps/mins-per-app/goals/assists) · **History** (past-season records, all-time, coach) |
+ | **Player** | **Overview** (header + form + season highlights + position + next) · **Matches** (log → fixture) · **Stats** (season per-game + percentile-vs-peers + season-over-season) · **Career** (clubs + per-competition totals + caps) |
+-| **Competition** | **Overview** (header + table + next matchday + deserved points + the season in numbers) · **Matchdays** (every round, results and upcoming; "Rounds" for a cup) · **Teams** (deserved points in full + top-3 team boards) · **Players** (top-3 player boards) — ruled on GitLab #129, 2026-09-15; the Overview is built (#149), the other three are reviewed there before they are built |
++| **Competition** | **Overview** (header + table + next matchday + deserved points + the season in numbers) · **Matchdays** (every round, results and upcoming, one round at a time; "Rounds" for a cup) · **Rankings** (team boards and player boards under metric groups) — ruled on GitLab #129, 2026-09-16 (three tabs, superseding the four of 2026-09-15); the Overview is built (#149), Matchdays is built (#150), Rankings is #151 |
+ | **Coach** | **Overview** (current club + clubs managed) |
+ | **Fixture** | match preview + key players + (post-match) fixture stats + lineups |
+ | **Home** | fixtures-first (next matches; Top players + Top teams specified, not built) |
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 035973f1..fa566664 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -43,7 +43,8 @@ All pages live under a locale prefix. Trailing slashes; lowercase kebab-case slu
+ /{locale}/football/{country-slug}/                           country hub (e.g. /football/germany/)
+ /{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
+ /{locale}/{competition-slug}/{season-slug}/                  competition season archive
+-/{locale}/{competition-slug}/<tab>/                          the Matchdays, Teams and Players tabs — each a standalone page; its URL is ruled with that tab's review on GitLab #129 (the earlier /table/, /fixtures/, /top-scorers/ rows are superseded by the four-tab ruling of 2026-09-15)
++/{locale}/{competition-slug}/fixtures/                       competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup) — the same segment for every kind of competition and every locale, ruled with the tab's review on GitLab #129 (built by #150)
++/{locale}/{competition-slug}/<tab>/                          the Rankings tab — a standalone page; its URL is ruled with that tab's review on GitLab #129
+ /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report)
+ /{locale}/teams/{team-slug}/                                 team profile
+ /{locale}/players/{player-slug}/                             player profile
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 43e4fc74..15d13712 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -135,7 +135,7 @@ not made here. See 09_chrome.md §10 for the full note.
+ | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
+ | 02 | [02_team_profile.md](02_team_profile.md) | Team profile ⭐ | **spec'd** | 2 |
+ | 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
+-| 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Teams · Players | **Overview approved on GitLab #129** (2026-09-15, "The approved design") — the authority for the page; #149 builds the Overview tab. No wireframe file: the issue's block list and its data-model table are the field contract. The three other tabs are reviewed on #129 before they are built | 3 |
++| 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** (2026-09-16, "The approved design", three tabs superseding the four of 2026-09-15) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149) and the Matchdays tab at /fixtures/ (#150); the Rankings tab is #151 | 3 |
+ | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
+ | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
+ | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 7086cc44..729ca569 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -56,6 +56,7 @@
+ | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 12px muted | `font-size=12px; color=muted` | ruled | #129 Rankings |
+ | Board spacing | `.board + .board` | 26px between boards | `gap(prev)=26px` | ruled | #40, #41 (the shipped board) |
+ | Legacy board value | `.brow .v b` | the built Home's boards until #127 rebuilds them as single-value tables: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
++| Schedule block | `.md > section` | the Matchdays tab's only block, under its round's picker line: its name, then the date heading per day and the match rows; one round's block on screen at a time, no script | `visible=1; margin-top=36px` | ruled | #129 Matchdays |
+ | Match row name | `.fxrow .side .nm` | a club's name, 15px ink, wraps and never truncates | `font-size=15px; color=ink; white-space=normal` | ruled | #50 |
+ | Match row kick-off | `.fxrow .when .t` | the kick-off in the venue's clock, 16px bold ink; "TBC" when no time | `font-size=16px; font-weight=700; color=ink` | ruled | #50; #129 Matchdays; #146 |
+ | Match row zone | `.fxrow .when .rowtz` | the zone label under the kick-off, on every unplayed row, 10.5px muted | `font-size=10.5px; color=muted` | ruled | #50; #146 |
+@@ -105,6 +106,7 @@ and `gen_taxonomy.py` are diagrams.
+ | Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value |
+ | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link |
+ | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar |
++| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+ | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar |
+ | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 7644861b..4802db8b 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -139,16 +139,25 @@ def player_slug_with_id(name: str | None, entity_id: int) -> str:
+     return f"{base}-{entity_id}" if base else str(entity_id)
  
-     GitLab was at #115 when the set was enumerated and the lowest dead number was #151, so there
--    were 35 issues of headroom. GitLab has since reached #151 and #153 (the Rankings build issue
--    and the design-system issue), both entries are gone, and the floor is #154. Pinning both ends makes the collision arrive as a named test
--    failure rather than as a
-+    were 35 issues of headroom. GitLab has since reached #151, #153 and #154 (the Rankings build
-+    issue, the design-system issue, the runbook rewrite), those entries are gone, and the floor is
-+    #155. Pinning both ends makes the collision arrive as a named test failure rather than as a
-     confusing false positive on a live reference.
-     """
--    assert min(DEAD_GITHUB_ISSUES) == 154
-+    assert min(DEAD_GITHUB_ISSUES) == 155
-     assert 115 not in DEAD_GITHUB_ISSUES, "GitLab #115 is the context-cleanup issue and is live"
+ 
+-def fixture_slug(kickoff, home_name: str | None, away_name: str | None, fixture_id: int) -> str:
+-    """Fixture URL slug: ``{yyyy-mm-dd}-{home}-vs-{away}`` (arch doc section 3).
+-
+-    Falls back to the fixture id when names/date are missing so it is always unique.
+-    """
+-    date = str(kickoff)[:10] if kickoff else ""
+-    home, away = _kebab(home_name), _kebab(away_name)
+-    if date and home and away:
+-        return f"{date}-{home}-vs-{away}"
+-    return f"fixture-{fixture_id}"
++def group_fixtures_by_round(rows: list[dict]) -> list[dict]:
++    """A competition-season's fixtures as the Matchdays tab reads them: one entry per round, the
++    rows in the warehouse's fixture_order (rounds in sequence, each round by kick-off), so the
++    round order and the row order are both served. Every value is a served column of
++    mart_competition_fixtures; the slug is the warehouse's, the played flag and the two matchday
++    flags are carried through. Nothing is selected, ranked or computed here."""
++    rounds: dict = {}
++    for r in sorted(rows, key=lambda r: r["fixture_order"]):
++        rnd = rounds.setdefault(r["round"], {
++            "round": r["round"],
++            "round_order": r.get("round_order"),
++            "round_sequence": r.get("round_sequence"),
++            "is_next_round": bool(r.get("is_next_round")),
++            "fixtures": [],
++        })
++        rnd["fixtures"].append({k: v for k, v in r.items()
++                                if k not in ("round", "round_order", "round_sequence", "is_next_round",
++                                             "fixture_order")})
++    return list(rounds.values())
+ 
+ 
+ def _drop(row: dict, keys: set[str]) -> dict:
+@@ -637,13 +646,13 @@ def _team_ref(team: dict | None) -> dict:
+     }
+ 
+ 
+-def _fixture_ref(kickoff, round_name, home: dict | None, away: dict | None,
++def _fixture_ref(slug: str | None, kickoff, round_name, home: dict | None, away: dict | None,
+                  fixture_id: int, goals_home=None, goals_away=None) -> dict:
+-    """A match the page names and links: slug, kickoff, round, both sides, the score if played."""
++    """A match the page names and links: the served slug, kickoff, round, both sides, the score
++    if played. The slug is mart_competition_fixtures' fixture_slug, never built here."""
+     ref = {
+         "fixture_id": fixture_id,
+-        "slug": fixture_slug(kickoff, (home or {}).get("team_name"), (away or {}).get("team_name"),
+-                             fixture_id),
++        "slug": slug,
+         "kickoff": kickoff,
+         "round": round_name,
+         "home": _team_ref(home),
+@@ -655,10 +664,11 @@ def _fixture_ref(kickoff, round_name, home: dict | None, away: dict | None,
+     return ref
+ 
+ 
+-def shape_season_summary(row: dict | None, teams: dict) -> dict | None:
++def shape_season_summary(row: dict | None, teams: dict, slugs: dict) -> dict | None:
+     """One competition-season's headline facts, each team and fixture resolved to what a page
+     needs to name and link it. A null fact stays null: the page renders no row for it. No number
+-    is computed here — every value is a column of mart_competition_season_summary."""
++    is computed here — every value is a column of mart_competition_season_summary, and a match's
++    slug is looked up by fixture_sk in `slugs`, the served fixture_slug column."""
+     if not row:
+         return None
+ 
+@@ -666,6 +676,7 @@ def shape_season_summary(row: dict | None, teams: dict) -> dict | None:
+         if row.get(f"{prefix}_fixture_sk") is None:
+             return None
+         return _fixture_ref(
++            slugs.get(int(row[f"{prefix}_fixture_sk"])),
+             row.get(f"{prefix}_kickoff_datetime"), row.get(f"{prefix}_round_name"),
+             teams.get(int(row[f"{prefix}_home_team_sk"])) if row.get(f"{prefix}_home_team_sk") is not None else None,
+             teams.get(int(row[f"{prefix}_away_team_sk"])) if row.get(f"{prefix}_away_team_sk") is not None else None,
+@@ -694,10 +705,12 @@ def shape_season_summary(row: dict | None, teams: dict) -> dict | None:
+ 
+ def shape_competition_payload(league_code: str, season: int, meta: dict,
+                               standings: list[dict], next_matchday: list[dict],
+-                              deserved: list[dict], summary: dict | None) -> dict:
++                              deserved: list[dict], summary: dict | None,
++                              fixtures: list[dict] | None = None) -> dict:
+     """A competition-season page: header facts, the standings sections, the next matchday, the
+-    deserved-points rows and the season summary. Selection and ordering by served columns only:
+-    standings by section then rank, the matchday by kickoff, deserved rows by the served gap rank."""
++    deserved-points rows, the season summary and every fixture of the season by round. Selection
++    and ordering by served columns only: standings by section then rank, the matchday by kickoff,
++    deserved rows by the served gap rank, rounds by the served round sequence."""
+     meta = meta or {}
+     return {
+         "type": "competition",
+@@ -719,6 +732,7 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
+             key=lambda r: r["deserved_points_gap_rank"],
+         ),
+         "summary": summary,
++        "fixtures": group_fixtures_by_round(fixtures or []),
+     }
+ 
+ 
+@@ -727,15 +741,12 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
+     """The fixture page payload: header + both teams' form/standing blocks + the
+     home-vs-away head-to-head record. Composed from the source marts (momentum,
+     season-to-date, standing context, head-to-head) — NOT mart_matchday_insights,
+-    which is the MVP's presentation pivot."""
++    which is the MVP's presentation pivot. The slug is the served fixture_slug."""
+     fid = int(fix["fixture_sk"])
+     return {
+         "type": "fixture",
+         "fixture_id": fid,
+-        "slug": fixture_slug(
+-            fix.get("kickoff_datetime"), fix.get("home_team_name"),
+-            fix.get("away_team_name"), fid,
+-        ),
++        "slug": fix.get("fixture_slug"),
+         "kickoff": fix.get("kickoff_datetime"),
+         "status": fix.get("status_short"),
+         "league_code": fix.get("league_code"),
+@@ -761,15 +772,18 @@ def _strip_identity(row: dict) -> dict:
+     return {k: v for k, v in row.items() if k not in drop}
+ 
+ 
+-def build_manifest(entries: list[dict]) -> dict:
++def build_manifest(entries: list[dict], source_counts: dict | None = None) -> dict:
+     """Export manifest: per-entity type counts + the file index (for incremental
+-    Astro builds — each entry carries a content checksum)."""
++    Astro builds — each entry carries a content checksum). `source_counts` records what the
++    warehouse held when the export ran — today the number of unplayed fixtures — so the site
++    build can prove it carries every one of them, not only every file written."""
+     counts: dict[str, int] = {}
+     for e in entries:
+         counts[e["type"]] = counts.get(e["type"], 0) + 1
+     return {
+         "generated_at": datetime.now(timezone.utc).isoformat(),
+         "counts": counts,
++        "source_counts": dict(source_counts or {}),
+         "entries": entries,
+     }
+ 
+@@ -901,15 +915,23 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
+     ]
+ 
+ 
+-def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
++def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
++    """One payload per unplayed fixture, every competition. The slug is joined from
++    mart_competition_fixtures, the one place a match's URL segment is built. When `source_counts`
++    is given it receives the number of unplayed fixtures the warehouse held before any sampling,
++    for the manifest."""
+     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+     fixtures = _query(client, f"""
+-        select fixture_sk, league_sk, league_code, season_api_year, kickoff_datetime,
+-               round_name, status_short, venue_name_snapshot, home_team_sk, away_team_sk
+-        from `{GCP_PROJECT}.core.fct_fixture`
+-        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
++        select f.fixture_sk, f.league_sk, f.league_code, f.season_api_year, f.kickoff_datetime,
++               f.round_name, f.status_short, f.venue_name_snapshot, f.home_team_sk, f.away_team_sk,
++               c.fixture_slug
++        from `{GCP_PROJECT}.core.fct_fixture` as f
++        inner join `{marts}.mart_competition_fixtures` as c on f.fixture_sk = c.fixture_sk
++        where f.status_short in ('NS', 'TBD') and f.fixture_date >= current_date()
+     """)
+     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
++    if source_counts is not None:
++        source_counts["fixtures_unplayed"] = len(fixtures)
+     if sample:
+         fixtures = fixtures[:sample]
+     if not fixtures:
+@@ -1201,10 +1223,22 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+         (r["league_code"], int(r["season_api_year"])): r
+         for r in _query(client, f"select * from `{marts}.mart_competition_season_summary`")
+     }
++    # Every fixture of every competition-season, whole: the Matchdays tab's rows, and the one
++    # source of a match's slug for every other block that links a match.
++    fixture_rows = _query(client, f"""
++        select fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence,
++               fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away,
++               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
++               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
++               fixture_slug, is_next_round, is_match_that_matters
++        from `{marts}.mart_competition_fixtures`
++    """)
++    fixtures = _group2(fixture_rows, "league_code", "season_api_year")
++    slugs = {int(r["fixture_sk"]): r.get("fixture_slug") for r in fixture_rows}
+ 
+     # A competition-season has a page when any block has something to show: a cup has no
+-    # standings but a next round and a season summary.
+-    combos = sorted(set(standings) | set(matchday) | set(summaries))
++    # standings but a next round, a season summary and its rounds.
++    combos = sorted(set(standings) | set(matchday) | set(summaries) | set(fixtures))
+     if sample:
+         combos = combos[:sample]
+     if not combos:
+@@ -1218,11 +1252,32 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+     def _next(r: dict) -> dict:
+         home = teams.get(int(r["home_team_sk"])) if r.get("home_team_sk") is not None else None
+         away = teams.get(int(r["away_team_sk"])) if r.get("away_team_sk") is not None else None
+-        ref = _fixture_ref(r.get("kickoff_datetime"), r.get("round_name"), home, away,
+-                           int(r["fixture_sk"]))
++        ref = _fixture_ref(slugs.get(int(r["fixture_sk"])), r.get("kickoff_datetime"),
++                           r.get("round_name"), home, away, int(r["fixture_sk"]))
+         ref["is_match_that_matters"] = bool(r.get("is_match_that_matters"))
+         return ref
+ 
++    def _fixture(r: dict) -> dict:
++        return {
++            "fixture_id": int(r["fixture_sk"]),
++            "slug": r.get("fixture_slug"),
++            "kickoff": r.get("kickoff_datetime"),
++            "round": r.get("round_name"),
++            "round_order": r.get("round_order"),
++            "round_sequence": r.get("round_sequence"),
++            "fixture_order": int(r["fixture_order"]),
++            "status": r.get("status_short"),
++            "is_played": bool(r.get("is_played")),
++            "goals_home": r.get("goals_home"),
++            "goals_away": r.get("goals_away"),
++            "home": {"team_id": int(r["home_team_sk"]), "name": r.get("home_team_name"),
++                     "slug": r.get("home_team_slug"), "crest": r.get("home_team_logo_url")},
++            "away": {"team_id": int(r["away_team_sk"]), "name": r.get("away_team_name"),
++                     "slug": r.get("away_team_slug"), "crest": r.get("away_team_logo_url")},
++            "is_next_round": bool(r.get("is_next_round")),
++            "is_match_that_matters": bool(r.get("is_match_that_matters")),
++        }
++
+     def _deserved(r: dict) -> dict:
+         return {
+             **_team_ref(teams.get(int(r["team_sk"]))),
+@@ -1239,7 +1294,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+             [_standing(r) for r in standings.get((lc, season), [])],
+             [_next(r) for r in matchday.get((lc, season), [])],
+             [_deserved(r) for r in deserved.get((lc, season), [])],
+-            shape_season_summary(summaries.get((lc, season)), teams),
++            shape_season_summary(summaries.get((lc, season)), teams, slugs),
++            [_fixture(r) for r in fixtures.get((lc, season), [])],
+         ))
+     return payloads
+ 
+@@ -1323,8 +1379,7 @@ def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict) -> li
+         fixture_id = int(f["fixture_sk"])
+         group["fixtures"].append({
+             "fixture_id": fixture_id,
+-            "slug": fixture_slug(f.get("kickoff_datetime"), (home or {}).get("team_name"),
+-                                 (away or {}).get("team_name"), fixture_id),
++            "slug": f.get("fixture_slug"),
+             "kickoff": f.get("kickoff_datetime"),
+             "round": f.get("round_name"),
+             "home": _landing_side(home),
+@@ -1593,9 +1648,11 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
+     # takes the table whole. The fixture pages use the same upcoming definition the mart does, so
+     # the hero can never advertise a match that has no page.
+     fixtures = _query(client, f"""
+-        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
+-               home_team_sk, away_team_sk
+-        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_next_matchday`
++        select n.fixture_sk, n.league_code, n.season_api_year, n.kickoff_datetime, n.round_name,
++               n.home_team_sk, n.away_team_sk, c.fixture_slug
++        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_next_matchday` as n
++        inner join `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_fixtures` as c
++            on n.fixture_sk = c.fixture_sk
+     """)
+     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
+ 
+@@ -1747,6 +1804,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+     client = client or _client()
+     entries: list[dict] = []
+     slug_map: dict[str, dict] = {}
++    source_counts: dict[str, int] = {}
+ 
+     if "teams" in entities:
+         for p in fetch_team_payloads(client, sample):
+@@ -1759,7 +1817,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+             entries.append(e)
+             slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
+     if "fixtures" in entities:
+-        for p in fetch_fixture_payloads(client, sample):
++        for p in fetch_fixture_payloads(client, sample, source_counts):
+             e = write_entity(out_root, "fixtures", p["fixture_id"], p)
+             entries.append(e)
+             slug_map[p["slug"]] = {"type": "fixture", "id": p["fixture_id"]}
+@@ -1814,7 +1872,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+     (out_root / "slug_map.json").write_text(
+         json.dumps(slug_map, indent=2, ensure_ascii=False), encoding="utf-8"
+     )
+-    manifest = build_manifest(entries)
++    manifest = build_manifest(entries, source_counts)
+     (out_root / "manifest.json").write_text(
+         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+     )
+diff --git a/site_v2/astro.config.mjs b/site_v2/astro.config.mjs
+index fdf2c014..fd7b1f9e 100644
+--- a/site_v2/astro.config.mjs
++++ b/site_v2/astro.config.mjs
+@@ -9,6 +9,7 @@
+ import { defineConfig } from "astro/config";
+ import sitemap from "@astrojs/sitemap";
+ import seoAudit from "./integrations/seo-audit.mjs";
++import builtPages from "./integrations/built-pages.mjs";
+ import { SITEMAP_EXCLUDE } from "./src/config/indexability.mjs";
+ 
+ export default defineConfig({
+@@ -39,5 +40,6 @@ export default defineConfig({
+   integrations: [
+     sitemap({ filter: (page) => !SITEMAP_EXCLUDE.some((re) => re.test(new URL(page).pathname)) }),
+     seoAudit(),
++    builtPages(),
+   ],
+ });
+diff --git a/site_v2/integrations/built-pages.mjs b/site_v2/integrations/built-pages.mjs
+new file mode 100644
+index 00000000..b672a16a
+--- /dev/null
++++ b/site_v2/integrations/built-pages.mjs
+@@ -0,0 +1,27 @@
++// The Astro integration that runs the built-pages check as part of `astro build`, after the SEO
++// audit: the site carries every unplayed match the warehouse holds, and the Matchdays tab keeps
++// its invariants (scripts/check-built-pages.mjs says which). A child process, for the reasons
++// integrations/seo-audit.mjs gives: a fresh heap and a script that stays directly runnable.
++
++import { execFileSync } from "node:child_process";
++import { fileURLToPath } from "node:url";
++import { join } from "node:path";
++
++export default function builtPages() {
++  return {
++    name: "built-pages",
++    hooks: {
++      "astro:build:done": ({ dir }) => {
++        const script = join(fileURLToPath(new URL(".", import.meta.url)), "..", "scripts", "check-built-pages.mjs");
++        try {
++          execFileSync(process.execPath, [script, fileURLToPath(dir)], { stdio: "inherit" });
++        } catch {
++          throw new Error(
++            "built-pages: the build does not carry what the warehouse holds, or a fixtures page breaks " +
++              "its invariants (see the list above). The gate refuses the build rather than shipping it.",
++          );
++        }
++      },
++    },
++  };
++}
+diff --git a/site_v2/scripts/audit-seo.mjs b/site_v2/scripts/audit-seo.mjs
+index c37acb98..f72011ec 100644
+--- a/site_v2/scripts/audit-seo.mjs
++++ b/site_v2/scripts/audit-seo.mjs
+@@ -258,6 +258,14 @@ export function entityKey(path, locales) {
+   return path;
+ }
+ 
++/** True when one path is the other plus exactly one segment: an entity page and one of its tabs. */
++export function isTabOf(a, b) {
++  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
++  if (!long.startsWith(short)) return false;
++  const rest = long.slice(short.length).split("/").filter(Boolean);
++  return rest.length === 1;
++}
++
+ /**
+  * Pure: audit the whole generated set.
+  *
+@@ -340,7 +348,10 @@ export function auditSet(pages, opts) {
+         if (!value) continue;
+         const k = `${l} ${value}`;
+         const first = seen[field].get(k);
+-        if (first && first !== path) add(path, `${field} is not unique within "${l}" — same as ${first}: ${JSON.stringify(value)}`);
++        // The one h1 that may repeat: an entity page and its tab pages share one header by design
++        // (the competition page's Overview and Matchdays); the title carries the tab for search.
++        if (first && first !== path && !(field === "h1" && isTabOf(first, path)))
++          add(path, `${field} is not unique within "${l}" — same as ${first}: ${JSON.stringify(value)}`);
+         else if (!first) seen[field].set(k, path);
+       }
+ 
+diff --git a/site_v2/scripts/audit-seo.test.mjs b/site_v2/scripts/audit-seo.test.mjs
+index 5df5e363..bd224cb0 100644
+--- a/site_v2/scripts/audit-seo.test.mjs
++++ b/site_v2/scripts/audit-seo.test.mjs
+@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
+ import {
+   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
+   specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
+-  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie,
++  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf,
+ } from "./audit-seo.mjs";
+ 
+ const SITE = "https://matchdaypilot.com";
+@@ -219,6 +219,23 @@ test("auditSet: within a locale, a duplicate title/description/h1 is caught", ()
+   assert.ok(issues.some((i) => i.includes('h1 is not unique within "en"')));
+ });
+ 
++test("auditSet: an entity page and its tab page share the h1 by design, and only they do", () => {
++  const tab = (path, title) =>
++    ({ path, head: head({ title, canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, alternates: {} }) });
++  const shared = auditSet([tab("/en/bundesliga/", "Overview"), tab("/en/bundesliga/fixtures/", "Fixtures")], OPTS);
++  assert.ok(!shared.some((i) => i.includes("h1 is not unique")), shared.join("\n"));
++  // the title still has to differ between the two
++  const sameTitle = auditSet([tab("/en/bundesliga/", "T"), tab("/en/bundesliga/fixtures/", "T")], OPTS);
++  assert.ok(sameTitle.some((i) => i.includes('title is not unique within "en"')));
++  // two segments down is not a tab, and a sibling is not a tab
++  const deep = auditSet([tab("/en/bundesliga/", "A"), tab("/en/bundesliga/matches/x/", "B")], OPTS);
++  assert.ok(deep.some((i) => i.includes("h1 is not unique")));
++  const sibling = auditSet([tab("/en/bundesliga/", "A"), tab("/en/premier-league/", "B")], OPTS);
++  assert.ok(sibling.some((i) => i.includes("h1 is not unique")));
++  assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/fixtures/") && isTabOf("/en/bundesliga/fixtures/", "/en/bundesliga/"));
++  assert.ok(!isTabOf("/en/teams/a/", "/en/teams/b/"));
++});
++
+ test("auditSet: JSON-LD must parse, carry the declared @type, and hold no empty values", () => {
+   const opts = { ...OPTS, expectedTypes: { "/teams/x/": "SportsTeam" } };
+ 
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+new file mode 100644
+index 00000000..ae835336
+--- /dev/null
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -0,0 +1,145 @@
++// The built-pages check: proof, on every build, that the site carries what the warehouse holds
++// and that the Matchdays tab keeps its two invariants. Runs at astro:build:done, after the SEO
++// audit, as a child process (integrations/built-pages.mjs), and is directly runnable:
++//
++//   node scripts/check-built-pages.mjs [distDir] [dataDir]
++//
++// 1. Every unplayed match has a page. The emitted match pages equal the fixture payloads times
++//    the locales, and when the export's manifest is present (a full export; the committed sample
++//    carries none) the payloads written equal the unplayed fixtures the warehouse held when the
++//    export ran. A sampled export therefore fails a full build, by design.
++// 2. On every fixtures page exactly one round is checked on load, and it is the round the
++//    warehouse flagged next whenever one is flagged; every unplayed row is a link and no played row
++//    is, until the match report page exists.
++//
++// The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
++// components, and the pure functions below are unit-tested on string literals.
++
++import { existsSync, readdirSync, readFileSync } from "node:fs";
++import { join } from "node:path";
++import { fileURLToPath, pathToFileURL } from "node:url";
++import { readDist } from "./audit-seo.mjs";
++
++export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
++export const DIST_DIR = join(SITE_ROOT, "dist");
++export const DATA_DIR = join(SITE_ROOT, "src", "data");
++export const LOCALES = ["de", "en", "fi"];
++
++export const MATCH_PAGE = /^\/(de|en|fi)\/[^/]+\/matches\/[^/]+\/$/;
++export const FIXTURES_PAGE = /^\/(de|en|fi)\/[^/]+\/fixtures\/$/;
++
++/** Issues for the match-page count against the payloads written and, when present, the manifest. */
++export function checkMatchPageCount({ matchPages, payloadFiles, manifest = null, locales = LOCALES }) {
++  const issues = [];
++  const expected = payloadFiles * locales.length;
++  if (matchPages !== expected) {
++    issues.push(
++      `match pages: ${matchPages} emitted, ${expected} expected (${payloadFiles} fixture payload(s) x ${locales.length} locales)`,
++    );
++  }
++  if (manifest) {
++    const written = manifest.counts?.fixture ?? 0;
++    const held = manifest.source_counts?.fixtures_unplayed;
++    // More files than written is the committed sample sitting beside a full export, not a gap.
++    if (payloadFiles < written) {
++      issues.push(`manifest: ${written} fixture payload(s) written, only ${payloadFiles} on disk`);
++    }
++    if (held === undefined) {
++      issues.push("manifest: no source count of unplayed fixtures, so the build cannot prove it carries them all");
++    } else if (held !== written) {
++      issues.push(`manifest: the warehouse held ${held} unplayed fixture(s), the export wrote ${written}`);
++    }
++  }
++  return issues;
++}
++
++const RE = {
++  round: /<div class="md" data-md="[^"]*">/g,
++  radio: /<input class="md-in"[^>]*>/g,
++  checked: /\schecked(?:=""|\s|>)/,
++  nexttag: /class="nexttag"/,
++  // Attributes in any order: Astro emits the linked row as <a href="…" class="fxrow">.
++  row: /<(a|div)(\s[^>]*)>/g,
++  rowClass: /\sclass="fxrow( played)?"/,
++  href: /\shref="[^"]+"/,
++};
++
++/** Split a fixtures page into its rounds, each the HTML from one `.md` wrapper to the next. */
++export function rounds(html) {
++  const starts = [...html.matchAll(RE.round)].map((m) => m.index);
++  return starts.map((s, i) => html.slice(s, starts[i + 1] ?? html.length));
++}
++
++/** Issues on one fixtures page: the checked round and the row links. */
++export function checkFixturesPage(html, path = "") {
++  const issues = [];
++  const rs = rounds(html);
++  if (rs.length === 0) {
++    issues.push(`${path}: no round on the page`);
++    return issues;
++  }
++  const checked = rs.filter((r) => RE.checked.test(r.match(RE.radio)?.[0] ?? ""));
++  if (checked.length !== 1) {
++    issues.push(`${path}: ${checked.length} round(s) checked on load, expected exactly 1`);
++  }
++  const flagged = rs.filter((r) => RE.nexttag.test(r));
++  if (flagged.length > 1) issues.push(`${path}: ${flagged.length} rounds carry the Next tag`);
++  if (flagged.length === 1 && checked.length === 1 && flagged[0] !== checked[0]) {
++    issues.push(`${path}: the checked round is not the round flagged next`);
++  }
++  for (const m of html.matchAll(RE.row)) {
++    const [, tag, attrs] = m;
++    const cls = attrs.match(RE.rowClass);
++    if (!cls) continue;
++    const played = Boolean(cls[1]);
++    const isLink = tag === "a" && RE.href.test(attrs);
++    if (!played && !isLink) issues.push(`${path}: an unplayed row is not a link`);
++    if (played && isLink) issues.push(`${path}: a played row is a link, but no report page exists`);
++  }
++  return [...new Set(issues)];
++}
++
++export function readManifest(dataDir = DATA_DIR) {
++  const file = join(dataDir, "manifest.json");
++  return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
++}
++
++export function countPayloads(dataDir = DATA_DIR) {
++  const dir = join(dataDir, "fixtures");
++  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).length : 0;
++}
++
++export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
++  if (!existsSync(distDir)) {
++    console.error(`check-built-pages: no build output at ${distDir}`);
++    return 1;
++  }
++  const issues = [];
++  let matchPages = 0;
++  let fixturesPages = 0;
++  for (const { path, html } of readDist(distDir)) {
++    if (MATCH_PAGE.test(path)) matchPages += 1;
++    if (FIXTURES_PAGE.test(path)) {
++      fixturesPages += 1;
++      issues.push(...checkFixturesPage(html, path));
++    }
++  }
++  const payloadFiles = countPayloads(dataDir);
++  const manifest = readManifest(dataDir);
++  issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
++  if (issues.length) {
++    console.error(`check-built-pages: ${issues.length} issue(s)`);
++    for (const i of issues) console.error(`  - ${i}`);
++    return 1;
++  }
++  console.log(
++    `check-built-pages: ${matchPages} match page(s) = ${payloadFiles} payload(s) x ${LOCALES.length}` +
++      (manifest ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed` : " (no manifest: sample build)") +
++      `; ${fixturesPages} fixtures page(s) checked. OK.`,
++  );
++  return 0;
++}
++
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
++  process.exit(main(process.argv[2] ?? DIST_DIR, process.argv[3] ?? DATA_DIR));
++}
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+new file mode 100644
+index 00000000..e9069e1d
+--- /dev/null
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -0,0 +1,85 @@
++// Regression coverage for check-built-pages.mjs. A build gate whose own logic is untested can
++// silently lose a check, and a lost check reads exactly like a clean run. String literals only, no
++// synthetic dist/ tree, for the reasons audit-seo.test.mjs gives.
++
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import {
++  checkFixturesPage, checkMatchPageCount, rounds, FIXTURES_PAGE, MATCH_PAGE,
++} from "./check-built-pages.mjs";
++
++function round(n, { checked = false, next = false, rows = [] } = {}) {
++  const rowHtml = rows
++    .map((r) =>
++      // The attribute order is the one Astro emits (href before class); the check must not care.
++      r === "unplayed"
++        ? '<a href="/en/x/matches/s/" class="fxrow"><span class="sides"></span></a>'
++        : r === "unplayed-inert"
++          ? '<div class="fxrow"><span class="sides"></span></div>'
++          : r === "played"
++            ? '<div class="fxrow played"><span class="sides"></span></div>'
++            : '<a href="/en/x/matches/s/" class="fxrow played"><span class="sides"></span></a>',
++    )
++    .join("");
++  return (
++    `<div class="md" data-md="${n}"><input class="md-in" type="radio" name="md" id="md-${n}"${checked ? " checked" : ""}>` +
++    `<nav class="mdnav"><span class="mdstep"><span class="mdtitle"><b class="num">Matchday ${n}</b>` +
++    `${next ? '<span class="nexttag">Next</span>' : ""}</span></span></nav><section>${rowHtml}</section></div>`
++  );
++}
++
++test("the URL shapes: a match page and a fixtures page, nothing else", () => {
++  assert.ok(MATCH_PAGE.test("/en/bundesliga/matches/2026-09-18-a-vs-b/"));
++  assert.ok(!MATCH_PAGE.test("/en/bundesliga/matches/"));
++  assert.ok(FIXTURES_PAGE.test("/fi/bundesliga/fixtures/"));
++  assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/"));
++  assert.ok(!MATCH_PAGE.test("/en/bundesliga/fixtures/"));
++});
++
++test("match pages equal payloads times locales, and the manifest ties them to the warehouse", () => {
++  assert.deepEqual(checkMatchPageCount({ matchPages: 6, payloadFiles: 2 }), []);
++  assert.match(checkMatchPageCount({ matchPages: 5, payloadFiles: 2 })[0], /5 emitted, 6 expected/);
++  const manifest = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 2 } };
++  assert.deepEqual(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest }), []);
++  const sampled = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 5022 } };
++  assert.match(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest: sampled })[0], /held 5022 .* wrote 2/);
++  const short = { counts: { fixture: 3 }, source_counts: { fixtures_unplayed: 3 } };
++  assert.match(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest: short })[0], /3 fixture payload\(s\) written, only 2 on disk/);
++  // the committed sample beside a full export: more files than written is not a gap
++  const beside = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 2 } };
++  assert.deepEqual(checkMatchPageCount({ matchPages: 9, payloadFiles: 3, manifest: beside }), []);
++  const blind = { counts: { fixture: 2 }, source_counts: {} };
++  assert.match(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest: blind })[0], /no source count/);
++});
++
++test("a fixtures page splits into its rounds", () => {
++  assert.equal(rounds(round(1) + round(2) + round(3)).length, 3);
++  assert.equal(rounds("<html></html>").length, 0);
++});
++
++test("exactly one round is checked and it is the flagged one", () => {
++  const good = round(3, { rows: ["played"] }) + round(4, { checked: true, next: true, rows: ["unplayed"] }) + round(5);
++  assert.deepEqual(checkFixturesPage(good, "/en/x/fixtures/"), []);
++  assert.match(checkFixturesPage(round(3) + round(4, { next: true }), "p")[0], /0 round\(s\) checked/);
++  assert.match(checkFixturesPage(round(3, { checked: true }) + round(4, { checked: true }), "p")[0], /2 round\(s\) checked/);
++  assert.match(checkFixturesPage(round(3, { checked: true }) + round(4, { next: true }), "p")[0], /not the round flagged next/);
++  assert.match(checkFixturesPage(round(3, { next: true }) + round(4, { checked: true, next: true }), "p")[0], /2 rounds carry the Next tag/);
++});
++
++test("no flagged round: any single checked round passes (after or before the season)", () => {
++  assert.deepEqual(checkFixturesPage(round(33, { rows: ["played"] }) + round(34, { checked: true, rows: ["played"] }), "p"), []);
++});
++
++test("every unplayed row is a link and no played row is", () => {
++  assert.deepEqual(checkFixturesPage(round(4, { checked: true, rows: ["unplayed", "unplayed", "played"] }), "p"), []);
++  // the same rows with class before href, and an unrelated <a> and <div> on the page: no difference
++  const swapped = round(4, { checked: true }).replace("<section>",
++    '<section><a class="fxrow" href="/en/x/matches/s/"></a><a class="lnk" href="/en/">Home</a><div class="dh">Fri</div>');
++  assert.deepEqual(checkFixturesPage(swapped, "p"), []);
++  assert.match(checkFixturesPage(round(4, { checked: true, rows: ["unplayed-inert"] }), "p")[0], /an unplayed row is not a link/);
++  assert.match(checkFixturesPage(round(4, { checked: true, rows: ["played-linked"] }), "p")[0], /a played row is a link/);
++});
++
++test("a page with no round at all is an issue, not a pass", () => {
++  assert.match(checkFixturesPage("<html><body></body></html>", "p")[0], /no round on the page/);
++});
+diff --git a/site_v2/src/components/competition/CompetitionTabs.astro b/site_v2/src/components/competition/CompetitionTabs.astro
+index 20672c6c..519f01e6 100644
+--- a/site_v2/src/components/competition/CompetitionTabs.astro
++++ b/site_v2/src/components/competition/CompetitionTabs.astro
+@@ -1,28 +1,47 @@
+ ---
+-// The competition page's tab bar: Overview · Matchdays · Rankings. Each tab is a standalone page;
+-// only the Overview exists, so the other two render as labels without a link until each page is
+-// built — the build refuses a link to a page it did not emit, and a tab's URL is settled with that
+-// tab's review. A cup or tournament reads "Rounds" where a league reads "Matchdays".
++// The competition page's tab bar: Overview · Matchdays · Rankings. Each tab is a standalone page
++// with this same bar; the tab of the page you are on is lit, a built sibling is a link, and a tab
++// whose page is not built (or not emitted for this competition) renders as a label without a link,
++// because the build refuses a link to a page it did not emit. A cup or tournament reads "Rounds"
++// where a league reads "Matchdays".
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
++import { localeHref } from "../../lib/href";
++
++type TabKey = "overview" | "matchdays" | "rankings";
+ 
+ interface Props {
+   lang: Lang;
+   hasMatchdays: boolean;
++  active?: TabKey;
++  competitionSlug?: string | null;
++  hasFixturesPage?: boolean;
+ }
+-const { lang, hasMatchdays } = Astro.props;
++const {
++  lang, hasMatchdays, active = "overview", competitionSlug = null, hasFixturesPage = false,
++} = Astro.props;
+ 
+-const tabs = [
+-  { key: "overview", label: t(lang, "compTabOverview"), active: true },
+-  { key: "matchdays", label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"), active: false },
+-  { key: "rankings", label: t(lang, "compTabRankings"), active: false },
++const tabs: { key: TabKey; label: string; href: string | null }[] = [
++  {
++    key: "overview",
++    label: t(lang, "compTabOverview"),
++    href: competitionSlug ? localeHref(lang, `${competitionSlug}/`) : null,
++  },
++  {
++    key: "matchdays",
++    label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"),
++    href: competitionSlug && hasFixturesPage ? localeHref(lang, `${competitionSlug}/fixtures/`) : null,
++  },
++  { key: "rankings", label: t(lang, "compTabRankings"), href: null },
+ ];
+ ---
+ 
+ <nav class="tabs comp-tabs" aria-label={t(lang, "compTabsAria")}>
+   {tabs.map((tb) =>
+-    tb.active ? (
++    tb.key === active ? (
+       <span class="tab on" aria-current="page">{tb.label}</span>
++    ) : tb.href ? (
++      <a class="tab" href={tb.href}>{tb.label}</a>
+     ) : (
+       <span class="tab" aria-disabled="true">{tb.label}</span>
+     ),
+diff --git a/site_v2/src/components/competition/MatchdaySchedule.astro b/site_v2/src/components/competition/MatchdaySchedule.astro
+new file mode 100644
+index 00000000..4d90e527
+--- /dev/null
++++ b/site_v2/src/components/competition/MatchdaySchedule.astro
+@@ -0,0 +1,96 @@
++---
++// The Matchdays tab's picker and Schedule block, one matchday on screen at a time and no script.
++// Each round is one `.md` wrapper holding its radio, its picker line (‹ MATCHDAY N › with the Next
++// tag on the next round, the arrows pinned to the edges as labels for the neighbouring rounds) and
++// its Schedule section (the date heading once per day, then the match rows); the stylesheet shows
++// the checked wrapper's picker and section, the same radio mechanism the team page's tabs use.
++//
++// Which round is checked on load is a display default over served flags: the round the warehouse
++// flagged next; after the season, the last round with a played match; before it, the first. The
++// round order is the warehouse's round_sequence; a league round's title is its served matchday
++// number, any other round shows the provider's round name until the phase key lands (#148).
++import MatchRow from "../ui/MatchRow.astro";
++import SectionHead from "../ui/SectionHead.astro";
++import { formatDate } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++import type { CompetitionRound } from "../../lib/types";
++
++interface Props {
++  rounds: CompetitionRound[];
++  competitionSlug: string | null;
++  lang: Lang;
++  isLeague: boolean;
++}
++const { rounds, competitionSlug, lang, isLeague } = Astro.props;
++
++const nextIndex = rounds.findIndex((r) => r.is_next_round);
++const lastPlayedIndex = rounds.reduce(
++  (acc, r, i) => (r.fixtures.some((f) => f.is_played) ? i : acc), -1,
++);
++const openIndex = nextIndex >= 0 ? nextIndex : lastPlayedIndex >= 0 ? lastPlayedIndex : 0;
++
++function title(r: CompetitionRound): string {
++  return isLeague && r.round_order != null
++    ? t(lang, "compFactMatchday", { n: r.round_order })
++    : r.round;
++}
++
++function days(r: CompetitionRound): [string | null, CompetitionRound["fixtures"]][] {
++  const byDay = new Map<string | null, CompetitionRound["fixtures"]>();
++  for (const fx of r.fixtures) {
++    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : null;
++    if (!byDay.has(day)) byDay.set(day, []);
++    byDay.get(day)!.push(fx);
++  }
++  return [...byDay.entries()];
++}
++
++const idOf = (i: number) => `md-${rounds[i].round_sequence ?? i + 1}`;
++---
++
++{rounds.map((r, i) => (
++  <div class="md" data-md={r.round_sequence ?? i + 1}>
++    <input class="md-in" type="radio" name="md" id={idOf(i)} checked={i === openIndex} />
++    <nav class="mdnav" aria-label={t(lang, "compPickerAria")}>
++      <span class="mdstep">
++        {i > 0 ? (
++          <label class="step prev" for={idOf(i - 1)} aria-label={title(rounds[i - 1])}>
++            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++          </label>
++        ) : (
++          <span class="step prev off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
++        )}
++        <span class="mdtitle">
++          <b class="num">{title(r)}</b>
++          {r.is_next_round && <span class="nexttag">{t(lang, "compNextTag")}</span>}
++        </span>
++        {i + 1 < rounds.length ? (
++          <label class="step next" for={idOf(i + 1)} aria-label={title(rounds[i + 1])}>
++            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++          </label>
++        ) : (
++          <span class="step next off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
++        )}
++      </span>
++    </nav>
++    <section>
++      <SectionHead label={t(lang, "compSecSchedule")} />
++      <div class="fxgroup">
++        {days(r).map(([day, fixtures]) => (
++          <>
++            <div class="dh">{formatDate(fixtures[0].kickoff, lang)}</div>
++            {fixtures.map((fx) => (
++              <MatchRow
++                fx={fx}
++                competitionSlug={competitionSlug}
++                lang={lang}
++                topMatch={r.is_next_round && fx.is_match_that_matters}
++              />
++            ))}
++          </>
++        ))}
++      </div>
++    </section>
++  </div>
++))}
+diff --git a/site_v2/src/components/ui/MatchRow.astro b/site_v2/src/components/ui/MatchRow.astro
+new file mode 100644
+index 00000000..ba894e56
+--- /dev/null
++++ b/site_v2/src/components/ui/MatchRow.astro
+@@ -0,0 +1,60 @@
++---
++// THE match row, one implementation for every list of matches: both sides stacked with their
++// crests; on an unplayed row the kick-off with its zone in the right-hand column, on a played row
++// the score at the end of each side and no kick-off column (a finished match's start time is not
++// information). The winner by weight, never by hue. The Top match tag sits before the kick-off on
++// the one flagged row of the next round, the row otherwise unchanged.
++//
++// A row is a link only when its target exists: an unplayed match links to its preview page; a
++// played match has no page yet, so it renders inert until the report page lands. `linkPlayed` is
++// the one switch that flips then; the markup is the same either way.
++//
++// The kick-off is rendered in UTC with that label until the warehouse serves the venue's clock
++// and zone (#146); a fixture whose time is not set yet shows the TBC copy in the time slot.
++import Crest from "./Crest.astro";
++import { formatTime } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import { localeHref } from "../../lib/href";
++import { t } from "../../i18n/strings";
++import type { CompetitionFixture } from "../../lib/types";
++
++interface Props {
++  fx: CompetitionFixture;
++  competitionSlug: string | null;
++  lang: Lang;
++  topMatch?: boolean;
++  linkPlayed?: boolean;
++}
++const { fx, competitionSlug, lang, topMatch = false, linkPlayed = false } = Astro.props;
++
++const ZONE = "UTC";
++const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
++const linked = Boolean(competitionSlug && fx.slug) && (!played || linkPlayed);
++const href = linked ? localeHref(lang, `${competitionSlug}/matches/${fx.slug}/`) : undefined;
++const Row = linked ? "a" : "div";
++const homeWins = played && (fx.goals_home as number) > (fx.goals_away as number);
++const awayWins = played && (fx.goals_away as number) > (fx.goals_home as number);
++const time = fx.status === "TBD" ? t(lang, "compTBC") : formatTime(fx.kickoff, lang);
++---
++
++<Row class:list={["fxrow", { played }]} href={href}>
++  <span class="sides">
++    <span class="side">
++      <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />
++      <span class="nm">{fx.home.name}</span>
++      {played && <span class:list={["g", "num", { winner: homeWins }]}>{fx.goals_home}</span>}
++    </span>
++    <span class="side">
++      <Crest name={fx.away.name} crest={fx.away.crest} size="xs" />
++      <span class="nm">{fx.away.name}</span>
++      {played && <span class:list={["g", "num", { winner: awayWins }]}>{fx.goals_away}</span>}
++    </span>
++  </span>
++  {!played && topMatch && <span class="topmatch">{t(lang, "compTopMatch")}</span>}
++  {!played && (
++    <span class="when">
++      <b class="t">{time}</b>
++      <span class="rowtz">{ZONE}</span>
++    </span>
++  )}
++</Row>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 3e3c8e4f..d2356a3e 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -255,6 +255,8 @@ const EN: Dict = {
+   // scorers would be a promise the page does not keep. Revisit the wording when #47 fills it.
+   seoCompetitionTitle: "{competition}: Overview",
+   seoCompetitionDesc: "Overview page for {competition}.",
++  seoCompetitionFixturesTitle: "{competition}: Fixtures and results {season}",
++  seoCompetitionFixturesDesc: "Every matchday of {competition} {season}: results so far and the fixtures to come, one matchday at a time.",
+   // The player page (#40 MR B). Same modest wording and the same reason as the competition hub
+   // above: this is a scaffold with no content blocks, so the title promises nothing.
+   // ⚠ THE CLUB IS IN THE TITLE FOR UNIQUENESS, not decoration. audit-seo check 5 requires titles to
+@@ -284,6 +286,11 @@ const EN: Dict = {
+   compColPoints: "Pts",
+   compSecTable: "Table",
+   compSecNext: "Next matches",
++  compSecSchedule: "Schedule",
++  compPickerAria: "Pick a matchday",
++  compNextTag: "Next",
++  compTBC: "TBC",
++  compTopMatch: "Top match",
+   compSecDeserved: "Deserved points",
+   compDeservedExplainer: "Deserved points are the points a team's shot balance usually earns. Shot balance is shots on goal created minus shots on goal conceded. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
+   compBetter: "Better than the table says",
+@@ -486,6 +493,8 @@ const DE: Dict = {
+   seoCompetitionsDesc: "Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.",
+   seoCompetitionTitle: "{competition}: Überblick",
+   seoCompetitionDesc: "Überblicksseite für {competition}.",
++  seoCompetitionFixturesTitle: "{competition}: Spielplan und Ergebnisse {season}",
++  seoCompetitionFixturesDesc: "Alle Spieltage von {competition} {season}: die bisherigen Ergebnisse und die kommenden Spiele, ein Spieltag nach dem anderen.",
+   seoPlayerTitle: "{player} ({club}): Überblick",
+   seoPlayerDesc: "Überblicksseite für {player} von {club}.",
+   filterAll: "Alle",
+@@ -509,6 +518,11 @@ const DE: Dict = {
+   compColPoints: "Pkt.",
+   compSecTable: "Tabelle",
+   compSecNext: "Nächste Spiele",
++  compSecSchedule: "Spielplan",
++  compPickerAria: "Spieltag wählen",
++  compNextTag: "Nächster",
++  compTBC: "Offen",
++  compTopMatch: "Topspiel",
+   compSecDeserved: "Verdiente Punkte",
+   compDeservedExplainer: "Verdiente Punkte sind die Punkte, die die Schussbilanz einer Mannschaft normalerweise einbringt. Die Schussbilanz sind die eigenen Torschüsse minus die zugelassenen Torschüsse. Mannschaften mit weniger Punkten als verdient sind besser, als die Tabelle sagt; Mannschaften mit mehr sind schlechter.",
+   compBetter: "Besser, als die Tabelle sagt",
+@@ -719,6 +733,8 @@ const FI: Dict = {
+   seoCompetitionsDesc: "Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.",
+   seoCompetitionTitle: "{competition}: yleiskatsaus",
+   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
++  seoCompetitionFixturesTitle: "{competition}: otteluohjelma ja tulokset {season}",
++  seoCompetitionFixturesDesc: "Kilpailun {competition} {season} kaikki kierrokset: tähänastiset tulokset ja tulevat ottelut, kierros kerrallaan.",
+   seoPlayerTitle: "{player} ({club}): yleiskatsaus",
+   seoPlayerDesc: "Yleiskatsaussivu pelaajalle {player}, joukkue {club}.",
+   filterAll: "Kaikki",
+@@ -742,6 +758,11 @@ const FI: Dict = {
+   compColPoints: "P",
+   compSecTable: "Sarjataulukko",
+   compSecNext: "Seuraavat ottelut",
++  compSecSchedule: "Otteluohjelma",
++  compPickerAria: "Valitse kierros",
++  compNextTag: "Seuraava",
++  compTBC: "Avoin",
++  compTopMatch: "Huippuottelu",
+   compSecDeserved: "Ansaitut pisteet",
+   compDeservedExplainer: "Ansaitut pisteet ovat pisteet, jotka joukkueen laukaustase yleensä tuottaa. Laukaustase on luodut laukaukset maalia kohti miinus päästetyt laukaukset maalia kohti. Joukkueet, joilla on vähemmän pisteitä kuin ansaittu, ovat parempia kuin taulukko kertoo; joukkueet, joilla on enemmän, ovat heikompia.",
+   compBetter: "Parempia kuin taulukko kertoo",
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index f891558c..42282479 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -447,6 +447,31 @@ export interface SeasonSummary {
+   longest_winless_teams: TeamRef[];
+ }
+ 
++/** One fixture of a competition-season as mart_competition_fixtures serves it: the played flag,
++ *  the score once played, the served slug, and the flag of the one match that matters. */
++export interface CompetitionFixture {
++  fixture_id: number;
++  slug: string | null;
++  kickoff: string | null;
++  status: string | null;
++  is_played: boolean;
++  goals_home: number | null;
++  goals_away: number | null;
++  home: TeamRef;
++  away: TeamRef;
++  is_match_that_matters: boolean;
++}
++
++/** One round of a competition-season: the provider's name, its matchday number where the name
++ *  carries one, its place in the season's sequence, whether it is the next round, its fixtures. */
++export interface CompetitionRound {
++  round: string;
++  round_order: number | null;
++  round_sequence: number | null;
++  is_next_round: boolean;
++  fixtures: CompetitionFixture[];
++}
++
+ export interface CompetitionPayload {
+   type: string;
+   league_code: string;
+@@ -462,4 +487,5 @@ export interface CompetitionPayload {
+   next_matchday: FixtureRef[];
+   deserved: DeservedRow[];
+   summary: SeasonSummary | null;
++  fixtures?: CompetitionRound[];
+ }
+diff --git a/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro b/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro
+new file mode 100644
+index 00000000..88b0053b
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro
+@@ -0,0 +1,106 @@
++---
++// Competition page, Matchdays tab (spec: src/specs/competition/fixtures/index.spec.json).
++//
++// One page per competition per locale, for every competition whose latest served season carries
++// fixtures in competitions/{league_code}/{season}.json. The header and the tab bar are the
++// Overview's, this tab lit; no sentence under the bar. Under it the picker and the Schedule block,
++// one round on screen at a time. A competition with no fixtures served has no page here and its
++// Overview shows the tab as an inert label, so no link points at a page the build did not emit.
++//
++// Nothing on this page is derived: the slug, the name, the crest, every round, flag and score is a
++// served field of the competition payload.
++import Layout from "../../../../layouts/Layout.astro";
++import CompetitionHeader from "../../../../components/competition/CompetitionHeader.astro";
++import CompetitionTabs from "../../../../components/competition/CompetitionTabs.astro";
++import MatchdaySchedule from "../../../../components/competition/MatchdaySchedule.astro";
++import { t } from "../../../../i18n/strings";
++import { localeHref, LOCALES } from "../../../../lib/href";
++import type { Lang } from "../../../../lib/format";
++import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
++import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
++import competitionIndex from "../../../../data/competition_index.json";
++
++export function getStaticPaths() {
++  const data = competitionIndex as unknown as CompetitionIndex;
++  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
++    eager: true,
++    import: "default",
++  });
++  return data.competitions.flatMap((competition) => {
++    const payload = latestSeasonPayload(
++      Object.values(payloads).filter((p) => p.league_code === competition.league_code),
++    );
++    if (!payload?.fixtures?.length) return [];
++    return LOCALES.map((lang) => ({
++      params: { lang, competition: competition.slug },
++      props: { competition, lang, payload },
++    }));
++  });
++}
++
++interface Props {
++  competition: CompetitionIndexRow;
++  lang: Lang;
++  payload: CompetitionPayload;
++}
++const { competition, lang, payload } = Astro.props;
++
++const name = payload.name ?? competition.competition_name ?? "";
++const competitionType = payload.competition_type ?? competition.competition_type;
++const isLeague = competitionType === "domestic_league";
++const tabLabel = t(lang, isLeague ? "compTabMatchdays" : "compTabRounds");
++
++const title = t(lang, "seoCompetitionFixturesTitle", { competition: name, season: String(payload.season) });
++const description = t(lang, "seoCompetitionFixturesDesc", { competition: name, season: String(payload.season) });
++
++const entity = {
++  "@type": "SportsOrganization",
++  name: name || undefined,
++  sport: "Football",
++};
++
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
++  { name, href: localeHref(lang, `${competition.slug}/`) },
++  { name: tabLabel },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <a class="lnk" href={localeHref(lang, "competitions/")}>{t(lang, "navCompetitions")}</a>
++      <span class="sep">›</span>
++      <a class="lnk" href={localeHref(lang, `${competition.slug}/`)}>{name}</a>
++      <span class="sep">›</span>
++      <span class="here">{tabLabel}</span>
++    </nav>
++
++    <CompetitionHeader
++      name={payload.name ?? competition.competition_name}
++      crest={payload.crest ?? competition.logo_url}
++      regionLabelEn={payload.region_label_en ?? competition.region_label_en}
++      regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
++      season={payload.season}
++      round={payload.next_matchday[0]?.round ?? null}
++      lang={lang}
++    />
++    <CompetitionTabs
++      lang={lang}
++      hasMatchdays={isLeague}
++      active="matchdays"
++      competitionSlug={competition.slug}
++      hasFixturesPage={true}
++    />
++
++    <MatchdaySchedule
++      rounds={payload.fixtures ?? []}
++      competitionSlug={payload.slug}
++      lang={lang}
++      isLeague={isLeague}
++    />
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[competition]/index.astro b/site_v2/src/pages/[lang]/[competition]/index.astro
+index 0901964f..0025a620 100644
+--- a/site_v2/src/pages/[lang]/[competition]/index.astro
++++ b/site_v2/src/pages/[lang]/[competition]/index.astro
+@@ -98,7 +98,13 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
+       round={payload?.next_matchday[0]?.round ?? null}
+       lang={lang}
+     />
+-    <CompetitionTabs lang={lang} hasMatchdays={competitionType === "domestic_league"} />
++    <CompetitionTabs
++      lang={lang}
++      hasMatchdays={competitionType === "domestic_league"}
++      active="overview"
++      competitionSlug={competition.slug}
++      hasFixturesPage={Boolean(payload?.fixtures?.length)}
++    />
+ 
+     {payload && (
+       <>
+diff --git a/site_v2/src/specs/competition/fixtures/index.spec.json b/site_v2/src/specs/competition/fixtures/index.spec.json
+new file mode 100644
+index 00000000..46c8b1d4
+--- /dev/null
++++ b/site_v2/src/specs/competition/fixtures/index.spec.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "../../page-spec.schema.json",
++  "page": "[lang]/[competition]/fixtures/index.astro",
++  "entity": "competition",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoCompetitionFixturesTitle",
++    "description": "seoCompetitionFixturesDesc",
++    "schema_org": "SportsOrganization",
++    "links": {
++      "inbound_hub": "competition",
++      "outbound": ["competition", "fixture"]
++    },
++    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one round in its fixtures list, read whole from mart_competition_fixtures. A competition with no fixtures served has no page here, and its Overview shows the tab as an inert label. Every unplayed row links to its match preview page, which the build emits from fixtures/{fixture_id}.json for every unplayed fixture the export wrote; a played row is not a link until the match report page exists.",
++    "page_count_driver": "count(competitions with fixtures served for their latest season) x count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Matchdays tab, /{locale}/{competition-slug}/fixtures/, the same segment for every kind of competition and every locale. The slug is the registry's authored slug, served through mart_competition_index."
++  },
++  "blocks": [
++    {
++      "block": "Competition header",
++      "mart": "mart_competition_index",
++      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
++    },
++    {
++      "block": "Matchday picker",
++      "mart": "mart_competition_fixtures",
++      "i18n_keys": ["compPickerAria", "compFactMatchday", "compNextTag"]
++    },
++    {
++      "block": "Schedule",
++      "mart": "mart_competition_fixtures",
++      "i18n_keys": ["compSecSchedule", "compTBC", "compTopMatch"]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/competition/index.spec.json b/site_v2/src/specs/competition/index.spec.json
+index 658ad9d4..f37dc36f 100644
+--- a/site_v2/src/specs/competition/index.spec.json
++++ b/site_v2/src/specs/competition/index.spec.json
+@@ -10,12 +10,12 @@
+     "schema_org": "SportsOrganization",
+     "links": {
+       "inbound_hub": "competitionIndex",
+-      "outbound": ["team", "fixture"]
++      "outbound": ["team", "fixture", "competition"]
+     },
+     "minimum_data": "A row in mart_competition_index gives the competition its page, header and tab bar. Each content block needs its own mart to have served something for the latest season in competitions/{league_code}/{season}.json: standings rows for the Table, next-matchday rows for Next matches, deserved_points on the team profile for Deserved points, a summary row for The season in numbers. A block with nothing served is absent; a competition with no payload at all shows header and tabs only. Whether that is enough for a page to be published is the minimum-data question, and it stays a rule over the served marts rather than a list in the frontend.",
+     "page_count_driver": "count(competition_index.json .competitions) x count(locales)",
+     "url_permanence": "permanent",
+-    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The three other tabs (Matchdays, Teams, Players) are standalone pages whose URLs are settled with their own review; until each is built its tab is an inert label, so no link on this page points at a page the build did not emit."
++    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages: Matchdays at /{locale}/{competition-slug}/fixtures/, linked from the bar when the build emits it for this competition; Rankings is an inert label until built, so no link on this page points at a page the build did not emit."
+   },
+   "blocks": [
+     {
+diff --git a/tests/test_export_landing.py b/tests/test_export_landing.py
+index 99da5a17..9728bd2b 100644
+--- a/tests/test_export_landing.py
++++ b/tests/test_export_landing.py
+@@ -83,11 +83,15 @@ def test_group_upcoming_fixtures_caps_nothing():
+     assert sum(len(g["fixtures"]) for g in groups) == 5, "every fixture handed in is grouped"
+ 
+ 
+-def test_group_upcoming_fixtures_builds_the_fixture_slug_from_names():
+-    groups = group_upcoming_fixtures(
+-        [_fixture(10, "BSA", "2026-08-04T23:00:00Z")], _TEAMS, _META
+-    )
++def test_group_upcoming_fixtures_carries_the_served_fixture_slug():
++    """The slug is mart_competition_fixtures' column, joined into the read; nothing here spells
++    a URL from names, so a row without a served slug links nowhere rather than somewhere wrong."""
++    row = _fixture(10, "BSA", "2026-08-04T23:00:00Z")
++    row["fixture_slug"] = "2026-08-04-palmeiras-vs-flamengo"
++    groups = group_upcoming_fixtures([row], _TEAMS, _META)
+     assert groups[0]["fixtures"][0]["slug"] == "2026-08-04-palmeiras-vs-flamengo"
++    bare = group_upcoming_fixtures([_fixture(11, "BSA", "2026-08-04T23:00:00Z")], _TEAMS, _META)
++    assert bare[0]["fixtures"][0]["slug"] is None
+ 
+ 
+ def test_group_upcoming_fixtures_keeps_a_null_crest_null():
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 20fc985d..ffc79d84 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -16,7 +16,7 @@ from scripts.export_site_data import (
+     deserved_scatter_index,
+     build_nav,
+     fetch_glossary,
+-    fixture_slug,
++    group_fixtures_by_round,
+     shape_competition_index,
+     shape_competition_payload,
+     shape_season_summary,
+@@ -225,13 +225,19 @@ def _summary_row(**overrides) -> dict:
+     return row
+ 
+ 
++_SUMMARY_SLUGS = {
++    1575154: "2026-09-12-sc-freiburg-vs-gladbach",
++    1575153: "2026-09-05-gladbach-vs-sv-elversberg",
++}
++
++
+ def test_shape_season_summary_resolves_teams_and_fixtures_to_what_the_page_links():
+-    s = shape_season_summary(_summary_row(), _SUMMARY_TEAMS)
++    s = shape_season_summary(_summary_row(), _SUMMARY_TEAMS, _SUMMARY_SLUGS)
+     assert s["matches_played"] == 27 and s["total_goals"] == 104 and s["goals_per_match"] == 3.85
+     assert s["home_wins"] == 14 and s["away_wins"] == 8 and s["drawn_matches"] == 5
+     bm = s["biggest_margin"]
+     assert bm["fixture_id"] == 1575154 and bm["goals_home"] == 5 and bm["goals_away"] == 0
+-    assert bm["slug"] == "2026-09-12-sc-freiburg-vs-borussia-monchengladbach"
++    assert bm["slug"] == "2026-09-12-sc-freiburg-vs-gladbach", "the served slug, never built here"
+     assert bm["home"]["slug"] == "sc-freiburg" and bm["away"]["name"] == "Borussia Mönchengladbach"
+     assert bm["round"] == "Regular Season - 3"
+     assert s["most_goals"]["away"] == {"team_id": 1660, "name": "SV Elversberg",
+@@ -245,28 +251,70 @@ def test_shape_season_summary_keeps_a_null_fact_null_and_a_missing_row_none():
+     s = shape_season_summary(
+         _summary_row(home_wins=None, away_wins=None, biggest_margin_fixture_sk=None,
+                      longest_unbeaten_team_sks=[]),
+-        _SUMMARY_TEAMS,
++        _SUMMARY_TEAMS, _SUMMARY_SLUGS,
+     )
+     assert s["home_wins"] is None and s["away_wins"] is None
+     assert s["biggest_margin"] is None
+     assert s["longest_unbeaten_teams"] == []
+-    assert shape_season_summary(None, _SUMMARY_TEAMS) is None
++    assert shape_season_summary(None, _SUMMARY_TEAMS, _SUMMARY_SLUGS) is None
+ 
+ 
+ def test_shape_season_summary_computes_nothing():
+     """Every value is a served column repeated; a row whose served ratio disagrees with its own
+     counts is passed through as served, never recomputed here."""
+-    s = shape_season_summary(_summary_row(goals_per_match_played=9.99), _SUMMARY_TEAMS)
++    s = shape_season_summary(_summary_row(goals_per_match_played=9.99), _SUMMARY_TEAMS, _SUMMARY_SLUGS)
+     assert s["goals_per_match"] == 9.99
+ 
+ 
+-def test_fixture_slug_date_home_vs_away():
+-    assert fixture_slug("2026-06-11T19:00:00", "Mexico", "South Africa", 7) \
+-        == "2026-06-11-mexico-vs-south-africa"
++def test_shape_season_summary_links_no_match_the_warehouse_gave_no_slug():
++    """The slug is looked up, never built: a fixture absent from the served slugs links nowhere."""
++    s = shape_season_summary(_summary_row(), _SUMMARY_TEAMS, {})
++    assert s["biggest_margin"]["fixture_id"] == 1575154 and s["biggest_margin"]["slug"] is None
++
++
++def _served_fixture(fid, rnd, seq, kickoff, order=None, played=False, nxt=False, top=False, pos=None):
++    return {
++        "fixture_id": fid, "slug": f"s{fid}", "kickoff": kickoff, "round": rnd,
++        "round_order": order, "round_sequence": seq, "fixture_order": pos,
++        "status": "FT" if played else "NS",
++        "is_played": played, "goals_home": 2 if played else None, "goals_away": 1 if played else None,
++        "home": {"team_id": 1, "name": "A", "slug": "a", "crest": None},
++        "away": {"team_id": 2, "name": "B", "slug": "b", "crest": None},
++        "is_next_round": nxt, "is_match_that_matters": top,
++    }
+ 
+ 
+-def test_fixture_slug_falls_back_to_id():
+-    assert fixture_slug(None, "Mexico", "South Africa", 7) == "fixture-7"
++def test_group_fixtures_by_round_follows_the_served_fixture_order():
++    """Rows in the warehouse's fixture_order and nothing else: the round order and the order
++    inside a round are both served; the round-level flags lift to the round, the row keeps its own.
++    The kickoffs below are deliberately out of step with fixture_order to prove no key but the
++    served one decides."""
++    rows = [
++        _served_fixture(30, "Round of 16", 3, "2026-10-01T18:00:00", pos=5),
++        _served_fixture(21, "Regular Season - 2", 2, "2026-09-05T13:30:00", order=2, nxt=True, top=True, pos=4),
++        _served_fixture(20, "Regular Season - 2", 2, "2026-09-04T18:30:00", order=2, nxt=True, pos=3),
++        _served_fixture(11, "Regular Season - 1", 1, "2026-08-28T18:30:00", order=1, played=True, pos=2),
++        _served_fixture(10, "Regular Season - 1", 1, "2026-08-29T18:30:00", order=1, played=True, pos=1),
++    ]
++    rounds = group_fixtures_by_round(rows)
++    assert [r["round"] for r in rounds] == ["Regular Season - 1", "Regular Season - 2", "Round of 16"]
++    assert [r["round_sequence"] for r in rounds] == [1, 2, 3]
++    assert [r["round_order"] for r in rounds] == [1, 2, None]
++    assert [r["is_next_round"] for r in rounds] == [False, True, False]
++    assert [f["fixture_id"] for f in rounds[0]["fixtures"]] == [10, 11], "by fixture_order, not by kickoff"
++    assert [f["fixture_id"] for f in rounds[1]["fixtures"]] == [20, 21]
++    assert rounds[1]["fixtures"][1]["is_match_that_matters"] is True
++    assert rounds[0]["fixtures"][0]["is_played"] is True and rounds[0]["fixtures"][0]["goals_home"] == 2
++    assert "round_sequence" not in rounds[0]["fixtures"][0] and "is_next_round" not in rounds[0]["fixtures"][0]
++    assert "fixture_order" not in rounds[0]["fixtures"][0], "the ordering key is consumed, not shipped"
++    assert rounds[0]["fixtures"][0]["slug"] == "s10", "the served slug is carried through"
++
++
++def test_group_fixtures_by_round_is_empty_when_nothing_is_served():
++    assert group_fixtures_by_round([]) == []
++    p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
++                                  standings=[], next_matchday=[], deserved=[], summary=None)
++    assert p["fixtures"] == []
+ 
+ 
+ def test_fixture_side_drops_join_keys_and_handles_missing():
+@@ -283,12 +331,12 @@ def test_shape_fixture_payload_composes_header_and_sides():
+            "status_short": "NS", "league_code": "WC", "league_name": "World Cup",
+            "season_api_year": 2026, "round_name": "Group Stage - 1",
+            "venue_name_snapshot": "Estadio", "home_team_name": "Mexico",
+-           "away_team_name": "South Africa"}
++           "away_team_name": "South Africa", "fixture_slug": "2026-06-11-mexico-vs-south-africa"}
+     home = _fixture_side(1, {"team_name": "Mexico"}, None, None, None)
+     away = _fixture_side(2, {"team_name": "South Africa"}, None, None, None)
+     p = shape_fixture_payload(fix, home, away, {"total_meetings": 3, "wins": 2})
+     assert p["type"] == "fixture" and p["fixture_id"] == 7
+-    assert p["slug"] == "2026-06-11-mexico-vs-south-africa"
++    assert p["slug"] == "2026-06-11-mexico-vs-south-africa", "the served fixture_slug, never built here"
+     assert p["league_name"] == "World Cup" and p["round"] == "Group Stage - 1"
+     assert p["home"]["team_id"] == 1 and p["away"]["team_id"] == 2
+     assert p["head_to_head"] == {"total_meetings": 3, "wins": 2}
+@@ -810,6 +858,14 @@ def test_build_manifest_counts_by_type():
+     assert m["counts"] == {"team": 2, "player": 1}
+     assert len(m["entries"]) == 3
+     assert "generated_at" in m
++    assert m["source_counts"] == {}, "no source count recorded when none was measured"
++
++
++def test_build_manifest_records_what_the_warehouse_held():
++    """The build proves it carries every unplayed match by comparing its pages to this number,
++    not to the files written: a sampled export writes fewer files than the warehouse holds."""
++    m = build_manifest([], {"fixtures_unplayed": 4321})
++    assert m["source_counts"] == {"fixtures_unplayed": 4321}
+ 
+ 
+ def test_competitions_index_covers_registry_leagues_with_slug_and_name():
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md                  |   14 +-
+#    site_v2/src/data/competitions/BL1/2026.json | 7058 ++++++++++++++++++++++++++-
+#    site_v2/src/data/fixtures/1575169.json      |  193 +-
+#    site_v2/src/data/fixtures/1575170.json      |   18 +-
+#    site_v2/src/data/fixtures/1575171.json      |    8 +-
+#    site_v2/src/data/fixtures/1575173.json      |    2 +-
+#    site_v2/src/data/fixtures/1575174.json      |   16 +-
+#    site_v2/src/data/fixtures/1575175.json      |  213 +-
+#    site_v2/src/data/fixtures/1575176.json      |  746 +++
+#    site_v2/src/data/fixtures/1575177.json      |  746 +++
+#    site_v2/src/data/fixtures/1575178.json      |  718 +++
+#    site_v2/src/data/fixtures/1575179.json      |  746 +++
+#    site_v2/src/data/fixtures/1575180.json      |  746 +++
+#    site_v2/src/data/fixtures/1575181.json      |  746 +++
+#    site_v2/src/data/fixtures/1575182.json      |  639 +++
+#    site_v2/src/data/fixtures/1575183.json      |  727 +++
+#    site_v2/src/data/fixtures/1575184.json      |  683 +++
+#    site_v2/src/data/fixtures/1575185.json      |  765 +++
+#    site_v2/src/data/fixtures/1575186.json      |  765 +++
+#    site_v2/src/data/fixtures/1575187.json      |  727 +++
+#    site_v2/src/data/fixtures/1575188.json      |  746 +++
+#    site_v2/src/data/fixtures/1575189.json      |  746 +++
+#    site_v2/src/data/fixtures/1575190.json      |  718 +++
+#    site_v2/src/data/fixtures/1575191.json      |  699 +++
+#    site_v2/src/data/fixtures/1575192.json      |  727 +++
+#    site_v2/src/data/fixtures/1575193.json      |  639 +++
+#    site_v2/src/data/fixtures/1575194.json      |  746 +++
+#    site_v2/src/data/fixtures/1575195.json      |  658 +++
+#    site_v2/src/data/fixtures/1575196.json      |  746 +++
+#    site_v2/src/data/fixtures/1575197.json      |  765 +++
+#    site_v2/src/data/fixtures/1575198.json      |  765 +++
+#    site_v2/src/data/fixtures/1575199.json      |  727 +++
+#    site_v2/src/data/fixtures/1575200.json      |  727 +++
+#    site_v2/src/data/fixtures/1575201.json      |  727 +++
+#    site_v2/src/data/fixtures/1575202.json      |  713 +++
+#    site_v2/src/data/fixtures/1575203.json      |  765 +++
+#    site_v2/src/data/fixtures/1575204.json      |  765 +++
+#    site_v2/src/data/fixtures/1575205.json      |  699 +++
+#    site_v2/src/data/fixtures/1575206.json      |  746 +++
+#    site_v2/src/data/fixtures/1575207.json      |  727 +++
+#    site_v2/src/data/fixtures/1575208.json      |  671 +++
+#    site_v2/src/data/fixtures/1575209.json      |  746 +++
+#    site_v2/src/data/fixtures/1575210.json      |  746 +++
+#    site_v2/src/data/fixtures/1575211.json      |  671 +++
+#    site_v2/src/data/fixtures/1575212.json      |  658 +++
+#    site_v2/src/data/fixtures/1575213.json      |  746 +++
+#    site_v2/src/data/fixtures/1575214.json      |  746 +++
+#    site_v2/src/data/fixtures/1575215.json      |  746 +++
+#    site_v2/src/data/fixtures/1575216.json      |  746 +++
+#    site_v2/src/data/fixtures/1575217.json      |  746 +++
+#    site_v2/src/data/fixtures/1575218.json      |  699 +++
+#    site_v2/src/data/fixtures/1575219.json      |  746 +++
+#    site_v2/src/data/fixtures/1575220.json      |  671 +++
+#    site_v2/src/data/fixtures/1575221.json      |  746 +++
+#    site_v2/src/data/fixtures/1575222.json      |  704 +++
+#    site_v2/src/data/fixtures/1575223.json      |  746 +++
+#    site_v2/src/data/fixtures/1575224.json      |  727 +++
+#    site_v2/src/data/fixtures/1575225.json      |  746 +++
+#    site_v2/src/data/fixtures/1575226.json      |  746 +++
+#    site_v2/src/data/fixtures/1575227.json      |  713 +++
+#    site_v2/src/data/fixtures/1575228.json      |  732 +++
+#    site_v2/src/data/fixtures/1575229.json      |  658 +++
+#    site_v2/src/data/fixtures/1575230.json      |  765 +++
+#    site_v2/src/data/fixtures/1575231.json      |  746 +++
+#    site_v2/src/data/fixtures/1575232.json      |  746 +++
+#    site_v2/src/data/fixtures/1575233.json      |  765 +++
+#    site_v2/src/data/fixtures/1575234.json      |  727 +++
+#    site_v2/src/data/fixtures/1575235.json      |  718 +++
+#    site_v2/src/data/fixtures/1575236.json      |  671 +++
+#    site_v2/src/data/fixtures/1575237.json      |  727 +++
+#    site_v2/src/data/fixtures/1575238.json      |  727 +++
+#    site_v2/src/data/fixtures/1575239.json      |  690 +++
+#    site_v2/src/data/fixtures/1575240.json      |  746 +++
+#    site_v2/src/data/fixtures/1575241.json      |  746 +++
+#    site_v2/src/data/fixtures/1575242.json      |  765 +++
+#    site_v2/src/data/fixtures/1575243.json      |  727 +++
+#    site_v2/src/data/fixtures/1575244.json      |  727 +++
+#    site_v2/src/data/fixtures/1575245.json      |  671 +++
+#    site_v2/src/data/fixtures/1575246.json      |  746 +++
+#    site_v2/src/data/fixtures/1575247.json      |  658 +++
+#    site_v2/src/data/fixtures/1575248.json      |  765 +++
+#    site_v2/src/data/fixtures/1575249.json      |  727 +++
+#    site_v2/src/data/fixtures/1575250.json      |  746 +++
+#    site_v2/src/data/fixtures/1575251.json      |  746 +++
+#    site_v2/src/data/fixtures/1575252.json      |  746 +++
+#    site_v2/src/data/fixtures/1575253.json      |  727 +++
+#    site_v2/src/data/fixtures/1575254.json      |  746 +++
+#    site_v2/src/data/fixtures/1575255.json      |  746 +++
+#    site_v2/src/data/fixtures/1575256.json      |  699 +++
+#    site_v2/src/data/fixtures/1575257.json      |  746 +++
+#    site_v2/src/data/fixtures/1575258.json      |  765 +++
+#    site_v2/src/data/fixtures/1575259.json      |  746 +++
+#    site_v2/src/data/fixtures/1575260.json      |  765 +++
+#    site_v2/src/data/fixtures/1575261.json      |  671 +++
+#    site_v2/src/data/fixtures/1575262.json      |  746 +++
+#    site_v2/src/data/fixtures/1575263.json      |  727 +++
+#    site_v2/src/data/fixtures/1575264.json      |  685 +++
+#    site_v2/src/data/fixtures/1575265.json      |  727 +++
+#    site_v2/src/data/fixtures/1575266.json      |  746 +++
+#    site_v2/src/data/fixtures/1575267.json      |  746 +++
+#    site_v2/src/data/fixtures/1575268.json      |  658 +++
+#    site_v2/src/data/fixtures/1575269.json      |  727 +++
+#    site_v2/src/data/fixtures/1575270.json      |  746 +++
+#    site_v2/src/data/fixtures/1575271.json      |  718 +++
+#    site_v2/src/data/fixtures/1575272.json      |  746 +++
+#    site_v2/src/data/fixtures/1575273.json      |  727 +++
+#    site_v2/src/data/fixtures/1575274.json      |  690 +++
+#    site_v2/src/data/fixtures/1575275.json      |  765 +++
+#    site_v2/src/data/fixtures/1575276.json      |  765 +++
+#    site_v2/src/data/fixtures/1575277.json      |  732 +++
+#    site_v2/src/data/fixtures/1575278.json      |  727 +++
+#    site_v2/src/data/fixtures/1575279.json      |  746 +++
+#    site_v2/src/data/fixtures/1575280.json      |  671 +++
+#    site_v2/src/data/fixtures/1575281.json      |  746 +++
+#    site_v2/src/data/fixtures/1575282.json      |  727 +++
+#    site_v2/src/data/fixtures/1575283.json      |  639 +++
+#    site_v2/src/data/fixtures/1575284.json      |  765 +++
+#    site_v2/src/data/fixtures/1575285.json      |  746 +++
+#    site_v2/src/data/fixtures/1575286.json      |  765 +++
+#    site_v2/src/data/fixtures/1575287.json      |  746 +++
+#    site_v2/src/data/fixtures/1575288.json      |  746 +++
+#    site_v2/src/data/fixtures/1575289.json      |  727 +++
+#    site_v2/src/data/fixtures/1575290.json      |  699 +++
+#    site_v2/src/data/fixtures/1575291.json      |  639 +++
+#    site_v2/src/data/fixtures/1575292.json      |  685 +++
+#    site_v2/src/data/fixtures/1575293.json      |  765 +++
+#    site_v2/src/data/fixtures/1575294.json      |  746 +++
+#    site_v2/src/data/fixtures/1575295.json      |  697 +++
+#    site_v2/src/data/fixtures/1575296.json      |  727 +++
+#    site_v2/src/data/fixtures/1575297.json      |  746 +++
+#    site_v2/src/data/fixtures/1575298.json      |  725 +++
+#    site_v2/src/data/fixtures/1575299.json      |  746 +++
+#    site_v2/src/data/fixtures/1575300.json      |  727 +++
+#    site_v2/src/data/fixtures/1575301.json      |  678 +++
+#    site_v2/src/data/fixtures/1575302.json      |  746 +++
+#    site_v2/src/data/fixtures/1575303.json      |  765 +++
+#    site_v2/src/data/fixtures/1575304.json      |  746 +++
+#    site_v2/src/data/fixtures/1575305.json      |  704 +++
+#    site_v2/src/data/fixtures/1575306.json      |  727 +++
+#    site_v2/src/data/fixtures/1575307.json      |  706 +++
+#    site_v2/src/data/fixtures/1575308.json      |  746 +++
+#    site_v2/src/data/fixtures/1575309.json      |  746 +++
+#    site_v2/src/data/fixtures/1575310.json      |  664 +++
+#    site_v2/src/data/fixtures/1575311.json      |  683 +++
+#    site_v2/src/data/fixtures/1575312.json      |  765 +++
+#    site_v2/src/data/fixtures/1575313.json      |  746 +++
+#    site_v2/src/data/fixtures/1575314.json      |  727 +++
+#    site_v2/src/data/fixtures/1575315.json      |  746 +++
+#    site_v2/src/data/fixtures/1575316.json      |  732 +++
+#    site_v2/src/data/fixtures/1575317.json      |  706 +++
+#    site_v2/src/data/fixtures/1575318.json      |  697 +++
+#    site_v2/src/data/fixtures/1575319.json      |  727 +++
+#    site_v2/src/data/fixtures/1575320.json      |  765 +++
+#    site_v2/src/data/fixtures/1575321.json      |  765 +++
+#    site_v2/src/data/fixtures/1575322.json      |  690 +++
+#    site_v2/src/data/fixtures/1575323.json      |  746 +++
+#    site_v2/src/data/fixtures/1575324.json      |  727 +++
+#    site_v2/src/data/fixtures/1575325.json      |  727 +++
+#    site_v2/src/data/fixtures/1575326.json      |  746 +++
+#    site_v2/src/data/fixtures/1575327.json      |  720 +++
+#    site_v2/src/data/fixtures/1575328.json      |  699 +++
+#    site_v2/src/data/fixtures/1575329.json      |  746 +++
+#    site_v2/src/data/fixtures/1575330.json      |  683 +++
+#    site_v2/src/data/fixtures/1575331.json      |  746 +++
+#    site_v2/src/data/fixtures/1575332.json      |  746 +++
+#    site_v2/src/data/fixtures/1575333.json      |  727 +++
+#    site_v2/src/data/fixtures/1575334.json      |  718 +++
+#    site_v2/src/data/fixtures/1575335.json      |  746 +++
+#    site_v2/src/data/fixtures/1575336.json      |  746 +++
+#    site_v2/src/data/fixtures/1575337.json      |  639 +++
+#    site_v2/src/data/fixtures/1575338.json      |  746 +++
+#    site_v2/src/data/fixtures/1575339.json      |  765 +++
+#    site_v2/src/data/fixtures/1575340.json      |  718 +++
+#    site_v2/src/data/fixtures/1575341.json      |  746 +++
+#    site_v2/src/data/fixtures/1575342.json      |  765 +++
+#    site_v2/src/data/fixtures/1575343.json      |  639 +++
+#    site_v2/src/data/fixtures/1575344.json      |  727 +++
+#    site_v2/src/data/fixtures/1575345.json      |  727 +++
+#    site_v2/src/data/fixtures/1575346.json      |  699 +++
+#    site_v2/src/data/fixtures/1575347.json      |  765 +++
+#    site_v2/src/data/fixtures/1575348.json      |  765 +++
+#    site_v2/src/data/fixtures/1575349.json      |  746 +++
+#    site_v2/src/data/fixtures/1575350.json      |  727 +++
+#    site_v2/src/data/fixtures/1575351.json      |  746 +++
+#    site_v2/src/data/fixtures/1575352.json      |  713 +++
+#    site_v2/src/data/fixtures/1575353.json      |  727 +++
+#    site_v2/src/data/fixtures/1575354.json      |  727 +++
+#    site_v2/src/data/fixtures/1575355.json      |  658 +++
+#    site_v2/src/data/fixtures/1575356.json      |  765 +++
+#    site_v2/src/data/fixtures/1575357.json      |  746 +++
+#    site_v2/src/data/fixtures/1575358.json      |  765 +++
+#    site_v2/src/data/fixtures/1575359.json      |  746 +++
+#    site_v2/src/data/fixtures/1575360.json      |  746 +++
+#    site_v2/src/data/fixtures/1575361.json      |  671 +++
+#    site_v2/src/data/fixtures/1575362.json      |  699 +++
+#    site_v2/src/data/fixtures/1575363.json      |  727 +++
+#    site_v2/src/data/fixtures/1575364.json      |  671 +++
+#    site_v2/src/data/fixtures/1575365.json      |  746 +++
+#    site_v2/src/data/fixtures/1575366.json      |  746 +++
+#    site_v2/src/data/fixtures/1575367.json      |  671 +++
+#    site_v2/src/data/fixtures/1575368.json      |  746 +++
+#    site_v2/src/data/fixtures/1575369.json      |  746 +++
+#    site_v2/src/data/fixtures/1575370.json      |  699 +++
+#    site_v2/src/data/fixtures/1575371.json      |  746 +++
+#    site_v2/src/data/fixtures/1575372.json      |  746 +++
+#    site_v2/src/data/fixtures/1575373.json      |  658 +++
+#    site_v2/src/data/fixtures/1575374.json      |  746 +++
+#    site_v2/src/data/fixtures/1575375.json      |  746 +++
+#    site_v2/src/data/fixtures/1575376.json      |  732 +++
+#    site_v2/src/data/fixtures/1575377.json      |  746 +++
+#    site_v2/src/data/fixtures/1575378.json      |  658 +++
+#    site_v2/src/data/fixtures/1575379.json      |  727 +++
+#    site_v2/src/data/fixtures/1575380.json      |  713 +++
+#    site_v2/src/data/fixtures/1575381.json      |  746 +++
+#    site_v2/src/data/fixtures/1575382.json      |  704 +++
+#    site_v2/src/data/fixtures/1575383.json      |  718 +++
+#    site_v2/src/data/fixtures/1575384.json      |  765 +++
+#    site_v2/src/data/fixtures/1575385.json      |  765 +++
+#    site_v2/src/data/fixtures/1575386.json      |  746 +++
+#    site_v2/src/data/fixtures/1575387.json      |  746 +++
+#    site_v2/src/data/fixtures/1575388.json      |  727 +++
+#    site_v2/src/data/fixtures/1575389.json      |  727 +++
+#    site_v2/src/data/fixtures/1575390.json      |  727 +++
+#    site_v2/src/data/fixtures/1575391.json      |  671 +++
+#    site_v2/src/data/fixtures/1575392.json      |  746 +++
+#    site_v2/src/data/fixtures/1575393.json      |  658 +++
+#    site_v2/src/data/fixtures/1575394.json      |  765 +++
+#    site_v2/src/data/fixtures/1575395.json      |  746 +++
+#    site_v2/src/data/fixtures/1575396.json      |  746 +++
+#    site_v2/src/data/fixtures/1575397.json      |  671 +++
+#    site_v2/src/data/fixtures/1575398.json      |  727 +++
+#    site_v2/src/data/fixtures/1575399.json      |  727 +++
+#    site_v2/src/data/fixtures/1575400.json      |  690 +++
+#    site_v2/src/data/fixtures/1575401.json      |  765 +++
+#    site_v2/src/data/fixtures/1575402.json      |  746 +++
+#    site_v2/src/data/fixtures/1575403.json      |  746 +++
+#    site_v2/src/data/fixtures/1575404.json      |  746 +++
+#    site_v2/src/data/fixtures/1575405.json      |  727 +++
+#    site_v2/src/data/fixtures/1575406.json      |  746 +++
+#    site_v2/src/data/fixtures/1575407.json      |  746 +++
+#    site_v2/src/data/fixtures/1575408.json      |  727 +++
+#    site_v2/src/data/fixtures/1575409.json      |  699 +++
+#    site_v2/src/data/fixtures/1575410.json      |  765 +++
+#    site_v2/src/data/fixtures/1575411.json      |  765 +++
+#    site_v2/src/data/fixtures/1575412.json      |  746 +++
+#    site_v2/src/data/fixtures/1575413.json      |  746 +++
+#    site_v2/src/data/fixtures/1575414.json      |  727 +++
+#    site_v2/src/data/fixtures/1575415.json      |  685 +++
+#    site_v2/src/data/fixtures/1575416.json      |  727 +++
+#    site_v2/src/data/fixtures/1575417.json      |  746 +++
+#    site_v2/src/data/fixtures/1575418.json      |  671 +++
+#    site_v2/src/data/fixtures/1575419.json      |  746 +++
+#    site_v2/src/data/fixtures/1575420.json      |  690 +++
+#    site_v2/src/data/fixtures/1575421.json      |  718 +++
+#    site_v2/src/data/fixtures/1575422.json      |  746 +++
+#    site_v2/src/data/fixtures/1575423.json      |  746 +++
+#    site_v2/src/data/fixtures/1575424.json      |  746 +++
+#    site_v2/src/data/fixtures/1575425.json      |  727 +++
+#    site_v2/src/data/fixtures/1575426.json      |  727 +++
+#    site_v2/src/data/fixtures/1575427.json      |  658 +++
+#    site_v2/src/data/fixtures/1575428.json      |  727 +++
+#    site_v2/src/data/fixtures/1575429.json      |  732 +++
+#    site_v2/src/data/fixtures/1575430.json      |  727 +++
+#    site_v2/src/data/fixtures/1575431.json      |  671 +++
+#    site_v2/src/data/fixtures/1575432.json      |  746 +++
+#    site_v2/src/data/fixtures/1575433.json      |  765 +++
+#    site_v2/src/data/fixtures/1575434.json      |  746 +++
+#    site_v2/src/data/fixtures/1575435.json      |  765 +++
+#    site_v2/src/data/fixtures/1575436.json      |  639 +++
+#    site_v2/src/data/fixtures/1575437.json      |  746 +++
+#    site_v2/src/data/fixtures/1575438.json      |  765 +++
+#    site_v2/src/data/fixtures/1575439.json      |  765 +++
+#    site_v2/src/data/fixtures/1575440.json      |  699 +++
+#    site_v2/src/data/fixtures/1575441.json      |  746 +++
+#    site_v2/src/data/fixtures/1575442.json      |  727 +++
+#    site_v2/src/data/fixtures/1575443.json      |  685 +++
+#    site_v2/src/data/fixtures/1575444.json      |  746 +++
+#    site_v2/src/data/fixtures/1575445.json      |  639 +++
+#    278 files changed, 203496 insertions(+), 237 deletions(-)
+# ============================================================================
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -116,8 +2386,8 @@ index d947b6c6..59b26997 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          |  36 +++++++-------
-#    .claude/task/review.md          |  14 +++---
-#    .claude/task/review_input.patch | 103 +++++++++++++++++++---------------------
-#    3 files changed, 75 insertions(+), 78 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   95 +-
+#    .claude/task/rendered_page_evidence.md |  121 +-
+#    .claude/task/review_input.patch        | 2452 ++++++++++++++++++++++++++++++--
+#    3 files changed, 2479 insertions(+), 189 deletions(-)
 # ============================================================================

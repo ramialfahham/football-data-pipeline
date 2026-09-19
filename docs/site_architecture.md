@@ -43,7 +43,8 @@ All pages live under a locale prefix. Trailing slashes; lowercase kebab-case slu
 /{locale}/football/{country-slug}/                           country hub (e.g. /football/germany/)
 /{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
 /{locale}/{competition-slug}/{season-slug}/                  competition season archive
-/{locale}/{competition-slug}/<tab>/                          the Matchdays, Teams and Players tabs — each a standalone page; its URL is ruled with that tab's review on GitLab #129 (the earlier /table/, /fixtures/, /top-scorers/ rows are superseded by the four-tab ruling of 2026-09-15)
+/{locale}/{competition-slug}/fixtures/                       competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup) — the same segment for every kind of competition and every locale, ruled with the tab's review on GitLab #129 (built by #150)
+/{locale}/{competition-slug}/<tab>/                          the Rankings tab — a standalone page; its URL is ruled with that tab's review on GitLab #129
 /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report)
 /{locale}/teams/{team-slug}/                                 team profile
 /{locale}/players/{player-slug}/                             player profile

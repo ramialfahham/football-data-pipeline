@@ -135,7 +135,7 @@ not made here. See 09_chrome.md §10 for the full note.
 | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
 | 02 | [02_team_profile.md](02_team_profile.md) | Team profile ⭐ | **spec'd** | 2 |
 | 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
-| 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Teams · Players | **Overview approved on GitLab #129** (2026-09-15, "The approved design") — the authority for the page; #149 builds the Overview tab. No wireframe file: the issue's block list and its data-model table are the field contract. The three other tabs are reviewed on #129 before they are built | 3 |
+| 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** (2026-09-16, "The approved design", three tabs superseding the four of 2026-09-15) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149) and the Matchdays tab at /fixtures/ (#150); the Rankings tab is #151 | 3 |
 | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
 | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
 | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |

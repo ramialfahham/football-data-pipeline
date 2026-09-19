@@ -447,6 +447,31 @@ export interface SeasonSummary {
   longest_winless_teams: TeamRef[];
 }
 
+/** One fixture of a competition-season as mart_competition_fixtures serves it: the played flag,
+ *  the score once played, the served slug, and the flag of the one match that matters. */
+export interface CompetitionFixture {
+  fixture_id: number;
+  slug: string | null;
+  kickoff: string | null;
+  status: string | null;
+  is_played: boolean;
+  goals_home: number | null;
+  goals_away: number | null;
+  home: TeamRef;
+  away: TeamRef;
+  is_match_that_matters: boolean;
+}
+
+/** One round of a competition-season: the provider's name, its matchday number where the name
+ *  carries one, its place in the season's sequence, whether it is the next round, its fixtures. */
+export interface CompetitionRound {
+  round: string;
+  round_order: number | null;
+  round_sequence: number | null;
+  is_next_round: boolean;
+  fixtures: CompetitionFixture[];
+}
+
 export interface CompetitionPayload {
   type: string;
   league_code: string;
@@ -462,4 +487,5 @@ export interface CompetitionPayload {
   next_matchday: FixtureRef[];
   deserved: DeservedRow[];
   summary: SeasonSummary | null;
+  fixtures?: CompetitionRound[];
 }

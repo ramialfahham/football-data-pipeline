@@ -1,0 +1,106 @@
+---
+// Competition page, Matchdays tab (spec: src/specs/competition/fixtures/index.spec.json).
+//
+// One page per competition per locale, for every competition whose latest served season carries
+// fixtures in competitions/{league_code}/{season}.json. The header and the tab bar are the
+// Overview's, this tab lit; no sentence under the bar. Under it the picker and the Schedule block,
+// one round on screen at a time. A competition with no fixtures served has no page here and its
+// Overview shows the tab as an inert label, so no link points at a page the build did not emit.
+//
+// Nothing on this page is derived: the slug, the name, the crest, every round, flag and score is a
+// served field of the competition payload.
+import Layout from "../../../../layouts/Layout.astro";
+import CompetitionHeader from "../../../../components/competition/CompetitionHeader.astro";
+import CompetitionTabs from "../../../../components/competition/CompetitionTabs.astro";
+import MatchdaySchedule from "../../../../components/competition/MatchdaySchedule.astro";
+import { t } from "../../../../i18n/strings";
+import { localeHref, LOCALES } from "../../../../lib/href";
+import type { Lang } from "../../../../lib/format";
+import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
+import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
+import competitionIndex from "../../../../data/competition_index.json";
+
+export function getStaticPaths() {
+  const data = competitionIndex as unknown as CompetitionIndex;
+  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
+    eager: true,
+    import: "default",
+  });
+  return data.competitions.flatMap((competition) => {
+    const payload = latestSeasonPayload(
+      Object.values(payloads).filter((p) => p.league_code === competition.league_code),
+    );
+    if (!payload?.fixtures?.length) return [];
+    return LOCALES.map((lang) => ({
+      params: { lang, competition: competition.slug },
+      props: { competition, lang, payload },
+    }));
+  });
+}
+
+interface Props {
+  competition: CompetitionIndexRow;
+  lang: Lang;
+  payload: CompetitionPayload;
+}
+const { competition, lang, payload } = Astro.props;
+
+const name = payload.name ?? competition.competition_name ?? "";
+const competitionType = payload.competition_type ?? competition.competition_type;
+const isLeague = competitionType === "domestic_league";
+const tabLabel = t(lang, isLeague ? "compTabMatchdays" : "compTabRounds");
+
+const title = t(lang, "seoCompetitionFixturesTitle", { competition: name, season: String(payload.season) });
+const description = t(lang, "seoCompetitionFixturesDesc", { competition: name, season: String(payload.season) });
+
+const entity = {
+  "@type": "SportsOrganization",
+  name: name || undefined,
+  sport: "Football",
+};
+
+const crumbs = [
+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+  { name: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
+  { name, href: localeHref(lang, `${competition.slug}/`) },
+  { name: tabLabel },
+];
+---
+
+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+  <div class="inner">
+    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+      <span class="sep">›</span>
+      <a class="lnk" href={localeHref(lang, "competitions/")}>{t(lang, "navCompetitions")}</a>
+      <span class="sep">›</span>
+      <a class="lnk" href={localeHref(lang, `${competition.slug}/`)}>{name}</a>
+      <span class="sep">›</span>
+      <span class="here">{tabLabel}</span>
+    </nav>
+
+    <CompetitionHeader
+      name={payload.name ?? competition.competition_name}
+      crest={payload.crest ?? competition.logo_url}
+      regionLabelEn={payload.region_label_en ?? competition.region_label_en}
+      regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
+      season={payload.season}
+      round={payload.next_matchday[0]?.round ?? null}
+      lang={lang}
+    />
+    <CompetitionTabs
+      lang={lang}
+      hasMatchdays={isLeague}
+      active="matchdays"
+      competitionSlug={competition.slug}
+      hasFixturesPage={true}
+    />
+
+    <MatchdaySchedule
+      rounds={payload.fixtures ?? []}
+      competitionSlug={payload.slug}
+      lang={lang}
+      isLeague={isLeague}
+    />
+  </div>
+</Layout>

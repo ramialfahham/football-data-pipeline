@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import {
   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
   specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
-  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie,
+  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf,
 } from "./audit-seo.mjs";
 
 const SITE = "https://matchdaypilot.com";
@@ -217,6 +217,23 @@ test("auditSet: within a locale, a duplicate title/description/h1 is caught", ()
   const issues = auditSet(pages, OPTS);
   assert.ok(issues.some((i) => i.includes('title is not unique within "en"')));
   assert.ok(issues.some((i) => i.includes('h1 is not unique within "en"')));
+});
+
+test("auditSet: an entity page and its tab page share the h1 by design, and only they do", () => {
+  const tab = (path, title) =>
+    ({ path, head: head({ title, canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, alternates: {} }) });
+  const shared = auditSet([tab("/en/bundesliga/", "Overview"), tab("/en/bundesliga/fixtures/", "Fixtures")], OPTS);
+  assert.ok(!shared.some((i) => i.includes("h1 is not unique")), shared.join("\n"));
+  // the title still has to differ between the two
+  const sameTitle = auditSet([tab("/en/bundesliga/", "T"), tab("/en/bundesliga/fixtures/", "T")], OPTS);
+  assert.ok(sameTitle.some((i) => i.includes('title is not unique within "en"')));
+  // two segments down is not a tab, and a sibling is not a tab
+  const deep = auditSet([tab("/en/bundesliga/", "A"), tab("/en/bundesliga/matches/x/", "B")], OPTS);
+  assert.ok(deep.some((i) => i.includes("h1 is not unique")));
+  const sibling = auditSet([tab("/en/bundesliga/", "A"), tab("/en/premier-league/", "B")], OPTS);
+  assert.ok(sibling.some((i) => i.includes("h1 is not unique")));
+  assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/fixtures/") && isTabOf("/en/bundesliga/fixtures/", "/en/bundesliga/"));
+  assert.ok(!isTabOf("/en/teams/a/", "/en/teams/b/"));
 });
 
 test("auditSet: JSON-LD must parse, carry the declared @type, and hold no empty values", () => {

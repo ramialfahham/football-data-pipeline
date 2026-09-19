@@ -139,16 +139,25 @@ def player_slug_with_id(name: str | None, entity_id: int) -> str:
     return f"{base}-{entity_id}" if base else str(entity_id)
 
 
-def fixture_slug(kickoff, home_name: str | None, away_name: str | None, fixture_id: int) -> str:
-    """Fixture URL slug: ``{yyyy-mm-dd}-{home}-vs-{away}`` (arch doc section 3).
-
-    Falls back to the fixture id when names/date are missing so it is always unique.
-    """
-    date = str(kickoff)[:10] if kickoff else ""
-    home, away = _kebab(home_name), _kebab(away_name)
-    if date and home and away:
-        return f"{date}-{home}-vs-{away}"
-    return f"fixture-{fixture_id}"
+def group_fixtures_by_round(rows: list[dict]) -> list[dict]:
+    """A competition-season's fixtures as the Matchdays tab reads them: one entry per round, the
+    rows in the warehouse's fixture_order (rounds in sequence, each round by kick-off), so the
+    round order and the row order are both served. Every value is a served column of
+    mart_competition_fixtures; the slug is the warehouse's, the played flag and the two matchday
+    flags are carried through. Nothing is selected, ranked or computed here."""
+    rounds: dict = {}
+    for r in sorted(rows, key=lambda r: r["fixture_order"]):
+        rnd = rounds.setdefault(r["round"], {
+            "round": r["round"],
+            "round_order": r.get("round_order"),
+            "round_sequence": r.get("round_sequence"),
+            "is_next_round": bool(r.get("is_next_round")),
+            "fixtures": [],
+        })
+        rnd["fixtures"].append({k: v for k, v in r.items()
+                                if k not in ("round", "round_order", "round_sequence", "is_next_round",
+                                             "fixture_order")})
+    return list(rounds.values())
 
 
 def _drop(row: dict, keys: set[str]) -> dict:
@@ -637,13 +646,13 @@ def _team_ref(team: dict | None) -> dict:
     }
 
 
-def _fixture_ref(kickoff, round_name, home: dict | None, away: dict | None,
+def _fixture_ref(slug: str | None, kickoff, round_name, home: dict | None, away: dict | None,
                  fixture_id: int, goals_home=None, goals_away=None) -> dict:
-    """A match the page names and links: slug, kickoff, round, both sides, the score if played."""
+    """A match the page names and links: the served slug, kickoff, round, both sides, the score
+    if played. The slug is mart_competition_fixtures' fixture_slug, never built here."""
     ref = {
         "fixture_id": fixture_id,
-        "slug": fixture_slug(kickoff, (home or {}).get("team_name"), (away or {}).get("team_name"),
-                             fixture_id),
+        "slug": slug,
         "kickoff": kickoff,
         "round": round_name,
         "home": _team_ref(home),
@@ -655,10 +664,11 @@ def _fixture_ref(kickoff, round_name, home: dict | None, away: dict | None,
     return ref
 
 
-def shape_season_summary(row: dict | None, teams: dict) -> dict | None:
+def shape_season_summary(row: dict | None, teams: dict, slugs: dict) -> dict | None:
     """One competition-season's headline facts, each team and fixture resolved to what a page
     needs to name and link it. A null fact stays null: the page renders no row for it. No number
-    is computed here — every value is a column of mart_competition_season_summary."""
+    is computed here — every value is a column of mart_competition_season_summary, and a match's
+    slug is looked up by fixture_sk in `slugs`, the served fixture_slug column."""
     if not row:
         return None
 
@@ -666,6 +676,7 @@ def shape_season_summary(row: dict | None, teams: dict) -> dict | None:
         if row.get(f"{prefix}_fixture_sk") is None:
             return None
         return _fixture_ref(
+            slugs.get(int(row[f"{prefix}_fixture_sk"])),
             row.get(f"{prefix}_kickoff_datetime"), row.get(f"{prefix}_round_name"),
             teams.get(int(row[f"{prefix}_home_team_sk"])) if row.get(f"{prefix}_home_team_sk") is not None else None,
             teams.get(int(row[f"{prefix}_away_team_sk"])) if row.get(f"{prefix}_away_team_sk") is not None else None,
@@ -694,10 +705,12 @@ def shape_season_summary(row: dict | None, teams: dict) -> dict | None:
 
 def shape_competition_payload(league_code: str, season: int, meta: dict,
                               standings: list[dict], next_matchday: list[dict],
-                              deserved: list[dict], summary: dict | None) -> dict:
+                              deserved: list[dict], summary: dict | None,
+                              fixtures: list[dict] | None = None) -> dict:
     """A competition-season page: header facts, the standings sections, the next matchday, the
-    deserved-points rows and the season summary. Selection and ordering by served columns only:
-    standings by section then rank, the matchday by kickoff, deserved rows by the served gap rank."""
+    deserved-points rows, the season summary and every fixture of the season by round. Selection
+    and ordering by served columns only: standings by section then rank, the matchday by kickoff,
+    deserved rows by the served gap rank, rounds by the served round sequence."""
     meta = meta or {}
     return {
         "type": "competition",
@@ -719,6 +732,7 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
             key=lambda r: r["deserved_points_gap_rank"],
         ),
         "summary": summary,
+        "fixtures": group_fixtures_by_round(fixtures or []),
     }
 
 
@@ -727,15 +741,12 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
     """The fixture page payload: header + both teams' form/standing blocks + the
     home-vs-away head-to-head record. Composed from the source marts (momentum,
     season-to-date, standing context, head-to-head) — NOT mart_matchday_insights,
-    which is the MVP's presentation pivot."""
+    which is the MVP's presentation pivot. The slug is the served fixture_slug."""
     fid = int(fix["fixture_sk"])
     return {
         "type": "fixture",
         "fixture_id": fid,
-        "slug": fixture_slug(
-            fix.get("kickoff_datetime"), fix.get("home_team_name"),
-            fix.get("away_team_name"), fid,
-        ),
+        "slug": fix.get("fixture_slug"),
         "kickoff": fix.get("kickoff_datetime"),
         "status": fix.get("status_short"),
         "league_code": fix.get("league_code"),
@@ -761,15 +772,18 @@ def _strip_identity(row: dict) -> dict:
     return {k: v for k, v in row.items() if k not in drop}
 
 
-def build_manifest(entries: list[dict]) -> dict:
+def build_manifest(entries: list[dict], source_counts: dict | None = None) -> dict:
     """Export manifest: per-entity type counts + the file index (for incremental
-    Astro builds — each entry carries a content checksum)."""
+    Astro builds — each entry carries a content checksum). `source_counts` records what the
+    warehouse held when the export ran — today the number of unplayed fixtures — so the site
+    build can prove it carries every one of them, not only every file written."""
     counts: dict[str, int] = {}
     for e in entries:
         counts[e["type"]] = counts.get(e["type"], 0) + 1
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "counts": counts,
+        "source_counts": dict(source_counts or {}),
         "entries": entries,
     }
 
@@ -901,15 +915,23 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
     ]
 
 
-def fetch_fixture_payloads(client, sample: int = 0) -> list[dict]:
+def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
+    """One payload per unplayed fixture, every competition. The slug is joined from
+    mart_competition_fixtures, the one place a match's URL segment is built. When `source_counts`
+    is given it receives the number of unplayed fixtures the warehouse held before any sampling,
+    for the manifest."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     fixtures = _query(client, f"""
-        select fixture_sk, league_sk, league_code, season_api_year, kickoff_datetime,
-               round_name, status_short, venue_name_snapshot, home_team_sk, away_team_sk
-        from `{GCP_PROJECT}.core.fct_fixture`
-        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
+        select f.fixture_sk, f.league_sk, f.league_code, f.season_api_year, f.kickoff_datetime,
+               f.round_name, f.status_short, f.venue_name_snapshot, f.home_team_sk, f.away_team_sk,
+               c.fixture_slug
+        from `{GCP_PROJECT}.core.fct_fixture` as f
+        inner join `{marts}.mart_competition_fixtures` as c on f.fixture_sk = c.fixture_sk
+        where f.status_short in ('NS', 'TBD') and f.fixture_date >= current_date()
     """)
     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
+    if source_counts is not None:
+        source_counts["fixtures_unplayed"] = len(fixtures)
     if sample:
         fixtures = fixtures[:sample]
     if not fixtures:
@@ -1201,10 +1223,22 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         (r["league_code"], int(r["season_api_year"])): r
         for r in _query(client, f"select * from `{marts}.mart_competition_season_summary`")
     }
+    # Every fixture of every competition-season, whole: the Matchdays tab's rows, and the one
+    # source of a match's slug for every other block that links a match.
+    fixture_rows = _query(client, f"""
+        select fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence,
+               fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away,
+               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
+               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
+               fixture_slug, is_next_round, is_match_that_matters
+        from `{marts}.mart_competition_fixtures`
+    """)
+    fixtures = _group2(fixture_rows, "league_code", "season_api_year")
+    slugs = {int(r["fixture_sk"]): r.get("fixture_slug") for r in fixture_rows}
 
     # A competition-season has a page when any block has something to show: a cup has no
-    # standings but a next round and a season summary.
-    combos = sorted(set(standings) | set(matchday) | set(summaries))
+    # standings but a next round, a season summary and its rounds.
+    combos = sorted(set(standings) | set(matchday) | set(summaries) | set(fixtures))
     if sample:
         combos = combos[:sample]
     if not combos:
@@ -1218,10 +1252,31 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     def _next(r: dict) -> dict:
         home = teams.get(int(r["home_team_sk"])) if r.get("home_team_sk") is not None else None
         away = teams.get(int(r["away_team_sk"])) if r.get("away_team_sk") is not None else None
-        ref = _fixture_ref(r.get("kickoff_datetime"), r.get("round_name"), home, away,
-                           int(r["fixture_sk"]))
+        ref = _fixture_ref(slugs.get(int(r["fixture_sk"])), r.get("kickoff_datetime"),
+                           r.get("round_name"), home, away, int(r["fixture_sk"]))
         ref["is_match_that_matters"] = bool(r.get("is_match_that_matters"))
         return ref
+
+    def _fixture(r: dict) -> dict:
+        return {
+            "fixture_id": int(r["fixture_sk"]),
+            "slug": r.get("fixture_slug"),
+            "kickoff": r.get("kickoff_datetime"),
+            "round": r.get("round_name"),
+            "round_order": r.get("round_order"),
+            "round_sequence": r.get("round_sequence"),
+            "fixture_order": int(r["fixture_order"]),
+            "status": r.get("status_short"),
+            "is_played": bool(r.get("is_played")),
+            "goals_home": r.get("goals_home"),
+            "goals_away": r.get("goals_away"),
+            "home": {"team_id": int(r["home_team_sk"]), "name": r.get("home_team_name"),
+                     "slug": r.get("home_team_slug"), "crest": r.get("home_team_logo_url")},
+            "away": {"team_id": int(r["away_team_sk"]), "name": r.get("away_team_name"),
+                     "slug": r.get("away_team_slug"), "crest": r.get("away_team_logo_url")},
+            "is_next_round": bool(r.get("is_next_round")),
+            "is_match_that_matters": bool(r.get("is_match_that_matters")),
+        }
 
     def _deserved(r: dict) -> dict:
         return {
@@ -1239,7 +1294,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
             [_standing(r) for r in standings.get((lc, season), [])],
             [_next(r) for r in matchday.get((lc, season), [])],
             [_deserved(r) for r in deserved.get((lc, season), [])],
-            shape_season_summary(summaries.get((lc, season)), teams),
+            shape_season_summary(summaries.get((lc, season)), teams, slugs),
+            [_fixture(r) for r in fixtures.get((lc, season), [])],
         ))
     return payloads
 
@@ -1323,8 +1379,7 @@ def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict) -> li
         fixture_id = int(f["fixture_sk"])
         group["fixtures"].append({
             "fixture_id": fixture_id,
-            "slug": fixture_slug(f.get("kickoff_datetime"), (home or {}).get("team_name"),
-                                 (away or {}).get("team_name"), fixture_id),
+            "slug": f.get("fixture_slug"),
             "kickoff": f.get("kickoff_datetime"),
             "round": f.get("round_name"),
             "home": _landing_side(home),
@@ -1593,9 +1648,11 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     # takes the table whole. The fixture pages use the same upcoming definition the mart does, so
     # the hero can never advertise a match that has no page.
     fixtures = _query(client, f"""
-        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
-               home_team_sk, away_team_sk
-        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_next_matchday`
+        select n.fixture_sk, n.league_code, n.season_api_year, n.kickoff_datetime, n.round_name,
+               n.home_team_sk, n.away_team_sk, c.fixture_slug
+        from `{GCP_PROJECT}.{MARTS_DATASET}.mart_next_matchday` as n
+        inner join `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_fixtures` as c
+            on n.fixture_sk = c.fixture_sk
     """)
     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
 
@@ -1747,6 +1804,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
     client = client or _client()
     entries: list[dict] = []
     slug_map: dict[str, dict] = {}
+    source_counts: dict[str, int] = {}
 
     if "teams" in entities:
         for p in fetch_team_payloads(client, sample):
@@ -1759,7 +1817,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             entries.append(e)
             slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
     if "fixtures" in entities:
-        for p in fetch_fixture_payloads(client, sample):
+        for p in fetch_fixture_payloads(client, sample, source_counts):
             e = write_entity(out_root, "fixtures", p["fixture_id"], p)
             entries.append(e)
             slug_map[p["slug"]] = {"type": "fixture", "id": p["fixture_id"]}
@@ -1814,7 +1872,7 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
     (out_root / "slug_map.json").write_text(
         json.dumps(slug_map, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    manifest = build_manifest(entries)
+    manifest = build_manifest(entries, source_counts)
     (out_root / "manifest.json").write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
     )

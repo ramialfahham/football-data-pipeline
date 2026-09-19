@@ -1,0 +1,37 @@
+{
+  "$schema": "../../page-spec.schema.json",
+  "page": "[lang]/[competition]/fixtures/index.astro",
+  "entity": "competition",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoCompetitionFixturesTitle",
+    "description": "seoCompetitionFixturesDesc",
+    "schema_org": "SportsOrganization",
+    "links": {
+      "inbound_hub": "competition",
+      "outbound": ["competition", "fixture"]
+    },
+    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one round in its fixtures list, read whole from mart_competition_fixtures. A competition with no fixtures served has no page here, and its Overview shows the tab as an inert label. Every unplayed row links to its match preview page, which the build emits from fixtures/{fixture_id}.json for every unplayed fixture the export wrote; a played row is not a link until the match report page exists.",
+    "page_count_driver": "count(competitions with fixtures served for their latest season) x count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Matchdays tab, /{locale}/{competition-slug}/fixtures/, the same segment for every kind of competition and every locale. The slug is the registry's authored slug, served through mart_competition_index."
+  },
+  "blocks": [
+    {
+      "block": "Competition header",
+      "mart": "mart_competition_index",
+      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
+    },
+    {
+      "block": "Matchday picker",
+      "mart": "mart_competition_fixtures",
+      "i18n_keys": ["compPickerAria", "compFactMatchday", "compNextTag"]
+    },
+    {
+      "block": "Schedule",
+      "mart": "mart_competition_fixtures",
+      "i18n_keys": ["compSecSchedule", "compTBC", "compTopMatch"]
+    }
+  ]
+}

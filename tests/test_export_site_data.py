@@ -16,7 +16,7 @@ from scripts.export_site_data import (
     deserved_scatter_index,
     build_nav,
     fetch_glossary,
-    fixture_slug,
+    group_fixtures_by_round,
     shape_competition_index,
     shape_competition_payload,
     shape_season_summary,
@@ -225,13 +225,19 @@ def _summary_row(**overrides) -> dict:
     return row
 
 
+_SUMMARY_SLUGS = {
+    1575154: "2026-09-12-sc-freiburg-vs-gladbach",
+    1575153: "2026-09-05-gladbach-vs-sv-elversberg",
+}
+
+
 def test_shape_season_summary_resolves_teams_and_fixtures_to_what_the_page_links():
-    s = shape_season_summary(_summary_row(), _SUMMARY_TEAMS)
+    s = shape_season_summary(_summary_row(), _SUMMARY_TEAMS, _SUMMARY_SLUGS)
     assert s["matches_played"] == 27 and s["total_goals"] == 104 and s["goals_per_match"] == 3.85
     assert s["home_wins"] == 14 and s["away_wins"] == 8 and s["drawn_matches"] == 5
     bm = s["biggest_margin"]
     assert bm["fixture_id"] == 1575154 and bm["goals_home"] == 5 and bm["goals_away"] == 0
-    assert bm["slug"] == "2026-09-12-sc-freiburg-vs-borussia-monchengladbach"
+    assert bm["slug"] == "2026-09-12-sc-freiburg-vs-gladbach", "the served slug, never built here"
     assert bm["home"]["slug"] == "sc-freiburg" and bm["away"]["name"] == "Borussia Mönchengladbach"
     assert bm["round"] == "Regular Season - 3"
     assert s["most_goals"]["away"] == {"team_id": 1660, "name": "SV Elversberg",
@@ -245,28 +251,70 @@ def test_shape_season_summary_keeps_a_null_fact_null_and_a_missing_row_none():
     s = shape_season_summary(
         _summary_row(home_wins=None, away_wins=None, biggest_margin_fixture_sk=None,
                      longest_unbeaten_team_sks=[]),
-        _SUMMARY_TEAMS,
+        _SUMMARY_TEAMS, _SUMMARY_SLUGS,
     )
     assert s["home_wins"] is None and s["away_wins"] is None
     assert s["biggest_margin"] is None
     assert s["longest_unbeaten_teams"] == []
-    assert shape_season_summary(None, _SUMMARY_TEAMS) is None
+    assert shape_season_summary(None, _SUMMARY_TEAMS, _SUMMARY_SLUGS) is None
 
 
 def test_shape_season_summary_computes_nothing():
     """Every value is a served column repeated; a row whose served ratio disagrees with its own
     counts is passed through as served, never recomputed here."""
-    s = shape_season_summary(_summary_row(goals_per_match_played=9.99), _SUMMARY_TEAMS)
+    s = shape_season_summary(_summary_row(goals_per_match_played=9.99), _SUMMARY_TEAMS, _SUMMARY_SLUGS)
     assert s["goals_per_match"] == 9.99
 
 
-def test_fixture_slug_date_home_vs_away():
-    assert fixture_slug("2026-06-11T19:00:00", "Mexico", "South Africa", 7) \
-        == "2026-06-11-mexico-vs-south-africa"
+def test_shape_season_summary_links_no_match_the_warehouse_gave_no_slug():
+    """The slug is looked up, never built: a fixture absent from the served slugs links nowhere."""
+    s = shape_season_summary(_summary_row(), _SUMMARY_TEAMS, {})
+    assert s["biggest_margin"]["fixture_id"] == 1575154 and s["biggest_margin"]["slug"] is None
 
 
-def test_fixture_slug_falls_back_to_id():
-    assert fixture_slug(None, "Mexico", "South Africa", 7) == "fixture-7"
+def _served_fixture(fid, rnd, seq, kickoff, order=None, played=False, nxt=False, top=False, pos=None):
+    return {
+        "fixture_id": fid, "slug": f"s{fid}", "kickoff": kickoff, "round": rnd,
+        "round_order": order, "round_sequence": seq, "fixture_order": pos,
+        "status": "FT" if played else "NS",
+        "is_played": played, "goals_home": 2 if played else None, "goals_away": 1 if played else None,
+        "home": {"team_id": 1, "name": "A", "slug": "a", "crest": None},
+        "away": {"team_id": 2, "name": "B", "slug": "b", "crest": None},
+        "is_next_round": nxt, "is_match_that_matters": top,
+    }
+
+
+def test_group_fixtures_by_round_follows_the_served_fixture_order():
+    """Rows in the warehouse's fixture_order and nothing else: the round order and the order
+    inside a round are both served; the round-level flags lift to the round, the row keeps its own.
+    The kickoffs below are deliberately out of step with fixture_order to prove no key but the
+    served one decides."""
+    rows = [
+        _served_fixture(30, "Round of 16", 3, "2026-10-01T18:00:00", pos=5),
+        _served_fixture(21, "Regular Season - 2", 2, "2026-09-05T13:30:00", order=2, nxt=True, top=True, pos=4),
+        _served_fixture(20, "Regular Season - 2", 2, "2026-09-04T18:30:00", order=2, nxt=True, pos=3),
+        _served_fixture(11, "Regular Season - 1", 1, "2026-08-28T18:30:00", order=1, played=True, pos=2),
+        _served_fixture(10, "Regular Season - 1", 1, "2026-08-29T18:30:00", order=1, played=True, pos=1),
+    ]
+    rounds = group_fixtures_by_round(rows)
+    assert [r["round"] for r in rounds] == ["Regular Season - 1", "Regular Season - 2", "Round of 16"]
+    assert [r["round_sequence"] for r in rounds] == [1, 2, 3]
+    assert [r["round_order"] for r in rounds] == [1, 2, None]
+    assert [r["is_next_round"] for r in rounds] == [False, True, False]
+    assert [f["fixture_id"] for f in rounds[0]["fixtures"]] == [10, 11], "by fixture_order, not by kickoff"
+    assert [f["fixture_id"] for f in rounds[1]["fixtures"]] == [20, 21]
+    assert rounds[1]["fixtures"][1]["is_match_that_matters"] is True
+    assert rounds[0]["fixtures"][0]["is_played"] is True and rounds[0]["fixtures"][0]["goals_home"] == 2
+    assert "round_sequence" not in rounds[0]["fixtures"][0] and "is_next_round" not in rounds[0]["fixtures"][0]
+    assert "fixture_order" not in rounds[0]["fixtures"][0], "the ordering key is consumed, not shipped"
+    assert rounds[0]["fixtures"][0]["slug"] == "s10", "the served slug is carried through"
+
+
+def test_group_fixtures_by_round_is_empty_when_nothing_is_served():
+    assert group_fixtures_by_round([]) == []
+    p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
+                                  standings=[], next_matchday=[], deserved=[], summary=None)
+    assert p["fixtures"] == []
 
 
 def test_fixture_side_drops_join_keys_and_handles_missing():
@@ -283,12 +331,12 @@ def test_shape_fixture_payload_composes_header_and_sides():
            "status_short": "NS", "league_code": "WC", "league_name": "World Cup",
            "season_api_year": 2026, "round_name": "Group Stage - 1",
            "venue_name_snapshot": "Estadio", "home_team_name": "Mexico",
-           "away_team_name": "South Africa"}
+           "away_team_name": "South Africa", "fixture_slug": "2026-06-11-mexico-vs-south-africa"}
     home = _fixture_side(1, {"team_name": "Mexico"}, None, None, None)
     away = _fixture_side(2, {"team_name": "South Africa"}, None, None, None)
     p = shape_fixture_payload(fix, home, away, {"total_meetings": 3, "wins": 2})
     assert p["type"] == "fixture" and p["fixture_id"] == 7
-    assert p["slug"] == "2026-06-11-mexico-vs-south-africa"
+    assert p["slug"] == "2026-06-11-mexico-vs-south-africa", "the served fixture_slug, never built here"
     assert p["league_name"] == "World Cup" and p["round"] == "Group Stage - 1"
     assert p["home"]["team_id"] == 1 and p["away"]["team_id"] == 2
     assert p["head_to_head"] == {"total_meetings": 3, "wins": 2}
@@ -810,6 +858,14 @@ def test_build_manifest_counts_by_type():
     assert m["counts"] == {"team": 2, "player": 1}
     assert len(m["entries"]) == 3
     assert "generated_at" in m
+    assert m["source_counts"] == {}, "no source count recorded when none was measured"
+
+
+def test_build_manifest_records_what_the_warehouse_held():
+    """The build proves it carries every unplayed match by comparing its pages to this number,
+    not to the files written: a sampled export writes fewer files than the warehouse holds."""
+    m = build_manifest([], {"fixtures_unplayed": 4321})
+    assert m["source_counts"] == {"fixtures_unplayed": 4321}
 
 
 def test_competitions_index_covers_registry_leagues_with_slug_and_name():
