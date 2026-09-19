@@ -32,6 +32,42 @@ models:
       - dbt_utils.expression_is_true:
           expression: "finishing_efficiency_pct is null or (finishing_efficiency_pct between 0 and 1)"
           name: tsi_finishing_efficiency_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "points_capture_pct is null or (points_capture_pct between 0 and 1)"
+          name: tsi_points_capture_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "goals_per_match is null or goals_per_match >= 0"
+          name: tsi_goals_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "goals_against_per_match is null or goals_against_per_match >= 0"
+          name: tsi_goals_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_per_match is null or shots_per_match >= 0"
+          name: tsi_shots_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "shots_share_pct is null or (shots_share_pct between 0 and 1)"
+          name: tsi_shots_share_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "shots_inside_box_pct is null or (shots_inside_box_pct between 0 and 1)"
+          name: tsi_shots_inside_box_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "shots_on_goal_pct is null or (shots_on_goal_pct between 0 and 1)"
+          name: tsi_shots_on_goal_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "passes_accuracy_pct is null or (passes_accuracy_pct between 0 and 1)"
+          name: tsi_passes_accuracy_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "passes_per_match is null or passes_per_match >= 0"
+          name: tsi_passes_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_per_match is null or corners_per_match >= 0"
+          name: tsi_corners_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "corners_against_per_match is null or corners_against_per_match >= 0"
+          name: tsi_corners_against_per_match_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "saves_pct is null or (saves_pct between 0 and 1)"
+          name: tsi_saves_pct_in_range
     columns:
       - name: team_season_sk
         tests: [not_null, unique]

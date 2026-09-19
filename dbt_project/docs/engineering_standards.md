@@ -250,6 +250,14 @@ A `not_null` is added because the description says the column is never NULL, not
 reviewer would like it to be. A column listed without a description is a defect: the listing
 says the column matters, the missing sentence says nobody wrote down what it is or when it is NULL.
 
+**The declared soft link.** A foreign key into a universe wider than the warehouse's dimensions
+— transfers and coaching careers name clubs and players the tracked competitions never include —
+cannot carry `relationships`: the test would be red on correct data, and a permanently red
+`warn` teaches everyone to ignore warns. Such a column carries `meta: soft_link: "<parent> —
+<why>"` instead, next to the column, and nothing else counts as an exception. The sweep script
+accepts a declared soft link and prints every one on every run, so the exception is never
+silent; a foreign key with neither is a finding.
+
 ### 3.2) A rate is one definition, gated by its inputs
 
 What a metric's NULL means is ruled in one place, `docs/metric_layer.md` ("Incomplete data is not
@@ -307,8 +315,10 @@ has not landed is a rule in progress, and the issue that owns it says so:
   rate's description must carry is composed by `scripts/sync_metric_docs_blocks.py` from the
   catalogue's denominator, not typed per rate;
 - every documented column exists in the model's projection — a check beside the hygiene script;
-- every foreign key carries a `relationships` test — a script that lists the `_sk` columns
-  without one, run in `validate:governance`.
+- every foreign key carries a `relationships` test or a declared soft link —
+  `scripts/check_relationships_coverage.py`, which resolves every `_sk` column to its parent by
+  name, lists the foreign keys without either, and prints the soft links; in place, to be run in
+  `validate:governance`.
 
 ## 4) Model Contracts and Metadata
 

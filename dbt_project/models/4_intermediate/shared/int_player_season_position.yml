@@ -21,16 +21,40 @@ models:
       - dbt_utils.expression_is_true:
           expression: "finishing_efficiency_player_pct is null or (finishing_efficiency_player_pct between 0 and 1)"
           name: int_player_season_position_finishing_in_range
+      # saves_player_pct = saves / (saves + goals against) is bounded by construction, so [0,1]. The
+      # three provider-subset ratios (accurate/total, won/total, success/attempts) are >= 0 only:
+      # a position played in one or two legs is a real row here (no minutes floor), and a single
+      # game where the provider reports numerator > denominator is genuine data, not a model bug —
+      # the same split int_team_season__metrics_cumulative makes. The per-90 rates are non-negative
+      # counts scaled by minutes, so >= 0.
+      - dbt_utils.expression_is_true:
+          expression: "(saves_player_pct is null or saves_player_pct between 0 and 1) and (passes_accuracy_player_pct is null or passes_accuracy_player_pct >= 0) and (duels_won_player_pct is null or duels_won_player_pct >= 0) and (dribbles_success_player_pct is null or dribbles_success_player_pct >= 0)"
+          name: int_player_season_position_shares_in_range
+      - dbt_utils.expression_is_true:
+          expression: "(goals_per90 is null or goals_per90 >= 0) and (assists_per90 is null or assists_per90 >= 0) and (scorer_points_per90 is null or scorer_points_per90 >= 0) and (shots_on_goal_per90 is null or shots_on_goal_per90 >= 0) and (passes_key_per90 is null or passes_key_per90 >= 0) and (dribbles_success_per90 is null or dribbles_success_per90 >= 0) and (passes_per90 is null or passes_per90 >= 0) and (tackles_per90 is null or tackles_per90 >= 0) and (interceptions_per90 is null or interceptions_per90 >= 0) and (blocks_per90 is null or blocks_per90 >= 0) and (defensive_actions_per90 is null or defensive_actions_per90 >= 0) and (duels_won_per90 is null or duels_won_per90 >= 0) and (saves_per90 is null or saves_per90 >= 0)"
+          name: int_player_season_position_per90_rates_non_negative
     columns:
       - name: player_sk
         description: "{{ doc('player_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: league_sk
         description: "{{ doc('league_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]

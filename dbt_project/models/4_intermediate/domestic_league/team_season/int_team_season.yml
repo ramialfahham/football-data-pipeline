@@ -57,6 +57,11 @@ models:
       - dbt_utils.expression_is_true:
           expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
           name: int_team_season_sot_against_non_negative
+      # Every other per-match count rate is a sum of non-negative counts over games played, so a
+      # negative is a sign-flip or a bad numerator.
+      - dbt_utils.expression_is_true:
+          expression: "(goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0)"
+          name: int_team_season_per_match_rates_non_negative
     columns:
       - name: team_season_sk
         description: "Surrogate over (team_sk, season_sk); the model's grain key. Uniqueness tested at source (relied on by int_team_season__deserved_vs_actual)."
@@ -83,8 +88,16 @@ models:
         description: "{{ doc('shots_on_goal_against_per_match') }}"
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: entity_type
       - name: stat_coverage_season_games
       - name: player_stat_coverage_season_games
@@ -200,6 +213,9 @@ models:
       - dbt_utils.expression_is_true:
           expression: "shots_on_goal_against_per_match is null or shots_on_goal_against_per_match >= 0"
           name: int_team_season_cumulative_sot_against_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "(goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0)"
+          name: int_team_season_cumulative_per_match_rates_non_negative
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -221,8 +237,16 @@ models:
         tests: [not_null]
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: entity_type
       - name: stat_coverage_season_games
       - name: player_stat_coverage_season_games
@@ -429,7 +453,11 @@ models:
               field: team_sk
       - name: season_sk
         description: "{{ doc('season_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: league_code
         description: "{{ doc('league_code') }} Here every value must be a DOMESTIC LEAGUE in the registry, asserted by join rather than by an accepted_values list, which would break the zero-file rule the moment a league is onboarded."
         tests:
@@ -458,6 +486,10 @@ models:
         description: "{{ doc('deserved_points_gap_rank') }}"
       - name: league_sk
         description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: entity_type

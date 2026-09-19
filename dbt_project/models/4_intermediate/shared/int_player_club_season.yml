@@ -55,7 +55,11 @@ models:
               field: season_sk
       - name: league_sk
         description: "{{ doc('league_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]

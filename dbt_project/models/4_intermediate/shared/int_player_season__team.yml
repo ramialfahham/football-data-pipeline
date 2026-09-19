@@ -20,7 +20,11 @@ models:
     columns:
       - name: player_sk
         description: "{{ doc('player_sk') }}"
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
@@ -29,7 +33,11 @@ models:
         tests: [not_null]
       - name: team_sk
         description: "{{ doc('team_sk') }} Here it is the club of the player's most recent finished match that competition-season."
-        tests: [not_null]
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: is_current_team
         description: "True on the one season-row holding the player's globally most-recent finished match (their current club)."
         tests: [not_null]

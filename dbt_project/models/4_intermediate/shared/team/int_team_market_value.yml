@@ -15,6 +15,12 @@ models:
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: as_of_date
         description: "{{ doc('as_of_date') }}"
       - name: market_value_eur
