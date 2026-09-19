@@ -4,7 +4,7 @@
 -- silently blanks every downstream surface. fct_fixture_player_stats sat empty (0 rows)
 -- this way while its base had ~800k rows. The models now coalesce the max to the epoch so
 -- an empty table self-heals; this test fails loudly if any fanout fact is empty regardless.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with counts as (
     select 'fct_fixture_player_stats' as model_name, count(*) as row_count

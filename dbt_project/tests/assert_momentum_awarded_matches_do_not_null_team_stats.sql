@@ -18,6 +18,8 @@
 -- `games_expecting_team_stats` is projected out of mart_team_momentum for this test. Without it
 -- nothing on this surface can tell a correct gate from one reverted to games_in_window.
 
+{{ config(store_failures = true) }}
+
 with momentum as (
     select * from {{ ref('mart_team_momentum') }}
 )

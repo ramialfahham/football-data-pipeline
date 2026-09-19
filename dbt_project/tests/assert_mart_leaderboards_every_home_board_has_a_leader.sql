@@ -17,6 +17,8 @@
 -- with no data in a league the block never shows is not a defect; asserting it would fail on
 -- competitions that legitimately carry no player stats.
 
+{{ config(store_failures = true) }}
+
 {% set home_boards = [
     'goals_player',
     'assists_player',

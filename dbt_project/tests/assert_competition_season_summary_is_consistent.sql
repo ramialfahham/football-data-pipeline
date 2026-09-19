@@ -9,6 +9,8 @@
 -- schema tests stay green.
 --
 -- Returns a row (= fails) per competition-season where any property does not hold.
+{{ config(store_failures = true) }}
+
 with finished as (
     select
         fixture_sk,

@@ -9,6 +9,8 @@
 --
 -- Any returned row is a defect.
 
+{{ config(store_failures = true) }}
+
 with player_sides as (
     select distinct
         upcoming_fixture_sk,

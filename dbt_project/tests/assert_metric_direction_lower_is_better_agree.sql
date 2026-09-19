@@ -38,6 +38,7 @@
   asymmetry and the per-merge-request naming are pinned in
   `tests/test_ci_data_job_invariants.py`.
 #}
+{{ config(store_failures = true) }}
 
 select
     metric_id,

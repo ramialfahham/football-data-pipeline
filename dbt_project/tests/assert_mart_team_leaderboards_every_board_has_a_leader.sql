@@ -21,6 +21,8 @@
 -- survive the top-10 cut, and nothing asserts a row count.
 --
 -- Returns a row (= fails) for every board with no leader in a league-season.
+{{ config(store_failures = true) }}
+
 with per_board as (
     select
         league_code,

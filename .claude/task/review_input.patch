@@ -1,215 +1,707 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 88ea7644..e12160de 100644
+index e12160de..8b6d2111 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,129 +1,38 @@
--# Task contract — #150: the competition page's Matchdays tab
-+# Task contract — handover: #150 merged as !209; next is #109 step 3
+@@ -1,38 +1,71 @@
+-# Task contract — handover: #150 merged as !209; next is #109 step 3
++# Task contract — #109 step 3, MR A: store_failures on every singular test; severity by §3.3
  
  objective: >
--  Build the competition page's Matchdays tab as approved on #129 ("The approved design", "Matchdays
--  tab", CPO 2026-09-16): the competition-season fixtures mart, the fixtures list on the competition
--  payload, the tab page at /{lang}/{competition}/fixtures/ with the picker and the Schedule block, the
--  build check that every unplayed match has a page, the nightly read measured, the copy, the documents.
-+  Bring `.claude/active_work.md` to the state after this session: #150 built, reviewed and merged
-+  as !209 (2026-09-19, after the data build was retried green against the fresh prod table); #155
-+  filed (the match preview title collision at full scale); the 2026-09-19 nightly green; the next
-+  unit of work is #109 step 3. Under 16,000 characters. Refresh the tracker snapshot.
+-  Bring `.claude/active_work.md` to the state after this session: #150 built, reviewed and merged
+-  as !209 (2026-09-19, after the data build was retried green against the fresh prod table); #155
+-  filed (the match preview title collision at full scale); the 2026-09-19 nightly green; the next
+-  unit of work is #109 step 3. Under 16,000 characters. Refresh the tracker snapshot.
++  Every singular test under `dbt_project/tests/` sets `store_failures = true` (engineering_standards.md
++  §3.4: a red test leaves its rows in the warehouse, not a count), and every singular test's
++  severity answers §3.3's one question — would a fan see a wrong number if this condition held.
++  49 of 54 tests gain the config; 3 flip from `error` to `warn`. No model, no yml, no number on the
++  site changes.
  
  refs: >
--  #150 (the build issue; its What exactly is the requirement); #129 "Matchdays tab — approved" and
--  "Rules that bind every block on every tab"; docs/wireframes/block_standard.md (Matchday picker,
--  Picker title, Picker arrow, Tag, Date heading, Match row *, Block heading gap, Row link);
--  design-mocks/renders/competition-matchdays_2026-09-16_01.html (the render of record); the plan
--  approved in chat 2026-09-18 (steps 1–5, one step's evidence before the next starts).
-+  The CPO's rulings in chat 2026-09-18 (the plan for #150 approved; the slug from the warehouse;
-+  played rows inert until the report page exists) are recorded on !209's head and in its contract.
-+  #155 filed 2026-09-19 by the build; `tests/test_no_dead_issue_refs.py` lists 155 as a dead number
-+  and its own assertion text prescribes the fix: remove a number only when GitLab has genuinely issued
-+  it, and move the self-test pin to the next dead number.
+-  The CPO's rulings in chat 2026-09-18 (the plan for #150 approved; the slug from the warehouse;
+-  played rows inert until the report page exists) are recorded on !209's head and in its contract.
+-  #155 filed 2026-09-19 by the build; `tests/test_no_dead_issue_refs.py` lists 155 as a dead number
+-  and its own assertion text prescribes the fix: remove a number only when GitLab has genuinely issued
+-  it, and move the self-test pin to the next dead number.
++  #109, "Step 3 — the mechanisms and the sweep", MR A: the plan approved in chat 2026-09-19 and
++  recorded on the issue. The rules are §3.3 and §3.4 of `dbt_project/docs/engineering_standards.md`
++  (merged in !201). The form is the one the 5 tests that already carry it use
++  (`{{ config(store_failures = true) }}`, e.g. `assert_season_rates_inputs_covered.sql`). The audit
++  dataset is created by dbt per target: `dbt_test__audit` on prod and `ci_mr<IID>_dbt_test__audit`
++  on the MR target hold the 5 existing tables today (`bq ls`, 2026-09-19).
  
  scope_paths:
--  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_mart_competition_fixtures_one_row_per_fixture.sql
--  - dbt_project/tests/assert_mart_competition_fixtures_next_round_is_one_round.sql
--  - dbt_project/tests/assert_mart_competition_fixtures_team_slugs_resolve.sql
--  - scripts/export_site_data.py
--  - tests/test_export_site_data.py
--  - tests/test_export_landing.py
--  - site_v2/src/pages/[[]lang]/[[]competition]/fixtures/index.astro
--  - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
--  - site_v2/src/specs/competition/fixtures/index.spec.json
--  - site_v2/src/specs/competition/index.spec.json
--  - site_v2/src/components/competition/CompetitionTabs.astro
--  - site_v2/src/components/competition/MatchdaySchedule.astro
--  - site_v2/src/components/ui/MatchRow.astro
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/types.ts
--  - site_v2/scripts/check-built-pages.mjs
--  - site_v2/scripts/check-built-pages.test.mjs
--  - site_v2/scripts/audit-seo.mjs
--  - site_v2/scripts/audit-seo.test.mjs
--  - site_v2/integrations/built-pages.mjs
--  - site_v2/astro.config.mjs
--  - site_v2/src/data/competitions/BL1/2026.json
--  - site_v2/src/data/fixtures/*.json
--  - site_v2/src/data/README.md
--  - .gitignore
--  - docs/wireframes/block_standard.md
--  - docs/wireframes/00_overview.md
--  - docs/site_architecture.md
--  - docs/content_architecture.md
-+  - .claude/active_work.md
-+  - tests/test_no_dead_issue_refs.py
-+  - docs/tracker/gitlab_snapshot.md
+-  - .claude/active_work.md
+-  - tests/test_no_dead_issue_refs.py
+-  - docs/tracker/gitlab_snapshot.md
++  - dbt_project/tests/*.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--  - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
--
--impact_map: >
--  writers: the new mart is a leaf written by dbt only; it reads fct_fixture, dim_team,
--    int_legs__team_match (the played definition, by semi-join, not restated) and mart_next_matchday
--    (the flag, by left join; mart-to-mart refs are established: mart_team_profile, mart_matchday_insights).
--    mart_next_matchday is unchanged.
--  downstream: `dbt ls --select mart_competition_fixtures+ --resource-type model` →
--    `football_data_pipeline.5_marts.shared.mart_competition_fixtures` alone (no downstream model);
--    the full `dbt ls --select mart_competition_fixtures+` lists the model, its three singular tests
--    (assert_mart_competition_fixtures_next_round_is_one_round, _one_row_per_fixture,
--    _team_slugs_resolve) and its schema tests (accepted_values x3, not_null x15, unique, relationships
--    to fct_fixture, competition_fixtures_played_has_a_score, _top_match_is_in_the_next_round,
--    _slug_unique_per_competition, _order_unique_per_season). Leaf mart. The export's competition
--    payload gains a key; the fixture slug the export writes at every call site is read from the mart.
--  layer_rules: marts select and present; league_code on every row; materialisation per layer config,
--    nothing per model (check_layer_contract.py).
--  deploy_order: additive. A new table and new tests; the nightly builds it after merge; until then the
--    committed sample carries its output, produced by the fetch with the compiled SQL inlined against
--    prod, read-only (the method !191 used).
--  blast_radius: no shipped number changes. Fixture slugs: 37 of 3,344 team names spell differently
--    under the ruled slug (measured 2026-09-18 on dim_team); the site is unpublished and noindex.
--
--acceptance_criteria:
--  - /en/bundesliga/fixtures/, /de/bundesliga/fixtures/ and /fi/bundesliga/fixtures/ are emitted with the Overview's header and tab bar, no sentence, and the breadcrumb Home › Competitions › Bundesliga (a link to /{lang}/bundesliga/) › the tab label.
--  - On the built page exactly one `.md-in` radio is checked and it belongs to the round whose picker carries the Next tag; each picker's arrows are labels for the neighbouring rounds; the first round's previous arrow and the last round's next arrow are `.step.off`.
--  - The picker is its own line under the tab bar and the Schedule block's `.sechead` follows it; `check_design_inventory.py --dist site_v2/dist` measures Block heading gap 14px, Matchday picker visible=1 with a 2px line, Picker arrow 34px, Tag, Date heading and Match row kick-off on the built page at 375px and 700px in EN and FI, and passes on Home and the Overview.
--  - Every unplayed row is `a.fxrow` with href /{lang}/bundesliga/matches/{fixture_slug}/ and the build emits that page (audit-seo's dead-link check green); played rows follow the step-3 ruling recorded in amendments.
--  - A played row shows both scores with the winner's goals `.g.winner`; an unplayed row shows the kick-off in UTC with the zone label `.rowtz`; a `TBD` fixture shows the TBC copy in the time slot.
--  - The flagged match of the next round carries the Top match tag before its kick-off; no other row on the page does.
--  - check-built-pages fails the build when the count of emitted match pages differs from fixture payloads × locales, or from the export's manifest when one is present; shown red once with a payload removed, then green.
--  - Every new label resolves in EN, DE and FI (check_copy_gate.py green) and the copy is listed on the MR for the CPO's ruling.
++  - .claude/active_work.md
++  - docs/tracker/gitlab_snapshot.md
  
  decisions_taken: >
--  The fixture slug (CPO, in chat 2026-09-18, on the two paths put with the measurement): "Warehouse,
--  from the team slugs" — slug = kickoff UTC date + home team_slug + "-vs-" + away team_slug, one column
--  on the new mart; every fixture slug the export writes reads it, and the Python fixture_slug() goes.
--  The round shown in the picker: "Matchday {n}" for a domestic league, n = the trailing integer of the
--  provider's round text — the derivation int_legs__team_match already carries as round_order, computed
--  in the warehouse (the mart's round_order, the shared doc block's name); every other competition
--  kind shows the provider's round text until #148 lands and replaces both. Rounds are ordered by the
--  round's first kick-off (the mart's round_sequence), which is what "round order" means before #148.
--  The winner's bold score is the larger of the two served goal values, a formatting comparison of
--  two displayed numbers, not a result derivation (no W/D/L, no perspective).
--  The mock generator design-mocks/gen_competition_matchdays.py is already tracked and in the block
--  standard's Pages table (#153 item 5); it renders the approved design from real data and is not
--  touched here.
--  is_next_round: mart_next_matchday's round, read from that mart (every fixture of the round it
--  serves, played or not), never re-derived; a test recomputes the league-wide rule from fct_fixture
--  and asserts every mart_next_matchday fixture is flagged. fixture_order is the served reading order
--  (rounds in sequence, each by kick-off); the export orders by it and by nothing else. Which round opens: the flagged round, else the last
--  round with a played fixture, else the first — a display default over served flags, no value derived.
--  The played definition is not restated: a fixture is played when int_legs__team_match holds a leg
--  for it. Kick-off in UTC with the label "UTC" until #146; the raw season year in the title until #105.
--  THRESHOLD, NEW MECHANISM (for cto-reviewer): a build-done check, check-built-pages, wired like
--  audit-seo, that counts match pages against the fixture payloads and the export's manifest and asserts
--  the fixtures page's row and radio invariants.
--  THRESHOLD, RECURRING COST (for cto-reviewer): the export's reads for every unplayed match are
--  measured by dry run and put on the MR with the number before any full-scale run; the deploy export
--  is not widened by this task.
-+  None. The handover's top section rewritten to what was built and what is open; the dead-issue
-+  guard's set loses 155 because GitLab issued it (the guard's own rule), the count, digest and floor
-+  follow, the self-test that pins the guard fires moves to 156. No other change to the test.
+-  None. The handover's top section rewritten to what was built and what is open; the dead-issue
+-  guard's set loses 155 because GitLab issued it (the guard's own rule), the count, digest and floor
+-  follow, the self-test that pins the guard fires moves to 156. No other change to the test.
++  §3.4 applied as written: `store_failures = true` on the 49 singular tests without it, added to
++  the existing `config(...)` where one exists, as its own line where none does. §3.3 applied to the
++  54 singular tests, one line per test in the MR head. The three flips to `warn`:
++  `assert_country_name_overrides_still_needed`, `assert_league_name_overrides_are_corrections`,
++  `assert_team_name_overrides_still_needed` — a dead override row does nothing, the fan sees the
++  right name either way, and the test is the reminder to delete it. Every other singular test
++  stays `error`, including the seven `*_covers_active_competition_var` tests: an active
++  competition with no rows is a wrong page, not a correct state, and the accepted red on an
++  onboarding MR (#76) is a missing signal, not a wrong severity. The generic tests are ruled by
++  their column class (§3.1 → §3.3's table) and are not touched here.
++
++  RECURRING COST, declared: with `store_failures` a test runs the same query as a CTAS into the
++  audit dataset and then counts the small table. The extra billed work is the count, at
++  BigQuery's 10 MB per-table minimum: 49 more tables per run of the singular suite (the nightly
++  once, `data:build:main` twice, an MR pipeline once). The two `freshness_check` tests run only in
++  the nightly's unfiltered `dbt build` (`deploy/nightly/entrypoint.sh`); the hourly `fdp-freshness`
++  job is `scripts/check_raw_freshness.py`, a metadata sentinel that runs no dbt. Under 1 GB a day,
++  under $0.15 a month. Storage is the failing rows only. No new mechanism: the materialisation, the
++  dataset and the form are the ones step 2 and #150 already use.
  
  decisions_reserved:
--  - Copy: "Schedule / Spielplan / Otteluohjelma" and "Top match / Topspiel / Huippuottelu" are #129's; "Next" as a tag (DE "Nächster", not the existing fxNext "Nächstes"), "TBC / Offen / Avoin", the page title and description are drafts, listed on the MR for his ruling.
--  - The number: bytes and dollars per night for the full-scale export, before it runs at scale.
-+  - none: !209 is merged, its head was his check; this commit records state.
+-  - none: !209 is merged, its head was his check; this commit records state.
++  - none: the plan on #109 names the 3 flips and the 7 that stay; the MR head carries the full
++    54-line table for his check, and his merge is the ruling on any line of it.
  
  done_when:
--  - dbt parse clean; SQLFluff clean on every changed model and test; the three singular tests run against prod with the compiled SQL inlined, each RED under a mutation first; data:build:mr green.
--  - pytest tests -q green; node --test green in site_v2; check-page-specs OK; check_copy_gate.py green.
--  - astro build of the committed sample green through audit-seo and check-built-pages; check_page_css.py and check_design_inventory.py --dist site_v2/dist green on every page; tests/test_design_inventory.py green.
--  - Blinded review: analytics-engineer, platform, bi-analyst, cto (the two thresholds), scope-auditor; review.md carries the --staged-hash; the MR head set right after the hook opens it.
-+  - `.claude/active_work.md` names !209 as merged, #155 as filed, the 2026-09-19 nightly as green and #109 step 3 as next; `len()` under 16,000.
-+  - `python -m pytest tests/test_no_dead_issue_refs.py -q` green; `python scripts/snapshot_tracker.py` run and its output committed.
+-  - `.claude/active_work.md` names !209 as merged, #155 as filed, the 2026-09-19 nightly as green and #109 step 3 as next; `len()` under 16,000.
+-  - `python -m pytest tests/test_no_dead_issue_refs.py -q` green; `python scripts/snapshot_tracker.py` run and its output committed.
++  - `grep -L "store_failures" dbt_project/tests/*.sql` prints nothing; `grep -l "store_failures = true" dbt_project/tests/*.sql | wc -l` is 54.
++  - `grep -l "severity = 'warn'" dbt_project/tests/*.sql | wc -l` is 4 (the 3 flips plus `assert_team_season_games_not_short_of_standings`).
++  - `.venv/Scripts/dbt.exe parse` green with a scratchpad profile; `python -m sqlfluff lint dbt_project/tests --templater jinja --dialect bigquery` reports nothing new against main.
++  - `data:build:mr` green; after it, `bq ls ci_mr<IID>_dbt_test__audit` lists 52 tables — every
++    singular test that job runs (the two `freshness_check` tests are excluded from every CI dbt
++    job and run only in the nightly's unfiltered `dbt build`, which writes their two tables to
++    prod's `dbt_test__audit`).
++  - The MR head lists all 54 singular tests with the §3.3 answer and severity, one line each.
  
  amendments:
--  - 2026-09-19, review round 1: + docs/wireframes/00_overview.md — authority: CLAUDE.md names it the owner of the design chain's reading order, and #129's ruling of 2026-09-16 (three tabs, Overview · Matchdays · Rankings) plus the built state (#149 Overview, #150 Matchdays) are what the two sibling documents this branch already updated record; its competition-page row still names four tabs and the 2026-09-15 ruling. One row edited, nothing else. Same round: the impact_map's downstream field now carries the pasted `dbt ls` output (scope-auditor); the export orders rows by a served `fixture_order` column instead of a Python comparator, `is_next_round` is read from mart_next_matchday's round instead of re-derived, and `fixture_slug`'s description no longer names a null case (analytics-engineer); the built-pages check matches a row's class in any attribute order and the allowlist range starts at 1575167 exactly (platform). Round 2: the yml block of fixture_order had swallowed is_match_that_matters's tests under a duplicated key (analytics-engineer); the tests are back under their column, fixture_order carries not_null, and the pasted count above is 15 not_null.
--  - 2026-09-19, step 4, no path added: the full-scale build (every unplayed match, 15,078 match pages, the deploy job's heap) does not run out of memory and the page-count check passes on it; it fails audit-seo on one pre-existing defect of the match preview page (two meetings of the same clubs share one title, 12 pairings x 3 locales), filed as its own GitLab issue in the Matches milestone the same day. Whether #150 is blocked on it is the CPO's call, put on the MR; nothing of that page is touched here.
--  - 2026-09-19, step 3: + site_v2/scripts/audit-seo.mjs, + site_v2/scripts/audit-seo.test.mjs — authority: #129 header ("The header never changes with the tab (crest · name · meta line) … the browser title carries the page's long name for search") against the audit's check 5, which fails two pages of one locale sharing an h1; the audit's own comment says the h1 "renders the entity name", and a tab page renders the same entity. The assertion is NARROWED, not removed: an h1 may repeat only between a page and a page one path segment beneath it (an entity page and its tab); every other repeat still fails, and the test pins both sides.
--  - 2026-09-19, step 3: + site_v2/src/pages/[lang]/[competition]/index.astro (the Overview page) — authority: #150's What exactly ("the Overview's header and tab bar (three tabs …; this tab lit"), #129 header ("each a standalone page with an identical header and tab bar"): the shared tab bar links the built tabs both ways, so the Overview passes the competition slug and whether the fixtures page is emitted to the tab component. Two props on one component call; nothing else on the page changes.
--  - 2026-09-18, before step 3, no path added: the played rows. #129 says every row is a link (a played match to the match report page #132 designs); the build fails a link to a page it did not emit, and no played match has a page yet. Put to the CPO with three paths; his ruling: "Inert until the report page exists" — played rows show the score and are not links, unplayed rows link to their preview page, the row component carries one switch that flips when the report page lands. The acceptance criterion "played rows follow the step-3 ruling" is this.
--  - 2026-09-18, before step 2: + tests/test_export_landing.py — authority: the CPO's slug ruling of the same day ("Warehouse, from the team slugs": every fixture slug the export writes reads the warehouse's, the Python fixture_slug() goes); content: the landing test that pinned the Python spelling of the slug now pins that the served slug is carried through. No other change to the file.
-+  - 2026-09-19, no path added: the CPO asked for the nightly site export, build and deploy to be filed; GitLab issued #156, another number the dead-issue guard held, so 156 leaves the set too (count 252 to 251, floor 163, the self-test pins moved to 163 and 178) and the handover names #156 under go-live. Rebased onto main after !209 merged: the three task files collided and this branch's versions were taken; the code and the handover merged clean.
-+  - 2026-09-19, no path added: the CPO merged !209 while this handover was open, so the handover's top paragraph is rewritten from "open, three questions on the head" to "merged"; the copy shipped as drafted and the merge is the ruling on it; the 2026-09-19 nightly succeeded, so #109 step 3 is unblocked.
-diff --git a/tests/test_no_dead_issue_refs.py b/tests/test_no_dead_issue_refs.py
-index 59b26997..cb52ea98 100644
---- a/tests/test_no_dead_issue_refs.py
-+++ b/tests/test_no_dead_issue_refs.py
-@@ -59,7 +59,7 @@ INSTRUCTING_FILES = ("CLAUDE.md", ".claude/active_work.md")
+-  - 2026-09-19, no path added: the CPO asked for the nightly site export, build and deploy to be filed; GitLab issued #156, another number the dead-issue guard held, so 156 leaves the set too (count 252 to 251, floor 163, the self-test pins moved to 163 and 178) and the handover names #156 under go-live. Rebased onto main after !209 merged: the three task files collided and this branch's versions were taken; the code and the handover merged clean.
+-  - 2026-09-19, no path added: the CPO merged !209 while this handover was open, so the handover's top paragraph is rewritten from "open, three questions on the head" to "merged"; the copy shipped as drafted and the merge is the ruling on it; the 2026-09-19 nightly succeeded, so #109 step 3 is unblocked.
++  - 2026-09-19: + docs/tracker/gitlab_snapshot.md — authority: the standing rule in `CLAUDE.md`
++    ("At the end of every session, before the handover commit, run `python
++    scripts/snapshot_tracker.py`"; `docs/tracker/**` is artifact-only, outside the review patch
++    and hash); content: the generated tracker backup, never hand-edited. The first draft of this
++    contract omitted the path.
++  - 2026-09-19: the cost line and `done_when` corrected — the two `freshness_check` tests are not
++    run hourly; `fdp-freshness` is a Python metadata sentinel, and the two tests run once a night in
++    the unfiltered `dbt build` (analytics-engineer-reviewer, round 2). The declared cost goes down,
++    not up. The commit message of the first commit carries the old sentence; this contract and the
++    MR head are the corrected record.
+diff --git a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql b/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
+index effdbd95..cba7baf6 100644
+--- a/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
++++ b/dbt_project/tests/assert_awarded_matches_do_not_null_team_stats.sql
+@@ -18,6 +18,8 @@
+ -- Reads the whole-season projection rather than the cumulative model: same formulas, one row per
+ -- team-season instead of one per matchday, so a failure names a season rather than a matchday.
  
- # Every GitHub-era issue number this repo still refers to. Closed set — see the module docstring.
- DEAD_GITHUB_ISSUES = frozenset({
--    *range(155, 157), 163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
-+    163, 178, 182, *range(184, 187), *range(198, 200), 204, 206,
-     *range(217, 229), *range(232, 241), 247, *range(250, 263), 264, 266, 268, 272,
-     *range(276, 297), 299, *range(307, 315), *range(316, 330), 331, *range(361, 371), 372,
-     *range(374, 378), 391, *range(401, 404), 405, *range(407, 429), 430, *range(433, 435),
-@@ -119,7 +119,7 @@ def test_the_guard_can_actually_fire():
-     CSS colour in `docs/roles/ui_expert.md` cannot be mistaken for an issue.
-     """
-     assert _dead_refs("the authority is #753") == [753]
--    assert _dead_refs("see #155 and #156") == [155, 156]
-+    assert _dead_refs("see #163 and #178") == [163, 178]
-     # GitLab issues, live: #33 is the cost/scalability plan, #115 the context cleanup.
-     assert _dead_refs("#33 and #114 and #115 are live") == []
-     # The trailing-hex guard: a six-digit CSS colour is not issue 475569.
-@@ -131,7 +131,7 @@ def test_the_guard_can_actually_fire():
-     assert _dead_refs("shown literally as &amp;#753; in the source") == []
-     assert _dead_refs("and doubly as &amp;amp;#753; if quoted again") == []
-     # A real reference in punctuation still matches — the exclusion costs no coverage.
--    assert _dead_refs("see (#753) and [#156]") == [156, 753]
-+    assert _dead_refs("see (#753) and [#163]") == [163, 753]
++{{ config(store_failures = true) }}
++
+ with season as (
+     select * from {{ ref('int_team_season__metrics') }}
+ )
+diff --git a/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql b/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql
+index 43246a76..52c8ae3d 100644
+--- a/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_base_fixture_statistics_covers_active_competition_var.sql
+@@ -1,6 +1,6 @@
+ -- Active competitions with current-season fixture statistics coverage must have
+ -- rows in base_apif__fixture_statistics. Registry/var sync: check_registry_var_sync.py.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
  
+ with expected_codes as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql b/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql
+index 70442421..f3cec4ff 100644
+--- a/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_base_fixtures_next_covers_active_competition_var.sql
+@@ -1,6 +1,6 @@
+ -- Proves each vars.active_competition_league_codes value exists in base_apif__fixtures_next.
+ -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
  
- def test_a_short_all_digit_hex_colour_is_a_KNOWN_false_positive():
-@@ -202,8 +202,8 @@ def test_no_member_of_the_dead_set_can_be_removed_quietly():
-     digest = hashlib.sha256(
-         ",".join(str(n) for n in sorted(DEAD_GITHUB_ISSUES)).encode()
-     ).hexdigest()
--    assert len(DEAD_GITHUB_ISSUES) == 253 and digest == (
--        "5ac5e1d4bc9bc9942a0999d867316e772f2eb263dbf98491c67a9f1872da5618"
-+    assert len(DEAD_GITHUB_ISSUES) == 251 and digest == (
-+        "f9570f666e58f898b5216e3a4268b03f87ca6a8a3247c1d44472bba678b7e45c"
-     ), (
-         "DEAD_GITHUB_ISSUES changed. There is exactly one legitimate reason: GitLab has issued a "
-         "number that is in the set, so a live reference was being flagged — remove that ONE entry "
-@@ -216,10 +216,10 @@ def test_the_headroom_before_a_collision_is_stated():
-     """The set is closed, so the only way it goes wrong is GitLab reaching one of these numbers.
+ with expected as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql b/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql
+index 8cd96766..6ef365e8 100644
+--- a/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_base_leagues_covers_active_competition_var.sql
+@@ -1,7 +1,7 @@
+ -- Proves each vars.active_competition_league_codes value exists in base_apif__leagues.
+ -- Does NOT prove the var matches docs/competition_registry.yml; that is
+ -- scripts/check_registry_var_sync.py in CI. See dbt_project/dbt_project.yml.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
  
-     GitLab was at #115 when the set was enumerated and the lowest dead number was #151, so there
--    were 35 issues of headroom. GitLab has since reached #151, #153 and #154 (the Rankings build
--    issue, the design-system issue, the runbook rewrite), those entries are gone, and the floor is
--    #155. Pinning both ends makes the collision arrive as a named test failure rather than as a
-+    were 35 issues of headroom. GitLab has since reached #151, #153, #154, #155 and #156 (the Rankings
-+    build issue, the design-system issue, the runbook rewrite, the match-title collision, the
-+    nightly site build), those entries are gone, and the floor is #163. Pinning both ends makes the collision arrive as a named test failure rather than as a
-     confusing false positive on a live reference.
-     """
--    assert min(DEAD_GITHUB_ISSUES) == 155
-+    assert min(DEAD_GITHUB_ISSUES) == 163
-     assert 115 not in DEAD_GITHUB_ISSUES, "GitLab #115 is the context-cleanup issue and is live"
+ with expected as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql b/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql
+index 9cdaad6f..308361f4 100644
+--- a/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_base_standings_covers_active_competition_var.sql
+@@ -2,7 +2,7 @@
+ -- base_apif__standings. Codes in vars.active_competition_league_codes but with
+ -- has_coverage_standings false (e.g. WCQIP, WCQOC) are excluded — the API has no
+ -- standings surface for them. Registry/var sync: scripts/check_registry_var_sync.py.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ with expected_codes as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql b/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql
+index ccf4df19..59690866 100644
+--- a/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_base_teams_covers_active_competition_var.sql
+@@ -1,6 +1,6 @@
+ -- Proves each vars.active_competition_league_codes value exists in base_apif__teams.
+ -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ with expected as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_competition_name_is_unique.sql b/dbt_project/tests/assert_competition_name_is_unique.sql
+index c90da224..121a1b9e 100644
+--- a/dbt_project/tests/assert_competition_name_is_unique.sql
++++ b/dbt_project/tests/assert_competition_name_is_unique.sql
+@@ -13,6 +13,8 @@
+ -- it applies the browsable filter, so this checks the set that actually reaches a reader. A
+ -- duplicate among non-browsable competitions is not a rendering defect.
+ 
++{{ config(store_failures = true) }}
++
+ with import_mart_competition_index as (
+     select * from {{ ref('mart_competition_index') }}
+ )
+diff --git a/dbt_project/tests/assert_competition_season_summary_is_consistent.sql b/dbt_project/tests/assert_competition_season_summary_is_consistent.sql
+index a7d6ca91..cac189ec 100644
+--- a/dbt_project/tests/assert_competition_season_summary_is_consistent.sql
++++ b/dbt_project/tests/assert_competition_season_summary_is_consistent.sql
+@@ -9,6 +9,8 @@
+ -- schema tests stay green.
+ --
+ -- Returns a row (= fails) per competition-season where any property does not hold.
++{{ config(store_failures = true) }}
++
+ with finished as (
+     select
+         fixture_sk,
+diff --git a/dbt_project/tests/assert_country_name_overrides_still_needed.sql b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
+index 3c9f9d18..8cfa6cbd 100644
+--- a/dbt_project/tests/assert_country_name_overrides_still_needed.sql
++++ b/dbt_project/tests/assert_country_name_overrides_still_needed.sql
+@@ -16,6 +16,9 @@
+ --
+ -- Compares against STAGING (pre-override) rather than base or core, which is where the coalesce
+ -- is applied and would therefore always agree with the seed.
++--
++-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
++{{ config(severity = 'warn', store_failures = true) }}
+ 
+ with import_country_name_overrides as (
+     select * from {{ ref('country_name_overrides') }}
+diff --git a/dbt_project/tests/assert_event_team_in_fixture_participants.sql b/dbt_project/tests/assert_event_team_in_fixture_participants.sql
+index 2c211f29..7ffbf9c5 100644
+--- a/dbt_project/tests/assert_event_team_in_fixture_participants.sql
++++ b/dbt_project/tests/assert_event_team_in_fixture_participants.sql
+@@ -1,4 +1,4 @@
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ -- Integrity guard (#526): every non-null event team_sk must be one of its fixture's two
+ -- participants. A violation means an event is attributed to a team that did not play the
+diff --git a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+index 30bc00e8..1cd4111b 100644
+--- a/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
++++ b/dbt_project/tests/assert_every_standings_section_has_a_table_kind.sql
+@@ -9,6 +9,8 @@
+ -- mart that drops or reorders the resolution fails here.
+ --
+ -- Returns a row (= fails) per offending (league_code, season_api_year, group_name).
++{{ config(store_failures = true) }}
++
+ with sections as (
+     select distinct
+         league_code,
+diff --git a/dbt_project/tests/assert_fanout_facts_not_empty.sql b/dbt_project/tests/assert_fanout_facts_not_empty.sql
+index 56e89283..bb0b5a2a 100644
+--- a/dbt_project/tests/assert_fanout_facts_not_empty.sql
++++ b/dbt_project/tests/assert_fanout_facts_not_empty.sql
+@@ -4,7 +4,7 @@
+ -- silently blanks every downstream surface. fct_fixture_player_stats sat empty (0 rows)
+ -- this way while its base had ~800k rows. The models now coalesce the max to the epoch so
+ -- an empty table self-heals; this test fails loudly if any fanout fact is empty regardless.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ with counts as (
+     select 'fct_fixture_player_stats' as model_name, count(*) as row_count
+diff --git a/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql b/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql
+index d29e3e50..f6beddbd 100644
+--- a/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_fct_fixture_covers_active_competition_var.sql
+@@ -1,6 +1,6 @@
+ -- Proves each var league_code has at least one row in fct_fixture.
+ -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ with expected as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql b/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql
+index c7f82d8d..780e51df 100644
+--- a/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql
++++ b/dbt_project/tests/assert_fct_fixture_finished_goals_not_null.sql
+@@ -1,5 +1,7 @@
+ -- Fail if any finished fixture has null goals_home or goals_away.
+ -- A finished match must always have both goal values; nulls indicate a failed or incomplete ingestion.
++{{ config(store_failures = true) }}
++
+ select fixture_sk
+ from {{ ref('fct_fixture') }}
+ where
+diff --git a/dbt_project/tests/assert_fct_fixture_goals_plausible.sql b/dbt_project/tests/assert_fct_fixture_goals_plausible.sql
+index a9ee0eb3..3db01a23 100644
+--- a/dbt_project/tests/assert_fct_fixture_goals_plausible.sql
++++ b/dbt_project/tests/assert_fct_fixture_goals_plausible.sql
+@@ -1,5 +1,7 @@
+ -- Fail if any finished fixture has goals outside the plausible range [0, 20].
+ -- Catches swapped or corrupted goal values from the API.
++{{ config(store_failures = true) }}
++
+ select fixture_sk
+ from {{ ref('fct_fixture') }}
+ where
+diff --git a/dbt_project/tests/assert_fct_fixture_no_stale_live.sql b/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
+index 7ff2d49f..cc60643f 100644
+--- a/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
++++ b/dbt_project/tests/assert_fct_fixture_no_stale_live.sql
+@@ -1,4 +1,4 @@
+-{{ config(tags=['freshness_check']) }}
++{{ config(tags=['freshness_check'], store_failures = true) }}
+ 
+ -- Fail if any fixture is still ACTIVELY PLAYING more than 6 hours after its scheduled kickoff.
+ -- A match cannot be in its second half, in extra time or in a penalty shootout that long after it
+diff --git a/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql b/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
+index 47235597..de100b1f 100644
+--- a/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
++++ b/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
+@@ -1,4 +1,4 @@
+-{{ config(tags=['freshness_check']) }}
++{{ config(tags=['freshness_check'], store_failures = true) }}
+ 
+ -- Fail if any fixture still shows NS long after scheduled kickoff, beyond the ingest SLA.
+ --
+diff --git a/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql b/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
+index 4bdb580e..c8807eb4 100644
+--- a/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_fct_fixture_team_stats_covers_active_competition_var.sql
+@@ -1,5 +1,5 @@
+ -- Same coverage rule as assert_base_fixture_statistics_covers_active_competition_var for fct.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ with expected_codes as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql b/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql
+index 6538ae91..52f7ad8f 100644
+--- a/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql
++++ b/dbt_project/tests/assert_fct_standings_covers_active_competition_var.sql
+@@ -1,6 +1,6 @@
+ -- Same rule as assert_base_standings_covers_active_competition_var: only leagues
+ -- with current-season has_coverage_standings must appear in fct_standings.
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ with expected_codes as (
+     {%- for code in var('active_competition_league_codes') %}
+diff --git a/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql b/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql
+index 4781a92b..a7b6e17b 100644
+--- a/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql
++++ b/dbt_project/tests/assert_fct_team_market_value_snapshot_market_value_non_negative.sql
+@@ -1,6 +1,7 @@
+ {{
+     config(
+-        tags=["dq", "core", "market_value"]
++        tags=["dq", "core", "market_value"],
++        store_failures = true
+     )
+ }}
+ 
+diff --git a/dbt_project/tests/assert_league_name_overrides_are_corrections.sql b/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
+index f6b77bce..2c14f06d 100644
+--- a/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
++++ b/dbt_project/tests/assert_league_name_overrides_are_corrections.sql
+@@ -12,6 +12,9 @@
+ -- where the coalesce is applied and would therefore always agree with the seed.
+ -- The dedup mirrors what base_apif__league_entity publishes — latest season, then latest
+ -- ingest — so the comparison is against the provider row that actually reaches dim_league.
++--
++-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
++{{ config(severity = 'warn', store_failures = true) }}
+ 
+ with import_stg_apif__leagues as (
+     select * from {{ ref('stg_apif__leagues') }}
+diff --git a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
+index 9b41e0c0..f23e29ee 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
+@@ -17,6 +17,8 @@
+ -- ⚠ NOT scoped to a pool or a season, because the column is not. It is a global order over every
+ -- league leader on a board; a consumer filtering to seven leagues inherits the relative order.
+ 
++{{ config(store_failures = true) }}
++
+ with import_mart_leaderboards as (
+     select * from {{ ref('mart_leaderboards') }}
+ ),
+diff --git a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+index bd73cfc2..373e70d8 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+@@ -17,6 +17,8 @@
+ -- with no data in a league the block never shows is not a defect; asserting it would fail on
+ -- competitions that legitimately carry no player stats.
+ 
++{{ config(store_failures = true) }}
++
+ {% set home_boards = [
+     'goals_player',
+     'assists_player',
+diff --git a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
+index 0980914b..2ca758f6 100644
+--- a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
++++ b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
+@@ -18,6 +18,8 @@
+ -- something to show, which is a question about the pool it renders. This one asks whether a column
+ -- means what it says, which is true of every row or the column is broken.
+ 
++{{ config(store_failures = true) }}
++
+ with import_mart_leaderboards as (
+     select * from {{ ref('mart_leaderboards') }}
+ ),
+diff --git a/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql b/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
+index 2f741eda..13d085ac 100644
+--- a/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
++++ b/dbt_project/tests/assert_mart_next_matchday_is_each_competitions_earliest_round.sql
+@@ -7,6 +7,8 @@
+ -- the earliest date) fails here even when the mart's schema tests stay green.
+ --
+ -- Returns a row (= fails) per competition where any of the three properties does not hold.
++{{ config(store_failures = true) }}
++
+ with upcoming as (
+     select
+         fixture_sk,
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql b/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
+index 08bf39cf..7b455314 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
+@@ -11,6 +11,8 @@
+ -- this number, the model's board list and seeds' accepted_values together — which is the point.
+ --
+ -- Returns a row (= fails) when the count is anything other than 4.
++{{ config(store_failures = true) }}
++
+ with observed as (
+     select count(distinct metric_key) as board_count
+     from {{ ref('mart_team_leaderboards') }}
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql b/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
+index 4db5f19e..d999e29e 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_every_board_has_a_leader.sql
+@@ -21,6 +21,8 @@
+ -- survive the top-10 cut, and nothing asserts a row count.
+ --
+ -- Returns a row (= fails) for every board with no leader in a league-season.
++{{ config(store_failures = true) }}
++
+ with per_board as (
+     select
+         league_code,
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+index 46b44f2d..ece7b19f 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+@@ -19,6 +19,8 @@
+ -- The test still pins it, because an arbitrary key that is not STABLE would churn the committed
+ -- payload between exports.
+ 
++{{ config(store_failures = true) }}
++
+ with import_mart_team_leaderboards as (
+     select * from {{ ref('mart_team_leaderboards') }}
+ ),
+diff --git a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
+index aa935396..a66da670 100644
+--- a/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
++++ b/dbt_project/tests/assert_mart_team_season_insights_metric_consistency.sql
+@@ -1,6 +1,7 @@
+ {{
+     config(
+-        tags=["dq", "mart", "season_insights"]
++        tags=["dq", "mart", "season_insights"],
++        store_failures = true
+     )
+ }}
+ 
+diff --git a/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql b/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql
+index 0e924fcd..f143eb62 100644
+--- a/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql
++++ b/dbt_project/tests/assert_metric_catalogue_expr_resolvable.sql
+@@ -14,6 +14,7 @@
+   Mirrors assert_no_uncatalogued_season_metric: the ref()s live in the execute-guarded block, so the
+   dependencies are declared explicitly to order the test after the seed + leg models build.
+ #}
++{{ config(store_failures = true) }}
+ -- depends_on: {{ ref('metric_catalogue') }}
+ -- depends_on: {{ ref('int_legs__team_match') }}
+ -- depends_on: {{ ref('int_legs__team_from_players') }}
+diff --git a/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql b/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
+index c0ca839d..9061aa24 100644
+--- a/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
++++ b/dbt_project/tests/assert_metric_catalogue_unique_by_entity.sql
+@@ -3,6 +3,8 @@
+ -- this grain and was failing; this enforces the real key. No instance is named
+ -- here on purpose — step 4 of the naming programme renames every player id that
+ -- currently collides, so a quoted example would date.
++{{ config(store_failures = true) }}
++
+ select
+     metric_id,
+     entity,
+diff --git a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
+index d4b55640..341c82ef 100644
+--- a/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
++++ b/dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
+@@ -38,6 +38,7 @@
+   asymmetry and the per-merge-request naming are pinned in
+   `tests/test_ci_data_job_invariants.py`.
+ #}
++{{ config(store_failures = true) }}
+ 
+ select
+     metric_id,
+diff --git a/dbt_project/tests/assert_metric_meaning_complete.sql b/dbt_project/tests/assert_metric_meaning_complete.sql
+index 31a472d0..c8544d51 100644
+--- a/dbt_project/tests/assert_metric_meaning_complete.sql
++++ b/dbt_project/tests/assert_metric_meaning_complete.sql
+@@ -30,6 +30,7 @@
+   Both that asymmetry and the per-merge-request naming are pinned in
+   `tests/test_ci_data_job_invariants.py`.
+ #}
++{{ config(store_failures = true) }}
+ 
+ select
+     metric_id,
+diff --git a/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql b/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
+index 65ddbc16..99b117e5 100644
+--- a/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
++++ b/dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
+@@ -18,6 +18,8 @@
+ -- `games_expecting_team_stats` is projected out of mart_team_momentum for this test. Without it
+ -- nothing on this surface can tell a correct gate from one reverted to games_in_window.
+ 
++{{ config(store_failures = true) }}
++
+ with momentum as (
+     select * from {{ ref('mart_team_momentum') }}
+ )
+diff --git a/dbt_project/tests/assert_momentum_window_matches_momentum.sql b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
+index 86429bb2..5d306a7a 100644
+--- a/dbt_project/tests/assert_momentum_window_matches_momentum.sql
++++ b/dbt_project/tests/assert_momentum_window_matches_momentum.sql
+@@ -4,6 +4,8 @@
+ -- and neither surface may have a side the other lacks. Both consume
+ -- int_team_momentum_window, so a mismatch means a build-order or join bug.
+ 
++{{ config(store_failures = true) }}
++
+ with list_counts as (
+     select
+         upcoming_fixture_sk,
+diff --git a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql b/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
+index b85bac8f..994da27b 100644
+--- a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
++++ b/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
+@@ -1,4 +1,4 @@
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ -- EVENT-LOSS DETECTOR (GitLab #75). Fails when `fct_fixture_event` holds an event that
+ -- `base_apif__fixture_events` no longer has.
+diff --git a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+index d78ac883..e20b2a92 100644
+--- a/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
++++ b/dbt_project/tests/assert_no_uncatalogued_season_metric.sql
+@@ -15,6 +15,7 @@
+   once Stage 1 renamed the player model column to `saves`.) A `team and player` catalogue row
+   satisfies both the team and the player model checks.
+ #}
++{{ config(store_failures = true) }}
+ 
+ -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
+ -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):
+diff --git a/dbt_project/tests/assert_one_current_season_per_league.sql b/dbt_project/tests/assert_one_current_season_per_league.sql
+index 4445083c..b988aab3 100644
+--- a/dbt_project/tests/assert_one_current_season_per_league.sql
++++ b/dbt_project/tests/assert_one_current_season_per_league.sql
+@@ -26,6 +26,8 @@
+ -- that gap because neither changes the season SET.
+ -- A flagged season must therefore be flagged ENTIRELY.
+ 
++{{ config(store_failures = true) }}
++
+ with import_mart_leaderboards as (
+     select * from {{ ref('mart_leaderboards') }}
+ ),
+diff --git a/dbt_project/tests/assert_one_featured_season_per_entity.sql b/dbt_project/tests/assert_one_featured_season_per_entity.sql
+index 48a4b01a..411bef8a 100644
+--- a/dbt_project/tests/assert_one_featured_season_per_entity.sql
++++ b/dbt_project/tests/assert_one_featured_season_per_entity.sql
+@@ -11,6 +11,7 @@
+   Covers both marts in one test: the rule is one rule, so a single failure surface keeps them from
+   drifting apart, which is the whole point of #846.
+ #}
++{{ config(store_failures = true) }}
+ 
+ with team_counts as (
+     select
+diff --git a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
+index e9d01bd4..0e68d380 100644
+--- a/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
++++ b/dbt_project/tests/assert_one_match_that_matters_per_competition.sql
+@@ -8,6 +8,8 @@
+ -- flags a knockout tie fails here even when the schema tests stay green.
+ --
+ -- Returns a row (= fails) per competition where the property does not hold.
++{{ config(store_failures = true) }}
++
+ with upcoming as (
+     select
+         fixture_sk,
+diff --git a/dbt_project/tests/assert_player_momentum_window_matches_team.sql b/dbt_project/tests/assert_player_momentum_window_matches_team.sql
+index 8fcdf6bb..afe2e427 100644
+--- a/dbt_project/tests/assert_player_momentum_window_matches_team.sql
++++ b/dbt_project/tests/assert_player_momentum_window_matches_team.sql
+@@ -9,6 +9,8 @@
+ --
+ -- Any returned row is a defect.
+ 
++{{ config(store_failures = true) }}
++
+ with player_sides as (
+     select distinct
+         upcoming_fixture_sk,
+diff --git a/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql b/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql
+index 29d8bd1c..1ffa1b21 100644
+--- a/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql
++++ b/dbt_project/tests/assert_player_stats_team_in_fixture_participants.sql
+@@ -1,4 +1,4 @@
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ -- Integrity guard: every non-null player-stat team_sk must be one of its fixture's two
+ -- participants. A violation means a lineup is attributed to a team that did not play the fixture —
+diff --git a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
+index 20de93a1..904c7602 100644
+--- a/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
++++ b/dbt_project/tests/assert_team_competition_season_mapping_covers_fixtures.sql
+@@ -9,6 +9,8 @@
+ -- separately by the team_sk relationships test in core.yml.) Returns offending rows in
+ -- either direction; expect zero.
+ 
++{{ config(store_failures = true) }}
++
+ with fixture_membership as (
+     select distinct
+         league_code,
+diff --git a/dbt_project/tests/assert_team_name_overrides_still_needed.sql b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
+index 10b2c72c..03efe805 100644
+--- a/dbt_project/tests/assert_team_name_overrides_still_needed.sql
++++ b/dbt_project/tests/assert_team_name_overrides_still_needed.sql
+@@ -7,6 +7,9 @@
+ -- The dedup below deliberately mirrors base_apif__teams_global's own
+ -- `qualify row_number() ... order by raw_ingested_at desc` so the comparison is against the
+ -- same provider row that model would have published.
++--
++-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
++{{ config(severity = 'warn', store_failures = true) }}
+ 
+ with import_base_apif__teams as (
+     select * from {{ ref('base_apif__teams') }}
+diff --git a/dbt_project/tests/assert_team_name_slug_alphabet.sql b/dbt_project/tests/assert_team_name_slug_alphabet.sql
+index bea75c59..a39fbbc7 100644
+--- a/dbt_project/tests/assert_team_name_slug_alphabet.sql
++++ b/dbt_project/tests/assert_team_name_slug_alphabet.sql
+@@ -19,6 +19,8 @@
+ -- unmapped residue (Cyrillic homoglyphs, bidi marks), so extending this to them is part of
+ -- their own slug work, not a silent inheritance.
+ 
++{{ config(store_failures = true) }}
++
+ with import_dim_team as (
+     select * from {{ ref('dim_team') }}
+ ),
+diff --git a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+index 27af97f5..ba44f1f1 100644
+--- a/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
++++ b/dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
+@@ -1,7 +1,8 @@
+ {{
+     config(
+         severity = 'warn',
+-        tags=["dq", "core", "season_reconciliation"]
++        tags=["dq", "core", "season_reconciliation"],
++        store_failures = true
+     )
+ }}
+ 
+diff --git a/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql b/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
+index 7d78b948..b552c412 100644
+--- a/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
++++ b/dbt_project/tests/assert_team_stats_team_in_fixture_participants.sql
+@@ -1,4 +1,4 @@
+-{{ config(severity = 'error') }}
++{{ config(severity = 'error', store_failures = true) }}
+ 
+ -- Integrity guard: every non-null team-stat team_sk must be one of its fixture's two participants.
+ -- A violation means a match statistics line is attributed to a team that did not play the fixture —
+diff --git a/dbt_project/tests/assert_tournament_form_window.sql b/dbt_project/tests/assert_tournament_form_window.sql
+index 3a598d76..320271ba 100644
+--- a/dbt_project/tests/assert_tournament_form_window.sql
++++ b/dbt_project/tests/assert_tournament_form_window.sql
+@@ -17,6 +17,8 @@
+ --
+ -- Any returned row is a defect.
+ 
++{{ config(store_failures = true) }}
++
+ with legs as (
+     select
+         upcoming_fixture_sk,
+diff --git a/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql b/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql
+index b912ece6..3150efc7 100644
+--- a/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql
++++ b/dbt_project/tests/test_stg_fixture_statistics_non_empty.sql
+@@ -1,4 +1,6 @@
+ -- Fail if fixture statistics staging is empty.
++{{ config(store_failures = true) }}
++
+ select
+     1
+     as should_fail
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -223,9 +715,9 @@ index 59b26997..cb52ea98 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          |  114 +-
-#    .claude/task/review.md          |   94 +-
-#    .claude/task/review_input.patch | 2419 ++-------------------------------------
-#    docs/tracker/gitlab_snapshot.md |   90 +-
-#    4 files changed, 241 insertions(+), 2476 deletions(-)
+#   .claude/active_work.md          | 119 +++---
+#    .claude/task/review.md          |  69 ++--
+#    .claude/task/review_input.patch | 878 +++++++++++++++++++++++++++++++---------
+#    docs/tracker/gitlab_snapshot.md |  22 +-
+#    4 files changed, 805 insertions(+), 283 deletions(-)
 # ============================================================================

@@ -14,6 +14,7 @@
   Mirrors assert_no_uncatalogued_season_metric: the ref()s live in the execute-guarded block, so the
   dependencies are declared explicitly to order the test after the seed + leg models build.
 #}
+{{ config(store_failures = true) }}
 -- depends_on: {{ ref('metric_catalogue') }}
 -- depends_on: {{ ref('int_legs__team_match') }}
 -- depends_on: {{ ref('int_legs__team_from_players') }}

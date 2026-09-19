@@ -1,4 +1,4 @@
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 -- Integrity guard (#526): every non-null event team_sk must be one of its fixture's two
 -- participants. A violation means an event is attributed to a team that did not play the

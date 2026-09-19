@@ -18,6 +18,8 @@
 -- something to show, which is a question about the pool it renders. This one asks whether a column
 -- means what it says, which is true of every row or the column is broken.
 
+{{ config(store_failures = true) }}
+
 with import_mart_leaderboards as (
     select * from {{ ref('mart_leaderboards') }}
 ),

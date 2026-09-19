@@ -13,6 +13,8 @@
 -- it applies the browsable filter, so this checks the set that actually reaches a reader. A
 -- duplicate among non-browsable competitions is not a rendering defect.
 
+{{ config(store_failures = true) }}
+
 with import_mart_competition_index as (
     select * from {{ ref('mart_competition_index') }}
 )

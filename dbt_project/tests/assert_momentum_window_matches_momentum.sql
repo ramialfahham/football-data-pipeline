@@ -4,6 +4,8 @@
 -- and neither surface may have a side the other lacks. Both consume
 -- int_team_momentum_window, so a mismatch means a build-order or join bug.
 
+{{ config(store_failures = true) }}
+
 with list_counts as (
     select
         upcoming_fixture_sk,

@@ -2,7 +2,7 @@
 -- base_apif__standings. Codes in vars.active_competition_league_codes but with
 -- has_coverage_standings false (e.g. WCQIP, WCQOC) are excluded — the API has no
 -- standings surface for them. Registry/var sync: scripts/check_registry_var_sync.py.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with expected_codes as (
     {%- for code in var('active_competition_league_codes') %}

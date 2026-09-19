@@ -1,6 +1,7 @@
 {{
     config(
-        tags=["dq", "core", "market_value"]
+        tags=["dq", "core", "market_value"],
+        store_failures = true
     )
 }}
 

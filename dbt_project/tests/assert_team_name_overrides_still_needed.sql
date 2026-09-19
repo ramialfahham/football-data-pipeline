@@ -7,6 +7,9 @@
 -- The dedup below deliberately mirrors base_apif__teams_global's own
 -- `qualify row_number() ... order by raw_ingested_at desc` so the comparison is against the
 -- same provider row that model would have published.
+--
+-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
+{{ config(severity = 'warn', store_failures = true) }}
 
 with import_base_apif__teams as (
     select * from {{ ref('base_apif__teams') }}

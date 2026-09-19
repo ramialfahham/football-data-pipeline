@@ -1,4 +1,4 @@
-{{ config(tags=['freshness_check']) }}
+{{ config(tags=['freshness_check'], store_failures = true) }}
 
 -- Fail if any fixture still shows NS long after scheduled kickoff, beyond the ingest SLA.
 --

@@ -3,6 +3,8 @@
 -- this grain and was failing; this enforces the real key. No instance is named
 -- here on purpose — step 4 of the naming programme renames every player id that
 -- currently collides, so a quoted example would date.
+{{ config(store_failures = true) }}
+
 select
     metric_id,
     entity,

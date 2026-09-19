@@ -1,7 +1,7 @@
 -- Proves each vars.active_competition_league_codes value exists in base_apif__leagues.
 -- Does NOT prove the var matches docs/competition_registry.yml; that is
 -- scripts/check_registry_var_sync.py in CI. See dbt_project/dbt_project.yml.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with expected as (
     {%- for code in var('active_competition_league_codes') %}

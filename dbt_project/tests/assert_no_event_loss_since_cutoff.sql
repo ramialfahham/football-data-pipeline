@@ -1,4 +1,4 @@
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 -- EVENT-LOSS DETECTOR (GitLab #75). Fails when `fct_fixture_event` holds an event that
 -- `base_apif__fixture_events` no longer has.

@@ -1,6 +1,6 @@
 -- Active competitions with current-season fixture statistics coverage must have
 -- rows in base_apif__fixture_statistics. Registry/var sync: check_registry_var_sync.py.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with expected_codes as (
     {%- for code in var('active_competition_league_codes') %}
