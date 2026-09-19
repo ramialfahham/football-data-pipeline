@@ -17,6 +17,8 @@
 --
 -- Any returned row is a defect.
 
+{{ config(store_failures = true) }}
+
 with legs as (
     select
         upcoming_fixture_sk,

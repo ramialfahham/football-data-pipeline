@@ -1,6 +1,6 @@
 -- Proves each var league_code has at least one row in fct_fixture.
 -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with expected as (
     {%- for code in var('active_competition_league_codes') %}

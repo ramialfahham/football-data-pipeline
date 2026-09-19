@@ -15,6 +15,7 @@
   once Stage 1 renamed the player model column to `saves`.) A `team and player` catalogue row
   satisfies both the team and the player model checks.
 #}
+{{ config(store_failures = true) }}
 
 -- ref()s live inside the execute-guarded loop below, so declare the dependencies explicitly
 -- (dbt cannot infer a ref() placed in a conditional; this also orders the test after the models build):

@@ -1,5 +1,7 @@
 -- Fail if any finished fixture has goals outside the plausible range [0, 20].
 -- Catches swapped or corrupted goal values from the API.
+{{ config(store_failures = true) }}
+
 select fixture_sk
 from {{ ref('fct_fixture') }}
 where

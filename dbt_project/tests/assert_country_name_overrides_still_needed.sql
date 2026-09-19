@@ -16,6 +16,9 @@
 --
 -- Compares against STAGING (pre-override) rather than base or core, which is where the coalesce
 -- is applied and would therefore always agree with the seed.
+--
+-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
+{{ config(severity = 'warn', store_failures = true) }}
 
 with import_country_name_overrides as (
     select * from {{ ref('country_name_overrides') }}

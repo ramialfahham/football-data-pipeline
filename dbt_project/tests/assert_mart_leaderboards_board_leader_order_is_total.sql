@@ -17,6 +17,8 @@
 -- ⚠ NOT scoped to a pool or a season, because the column is not. It is a global order over every
 -- league leader on a board; a consumer filtering to seven leagues inherits the relative order.
 
+{{ config(store_failures = true) }}
+
 with import_mart_leaderboards as (
     select * from {{ ref('mart_leaderboards') }}
 ),

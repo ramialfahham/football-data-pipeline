@@ -9,6 +9,8 @@
 -- mart that drops or reorders the resolution fails here.
 --
 -- Returns a row (= fails) per offending (league_code, season_api_year, group_name).
+{{ config(store_failures = true) }}
+
 with sections as (
     select distinct
         league_code,

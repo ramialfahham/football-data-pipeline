@@ -1,6 +1,7 @@
 {{
     config(
-        tags=["dq", "mart", "season_insights"]
+        tags=["dq", "mart", "season_insights"],
+        store_failures = true
     )
 }}
 

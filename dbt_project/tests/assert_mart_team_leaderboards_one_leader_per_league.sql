@@ -19,6 +19,8 @@
 -- The test still pins it, because an arbitrary key that is not STABLE would churn the committed
 -- payload between exports.
 
+{{ config(store_failures = true) }}
+
 with import_mart_team_leaderboards as (
     select * from {{ ref('mart_team_leaderboards') }}
 ),

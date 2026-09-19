@@ -11,6 +11,7 @@
   Covers both marts in one test: the rule is one rule, so a single failure surface keeps them from
   drifting apart, which is the whole point of #846.
 #}
+{{ config(store_failures = true) }}
 
 with team_counts as (
     select

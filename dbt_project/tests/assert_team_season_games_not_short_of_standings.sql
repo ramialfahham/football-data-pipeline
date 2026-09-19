@@ -1,7 +1,8 @@
 {{
     config(
         severity = 'warn',
-        tags=["dq", "core", "season_reconciliation"]
+        tags=["dq", "core", "season_reconciliation"],
+        store_failures = true
     )
 }}
 

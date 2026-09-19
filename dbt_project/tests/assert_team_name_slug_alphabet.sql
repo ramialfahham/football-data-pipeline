@@ -19,6 +19,8 @@
 -- unmapped residue (Cyrillic homoglyphs, bidi marks), so extending this to them is part of
 -- their own slug work, not a silent inheritance.
 
+{{ config(store_failures = true) }}
+
 with import_dim_team as (
     select * from {{ ref('dim_team') }}
 ),

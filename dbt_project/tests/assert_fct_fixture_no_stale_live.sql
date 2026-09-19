@@ -1,4 +1,4 @@
-{{ config(tags=['freshness_check']) }}
+{{ config(tags=['freshness_check'], store_failures = true) }}
 
 -- Fail if any fixture is still ACTIVELY PLAYING more than 6 hours after its scheduled kickoff.
 -- A match cannot be in its second half, in extra time or in a penalty shootout that long after it

@@ -9,6 +9,8 @@
 -- separately by the team_sk relationships test in core.yml.) Returns offending rows in
 -- either direction; expect zero.
 
+{{ config(store_failures = true) }}
+
 with fixture_membership as (
     select distinct
         league_code,

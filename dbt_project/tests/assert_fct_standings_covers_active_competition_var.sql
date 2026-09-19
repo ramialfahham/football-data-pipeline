@@ -1,6 +1,6 @@
 -- Same rule as assert_base_standings_covers_active_competition_var: only leagues
 -- with current-season has_coverage_standings must appear in fct_standings.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with expected_codes as (
     {%- for code in var('active_competition_league_codes') %}

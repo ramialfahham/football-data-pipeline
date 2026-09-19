@@ -1,5 +1,5 @@
 -- Same coverage rule as assert_base_fixture_statistics_covers_active_competition_var for fct.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with expected_codes as (
     {%- for code in var('active_competition_league_codes') %}

@@ -1,6 +1,6 @@
 -- Proves each vars.active_competition_league_codes value exists in base_apif__teams.
 -- Registry/var sync: scripts/check_registry_var_sync.py in CI.
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 with expected as (
     {%- for code in var('active_competition_league_codes') %}

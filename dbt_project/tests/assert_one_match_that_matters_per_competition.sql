@@ -8,6 +8,8 @@
 -- flags a knockout tie fails here even when the schema tests stay green.
 --
 -- Returns a row (= fails) per competition where the property does not hold.
+{{ config(store_failures = true) }}
+
 with upcoming as (
     select
         fixture_sk,

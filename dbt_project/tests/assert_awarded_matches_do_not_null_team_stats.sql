@@ -18,6 +18,8 @@
 -- Reads the whole-season projection rather than the cumulative model: same formulas, one row per
 -- team-season instead of one per matchday, so a failure names a season rather than a matchday.
 
+{{ config(store_failures = true) }}
+
 with season as (
     select * from {{ ref('int_team_season__metrics') }}
 )

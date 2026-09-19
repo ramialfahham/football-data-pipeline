@@ -1,4 +1,6 @@
 -- Fail if fixture statistics staging is empty.
+{{ config(store_failures = true) }}
+
 select
     1
     as should_fail

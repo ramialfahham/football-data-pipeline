@@ -7,6 +7,8 @@
 -- the earliest date) fails here even when the mart's schema tests stay green.
 --
 -- Returns a row (= fails) per competition where any of the three properties does not hold.
+{{ config(store_failures = true) }}
+
 with upcoming as (
     select
         fixture_sk,

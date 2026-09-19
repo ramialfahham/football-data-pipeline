@@ -11,6 +11,8 @@
 -- this number, the model's board list and seeds' accepted_values together — which is the point.
 --
 -- Returns a row (= fails) when the count is anything other than 4.
+{{ config(store_failures = true) }}
+
 with observed as (
     select count(distinct metric_key) as board_count
     from {{ ref('mart_team_leaderboards') }}

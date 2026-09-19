@@ -12,6 +12,9 @@
 -- where the coalesce is applied and would therefore always agree with the seed.
 -- The dedup mirrors what base_apif__league_entity publishes — latest season, then latest
 -- ingest — so the comparison is against the provider row that actually reaches dim_league.
+--
+-- warn: a dead row changes nothing a fan sees, so it is reported, not a reason to stop the build.
+{{ config(severity = 'warn', store_failures = true) }}
 
 with import_stg_apif__leagues as (
     select * from {{ ref('stg_apif__leagues') }}

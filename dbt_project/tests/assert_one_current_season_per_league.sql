@@ -26,6 +26,8 @@
 -- that gap because neither changes the season SET.
 -- A flagged season must therefore be flagged ENTIRELY.
 
+{{ config(store_failures = true) }}
+
 with import_mart_leaderboards as (
     select * from {{ ref('mart_leaderboards') }}
 ),

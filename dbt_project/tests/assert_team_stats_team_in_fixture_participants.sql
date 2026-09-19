@@ -1,4 +1,4 @@
-{{ config(severity = 'error') }}
+{{ config(severity = 'error', store_failures = true) }}
 
 -- Integrity guard: every non-null team-stat team_sk must be one of its fixture's two participants.
 -- A violation means a match statistics line is attributed to a team that did not play the fixture —

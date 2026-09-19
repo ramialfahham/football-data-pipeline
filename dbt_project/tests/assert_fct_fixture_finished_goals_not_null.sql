@@ -1,5 +1,7 @@
 -- Fail if any finished fixture has null goals_home or goals_away.
 -- A finished match must always have both goal values; nulls indicate a failed or incomplete ingestion.
+{{ config(store_failures = true) }}
+
 select fixture_sk
 from {{ ref('fct_fixture') }}
 where
