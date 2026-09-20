@@ -134,10 +134,11 @@ models:
     columns:
       - name: team_sk
         description: "{{ doc('team_sk_other') }}"
-  - name: blank_model
-    description: "Blank on a name that means two things."
+  - name: prose_model
+    description: "Inline text on a name that means two things."
     columns:
       - name: team_sk
+        description: "Here it is the club side of the pairing."
 """
 
 
@@ -146,13 +147,21 @@ def test_a_name_that_means_two_things_is_not_demanded(tmp_path, monkeypatch, cap
 
     Six `league_code` columns were pointed at the wrong one of its two meanings in
     #82 MR3, found over three review rounds. The generator now refuses such names.
-    If the gate still failed a blank one, the only way to go green would be to
-    guess — which is the defect, re-introduced from the other side."""
+    If the gate failed inline text on one as "restating", the only way to go green
+    would be to guess — which is the defect, re-introduced from the other side.
+    A BLANK one is still a finding: the column rule asks for a description, not for
+    a particular block."""
     _write(tmp_path, AMBIGUOUS_NAME)
     _write_blocks(tmp_path, AMBIGUOUS_BLOCKS)
     monkeypatch.setattr(gate, "DBT_DIR", tmp_path)
-
     assert gate.main() == 0, "the gate demanded a guess on a name that means two things"
+
+    _write(tmp_path, AMBIGUOUS_NAME.replace(
+        '        description: "Here it is the club side of the pairing."\n', ""))
+    assert gate.main() == 1, "a blank column passed because its name means two things"
+    out = capsys.readouterr().out
+    assert "COLUMN COVERAGE" in out and "prose_model.team_sk" in out
+    assert "SHARED DEFINITIONS" not in out
 
 
 def test_an_unpoliced_name_is_reported_not_silently_skipped(tmp_path, monkeypatch, capsys):
@@ -165,8 +174,7 @@ def test_an_unpoliced_name_is_reported_not_silently_skipped(tmp_path, monkeypatc
     assert gate.main() == 0
     out = capsys.readouterr().out
     assert "NOT POLICED" in out
-    assert "team_sk" in out
-    assert "1 column(s) are blank on that account" in out
+    assert "team_sk: team_sk, team_sk_other" in out
 
 
 def test_the_two_ambiguity_rules_agree(tmp_path):
@@ -235,8 +243,10 @@ def test_referencing_a_DIFFERENT_block_is_green(tmp_path, monkeypatch):
 def test_a_block_outside_models_is_not_a_block(tmp_path, monkeypatch):
     """dbt's `docs-paths` defaults to `models/` and this project does not set it,
     so `dbt_project/docs/` is invisible to dbt. If the gate saw blocks there it
-    would police a different project than the one dbt compiles."""
-    _shared(tmp_path, monkeypatch, "", where="docs/engineering_standards.md")
+    would police a different project than the one dbt compiles — and flag this
+    inline text as restating a definition that, to dbt, does not exist."""
+    _shared(tmp_path, monkeypatch, '        description: "Team identity key."',
+            where="docs/engineering_standards.md")
     assert gate.main() == 0, "a block dbt cannot resolve was treated as real"
 
 
@@ -269,6 +279,7 @@ def _point_gate_at_tmp(monkeypatch):
     monkeypatch.setattr(gate, "MIN_DESCRIPTIONS", 1)
     monkeypatch.setattr(gate, "MIN_MODELS", 0)
     monkeypatch.setattr(gate, "MIN_SOURCE_TABLES", 0)
+    monkeypatch.setattr(gate, "MIN_LISTED_COLUMNS", 0)
 
 
 # (label, the phrase spliced into an otherwise-clean description)
@@ -576,6 +587,53 @@ def test_a_described_model_is_green(tmp_path, monkeypatch):
     """A rule that fires on everything is as useless as one that fires on nothing."""
     monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
     assert gate.main() == 0
+
+
+# ---------------------------------------------------------------------------
+# COLUMN COVERAGE: a column the yml lists has no description.
+#
+# The listing says the column matters (it carries tests); section 3.1 says the
+# missing sentence is the defect. 359 such columns existed when this was added.
+# ---------------------------------------------------------------------------
+
+def _listed(column_lines: str) -> str:
+    return DESCRIBED + "    columns:\n      - name: team_sk\n" + column_lines
+
+
+def test_a_listed_column_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=_listed("        tests: [not_null]\n")))
+    assert gate.main() == 1, "a listed column with no description passed the gate"
+    out = capsys.readouterr().out
+    assert "COLUMN COVERAGE" in out and "int_x.team_sk" in out and "NO DESCRIPTION" in out
+
+
+def test_a_listed_column_with_an_empty_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=_listed('        description: "  "\n')))
+    assert gate.main() == 1
+    assert "int_x.team_sk" in capsys.readouterr().out
+
+
+def test_a_listed_column_with_text_is_green(tmp_path, monkeypatch):
+    monkeypatch.setattr(gate, "DBT_DIR", _project(
+        tmp_path, schema=_listed('        description: "Team identity key, globally unique in the provider\'s data."\n')))
+    assert gate.main() == 0
+
+
+def test_a_listed_column_referencing_a_block_is_green(tmp_path, monkeypatch):
+    """A `{{ doc() }}` reference is a description; whether it resolves is the render rule's job."""
+    _write_blocks(tmp_path, SHARED_TEAM_SK)
+    monkeypatch.setattr(gate, "DBT_DIR", _project(
+        tmp_path, schema=_listed('        description: "{{ doc(\'team_sk\') }}"\n')))
+    assert gate.main() == 0
+
+
+def test_the_listed_column_floor_fires_when_the_walk_finds_nothing(tmp_path, monkeypatch, capsys):
+    """The floor at its real value: a described model with no listed columns must not read as
+    'every listed column is described' when the walk simply found none."""
+    monkeypatch.setattr(gate, "MIN_LISTED_COLUMNS", 800)
+    monkeypatch.setattr(gate, "DBT_DIR", _project(tmp_path, schema=DESCRIBED))
+    assert gate.main() == 1
+    assert "discovery looks broken" in capsys.readouterr().out
 
 
 def test_a_source_table_with_no_description_turns_the_gate_red(tmp_path, monkeypatch, capsys):

@@ -21,6 +21,7 @@ models:
           combination_of_columns: [league_code, team_api_id]
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
@@ -48,6 +49,7 @@ models:
         description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
 
   - name: base_apif__leagues
@@ -67,6 +69,7 @@ models:
           combination_of_columns: [league_code, league_api_id, season_api_year]
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: league_name
         description: >
@@ -77,6 +80,7 @@ models:
           value unchanged; there is no coalesce in the dim.
         tests: [not_null]
       - name: league_api_id
+        description: "{{ doc('league_api_id') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
@@ -93,8 +97,10 @@ models:
           combination_of_columns: [league_api_id]
     columns:
       - name: league_api_id
+        description: "{{ doc('league_api_id') }}"
         tests: [not_null]
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
 
   - name: base_apif__competition_seasons
@@ -109,11 +115,13 @@ models:
           combination_of_columns: [league_api_id, season_api_year]
     columns:
       - name: league_api_id
+        description: "{{ doc('league_api_id') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
 
   - name: base_apif__fixtures_next
@@ -127,8 +135,10 @@ models:
           combination_of_columns: [fixture_id]
     columns:
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
 
   - name: base_apif__standings
@@ -146,12 +156,16 @@ models:
           combination_of_columns: [league_code, season, team_id, group_name]
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: standing_rank
+        description: "The team's position in this standings table (1 = leader), from the provider's standings row ($.rank)."
         tests: [not_null]
       - name: goals_for_all
         description: Goals scored across all matches of the section, from the provider's standings row.
@@ -173,10 +187,13 @@ models:
           combination_of_columns: [league_code, fixture_id, team_id]
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias and reattribute-if-cohabiting logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
         tests: [not_null]
 
   - name: base_apif__fixture_players
@@ -198,12 +215,16 @@ models:
           combination_of_columns: [league_code, fixture_id, team_id, player_id]
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
         tests: [not_null]
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
 
   - name: base_apif__players
@@ -263,8 +284,10 @@ models:
             - event_index
     columns:
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
 
   - name: base_apif__player_team_season
@@ -283,12 +306,16 @@ models:
             - season_year
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: season_year
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
 
   - name: base_apif__transfers
@@ -309,8 +336,10 @@ models:
             - transfer_date
     columns:
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: transfer_date
+        description: "The date the provider records the move on. It is the date the transfer was reported, not necessarily the date the player was first registered or first played."
         tests: [not_null]
       - name: league_code
         description: "{{ doc('league_code_ingest_provenance') }}"
@@ -351,4 +380,5 @@ models:
         description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: start_date
+        description: "The date this coaching stint began, as the provider's career record gives it. Never NULL: a stint with no known start date is dropped before this model is built."
         tests: [not_null]

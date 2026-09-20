@@ -46,6 +46,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }} Here it is the team's current domestic season, the year-over-year anchor."
@@ -61,9 +62,13 @@ models:
           LOCKED 16-row rate metric carries _this_season / _prev_season / _delta_yoy; NULL where the
           prior season is absent or coverage is incomplete through N.
       - name: games_played_prev
+        description: "The prior season's games played through the same games-played cutoff as yoy_games_played_cutoff (the largest match_number not exceeding it). NULL when the team has no prior domestic season in this league to align against."
       - name: points_this_season
+        description: "Points won this season through the games-played cutoff N (yoy_games_played_cutoff): the cumulative points_won_sum_season at that matchday. Never NULL for the current season."
       - name: goals_for_this_season
+        description: "Goals scored by the team this season through the games-played cutoff N (yoy_games_played_cutoff): the cumulative goals_for_sum_season at that matchday. Never NULL for the current season."
       - name: goals_against_this_season
+        description: "Goals conceded by the team this season through the games-played cutoff N (yoy_games_played_cutoff): the cumulative goals_against_sum_season at that matchday. Never NULL for the current season."
       - name: goals_per_match_this_season
         description: "{{ doc('goals_per_match_this_season__team') }}"
       - name: goals_against_per_match_this_season
@@ -97,8 +102,11 @@ models:
       - name: saves_pct_this_season
         description: "{{ doc('saves_pct_this_season__team') }}"
       - name: points_prev_season
+        description: "Points won in the prior season through the same games-played cutoff N as the current season (games_played_prev). NULL when there is no prior domestic season in this league to compare against."
       - name: goals_for_prev_season
+        description: "Goals scored in the prior season through the same games-played cutoff N as the current season (games_played_prev). NULL when there is no prior domestic season in this league to compare against."
       - name: goals_against_prev_season
+        description: "Goals conceded in the prior season through the same games-played cutoff N as the current season (games_played_prev). NULL when there is no prior domestic season in this league to compare against."
       - name: goals_per_match_prev_season
         description: "{{ doc('goals_per_match_prev_season__team') }}"
       - name: goals_against_per_match_prev_season
@@ -132,7 +140,9 @@ models:
       - name: saves_pct_prev_season
         description: "{{ doc('saves_pct_prev_season__team') }}"
       - name: goals_for_delta_yoy
+        description: "goals_for_this_season minus goals_for_prev_season, both through the same games-played cutoff N. NULL when there is no prior season."
       - name: goals_against_delta_yoy
+        description: "goals_against_this_season minus goals_against_prev_season, both through the same games-played cutoff N. NULL when there is no prior season."
       - name: goals_against_per_match_delta_yoy
         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
       - name: clean_sheets_pct_delta_yoy
@@ -196,12 +206,19 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: matches_in_season
+        description: "Count of the team's finished matches this season (one row per match in int_legs__team_match) — the ceiling every run length is capped at when nothing has broken it yet."
         tests: [not_null]
       - name: league_code
+        description: "{{ doc('league_code') }}"
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: unbeaten_run
+        description: "{{ doc('unbeaten_run') }}"
       - name: win_run
+        description: "{{ doc('win_run') }}"
       - name: winless_run
+        description: "{{ doc('winless_run') }}"
       - name: clean_sheet_run
+        description: "{{ doc('clean_sheet_run') }}"
       - name: scoring_run
+        description: "{{ doc('scoring_run') }}"

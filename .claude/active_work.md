@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-19**, on `feat/109-range-tests-and-key-graph`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-20**, on `feat/109-every-column-described`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,16 +22,17 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#109 STEP 3 IS IN FLIGHT: THE PLAN (FOUR MRs, A–D) IS ON THE ISSUE, APPROVED 2026-09-19; MR A
-MERGED (!211); MR B IS OPEN AS !212; NEXT = MR C, in a fresh chat, plan mode, contract first**
-(the four MRs are below under #109). **#150 is merged** (!209, 2026-09-19; the 2026-09-19 nightly green). !209's rulings,
-recorded in its contract: **the match slug comes from the warehouse**; **played rows are inert
-until the match report page exists**; the EN/DE/FI copy shipped as drafted, his merge the ruling.
-Until the next `deploy:export` (manual, still `teams,fixtures`) production shows the committed
-sample, as it does for Home. **#150 is not blocked on #155.** **#156** (filed 2026-09-19 at his
-word): the nightly export, build and deploy from live data, the go-live item that ends the committed
-sample; its export-and-build half is worth running before go-live, since full-scale defects (#155)
-show only there.
+**#109 STEP 3 IS IN FLIGHT: THE PLAN (FOUR MRs, A–D) IS ON THE ISSUE, APPROVED 2026-09-19; A (!211)
+AND B (!212) MERGED; MR C IS OPEN AS !213; NEXT = MR D, in a fresh chat, plan mode, contract first
+— a GOVERNANCE MR on `.gitlab-ci.yml` (protected: `protected_override` + impact map; CTO and
+platform at opus)**
+(the four MRs are below under #109). **#150 is merged** (!209). !209's rulings, recorded in its
+contract: **the match slug comes from the warehouse**; **played rows are inert until the match
+report page exists**; the EN/DE/FI copy shipped as drafted. Until the next `deploy:export` (manual,
+still `teams,fixtures`) production shows the committed sample, as it does for Home. **#150 is not
+blocked on #155.** **#156** (filed 2026-09-19 at his word): the nightly export, build and deploy from
+live data, the go-live item that ends the committed sample; its export-and-build half is worth
+running before go-live, since full-scale defects (#155) show only there.
 
 **#155 (filed 2026-09-19, Matches milestone): two unplayed meetings of the same clubs share the
 match preview page's title**, 12 pairings × 3 locales; the full-scale build (15,078 match pages,
@@ -54,35 +55,38 @@ stay members-only (his call), so the README carries a static `CI · GitLab` badg
 rewrite (operations guide and development workflow still describe GitHub Actions as live CI) is
 **#154**, unscheduled.
 
-**#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED** (!195, !196, !198): the block standard,
-`system.css`, the lint, the measured check, `validate:ui` running all three on every MR.
-**#151 does not merge until the check passes on its pages and on Home** (!209 did).
+**#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED**: the block standard, `system.css`, the
+lint, the measured check, `validate:ui` running all three on every MR. **#151 does not merge until
+the check passes on its pages and on Home.**
 
 **#109, THE DBT TESTING STRATEGY: steps 1 and 2 merged, step 3 in flight.** Step 1 (!201): the
 rules, `engineering_standards.md` §3.1–3.5. Step 2 (!202): the two catalogue-generated rate guards
 `dbt_project/tests/assert_*_rates_inputs_covered.sql`. **Step 3 is four MRs, the text on #109
 ("Step 3 — the mechanisms and the sweep"), each its own contract, the warehouse reviewer on
 `dbt_project/**`, platform on `scripts/**`:** **A** (!211, merged): `store_failures` on all 54
-singular tests, 3 flipped to `warn`. **B** (!212, open): range tests on 153 rate columns (the 3
-signed differences get none); `relationships` at `error` on 76 foreign keys, each with zero orphans
-on prod; **the declared soft link** — `meta: soft_link:` on the 4 keys that name clubs and players
-outside the tracked competitions (transfers, coaching careers), stated in `engineering_standards.md`
-§3.1 — DECIDED with B's plan; `scripts/check_relationships_coverage.py` (its pytest's last test
-runs it on the real tree in `test:python`, so the rule is enforced from B on; the
-`validate:governance` line is D's). **C** (next): the 359 undescribed listed columns (116 names;
-`league_code` 49, decided per site between the two blocks; a shared block for a repeated name only
-after reading every model it reaches), then the column rule in `check_description_hygiene.py`.
-**D**: `scripts/check_yml_vs_projection.py --catalog` (the reverse of `declare_missing_columns.py`)
-wired in `data:build:main` after `dbt docs generate` — DECIDED with the plan: post-merge, where the
-catalogue is whole — plus the sweep in `validate:governance`; a governance MR (`protected_override`).
-C rebuilds most of the warehouse in `ci_mr<IID>_*` per pipeline (a description change is
-`state:modified` under `persist_docs`) — cents. No census script in the repo; recount before C.
-⚠ Noted on B, not touched: `int_player_season__metrics` (in `int_team_season.yml`) still bounds the
-three player provider-subset ratios [0,1] at season grain.
+singular tests, 3 flipped to `warn`. **B** (!212, merged): range tests on 153 rates; `relationships`
+on 76 foreign keys; **the declared soft link** (`meta: soft_link:` on the 4 keys that name clubs
+and players outside the tracked competitions, stated in `engineering_standards.md` §3.1);
+`scripts/check_relationships_coverage.py`, enforced by its pytest on the real tree in
+`test:python`. **C** (!213, open): every listed column described — 359 blanks filled (54 new blocks
+in `shared_columns.md`, `league_code` split per site: 9 provenance, 75 competition), ~52 inline
+texts converted to references; `check_description_hygiene.py` gains `_column_coverage`
+(every listed model column described, floor `MIN_LISTED_COLUMNS`); §3.5 says both mechanisms are
+in place. **D** (next): `scripts/check_yml_vs_projection.py --catalog target/catalog.json` (the
+reverse of `declare_missing_columns.py`: every listed column exists in the catalogue's columns;
+abort on a partial catalogue) wired in `data:build:main` after `dbt docs generate` — DECIDED with
+the plan: post-merge, where the catalogue is whole — plus `check_relationships_coverage.py` in
+`validate:governance`: two lines in `.gitlab-ci.yml`, a governance MR with `protected_override`
+quoting the plan approval and an impact map of the guard. ⚠ Noted on B, not touched:
+`int_player_season__metrics` (in `int_team_season.yml`) still bounds the three player
+provider-subset ratios [0,1] at season grain. ⚠ Noted on C, not touched: the generated
+`shots_inside_box_sum_season__team` block's catalogue sentence ("can be understated rather than
+null") is false on the season surface; C referenced a hand block instead — the fix is the
+catalogue seed's description.
 
 **One default still open, merged as a default:** the breadcrumb's current-page colour (`ink-2`,
 links muted; the mocks had it inverted); its inventory row is `proposed` until he rules. ⚠ **A
-ruling request is ONE question, a 2×2 table (page × variant → file), then the recommendation.**
+ruling request is ONE question, a 2×2 table, then the recommendation.**
 
 **THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.**
 **Build issues:** **#150** Matchdays (merged) · **#151** Rankings + the Overview rework · **#152**
@@ -146,9 +150,8 @@ Branch `fix/dbt-profile-local-to-this-repo`; WIP on `parked/fix/dbt-profile-loca
 The repo-local `profiles.yml` at the ROOT is the fix (dbt reads `--profiles-dir` → `DBT_PROFILES_DIR`
 → **CWD** → `~/.dbt`; every CI job does `cd dbt_project`). Open: (1) a stale `decisions_taken`
 paragraph saying `dbt_project/`; (2) **`.mcp.json` sets `DBT_PROFILES_DIR: C:/Users/Rami/.dbt`**, a
-PROTECTED path that outranks the fix. **No `prod` target** in the local profile, ever (it is the
-line that overwrites prod's base tables). `dbt ls` / `parse` work with a throwaway profile in the
-scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` is ANOTHER project's.
+PROTECTED path that outranks the fix. **No `prod` target** in the local profile, ever. `dbt ls` /
+`parse` work with a throwaway profile in the scratchpad (target `dev_scratch`).
 
 ## ⛔ OPEN — DEFECTS TO FIX (not decisions to wait on)
 
@@ -156,10 +159,9 @@ scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` is ANOTHER project's.
     Lig 2022 team-seasons are blank. The other 435 blanked team-seasons are CORRECT (measured: of
     9,515 fixtures with no team statistics, ZERO have any in the raw payload). The fix needs a
     competition-relative signal, not a blanket rule. Everything measured is on the issue.
-  - **#111 — no test compares a metric to its own formula.** The catalogue publishes
-    `base_relation` + `numerator_expr` + `denominator_expr`; the models compute the same metric in
-    SQL; nothing checks they agree. `assert_metric_catalogue_expr_resolvable` parses and binds
-    those expressions — it never evaluates them. No dbt unit tests exist either.
+  - **#111 — no test compares a metric to its own formula.** The catalogue publishes the
+    expressions; the models compute the same metric in SQL; nothing checks they agree
+    (`assert_metric_catalogue_expr_resolvable` binds, never evaluates). No dbt unit tests exist.
   - **#108** — rounding is business logic and `DeservedHero.astro:79` does it in the browser.
   - **The mid-season deserved-vs-actual line and its start matchday** — both open, and they gate
     showing that hero on live data.
@@ -172,12 +174,12 @@ scratchpad (target `dev_scratch`); `~/.dbt/profiles.yml` is ANOTHER project's.
 
 ## ⛔ WHAT ACTUALLY FINDS DEFECTS — the blinded review and CI, almost never a gate
 
-Across `!156`–`!159`, `!191`, `!195`–`!198` every FAIL came from a reviewer or the pipeline; the
-offline gates were green over all of them. **Almost every defect was a claim asserted without
-opening the file** — open it. Sweep the RIGHT tree, two-sided; mutation-test against the mutation
-the design is defended against (`!195`); a row marked ruled while a note says "put to him" is a
-decision taken (`!196`); Windows green, Linux red: an unsorted listing (`!195`), a package the
-workstation has and the job's image does not (`!198`) — both found by CI.
+Across `!156`–`!159`, `!191`, `!195`–`!198`, `!211`–`!213` every FAIL came from a reviewer or the
+pipeline; the offline gates were green over all of them. **Almost every defect was a claim asserted
+without opening the file** — open it (on #109: a job named by its name, a "NULL when" sentence
+beside a not_null, "not wired into CI" while a pytest ran the gate). Sweep the RIGHT tree,
+two-sided; mutation-test against the mutation the design is defended against; Windows green, Linux
+red: an unsorted listing, a package the workstation has and the job's image does not.
 
 ## ⛔ TRAPS THAT COST REAL TIME
 

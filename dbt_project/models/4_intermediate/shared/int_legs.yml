@@ -26,17 +26,19 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: competition_type
-        description: "Resolved from the competition_registry seed via league_code."
+        description: "{{ doc('competition_type') }}"
         tests: [not_null]
       - name: entity_type
-        description: "club or national, resolved from the competition_types seed."
+        description: "{{ doc('entity_type') }}"
         tests:
           - not_null
           - accepted_values:
               values: ["club", "national"]
       - name: result
+        description: "{{ doc('result') }}"
         tests:
           - not_null
           - accepted_values:
@@ -70,6 +72,7 @@ models:
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
+        description: "{{ doc('round_name') }}"
       - name: round_order
         description: "{{ doc('round_order') }}"
       - name: opponent_team_sk
@@ -97,9 +100,13 @@ models:
       - name: goalkeeper_saves
         description: "{{ doc('saves') }}"
       - name: opponent_shots_on_goal
+        description: "{{ doc('opponent_shots_on_goal__leg') }}"
       - name: opponent_shots_total
+        description: "Total shots (on and off target) by the opponent in this match, from the provider's team match statistics for the opposing side. NULL when the competition supplies no team statistics for the fixture."
       - name: opponent_shots_inside_box
+        description: "Shots the opponent took from inside the penalty area in this match, from the provider's team match statistics for the opposing side. NULL when the competition supplies no team statistics for the fixture."
       - name: opponent_corner_kicks
+        description: "{{ doc('opponent_corner_kicks__leg') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
@@ -136,8 +143,10 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
         tests:
           - not_null
           - accepted_values:
@@ -152,7 +161,9 @@ models:
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
+        description: "{{ doc('round_name') }}"
       - name: competition_type
+        description: "{{ doc('competition_type') }}"
       - name: minutes_played
         description: "{{ doc('minutes_played') }}"
       - name: is_starter
@@ -160,13 +171,17 @@ models:
       - name: is_substitute
         description: "{{ doc('is_substitute') }}"
       - name: position_code
+        description: "{{ doc('position_code__leg') }}"
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on
+        description: "{{ doc('shots_on__leg') }}"
       - name: goals_total
+        description: "{{ doc('goals_total__leg') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
       - name: goals_assists
+        description: "{{ doc('goals_assists__leg') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
       - name: passes_total
@@ -243,10 +258,13 @@ models:
         description: "Count of players with a stat row for this team-match (completeness signal)."
         tests: [not_null]
       - name: league_code
+        description: "{{ doc('league_code') }}"
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: competition_type
+        description: "{{ doc('competition_type') }}"
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_order
@@ -258,9 +276,13 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: key_passes
+        description: "Key passes by this team's players in the match, summed from the player legs found for it (players_with_stats is the sample). A player with no key-passes figure contributes nothing to the sum rather than forcing it to NULL; a team with no covered players has no row here at all."
       - name: tackles
+        description: "Tackles by this team's players in the match, summed from the player legs found for it (players_with_stats is the sample); a player with no figure contributes nothing to the sum."
       - name: blocks
+        description: "Blocks by this team's players in the match, summed from the player legs found for it (players_with_stats is the sample); a player with no figure contributes nothing to the sum."
       - name: interceptions
+        description: "Interceptions by this team's players in the match, summed from the player legs found for it (players_with_stats is the sample); a player with no figure contributes nothing to the sum."
       - name: duels_total
         description: "{{ doc('duels_player') }}"
       - name: duels_won

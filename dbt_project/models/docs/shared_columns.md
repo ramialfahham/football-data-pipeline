@@ -398,3 +398,326 @@ N = appearances this season; the prior season is compared through its first N ap
 {% docs yoy_games_played_cutoff %}
 N = games played this season; the prior season is compared through its first N games.
 {% enddocs %}
+
+
+{% docs fixture_api_id %}
+API-Football's numeric id for the fixture, as the provider returns it at `$.fixture.id`.
+{% enddocs %}
+
+{% docs league_api_id %}
+API-Football's own numeric id for the competition, matching `provider_league_id` in
+`docs/competition_registry.yml`. Stable for a given competition across seasons; use
+`league_code` to slice by this pipeline's own competition identifier instead.
+{% enddocs %}
+
+{% docs team_name__provider %}
+The team's name as this endpoint's payload returns it, before the `team_name_overrides`
+corrections that `base_apif__teams_global` applies to produce the settled `dim_team.team_name`.
+The provider's own label can be short, ambiguous, or a stale sponsor name — for a display-ready
+name see `dim_team.team_name` or a mart already joined to it.
+{% enddocs %}
+
+{% docs team_season_sk %}
+Surrogate key over (team_sk, season_sk): one team's one competition-season. Generated once in
+int_team_season__metrics and carried unchanged everywhere else it appears.
+{% enddocs %}
+
+{% docs season_games_played__whole_season %}
+Finished matches the team played in the season: games_played at the season's final matchday
+(the last row of int_team_season__metrics_cumulative for this team-season). Never NULL — a
+team-season row exists only once the team has played at least one match.
+{% enddocs %}
+
+{% docs stat_coverage_season_games %}
+Games this season with a shots-on-target stat line present for the team — the coverage count
+the shots-on-target rates are gated on and divide by, instead of games played. At most
+season_games_played, and fewer wherever the provider's stat line is missing or the match was
+awarded rather than played. Never NULL.
+{% enddocs %}
+
+{% docs player_stat_coverage_season_games %}
+Games this season with a player-derived team stat line present (at least one player row for the
+team that match) — the coverage count the player-derived team rates divide by
+(passes_key_per_match, tackles_per_match, interceptions_per_match, blocks_per_match,
+defensive_actions_per_match, duels_per_match, duels_won_pct). At most season_games_played.
+Never NULL.
+{% enddocs %}
+
+{% docs games_with_team_stats__season %}
+Games in the season that carry a team statistics line — at most games played, and fewer
+wherever a match was awarded (a technical loss or walkover has no stat line and never will) or
+the provider sent none. The denominator of the team-feed per-match rates on the same row,
+exposed so a rate can be multiplied back out. Never NULL.
+{% enddocs %}
+
+{% docs wins_sum_season %}
+Matches the team has won this season, counted from the match result. Totalled over the season;
+never NULL.
+{% enddocs %}
+
+{% docs draws_sum_season %}
+Matches the team has drawn this season, counted from the match result. Totalled over the
+season; never NULL.
+{% enddocs %}
+
+{% docs losses_sum_season %}
+Matches the team has lost this season, counted from the match result. Totalled over the season;
+never NULL.
+{% enddocs %}
+
+{% docs goals_for_sum_season %}
+Goals scored by the team, read from the authoritative match scoreline (the score after extra
+time where a match went to it) rather than summed from player or event records. Totalled over
+the season.
+{% enddocs %}
+
+{% docs total_shots_sum_season %}
+Total shots the team took, taken from the provider's team match statistics and summed over the
+team's finished matches. NULL for the whole season unless that stat is present for every one of
+the team's non-awarded matches; the provider not supplying it for one match blanks the season
+total rather than understating it.
+{% enddocs %}
+
+{% docs opponent_total_shots_sum_season %}
+Total shots the team's opponents took, taken from the provider's team match statistics on the
+opposing side and summed over the team's finished matches. NULL for the whole season unless
+that stat is present for every one of the team's non-awarded matches; the provider not
+supplying it for one match blanks the season total rather than understating it.
+{% enddocs %}
+
+{% docs shots_on_goal_sum_season %}
+Shots on target the team took, taken from the provider's team match statistics and summed over
+the team's finished matches. NULL for the whole season unless that stat is present for every
+one of the team's non-awarded matches; the provider not supplying it for one match blanks the
+season total rather than understating it.
+{% enddocs %}
+
+{% docs opponent_corner_kicks_sum_season %}
+Corner kicks the team's opponents won, taken from the provider's team match statistics on the
+opposing side and summed over the team's finished matches. NULL for the whole season unless
+that stat is present for every one of the team's non-awarded matches; the provider not
+supplying it for one match blanks the season total rather than understating it.
+{% enddocs %}
+
+{% docs passes_accurate_sum_season %}
+Accurate passes completed by the team, taken from the provider's team match statistics and
+summed over the team's finished matches. NULL for the whole season unless that stat is present
+for every one of the team's non-awarded matches; the provider not supplying it for one match
+blanks the season total rather than understating it.
+{% enddocs %}
+
+{% docs passes_total_sum_season %}
+Total passes attempted by the team, taken from the provider's team match statistics and summed
+over the team's finished matches. NULL for the whole season unless that stat is present for
+every one of the team's non-awarded matches; the provider not supplying it for one match blanks
+the season total rather than understating it.
+{% enddocs %}
+
+{% docs corner_kicks_sum_season %}
+Corner kicks the team won, taken from the provider's team match statistics and summed over the
+team's finished matches. NULL for the whole season unless that stat is present for every one of
+the team's non-awarded matches.
+{% enddocs %}
+
+{% docs goalkeeper_saves_sum_season %}
+Saves the team's goalkeeper made, taken from the provider's team match statistics and summed
+over the team's finished matches. NULL for the whole season unless that stat is present for
+every one of the team's non-awarded matches.
+{% enddocs %}
+
+{% docs shots_inside_box_sum_season %}
+Shots the team took from inside the penalty area, taken from the provider's team match
+statistics and summed over the team's finished matches. NULL for the whole season unless that
+stat is present for every one of the team's non-awarded matches.
+{% enddocs %}
+
+{% docs season_matchdays_used %}
+Count of distinct matchday labels (round_name) among the team's finished matches this season,
+from int_legs__team_match. Can differ from season_games_played where more than one of the
+team's matches shares a round_name. Never NULL for a team-season with at least one finished
+match.
+{% enddocs %}
+
+{% docs unbeaten_run %}
+The team's current run of consecutive matches without a loss, counting back from its most
+recent match this season and stopping at the first loss. Equals matches_in_season if the team
+has not lost all season. Never NULL.
+{% enddocs %}
+
+{% docs win_run %}
+The team's current run of consecutive wins, counting back from its most recent match this
+season and stopping at the first non-win (draw or loss). Equals matches_in_season if the team
+has won every match this season. Never NULL.
+{% enddocs %}
+
+{% docs winless_run %}
+The team's current run of consecutive matches without a win, counting back from its most recent
+match this season and stopping at the first win. Equals matches_in_season if the team has not
+won all season. Never NULL.
+{% enddocs %}
+
+{% docs clean_sheet_run %}
+The team's current run of consecutive matches without conceding, counting back from its most
+recent match this season and stopping at the first match it conceded in. Equals
+matches_in_season if the team has not conceded all season. Never NULL.
+{% enddocs %}
+
+{% docs scoring_run %}
+The team's current run of consecutive matches in which the team scored, counting back from its
+most recent match this season and stopping at the first match it failed to score in. Equals
+matches_in_season if the team has scored in every match this season. Never NULL.
+{% enddocs %}
+
+{% docs played__team_season %}
+Finished matches from mart_team_season; NULL when no standings rollup exists for the
+team-season.
+{% enddocs %}
+
+{% docs points__team_season %}
+Points won this season (3 per win, 1 per draw), from mart_team_season. NULL when no standings
+rollup exists for the team-season.
+{% enddocs %}
+
+{% docs round_name %}
+The provider's round label for this match (for example 'Regular Season - 12' or
+'Quarter-finals'), carried unchanged from fct_fixture. Free text whose shape varies by
+competition, so it reads well and sorts badly — never parsed into a value here.
+{% enddocs %}
+
+{% docs competition_type %}
+The competition's type (domestic_league, domestic_cup, continental_cup, world_championship, …),
+resolved from league_code through the competition_registry seed; joins competition_types.
+{% enddocs %}
+
+{% docs entity_type %}
+Whether the competition this row belongs to is club or national-team football: `club` or
+`national`, resolved from league_code through the competition_registry and competition_types
+seeds. Never NULL for a tracked competition, since every active league_code is in the registry
+and every registry type maps to one of the two; a NULL would mean the registry does not know
+the row's competition, which the not_null tests on the match-leg and form models treat as a
+defect rather than a value.
+{% enddocs %}
+
+{% docs result %}
+The match outcome from this row's team's perspective: W (win), D (draw), or L (loss), compared
+from the match's own final scoreline.
+{% enddocs %}
+
+{% docs market_value_eur %}
+The team's estimated market value in whole EUR as of the row's as_of_date: a point-in-time
+estimate carrying a source and a snapshot date, not a transfer fee and not a price. NULL when
+no estimate is loaded.
+{% enddocs %}
+
+{% docs opponent_corner_kicks__leg %}
+Corner kicks won by the opponent in this match, from the provider's team match statistics for
+the opposing side — the mirror of the team's own corner_kicks. NULL when the competition
+supplies no team statistics for the fixture.
+{% enddocs %}
+
+{% docs opponent_shots_on_goal__leg %}
+Shots on target by the opponent in this match, from the provider's team match statistics for
+the opposing side — the mirror of the team's own shots_on_goal. NULL when the competition
+supplies no team statistics for the fixture.
+{% enddocs %}
+
+{% docs team_name %}
+The team's display name: the provider's value with the team_name_overrides corrections already
+applied in base, as dim_team publishes it. Every copy of this column elsewhere carries that
+same value for the row's team.
+{% enddocs %}
+
+{% docs team_logo_url %}
+The team's crest URL as dim_team publishes it, copied unchanged wherever a team is shown. NULL
+when no crest is ingested for the team.
+{% enddocs %}
+
+{% docs team_country %}
+The country the team is registered in, canonicalised and reconciled against dim_country in
+base, as dim_team publishes it. NULL when the provider row carried none.
+{% enddocs %}
+
+{% docs player_name %}
+The player's display name as the provider gives it and dim_player publishes it, copied
+unchanged wherever a player is shown.
+{% enddocs %}
+
+{% docs player_photo_url %}
+The player's photo URL as dim_player publishes it, copied unchanged wherever a player is shown.
+NULL when no photo is ingested for the player.
+{% enddocs %}
+
+{% docs player_nationality %}
+The player's nationality as dim_player publishes it: the provider's string, not a coded value.
+NULL when none is ingested for the player.
+{% enddocs %}
+
+{% docs player_birth_date %}
+The player's birth date as dim_player publishes it, parsed from the provider's birth date
+field. NULL when that field was missing or not parseable; age is derived at render time and
+never stored.
+{% enddocs %}
+
+{% docs opponent_name %}
+The opposing team's display name for this row's fixture, denormalised from dim_team via
+opponent_team_sk.
+{% enddocs %}
+
+{% docs opponent_logo_url %}
+The opposing team's crest URL for this row's fixture, denormalised from dim_team via
+opponent_team_sk. NULL when the opponent has no crest ingested.
+{% enddocs %}
+
+{% docs goals_total__leg %}
+Goals this player scored in this match, the provider's own per-player count (statistics
+goals.total). Includes penalties scored and excludes own goals, which the provider does not
+credit to a player. NULL when the provider's statistics line for this player omitted the goals
+object.
+{% enddocs %}
+
+{% docs goals_assists__leg %}
+Assists this player registered in this match, the provider's own per-player count (statistics
+goals.assists), by the provider's own definition of an assist. NULL when the provider's
+statistics line for this player omitted the goals object.
+{% enddocs %}
+
+{% docs shots_on__leg %}
+Shots on target this player took in this match, the provider's own per-player count
+(statistics shots.on). NULL when the provider's statistics line for this player omitted the
+shots object.
+{% enddocs %}
+
+{% docs position_code__leg %}
+The player's position for this match, as reported by the provider (e.g. G, D, M, F). Free-form
+and kept as the provider sends it, to track codes not yet catalogued; NULL when the provider
+supplied none.
+{% enddocs %}
+
+{% docs is_home__own_fixture %}
+True when team_sk is the home side of this row's own fixture, following the provider's nominal
+home/away assignment — a match played at a neutral venue still has one side marked home.
+{% enddocs %}
+
+{% docs window_type__season_record %}
+Which season this row's cumulative record is drawn from: `season_to_date` for the
+competition-season the row belongs to, or `prev_season` where a mart falls back to the previous
+season because the team or player has not yet played in this one. The intermediate season
+records carry only `season_to_date`.
+{% enddocs %}
+
+{% docs appearances__season_to_date %}
+Finished matches the player actually played (minutes greater than 0) in this
+competition-season, summed across every club the player turned out for that season. A squad
+member named but never brought on counts 0 rather than being excluded.
+{% enddocs %}
+
+{% docs minutes__season_to_date %}
+Total minutes played in this competition-season, summed across every club the player turned out
+for that season.
+{% enddocs %}
+
+{% docs substitute_appearances %}
+Appearances that came off the bench: matches where the player was listed as a substitute and
+still recorded minutes greater than 0. Excludes a named substitute never brought on, so
+substitute_appearances plus starts accounts for every appearance.
+{% enddocs %}

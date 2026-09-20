@@ -53,6 +53,7 @@ models:
         description: "1 = most recent of the window legs (uncapped for tournament windows)."
         tests: [not_null]
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
         tests:
           - not_null
           - accepted_values:
@@ -65,6 +66,7 @@ models:
         # already restricts status_short to five non-null codes — so this guards a future change.
         tests: [not_null]
       - name: result
+        description: "{{ doc('result') }}"
         tests:
           - not_null
           - accepted_values:
@@ -106,6 +108,8 @@ models:
       - name: corner_kicks
         description: "{{ doc('corners') }}"
       - name: opponent_corner_kicks
+        description: "{{ doc('opponent_corner_kicks__leg') }}"
       - name: goalkeeper_saves
         description: "{{ doc('saves') }}"
       - name: opponent_shots_on_goal
+        description: "{{ doc('opponent_shots_on_goal__leg') }}"

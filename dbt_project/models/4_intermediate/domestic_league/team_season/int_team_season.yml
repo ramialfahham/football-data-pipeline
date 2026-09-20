@@ -64,7 +64,7 @@ models:
           name: int_team_season_per_match_rates_non_negative
     columns:
       - name: team_season_sk
-        description: "Surrogate over (team_sk, season_sk); the model's grain key. Uniqueness tested at source (relied on by int_team_season__deserved_vs_actual)."
+        description: "{{ doc('team_season_sk') }} This is the model that generates it, and its grain key."
         tests:
           - not_null
           - unique
@@ -76,11 +76,13 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: season_games_played
+        description: "{{ doc('season_games_played__whole_season') }}"
         tests: [not_null]
       - name: shots_on_goal_difference_per_match
         description: "{{ doc('shots_on_goal_difference_per_match') }}"
@@ -99,19 +101,29 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
       - name: stat_coverage_season_games
+        description: "{{ doc('stat_coverage_season_games') }}"
       - name: player_stat_coverage_season_games
+        description: "{{ doc('player_stat_coverage_season_games') }}"
       - name: games_expecting_team_stats
         description: "Games that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate compares against this rather than games played, so an awarded match is not read as missing data and does not blank the statistics."
       - name: games_with_team_stats
+        description: "{{ doc('games_with_team_stats__season') }}"
       - name: points_won_sum_season
         description: "{{ doc('points_won_sum_season__team') }}"
       - name: wins_sum_season
+        description: "{{ doc('wins_sum_season') }}"
       - name: draws_sum_season
+        description: "{{ doc('draws_sum_season') }}"
       - name: losses_sum_season
+        description: "{{ doc('losses_sum_season') }}"
       - name: clean_sheets_sum_season
+        description: "{{ doc('clean_sheets_sum_season__team') }}"
       - name: goals_for_sum_season
+        description: "{{ doc('goals_for_sum_season') }}"
       - name: goals_against_sum_season
+        description: "{{ doc('goals_against_sum_season__team') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
@@ -119,14 +131,23 @@ models:
       - name: goals_open_play
         description: "{{ doc('goals_open_play') }}"
       - name: total_shots_sum_season
+        description: "{{ doc('total_shots_sum_season') }}"
       - name: opponent_total_shots_sum_season
+        description: "{{ doc('opponent_total_shots_sum_season') }}"
       - name: shots_inside_box_sum_season
+        description: "{{ doc('shots_inside_box_sum_season') }}"
       - name: shots_on_goal_sum_season
+        description: "{{ doc('shots_on_goal_sum_season') }}"
       - name: corner_kicks_sum_season
+        description: "{{ doc('corner_kicks_sum_season') }}"
       - name: opponent_corner_kicks_sum_season
+        description: "{{ doc('opponent_corner_kicks_sum_season') }}"
       - name: passes_accurate_sum_season
+        description: "{{ doc('passes_accurate_sum_season') }}"
       - name: passes_total_sum_season
+        description: "{{ doc('passes_total_sum_season') }}"
       - name: goalkeeper_saves_sum_season
+        description: "{{ doc('goalkeeper_saves_sum_season') }}"
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
       - name: shots_share_pct
@@ -172,6 +193,7 @@ models:
       - name: duels_won_pct
         description: "{{ doc('duels_won_pct') }}"
       - name: season_matchdays_used
+        description: "{{ doc('season_matchdays_used') }}"
 
   - name: int_team_season__metrics_cumulative
     description: >
@@ -225,6 +247,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
@@ -248,19 +271,29 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
       - name: stat_coverage_season_games
+        description: "{{ doc('stat_coverage_season_games') }}"
       - name: player_stat_coverage_season_games
+        description: "{{ doc('player_stat_coverage_season_games') }}"
       - name: games_expecting_team_stats
         description: "Games that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate compares against this rather than games played, so an awarded match is not read as missing data and does not blank the statistics."
       - name: games_with_team_stats
+        description: "{{ doc('games_with_team_stats__season') }}"
       - name: points_won_sum_season
         description: "{{ doc('points_won_sum_season__team') }}"
       - name: wins_sum_season
+        description: "{{ doc('wins_sum_season') }}"
       - name: draws_sum_season
+        description: "{{ doc('draws_sum_season') }}"
       - name: losses_sum_season
+        description: "{{ doc('losses_sum_season') }}"
       - name: clean_sheets_sum_season
+        description: "{{ doc('clean_sheets_sum_season__team') }}"
       - name: goals_for_sum_season
+        description: "{{ doc('goals_for_sum_season') }}"
       - name: goals_against_sum_season
+        description: "{{ doc('goals_against_sum_season__team') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
@@ -268,14 +301,23 @@ models:
       - name: goals_open_play
         description: "{{ doc('goals_open_play') }}"
       - name: total_shots_sum_season
+        description: "{{ doc('total_shots_sum_season') }}"
       - name: opponent_total_shots_sum_season
+        description: "{{ doc('opponent_total_shots_sum_season') }}"
       - name: shots_inside_box_sum_season
+        description: "{{ doc('shots_inside_box_sum_season') }}"
       - name: shots_on_goal_sum_season
+        description: "{{ doc('shots_on_goal_sum_season') }}"
       - name: corner_kicks_sum_season
+        description: "{{ doc('corner_kicks_sum_season') }}"
       - name: opponent_corner_kicks_sum_season
+        description: "{{ doc('opponent_corner_kicks_sum_season') }}"
       - name: passes_accurate_sum_season
+        description: "{{ doc('passes_accurate_sum_season') }}"
       - name: passes_total_sum_season
+        description: "{{ doc('passes_total_sum_season') }}"
       - name: goalkeeper_saves_sum_season
+        description: "{{ doc('goalkeeper_saves_sum_season') }}"
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
       - name: shots_share_pct
@@ -441,6 +483,7 @@ models:
           where: "deserved_rank is not null"
     columns:
       - name: team_season_sk
+        description: "{{ doc('team_season_sk') }}"
         tests:
           - not_null
           - unique
@@ -493,6 +536,7 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
       - name: shots_on_goal_difference_per_match
         description: "{{ doc('shots_on_goal_difference_per_match') }}"
 
@@ -565,6 +609,7 @@ models:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
@@ -577,13 +622,16 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: appearances
+        description: "{{ doc('appearances__season_to_date') }}"
         tests: [not_null]
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: starts
         description: "{{ doc('starts') }}"
       - name: substitute_appearances
+        description: "{{ doc('substitute_appearances') }}"
       - name: minutes
+        description: "{{ doc('minutes__season_to_date') }}"
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: goals_penalty_player

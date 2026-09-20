@@ -126,7 +126,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: league_api_id
-        description: "API-Football league id (78 for Bundesliga)."
+        description: "{{ doc('league_api_id') }}"
         tests: [not_null]
       - name: league_name
         description: "League display name from API-Football."
@@ -185,7 +185,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: league_api_id
-        description: "API-Football league id."
+        description: "{{ doc('league_api_id') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
@@ -239,12 +239,7 @@ models:
         description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: team_name
-        description: >
-          The team's display name: the provider's value with the corrections from the
-          team_name_overrides seed already applied in base.
-
-          There is no second team-name field anywhere, so this value names the team wherever a
-          team is named, and a wrong value here is wrong in every one of those places at once.
+        description: "{{ doc('team_name') }} This is the row every copy is taken from: a wrong value here is wrong wherever the team is named."
         tests: [not_null]
       - name: team_slug
         description: "{{ doc('team_slug') }}"
@@ -252,9 +247,7 @@ models:
       - name: team_code
         description: "{{ doc('team_code') }}"
       - name: team_country
-        description: >
-          The country a team is registered in, already canonicalised and reconciled against
-          dim_country in base. Can be NULL — not every provider row carries one.
+        description: "{{ doc('team_country') }}"
         tests:
           - relationships:
               to: ref('dim_country')
@@ -262,7 +255,7 @@ models:
       - name: team_founded_year
         description: "Year the team was founded."
       - name: team_logo_url
-        description: "Team crest URL."
+        description: "{{ doc('team_logo_url') }}"
       - name: venue_api_id
         description: "API-Football venue id for the current home venue."
       - name: venue_name
@@ -299,18 +292,18 @@ models:
         description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: player_name
-        description: "Player display name from API-Football."
+        description: "{{ doc('player_name') }}"
         tests: [not_null]
       - name: player_first_name
         description: "{{ doc('player_first_name') }}"
       - name: player_last_name
         description: "{{ doc('player_last_name') }}"
       - name: player_birth_date
-        description: "Player birth date (DATE) when parseable from API ``birth.date``."
+        description: "{{ doc('player_birth_date') }}"
       - name: player_nationality
-        description: "Nationality string from API-Football."
+        description: "{{ doc('player_nationality') }}"
       - name: player_photo_url
-        description: "Player photo URL."
+        description: "{{ doc('player_photo_url') }}"
       - name: player_birth_place
         description: "Birth place (city), from /players/profiles."
       - name: player_birth_country
@@ -476,7 +469,7 @@ models:
         description: "{{ doc('fixture_sk') }}"
         tests: [not_null, unique]
       - name: fixture_api_id
-        description: "API-Football fixture id."
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: league_sk
         description: "{{ doc('league_sk') }}"
@@ -542,7 +535,7 @@ models:
       - name: status_elapsed
         description: "Elapsed minutes as reported by API-Football (in-play only)."
       - name: round_name
-        description: "Round label (e.g. ``Regular Season - 12``). Degenerate attribute."
+        description: "{{ doc('round_name') }}"
       - name: goals_home
         description: "Final-time goals scored by home team."
       - name: goals_away
@@ -589,6 +582,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
@@ -657,8 +651,10 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_api_id
+        description: "{{ doc('fixture_api_id') }}"
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
       - name: shots_on_goal
@@ -740,8 +736,10 @@ models:
               to: ref('dim_player')
               field: player_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_api_id
+        description: "{{ doc('fixture_api_id') }}"
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
       - name: player_api_id
@@ -763,10 +761,13 @@ models:
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on
+        description: "{{ doc('shots_on__leg') }}"
       - name: goals_total
+        description: "{{ doc('goals_total__leg') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
       - name: goals_assists
+        description: "{{ doc('goals_assists__leg') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
       - name: passes_total
@@ -853,8 +854,10 @@ models:
               field: player_sk
               where: "player_sk is not null"
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_api_id
+        description: "{{ doc('fixture_api_id') }}"
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
       - name: player_api_id
@@ -907,7 +910,7 @@ models:
         description: "{{ doc('as_of_date') }}"
         tests: [not_null]
       - name: market_value_eur
-        description: "Whole EUR; null when unknown."
+        description: "{{ doc('market_value_eur') }}"
       - name: source_code
         description: "{{ doc('source_code') }}"
         tests: [not_null]
@@ -1044,6 +1047,7 @@ models:
       - name: coach_api_id
         description: "{{ doc('coach_api_id') }}"
       - name: team_name
+        description: "{{ doc('team_name__provider') }}"
       - name: end_date
         description: "The date the coach's spell at this club ended. NULL for a spell the provider still shows as current - and also where the feed simply omits the date, so a NULL is not proof the coach is still in post."
       - name: raw_ingested_at

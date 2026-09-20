@@ -27,6 +27,7 @@ models:
           combination_of_columns: [league_code]
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests:
           - not_null
           - unique
@@ -34,13 +35,14 @@ models:
               to: ref('competition_registry')
               field: league_code
       - name: competition_type
+        description: "{{ doc('competition_type') }}"
         tests:
           - not_null
           - relationships:
               to: ref('competition_types')
               field: competition_type
       - name: entity_type
-        description: "From competition_types.entity_type — club or national. Also a page filter axis."
+        description: "{{ doc('entity_type') }}"
         tests:
           - not_null
           - accepted_values:
@@ -184,6 +186,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
         tests:
           - not_null
           - accepted_values:
@@ -197,6 +200,7 @@ models:
           - accepted_values:
               values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
+        description: "How many past matches make up this side's form window: 5 for a last_5 window (fewer only before a team has 5 finished matches to draw on), or the full cumulative count of tournament matches so far on a tournament_to_date or qualifiers window. The denominator every per-match rate on this row divides by."
         tests: [not_null]
       - name: games_expecting_team_stats
         description: "Window legs that COULD carry a team stat line — the window size minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat rate below is NULL unless its coverage count reaches this, so an awarded match is not read as a missing stat and does not blank a team's form figures."
@@ -318,6 +322,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
         tests:
           - not_null
           - accepted_values:
@@ -341,10 +346,13 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: goals_total
+        description: "This player's goals summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in. Each leg's own value is the provider's per-player goals total, penalties included and own goals excluded. NULL only if every contributing leg's value was NULL, which the window's own construction from legs that carry player stats rules out in practice."
       - name: goals_assists
+        description: "This player's assists summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in."
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_on
+        description: "This player's shots on target summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in."
       - name: passes_key_player
         description: "{{ doc('passes_key_player') }}"
       - name: passes_accurate_player
@@ -443,6 +451,7 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: result
+        description: "{{ doc('result') }}"
         tests:
           - not_null
           - accepted_values:
@@ -464,6 +473,7 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: played_league_code
@@ -479,7 +489,9 @@ models:
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: opponent_name
+        description: "{{ doc('opponent_name') }}"
       - name: opponent_logo_url
+        description: "{{ doc('opponent_logo_url') }}"
 
   - name: mart_team_fixture_stats
     description: >
@@ -514,14 +526,18 @@ models:
         description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
         tests: [not_null]
       - name: is_home
+        description: "{{ doc('is_home__own_fixture') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
+        description: "{{ doc('round_name') }}"
       - name: team_name
+        description: "{{ doc('team_name') }}"
       - name: team_logo_url
+        description: "{{ doc('team_logo_url') }}"
       - name: shots_on_goal
         description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_off_goal
@@ -597,16 +613,22 @@ models:
         description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
         tests: [not_null]
       - name: is_home
+        description: "{{ doc('is_home__own_fixture') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
+        description: "{{ doc('round_name') }}"
       - name: team_name
+        description: "{{ doc('team_name') }}"
       - name: player_name
+        description: "{{ doc('player_name') }}"
       - name: player_photo_url
+        description: "{{ doc('player_photo_url') }}"
       - name: position_code
+        description: "{{ doc('position_code__leg') }}"
       - name: shirt_number
         description: "{{ doc('shirt_number') }}"
       - name: minutes_played
@@ -622,10 +644,13 @@ models:
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on
+        description: "{{ doc('shots_on__leg') }}"
       - name: goals_total
+        description: "{{ doc('goals_total__leg') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
       - name: goals_assists
+        description: "{{ doc('goals_assists__leg') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
       - name: passes_total
@@ -868,7 +893,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: competition_type
-        description: "From the registry; YoY columns are populated only for domestic_league."
+        description: "{{ doc('competition_type') }} The year-over-year columns are populated only for domestic_league."
       - name: points_delta_yoy
         description: >
           This season's points minus last season's, compared through the same number of games
@@ -906,13 +931,17 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: team_name
+        description: "{{ doc('team_name') }}"
       - name: team_slug
         description: "{{ doc('team_slug') }}"
       - name: team_code
         description: "{{ doc('team_code') }}"
       - name: team_country
+        description: "{{ doc('team_country') }}"
       - name: team_logo_url
+        description: "{{ doc('team_logo_url') }}"
       - name: played
+        description: "{{ doc('played__team_season') }}"
       - name: wins
         description: "{{ doc('wins') }}"
       - name: draws
@@ -926,6 +955,7 @@ models:
       - name: goal_diff
         description: "{{ doc('goal_diff') }}"
       - name: points
+        description: "{{ doc('points__team_season') }}"
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
@@ -933,7 +963,9 @@ models:
       - name: latest_form
         description: "{{ doc('latest_form') }}"
       - name: season_games_played
+        description: "{{ doc('season_games_played__whole_season') }}"
       - name: stat_coverage_season_games
+        description: "{{ doc('stat_coverage_season_games') }}"
       - name: goals_per_match
         description: "{{ doc('goals_per_match') }}"
       - name: goals_against_per_match
@@ -957,6 +989,7 @@ models:
       - name: saves_pct
         description: "{{ doc('saves_pct') }}"
       - name: player_stat_coverage_season_games
+        description: "{{ doc('player_stat_coverage_season_games') }}"
       - name: shots_on_goal_per_match
         description: "{{ doc('shots_on_goal_per_match') }}"
       - name: shots_on_goal_against_per_match
@@ -978,13 +1011,21 @@ models:
       - name: yoy_games_played_cutoff
         description: "{{ doc('yoy_games_played_cutoff') }}"
       - name: points_this_season
+        description: "Points won this season through the same number of games as the year-over-year comparison, from int_team_profile__yoy. Domestic leagues only — NULL for every tournament row."
       - name: points_prev_season
+        description: "Points won in the prior season through the same number of games as the current season, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
       - name: goals_for_this_season
+        description: "Goals scored this season through the year-over-year games-played cutoff, from int_team_profile__yoy. Domestic leagues only — NULL for every tournament row."
       - name: goals_for_prev_season
+        description: "Goals scored in the prior season through the same games-played cutoff, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
       - name: goals_for_delta_yoy
+        description: "goals_for_this_season minus goals_for_prev_season, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
       - name: goals_against_this_season
+        description: "Goals conceded this season through the year-over-year games-played cutoff, from int_team_profile__yoy. Domestic leagues only — NULL for every tournament row."
       - name: goals_against_prev_season
+        description: "Goals conceded in the prior season through the same games-played cutoff, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
       - name: goals_against_delta_yoy
+        description: "goals_against_this_season minus goals_against_prev_season, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
       - name: goals_per_match_this_season
         description: "{{ doc('goals_per_match_this_season__team') }}"
       - name: goals_per_match_prev_season
@@ -1080,10 +1121,15 @@ models:
       - name: saves_pct_delta_yoy
         description: "{{ doc('saves_pct_delta_yoy__team') }}"
       - name: unbeaten_run
+        description: "{{ doc('unbeaten_run') }}"
       - name: win_run
+        description: "{{ doc('win_run') }}"
       - name: winless_run
+        description: "{{ doc('winless_run') }}"
       - name: clean_sheet_run
+        description: "{{ doc('clean_sheet_run') }}"
       - name: scoring_run
+        description: "{{ doc('scoring_run') }}"
 
   - name: mart_team_season_record
     description: >
@@ -1184,6 +1230,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
         tests:
           - accepted_values:
               values: ["club", "national"]
@@ -1191,6 +1238,7 @@ models:
         description: "{{ doc('season_api_year') }} Here it is the season the W2 value is drawn from: the current one, or the previous one when window_type is 'prev_season'."
         tests: [not_null]
       - name: window_type
+        description: "{{ doc('window_type__season_record') }}"
         tests:
           - not_null
           - accepted_values:
@@ -1202,6 +1250,7 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
       - name: games_with_team_stats
+        description: "Cumulative matches in the season-to-date window with a team statistics line present — the coverage count that gates shots_per_match and the other team-stat rates on this row. The provider's stat line arrives in pieces, so this says nothing about passes, corners or shots inside the box on its own; those inputs carry their own counts upstream."
       - name: points_won
         description: "{{ doc('points_won') }}"
       - name: wins
@@ -1300,6 +1349,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: window_type
+        description: "{{ doc('window_type__season_record') }}"
         tests:
           - not_null
           - accepted_values:
@@ -1310,14 +1360,19 @@ models:
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: games_played
+        description: "Cumulative matches this player has appeared in, in the fixture's own competition this season (or the previous season when window_type is prev_season), counted through the player's most recent appearance in that season."
       - name: goals_total
+        description: "This player's cumulative goals in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs. Each leg's own value is the provider's per-player goals total, penalties included and own goals excluded."
       - name: goals_assists
+        description: "This player's cumulative assists in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs."
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_on
+        description: "This player's cumulative shots on target in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs."
       - name: passes_key_player
         description: "{{ doc('passes_key_player') }}"
       - name: passes_accurate_player
@@ -1429,8 +1484,9 @@ models:
           - accepted_values:
               values: ["league", "group", "conference", "split_round", "ranking"]
       - name: competition_type
-        description: "From competition_registry + competition_types seeds."
+        description: "{{ doc('competition_type') }}"
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
         tests:
           - accepted_values:
               values: ["club", "national"]
@@ -1444,7 +1500,7 @@ models:
       - name: team_name
         description: "Denormalised from dim_team."
       - name: team_logo_url
-        description: "Team crest URL from dim_team; nullable."
+        description: "{{ doc('team_logo_url') }}"
       - name: standing_rank
         description: "Table position within the section (1 = top)."
         tests: [not_null]
@@ -1463,6 +1519,7 @@ models:
       - name: goals_diff
         description: "{{ doc('goals_diff') }}"
       - name: played
+        description: "Matches played in this standings section, as the provider's own standings row reports it — not counted from fixtures. NULL only where the provider's row lacks the field."
       - name: wins
         description: "{{ doc('wins') }}"
       - name: draws
@@ -1487,7 +1544,7 @@ models:
           expression: "wins + draws + losses = played"
     columns:
       - name: team_season_sk
-        description: "Surrogate key from (team_sk, season_sk)."
+        description: "{{ doc('team_season_sk') }}"
         tests: [not_null, unique]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -1511,16 +1568,20 @@ models:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: team_name
+        description: "{{ doc('team_name') }}"
         tests: [not_null]
       - name: team_code
         description: "{{ doc('team_code') }}"
       - name: team_country
+        description: "{{ doc('team_country') }}"
       - name: team_logo_url
+        description: "{{ doc('team_logo_url') }}"
       - name: played
         description: "Count of finished matches this team took part in during the season."
         tests: [not_null]
@@ -1602,21 +1663,16 @@ models:
         tests: [not_null]
       - name: competition_type
         description: >
-          The competition's type from the registry (domestic_league, domestic_cup,
-          continental_cup, world_championship, …). Carried here so a league can be told from a cup
-          without re-joining the registry, which is what lets the featured-season rule prefer one.
+          {{ doc('competition_type') }} Carried here so a league can be told from a cup without
+          re-joining the registry, which is what lets the featured-season rule prefer one.
       - name: entity_type
         description: >
-          club or national, resolved through the competition_types seed. It is what scopes the
-          featured season to club football.
+          {{ doc('entity_type') }} It is what scopes the featured season to club football.
 
-          NULL is reachable two ways, not one: a league_code absent from the registry, and a
-          league_code PRESENT in the registry but carrying a blank competition_type. The second is
-          silent, because the sync and both registry guards skip a blank entry on the same
-          condition — registry and seed then agree by being equally empty.
-
-          The not_null test is here because a NULL would not fail loudly on its own: it reads as
-          non-club, so the player would quietly open on the wrong season.
+          The defect has a silent form here: a league_code present in the registry but carrying a
+          blank competition_type, which the sync and both registry guards skip on the same
+          condition. The not_null test is here because such a NULL would not fail loudly on its
+          own: it reads as non-club, so the player would quietly open on the wrong season.
         tests:
           - not_null
           - accepted_values:
@@ -1642,6 +1698,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: appearances
+        description: "{{ doc('appearances__season_to_date') }}"
         tests: [not_null]
       - name: position_code
         description: "Most-frequent position that season (role badge). NULL when no fixture carried a position."
@@ -1670,9 +1727,9 @@ models:
       - name: team_name
         description: "Affiliated club display name, from dim_team."
       - name: team_logo_url
-        description: "Affiliated club crest URL, from dim_team."
+        description: "{{ doc('team_logo_url') }} Here it is the player's affiliated club."
       - name: team_country
-        description: "Affiliated club country, from dim_team."
+        description: "{{ doc('team_country') }} Here it is the player's affiliated club."
       - name: league_sk
         description: "{{ doc('league_sk') }}"
         tests:
@@ -1682,17 +1739,23 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: player_name
+        description: "{{ doc('player_name') }}"
       - name: player_first_name
         description: "{{ doc('player_first_name') }}"
       - name: player_last_name
         description: "{{ doc('player_last_name') }}"
       - name: player_nationality
+        description: "{{ doc('player_nationality') }}"
       - name: player_birth_date
+        description: "{{ doc('player_birth_date') }}"
       - name: player_photo_url
+        description: "{{ doc('player_photo_url') }}"
       - name: starts
         description: "{{ doc('starts') }}"
       - name: substitute_appearances
+        description: "{{ doc('substitute_appearances') }}"
       - name: minutes
+        description: "{{ doc('minutes__season_to_date') }}"
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: assists_player
@@ -1764,8 +1827,11 @@ models:
       - name: shots_on_goal_player_delta_yoy
         description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
       - name: passes_key_player_this_season
+        description: "{{ doc('passes_key_player_this_season__player') }}"
       - name: passes_key_player_prev_season
+        description: "{{ doc('passes_key_player_prev_season__player') }}"
       - name: passes_key_player_delta_yoy
+        description: "{{ doc('passes_key_player_delta_yoy__player') }}"
       - name: defensive_actions_player_this_season
         description: "{{ doc('defensive_actions_player_this_season__player') }}"
       - name: defensive_actions_player_prev_season
@@ -1781,6 +1847,7 @@ models:
       - name: shots_on_goal_player_prev_season_full
         description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
       - name: passes_key_player_prev_season_full
+        description: "{{ doc('passes_key_player_prev_season_full__player') }}"
       - name: defensive_actions_player_prev_season_full
         description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
       - name: scorer_points_player
@@ -1833,28 +1900,38 @@ models:
         description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
         tests: [not_null]
       - name: result
+        description: "{{ doc('result') }}"
         tests:
           - not_null
           - accepted_values:
               values: ["W", "D", "L"]
       - name: is_home
+        description: "{{ doc('is_home__own_fixture') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
+        description: "{{ doc('round_name') }}"
       - name: goals_for
         description: "{{ doc('goals') }}"
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: player_name
+        description: "{{ doc('player_name') }}"
       - name: player_photo_url
+        description: "{{ doc('player_photo_url') }}"
       - name: team_name
+        description: "{{ doc('team_name') }}"
       - name: team_logo_url
+        description: "{{ doc('team_logo_url') }}"
       - name: opponent_name
+        description: "{{ doc('opponent_name') }}"
       - name: opponent_logo_url
+        description: "{{ doc('opponent_logo_url') }}"
       - name: position_code
+        description: "{{ doc('position_code__leg') }}"
       - name: minutes_played
         description: "{{ doc('minutes_played') }}"
       - name: is_starter
@@ -1862,12 +1939,15 @@ models:
       - name: is_substitute
         description: "{{ doc('is_substitute') }}"
       - name: goals_total
+        description: "{{ doc('goals_total__leg') }}"
       - name: goals_assists
+        description: "{{ doc('goals_assists__leg') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on
+        description: "{{ doc('shots_on__leg') }}"
       - name: passes_total
         description: "{{ doc('passes_player') }}"
       - name: passes_key
@@ -1934,12 +2014,17 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: group_name
+        description: "Which standings section (league table, group or split-season phase) the team's table position is drawn from, from mart_standings.group_name. Kept when the fixture itself is a knockout tie, since it still says which group the team came from; NULL when the team has no single resolvable standings row for that competition-season (no row, or more than one section)."
       - name: league_rank
         description: "{{ doc('league_rank') }}"
       - name: standing_points
+        description: "The team's points in its standings section going into this fixture, from mart_standings.points. NULL for a knockout round, and NULL when the team sits in more than one standings section that competition-season, so no single table position applies."
       - name: standing_played
+        description: "The team's matches played in its standings section going into this fixture, from mart_standings.played — the provider's own standings count, not a fixture count. NULL for a knockout round, and NULL when the team sits in more than one standings section that competition-season."
       - name: standing_goals_diff
+        description: "The team's goal difference in its standings section going into this fixture, from mart_standings.goals_diff. NULL for a knockout round, and NULL when the team sits in more than one standings section that competition-season."
       - name: standing_form
+        description: "The team's recent-results string (for example WWDLW) in its standings section going into this fixture, from mart_standings.form — the provider's own field, not derived from fixtures here. NULL for a knockout round, and NULL when the team sits in more than one standings section that competition-season."
 
   - name: mart_competition_season_summary
     description: >
@@ -1989,8 +2074,9 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: competition_type
-        description: "From competition_registry + competition_types seeds."
+        description: "{{ doc('competition_type') }}"
       - name: entity_type
+        description: "{{ doc('entity_type') }}"
         tests:
           - accepted_values:
               values: ["club", "national"]
@@ -2115,8 +2201,10 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: total_meetings
+        description: "Count of finished meetings between this team and this opponent, across every competition, all time — the number of legs behind this row. Never NULL: a row exists only once the pair has met."
         tests: [not_null]
       - name: last_meeting_result
+        description: "The result of the most recent meeting between this team and this opponent, from this team's side: W, D or L."
         tests:
           - accepted_values:
               values: ["W", "D", "L"]
@@ -2131,20 +2219,35 @@ models:
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: meetings_last5
+        description: "How many of the most recent five meetings between this team and this opponent are counted here: the smaller of total_meetings and 5."
       - name: wins_last5
+        description: "Wins for this team over its most recent meetings_last5 meetings against this opponent."
       - name: draws_last5
+        description: "Draws for this team over its most recent meetings_last5 meetings against this opponent."
       - name: losses_last5
+        description: "Losses for this team over its most recent meetings_last5 meetings against this opponent."
       - name: last_meeting_at
+        description: "Kick-off of the most recent meeting between this team and this opponent, UTC."
       - name: last_meeting_league_code
+        description: "{{ doc('league_code') }} Here it is the competition the most recent meeting was played in."
       - name: last_meeting_goals_for
+        description: "{{ doc('goals') }} Here it is this team's goals in the most recent meeting between the two."
       - name: last_meeting_goals_against
+        description: "{{ doc('goals_against') }} Here it is the goals this team conceded in the most recent meeting between the two."
       - name: recent_meetings
+        description: "The up to ten most recent meetings between this team and this opponent, most recent first, each carrying its kick-off, competition, score and result — enough to render a head-to-head strip without a further join. At least one element whenever the row exists, never more than ten."
       - name: recent_meetings.goals_against
+        description: "{{ doc('goals_against') }} Here it is the goals this team conceded in that one past meeting, inside the recent_meetings array."
       - name: recent_meetings.goals_for
+        description: "{{ doc('goals') }} Here it is this team's goals in that one past meeting, inside the recent_meetings array."
       - name: recent_meetings.kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }} Here it is that one past meeting's kick-off, inside the recent_meetings array."
       - name: recent_meetings.league_code
+        description: "{{ doc('league_code') }} Here it is the competition that one past meeting was played in, inside the recent_meetings array."
       - name: recent_meetings.result
+        description: "This team's result (W, D or L) in that one past meeting, inside the recent_meetings array."
       - name: pair_key
+        description: "Order-independent identity for this pair of teams: the lower team_sk and the higher team_sk joined with a hyphen, so both directed rows of a pairing (team to opponent, opponent to team) share the same value."
       - name: is_canonical
         description: "True on exactly one of the two rows a pairing produces. Every pairing is held twice, once from each team's point of view; filter on this to count a pairing once, and ignore it when reading the record from one named team's side."
 
@@ -2278,13 +2381,13 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: player_name
-        description: "Denormalised from dim_player."
+        description: "{{ doc('player_name') }}"
       - name: player_nationality
-        description: "Denormalised from dim_player."
+        description: "{{ doc('player_nationality') }}"
       - name: player_position
         description: "Listed/bio position from dim_player."
       - name: player_photo_url
-        description: "Player photo URL from dim_player; nullable."
+        description: "{{ doc('player_photo_url') }}"
       # The club the player belonged to that competition-season, resolved upstream in
       # int_player_season__metrics as the club of his most recent finished match. All four are
       # null together when he has no finished match in that competition-season.
@@ -2299,11 +2402,13 @@ models:
       - name: team_slug
         description: "{{ doc('team_slug') }}"
       - name: team_logo_url
-        description: "Club crest URL from dim_team; null when the row has no club."
+        description: "{{ doc('team_logo_url') }} Also NULL when the row has no club."
       # Denormalised season-to-date display atoms (from int_player_season__metrics): the per-board
       # breakdown values the UI shows alongside sort_value (the board's own ranked metric).
       - name: appearances
+        description: "{{ doc('appearances__season_to_date') }}"
       - name: minutes
+        description: "{{ doc('minutes__season_to_date') }}"
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: assists_player
@@ -2465,7 +2570,7 @@ models:
       - name: team_slug
         description: "{{ doc('team_slug') }}"
       - name: team_logo_url
-        description: "Denormalised from dim_team; nullable."
+        description: "{{ doc('team_logo_url') }}"
       - name: season_games_played
         description: "Finished games behind the ranked value this competition-season. Always >= 1: a team ranks from its first finished game; there is no games floor."
         tests: [not_null]
@@ -2490,21 +2595,24 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: league_code
+        description: "{{ doc('league_code') }} Always WC here: the mart is the World Cup squad-value view."
         tests:
           - not_null
           - accepted_values:
               values: ["WC"]
       - name: team_name
+        description: "{{ doc('team_name') }}"
         tests: [not_null]
       - name: as_of_date
         description: "{{ doc('as_of_date') }}"
       - name: market_value_eur
-        description: "Published-style total squad estimate in whole EUR; null when unknown."
+        description: "{{ doc('market_value_eur') }} Here it is the squad's total, the team's most recent snapshot."
       - name: source_code
         description: "{{ doc('source_code') }}"
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
       - name: team_country
+        description: "{{ doc('team_country') }}"
       - name: prompt_version
         description: "{{ doc('prompt_version') }}"
 
@@ -2551,7 +2659,7 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: round_name
-        description: "The provider's round label, e.g. Regular Season - 4 or Round of 32. One value per competition in this table: the round that is the competition's next matchday."
+        description: "{{ doc('round_name') }} One value per competition in this table: the round that is the competition's next matchday."
         tests: [not_null]
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
@@ -2630,7 +2738,7 @@ models:
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: round_name
-        description: "The provider's round label, e.g. Regular Season - 4 or Round of 32."
+        description: "{{ doc('round_name') }}"
         tests: [not_null]
       - name: round_order
         description: "{{ doc('round_order') }}"
@@ -2754,7 +2862,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: result
-        description: "W/D/L from int_legs__team_match for finished rows; null otherwise."
+        description: "{{ doc('result') }} NULL for a fixture that is not a finished result."
         tests:
           - accepted_values:
               values: ["W", "D", "L"]
@@ -2763,11 +2871,15 @@ models:
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
       - name: round_name
+        description: "{{ doc('round_name') }}"
       - name: status_short
         description: "{{ doc('status_short') }}"
       - name: is_home
+        description: "{{ doc('is_home__own_fixture') }}"
       - name: opponent_name
+        description: "{{ doc('opponent_name') }}"
       - name: opponent_logo_url
+        description: "{{ doc('opponent_logo_url') }}"
       - name: goals_for
         description: "{{ doc('goals') }}"
       - name: goals_against
@@ -2779,6 +2891,7 @@ models:
       - name: upcoming_rank
         description: "1 for this team's next fixture in this competition-season, 2 for the one after, and so on by kickoff time. NULL for any fixture that is not upcoming, so the ranks run 1..n over upcoming fixtures alone with no gaps."
       - name: recency_rank
+        description: "1 for this team's most recent finished result in this competition-season, 2 for the one before, and so on by kickoff time descending. NULL for any fixture that is not a finished result (upcoming, live, postponed, cancelled, or without a result leg), so the ranks run 1..n over finished results alone with no gaps."
 
   - name: mart_roster
     description: >
@@ -2833,23 +2946,23 @@ models:
               to: ref('dim_competition_season')
               field: season_sk
       - name: competition_type
-        description: "From competition_registry; the mart is filtered to club types."
+        description: "{{ doc('competition_type') }} Only club competition types appear here: the mart is filtered to them."
       - name: entity_type
-        description: "Always 'club' — the mart is club-scoped via competition_types."
+        description: "{{ doc('entity_type') }} Always club here: the mart is filtered to club competitions."
         tests:
           - not_null
           - accepted_values:
               values: ["club"]
       - name: player_name
-        description: "Denormalised from dim_player."
+        description: "{{ doc('player_name') }}"
       - name: player_position
         description: "Listed/bio position from dim_player (general position, not a per-season modal)."
       - name: player_nationality
-        description: "Denormalised from dim_player."
+        description: "{{ doc('player_nationality') }}"
       - name: player_birth_date
-        description: "Birth date from dim_player bio; age is computed at render."
+        description: "{{ doc('player_birth_date') }}"
       - name: player_photo_url
-        description: "Player photo URL from dim_player; nullable."
+        description: "{{ doc('player_photo_url') }}"
 
   - name: mart_team_competition_benchmarks
     description: >
@@ -2933,7 +3046,7 @@ models:
       - name: team_name
         description: "Denormalised from dim_team."
       - name: team_logo_url
-        description: "Denormalised from dim_team; nullable."
+        description: "{{ doc('team_logo_url') }}"
 
   - name: mart_player_competition_benchmarks
     description: >
@@ -3057,11 +3170,11 @@ models:
       - name: appearances
         description: "Appearances in the position this season."
       - name: player_name
-        description: "Denormalised from dim_player."
+        description: "{{ doc('player_name') }}"
       - name: player_nationality
-        description: "Denormalised from dim_player; nullable."
+        description: "{{ doc('player_nationality') }}"
       - name: player_photo_url
-        description: "Denormalised from dim_player; nullable."
+        description: "{{ doc('player_photo_url') }}"
 
   - name: mart_player_career
     description: >
@@ -3129,7 +3242,7 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: entity_type
-        description: "club or national (from the registry -> competition_types seeds); null if the competition is unmapped."
+        description: "{{ doc('entity_type') }}"
         tests:
           - accepted_values:
               values: ["club", "national"]
@@ -3162,11 +3275,17 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: player_name
+        description: "{{ doc('player_name') }}"
       - name: player_nationality
+        description: "{{ doc('player_nationality') }}"
       - name: player_photo_url
+        description: "{{ doc('player_photo_url') }}"
       - name: team_name
+        description: "{{ doc('team_name') }}"
       - name: team_logo_url
+        description: "{{ doc('team_logo_url') }}"
       - name: team_country
+        description: "{{ doc('team_country') }}"
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: assists_player

@@ -37,6 +37,7 @@ models:
               to: ref('dim_player')
               field: player_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }} Here it is the player's current domestic season, the year-over-year anchor."
@@ -57,9 +58,11 @@ models:
       - name: shots_on_goal_player_this_season
         description: "{{ doc('shots_on_goal_player_this_season__player') }}"
       - name: passes_key_player_this_season
+        description: "{{ doc('passes_key_player_this_season__player') }}"
       - name: defensive_actions_player_this_season
         description: "{{ doc('defensive_actions_player_this_season__player') }}"
       - name: appearances_prev
+        description: "The prior season's appearances at this club through the same appearance cutoff as the current season (yoy_appearances_cutoff) — the pace-matched figure appearances_prev_full is compared against. NULL when there is no prior season at this club to compare against."
       - name: goals_player_prev_season
         description: "{{ doc('goals_player_prev_season__player') }}"
       - name: assists_player_prev_season
@@ -67,6 +70,7 @@ models:
       - name: shots_on_goal_player_prev_season
         description: "{{ doc('shots_on_goal_player_prev_season__player') }}"
       - name: passes_key_player_prev_season
+        description: "{{ doc('passes_key_player_prev_season__player') }}"
       - name: defensive_actions_player_prev_season
         description: "{{ doc('defensive_actions_player_prev_season__player') }}"
       - name: assists_player_prev_season_full
@@ -74,6 +78,7 @@ models:
       - name: shots_on_goal_player_prev_season_full
         description: "{{ doc('shots_on_goal_player_prev_season_full__player') }}"
       - name: passes_key_player_prev_season_full
+        description: "{{ doc('passes_key_player_prev_season_full__player') }}"
       - name: defensive_actions_player_prev_season_full
         description: "{{ doc('defensive_actions_player_prev_season_full__player') }}"
       - name: assists_player_delta_yoy
@@ -81,6 +86,7 @@ models:
       - name: shots_on_goal_player_delta_yoy
         description: "{{ doc('shots_on_goal_player_delta_yoy__player') }}"
       - name: passes_key_player_delta_yoy
+        description: "{{ doc('passes_key_player_delta_yoy__player') }}"
       - name: defensive_actions_player_delta_yoy
         description: "{{ doc('defensive_actions_player_delta_yoy__player') }}"
 
@@ -128,5 +134,6 @@ models:
       - name: contribution_player_pct
         description: "{{ doc('contribution_player_pct') }}"
       - name: league_code
+        description: "{{ doc('league_code') }}"
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
