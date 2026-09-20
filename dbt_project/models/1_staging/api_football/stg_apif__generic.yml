@@ -30,15 +30,19 @@ models:
       Latest ingestion snapshot selected per league_code before unnest, so each fixture_id appears once.
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null, unique]
       - name: fixture_date
         description: "{{ doc('fixture_date') }}"
         tests: [not_null]
       - name: home_team_id
+        description: "API-Football's numeric id for the home side of this fixture ($.teams.home.id)."
         tests: [not_null]
       - name: away_team_id
+        description: "API-Football's numeric id for the away side of this fixture ($.teams.away.id)."
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -51,10 +55,13 @@ models:
       Grain: (league_code, season, team_id) — unique within a single league/season snapshot.
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season
+        description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         # Faithful staging: old API-Football standings can carry team.name with a null team.id
         # (e.g. UEL 2017). base_apif__standings drops those rows and fct_standings.team_sk enforces
         # not_null + relationships(dim_team) — the cleanliness guard lives on the cleaned layer.
@@ -72,10 +79,13 @@ models:
       league_code. Grain: (league_code, season, team_id).
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: team_name
+        description: "{{ doc('team_name') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -87,8 +97,10 @@ models:
       league_code. Grain: (league_code, league_api_id, season_api_year).
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: league_api_id
+        description: "{{ doc('league_api_id') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
@@ -105,10 +117,13 @@ models:
       after base: (league_code, team_id, season_year, player_id).
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -124,10 +139,13 @@ models:
       staging: (fixture_id, event_index, raw_ingested_at).
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: event_index
+        description: "The zero-based position of this event in the provider's $.events array for the fixture. API-Football does not assign event ids, so this position is the only stable identity for an event within a fixture."
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -142,12 +160,16 @@ models:
       at staging: (fixture_id, team_id, player_id, raw_ingested_at).
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -162,10 +184,13 @@ models:
       belongs in base). Grain at staging: (fixture_id, team_id, stat_type, raw_ingested_at).
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -181,10 +206,13 @@ models:
       resolving which version to use is left to whatever reads it.
     columns:
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -199,6 +227,7 @@ models:
       transfer_date may be null (filtered in base). Grain at staging: one raw transfer row.
     columns:
       - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -214,10 +243,13 @@ models:
       keeps them and base dedups, exactly as the sibling complete-snapshot model stg_apif__players.
     columns:
       - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -232,8 +264,10 @@ models:
       ingest provenance (MIN per player), not identity.
     columns:
       - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -250,10 +284,13 @@ models:
       nullable keys in stg_apif__transfers. league_code is ingest provenance, not identity.
     columns:
       - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: player_id
+        description: "{{ doc('player_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -269,8 +306,10 @@ models:
       happens in base, which is why there is no unique test here.
     columns:
       - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: coach_id
+        description: "{{ doc('coach_api_id') }}"
         tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
@@ -284,10 +323,13 @@ models:
       passes them through and base_apif__coach_career drops them (mirrors the standings team_id pattern).
     columns:
       - name: league_code
+        description: "{{ doc('league_code_ingest_provenance') }}"
         tests: [not_null]
       - name: coach_id
+        description: "{{ doc('coach_api_id') }}"
         tests: [not_null]
       - name: team_id
+        description: "{{ doc('team_api_id') }}"
         # provider-nullable (see description); base filters null team_id, so no staging not_null test
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"

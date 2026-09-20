@@ -6,8 +6,10 @@ log, and three were provably false — all three downstream-consumer claims, the
 kind of statement nobody keeps true by hand.
 
 It checks only what a machine can decide without taste: issue refs, dated stamps,
-decision language, downstream-consumer claims, severity emoji, and length. Whether
-a description is any GOOD — grain, source, known limits — is a human's call.
+decision language, downstream-consumer claims, severity emoji, and length — and
+presence: every model, seed and source table has a description, and so does every
+column a model yml lists (section 3.1). Whether a description is any GOOD — grain,
+source, known limits — is a human's call.
 
 Patterns match ANNOTATION forms, not ordinary verbs. A case-insensitive
 `CORRECTED` hits "the country corrections from the seed"; a bare `ruled` hits
@@ -49,6 +51,9 @@ MIN_DESCRIPTIONS = 400
 # and 11 source tables measured, and well over zero.
 MIN_MODELS = 50
 MIN_SOURCE_TABLES = 5
+# Same reasoning for the listed-column walk: about 1,970 today, so 800 is well under
+# ordinary deletion and well over zero.
+MIN_LISTED_COLUMNS = 800
 
 # BigQuery's own maxima. Exceeding either rejects the DDL and fails the build once
 # `persist_docs` is on. This rule exists to prevent that, nothing else — keeping a
@@ -410,6 +415,48 @@ def _object_coverage(docs: list[tuple[str, pathlib.Path, object]]) -> list[str]:
     return findings
 
 
+def _column_coverage(docs: list[tuple[str, pathlib.Path, object]]) -> list[str]:
+    """Every column LISTED under a model's `columns:` must have a description.
+
+    `_object_coverage` asks whether the model is described; this asks whether each
+    column the yml chose to list is. A listed column carries tests, so the listing
+    says the column matters, and a missing sentence says nobody wrote down what it
+    is or when it is NULL — which is what `engineering_standards.md` section 3.1
+    needs before a `not_null` can be justified or refused. Measured when this was
+    added: 359 listed columns across 75 models carried tests and no description.
+
+    Only MODEL columns are walked: seeds and sources declare columns rarely and are
+    covered by the object rule. A `{{ doc() }}` reference counts as a description;
+    whether it resolves is the render rule's job further down.
+    """
+    findings: list[str] = []
+    listed = 0
+    for rel, _path, doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        for model in doc.get("models") or []:
+            if not isinstance(model, dict) or not isinstance(model.get("name"), str):
+                continue
+            for column in model.get("columns") or []:
+                if not isinstance(column, dict) or not isinstance(column.get("name"), str):
+                    continue
+                listed += 1
+                if not str(column.get("description") or "").strip():
+                    findings.append(
+                        f"{rel} :: {model['name']}.{column['name']} - NO DESCRIPTION\n"
+                        "    why banned: engineering_standards.md section 3.1 - a listed column "
+                        "matters enough to test, so it says what it is or when it is NULL"
+                    )
+    # Anti-vacuous floor, the MIN_DESCRIPTIONS reasoning: a walk that finds no
+    # listed columns would report a clean sweep over nothing.
+    if listed < MIN_LISTED_COLUMNS:
+        findings.append(
+            f"discovery looks broken: {listed} listed columns (floor {MIN_LISTED_COLUMNS})\n"
+            "    why banned: a coverage check that finds nothing always passes"
+        )
+    return findings
+
+
 def _parse_ymls() -> tuple[list[tuple[str, pathlib.Path, object]], list[str]]:
     """Parse every project .yml ONCE. Returns (rel, path, doc) plus unparseable.
 
@@ -496,6 +543,17 @@ def main() -> int:
         print("\nThe standard is dbt_project/docs/engineering_standards.md section 2, Form.")
         return 1
 
+    # After the shared rule, so a blank column whose name HAS a definition is told
+    # which one to reference; this catches the blanks with no definition to point
+    # at, including a name that means two things, which still must say which.
+    columns = _column_coverage(docs)
+    if columns:
+        print(f"COLUMN COVERAGE: {len(columns)} listed column(s) with no description\n")
+        for finding in columns:
+            print(f"  - {finding}")
+        print("\nThe standard is dbt_project/docs/engineering_standards.md section 3.1.")
+        return 1
+
     if len(found) < MIN_DESCRIPTIONS:
         print(f"FAIL: found only {len(found)} descriptions under {_rel(DBT_DIR)} "
               f"(floor {MIN_DESCRIPTIONS}). The walk has stopped matching - a gate "
@@ -547,17 +605,9 @@ def main() -> int:
     # hole nobody sees; the count and the reason belong in the success line.
     skipped = _ambiguous_names(docs)
     if skipped:
-        blanks = sum(
-            1
-            for _rel, _path, doc in docs if isinstance(doc, dict)
-            for model in (doc.get("models") or []) if isinstance(model, dict)
-            for column in (model.get("columns") or []) if isinstance(column, dict)
-            and column.get("name") in skipped
-            and not (column.get("description") or "").strip()
-        )
-        print(f"NOT POLICED: {len(skipped)} column name(s) mean more than one thing, so no "
-              f"machine can say which definition is right for a given site. "
-              f"{blanks} column(s) are blank on that account and are tracked in GitLab #87.")
+        print(f"NOT POLICED for WHICH block: {len(skipped)} column name(s) mean more than one "
+              f"thing, so each site references the definition it carries by hand; every site "
+              f"is still required to have one.")
         for name, refs in sorted(skipped.items()):
             print(f"  - {name}: {', '.join(sorted(refs))}")
 
@@ -569,7 +619,8 @@ def main() -> int:
           f"({cols} column, {len(found) - cols} model/seed), {len(RULES)} rules, "
           f"{len(blocks)} docs blocks resolved, rendered lengths within "
           f"{MAX_COLUMN_CHARS}/{MAX_RELATION_CHARS}; "
-          f"every one of {models} models and {seeds} seeds on disk is described")
+          f"every one of {models} models and {seeds} seeds on disk is described, "
+          f"and every listed model column")
     return 0
 
 

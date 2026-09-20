@@ -77,7 +77,9 @@ models:
       - name: starts
         description: "{{ doc('starts') }}"
       - name: substitute_appearances
+        description: "{{ doc('substitute_appearances') }}"
       - name: minutes
+        description: "Total minutes this player played for this club that competition-season, summed across the club's finished matches. Zero, not NULL, for a squad member who was named but never brought on."
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: goals_penalty_player

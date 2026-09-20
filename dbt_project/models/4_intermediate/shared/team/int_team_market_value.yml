@@ -24,6 +24,7 @@ models:
       - name: as_of_date
         description: "{{ doc('as_of_date') }}"
       - name: market_value_eur
+        description: "{{ doc('market_value_eur') }} Here it is the team's most recent snapshot."
       - name: source_code
         description: "{{ doc('source_code') }}"
       - name: prompt_version

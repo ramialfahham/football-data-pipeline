@@ -70,6 +70,7 @@ models:
           name: tsi_saves_pct_in_range
     columns:
       - name: team_season_sk
+        description: "{{ doc('team_season_sk') }}"
         tests: [not_null, unique]
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -93,20 +94,25 @@ models:
               to: ref('dim_league')
               field: league_sk
       - name: league_code
+        description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
         tests: [not_null]
       - name: team_name
+        description: "{{ doc('team_name') }}"
         tests: [not_null]
       - name: season_games_played
+        description: "{{ doc('season_games_played__whole_season') }}"
         tests: [not_null]
       - name: played
         description: "Finished matches from mart_team_season; null when standings rollup absent."
       - name: team_code
         description: "{{ doc('team_code') }}"
       - name: team_country
+        description: "{{ doc('team_country') }}"
       - name: team_logo_url
+        description: "{{ doc('team_logo_url') }}"
       - name: wins
         description: "{{ doc('wins') }}"
       - name: draws
@@ -120,6 +126,7 @@ models:
       - name: goal_diff
         description: "{{ doc('goal_diff') }}"
       - name: points
+        description: "{{ doc('points__team_season') }}"
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
@@ -129,7 +136,9 @@ models:
       - name: standings_group_description
         description: "{{ doc('standings_group_description') }}"
       - name: season_matchdays_used
+        description: "{{ doc('season_matchdays_used') }}"
       - name: stat_coverage_season_games
+        description: "{{ doc('stat_coverage_season_games') }}"
       - name: games_with_team_stats
         description: >
           Games in the season that carry a team statistics line. It is the denominator of every
@@ -141,16 +150,27 @@ models:
       - name: points_won_sum_season
         description: "{{ doc('points_won_sum_season__team') }}"
       - name: goals_for_sum_season
+        description: "{{ doc('goals_for_sum_season') }}"
       - name: goals_against_sum_season
+        description: "{{ doc('goals_against_sum_season__team') }}"
       - name: total_shots_sum_season
+        description: "{{ doc('total_shots_sum_season') }}"
       - name: opponent_total_shots_sum_season
+        description: "{{ doc('opponent_total_shots_sum_season') }}"
       - name: shots_inside_box_sum_season
+        description: "{{ doc('shots_inside_box_sum_season') }}"
       - name: shots_on_goal_sum_season
+        description: "{{ doc('shots_on_goal_sum_season') }}"
       - name: corner_kicks_sum_season
+        description: "{{ doc('corner_kicks_sum_season') }}"
       - name: opponent_corner_kicks_sum_season
+        description: "{{ doc('opponent_corner_kicks_sum_season') }}"
       - name: passes_accurate_sum_season
+        description: "{{ doc('passes_accurate_sum_season') }}"
       - name: passes_total_sum_season
+        description: "{{ doc('passes_total_sum_season') }}"
       - name: goalkeeper_saves_sum_season
+        description: "{{ doc('goalkeeper_saves_sum_season') }}"
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
       - name: goals_per_match
@@ -242,7 +262,7 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: fixture_api_id
-        description: "API fixture id for UI linking."
+        description: "{{ doc('fixture_api_id') }}"
       - name: league_sk
         description: "{{ doc('league_sk') }}"
         tests:
@@ -270,7 +290,7 @@ models:
         description: "{{ doc('kickoff_datetime') }}"
         tests: [not_null]
       - name: round_name
-        description: "API round name for the upcoming matchday (e.g. Regular Season - 31)."
+        description: "{{ doc('round_name') }} Here it is the upcoming matchday's round."
       - name: upcoming_round_order
         description: "Trailing integer parsed from round_name for ordering (null if not parseable)."
       - name: upcoming_matchday_fixture_count

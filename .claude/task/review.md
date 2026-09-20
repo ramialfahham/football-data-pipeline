@@ -1,68 +1,67 @@
-# Review — feat/109-range-tests-and-key-graph — 2026-09-19
+# Review — feat/109-every-column-described — 2026-09-20
 
-diff_sha256: f329caa32e4a64ded701694683c611564a62a4b43a03d28ff878281a5a3d67f9
+diff_sha256: 441f7036fc083781cd25cbfe0666c9a6dc1bbc6e3c7b9a10d53c1213475e1809
 
 rounds: 2
 
-Round 2 (delta): three round-1 findings resolved. (1) `engineering_standards.md` §3.1 states the
-declared soft link and §3.5 names the script — the rule's own document edited in the same MR
-(verdict then: FAIL by the scope-auditor). (2) The three player provider-subset ratios on
-`int_player_season_position__metrics` and `mart_player_momentum` are bounded >= 0, not [0,1]
-(verdict then: FAIL by the warehouse reviewer). (3) The script prints its soft links on a red run
-too, with a test for the mixed case; the "not wired into CI" claim corrected in the contract, the
-script and the test file — the pytest's last test enforces the rule in `test:python` on every MR
-(verdict then: FAIL by the platform reviewer).
+Round 2 (delta): the new `entity_type` block said "NULL when the league_code is absent from the
+registry …" while eight sites referencing it keep `not_null` (verdict then: FAIL by the warehouse
+reviewer). Resolved by correcting the sentence, not the tests: the block now states the Required
+class — never NULL for a tracked competition, a NULL is a registry defect the not_null tests guard —
+and `mart_player_profile.entity_type`'s qualifier introduces its silent blank-type case as a form of
+that defect. Two hunks; no test moved. The platform reviewer's round-1 pass stands untouched (no
+delta in its territory).
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 2: `engineering_standards.md` diff is two hunks only — the "declared soft link" paragraph
-  under §3.1 and §3.5's last bullet; nothing else in the file moved. The amendment cites
-  `working_agreement.md` §11 and the round-1 finding, no invented CPO quote. The four
-  `meta: soft_link:` declarations in `core.yml` match the contract's paragraph and the real-tree
-  test's "4 declared soft links". The CI-wiring correction is declared as a correction in the
-  contract's NEW MECHANISM paragraph, the script and the test docstrings — no silent widening.
-  The >= 0 bounds on the three ratios carry a one-line why in both files; `saves_player_pct`
-  stays [0,1]. Only `contract.md` and the standards file carry new content beyond round 1.
-- Round 1: all 18 changed paths inside `scope_paths`; exactly 4 soft links added and none of the
-  four also carries `relationships`; the one comment-clause rewrite in `int_team_profile.yml` is
-  true of the test beneath it; the signed-difference citation exists unchanged in
-  `int_team_season.yml`; no `.sql` in the diff; no `relationships` at `warn` anywhere.
+- Round 2: both hunks read; the block no longer asserts a NULL path; the qualifier names the same
+  registry-gap case as a defect; the `tests:` list beneath it is byte-identical; no other file,
+  `tests:` line, scope path or mechanism touched; `decisions_taken` ("a not_null a NULL sentence
+  contradicts comes off; no other test moves") still holds — the resolution corrected the sentence
+  rather than exceeding the decision.
+- Round 1: every touched file is in `scope_paths` (the five untouched scope paths had no blank
+  columns); no `not_null` or other test added or removed anywhere in the yml diff; no `.sql`, no
+  seed; §3.5's edit is one bullet; exactly 54 new `{% docs %}` blocks; the `NOT POLICED` line's
+  issue-number drop is explained and its test updated, not loosened; the three adjusted tests are
+  tightenings; no secrets; `_column_coverage` is a rule inside existing machinery, no new mechanism
+  or cost.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 2: `saves_player_pct = saves / (saves + goals_against)` is bounded by construction on
-  both surfaces (`int_player_season_position__metrics.sql:151-154`, `mart_player_momentum.sql:68`),
-  so [0,1] stands; the other three divide two independently reported provider counts, so >= 0 is
-  the right bound and [0,1] was wrong — the asymmetry in the fix matches the formulas. §3.1's
-  soft-link paragraph is narrow and accurate and matches `classify()` / `main()` line by line;
-  soft links print before the findings branch; the mixed-case test exists. Noted, not acted on:
-  `int_team_season.yml:535,538` (the pre-existing season-grain player test) still bounds the same
-  three ratios [0,1] — outside this delta and this MR.
-- Round 1: every [0,1]-bounded mart pct in `domestic_league.yml` and `shared.yml` is a
-  pass-through from `int_team_season__metrics` (whole-season, already [0,1]); the year-over-year
-  columns traced to `int_team_season__metrics_cumulative` and given the same split that model
-  makes; every `relationships` parent/field spot-checked (league, season, role-prefixed team keys,
-  the two fixture roles, `mart_roster.player_team_season_sk`); `resolve()`'s prefix rule traced
-  against its tests and the shipped ymls, no misclassification; the market-value tests are a
-  vacuous pass on an empty view and say so; the four soft links carry non-empty rationale.
+- Round 2: the reworded block classifies `entity_type` as Required and names the registry defect the
+  not_null tests guard; traced every site WITHOUT a not_null — the season and record models, the
+  benchmark long form, `int_legs__team_from_players` (`any_value`), `mart_team_season_record`,
+  `mart_standings` and `mart_player_career` (re-derived through the identical registry →
+  competition_types left join), `mart_competition_season_summary` — none produces a legitimate
+  NULL; the `mart_player_profile` qualifier is one mechanism under the same umbrella; the closing
+  sentence names test enforcement by category, not a consumer, so §2's ban is not touched.
+- Round 1, the finding: the eight not_null sites against a "NULL when" sentence.
+- Round 1, passed: the thirteen `*_sum_season` blocks' NULL rules against
+  `int_team_season__metrics_cumulative.sql:58-90` (whole-season blank on one missing non-awarded
+  match vs never-NULL pass-through for the raw counts); `season_games_played__whole_season`,
+  `stat_coverage_season_games`, `games_with_team_stats__season` against the two metrics models;
+  the five streaks line by line against `int_team_profile__streaks.sql:71-82`;
+  `window_type__season_record` against both int (literal `season_to_date`) and both mart
+  (`season_to_date` / `prev_season`) models; the three `__leg` player-count blocks against
+  `stg_apif__fixture_players.sql:53-56` and the catalogue (penalties in, own goals out, NULL on an
+  omitted object); the `league_code` split (`stg_apif__players` / `base_apif__player_team_season`
+  on the competition block is defensible: a squad row applies to every tracked competition the
+  team enters); the dimension copies pair no not_null with a NULL claim; no `.sql` touched.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 2: the script's and the test file's docstrings now say the pytest's last test enforces
-  the rule in `test:python` on every MR until the `validate:governance` line lands — verified
-  against `.gitlab-ci.yml:564-571` and against `test_materialisation_policy.py` /
-  `test_persist_docs_policy.py`, the same real-tree shape. `main()` order: unparseable → floor →
-  census + soft links (unconditional) → findings; a red run prints the soft links. The mixed-case
-  test pins the fix (under the old ordering its soft-link assertion would fail). The mutation in
-  `done_when` still holds; the floor and real-tree tests read consistently with the new output.
-- Round 1: read-only script, safe to re-run; fail-closed on unparseable yml before the floor;
-  non-dict documents and nameless columns skipped as the hygiene script does; a bare `null` in a
-  `tests:` list filtered; floors comfortably under the real tree and over zero; a yml directly
-  under `models/` yields `layer=""`, no crash; sorted walks, explicit UTF-8, posix paths in
-  messages; ruff-clean by reading under `.ruff-ci.toml`.
+- Round 1 (no delta since): the five new tests each go green if `_column_coverage` is reverted, so
+  none is vacuous; `main()` order unparseable → object coverage → blocks → shared → column coverage
+  → description floor → content rules, the parse failure returning before the column floor; the
+  three adjusted tests still prove their docstrings and are tightenings; `_ambiguous_names` parity
+  tests unaffected by the renamed fixture; only the two files in this territory touched, the CI and
+  stop-gate wiring unchanged; the dropped blank-count in `NOT POLICED` is safe because a blank on an
+  ambiguous name now returns earlier as a finding; nameless / non-dict / `columns: null` entries
+  skipped as the pre-existing rules do and rejected by `dbt parse` first; ruff-clean under
+  `.ruff-ci.toml` by inspection.
 
 ## escalations
 (none)

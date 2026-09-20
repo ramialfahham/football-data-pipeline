@@ -308,9 +308,9 @@ instead of a count. A red test that has to be re-queried by hand to be read is h
 Each rule above gets a mechanism, so it cannot decay into a preference. A rule whose mechanism
 has not landed is a rule in progress, and the issue that owns it says so:
 
-- every listed column has a description — a rule to add to `scripts/check_description_hygiene.py`,
-  which today checks that every model, seed and source is described and what a description
-  contains, not that every listed column has one;
+- every listed column has a description — `scripts/check_description_hygiene.py`, which checks
+  that every model, seed and source is described, that every column a model yml lists is, and
+  what a description contains; in place;
 - the rate guard — the two generated dbt tests of §3.2, in place; the NULL sentence every team
   rate's description must carry is composed by `scripts/sync_metric_docs_blocks.py` from the
   catalogue's denominator, not typed per rate;
