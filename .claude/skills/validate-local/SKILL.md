@@ -151,6 +151,7 @@ was a live-looking claim about a pipeline that does not run.
 | `check_competition_type_seed.py` | `validate:governance` |
 | `check_copy_gate.py` | `validate:governance` |
 | `check_description_hygiene.py` | `validate:governance` |
+| `check_relationships_coverage.py` | `validate:governance` (and its pytest on the real tree in `test:python`) |
 | `sync_metric_docs_blocks.py --check` | `validate:governance` |
 | `check_task_artifacts.py` | `validate:governance` (needs `GIT_DEPTH: 0`) |
 | `dbt deps` + `dbt parse` | `validate:governance` |
@@ -161,6 +162,7 @@ was a live-looking claim about a pipeline that does not run.
 | gitleaks secret scan | `validate:secrets` |
 | `sqlfluff lint models` | `data:build:mr` |
 | `dbt build` + DQ tests | `data:build:mr` (MR) / `data:build:main` (main) |
+| `check_yml_vs_projection.py --catalog dbt_project/target/catalog.json` | `data:build:main` only, after `dbt docs generate` (post-merge; needs the whole prod catalogue, which no MR job has) |
 
 If a CI workflow adds or changes a gate, update this list so local validation
 stays a faithful mirror.

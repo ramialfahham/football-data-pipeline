@@ -179,8 +179,8 @@ def test_an_unparseable_file_fails_closed_and_names_it(tmp_path, monkeypatch, ca
 
 
 def test_the_real_tree_is_covered(capsys):
-    """The gate on the repo itself: this is what enforces the rule on every merge request until
-    the script has its own `validate:governance` line."""
+    """The gate on the repo itself, in `test:python`; `validate:governance` runs the same script
+    as a line of its own, so the rule holds even if one of the two jobs is ever narrowed."""
     assert gate.main() == 0
     out = capsys.readouterr().out
     assert out.startswith("OK:")

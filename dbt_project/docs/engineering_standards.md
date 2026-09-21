@@ -314,11 +314,14 @@ has not landed is a rule in progress, and the issue that owns it says so:
 - the rate guard — the two generated dbt tests of §3.2, in place; the NULL sentence every team
   rate's description must carry is composed by `scripts/sync_metric_docs_blocks.py` from the
   catalogue's denominator, not typed per rate;
-- every documented column exists in the model's projection — a check beside the hygiene script;
+- every documented column exists in the model's projection —
+  `scripts/check_yml_vs_projection.py`, run in `data:build:main` right after `dbt docs generate`
+  against the catalogue it writes (the one job whose catalogue is the whole warehouse; a
+  partial catalogue is refused, never judged); in place;
 - every foreign key carries a `relationships` test or a declared soft link —
   `scripts/check_relationships_coverage.py`, which resolves every `_sk` column to its parent by
-  name, lists the foreign keys without either, and prints the soft links; in place, to be run in
-  `validate:governance`.
+  name, lists the foreign keys without either, and prints the soft links; in place, run in
+  `validate:governance` and by its pytest on every merge request.
 
 ## 4) Model Contracts and Metadata
 

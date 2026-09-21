@@ -227,6 +227,29 @@ def test_the_catalog_is_published():
     )
 
 
+def test_the_projection_check_runs_in_that_job_after_the_docs_line():
+    """`check_yml_vs_projection.py` reads the catalog.json the docs line just wrote.
+
+    It belongs here and nowhere else (#109 step 3, MR D): this is the one job where the catalogue
+    is the whole prod warehouse, and it runs after prod is built and tested, so a red costs signal,
+    never data. Anywhere earlier in the script the file does not exist yet; in any other job it
+    would be partial, and the script's own abort would make the job red for the wrong reason.
+    """
+    assert _jobs_running("check_yml_vs_projection.py") == ["data:build:main"], (
+        "check_yml_vs_projection.py must run in data:build:main and nowhere else."
+    )
+    script = [str(ln) for ln in _ci()["data:build:main"]["script"]]
+    docs = next(i for i, ln in enumerate(script) if "dbt docs generate" in ln)
+    check = next(i for i, ln in enumerate(script) if "check_yml_vs_projection.py" in ln)
+    assert check > docs, "the projection check must come AFTER dbt docs generate writes catalog.json"
+    assert "--catalog dbt_project/target/catalog.json" in script[check], (
+        f"the check must read the catalogue the docs line wrote; found: {script[check]}"
+    )
+    assert script[check].startswith('cd "$CI_PROJECT_DIR"'), (
+        "the script ends inside dbt_project/, so the line must return to the repo root first"
+    )
+
+
 def test_the_pins_are_not_vacuous():
     """Anti-vacuous floor, per `check_copy_gate.py`'s MIN_KEYS precedent.
 
