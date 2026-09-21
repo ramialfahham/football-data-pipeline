@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-21**, on `feat/109-projection-check-wired`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-21**, on `feat/152-metric-groups`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,19 +22,20 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#109 STEP 3: A (!211), B (!212), C (!213) MERGED; D IS BUILT, REVIEWED (2 rounds, 4 PASS) AND OPEN
-AS !214 — HIS MERGE CLOSES STEP 3.** Governance MR (`.gitlab-ci.yml` locked): the projection check
-(`scripts/check_yml_vs_projection.py --catalog <path>`, 101 models / 1,915 listed columns / 0 absent
-against the prod catalogue), its pytest, the two CI lines, the pin, §3.5 "in place". ⚠ The issue
-line said a struct entry is matched by its PARENT; that was false — dbt-bigquery's catalogue holds
-the leaf paths too (`COLUMN_FIELD_PATHS`), so the check matches the FULL PATH (strictly stronger;
-the platform reviewer caught it in round 1; contract, MR head and the #109 line all corrected).
-Merging !214 does not fire `data:build:main` (path filter), so the check's first live run is the
-next model/yml merge; a red there also drops that merge's docs artifacts (no `when: always`, as
-the docs line always did). To run it locally, fetch a prod catalogue: `glab api
-"projects/85168767/jobs/<id>/artifacts/dbt_project/target/catalog.json"` from the latest
-`data:build:main`; the dev `dbt_project/target/catalog.json` aborts (partial) by design.
-**After #109 step 3, `glab issue list` decides what is next — not this file.**
+**#152 (METRIC GROUPS) IS BUILT, REVIEWED (2 rounds, 5 PASS) AND OPEN AS !215; HIS MERGE CLOSES IT
+AND #98.** The catalogue's `metric_group` (`duels` → `one_on_one`) and new `metric_group_order`;
+names as copy `metricGroups.<key>.label` in `strings.ts`; the export's `metric_groups` entity →
+committed `site_v2/src/data/metric_groups.json` (pinned to the seed by `tests/test_metric_groups.py`,
+regenerate it in the same commit as any seed change); `metricRows.ts` reads groups from it. **He
+ruled the order 2026-09-21 ("A"): the issue's table order on every surface — Goals · Shooting ·
+Passing · One-on-one · Defending · Discipline · Goalkeeping · Set pieces · Results · Playing time;
+the fixture comparison and team page reordered; `metrics_display.md` owns row order within a group
+only.** ⚠ Pre-existing, found while rendering, NOT this MR: every page scrolls sideways at 700px
+because of the header's search button (`div.header-actions`), Home included; the design check does
+not measure page scrollWidth. A task chip was offered; no issue filed yet — his call.
+**#109 step 3 is DONE (A–D merged, !214 last); the check's first live run is the next model/yml
+merge.** **After #152 in menu order: #151 (Rankings tab + Overview rework), which reads these
+groups; then Matches (#130–#132). `glab issue list` decides — not this file.**
 **#150 is merged** (!209). !209's rulings, recorded in its
 contract: **the match slug comes from the warehouse**; **played rows are inert until the match
 report page exists**; the EN/DE/FI copy shipped as drafted. Until the next `deploy:export` (manual,
@@ -67,21 +68,9 @@ rewrite (operations guide and development workflow still describe GitHub Actions
 lint, the measured check, `validate:ui` running all three on every MR. **#151 does not merge until
 the check passes on its pages and on Home.**
 
-**#109, THE DBT TESTING STRATEGY: steps 1 and 2 merged, step 3 in flight.** Step 1 (!201): the
-rules, `engineering_standards.md` §3.1–3.5. Step 2 (!202): the two catalogue-generated rate guards
-`dbt_project/tests/assert_*_rates_inputs_covered.sql`. **Step 3 is four MRs, the text on #109
-("Step 3 — the mechanisms and the sweep"), each its own contract, the warehouse reviewer on
-`dbt_project/**`, platform on `scripts/**`:** **A** (!211, merged): `store_failures` on all 54
-singular tests, 3 flipped to `warn`. **B** (!212, merged): range tests on 153 rates; `relationships`
-on 76 foreign keys; **the declared soft link** (`meta: soft_link:` on the 4 keys that name clubs
-and players outside the tracked competitions, stated in `engineering_standards.md` §3.1);
-`scripts/check_relationships_coverage.py`, enforced by its pytest on the real tree in
-`test:python`. **C** (!213, merged): every listed column described — 359 blanks filled (54 new blocks
-in `shared_columns.md`, `league_code` split per site: 9 provenance, 75 competition), ~52 inline
-texts converted to references; `check_description_hygiene.py` gains `_column_coverage`
-(every listed model column described, floor `MIN_LISTED_COLUMNS`); §3.5 says both mechanisms are
-in place. **D** (!214, open, WHERE WE ARE above): `scripts/check_yml_vs_projection.py`, the two
-CI lines, the pin, §3.5's last two bullets "in place". ⚠ Noted on B, not touched:
+**#109, THE DBT TESTING STRATEGY: all three steps merged (!201, !202, !211–!214); §3.5 names a
+mechanism for every rule and every one is in place. Whether the issue closes or has a step 4 is
+his; nothing on it says.** ⚠ Noted on B, not touched:
 `int_player_season__metrics` (in `int_team_season.yml`) still bounds the three player
 provider-subset ratios [0,1] at season grain. ⚠ Noted on C, not touched: the generated
 `shots_inside_box_sum_season__team` block's catalogue sentence ("can be understated rather than
