@@ -22,19 +22,19 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#109 STEP 3: A (!211), B (!212), C (!213) MERGED. MR D IS PLANNED AND APPROVED (chat 2026-09-20),
-ITS LINE IS ON #109, NOTHING BUILT YET: branch `feat/109-projection-check-wired` holds only this
-handover. NEXT = build D from #109's line, contract first (the contract on disk is C's, replace
-it): `protected_override` pointing at `decisions_taken`'s dated plan approval (the classifier
-refuses a quote in the override field itself), an `impact_map` of the guard, CTO + platform at
-opus.** Measured 2026-09-20 against the prod catalogue (job artifact of the `data:build:main` after
-!213; fetch via `glab api "projects/85168767/jobs/<id>/artifacts/dbt_project/target/catalog.json"`):
-0 of 1,915 listed columns absent — the check lands green. Struct fields are listed as
-`parent.field`; the catalogue holds the parent. The `data:build:main` script ends inside
-`dbt_project/`, so the CI line is `cd "$CI_PROJECT_DIR" && python scripts/check_yml_vs_projection.py
---catalog dbt_project/target/catalog.json`, right after `dbt docs generate`; `test_persist_docs_policy.py`
-pins that job's shape and gets one more test; `validate-local`'s CI table (`.claude/skills`, not
-protected) gains the relationships row; FAST_GATES stays untouched (a hook).
+**#109 STEP 3: A (!211), B (!212), C (!213) MERGED; D IS BUILT, REVIEWED (2 rounds, 4 PASS) AND OPEN
+AS !214 — HIS MERGE CLOSES STEP 3.** Governance MR (`.gitlab-ci.yml` locked): the projection check
+(`scripts/check_yml_vs_projection.py --catalog <path>`, 101 models / 1,915 listed columns / 0 absent
+against the prod catalogue), its pytest, the two CI lines, the pin, §3.5 "in place". ⚠ The issue
+line said a struct entry is matched by its PARENT; that was false — dbt-bigquery's catalogue holds
+the leaf paths too (`COLUMN_FIELD_PATHS`), so the check matches the FULL PATH (strictly stronger;
+the platform reviewer caught it in round 1; contract, MR head and the #109 line all corrected).
+Merging !214 does not fire `data:build:main` (path filter), so the check's first live run is the
+next model/yml merge; a red there also drops that merge's docs artifacts (no `when: always`, as
+the docs line always did). To run it locally, fetch a prod catalogue: `glab api
+"projects/85168767/jobs/<id>/artifacts/dbt_project/target/catalog.json"` from the latest
+`data:build:main`; the dev `dbt_project/target/catalog.json` aborts (partial) by design.
+**After #109 step 3, `glab issue list` decides what is next — not this file.**
 **#150 is merged** (!209). !209's rulings, recorded in its
 contract: **the match slug comes from the warehouse**; **played rows are inert until the match
 report page exists**; the EN/DE/FI copy shipped as drafted. Until the next `deploy:export` (manual,
@@ -80,10 +80,8 @@ and players outside the tracked competitions, stated in `engineering_standards.m
 in `shared_columns.md`, `league_code` split per site: 9 provenance, 75 competition), ~52 inline
 texts converted to references; `check_description_hygiene.py` gains `_column_coverage`
 (every listed model column described, floor `MIN_LISTED_COLUMNS`); §3.5 says both mechanisms are
-in place. **D** (next, WHERE WE ARE above): `scripts/check_yml_vs_projection.py --catalog <path>`, the
-reverse of `declare_missing_columns.py` (reuse its helpers' shape and partial-catalogue abort), two
-CI lines (projection check in `data:build:main`, `check_relationships_coverage.py` in
-`validate:governance`); §3.5's last two bullets say "in place". ⚠ Noted on B, not touched:
+in place. **D** (!214, open, WHERE WE ARE above): `scripts/check_yml_vs_projection.py`, the two
+CI lines, the pin, §3.5's last two bullets "in place". ⚠ Noted on B, not touched:
 `int_player_season__metrics` (in `int_team_season.yml`) still bounds the three player
 provider-subset ratios [0,1] at season grain. ⚠ Noted on C, not touched: the generated
 `shots_inside_box_sum_season__team` block's catalogue sentence ("can be understated rather than
