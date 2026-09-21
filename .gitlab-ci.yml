@@ -410,6 +410,11 @@ validate:governance:
     # it. MR1-MR4 rewrote all 618 against engineering_standards.md section 2; this keeps them
     # that way. Offline, parses YAML off disk, well under a second.
     - python scripts/check_description_hygiene.py
+    # Key-graph coverage: every foreign-key `_sk` column carries a `relationships` test or a
+    # declared soft link (engineering_standards.md section 3.1; the mechanism section 3.5 names).
+    # Its own pytest already runs it on the real tree in `test:python`; this is the governance
+    # job's copy, so the rule is enforced where the other yml rules are. Offline, under a second.
+    - python scripts/check_relationships_coverage.py
     # Metric docs-block drift. `dbt_project/models/docs/metric_columns.md` is GENERATED from
     # `dbt_project/seeds/metric_catalogue.csv`, and 501 model columns reference its blocks. With
     # `persist_docs` on, that generated text is the only definition BigQuery ever sees — so a
@@ -863,8 +868,14 @@ data:build:main:
     # `--static` embeds the manifest and catalog into one self-contained HTML file, which is what
     # scripts/build_match_preview_site.sh:57-63 consumed before the migration.
     - dbt docs generate --static --target prod
+    # Every column a model yml lists exists in the model's projection, read from the catalog.json
+    # the line above just wrote. HERE for the same reason the docs are: this is the only job whose
+    # catalogue is the whole prod warehouse, and prod is built and tested by now, so a red costs
+    # signal, never data. The script refuses a partial catalogue outright, which is what any other
+    # job would hand it. Offline, under a second. The rule is engineering_standards.md section 3.5.
+    - cd "$CI_PROJECT_DIR" && python scripts/check_yml_vs_projection.py --catalog dbt_project/target/catalog.json
   # Published so the docs can be read without a dbt install. Paths are relative to
-  # CI_PROJECT_DIR even though the script ends inside dbt_project/.
+  # CI_PROJECT_DIR whatever directory the script ends in.
   artifacts:
     paths:
       - dbt_project/target/static_index.html

@@ -31,9 +31,9 @@ fewer models or fewer foreign keys than the repo plainly has, the gate fails rat
 passing on nothing. Exit 1 on any finding, on an unparseable file, and below a floor. Fails
 CLOSED.
 
-Enforced today by `tests/test_check_relationships_coverage.py`, whose last test runs this gate
-on the real tree inside `test:python`; the `validate:governance` line `engineering_standards.md`
-§3.5 names is a separate governance change to `.gitlab-ci.yml`.
+Run twice on every merge request: as a line of `validate:governance`, beside the other yml
+rules, and by `tests/test_check_relationships_coverage.py`, whose last test runs this gate on
+the real tree inside `test:python`.
 """
 from __future__ import annotations
 
