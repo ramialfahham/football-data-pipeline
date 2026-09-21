@@ -15,10 +15,10 @@ import MetricLeagueRow from "./MetricLeagueRow.astro";
 import MetricSeasonRow from "./MetricSeasonRow.astro";
 import { decimal0 } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { t } from "../../i18n/strings";
+import { t, metricLabel } from "../../i18n/strings";
 import { asNumber } from "../../lib/types";
 import type { TeamSeason, Benchmark } from "../../lib/types";
-import { METRIC_ROWS, GROUP_ORDER, teamBinding } from "../../lib/metricRows";
+import { METRIC_ROWS, GROUP_KEYS_IN_ORDER, teamBinding } from "../../lib/metricRows";
 
 interface Props {
   season: TeamSeason;
@@ -60,14 +60,15 @@ const dsub = atoms.some((v) => v != null)
 const subFor = (field: string): string | null =>
   field === "defensive_actions_per_match" ? dsub : null;
 
-// League panel: locked block order, only metrics that HAVE a benchmark (§6 metric-absent =
-// omitted, never a zero bar). Season panel: all 16 (a null delta dashes out honestly).
-const leagueGroups = GROUP_ORDER.map((group) => ({
-  group,
+// League panel: the catalogue's group order, only metrics that HAVE a benchmark (§6
+// metric-absent = omitted, never a zero bar). Season panel: all 16 (a null delta dashes out
+// honestly). A group's heading is its name in this locale.
+const leagueGroups = GROUP_KEYS_IN_ORDER.map((group) => ({
+  group: metricLabel(lang, `metricGroups.${group}.label`),
   rows: METRIC_ROWS.filter((r) => r.group === group && benchByKey.has(keyOf(r))),
 })).filter((g) => g.rows.length > 0);
-const seasonGroups = GROUP_ORDER.map((group) => ({
-  group,
+const seasonGroups = GROUP_KEYS_IN_ORDER.map((group) => ({
+  group: metricLabel(lang, `metricGroups.${group}.label`),
   rows: METRIC_ROWS.filter((r) => r.group === group),
 })).filter((g) => g.rows.length > 0);
 ---

@@ -12,12 +12,15 @@
 
 > **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
 > The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
-> the seed. What this document still owns exclusively is **order**, which was deliberately
-> removed from the catalogue: where a metric sits on a page is a frontend decision that changes
-> with a design, so the seed holds what a metric IS, not where it appears.
+> the seed. What this document still owns exclusively is **row order within a group**, which was
+> deliberately removed from the catalogue: where a metric sits on a page is a frontend decision
+> that changes with a design, so the seed holds what a metric IS, not where it appears. **Group
+> order moved into the catalogue with #152** (`metric_group_order`; see the note under the team
+> table below).
 
-1. **Tier never orders.** Display order is fixed by this document (block sequence +
-   row position within block) and is identical everywhere the list renders.
+1. **Tier never orders.** Display order is fixed once and is identical everywhere the list
+   renders: the block sequence by the catalogue's `metric_group_order`, the row position
+   within a block by this document.
 2. **Tier = visibility under constraint.** Surfaces that cannot show the full list
    (home fixture hooks, teaser cards) show only tier-1 rows, in the same order.
    Full pages show all rows.
@@ -125,8 +128,11 @@ N" + vs-median, honest at N≈18) — never a percentile.
 ## Team metrics — LOCKED (CPO, 2026-06-11)
 
 Display order top to bottom. MVP rows keep their relative order; new blocks slot
-into the spine. Block order: Goals → Shooting → Duels → Defending → Passing →
-Set pieces → Goalkeeping.
+into the spine. **Block order is the catalogue's** `metric_group_order` (CPO, 2026-09-21, #152;
+`docs/metric_layer.md`, "A group is defined once"): Goals → Shooting → Passing → One-on-one →
+Defending → Discipline → Goalkeeping → Set pieces → Results → Playing time, on every surface. The
+group this table calls Duels is One-on-one. Row order WITHIN a block and the tiers are what this
+table locks.
 
 | # | Display label | metric_id | Group | Tier | Status |
 |---|---|---|---|---|---|
@@ -137,8 +143,8 @@ Set pieces → Goalkeeping.
 | 5 | % Shots from box | `shots_inside_box_pct` | Shooting | 2 | live |
 | 6 | Ø Shots on goal | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
 | 7 | % Goals per shot on goal | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11; "on target" → "on goal", step 5) |
-| 8 | Ø Duels | `duels_per_match` | Duels | 2 | **new** (GAP-11) |
-| 9 | % Duels won | `duels_won_pct` | Duels | 2 | live |
+| 8 | Ø Duels | `duels_per_match` | One-on-one | 2 | **new** (GAP-11) |
+| 9 | % Duels won | `duels_won_pct` | One-on-one | 2 | live |
 | 10 | Ø Defensive actions (`T · I · B`) | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
 | 11 | Ø Passes | `passes_per_match` | Passing | 3 | live |
 | 12 | % Pass accuracy | `passes_accuracy_pct` | Passing | 2 | live |
@@ -269,8 +275,8 @@ mixes groups; (3) ratio displays standardized to the full triple
 |---|---|---|---|---|
 | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
 | 2 | Shots on goal | `{shots_on}` | shots_on_target | Shooting |
-| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | Duels |
-| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | Duels |
+| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
+| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
 | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
 | 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
 | 7 | Key passes | `{count}` | passes_key_player | Passing |
@@ -288,8 +294,8 @@ mixes groups; (3) ratio displays standardized to the full triple
 ## Data work implied (see 99_gaps_register.md)
 
 - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
-  `importance_tier` (**team-only** — null for player entries),
-  `group_display_order` (this document is the source for the values).
+  `importance_tier` (on every row since 2026-08-04), `metric_group_order` (landed with #152;
+  the values are #152's ruling, not this document's block order).
 - **GAP-10** — `wins`/`draws`/`losses` columns in `mart_team_season_record`
   (the W2 counts display).
 - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
