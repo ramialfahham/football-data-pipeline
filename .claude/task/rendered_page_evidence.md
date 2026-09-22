@@ -1,47 +1,41 @@
-# Rendered page evidence — `feat/152-metric-groups` (#152)
+# Rendered page evidence — `fix/menu-leaderboards`
 
-What changes on a rendered page: the metric-group headings on the team page's Performance tab
-(`TeamPerformance.astro`, `.vs-group > span`) and on the fixture comparison
-(`MetricComparison.astro`, `.mgroup`) — their text (locale names instead of the raw English key)
-and their order (the catalogue's). No markup, CSS or component structure changes; the heading
-elements, their classes and their styles are the ones already on `main`.
+What changes on a rendered page: one word, in three places — the sixth item of the header nav,
+the same item inside the mobile drawer, and the fourth link of the footer row — on every page of
+the site, per locale. No markup, class, CSS, layout or link changes; the element is the same
+`<span>` it was, rendering a different string.
 
 ## How it was observed
 
-Headless Chromium (Playwright, the same engine `check_design_inventory.py` uses) over the sample
-build served over HTTP from `site_v2/dist`, at **375** and **700** px, on four pages:
-DE and FI `teams/manchester-united-fc/` (Performance tab, "vs league" panel) and DE and FI
-`bundesliga/matches/2026-09-18-bayern-munchen-vs-1-fc-union-berlin/` (both windows). For every
-heading element: textContent, bounding box, parent width, `scrollWidth > clientWidth` (overflow),
-computed font; for the page, `documentElement.scrollWidth` against the viewport. Screenshots
-(`<page>@<viewport>.png`) and the raw `report.json` are in the session scratchpad under
-`renders/`; the Browser pane's own screenshot is broken on this machine, so Playwright's was used.
+The built `dist` swept page by page for the nav's last item and the footer row (the counts are in
+`acceptance_evidence.md`), plus headless Chromium (Playwright, the engine
+`check_design_inventory.py` uses) over the served build at **375**, **700** and **1280** px in EN,
+DE and FI on Home and the competition Overview. Per page: the nav's computed `display`, its
+`scrollWidth` against its `clientWidth`, the last item's text, tag, `href`, width and font, the
+drawer's last item, the footer row's text, and the document's `scrollWidth`. `nav.json` and the
+header screenshots are in the session scratchpad under `navrenders/`.
 
 ## What was observed
 
-**375 px, page scrollWidth 375 on all four pages (no sideways scroll).** Every heading fits its
-parent with no overflow; the longest are the ones the reviewer asked about:
+The item is a `<span>` with `href` null at every width in every locale — still dead text — at
+13px, and the nav never overflows (`scrollWidth == clientWidth` on all nine renders).
 
-| page | heading | width | parent | overflow |
+| locale | word | item width @700 and @1280 | nav display @375 | nav fits |
 |---|---|---|---|---|
-| team DE | Eins-gegen-eins | 113 px | 343 px | no |
-| team FI | Yksi vastaan yksi | 126 px | 343 px | no |
-| team FI | Erikoistilanteet | 119 px | 343 px | no |
-| fixture DE/FI | every `.mgroup` | 343 px (full row) | 343 px | no |
+| EN | Leaderboards | 98 px | `none` (drawer) | yes |
+| DE | Bestenlisten | 89 px | `none` (drawer) | yes |
+| FI | Kärkilistat | 76 px | `none` (drawer) | yes |
 
-Font on every heading: 11px / 700, unchanged from `main`. Team-page headings at 375: Tore ·
-Schüsse · Pässe · Eins-gegen-eins · Defensive · Torwart · Standards (DE); Maalit · Laukaukset ·
-Syötöt · Yksi vastaan yksi · Puolustus · Maalivahti · Erikoistilanteet (FI). Fixture headings the
-same seven per locale, once per window.
+At 375px the header nav is `display: none` and the six items live in the hamburger drawer, which
+is closed at rest — the word is in it (measured: the drawer's last child reads Leaderboards /
+Bestenlisten / Kärkilistat), at zero size until the drawer opens. The footer row at 1280px reads
+`… Players · Leaderboards · About` in EN and the same position in DE (`Spieler · Bestenlisten ·
+Über uns`) and FI (`Pelaajat · Kärkilistat · Tietoa`).
 
-**700 px: headings fit (widest 126 px in a 624 px parent, no overflow), but the page scrollWidth
-is 728 (DE) / 707 (FI).** The element past the viewport edge is the site header's search control
-(`div.header-actions` → `button.iconbtn`, right edge 728) — on the team page's Overview tab, on
-the fixture page and on Home `/de/` alike, none of which this branch touches. Pre-existing and
-outside this task; flagged separately, not folded in.
+The German word is the longest of the three and the one worth watching; at 89px in a nav whose
+row measures 469px against 469px of space, it has room.
 
-## What the measured check saw
-
-`python scripts/check_design_inventory.py --dist site_v2/dist` → `19 pages · 2 viewports · 2
-languages · 76 renders · 0 failures · 0 warnings`, exit 0 (the same run as in
-`acceptance_evidence.md`).
+⚠ Unchanged and not this branch's: at 700px the page still scrolls sideways (732 EN / 738 DE /
+721 FI against a 700px viewport) because of the header's search control, on every page including
+the ones this branch does not touch. Recorded because it is visible in the same renders, not
+because it moved.
