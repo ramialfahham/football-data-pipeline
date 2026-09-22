@@ -1,9 +1,17 @@
 # Review — feat/151-rankings-tab — 2026-09-22
 
-diff_sha256: 01dd69e99b3ad68064437a63b1ddb6388781f932dfa8d05cc7b2ef9d9f1dab88
+diff_sha256: 48e8b1c10484edd948d1f1f422d5dee12dfbc5c76d3b14c3820248658a93eb67
 
 rounds: 4
 rounds_cap_override: the CPO ruled on the open MR (2026-09-22, "change it to /rankings/") and asked for the change on this branch; round 4 is that rename, reviewed as a delta by the three reviewers whose territory it touches. It clears no standing FAIL. He did not rule on the cap.
+
+⚠ REBASED onto `main` after !217 (the menu rename) merged, which moved the base under this branch.
+The hash above is the recomputed cumulative diff against the new base; the four round-by-round
+verdicts below stand unchanged, because **none of this branch's own code moved**: the only
+conflicts were the five task artifacts (all diff3, all four marker kinds), resolved to this
+task's side; `strings.ts` and `docs/site_architecture.md` auto-merged, and `git diff <old tip>
+<new tip>` outside the paperwork returns exactly !217's eight files — the changes this branch
+inherited from the base, not changes to its own.
 
 ## scope-auditor
 VERDICT: PASS

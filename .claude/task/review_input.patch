@@ -1,19 +1,15 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1ffec37f..69cb05e7 100644
+index 6a736949..69cb05e7 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,41 +1,86 @@
--# Task contract — #152: metric groups defined in one place
+@@ -1,30 +1,86 @@
+-# Task contract — the menu's last item reads Leaderboards, not Stats
 +# Task contract — #151: the Rankings tab, the Overview rework, the page rules
  
  objective: >
--  A metric group is defined once: its key and its order in `metric_catalogue.csv` (`duels` becomes
--  `one_on_one`; a `metric_group_order` column, the same value on every row of a group), its names
--  as site copy keyed by the group key (`metricGroups.<key>.label`, EN/DE/FI), and tests binding the
--  three. The export publishes the groups (key, order) as a data file the site build reads; the
--  hard-coded `MetricGroup` type and `GROUP_ORDER` in `metricRows.ts` go; the two components that
--  print a group heading resolve it per locale from the copy, in the catalogue's order. #98 closes
--  with it. No metric moves group; no metric value, format or direction changes.
+-  Apply a ruling that was made and never shipped: the header and footer menu item "Stats" is
+-  renamed "Leaderboards". One copy key in three languages and its two call sites; no page, no
+-  link, no layout changes. The item stays dead text until #139 builds the hub behind it.
 +  Build the competition page's Rankings tab and rework its Overview to the design approved on
 +  #129 (2026-09-16), on the metric groups #152 shipped. The team leaderboard mart grows from four
 +  boards to the twelve ruled and the player mart moves to the thirteen ruled; two team card
@@ -25,14 +21,15 @@ index 1ffec37f..69cb05e7 100644
 +  `system.css` (#153); this task composes from them and adds no element.
  
  refs: >
--  #152 (the CPO's ruling on #129, 2026-09-16: no second seed; the names table, quoted in
--  `decisions_taken` by reference); the order ruling in chat 2026-09-21 (quoted in
--  `decisions_taken`). `docs/metric_layer.md` (the catalogue is the single source);
--  `docs/wireframes/metrics_display.md` (LOCKED; owns row order within a group, and until now
--  group order); `docs/wireframes/99_gaps_register.md` GAP-09. Measured on `main` at `f1931742`:
--  87 catalogue rows, 10 distinct groups, `duels` on 10 rows (2 team, 8 player); the site's
--  `MetricGroup` union has 7 English words; `TeamPerformance.astro:89,110` and
--  `MetricComparison.astro:40` print the raw group string on every locale.
+-  The ruling: #127 (CPO, 2026-09-13), recorded in `docs/wireframes/10_home.md` ("the menu item
+-  Stats is renamed Leaderboards") and in the approved-design section of #127 as the tracker
+-  snapshot carries it ("**Stats is renamed Leaderboards** (menu, footer, milestone 7, issues
+-  #139/#140)"). Milestone 7 was renamed; the menu was not. #143 built the other #127 rulings and
+-  its checklist does not carry this one, so the rename had no build item. #139 owns the hub the
+-  item will point at and is unbuilt; the label does not wait on it.
+-  Measured on `main` at `af081cae`: `navStats` is "Stats" / "Statistiken" / "Tilastot" in
+-  `strings.ts`, rendered by `SiteHeader.astro` (6th nav item, no href) and `SiteFooter.astro`
+-  (4th footer link) on every built page in all three locales.
 +  #151 (the requirement; its checklist is `acceptance_criteria` below by content); #129 "The
 +  approved design" (the Rankings tab, the Overview rework, the binding rules); #152 (groups: key,
 +  order, names); #153 (the block standard, the measured check, the merge gate on the issue).
@@ -55,18 +52,12 @@ index 1ffec37f..69cb05e7 100644
 +  - dbt_project/models/5_marts/shared/shared.yml
 +  - dbt_project/models/docs/metric_columns.md
 +  - dbt_project/models/docs/shared_columns.md
-   - dbt_project/seeds/metric_catalogue.csv
-   - dbt_project/seeds/schema.yml
--  - dbt_project/tests/assert_metric_group_order_is_one_per_group.sql
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/schema.yml
 +  - dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
 +  - dbt_project/tests/assert_mart_team_leaderboards_rank_follows_rank_order.sql
 +  - dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
-   - scripts/export_site_data.py
--  - site_v2/src/data/metric_groups.json
--  - site_v2/src/data/README.md
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/metricRows.ts
--  - site_v2/src/components/team/TeamPerformance.astro
++  - scripts/export_site_data.py
 +  - tests/test_export_site_data.py
 +  - tests/test_export_landing.py
 +  - tests/test_leaderboard_board_sets.py
@@ -84,7 +75,7 @@ index 1ffec37f..69cb05e7 100644
 +  - site_v2/src/components/competition/RankingsBlock.astro
 +  - site_v2/src/components/competition/SeasonFacts.astro
 +  - site_v2/src/components/fixture/MetricRow.astro
-   - site_v2/src/components/fixture/MetricComparison.astro
++  - site_v2/src/components/fixture/MetricComparison.astro
 +  - site_v2/src/components/fixture/FormSegment.astro
 +  - site_v2/src/specs/players/player.spec.json
 +  - site_v2/src/lib/competitionPayload.mjs
@@ -92,61 +83,43 @@ index 1ffec37f..69cb05e7 100644
 +  - site_v2/src/lib/format.ts
 +  - site_v2/src/lib/metricRows.ts
 +  - site_v2/src/lib/types.ts
-+  - site_v2/src/i18n/strings.ts
+   - site_v2/src/i18n/strings.ts
+-  - site_v2/src/components/chrome/SiteHeader.astro
+-  - site_v2/src/components/chrome/SiteFooter.astro
+-  - docs/wireframes/09_chrome.md
 +  - site_v2/src/styles/system.css
 +  - site_v2/src/data/competitions/BL1/2026.json
 +  - site_v2/src/data/README.md
 +  - site_v2/scripts/check-built-pages.mjs
 +  - site_v2/scripts/check-built-pages.test.mjs
-   - site_v2/scripts/check-metric-labels.test.mjs
--  - tests/test_metric_groups.py
--  - design-mocks/gen_competition_teams.py
--  - docs/metric_layer.md
++  - site_v2/scripts/check-metric-labels.test.mjs
 +  - site_v2/scripts/audit-seo.mjs
 +  - site_v2/scripts/audit-seo.test.mjs
-+  - docs/site_architecture.md
-   - docs/wireframes/metrics_display.md
+   - docs/site_architecture.md
+-  - docs/north_star.md
+-  - docs/ui_design_brief.md
+-  - design-mocks/gen_navmap.py
++  - docs/wireframes/metrics_display.md
 +  - docs/wireframes/block_standard.md
-   - docs/wireframes/99_gaps_register.md
++  - docs/wireframes/99_gaps_register.md
 +  - dbt_project/docs/layering.md
 +  - design-mocks/gen_competition_teams.py
 +  - design-mocks/gen_competition_matchdays.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -45,83 +90,120 @@ scope_paths:
+@@ -34,34 +90,120 @@ scope_paths:
    - docs/tracker/gitlab_snapshot.md
  
  impact_map: >
--  writers: `dbt_project/seeds/metric_catalogue.csv` is a seed — its only writer is this repo. The
--  rename touches the `metric_group` value on 10 rows and adds one column; no `metric_id`,
--  expression, format or direction changes, so every model that reads the catalogue computes the
--  same numbers.
--  downstream, measured on this branch with the scratchpad profile:
--  `dbt ls --select metric_catalogue+ --resource-type model` → no output (no model reads the
--  seed); `dbt ls --select metric_catalogue+ --resource-type test` → the seed's own schema tests
--  (7 `accepted_values_metric_catalogue_*`, `not_null_*`, `metric_catalogue_label_en_unique_within_entity`)
--  and the singular tests `assert_form_window_rates_inputs_covered`,
--  `assert_metric_catalogue_expr_resolvable`, `assert_metric_catalogue_unique_by_entity`,
--  `assert_metric_direction_lower_is_better_agree`, `assert_metric_group_order_is_one_per_group`
--  (new), `assert_metric_meaning_complete`, `assert_no_uncatalogued_season_metric`,
--  `assert_season_rates_inputs_covered`. Of those only
--  `accepted_values_metric_catalogue_metric_group__…` reads `metric_group` (updated in the same
--  MR) and the new test reads `metric_group_order`; the rest read expressions, ids and meaning
--  columns. `grep -rn "metric_group" dbt_project/models dbt_project/macros` → 0 hits;
--  `sync_metric_docs_blocks.py` reads `description` only. Under `persist_docs` the seed rebuilds in
--  `ci_mr<IID>_*` once per pipeline — cents.
--  consumption: `scripts/export_site_data.py` gains a `metric_groups` entity (seed → JSON, no
--  BigQuery, the `fetch_glossary` precedent); the glossary entity (`metrics.json`, not a committed
--  build input) carries the renamed key and the new column through unchanged code. The site reads
--  `site_v2/src/data/metric_groups.json` (a committed root file, not gitignored) for keys and
--  order, and `strings.ts` for names. The fixture comparison and the team page reorder their
--  groups to the catalogue's order — the CPO's choice, quoted below.
--  layer_rules: none touched; no model, no schema, `check_layer_contract.py` unaffected.
--  deploy_order: nothing until `deploy:export` (manual, `teams,fixtures`) or #156; the committed
--  sample carries the new file so the build is self-contained on the merge.
--  blast_radius: no number on the site moves. The group heading text on DE/FI pages changes from
--  English to the locale's name (#98), and group order on two pages changes as ruled.
+-  Leaf copy change on the consumption surface. `navStats` is read at exactly two call sites
+-  (`grep -rn "navStats" site_v2/` → `SiteHeader.astro:32`, `SiteFooter.astro:24`, and the three
+-  `strings.ts` definitions); two documents name the key (`docs/wireframes/09_chrome.md`'s chrome
+-  key table, `design-mocks/gen_navmap.py`'s navigation map). No page, route, payload, mart or
+-  export is touched; no `href` exists on the item, so no link graph changes and `audit-seo`'s
+-  link resolution is unaffected. The rendered change is one word in the header and one in the
+-  footer of every built page, per locale.
+-  blast_radius: every page of the built site shows the new word; nothing else moves.
 +  writers: `int_legs__team_match` gains two columns from `fct_fixture_team_stats` (`yellow_cards`,
 +  `red_cards`, already on the fact, read by no model today — `grep -rn yellow_cards
 +  dbt_project/models` hits base, core.yml and the fact only). `int_team_season_record` gains their
@@ -195,9 +168,9 @@ index 1ffec37f..69cb05e7 100644
 +  them as before — all four are `desc`).
  
  acceptance_criteria:
--  - On the built DE team page (`site_v2/dist/de/teams/<slug of 33>/index.html`), the Performance tab's group headings read, in this order and only for groups that have rows: Tore · Schüsse · Pässe · Eins-gegen-eins · Defensive · Torwart · Standards — read as textContent from the built HTML.
--  - On the built FI fixture page of a committed sample fixture with both windows populated, the comparison's group headings are the Finnish names from the #152 table (Maalit · Laukaukset · Syötöt · Yksi vastaan yksi · Puolustus · Maalivahti · Erikoistilanteet, only groups with rows), in that order.
--  - No built page under `site_v2/dist` carries "Duels", "Goals", "Shooting", "Defending", "Passing", "Set pieces" or "Goalkeeping" as a group heading on a DE or FI page (the group-heading elements only; metric row labels keep their own words).
+-  - Every built page under `site_v2/dist` shows "Leaderboards" as the sixth header item and in the footer link row in EN, the German word in `/de/`, the Finnish word in `/fi/`, and no page in any locale still shows "Stats", "Statistiken" or "Tilastot" as a menu item.
+-  - The item is still dead text (no `href`), since #139 has not built the hub: no page gains a link.
+-  - `python scripts/check_copy_gate.py` exits 0 and `cd site_v2 && npm test` is green; `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0 (the chrome is on every measured page).
 +  - The built `site_v2/dist/en/bundesliga/rankings/index.html` exists, its tab bar has three tabs with Rankings lit (`span.tab.on` text "Rankings"), and it carries exactly two `.sechead .eyebrow` block names, "Team rankings" then "Player rankings" (DE "Team-Rankings" / "Spieler-Rankings", FI "Tiimirankingit" / "Pelaajarankingit" on the DE/FI builds).
 +  - On that page every `.ctab.rkt` board has between 1 and 5 `.ctab-row` rows, the boards sit under `.rkgroup > .gh .nm` headings whose text is the group name in `metric_groups.json` order, and no board on a `desc` board (per the payload's `rank_order`) shows a `.n.pts` value of 0; every `asc` board's head carries the `.bnote` "(fewest first)" and no `desc` board does.
 +  - The built `site_v2/dist/en/bundesliga/index.html` carries exactly three `.sechead .eyebrow` block names in order — "Table", "Deserved points table", "The season in numbers" — no "Next matches", and its `.ctab.dpt` table has one row per team in the payload's `deserved` list ordered by the served `deserved_rank`, with the Deserved column as the row's `.n.pts` cell.
@@ -206,16 +179,10 @@ index 1ffec37f..69cb05e7 100644
 +  - `mart_team_leaderboards` serves `rank_order` = `asc` on exactly `goals_against_per_match` and `shots_on_goal_against_per_match` and `desc` on the other ten (checked in `data:build:mr`'s built view by the new singular test and the accepted values).
  
  decisions_taken: >
--  The CPO's rulings this contract rests on. (1) #129 review, 2026-09-16, written to #152: no
--  second seed — the catalogue keeps the assignment, the group's names are site copy keyed by the
--  group key, the order is a catalogue column, tests bind the three; the ten names EN/DE/FI as the
--  issue's table. (2) Chat 2026-09-21, to the blinded question "which single order goes into the
--  catalogue" with the 2×2 (the issue's table order vs the locked contract's order): "A" — the
--  issue's table as it reads — "We will look into the fixture and team pages again anyway." So
--  `metric_group_order` is goals 1, shooting 2, passing 3, one_on_one 4, defending 5,
--  discipline 6, goalkeeping 7, set_pieces 8, outcomes 9, playing_time 10, and every surface
--  renders groups in it; the locked display contract gets a one-line note that group order now
--  comes from the catalogue, row order within a group stays there.
+-  The English word is the CPO's ruling on #127, quoted in `refs`. The key is renamed
+-  `navStats` → `navLeaderboards` rather than left under its old name with a new value: the key
+-  is the name a reader of the code sees, and a key that says "stats" while rendering
+-  "Leaderboards" is the drift this task exists to fix.
 +  The CPO's rulings this contract rests on, all on #129 "The approved design" (2026-09-16) and
 +  #151: three tabs and their labels; the Rankings tab's two block names and its board sets (12
 +  team, 13 player, in the stated groups and order); the board rules (five rows, the dense rank as
@@ -225,24 +192,7 @@ index 1ffec37f..69cb05e7 100644
 +  `points_fraction`; the Overview's blocks (Next matches struck, the deserved table's columns and
 +  block name EN/DE/FI, six fact rows as leaderboard links); the page-wide rules; the gate that the
 +  measured check passes on its pages and on Home.
- 
--  Taken as implementation: the site reads the groups from an exported data file
--  (`metric_groups.json`, `[{key, order}]`), not from the seed directly — the consumption-layer
--  rule: the export is the site's source, the same path `competition_index.json` takes; the
--  entity needs no BigQuery, as the glossary does not. The names live inside the existing
--  `METRIC_LABELS_EN/DE/FI` maps as `metricGroups.<key>.label` — the issue's "the way
--  `label_i18n_key` works for a metric" — so `check_copy_gate.py` and
--  `check-metric-labels.test.mjs` govern them with no change to either gate, and `metricLabel()`
--  resolves them. The column is named `metric_group_order` as the issue says, not GAP-09's
--  `group_display_order` (the issue is newer and the CPO's); the register row is corrected. The
--  mock generator's Finnish group names (Laukominen, Syöttäminen, Puolustaminen, Maalivahtipeli)
--  give way to the issue's table (Laukaukset, Syötöt, Puolustus, Maalivahti); the approved renders
--  are not regenerated. The singular test carries `store_failures` (§3.4) at `error`: a group with
--  two orders, an order shared by two groups, or an order outside 1..N is a wrong page. No new
--  mechanism: one export entity, one seed column, one singular test, one pytest, three assertions
--  in an existing build test. No recurring cost. The seed's `column_types` pins
--  `metric_group_order: int64` beside the existing `importance_tier: int64`, so the type is
--  declared, not inferred.
++
 +  Taken as implementation, inside those rulings: (1) the tab's address is `/rankings/` — the
 +  CPO's ruling on the open MR, 2026-09-22: "change it to /rankings/", after the builder's first
 +  choice `/stats/` was put to him on the MR head and he asked what concept decides an address;
@@ -273,17 +223,14 @@ index 1ffec37f..69cb05e7 100644
 +  singular test, one pytest, one seed read in a mart. No recurring cost.
  
  decisions_reserved:
--  - none: the names and the order are ruled; the per-row group assignment is unchanged (the issue's How: "the only wrong bucket was dribbles under duels, resolved by the group's new name").
+-  - The German and Finnish words. The ruling gives English only. Drafted on the MR head for the CPO, as every new label is: DE "Bestenlisten" (the standard German term for leaderboards; the competition tab's DE "Rankings" is a different object, ruled 2026-09-17), FI "Kärkilistat" (the "Kärki" stem the validated corpus already uses for Home's "Kärkipelaajat" / "Kärkijoukkueet"). His merge is the approval; if he wants other words they are a one-line change.
 +  - none: every label is put to the CPO on the MR head (the copy table), as #151 asks; the merge is the approval.
  
  done_when:
--  - `python scripts/export_site_data.py --entities metric_groups --out <scratch>` writes a `metric_groups.json` byte-identical to the committed one.
--  - `python -m pytest tests/test_metric_groups.py tests/test_export_site_data.py tests/test_metric_bindings.py -q` green; the regen pin seen red against a scratch CSV with one order duplicated.
--  - `cd site_v2 && npm test` green; the group assertions seen red with one FI label removed.
--  - `python scripts/check_copy_gate.py` exits 0; seen red with one DE group label removed.
--  - `.venv/Scripts/dbt.exe parse` green with the scratchpad profile; the singular test lints clean from the repo root.
--  - `npm run build` on the committed sample; `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0; the three acceptance criteria demonstrated from `dist` in `acceptance_evidence.md`.
--  - `data:build:mr` green.
+-  - `grep -rn "navStats" site_v2/ docs/ design-mocks/` returns nothing.
+-  - `python scripts/check_copy_gate.py`, `python scripts/check_ui_i18n_metrics.py` exit 0; `cd site_v2 && npm test` green.
+-  - `npm run build` green; the acceptance criteria read from `dist` in `acceptance_evidence.md`.
+-  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0.
 +  - `.venv/Scripts/dbt.exe parse` green with the scratchpad profile; every touched model and test lints clean from the repo root; `python scripts/check_layer_contract.py`, `python scripts/sync_metric_docs_blocks.py --check`, `python scripts/check_description_hygiene.py` exit 0.
 +  - `python -m pytest tests/test_export_site_data.py tests/test_export_landing.py tests/test_leaderboard_board_sets.py tests/test_metric_groups.py tests/test_metric_bindings.py tests/test_design_inventory.py -q` green; the board-set pin seen RED with one key removed from the export's list.
 +  - `python scripts/export_site_data.py --entities competitions` regenerates `competitions/BL1/2026.json` with `team_boards` and `player_boards` and no `next_matchday`.
@@ -292,8 +239,7 @@ index 1ffec37f..69cb05e7 100644
 +  - `data:build:mr` green; the MR head carries the copy table, the two catalogue rows and the address.
  
  amendments:
--  - 2026-09-21: the first two acceptance criteria corrected — authority: the order ruling quoted in `decisions_taken` (goalkeeping 7, set_pieces 8); content: as first written they listed Standards/Erikoistilanteet before Torwart/Maalivahti, transposing positions 7 and 8 of the ruled order. The built page showed the ruled order; the criterion was the error. No path added, no criterion softened.
--  - 2026-09-21: + `.claude/task/rendered_page_evidence.md` — authority: repo practice, `.claude/agents/bi-analyst-reviewer.md` item 4 (the artifact is required for a rendering-affecting `site_v2/src/**` change, produced before that reviewer runs); content: the group headings measured in headless Chromium at 375 and 700 px on the DE and FI team and fixture pages — text, box, overflow, page width — with screenshots in the session scratchpad. The reviewer's round-1 finding: the file on disk was #150's.
+-  - 2026-09-22: + `docs/site_architecture.md`, `docs/north_star.md`, `docs/ui_design_brief.md` — authority: the bi-analyst's round-1 FAIL (a document the diff contradicts must move in the same branch) and the rule that a correction replaces the old text everywhere it is written; content: the impact map swept for the KEY name (`navStats`) and the key name does not appear in prose, so five places that write the menu out in words kept saying "Stats" — `09_chrome.md` lines 19, 33, 38 and 81 (the quote, both ASCII diagrams, the states prose), `site_architecture.md:222` (the sentence `09_chrome.md:19` cites as its authority), `north_star.md:115` and `ui_design_brief.md:71`. Prose only; no code, no second behaviour change. The lesson recorded here rather than only fixed: sweep by the CONCEPT, not by the identifier.
 +  - 2026-09-22: + `dbt_project/models/docs/shared_columns.md` — authority: repo practice, `engineering_standards.md` §2 Form as `check_description_hygiene.py` enforces it (a column whose name is a shared block references a block, never restates it); content: the leg's `yellow_cards` / `red_cards` read a blank as 0 on a present stat line, a meaning the fact's block does not carry, so they get their own `__leg` blocks beside `opponent_corner_kicks__leg`, and the cumulative sums on the season record reference the metric blocks. No behaviour, no path beyond the docs file.
 +  - 2026-09-22: + `site_v2/src/components/fixture/MetricComparison.astro` — authority: the issue's line "`format.ts` / `metricRows.ts` and the fixture page's form window follow" and the memory rule that a correction replaces; content: with `count_fraction` gone, `MetricRow.astro` no longer reads a window's denominator, so its `windowKey` prop is dead and the one call site passing it is this file. One prop removed at one call site; no rendered change.
 +  - 2026-09-22: + `site_v2/src/components/fixture/FormSegment.astro` (the prop above enters the chain there — two attributes removed, no rendered change) and + `site_v2/src/specs/players/player.spec.json` — authority: the page-spec contract (`check-page-specs.mjs`, `prebuild`) that a page's spec states its data source and page-count driver; content: the player stub's page set grows from Home's linked players to every player a competition payload's boards name, so its spec's `minimum_data` and `page_count_driver` say so.
@@ -1166,7 +1112,7 @@ index 59060672..dd0fd785 100644
      rows = []
      for rank, name, slug, value in boards[key]:
 diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index fa566664..da9cd1b4 100644
+index f22112e4..37899662 100644
 --- a/docs/site_architecture.md
 +++ b/docs/site_architecture.md
 @@ -44,7 +44,7 @@ All pages live under a locale prefix. Trailing slashes; lowercase kebab-case slu
@@ -2354,7 +2300,7 @@ index 5f9e6b42..45fcc375 100644
  const hWidth = barWidth(hv, av);
  const aWidth = barWidth(av, hv);
 diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index aa116d06..4b2fa8e9 100644
+index ea84a59d..924e28ce 100644
 --- a/site_v2/src/i18n/strings.ts
 +++ b/site_v2/src/i18n/strings.ts
 @@ -257,6 +257,8 @@ const EN: Dict = {
@@ -3520,11 +3466,11 @@ index 00000000..8bd0080b
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md                 |   43 +-
-#    .claude/task/acceptance_evidence.md    |   72 +-
-#    .claude/task/rendered_page_evidence.md |   80 +-
-#    .claude/task/review.md                 |  120 +-
-#    .claude/task/review_input.patch        | 4411 ++++++++++++++++++++++++--------
+#   .claude/active_work.md                 |   46 +-
+#    .claude/task/acceptance_evidence.md    |   80 +-
+#    .claude/task/rendered_page_evidence.md |   74 +-
+#    .claude/task/review.md                 |   74 +-
+#    .claude/task/review_input.patch        | 3617 ++++++++++++++++++++++++++++++--
 #    docs/tracker/gitlab_snapshot.md        |    6 +-
-#    6 files changed, 3530 insertions(+), 1202 deletions(-)
+#    6 files changed, 3568 insertions(+), 329 deletions(-)
 # ============================================================================
