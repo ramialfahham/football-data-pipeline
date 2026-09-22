@@ -1,8 +1,8 @@
 # Review — feat/151-rankings-tab — 2026-09-22
 
-diff_sha256: 95deef33aca2759a09ff8e2cca6a692d64e4e6d8ea38a507c712f1bfdacf397f
+diff_sha256: d6240a908c95f3cbf80916e847d691e79ac4409d7290e15e1fc80cf1312f417f
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
@@ -12,6 +12,7 @@ risks_checked:
 - §10 decisions: `/stats/`, the blank-card-as-zero reading, the catalogue-direction join with the ruled card override, inert headings and fact rows, the player stub's page set, the `count_fraction`/`.ctab.dp` removal, the six dropped player boards — each traced to a quoted #129/#151 ruling or a mechanical consequence of one.
 - The audit-seo h1 exemption widening against "the header never changes with the tab" — the one-header-per-entity rule extended to a third tab, tested both directions; not a rule extension.
 - No credential-shaped content, no new mechanism, no recurring cost; `decisions_reserved` empty and nothing decided silently against it.
+- Round 3 (delta): the adjacency test's direction branch is a mechanical consequence of the ruled ascending boards, not a new ranking rule; the amendment quotes the issue line and the CI failure; no other path moved.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -22,6 +23,7 @@ risks_checked:
 - The three-way board-set pin reads the real files and its mutation tests go red in each direction.
 - `clean_sheets` format and the `count_fraction` removal swept across seed, schema, docs, `format.ts`, `MetricRow.astro` — no dangling reference.
 - The export and the components select served columns only; no ranking or metric math client-side. Round 2: `layering.md` mart rows now match the models (no games floor, the served direction, 12/13 boards).
+- Round 3 (delta): `data:build:mr` on !216 failed `assert_mart_team_leaderboards_one_leader_per_league` with 201 rows, all from the adjacency invariant assuming descending order; the fix branches on the served `rank_order` and mirrors the model's signed `sort_key` without re-running the window; the tie-break and the other three invariants unchanged; 0 rows against the inlined chain on prod.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS

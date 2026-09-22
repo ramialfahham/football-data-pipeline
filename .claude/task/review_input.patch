@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1ffec37f..19a1a540 100644
+index 1ffec37f..975efb52 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,41 +1,85 @@
+@@ -1,41 +1,86 @@
 -# Task contract — #152: metric groups defined in one place
 +# Task contract — #151: the Rankings tab, the Overview rework, the page rules
  
@@ -60,6 +60,7 @@ index 1ffec37f..19a1a540 100644
 -  - dbt_project/tests/assert_metric_group_order_is_one_per_group.sql
 +  - dbt_project/tests/assert_mart_team_leaderboards_all_boards_present.sql
 +  - dbt_project/tests/assert_mart_team_leaderboards_rank_follows_rank_order.sql
++  - dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
    - scripts/export_site_data.py
 -  - site_v2/src/data/metric_groups.json
 -  - site_v2/src/data/README.md
@@ -113,7 +114,7 @@ index 1ffec37f..19a1a540 100644
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -45,83 +89,117 @@ scope_paths:
+@@ -45,83 +90,118 @@ scope_paths:
    - docs/tracker/gitlab_snapshot.md
  
  impact_map: >
@@ -300,6 +301,7 @@ index 1ffec37f..19a1a540 100644
 +  - 2026-09-22: + `site_v2/scripts/audit-seo.mjs` and its test — authority: #129 "the header never changes with the tab" (the `<h1>` is the competition's name on every tab) and the audit's own stated exemption ("an entity page and its tab pages share one header by design"); content: the exemption was written for one tab and reads "one path is the other plus a segment", so two sibling tabs (`/fixtures/`, `/stats/`) of one entity fail it — measured on the first build: 3 violations, all `h1 is not unique`. The exemption is widened to sibling tabs of the same entity page carrying that page's h1, nothing else; two unrelated pages with one h1 still fail, and the test shows both.
 +  - 2026-09-22: + `design-mocks/gen_competition_matchdays.py` — authority: the issue's "the Overview payload without the next-matchday block" and the block standard's Pages table, which the measured check runs this generator from; content: the generator read the flagged match from the payload's `next_matchday` key, which this task removes, and the check failed on it (`KeyError: 'next_matchday'`); it now reads `is_match_that_matters` from the payload's `fixtures`, the same flag on the same fixtures. The render is unchanged.
 +  - 2026-09-22: + `docs/wireframes/99_gaps_register.md` and `dbt_project/docs/layering.md` — authority: the scope-auditor's round-1 FAIL (a design-chain document the diff contradicts must move in the same branch) and the analytics-engineer's round-1 note, under the rule that a correction replaces the old text everywhere; content: GAP-11 still names `clean_sheets (x/y)` as the approved shape (superseded on #129: a bare count) and the layering doc's mart inventory still describes the two leaderboard marts as four and ten boards. Two rows corrected; no code.
++  - 2026-09-22: + `dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql` — authority: the issue's line "the ascending boards carry their direction from the catalogue" and `data:build:mr` on !216's first pipeline (201 failures, every one a leader pair on the two ascending boards); content: the test's adjacency check reads "the later leader is not strictly better" as "not a larger value", which is the descending rule only; it now reads the board's served `rank_order` and holds the mirror rule on an ascending board. The tie-break and the other three invariants are untouched.
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
 index 0abdae3e..91299a55 100644
 --- a/dbt_project/docs/layering.md
@@ -938,6 +940,47 @@ index 7b455314..5a782eab 100644
  from observed
 -where board_count != 4
 +where board_count != 12
+diff --git a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+index ece7b19f..d6501ee9 100644
+--- a/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
++++ b/dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql
+@@ -11,7 +11,9 @@
+ -- ⚠ The adjacency check (3) is deliberately NOT a re-computation of the window. Re-running
+ -- `row_number()` inside the test with the same ORDER BY would pass for ANY ordering, because the
+ -- test would be using the one it is meant to check. It walks consecutive pairs with `lead()`
+--- instead and asserts the later row is not strictly better on the ruled keys.
++-- instead and asserts the later row is not strictly better on the ruled keys — "better" in the
++-- direction the board serves as `rank_order`: a larger value on a most-first board, a smaller one
++-- on a fewest-first board.
+ --
+ -- ⚠ THE TIE-BREAK IS `team_sk` AND IT IS MEANINGLESS. There is no sporting criterion for two teams
+ -- on an equal per-match rate — the player mart's fewer-minutes rule does not transfer, because for
+@@ -28,6 +30,7 @@ with import_mart_team_leaderboards as (
+ leaders as (
+     select
+         metric_key,
++        rank_order,
+         league_code,
+         season_api_year,
+         board_leader_order,
+@@ -73,6 +76,7 @@ wrongly_defined as (
+ adjacent as (
+     select
+         metric_key,
++        rank_order,
+         board_leader_order,
+         sort_value,
+         team_sk,
+@@ -90,7 +94,8 @@ out_of_order as (
+     where
+         next_value is not null
+         and (
+-            next_value > sort_value
++            (rank_order = 'desc' and next_value > sort_value)
++            or (rank_order = 'asc' and next_value < sort_value)
+             or (next_value = sort_value and next_team_sk < team_sk)
+         )
+ ),
 diff --git a/dbt_project/tests/assert_mart_team_leaderboards_rank_follows_rank_order.sql b/dbt_project/tests/assert_mart_team_leaderboards_rank_follows_rank_order.sql
 new file mode 100644
 index 00000000..2f4975c4
@@ -3461,4 +3504,25 @@ index 00000000..8bd0080b
 #   site_v2/src/data/README.md                  |    8 +
 #    site_v2/src/data/competitions/BL1/2026.json | 2253 ++++++++++++++++++++-------
 #    2 files changed, 1692 insertions(+), 569 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/active_work.md                 |   43 +-
+#    .claude/task/acceptance_evidence.md    |   72 +-
+#    .claude/task/rendered_page_evidence.md |   80 +-
+#    .claude/task/review.md                 |  116 +-
+#    .claude/task/review_input.patch        | 4375 ++++++++++++++++++++++++--------
+#    docs/tracker/gitlab_snapshot.md        |    6 +-
+#    6 files changed, 3477 insertions(+), 1215 deletions(-)
 # ============================================================================

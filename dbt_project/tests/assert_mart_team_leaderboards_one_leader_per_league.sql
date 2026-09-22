@@ -11,7 +11,9 @@
 -- ⚠ The adjacency check (3) is deliberately NOT a re-computation of the window. Re-running
 -- `row_number()` inside the test with the same ORDER BY would pass for ANY ordering, because the
 -- test would be using the one it is meant to check. It walks consecutive pairs with `lead()`
--- instead and asserts the later row is not strictly better on the ruled keys.
+-- instead and asserts the later row is not strictly better on the ruled keys — "better" in the
+-- direction the board serves as `rank_order`: a larger value on a most-first board, a smaller one
+-- on a fewest-first board.
 --
 -- ⚠ THE TIE-BREAK IS `team_sk` AND IT IS MEANINGLESS. There is no sporting criterion for two teams
 -- on an equal per-match rate — the player mart's fewer-minutes rule does not transfer, because for
@@ -28,6 +30,7 @@ with import_mart_team_leaderboards as (
 leaders as (
     select
         metric_key,
+        rank_order,
         league_code,
         season_api_year,
         board_leader_order,
@@ -73,6 +76,7 @@ wrongly_defined as (
 adjacent as (
     select
         metric_key,
+        rank_order,
         board_leader_order,
         sort_value,
         team_sk,
@@ -90,7 +94,8 @@ out_of_order as (
     where
         next_value is not null
         and (
-            next_value > sort_value
+            (rank_order = 'desc' and next_value > sort_value)
+            or (rank_order = 'asc' and next_value < sort_value)
             or (next_value = sort_value and next_team_sk < team_sk)
         )
 ),
