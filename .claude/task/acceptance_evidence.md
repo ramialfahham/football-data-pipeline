@@ -11,7 +11,7 @@ criteria_demonstrated:
   - THE BUILT RANKINGS PAGE EXISTS WITH THREE TABS, RANKINGS LIT, AND THE TWO BLOCK NAMES.
     `dist/en/bundesliga/rankings/index.html` (the address he ruled on the MR; the readings below were taken again on the renamed route and are unchanged): tabs `[('a','Overview'), ('a','Matchdays'), ('span','Rankings')]`
     (the span is `class="tab on"`), block names `['Team rankings', 'Player rankings']`;
-    `dist/de/...`: `['Übersicht','Spieltage','Rankings']`, `['Team-Rankings', 'Spieler-Rankings']`;
+    `dist/de/...`: `['Übersicht','Spieltage','Ranglisten']`, `['Mannschafts-Ranglisten', 'Spieler-Ranglisten']`;
     `dist/fi/...`: `['Yleiskatsaus','Kierrokset','Rankingit']`, `['Tiimirankingit', 'Pelaajarankingit']`.
     Exactly two `.sechead .eyebrow` per page.
   - EVERY BOARD HAS 1 TO 5 ROWS UNDER THE GROUP HEADINGS IN THE CATALOGUE'S ORDER; NO ZERO ON A

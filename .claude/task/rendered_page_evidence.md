@@ -24,8 +24,12 @@ failures · 0 warnings`.
 
 **375 px, page scrollWidth 375 on all nine pages (no sideways scroll).** The tab bar fits in
 every locale: `scrollWidth 343 = clientWidth 343`, three tabs sharing the row at 13px (the
-container query under 430px), e.g. FI `Yleiskatsaus 119 · Kierrokset 108 · Rankingit 108`, DE
-`Übersicht 112 · Spieltage 111 · Rankings 112`, EN `Overview 109 · Matchdays 117 · Rankings 109`.
+container query under 430px), measured on the Rankings page itself: FI `Yleiskatsaus 119 ·
+Kierrokset 108 · Rankingit 108`, DE `Übersicht 109 · Spieltage 108 · Ranglisten 118`, EN
+`Overview 109 · Matchdays 117 · Rankings 109` — the German word is the longest of the nine and
+still fits, because the three tabs share the row rather than each taking a fixed width; every
+tab `white-space: nowrap`, one line, 46px. (The measured design check renders EN and FI only,
+so German is measured here and is not covered by that gate.)
 No board name overflows its box in any locale (the longest, FI `Maalilaukaukset vastaan ottelua
 kohden`, wraps inside the head cell).
 
