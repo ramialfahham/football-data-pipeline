@@ -27,14 +27,16 @@ COPY.update({
     "colTablePos":    ("Table", "Sija", True),
     "secTopTeams":    ("Top teams", "Parhaat joukkueet", True),
     "boardMore":      ("Full list", "Koko lista", True),
-    "grpGoals":       ("Goals", "Maalit", True),
-    "grpShooting":    ("Shooting", "Laukominen", True),
-    "grpPassing":     ("Passing", "Syöttäminen", True),
-    "grpDefending":   ("Defending", "Puolustaminen", True),
-    "grpDuels":       ("One-on-one", "Yksi vastaan yksi", False),
+    # the metric groups, keyed and named as the site's copy is (`metricGroups.<key>.label`,
+    # the catalogue's `metric_group` key)
+    "metricGroups.goals.label":       ("Goals", "Maalit", False),
+    "metricGroups.shooting.label":    ("Shooting", "Laukaukset", False),
+    "metricGroups.passing.label":     ("Passing", "Syötöt", False),
+    "metricGroups.one_on_one.label":  ("One-on-one", "Yksi vastaan yksi", False),
+    "metricGroups.defending.label":   ("Defending", "Puolustus", False),
+    "metricGroups.discipline.label":  ("Discipline", "Kurinpito", False),
+    "metricGroups.goalkeeping.label": ("Goalkeeping", "Maalivahti", False),
     "fewestFirst":    ("fewest first", "vähiten ensin", True),
-    "grpDiscipline":  ("Discipline", "Kurinpito", True),
-    "grpGoalkeeping": ("Goalkeeping", "Maalivahtipeli", True),
     "secTeamRankings": ("Team rankings", "Tiimirankingit", False),
     "secPlayerRankings": ("Player rankings", "Pelaajarankingit", False),
 })
@@ -44,13 +46,13 @@ METRICS_FILE = HERE / "bl1_team_metrics.json"
 # the way mart_team_leaderboards would (dense rank by the catalogue's direction, first three by
 # value then name)
 GROUPS = [
-    ("grpGoals",     ["goals_per_match", "goals_against_per_match"]),
-    ("grpShooting",  ["shots_on_goal_per_match", "shots_on_goal_against_per_match",
-                      "shots_on_goal_difference_per_match"]),
-    ("grpPassing",   ["passes_per_match", "passes_accuracy_pct"]),
-    ("grpDefending", ["defensive_actions_per_match"]),
-    ("grpDuels",     ["duels_per_match", "duels_won_pct"]),
-    ("grpDiscipline", ["cards_yellow", "cards_red"]),
+    ("metricGroups.goals.label",      ["goals_per_match", "goals_against_per_match"]),
+    ("metricGroups.shooting.label",   ["shots_on_goal_per_match", "shots_on_goal_against_per_match",
+                                       "shots_on_goal_difference_per_match"]),
+    ("metricGroups.passing.label",    ["passes_per_match", "passes_accuracy_pct"]),
+    ("metricGroups.one_on_one.label", ["duels_per_match", "duels_won_pct"]),
+    ("metricGroups.defending.label",  ["defensive_actions_per_match"]),
+    ("metricGroups.discipline.label", ["cards_yellow", "cards_red"]),
 ]
 TOP = 5
 
@@ -175,13 +177,13 @@ def boards_html(boards):
 
 # ---- the player half: the approved 17 boards in seven groups ----
 PLAYER_GROUPS = [
-    ("grpGoals",       ["goals_player", "assists_player"]),
-    ("grpShooting",    ["shots_on_goal_player", "finishing_efficiency_player_pct"]),
-    ("grpPassing",     ["passes_player", "passes_key_player", "passes_accuracy_player_pct"]),
-    ("grpDuels",       ["dribbles_attempts_player", "duels_player"]),
-    ("grpDefending",   ["defensive_actions_player"]),
-    ("grpDiscipline",  ["cards_yellow_player", "cards_red_player"]),
-    ("grpGoalkeeping", ["saves_player"]),
+    ("metricGroups.goals.label",       ["goals_player", "assists_player"]),
+    ("metricGroups.shooting.label",    ["shots_on_goal_player", "finishing_efficiency_player_pct"]),
+    ("metricGroups.passing.label",     ["passes_player", "passes_key_player", "passes_accuracy_player_pct"]),
+    ("metricGroups.one_on_one.label",  ["dribbles_attempts_player", "duels_player"]),
+    ("metricGroups.defending.label",   ["defensive_actions_player"]),
+    ("metricGroups.discipline.label",  ["cards_yellow_player", "cards_red_player"]),
+    ("metricGroups.goalkeeping.label", ["saves_player"]),
 ]
 PLAYERS_FILE = HERE / "bl1_player_metrics.json"
 # the leaderboard mart's rate rules: minutes >= 270, a shots-on-goal floor for finishing; the

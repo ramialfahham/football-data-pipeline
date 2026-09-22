@@ -873,6 +873,19 @@ const METRIC_LABELS_EN: MetricLabels = {
   "playerMetrics.scorerPoints.assists": "Assists",
   "playerMetrics.passAccuracy.total": "Passes",
   "playerMetrics.keyPasses.label": "Key passes",
+  // The metric GROUPS (#152): a group is defined by its key and order in the catalogue and by
+  // these names, keyed `metricGroups.<metric_group>.label`. The key set is bound to
+  // `src/data/metric_groups.json` by `check-metric-labels.test.mjs`.
+  "metricGroups.goals.label": "Goals",
+  "metricGroups.shooting.label": "Shooting",
+  "metricGroups.passing.label": "Passing",
+  "metricGroups.one_on_one.label": "One-on-one",
+  "metricGroups.defending.label": "Defending",
+  "metricGroups.discipline.label": "Discipline",
+  "metricGroups.goalkeeping.label": "Goalkeeping",
+  "metricGroups.set_pieces.label": "Set pieces",
+  "metricGroups.outcomes.label": "Results",
+  "metricGroups.playing_time.label": "Playing time",
 };
 
 const METRIC_LABELS_DE: MetricLabels = {
@@ -924,6 +937,16 @@ const METRIC_LABELS_DE: MetricLabels = {
   "playerMetrics.scorerPoints.assists": "Torvorlagen",
   "playerMetrics.passAccuracy.total": "Pässe",
   "playerMetrics.keyPasses.label": "Schlüsselpässe",
+  "metricGroups.goals.label": "Tore",
+  "metricGroups.shooting.label": "Schüsse",
+  "metricGroups.passing.label": "Pässe",
+  "metricGroups.one_on_one.label": "Eins-gegen-eins",
+  "metricGroups.defending.label": "Defensive",
+  "metricGroups.discipline.label": "Disziplin",
+  "metricGroups.goalkeeping.label": "Torwart",
+  "metricGroups.set_pieces.label": "Standards",
+  "metricGroups.outcomes.label": "Ergebnisse",
+  "metricGroups.playing_time.label": "Einsatzzeit",
 };
 
 const METRIC_LABELS_FI: MetricLabels = {
@@ -974,6 +997,16 @@ const METRIC_LABELS_FI: MetricLabels = {
   "playerMetrics.scorerPoints.assists": "Maalisyötöt",
   "playerMetrics.passAccuracy.total": "Syötöt",
   "playerMetrics.keyPasses.label": "Avainsyötöt",
+  "metricGroups.goals.label": "Maalit",
+  "metricGroups.shooting.label": "Laukaukset",
+  "metricGroups.passing.label": "Syötöt",
+  "metricGroups.one_on_one.label": "Yksi vastaan yksi",
+  "metricGroups.defending.label": "Puolustus",
+  "metricGroups.discipline.label": "Kurinpito",
+  "metricGroups.goalkeeping.label": "Maalivahti",
+  "metricGroups.set_pieces.label": "Erikoistilanteet",
+  "metricGroups.outcomes.label": "Tulokset",
+  "metricGroups.playing_time.label": "Peliaika",
 };
 
 const METRIC_LABELS: Record<Lang, MetricLabels> = {

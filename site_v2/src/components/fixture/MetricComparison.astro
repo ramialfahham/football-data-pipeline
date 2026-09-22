@@ -1,11 +1,12 @@
 ---
-// The LOCKED 16-row team comparison for one window (W1 or W2). Renders the groups
-// in the fixed order with a subhead, rows in the fixed order within each group
-// (metricRows.ts). A row whose value is missing on BOTH sides is hidden (avoid a
-// wall of dashes); a row missing on one side shows "-" there. No reordering by value.
+// The LOCKED 16-row team comparison for one window (W1 or W2). Renders the groups in the
+// catalogue's order with a subhead named in this locale, rows in the fixed order within each
+// group (metricRows.ts). A row whose value is missing on BOTH sides is hidden (avoid a wall of
+// dashes); a row missing on one side shows "-" there. No reordering by value.
 import MetricRow from "./MetricRow.astro";
-import { GROUP_ORDER, METRIC_ROWS } from "../../lib/metricRows";
+import { GROUP_KEYS_IN_ORDER, METRIC_ROWS } from "../../lib/metricRows";
 import type { MetricRowDef } from "../../lib/metricRows";
+import { metricLabel } from "../../i18n/strings";
 import { asNumber } from "../../lib/types";
 import type { WindowStats } from "../../lib/types";
 import type { Lang } from "../../lib/format";
@@ -23,8 +24,8 @@ const { home, away, windowKey, lang, homeName, awayName } = Astro.props;
 const hasData = (def: MetricRowDef): boolean =>
   asNumber(home?.[def.field]) !== null || asNumber(away?.[def.field]) !== null;
 
-const groups = GROUP_ORDER.map((group) => ({
-  group,
+const groups = GROUP_KEYS_IN_ORDER.map((group) => ({
+  group: metricLabel(lang, `metricGroups.${group}.label`),
   rows: METRIC_ROWS.filter((r) => r.group === group && hasData(r)),
 })).filter((g) => g.rows.length > 0);
 ---

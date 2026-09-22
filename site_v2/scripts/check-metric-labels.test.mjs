@@ -81,8 +81,32 @@ const boardKeys = (() => {
   });
 })();
 
+/** The metric GROUPS (#152): keys and order from the export's copy of the catalogue
+ * (`src/data/metric_groups.json`, pinned to the seed by `tests/test_metric_groups.py`); a name per
+ * locale under `metricGroups.<key>.label`. */
+const groupJson = JSON.parse(readFileSync(join(SITE, "src/data/metric_groups.json"), "utf8"));
+const groupIds = groupJson.groups.map((g) => g.key);
+const groupKeys = groupIds.map((k) => `metricGroups.${k}.label`);
+const rowGroups = [...rowsSrc.matchAll(/\bgroup:\s*"([a-z_]+)"/g)].map((m) => m[1]);
+
+test("the metric groups come from the catalogue and every one has a name in every locale", () => {
+  assert.ok(groupIds.length >= 8, `parsed only ${groupIds.length} groups from metric_groups.json`);
+  assert.deepEqual(groupJson.groups.map((g) => g.order), groupIds.map((_, i) => i + 1),
+    "metric_groups.json is not one row per group at positions 1..N");
+  assert.ok(rowGroups.length >= 16, `parsed only ${rowGroups.length} group: tokens from metricRows.ts`);
+  const unknown = [...new Set(rowGroups)].filter((g) => !groupIds.includes(g));
+  assert.deepEqual(unknown, [],
+    `metricRows.ts names groups the catalogue does not define: ${unknown.join(", ")}`);
+  for (const loc of LOCALES) {
+    const missing = groupKeys.filter((k) => !labels[loc].get(k));
+    assert.deepEqual(missing, [], `${loc} has no group name for: ${missing.join(", ")}`);
+    const stray = [...labels[loc].keys()].filter((k) => k.startsWith("metricGroups.") && !groupKeys.includes(k));
+    assert.deepEqual(stray, [], `${loc} names a group the catalogue does not define: ${stray.join(", ")}`);
+  }
+});
+
 test("every metric name the page asks for resolves in all three locales", () => {
-  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys])];
+  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys, ...groupKeys])];
   assert.ok(asked.length >= 22, `expected >=22 metric names in use, found ${asked.length}`);
   for (const loc of LOCALES) {
     const missing = asked.filter((k) => !labels[loc].get(k));
@@ -93,7 +117,7 @@ test("every metric name the page asks for resolves in all three locales", () => 
 });
 
 test("no locale carries a label nothing renders, and none is empty", () => {
-  const asked = new Set([...rowKeys, ...heroKeys, ...boardKeys]);
+  const asked = new Set([...rowKeys, ...heroKeys, ...boardKeys, ...groupKeys]);
   for (const loc of LOCALES) {
     for (const [key, val] of labels[loc]) {
       assert.ok(asked.has(key), `${loc}.${key} is defined but no component asks for it`);

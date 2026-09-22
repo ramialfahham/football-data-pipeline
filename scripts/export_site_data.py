@@ -42,7 +42,8 @@ MARTS_DATASET = "marts"
 SEEDS_DATASET = "dbt_analytics"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
-                "leaderboards", "matchstats", "glossary", "landing", "competition_index")
+                "leaderboards", "matchstats", "glossary", "metric_groups", "landing",
+                "competition_index")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
@@ -1775,6 +1776,21 @@ def fetch_glossary(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
         return {"type": "glossary", "metrics": list(csv.DictReader(f))}
 
 
+def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
+    """metric_groups.json — the metric groups as the catalogue defines them: key and order, one
+    row per group, in order. The names per language are site copy keyed by the group key. A
+    selection from the seed, no BigQuery: the groups are the distinct `metric_group` values and
+    the order is the `metric_group_order` column, the same on every row of a group (the singular
+    test `assert_metric_group_order_is_one_per_group` holds that)."""
+    import csv
+
+    with open(seed_path, encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    groups = sorted({(int(r["metric_group_order"]), r["metric_group"]) for r in rows})
+    return {"type": "metric_groups",
+            "groups": [{"key": key, "order": order} for order, key in groups]}
+
+
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
@@ -1853,6 +1869,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "metrics.json", fetch_glossary())
         entries.append({"type": "glossary", "id": "metrics", "slug": None,
                         "path": "metrics.json", "sha256": sha})
+    if "metric_groups" in entities:
+        sha = write_file(out_root, "metric_groups.json", fetch_metric_groups())
+        entries.append({"type": "metric_groups", "id": "metric_groups", "slug": None,
+                        "path": "metric_groups.json", "sha256": sha})
     if "landing" in entities:
         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
         entries.append({"type": "landing", "id": "landing", "slug": None,

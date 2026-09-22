@@ -12,7 +12,8 @@
 | how to add or change a metric | [Adding or changing a metric](#adding-or-changing-a-metric) |
 | what CI will fail you on | [What the guards enforce](#what-the-guards-enforce) |
 | which model computes it | [How the layer works](#how-the-layer-works) |
-| how a metric is **displayed** (group, tier, order, row patterns) | `docs/wireframes/metrics_display.md` |
+| how a metric is **displayed** (tier, row order within a group, row patterns) | `docs/wireframes/metrics_display.md` |
+| what a metric **group** is — its key, its order, its names | [A group is defined once](#a-group-is-defined-once) |
 | which past matches form a window, and how it is labelled | `docs/metrics_context_model.md` |
 | what a metric is called on screen | the i18n layer — the seed holds only `label_i18n_key` and `label_en` |
 
@@ -35,9 +36,21 @@ is the team-side match count that leaves them out.
 
 **The seed defines; one model computes.** `metric_catalogue.csv` carries `metric_id`, `entity`,
 `label_i18n_key`, `label_en`, `description`, `base_relation`, `numerator_expr`, `denominator_expr`,
-`computation_kind`, `lower_is_better`, `format`, `metric_group`, `importance_tier`, `direction` and
-`interpretation`. It is the registry and the glossary — the UI glossary (`metrics.json`) is built
-from it.
+`computation_kind`, `lower_is_better`, `format`, `metric_group`, `importance_tier`, `direction`,
+`interpretation` and `metric_group_order`. It is the registry and the glossary — the UI glossary
+(`metrics.json`) is built from it.
+
+### A group is defined once
+
+A metric group is defined by three things and nowhere else: its **key**, the catalogue's
+`metric_group` value on every metric it holds; its **order**, the catalogue's `metric_group_order`,
+the same value on every row of the group and the positions 1..N across groups; and its **names**,
+site copy keyed by the group key (`metricGroups.<key>.label` in `site_v2/src/i18n/strings.ts`,
+one per language). The export publishes the key and order as `metric_groups.json`; every surface
+that shows a group heading reads the groups from that file and the heading from the copy. No
+document, seed or component spells a group's name or order on its own. Three checks hold it:
+`assert_metric_group_order_is_one_per_group` in the warehouse, `tests/test_metric_groups.py` on
+the committed export, and `site_v2/scripts/check-metric-labels.test.mjs` on the copy.
 
 Each metric is computed in exactly one place, so the same metric cannot be derived three different
 ways. The canonical models are:

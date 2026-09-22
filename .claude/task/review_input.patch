@@ -1,804 +1,1170 @@
-diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
-index 51ea40e4..8b10f884 100644
---- a/.claude/skills/validate-local/SKILL.md
-+++ b/.claude/skills/validate-local/SKILL.md
-@@ -151,6 +151,7 @@ was a live-looking claim about a pipeline that does not run.
- | `check_competition_type_seed.py` | `validate:governance` |
- | `check_copy_gate.py` | `validate:governance` |
- | `check_description_hygiene.py` | `validate:governance` |
-+| `check_relationships_coverage.py` | `validate:governance` (and its pytest on the real tree in `test:python`) |
- | `sync_metric_docs_blocks.py --check` | `validate:governance` |
- | `check_task_artifacts.py` | `validate:governance` (needs `GIT_DEPTH: 0`) |
- | `dbt deps` + `dbt parse` | `validate:governance` |
-@@ -161,6 +162,7 @@ was a live-looking claim about a pipeline that does not run.
- | gitleaks secret scan | `validate:secrets` |
- | `sqlfluff lint models` | `data:build:mr` |
- | `dbt build` + DQ tests | `data:build:mr` (MR) / `data:build:main` (main) |
-+| `check_yml_vs_projection.py --catalog dbt_project/target/catalog.json` | `data:build:main` only, after `dbt docs generate` (post-merge; needs the whole prod catalogue, which no MR job has) |
- 
- If a CI workflow adds or changes a gate, update this list so local validation
- stays a faithful mirror.
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 80b846a3..f0b517b6 100644
+index f0b517b6..1ffec37f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,96 +1,124 @@
--# Task contract — #109 step 3, MR C: every listed column described, and the rule that keeps it so
-+# Task contract — #109 step 3, MR D: the projection check, wired
+@@ -1,124 +1,127 @@
+-# Task contract — #109 step 3, MR D: the projection check, wired
++# Task contract — #152: metric groups defined in one place
  
  objective: >
--  Every column listed in a model `.yml` under `dbt_project/models` carries a description that names
--  its class (engineering_standards.md §3.1) and reads for a stranger (§2): the 359 blank ones get a
--  reference to an existing block, a new shared block, or inline prose. Then
--  `scripts/check_description_hygiene.py` gains the rule §3.5 names — a listed column with no
--  description is a finding — with its tests, and §3.5 says the mechanism is in place. Descriptions
--  and the gate only: no model SQL, no column added or removed, no number on the site moves.
-+  Every column a model `.yml` lists exists in that model's projection, checked against the prod
-+  catalogue after every merge: `scripts/check_yml_vs_projection.py --catalog <path>` (the reverse
-+  of `declare_missing_columns.py`), its pytest, one line in `data:build:main` right after
-+  `dbt docs generate`, one line in `validate:governance` running the relationships gate MR B
-+  built, one pin in `test_persist_docs_policy.py`, the `validate-local` table rows, and §3.5 saying
-+  both mechanisms are in place. No model SQL, no model yml, no seed; no number on the site moves.
+-  Every column a model `.yml` lists exists in that model's projection, checked against the prod
+-  catalogue after every merge: `scripts/check_yml_vs_projection.py --catalog <path>` (the reverse
+-  of `declare_missing_columns.py`), its pytest, one line in `data:build:main` right after
+-  `dbt docs generate`, one line in `validate:governance` running the relationships gate MR B
+-  built, one pin in `test_persist_docs_policy.py`, the `validate-local` table rows, and §3.5 saying
+-  both mechanisms are in place. No model SQL, no model yml, no seed; no number on the site moves.
++  A metric group is defined once: its key and its order in `metric_catalogue.csv` (`duels` becomes
++  `one_on_one`; a `metric_group_order` column, the same value on every row of a group), its names
++  as site copy keyed by the group key (`metricGroups.<key>.label`, EN/DE/FI), and tests binding the
++  three. The export publishes the groups (key, order) as a data file the site build reads; the
++  hard-coded `MetricGroup` type and `GROUP_ORDER` in `metricRows.ts` go; the two components that
++  print a group heading resolve it per locale from the copy, in the catalogue's order. #98 closes
++  with it. No metric moves group; no metric value, format or direction changes.
  
  refs: >
--  #109, "Step 3 — the mechanisms and the sweep", the MR C line, expanded in chat 2026-09-19 and
--  written to the issue. The rules: §2 (who a description is for, what it contains, the two bans,
--  the form — one block per shared name, referenced never restated; 1,024 rendered chars per
--  column) and §3.1 (the four classes) of `dbt_project/docs/engineering_standards.md`. Measured on
--  `main` at `f0490c5a`: 359 blank listed columns, 116 names, 75 models, in 15 yml files;
--  `league_code` is 49 of them and has two existing blocks; 30 repeated names have no inline text
--  anywhere; 18 repeated names have inline text in other models.
-+  #109, "Step 3 — the mechanisms and the sweep", the MR D line (plan approved in chat 2026-09-20,
-+  quoted in `decisions_taken`). `scripts/declare_missing_columns.py` for the helpers' shape
-+  (models on disk, listed columns, `_catalog_columns`, the partial-catalogue abort);
-+  `scripts/check_relationships_coverage.py` for the gate shape and the floors precedent;
-+  `dbt_project/docs/engineering_standards.md` §3.5. Measured read-only on this branch against
-+  the prod catalogue of the `data:build:main` after !213 (generated 2026-09-20 12:29 UTC): 101
-+  models on disk, 101 in the catalogue, 1,915 listed columns, 5 struct entries
-+  (`recent_meetings.*` in `shared.yml`), 0 absent — the check lands green.
-+  `check_relationships_coverage.py` exits 0 on the tree today, printing its 3 soft links.
+-  #109, "Step 3 — the mechanisms and the sweep", the MR D line (plan approved in chat 2026-09-20,
+-  quoted in `decisions_taken`). `scripts/declare_missing_columns.py` for the helpers' shape
+-  (models on disk, listed columns, `_catalog_columns`, the partial-catalogue abort);
+-  `scripts/check_relationships_coverage.py` for the gate shape and the floors precedent;
+-  `dbt_project/docs/engineering_standards.md` §3.5. Measured read-only on this branch against
+-  the prod catalogue of the `data:build:main` after !213 (generated 2026-09-20 12:29 UTC): 101
+-  models on disk, 101 in the catalogue, 1,915 listed columns, 5 struct entries
+-  (`recent_meetings.*` in `shared.yml`), 0 absent — the check lands green.
+-  `check_relationships_coverage.py` exits 0 on the tree today, printing its 3 soft links.
++  #152 (the CPO's ruling on #129, 2026-09-16: no second seed; the names table, quoted in
++  `decisions_taken` by reference); the order ruling in chat 2026-09-21 (quoted in
++  `decisions_taken`). `docs/metric_layer.md` (the catalogue is the single source);
++  `docs/wireframes/metrics_display.md` (LOCKED; owns row order within a group, and until now
++  group order); `docs/wireframes/99_gaps_register.md` GAP-09. Measured on `main` at `f1931742`:
++  87 catalogue rows, 10 distinct groups, `duels` on 10 rows (2 team, 8 player); the site's
++  `MetricGroup` union has 7 English words; `TeamPerformance.astro:89,110` and
++  `MetricComparison.astro:40` print the raw group string on every locale.
  
  scope_paths:
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/models/3_core/core.yml
--  - dbt_project/models/4_intermediate/domestic_league/matchday/int_matchday.yml
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
--  - dbt_project/models/4_intermediate/shared/int_legs.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_player_club_season.yml
--  - dbt_project/models/4_intermediate/shared/int_player_profile.yml
--  - dbt_project/models/4_intermediate/shared/int_player_season__team.yml
--  - dbt_project/models/4_intermediate/shared/int_player_season_position.yml
--  - dbt_project/models/4_intermediate/shared/int_season_record.yml
--  - dbt_project/models/4_intermediate/shared/int_team_profile.yml
--  - dbt_project/models/4_intermediate/shared/team/int_team_market_value.yml
--  - dbt_project/models/4_intermediate/world_championship/wc/int_wc.yml
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/5_marts/world_championship/world_championship.yml
--  - dbt_project/models/docs/shared_columns.md
--  - scripts/check_description_hygiene.py
--  - tests/test_description_hygiene.py
-+  - scripts/check_yml_vs_projection.py
-+  - tests/test_check_yml_vs_projection.py
-+  - .gitlab-ci.yml
-+  - tests/test_persist_docs_policy.py
-+  - .claude/skills/validate-local/SKILL.md
-   - dbt_project/docs/engineering_standards.md
-+  - scripts/check_relationships_coverage.py
-+  - tests/test_check_relationships_coverage.py
+-  - scripts/check_yml_vs_projection.py
+-  - tests/test_check_yml_vs_projection.py
+-  - .gitlab-ci.yml
+-  - tests/test_persist_docs_policy.py
+-  - .claude/skills/validate-local/SKILL.md
+-  - dbt_project/docs/engineering_standards.md
+-  - scripts/check_relationships_coverage.py
+-  - tests/test_check_relationships_coverage.py
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/tests/assert_metric_group_order_is_one_per_group.sql
++  - scripts/export_site_data.py
++  - site_v2/src/data/metric_groups.json
++  - site_v2/src/data/README.md
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/lib/metricRows.ts
++  - site_v2/src/components/team/TeamPerformance.astro
++  - site_v2/src/components/fixture/MetricComparison.astro
++  - site_v2/scripts/check-metric-labels.test.mjs
++  - tests/test_metric_groups.py
++  - design-mocks/gen_competition_teams.py
++  - docs/metric_layer.md
++  - docs/wireframes/metrics_display.md
++  - docs/wireframes/99_gaps_register.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
    - .claude/active_work.md
    - docs/tracker/gitlab_snapshot.md
  
-+protected_override: >
-+  `.gitlab-ci.yml` is a protected path. The authority is the dated plan approval recorded in
-+  `decisions_taken` below — the MR D line on #109, approved in chat on 2026-09-20, which names
-+  the two CI lines and calls this a governance MR. The commit message and the MR head repeat it
-+  under `Locked files`; his merge is the approval (working_agreement §11).
-+
+-protected_override: >
+-  `.gitlab-ci.yml` is a protected path. The authority is the dated plan approval recorded in
+-  `decisions_taken` below — the MR D line on #109, approved in chat on 2026-09-20, which names
+-  the two CI lines and calls this a governance MR. The commit message and the MR head repeat it
+-  under `Locked files`; his merge is the approval (working_agreement §11).
+-
  impact_map: >
--  writers: none — no model SQL or seed changes; yml descriptions and docs blocks only, plus the
--  gate script and its tests. Under `persist_docs`, a description change is `state:modified`, so
--  `data:build:mr` rebuilds every touched model and everything downstream of it into
--  `ci_mr<IID>_*`, once per pipeline (this MR touches most of the warehouse's yml, so most of it).
--  downstream: no column or value changes anywhere; the only consumers of a description are
--  BigQuery's column metadata, the dbt docs page and `catalog.json` (§2 "Who reads these").
--  layer_rules: none touched. deploy_order: nothing to sequence; the nightly pushes the new
--  descriptions with its next build. blast_radius: none on data. On the gate surface:
--  `check_description_hygiene.py` runs in `validate:governance` and in the stop gate's FAST_GATES,
--  so the new column rule fires on every MR and every turn end from the moment it lands — which
--  is why it lands last in the branch, after the tree is at zero blanks.
-+  writers: none — no raw writer, no dbt model, no seed, no export script. The structural surface
-+  is the protected CI file and the two gate scripts it runs.
-+  what fires it: line 1 (`check_yml_vs_projection.py`) runs inside `data:build:main`, which runs
-+  on a push to `main` whose changes match `data_paths_prod`, or as a manual web button; never on
-+  a schedule (`*not_on_schedule` first) and never in an MR pipeline — so a hit turns `main` red
-+  after prod is built and tested, and costs signal, never data. Line 2
-+  (`check_relationships_coverage.py`) runs inside `validate:governance`, every non-schedule
-+  pipeline, MR and `main` alike.
-+  what imports the file: `tests/test_governance_hooks.py` (the `if:` classifier raises on an
-+  unknown spelling — no `rules:` change here; the schedule guard checks every job — none added),
-+  `tests/test_persist_docs_policy.py` (`data:build:main`'s shape: docs generated once and only
-+  there, `--static --target prod`, no `allow_failure`, the catalogue published — all untouched;
-+  gains the pin that the projection check runs in that job after the docs line),
-+  `tests/test_governance_doc_parity.py` (keeps the file in the protected set). The projection
-+  check reads `dbt_project/target/catalog.json`, which `dbt docs generate` writes two lines
-+  earlier in the same job, so in CI it can never see a partial catalogue; its partial-catalogue
-+  abort exists for a dev machine. The `data:build:main` script ends inside `dbt_project/`, so
-+  the line starts with `cd "$CI_PROJECT_DIR"`; the artifact paths are relative to
-+  `CI_PROJECT_DIR` already and do not move.
-+  what stops being enforced if it is wrong: nothing that is enforced today — both jobs keep
-+  every existing line verbatim. What starts: a listed column that the model no longer emits is a
-+  red `data:build:main`; a foreign key without `relationships` or a declared soft link is a red
-+  `validate:governance` on every MR — a second place, since MR B's pytest already runs that gate
-+  on the real tree inside `test:python`.
-+  failure behaviour: no `allow_failure` on either job; a red line fails the job like any other.
-+  Both scripts are offline, stdlib plus PyYAML (already in `requirements.txt`), under a second
-+  each. No image, dependency or `rules:` change. Not in it: `stop_gate.py`'s FAST_GATES, a
-+  second protected path the issue line excludes.
-+  layer_rules: none touched (`check_layer_contract.py` reads models, not this).
-+  deploy_order: nothing reaches a host or a dataset; the nightly (Cloud Scheduler) is untouched.
-+  blast_radius: none on data — 0 of 1,915 listed columns absent, so the first run on `main` is
-+  green; `check_relationships_coverage.py` exits 0 today, so `validate:governance` cannot go red
-+  on the merge itself. Recurring cost: none — two offline lines.
+-  writers: none — no raw writer, no dbt model, no seed, no export script. The structural surface
+-  is the protected CI file and the two gate scripts it runs.
+-  what fires it: line 1 (`check_yml_vs_projection.py`) runs inside `data:build:main`, which runs
+-  on a push to `main` whose changes match `data_paths_prod`, or as a manual web button; never on
+-  a schedule (`*not_on_schedule` first) and never in an MR pipeline — so a hit turns `main` red
+-  after prod is built and tested, and costs signal, never data. Line 2
+-  (`check_relationships_coverage.py`) runs inside `validate:governance`, every non-schedule
+-  pipeline, MR and `main` alike.
+-  what imports the file: `tests/test_governance_hooks.py` (the `if:` classifier raises on an
+-  unknown spelling — no `rules:` change here; the schedule guard checks every job — none added),
+-  `tests/test_persist_docs_policy.py` (`data:build:main`'s shape: docs generated once and only
+-  there, `--static --target prod`, no `allow_failure`, the catalogue published — all untouched;
+-  gains the pin that the projection check runs in that job after the docs line),
+-  `tests/test_governance_doc_parity.py` (keeps the file in the protected set). The projection
+-  check reads `dbt_project/target/catalog.json`, which `dbt docs generate` writes two lines
+-  earlier in the same job, so in CI it can never see a partial catalogue; its partial-catalogue
+-  abort exists for a dev machine. The `data:build:main` script ends inside `dbt_project/`, so
+-  the line starts with `cd "$CI_PROJECT_DIR"`; the artifact paths are relative to
+-  `CI_PROJECT_DIR` already and do not move.
+-  what stops being enforced if it is wrong: nothing that is enforced today — both jobs keep
+-  every existing line verbatim. What starts: a listed column that the model no longer emits is a
+-  red `data:build:main`; a foreign key without `relationships` or a declared soft link is a red
+-  `validate:governance` on every MR — a second place, since MR B's pytest already runs that gate
+-  on the real tree inside `test:python`.
+-  failure behaviour: no `allow_failure` on either job; a red line fails the job like any other.
+-  Both scripts are offline, stdlib plus PyYAML (already in `requirements.txt`), under a second
+-  each. No image, dependency or `rules:` change. Not in it: `stop_gate.py`'s FAST_GATES, a
+-  second protected path the issue line excludes.
+-  layer_rules: none touched (`check_layer_contract.py` reads models, not this).
+-  deploy_order: nothing reaches a host or a dataset; the nightly (Cloud Scheduler) is untouched.
+-  blast_radius: none on data — 0 of 1,915 listed columns absent, so the first run on `main` is
+-  green; `check_relationships_coverage.py` exits 0 today, so `validate:governance` cannot go red
+-  on the merge itself. Recurring cost: none — two offline lines.
++  writers: `dbt_project/seeds/metric_catalogue.csv` is a seed — its only writer is this repo. The
++  rename touches the `metric_group` value on 10 rows and adds one column; no `metric_id`,
++  expression, format or direction changes, so every model that reads the catalogue computes the
++  same numbers.
++  downstream, measured on this branch with the scratchpad profile:
++  `dbt ls --select metric_catalogue+ --resource-type model` → no output (no model reads the
++  seed); `dbt ls --select metric_catalogue+ --resource-type test` → the seed's own schema tests
++  (7 `accepted_values_metric_catalogue_*`, `not_null_*`, `metric_catalogue_label_en_unique_within_entity`)
++  and the singular tests `assert_form_window_rates_inputs_covered`,
++  `assert_metric_catalogue_expr_resolvable`, `assert_metric_catalogue_unique_by_entity`,
++  `assert_metric_direction_lower_is_better_agree`, `assert_metric_group_order_is_one_per_group`
++  (new), `assert_metric_meaning_complete`, `assert_no_uncatalogued_season_metric`,
++  `assert_season_rates_inputs_covered`. Of those only
++  `accepted_values_metric_catalogue_metric_group__…` reads `metric_group` (updated in the same
++  MR) and the new test reads `metric_group_order`; the rest read expressions, ids and meaning
++  columns. `grep -rn "metric_group" dbt_project/models dbt_project/macros` → 0 hits;
++  `sync_metric_docs_blocks.py` reads `description` only. Under `persist_docs` the seed rebuilds in
++  `ci_mr<IID>_*` once per pipeline — cents.
++  consumption: `scripts/export_site_data.py` gains a `metric_groups` entity (seed → JSON, no
++  BigQuery, the `fetch_glossary` precedent); the glossary entity (`metrics.json`, not a committed
++  build input) carries the renamed key and the new column through unchanged code. The site reads
++  `site_v2/src/data/metric_groups.json` (a committed root file, not gitignored) for keys and
++  order, and `strings.ts` for names. The fixture comparison and the team page reorder their
++  groups to the catalogue's order — the CPO's choice, quoted below.
++  layer_rules: none touched; no model, no schema, `check_layer_contract.py` unaffected.
++  deploy_order: nothing until `deploy:export` (manual, `teams,fixtures`) or #156; the committed
++  sample carries the new file so the build is self-contained on the merge.
++  blast_radius: no number on the site moves. The group heading text on DE/FI pages changes from
++  English to the locale's name (#98), and group order on two pages changes as ruled.
++
++acceptance_criteria:
++  - On the built DE team page (`site_v2/dist/de/teams/<slug of 33>/index.html`), the Performance tab's group headings read, in this order and only for groups that have rows: Tore · Schüsse · Pässe · Eins-gegen-eins · Defensive · Torwart · Standards — read as textContent from the built HTML.
++  - On the built FI fixture page of a committed sample fixture with both windows populated, the comparison's group headings are the Finnish names from the #152 table (Maalit · Laukaukset · Syötöt · Yksi vastaan yksi · Puolustus · Maalivahti · Erikoistilanteet, only groups with rows), in that order.
++  - No built page under `site_v2/dist` carries "Duels", "Goals", "Shooting", "Defending", "Passing", "Set pieces" or "Goalkeeping" as a group heading on a DE or FI page (the group-heading elements only; metric row labels keep their own words).
  
  decisions_taken: >
--  §2 and §3.1 applied as written. Three forms, chosen per name from the SQL: (1) `league_code`
--  references one of its two existing blocks per site — `league_code` where the value is the
--  competition the row belongs to, `league_code_ingest_provenance` where it is the pull that
--  surfaced a row of a global entity (the same choice the 33 already-referenced sites made);
--  (2) a NEW shared block in `shared_columns.md` for a repeated name only where its meaning is one
--  thing at every site — read first — and where every existing inline site of that name converts
--  to the reference in the same MR, because the hygiene gate forbids restating a block; (3) inline
--  prose everywhere else. A `not_null` that a "NULL unless / when …" sentence contradicts comes
--  off the column; no other test moves. The block list with the sites each reaches and the
--  `league_code` split go on the MR head.
-+  The MR D line on #109, approved in chat on 2026-09-20 and written to the issue, is the spec and
-+  the authority for the protected edit: "MR D — the projection check, wired (plan approved in
-+  chat 2026-09-20 …). `scripts/check_yml_vs_projection.py --catalog <path>` … Two lines in
-+  `.gitlab-ci.yml`: the projection check in `data:build:main` right after `dbt docs generate`
-+  (post-merge, where the catalogue is whole; a red there costs signal, never data — prod is built
-+  and tested first), and `check_relationships_coverage.py` in `validate:governance`; one pin in
-+  `test_persist_docs_policy.py` … `validate-local`'s CI table gains the row; §3.5 says both are
-+  in place. A governance MR: `protected_override` resting on this approval, an impact map of the
-+  guard, CTO and platform at opus. Not in it: `stop_gate.py`'s FAST_GATES."
+-  The MR D line on #109, approved in chat on 2026-09-20 and written to the issue, is the spec and
+-  the authority for the protected edit: "MR D — the projection check, wired (plan approved in
+-  chat 2026-09-20 …). `scripts/check_yml_vs_projection.py --catalog <path>` … Two lines in
+-  `.gitlab-ci.yml`: the projection check in `data:build:main` right after `dbt docs generate`
+-  (post-merge, where the catalogue is whole; a red there costs signal, never data — prod is built
+-  and tested first), and `check_relationships_coverage.py` in `validate:governance`; one pin in
+-  `test_persist_docs_policy.py` … `validate-local`'s CI table gains the row; §3.5 says both are
+-  in place. A governance MR: `protected_override` resting on this approval, an impact map of the
+-  guard, CTO and platform at opus. Not in it: `stop_gate.py`'s FAST_GATES."
++  The CPO's rulings this contract rests on. (1) #129 review, 2026-09-16, written to #152: no
++  second seed — the catalogue keeps the assignment, the group's names are site copy keyed by the
++  group key, the order is a catalogue column, tests bind the three; the ten names EN/DE/FI as the
++  issue's table. (2) Chat 2026-09-21, to the blinded question "which single order goes into the
++  catalogue" with the 2×2 (the issue's table order vs the locked contract's order): "A" — the
++  issue's table as it reads — "We will look into the fixture and team pages again anyway." So
++  `metric_group_order` is goals 1, shooting 2, passing 3, one_on_one 4, defending 5,
++  discipline 6, goalkeeping 7, set_pieces 8, outcomes 9, playing_time 10, and every surface
++  renders groups in it; the locked display contract gets a one-line note that group order now
++  comes from the catalogue, row order within a group stays there.
  
--  The gate: a column-coverage check beside `_object_coverage` in `check_description_hygiene.py`
--  — every entry under a model's `columns:` has a non-empty description, a `{{ doc() }}` reference
--  counting as the existing walk resolves it; `MIN_LISTED_COLUMNS` as an anti-vacuous floor (the
--  `MIN_DESCRIPTIONS` pattern); findings name model and column. No new mechanism: the script, its
--  wiring in `validate:governance` and the stop gate, and its test file all exist; this is one
--  more rule in them. No recurring cost: the check is offline, well under a second.
-+  Taken here as implementation. The check is self-contained: it copies the SHAPE of
-+  `declare_missing_columns.py`'s helpers and imports nothing from it — a CI gate must not hang
-+  on a generator script's module constants (`IN_SCOPE_DIRS` there is three layers; this check
-+  covers every model yml in every layer, because a staging or base yml can list a dead column
-+  too). A `parent.field` struct entry is matched by its full path, not by its parent: the
-+  issue line's "or, for a `parent.field` struct entry, its parent" rested on the premise that
-+  the catalogue holds only the parent, and the prod catalogue disproves it — dbt-bigquery 1.7.2's
-+  catalogue macro reads `INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`, and `mart_head_to_head` holds
-+  `recent_meetings` plus its five leaf paths (which is how `declare_missing_columns.py` wrote
-+  the dotted entries into `shared.yml` in the first place). Full-path matching is strictly
-+  stronger (a leaf present implies its parent present) and catches a mistyped or removed field;
-+  the parent rule would have let one through. A yml block for a model with no `.sql` on disk is
-+  a finding (`dbt parse` only warns on it, and `check_description_hygiene.py` walks the `.sql`
-+  files, so nothing else catches it). Models match by name, columns case-insensitively, as
-+  `declare_missing_columns.py` and BigQuery do. Floors `MIN_MODELS = 50` and
-+  `MIN_LISTED_COLUMNS = 800`, well under 101 and 1,915 and well over zero, the
-+  `check_relationships_coverage.py` precedent. The partial-catalogue abort is the same rule as
-+  `declare_missing_columns.py`'s: any model on disk absent from the catalogue refuses the run.
-+  The relationships CI line gets no new pytest pin: the issue names one pin, for the projection
-+  line, and the relationships gate is already run on the real tree by its own pytest in
-+  `test:python` on every MR; the CI line is listed in the `validate-local` table. No new
-+  mechanism beyond the issue line; no recurring cost.
+-  Taken here as implementation. The check is self-contained: it copies the SHAPE of
+-  `declare_missing_columns.py`'s helpers and imports nothing from it — a CI gate must not hang
+-  on a generator script's module constants (`IN_SCOPE_DIRS` there is three layers; this check
+-  covers every model yml in every layer, because a staging or base yml can list a dead column
+-  too). A `parent.field` struct entry is matched by its full path, not by its parent: the
+-  issue line's "or, for a `parent.field` struct entry, its parent" rested on the premise that
+-  the catalogue holds only the parent, and the prod catalogue disproves it — dbt-bigquery 1.7.2's
+-  catalogue macro reads `INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`, and `mart_head_to_head` holds
+-  `recent_meetings` plus its five leaf paths (which is how `declare_missing_columns.py` wrote
+-  the dotted entries into `shared.yml` in the first place). Full-path matching is strictly
+-  stronger (a leaf present implies its parent present) and catches a mistyped or removed field;
+-  the parent rule would have let one through. A yml block for a model with no `.sql` on disk is
+-  a finding (`dbt parse` only warns on it, and `check_description_hygiene.py` walks the `.sql`
+-  files, so nothing else catches it). Models match by name, columns case-insensitively, as
+-  `declare_missing_columns.py` and BigQuery do. Floors `MIN_MODELS = 50` and
+-  `MIN_LISTED_COLUMNS = 800`, well under 101 and 1,915 and well over zero, the
+-  `check_relationships_coverage.py` precedent. The partial-catalogue abort is the same rule as
+-  `declare_missing_columns.py`'s: any model on disk absent from the catalogue refuses the run.
+-  The relationships CI line gets no new pytest pin: the issue names one pin, for the projection
+-  line, and the relationships gate is already run on the real tree by its own pytest in
+-  `test:python` on every MR; the CI line is listed in the `validate-local` table. No new
+-  mechanism beyond the issue line; no recurring cost.
++  Taken as implementation: the site reads the groups from an exported data file
++  (`metric_groups.json`, `[{key, order}]`), not from the seed directly — the consumption-layer
++  rule: the export is the site's source, the same path `competition_index.json` takes; the
++  entity needs no BigQuery, as the glossary does not. The names live inside the existing
++  `METRIC_LABELS_EN/DE/FI` maps as `metricGroups.<key>.label` — the issue's "the way
++  `label_i18n_key` works for a metric" — so `check_copy_gate.py` and
++  `check-metric-labels.test.mjs` govern them with no change to either gate, and `metricLabel()`
++  resolves them. The column is named `metric_group_order` as the issue says, not GAP-09's
++  `group_display_order` (the issue is newer and the CPO's); the register row is corrected. The
++  mock generator's Finnish group names (Laukominen, Syöttäminen, Puolustaminen, Maalivahtipeli)
++  give way to the issue's table (Laukaukset, Syötöt, Puolustus, Maalivahti); the approved renders
++  are not regenerated. The singular test carries `store_failures` (§3.4) at `error`: a group with
++  two orders, an order shared by two groups, or an order outside 1..N is a wrong page. No new
++  mechanism: one export entity, one seed column, one singular test, one pytest, three assertions
++  in an existing build test. No recurring cost. The seed's `column_types` pins
++  `metric_group_order: int64` beside the existing `importance_tier: int64`, so the type is
++  declared, not inferred.
  
  decisions_reserved:
--  - none: the plan on #109 names this MR; the block-or-inline choice per name is decided from the
--    SQL by the widest-call-site rule and listed on the MR head for his check; his merge is the
--    ruling on any sentence.
-+  - none: the MR D line on #109 names every file and both CI lines; the measurement shows the
-+    first run green; his merge is the ruling.
+-  - none: the MR D line on #109 names every file and both CI lines; the measurement shows the
+-    first run green; his merge is the ruling.
++  - none: the names and the order are ruled; the per-row group assignment is unchanged (the issue's How: "the only wrong bucket was dribbles under duels, resolved by the group's new name").
  
  done_when:
--  - `python scripts/check_description_hygiene.py` exits 1 on `main` (359 column findings once the rule exists) and 0 on the branch.
--  - `python -m pytest tests/test_description_hygiene.py -q` green; a synthetic blank column red, text green, a `{{ doc() }}` reference green, below `MIN_LISTED_COLUMNS` red.
--  - Mutation: one description blanked in a yml → the script exits 1 naming model and column; restored → 0.
--  - `python scripts/declare_missing_columns.py --wire-shared-docs --dry-run`: nothing to wire; withheld only `league_code` (its two blocks, by design).
--  - `.venv/Scripts/dbt.exe parse` green with the scratchpad profile; no rendered description over 1,024 characters (the script measures it).
--  - `data:build:mr` green.
-+  - `python scripts/check_yml_vs_projection.py --catalog <prod catalogue>` exits 0 with the census `101 models, 1915 listed columns, 0 absent`; against the dev `dbt_project/target/catalog.json` it exits 1 with the partial-catalogue abort.
-+  - Mutation: one fake column entry added to a model yml → exit 1 naming the yml, model and column; restored → 0. `MIN_LISTED_COLUMNS` raised above 1,915 → exit 1.
-+  - `python -m pytest tests/test_check_yml_vs_projection.py tests/test_persist_docs_policy.py tests/test_governance_hooks.py -q` green; the new pin seen RED against the pre-edit CI file first.
-+  - `python scripts/check_relationships_coverage.py` exits 0 on the branch.
-+  - The validate-local gates green; `data:build:mr` green on the MR.
+-  - `python scripts/check_yml_vs_projection.py --catalog <prod catalogue>` exits 0 with the census `101 models, 1915 listed columns, 0 absent`; against the dev `dbt_project/target/catalog.json` it exits 1 with the partial-catalogue abort.
+-  - Mutation: one fake column entry added to a model yml → exit 1 naming the yml, model and column; restored → 0. `MIN_LISTED_COLUMNS` raised above 1,915 → exit 1.
+-  - `python -m pytest tests/test_check_yml_vs_projection.py tests/test_persist_docs_policy.py tests/test_governance_hooks.py -q` green; the new pin seen RED against the pre-edit CI file first.
+-  - `python scripts/check_relationships_coverage.py` exits 0 on the branch.
+-  - The validate-local gates green; `data:build:mr` green on the MR.
++  - `python scripts/export_site_data.py --entities metric_groups --out <scratch>` writes a `metric_groups.json` byte-identical to the committed one.
++  - `python -m pytest tests/test_metric_groups.py tests/test_export_site_data.py tests/test_metric_bindings.py -q` green; the regen pin seen red against a scratch CSV with one order duplicated.
++  - `cd site_v2 && npm test` green; the group assertions seen red with one FI label removed.
++  - `python scripts/check_copy_gate.py` exits 0; seen red with one DE group label removed.
++  - `.venv/Scripts/dbt.exe parse` green with the scratchpad profile; the singular test lints clean from the repo root.
++  - `npm run build` on the committed sample; `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0; the three acceptance criteria demonstrated from `dist` in `acceptance_evidence.md`.
++  - `data:build:mr` green.
  
--amendments: (none)
-+amendments:
-+  - 2026-09-21: + `scripts/check_relationships_coverage.py`, + `tests/test_check_relationships_coverage.py` — authority: the standing rule that a correction replaces the old text (CLAUDE.md "Reasoning lives in git"; memory "corrections replace"), and the issue's How ("§3.5 says both are in place"); content: docstring prose only — the script's module docstring and its real-tree test's docstring both say the `validate:governance` line is "a separate governance change" / "until the script has its own line", which this MR makes false. No code moves in either file.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index c9454b54..51455910 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -410,6 +410,11 @@ validate:governance:
-     # it. MR1-MR4 rewrote all 618 against engineering_standards.md section 2; this keeps them
-     # that way. Offline, parses YAML off disk, well under a second.
-     - python scripts/check_description_hygiene.py
-+    # Key-graph coverage: every foreign-key `_sk` column carries a `relationships` test or a
-+    # declared soft link (engineering_standards.md section 3.1; the mechanism section 3.5 names).
-+    # Its own pytest already runs it on the real tree in `test:python`; this is the governance
-+    # job's copy, so the rule is enforced where the other yml rules are. Offline, under a second.
-+    - python scripts/check_relationships_coverage.py
-     # Metric docs-block drift. `dbt_project/models/docs/metric_columns.md` is GENERATED from
-     # `dbt_project/seeds/metric_catalogue.csv`, and 501 model columns reference its blocks. With
-     # `persist_docs` on, that generated text is the only definition BigQuery ever sees — so a
-@@ -863,8 +868,14 @@ data:build:main:
-     # `--static` embeds the manifest and catalog into one self-contained HTML file, which is what
-     # scripts/build_match_preview_site.sh:57-63 consumed before the migration.
-     - dbt docs generate --static --target prod
-+    # Every column a model yml lists exists in the model's projection, read from the catalog.json
-+    # the line above just wrote. HERE for the same reason the docs are: this is the only job whose
-+    # catalogue is the whole prod warehouse, and prod is built and tested by now, so a red costs
-+    # signal, never data. The script refuses a partial catalogue outright, which is what any other
-+    # job would hand it. Offline, under a second. The rule is engineering_standards.md section 3.5.
-+    - cd "$CI_PROJECT_DIR" && python scripts/check_yml_vs_projection.py --catalog dbt_project/target/catalog.json
-   # Published so the docs can be read without a dbt install. Paths are relative to
--  # CI_PROJECT_DIR even though the script ends inside dbt_project/.
-+  # CI_PROJECT_DIR whatever directory the script ends in.
-   artifacts:
-     paths:
-       - dbt_project/target/static_index.html
-diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
-index 2230d601..40439047 100644
---- a/dbt_project/docs/engineering_standards.md
-+++ b/dbt_project/docs/engineering_standards.md
-@@ -314,11 +314,14 @@ has not landed is a rule in progress, and the issue that owns it says so:
- - the rate guard — the two generated dbt tests of §3.2, in place; the NULL sentence every team
-   rate's description must carry is composed by `scripts/sync_metric_docs_blocks.py` from the
-   catalogue's denominator, not typed per rate;
--- every documented column exists in the model's projection — a check beside the hygiene script;
-+- every documented column exists in the model's projection —
-+  `scripts/check_yml_vs_projection.py`, run in `data:build:main` right after `dbt docs generate`
-+  against the catalogue it writes (the one job whose catalogue is the whole warehouse; a
-+  partial catalogue is refused, never judged); in place;
- - every foreign key carries a `relationships` test or a declared soft link —
-   `scripts/check_relationships_coverage.py`, which resolves every `_sk` column to its parent by
--  name, lists the foreign keys without either, and prints the soft links; in place, to be run in
--  `validate:governance`.
-+  name, lists the foreign keys without either, and prints the soft links; in place, run in
-+  `validate:governance` and by its pytest on every merge request.
+ amendments:
+-  - 2026-09-21: + `scripts/check_relationships_coverage.py`, + `tests/test_check_relationships_coverage.py` — authority: the standing rule that a correction replaces the old text (CLAUDE.md "Reasoning lives in git"; memory "corrections replace"), and the issue's How ("§3.5 says both are in place"); content: docstring prose only — the script's module docstring and its real-tree test's docstring both say the `validate:governance` line is "a separate governance change" / "until the script has its own line", which this MR makes false. No code moves in either file.
++  - 2026-09-21: the first two acceptance criteria corrected — authority: the order ruling quoted in `decisions_taken` (goalkeeping 7, set_pieces 8); content: as first written they listed Standards/Erikoistilanteet before Torwart/Maalivahti, transposing positions 7 and 8 of the ruled order. The built page showed the ruled order; the criterion was the error. No path added, no criterion softened.
++  - 2026-09-21: + `.claude/task/rendered_page_evidence.md` — authority: repo practice, `.claude/agents/bi-analyst-reviewer.md` item 4 (the artifact is required for a rendering-affecting `site_v2/src/**` change, produced before that reviewer runs); content: the group headings measured in headless Chromium at 375 and 700 px on the DE and FI team and fixture pages — text, box, overflow, page width — with screenshots in the session scratchpad. The reviewer's round-1 finding: the file on disk was #150's.
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index f06237d4..63f4fc0a 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -1,88 +1,88 @@
+-metric_id,entity,label_i18n_key,label_en,description,base_relation,numerator_expr,denominator_expr,computation_kind,lower_is_better,format,metric_group,importance_tier,direction,interpretation
+-league_rank,team,metrics.league_rank.label,League position,Current league standing. Sourced from standings snapshot; not derived from match legs.,,,,sourced,true,integer,outcomes,1,lower_better,League position - 1 = top of the table
+-points_won,team,metrics.points_won.label,Points won,"Total points earned: 3 per win, 1 per draw, 0 per loss.",int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),,expression,false,points_fraction,outcomes,1,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss)
+-goals_per_match,team,metrics.goals_per_match.label,Ø Goals,Average goals scored per match.,int_legs__team_match,sum(goals_for),count(*),expression,false,decimal_1,goals,1,higher_better,Attacking output - goals scored per game; high = a potent attack
+-goals_against_per_match,team,metrics.goals_against_per_match.label,Ø Goals against,Average goals conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,true,decimal_1,goals,1,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence
+-clean_sheets_pct,team,metrics.clean_sheets_pct.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back
+-goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls
+-goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced
+-goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency_pct.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output
+-shots_per_match,team,metrics.shots_per_match.label,Ø Shots,"Average total shots attempted per match with available team stats. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),expression,false,decimal_1,shooting,2,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality)
+-shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,% Shots on goal,Share of shots that were on goal. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),expression,false,percent,shooting,2,higher_better,Striking precision - share of shots on goal
+-shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,% Shots from box,Share of shots taken from inside the penalty area. Null when shots_total is zero.,int_legs__team_match,sum(shots_inside_box),sum(shots_total),expression,false,percent,shooting,2,higher_better,Chance quality - share of shots from inside the box; high = better positions
+-shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Ø Shots on goal,"Average shots on target per match, counted over the games whose shots-on-target data is present rather than every game played.",int_legs__team_match,sum(shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target threat - efforts testing the keeper; high = sustained threat
+-finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,% Goals per shot on goal,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),expression,false,percent,shooting,1,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless
+-finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,% Goals per shot on goal,"Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes own goals) per shot on target. In [0, 1] - penalties are excluded because they are not finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].",int_legs__player_match,sum(goals_total - goals_penalty),sum(shots_on),expression,false,percent,shooting,2,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher
+-duels_per_match,team,metrics.duels_per_match.label,Ø Duels,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),expression,false,decimal_0,duels,2,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure)
+-duels_won_pct,team,metrics.duels_won_pct.label,% Duels won,Duel win rate. Null when duels_total is zero. Aggregated from player stats.,int_legs__team_from_players,sum(duels_won),sum(duels_total),expression,false,percent,duels,2,higher_better,Duel success - share of duels won; high = wins the physical battle
+-duels_won_player_pct,player,playerMetrics.duels.wonPct,% Duels won,Duel win rate. Null when duels_total is zero.,int_legs__player_match,sum(duels_won),sum(duels_total),expression,false,percent,duels,1,higher_better,Duel success - share of 1v1 contests won; high = wins the physical battle
+-defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Ø Defensive actions,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),expression,false,decimal_1,defending,2,higher_better,Defensive activity - tackles + interceptions + blocks per game; high = an active ball-winning defence (volume; can also reflect a side often defending)
+-tackles_per_match,team,metrics.tackles_per_match.label,Ø Tackles,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(tackles),count(*),expression,false,decimal_1,defending,3,higher_better,Tackling volume - more ball-winning challenges per game is better all else equal; high can also reflect a side that defends more
+-interceptions_per_match,team,metrics.interceptions_per_match.label,Ø Interceptions,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(interceptions),count(*),expression,false,decimal_1,defending,3,higher_better,Interception volume - more passes read and cut out per game is better all else equal; high can also reflect a side that defends more
+-blocks_per_match,team,metrics.blocks_per_match.label,Ø Blocks,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(blocks),count(*),expression,false,decimal_1,defending,3,higher_better,Block volume - more shots blocked per game is better all else equal; high can also reflect a side under sustained pressure
+-passes_per_match,team,metrics.passes_per_match.label,Ø Passes,Average passes attempted per match with available team stats.,int_legs__team_match,sum(passes_total),count(*),expression,false,decimal_0,passing,3,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept)
+-passes_accuracy_pct,team,metrics.passes_accuracy_pct.label,% Pass accuracy,Share of passes successfully completed. Null when passes_total is zero.,int_legs__team_match,sum(passes_accurate),sum(passes_total),expression,false,percent,passing,2,higher_better,Passing security - completion rate; high = keeps the ball well
+-passes_key_per_match,team,metrics.passes_key_per_match.label,Ø Key passes,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(key_passes),count(*),expression,false,decimal_1,passing,2,higher_better,Creativity - passes leading to a shot; high = creates chances
+-corners_per_match,team,metrics.corners_per_match.label,Ø Corners,Average corner kicks won per match with available team stats.,int_legs__team_match,sum(corner_kicks),count(*),expression,false,decimal_1,set_pieces,3,higher_better,Corners won - high = sustained attacking pressure (a weak proxy)
+-corners_against_per_match,team,metrics.corners_against_per_match.label,Ø Corners against,Average corner kicks conceded per match with available opponent stats.,int_legs__team_match,sum(opponent_corner_kicks),count(*),expression,true,decimal_1,set_pieces,3,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy)
+-saves_pct,team,metrics.saves_pct.label,% Shots saved,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping
+-goals_player,player,playerMetrics.scorerPoints.goals,Goals,Goals scored.,int_legs__player_match,sum(goals_total),,expression,false,integer,goals,1,higher_better,Scoring output - goals scored in the window; high = a productive goalscorer (a raw count so it also tracks minutes played)
+-assists_player,player,playerMetrics.scorerPoints.assists,Assists,Goal assists.,int_legs__player_match,sum(goals_assists),,expression,false,integer,goals,1,higher_better,Creative output - goals set up in the window; high = a productive creator (a raw count so it also tracks minutes played)
+-goals_penalty_player,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties
+-goals_open_play_player,player,playerMetrics.goalsOpenPlay.label,Open-play goals,Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of finishing_efficiency_player_pct. (goals_total already excludes own goals.),int_legs__player_match,sum(goals_total - goals_penalty),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output
+-penalty_won_player,player,playerMetrics.penalties.won,Penalties won,Penalties won.,int_legs__player_match,sum(penalty_won),,expression,false,integer,goals,3,higher_better,Penalties won - spot kicks earned in the window; high = draws fouls in dangerous areas (rare enough that small differences mean little)
+-shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on goal,Shots on target.,int_legs__player_match,sum(shots_on),,expression,false,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played)
+-duels_won_player,player,playerMetrics.duels.won,Duels won,Duels won. A duel is any 1v1 physical contest (ground and aerial pooled).,int_legs__player_match,sum(duels_won),,expression,false,integer,duels,1,higher_better,Duels won - physical 1v1 contests won in the window; high = comes out on top in physical battles (a volume read; the duel win rate captures efficiency)
+-duels_player,player,playerMetrics.duels.total,Duels,Total duels contested.,int_legs__player_match,sum(duels_total),,expression,false,integer,duels,1,higher_better,Duel engagement - 1v1 contests entered in the window; high = a physically involved player (a volume read; can also reflect a side under pressure)
+-dribbles_success_player,player,playerMetrics.dribbles.success,Dribbles completed,Successful dribbles.,int_legs__player_match,sum(dribbles_success),,expression,false,integer,duels,1,higher_better,Take-ons completed - opponents beaten on the dribble; high = a dangerous ball-carrier (a volume read; the success rate captures reliability)
+-dribbles_attempts_player,player,playerMetrics.dribbles.attempts,Dribbles attempted,Dribble attempts.,int_legs__player_match,sum(dribbles_attempts),,expression,false,integer,duels,1,higher_better,Take-ons attempted - times the player ran at an opponent; high = willing to take players on (a volume read; the success rate shows how often it comes off)
+-dribbles_success_player_pct,player,playerMetrics.dribbles.successPct,% Dribbles completed,Dribble success rate. Null when dribbles_attempts is zero.,int_legs__player_match,sum(dribbles_success),sum(dribbles_attempts),expression,false,percent,duels,1,higher_better,Share of take-ons completed; high = a reliable dribbler.
+-tackles_player,player,playerMetrics.defensiveActions.tackles,Tackles,Tackles made.,int_legs__player_match,sum(tackles_total),,expression,false,integer,defending,1,higher_better,Tackling volume - challenges won in the window; high = an active ball-winner (also reflects how much the side has to defend)
+-interceptions_player,player,playerMetrics.defensiveActions.interceptions,Interceptions,Interceptions.,int_legs__player_match,sum(tackles_interceptions),,expression,false,integer,defending,1,higher_better,Interception volume - passes read and cut out; high = anticipates play well (also reflects how much the side has to defend)
+-blocks_player,player,playerMetrics.defensiveActions.blocks,Blocks,Shots blocked.,int_legs__player_match,sum(tackles_blocks),,expression,false,integer,defending,1,higher_better,Block volume - shots blocked in the window; high = throws the body in (often for a side under sustained pressure)
+-dribbles_past_player,player,playerMetrics.dribbles.past,Dribbled past,Times dribbled past by an opponent.,int_legs__player_match,sum(dribbles_past),,expression,true,integer,defending,2,lower_better,Times beaten - dribbled past by an opponent; low = hard to get past (a raw count so it also tracks how often the player is the one defending)
+-passes_accurate_player,player,playerMetrics.passAccuracy.accurate,Accurate passes,Accurate passes. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small per-fixture rounding error.,int_legs__player_match,sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)),,expression,false,integer,passing,1,higher_better,Completed passes - passes that found a team-mate; high = heavily involved in possession (a volume read; the completion rate captures security)
+-passes_player,player,playerMetrics.passAccuracy.total,Passes,Total passes attempted.,int_legs__player_match,sum(passes_total),,expression,false,integer,passing,1,higher_better,Passing volume - passes attempted in the window; high = a possession-anchoring role; low = a more direct or less involved one (a raw count so it also tracks minutes played)
+-passes_accuracy_player_pct,player,playerMetrics.passAccuracy.label,% Pass accuracy,"Pass completion rate: accurate passes over attempted, summed rather than averaged, so a heavier passing game weighs more. Null when passes_total is zero.",int_legs__player_match,sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)),sum(passes_total),expression,false,percent,passing,1,higher_better,Share of passes completed; high = a secure and reliable passer.
+-passes_key_player,player,playerMetrics.keyPasses.label,Key passes,Key passes. API definition: a pass leading directly to a shot.,int_legs__player_match,sum(passes_key),,expression,false,integer,passing,1,higher_better,Chance creation - passes leading directly to a shot; high = a creative hub (a raw count so it also tracks minutes played)
+-cards_yellow_player,player,playerMetrics.cards.yellow,Yellow cards,Yellow cards.,int_legs__player_match,sum(cards_yellow),,expression,true,integer,discipline,1,lower_better,Cautions - yellow cards shown in the window; low = stays on the right side of the referee (high can reflect an aggressive role as much as poor discipline)
+-cards_red_player,player,playerMetrics.cards.red,Red cards,Red cards.,int_legs__player_match,sum(cards_red),,expression,true,integer,discipline,1,lower_better,Dismissals - red cards shown in the window; low = avoids leaving the team a man short (rare enough that a single card dominates the count)
+-offsides_player,player,playerMetrics.offsides.label,Offsides,Offsides caught.,int_legs__player_match,sum(offsides),,expression,true,integer,discipline,2,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement)
+-penalty_committed_player,player,playerMetrics.penalties.committed,Penalties conceded,"Penalties the player conceded. The provider spells the source field `penalty.commited`, which is misspelled at source and spelled correctly here.",int_legs__player_match,sum(penalty_committed),,expression,true,integer,discipline,3,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little)
+-saves_player,player,playerMetrics.savePct.saves,Saves,Saves made.,int_legs__player_match,sum(saves),,expression,false,integer,goalkeeping,1,higher_better,Save volume - shots on goal kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that)
+-shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on goal faced,Shots on target faced. Derived as saves + goals conceded.,int_legs__player_match,sum(saves + goals_against),,expression,true,integer,goalkeeping,1,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper)
+-saves_player_pct,player,playerMetrics.savePct.label,% Shots saved,Goalkeeper save percentage. Null when denominator is zero.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,false,percent,goalkeeping,1,higher_better,Share of shots on goal saved; high = a strong shot-stopper.
+-shots_player,player,playerMetrics.shots.label,Shots,Total shots (on and off target).,int_legs__player_match,sum(shots_total),,expression,false,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played)
+-goals_against_player,player,playerMetrics.goalsConceded.label,Goals conceded,Goals conceded by the team while the player was on the pitch (GK-relevant).,int_legs__player_match,sum(goals_against),,expression,true,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual)
+-shots_share_pct,team,metrics.shots_share_pct.label,% Share of shots,Share of all shots in the team's matches taken by the team. Null when no shots.,int_legs__team_match,sum(shots_total),sum(shots_total + opponent_shots_total),expression,false,percent,shooting,2,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input)
+-points_capture_pct,team,metrics.points_capture_pct.label,% Points captured,Share of available points won (points / (3 * games)).,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,false,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input)
+-scorer_points_player,player,playerMetrics.scorerPoints.label,Goal contributions,Goals plus assists (combined goal contributions).,int_legs__player_match,sum(goals_total + goals_assists),,expression,false,integer,goals,1,higher_better,Goal involvement - goals plus assists in the window; high = directly decisive in front of goal (a raw count so it also tracks minutes played)
+-defensive_actions_player,player,playerMetrics.defensiveActions.label,Defensive actions,Tackles plus interceptions plus blocks (combined defensive actions).,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks),,expression,false,integer,defending,1,higher_better,Defensive activity - tackles plus interceptions plus blocks; high = a busy ball-winner (a volume read; also reflects how much the side has to defend)
+-cards_player,player,playerMetrics.cards.label,Cards,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",int_legs__player_match,sum(cards_yellow + cards_red),,expression,true,integer,discipline,1,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red)
+-goals_per90,player,playerMetrics.goalsPer90.label,Ø Goals per 90,Goals per 90 minutes played. Minutes-normalised so playing time does not distort the comparison. Null when minutes is zero.,int_legs__player_match,sum(goals_total) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.
+-assists_per90,player,playerMetrics.assistsPer90.label,Ø Assists per 90,Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,How often the player creates goals for others; high = a frequent creator.
+-scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,Ø Goal contributions per 90,Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_total + goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.
+-shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Ø Shots on goal per 90,Shots on goal per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(shots_on) * 90,sum(minutes_played),expression,false,decimal_1,shooting,2,higher_better,How often the player tests the keeper; high = a persistent attacking threat.
+-passes_key_per90,player,playerMetrics.keyPassesPer90.label,Ø Key passes per 90,Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_key) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,Shot-creating passes; high = a creative hub who makes chances.
+-dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,Ø Dribbles completed per 90,Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(dribbles_success) * 90,sum(minutes_played),expression,false,decimal_1,duels,2,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.
+-passes_per90,player,playerMetrics.passesPer90.label,Ø Passes per 90,Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_total) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,More passes played per 90 is better all else equal; volume also reads as role - high = a possession-anchoring role; low = a more direct one
+-tackles_per90,player,playerMetrics.tacklesPer90.label,Ø Tackles per 90,Tackles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More tackles per 90 is better all else equal; volume also reads as role - high = an aggressive ball-winner; can also reflect a side often defending
+-interceptions_per90,player,playerMetrics.interceptionsPer90.label,Ø Interceptions per 90,Interceptions per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_interceptions) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More interceptions per 90 is better all else equal; volume also reads as role - high = reads play and steps into passing lanes
+-blocks_per90,player,playerMetrics.blocksPer90.label,Ø Blocks per 90,Blocks per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_blocks) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More blocks per 90 is better all else equal; volume also reads as role - high = throws the body in; often for a side under pressure
+-defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,Ø Defensive actions per 90,Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More defensive actions (tackles + interceptions + blocks) per 90 is better all else equal; volume also reads as role - high = a deep block or an aggressive press
+-duels_won_per90,player,playerMetrics.duelsWonPer90.label,Ø Duels won per 90,Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(duels_won) * 90,sum(minutes_played),expression,false,decimal_1,duels,2,higher_better,More duels won per 90 is better all else equal; this is a volume read - the duel win rate captures efficiency
+-saves_per90,player,playerMetrics.savesPer90.label,Ø Saves per 90,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(saves) * 90,sum(minutes_played),expression,false,decimal_1,goalkeeping,2,higher_better,More saves per 90 is better all else equal; volume also tracks shots faced so it is not shot-stopping quality - the save rate captures that
+-shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Ø Shots on goal difference,Average shots-on-target difference per match (on target for - against). The best non-outcome predictor of league position; the deserved process signal behind deserved-vs-actual. Null unless both own and opponent shots-on-target data cover every season game.,int_legs__team_match,sum(shots_on_goal - opponent_shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input)
+-shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Ø Shots on goal against,Average shots on target conceded per match. The defensive companion to shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),expression,true,decimal_1,shooting,1,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input)
+-deserved_rank,team,metrics.deserved_rank.label,Deserved position,"Rank of the team within its league-season by deserved_points (descending; 1 = most points deserved) - the process-deserved table position. Not aggregated from match legs; computed by ranking the deserved_points metric, so the position and the points total can never disagree. Domestic leagues only. Null exactly whenever deserved_points is null - the two appear and disappear together, so a team never shows one without the other.",,,,model,true,integer,outcomes,2,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit
+-deserved_points,team,metrics.deserved_points.label,Deserved points,"Points the on-target process deserved across the season. Within each league-season, ordinary least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted rate, capped into the [0, 3] a match can yield, times the team's own games played. deserved_points_was_capped flags a row the cap moved. Fitted, not an aggregate of match legs, so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a within-group position, not a comparable league table. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total
+-deserved_points_gap,team,metrics.deserved_points_gap.label,Deserved-points gap,"Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE = under-performing (fewer points than the on-target process deserved); POSITIVE = over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is least squares within the league-season the gap is a redistribution: it sums to zero across a balanced season where no deserved_points row was capped. Domestic leagues only. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad"
+-deserved_points_gap_rank,team,metrics.deserved_points_gap_rank.label,Deserved-points gap rank,"Position of the team within its league-season by deserved_points_gap, most negative first: 1 = the team with the fewest points relative to what its on-target process deserved. A total order (row_number over the gap, then the team id), so the three lowest and the three highest positions name exactly six teams and a page reads the ends of the served order instead of ranking. Not aggregated from match legs; computed by ordering the deserved_points_gap metric. Domestic leagues only. Null exactly whenever deserved_points_gap is null.",,,,model,false,integer,outcomes,3,neutral,"Deserved-points gap position - 1 = the most under-rewarded team of the league, the last position the most over-rewarded; an ordering, not good or bad"
+-contribution_player_pct,player,playerMetrics.contributionShare.label,% Share of team goals,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing, because the denominator is the whole season while the numerator counts only covered appearances. Null when the club scored 0 that competition-season.",,,,cross_grain,false,percent,goals,2,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad."
+-minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Ø Minutes per appearance,"Average minutes played per appearance (minutes / appearances, where an appearance is a match the player actually played). A squad-list playing-time read describing role - a regular starter versus a rotation or impact-sub player - not quality. The mart computes the value inline via safe_divide; this row registers its meaning.",int_legs__player_match,sum(minutes_played),countif(minutes_played > 0),expression,false,decimal_0,playing_time,2,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad."
+-goals,team,metrics.goals.label,Goals,"Goals scored by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records.",int_legs__team_match,sum(goals_for),,expression,false,integer,goals,2,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)"
+-goals_against,team,metrics.goals_against.label,Goals against,"Goals conceded by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records. Distinct from the player metric of the same name, which is the provider's count of goals conceded while that player was on the pitch.",int_legs__team_match,sum(goals_against),,expression,true,integer,goals,2,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)"
+-corners,team,metrics.corners.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)"
+-saves,team,metrics.saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure"
+-shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,"Shots the team took from inside the penalty area, taken from the provider's team match statistics. A component of the team's total shots and the numerator of shots_inside_box_pct. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(shots_inside_box),,expression,false,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - shots_inside_box_pct is what measures that; a raw count, so it rises with matches played)"
+-clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)"
++metric_id,entity,label_i18n_key,label_en,description,base_relation,numerator_expr,denominator_expr,computation_kind,lower_is_better,format,metric_group,importance_tier,direction,interpretation,metric_group_order
++league_rank,team,metrics.league_rank.label,League position,Current league standing. Sourced from standings snapshot; not derived from match legs.,,,,sourced,true,integer,outcomes,1,lower_better,League position - 1 = top of the table,9
++points_won,team,metrics.points_won.label,Points won,"Total points earned: 3 per win, 1 per draw, 0 per loss.",int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),,expression,false,points_fraction,outcomes,1,higher_better,Points tally in the window (3 per win / 1 per draw / 0 per loss),9
++goals_per_match,team,metrics.goals_per_match.label,Ø Goals,Average goals scored per match.,int_legs__team_match,sum(goals_for),count(*),expression,false,decimal_1,goals,1,higher_better,Attacking output - goals scored per game; high = a potent attack,1
++goals_against_per_match,team,metrics.goals_against_per_match.label,Ø Goals against,Average goals conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,true,decimal_1,goals,1,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence,1
++clean_sheets_pct,team,metrics.clean_sheets_pct.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back,1
++goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls,1
++goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced,1
++goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency_pct.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output,1
++shots_per_match,team,metrics.shots_per_match.label,Ø Shots,"Average total shots attempted per match with available team stats. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),expression,false,decimal_1,shooting,2,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality),2
++shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,% Shots on goal,Share of shots that were on goal. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),expression,false,percent,shooting,2,higher_better,Striking precision - share of shots on goal,2
++shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,% Shots from box,Share of shots taken from inside the penalty area. Null when shots_total is zero.,int_legs__team_match,sum(shots_inside_box),sum(shots_total),expression,false,percent,shooting,2,higher_better,Chance quality - share of shots from inside the box; high = better positions,2
++shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Ø Shots on goal,"Average shots on target per match, counted over the games whose shots-on-target data is present rather than every game played.",int_legs__team_match,sum(shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target threat - efforts testing the keeper; high = sustained threat,2
++finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,% Goals per shot on goal,"Open-play goal conversion: open-play goals (goals minus penalties and own goals) per shot on goal, counted over the same set of games on both sides of the division. In [0, 1] - penalties and own goals are excluded because they are not finishing the team's own on-target shots. Null unless shots-on-target data covers every game counted, or the value would fall outside [0, 1].",int_legs__team_match,sum(goals_for - goals_penalty - goals_own),sum(shots_on_goal),expression,false,percent,shooting,1,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless,2
++finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,% Goals per shot on goal,"Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes own goals) per shot on target. In [0, 1] - penalties are excluded because they are not finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].",int_legs__player_match,sum(goals_total - goals_penalty),sum(shots_on),expression,false,percent,shooting,2,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher,2
++duels_per_match,team,metrics.duels_per_match.label,Ø Duels,Average duels contested per match. Aggregated from player stats; inherits player-stat coverage gaps. Volume context for the duel win rate.,int_legs__team_from_players,sum(duels_total),count(*),expression,false,decimal_0,one_on_one,2,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure),4
++duels_won_pct,team,metrics.duels_won_pct.label,% Duels won,Duel win rate. Null when duels_total is zero. Aggregated from player stats.,int_legs__team_from_players,sum(duels_won),sum(duels_total),expression,false,percent,one_on_one,2,higher_better,Duel success - share of duels won; high = wins the physical battle,4
++duels_won_player_pct,player,playerMetrics.duels.wonPct,% Duels won,Duel win rate. Null when duels_total is zero.,int_legs__player_match,sum(duels_won),sum(duels_total),expression,false,percent,one_on_one,1,higher_better,Duel success - share of 1v1 contests won; high = wins the physical battle,4
++defensive_actions_per_match,team,metrics.defensive_actions_per_match.label,Ø Defensive actions,Average defensive actions per match: tackles + interceptions + blocks. Aggregated from player stats; inherits player-stat coverage gaps. Displayed with the T/I/B breakdown.,int_legs__team_from_players,sum(tackles + interceptions + blocks),count(*),expression,false,decimal_1,defending,2,higher_better,Defensive activity - tackles + interceptions + blocks per game; high = an active ball-winning defence (volume; can also reflect a side often defending),5
++tackles_per_match,team,metrics.tackles_per_match.label,Ø Tackles,Average tackles per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(tackles),count(*),expression,false,decimal_1,defending,3,higher_better,Tackling volume - more ball-winning challenges per game is better all else equal; high can also reflect a side that defends more,5
++interceptions_per_match,team,metrics.interceptions_per_match.label,Ø Interceptions,Average interceptions per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(interceptions),count(*),expression,false,decimal_1,defending,3,higher_better,Interception volume - more passes read and cut out per game is better all else equal; high can also reflect a side that defends more,5
++blocks_per_match,team,metrics.blocks_per_match.label,Ø Blocks,Average shots blocked per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(blocks),count(*),expression,false,decimal_1,defending,3,higher_better,Block volume - more shots blocked per game is better all else equal; high can also reflect a side under sustained pressure,5
++passes_per_match,team,metrics.passes_per_match.label,Ø Passes,Average passes attempted per match with available team stats.,int_legs__team_match,sum(passes_total),count(*),expression,false,decimal_0,passing,3,higher_better,Possession volume - passes played per game; high = sees more of the ball; low = a more direct style (accuracy shows how securely it is kept),3
++passes_accuracy_pct,team,metrics.passes_accuracy_pct.label,% Pass accuracy,Share of passes successfully completed. Null when passes_total is zero.,int_legs__team_match,sum(passes_accurate),sum(passes_total),expression,false,percent,passing,2,higher_better,Passing security - completion rate; high = keeps the ball well,3
++passes_key_per_match,team,metrics.passes_key_per_match.label,Ø Key passes,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(key_passes),count(*),expression,false,decimal_1,passing,2,higher_better,Creativity - passes leading to a shot; high = creates chances,3
++corners_per_match,team,metrics.corners_per_match.label,Ø Corners,Average corner kicks won per match with available team stats.,int_legs__team_match,sum(corner_kicks),count(*),expression,false,decimal_1,set_pieces,3,higher_better,Corners won - high = sustained attacking pressure (a weak proxy),8
++corners_against_per_match,team,metrics.corners_against_per_match.label,Ø Corners against,Average corner kicks conceded per match with available opponent stats.,int_legs__team_match,sum(opponent_corner_kicks),count(*),expression,true,decimal_1,set_pieces,3,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy),8
++saves_pct,team,metrics.saves_pct.label,% Shots saved,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,7
++goals_player,player,playerMetrics.scorerPoints.goals,Goals,Goals scored.,int_legs__player_match,sum(goals_total),,expression,false,integer,goals,1,higher_better,Scoring output - goals scored in the window; high = a productive goalscorer (a raw count so it also tracks minutes played),1
++assists_player,player,playerMetrics.scorerPoints.assists,Assists,Goal assists.,int_legs__player_match,sum(goals_assists),,expression,false,integer,goals,1,higher_better,Creative output - goals set up in the window; high = a productive creator (a raw count so it also tracks minutes played),1
++goals_penalty_player,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1
++goals_open_play_player,player,playerMetrics.goalsOpenPlay.label,Open-play goals,Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of finishing_efficiency_player_pct. (goals_total already excludes own goals.),int_legs__player_match,sum(goals_total - goals_penalty),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output,1
++penalty_won_player,player,playerMetrics.penalties.won,Penalties won,Penalties won.,int_legs__player_match,sum(penalty_won),,expression,false,integer,goals,3,higher_better,Penalties won - spot kicks earned in the window; high = draws fouls in dangerous areas (rare enough that small differences mean little),1
++shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on goal,Shots on target.,int_legs__player_match,sum(shots_on),,expression,false,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played),2
++duels_won_player,player,playerMetrics.duels.won,Duels won,Duels won. A duel is any 1v1 physical contest (ground and aerial pooled).,int_legs__player_match,sum(duels_won),,expression,false,integer,one_on_one,1,higher_better,Duels won - physical 1v1 contests won in the window; high = comes out on top in physical battles (a volume read; the duel win rate captures efficiency),4
++duels_player,player,playerMetrics.duels.total,Duels,Total duels contested.,int_legs__player_match,sum(duels_total),,expression,false,integer,one_on_one,1,higher_better,Duel engagement - 1v1 contests entered in the window; high = a physically involved player (a volume read; can also reflect a side under pressure),4
++dribbles_success_player,player,playerMetrics.dribbles.success,Dribbles completed,Successful dribbles.,int_legs__player_match,sum(dribbles_success),,expression,false,integer,one_on_one,1,higher_better,Take-ons completed - opponents beaten on the dribble; high = a dangerous ball-carrier (a volume read; the success rate captures reliability),4
++dribbles_attempts_player,player,playerMetrics.dribbles.attempts,Dribbles attempted,Dribble attempts.,int_legs__player_match,sum(dribbles_attempts),,expression,false,integer,one_on_one,1,higher_better,Take-ons attempted - times the player ran at an opponent; high = willing to take players on (a volume read; the success rate shows how often it comes off),4
++dribbles_success_player_pct,player,playerMetrics.dribbles.successPct,% Dribbles completed,Dribble success rate. Null when dribbles_attempts is zero.,int_legs__player_match,sum(dribbles_success),sum(dribbles_attempts),expression,false,percent,one_on_one,1,higher_better,Share of take-ons completed; high = a reliable dribbler.,4
++tackles_player,player,playerMetrics.defensiveActions.tackles,Tackles,Tackles made.,int_legs__player_match,sum(tackles_total),,expression,false,integer,defending,1,higher_better,Tackling volume - challenges won in the window; high = an active ball-winner (also reflects how much the side has to defend),5
++interceptions_player,player,playerMetrics.defensiveActions.interceptions,Interceptions,Interceptions.,int_legs__player_match,sum(tackles_interceptions),,expression,false,integer,defending,1,higher_better,Interception volume - passes read and cut out; high = anticipates play well (also reflects how much the side has to defend),5
++blocks_player,player,playerMetrics.defensiveActions.blocks,Blocks,Shots blocked.,int_legs__player_match,sum(tackles_blocks),,expression,false,integer,defending,1,higher_better,Block volume - shots blocked in the window; high = throws the body in (often for a side under sustained pressure),5
++dribbles_past_player,player,playerMetrics.dribbles.past,Dribbled past,Times dribbled past by an opponent.,int_legs__player_match,sum(dribbles_past),,expression,true,integer,defending,2,lower_better,Times beaten - dribbled past by an opponent; low = hard to get past (a raw count so it also tracks how often the player is the one defending),5
++passes_accurate_player,player,playerMetrics.passAccuracy.accurate,Accurate passes,Accurate passes. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small per-fixture rounding error.,int_legs__player_match,sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)),,expression,false,integer,passing,1,higher_better,Completed passes - passes that found a team-mate; high = heavily involved in possession (a volume read; the completion rate captures security),3
++passes_player,player,playerMetrics.passAccuracy.total,Passes,Total passes attempted.,int_legs__player_match,sum(passes_total),,expression,false,integer,passing,1,higher_better,Passing volume - passes attempted in the window; high = a possession-anchoring role; low = a more direct or less involved one (a raw count so it also tracks minutes played),3
++passes_accuracy_player_pct,player,playerMetrics.passAccuracy.label,% Pass accuracy,"Pass completion rate: accurate passes over attempted, summed rather than averaged, so a heavier passing game weighs more. Null when passes_total is zero.",int_legs__player_match,sum(cast(round(passes_total * passes_accuracy_percent / 100.0) as int64)),sum(passes_total),expression,false,percent,passing,1,higher_better,Share of passes completed; high = a secure and reliable passer.,3
++passes_key_player,player,playerMetrics.keyPasses.label,Key passes,Key passes. API definition: a pass leading directly to a shot.,int_legs__player_match,sum(passes_key),,expression,false,integer,passing,1,higher_better,Chance creation - passes leading directly to a shot; high = a creative hub (a raw count so it also tracks minutes played),3
++cards_yellow_player,player,playerMetrics.cards.yellow,Yellow cards,Yellow cards.,int_legs__player_match,sum(cards_yellow),,expression,true,integer,discipline,1,lower_better,Cautions - yellow cards shown in the window; low = stays on the right side of the referee (high can reflect an aggressive role as much as poor discipline),6
++cards_red_player,player,playerMetrics.cards.red,Red cards,Red cards.,int_legs__player_match,sum(cards_red),,expression,true,integer,discipline,1,lower_better,Dismissals - red cards shown in the window; low = avoids leaving the team a man short (rare enough that a single card dominates the count),6
++offsides_player,player,playerMetrics.offsides.label,Offsides,Offsides caught.,int_legs__player_match,sum(offsides),,expression,true,integer,discipline,2,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement),6
++penalty_committed_player,player,playerMetrics.penalties.committed,Penalties conceded,"Penalties the player conceded. The provider spells the source field `penalty.commited`, which is misspelled at source and spelled correctly here.",int_legs__player_match,sum(penalty_committed),,expression,true,integer,discipline,3,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little),6
++saves_player,player,playerMetrics.savePct.saves,Saves,Saves made.,int_legs__player_match,sum(saves),,expression,false,integer,goalkeeping,1,higher_better,Save volume - shots on goal kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that),7
++shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on goal faced,Shots on target faced. Derived as saves + goals conceded.,int_legs__player_match,sum(saves + goals_against),,expression,true,integer,goalkeeping,1,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper),7
++saves_player_pct,player,playerMetrics.savePct.label,% Shots saved,Goalkeeper save percentage. Null when denominator is zero.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,false,percent,goalkeeping,1,higher_better,Share of shots on goal saved; high = a strong shot-stopper.,7
++shots_player,player,playerMetrics.shots.label,Shots,Total shots (on and off target).,int_legs__player_match,sum(shots_total),,expression,false,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played),2
++goals_against_player,player,playerMetrics.goalsConceded.label,Goals conceded,Goals conceded by the team while the player was on the pitch (GK-relevant).,int_legs__player_match,sum(goals_against),,expression,true,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual),7
++shots_share_pct,team,metrics.shots_share_pct.label,% Share of shots,Share of all shots in the team's matches taken by the team. Null when no shots.,int_legs__team_match,sum(shots_total),sum(shots_total + opponent_shots_total),expression,false,percent,shooting,2,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input),2
++points_capture_pct,team,metrics.points_capture_pct.label,% Points captured,Share of available points won (points / (3 * games)).,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,false,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input),9
++scorer_points_player,player,playerMetrics.scorerPoints.label,Goal contributions,Goals plus assists (combined goal contributions).,int_legs__player_match,sum(goals_total + goals_assists),,expression,false,integer,goals,1,higher_better,Goal involvement - goals plus assists in the window; high = directly decisive in front of goal (a raw count so it also tracks minutes played),1
++defensive_actions_player,player,playerMetrics.defensiveActions.label,Defensive actions,Tackles plus interceptions plus blocks (combined defensive actions).,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks),,expression,false,integer,defending,1,higher_better,Defensive activity - tackles plus interceptions plus blocks; high = a busy ball-winner (a volume read; also reflects how much the side has to defend),5
++cards_player,player,playerMetrics.cards.label,Cards,"Yellow plus red cards (total cards shown). A second yellow is recorded by the provider as a yellow plus a red, so a two-yellow dismissal counts as 3.",int_legs__player_match,sum(cards_yellow + cards_red),,expression,true,integer,discipline,1,lower_better,Disciplinary record - yellow plus red cards; low = a clean record (a two-yellow dismissal counts as 3 because the provider logs a yellow plus a red),6
++goals_per90,player,playerMetrics.goalsPer90.label,Ø Goals per 90,Goals per 90 minutes played. Minutes-normalised so playing time does not distort the comparison. Null when minutes is zero.,int_legs__player_match,sum(goals_total) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Scoring frequency; high = a prolific and dependable goalscorer.,1
++assists_per90,player,playerMetrics.assistsPer90.label,Ø Assists per 90,Goal assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,How often the player creates goals for others; high = a frequent creator.,1
++scorer_points_per90,player,playerMetrics.scorerPointsPer90.label,Ø Goal contributions per 90,Goals plus assists per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(goals_total + goals_assists) * 90,sum(minutes_played),expression,false,decimal_1,goals,2,higher_better,Total goal involvement (goals + assists); high = drives the team's attacking output.,1
++shots_on_goal_per90,player,playerMetrics.shotsOnTargetPer90.label,Ø Shots on goal per 90,Shots on goal per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(shots_on) * 90,sum(minutes_played),expression,false,decimal_1,shooting,2,higher_better,How often the player tests the keeper; high = a persistent attacking threat.,2
++passes_key_per90,player,playerMetrics.keyPassesPer90.label,Ø Key passes per 90,Key passes (passes leading to a shot) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_key) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,Shot-creating passes; high = a creative hub who makes chances.,3
++dribbles_success_per90,player,playerMetrics.dribblesSuccessPer90.label,Ø Dribbles completed per 90,Successful dribbles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(dribbles_success) * 90,sum(minutes_played),expression,false,decimal_1,one_on_one,2,higher_better,Take-ons completed; high = a dangerous ball-carrier who beats opponents.,4
++passes_per90,player,playerMetrics.passesPer90.label,Ø Passes per 90,Passes attempted per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(passes_total) * 90,sum(minutes_played),expression,false,decimal_1,passing,2,higher_better,More passes played per 90 is better all else equal; volume also reads as role - high = a possession-anchoring role; low = a more direct one,3
++tackles_per90,player,playerMetrics.tacklesPer90.label,Ø Tackles per 90,Tackles per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More tackles per 90 is better all else equal; volume also reads as role - high = an aggressive ball-winner; can also reflect a side often defending,5
++interceptions_per90,player,playerMetrics.interceptionsPer90.label,Ø Interceptions per 90,Interceptions per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_interceptions) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More interceptions per 90 is better all else equal; volume also reads as role - high = reads play and steps into passing lanes,5
++blocks_per90,player,playerMetrics.blocksPer90.label,Ø Blocks per 90,Blocks per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_blocks) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More blocks per 90 is better all else equal; volume also reads as role - high = throws the body in; often for a side under pressure,5
++defensive_actions_per90,player,playerMetrics.defensiveActionsPer90.label,Ø Defensive actions per 90,Defensive actions (tackles + interceptions + blocks) per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(tackles_total + tackles_interceptions + tackles_blocks) * 90,sum(minutes_played),expression,false,decimal_1,defending,2,higher_better,More defensive actions (tackles + interceptions + blocks) per 90 is better all else equal; volume also reads as role - high = a deep block or an aggressive press,5
++duels_won_per90,player,playerMetrics.duelsWonPer90.label,Ø Duels won per 90,Duels won per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(duels_won) * 90,sum(minutes_played),expression,false,decimal_1,one_on_one,2,higher_better,More duels won per 90 is better all else equal; this is a volume read - the duel win rate captures efficiency,4
++saves_per90,player,playerMetrics.savesPer90.label,Ø Saves per 90,Goalkeeper saves per 90 minutes played. Minutes-normalised. Null when minutes is zero.,int_legs__player_match,sum(saves) * 90,sum(minutes_played),expression,false,decimal_1,goalkeeping,2,higher_better,More saves per 90 is better all else equal; volume also tracks shots faced so it is not shot-stopping quality - the save rate captures that,7
++shots_on_goal_difference_per_match,team,metrics.shots_on_goal_difference_per_match.label,Ø Shots on goal difference,Average shots-on-target difference per match (on target for - against). The best non-outcome predictor of league position; the deserved process signal behind deserved-vs-actual. Null unless both own and opponent shots-on-target data cover every season game.,int_legs__team_match,sum(shots_on_goal - opponent_shots_on_goal),count(*),expression,false,decimal_1,shooting,1,higher_better,On-target dominance - on-target shots created minus conceded per game; high = the process deserves results (deserved-vs-actual input),2
++shots_on_goal_against_per_match,team,metrics.shots_on_goal_against_per_match.label,Ø Shots on goal against,Average shots on target conceded per match. The defensive companion to shots_on_goal_difference_per_match. Null when opponent shots-on-target data does not cover every season game.,int_legs__team_match,sum(opponent_shots_on_goal),count(*),expression,true,decimal_1,shooting,1,lower_better,On-target threat conceded - opponent shots on target per game; low = limits clear chances (deserved-vs-actual input),2
++deserved_rank,team,metrics.deserved_rank.label,Deserved position,"Rank of the team within its league-season by deserved_points (descending; 1 = most points deserved) - the process-deserved table position. Not aggregated from match legs; computed by ranking the deserved_points metric, so the position and the points total can never disagree. Domestic leagues only. Null exactly whenever deserved_points is null - the two appear and disappear together, so a team never shows one without the other.",,,,model,true,integer,outcomes,2,lower_better,Deserved league position - 1 = the most points the process deserved; where the process says the team should sit,9
++deserved_points,team,metrics.deserved_points.label,Deserved points,"Points the on-target process deserved across the season. Within each league-season, ordinary least squares fits points-per-match on shots_on_goal_difference_per_match; this is that fitted rate, capped into the [0, 3] a match can yield, times the team's own games played. deserved_points_was_capped flags a row the cap moved. Fitted, not an aggregate of match legs, so it carries no formula. Domestic leagues only - a group-stage tournament's standing is a within-group position, not a comparable league table. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,higher_better,Deserved points - what the season's on-target dominance was worth; compare it against the real points total,9
++deserved_points_gap,team,metrics.deserved_points_gap.label,Deserved-points gap,"Points-space deserved-vs-actual gap: actual season points minus deserved_points. NEGATIVE = under-performing (fewer points than the on-target process deserved); POSITIVE = over-performing. Note this sign is inverted relative to the retired sot_rank_gap, where positive meant under-performing. Fitted, not an aggregate of match legs. Because the fit is least squares within the league-season the gap is a redistribution: it sums to zero across a balanced season where no deserved_points row was capped. Domestic leagues only. Null when the league-season is not fittable, meaning some team lacks full shots-on-target coverage, a league rank or 3 finished games; or the actual table is not a single ladder (MLS conferences, and the Apertura/Clausura formats where one season spans two separate tournaments whose points reset, so a season points total is a figure nobody tracks); or the signal has no spread across the league-season (the slope is then undefined rather than flat).",,,,model,false,integer,outcomes,2,neutral,"Deserved-vs-actual gap - actual minus deserved points; negative = results lag the process (due a correction), positive = results flatter it (regression risk). A narrative, not good or bad",9
++deserved_points_gap_rank,team,metrics.deserved_points_gap_rank.label,Deserved-points gap rank,"Position of the team within its league-season by deserved_points_gap, most negative first: 1 = the team with the fewest points relative to what its on-target process deserved. A total order (row_number over the gap, then the team id), so the three lowest and the three highest positions name exactly six teams and a page reads the ends of the served order instead of ranking. Not aggregated from match legs; computed by ordering the deserved_points_gap metric. Domestic leagues only. Null exactly whenever deserved_points_gap is null.",,,,model,false,integer,outcomes,3,neutral,"Deserved-points gap position - 1 = the most under-rewarded team of the league, the last position the most over-rewarded; an ordering, not good or bad",9
++contribution_player_pct,player,playerMetrics.contributionShare.label,% Share of team goals,"Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's whole-season goals. Involved in X% of the club's goals. Computed in int_player_profile__contribution (not a single-leg aggregate). Understates where the player's match stats are missing, because the denominator is the whole season while the numerator counts only covered appearances. Null when the club scored 0 that competition-season.",,,,cross_grain,false,percent,goals,2,neutral,"Share of the club's goals the player was involved in; high = central to the team's attack, but position-dependent (a defender's naturally-low share is not a negative). A style/role read, not good or bad.",1
++minutes_per_appearance,player,playerMetrics.minutesPerAppearance.label,Ø Minutes per appearance,"Average minutes played per appearance (minutes / appearances, where an appearance is a match the player actually played). A squad-list playing-time read describing role - a regular starter versus a rotation or impact-sub player - not quality. The mart computes the value inline via safe_divide; this row registers its meaning.",int_legs__player_match,sum(minutes_played),countif(minutes_played > 0),expression,false,decimal_0,playing_time,2,neutral,"Average minutes per appearance; high = a full-90 regular, low = a rotation or impact-sub role. A playing-time role read, not good or bad.",10
++goals,team,metrics.goals.label,Goals,"Goals scored by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records.",int_legs__team_match,sum(goals_for),,expression,false,integer,goals,2,higher_better,"Attacking output - goals scored; high = a potent attack (a raw count, so it rises with matches played; the per-match rate is the comparable read)",1
++goals_against,team,metrics.goals_against.label,Goals against,"Goals conceded by the team, read from the authoritative match scoreline (the score after extra time where a match went to it) rather than summed from player or event records. Distinct from the player metric of the same name, which is the provider's count of goals conceded while that player was on the pitch.",int_legs__team_match,sum(goals_against),,expression,true,integer,goals,2,lower_better,"Defensive vulnerability - goals conceded; low = a mean defence (a raw count, so a side that has played fewer matches shows a lower total without defending better; the per-match rate is the comparable read)",1
++corners,team,metrics.corners.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)",8
++saves,team,metrics.saves.label,Saves,"Saves made by the team's goalkeepers, taken from the provider's team-statistics line rather than summed from the individual goalkeepers' counts; the two need not agree. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(goalkeeper_saves),,expression,false,integer,goalkeeping,2,higher_better,"Shot-stopping volume - saves made; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure",7
++shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,"Shots the team took from inside the penalty area, taken from the provider's team match statistics. A component of the team's total shots and the numerator of shots_inside_box_pct. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(shots_inside_box),,expression,false,integer,shooting,3,higher_better,"Box shot volume - attempts taken from inside the area; high = more attempts from good positions (volume, not positional quality - shots_inside_box_pct is what measures that; a raw count, so it rises with matches played)",2
++clean_sheets,team,metrics.clean_sheets.label,Clean sheets,"Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct is the same measurement expressed as a proportion of the matches played.",int_legs__team_match,countif(goals_against = 0),,expression,false,count_fraction,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)",1
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 21df6c9f..e531f997 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -248,11 +248,14 @@ seeds:
+       window-free — ids carry no window suffix, and the window and any null policy are applied
+       where the metric is computed, never here.
  
- ## 4) Model Contracts and Metadata
- 
-diff --git a/scripts/check_relationships_coverage.py b/scripts/check_relationships_coverage.py
-index 8f041e60..bca5cefe 100644
---- a/scripts/check_relationships_coverage.py
-+++ b/scripts/check_relationships_coverage.py
-@@ -31,9 +31,9 @@ fewer models or fewer foreign keys than the repo plainly has, the gate fails rat
- passing on nothing. Exit 1 on any finding, on an unparseable file, and below a floor. Fails
- CLOSED.
- 
--Enforced today by `tests/test_check_relationships_coverage.py`, whose last test runs this gate
--on the real tree inside `test:python`; the `validate:governance` line `engineering_standards.md`
--§3.5 names is a separate governance change to `.gitlab-ci.yml`.
-+Run twice on every merge request: as a line of `validate:governance`, beside the other yml
-+rules, and by `tests/test_check_relationships_coverage.py`, whose last test runs this gate on
-+the real tree inside `test:python`.
- """
- from __future__ import annotations
- 
-diff --git a/scripts/check_yml_vs_projection.py b/scripts/check_yml_vs_projection.py
+-      What a metric IS, not where it appears: display order lives in metrics_display.md.
++      What a metric IS, not where it appears: the order of metrics within a group lives in
++      metrics_display.md; the groups themselves and their order are the `metric_group` and
++      `metric_group_order` columns here.
+     config:
+       +full_refresh: true
+       column_types:
+         importance_tier: int64
++        metric_group_order: int64
+     columns:
+       - name: metric_id
+         description: >
+@@ -376,7 +379,15 @@ seeds:
+         tests:
+           - not_null
+           - accepted_values:
+-              values: ["goals", "shooting", "duels", "defending", "passing", "set_pieces", "goalkeeping", "discipline", "outcomes", "playing_time"]
++              values: ["goals", "shooting", "one_on_one", "defending", "passing", "set_pieces", "goalkeeping", "discipline", "outcomes", "playing_time"]
++      - name: metric_group_order
++        description: >
++          Where the metric's group sits when groups are listed: 1 first. The same value on every
++          row of a group, and the values are the positions 1..N with no gap or tie — every
++          surface that shows group headings renders them in this order, and nothing else defines
++          it. A group's names per language are site copy keyed by `metric_group`.
++        tests:
++          - not_null
+       - name: importance_tier
+         description: >
+           Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier
+diff --git a/dbt_project/tests/assert_metric_group_order_is_one_per_group.sql b/dbt_project/tests/assert_metric_group_order_is_one_per_group.sql
 new file mode 100644
-index 00000000..68fd4dab
+index 00000000..6f6c52b3
 --- /dev/null
-+++ b/scripts/check_yml_vs_projection.py
-@@ -0,0 +1,209 @@
-+"""Projection gate — every column a model yml lists exists in that model's projection.
++++ b/dbt_project/tests/assert_metric_group_order_is_one_per_group.sql
+@@ -0,0 +1,45 @@
++{#
++  A metric group has exactly one order, and the orders are the positions 1..N (metric layer).
++  `metric_group_order` is the one place the order of the groups is defined, and every surface
++  renders groups in it. A group carrying two orders, two groups sharing one, or a gap in the
++  sequence is a wrong page: a heading in the wrong place, or two groups fighting for a slot.
++  The test FAILS (returns rows) for any group whose order breaks one of those three rules.
 +
-+The reverse of `declare_missing_columns.py`. That script reads the catalogue and adds to the
-+yml what the warehouse has and the yml lacks; this one reads the yml and fails on what the yml
-+lists and the warehouse lacks. A `.yml` can describe a column the model stopped emitting, and
-+with `persist_docs` on dbt attaches nothing for it and says nothing — the description simply
-+never reaches BigQuery. Enforces `dbt_project/docs/engineering_standards.md` §3.5 ("every
-+documented column exists in the model's projection") and is the mechanism it names.
++  Reads the seed in the target it runs in; on a merge request that is the branch's seed.
++#}
 +
-+Where the catalogue comes from matters more than anything else here. `catalog.json` is what
-+`dbt docs generate` writes, and it describes whatever warehouse that command was pointed at.
-+On a dev machine that is the last local run — a handful of `dev_*` relations — and checking
-+against it would find every model "missing" its columns, or worse, find nothing. So:
++{{ config(store_failures = true) }}
 +
-+  * the models on DISK are the authority on what exists; the catalogue is the authority on what
-+    each of them projects; the two never come from the same file;
-+  * a catalogue missing any on-disk model is refused outright (the same abort as
-+    `declare_missing_columns.py`): a partial catalogue is not a smaller answer, it is no answer;
-+  * in CI this runs inside `data:build:main`, two lines after the `dbt docs generate` that wrote
-+    the file, so the catalogue there is always the whole prod warehouse.
++with per_group as (
++    select
++        metric_group,
++        count(distinct metric_group_order) as orders_in_group,
++        min(metric_group_order) as group_order
++    from {{ ref('metric_catalogue') }}
++    group by metric_group
++),
 +
-+A `parent.field` entry (a struct field, `recent_meetings.goals_for`) is matched by its full
-+path: dbt-bigquery's catalogue reads `INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`, so it holds the
-+parent column AND every leaf path beneath it, and a mistyped or removed field is caught like any
-+other column. Models match by name, columns case-insensitively, as BigQuery resolves them. A yml
-+block for a model with no `.sql` on disk is a finding too: `dbt parse` only warns on it, and the
-+descriptions it carries reach nothing.
++positions as (
++    select
++        count(*) as group_count,
++        count(distinct group_order) as distinct_orders,
++        min(group_order) as first_order,
++        max(group_order) as last_order
++    from per_group
++)
 +
-+Floors against an empty walk, as `check_relationships_coverage.py` does: fewer models or fewer
-+listed columns than the repo plainly has fails the gate rather than passing on nothing. Exit 1
-+on any finding, on an unreadable or partial catalogue, on an unparseable yml, below a floor.
-+Fails CLOSED.
++select
++    g.metric_group,
++    g.orders_in_group,
++    g.group_order,
++    p.group_count,
++    p.distinct_orders,
++    p.first_order,
++    p.last_order
++from per_group as g
++cross join positions as p
++where
++    g.orders_in_group <> 1
++    or p.distinct_orders <> p.group_count
++    or p.first_order <> 1
++    or p.last_order <> p.group_count
+diff --git a/design-mocks/gen_competition_teams.py b/design-mocks/gen_competition_teams.py
+index c0b41b2f..59060672 100644
+--- a/design-mocks/gen_competition_teams.py
++++ b/design-mocks/gen_competition_teams.py
+@@ -27,14 +27,16 @@ COPY.update({
+     "colTablePos":    ("Table", "Sija", True),
+     "secTopTeams":    ("Top teams", "Parhaat joukkueet", True),
+     "boardMore":      ("Full list", "Koko lista", True),
+-    "grpGoals":       ("Goals", "Maalit", True),
+-    "grpShooting":    ("Shooting", "Laukominen", True),
+-    "grpPassing":     ("Passing", "Syöttäminen", True),
+-    "grpDefending":   ("Defending", "Puolustaminen", True),
+-    "grpDuels":       ("One-on-one", "Yksi vastaan yksi", False),
++    # the metric groups, keyed and named as the site's copy is (`metricGroups.<key>.label`,
++    # the catalogue's `metric_group` key)
++    "metricGroups.goals.label":       ("Goals", "Maalit", False),
++    "metricGroups.shooting.label":    ("Shooting", "Laukaukset", False),
++    "metricGroups.passing.label":     ("Passing", "Syötöt", False),
++    "metricGroups.one_on_one.label":  ("One-on-one", "Yksi vastaan yksi", False),
++    "metricGroups.defending.label":   ("Defending", "Puolustus", False),
++    "metricGroups.discipline.label":  ("Discipline", "Kurinpito", False),
++    "metricGroups.goalkeeping.label": ("Goalkeeping", "Maalivahti", False),
+     "fewestFirst":    ("fewest first", "vähiten ensin", True),
+-    "grpDiscipline":  ("Discipline", "Kurinpito", True),
+-    "grpGoalkeeping": ("Goalkeeping", "Maalivahtipeli", True),
+     "secTeamRankings": ("Team rankings", "Tiimirankingit", False),
+     "secPlayerRankings": ("Player rankings", "Pelaajarankingit", False),
+ })
+@@ -44,13 +46,13 @@ METRICS_FILE = HERE / "bl1_team_metrics.json"
+ # the way mart_team_leaderboards would (dense rank by the catalogue's direction, first three by
+ # value then name)
+ GROUPS = [
+-    ("grpGoals",     ["goals_per_match", "goals_against_per_match"]),
+-    ("grpShooting",  ["shots_on_goal_per_match", "shots_on_goal_against_per_match",
+-                      "shots_on_goal_difference_per_match"]),
+-    ("grpPassing",   ["passes_per_match", "passes_accuracy_pct"]),
+-    ("grpDefending", ["defensive_actions_per_match"]),
+-    ("grpDuels",     ["duels_per_match", "duels_won_pct"]),
+-    ("grpDiscipline", ["cards_yellow", "cards_red"]),
++    ("metricGroups.goals.label",      ["goals_per_match", "goals_against_per_match"]),
++    ("metricGroups.shooting.label",   ["shots_on_goal_per_match", "shots_on_goal_against_per_match",
++                                       "shots_on_goal_difference_per_match"]),
++    ("metricGroups.passing.label",    ["passes_per_match", "passes_accuracy_pct"]),
++    ("metricGroups.one_on_one.label", ["duels_per_match", "duels_won_pct"]),
++    ("metricGroups.defending.label",  ["defensive_actions_per_match"]),
++    ("metricGroups.discipline.label", ["cards_yellow", "cards_red"]),
+ ]
+ TOP = 5
+ 
+@@ -175,13 +177,13 @@ def boards_html(boards):
+ 
+ # ---- the player half: the approved 17 boards in seven groups ----
+ PLAYER_GROUPS = [
+-    ("grpGoals",       ["goals_player", "assists_player"]),
+-    ("grpShooting",    ["shots_on_goal_player", "finishing_efficiency_player_pct"]),
+-    ("grpPassing",     ["passes_player", "passes_key_player", "passes_accuracy_player_pct"]),
+-    ("grpDuels",       ["dribbles_attempts_player", "duels_player"]),
+-    ("grpDefending",   ["defensive_actions_player"]),
+-    ("grpDiscipline",  ["cards_yellow_player", "cards_red_player"]),
+-    ("grpGoalkeeping", ["saves_player"]),
++    ("metricGroups.goals.label",       ["goals_player", "assists_player"]),
++    ("metricGroups.shooting.label",    ["shots_on_goal_player", "finishing_efficiency_player_pct"]),
++    ("metricGroups.passing.label",     ["passes_player", "passes_key_player", "passes_accuracy_player_pct"]),
++    ("metricGroups.one_on_one.label",  ["dribbles_attempts_player", "duels_player"]),
++    ("metricGroups.defending.label",   ["defensive_actions_player"]),
++    ("metricGroups.discipline.label",  ["cards_yellow_player", "cards_red_player"]),
++    ("metricGroups.goalkeeping.label", ["saves_player"]),
+ ]
+ PLAYERS_FILE = HERE / "bl1_player_metrics.json"
+ # the leaderboard mart's rate rules: minutes >= 270, a shots-on-goal floor for finishing; the
+diff --git a/docs/metric_layer.md b/docs/metric_layer.md
+index eff498db..40342b10 100644
+--- a/docs/metric_layer.md
++++ b/docs/metric_layer.md
+@@ -12,7 +12,8 @@
+ | how to add or change a metric | [Adding or changing a metric](#adding-or-changing-a-metric) |
+ | what CI will fail you on | [What the guards enforce](#what-the-guards-enforce) |
+ | which model computes it | [How the layer works](#how-the-layer-works) |
+-| how a metric is **displayed** (group, tier, order, row patterns) | `docs/wireframes/metrics_display.md` |
++| how a metric is **displayed** (tier, row order within a group, row patterns) | `docs/wireframes/metrics_display.md` |
++| what a metric **group** is — its key, its order, its names | [A group is defined once](#a-group-is-defined-once) |
+ | which past matches form a window, and how it is labelled | `docs/metrics_context_model.md` |
+ | what a metric is called on screen | the i18n layer — the seed holds only `label_i18n_key` and `label_en` |
+ 
+@@ -35,9 +36,21 @@ is the team-side match count that leaves them out.
+ 
+ **The seed defines; one model computes.** `metric_catalogue.csv` carries `metric_id`, `entity`,
+ `label_i18n_key`, `label_en`, `description`, `base_relation`, `numerator_expr`, `denominator_expr`,
+-`computation_kind`, `lower_is_better`, `format`, `metric_group`, `importance_tier`, `direction` and
+-`interpretation`. It is the registry and the glossary — the UI glossary (`metrics.json`) is built
+-from it.
++`computation_kind`, `lower_is_better`, `format`, `metric_group`, `importance_tier`, `direction`,
++`interpretation` and `metric_group_order`. It is the registry and the glossary — the UI glossary
++(`metrics.json`) is built from it.
 +
-+    python scripts/check_yml_vs_projection.py --catalog dbt_project/target/catalog.json
++### A group is defined once
++
++A metric group is defined by three things and nowhere else: its **key**, the catalogue's
++`metric_group` value on every metric it holds; its **order**, the catalogue's `metric_group_order`,
++the same value on every row of the group and the positions 1..N across groups; and its **names**,
++site copy keyed by the group key (`metricGroups.<key>.label` in `site_v2/src/i18n/strings.ts`,
++one per language). The export publishes the key and order as `metric_groups.json`; every surface
++that shows a group heading reads the groups from that file and the heading from the copy. No
++document, seed or component spells a group's name or order on its own. Three checks hold it:
++`assert_metric_group_order_is_one_per_group` in the warehouse, `tests/test_metric_groups.py` on
++the committed export, and `site_v2/scripts/check-metric-labels.test.mjs` on the copy.
+ 
+ Each metric is computed in exactly one place, so the same metric cannot be derived three different
+ ways. The canonical models are:
+diff --git a/docs/wireframes/99_gaps_register.md b/docs/wireframes/99_gaps_register.md
+index 0774c890..87cb1121 100644
+--- a/docs/wireframes/99_gaps_register.md
++++ b/docs/wireframes/99_gaps_register.md
+@@ -17,7 +17,7 @@
+ | GAP-06 | 01 fixture, 06 h2h | export | `/h2h/{pair}/` is in the URL scheme and `mart_head_to_head` exists, but there is no standalone h2h export target (`ENTITY_TYPES` has none; fixture payloads embed only the summary) | Add an `h2h` export target (canonical pair = lower team id first) | pending | — |
+ | GAP-07 | 01 fixture | export (likely + mart) | Fixture pages exist only for upcoming fixtures (`status NS/TBD`); the URL promise is "preview → report" — a finished fixture has no payload (final score + stats on its own page). `matchstats/` covers drill-down stat lines but not the fixture page itself | Decide the report-state scope (which finished fixtures get pages, what they show — likely header + final score + `mart_team_fixture_stats`/`mart_player_fixture_stats`), then extend the export | pending | — |
+ | GAP-08 | 01 fixture, 04 hub | content | `round_name` (e.g. "Regular Season - 14", "Group Stage - 1") is a raw provider string rendered as-is — no localization strategy ("Spieltag 14") | i18n strategy decision in #370 (pattern-based round-label translation vs raw); blueprint renders the raw string until then | pending | — |
+-| GAP-09 | all metric screens | catalogue | Metric display needs grouping + importance as data: no `metric_group`, `importance_tier`, `group_display_order` columns in `metric_catalogue` | Add the three columns; values from the locked contract in [`metrics_display.md`](metrics_display.md) — `metric_group` on all atomics (team + player), `importance_tier` team-only (null for player entries) | **approved** (CPO 2026-06-11) | — |
++| GAP-09 | all metric screens | catalogue | Metric display needs grouping + importance as data: no `metric_group`, `importance_tier`, `group_display_order` columns in `metric_catalogue` | Add the three columns; values from the locked contract in [`metrics_display.md`](metrics_display.md) — `metric_group` on all atomics (team + player), `importance_tier` team-only (null for player entries) | **approved** (CPO 2026-06-11). **SHIPPED**: `metric_group` and `importance_tier` (on every row, the team-only tier superseded 2026-08-04); the order column landed with #152 as `metric_group_order`, not `group_display_order`, and its values are #152's ruling, not this document's block order — `docs/metric_layer.md`, "A group is defined once" | #152 |
+ | GAP-10 | 01 fixture | mart | W2 (season-to-date) form display needs aggregate W/D/L counts; `mart_team_season_record` carries only `games_played` + `points_won` (counts not derivable from points) | Add `wins`/`draws`/`losses` columns — countif over the same window legs the points come from | **approved** (CPO 2026-06-11) | — |
+ | GAP-11 | 01 fixture, 02 team | catalogue + mart | Locked team display table needs four metrics that don't exist: `clean_sheets` (x/y, both window marts), `shots_on_target_per_match`, `duels_per_match`, `defensive_actions_per_match` (T+I+B aggregate). Plus: finishing relabel ("% Conversion rate" → "% Goals per shot on target", formula unchanged), description tightenings (coverage denominators, blocked-shots note, >100% finishing caveat) | One catalogue+marts PR: new rows/columns per [`metrics_display.md`](metrics_display.md); `shots_on_goal_pct` stays defined but unrendered | **approved** (CPO 2026-06-11) | — |
+ | GAP-12 | 01 fixture, 03 player | catalogue | Locked player rows need two atomics that aren't catalogue metrics: `saves_player`, `shots_on_target_faced` (data exists in marts as `goals_saves`/`goals_conceded`); ratio display strings standardize to the full triple `{num} of {den} · {pct}%` (duels won, pass accuracy, save percentage) | Add the two atomics + i18n display-string updates; the legacy player display table superseded by [`metrics_display.md`](metrics_display.md) | **approved** (CPO 2026-06-11) | — |
+diff --git a/docs/wireframes/metrics_display.md b/docs/wireframes/metrics_display.md
+index 47b38496..80658700 100644
+--- a/docs/wireframes/metrics_display.md
++++ b/docs/wireframes/metrics_display.md
+@@ -12,12 +12,15 @@
+ 
+ > **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
+ > The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
+-> the seed. What this document still owns exclusively is **order**, which was deliberately
+-> removed from the catalogue: where a metric sits on a page is a frontend decision that changes
+-> with a design, so the seed holds what a metric IS, not where it appears.
+-
+-1. **Tier never orders.** Display order is fixed by this document (block sequence +
+-   row position within block) and is identical everywhere the list renders.
++> the seed. What this document still owns exclusively is **row order within a group**, which was
++> deliberately removed from the catalogue: where a metric sits on a page is a frontend decision
++> that changes with a design, so the seed holds what a metric IS, not where it appears. **Group
++> order moved into the catalogue with #152** (`metric_group_order`; see the note under the team
++> table below).
++
++1. **Tier never orders.** Display order is fixed once and is identical everywhere the list
++   renders: the block sequence by the catalogue's `metric_group_order`, the row position
++   within a block by this document.
+ 2. **Tier = visibility under constraint.** Surfaces that cannot show the full list
+    (home fixture hooks, teaser cards) show only tier-1 rows, in the same order.
+    Full pages show all rows.
+@@ -125,8 +128,11 @@ N" + vs-median, honest at N≈18) — never a percentile.
+ ## Team metrics — LOCKED (CPO, 2026-06-11)
+ 
+ Display order top to bottom. MVP rows keep their relative order; new blocks slot
+-into the spine. Block order: Goals → Shooting → Duels → Defending → Passing →
+-Set pieces → Goalkeeping.
++into the spine. **Block order is the catalogue's** `metric_group_order` (CPO, 2026-09-21, #152;
++`docs/metric_layer.md`, "A group is defined once"): Goals → Shooting → Passing → One-on-one →
++Defending → Discipline → Goalkeeping → Set pieces → Results → Playing time, on every surface. The
++group this table calls Duels is One-on-one. Row order WITHIN a block and the tiers are what this
++table locks.
+ 
+ | # | Display label | metric_id | Group | Tier | Status |
+ |---|---|---|---|---|---|
+@@ -137,8 +143,8 @@ Set pieces → Goalkeeping.
+ | 5 | % Shots from box | `shots_inside_box_pct` | Shooting | 2 | live |
+ | 6 | Ø Shots on goal | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
+ | 7 | % Goals per shot on goal | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11; "on target" → "on goal", step 5) |
+-| 8 | Ø Duels | `duels_per_match` | Duels | 2 | **new** (GAP-11) |
+-| 9 | % Duels won | `duels_won_pct` | Duels | 2 | live |
++| 8 | Ø Duels | `duels_per_match` | One-on-one | 2 | **new** (GAP-11) |
++| 9 | % Duels won | `duels_won_pct` | One-on-one | 2 | live |
+ | 10 | Ø Defensive actions (`T · I · B`) | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
+ | 11 | Ø Passes | `passes_per_match` | Passing | 3 | live |
+ | 12 | % Pass accuracy | `passes_accuracy_pct` | Passing | 2 | live |
+@@ -269,8 +275,8 @@ mixes groups; (3) ratio displays standardized to the full triple
+ |---|---|---|---|---|
+ | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
+ | 2 | Shots on goal | `{shots_on}` | shots_on_target | Shooting |
+-| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | Duels |
+-| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | Duels |
++| 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
++| 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
+ | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
+ | 6 | Pass accuracy | `{accurate} of {total} · {pct}%` | passes_accurate_player, passes_player, passes_accuracy_player_pct | Passing |
+ | 7 | Key passes | `{count}` | passes_key_player | Passing |
+@@ -288,8 +294,8 @@ mixes groups; (3) ratio displays standardized to the full triple
+ ## Data work implied (see 99_gaps_register.md)
+ 
+ - **GAP-09** — catalogue columns: `metric_group` (all atomics, team + player),
+-  `importance_tier` (**team-only** — null for player entries),
+-  `group_display_order` (this document is the source for the values).
++  `importance_tier` (on every row since 2026-08-04), `metric_group_order` (landed with #152;
++  the values are #152's ruling, not this document's block order).
+ - **GAP-10** — `wins`/`draws`/`losses` columns in `mart_team_season_record`
+   (the W2 counts display).
+ - **GAP-11** — new team metrics (`clean_sheets` in both window marts,
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 4802db8b..9d2771db 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -42,7 +42,8 @@ MARTS_DATASET = "marts"
+ SEEDS_DATASET = "dbt_analytics"
+ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+-                "leaderboards", "matchstats", "glossary", "landing", "competition_index")
++                "leaderboards", "matchstats", "glossary", "metric_groups", "landing",
++                "competition_index")
+ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
+@@ -1775,6 +1776,21 @@ def fetch_glossary(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
+         return {"type": "glossary", "metrics": list(csv.DictReader(f))}
+ 
+ 
++def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
++    """metric_groups.json — the metric groups as the catalogue defines them: key and order, one
++    row per group, in order. The names per language are site copy keyed by the group key. A
++    selection from the seed, no BigQuery: the groups are the distinct `metric_group` values and
++    the order is the `metric_group_order` column, the same on every row of a group (the singular
++    test `assert_metric_group_order_is_one_per_group` holds that)."""
++    import csv
++
++    with open(seed_path, encoding="utf-8") as f:
++        rows = list(csv.DictReader(f))
++    groups = sorted({(int(r["metric_group_order"]), r["metric_group"]) for r in rows})
++    return {"type": "metric_groups",
++            "groups": [{"key": key, "order": order} for order, key in groups]}
++
++
+ # --------------------------------------------------------------------------- #
+ # Orchestration
+ # --------------------------------------------------------------------------- #
+@@ -1853,6 +1869,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+         sha = write_file(out_root, "metrics.json", fetch_glossary())
+         entries.append({"type": "glossary", "id": "metrics", "slug": None,
+                         "path": "metrics.json", "sha256": sha})
++    if "metric_groups" in entities:
++        sha = write_file(out_root, "metric_groups.json", fetch_metric_groups())
++        entries.append({"type": "metric_groups", "id": "metric_groups", "slug": None,
++                        "path": "metric_groups.json", "sha256": sha})
+     if "landing" in entities:
+         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
+         entries.append({"type": "landing", "id": "landing", "slug": None,
+diff --git a/site_v2/scripts/check-metric-labels.test.mjs b/site_v2/scripts/check-metric-labels.test.mjs
+index b80bffe5..66cf2a13 100644
+--- a/site_v2/scripts/check-metric-labels.test.mjs
++++ b/site_v2/scripts/check-metric-labels.test.mjs
+@@ -81,8 +81,32 @@ const boardKeys = (() => {
+   });
+ })();
+ 
++/** The metric GROUPS (#152): keys and order from the export's copy of the catalogue
++ * (`src/data/metric_groups.json`, pinned to the seed by `tests/test_metric_groups.py`); a name per
++ * locale under `metricGroups.<key>.label`. */
++const groupJson = JSON.parse(readFileSync(join(SITE, "src/data/metric_groups.json"), "utf8"));
++const groupIds = groupJson.groups.map((g) => g.key);
++const groupKeys = groupIds.map((k) => `metricGroups.${k}.label`);
++const rowGroups = [...rowsSrc.matchAll(/\bgroup:\s*"([a-z_]+)"/g)].map((m) => m[1]);
++
++test("the metric groups come from the catalogue and every one has a name in every locale", () => {
++  assert.ok(groupIds.length >= 8, `parsed only ${groupIds.length} groups from metric_groups.json`);
++  assert.deepEqual(groupJson.groups.map((g) => g.order), groupIds.map((_, i) => i + 1),
++    "metric_groups.json is not one row per group at positions 1..N");
++  assert.ok(rowGroups.length >= 16, `parsed only ${rowGroups.length} group: tokens from metricRows.ts`);
++  const unknown = [...new Set(rowGroups)].filter((g) => !groupIds.includes(g));
++  assert.deepEqual(unknown, [],
++    `metricRows.ts names groups the catalogue does not define: ${unknown.join(", ")}`);
++  for (const loc of LOCALES) {
++    const missing = groupKeys.filter((k) => !labels[loc].get(k));
++    assert.deepEqual(missing, [], `${loc} has no group name for: ${missing.join(", ")}`);
++    const stray = [...labels[loc].keys()].filter((k) => k.startsWith("metricGroups.") && !groupKeys.includes(k));
++    assert.deepEqual(stray, [], `${loc} names a group the catalogue does not define: ${stray.join(", ")}`);
++  }
++});
++
+ test("every metric name the page asks for resolves in all three locales", () => {
+-  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys])];
++  const asked = [...new Set([...rowKeys, ...heroKeys, ...boardKeys, ...groupKeys])];
+   assert.ok(asked.length >= 22, `expected >=22 metric names in use, found ${asked.length}`);
+   for (const loc of LOCALES) {
+     const missing = asked.filter((k) => !labels[loc].get(k));
+@@ -93,7 +117,7 @@ test("every metric name the page asks for resolves in all three locales", () =>
+ });
+ 
+ test("no locale carries a label nothing renders, and none is empty", () => {
+-  const asked = new Set([...rowKeys, ...heroKeys, ...boardKeys]);
++  const asked = new Set([...rowKeys, ...heroKeys, ...boardKeys, ...groupKeys]);
+   for (const loc of LOCALES) {
+     for (const [key, val] of labels[loc]) {
+       assert.ok(asked.has(key), `${loc}.${key} is defined but no component asks for it`);
+diff --git a/site_v2/src/components/fixture/MetricComparison.astro b/site_v2/src/components/fixture/MetricComparison.astro
+index 6a1b0ee9..3a6eb9c0 100644
+--- a/site_v2/src/components/fixture/MetricComparison.astro
++++ b/site_v2/src/components/fixture/MetricComparison.astro
+@@ -1,11 +1,12 @@
+ ---
+-// The LOCKED 16-row team comparison for one window (W1 or W2). Renders the groups
+-// in the fixed order with a subhead, rows in the fixed order within each group
+-// (metricRows.ts). A row whose value is missing on BOTH sides is hidden (avoid a
+-// wall of dashes); a row missing on one side shows "-" there. No reordering by value.
++// The LOCKED 16-row team comparison for one window (W1 or W2). Renders the groups in the
++// catalogue's order with a subhead named in this locale, rows in the fixed order within each
++// group (metricRows.ts). A row whose value is missing on BOTH sides is hidden (avoid a wall of
++// dashes); a row missing on one side shows "-" there. No reordering by value.
+ import MetricRow from "./MetricRow.astro";
+-import { GROUP_ORDER, METRIC_ROWS } from "../../lib/metricRows";
++import { GROUP_KEYS_IN_ORDER, METRIC_ROWS } from "../../lib/metricRows";
+ import type { MetricRowDef } from "../../lib/metricRows";
++import { metricLabel } from "../../i18n/strings";
+ import { asNumber } from "../../lib/types";
+ import type { WindowStats } from "../../lib/types";
+ import type { Lang } from "../../lib/format";
+@@ -23,8 +24,8 @@ const { home, away, windowKey, lang, homeName, awayName } = Astro.props;
+ const hasData = (def: MetricRowDef): boolean =>
+   asNumber(home?.[def.field]) !== null || asNumber(away?.[def.field]) !== null;
+ 
+-const groups = GROUP_ORDER.map((group) => ({
+-  group,
++const groups = GROUP_KEYS_IN_ORDER.map((group) => ({
++  group: metricLabel(lang, `metricGroups.${group}.label`),
+   rows: METRIC_ROWS.filter((r) => r.group === group && hasData(r)),
+ })).filter((g) => g.rows.length > 0);
+ ---
+diff --git a/site_v2/src/components/team/TeamPerformance.astro b/site_v2/src/components/team/TeamPerformance.astro
+index 2776349a..670f8bd1 100644
+--- a/site_v2/src/components/team/TeamPerformance.astro
++++ b/site_v2/src/components/team/TeamPerformance.astro
+@@ -15,10 +15,10 @@ import MetricLeagueRow from "./MetricLeagueRow.astro";
+ import MetricSeasonRow from "./MetricSeasonRow.astro";
+ import { decimal0 } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+-import { t } from "../../i18n/strings";
++import { t, metricLabel } from "../../i18n/strings";
+ import { asNumber } from "../../lib/types";
+ import type { TeamSeason, Benchmark } from "../../lib/types";
+-import { METRIC_ROWS, GROUP_ORDER, teamBinding } from "../../lib/metricRows";
++import { METRIC_ROWS, GROUP_KEYS_IN_ORDER, teamBinding } from "../../lib/metricRows";
+ 
+ interface Props {
+   season: TeamSeason;
+@@ -60,14 +60,15 @@ const dsub = atoms.some((v) => v != null)
+ const subFor = (field: string): string | null =>
+   field === "defensive_actions_per_match" ? dsub : null;
+ 
+-// League panel: locked block order, only metrics that HAVE a benchmark (§6 metric-absent =
+-// omitted, never a zero bar). Season panel: all 16 (a null delta dashes out honestly).
+-const leagueGroups = GROUP_ORDER.map((group) => ({
+-  group,
++// League panel: the catalogue's group order, only metrics that HAVE a benchmark (§6
++// metric-absent = omitted, never a zero bar). Season panel: all 16 (a null delta dashes out
++// honestly). A group's heading is its name in this locale.
++const leagueGroups = GROUP_KEYS_IN_ORDER.map((group) => ({
++  group: metricLabel(lang, `metricGroups.${group}.label`),
+   rows: METRIC_ROWS.filter((r) => r.group === group && benchByKey.has(keyOf(r))),
+ })).filter((g) => g.rows.length > 0);
+-const seasonGroups = GROUP_ORDER.map((group) => ({
+-  group,
++const seasonGroups = GROUP_KEYS_IN_ORDER.map((group) => ({
++  group: metricLabel(lang, `metricGroups.${group}.label`),
+   rows: METRIC_ROWS.filter((r) => r.group === group),
+ })).filter((g) => g.rows.length > 0);
+ ---
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index d2356a3e..aa116d06 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -873,6 +873,19 @@ const METRIC_LABELS_EN: MetricLabels = {
+   "playerMetrics.scorerPoints.assists": "Assists",
+   "playerMetrics.passAccuracy.total": "Passes",
+   "playerMetrics.keyPasses.label": "Key passes",
++  // The metric GROUPS (#152): a group is defined by its key and order in the catalogue and by
++  // these names, keyed `metricGroups.<metric_group>.label`. The key set is bound to
++  // `src/data/metric_groups.json` by `check-metric-labels.test.mjs`.
++  "metricGroups.goals.label": "Goals",
++  "metricGroups.shooting.label": "Shooting",
++  "metricGroups.passing.label": "Passing",
++  "metricGroups.one_on_one.label": "One-on-one",
++  "metricGroups.defending.label": "Defending",
++  "metricGroups.discipline.label": "Discipline",
++  "metricGroups.goalkeeping.label": "Goalkeeping",
++  "metricGroups.set_pieces.label": "Set pieces",
++  "metricGroups.outcomes.label": "Results",
++  "metricGroups.playing_time.label": "Playing time",
+ };
+ 
+ const METRIC_LABELS_DE: MetricLabels = {
+@@ -924,6 +937,16 @@ const METRIC_LABELS_DE: MetricLabels = {
+   "playerMetrics.scorerPoints.assists": "Torvorlagen",
+   "playerMetrics.passAccuracy.total": "Pässe",
+   "playerMetrics.keyPasses.label": "Schlüsselpässe",
++  "metricGroups.goals.label": "Tore",
++  "metricGroups.shooting.label": "Schüsse",
++  "metricGroups.passing.label": "Pässe",
++  "metricGroups.one_on_one.label": "Eins-gegen-eins",
++  "metricGroups.defending.label": "Defensive",
++  "metricGroups.discipline.label": "Disziplin",
++  "metricGroups.goalkeeping.label": "Torwart",
++  "metricGroups.set_pieces.label": "Standards",
++  "metricGroups.outcomes.label": "Ergebnisse",
++  "metricGroups.playing_time.label": "Einsatzzeit",
+ };
+ 
+ const METRIC_LABELS_FI: MetricLabels = {
+@@ -974,6 +997,16 @@ const METRIC_LABELS_FI: MetricLabels = {
+   "playerMetrics.scorerPoints.assists": "Maalisyötöt",
+   "playerMetrics.passAccuracy.total": "Syötöt",
+   "playerMetrics.keyPasses.label": "Avainsyötöt",
++  "metricGroups.goals.label": "Maalit",
++  "metricGroups.shooting.label": "Laukaukset",
++  "metricGroups.passing.label": "Syötöt",
++  "metricGroups.one_on_one.label": "Yksi vastaan yksi",
++  "metricGroups.defending.label": "Puolustus",
++  "metricGroups.discipline.label": "Kurinpito",
++  "metricGroups.goalkeeping.label": "Maalivahti",
++  "metricGroups.set_pieces.label": "Erikoistilanteet",
++  "metricGroups.outcomes.label": "Tulokset",
++  "metricGroups.playing_time.label": "Peliaika",
+ };
+ 
+ const METRIC_LABELS: Record<Lang, MetricLabels> = {
+diff --git a/site_v2/src/lib/metricRows.ts b/site_v2/src/lib/metricRows.ts
+index 600e74d1..91888f6a 100644
+--- a/site_v2/src/lib/metricRows.ts
++++ b/site_v2/src/lib/metricRows.ts
+@@ -1,11 +1,14 @@
+ // The LOCKED 16-row team metric contract. Shared by the fixture comparison (home vs away,
+ // per window) and the team page Performance tab (vs the league / vs last season).
+ //
+-// This is DISPLAY CONFIG, not computation: order + groups + tiers come from
+-// docs/wireframes/metrics_display.md (LOCKED); `format` + `direction`
+-// mirror dbt_project/seeds/metric_catalogue.csv (the metric SSoT) — the frontend
+-// renders these definitions, it does not invent them. Until the catalogue exposes
+-// group/tier/order columns (GAP-09) this file is their frontend home, per that doc.
++// This is DISPLAY CONFIG, not computation: row order within a group and tiers come from
++// docs/wireframes/metrics_display.md (LOCKED); `format` + `direction` mirror
++// dbt_project/seeds/metric_catalogue.csv (the metric SSoT) — the frontend renders these
++// definitions, it does not invent them. A row's `group` is the catalogue's `metric_group` KEY
++// verbatim; the groups themselves — which exist and in what order — come from
++// `src/data/metric_groups.json` (the export's copy of the catalogue's key + `metric_group_order`),
++// and a group's name per locale is `metricLabel(lang, "metricGroups.<key>.label")`. Nothing about
++// a group is spelled here (#152).
+ //
+ // `field` is the payload key on w1/w2 (the bare metric name) — NOT the display id.
+ // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
+@@ -18,15 +21,21 @@
+ // #370: there is no `label` field here. A metric's display name lives once, per locale, in
+ // `i18n/strings.ts` (METRIC_LABELS), keyed by the catalogue's own `label_i18n_key` — which is what
+ // `labelKey` below holds. Render a name with `metricLabel(lang, row.labelKey)`; never re-spell one
+-// here. The order/group/tier contract from `docs/wireframes/metrics_display.md` is unchanged and still
+-// lives in this file; only the strings moved.
++// here. The row order and tier contract from `docs/wireframes/metrics_display.md` still lives in
++// this file; the strings and the groups moved out.
+ 
+ import type { Direction } from "./bars";
+ import type { SingleFormat } from "./format";
++import metricGroups from "../data/metric_groups.json";
+ 
+ export type RowFormat = "decimal_1" | "decimal_0" | "percent" | "count_fraction";
+-export type MetricGroup =
+-  | "Goals" | "Shooting" | "Duels" | "Defending" | "Passing" | "Set pieces" | "Goalkeeping";
++
++/** The catalogue's group keys in the catalogue's order, from the exported copy. Every `group:`
++ *  below is one of them — `check-metric-labels.test.mjs` asserts it, and that each has a name in
++ *  every locale. */
++export const GROUP_KEYS_IN_ORDER: string[] = [...metricGroups.groups]
++  .sort((a, b) => a.order - b.order)
++  .map((g) => g.key);
+ 
+ /** What the TEAM surface binds for a slot whose two surfaces measure different things.
+  *  Only `clean_sheets` needs one: the fixture windows serve the COUNT of shut-outs beside the
+@@ -45,7 +54,7 @@ export interface MetricRowDef {
+   // those two deliberately disagree for at least one metric (see row 6). Inferring a key from an id
+   // is how you break the binding. `check-metric-labels.test.mjs` cross-checks every one.
+   labelKey: string;
+-  group: MetricGroup;
++  group: string;              // the catalogue's `metric_group` key, verbatim
+   tier: 1 | 2 | 3;            // visibility under constraint (never reorders — display doc)
+   format: RowFormat;
+   direction: Direction;       // drives the green "better" side (never `lower_is_better`)
+@@ -67,23 +76,18 @@ export function teamBinding(row: MetricRowDef): TeamBinding {
+   };
+ }
+ 
+-// Fixed group order (metrics_display.md block order). The comparison renders groups
+-// in this order with a subhead, and rows in array order within each group.
+-export const GROUP_ORDER: MetricGroup[] = [
+-  "Goals", "Shooting", "Duels", "Defending", "Passing", "Set pieces", "Goalkeeping",
+-];
+-
++// Groups render in `GROUP_KEYS_IN_ORDER` with a subhead; rows in array order within each group.
+ export const METRIC_ROWS: MetricRowDef[] = [
+-  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "higher_better" },
+-  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "Goals", tier: 1, format: "decimal_1", direction: "lower_better" },
++  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "higher_better" },
++  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "lower_better" },
+   // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
+   //   `clean_sheets`, a count of shut-outs, rendered against the matches behind it (3/5). The team
+   //   page ranks `clean_sheets_pct`, the proportion, because teams are compared across a league.
+   //   Read the team side through `teamBinding()`; never assume `field` covers both.
+-  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "Goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
++  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
+     team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent" } },
+-  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "Shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
+-  { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "Shooting", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
++  { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "shooting", tier: 2, format: "percent", direction: "higher_better" },
+   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
+   //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
+   // Do NOT "fix" this to `metrics.shots_on_goal_per_match.label` — the catalogue declares no such
+@@ -92,17 +96,17 @@ export const METRIC_ROWS: MetricRowDef[] = [
+   // (internal id "on goal", user-facing label "on target"); RULING 2 closed it, so the label now
+   // reads "Ø Shots on goal" and both say "on goal". What is left is only a LEGACY KEY NAME, which
+   // is still the join key and still the only thing that resolves this label.
+-  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "Shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
+-  { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "Shooting", tier: 1, format: "percent", direction: "higher_better" },
+-  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "Duels", tier: 2, format: "decimal_0", direction: "higher_better" },
+-  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "Duels", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
++  { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "shooting", tier: 1, format: "percent", direction: "higher_better" },
++  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "one_on_one", tier: 2, format: "decimal_0", direction: "higher_better" },
++  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "one_on_one", tier: 2, format: "percent", direction: "higher_better" },
+   // ⚠ `sublabel` is still an ENGLISH string rendered in all three locales. It is a caption, not a
+   // metric name, so it is outside this task's criteria — recorded in the contract as residual.
+-  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "Defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
+-  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "Passing", tier: 3, format: "decimal_0", direction: "higher_better" },
+-  { field: "passes_accuracy_pct", labelKey: "metrics.passes_accuracy_pct.label", group: "Passing", tier: 2, format: "percent", direction: "higher_better" },
+-  { field: "passes_key_per_match", labelKey: "metrics.passes_key_per_match.label", group: "Passing", tier: 2, format: "decimal_1", direction: "higher_better" },
+-  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
+-  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "Set pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
+-  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "Goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
++  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "passing", tier: 3, format: "decimal_0", direction: "higher_better" },
++  { field: "passes_accuracy_pct", labelKey: "metrics.passes_accuracy_pct.label", group: "passing", tier: 2, format: "percent", direction: "higher_better" },
++  { field: "passes_key_per_match", labelKey: "metrics.passes_key_per_match.label", group: "passing", tier: 2, format: "decimal_1", direction: "higher_better" },
++  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
++  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
++  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
+ ];
+diff --git a/tests/test_metric_groups.py b/tests/test_metric_groups.py
+new file mode 100644
+index 00000000..71b2ab88
+--- /dev/null
++++ b/tests/test_metric_groups.py
+@@ -0,0 +1,105 @@
++"""The metric groups are defined once, in the catalogue, and the site reads a copy of that.
++
++`site_v2/src/data/metric_groups.json` is a committed build input the export writes from
++`metric_catalogue.csv` (key and order, one row per group). These tests lock the committed file to
++a fresh regeneration from the seed — the `test_metric_bindings.py` pattern — so a group renamed or
++reordered in the seed cannot ship while the site still lists the old set, and check the seed's
++own group facts offline: every group has one order, and the orders are the positions 1..N. The
++same rule runs in the warehouse as `assert_metric_group_order_is_one_per_group`; this copy is
++what fails a merge request before a build.
 +"""
 +from __future__ import annotations
 +
-+import argparse
-+import json
-+import pathlib
-+import sys
-+
-+import yaml
-+
-+REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-+DBT_DIR = REPO_ROOT / "dbt_project"
-+MODELS_DIR = DBT_DIR / "models"
-+
-+# Floors, set well under what the repo has (101 models, 1,915 listed columns when written) and
-+# well over zero, so ordinary deletion never trips them and a broken walk always does.
-+MIN_MODELS = 50
-+MIN_LISTED_COLUMNS = 800
-+
-+
-+class Abort(Exception):
-+    """A reason this run cannot be trusted. Printed and exit 1; nothing is judged."""
-+
-+
-+def _rel(path: pathlib.Path) -> str:
-+    try:
-+        return path.relative_to(REPO_ROOT).as_posix()
-+    except ValueError:
-+        return path.as_posix()
-+
-+
-+def _skip(path: pathlib.Path) -> bool:
-+    rel = f"/{_rel(path)}"
-+    return "/target/" in rel or "/dbt_packages/" in rel
-+
-+
-+def models_on_disk() -> set[str]:
-+    """Model names from the SQL files, every layer."""
-+    return {p.stem for p in MODELS_DIR.rglob("*.sql") if not _skip(p)}
-+
-+
-+def listed_columns() -> dict[str, tuple[pathlib.Path, list[str]]]:
-+    """model name -> (yml that declares it, column names it lists), every yml in the project."""
-+    found: dict[str, tuple[pathlib.Path, list[str]]] = {}
-+    for path in sorted(DBT_DIR.rglob("*.yml")):
-+        if _skip(path):
-+            continue
-+        try:
-+            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-+        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
-+            raise Abort(f"{_rel(path)}: cannot parse ({exc.__class__.__name__})") from exc
-+        if not isinstance(doc, dict) or not isinstance(doc.get("models"), list):
-+            continue
-+        for model in doc["models"]:
-+            if not isinstance(model, dict) or not isinstance(model.get("name"), str):
-+                continue
-+            name = model["name"]
-+            if name in found:
-+                raise Abort(
-+                    f"model {name!r} is declared twice: in {_rel(found[name][0])} "
-+                    f"and in {_rel(path)}. Refusing to guess which list is the model's."
-+                )
-+            cols = [
-+                c["name"] for c in (model.get("columns") or [])
-+                if isinstance(c, dict) and isinstance(c.get("name"), str)
-+            ]
-+            found[name] = (path, cols)
-+    return found
-+
-+
-+def catalog_columns(catalog_path: pathlib.Path) -> dict[str, set[str]]:
-+    """model name -> lower-cased column names the warehouse projects."""
-+    try:
-+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
-+        raise Abort(f"{_rel(catalog_path)}: cannot read ({exc.__class__.__name__})") from exc
-+    if not isinstance(catalog, dict):
-+        raise Abort(f"{_rel(catalog_path)}: not a dbt catalogue (no object at the top)")
-+    out: dict[str, set[str]] = {}
-+    for uid, node in (catalog.get("nodes") or {}).items():
-+        if not uid.startswith("model.") or not isinstance(node, dict):
-+            continue
-+        cols = node.get("columns") or {}
-+        out[uid.rsplit(".", 1)[-1]] = {
-+            str(c.get("name")).lower() for c in cols.values() if isinstance(c, dict)
-+        }
-+    return out
-+
-+
-+def check(catalog_path: pathlib.Path) -> tuple[list[str], dict[str, int]]:
-+    """(findings, census). Every guard that can refuse the run raises Abort here."""
-+    models = models_on_disk()
-+    if len(models) < MIN_MODELS:
-+        raise Abort(
-+            f"found only {len(models)} models under {_rel(MODELS_DIR)}, expected at least "
-+            f"{MIN_MODELS}. The layout has moved, or this is not the repo root."
-+        )
-+
-+    declared = listed_columns()
-+    catalog = catalog_columns(catalog_path)
-+
-+    absent = sorted(models - catalog.keys())
-+    if absent:
-+        raise Abort(
-+            f"the catalogue is missing {len(absent)} of {len(models)} models on disk, so it "
-+            f"does not describe this warehouse: {', '.join(absent[:5])}"
-+            f"{' ...' if len(absent) > 5 else ''}\n"
-+            f"  This is almost always a stale or dev-target catalog.json. Fetch the artifact "
-+            f"from the most recent data:build:main. (A model that is `enabled: false` or "
-+            f"ephemeral is never in a catalogue; this repo has none, and one would need its "
-+            f"own rule here.)"
-+        )
-+
-+    findings: list[str] = []
-+    listed = 0
-+    for name in sorted(declared):
-+        path, cols = declared[name]
-+        if name not in models:
-+            findings.append(
-+                f"{_rel(path)}: {name} is declared but has no model file on disk"
-+            )
-+            continue
-+        listed += len(cols)
-+        projected = catalog[name]
-+        for col in cols:
-+            if col.lower() not in projected:
-+                findings.append(
-+                    f"{_rel(path)}: {name}.{col} is listed but not in the model's projection"
-+                )
-+
-+    if listed < MIN_LISTED_COLUMNS:
-+        raise Abort(
-+            f"found only {listed} listed columns across {len(declared)} declared models, "
-+            f"expected at least {MIN_LISTED_COLUMNS}. A check that finds nothing always passes."
-+        )
-+
-+    return findings, {"models": len(models), "listed": listed, "absent": len(findings)}
-+
-+
-+def main(catalog_path: pathlib.Path) -> int:
-+    if hasattr(sys.stdout, "reconfigure"):
-+        sys.stdout.reconfigure(errors="replace")
-+    try:
-+        findings, census = check(catalog_path)
-+    except Abort as exc:
-+        print(f"ABORT: {exc}")
-+        return 1
-+
-+    status = "PROJECTION" if findings else "OK"
-+    print(f"{status}: {census['models']} models, {census['listed']} listed columns, "
-+          f"{census['absent']} absent from their projection")
-+    if findings:
-+        print()
-+        for finding in findings:
-+            print(f"  - {finding}")
-+        print("\nThe standard is dbt_project/docs/engineering_standards.md section 3.5: remove "
-+              "the entry, or restore the column (or the model) it describes.")
-+        return 1
-+    return 0
-+
-+
-+def _cli(argv: list[str] | None = None) -> int:
-+    parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-+    parser.add_argument(
-+        "--catalog",
-+        type=pathlib.Path,
-+        default=DBT_DIR / "target" / "catalog.json",
-+        help="dbt catalog.json describing the PRODUCTION warehouse (a data:build:main artifact).",
-+    )
-+    args = parser.parse_args(argv)
-+    return main(args.catalog)
-+
-+
-+if __name__ == "__main__":
-+    sys.exit(_cli())
-diff --git a/tests/test_check_relationships_coverage.py b/tests/test_check_relationships_coverage.py
-index 2dd1a9a8..a801487e 100644
---- a/tests/test_check_relationships_coverage.py
-+++ b/tests/test_check_relationships_coverage.py
-@@ -179,8 +179,8 @@ def test_an_unparseable_file_fails_closed_and_names_it(tmp_path, monkeypatch, ca
- 
- 
- def test_the_real_tree_is_covered(capsys):
--    """The gate on the repo itself: this is what enforces the rule on every merge request until
--    the script has its own `validate:governance` line."""
-+    """The gate on the repo itself, in `test:python`; `validate:governance` runs the same script
-+    as a line of its own, so the rule holds even if one of the two jobs is ever narrowed."""
-     assert gate.main() == 0
-     out = capsys.readouterr().out
-     assert out.startswith("OK:")
-diff --git a/tests/test_check_yml_vs_projection.py b/tests/test_check_yml_vs_projection.py
-new file mode 100644
-index 00000000..1f121ea3
---- /dev/null
-+++ b/tests/test_check_yml_vs_projection.py
-@@ -0,0 +1,237 @@
-+"""Tests for `scripts/check_yml_vs_projection.py`.
-+
-+Each test drives the gate against a synthetic project and a synthetic catalogue and asserts one
-+thing it must refuse, or one thing it must accept. The real-tree test at the end runs only when a
-+COMPLETE catalogue is on disk — on a dev machine `dbt_project/target/catalog.json` is whatever the
-+last local `dbt docs generate` wrote, and the gate's own partial-catalogue abort would fire on it,
-+which would be the abort working, not the tree failing.
-+"""
-+from __future__ import annotations
-+
-+import json
++import csv
++import io
 +import os
-+import pathlib
 +import sys
++from pathlib import Path
 +
-+import pytest
-+import yaml
++REPO = Path(__file__).resolve().parents[1]
++CATALOGUE = REPO / "dbt_project" / "seeds" / "metric_catalogue.csv"
++COMMITTED_JSON = REPO / "site_v2" / "src" / "data" / "metric_groups.json"
 +
 +sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-+
-+import check_yml_vs_projection as gate  # noqa: E402
-+
-+
-+YML = """version: 2
-+
-+models:
-+  - name: mart_thing
-+    description: One row per thing.
-+    columns:
-+      - name: thing_sk
-+        description: Identity key.
-+      - name: league_code
-+        description: The competition.
-+"""
++import export_site_data as export  # noqa: E402
 +
 +
-+def _project(tmp_path, ymls: dict[str, str], models: dict[str, str] | None = None):
-+    """A minimal dbt project: one .sql per model, plus the schema files given."""
-+    dbt = tmp_path / "dbt_project"
-+    if models is None:
-+        models = {}
-+        for body in ymls.values():
-+            doc = yaml.safe_load(body) or {}
-+            for model in doc.get("models") or []:
-+                models[model["name"]] = "5_marts"
-+    for name, layer in models.items():
-+        d = dbt / "models" / layer
-+        d.mkdir(parents=True, exist_ok=True)
-+        (d / f"{name}.sql").write_text("select 1\n", encoding="utf-8")
-+    for rel, body in ymls.items():
-+        path = dbt / "models" / rel
-+        path.parent.mkdir(parents=True, exist_ok=True)
-+        path.write_text(body, encoding="utf-8")
-+    return dbt
++def _rows() -> list[dict[str, str]]:
++    with CATALOGUE.open(newline="", encoding="utf-8") as f:
++        return list(csv.DictReader(f))
 +
 +
-+def _catalog(tmp_path, columns: dict[str, list[str]], name: str = "catalog.json"):
-+    nodes = {
-+        f"model.proj.{model}": {
-+            "metadata": {"schema": "marts", "name": model},
-+            "columns": {c: {"name": c, "index": i} for i, c in enumerate(cols)},
-+        }
-+        for model, cols in columns.items()
-+    }
-+    path = tmp_path / name
-+    path.write_text(json.dumps({"nodes": nodes, "sources": {}}), encoding="utf-8")
-+    return path
-+
-+
-+@pytest.fixture(autouse=True)
-+def _point_at_tmp(monkeypatch, tmp_path):
-+    """Every test supplies a one-or-two model project, so both floors would fire on all of them
-+    and mask what is being tested. They keep their real values in the two floor tests."""
-+    monkeypatch.setattr(gate, "REPO_ROOT", tmp_path)
-+    monkeypatch.setattr(gate, "DBT_DIR", tmp_path / "dbt_project")
-+    monkeypatch.setattr(gate, "MODELS_DIR", tmp_path / "dbt_project" / "models")
-+    monkeypatch.setattr(gate, "MIN_MODELS", 1)
-+    monkeypatch.setattr(gate, "MIN_LISTED_COLUMNS", 1)
-+
-+
-+def test_a_listed_column_missing_from_the_projection_is_red(tmp_path, capsys):
-+    _project(tmp_path, {"marts.yml": YML})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk"]})
-+    assert gate.main(cat) == 1
-+    out = capsys.readouterr().out
-+    assert out.startswith("PROJECTION:")
-+    assert "mart_thing.league_code is listed but not in the model's projection" in out
-+    assert "marts.yml" in out
-+
-+
-+def test_every_listed_column_present_is_green(tmp_path, capsys):
-+    _project(tmp_path, {"marts.yml": YML})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code", "unlisted_extra"]})
-+    assert gate.main(cat) == 0
-+    assert capsys.readouterr().out.startswith("OK: 1 models, 2 listed columns, 0 absent")
-+
-+
-+STRUCT_YML = YML + "      - name: recent_meetings\n        description: A struct.\n" \
-+                   "      - name: recent_meetings.goals_for\n        description: A field.\n"
-+
-+# What dbt-bigquery's catalogue holds for a STRUCT column: the parent and every leaf path
-+# (`INFORMATION_SCHEMA.COLUMN_FIELD_PATHS`), which is how the dotted entries in the repo's
-+# own ymls came to be written by `declare_missing_columns.py` in the first place.
-+STRUCT_COLUMNS = ["thing_sk", "league_code", "recent_meetings", "recent_meetings.goals_for",
-+                  "recent_meetings.result"]
-+
-+
-+def test_a_struct_field_listed_and_present_is_green(tmp_path):
-+    _project(tmp_path, {"marts.yml": STRUCT_YML})
-+    cat = _catalog(tmp_path, {"mart_thing": STRUCT_COLUMNS})
-+    assert gate.main(cat) == 0
-+
-+
-+def test_a_struct_field_absent_from_the_catalogue_is_red_even_with_its_parent_present(tmp_path, capsys):
-+    """A mistyped or removed field must not pass on its parent's back."""
-+    yml = STRUCT_YML + "      - name: recent_meetings.goals_fro\n        description: Typo.\n"
-+    _project(tmp_path, {"marts.yml": yml})
-+    cat = _catalog(tmp_path, {"mart_thing": STRUCT_COLUMNS})
-+    assert gate.main(cat) == 1
-+    out = capsys.readouterr().out
-+    assert "mart_thing.recent_meetings.goals_fro is listed" in out
-+    assert "goals_for is listed" not in out
-+
-+
-+def test_a_yml_block_for_a_model_with_no_sql_on_disk_is_red(tmp_path, capsys):
-+    """`dbt parse` only warns on an orphan block; its descriptions reach nothing."""
-+    orphan = YML.replace("mart_thing", "mart_gone")
-+    _project(tmp_path, {"marts.yml": YML, "gone.yml": orphan}, models={"mart_thing": "5_marts"})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
-+    assert gate.main(cat) == 1
-+    out = capsys.readouterr().out
-+    assert "gone.yml: mart_gone is declared but has no model file on disk" in out
-+
-+
-+def test_column_names_match_case_insensitively(tmp_path):
-+    _project(tmp_path, {"marts.yml": YML})
-+    cat = _catalog(tmp_path, {"mart_thing": ["THING_SK", "League_Code"]})
-+    assert gate.main(cat) == 0
-+
-+
-+def test_a_partial_catalogue_aborts_and_names_the_model(tmp_path, capsys):
-+    """An on-disk model the catalogue does not hold means the catalogue is not this
-+    warehouse's; judging the rest against it would be a smaller answer presented as the answer."""
-+    _project(tmp_path, {"marts.yml": YML}, models={"mart_thing": "5_marts", "mart_other": "5_marts"})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
-+    assert gate.main(cat) == 1
-+    out = capsys.readouterr().out
-+    assert out.startswith("ABORT:")
-+    assert "missing 1 of 2 models on disk" in out
-+    assert "mart_other" in out
-+
-+
-+def test_a_missing_catalogue_file_aborts(tmp_path, capsys):
-+    _project(tmp_path, {"marts.yml": YML})
-+    assert gate.main(tmp_path / "absent.json") == 1
-+    out = capsys.readouterr().out
-+    assert out.startswith("ABORT:")
-+    assert "cannot read" in out
-+
-+
-+def test_an_invalid_catalogue_file_aborts(tmp_path, capsys):
-+    _project(tmp_path, {"marts.yml": YML})
-+    bad = tmp_path / "catalog.json"
-+    bad.write_text("{not json", encoding="utf-8")
-+    assert gate.main(bad) == 1
-+    assert "cannot read (JSONDecodeError)" in capsys.readouterr().out
-+
-+
-+def test_an_unparseable_yml_aborts_and_names_it(tmp_path, capsys):
-+    _project(tmp_path, {"marts.yml": YML, "broken.yml": "models:\n  - name: [\n"},
-+             models={"mart_thing": "5_marts"})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
-+    assert gate.main(cat) == 1
-+    out = capsys.readouterr().out
-+    assert out.startswith("ABORT:")
-+    assert "broken.yml: cannot parse" in out
-+
-+
-+def test_a_model_declared_in_two_ymls_aborts(tmp_path, capsys):
-+    _project(tmp_path, {"a.yml": YML, "b.yml": YML})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
-+    assert gate.main(cat) == 1
-+    assert "declared twice" in capsys.readouterr().out
-+
-+
-+def test_a_yml_whose_models_key_is_not_a_list_is_skipped(tmp_path):
-+    """`dbt_project.yml` has a `models:` DICT (the config tree); it declares nothing."""
-+    _project(tmp_path, {"marts.yml": YML})
-+    (tmp_path / "dbt_project" / "dbt_project.yml").write_text(
-+        "name: proj\nmodels:\n  proj:\n    +materialized: table\n", encoding="utf-8"
-+    )
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
-+    assert gate.main(cat) == 0
-+
-+
-+def test_below_the_models_floor_is_red(tmp_path, monkeypatch, capsys):
-+    monkeypatch.setattr(gate, "MIN_MODELS", 50)
-+    _project(tmp_path, {"marts.yml": YML})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
-+    assert gate.main(cat) == 1
-+    assert "found only 1 models" in capsys.readouterr().out
-+
-+
-+def test_below_the_listed_columns_floor_is_red(tmp_path, monkeypatch, capsys):
-+    monkeypatch.setattr(gate, "MIN_LISTED_COLUMNS", 800)
-+    _project(tmp_path, {"marts.yml": YML})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk", "league_code"]})
-+    assert gate.main(cat) == 1
-+    assert "found only 2 listed columns" in capsys.readouterr().out
-+
-+
-+def test_the_cli_takes_the_catalogue_path(tmp_path, capsys):
-+    _project(tmp_path, {"marts.yml": YML})
-+    cat = _catalog(tmp_path, {"mart_thing": ["thing_sk"]})
-+    assert gate._cli(["--catalog", str(cat)]) == 1
-+    assert "league_code" in capsys.readouterr().out
-+
-+
-+def test_the_real_tree_against_a_complete_catalogue(monkeypatch, capsys):
-+    """Green on the repo when a whole catalogue is on disk; skipped, never faked, otherwise."""
-+    repo = pathlib.Path(__file__).resolve().parents[1]
-+    monkeypatch.setattr(gate, "REPO_ROOT", repo)
-+    monkeypatch.setattr(gate, "DBT_DIR", repo / "dbt_project")
-+    monkeypatch.setattr(gate, "MODELS_DIR", repo / "dbt_project" / "models")
-+    monkeypatch.setattr(gate, "MIN_MODELS", 50)
-+    monkeypatch.setattr(gate, "MIN_LISTED_COLUMNS", 800)
-+    catalog = repo / "dbt_project" / "target" / "catalog.json"
-+    if not catalog.exists():
-+        pytest.skip("no catalog.json on disk")
-+    try:
-+        held = gate.catalog_columns(catalog).keys()
-+    except gate.Abort as exc:
-+        pytest.skip(f"catalog.json unreadable: {exc}")
-+    if gate.models_on_disk() - held:
-+        pytest.skip("catalog.json on disk is partial (a dev-target run), not the warehouse")
-+    assert gate.main(catalog) == 0
-+    assert capsys.readouterr().out.startswith("OK:")
-diff --git a/tests/test_persist_docs_policy.py b/tests/test_persist_docs_policy.py
-index 1cbcd0ce..4a0b6417 100644
---- a/tests/test_persist_docs_policy.py
-+++ b/tests/test_persist_docs_policy.py
-@@ -227,6 +227,29 @@ def test_the_catalog_is_published():
-     )
- 
- 
-+def test_the_projection_check_runs_in_that_job_after_the_docs_line():
-+    """`check_yml_vs_projection.py` reads the catalog.json the docs line just wrote.
-+
-+    It belongs here and nowhere else (#109 step 3, MR D): this is the one job where the catalogue
-+    is the whole prod warehouse, and it runs after prod is built and tested, so a red costs signal,
-+    never data. Anywhere earlier in the script the file does not exist yet; in any other job it
-+    would be partial, and the script's own abort would make the job red for the wrong reason.
-+    """
-+    assert _jobs_running("check_yml_vs_projection.py") == ["data:build:main"], (
-+        "check_yml_vs_projection.py must run in data:build:main and nowhere else."
-+    )
-+    script = [str(ln) for ln in _ci()["data:build:main"]["script"]]
-+    docs = next(i for i, ln in enumerate(script) if "dbt docs generate" in ln)
-+    check = next(i for i, ln in enumerate(script) if "check_yml_vs_projection.py" in ln)
-+    assert check > docs, "the projection check must come AFTER dbt docs generate writes catalog.json"
-+    assert "--catalog dbt_project/target/catalog.json" in script[check], (
-+        f"the check must read the catalogue the docs line wrote; found: {script[check]}"
-+    )
-+    assert script[check].startswith('cd "$CI_PROJECT_DIR"'), (
-+        "the script ends inside dbt_project/, so the line must return to the repo root first"
++def test_the_committed_file_is_a_fresh_regeneration_from_the_seed():
++    fresh = export._payload_bytes(export.fetch_metric_groups()).decode("utf-8")
++    # `read_text` folds a CRLF checkout to LF, as `test_metric_bindings.py` does: the bytes
++    # git hands a Windows working tree differ from the export's, the content must not
++    assert COMMITTED_JSON.read_text(encoding="utf-8") == fresh, (
++        "site_v2/src/data/metric_groups.json differs from the seed. Regenerate it: "
++        "python scripts/export_site_data.py --entities metric_groups, then copy metric_groups.json."
 +    )
 +
 +
- def test_the_pins_are_not_vacuous():
-     """Anti-vacuous floor, per `check_copy_gate.py`'s MIN_KEYS precedent.
- 
++def _out_of_position(payload: dict, groups: set[str]) -> list[str]:
++    """Why the payload is not one row per group at positions 1..N; empty when it is."""
++    listed = [g["key"] for g in payload["groups"]]
++    orders = [g["order"] for g in payload["groups"]]
++    findings = []
++    if sorted(listed) != sorted(groups):
++        findings.append(f"keys {sorted(listed)} != seed groups {sorted(groups)}")
++    if len(listed) != len(set(listed)):
++        findings.append(f"a group listed twice: {listed}")
++    if orders != list(range(1, len(groups) + 1)):
++        findings.append(f"orders {orders} are not the positions 1..{len(groups)}")
++    return findings
++
++
++def test_every_catalogue_group_is_listed_once_in_order():
++    rows = _rows()
++    groups = {r["metric_group"] for r in rows}
++    assert _out_of_position(export.fetch_metric_groups(), groups) == []
++
++
++def test_a_group_has_exactly_one_order_in_the_seed():
++    orders: dict[str, set[str]] = {}
++    for r in _rows():
++        orders.setdefault(r["metric_group"], set()).add(r["metric_group_order"])
++    split = {g: sorted(o) for g, o in orders.items() if len(o) != 1}
++    assert split == {}, f"groups with more than one order: {split}"
++
++
++def test_the_seed_is_not_empty():
++    """Anti-vacuous floor: 87 rows and 10 groups when written."""
++    rows = _rows()
++    assert len(rows) >= 60
++    assert len({r["metric_group"] for r in rows}) >= 8
++
++
++def _seed_with(tmp_path, edit) -> str:
++    rows = _rows()
++    for r in rows:
++        edit(r)
++    out = io.StringIO()
++    w = csv.DictWriter(out, fieldnames=list(rows[0].keys()), lineterminator="\n")
++    w.writeheader()
++    w.writerows(rows)
++    bad = tmp_path / "metric_catalogue.csv"
++    bad.write_text(out.getvalue(), encoding="utf-8")
++    return str(bad)
++
++
++def test_two_groups_on_one_order_is_red(tmp_path):
++    def edit(r):
++        if r["metric_group"] == "shooting":
++            r["metric_group_order"] = "1"
++    groups = {r["metric_group"] for r in _rows()}
++    findings = _out_of_position(export.fetch_metric_groups(_seed_with(tmp_path, edit)), groups)
++    assert findings and "positions" in findings[0]
++
++
++def test_one_group_on_two_orders_is_red(tmp_path):
++    def edit(r):
++        if r["metric_id"] == "goals_per_match":
++            r["metric_group_order"] = "11"
++    groups = {r["metric_group"] for r in _rows()}
++    findings = _out_of_position(export.fetch_metric_groups(_seed_with(tmp_path, edit)), groups)
++    assert any("listed twice" in f for f in findings)
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md          |  7 +++++-
+#    site_v2/src/data/metric_groups.json | 45 +++++++++++++++++++++++++++++++++++++
+#    2 files changed, 51 insertions(+), 1 deletion(-)
+# ============================================================================
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -812,7 +1178,8 @@ index 1cbcd0ce..4a0b6417 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/active_work.md          |  120 +-
-#    .claude/task/review_input.patch | 3587 +++++++++------------------------------
-#    2 files changed, 821 insertions(+), 2886 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   84 +-
+#    .claude/task/rendered_page_evidence.md |  103 +-
+#    .claude/task/review_input.patch        | 1882 +++++++++++++++++++-------------
+#    3 files changed, 1188 insertions(+), 881 deletions(-)
 # ============================================================================

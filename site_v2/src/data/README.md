@@ -15,7 +15,7 @@ That trap sprang once inside this branch's own life. The allowlist in `.gitignor
 rather than by line range: the range written here was `249-270`, and it had already rotted.)
 
 Tracked today (count with `git ls-files site_v2/src/data`; the number written here has been wrong before): the
-four root files below, the Bundesliga competition payload, 283 fixture payloads, 36 team payloads.
+five root files below, the Bundesliga competition payload, 283 fixture payloads, 36 team payloads.
 
 - `competition_index.json` — the competitions index page's payload (#62 step 5), produced
   verbatim by `python scripts/export_site_data.py --entities competition_index`. All **48**
@@ -54,6 +54,11 @@ four root files below, the Bundesliga competition payload, 283 fixture payloads,
 - `competitions.json` — `league_code → { name, slug }` for all **48** registry entries (the
   registry's authored slug; the frontend never generates slugs). At scale this is the export's
   `nav.json` / `slug_map.json`.
+- `metric_groups.json` — the metric groups (key and order, one row per group) as the catalogue
+  defines them, produced verbatim by `python scripts/export_site_data.py --entities metric_groups`
+  from `metric_catalogue.csv` (no BigQuery). `metricRows.ts` reads the groups from it; the names
+  per language are copy in `strings.ts`. Pinned to the seed by `tests/test_metric_groups.py`, so a
+  seed change means regenerating this file in the same commit.
 - `landing.json` — the home page's payload, produced verbatim by
   `python scripts/export_site_data.py --entities landing` (#367). ⚠ It is NOT hand-reduced, and this
   line used to say it was — `shape_landing_payload` returns only the keys the built blocks need, so

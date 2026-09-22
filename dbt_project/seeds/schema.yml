@@ -248,11 +248,14 @@ seeds:
       window-free — ids carry no window suffix, and the window and any null policy are applied
       where the metric is computed, never here.
 
-      What a metric IS, not where it appears: display order lives in metrics_display.md.
+      What a metric IS, not where it appears: the order of metrics within a group lives in
+      metrics_display.md; the groups themselves and their order are the `metric_group` and
+      `metric_group_order` columns here.
     config:
       +full_refresh: true
       column_types:
         importance_tier: int64
+        metric_group_order: int64
     columns:
       - name: metric_id
         description: >
@@ -376,7 +379,15 @@ seeds:
         tests:
           - not_null
           - accepted_values:
-              values: ["goals", "shooting", "duels", "defending", "passing", "set_pieces", "goalkeeping", "discipline", "outcomes", "playing_time"]
+              values: ["goals", "shooting", "one_on_one", "defending", "passing", "set_pieces", "goalkeeping", "discipline", "outcomes", "playing_time"]
+      - name: metric_group_order
+        description: >
+          Where the metric's group sits when groups are listed: 1 first. The same value on every
+          row of a group, and the values are the positions 1..N with no gap or tie — every
+          surface that shows group headings renders them in this order, and nothing else defines
+          it. A group's names per language are site copy keyed by `metric_group`.
+        tests:
+          - not_null
       - name: importance_tier
         description: >
           Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier
