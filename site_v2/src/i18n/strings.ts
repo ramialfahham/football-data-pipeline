@@ -962,6 +962,11 @@ const METRIC_LABELS_DE: MetricLabels = {
   // The competition page's other player boards (#151): the words the team rows above already
   // use for the same concept (Torschüsse, Trefferquote, Angekommene Pässe, Zweikämpfe,
   // Defensivaktionen), without the sigil because these are season totals.
+  // ⚠ TWO have no team row to borrow from and rest on an external source instead, which is the
+  // only other thing that counts (the Finnish block records the same for the same key):
+  // dribbles — FotMob's German says "Erfolgreiche Dribblings" for the completed ones, so the
+  // plain plural is the attempts, the pair the English has; saves — "Paraden" is the word the
+  // frozen legacy corpus `site/i18n/de.json` already uses.
   "playerMetrics.shotsOnTarget.label": "Torschüsse",
   "playerMetrics.finishingEfficiency.label": "% Trefferquote",
   "playerMetrics.passAccuracy.label": "% Angekommene Pässe",
@@ -1036,10 +1041,15 @@ const METRIC_LABELS_FI: MetricLabels = {
   // The competition page's other player boards (#151): the words the team rows above already
   // use for the same concept (Maalilaukaukset, Viimeistelytehokkuus, Syöttötarkkuus,
   // Kaksinkamppailut, Puolustustoimet), without the sigil because these are season totals.
+  // ⚠ Dribbles and saves have NO team row to borrow from. Dribbles was therefore the one word
+  // coined here, and coining was the defect: the drafted "Harhautusyritykset" is not a word
+  // Finnish football uses. FotMob's Finnish says "Onnistuneet harhautukset" for the completed
+  // ones, so the plain noun is the attempts — the pair the English has. "Torjunnat" shares its
+  // root with the team row's "% Torjuntaosuus", already in this file and in site/i18n/fi.json.
   "playerMetrics.shotsOnTarget.label": "Maalilaukaukset",
   "playerMetrics.finishingEfficiency.label": "% Viimeistelytehokkuus",
   "playerMetrics.passAccuracy.label": "% Syöttötarkkuus",
-  "playerMetrics.dribbles.attempts": "Harhautusyritykset",
+  "playerMetrics.dribbles.attempts": "Harhautukset",
   "playerMetrics.duels.total": "Kaksinkamppailut",
   "playerMetrics.defensiveActions.label": "Puolustustoimet",
   "playerMetrics.cards.yellow": "Keltaiset kortit",

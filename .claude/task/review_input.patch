@@ -2300,7 +2300,7 @@ index 5f9e6b42..45fcc375 100644
  const hWidth = barWidth(hv, av);
  const aWidth = barWidth(av, hv);
 diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index ea84a59d..924e28ce 100644
+index ea84a59d..7f5afd35 100644
 --- a/site_v2/src/i18n/strings.ts
 +++ b/site_v2/src/i18n/strings.ts
 @@ -257,6 +257,8 @@ const EN: Dict = {
@@ -2463,13 +2463,18 @@ index ea84a59d..924e28ce 100644
    // Top players' four boards (#40), confirmed copy. The assists label is "Torvorlagen" —
    // *"more precise than just Vorlagen"* — the draft carried the bare "Vorlagen", and "Assists"
    // (current in German football media) was not taken, consistent with every other metric name in
-@@ -937,6 +959,18 @@ const METRIC_LABELS_DE: MetricLabels = {
+@@ -937,6 +959,23 @@ const METRIC_LABELS_DE: MetricLabels = {
    "playerMetrics.scorerPoints.assists": "Torvorlagen",
    "playerMetrics.passAccuracy.total": "Pässe",
    "playerMetrics.keyPasses.label": "Schlüsselpässe",
 +  // The competition page's other player boards (#151): the words the team rows above already
 +  // use for the same concept (Torschüsse, Trefferquote, Angekommene Pässe, Zweikämpfe,
 +  // Defensivaktionen), without the sigil because these are season totals.
++  // ⚠ TWO have no team row to borrow from and rest on an external source instead, which is the
++  // only other thing that counts (the Finnish block records the same for the same key):
++  // dribbles — FotMob's German says "Erfolgreiche Dribblings" for the completed ones, so the
++  // plain plural is the attempts, the pair the English has; saves — "Paraden" is the word the
++  // frozen legacy corpus `site/i18n/de.json` already uses.
 +  "playerMetrics.shotsOnTarget.label": "Torschüsse",
 +  "playerMetrics.finishingEfficiency.label": "% Trefferquote",
 +  "playerMetrics.passAccuracy.label": "% Angekommene Pässe",
@@ -2482,7 +2487,7 @@ index ea84a59d..924e28ce 100644
    "metricGroups.goals.label": "Tore",
    "metricGroups.shooting.label": "Schüsse",
    "metricGroups.passing.label": "Pässe",
-@@ -985,6 +1019,8 @@ const METRIC_LABELS_FI: MetricLabels = {
+@@ -985,6 +1024,8 @@ const METRIC_LABELS_FI: MetricLabels = {
    "metrics.corners_per_match.label": "Ø Kulmapotkut",
    "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
    "metrics.saves_pct.label": "% Torjuntaosuus",
@@ -2491,17 +2496,22 @@ index ea84a59d..924e28ce 100644
    // Top players' four boards (#40), confirmed copy together with the DE block above; only the
    // German assists label changed on confirmation and these four stood.
    // They were flagged rather than assumed for a reason worth keeping: `10_home.md` §10 records the
-@@ -997,6 +1033,18 @@ const METRIC_LABELS_FI: MetricLabels = {
+@@ -997,6 +1038,23 @@ const METRIC_LABELS_FI: MetricLabels = {
    "playerMetrics.scorerPoints.assists": "Maalisyötöt",
    "playerMetrics.passAccuracy.total": "Syötöt",
    "playerMetrics.keyPasses.label": "Avainsyötöt",
 +  // The competition page's other player boards (#151): the words the team rows above already
 +  // use for the same concept (Maalilaukaukset, Viimeistelytehokkuus, Syöttötarkkuus,
 +  // Kaksinkamppailut, Puolustustoimet), without the sigil because these are season totals.
++  // ⚠ Dribbles and saves have NO team row to borrow from. Dribbles was therefore the one word
++  // coined here, and coining was the defect: the drafted "Harhautusyritykset" is not a word
++  // Finnish football uses. FotMob's Finnish says "Onnistuneet harhautukset" for the completed
++  // ones, so the plain noun is the attempts — the pair the English has. "Torjunnat" shares its
++  // root with the team row's "% Torjuntaosuus", already in this file and in site/i18n/fi.json.
 +  "playerMetrics.shotsOnTarget.label": "Maalilaukaukset",
 +  "playerMetrics.finishingEfficiency.label": "% Viimeistelytehokkuus",
 +  "playerMetrics.passAccuracy.label": "% Syöttötarkkuus",
-+  "playerMetrics.dribbles.attempts": "Harhautusyritykset",
++  "playerMetrics.dribbles.attempts": "Harhautukset",
 +  "playerMetrics.duels.total": "Kaksinkamppailut",
 +  "playerMetrics.defensiveActions.label": "Puolustustoimet",
 +  "playerMetrics.cards.yellow": "Keltaiset kortit",
@@ -3469,8 +3479,8 @@ index 00000000..8bd0080b
 #   .claude/active_work.md                 |   46 +-
 #    .claude/task/acceptance_evidence.md    |   80 +-
 #    .claude/task/rendered_page_evidence.md |   74 +-
-#    .claude/task/review.md                 |   74 +-
-#    .claude/task/review_input.patch        | 3617 ++++++++++++++++++++++++++++++--
+#    .claude/task/review.md                 |   80 +-
+#    .claude/task/review_input.patch        | 3753 +++++++++++++++++++++++++++++---
 #    docs/tracker/gitlab_snapshot.md        |    6 +-
-#    6 files changed, 3568 insertions(+), 329 deletions(-)
+#    6 files changed, 3618 insertions(+), 421 deletions(-)
 # ============================================================================

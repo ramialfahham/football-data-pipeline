@@ -1,9 +1,9 @@
 # Review — feat/151-rankings-tab — 2026-09-22
 
-diff_sha256: 48e8b1c10484edd948d1f1f422d5dee12dfbc5c76d3b14c3820248658a93eb67
+diff_sha256: 331dceca82df458811483ec496c4a51245aeb884d8e31fcce935bd19f0211a53
 
-rounds: 4
-rounds_cap_override: the CPO ruled on the open MR (2026-09-22, "change it to /rankings/") and asked for the change on this branch; round 4 is that rename, reviewed as a delta by the three reviewers whose territory it touches. It clears no standing FAIL. He did not rule on the cap.
+rounds: 6
+rounds_cap_override: every round past 3 is the CPO correcting the open MR, not the builder grinding. Round 4: "change it to /rankings/" (2026-09-22). Rounds 5 and 6: he challenged a Finnish label the bi-analyst had passed as language — *"Harhautusyritykset?? is not football language"* — which was correct, and the reviewer's FAIL on that round found the same gap in German. Each round is reviewed as a delta by the territory it touches, and none clears a standing FAIL by fiat. He did not rule on the cap.
 
 ⚠ REBASED onto `main` after !217 (the menu rename) merged, which moved the base under this branch.
 The hash above is the recomputed cumulative diff against the new base; the four round-by-round
@@ -54,6 +54,8 @@ risks_checked:
 - Every new string resolves in EN/DE/FI and is pinned by `check-metric-labels.test.mjs`; the removed strings have no call site.
 - The Overview's Balance column traced to the quoted #129 ruling; `system.css` removes `.ctab.dp` and adds nothing. Round 2: the GAP-11 register row now agrees with the shipped code and the locked wireframe.
 - Round 4 (delta): the address rename is complete and consistent in every file of the territory that names it (page, spec `page` and note, the tab's `hasRankingsPage` href at all three call sites, the Overview spec's note, the block standard's Pages row); no field, label or rendering change rides with it; the SEO copy keys' internal names are unchanged and were reviewed in round 1.
+- Round 5 FAIL, after the CPO rejected the Finnish dribbles label this reviewer had passed in round 1: the same failure class was uncorrected in German. Established mechanically that seven of the nine player labels are byte-identical to an existing team row in the file once the "Ø " sigil is stripped, so they are borrowed and not coined; the two that are not — `dribbles.attempts` and `savePct.saves` — had no repo-recorded backing.
+- Round 6 (delta): both unborrowed values now carry their source in the file (FotMob's German and Finnish localisations for dribbles; `site/i18n/de.json` for "Paraden", re-grepped independently — one occurrence, matching the claim). No value moved. On the words themselves: no basis to call either wrong; both rest on a live product's real per-language localisation, and the bare-plural-is-attempts pattern is consistent across DE, FI and the catalogue's own English pair.
 
 ## platform-reviewer
 VERDICT: PASS
