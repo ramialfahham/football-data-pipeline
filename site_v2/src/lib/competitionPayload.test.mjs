@@ -1,13 +1,14 @@
 // Pins what the competition page does with its payload: the latest season wins, ranking tables
-// are left out, the deserved boards are the two ends of the served order, and a null fact is no
-// row — the rules that keep the page from showing an empty block or an older season by accident.
+// are left out, the next round is the flagged one, boards file under the catalogue's groups in
+// its order, and a null fact is no row — the rules that keep the page from showing an empty
+// block or an older season by accident.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  deservedBoards,
+  boardGroups,
   latestSeasonPayload,
-  matchThatMatters,
+  nextRound,
   seasonFacts,
   standingsSections,
 } from "./competitionPayload.mjs";
@@ -31,18 +32,27 @@ test("standings split into sections in served order and the provider's ranking t
   ]);
 });
 
-test("the deserved boards are the served rank 1-3 and the three highest ranks, worse reversed", () => {
-  const served = ["Mainz", "Union", "Leverkusen", "Köln", "Bremen", "Freiburg", "Schalke", "Dortmund"]
-    .map((name, i) => ({ name, deserved_points: 5, deserved_points_gap: i - 3, deserved_points_gap_rank: i + 1 }));
-  const boards = deservedBoards(served);
-  assert.deepEqual(boards.better.map((r) => r.name), ["Mainz", "Union", "Leverkusen"]);
-  assert.deepEqual(boards.worse.map((r) => r.name), ["Dortmund", "Schalke", "Freiburg"]);
+test("the next round is the one the warehouse flagged, and nothing when none is", () => {
+  assert.equal(nextRound([{ round: "Regular Season - 4", is_next_round: false },
+                          { round: "Regular Season - 5", is_next_round: true }]).round, "Regular Season - 5");
+  assert.equal(nextRound([{ round: "Regular Season - 34", is_next_round: false }]), null);
+  assert.equal(nextRound(undefined), null);
 });
 
-test("no deserved boards unless at least two rows carry a served rank", () => {
-  assert.equal(deservedBoards([{ name: "A", deserved_points: 1, deserved_points_gap: 0, deserved_points_gap_rank: 1 }]), null);
-  assert.equal(deservedBoards([{ name: "A", deserved_points: null, deserved_points_gap: null, deserved_points_gap_rank: null },
-                               { name: "B", deserved_points: null, deserved_points_gap: null, deserved_points_gap_rank: null }]), null);
+test("boards file under their groups in the catalogue's order, the export's order within a group", () => {
+  const boards = [
+    { metric_key: "cards_yellow", metric_group: "discipline", rows: [{}] },
+    { metric_key: "goals_per_match", metric_group: "goals", rows: [{}] },
+    { metric_key: "goals_against_per_match", metric_group: "goals", rows: [{}] },
+    { metric_key: "saves_pct", metric_group: "goalkeeping", rows: [] },
+    { metric_key: "stray", metric_group: "no_such_group", rows: [{}] },
+  ];
+  const groups = boardGroups(boards, ["goals", "shooting", "discipline", "goalkeeping"]);
+  assert.deepEqual(groups.map((g) => [g.key, g.boards.map((b) => b.metric_key)]), [
+    ["goals", ["goals_per_match", "goals_against_per_match"]],
+    ["discipline", ["cards_yellow"]],
+  ], "an empty board makes no group, a group with no board is absent, an unlisted group is dropped");
+  assert.deepEqual(boardGroups([], ["goals"]), []);
 });
 
 const summary = {
@@ -65,9 +75,4 @@ test("a null served value yields no row, and a missing summary no rows", () => {
     .map((f) => f.key);
   assert.deepEqual(keys, ["goalsPerMatch", "mostGoals", "longestUnbeaten"]);
   assert.deepEqual(seasonFacts(null), []);
-});
-
-test("the match that matters is the flagged fixture, and nothing when none is flagged", () => {
-  assert.equal(matchThatMatters([{ fixture_id: 1 }, { fixture_id: 2, is_match_that_matters: true }]).fixture_id, 2);
-  assert.equal(matchThatMatters([{ fixture_id: 1, is_match_that_matters: false }]), null);
 });

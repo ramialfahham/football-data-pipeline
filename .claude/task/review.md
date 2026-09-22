@@ -1,34 +1,54 @@
-# Review — fix/menu-leaderboards — 2026-09-22
+# Review — feat/151-rankings-tab — 2026-09-22
 
-diff_sha256: 5d2b04ba0bfd7ff2e03ff3c875bc2a6eb57c51b3fc0e56aa1f8c483518fe5e4a
+diff_sha256: 95deef33aca2759a09ff8e2cca6a692d64e4e6d8ea38a507c712f1bfdacf397f
 
 rounds: 2
-
-Round 1: the bi-analyst FAILed. The impact map swept for the KEY name (`navStats`), which appears
-in no prose, so five places that write the menu out in words still said "Stats" — four in
-`09_chrome.md` itself (the quote, both ASCII diagrams, the States bullet) and the
-`site_architecture.md` line that document cites as its authority. Round 2 swept by the concept:
-those five plus `north_star.md` and `ui_design_brief.md`, which carry the same list. Both
-reviewers PASS on the delta.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The English word is the CPO's: both quotes verified verbatim in the repo — `10_home.md` ("the menu item Stats is renamed Leaderboards") and the #127 approved-design section as the tracker carries it ("Stats is renamed Leaderboards (menu, footer, milestone 7, issues #139/#140)"). Not paraphrased, not the builder's.
-- The German and Finnish words are in `decisions_reserved`, drafted for the MR head — consistent with §11 (a code decision is recorded by the MR the CPO merges), not a silent §10 naming decision.
-- The key rename `navStats` → `navLeaderboards` is internal identifier hygiene with its reason in `decisions_taken`; no stray old key anywhere live.
-- Every file in the cumulative patch is in `scope_paths`; the three documents added in round 2 are each a single-word substitution inside a pre-existing nav list, matching the round-1 finding and the amendment's authority. In scope, not creep.
-- The §6 States bullet's surrounding claim ("every non-brand item is inert") was already false — Competitions became a link when its index shipped under #128 — so correcting it in the sentence being edited is a doc-sync fix of an already-decided fact, not a second change; site behaviour is unchanged.
-- No `href`, route, page or link-graph change in the diff; `audit-seo: 1195 built page(s) checked. OK.`
-- No credential-shaped content, no new mechanism, no recurring cost, no cadence change.
-- `docs/tracker/gitlab_snapshot.md`'s remaining "Stats" is correctly untouched: script-generated, hand-edits hook-blocked, refreshed at session end.
+- Round 1 FAIL: `docs/wireframes/99_gaps_register.md` GAP-11 still recorded `clean_sheets` as `x/y` while the branch ships `integer`; a design-chain document the diff contradicts must move in the same branch. Round 2: the row now reads approved as `x/y`, ruled a bare count on #129, shipped as `integer` by #151, with the issue in the last column — resolved.
+- scope_paths coverage: every file in the cumulative patch matches an entry, including the fnmatch-corrected page globs and the amendments; no drift.
+- §10 decisions: `/stats/`, the blank-card-as-zero reading, the catalogue-direction join with the ruled card override, inert headings and fact rows, the player stub's page set, the `count_fraction`/`.ctab.dp` removal, the six dropped player boards — each traced to a quoted #129/#151 ruling or a mechanical consequence of one.
+- The audit-seo h1 exemption widening against "the header never changes with the tab" — the one-header-per-entity rule extended to a third tab, tested both directions; not a rule extension.
+- No credential-shaped content, no new mechanism, no recurring cost; `decisions_reserved` empty and nothing decided silently against it.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Blank-card-as-zero in `int_legs__team_match.sql` against the LEFT JOIN's null-ness and the measured provider behaviour; `games_with_card_stats` and the NULL-out in the cumulative model follow the same coverage idiom as every other team-feed metric.
+- A mart reading `metric_catalogue` via `ref()` has precedent (`mart_standings` + `standings_table_kinds`); the inner join's silent-drop failure mode is caught by `assert_mart_team_leaderboards_all_boards_present` (count != 12).
+- `rank_order` / `sort_key` / dense_rank consistency against the catalogue's directions for all 12 boards; the new singular test re-derives the extreme independently and checks the zero rule; the yml expression matches the model's row filter.
+- The three-way board-set pin reads the real files and its mutation tests go red in each direction.
+- `clean_sheets` format and the `count_fraction` removal swept across seed, schema, docs, `format.ts`, `MetricRow.astro` — no dangling reference.
+- The export and the components select served columns only; no ranking or metric math client-side. Round 2: `layering.md` mart rows now match the models (no games floor, the served direction, 12/13 boards).
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- `cards_yellow` / `cards_red`: real per-match provider statistics summed over the season; `lower_better` matches the player rows and football sense; the descriptions state the blank-vs-zero reading and the withheld total honestly and match the SQL.
+- The second-yellow quirk is stated only where cards are summed into one metric (`cards_player`); no team composite is introduced, so the omission on the separate boards is consistent.
+- The most-first ruling on the card boards is a display order on the mart, not a catalogue misstatement.
+- `clean_sheets` `count_fraction` → `integer` against the ruling; no other row or the schema enum still references the retired format.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: `09_chrome.md` half-renamed (module-bindings table updated, the quote at line 19, both ASCII diagrams and the States prose left saying "Stats"), and `site_architecture.md:222`, the line that document cites as authority, likewise. Round 2: all four locations and the cited line verified fixed in the patch, not only the working tree.
-- The rewritten States bullet introduces no fresh inaccuracy: its "Competitions is the one link" claim checked against `SiteHeader.astro` — `navCompetitions` carries an `href`, the other five including `navLeaderboards` do not.
-- The item is still dead text: `SiteHeader.astro` renders it as a `<span>` with no `href`, `SiteFooter.astro` the same, at every width in every locale per the rendered evidence.
-- The copy as language: "Bestenlisten" is the standard German compound for a leaderboard list and reads as a nav label; "Kärkilistat" matches the "Kärki" stem already validated on Home (`Kärkipelaajat`, `Kärkijoukkueet`) and is distinct from the separate DE "Rankings" ruling on the competition tab. No defect in either draft.
-- The evidence files are this branch's and honest — method named, drawer state at 375px measured, the pre-existing sideways scroll flagged as pre-existing.
-- Swept `docs/**` independently for the same stale nav list rather than trusting the claim: the only remaining hit is the script-owned tracker backup, outside the territory and not hand-editable by rule.
+- Every field on the Rankings tab traced from `RankingBoard.astro` / `RankingsBlock.astro` through `types.ts`, `shape_competition_boards`, `_board_catalogue` to the two marts and the seed — every rendered field a served column, none computed in the page.
+- The committed sample carries the 12 team boards and 12 of 13 player boards (finishing legitimately empty after four matchdays, omitted by design); no hand-typed key.
+- Group order from `metric_groups.json` via `boardGroups()`; no tier reorders boards.
+- The zero rule and the fewest-first note enforced in SQL, by the new singular test, and re-checked on the built HTML by `check-built-pages.mjs`; `acceptance_evidence.md` shows the run against `dist`.
+- `rendered_page_evidence.md` present and drawn from a real headless-Chromium pass at 375/700 px EN/DE/FI; the pre-existing 700px header overflow disclosed, not hidden.
+- Every new string resolves in EN/DE/FI and is pinned by `check-metric-labels.test.mjs`; the removed strings have no call site.
+- The Overview's Balance column traced to the quoted #129 ruling; `system.css` removes `.ctab.dp` and adds nothing. Round 2: the GAP-11 register row now agrees with the shipped code and the locked wireframe.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- `shape_competition_payload` signature change: every caller (the fetcher, the tests) updated; no stale positional caller.
+- `shape_competition_boards` unit-tested for the five-row cut, empty-board omission, the carried catalogue facts and the player shape.
+- `tests/test_leaderboard_board_sets.py` reads the production files; the red tests exercise real mutated inputs; `_LEADERBOARD_METRICS` aliasing leaves no untested gap.
+- `check-built-pages.mjs`'s `BOARD_RE` traced line by line against `RankingBoard.astro`'s emitted markup; the link check requires a real `href`.
+- `sharesHeader` requires the parent page to carry the same h1; the test proves unrelated siblings still fail; `isTabOf` unchanged.
+- Rerun safety: views rebuilt wholesale, deterministic export order; no dependency, credential or `.gitignore` change; the new checks are wired in CI through `test:python`, `prebuild` and the `astro:build:done` integrations.
+- The player stub's page growth disclosed in the spec and the contract; scale is not this reviewer's to block on.

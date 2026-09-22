@@ -2,7 +2,7 @@
 // One comparison row: home value · centred label + diverging bar · away value.
 // All arithmetic here is DISPLAY (format the served value; bar width = relative
 // share; green = the served `direction`'s better side) — no metric facts computed.
-import { formatValue, countFraction, DASH } from "../../lib/format";
+import { formatValue, DASH } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { barWidth, betterSide } from "../../lib/bars";
 import { asNumber } from "../../lib/types";
@@ -14,24 +14,19 @@ interface Props {
   def: MetricRowDef;
   home?: WindowStats | null;
   away?: WindowStats | null;
-  windowKey: "w1" | "w2";
   lang: Lang;
 }
-const { def, home, away, windowKey, lang } = Astro.props;
+const { def, home, away, lang } = Astro.props;
 
 const hv = asNumber(home?.[def.field]);
 const av = asNumber(away?.[def.field]);
 
-function display(side: WindowStats | null | undefined, v: number | null): string {
-  if (def.format === "count_fraction") {
-    const denomField = windowKey === "w1" ? def.denom!.w1 : def.denom!.w2;
-    return countFraction(v, asNumber(side?.[denomField]), lang);
-  }
+function display(v: number | null): string {
   return v == null ? DASH : formatValue(v, def.format, lang);
 }
 
-const hDisp = display(home, hv);
-const aDisp = display(away, av);
+const hDisp = display(hv);
+const aDisp = display(av);
 const better = betterSide(hv, av, def.direction);
 const hWidth = barWidth(hv, av);
 const aWidth = barWidth(av, hv);

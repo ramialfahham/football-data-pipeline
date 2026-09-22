@@ -107,6 +107,7 @@ and `gen_taxonomy.py` are diagrams.
 | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link |
 | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar |
 | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+| Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar |
 | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading |
 | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar |
 | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |

@@ -99,6 +99,10 @@ models:
         description: "{{ doc('passes_accurate_player') }}"
       - name: goalkeeper_saves
         description: "{{ doc('saves') }}"
+      - name: yellow_cards
+        description: "{{ doc('yellow_cards__leg') }}"
+      - name: red_cards
+        description: "{{ doc('red_cards__leg') }}"
       - name: opponent_shots_on_goal
         description: "{{ doc('opponent_shots_on_goal__leg') }}"
       - name: opponent_shots_total

@@ -842,10 +842,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 
 /* The block explainer: one sentence under a block name. */
 .bsub { margin: 2px 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
-/* Two more table kinds, each one fixed track list. `.dp`: the built Overview's deserved-points
-   boards (club · Deserved · Pts · Diff) until #151 replaces them with `.dpt`, the full deserved
-   table (# · club · Balance · Deserved · Pts · Diff). The ordered-by number keeps the accent in both. */
-.ctab.dp, .ctab.dp.ctab { --cols: minmax(0, 1fr) 4.2rem 2.8rem 3.4rem; }
+/* Two more table kinds, each one fixed track list. `.dpt`: the Overview's deserved points table
+   (# · club · Balance · Deserved · Pts · Diff); the ordered-by number keeps the accent. */
 .ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem 4.2rem 2.6rem 3.2rem; }
 /* A board is a single-value table: the Table's striped rows and grid (# · crest name · value), one
    fixed track list; the board's name is the head, with its chevron, and its rule the only line.

@@ -56,16 +56,13 @@ GROUPS = [
 ]
 TOP = 5
 
-# NOT IN THE CATALOGUE YET: two team metrics the approved design calls for (season totals,
-# ranked most first). Their catalogue rows are a build item; the mock carries the proposed
-# label and format so the boards can be seen. Source: fct_fixture_team_stats summed over FT.
-PROPOSED = {
-    "cards_yellow": {"label_en": "Yellow cards", "label_fi": "Keltaiset kortit", "format": "integer",
-                     "direction": "higher_better"},
-    "cards_red":    {"label_en": "Red cards", "label_fi": "Punaiset kortit", "format": "integer",
-                     "direction": "higher_better"},
-}
+# The two card boards rank most first by ruling, whatever direction the catalogue gives the
+# metric (the mart's most_first_by_ruling); the card totals come from a separate pull.
+MOST_FIRST_BY_RULING = {"cards_yellow", "cards_red"}
+CARD_KEYS = ("cards_yellow", "cards_red")
 CARDS_FILE = HERE / "bl1_team_cards.json"
+# the site's Finnish names for the two card labels (strings.ts), beside the other team labels
+FI.update({"cards_yellow": ("Keltaiset kortit", False), "cards_red": ("Punaiset kortit", False)})
 
 
 def header_html(name):
@@ -101,9 +98,12 @@ def header_html(name):
 
 def catalogue_row(key):
     from gen_top_teams import _BY_KEY
-    if key in PROPOSED:
-        return PROPOSED[key]
     return _BY_KEY[(key, "team")]
+
+
+def ranks_fewest_first(key):
+    """The board's direction as the mart serves it: the catalogue's, except the ruled card boards."""
+    return catalogue_row(key)["direction"] == "lower_better" and key not in MOST_FIRST_BY_RULING
 
 
 def fmt(key, v):
@@ -112,8 +112,6 @@ def fmt(key, v):
         return "%.0f%%" % (v * 100)
     if f == "decimal_1":
         return "%.1f" % v
-    if f == "count_fraction":
-        return "%d" % v
     return "%.0f" % v
 
 
@@ -123,11 +121,11 @@ def load_boards():
     teams = json.loads(METRICS_FILE.read_bytes().decode("utf-8"))
     cards = {c["team_slug"]: c for c in json.loads(CARDS_FILE.read_bytes().decode("utf-8"))}
     for t in teams:
-        t.update({k: cards[t["team_slug"]][k] for k in PROPOSED})
+        t.update({k: cards[t["team_slug"]][k] for k in CARD_KEYS})
     out = {}
     for _grp, keys in GROUPS:
         for key in keys:
-            lower = catalogue_row(key)["direction"] == "lower_better"
+            lower = ranks_fewest_first(key)
             vals = [(float(t[key]), t["team_name"], t["team_slug"]) for t in teams if t[key] is not None]
             vals.sort(key=lambda x: ((x[0] if lower else -x[0]), x[1]))
             distinct = sorted({v for v, _n, _s in vals}, reverse=not lower)
@@ -139,14 +137,11 @@ def load_boards():
 
 
 def board_html(key, boards):
-    if key in PROPOSED:
-        title_en, title_fi = PROPOSED[key]["label_en"], PROPOSED[key]["label_fi"]
-    else:
-        lab = label(key)
-        title_en = board_title(key, lab, "en")
-        fi_lab = FI.get(key, (lab, True))[0]
-        title_fi = board_title(key, fi_lab, "fi") if fi_lab.startswith("Ø ") == lab.startswith("Ø ") else fi_lab
-    lower = catalogue_row(key)["direction"] == "lower_better"
+    lab = label(key)
+    title_en = board_title(key, lab, "en")
+    fi_lab = FI.get(key, (lab, True))[0]
+    title_fi = board_title(key, fi_lab, "fi") if fi_lab.startswith("Ø ") == lab.startswith("Ø ") else fi_lab
+    lower = ranks_fewest_first(key)
     note = ' <span class="bnote">(%s)</span>' % loc("fewestFirst") if lower else ""
     rows = []
     for rank, name, slug, value in boards[key]:

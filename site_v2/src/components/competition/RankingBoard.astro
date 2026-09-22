@@ -1,0 +1,63 @@
+---
+// One board of the competition page's Rankings tab (GitLab #129 board rules; #151 builds it): a
+// single-value table in the block standard's `.ctab.rkt` shape — the board's name in the head
+// row, then up to five rows of rank · crest · name · value. Everything shown is served: the dense
+// rank as the warehouse ranks it (equal values share a rank), the value in the catalogue's format,
+// the direction as `rank_order` ("fewest first" beside an ascending board), the club under a
+// player's name. The row is the link, to the team or the player page.
+//
+// The heading is a plain name until the Leaderboards pages exist (#140): a chevron says a heading
+// leads somewhere, and nothing here does yet.
+import Crest from "../ui/Crest.astro";
+import { formatValue } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t, metricLabel, boardTitle } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import type { CompetitionBoard } from "../../lib/types";
+
+interface Props {
+  board: CompetitionBoard;
+  entity: "team" | "player";
+  lang: Lang;
+}
+const { board, entity, lang } = Astro.props;
+
+// "Ø Goals" is a row label; as a board name the sigil is spelled out ("Goals per match"), and only
+// where the catalogue says the metric is per match — the export carries that fact.
+const title = board.per_match ? boardTitle(lang, board.label_i18n_key) : metricLabel(lang, board.label_i18n_key);
+
+function href(slug: string | null): string | undefined {
+  if (!slug) return undefined;
+  return localeHref(lang, entity === "team" ? `teams/${slug}/` : `players/${slug}/`);
+}
+---
+
+<div class="board">
+  <div class="ctab rkt">
+    <div class="ctab-head">
+      <span class="h rk"></span>
+      <span class="h nmh">
+        <span class="bt"><span class="nm">{title}</span></span>
+        {board.rank_order === "asc" && <span class="bnote">({t(lang, "compFewestFirst")})</span>}
+      </span>
+      <span class="h"></span>
+    </div>
+    {board.rows.map((row) => (
+      <a class="ctab-row" href={href(row.slug)}>
+        <span class="rk num">{row.rank}</span>
+        <span class="tm">
+          <Crest name={entity === "team" ? row.name : row.club} crest={row.crest} size="xs" />
+          {entity === "player" ? (
+            <span class="ent">
+              <span class="nm">{row.name}</span>
+              <span class="sub">{row.club}</span>
+            </span>
+          ) : (
+            <span class="nm">{row.name}</span>
+          )}
+        </span>
+        <span class="n num pts">{formatValue(row.value, board.format, lang)}</span>
+      </a>
+    ))}
+  </div>
+</div>

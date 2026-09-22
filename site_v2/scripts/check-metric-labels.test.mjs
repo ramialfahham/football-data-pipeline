@@ -67,19 +67,30 @@ function catalogueRows() {
  * show"), so a payload-derived list would make a legitimately empty board turn this test red — a
  * build failure over something the DESIGN says is silent. `assert_mart_leaderboards_every_home_
  * board_has_a_leader` is what notices a vanished board. This list must not move with the data. */
-const boardKeys = (() => {
-  const src = readFileSync(join(REPO, "scripts/export_site_data.py"), "utf8");
-  const block = src.match(/_HOME_PLAYER_BOARDS\s*=\s*\(([^)]*)\)/);
-  assert.ok(block, "could not find _HOME_PLAYER_BOARDS in scripts/export_site_data.py");
+const exportSrc = readFileSync(join(REPO, "scripts/export_site_data.py"), "utf8");
+
+/** The label keys of one board tuple in the export, resolved through the catalogue for its entity. */
+function boardTuple(name, entity, atLeast) {
+  const block = exportSrc.match(new RegExp(`${name}\\s*=\\s*\\(([^)]*)\\)`));
+  assert.ok(block, `could not find ${name} in scripts/export_site_data.py`);
   const ids = [...block[1].matchAll(/"([a-z0-9_]+)"/g)].map((m) => m[1]);
-  assert.ok(ids.length >= 4, `parsed only ${ids.length} home board ids — the tuple regex broke`);
-  const players = catalogueRows().filter((r) => r.entity === "player");
+  assert.ok(ids.length >= atLeast, `parsed only ${ids.length} ${name} ids — the tuple regex broke`);
+  const rows = catalogueRows().filter((r) => r.entity === entity);
   return ids.map((id) => {
-    const row = players.find((r) => r.metric_id === id);
-    assert.ok(row?.label_i18n_key, `no player catalogue row with a label_i18n_key for board ${id}`);
+    const row = rows.find((r) => r.metric_id === id);
+    assert.ok(row?.label_i18n_key, `no ${entity} catalogue row with a label_i18n_key for board ${id}`);
     return row.label_i18n_key;
   });
-})();
+}
+
+// The Home boards and the competition page's Rankings tab (#151): the twelve team boards and the
+// thirteen player boards, resolved the same way, so a board label missing in a locale is red here
+// before the page ships it blank.
+const boardKeys = [
+  ...boardTuple("_HOME_PLAYER_BOARDS", "player", 4),
+  ...boardTuple("_COMPETITION_TEAM_BOARDS", "team", 12),
+  ...boardTuple("_COMPETITION_PLAYER_BOARDS", "player", 13),
+];
 
 /** The metric GROUPS (#152): keys and order from the export's copy of the catalogue
  * (`src/data/metric_groups.json`, pinned to the seed by `tests/test_metric_groups.py`); a name per

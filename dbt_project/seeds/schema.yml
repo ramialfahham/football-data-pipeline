@@ -363,12 +363,13 @@ seeds:
         tests: [not_null]
       - name: format
         description: >
-          Display format: integer, decimal_0, decimal_1, percent, points_fraction
-          (points of available, e.g. 10/15), or count_fraction (count of games, e.g. 3/5).
+          Display format: integer, decimal_0, decimal_1, percent, or points_fraction
+          (points of available, e.g. 10/15 — points_won's deliberate exception; a count of
+          games such as clean sheets is a bare integer).
         tests:
           - not_null
           - accepted_values:
-              values: ["integer", "decimal_0", "decimal_1", "percent", "points_fraction", "count_fraction"]
+              values: ["integer", "decimal_0", "decimal_1", "percent", "points_fraction"]
       - name: metric_group
         description: >
           What the metric MEASURES — a taxonomy, not a layout. Shared across entities: a metric

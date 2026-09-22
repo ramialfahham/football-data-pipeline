@@ -6,14 +6,20 @@
   within its competition-season. Season-to-date, composed from int_team_season__metrics (the
   canonical whole-season team rollup) + dim_team identity — NOT mart-from-mart.
 
-  FOUR boards, single-metric like the reduced player boards: goals_per_match,
-  shots_on_goal_per_match, passes_per_match, duels_per_match. All four are higher_better in the
-  metric catalogue, so one shared DESC order is correct for every board — a lower-is-better board
-  would need its own direction and there is none here.
+  TWELVE boards, single-metric like the reduced player boards, the set the competition page's
+  Rankings tab shows (GitLab #129, #151). Each board ranks in the DIRECTION THE CATALOGUE GIVES
+  ITS METRIC, read from the seed and served as `rank_order`: a lower_better metric (goals
+  against, shots on goal against) ranks ascending, fewest first; everything else descending. The
+  two card boards are the ruled exception — most first, whatever the catalogue's direction, so
+  the page shows the most-carded sides rather than a list of clean records.
 
-  rank = DENSE_RANK over the board's metric desc within (league_code, season_api_year): ties share a
-  rank, no ranks are skipped, and the top-10 cut is inclusive of ties (the mart_leaderboards
-  convention). The partition is per league — one team per league, same as players — so a board
+  A zero is not a ranking on a most-first board (#129): the cut `metric_value > 0` applies to
+  `desc` boards only, because on an ascending board a zero conceded IS the top row.
+
+  rank = DENSE_RANK over the board's metric in its rank_order within (league_code,
+  season_api_year): ties share a rank, no ranks are skipped, and the top-10 cut is inclusive of
+  ties (the mart_leaderboards convention). The partition is per league — one team per league,
+  same as players — so a board
   is each league's rank-1 team collected and ordered, and the ranking never
   crosses league_code. That also satisfies the block's rule that club and national-team
   competitions are never mixed: every competition is already its own ranking.
@@ -25,7 +31,7 @@
   ranking has no such distortion to guard. The player mart's minutes/position floors have no
   analogue here either.
 
-  UNPIVOT rather than mart_leaderboards' union-all loop, because all four boards share one rule —
+  UNPIVOT rather than mart_leaderboards' union-all loop, because all twelve boards share one rule —
   the union there exists to give each rate board its own qualification WHERE. BigQuery UNPIVOT
   excludes nulls, so a metric with no value for a team (a coverage gap) yields no row rather than a
   null rank. Source is int_team_season__metrics, deliberately NOT the benchmark long form: that
@@ -35,19 +41,45 @@
   Grain: (team_sk, season_sk, metric_key).
 #}
 
-{# The board set. Adding or removing a key here must also move seeds' accepted_values AND the
-   singular test — accepted_values alone is blind to a REMOVED board (a smaller set is still a
-   subset), which is the silent direction. #}
+{# The board set, in the ruled order. Adding or removing a key here must also move seeds'
+   accepted_values, the export's list AND the singular test — accepted_values alone is blind to a
+   REMOVED board (a smaller set is still a subset), which is the silent direction. #}
 {% set boards = [
     'goals_per_match',
+    'goals_against_per_match',
     'shots_on_goal_per_match',
+    'shots_on_goal_against_per_match',
+    'shots_on_goal_difference_per_match',
     'passes_per_match',
+    'passes_accuracy_pct',
+    'defensive_actions_per_match',
     'duels_per_match',
+    'duels_won_pct',
+    'cards_yellow',
+    'cards_red',
 ] %}
 
+{# Ranked most first by ruling, whatever direction the catalogue gives the metric. #}
+{% set most_first_by_ruling = ['cards_yellow', 'cards_red'] %}
+
 with season as (
-    select * from {{ ref('int_team_season__metrics') }}
+    select
+        * except (cards_yellow, cards_red),
+        -- UNPIVOT needs one type across its columns: the rates are FLOAT64, the card totals INT64
+        cast(cards_yellow as float64) as cards_yellow,
+        cast(cards_red as float64) as cards_red
+    from {{ ref('int_team_season__metrics') }}
     where season_games_played >= 1
+),
+
+-- The direction of each board's metric, from the catalogue: the one place a metric's meaning is
+-- defined, so a board cannot rank a fewest-is-best figure most first by accident.
+catalogue as (
+    select
+        metric_id,
+        direction
+    from {{ ref('metric_catalogue') }}
+    where entity = 'team'
 ),
 
 -- One row per (team-season, board). UNPIVOT drops nulls, so a team missing a metric through a
@@ -94,17 +126,37 @@ base as (
         l.metric_value,
         t.team_name,
         t.team_slug,
-        t.team_logo_url
+        t.team_logo_url,
+        case
+            when l.metric_key in (
+                {% for key in most_first_by_ruling %}
+                '{{ key }}'{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ) then 'desc'
+            when c.direction = 'lower_better' then 'asc'
+            else 'desc'
+        end as rank_order
     from long as l
     left join teams as t on l.team_sk = t.team_sk
+    -- inner: a board whose metric the catalogue does not define has no direction and no rows,
+    -- which assert_mart_team_leaderboards_all_boards_present then reports as a missing board
+    inner join catalogue as c on l.metric_key = c.metric_id
+),
+
+-- The value in ranking order: negated on a descending board so one ASC sort ranks both kinds.
+signed as (
+    select
+        *,
+        if(rank_order = 'asc', metric_value, -metric_value) as sort_key
+    from base
 ),
 
 ranked as (
     select
-        base.*,
+        signed.*,
         dense_rank() over (
             partition by league_code, season_api_year, metric_key
-            order by metric_value desc
+            order by sort_key asc
         ) as board_rank,
         -- The TIE-BROKEN order within a league. `board_rank` above is a DENSE_RANK and stays one:
         -- ties sharing a rank, and the top-10 cut being inclusive of them, are a documented consumer
@@ -124,16 +176,18 @@ ranked as (
         -- find something that means anything.
         row_number() over (
             partition by league_code, season_api_year, metric_key
-            order by metric_value desc, team_sk asc
+            order by sort_key asc, team_sk asc
         ) as league_leader_order
-    from base
-    where metric_value > 0
+    from signed
+    -- a zero is not a ranking on a most-first board; on a fewest-first board it is the top row
+    where rank_order = 'asc' or metric_value > 0
 )
 
 select
     {{ dbt_utils.generate_surrogate_key(['team_sk', 'season_sk', 'metric_key']) }}
         as team_leaderboard_sk,
     metric_key,
+    rank_order,
     board_rank as rank,
     league_leader_order,
     metric_value as sort_value,
@@ -173,7 +227,7 @@ select
             partition by metric_key
             order by
                 case when league_leader_order = 1 then 0 else 1 end,
-                metric_value desc,
+                sort_key asc,
                 team_sk asc
         )
     end as board_leader_order

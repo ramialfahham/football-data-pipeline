@@ -2312,11 +2312,11 @@ models:
         description: "Surrogate from (player_sk, season_sk, metric_key)."
         tests: [not_null, unique]
       - name: metric_key
-        description: "The board — a metric_catalogue metric_id (10 count + 5 rate boards = 15)."
+        description: "The board — a metric_catalogue metric_id (11 count + 2 rate boards = 13, the competition page's Rankings tab)."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_player", "assists_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player", "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player", "cards_player", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+              values: ["goals_player", "assists_player", "shots_on_goal_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_player", "defensive_actions_player", "cards_yellow_player", "cards_red_player", "saves_player", "passes_accuracy_player_pct", "finishing_efficiency_player_pct"]
       - name: rank
         description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
@@ -2437,6 +2437,8 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
+      - name: saves_player
+        description: "{{ doc('saves_player') }}"
       - name: scorer_points_player
         description: "{{ doc('scorer_points_player') }}"
       - name: defensive_actions_player
@@ -2462,11 +2464,15 @@ models:
       The team mirror of mart_leaderboards. Long-shaped — the board is a value in metric_key, not a
       column. Grain: (team_sk, season_sk, metric_key).
 
-      Four boards (goals, shots on goal, passes, duels — all per match), season-to-date, composed
-      from int_team_season__metrics and dim_team. rank is a DENSE_RANK over the board's metric
-      descending within (league_code, season_api_year), so ties share a rank and the top 10 includes
-      them. All four metrics are higher-is-better, so one shared descending order is correct for
-      every board.
+      Twelve boards (the competition page's Rankings tab: goals and goals against per match, shots
+      on goal for, against and difference per match, passes per match, pass accuracy, defensive
+      actions per match, duels per match, duels won, yellow cards, red cards), season-to-date,
+      composed from int_team_season__metrics, the metric catalogue and dim_team. rank is a
+      DENSE_RANK over the board's metric within (league_code, season_api_year) in the board's
+      rank_order, so ties share a rank and the top 10 includes them. rank_order is the catalogue's
+      direction for the metric (asc for lower_better, fewest first), except the two card boards,
+      which rank most first by ruling. A zero is not a ranking on a most-first board and is the top
+      row on a fewest-first one.
 
       The rank is per league by design: a board is each league's leading team collected and ordered,
       never a ranking across competitions. A team ranks from its first finished game — there is
@@ -2486,8 +2492,8 @@ models:
           expression: "rank between 1 and 10"
           name: mart_team_leaderboards_rank_in_range
       - dbt_utils.expression_is_true:
-          expression: "sort_value > 0"
-          name: mart_team_leaderboards_sort_value_positive
+          expression: "sort_value > 0 or rank_order = 'asc'"
+          name: mart_team_leaderboards_sort_value_positive_on_most_first
       - dbt_utils.expression_is_true:
           expression: "season_games_played >= 1"
           name: mart_team_leaderboards_games_gate_holds
@@ -2497,19 +2503,29 @@ models:
         tests: [not_null, unique]
       - name: metric_key
         description: >
-          The board — a metric_catalogue team metric_id (4 boards).
+          The board — a metric_catalogue team metric_id (12 boards).
           accepted_values pins the set against an ADDED board; it cannot catch a REMOVED one, since
           a smaller set is still a subset. assert_mart_team_leaderboards_all_boards_present covers
           that direction.
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_per_match", "shots_on_goal_per_match", "passes_per_match", "duels_per_match"]
+              values: ["goals_per_match", "goals_against_per_match", "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match", "passes_per_match", "passes_accuracy_pct", "defensive_actions_per_match", "duels_per_match", "duels_won_pct", "cards_yellow", "cards_red"]
+      - name: rank_order
+        description: >
+          The direction this board ranks in: asc (fewest first, the top row holds the smallest
+          value) or desc (most first). The catalogue's direction for the metric — lower_better is
+          asc — except cards_yellow and cards_red, most first by ruling. A page says "fewest first"
+          beside an asc board from this column and computes nothing.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["asc", "desc"]
       - name: rank
-        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
+        description: "DENSE_RANK over the board's metric in its rank_order (ties share a rank). 1 is top; cut at 10."
         tests: [not_null]
       - name: sort_value
-        description: "The board's own value the rank is computed from (always > 0). The four boards are all per-match rates."
+        description: "The board's own value the rank is computed from, in the metric's own unit: a per-match rate, a share in 0-1, or a season card total. Above 0 on a desc board; 0 is a valid top row on an asc board."
         tests: [not_null]
       - name: league_leader_order
         description: >

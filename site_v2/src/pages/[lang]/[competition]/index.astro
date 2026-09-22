@@ -8,23 +8,22 @@
 // numbers stay until the next season's first data arrives. A competition with no payload yet
 // renders its header and tab bar only.
 //
-// Blocks, in the approved order: Table · Next matches · Deserved points · The season in numbers.
-// Each block renders only when its mart served something; a block with nothing to show is
-// absent, never an empty heading. The three unbuilt tabs are inert labels.
+// Blocks, in the approved order: Table · Deserved points table · The season in numbers. Each block
+// renders only when its mart served something; a block with nothing to show is absent, never an
+// empty heading. A tab whose page is not emitted for this competition is an inert label.
 //
 // Nothing on this page is derived: the slug, the name, the crest, every number is a served field.
 import Layout from "../../../layouts/Layout.astro";
 import CompetitionHeader from "../../../components/competition/CompetitionHeader.astro";
 import CompetitionTabs from "../../../components/competition/CompetitionTabs.astro";
 import StandingsTable from "../../../components/competition/StandingsTable.astro";
-import NextMatchday from "../../../components/competition/NextMatchday.astro";
-import DeservedPoints from "../../../components/competition/DeservedPoints.astro";
+import DeservedTable from "../../../components/competition/DeservedTable.astro";
 import SeasonFacts from "../../../components/competition/SeasonFacts.astro";
 import { t } from "../../../i18n/strings";
 import { localeHref, LOCALES } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
 import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../lib/types";
-import { latestSeasonPayload } from "../../../lib/competitionPayload.mjs";
+import { latestSeasonPayload, nextRound } from "../../../lib/competitionPayload.mjs";
 import competitionIndex from "../../../data/competition_index.json";
 
 export function getStaticPaths() {
@@ -95,7 +94,7 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
       regionLabelEn={payload?.region_label_en ?? competition.region_label_en}
       regionLabelI18nKey={payload?.region_label_i18n_key ?? competition.region_label_i18n_key}
       season={payload?.season ?? null}
-      round={payload?.next_matchday[0]?.round ?? null}
+      round={nextRound(payload?.fixtures)?.round ?? null}
       lang={lang}
     />
     <CompetitionTabs
@@ -104,19 +103,14 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
       active="overview"
       competitionSlug={competition.slug}
       hasFixturesPage={Boolean(payload?.fixtures?.length)}
+      hasStatsPage={Boolean(payload?.team_boards?.length || payload?.player_boards?.length)}
     />
 
     {payload && (
       <>
         <StandingsTable standings={payload.standings} lang={lang} />
-        <NextMatchday fixtures={payload.next_matchday} competitionSlug={payload.slug} lang={lang} />
-        <DeservedPoints deserved={payload.deserved} lang={lang} />
-        <SeasonFacts
-          summary={payload.summary}
-          nextMatchday={payload.next_matchday}
-          competitionSlug={payload.slug}
-          lang={lang}
-        />
+        <DeservedTable deserved={payload.deserved} lang={lang} />
+        <SeasonFacts summary={payload.summary} lang={lang} />
       </>
     )}
   </div>

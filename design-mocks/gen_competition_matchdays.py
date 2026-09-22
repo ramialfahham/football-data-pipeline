@@ -58,10 +58,13 @@ def ordinal(n):
 
 VENUE_TZ = ZoneInfo("Europe/Berlin")
 COPY["topMatch"] = ("Top match", "Huippuottelu", True)
-# the flagged match of the next matchday (is_match_that_matters on the committed payload)
-TOP_MATCH = {r["fixture_id"] for r in json.loads(
-    (REPO / "site_v2/src/data/competitions/BL1/2026.json").read_text(encoding="utf-8"))["next_matchday"]
-    if r["is_match_that_matters"]}
+# the flagged match of the next matchday (is_match_that_matters on the committed payload's fixtures)
+def flagged_fixtures(payload):
+    return {f["fixture_id"] for r in payload["fixtures"] for f in r["fixtures"] if f["is_match_that_matters"]}
+
+
+TOP_MATCH = flagged_fixtures(json.loads(
+    (REPO / "site_v2/src/data/competitions/BL1/2026.json").read_text(encoding="utf-8")))
 
 
 def load_fixtures():
@@ -200,7 +203,7 @@ def lucky_html(fx, shots):
 def matters_html(fx, payload):
     """Block 1 on the next matchday: the Overview's flag, shown as the shared row with the two
     table positions under it. Absent on every other matchday."""
-    flagged = {r["fixture_id"] for r in payload["next_matchday"] if r["is_match_that_matters"]}
+    flagged = flagged_fixtures(payload)
     rank = {s["team_name"]: s["standing_rank"] for s in payload["standings"]}
     rows = []
     for f in fx:

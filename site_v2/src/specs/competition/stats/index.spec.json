@@ -1,0 +1,37 @@
+{
+  "$schema": "../../page-spec.schema.json",
+  "page": "[lang]/[competition]/stats/index.astro",
+  "entity": "competition",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoCompetitionStatsTitle",
+    "description": "seoCompetitionStatsDesc",
+    "schema_org": "SportsOrganization",
+    "links": {
+      "inbound_hub": "competition",
+      "outbound": ["competition", "team", "player"]
+    },
+    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one board in team_boards or player_boards, the top five of a board from mart_team_leaderboards or mart_leaderboards. A competition with no board served has no page here, and its Overview shows the tab as an inert label. Every team row links to the team page and every player row to the player page, which the build emits for every player a board names; the board headings and their full lists are the Leaderboards pages (#140) and stay plain names until those exist.",
+    "page_count_driver": "count(competitions with a team or player board served for their latest season) x count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Rankings tab, /{locale}/{competition-slug}/stats/, the same segment for every kind of competition and every locale: the address is the word a fan searches for, the tab label is the page's name. The slug is the registry's authored slug, served through mart_competition_index."
+  },
+  "blocks": [
+    {
+      "block": "Competition header",
+      "mart": ["mart_competition_index", "mart_competition_fixtures"],
+      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
+    },
+    {
+      "block": "Team rankings",
+      "mart": "mart_team_leaderboards",
+      "i18n_keys": ["compSecTeamRankings", "compFewestFirst", "perMatch"]
+    },
+    {
+      "block": "Player rankings",
+      "mart": "mart_leaderboards",
+      "i18n_keys": ["compSecPlayerRankings", "compFewestFirst"]
+    }
+  ]
+}

@@ -14,12 +14,11 @@ import type { Lang } from "../../lib/format";
 interface Props {
   home?: WindowStats | null;
   away?: WindowStats | null;
-  windowKey: "w1" | "w2";
   lang: Lang;
   homeName?: string | null;
   awayName?: string | null;
 }
-const { home, away, windowKey, lang, homeName, awayName } = Astro.props;
+const { home, away, lang, homeName, awayName } = Astro.props;
 
 const hasData = (def: MetricRowDef): boolean =>
   asNumber(home?.[def.field]) !== null || asNumber(away?.[def.field]) !== null;
@@ -40,7 +39,7 @@ const groups = GROUP_KEYS_IN_ORDER.map((group) => ({
     <>
       <div class="mgroup">{group}</div>
       {rows.map((def) => (
-        <MetricRow def={def} home={home} away={away} windowKey={windowKey} lang={lang} />
+        <MetricRow def={def} home={home} away={away} lang={lang} />
       ))}
     </>
   ))}

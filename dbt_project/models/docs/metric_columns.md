@@ -83,8 +83,26 @@ yellow plus a red, so a two-yellow dismissal counts as 3.
 {% enddocs %}
 
 
+{% docs cards_red %}
+Red cards shown to the team over the season, summed from the provider's team match statistics
+over finished matches. The provider writes zero cards as a blank, so a blank on a match that
+has a statistics line counts as none; a match with no statistics line at all makes the season
+total unknown, and the total is then withheld rather than understated. Distinct from the player
+metric of the same name.
+{% enddocs %}
+
+
 {% docs cards_red_player %}
 Red cards.
+{% enddocs %}
+
+
+{% docs cards_yellow %}
+Yellow cards shown to the team over the season, summed from the provider's team match
+statistics over finished matches. The provider writes zero cards as a blank, so a blank on a
+match that has a statistics line counts as none; a match with no statistics line at all makes
+the season total unknown, and the total is then withheld rather than understated. Distinct from
+the player metric of the same name.
 {% enddocs %}
 
 
@@ -94,8 +112,9 @@ Yellow cards.
 
 
 {% docs clean_sheets %}
-Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
-is the same measurement expressed as a proportion of the matches played.
+Matches the team finished without conceding a goal, counted as whole matches and shown as a
+bare count. clean_sheets_pct is the same measurement expressed as a proportion of the matches
+played.
 {% enddocs %}
 
 
@@ -140,9 +159,9 @@ season now in progress, accumulated through the matches played so far.
 
 
 {% docs clean_sheets_sum_season__team %}
-Matches the team finished without conceding a goal, counted as whole matches. clean_sheets_pct
-is the same measurement expressed as a proportion of the matches played. Totalled over the
-season.
+Matches the team finished without conceding a goal, counted as whole matches and shown as a
+bare count. clean_sheets_pct is the same measurement expressed as a proportion of the matches
+played. Totalled over the season.
 {% enddocs %}
 
 

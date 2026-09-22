@@ -79,6 +79,9 @@ models:
       - name: games_with_save_stats
         description: "Cumulative count of those matches with goalkeeper_saves present — saves_pct's own coverage bucket, used to NULL saves_pct on partial coverage."
         tests: [not_null]
+      - name: games_with_card_stats
+        description: "Cumulative count of those matches with a card figure present (one count for both colours, since the leg reads them from the same statistics line) — the gate of the season card totals cards_yellow and cards_red, which are NULL unless every non-awarded match is covered. Never NULL."
+        tests: [not_null]
       - name: round_order
         description: "{{ doc('round_order') }}"
       - name: match_number
@@ -153,6 +156,10 @@ models:
         description: "Cumulative shots on target by the opponents through this match, summed over the matches in games_with_opp_sot_stats — one of the inputs of shots_on_goal_difference_per_match, growing as the season progresses. A match with no opponent shots-on-target figure contributes nothing to the running sum."
       - name: goalkeeper_saves
         description: "{{ doc('saves') }}"
+      - name: yellow_cards
+        description: "{{ doc('cards_yellow') }}"
+      - name: red_cards
+        description: "{{ doc('cards_red') }}"
       - name: games_with_player_stats
         description: "Cumulative count of those matches with a row in int_legs__team_from_players — the gate and denominator of the player-derived rates (passes_key_per_match through duels_won_pct), which are NULL unless every non-awarded match is covered. Never NULL."
         tests: [not_null]

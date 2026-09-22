@@ -86,6 +86,14 @@ select
     case
         when games_with_save_stats < games_expecting_team_stats then null else goalkeeper_saves
     end as goalkeeper_saves_sum_season,
+    -- season card totals under their catalogue ids: a total over a window with a match missing
+    -- would be understated, so it is withheld like every other team-feed figure
+    case
+        when games_with_card_stats < games_expecting_team_stats then null else yellow_cards
+    end as cards_yellow,
+    case
+        when games_with_card_stats < games_expecting_team_stats then null else red_cards
+    end as cards_red,
     -- window-specific metrics (stay inline; same as the whole-season model)
     safe_divide(points_won, 3 * games_played) as points_capture_pct,
     case
