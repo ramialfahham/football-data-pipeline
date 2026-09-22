@@ -68,7 +68,7 @@ CPO note: none of these is to be copied; each contributes one thing.
 
 ## 5. Navigation & page inventory (fixed by site_architecture.md)
 
-Nav: `Competitions · Matches · Teams · Players · Standings · Stats` + search + language.
+Nav: `Competitions · Matches · Teams · Players · Standings · Leaderboards` + search + language.
 Competitions are reached from the competitions index page (`/{locale}/competitions/`, built
 2026-08-18), which groups them by competition type. ⚠ The home page's browse-by-group-and-country
 block that used to be a second route in was **dropped 2026-08-19**; country hubs remain unbuilt.
