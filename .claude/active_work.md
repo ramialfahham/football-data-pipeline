@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-21**, on `feat/152-metric-groups`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-22**, on `feat/151-rankings-tab`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,20 +22,24 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#152 (METRIC GROUPS) IS BUILT, REVIEWED (2 rounds, 5 PASS) AND OPEN AS !215; HIS MERGE CLOSES IT
-AND #98.** The catalogue's `metric_group` (`duels` → `one_on_one`) and new `metric_group_order`;
-names as copy `metricGroups.<key>.label` in `strings.ts`; the export's `metric_groups` entity →
-committed `site_v2/src/data/metric_groups.json` (pinned to the seed by `tests/test_metric_groups.py`,
-regenerate it in the same commit as any seed change); `metricRows.ts` reads groups from it. **He
-ruled the order 2026-09-21 ("A"): the issue's table order on every surface — Goals · Shooting ·
-Passing · One-on-one · Defending · Discipline · Goalkeeping · Set pieces · Results · Playing time;
-the fixture comparison and team page reordered; `metrics_display.md` owns row order within a group
-only.** ⚠ Pre-existing, found while rendering, NOT this MR: every page scrolls sideways at 700px
-because of the header's search button (`div.header-actions`), Home included; the design check does
-not measure page scrollWidth. A task chip was offered; no issue filed yet — his call.
-**#109 step 3 is DONE (A–D merged, !214 last); the check's first live run is the next model/yml
-merge.** **After #152 in menu order: #151 (Rankings tab + Overview rework), which reads these
-groups; then Matches (#130–#132). `glab issue list` decides — not this file.**
+**#151 (THE RANKINGS TAB + THE OVERVIEW REWORK) IS BUILT, REVIEWED (2 rounds, 5 PASS) AND OPEN
+AS !216; HIS MERGE CLOSES IT.** The tab at `/{lang}/{slug}/stats/` (the builder's address, for
+search — stated on the MR head); `mart_team_leaderboards` twelve boards with the catalogue's
+direction served as `rank_order` (the two "against" boards ascending; the card boards most first
+by ruling), `mart_leaderboards` thirteen; `cards_yellow` / `cards_red` catalogued and rolled up
+from `fct_fixture_team_stats` (a blank card on a present stat line is 0 — the provider writes zero
+as blank, measured); `clean_sheets` is `integer` everywhere, `count_fraction` gone; the Overview is
+Table · Deserved points table · The season in numbers (six inert fact rows); `next_matchday` left
+the competition payload (the header's round reads the fixtures' `is_next_round`). ⚠ **The
+committed `competitions/BL1/2026.json` was produced by inlining the branch's marts against prod
+(the !191 method, scratchpad script); a plain `--entities competitions` export cannot reproduce it
+until the merge and the first nightly build the new marts.** The MR head carries the address, the
+two catalogue rows and the full EN/DE/FI copy table for his check. **#152 merged as !215 (closes
+#98).** ⚠ Pre-existing, NOT this MR: DE/FI pages scroll sideways at 700px because of the header's
+search button (`div.header-actions`), Home included; the design check does not measure page
+scrollWidth; no issue filed — his call. **#109 step 3's check ran live on `af081cae`'s
+`data:build:main`: `OK: 101 models, 1915 listed columns, 0 absent`.** **After #151 in menu order:
+Matches (#130–#132). `glab issue list` decides — not this file.**
 **#150 is merged** (!209). !209's rulings, recorded in its
 contract: **the match slug comes from the warehouse**; **played rows are inert until the match
 report page exists**; the EN/DE/FI copy shipped as drafted. Until the next `deploy:export` (manual,
@@ -65,8 +69,9 @@ rewrite (operations guide and development workflow still describe GitHub Actions
 **#154**, unscheduled.
 
 **#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED**: the block standard, `system.css`, the
-lint, the measured check, `validate:ui` running all three on every MR. **#151 does not merge until
-the check passes on its pages and on Home.**
+lint, the measured check, `validate:ui` running all three on every MR. **#151's merge gate (the
+check passes on its pages and on Home) is met on !216: 20 pages · 80 renders · 0 failures, the
+built Rankings page in the Pages table.**
 
 **#109, THE DBT TESTING STRATEGY: all three steps merged (!201, !202, !211–!214); §3.5 names a
 mechanism for every rule and every one is in place. Whether the issue closes or has a step 4 is
@@ -82,8 +87,8 @@ links muted; the mocks had it inverted); its inventory row is `proposed` until h
 ruling request is ONE question, a 2×2 table, then the recommendation.**
 
 **THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.**
-**Build issues:** **#150** Matchdays (merged) · **#151** Rankings + the Overview rework · **#152**
-metric groups. The page-wide rules live in the block standard and `system.css`, measured — the
+**Build issues:** **#150** Matchdays (merged) · **#152** metric groups (merged) · **#151** Rankings
++ the Overview rework (open, !216). The page-wide rules live in the block standard and `system.css`, measured — the
 builds compose from them and add nothing of their own.
 
 **The measured check is the arbiter.** `python scripts/check_design_inventory.py --dist
