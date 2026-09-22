@@ -771,7 +771,7 @@ const FI: Dict = {
   compColBalance: "Tase",
   compColDeserved: "Ansaitut",
   compColDiff: "Ero",
-  compSecTeamRankings: "Tiimirankingit",
+  compSecTeamRankings: "Joukkuerankingit",
   compSecPlayerRankings: "Pelaajarankingit",
   compSecFacts: "Kausi numeroina",
   compFactGoalsPerMatch: "Maalia per ottelu",

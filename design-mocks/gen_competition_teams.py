@@ -36,7 +36,7 @@ COPY.update({
     "metricGroups.defending.label":   ("Defending", "Puolustus", False),
     "metricGroups.discipline.label":  ("Discipline", "Kurinpito", False),
     "metricGroups.goalkeeping.label": ("Goalkeeping", "Maalivahti", False),
-    "secTeamRankings": ("Team rankings", "Tiimirankingit", False),
+    "secTeamRankings": ("Team rankings", "Joukkuerankingit", False),
     "secPlayerRankings": ("Player rankings", "Pelaajarankingit", False),
 })
 
