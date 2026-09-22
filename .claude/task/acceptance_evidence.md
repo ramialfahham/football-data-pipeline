@@ -15,7 +15,7 @@ criteria_demonstrated:
     `dist/fi/...`: `['Yleiskatsaus','Kierrokset','Rankingit']`, `['Tiimirankingit', 'Pelaajarankingit']`.
     Exactly two `.sechead .eyebrow` per page.
   - EVERY BOARD HAS 1 TO 5 ROWS UNDER THE GROUP HEADINGS IN THE CATALOGUE'S ORDER; NO ZERO ON A
-    DESC BOARD; THE NOTE ON EXACTLY THE ASC BOARDS. 24 boards per locale (the payload serves 24:
+    DESC BOARD; NO BOARD STATES A DIRECTION. 24 boards per locale (the payload serves 24:
     12 team, 12 player — finishing has no qualifier after four matchdays), rows per board min 3
     max 5 (the two red-card boards hold 3: three sides on one red card, the zero rule cutting the
     rest); `.rkgroup > .gh .nm` reads `Goals · Shooting · Passing · One-on-one · Defending ·
@@ -23,9 +23,12 @@ criteria_demonstrated:
     order of `metric_groups.json` (DE `Tore · Schüsse · Pässe · Eins-gegen-eins · Defensive ·
     Disziplin (· Torwart)`, FI `Maalit · Laukaukset · Syötöt · Yksi vastaan yksi · Puolustus ·
     Kurinpito (· Maalivahti)`). Zero on a most-first board: `[]` in all three locales. The
-    `.bnote` sits on `['Goals against per match', 'Shots on goal against per match']` and on no
-    other board; the payload's asc boards are exactly `['goals_against_per_match',
-    'shots_on_goal_against_per_match']`. Rows that are not links: 0.
+    `.bnote` count is 0 on all three locales: no board says which way it ranks. The payload still
+    serves the direction — its asc boards are exactly `['goals_against_per_match',
+    'shots_on_goal_against_per_match']` — and the page reads as the CPO said it would without the
+    note: EN "Goals against per match" tops at `0.5`, "Shots on goal against per match" at `2.0`
+    (DE `Gegentore pro Spiel` `0,5`, FI `Maalilaukaukset vastaan ottelua kohden` `2,0`). Rows that
+    are not links: 0.
   - THE OVERVIEW CARRIES EXACTLY THREE BLOCKS AND THE DESERVED TABLE IN THE SERVED RANK ORDER.
     `dist/en/bundesliga/index.html` `.sechead .eyebrow`: `['Table', 'Deserved points table', 'The
     season in numbers']` (DE `['Tabelle', 'Tabelle nach verdienten Punkten', 'Die Saison in

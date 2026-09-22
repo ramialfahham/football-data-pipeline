@@ -3,15 +3,16 @@
 // single-value table in the block standard's `.ctab.rkt` shape — the board's name in the head
 // row, then up to five rows of rank · crest · name · value. Everything shown is served: the dense
 // rank as the warehouse ranks it (equal values share a rank), the value in the catalogue's format,
-// the direction as `rank_order` ("fewest first" beside an ascending board), the club under a
-// player's name. The row is the link, to the team or the player page.
+// the club under a player's name. The row is the link, to the team or the player page. The board
+// does not say which way it ranks: a board named "Goals against per match" showing 0.5 at rank 1
+// has already said it.
 //
 // The heading is a plain name until the Leaderboards pages exist (#140): a chevron says a heading
 // leads somewhere, and nothing here does yet.
 import Crest from "../ui/Crest.astro";
 import { formatValue } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { t, metricLabel, boardTitle } from "../../i18n/strings";
+import { metricLabel, boardTitle } from "../../i18n/strings";
 import { localeHref } from "../../lib/href";
 import type { CompetitionBoard } from "../../lib/types";
 
@@ -38,7 +39,6 @@ function href(slug: string | null): string | undefined {
       <span class="h rk"></span>
       <span class="h nmh">
         <span class="bt"><span class="nm">{title}</span></span>
-        {board.rank_order === "asc" && <span class="bnote">({t(lang, "compFewestFirst")})</span>}
       </span>
       <span class="h"></span>
     </div>

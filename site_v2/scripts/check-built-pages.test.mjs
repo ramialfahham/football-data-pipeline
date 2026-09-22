@@ -5,8 +5,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  checkFixturesPage, checkMatchPageCount, checkRankingsPage, boards, isZeroValue, rounds,
-  FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+  checkFixturesPage, checkMatchPageCount, checkRankingsPage, boards, isZeroValue, renderedBoards,
+  rounds, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
 } from "./check-built-pages.mjs";
 
 function round(n, { checked = false, next = false, rows = [] } = {}) {
@@ -39,9 +39,10 @@ test("the URL shapes: a match page, a fixtures page and a rankings page, nothing
   assert.ok(!RANKINGS_PAGE.test("/de/rankings/") && !RANKINGS_PAGE.test("/de/bundesliga/"));
 });
 
-// A board as RankingBoard.astro emits it: the head with the name (and the note on an ascending
-// board), then the rows — a linked row unless told otherwise.
-function board(name, values, { asc = false, inert = false } = {}) {
+// A board as RankingBoard.astro emits it: the head with the name, then the rows — a linked row
+// unless told otherwise. The head says nothing about which way the board ranks; that is the
+// payload's to say.
+function board(name, values, { inert = false } = {}) {
   const rows = values
     .map((v, i) =>
       inert
@@ -52,7 +53,7 @@ function board(name, values, { asc = false, inert = false } = {}) {
   return (
     `<div class="board"><div class="ctab rkt"><div class="ctab-head"><span class="h rk"></span>` +
     `<span class="h nmh"><span class="bt"><span class="nm">${name}</span></span>` +
-    `${asc ? '<span class="bnote">(fewest first)</span>' : ""}</span><span class="h"></span></div>${rows}</div></div>`
+    `</span><span class="h"></span></div>${rows}</div></div>`
   );
 }
 
@@ -62,27 +63,53 @@ test("a rankings page splits into its boards, and a zero reads as zero in every 
   for (const nz of ["0.5", "10", "1,0", "100%", "–"]) assert.ok(!isZeroValue(nz), nz);
 });
 
-test("the board rules: one to five linked rows, no zero on a most-first board, the note only on an ascending one", () => {
+test("the board rules: one to five linked rows, and no zero on a board the payload ranks most-first", () => {
   const good = board("Goals per match", ["3.5", "3.0", "2.8", "2.5", "2.5"]) +
-    board("Goals against per match", ["0.5", "0.5", "0.8"], { asc: true }) +
+    board("Goals against per match", ["0.5", "0.5", "0.8"]) +
     board("Red cards", ["1", "1", "1"]);
-  assert.deepEqual(checkRankingsPage(good, "p", { boards: 3, ascending: 1 }), []);
-  assert.deepEqual(checkRankingsPage(good, "p"), [], "without the payload the boards are checked on their own");
+  assert.deepEqual(checkRankingsPage(good, "p", { ascending: [false, true, false] }), []);
+  assert.deepEqual(checkRankingsPage(good, "p"), [], "without the payload only the row rules are checked");
   // six rows: the cut failed upstream
   assert.match(checkRankingsPage(board("X", ["6", "5", "4", "3", "2", "1"]), "p")[0], /6 row\(s\), expected 1 to 5/);
   // a zero ranked on a most-first board
-  assert.match(checkRankingsPage(board("Red cards", ["1", "0"]), "p")[0], /ranks a zero \(0\) on a most-first board/);
+  assert.match(
+    checkRankingsPage(board("Red cards", ["1", "0"]), "p", { ascending: [false] })[0],
+    /ranks a zero \(0\) on a most-first board/,
+  );
   // a zero on a fewest-first board is the top row, not an issue
-  assert.deepEqual(checkRankingsPage(board("Goals against per match", ["0.0", "0.5"], { asc: true }), "p"), []);
+  assert.deepEqual(checkRankingsPage(board("Goals against per match", ["0.0", "0.5"]), "p", { ascending: [true] }), []);
+  // the direction is read by position: the same zero passes where the payload ranks ascending and
+  // fails one place over, so a page that reordered its boards cannot borrow the wrong direction
+  const pair = board("Goals against per match", ["0.0", "0.5"]) + board("Red cards", ["1", "1"]);
+  assert.deepEqual(checkRankingsPage(pair, "p", { ascending: [true, false] }), []);
+  assert.match(checkRankingsPage(pair, "p", { ascending: [false, true] })[0], /ranks a zero \(0\.0\)/);
   // an inert row
   assert.match(checkRankingsPage(board("X", ["1"], { inert: true }), "p")[0], /is not a link/);
   // the page disagrees with the payload it was built from
-  const issues = checkRankingsPage(good, "p", { boards: 4, ascending: 2 });
-  assert.ok(issues.some((i) => /3 board\(s\) on the page, the payload served 4/.test(i)));
-  assert.ok(issues.some((i) => /1 board\(s\) say "fewest first", the payload ranks 2 ascending/.test(i)));
+  assert.match(
+    checkRankingsPage(good, "p", { ascending: [false, true, false, false] })[0],
+    /3 board\(s\) on the page, the payload served 4/,
+  );
   // an empty board wrapper
   assert.match(checkRankingsPage(board("X", []), "p")[0], /0 row\(s\)/);
   assert.match(checkRankingsPage("<html></html>", "p")[0], /no board on the page/);
+});
+
+test("the payload's boards are read in the order the page renders them: team block, then player, each by group", () => {
+  const b = (metric_key, metric_group, rank_order = "desc") => ({ metric_key, metric_group, rank_order, rows: [{ rank: 1 }] });
+  const payload = {
+    // served out of group order, and with a board the page drops for having no rows
+    team_boards: [b("cards_red", "discipline"), b("goals_against_per_match", "goals", "asc"),
+                  { metric_key: "empty", metric_group: "goals", rank_order: "desc", rows: [] }],
+    player_boards: [b("saves_player", "goalkeeping"), b("goals_player", "goals")],
+  };
+  const keys = ["goals", "discipline", "goalkeeping"];
+  assert.deepEqual(
+    renderedBoards(payload, keys).map((x) => x.metric_key),
+    ["goals_against_per_match", "cards_red", "goals_player", "saves_player"],
+  );
+  // a group the catalogue does not list takes its boards off the page, as the block does
+  assert.deepEqual(renderedBoards(payload, ["goals"]).map((x) => x.metric_key), ["goals_against_per_match", "goals_player"]);
 });
 
 test("match pages equal payloads times locales, and the manifest ties them to the warehouse", () => {

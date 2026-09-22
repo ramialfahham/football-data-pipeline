@@ -11,9 +11,11 @@
 // 2. On every fixtures page exactly one round is checked on load, and it is the round the
 //    warehouse flagged next whenever one is flagged; every unplayed row is a link and no played row
 //    is, until the match report page exists.
-// 3. On every Rankings page (`/rankings/`) every board keeps the board rules: one to five rows, every
-//    row a link, "fewest first" beside a board and only there when it ranks ascending, and no zero
-//    on a most-first board (a zero is not a ranking there; on a fewest-first board it is the top).
+// 3. On every Rankings page (`/rankings/`) every board keeps the board rules: one to five rows,
+//    every row a link, the boards the payload served and no others, and no zero on a most-first
+//    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
+//    page names its direction, so the directions come from the payload, grouped the way the page
+//    groups the boards — `boardGroups`, the function the block renders from.
 //
 // The parsing is regex over the emitted HTML, as audit-seo does it: the shapes are this repo's own
 // components, and the pure functions below are unit-tested on string literals.
@@ -22,6 +24,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readDist } from "./audit-seo.mjs";
+import { boardGroups } from "../src/lib/competitionPayload.mjs";
 
 export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 export const DIST_DIR = join(SITE_ROOT, "dist");
@@ -107,7 +110,6 @@ export function checkFixturesPage(html, path = "") {
 const BOARD_RE = {
   board: /<div class="board">/g,
   name: /<span class="bt"><span class="nm">([^<]*)<\/span>/,
-  note: /class="bnote"/,
   row: /<(a|div)(\s[^>]*)class="ctab-row"([^>]*)>/g,
   value: /<span class="n num pts">([^<]*)<\/span>/g,
 };
@@ -124,9 +126,10 @@ export function isZeroValue(text) {
   return digits.length > 0 && /^0+$/.test(digits);
 }
 
-/** Issues on one Rankings page: the board rules, read from the emitted boards. `expected` is what
- *  the competition payload served — how many boards, how many of them ascending — so the page is
- *  held to the data it was built from; without it the boards are checked on their own. */
+/** Issues on one Rankings page: the board rules, read from the emitted boards. `expected.ascending`
+ *  is the payload's rank order for each board, in the order the page renders them, so the page is
+ *  held to the data it was built from. The zero rule needs a direction and the page states none,
+ *  so without `expected` only the row rules are checked. */
 export function checkRankingsPage(html, path = "", expected = null) {
   const issues = [];
   const bs = boards(html);
@@ -134,8 +137,11 @@ export function checkRankingsPage(html, path = "", expected = null) {
     issues.push(`${path}: no board on the page`);
     return issues;
   }
-  let ascending = 0;
-  for (const b of bs) {
+  const directions = expected?.ascending ?? null;
+  if (directions && bs.length !== directions.length) {
+    issues.push(`${path}: ${bs.length} board(s) on the page, the payload served ${directions.length}`);
+  }
+  bs.forEach((b, i) => {
     const name = b.match(BOARD_RE.name)?.[1]?.trim() ?? "(unnamed board)";
     const rows = [...b.matchAll(BOARD_RE.row)];
     if (rows.length === 0 || rows.length > BOARD_ROWS_MAX) {
@@ -144,35 +150,43 @@ export function checkRankingsPage(html, path = "", expected = null) {
     for (const [, tag, before, after] of rows) {
       if (tag !== "a" || !RE.href.test(before + after)) issues.push(`${path}: a row of "${name}" is not a link`);
     }
-    const asc = BOARD_RE.note.test(b);
-    if (asc) ascending += 1;
-    else {
+    if (directions?.[i] === false) {
       for (const [, value] of b.matchAll(BOARD_RE.value)) {
         if (isZeroValue(value)) issues.push(`${path}: board "${name}" ranks a zero (${value.trim()}) on a most-first board`);
       }
     }
-  }
-  if (expected) {
-    if (bs.length !== expected.boards) issues.push(`${path}: ${bs.length} board(s) on the page, the payload served ${expected.boards}`);
-    if (ascending !== expected.ascending) {
-      issues.push(`${path}: ${ascending} board(s) say "fewest first", the payload ranks ${expected.ascending} ascending`);
-    }
-  }
+  });
   return [...new Set(issues)];
 }
 
-/** What each competition's latest payload served for its Rankings page, by slug: the boards with
- *  rows and how many of them rank ascending. */
+/** The catalogue's group keys in the catalogue's order, from the exported copy the site renders
+ *  from — the same order `GROUP_KEYS_IN_ORDER` gives the block. */
+export function groupKeysInOrder(dataDir = DATA_DIR) {
+  const file = join(dataDir, "metric_groups.json");
+  if (!existsSync(file)) return [];
+  return [...JSON.parse(readFileSync(file, "utf8")).groups].sort((a, b) => a.order - b.order).map((g) => g.key);
+}
+
+/** A competition payload's boards in the order the Rankings page renders them: the two blocks in
+ *  turn, each grouped by `boardGroups` — the function the block itself renders from, so the order
+ *  is the page's and not a second guess at it. */
+export function renderedBoards(payload, groupKeys) {
+  return [payload.team_boards, payload.player_boards]
+    .flatMap((list) => boardGroups(list, groupKeys).flatMap((group) => group.boards));
+}
+
+/** What each competition's latest payload served for its Rankings page, by slug: `ascending[i]` is
+ *  whether the i-th board the page renders ranks ascending. */
 export function expectedBoards(dataDir = DATA_DIR) {
   const dir = join(dataDir, "competitions");
   const latest = new Map();
   if (!existsSync(dir)) return latest;
+  const keys = groupKeysInOrder(dataDir);
   for (const code of readdirSync(dir)) {
     const seasons = readdirSync(join(dir, code)).filter((f) => f.endsWith(".json")).sort();
     if (!seasons.length) continue;
     const p = JSON.parse(readFileSync(join(dir, code, seasons[seasons.length - 1]), "utf8"));
-    const served = [...(p.team_boards ?? []), ...(p.player_boards ?? [])].filter((b) => b.rows?.length);
-    if (p.slug) latest.set(p.slug, { boards: served.length, ascending: served.filter((b) => b.rank_order === "asc").length });
+    if (p.slug) latest.set(p.slug, { ascending: renderedBoards(p, keys).map((b) => b.rank_order === "asc") });
   }
   return latest;
 }

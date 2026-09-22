@@ -856,7 +856,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .ctab.rkt .ctab-head .rk { display: none; }
 .ctab.rkt .ctab-head .nmh .bt { display: inline-flex; align-items: center; gap: 6px; }
 .ctab.rkt .ctab-head .nmh .bt .nm { font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: 0; text-transform: none; }
-/* "fewest first" beside a board's name */
+/* A small aside beside a heading. No page emits one: the board's direction note it was written
+   for is gone. The design mocks, which embed this file whole, still annotate with it. */
 .bnote { font-size: 12px; color: var(--muted); margin-left: 6px; }
 
 /* The fact row: label · value · context. Wide: the label left, value and context right-aligned;

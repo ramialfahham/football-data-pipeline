@@ -36,7 +36,6 @@ COPY.update({
     "metricGroups.defending.label":   ("Defending", "Puolustus", False),
     "metricGroups.discipline.label":  ("Discipline", "Kurinpito", False),
     "metricGroups.goalkeeping.label": ("Goalkeeping", "Maalivahti", False),
-    "fewestFirst":    ("fewest first", "vähiten ensin", True),
     "secTeamRankings": ("Team rankings", "Tiimirankingit", False),
     "secPlayerRankings": ("Player rankings", "Pelaajarankingit", False),
 })
@@ -141,8 +140,6 @@ def board_html(key, boards):
     title_en = board_title(key, lab, "en")
     fi_lab = FI.get(key, (lab, True))[0]
     title_fi = board_title(key, fi_lab, "fi") if fi_lab.startswith("Ø ") == lab.startswith("Ø ") else fi_lab
-    lower = ranks_fewest_first(key)
-    note = ' <span class="bnote">(%s)</span>' % loc("fewestFirst") if lower else ""
     rows = []
     for rank, name, slug, value in boards[key]:
         rows.append('<a class="ctab-row" href="/en/teams/%s/"><span class="rk num">%d</span>%s'
@@ -150,9 +147,9 @@ def board_html(key, boards):
                     % (slug, rank, team_cell(name), fmt(key, value)))
     return ('<div class="board"><div class="ctab rkt"><div class="ctab-head"><span class="h rk"></span>'
             '<span class="h nmh"><a class="bt cnm" href="/en/leaderboards/bundesliga/%s/">'
-            '<span class="nm"><span class="en">%s</span><span class="fi probe" lang="fi">%s</span></span>%s</a>%s</span>'
+            '<span class="nm"><span class="en">%s</span><span class="fi probe" lang="fi">%s</span></span>%s</a></span>'
             '<span class="h"></span></div>%s</div></div>'
-            % (key.replace("_", "-"), E(title_en), E(title_fi), CHEVRON, note, "".join(rows)))
+            % (key.replace("_", "-"), E(title_en), E(title_fi), CHEVRON, "".join(rows)))
 
 
 def boards_html(boards):

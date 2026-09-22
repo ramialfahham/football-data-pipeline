@@ -451,8 +451,9 @@ export interface CompetitionBoardRow {
 
 /** One board of the Rankings tab: the metric (its label key, format and group from the
  *  catalogue), whether it is a per-match rate (the title then spells "per match" out), the
- *  served rank order (`asc` says "fewest first"), and at most five rows as the warehouse ordered
- *  them. A board with no rows is not served. */
+ *  served rank order, and at most five rows as the warehouse ordered them. Nothing renders
+ *  `rank_order`; it tells a reader of the payload which end of the metric the board ranks, and the
+ *  built-page check which boards may carry a zero. A board with no rows is not served. */
 export interface CompetitionBoard {
   metric_key: string;
   label_i18n_key: string;

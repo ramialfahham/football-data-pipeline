@@ -80,8 +80,9 @@
 
 Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
 there is no page title under the tab bar (#129); a board shows five rows on a competition page and
-seven on Home, a zero is not a rank on a most-first board, a "fewest first" board says so beside
-its name (#129 board rules); a name, a "Matchday N" and a date never break inside themselves
+seven on Home, a zero is not a rank on a most-first board (#129 board rules); a board does not say
+which way it ranks — its name and its top value do (CPO, #151 MR, replacing #129's "fewest first"
+note); a name, a "Matchday N" and a date never break inside themselves
 (#129 the fact row). Those are content rules, checked where the content is built.
 
 ## Pages

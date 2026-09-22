@@ -35,7 +35,7 @@ kohden`, wraps inside the head cell).
 | metric group heading `.rkgroup > .gh .nm` | 17px, border-bottom 0px, 13 per Rankings page (6 team groups, 7 player groups) | 17px bold, no line |
 | ordered-by number `.ctab .n.pts` | 15px / 700 / rgb(59,176,114) on the boards (3.5, 3.0, 2.8) and on the Overview's Pts and Deserved | bold 15px accent |
 | board sub-line `.ctab.rkt .tm .ent .sub` | 12px, the club under the player's name | 12px muted |
-| note `.bnote` | `(fewest first)` / `(wenigste zuerst)` / `(vähiten ensin)` on exactly two boards per page | beside an ascending board |
+| note `.bnote` | 0 per page, in all three locales; the ascending boards read "Goals against per match  0.5" and "Shots on goal against per match  2.0" | no board states a direction |
 | deserved head `.ctab.dpt .ctab-head .h` | `# · · Balance · Deserved · Pts · Diff` (DE `Bilanz · Verdient · Pkt. · Diff.`, FI `Tase · Ansaitut · P · Ero`) | the ruled columns |
 | fact rows | `a.frow` 0, `div.frow` 6 on every Overview | inert until #140 |
 
