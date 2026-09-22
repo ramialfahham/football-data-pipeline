@@ -6,8 +6,11 @@
 > What #127 changed against this file: the Next matches window is EACH COMPETITION'S NEXT
 > MATCHDAY (its next round), every competition with an upcoming matchday always, **3 rows visible
 > and the rest folded**; the team boards have **no games floor**; a board's metric name links to
-> the Leaderboards page (#139), a row to the player or team page; the menu item Stats is renamed
-> Leaderboards. #143 builds the Home-owned parts.
+> the Leaderboards page (#139), a row to the player or team page; the menu item is renamed from
+> Stats — to Leaderboards on #127, then to **Statistics** on 2026-09-22, when the CPO checked the
+> word against how football sites label that section (premierleague.com's top-level item is
+> Statistics, bundesliga.com's is Statistiken, veikkausliiga.com's is Tilastot). The PAGE behind
+> it keeps the name Leaderboards (#139). #143 builds the Home-owned parts.
 
 > Field-bound against `shape_landing_payload` (written 2026-08-03, revised 2026-08-08, revised
 > again 2026-08-19). ~~The page reads exactly one warehouse model today: `core.fct_fixture`, for the

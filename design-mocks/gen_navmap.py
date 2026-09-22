@@ -78,7 +78,7 @@ MENU_NOTES = {
                      "none",
                      "NOTHING IS PLANNED as its own page. Each competition carries its own "
                      "table, so this menu item may simply be the competitions list again."),
-    "navLeaderboards": ("Stat leaderboards and definitions.",
+    "navStatistics": ("Stat leaderboards and definitions.",
                         "partial",
                         "Only a page PER METRIC is planned (a glossary entry). There is no index, "
                         "and league leaderboards live under each competition."),

@@ -16,7 +16,7 @@ N/A — chrome wraps every route in `site_architecture.md` §3. It renders once,
 ## 3. Data sources
 
 None. Chrome is fixed product IA (`site_architecture.md` §4: "the nav exposes Competitions ·
-Matches · Teams · Players · Standings · Leaderboards"), not registry- or mart-driven — it does not vary
+Matches · Teams · Players · Standings · Statistics"), not registry- or mart-driven — it does not vary
 by competition, team, or any exported payload. Labels are static i18n strings
 (`site_v2/src/i18n/strings.ts`). This means the binding rule (00_overview.md — "may reference only
 fields that exist in today's exported JSON") does not apply here; there is no payload to bind to.
@@ -30,14 +30,13 @@ fields that exist in today's exported JSON") does not apply here; there is no pa
 │  ▾ drawer (phone only, hidden by default)  │  (2) drawer — opens on ☰
 │    Competitions                            │
 │    Matches                                 │
-│    Teams / Players / Standings             │
-│    Leaderboards                            │
+│    Teams / Players / Standings / Statistics│
 ├────────────────────────────────────────────┤
 │              (page content)                │
 ├────────────────────────────────────────────┤
 │ MatchdayPilot                              │  (3) footer
 │ Competitions · Teams · Players ·           │
-│ Leaderboards ·                             │
+│ Statistics ·                               │
 │ About · Imprint (pending)                  │
 │ EN · DE · FI · Data: API-Football          │
 └────────────────────────────────────────────┘
@@ -68,12 +67,12 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
 | Element | Key(s) |
 |---|---|
 | Brand | hardcoded "MatchdayPilot" (proper noun, not translated), links to `localeHref(lang)`. Rendered as SPLIT markup — `Matchday<span class="iq">Pilot</span>` — so no source file contains the joined string; verify any future rename against rendered text, never a grep (#862) |
-| Main nav (6 items) | `navCompetitions`, `navMatches`, `navTeams`, `navPlayers`, `navStandings`, `navLeaderboards` |
+| Main nav (6 items) | `navCompetitions`, `navMatches`, `navTeams`, `navPlayers`, `navStandings`, `navStatistics` |
 | Main nav aria-label | `mainNavAria` |
 | Search placeholder / icon-button aria | `searchPlaceholder`, `searchAria` |
 | Theme toggle aria | `themeToggleAria` |
 | Hamburger aria | `menuAria` |
-| Footer link row (5 of 6 items reuse the nav keys) | `navCompetitions`, `navTeams`, `navPlayers`, `navLeaderboards`, `footerAbout` |
+| Footer link row (5 of 6 items reuse the nav keys) | `navCompetitions`, `navTeams`, `navPlayers`, `navStatistics`, `footerAbout` |
 | Footer Imprint slot | `footerImprintPending` |
 | Footer data-source line | `footerDataSource` (prefix only — "EN · DE · FI" itself is locale-invariant literal text, language codes are not translated) |
 
@@ -81,7 +80,7 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
 
 - **No dead links.** A nav or footer item is an inert `<span>` (not `<a>`) until the page behind
   it is built. Competitions became a real link when its index shipped; none of
-  Matches/Teams/Players/Standings/Leaderboards/About has a built index page, so those are still
+  Matches/Teams/Players/Standings/Statistics/About has a built index page, so those are still
   spans — beyond Competitions, only detail pages exist today, reachable by direct entity URL and
   not by browsing from chrome. `.mainnav a, .mainnav span` (and the footer/drawer
   equivalents) apply identical styling to both, so an inert item looks no different from a real

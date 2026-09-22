@@ -219,7 +219,7 @@ The two registry-driven axes, as designed (#364 adds the fields):
 same ruling as above) — the sentence below is the ORIGINAL 2026-06-10 composition and is kept for
 history, not as a current description; item (2) is gone, and (3)/(4) were already separately
 superseded before today (`docs/wireframes/10_home.md` §0). The nav exposes
-`Competitions · Matches · Teams · Players · Standings · Leaderboards`.
+`Competitions · Matches · Teams · Players · Standings · Statistics`.
 
 **Home composition (agreed hybrid, CPO 2026-06-10).** The MVP's competition-card
 landing is obsolete for the website. The home is fixtures-first with stats/storylines
