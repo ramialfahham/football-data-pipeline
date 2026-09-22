@@ -44,7 +44,7 @@ All pages live under a locale prefix. Trailing slashes; lowercase kebab-case slu
 /{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
 /{locale}/{competition-slug}/{season-slug}/                  competition season archive
 /{locale}/{competition-slug}/fixtures/                       competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup) — the same segment for every kind of competition and every locale, ruled with the tab's review on GitLab #129 (built by #150)
-/{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups) — the same segment for every kind of competition and every locale; the address is the word a fan searches for, the tab label is the page's name (built by #151)
+/{locale}/{competition-slug}/rankings/                       competition page, Rankings tab (the top five of every team and player board under the catalogue's groups) — the same segment for every kind of competition and every locale, the tab's own name; ruled by the CPO on #151's MR, where the builder's `/stats/` collided with the metric glossary's word below (built by #151)
 /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report)
 /{locale}/teams/{team-slug}/                                 team profile
 /{locale}/players/{player-slug}/                             player profile

@@ -103,7 +103,7 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
       active="overview"
       competitionSlug={competition.slug}
       hasFixturesPage={Boolean(payload?.fixtures?.length)}
-      hasStatsPage={Boolean(payload?.team_boards?.length || payload?.player_boards?.length)}
+      hasRankingsPage={Boolean(payload?.team_boards?.length || payload?.player_boards?.length)}
     />
 
     {payload && (

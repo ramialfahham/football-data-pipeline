@@ -16,11 +16,11 @@ interface Props {
   active?: TabKey;
   competitionSlug?: string | null;
   hasFixturesPage?: boolean;
-  hasStatsPage?: boolean;
+  hasRankingsPage?: boolean;
 }
 const {
   lang, hasMatchdays, active = "overview", competitionSlug = null, hasFixturesPage = false,
-  hasStatsPage = false,
+  hasRankingsPage = false,
 } = Astro.props;
 
 const tabs: { key: TabKey; label: string; href: string | null }[] = [
@@ -37,7 +37,7 @@ const tabs: { key: TabKey; label: string; href: string | null }[] = [
   {
     key: "rankings",
     label: t(lang, "compTabRankings"),
-    href: competitionSlug && hasStatsPage ? localeHref(lang, `${competitionSlug}/stats/`) : null,
+    href: competitionSlug && hasRankingsPage ? localeHref(lang, `${competitionSlug}/rankings/`) : null,
   },
 ];
 ---

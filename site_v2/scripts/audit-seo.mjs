@@ -266,7 +266,7 @@ export function isTabOf(a, b) {
   return rest.length === 1;
 }
 
-/** The path one segment up: a tab's entity page. "/en/x/stats/" -> "/en/x/". */
+/** The path one segment up: a tab's entity page. "/en/x/rankings/" -> "/en/x/". */
 function parentOf(path) {
   const parts = path.split("/").filter(Boolean);
   return parts.length > 1 ? "/" + parts.slice(0, -1).join("/") + "/" : null;

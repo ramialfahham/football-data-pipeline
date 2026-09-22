@@ -94,7 +94,7 @@ const crumbs = [
       active="matchdays"
       competitionSlug={competition.slug}
       hasFixturesPage={true}
-      hasStatsPage={Boolean(payload.team_boards?.length || payload.player_boards?.length)}
+      hasRankingsPage={Boolean(payload.team_boards?.length || payload.player_boards?.length)}
     />
 
     <MatchdaySchedule

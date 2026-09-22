@@ -9,7 +9,7 @@ codes read bare.
 
 criteria_demonstrated:
   - THE BUILT RANKINGS PAGE EXISTS WITH THREE TABS, RANKINGS LIT, AND THE TWO BLOCK NAMES.
-    `dist/en/bundesliga/stats/index.html`: tabs `[('a','Overview'), ('a','Matchdays'), ('span','Rankings')]`
+    `dist/en/bundesliga/rankings/index.html` (the address he ruled on the MR; the readings below were taken again on the renamed route and are unchanged): tabs `[('a','Overview'), ('a','Matchdays'), ('span','Rankings')]`
     (the span is `class="tab on"`), block names `['Team rankings', 'Player rankings']`;
     `dist/de/...`: `['Übersicht','Spieltage','Rankings']`, `['Team-Rankings', 'Spieler-Rankings']`;
     `dist/fi/...`: `['Yleiskatsaus','Kierrokset','Rankingit']`, `['Tiimirankingit', 'Pelaajarankingit']`.
@@ -40,7 +40,7 @@ criteria_demonstrated:
     matters next" / "Das nächste Spiel, das zählt" / "Seuraava avainottelu": `[]`. On the Bundesliga
     Overview: `a.frow` 0, `div.frow` 6, in all three locales.
   - THE MEASURED CHECK PASSES WITH THE RANKINGS PAGE LISTED. `docs/wireframes/block_standard.md`
-    Pages table gains `Competition rankings | built | en/bundesliga/stats/index.html`; `python
+    Pages table gains `Competition rankings | built | en/bundesliga/rankings/index.html`; `python
     scripts/check_design_inventory.py --dist site_v2/dist` → `20 pages · 2 viewports · 2
     languages · 80 renders · 0 failures · 0 warnings`, exit 0 (Home, the Overview, the Matchdays
     page and the Rankings page among the 20). `check_page_css.py`: 62 files, 0 findings.

@@ -22,9 +22,12 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#151 (THE RANKINGS TAB + THE OVERVIEW REWORK) IS BUILT, REVIEWED (2 rounds, 5 PASS) AND OPEN
-AS !216; HIS MERGE CLOSES IT.** The tab at `/{lang}/{slug}/stats/` (the builder's address, for
-search — stated on the MR head); `mart_team_leaderboards` twelve boards with the catalogue's
+**#151 (THE RANKINGS TAB + THE OVERVIEW REWORK) IS BUILT, REVIEWED (4 rounds, 5 PASS) AND OPEN
+AS !216; HIS MERGE CLOSES IT.** The tab at `/{lang}/{slug}/rankings/` — **he ruled the address
+on the MR 2026-09-22 ("change it to /rankings/") after the builder's `/stats/` collided with the
+glossary's word; asked whether addresses follow a concept, the honest answer was no: two tab
+addresses were chosen for search, the rest of the tree is entity names, and nothing is written
+down — an open question for him before go-live, not settled by this ruling**; `mart_team_leaderboards` twelve boards with the catalogue's
 direction served as `rank_order` (the two "against" boards ascending; the card boards most first
 by ruling), `mart_leaderboards` thirteen; `cards_yellow` / `cards_red` catalogued and rolled up
 from `fct_fixture_team_stats` (a blank card on a present stat line is 0 — the provider writes zero

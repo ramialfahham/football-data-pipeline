@@ -45,10 +45,10 @@ scope_paths:
   - tests/test_leaderboard_board_sets.py
   - site_v2/src/pages/*/*/index.astro
   - site_v2/src/pages/*/*/fixtures/index.astro
-  - site_v2/src/pages/*/*/stats/index.astro
+  - site_v2/src/pages/*/*/rankings/index.astro
   - site_v2/src/pages/*/players/*.astro
   - site_v2/src/specs/competition/index.spec.json
-  - site_v2/src/specs/competition/stats/index.spec.json
+  - site_v2/src/specs/competition/rankings/index.spec.json
   - site_v2/src/components/competition/CompetitionTabs.astro
   - site_v2/src/components/competition/DeservedPoints.astro
   - site_v2/src/components/competition/DeservedTable.astro
@@ -126,7 +126,7 @@ impact_map: >
   consumption: `scripts/export_site_data.py` `fetch_competition_payloads` reads the two leaderboard
   marts (new) and stops reading `mart_next_matchday` for the competition payload (Home's landing
   read is untouched); `_LEADERBOARD_METRICS` follows the mart's board set. The committed
-  `competitions/BL1/2026.json` is regenerated. The site: a new page at `/{lang}/{slug}/stats/`,
+  `competitions/BL1/2026.json` is regenerated. The site: a new page at `/{lang}/{slug}/rankings/`,
   the Overview's block list, the player stub's page set, `count_fraction` leaves the display
   layer.
   blast_radius: `mart_team_leaderboards` row set changes (12 boards, two ascending, zero rows kept
@@ -138,7 +138,7 @@ impact_map: >
   them as before — all four are `desc`).
 
 acceptance_criteria:
-  - The built `site_v2/dist/en/bundesliga/stats/index.html` exists, its tab bar has three tabs with Rankings lit (`span.tab.on` text "Rankings"), and it carries exactly two `.sechead .eyebrow` block names, "Team rankings" then "Player rankings" (DE "Team-Rankings" / "Spieler-Rankings", FI "Tiimirankingit" / "Pelaajarankingit" on the DE/FI builds).
+  - The built `site_v2/dist/en/bundesliga/rankings/index.html` exists, its tab bar has three tabs with Rankings lit (`span.tab.on` text "Rankings"), and it carries exactly two `.sechead .eyebrow` block names, "Team rankings" then "Player rankings" (DE "Team-Rankings" / "Spieler-Rankings", FI "Tiimirankingit" / "Pelaajarankingit" on the DE/FI builds).
   - On that page every `.ctab.rkt` board has between 1 and 5 `.ctab-row` rows, the boards sit under `.rkgroup > .gh .nm` headings whose text is the group name in `metric_groups.json` order, and no board on a `desc` board (per the payload's `rank_order`) shows a `.n.pts` value of 0; every `asc` board's head carries the `.bnote` "(fewest first)" and no `desc` board does.
   - The built `site_v2/dist/en/bundesliga/index.html` carries exactly three `.sechead .eyebrow` block names in order — "Table", "Deserved points table", "The season in numbers" — no "Next matches", and its `.ctab.dpt` table has one row per team in the payload's `deserved` list ordered by the served `deserved_rank`, with the Deserved column as the row's `.n.pts` cell.
   - On every competition page under `site_v2/dist` the `.facts` block has no `a.frow` (every fact row inert) and no row labelled "The match that matters next".
@@ -156,10 +156,11 @@ decisions_taken: >
   block name EN/DE/FI, six fact rows as leaderboard links); the page-wide rules; the gate that the
   measured check passes on its pages and on Home.
 
-  Taken as implementation, inside those rulings: (1) the tab's address is `/stats/` — the issue
-  gives the address to the builder "optimised for search", and fans search "stats" / "Statistik"
-  / "tilastot" the way #150 chose "fixtures" over "matchdays"; the glossary's `/{lang}/stats/{metric}/`
-  is another level of the tree. (2) The provider writes zero cards as a blank in the team
+  Taken as implementation, inside those rulings: (1) the tab's address is `/rankings/` — the
+  CPO's ruling on the open MR, 2026-09-22: "change it to /rankings/", after the builder's first
+  choice `/stats/` was put to him on the MR head and he asked what concept decides an address;
+  the word is the tab's own name in all three languages and leaves "stats" to the glossary's
+  `/{lang}/stats/{metric}/`. (2) The provider writes zero cards as a blank in the team
   statistics line: measured on prod `core.fct_fixture_team_stats`, BL1 holds 3,909 rows with a stat
   line and a blank red-card value against 1,865 explicit zeros (PL 6,798 / 465; SA 4,703 / 2,237).
   So the leg reads a blank card as 0 when the team's stat row exists and NULL when it does not,
@@ -205,3 +206,4 @@ amendments:
   - 2026-09-22: + `design-mocks/gen_competition_matchdays.py` — authority: the issue's "the Overview payload without the next-matchday block" and the block standard's Pages table, which the measured check runs this generator from; content: the generator read the flagged match from the payload's `next_matchday` key, which this task removes, and the check failed on it (`KeyError: 'next_matchday'`); it now reads `is_match_that_matters` from the payload's `fixtures`, the same flag on the same fixtures. The render is unchanged.
   - 2026-09-22: + `docs/wireframes/99_gaps_register.md` and `dbt_project/docs/layering.md` — authority: the scope-auditor's round-1 FAIL (a design-chain document the diff contradicts must move in the same branch) and the analytics-engineer's round-1 note, under the rule that a correction replaces the old text everywhere; content: GAP-11 still names `clean_sheets (x/y)` as the approved shape (superseded on #129: a bare count) and the layering doc's mart inventory still describes the two leaderboard marts as four and ten boards. Two rows corrected; no code.
   - 2026-09-22: + `dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql` — authority: the issue's line "the ascending boards carry their direction from the catalogue" and `data:build:mr` on !216's first pipeline (201 failures, every one a leader pair on the two ascending boards); content: the test's adjacency check reads "the later leader is not strictly better" as "not a larger value", which is the descending rule only; it now reads the board's served `rank_order` and holds the mirror rule on an ascending board. The tie-break and the other three invariants are untouched.
+  - 2026-09-22: the Rankings tab's address moves from `/stats/` to `/rankings/` — authority: the CPO on the open MR, "change it to /rankings/" (2026-09-22), after asking what concept decides an address; content: the page and spec paths in `scope_paths` respelled, the first acceptance criterion's built path (`dist/en/bundesliga/rankings/index.html`) moved by his ruling, `decisions_taken` (1) rewritten; every reader of the segment follows (the tab link, the specs, the URL table, the block standard's Pages row, the built-pages and SEO checks' tests). No other change.

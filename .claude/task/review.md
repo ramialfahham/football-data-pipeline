@@ -1,8 +1,9 @@
 # Review — feat/151-rankings-tab — 2026-09-22
 
-diff_sha256: d6240a908c95f3cbf80916e847d691e79ac4409d7290e15e1fc80cf1312f417f
+diff_sha256: 01dd69e99b3ad68064437a63b1ddb6388781f932dfa8d05cc7b2ef9d9f1dab88
 
-rounds: 3
+rounds: 4
+rounds_cap_override: the CPO ruled on the open MR (2026-09-22, "change it to /rankings/") and asked for the change on this branch; round 4 is that rename, reviewed as a delta by the three reviewers whose territory it touches. It clears no standing FAIL. He did not rule on the cap.
 
 ## scope-auditor
 VERDICT: PASS
@@ -13,6 +14,7 @@ risks_checked:
 - The audit-seo h1 exemption widening against "the header never changes with the tab" — the one-header-per-entity rule extended to a third tab, tested both directions; not a rule extension.
 - No credential-shaped content, no new mechanism, no recurring cost; `decisions_reserved` empty and nothing decided silently against it.
 - Round 3 (delta): the adjacency test's direction branch is a mechanical consequence of the ruled ascending boards, not a new ranking rule; the amendment quotes the issue line and the CI failure; no other path moved.
+- Round 4 (delta): the `/stats/` → `/rankings/` rename rests on the CPO's quoted, dated ruling on the MR; the cascade (page, spec, tab prop, three docs, two checks' identifiers) is complete with no stray old identifier in functional code; `scope_paths` respelled to the renamed files only.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -43,6 +45,7 @@ risks_checked:
 - `rendered_page_evidence.md` present and drawn from a real headless-Chromium pass at 375/700 px EN/DE/FI; the pre-existing 700px header overflow disclosed, not hidden.
 - Every new string resolves in EN/DE/FI and is pinned by `check-metric-labels.test.mjs`; the removed strings have no call site.
 - The Overview's Balance column traced to the quoted #129 ruling; `system.css` removes `.ctab.dp` and adds nothing. Round 2: the GAP-11 register row now agrees with the shipped code and the locked wireframe.
+- Round 4 (delta): the address rename is complete and consistent in every file of the territory that names it (page, spec `page` and note, the tab's `hasRankingsPage` href at all three call sites, the Overview spec's note, the block standard's Pages row); no field, label or rendering change rides with it; the SEO copy keys' internal names are unchanged and were reviewed in round 1.
 
 ## platform-reviewer
 VERDICT: PASS
@@ -54,3 +57,4 @@ risks_checked:
 - `sharesHeader` requires the parent page to carry the same h1; the test proves unrelated siblings still fail; `isTabOf` unchanged.
 - Rerun safety: views rebuilt wholesale, deterministic export order; no dependency, credential or `.gitignore` change; the new checks are wired in CI through `test:python`, `prebuild` and the `astro:build:done` integrations.
 - The player stub's page growth disclosed in the spec and the contract; scale is not this reviewer's to block on.
+- Round 4 (delta): `STATS_PAGE` → `RANKINGS_PAGE` and the function renames are mechanical, the parsing logic and the markup it is traced against unchanged; the URL-shape test exercises the same two false-positive shapes; `sharesHeader` untouched; the `parentOf` doc example corrected afterwards, comment only.

@@ -1,5 +1,5 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1ffec37f..975efb52 100644
+index 1ffec37f..69cb05e7 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
 @@ -1,41 +1,86 @@
@@ -72,10 +72,10 @@ index 1ffec37f..975efb52 100644
 +  - tests/test_leaderboard_board_sets.py
 +  - site_v2/src/pages/*/*/index.astro
 +  - site_v2/src/pages/*/*/fixtures/index.astro
-+  - site_v2/src/pages/*/*/stats/index.astro
++  - site_v2/src/pages/*/*/rankings/index.astro
 +  - site_v2/src/pages/*/players/*.astro
 +  - site_v2/src/specs/competition/index.spec.json
-+  - site_v2/src/specs/competition/stats/index.spec.json
++  - site_v2/src/specs/competition/rankings/index.spec.json
 +  - site_v2/src/components/competition/CompetitionTabs.astro
 +  - site_v2/src/components/competition/DeservedPoints.astro
 +  - site_v2/src/components/competition/DeservedTable.astro
@@ -114,7 +114,7 @@ index 1ffec37f..975efb52 100644
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -45,83 +90,118 @@ scope_paths:
+@@ -45,83 +90,120 @@ scope_paths:
    - docs/tracker/gitlab_snapshot.md
  
  impact_map: >
@@ -183,7 +183,7 @@ index 1ffec37f..975efb52 100644
 +  consumption: `scripts/export_site_data.py` `fetch_competition_payloads` reads the two leaderboard
 +  marts (new) and stops reading `mart_next_matchday` for the competition payload (Home's landing
 +  read is untouched); `_LEADERBOARD_METRICS` follows the mart's board set. The committed
-+  `competitions/BL1/2026.json` is regenerated. The site: a new page at `/{lang}/{slug}/stats/`,
++  `competitions/BL1/2026.json` is regenerated. The site: a new page at `/{lang}/{slug}/rankings/`,
 +  the Overview's block list, the player stub's page set, `count_fraction` leaves the display
 +  layer.
 +  blast_radius: `mart_team_leaderboards` row set changes (12 boards, two ascending, zero rows kept
@@ -198,7 +198,7 @@ index 1ffec37f..975efb52 100644
 -  - On the built DE team page (`site_v2/dist/de/teams/<slug of 33>/index.html`), the Performance tab's group headings read, in this order and only for groups that have rows: Tore · Schüsse · Pässe · Eins-gegen-eins · Defensive · Torwart · Standards — read as textContent from the built HTML.
 -  - On the built FI fixture page of a committed sample fixture with both windows populated, the comparison's group headings are the Finnish names from the #152 table (Maalit · Laukaukset · Syötöt · Yksi vastaan yksi · Puolustus · Maalivahti · Erikoistilanteet, only groups with rows), in that order.
 -  - No built page under `site_v2/dist` carries "Duels", "Goals", "Shooting", "Defending", "Passing", "Set pieces" or "Goalkeeping" as a group heading on a DE or FI page (the group-heading elements only; metric row labels keep their own words).
-+  - The built `site_v2/dist/en/bundesliga/stats/index.html` exists, its tab bar has three tabs with Rankings lit (`span.tab.on` text "Rankings"), and it carries exactly two `.sechead .eyebrow` block names, "Team rankings" then "Player rankings" (DE "Team-Rankings" / "Spieler-Rankings", FI "Tiimirankingit" / "Pelaajarankingit" on the DE/FI builds).
++  - The built `site_v2/dist/en/bundesliga/rankings/index.html` exists, its tab bar has three tabs with Rankings lit (`span.tab.on` text "Rankings"), and it carries exactly two `.sechead .eyebrow` block names, "Team rankings" then "Player rankings" (DE "Team-Rankings" / "Spieler-Rankings", FI "Tiimirankingit" / "Pelaajarankingit" on the DE/FI builds).
 +  - On that page every `.ctab.rkt` board has between 1 and 5 `.ctab-row` rows, the boards sit under `.rkgroup > .gh .nm` headings whose text is the group name in `metric_groups.json` order, and no board on a `desc` board (per the payload's `rank_order`) shows a `.n.pts` value of 0; every `asc` board's head carries the `.bnote` "(fewest first)" and no `desc` board does.
 +  - The built `site_v2/dist/en/bundesliga/index.html` carries exactly three `.sechead .eyebrow` block names in order — "Table", "Deserved points table", "The season in numbers" — no "Next matches", and its `.ctab.dpt` table has one row per team in the payload's `deserved` list ordered by the served `deserved_rank`, with the Deserved column as the row's `.n.pts` cell.
 +  - On every competition page under `site_v2/dist` the `.facts` block has no `a.frow` (every fact row inert) and no row labelled "The match that matters next".
@@ -243,10 +243,11 @@ index 1ffec37f..975efb52 100644
 -  in an existing build test. No recurring cost. The seed's `column_types` pins
 -  `metric_group_order: int64` beside the existing `importance_tier: int64`, so the type is
 -  declared, not inferred.
-+  Taken as implementation, inside those rulings: (1) the tab's address is `/stats/` — the issue
-+  gives the address to the builder "optimised for search", and fans search "stats" / "Statistik"
-+  / "tilastot" the way #150 chose "fixtures" over "matchdays"; the glossary's `/{lang}/stats/{metric}/`
-+  is another level of the tree. (2) The provider writes zero cards as a blank in the team
++  Taken as implementation, inside those rulings: (1) the tab's address is `/rankings/` — the
++  CPO's ruling on the open MR, 2026-09-22: "change it to /rankings/", after the builder's first
++  choice `/stats/` was put to him on the MR head and he asked what concept decides an address;
++  the word is the tab's own name in all three languages and leaves "stats" to the glossary's
++  `/{lang}/stats/{metric}/`. (2) The provider writes zero cards as a blank in the team
 +  statistics line: measured on prod `core.fct_fixture_team_stats`, BL1 holds 3,909 rows with a stat
 +  line and a blank red-card value against 1,865 explicit zeros (PL 6,798 / 465; SA 4,703 / 2,237).
 +  So the leg reads a blank card as 0 when the team's stat row exists and NULL when it does not,
@@ -302,6 +303,7 @@ index 1ffec37f..975efb52 100644
 +  - 2026-09-22: + `design-mocks/gen_competition_matchdays.py` — authority: the issue's "the Overview payload without the next-matchday block" and the block standard's Pages table, which the measured check runs this generator from; content: the generator read the flagged match from the payload's `next_matchday` key, which this task removes, and the check failed on it (`KeyError: 'next_matchday'`); it now reads `is_match_that_matters` from the payload's `fixtures`, the same flag on the same fixtures. The render is unchanged.
 +  - 2026-09-22: + `docs/wireframes/99_gaps_register.md` and `dbt_project/docs/layering.md` — authority: the scope-auditor's round-1 FAIL (a design-chain document the diff contradicts must move in the same branch) and the analytics-engineer's round-1 note, under the rule that a correction replaces the old text everywhere; content: GAP-11 still names `clean_sheets (x/y)` as the approved shape (superseded on #129: a bare count) and the layering doc's mart inventory still describes the two leaderboard marts as four and ten boards. Two rows corrected; no code.
 +  - 2026-09-22: + `dbt_project/tests/assert_mart_team_leaderboards_one_leader_per_league.sql` — authority: the issue's line "the ascending boards carry their direction from the catalogue" and `data:build:mr` on !216's first pipeline (201 failures, every one a leader pair on the two ascending boards); content: the test's adjacency check reads "the later leader is not strictly better" as "not a larger value", which is the descending rule only; it now reads the board's served `rank_order` and holds the mirror rule on an ascending board. The tie-break and the other three invariants are untouched.
++  - 2026-09-22: the Rankings tab's address moves from `/stats/` to `/rankings/` — authority: the CPO on the open MR, "change it to /rankings/" (2026-09-22), after asking what concept decides an address; content: the page and spec paths in `scope_paths` respelled, the first acceptance criterion's built path (`dist/en/bundesliga/rankings/index.html`) moved by his ruling, `decisions_taken` (1) rewritten; every reader of the segment follows (the tab link, the specs, the URL table, the block standard's Pages row, the built-pages and SEO checks' tests). No other change.
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
 index 0abdae3e..91299a55 100644
 --- a/dbt_project/docs/layering.md
@@ -1164,7 +1166,7 @@ index 59060672..dd0fd785 100644
      rows = []
      for rank, name, slug, value in boards[key]:
 diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index fa566664..5e0db6b7 100644
+index fa566664..da9cd1b4 100644
 --- a/docs/site_architecture.md
 +++ b/docs/site_architecture.md
 @@ -44,7 +44,7 @@ All pages live under a locale prefix. Trailing slashes; lowercase kebab-case slu
@@ -1172,7 +1174,7 @@ index fa566664..5e0db6b7 100644
  /{locale}/{competition-slug}/{season-slug}/                  competition season archive
  /{locale}/{competition-slug}/fixtures/                       competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup) — the same segment for every kind of competition and every locale, ruled with the tab's review on GitLab #129 (built by #150)
 -/{locale}/{competition-slug}/<tab>/                          the Rankings tab — a standalone page; its URL is ruled with that tab's review on GitLab #129
-+/{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups) — the same segment for every kind of competition and every locale; the address is the word a fan searches for, the tab label is the page's name (built by #151)
++/{locale}/{competition-slug}/rankings/                       competition page, Rankings tab (the top five of every team and player board under the catalogue's groups) — the same segment for every kind of competition and every locale, the tab's own name; ruled by the CPO on #151's MR, where the builder's `/stats/` collided with the metric glossary's word below (built by #151)
  /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report)
  /{locale}/teams/{team-slug}/                                 team profile
  /{locale}/players/{player-slug}/                             player profile
@@ -1199,14 +1201,14 @@ index 87cb1121..3a3369f4 100644
  | GAP-13 | 02 team | mart | Five locked metric rows have no full-season variant: Ø shots on target, Ø duels, % duels won, Ø defensive actions, Ø key passes — `int_team_season__full_season_metrics` predates the player-stat-derived team metrics (W1/W2 have them; those are fixture-anchored and can't serve season pages) | Extend the full-season intermediate + `mart_team_profile` + team export with the five season columns | **approved** (CPO 2026-06-11) | — |
  | GAP-14 | 03 player | export | `player_birth_date` exists in the profile mart but `_strip_identity` drops it and the payload top level doesn't surface it; brief §6.4 promises birth date | Mart already compliant — surface `birth_date` at the payload top level (export-only change) | **approved** (CPO 2026-06-11); **shipped** 2026-06-30 (#391 Phase B) | — |
 diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index 729ca569..8f5a85f1 100644
+index 729ca569..cf831019 100644
 --- a/docs/wireframes/block_standard.md
 +++ b/docs/wireframes/block_standard.md
 @@ -107,6 +107,7 @@ and `gen_taxonomy.py` are diagrams.
  | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link |
  | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar |
  | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
-+| Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar |
++| Competition rankings | built | `site_v2/dist` | `en/bundesliga/rankings/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar |
  | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading |
  | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar |
  | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
@@ -1528,14 +1530,14 @@ index 9d2771db..4b9e59b5 100644
      }
  
 diff --git a/site_v2/scripts/audit-seo.mjs b/site_v2/scripts/audit-seo.mjs
-index f72011ec..7a96a2fe 100644
+index f72011ec..d876574b 100644
 --- a/site_v2/scripts/audit-seo.mjs
 +++ b/site_v2/scripts/audit-seo.mjs
 @@ -266,6 +266,23 @@ export function isTabOf(a, b) {
    return rest.length === 1;
  }
  
-+/** The path one segment up: a tab's entity page. "/en/x/stats/" -> "/en/x/". */
++/** The path one segment up: a tab's entity page. "/en/x/rankings/" -> "/en/x/". */
 +function parentOf(path) {
 +  const parts = path.split("/").filter(Boolean);
 +  return parts.length > 1 ? "/" + parts.slice(0, -1).join("/") + "/" : null;
@@ -1576,7 +1578,7 @@ index f72011ec..7a96a2fe 100644
          else if (!first) seen[field].set(k, path);
        }
 diff --git a/site_v2/scripts/audit-seo.test.mjs b/site_v2/scripts/audit-seo.test.mjs
-index bd224cb0..84a2bb15 100644
+index bd224cb0..5fae5d1c 100644
 --- a/site_v2/scripts/audit-seo.test.mjs
 +++ b/site_v2/scripts/audit-seo.test.mjs
 @@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
@@ -1593,26 +1595,26 @@ index bd224cb0..84a2bb15 100644
    assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/fixtures/") && isTabOf("/en/bundesliga/fixtures/", "/en/bundesliga/"));
    assert.ok(!isTabOf("/en/teams/a/", "/en/teams/b/"));
 +  // two tabs of one entity page share its header too, whatever order the pages arrive in
-+  const twoTabs = [tab("/en/bundesliga/fixtures/", "Fixtures"), tab("/en/bundesliga/stats/", "Stats"), tab("/en/bundesliga/", "Overview")];
++  const twoTabs = [tab("/en/bundesliga/fixtures/", "Fixtures"), tab("/en/bundesliga/rankings/", "Rankings"), tab("/en/bundesliga/", "Overview")];
 +  assert.ok(!auditSet(twoTabs, OPTS).some((i) => i.includes("h1 is not unique")));
 +  // but two neighbours whose parent is not their entity page (or has another h1) do not
 +  const neighbours = [tab("/en/teams/a/", "A"), tab("/en/teams/b/", "B")];
 +  assert.ok(auditSet(neighbours, OPTS).some((i) => i.includes("h1 is not unique")));
-+  const h1Of = new Map([["/en/bundesliga/", "Bundesliga"], ["/en/bundesliga/fixtures/", "Bundesliga"], ["/en/bundesliga/stats/", "Bundesliga"], ["/en/x/", "Home"], ["/en/x/a/", "Same"], ["/en/x/b/", "Same"]]);
-+  assert.ok(sharesHeader("/en/bundesliga/fixtures/", "/en/bundesliga/stats/", h1Of));
++  const h1Of = new Map([["/en/bundesliga/", "Bundesliga"], ["/en/bundesliga/fixtures/", "Bundesliga"], ["/en/bundesliga/rankings/", "Bundesliga"], ["/en/x/", "Home"], ["/en/x/a/", "Same"], ["/en/x/b/", "Same"]]);
++  assert.ok(sharesHeader("/en/bundesliga/fixtures/", "/en/bundesliga/rankings/", h1Of));
 +  assert.ok(!sharesHeader("/en/x/a/", "/en/x/b/", h1Of), "a parent with another h1 makes them neighbours, not tabs");
  });
  
  test("auditSet: JSON-LD must parse, carry the declared @type, and hold no empty values", () => {
 diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
-index ae835336..21bf8cea 100644
+index ae835336..a2919a34 100644
 --- a/site_v2/scripts/check-built-pages.mjs
 +++ b/site_v2/scripts/check-built-pages.mjs
 @@ -11,6 +11,9 @@
  // 2. On every fixtures page exactly one round is checked on load, and it is the round the
  //    warehouse flagged next whenever one is flagged; every unplayed row is a link and no played row
  //    is, until the match report page exists.
-+// 3. On every Rankings page (`/stats/`) every board keeps the board rules: one to five rows, every
++// 3. On every Rankings page (`/rankings/`) every board keeps the board rules: one to five rows, every
 +//    row a link, "fewest first" beside a board and only there when it ranks ascending, and no zero
 +//    on a most-first board (a zero is not a ranking there; on a fewest-first board it is the top).
  //
@@ -1622,7 +1624,7 @@ index ae835336..21bf8cea 100644
  
  export const MATCH_PAGE = /^\/(de|en|fi)\/[^/]+\/matches\/[^/]+\/$/;
  export const FIXTURES_PAGE = /^\/(de|en|fi)\/[^/]+\/fixtures\/$/;
-+export const STATS_PAGE = /^\/(de|en|fi)\/[^/]+\/stats\/$/;
++export const RANKINGS_PAGE = /^\/(de|en|fi)\/[^/]+\/rankings\/$/;
 +export const BOARD_ROWS_MAX = 5;
  
  /** Issues for the match-page count against the payloads written and, when present, the manifest. */
@@ -1654,7 +1656,7 @@ index ae835336..21bf8cea 100644
 +/** Issues on one Rankings page: the board rules, read from the emitted boards. `expected` is what
 + *  the competition payload served — how many boards, how many of them ascending — so the page is
 + *  held to the data it was built from; without it the boards are checked on their own. */
-+export function checkStatsPage(html, path = "", expected = null) {
++export function checkRankingsPage(html, path = "", expected = null) {
 +  const issues = [];
 +  const bs = boards(html);
 +  if (bs.length === 0) {
@@ -1711,7 +1713,7 @@ index ae835336..21bf8cea 100644
    const issues = [];
    let matchPages = 0;
    let fixturesPages = 0;
-+  let statsPages = 0;
++  let rankingsPages = 0;
 +  const expected = expectedBoards(dataDir);
    for (const { path, html } of readDist(distDir)) {
      if (MATCH_PAGE.test(path)) matchPages += 1;
@@ -1719,9 +1721,9 @@ index ae835336..21bf8cea 100644
        fixturesPages += 1;
        issues.push(...checkFixturesPage(html, path));
      }
-+    if (STATS_PAGE.test(path)) {
-+      statsPages += 1;
-+      issues.push(...checkStatsPage(html, path, expected.get(path.split("/")[2]) ?? null));
++    if (RANKINGS_PAGE.test(path)) {
++      rankingsPages += 1;
++      issues.push(...checkRankingsPage(html, path, expected.get(path.split("/")[2]) ?? null));
 +    }
    }
    const payloadFiles = countPayloads(dataDir);
@@ -1731,12 +1733,12 @@ index ae835336..21bf8cea 100644
      `check-built-pages: ${matchPages} match page(s) = ${payloadFiles} payload(s) x ${LOCALES.length}` +
        (manifest ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed` : " (no manifest: sample build)") +
 -      `; ${fixturesPages} fixtures page(s) checked. OK.`,
-+      `; ${fixturesPages} fixtures page(s) and ${statsPages} rankings page(s) checked. OK.`,
++      `; ${fixturesPages} fixtures page(s) and ${rankingsPages} rankings page(s) checked. OK.`,
    );
    return 0;
  }
 diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
-index e9069e1d..bea17dc1 100644
+index e9069e1d..3474579d 100644
 --- a/site_v2/scripts/check-built-pages.test.mjs
 +++ b/site_v2/scripts/check-built-pages.test.mjs
 @@ -5,7 +5,8 @@
@@ -1744,8 +1746,8 @@ index e9069e1d..bea17dc1 100644
  import assert from "node:assert/strict";
  import {
 -  checkFixturesPage, checkMatchPageCount, rounds, FIXTURES_PAGE, MATCH_PAGE,
-+  checkFixturesPage, checkMatchPageCount, checkStatsPage, boards, isZeroValue, rounds,
-+  FIXTURES_PAGE, MATCH_PAGE, STATS_PAGE,
++  checkFixturesPage, checkMatchPageCount, checkRankingsPage, boards, isZeroValue, rounds,
++  FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
  } from "./check-built-pages.mjs";
  
  function round(n, { checked = false, next = false, rows = [] } = {}) {
@@ -1760,8 +1762,8 @@ index e9069e1d..bea17dc1 100644
    assert.ok(FIXTURES_PAGE.test("/fi/bundesliga/fixtures/"));
    assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/"));
    assert.ok(!MATCH_PAGE.test("/en/bundesliga/fixtures/"));
-+  assert.ok(STATS_PAGE.test("/de/bundesliga/stats/"));
-+  assert.ok(!STATS_PAGE.test("/de/stats/goals/") && !STATS_PAGE.test("/de/bundesliga/"));
++  assert.ok(RANKINGS_PAGE.test("/de/bundesliga/rankings/"));
++  assert.ok(!RANKINGS_PAGE.test("/de/rankings/") && !RANKINGS_PAGE.test("/de/bundesliga/"));
 +});
 +
 +// A board as RankingBoard.astro emits it: the head with the name (and the note on an ascending
@@ -1791,23 +1793,23 @@ index e9069e1d..bea17dc1 100644
 +  const good = board("Goals per match", ["3.5", "3.0", "2.8", "2.5", "2.5"]) +
 +    board("Goals against per match", ["0.5", "0.5", "0.8"], { asc: true }) +
 +    board("Red cards", ["1", "1", "1"]);
-+  assert.deepEqual(checkStatsPage(good, "p", { boards: 3, ascending: 1 }), []);
-+  assert.deepEqual(checkStatsPage(good, "p"), [], "without the payload the boards are checked on their own");
++  assert.deepEqual(checkRankingsPage(good, "p", { boards: 3, ascending: 1 }), []);
++  assert.deepEqual(checkRankingsPage(good, "p"), [], "without the payload the boards are checked on their own");
 +  // six rows: the cut failed upstream
-+  assert.match(checkStatsPage(board("X", ["6", "5", "4", "3", "2", "1"]), "p")[0], /6 row\(s\), expected 1 to 5/);
++  assert.match(checkRankingsPage(board("X", ["6", "5", "4", "3", "2", "1"]), "p")[0], /6 row\(s\), expected 1 to 5/);
 +  // a zero ranked on a most-first board
-+  assert.match(checkStatsPage(board("Red cards", ["1", "0"]), "p")[0], /ranks a zero \(0\) on a most-first board/);
++  assert.match(checkRankingsPage(board("Red cards", ["1", "0"]), "p")[0], /ranks a zero \(0\) on a most-first board/);
 +  // a zero on a fewest-first board is the top row, not an issue
-+  assert.deepEqual(checkStatsPage(board("Goals against per match", ["0.0", "0.5"], { asc: true }), "p"), []);
++  assert.deepEqual(checkRankingsPage(board("Goals against per match", ["0.0", "0.5"], { asc: true }), "p"), []);
 +  // an inert row
-+  assert.match(checkStatsPage(board("X", ["1"], { inert: true }), "p")[0], /is not a link/);
++  assert.match(checkRankingsPage(board("X", ["1"], { inert: true }), "p")[0], /is not a link/);
 +  // the page disagrees with the payload it was built from
-+  const issues = checkStatsPage(good, "p", { boards: 4, ascending: 2 });
++  const issues = checkRankingsPage(good, "p", { boards: 4, ascending: 2 });
 +  assert.ok(issues.some((i) => /3 board\(s\) on the page, the payload served 4/.test(i)));
 +  assert.ok(issues.some((i) => /1 board\(s\) say "fewest first", the payload ranks 2 ascending/.test(i)));
 +  // an empty board wrapper
-+  assert.match(checkStatsPage(board("X", []), "p")[0], /0 row\(s\)/);
-+  assert.match(checkStatsPage("<html></html>", "p")[0], /no board on the page/);
++  assert.match(checkRankingsPage(board("X", []), "p")[0], /0 row\(s\)/);
++  assert.match(checkRankingsPage("<html></html>", "p")[0], /no board on the page/);
  });
  
  test("match pages equal payloads times locales, and the manifest ties them to the warehouse", () => {
@@ -1856,18 +1858,18 @@ index 66cf2a13..5b073759 100644
  /** The metric GROUPS (#152): keys and order from the export's copy of the catalogue
   * (`src/data/metric_groups.json`, pinned to the seed by `tests/test_metric_groups.py`); a name per
 diff --git a/site_v2/src/components/competition/CompetitionTabs.astro b/site_v2/src/components/competition/CompetitionTabs.astro
-index 519f01e6..b94f3af8 100644
+index 519f01e6..cff7baaa 100644
 --- a/site_v2/src/components/competition/CompetitionTabs.astro
 +++ b/site_v2/src/components/competition/CompetitionTabs.astro
 @@ -16,9 +16,11 @@ interface Props {
    active?: TabKey;
    competitionSlug?: string | null;
    hasFixturesPage?: boolean;
-+  hasStatsPage?: boolean;
++  hasRankingsPage?: boolean;
  }
  const {
    lang, hasMatchdays, active = "overview", competitionSlug = null, hasFixturesPage = false,
-+  hasStatsPage = false,
++  hasRankingsPage = false,
  } = Astro.props;
  
  const tabs: { key: TabKey; label: string; href: string | null }[] = [
@@ -1879,7 +1881,7 @@ index 519f01e6..b94f3af8 100644
 +  {
 +    key: "rankings",
 +    label: t(lang, "compTabRankings"),
-+    href: competitionSlug && hasStatsPage ? localeHref(lang, `${competitionSlug}/stats/`) : null,
++    href: competitionSlug && hasRankingsPage ? localeHref(lang, `${competitionSlug}/rankings/`) : null,
 +  },
  ];
  ---
@@ -2836,7 +2838,7 @@ index 42282479..6f22a5b8 100644
 +  player_boards?: CompetitionBoard[];
  }
 diff --git a/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro b/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro
-index 88b0053b..eb38bcb4 100644
+index 88b0053b..e3bde12e 100644
 --- a/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro
 +++ b/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro
 @@ -17,7 +17,7 @@ import { t } from "../../../../i18n/strings";
@@ -2861,12 +2863,12 @@ index 88b0053b..eb38bcb4 100644
        active="matchdays"
        competitionSlug={competition.slug}
        hasFixturesPage={true}
-+      hasStatsPage={Boolean(payload.team_boards?.length || payload.player_boards?.length)}
++      hasRankingsPage={Boolean(payload.team_boards?.length || payload.player_boards?.length)}
      />
  
      <MatchdaySchedule
 diff --git a/site_v2/src/pages/[lang]/[competition]/index.astro b/site_v2/src/pages/[lang]/[competition]/index.astro
-index 0025a620..262fb4b7 100644
+index 0025a620..9419a728 100644
 --- a/site_v2/src/pages/[lang]/[competition]/index.astro
 +++ b/site_v2/src/pages/[lang]/[competition]/index.astro
 @@ -8,23 +8,22 @@
@@ -2911,7 +2913,7 @@ index 0025a620..262fb4b7 100644
        active="overview"
        competitionSlug={competition.slug}
        hasFixturesPage={Boolean(payload?.fixtures?.length)}
-+      hasStatsPage={Boolean(payload?.team_boards?.length || payload?.player_boards?.length)}
++      hasRankingsPage={Boolean(payload?.team_boards?.length || payload?.player_boards?.length)}
      />
  
      {payload && (
@@ -2930,14 +2932,14 @@ index 0025a620..262fb4b7 100644
        </>
      )}
    </div>
-diff --git a/site_v2/src/pages/[lang]/[competition]/stats/index.astro b/site_v2/src/pages/[lang]/[competition]/stats/index.astro
+diff --git a/site_v2/src/pages/[lang]/[competition]/rankings/index.astro b/site_v2/src/pages/[lang]/[competition]/rankings/index.astro
 new file mode 100644
-index 00000000..0825c92e
+index 00000000..23bf048c
 --- /dev/null
-+++ b/site_v2/src/pages/[lang]/[competition]/stats/index.astro
++++ b/site_v2/src/pages/[lang]/[competition]/rankings/index.astro
 @@ -0,0 +1,105 @@
 +---
-+// Competition page, Rankings tab (spec: src/specs/competition/stats/index.spec.json).
++// Competition page, Rankings tab (spec: src/specs/competition/rankings/index.spec.json).
 +//
 +// One page per competition per locale, for every competition whose latest served season carries
 +// a board in competitions/{league_code}/{season}.json. The header and the tab bar are the
@@ -2946,7 +2948,7 @@ index 00000000..0825c92e
 +// no board served has no page here and its Overview shows the tab as an inert label, so no link
 +// points at a page the build did not emit.
 +//
-+// The address is /stats/ for search (the words a fan types), whatever the tab is called.
++// The address is the tab's own name, /rankings/; "stats" is the metric glossary's word.
 +// Nothing on this page is derived: the slug, the name, the crest, every rank and value is a served
 +// field of the competition payload.
 +import Layout from "../../../../layouts/Layout.astro";
@@ -3034,7 +3036,7 @@ index 00000000..0825c92e
 +      active="rankings"
 +      competitionSlug={competition.slug}
 +      hasFixturesPage={Boolean(payload.fixtures?.length)}
-+      hasStatsPage={true}
++      hasRankingsPage={true}
 +    />
 +
 +    <RankingsBlock label={t(lang, "compSecTeamRankings")} boards={payload.team_boards ?? []} entity="team" lang={lang} />
@@ -3108,7 +3110,7 @@ index 7eaef60f..dccf49b5 100644
  }
  const { player, lang } = Astro.props;
 diff --git a/site_v2/src/specs/competition/index.spec.json b/site_v2/src/specs/competition/index.spec.json
-index f37dc36f..4fbfb75e 100644
+index f37dc36f..0a357bbe 100644
 --- a/site_v2/src/specs/competition/index.spec.json
 +++ b/site_v2/src/specs/competition/index.spec.json
 @@ -10,17 +10,17 @@
@@ -3123,7 +3125,7 @@ index f37dc36f..4fbfb75e 100644
      "page_count_driver": "count(competition_index.json .competitions) x count(locales)",
      "url_permanence": "permanent",
 -    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages: Matchdays at /{locale}/{competition-slug}/fixtures/, linked from the bar when the build emits it for this competition; Rankings is an inert label until built, so no link on this page points at a page the build did not emit."
-+    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages, Matchdays at /{locale}/{competition-slug}/fixtures/ and Rankings at /{locale}/{competition-slug}/stats/, each linked from the bar only when the build emits it for this competition, so no link on this page points at a page the build did not emit."
++    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages, Matchdays at /{locale}/{competition-slug}/fixtures/ and Rankings at /{locale}/{competition-slug}/rankings/, each linked from the bar only when the build emits it for this competition, so no link on this page points at a page the build did not emit."
    },
    "blocks": [
      {
@@ -3157,15 +3159,15 @@ index f37dc36f..4fbfb75e 100644
      }
    ]
  }
-diff --git a/site_v2/src/specs/competition/stats/index.spec.json b/site_v2/src/specs/competition/stats/index.spec.json
+diff --git a/site_v2/src/specs/competition/rankings/index.spec.json b/site_v2/src/specs/competition/rankings/index.spec.json
 new file mode 100644
-index 00000000..d7459f09
+index 00000000..89a5bec3
 --- /dev/null
-+++ b/site_v2/src/specs/competition/stats/index.spec.json
++++ b/site_v2/src/specs/competition/rankings/index.spec.json
 @@ -0,0 +1,37 @@
 +{
 +  "$schema": "../../page-spec.schema.json",
-+  "page": "[lang]/[competition]/stats/index.astro",
++  "page": "[lang]/[competition]/rankings/index.astro",
 +  "entity": "competition",
 +  "seo": {
 +    "canonical": "self",
@@ -3180,7 +3182,7 @@ index 00000000..d7459f09
 +    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one board in team_boards or player_boards, the top five of a board from mart_team_leaderboards or mart_leaderboards. A competition with no board served has no page here, and its Overview shows the tab as an inert label. Every team row links to the team page and every player row to the player page, which the build emits for every player a board names; the board headings and their full lists are the Leaderboards pages (#140) and stay plain names until those exist.",
 +    "page_count_driver": "count(competitions with a team or player board served for their latest season) x count(locales)",
 +    "url_permanence": "permanent",
-+    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Rankings tab, /{locale}/{competition-slug}/stats/, the same segment for every kind of competition and every locale: the address is the word a fan searches for, the tab label is the page's name. The slug is the registry's authored slug, served through mart_competition_index."
++    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Rankings tab, /{locale}/{competition-slug}/rankings/, the same segment for every kind of competition and every locale: the tab's own name, ruled by the CPO on the build MR (the builder's first choice, /stats/, collided with the metric glossary's word). The slug is the registry's authored slug, served through mart_competition_index."
 +  },
 +  "blocks": [
 +    {
@@ -3521,8 +3523,8 @@ index 00000000..8bd0080b
 #   .claude/active_work.md                 |   43 +-
 #    .claude/task/acceptance_evidence.md    |   72 +-
 #    .claude/task/rendered_page_evidence.md |   80 +-
-#    .claude/task/review.md                 |  116 +-
-#    .claude/task/review_input.patch        | 4375 ++++++++++++++++++++++++--------
+#    .claude/task/review.md                 |  120 +-
+#    .claude/task/review_input.patch        | 4411 ++++++++++++++++++++++++--------
 #    docs/tracker/gitlab_snapshot.md        |    6 +-
-#    6 files changed, 3477 insertions(+), 1215 deletions(-)
+#    6 files changed, 3530 insertions(+), 1202 deletions(-)
 # ============================================================================

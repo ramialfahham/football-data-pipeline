@@ -1,6 +1,6 @@
 # Rendered page evidence — `feat/151-rankings-tab` (#151)
 
-What changes on a rendered page: a new page, the Rankings tab at `/{lang}/{slug}/stats/` (header ·
+What changes on a rendered page: a new page, the Rankings tab at `/{lang}/{slug}/rankings/` (header ·
 tab bar · Team rankings · Player rankings, the boards as `.ctab.rkt` single-value tables under
 `.rkgroup` headings); the Overview's blocks (Next matches gone, the two deserved boards replaced by
 the `.ctab.dpt` deserved points table, the six fact rows inert); the Rankings tab of the bar now a
@@ -11,7 +11,7 @@ rules; no element, class or CSS rule is added (`.ctab.dp` is removed).
 
 Headless Chromium (Playwright, the engine `check_design_inventory.py` uses) over the sample build
 served over HTTP from `site_v2/dist`, at **375** and **700** px, in EN, DE and FI, on three pages
-each: `bundesliga/stats/`, `bundesliga/` (the Overview) and Home. For every page: the document's
+each: `bundesliga/rankings/` (measured first at `/stats/`, then again after his rename — identical readings), `bundesliga/` (the Overview) and Home. For every page: the document's
 `scrollWidth` against the viewport; the tab bar's `scrollWidth` vs `clientWidth` and each tab's
 left, width and font size; every block name's text and font size; every metric group heading's
 text, font size and bottom border; every board name's box and overflow; the notes; the first

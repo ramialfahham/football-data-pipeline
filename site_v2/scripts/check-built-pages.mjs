@@ -11,7 +11,7 @@
 // 2. On every fixtures page exactly one round is checked on load, and it is the round the
 //    warehouse flagged next whenever one is flagged; every unplayed row is a link and no played row
 //    is, until the match report page exists.
-// 3. On every Rankings page (`/stats/`) every board keeps the board rules: one to five rows, every
+// 3. On every Rankings page (`/rankings/`) every board keeps the board rules: one to five rows, every
 //    row a link, "fewest first" beside a board and only there when it ranks ascending, and no zero
 //    on a most-first board (a zero is not a ranking there; on a fewest-first board it is the top).
 //
@@ -30,7 +30,7 @@ export const LOCALES = ["de", "en", "fi"];
 
 export const MATCH_PAGE = /^\/(de|en|fi)\/[^/]+\/matches\/[^/]+\/$/;
 export const FIXTURES_PAGE = /^\/(de|en|fi)\/[^/]+\/fixtures\/$/;
-export const STATS_PAGE = /^\/(de|en|fi)\/[^/]+\/stats\/$/;
+export const RANKINGS_PAGE = /^\/(de|en|fi)\/[^/]+\/rankings\/$/;
 export const BOARD_ROWS_MAX = 5;
 
 /** Issues for the match-page count against the payloads written and, when present, the manifest. */
@@ -127,7 +127,7 @@ export function isZeroValue(text) {
 /** Issues on one Rankings page: the board rules, read from the emitted boards. `expected` is what
  *  the competition payload served — how many boards, how many of them ascending — so the page is
  *  held to the data it was built from; without it the boards are checked on their own. */
-export function checkStatsPage(html, path = "", expected = null) {
+export function checkRankingsPage(html, path = "", expected = null) {
   const issues = [];
   const bs = boards(html);
   if (bs.length === 0) {
@@ -195,7 +195,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   const issues = [];
   let matchPages = 0;
   let fixturesPages = 0;
-  let statsPages = 0;
+  let rankingsPages = 0;
   const expected = expectedBoards(dataDir);
   for (const { path, html } of readDist(distDir)) {
     if (MATCH_PAGE.test(path)) matchPages += 1;
@@ -203,9 +203,9 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
       fixturesPages += 1;
       issues.push(...checkFixturesPage(html, path));
     }
-    if (STATS_PAGE.test(path)) {
-      statsPages += 1;
-      issues.push(...checkStatsPage(html, path, expected.get(path.split("/")[2]) ?? null));
+    if (RANKINGS_PAGE.test(path)) {
+      rankingsPages += 1;
+      issues.push(...checkRankingsPage(html, path, expected.get(path.split("/")[2]) ?? null));
     }
   }
   const payloadFiles = countPayloads(dataDir);
@@ -219,7 +219,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   console.log(
     `check-built-pages: ${matchPages} match page(s) = ${payloadFiles} payload(s) x ${LOCALES.length}` +
       (manifest ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed` : " (no manifest: sample build)") +
-      `; ${fixturesPages} fixtures page(s) and ${statsPages} rankings page(s) checked. OK.`,
+      `; ${fixturesPages} fixtures page(s) and ${rankingsPages} rankings page(s) checked. OK.`,
   );
   return 0;
 }

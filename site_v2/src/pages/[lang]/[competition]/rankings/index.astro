@@ -1,5 +1,5 @@
 ---
-// Competition page, Rankings tab (spec: src/specs/competition/stats/index.spec.json).
+// Competition page, Rankings tab (spec: src/specs/competition/rankings/index.spec.json).
 //
 // One page per competition per locale, for every competition whose latest served season carries
 // a board in competitions/{league_code}/{season}.json. The header and the tab bar are the
@@ -8,7 +8,7 @@
 // no board served has no page here and its Overview shows the tab as an inert label, so no link
 // points at a page the build did not emit.
 //
-// The address is /stats/ for search (the words a fan types), whatever the tab is called.
+// The address is the tab's own name, /rankings/; "stats" is the metric glossary's word.
 // Nothing on this page is derived: the slug, the name, the crest, every rank and value is a served
 // field of the competition payload.
 import Layout from "../../../../layouts/Layout.astro";
@@ -96,7 +96,7 @@ const crumbs = [
       active="rankings"
       competitionSlug={competition.slug}
       hasFixturesPage={Boolean(payload.fixtures?.length)}
-      hasStatsPage={true}
+      hasRankingsPage={true}
     />
 
     <RankingsBlock label={t(lang, "compSecTeamRankings")} boards={payload.team_boards ?? []} entity="team" lang={lang} />

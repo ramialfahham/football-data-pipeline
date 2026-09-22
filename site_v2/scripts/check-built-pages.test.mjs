@@ -5,8 +5,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  checkFixturesPage, checkMatchPageCount, checkStatsPage, boards, isZeroValue, rounds,
-  FIXTURES_PAGE, MATCH_PAGE, STATS_PAGE,
+  checkFixturesPage, checkMatchPageCount, checkRankingsPage, boards, isZeroValue, rounds,
+  FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
 } from "./check-built-pages.mjs";
 
 function round(n, { checked = false, next = false, rows = [] } = {}) {
@@ -35,8 +35,8 @@ test("the URL shapes: a match page, a fixtures page and a rankings page, nothing
   assert.ok(FIXTURES_PAGE.test("/fi/bundesliga/fixtures/"));
   assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/"));
   assert.ok(!MATCH_PAGE.test("/en/bundesliga/fixtures/"));
-  assert.ok(STATS_PAGE.test("/de/bundesliga/stats/"));
-  assert.ok(!STATS_PAGE.test("/de/stats/goals/") && !STATS_PAGE.test("/de/bundesliga/"));
+  assert.ok(RANKINGS_PAGE.test("/de/bundesliga/rankings/"));
+  assert.ok(!RANKINGS_PAGE.test("/de/rankings/") && !RANKINGS_PAGE.test("/de/bundesliga/"));
 });
 
 // A board as RankingBoard.astro emits it: the head with the name (and the note on an ascending
@@ -66,23 +66,23 @@ test("the board rules: one to five linked rows, no zero on a most-first board, t
   const good = board("Goals per match", ["3.5", "3.0", "2.8", "2.5", "2.5"]) +
     board("Goals against per match", ["0.5", "0.5", "0.8"], { asc: true }) +
     board("Red cards", ["1", "1", "1"]);
-  assert.deepEqual(checkStatsPage(good, "p", { boards: 3, ascending: 1 }), []);
-  assert.deepEqual(checkStatsPage(good, "p"), [], "without the payload the boards are checked on their own");
+  assert.deepEqual(checkRankingsPage(good, "p", { boards: 3, ascending: 1 }), []);
+  assert.deepEqual(checkRankingsPage(good, "p"), [], "without the payload the boards are checked on their own");
   // six rows: the cut failed upstream
-  assert.match(checkStatsPage(board("X", ["6", "5", "4", "3", "2", "1"]), "p")[0], /6 row\(s\), expected 1 to 5/);
+  assert.match(checkRankingsPage(board("X", ["6", "5", "4", "3", "2", "1"]), "p")[0], /6 row\(s\), expected 1 to 5/);
   // a zero ranked on a most-first board
-  assert.match(checkStatsPage(board("Red cards", ["1", "0"]), "p")[0], /ranks a zero \(0\) on a most-first board/);
+  assert.match(checkRankingsPage(board("Red cards", ["1", "0"]), "p")[0], /ranks a zero \(0\) on a most-first board/);
   // a zero on a fewest-first board is the top row, not an issue
-  assert.deepEqual(checkStatsPage(board("Goals against per match", ["0.0", "0.5"], { asc: true }), "p"), []);
+  assert.deepEqual(checkRankingsPage(board("Goals against per match", ["0.0", "0.5"], { asc: true }), "p"), []);
   // an inert row
-  assert.match(checkStatsPage(board("X", ["1"], { inert: true }), "p")[0], /is not a link/);
+  assert.match(checkRankingsPage(board("X", ["1"], { inert: true }), "p")[0], /is not a link/);
   // the page disagrees with the payload it was built from
-  const issues = checkStatsPage(good, "p", { boards: 4, ascending: 2 });
+  const issues = checkRankingsPage(good, "p", { boards: 4, ascending: 2 });
   assert.ok(issues.some((i) => /3 board\(s\) on the page, the payload served 4/.test(i)));
   assert.ok(issues.some((i) => /1 board\(s\) say "fewest first", the payload ranks 2 ascending/.test(i)));
   // an empty board wrapper
-  assert.match(checkStatsPage(board("X", []), "p")[0], /0 row\(s\)/);
-  assert.match(checkStatsPage("<html></html>", "p")[0], /no board on the page/);
+  assert.match(checkRankingsPage(board("X", []), "p")[0], /0 row\(s\)/);
+  assert.match(checkRankingsPage("<html></html>", "p")[0], /no board on the page/);
 });
 
 test("match pages equal payloads times locales, and the manifest ties them to the warehouse", () => {
