@@ -4,7 +4,7 @@
 > from an issue title or a memory file. CURRENT STATE ONLY — history belongs in git. Under 16,000
 > **CHARACTERS** (`handover_in.py:46`) — measure with Python `len()`, never `wc -c` (BYTES).
 
-_Last updated **2026-09-22**, on `feat/151-rankings-tab`. **GITLAB** (`glab`, MRs).
+_Last updated **2026-09-23**, on `fix/menu-statistics`. **GITLAB** (`glab`, MRs).
 ⚠ No SHA here on purpose: this file merges as a commit, so any hash it named would be its own parent
 and wrong on arrival. Run `git log -1` and `glab mr list`; they are correct and this file cannot be._
 
@@ -22,22 +22,35 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#151 (THE RANKINGS TAB + THE OVERVIEW REWORK) IS BUILT, REVIEWED (4 rounds, 5 PASS) AND OPEN
-AS !216; HIS MERGE CLOSES IT.** The tab at `/{lang}/{slug}/rankings/` — **he ruled the address
-on the MR 2026-09-22 ("change it to /rankings/") after the builder's `/stats/` collided with the
-glossary's word; asked whether addresses follow a concept, the honest answer was no: two tab
-addresses were chosen for search, the rest of the tree is entity names, and nothing is written
-down — an open question for him before go-live, not settled by this ruling**; `mart_team_leaderboards` twelve boards with the catalogue's
-direction served as `rank_order` (the two "against" boards ascending; the card boards most first
-by ruling), `mart_leaderboards` thirteen; `cards_yellow` / `cards_red` catalogued and rolled up
-from `fct_fixture_team_stats` (a blank card on a present stat line is 0 — the provider writes zero
-as blank, measured); `clean_sheets` is `integer` everywhere, `count_fraction` gone; the Overview is
-Table · Deserved points table · The season in numbers (six inert fact rows); `next_matchday` left
-the competition payload (the header's round reads the fixtures' `is_next_round`). ⚠ **The
-committed `competitions/BL1/2026.json` was produced by inlining the branch's marts against prod
-(the !191 method, scratchpad script); a plain `--entities competitions` export cannot reproduce it
-until the merge and the first nightly build the new marts.** The MR head carries the address, the
-two catalogue rows and the full EN/DE/FI copy table for his check. **#152 merged as !215 (closes
+**#151 (THE RANKINGS TAB + THE OVERVIEW REWORK) IS MERGED (!216, nine review rounds).** ⛔ **THE
+ONLY OPEN MR IS !218**, `fix/menu-statistics`: the header and footer menu item reads
+**Statistics / Statistiken / Tilastot**, one copy key and its two call sites plus the documents
+that write the menu out, dead text until #139 builds the hub. Reviewed (1 round, both PASS),
+**rebased onto `main` after !216 merged and rebound** — CI green (6 jobs; no `data:build:mr`, it
+touches no model). His merge closes it. ⚠ Its handover commit was DROPPED in that rebase: it
+named both MRs as open, which the merge made false. **A handover commit riding a feature branch
+goes stale the moment a sibling merges — that is a real defect in the practice, unfiled, his call.**
+
+**Naming ruled by him on !216, 2026-09-22, all shipped and recorded in that contract:** the tab
+address is `/rankings/`; **the "(fewest first)" note is GONE from every board** ("the user is not
+an idiot") — `rank_order` is still served and still drives the mart's ranking, the zero rule and
+the singular test, it is simply not drawn, and the built-page check now reads a board's direction
+off the payload by rendered position, not off the page; the German surface is **Ranglisten /
+Mannschafts-Ranglisten / Spieler-Ranglisten** with the page title and description moved to
+**Mannschafts- und Spielerstatistiken**; the Finnish team block is **Joukkuerankingit** (the tab
+keeps **Rankingit** deliberately — real Finnish football usage, and it must stay distinct from the
+menu's Tilastot, as EN and DE keep theirs distinct). ⚠ **The measured design check renders EN and
+FI ONLY** — a German layout break passes it silently; today's German tab bar was measured BY HAND
+(343 of 343 at 375px, Ranglisten 118). German coverage for it is unfiled, his call.
+⚠ Also unfiled: the German search box says "Teams, Spieler suchen" beside copy now saying
+Mannschaften — sitewide, predating this.
+
+⚠ **ADDRESSES FOLLOW NO WRITTEN SCHEME AND HE KNOWS IT** — he asked on !216 whether one exists;
+the honest answer was no: two tab addresses were chosen for search, the rest of the tree is entity
+names, nothing is written down. **An open decision for him before go-live.** ⚠ **The committed
+`competitions/BL1/2026.json` was produced by inlining #151's marts against prod (the !191 method);
+a plain `--entities competitions` export cannot reproduce it until the first nightly builds the
+new marts.** **#152 merged as !215 (closes
 #98).** ⚠ Pre-existing, NOT this MR: DE/FI pages scroll sideways at 700px because of the header's
 search button (`div.header-actions`), Home included; the design check does not measure page
 scrollWidth; no issue filed — his call. **#109 step 3's check ran live on `af081cae`'s
@@ -51,11 +64,10 @@ blocked on #155.** **#156** (filed 2026-09-19 at his word): the nightly export, 
 live data, the go-live item that ends the committed sample; its export-and-build half is worth
 running before go-live, since full-scale defects (#155) show only there.
 
-**#155 (filed 2026-09-19, Matches milestone): two unplayed meetings of the same clubs share the
-match preview page's title**, 12 pairings × 3 locales; the full-scale build (15,078 match pages,
-8 GB heap, 14 min) fails `audit-seo` on exactly that and nothing else; #150's `check-built-pages`
-(match pages = payloads × locales = the warehouse's unplayed count) found it. The title's wording
-is his; the fix is the fixture page's title template.
+**#155 (Matches milestone): two unplayed meetings of the same clubs share the match preview page's
+title**, 12 pairings × 3 locales; the full-scale build (15,078 pages, 8 GB heap, 14 min) fails
+`audit-seo` on exactly that and nothing else. The title's wording is his; the fix is the fixture
+page's title template.
 
 **What #150 left behind:** `mart_competition_fixtures` is the mart #131 reads by date; the shared
 row is `site_v2/src/components/ui/MatchRow.astro` (`linkPlayed` flips when #132's report page
@@ -68,22 +80,18 @@ bullet is the durable text, including what the token's renewal needs). **Actions
 the repository level and that setting is never flipped** (`.github/workflows/README.md` says why).
 `origin` equals GitLab's `main` after each sync; still never the base, never pushed to. Pipelines
 stay members-only (his call), so the README carries a static `CI · GitLab` badge. The runbook
-rewrite (operations guide and development workflow still describe GitHub Actions as live CI) is
+rewrite (the operations guide and development workflow still call GitHub Actions live CI) is
 **#154**, unscheduled.
 
 **#153, THE DESIGN-SYSTEM MECHANISM, IS DONE AND MERGED**: the block standard, `system.css`, the
-lint, the measured check, `validate:ui` running all three on every MR. **#151's merge gate (the
-check passes on its pages and on Home) is met on !216: 20 pages · 80 renders · 0 failures, the
-built Rankings page in the Pages table.**
+lint, the measured check, `validate:ui` running all three on every MR.
 
 **#109, THE DBT TESTING STRATEGY: all three steps merged (!201, !202, !211–!214); §3.5 names a
 mechanism for every rule and every one is in place. Whether the issue closes or has a step 4 is
-his; nothing on it says.** ⚠ Noted on B, not touched:
-`int_player_season__metrics` (in `int_team_season.yml`) still bounds the three player
-provider-subset ratios [0,1] at season grain. ⚠ Noted on C, not touched: the generated
-`shots_inside_box_sum_season__team` block's catalogue sentence ("can be understated rather than
-null") is false on the season surface; C referenced a hand block instead — the fix is the
-catalogue seed's description.
+his; nothing on it says.** ⚠ Two noted, untouched: `int_player_season__metrics` (in
+`int_team_season.yml`) still bounds the three player provider-subset ratios [0,1] at season grain;
+and the generated `shots_inside_box_sum_season__team` block's catalogue sentence ("can be
+understated rather than null") is false on the season surface — the fix is the seed's description.
 
 **One default still open, merged as a default:** the breadcrumb's current-page colour (`ink-2`,
 links muted; the mocks had it inverted); its inventory row is `proposed` until he rules. ⚠ **A
@@ -91,7 +99,7 @@ ruling request is ONE question, a 2×2 table, then the recommendation.**
 
 **THE COMPETITION PAGE IS FULLY APPROVED ON #129 (2026-09-16); he will NOT re-check pages by eye.**
 **Build issues:** **#150** Matchdays (merged) · **#152** metric groups (merged) · **#151** Rankings
-+ the Overview rework (open, !216). The page-wide rules live in the block standard and `system.css`, measured — the
++ the Overview rework (merged). The page-wide rules live in the block standard and `system.css`, measured — the
 builds compose from them and add nothing of their own.
 
 **The measured check is the arbiter.** `python scripts/check_design_inventory.py --dist

@@ -1,76 +1,43 @@
-# Review — feat/151-rankings-tab — 2026-09-22
+# Review — fix/menu-statistics — 2026-09-22
 
-diff_sha256: 803101d8eec92197083378f08e2b26e4179b59c776061ba6b0c87142bb8d854f
+diff_sha256: 5e1079756429cc87d130dd836175fe67f8cc60c64526fbdbe64389bbc95678e6
 
-rounds: 9
-rounds_cap_override: every round past 3 is the CPO correcting the open MR, not the builder grinding. Round 4: "change it to /rankings/" (2026-09-22). Rounds 5 and 6: he challenged a Finnish label the bi-analyst had passed as language — *"Harhautusyritykset?? is not football language"* — which was correct, and the reviewer's FAIL on that round found the same gap in German. Round 7: shown where the "(fewest first)" note renders, he asked where it mattered and answered himself — *"it isn't. the user is not an idiot"* — reversing his own #129 board rule. Round 8: the German tab and its two block names take the German word, and the bi-analyst's FAIL on that round sent a second naming question back to him inside the round. Round 9: he asked for the Finnish research and then ruled on it — one word. Each round is reviewed as a delta by the territory it touches, and none clears a standing FAIL by fiat. He did not rule on the cap.
+rounds: 1
 
-⚠ REBASED onto `main` after !217 (the menu rename) merged, which moved the base under this branch.
-The hash above is the recomputed cumulative diff against the new base; the four round-by-round
-verdicts below stand unchanged, because **none of this branch's own code moved**: the only
-conflicts were the five task artifacts (all diff3, all four marker kinds), resolved to this
-task's side; `strings.ts` and `docs/site_architecture.md` auto-merged, and `git diff <old tip>
-<new tip>` outside the paperwork returns exactly !217's eight files — the changes this branch
-inherited from the base, not changes to its own.
+⚠ REBASED onto `main` after !216 (#151, the Rankings tab) merged, which moved the base under this
+branch. The hash above is the recomputed cumulative diff against the new base; the round-1
+verdicts below stand unchanged, because **this branch's own change did not move**: the five task
+artifacts were the only conflicts and were resolved to this task's side, `site_v2/src/i18n/strings.ts`
+and `docs/site_architecture.md` auto-merged, and the branch's own patch before and after the rebase
+covers the same eight files with identical added and removed lines — only blob hashes and two hunk
+line numbers differ (`-442` → `-443`, `-683` → `-685`), because #151 inserted copy above in the same
+file. The branch's second commit, a session handover naming both requests as open, was dropped
+rather than replayed: `main` already carries a newer handover, and replaying it would have
+overwritten current state with the claim that !216 is still open.
+
+One round, both required reviewers PASS. The scope-auditor's only finding was a stale line
+number in the contract's own impact map (`10_home.md:999`, actually 1002), corrected and
+confirmed in a one-line delta. The bi-analyst read that same citation the other way; checked
+directly afterwards — `grep -n "Leaderboards page exists (#139)"` returns 1002, so the contract
+as it stands is right.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: `docs/wireframes/99_gaps_register.md` GAP-11 still recorded `clean_sheets` as `x/y` while the branch ships `integer`; a design-chain document the diff contradicts must move in the same branch. Round 2: the row now reads approved as `x/y`, ruled a bare count on #129, shipped as `integer` by #151, with the issue in the last column — resolved.
-- scope_paths coverage: every file in the cumulative patch matches an entry, including the fnmatch-corrected page globs and the amendments; no drift.
-- §10 decisions: `/stats/`, the blank-card-as-zero reading, the catalogue-direction join with the ruled card override, inert headings and fact rows, the player stub's page set, the `count_fraction`/`.ctab.dp` removal, the six dropped player boards — each traced to a quoted #129/#151 ruling or a mechanical consequence of one.
-- The audit-seo h1 exemption widening against "the header never changes with the tab" — the one-header-per-entity rule extended to a third tab, tested both directions; not a rule extension.
-- No credential-shaped content, no new mechanism, no recurring cost; `decisions_reserved` empty and nothing decided silently against it.
-- Round 3 (delta): the adjacency test's direction branch is a mechanical consequence of the ruled ascending boards, not a new ranking rule; the amendment quotes the issue line and the CI failure; no other path moved.
-- Round 4 (delta): the `/stats/` → `/rankings/` rename rests on the CPO's quoted, dated ruling on the MR; the cascade (page, spec, tab prop, three docs, two checks' identifiers) is complete with no stray old identifier in functional code; `scope_paths` respelled to the renamed files only.
-- Round 8 (delta): the German rename rests on two separate CPO quotes kept distinct rather than one stretched over three labels — his own sentence names the tab word, and "As recommended" covers only the block pair's spelling. Finnish borrows the English word in the same three places and he has not ruled it; the amendment says so rather than skipping it silently. Every path in the round is in `scope_paths`; the frozen escalations log is untouched; the decision is recorded in the acceptance criterion and an amendment, and the supporting research is attributed to the builder, not to him.
-- Round 7 (delta): the removal of the "(fewest first)" note reverses a rule the CPO set himself on #129, so the quote was tested as a ruling and not an aside — first person, dated, answering his own question about that exact rendered note. The reversal is written into everything that stated the old rule in the same branch (`block_standard.md`, `decisions_taken`, the acceptance criterion, an amendment) and into nothing that is frozen — `escalations.log` untouched. Every path in the round matches `scope_paths`. The built-page check's move from reading the direction off the page to reading it off the payload is a mechanical consequence of the note's removal, not a new mechanism: the invariant is unchanged and only its evidence source moved. Copy the CPO was reviewing, rather than copy he had approved, is stated plainly as withdrawn.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Blank-card-as-zero in `int_legs__team_match.sql` against the LEFT JOIN's null-ness and the measured provider behaviour; `games_with_card_stats` and the NULL-out in the cumulative model follow the same coverage idiom as every other team-feed metric.
-- A mart reading `metric_catalogue` via `ref()` has precedent (`mart_standings` + `standings_table_kinds`); the inner join's silent-drop failure mode is caught by `assert_mart_team_leaderboards_all_boards_present` (count != 12).
-- `rank_order` / `sort_key` / dense_rank consistency against the catalogue's directions for all 12 boards; the new singular test re-derives the extreme independently and checks the zero rule; the yml expression matches the model's row filter.
-- The three-way board-set pin reads the real files and its mutation tests go red in each direction.
-- `clean_sheets` format and the `count_fraction` removal swept across seed, schema, docs, `format.ts`, `MetricRow.astro` — no dangling reference.
-- The export and the components select served columns only; no ranking or metric math client-side. Round 2: `layering.md` mart rows now match the models (no games floor, the served direction, 12/13 boards).
-- Round 3 (delta): `data:build:mr` on !216 failed `assert_mart_team_leaderboards_one_leader_per_league` with 201 rows, all from the adjacency invariant assuming descending order; the fix branches on the served `rank_order` and mirrors the model's signed `sort_key` without re-running the window; the tie-break and the other three invariants unchanged; 0 rows against the inlined chain on prod.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- `cards_yellow` / `cards_red`: real per-match provider statistics summed over the season; `lower_better` matches the player rows and football sense; the descriptions state the blank-vs-zero reading and the withheld total honestly and match the SQL.
-- The second-yellow quirk is stated only where cards are summed into one metric (`cards_player`); no team composite is introduced, so the omission on the separate boards is consistent.
-- The most-first ruling on the card boards is a display order on the mart, not a catalogue misstatement.
-- `clean_sheets` `count_fraction` → `integer` against the ruling; no other row or the schema enum still references the retired format.
+- All three words trace to a dated CPO quote in `refs` ("the CPO on !217's thread, 2026-09-22"), which is what a §10 user-visible naming decision requires; the builder's earlier drafts were overridden, not defended.
+- Superseding a prior ruling is recorded in place: `10_home.md:9-13` now carries the chain (Stats → Leaderboards on #127 → Statistics today, with the reason), rather than the old text annotated beside the new.
+- The hub/label distinction was applied in both directions: `site_architecture.md:247`, `north_star.md:115`, `10_home.md:1002` and `gen_navmap.py:155` still read Leaderboards (the page, the milestone, the export payload); every six-item menu list reads Statistics. Neither over- nor under-swept.
+- `grep -rn "navLeaderboards"` across `site_v2/`, `docs/`, `design-mocks/` returns zero live hits.
+- Dead text preserved: the two component hunks swap the key and add no `href`; `audit-seo` unaffected.
+- Every touched path is in `scope_paths`; `north_star.md` is correctly absent from both the diff and the list, because it must not change.
+- No credential-shaped content, no new mechanism, no recurring cost.
+- Delta: the contract's line-number citation corrected; no code, scope or decision field touched.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Every field on the Rankings tab traced from `RankingBoard.astro` / `RankingsBlock.astro` through `types.ts`, `shape_competition_boards`, `_board_catalogue` to the two marts and the seed — every rendered field a served column, none computed in the page.
-- The committed sample carries the 12 team boards and 12 of 13 player boards (finishing legitimately empty after four matchdays, omitted by design); no hand-typed key.
-- Group order from `metric_groups.json` via `boardGroups()`; no tier reorders boards.
-- The zero rule and the fewest-first note enforced in SQL, by the new singular test, and re-checked on the built HTML by `check-built-pages.mjs`; `acceptance_evidence.md` shows the run against `dist`.
-- `rendered_page_evidence.md` present and drawn from a real headless-Chromium pass at 375/700 px EN/DE/FI; the pre-existing 700px header overflow disclosed, not hidden.
-- Every new string resolves in EN/DE/FI and is pinned by `check-metric-labels.test.mjs`; the removed strings have no call site.
-- The Overview's Balance column traced to the quoted #129 ruling; `system.css` removes `.ctab.dp` and adds nothing. Round 2: the GAP-11 register row now agrees with the shipped code and the locked wireframe.
-- Round 4 (delta): the address rename is complete and consistent in every file of the territory that names it (page, spec `page` and note, the tab's `hasRankingsPage` href at all three call sites, the Overview spec's note, the block standard's Pages row); no field, label or rendering change rides with it; the SEO copy keys' internal names are unchanged and were reviewed in round 1.
-- Round 5 FAIL, after the CPO rejected the Finnish dribbles label this reviewer had passed in round 1: the same failure class was uncorrected in German. Established mechanically that seven of the nine player labels are byte-identical to an existing team row in the file once the "Ø " sigil is stripped, so they are borrowed and not coined; the two that are not — `dribbles.attempts` and `savePct.saves` — had no repo-recorded backing.
-- Round 9 (delta): the Finnish team-rankings heading takes "Joukkue-", closing the same clash the German round was FAILed for — the Finnish title and description already said "joukkue" above a heading saying "tiimi". Swept the whole Finnish dictionary, the mock generator's Finnish column and the frozen legacy corpus for "tiimi" as a club: no occurrence left. "Joukkuerankingit" is not a one-off coinage but the shape the already-passed "Pelaajarankingit" uses. On the tab keeping the loanword, which was the real risk of a half-swept rename: checked structurally against the built EN and DE pages, where the tab word is the shared stem of its two headings — Finnish now matches that shape rather than breaking it, so the tab does not need to move. EN and DE pages byte-identical to their passed state.
-- Round 8 FAIL, then PASS on the second pass. The FAIL: the German rename moved the tab and the two block headings to the German word but left the same page's browser title and meta description reading "Team- und Spielerstatistiken" / "Die besten Teams und Spieler" — two German words for one concept on one screen, against this file's own stated practice that a page's search copy and its headings share vocabulary, and the same half-swept shape as the earlier prose miss. Established that the title was the file's only "Team" outlier before the round and that the rename made it collide rather than closing it; ruled it a naming fork for the CPO rather than resolving it by inspection. After his ruling, re-checked on the rebuilt pages: title, meta description, tab and both headings now read "Mannschaft(s)", the keys are used on that page only, the substitution tokens and length are intact, and EN and FI are untouched and each internally consistent. Noted as out of scope and not hidden: the sitewide German search box still says "Teams, Spieler suchen…" — pre-existing chrome on every German page, not touched or introduced by this branch.
-- Round 7 (delta): the note's removal is complete across the display territory — no key, spec entry, class or comment left claiming it, in any locale; checked against the built HTML in EN, DE and FI, where the two ascending boards now read "Goals against per match" at 0.5, "Gegentore pro Spiel" at 0,5 and "Maalilaukaukset vastaan ottelua kohden" at 2,0 and say nothing further. `rank_order` is not dead payload surface: it is what the mart ranks by and the only thing the zero rule can turn on, now read by the built-page check instead of drawn. The two evidence files' rewritten claims were re-checked against `dist` rather than taken from the round's narrative.
-- Round 6 (delta): both unborrowed values now carry their source in the file (FotMob's German and Finnish localisations for dribbles; `site/i18n/de.json` for "Paraden", re-grepped independently — one occurrence, matching the claim). No value moved. On the words themselves: no basis to call either wrong; both rest on a live product's real per-language localisation, and the bare-plural-is-attempts pattern is consistent across DE, FI and the catalogue's own English pair.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- `shape_competition_payload` signature change: every caller (the fetcher, the tests) updated; no stale positional caller.
-- `shape_competition_boards` unit-tested for the five-row cut, empty-board omission, the carried catalogue facts and the player shape.
-- `tests/test_leaderboard_board_sets.py` reads the production files; the red tests exercise real mutated inputs; `_LEADERBOARD_METRICS` aliasing leaves no untested gap.
-- `check-built-pages.mjs`'s `BOARD_RE` traced line by line against `RankingBoard.astro`'s emitted markup; the link check requires a real `href`.
-- `sharesHeader` requires the parent page to carry the same h1; the test proves unrelated siblings still fail; `isTabOf` unchanged.
-- Rerun safety: views rebuilt wholesale, deterministic export order; no dependency, credential or `.gitignore` change; the new checks are wired in CI through `test:python`, `prebuild` and the `astro:build:done` integrations.
-- The player stub's page growth disclosed in the spec and the contract; scale is not this reviewer's to block on.
-- Round 7 (delta): the check can no longer read a board's direction off the page and now reads it off the payload by rendered position. `renderedBoards` composes `boardGroups` — the very function `RankingsBlock.astro` renders from — so the order matches by construction and not by a second implementation; traced against the component, including a board with no rows and a group key the catalogue does not list. The rework does not weaken the gate: the board-count mismatch still fails, the zero rule still runs per board, and its direction now comes from the payload rather than from a string the same generator wrote, which is strictly more independent. Mutations checked red: one global direction, an off-by-one index, a dropped length check, and a broken block or group order. Nothing dangles in the mock generator — `ranks_fewest_first` still drives its own sort. Noted, not blocking: `groupKeysInOrder` repeats the one-line `order` sort that `metricRows.ts` does, because a script cannot import the TypeScript constant; both read the same exported file.
-- Round 4 (delta): `STATS_PAGE` → `RANKINGS_PAGE` and the function renames are mechanical, the parsing logic and the markup it is traced against unchanged; the URL-shape test exercises the same two false-positive shapes; `sharesHeader` untouched; the `parentOf` doc example corrected afterwards, comment only.
+- Swept `docs/wireframes/**`, `site_v2/src/**`, `design-mocks/gen_navmap.py`, `site_architecture.md`, `ui_design_brief.md` and `north_star.md` in both directions rather than trusting the claim: every menu-label site moved, every hub-name site stayed — including `00_overview.md:139`'s `05_leaderboards.md` page reference, which this task correctly leaves alone.
+- Exactly one `navStatistics` definition per locale; no orphaned `navStats` or `navLeaderboards` outside the task artifacts; `gen_navmap.py` derives the label from the header and the strings, so no second place can drift.
+- Chrome labels are exempt from the field-binding rule by `09_chrome.md` §3 (fixed product IA, not registry- or mart-driven), so there is no fabricated field here; no metric, catalogue or percentage concern.
+- Dead text preserved: only the key swap in both components, `href` null at every measured width and locale.
+- The evidence files are this branch's and honest about method — a built-`dist` sweep plus headless-Chromium DOM and geometry at 375/700/1280 in three locales, stated as such rather than as a screenshot claim, with the pre-existing 700px sideways scroll disclosed rather than omitted.
