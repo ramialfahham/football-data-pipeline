@@ -21,6 +21,7 @@ preview_start url http://127.0.0.1:8899/<file>.html
 | `gen_competition_matchdays.py` | `/{locale}/{slug}/fixtures/` — the Matchdays tab: the picker, the Schedule block, the Next and Top match tags | #129 · #150 (the build) | `scripts/check_design_inventory.py` |
 | `gen_competition_teams.py` | the Rankings tab: Team rankings (12 boards) and Player rankings (13 boards) as striped single-value tables in the catalogue's groups | #129 · #151 · #152 (the groups) | `scripts/check_design_inventory.py` |
 | `gen_home_with_rules.py` | Home with the page-wide rules of the #129 review: boards as single-value tables, 13px block names, the 14px heading gap, the accent on the ordered-by number, one hover tint — an overlay on `gen_home.py` | #127 (Home's corrections) | `scripts/check_design_inventory.py` |
+| `gen_matches_hub.py` | `/{locale}/matches/`, the Matches hub: one day, every competition playing it, real fixtures of 2026-09-19 (`matches_2026-09-19.json`). `MATCHES_HUB_FOLD=3` draws the other side of an open question on #130 (every match, or Home's fold), not a settled feature | #130 | `scripts/check_design_inventory.py` |
 | `gen_matches.py` · `gen_home.py` · `gen_block_standard.py` | the "Next matches" block | #50 | `check_row_consistency.py` |
 | `gen_interaction.py` | the interaction standard | #52 | `scan_clickables.py` |
 

@@ -1,88 +1,82 @@
-# Task contract — page addresses use the reader's language: the rules and the word list
+# Task contract — the Matches hub: a proposal the CPO can see
 
 objective: >
-  Write down how page addresses are formed now that the CPO has decided their words follow the
-  reader's language, and propose the word for every page the site has, in English, German and
-  Finnish. Documentation only: the site keeps emitting the English words under every locale until
-  the address switch is built, which is its own issue, filed once this word list is approved.
+  Put a design for the Matches hub (#130, what the Matches menu item lands on) in front of the CPO
+  as a render he can open: the page as it would have read on the morning of Saturday 19 September
+  2026, built from the real fixtures and kick-off times of that day, composed only of elements the
+  site already has. Design only. Nothing under `site_v2/` changes; no mart, export or route.
 
 refs: >
-  The decision, taken in this session on 2026-09-23. Asked "Should page addresses use the reader's
-  language (/de/spiele/, /fi/ottelut/), or stay English in every language (/de/matches/)?", the
-  CPO chose "Reader's language (Recommended)". The costs were put with the question: about two days
-  of build work now, one name per word per language, and every future language naming them again;
-  against English everywhere, which costs nothing now and means redirects for every German and
-  Finnish page if changed after launch. He then approved the plan that carries these rules and this
-  list as proposed wording, "yours to change".
-
-  ROUND 2 (same day). He asked whether the first word list was researched ("are you guessing
-  again?"); it was not. Research followed: the addresses of German, Finnish and English football
-  sites, Google's autocomplete in each market, then an independent SEO assessment written by a
-  reviewer with no stake in the first list (Google's documentation, John Mueller's statements, 13
-  sites, about 100 autocomplete queries, sources per claim). Asked "Do you accept the address list
-  in section 4 of the page, including B for the Rankings tab?", he answered "Basically, yes" and
-  asked how it holds while most pages are not designed; the answer he was given: settled words for
-  the pages built today, provisional words for pages not designed yet, confirmed or dropped at
-  each page's own review, and tabs a future design adds named at that review by the same rule.
-
-  Answers the open line of #46 ("Whether the tab segment is localised. /squad/ or /kader/ /
-  /kokoonpano/? ... that rule was written about entity slugs, not path segments"). Restates #49
-  item 1 (a competition slug can collide with a reserved segment) as a rule, which the switch
-  enforces. The Matches hub (#130) needs its address word before its design can be recorded.
+  #130 (the design issue; "nothing gets built until I approve a design"). The plan the CPO approved
+  on 2026-09-23 carries the content boundary and the proposed composition this render draws:
+  the hub answers "what is on today, everywhere", one calendar day, every competition playing,
+  every match; Home's Next matches block and the competition page's Matchdays tab group by round
+  and are unchanged; the days behind the hub are #131; the match page is #132.
+  #127's approved design records "filter buttons by competition and date ... belong to the
+  Matches page". north_star.md: "Open the app, instantly see what's on today across competitions,
+  tap a match".
+  Measured before planning: 152 matches in 19 competitions on 2026-09-19; 33 in 5 on 2026-09-26
+  (an international break), from `marts.mart_competition_fixtures`.
 
 scope_paths:
-  - docs/site_architecture.md
+  - design-mocks/gen_matches_hub.py
+  - design-mocks/matches_2026-09-19.json
+  - design-mocks/renders/matches-hub_*.html
+  - design-mocks/README.md
+  - docs/wireframes/block_standard.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
 
 decisions_taken: >
-  The direction is his, quoted above: address words in the reader's language. The two lines of
-  §3 that pinned `/fixtures/` and `/rankings/` to "the same segment ... every locale" (his rulings
-  on #129 and on #151's MR) are replaced, because this decision supersedes their "every locale"
-  half and, since round 2, their English words too: the Matchdays tab takes the matches word and
-  the Rankings tab `stats`, both accepted by him with the assessment's section 4 (see refs). The
-  "every kind of competition" half stands.
+  Composition from the approved plan, every part an element the site already has, reused as is:
+  the breadcrumb and page heading of the Competitions page; its two filter rows (Clubs / National
+  teams, region); the Matchdays tab's picker with a date as its title; one block named with the
+  Matchdays tab's existing "Schedule" copy, holding the competition group head (crest, name,
+  chevron) and the match row. No new element, no new label, no CSS of the mock's own beyond its
+  harness: `system.css` is inlined verbatim and `scripts/check_page_css.py` holds that.
 
-  Names stay one spelling in every language. That is the existing rule of §3 "Slugs
-  (locale-independent)", ruled 2026-07-27, and this task does not reopen it; it only separates
-  words from names so the two rules cannot be read as one.
+  The data is real: one `bq` pull of `mart_competition_fixtures` for 2026-09-19 joined to
+  `mart_competition_index`, committed beside the generator the way the #129 pulls were. The day
+  is rendered as it read that morning, so every row shows its kick-off and none its score; the
+  kick-offs, teams, competitions and order are the warehouse's. Times in UTC with the label, as
+  the built site shows them until #146.
 
-  The rules and the word list are written into the document that owns the URL scheme, where a
-  changed mind replaces the text (working_agreement §11). Each word carries its evidence on the MR
-  head, and his merge is the approval of every word.
+  Two renders, and the difference between them is the reserved question below, drawn so he can
+  answer it by looking rather than decided here. The real Saturday has 77 FA Cup qualifying ties
+  sorting second, so every competition after them starts about 80 rows down. Render 01 is the
+  plan's "every match, no fold"; render 02 is the same page with Home's fold, the element and
+  label the site already ships (`.fxmore`, copy `homeShowAll`, three rows then "Show all {n}").
+  One generator draws both; `MATCHES_HUB_FOLD=3` selects the fold, and the README names it as the
+  variant for this ruling, not a settled feature. Whichever he picks, the other goes.
 
-  Threshold declarations: no new mechanism (a document edit; the word table in code, the collision
-  check and the hreflang change are the switch's, in its own issue), no recurring cost.
+  The render is named by `design-mocks/render.py` and is a file of record once sent. The mock is
+  added to the block standard's Pages table so the measured check covers it like every other mock.
+
+  Threshold declarations: no new mechanism, no recurring cost (one read of about 200 rows).
 
 decisions_reserved:
-  - The words themselves. Accepted by him as the assessment's section 4 ("Basically, yes"); his
-    merge of the MR head, which lists them with their sources, is the approval of each.
-  - The words for pages not designed yet (the menu pages for Matches, Teams, Players, Standings and
-    Statistics, the day pages, the per-statistic lists, head-to-head) and for any tab a future
-    design adds. Written as PROVISIONAL, confirmed, changed or dropped at each page's own review.
-  - Whether a metric's definition lives on its per-statistic page, replacing the separate glossary
-    the scheme still lists. The Statistics section's review decides.
-  - The match address's date: it moves when a league fixes its schedule, and it is the UTC date,
-    not the local one (the assessment's section 6, risk 2). A separate decision, brought to him
-    later; the scheme keeps the date until then.
-  - The address switch itself: its build issue, its order against the Matches hub build.
-  - Whether the country hub line (`/football/{country-slug}/`, struck from the menu by #128)
-    leaves §3. Not this task; the word table simply does not name it.
+  - Everything the page shows: each of the four parts (breadcrumb and heading, filters, day line,
+    Schedule block) is the CPO's to keep, change or strike, on #130.
+  - Which day the hub shows (the build day, else the next day with a match), and that it carries
+    no "Today" label.
+  - All matches with no fold, versus Home's three and a fold.
+  - The order of competitions within the day (the shared key: region rank, then kick-off, then
+    code).
+  - The day pages behind the hub, how far each way, and past days with scores (#131).
+  - The national-team variant (an international weekend), rendered only after the first is ruled.
 
 done_when:
-  - "`docs/site_architecture.md` §3 separates words from names, carries the rules and the word table in EN/DE/FI with every page marked settled (built today) or provisional (not designed yet), and no line in it says a word is the same in every locale."
-  - "The URL scheme block and every other line of §3 name the new English words (`matches` for the Matchdays tab and match pages, `stats` for the Rankings tab, `teams`, `players`), so the document never shows two words for one page."
-  - "A sweep of docs/ for the old rule (`every locale`, `same segment`) finds no other home of it."
-  - "Every word in the table checked against the 48 competition slugs in `docs/competition_registry.yml`: no clash."
-  - "Routed reviewers PASS; `review.md` bound with `--staged-hash`; MR open with the word list on its head."
+  - "`python design-mocks/render.py gen_matches_hub.py matches-hub` writes `design-mocks/renders/matches-hub_2026-09-23_01.html` (every match), and the same command with `MATCHES_HUB_FOLD=3` writes `_02` (Home's fold)."
+  - "`python scripts/check_page_css.py` exits 0 with the new generator listed in the Pages table."
+  - "`python scripts/check_design_inventory.py --no-built --pages \"matches hub\"` exits 0 at 375 and 700 px, EN and FI."
+  - "`python -m pytest tests/test_design_mock_renders.py tests/test_design_inventory.py -q` passes."
+  - "Every row in the render is one of the 152 fixtures of 2026-09-19 in the committed pull, and every competition heading is one of its 19 competitions."
+  - "The render is sent to the CPO and the proposal posted on #130."
 
 amendments:
-  - 2026-09-23, round 2, on a clean tree: the word list and rule 2 are replaced by the independent
-    assessment's section 4, which he accepted ("Basically, yes"). The rule becomes: the address
-    word is the menu word in that language, plural, and every page sits under the page that lists
-    it (English uses `stats`). Changed words: teams `mannschaften` (was a guess), players
-    `spieler`, the Matchdays tab takes the matches word (`matches` / `spiele` / `ottelut`), so
-    match pages sit under their list page; the Rankings tab takes `stats` / `statistiken` /
-    `tilastot` (option B) and keeps its on-screen name. Planned pages listed as provisional. No
-    path added.
+  - 2026-09-23 (before the first commit): the second render and its switch declared in
+    decisions_taken and done_when. Authority: the reserved question "All matches with no fold,
+    versus Home's three and a fold" is his, and a render of each side is how it is put to him
+    (a ruling request names its variants file by file). No path added; both renders were already
+    inside `design-mocks/renders/matches-hub_*.html`. Raised by scope-auditor round 1.
