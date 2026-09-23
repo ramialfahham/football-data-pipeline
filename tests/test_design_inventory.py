@@ -16,6 +16,7 @@ lint tests run everywhere.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -57,6 +58,31 @@ def _doc(tmp_path: Path, rows: str, pages: str = PAGES) -> Path:
 
 
 GOOD_ROW = "| Block heading | `.sechead .eyebrow` | 13px capitals | `font-size=13px; text-transform=uppercase; color=muted` | ruled | #129 |\n"
+
+
+def test_the_check_renders_every_locale_the_site_publishes():
+    """The check's language set against the site's own, so neither can move alone.
+
+    German went unmeasured for the whole life of this check because the two lists are maintained
+    independently: the site declared three locales while `DEFAULT_LANGS` named two, and the
+    summary line reported success either way. A fourth locale would repeat it silently, so the
+    two files are pinned to each other the way `FAST_GATES` and the validate-local skill are.
+    """
+    sys.path.insert(0, str(REPO / "scripts"))
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    href = (REPO / "site_v2" / "src" / "lib" / "href.ts").read_text(encoding="utf-8")
+    declared = re.search(r"export const LOCALES: Lang\[\] = \[([^\]]*)\]", href)
+    assert declared, "href.ts no longer declares LOCALES in the shape this test reads"
+    site_locales = sorted(re.findall(r'"([a-z]{2})"', declared.group(1)))
+
+    assert sorted(cdi.DEFAULT_LANGS) == site_locales, (
+        "the measured check renders %s while the site publishes %s — a locale the check does not "
+        "render can break its layout and still pass" % (sorted(cdi.DEFAULT_LANGS), site_locales)
+    )
+    # The mocks are the documented exception: one HTML file, English plus a marked Finnish width
+    # probe, no German text to render. That narrower set must stay a subset, not drift wider.
+    assert set(cdi.MOCK_LANGS) <= set(cdi.DEFAULT_LANGS)
 
 
 # ---------------------------------------------------------------- the parser
@@ -282,6 +308,41 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
     assert "measured 20×20" in out
     assert "scrollWidth" in out
     assert "row 1 measured" in out
+
+
+@needs_browser
+def test_the_summary_names_a_language_that_did_not_reach_every_page(tmp_path):
+    """The one-line summary may never let a language count stand for pages it did not reach.
+
+    This is the gate reporting on itself, so it is the one number nobody double-checks. An
+    earlier version of this caveat was computed from the CONFIGURED page list rather than from
+    the renders that happened, which left `--page` targets — English only, always — counted as
+    covered in every requested language, and suppressed the caveat entirely when no inventory
+    page was selected. Both shapes are pinned here.
+    """
+    folder = tmp_path / "pages"
+    folder.mkdir()
+    shutil.copy(FIXTURES / "green.html", folder / "green.html")
+    shutil.copy(SYSTEM_CSS, folder / "system.css")
+
+    def run(langs):
+        proc = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
+             "--page", "green=%s" % (folder / "green.html"), "--langs", langs, "--viewports", "375"],
+            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        )
+        return [ln for ln in (proc.stdout + proc.stderr).splitlines() if "renders" in ln][-1]
+
+    # An ad-hoc page renders in English whatever is asked for, so the two others reached nothing
+    # and must say so as 0 rather than disappear from the tally.
+    asked_three = run("en,de,fi")
+    assert "pages per language: en 1, de 0, fi 0" in asked_three, asked_three
+    assert "3 languages" in asked_three, asked_three
+
+    # Coverage is uniform when only one language is asked for: no caveat, or it is noise that
+    # trains the reader to ignore the line.
+    asked_one = run("en")
+    assert "pages per language" not in asked_one, asked_one
 
 
 @needs_browser

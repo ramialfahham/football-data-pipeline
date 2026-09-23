@@ -1,35 +1,49 @@
-# Rendered page evidence — `fix/menu-statistics`
+# Rendered page evidence — `fix/german-coverage`
 
-What changes on a rendered page: one word, in three places — the sixth item of the header nav,
-the same item inside the mobile drawer, and the fourth link of the footer row — on every page of
-the site, per locale. No markup, class, CSS, layout or link changes; the element is the same
-`<span>` it was, rendering a different string. The word is shorter than the one it replaces in
-all three languages, so nothing can gain an overflow it did not have.
+What changes on a rendered page: one word, in German only. The header's search control reads
+`Mannschaften, Spieler suchen…` instead of `Teams, Spieler suchen…` on every German page. No
+element, class, CSS rule or layout rule is added or altered; the other two languages are
+byte-identical.
+
+The second half of this branch changes no rendered page at all — it changes which pages the
+measured check opens.
 
 ## How it was observed
 
-The built `dist` swept page by page for the nav's last item and the footer row (the counts are in
-`acceptance_evidence.md`), plus headless Chromium (Playwright, the engine
-`check_design_inventory.py` uses) over the served build at **375**, **700** and **1280** px in EN,
-DE and FI on Home and the competition Overview. Per page: the nav's computed `display`, its
-`scrollWidth` against its `clientWidth`, the last item's text, tag, `href`, width and font, the
-drawer's last item, the footer row's text, and the document's `scrollWidth`. `nav.json` is in the
-session scratchpad under `navrenders/`.
+Headless Chromium (Playwright, the engine `check_design_inventory.py` uses) over the sample build
+served from `site_v2/dist`, at **375, 700, 1024, 1280 and 1440** px, in EN, DE and FI, on
+`bundesliga/` (the competition Overview). The two wider-than-usual viewports are deliberate: the
+control being changed is **hidden at 375 and 700**, so measuring only the check's own viewports
+would have proved nothing about it. For German, the previous string was swapped back into the same
+element in the same page and re-measured, so the two readings differ by the word and nothing else.
 
 ## What was observed
 
-The item is a `<span>` with `href` null at every width in every locale — still dead text — at
-13px, and the nav never overflows (`scrollWidth == clientWidth` on all nine renders).
-
-| locale | word | item width @700 and @1280 | nav row | nav display @375 |
+| viewport | `.searchbox` width, before → after | clipped | `.header-actions` | page scrollWidth |
 |---|---|---|---|---|
-| EN | Statistics | 70 px (was 98) | 435 px in 435 | `none` (drawer) |
-| DE | Statistiken | 79 px (was 89) | 459 px in 459 | `none` (drawer) |
-| FI | Tilastot | 61 px (was 76) | 438 px in 438 | `none` (drawer) |
+| 375 px | hidden → hidden | — | 124 | 375 of 375 |
+| 700 px | hidden → hidden | — | 80 | 728 of 700 (pre-existing) |
+| 1024 px | 182 → **227** | no | 226 → 271 | 1024 of 1024 |
+| 1280 px | 182 → **227** | no | 226 → 271 | 1280 of 1280 |
+| 1440 px | 182 → **227** | no | 226 → 271 | 1440 of 1440 |
 
-At 375px the header nav is `display: none` and the six items live in the hamburger drawer, closed
-at rest. The footer row at 1280px reads `… Players · Statistics · About` in EN, `… Spieler ·
-Statistiken · Über uns` in DE and `… Pelaajat · Tilastot · Tietoa` in FI.
+- **+45px on the box, +0px on the page.** `scrollWidth` equals the viewport at every width where
+  the control is visible, before and after. Nothing is pushed off.
+- **No clipping**: `scrollWidth <= clientWidth` on the box itself at every width.
+- **German is now the widest of the three** and still fits: EN 180, FI 192, DE 227.
+- **The 700px overflow is not this branch's.** 728 of 700 both before and after the change, and
+  present in EN (704) and FI (707) too. It is the header's search control area, disclosed on
+  earlier branches and still unfiled.
+- ⚠ **The control is invisible at both viewports the design check measures.** At 375 and 700 the
+  icon-only button shows instead. So the gate this branch extends still could not catch a
+  search-box defect in any language — a separate gap from the one being closed, named on the MR
+  head rather than folded in.
 
-⚠ Unchanged and not this branch's: at 700px the page still scrolls sideways because of the
-header's search control, on every page including the ones this branch does not touch.
+## The check's own rendering, after the change
+
+`python scripts/check_design_inventory.py --dist site_v2/dist`, no flags:
+`20 pages · 2 viewports · 3 languages (pages per language: en 20, de 7, fi 20) · 94 renders ·
+0 failures · 0 warnings`.
+Every built page is now opened in German as well; the 13 design mocks are not, because they carry
+no German text — their generators emit an English string and a marked Finnish width probe into one
+file, toggled by CSS.

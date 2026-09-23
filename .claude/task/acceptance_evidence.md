@@ -1,37 +1,79 @@
-# Acceptance evidence — the menu item reads Statistics
+# Acceptance evidence — German is measured like the other two languages
 
-Read from `site_v2/dist` built by `npm run build` on the committed sample (1,195 pages;
-`audit-seo: 1195 built page(s) checked. OK.`), with a scratchpad script that strips Astro's
-`<!-- -->` splits, takes each page's `nav.mainnav` and its footer, and reads the last menu item's
-text and link state. Exit codes read bare.
+Read from a fresh `npm run build` on the committed sample (1,329 pages; `audit-seo: 1330 built
+page(s) checked. OK.`; `check-built-pages: … OK.`) on `fix/german-coverage`, branched from `main`
+at `db70ab1d`. Exit codes read bare.
 
 criteria_demonstrated:
-  - EVERY BUILT PAGE SHOWS THE RULED WORD IN ITS OWN LANGUAGE, AND NO PAGE SHOWS THIS MORNING'S.
-    Swept all 1,195 pages under `dist`; 1,194 carry the header nav (the 1,195th is the root
-    redirect stub, which has no chrome). The last menu item reads `Statistics` on 398 pages,
-    `Statistiken` on 398 and `Tilastot` on 398. Pages still showing `Leaderboards`,
-    `Bestenlisten` or `Kärkilistat` in the nav: **0**; in the footer link row: **0**.
-    `grep -rn "navLeaderboards"` over `site_v2/`, `docs/`, `design-mocks/`, `scripts/`, `tests/`
-    returns nothing outside a stale `__pycache__` blob.
-  - THE ITEM IS STILL DEAD TEXT. Of the 1,194 pages with a nav, the last item renders without an
-    `href` on **1,194**. No page gained a link, so nothing points at the hub #139 has not built
-    (`audit-seo: 1195 built page(s) checked. OK.`). Measured in Chromium at 375/1280 px in three
-    locales: `SPAN`, `href` null, 13px, 70 px EN / 79 px DE / 61 px FI, and the nav never
-    overflows (`scrollWidth == clientWidth` on every render). The footer row reads
-    `… Players · Statistics · About` and its DE and FI equivalents.
-  - "LEADERBOARDS" SURVIVES ONLY WHERE IT NAMES THE HUB, NOT THE MENU ITEM. After the sweep, the
-    word remains at exactly four sites, each about the page or the work rather than the label:
-    `site_architecture.md:247` (the `leaderboards/{league_code}/{metric_id}.json` export payload
-    row), `north_star.md:115` (the GitLab milestone list; milestone 7 is "7 · Leaderboards"),
-    `10_home.md:9,13,1002` (the #139 page, and the ruling's own history) and
-    `gen_navmap.py:155` ("Leaderboards for this competition", the competition page's boards).
-  - THE GATES ARE GREEN. `check_copy_gate.py` → `COPY GATE ok: 654 strings across 3 locales`,
-    exit 0. `cd site_v2 && npm test` → 99 pass, 0 fail. `check_design_inventory.py --dist
-    site_v2/dist` → `19 pages · 2 viewports · 2 languages · 76 renders · 0 failures · 0
-    warnings`, exit 0. `ruff check design-mocks/gen_navmap.py` clean.
+  - THE CHECK RENDERS GERMAN BY DEFAULT AND SAYS WHERE IT DOES NOT.
+    `python scripts/check_design_inventory.py --dist site_v2/dist`, no `--langs` flag:
+    `20 pages · 2 viewports · 3 languages (pages per language: en 20, de 7, fi 20) · 94 renders ·
+    0 failures · 0 warnings`, exit 0. Before this change the same command read
+    `2 languages · 80 renders`. The 14 added renders are the 7 built rows × 2 viewports.
+    The parenthetical is READ FROM THE RENDERS THAT HAPPENED, not from what was requested, so no
+    page can hide inside the language count. Round 1 FAIL from the platform reviewer: the first
+    version computed it from the configured page list, which left `--page` ad-hoc targets — always
+    English only — counted as covered in every requested language. Checked on all four shapes:
 
-⚠ Unchanged and pre-existing, as recorded on !217: `design-mocks/gen_navmap.py` aborts on its own
-assertion that the nav emits no anchors, false since the Competitions index shipped. The
-generator is a diagram no check runs; this branch's edit to it (the key rename) is verified
-directly — `menu_items()` returns the six keys ending `('navStatistics', 'Statistics')` and every
-key resolves to a `MENU_NOTES` entry.
+    | run | reported |
+    |---|---|
+    | full, three languages | `3 languages (pages per language: en 20, de 7, fi 20) · 94 renders` |
+    | mocks only, three requested | `3 languages (pages per language: en 1, de 0, fi 1) · 2 renders` |
+    | ad-hoc `--page` only, three requested | `3 languages (pages per language: en 1, de 0, fi 0) · 1 renders` |
+    | one language, uniform coverage | `1 languages · 1 renders` — no caveat, correctly |
+
+    A language that reached no page shows as `0` rather than vanishing from the tally, which was
+    the precise hole in the first attempt.
+  - THAT SUMMARY IS PINNED BY A TEST, NOT BY THIS FILE. Round 2 FAIL from the platform reviewer:
+    the caveat was the code that had just been wrong, and no test ran the check with more than one
+    language, so a regression to the round-1 bug would have turned nothing red — the only evidence
+    was the transcripts above, which CI never re-runs. `test_the_summary_names_a_language_that_did
+    _not_reach_every_page` now runs the check as a subprocess on an ad-hoc page with `--langs
+    en,de,fi` and asserts `pages per language: en 1, de 0, fi 0`, and again with `--langs en`
+    asserting no caveat at all. SEEN RED against the round-1 computation (restricting the tally to
+    languages that rendered something): `AssertionError: 1 pages · 1 viewports · 3 languages ·
+    1 renders` — the caveat gone and the line claiming three. Restored: `37 passed`.
+  - GERMAN IS ACTUALLY MEASURED, NOT MERELY COUNTED. A count in a summary is not a measurement,
+    so the German page was broken on purpose and the check run against it. Injecting
+    `<style>.sechead .eyebrow{font-size:11px !important}</style>` into
+    `dist/de/bundesliga/index.html` only — English and Finnish untouched — gives exit 1 and:
+    `FAIL  Competition overview · 375 · de · Block heading [.sechead .eyebrow #1] · expected font-size=13px · measured 11px`
+    `FAIL  Competition overview · 700 · de · Block heading [.sechead .eyebrow #1] · expected font-size=13px · measured 11px`
+    `1 pages · 2 viewports · 3 languages · 6 renders · 2 failures · 0 warnings`
+    Both failure lines carry `de` and no `en`/`fi` line appears. The script restored the file and
+    verified the restore byte-for-byte; `dist` is build output and is not tracked.
+    ⚠ Run BEFORE this change, the same break is invisible: the German file is never opened.
+  - THE LANGUAGE SETS CANNOT DRIFT APART AGAIN.
+    `python -m pytest tests/test_design_inventory.py -q` → `36 passed`. The new pin,
+    `test_the_check_renders_every_locale_the_site_publishes`, reads `LOCALES` out of
+    `site_v2/src/lib/href.ts` and compares it with `DEFAULT_LANGS`. SEEN RED against the value
+    that shipped for the whole life of this check:
+    `At index 0 diff: 'en' != 'de'` / `Right contains one more item: 'fi'` — 1 failed.
+    Restored and green again; `git diff` on the script shows only the three intended hunks.
+  - THE GERMAN SEARCH TEXT IS THE SITE'S OWN WORD, EVERYWHERE.
+    `grep -rl "Teams, Spieler suchen" site_v2/dist | wc -l` → `0` across 1,330 pages; the built
+    German pages read `Mannschaften, Spieler suchen…`. `python scripts/check_copy_gate.py` →
+    `690 strings across 3 locales`, exit 0; `check_ui_i18n_metrics.py` exit 0;
+    `cd site_v2 && npm test` → 101 passed.
+  - THE LONGER WORD COSTS NO LAYOUT. Measured in headless Chromium on the built German page, with
+    the previous string swapped back into the same box so the two readings differ only by the word:
+
+    | viewport | `.searchbox` before | after | clipped | page scrollWidth before → after |
+    |---|---|---|---|---|
+    | 375 px | hidden | hidden | — | 375 → 375 |
+    | 700 px | hidden | hidden | — | 728 → 728 |
+    | 1024 px | 182 | 227 | no | 1024 → 1024 |
+    | 1280 px | 182 | 227 | no | 1280 → 1280 |
+    | 1440 px | 182 | 227 | no | 1440 → 1440 |
+
+    The box grows 45px and nothing moves off the page. German (227) is now the widest of the
+    three; English is 180 and Finnish 192. The 700px overflow (728 of 700) is the pre-existing
+    header one, identical before and after, and is not this branch's.
+    ⚠ Worth knowing and NOT fixed here: `.searchbox` is hidden at both viewports the check
+    measures, so no viewport the gate renders would ever have caught a search-box defect. Out of
+    this task's scope; named on the MR head.
+  - NO LIVE DOCUMENT THE CONTRACT MAY TOUCH STILL SAYS "EN AND FI".
+    `grep -rn "EN and FI" docs/ design-mocks/ .claude/skills/` → nothing describing this check.
+    `.gitlab-ci.yml`'s `validate:ui` comment still does and is knowingly left: the file is a
+    protected governance path, the contract gate refuses the edit without a CPO-approved
+    `protected_override`, and a comment does not justify loosening a guard. On the MR head.
