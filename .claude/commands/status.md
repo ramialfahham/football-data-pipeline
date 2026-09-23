@@ -1,6 +1,6 @@
 ---
 description: Snapshot of where work stands — branch, tree, open MRs + CI, and the active handover.
-allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(glab mr list *), Bash(glab ci list *), Read(.claude/active_work.md)
+allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(glab mr list *), Bash(glab ci list *), Bash(glab issue view 157), Read(.claude/handover.cache.md)
 ---
 
 Give the user a fast, read-only situational snapshot. Be concise — short sections, no
@@ -21,8 +21,10 @@ Summarize each open MR as one line: `!<n> <title> [branch] — CI: <status of th
 Match pipelines to MRs by branch name; GitLab reports MR merge status and pipeline status separately.
 
 ## Active handover
-Read `.claude/active_work.md`. Report ONLY: the _Last updated_ line, the **NEXT** actions,
-and any live **Do NOT** items. Do not reproduce the whole file.
+The handover is GitLab issue #157. Read it with `glab issue view 157`; if GitLab cannot be
+reached, read `.claude/handover.cache.md` (the copy saved at session start) and say so. Report
+ONLY: the _Last updated_ line, the **NEXT** actions, and any live **Do NOT** items. Do not
+reproduce the whole handover.
 
 ## Bottom line
 Close with 2–3 plain-English lines: where things stand and the single most likely next

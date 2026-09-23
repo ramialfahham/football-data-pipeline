@@ -85,6 +85,46 @@ def test_the_check_renders_every_locale_the_site_publishes():
     assert set(cdi.MOCK_LANGS) <= set(cdi.DEFAULT_LANGS)
 
 
+def test_the_check_renders_the_width_the_search_field_appears_at():
+    """The header's search field is hidden below the width `system.css` shows it at, so a check
+    that never renders that width has never seen the field, and a broken one passed. The width
+    is read from the stylesheet, so moving the breakpoint without the check turns this red."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import check_design_inventory as cdi  # noqa: PLC0415
+
+    css = SYSTEM_CSS.read_text(encoding="utf-8")
+    shown = re.search(r"@media \(min-width: (\d+)px\) \{\s*\.searchbox \{ display: flex; \}", css)
+    assert shown, "system.css no longer shows .searchbox in the media query this test reads"
+    width = int(shown.group(1))
+    assert width in cdi.DEFAULT_VIEWPORTS, (
+        "the search field appears at %dpx and the check renders %s: it cannot see the field"
+        % (width, cdi.DEFAULT_VIEWPORTS))
+    inv = di.load()
+    field = inv.element("Search field")
+    assert any(a.kind == "visible" and a.expected == "1" and a.when == ">=%d" % width
+               for a in field.assertions), "the Search field row must assert it is shown from %dpx" % width
+
+
+def test_a_width_condition_limits_an_assertion_to_its_viewports(tmp_path):
+    row = "| X | `.x` | r | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line` | ruled | #1 |\n"
+    wide, narrow, always = di.load(_doc(tmp_path, GOOD_ROW + row)).element("X").assertions
+    assert (wide.when, narrow.when, always.when) == (">=1010", "<1010", "")
+    assert [di.applies(wide, v) for v in (375, 700, 1009, 1010, 1280)] == [False, False, False, True, True]
+    assert [di.applies(narrow, v) for v in (375, 700, 1009, 1010, 1280)] == [True, True, True, False, False]
+    assert all(di.applies(always, v) for v in (375, 700, 1010))
+    assert "[>=1010px]" in di.compare(wide, 0, {}), "a failure names the condition it was measured under"
+
+
+def test_a_page_expects_an_element_only_at_the_widths_it_names():
+    page = di.Page("p", "built", "site_v2/dist", "en/index.html", "path",
+                   ("Block heading", "Search field", "Search button"), ("", ">=1010", "<1010"))
+    assert page.expected_at(375) == ("Block heading", "Search button")
+    assert page.expected_at(1010) == ("Block heading", "Search field")
+    built = [p for p in di.load().pages if p.kind == "built"]
+    assert built and all("Search field" in p.expected_at(1010) and "Search button" in p.expected_at(375)
+                         for p in built), "every built page carries the site header, so each must show its search"
+
+
 # ---------------------------------------------------------------- the parser
 
 def test_the_committed_inventory_parses_and_is_not_empty():
@@ -94,7 +134,8 @@ def test_the_committed_inventory_parses_and_is_not_empty():
     assert len(inv.pages) >= 10
     assert {p.kind for p in inv.pages} == {"built", "mock"}
     proposed = [e.name for e in inv.elements if e.status == "proposed"]
-    assert proposed == ["Breadcrumb current page"], "a proposed row is measured but never fails: %s" % proposed
+    assert proposed == ["Breadcrumb current page", "Header row"], (
+        "a proposed row is measured but never fails: %s" % proposed)
     names = {e.name for e in inv.elements}
     for p in inv.pages:
         assert set(p.expect) <= names
@@ -115,6 +156,10 @@ def test_the_committed_inventory_names_every_generator_of_record():
     ("| X | `.x` | r | `hover(opacity)=1` | ruled | #1 |\n", "unknown property"),
     ("| X | `.x` | r | `stripe=ink from two` | ruled | #1 |\n", "stripe expects"),
     ("| X | `.x` | r | `left-edge` | ruled | #1 |\n", "needs a value"),
+    ("| X | `.x` | r | `visible=1 [>1010px]` | ruled | #1 |\n", "width condition"),
+    ("| X | `.x` | r | `visible=1 [>=1010]` | ruled | #1 |\n", "width condition"),
+    ("| X | `.x` | r | `visible=1 >=1010px]` | ruled | #1 |\n", "width condition"),
+    ("| X | `.x` | r | `[>=1010px]` | ruled | #1 |\n", "width condition"),
     ("| X | `.x` | r | `font-size=13px` | maybe | #1 |\n", "status"),
     ("| X |  | r | `font-size=13px` | ruled | #1 |\n", "without a name or a selector"),
     (GOOD_ROW + GOOD_ROW, "listed twice"),
@@ -135,6 +180,7 @@ def test_the_parser_fails_closed_on_a_renamed_column(tmp_path):
     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | page | `g.py` | `h.html` | toggle | |\n", "kind must be"),
     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | mock | `g.py` | `h.html` | finnish | |\n", "FI must be"),
     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | mock | `g.py` | `h.html` | toggle | Picker |\n", "does not name"),
+    ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | mock | `g.py` | `h.html` | toggle | Block heading [>1010px] |\n", "width condition"),
     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n", "no rows"),
     ("\n", "needs a '## Elements' table and a '## Pages' table"),
 ])
@@ -301,13 +347,49 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
     assert code == 1, out
     failed = {line.split(" · ")[3].split(" [")[0] for line in out.splitlines() if line.startswith("FAIL")}
     assert failed == {"Block heading", "Block heading gap", "Row link", "Table row", "Tab bar", "Fact row value",
-                      "Matchday picker", "Picker arrow"}, failed
+                      "Matchday picker", "Picker arrow", "Search field", "Search button"}, failed
+    assert "expected visible=1 [>=1010px] · measured 0" in out
+    assert "expected visible=0 [>=1010px] · measured 1" in out
     assert "measured 11px" in out
     assert "measured 49.0px" in out
     assert "expected visible=1 · measured 3" in out
     assert "measured 20×20" in out
     assert "scrollWidth" in out
     assert "row 1 measured" in out
+
+
+def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
+    """The check on one BUILT page whose only Expect is the header's search, at 1010px. A
+    `visible=` assertion measures only what its selector finds, so removal is caught here or
+    nowhere."""
+    real = di.DOC.read_text(encoding="utf-8")
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    doc = tmp_path / "block_standard.md"
+    doc.write_text(real.split("\n## Pages")[0] + "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n"
+                   "|---|---|---|---|---|---|\n| header | built | `site_v2/dist` | `en/index.html` | path | "
+                   "Search field [>=1010px], Search button [<1010px] |\n", encoding="utf-8")
+    dist = tmp_path / "dist" / "en"
+    dist.mkdir(parents=True)
+    (dist / "index.html").write_text(html, encoding="utf-8")
+    shutil.copy(SYSTEM_CSS, dist / "system.css")
+    proc = subprocess.run(
+        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks",
+         "--inventory", str(doc), "--dist", str(tmp_path / "dist"), "--langs", "en", "--viewports", "1010"],
+        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+    )
+    return proc.returncode, proc.stdout + proc.stderr
+
+
+@needs_browser
+def test_a_search_field_removed_from_the_page_fails(tmp_path):
+    green = (FIXTURES / "green.html").read_text(encoding="utf-8")
+    code, out = _built_page_check(tmp_path, green)
+    assert code == 0, out
+    removed = re.sub(r'<div class="searchbox">.*?</div>', "", green, flags=re.S)
+    assert removed != green
+    code, out = _built_page_check(tmp_path / "removed", removed)
+    assert code == 1, out
+    assert "Search field · expected on this page · measured 0 matches" in out, out
 
 
 @needs_browser

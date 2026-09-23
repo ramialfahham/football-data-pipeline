@@ -1,401 +1,1457 @@
+diff --git a/.claude/commands/status.md b/.claude/commands/status.md
+index 6e314fc8..f5426da9 100644
+--- a/.claude/commands/status.md
++++ b/.claude/commands/status.md
+@@ -1,6 +1,6 @@
+ ---
+ description: Snapshot of where work stands — branch, tree, open MRs + CI, and the active handover.
+-allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(glab mr list *), Bash(glab ci list *), Read(.claude/active_work.md)
++allowed-tools: Bash(git branch --show-current), Bash(git status --short), Bash(git log --oneline -5), Bash(glab mr list *), Bash(glab ci list *), Bash(glab issue view 157), Read(.claude/handover.cache.md)
+ ---
+ 
+ Give the user a fast, read-only situational snapshot. Be concise — short sections, no
+@@ -21,8 +21,10 @@ Summarize each open MR as one line: `!<n> <title> [branch] — CI: <status of th
+ Match pipelines to MRs by branch name; GitLab reports MR merge status and pipeline status separately.
+ 
+ ## Active handover
+-Read `.claude/active_work.md`. Report ONLY: the _Last updated_ line, the **NEXT** actions,
+-and any live **Do NOT** items. Do not reproduce the whole file.
++The handover is GitLab issue #157. Read it with `glab issue view 157`; if GitLab cannot be
++reached, read `.claude/handover.cache.md` (the copy saved at session start) and say so. Report
++ONLY: the _Last updated_ line, the **NEXT** actions, and any live **Do NOT** items. Do not
++reproduce the whole handover.
+ 
+ ## Bottom line
+ Close with 2–3 plain-English lines: where things stand and the single most likely next
+diff --git a/.claude/hooks/handover_in.py b/.claude/hooks/handover_in.py
+index 6757c011..3cda91ce 100644
+--- a/.claude/hooks/handover_in.py
++++ b/.claude/hooks/handover_in.py
+@@ -1,25 +1,28 @@
+ #!/usr/bin/env python
+-"""SessionStart guardrail — inject the project's active-work handover.
++"""SessionStart guardrail — inject the project's handover from its GitLab issue.
+ 
+-On every session start, read `<project>/.claude/active_work.md` and inject it so
+-a fresh agent continues from the documented state instead of re-deriving it from
+-an issue title or a memory file, which is how scoped work gets silently
+-re-scoped. If the handover is missing, say so.
++On every session start, read the handover issue's description through the `glab` login already
++on this machine and inject it, so a fresh agent continues from the documented state instead of
++re-deriving it from an issue title or a memory file, which is how scoped work gets silently
++re-scoped.
+ 
+-WHY THIS FILE LIVES HERE and not in `docs/portable_guardrails/hooks/`: that path
+-is not a PROTECTED prefix and has no entry in `review_routing.json`, so a script
+-that auto-executes at every session start would be editable inside any ordinary
+-task with no `protected_override`, no platform review and no opus floor. Anything
+-that auto-launches a command every session is guard-level — the same class as
+-`.claude/commands/` and `.mcp.json` — and an agent must never be able to
+-self-grant it. `docs/agent_guardrails.md` says as much: project hooks live in
+-`.claude/hooks/`, and `docs/portable_guardrails/hooks/` is the copy-out archive
+-for other projects. The archive copy stays; this is the one that runs.
++WHY AN ISSUE AND NOT A FILE IN THE REPO: a tracked file rides whichever branch is checked out,
++so the handover a session saw depended on the branch it started on, and one committed on a
++feature branch went stale as soon as a sibling branch merged. The issue has one current copy for
++every branch and keeps its own history. It is kept closed so it never shows up as work.
+ 
+-The read-in half of the handover loop, and the ONLY leg of it that actually
+-runs. The other two, a plan-back gate before the first code edit and a push
+-reminder to update the handover, sit in the never-installed global set
+-(`docs/portable_guardrails/`), so do not rely on them.
++When GitLab or `glab` cannot be reached, the last copy this hook fetched is injected from the
++gitignored cache beside it, labelled with the time it was saved.
++
++WHY THIS FILE LIVES HERE and not in `docs/portable_guardrails/hooks/`: that path is not a
++PROTECTED prefix and has no entry in `review_routing.json`, so a script that auto-executes at
++every session start would be editable inside any ordinary task. Anything that auto-launches a
++command every session is guard-level, the same class as `.claude/commands/` and `.mcp.json`
++(`docs/agent_guardrails.md`).
++
++The read-in half of the handover loop, and the ONLY leg of it that actually runs. The other two,
++a plan-back gate before the first code edit and a push reminder to update the handover, sit in
++the never-installed global set (`docs/portable_guardrails/`), so do not rely on them.
+ 
+ Fails open on any error (no output, exit 0).
+ """
+@@ -28,67 +31,98 @@ from __future__ import annotations
+ 
+ import json
+ import os
++import shutil
++import subprocess
+ import sys
++from datetime import datetime, timezone
+ 
+-HANDOVER_REL = os.path.join(".claude", "active_work.md")
+-# Keep the injection bounded. `.claude/active_work.md` is required to stay under
+-# this — a 112,233-character handover would have had its first 14% delivered and
+-# the rest truncated in silence.
+-#
+-# The unit is CHARACTERS, and that is stated here because it is easy to make it
+-# both: reading with `f.read(MAX_CHARS)` on a text handle counts characters, while
+-# `os.path.getsize()` counts bytes. A handover under the character cap but over
+-# the byte cap — trivially reachable, this file is full of arrows and symbols —
+-# would be injected complete AND labelled truncated, in the one hook that runs at
+-# every session start.
++# The numeric project id, so a move of the project to another group or path does not break it.
++PROJECT_ID = "85168767"
++HANDOVER_ISSUE = "157"
++CACHE_REL = os.path.join(".claude", "handover.cache.md")
++FETCH_TIMEOUT_S = 15
++# Keep the injection bounded. The unit is CHARACTERS: counting bytes instead labels a complete
++# handover truncated whenever it carries enough multibyte symbols.
+ MAX_CHARS = 16000
+ 
+ 
++def fetch() -> str | None:
++    """The issue's description, or None when GitLab or glab cannot be reached."""
++    glab = shutil.which("glab")
++    if not glab:
++        return None
++    try:
++        r = subprocess.run(
++            [glab, "api", "projects/%s/issues/%s" % (PROJECT_ID, HANDOVER_ISSUE)],
++            capture_output=True, timeout=FETCH_TIMEOUT_S,
++        )
++    except (OSError, subprocess.SubprocessError):
++        return None
++    if r.returncode != 0:
++        return None
++    try:
++        # Bytes decoded here: text mode reads glab's UTF-8 as cp1252 on a Windows console.
++        body = json.loads(r.stdout.decode("utf-8")).get("description")
++    except (ValueError, AttributeError):
++        return None
++    return body if isinstance(body, str) and body.strip() else None
++
++
+ def main() -> int:
+     try:
+         event = json.loads(sys.stdin.read() or "{}")
+     except Exception:
+         return 0
+     try:
+-        # `CLAUDE_PROJECT_DIR` first, like every sibling hook's `_repo_root()`.
+-        # `cwd` alone would make a session started from a subdirectory report
+-        # "No .claude/active_work.md found" and invite writing a second handover
+-        # in the wrong place — in the one hook that runs at every session start.
+-        root = os.environ.get("CLAUDE_PROJECT_DIR") or event.get("cwd") or os.getcwd()
+-        path = os.path.join(root, HANDOVER_REL)
+-        if os.path.isfile(path):
+-            # Read ONE past the cap so truncation is decided from what was
+-            # actually read, in the same unit, rather than from the file's size
+-            # on disk in a different one.
+-            with open(path, encoding="utf-8") as f:
+-                content = f.read(MAX_CHARS + 1)
++        # `CLAUDE_PROJECT_DIR` first, like every sibling hook's `_repo_root()`, so a session
++        # started from a subdirectory finds the same cache.
++        cwd = event.get("cwd") if isinstance(event, dict) else None
++        root = os.environ.get("CLAUDE_PROJECT_DIR") or cwd or os.getcwd()
++        cache = os.path.join(root, CACHE_REL)
++        content, note = fetch(), ""
++        if content is not None:
++            # Write beside it and rename, so an interrupted write never leaves a half copy.
++            tmp = cache + ".tmp"
++            try:
++                with open(tmp, "w", encoding="utf-8") as f:
++                    f.write(content)
++                os.replace(tmp, cache)
++            except OSError:
++                pass
++        elif os.path.isfile(cache):
++            with open(cache, encoding="utf-8") as f:
++                saved_copy = f.read()
++            if saved_copy.strip():
++                content = saved_copy
++                saved = datetime.fromtimestamp(os.path.getmtime(cache), timezone.utc)
++                note = (" ⚠️ GitLab could not be reached, so this is the copy saved on this machine "
++                        "at %s UTC; the issue may have moved on since." % saved.strftime("%Y-%m-%d %H:%M"))
++        if content is None:
++            msg = (
++                "No handover could be read: GitLab issue #%s was unreachable and no copy is saved "
++                "on this machine. If you are continuing prior work, ask the user for the current "
++                "state BEFORE writing any code." % HANDOVER_ISSUE
++            )
++        else:
+             truncated = len(content) > MAX_CHARS
+-            content = content[:MAX_CHARS]
+             msg = (
+-                "ACTIVE WORK HANDOVER (.claude/active_work.md) — read this before doing "
+-                "anything else. Continue from this documented state. Do NOT re-scope, "
+-                "and do NOT infer the task from an issue title, a memory file, or your "
+-                "own judgement when this says otherwise. If you are about to write code "
+-                "on the work described below, first restate this spec back to the user "
+-                "and get approval.\n\n----- BEGIN HANDOVER -----\n"
+-                + content
++                "ACTIVE WORK HANDOVER (GitLab issue #%s) — read this before doing anything else. "
++                "Continue from this documented state. Do NOT re-scope, and do NOT infer the task "
++                "from an issue title, a memory file, or your own judgement when this says "
++                "otherwise. If you are about to write code on the work described below, first "
++                "restate this spec back to the user and get approval.%s"
++                "\n\n----- BEGIN HANDOVER -----\n" % (HANDOVER_ISSUE, note)
++                + content[:MAX_CHARS]
+                 + "\n----- END HANDOVER -----"
+             )
+             if truncated:
+-                # Silent truncation is how a handover looks complete while its
+-                # tail is missing. Say it out loud.
++                # Silent truncation is how a handover looks complete while its tail is missing.
+                 msg += (
+-                    f"\n\n⚠️ TRUNCATED at {MAX_CHARS} characters — the handover is longer "
+-                    "than the injection budget, so everything after the cut is MISSING "
+-                    "from this context. Read the file directly before acting, and cut it "
+-                    "back under the budget as part of your next handover update."
++                    "\n\n⚠️ TRUNCATED at %d characters — the handover is longer than the "
++                    "injection budget, so everything after the cut is MISSING from this context. "
++                    "Read the issue directly before acting, and cut it back under the budget at "
++                    "the next handover." % MAX_CHARS
+                 )
+-        else:
+-            msg = (
+-                "No .claude/active_work.md found in this project. If you are continuing "
+-                "prior work, ask the user for the current handover (or create "
+-                ".claude/active_work.md capturing it) BEFORE writing any code."
+-            )
+         print(json.dumps({
+             "hookSpecificOutput": {
+                 "hookEventName": "SessionStart",
 diff --git a/.claude/skills/validate-local/SKILL.md b/.claude/skills/validate-local/SKILL.md
-index 8b10f884..e9b0748f 100644
+index e9b0748f..faffd169 100644
 --- a/.claude/skills/validate-local/SKILL.md
 +++ b/.claude/skills/validate-local/SKILL.md
-@@ -91,8 +91,9 @@ Expected: `check_layer_contract.py` prints `Layer contract checks passed.`;
+@@ -91,7 +91,7 @@ Expected: `check_layer_contract.py` prints `Layer contract checks passed.`;
  ### Tier 1b — the measured design check (needs a browser and a built site)
  
  `scripts/check_design_inventory.py` renders every design-mock generator and every built page
--type the block standard (`docs/wireframes/block_standard.md`) lists, at 375px and 700px in EN
--and FI, in headless Chromium, and measures every element against the inventory. It needs
-+type the block standard (`docs/wireframes/block_standard.md`) lists, at 375px and 700px in
-+headless Chromium — a built page in every locale the site publishes, a mock in EN and FI, the
-+only two it carries — and measures every element against the inventory. It needs
+-type the block standard (`docs/wireframes/block_standard.md`) lists, at 375px and 700px in
++type the block standard (`docs/wireframes/block_standard.md`) lists, at 375px, 700px and 1010px in
+ headless Chromium — a built page in every locale the site publishes, a mock in EN and FI, the
+ only two it carries — and measures every element against the inventory. It needs
  `pip install -r requirements-ui.txt`, once `python -m playwright install chromium`, and a
- built site (`cd site_v2 && npm run build`; park any untracked export payload under
- `site_v2/src/data` first, or the SEO audit refuses the build). Without the built site, run it
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 774e7ce1..eaefb4c6 100644
+index eaefb4c6..ff268e64 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,39 +1,46 @@
--# Task contract — the menu item reads Statistics, the word football sites use
-+# Task contract — German is measured like the other two languages
+@@ -1,119 +1,182 @@
+-# Task contract — German is measured like the other two languages
++# Task contract — the design check sees the search box; the handover leaves the branches
  
  objective: >
--  The header and footer menu item is "Statistics" / "Statistiken" / "Tilastot". One copy key in
--  three languages and its two call sites, plus the documents that write the menu out. No page, no
--  link, no layout change; the item stays dead text until #139 builds the hub behind it.
-+  The measured design check renders German as well as English and Finnish, so a German layout
-+  break fails `validate:ui` instead of passing it silently; its summary stops overstating its own
-+  coverage; and the check's language set is pinned against the site's declared locales so it
-+  cannot drift again. Separately, the one German string still saying "Team" for a club takes the
-+  word the rest of the German copy uses. No page, route, payload, mart or rule changes.
+-  The measured design check renders German as well as English and Finnish, so a German layout
+-  break fails `validate:ui` instead of passing it silently; its summary stops overstating its own
+-  coverage; and the check's language set is pinned against the site's declared locales so it
+-  cannot drift again. Separately, the one German string still saying "Team" for a club takes the
+-  word the rest of the German copy uses. No page, route, payload, mart or rule changes.
++  Two fixes the CPO asked to ride together as one cleanup. (1) The measured design check renders a
++  third, wide screen (1010px, where the header's search field appears) and measures the search
++  field and the small search button, so a broken search box fails `validate:ui`; whether the
++  header fits its row is measured too, reported and not failing. (2) The session handover moves
++  out of the repository into GitLab issue #157, read at session start by the session-start hook,
++  so it no longer rides whichever branch is checked out. No page, route, payload, mart or rule of
++  the site changes.
  
  refs: >
--  The ruling: the CPO on !217's thread, 2026-09-22 — "Premier League uses a menu 'Statistics'
--  for leaderboards as well. Let's go with Statistics / Statistiken / Tilastot", after asking
--  whether the German and Finnish drafts had been researched in a football context. They had not.
--  The research, done then: premierleague.com's top-level item is Statistics and its page is
--  the scorers and club-stats leaderboards; bundesliga.com's German section is Statistiken
--  (`/de/bundesliga/stats`, "Statistiken 2025/26 | Spieler | Tore"); veikkausliiga.com's Finnish
--  section is Tilastot (`/tilastot/pelaajat/`), with the individual lists named maalipörssi,
--  syöttöpörssi and pistepörssi; kicker uses Rangliste for one ranking table and Torjäger for the
--  scorers list. No German or Finnish football site in that search labels the section
--  "Bestenlisten" or "Kärkilistat".
--  This SUPERSEDES the English half of #127 (2026-09-13, "the menu item Stats is renamed
--  Leaderboards"), which !217 shipped this morning together with two drafted words the research
--  does not support. The hub behind the item keeps its own name — #139 is "Leaderboards hub: what
--  this menu item lands on", milestone 7 is "7 · Leaderboards" — because what that page is called
--  is #139's question, not the menu label's.
--  Measured on `main` at `c0688e3b`: `navLeaderboards` is "Leaderboards" / "Bestenlisten" /
--  "Kärkilistat" in `strings.ts`, rendered by `SiteHeader.astro` (6th nav item, no href) and
--  `SiteFooter.astro` (4th footer link) on every built page in all three locales.
-+  Both items are the builder's, handed back by the CPO on 2026-09-23 after being put to him as
-+  open questions: "Well, here is a lot of blabla that reads like you need something from me!!"
-+  Neither is a naming or product decision. The third item raised with them — whether page
-+  addresses follow a written vocabulary — IS his and is not in this task.
-+
-+  1. THE CHECK HAS NEVER RENDERED GERMAN. `scripts/check_design_inventory.py:39` reads
-+  `DEFAULT_LANGS = ("en", "fi")`, and CI invokes it with no `--langs`. This is NOT a rule
-+  extension: `docs/wireframes/block_standard.md:77` already RULES the tab bar "the tabs share the
-+  row and fit in one row at 375px in EN, DE and FI". The ruling names three languages; the guard
-+  enforces two, so it has never enforced the rule as written. Tuning a guard toward its own rule
-+  is the builder's (memory: guard tuning is the builder's).
-+  It cost something real on #151: the German tab bar took the longest word of the nine
-+  (`Ranglisten`, 118px of 343) and had to be measured BY HAND, outside the gate, because the gate
-+  does not look. A German-only overflow would have shipped green.
-+  Measured before planning, on `main` at `db70ab1d` with a fresh build:
-+  `--langs en,de,fi` → `20 pages · 2 viewports · 3 languages · 94 renders · 0 failures · 0
-+  warnings`. German passes clean today, so this closes a blind spot rather than opening a backlog.
-+
-+  2. ONE GERMAN STRING STILL SAYS TEAM. `searchPlaceholder` (`strings.ts`, DE) reads "Teams,
-+  Spieler suchen…". Every other German club reference is Mannschaft(en) — `navTeams`,
-+  `homeTopTeams`, `homeTopTeamsIntro`, `compDeservedExplainer`, and, since !216, the competition
-+  page's title, description and headings. A sweep of the German dictionary shows this is the only
-+  remaining outlier. The bi-analyst flagged it while reviewing !216 and correctly ruled it out of
-+  that branch's scope: "pre-existing, branch-untouched … worth a future consistency pass". This is
-+  that pass. The word itself is settled by the CPO's ruling on !216, so no new naming call.
+-  Both items are the builder's, handed back by the CPO on 2026-09-23 after being put to him as
+-  open questions: "Well, here is a lot of blabla that reads like you need something from me!!"
+-  Neither is a naming or product decision. The third item raised with them — whether page
+-  addresses follow a written vocabulary — IS his and is not in this task.
+-
+-  1. THE CHECK HAS NEVER RENDERED GERMAN. `scripts/check_design_inventory.py:39` reads
+-  `DEFAULT_LANGS = ("en", "fi")`, and CI invokes it with no `--langs`. This is NOT a rule
+-  extension: `docs/wireframes/block_standard.md:77` already RULES the tab bar "the tabs share the
+-  row and fit in one row at 375px in EN, DE and FI". The ruling names three languages; the guard
+-  enforces two, so it has never enforced the rule as written. Tuning a guard toward its own rule
+-  is the builder's (memory: guard tuning is the builder's).
+-  It cost something real on #151: the German tab bar took the longest word of the nine
+-  (`Ranglisten`, 118px of 343) and had to be measured BY HAND, outside the gate, because the gate
+-  does not look. A German-only overflow would have shipped green.
+-  Measured before planning, on `main` at `db70ab1d` with a fresh build:
+-  `--langs en,de,fi` → `20 pages · 2 viewports · 3 languages · 94 renders · 0 failures · 0
+-  warnings`. German passes clean today, so this closes a blind spot rather than opening a backlog.
+-
+-  2. ONE GERMAN STRING STILL SAYS TEAM. `searchPlaceholder` (`strings.ts`, DE) reads "Teams,
+-  Spieler suchen…". Every other German club reference is Mannschaft(en) — `navTeams`,
+-  `homeTopTeams`, `homeTopTeamsIntro`, `compDeservedExplainer`, and, since !216, the competition
+-  page's title, description and headings. A sweep of the German dictionary shows this is the only
+-  remaining outlier. The bi-analyst flagged it while reviewing !216 and correctly ruled it out of
+-  that branch's scope: "pre-existing, branch-untouched … worth a future consistency pass". This is
+-  that pass. The word itself is settled by the CPO's ruling on !216, so no new naming call.
++  The CPO's session-opening message, 2026-09-23: "the measured design check only renders 375 and
++  700 px, and the search box only exists on desktop, so the check has never seen it. A broken
++  search box would pass." and "my session handover travels with whatever code branch is open, so
++  it goes stale when a sibling branch merges. It cost a dropped commit on 2026-09-23. Give it a
++  home that does not ride a feature branch." Both "can ride along as one cleanup, not their own
++  ceremony".
++  The plan he approved the same day chose the home (a GitLab issue, kept closed, with the last
++  fetched copy saved on this machine for when GitLab is down) over the alternative (a file on
++  this machine outside git), and named the width, the three measurements and the cost (about 50%
++  more renders).
++  Both gaps were recorded on !219 and in the handover: `.searchbox` hidden at both widths the
++  check measures; `!218`'s handover commit dropped in a rebase for naming both MRs as open.
  
  scope_paths:
-+  - scripts/check_design_inventory.py
-+  - tests/test_design_inventory.py
-   - site_v2/src/i18n/strings.ts
--  - site_v2/src/components/chrome/SiteHeader.astro
--  - site_v2/src/components/chrome/SiteFooter.astro
--  - docs/wireframes/09_chrome.md
--  - docs/wireframes/10_home.md
--  - docs/site_architecture.md
--  - docs/ui_design_brief.md
--  - design-mocks/gen_navmap.py
-+  - docs/wireframes/block_standard.md
-+  - design-mocks/README.md
-+  - .claude/skills/validate-local/SKILL.md
++  - scripts/design_inventory.py
+   - scripts/check_design_inventory.py
+   - tests/test_design_inventory.py
+-  - site_v2/src/i18n/strings.ts
++  - tests/fixtures/design_inventory/green.html
++  - tests/fixtures/design_inventory/red.html
+   - docs/wireframes/block_standard.md
+   - design-mocks/README.md
+   - .claude/skills/validate-local/SKILL.md
++  - .claude/hooks/handover_in.py
++  - .claude/commands/status.md
++  - tests/test_governance_hooks.py
++  - tests/test_no_dead_issue_refs.py
++  - design-mocks/check_handover.py
++  - design-mocks/section_sizes.py
++  - scripts/sync_metric_docs_blocks.py
++  - .claude/active_work.md
++  - .gitignore
++  - CLAUDE.md
++  - docs/agent_guardrails.md
++  - scripts/snapshot_tracker.py
++  - docs/tracker/gitlab_snapshot.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -43,40 +50,70 @@ scope_paths:
-   - docs/tracker/gitlab_snapshot.md
+-  - .claude/task/acceptance_evidence.md
+-  - .claude/task/rendered_page_evidence.md
+-  - .claude/active_work.md
+-  - docs/tracker/gitlab_snapshot.md
++
++protected_override: >
++  Two protected paths, `.claude/hooks/handover_in.py` and `.claude/commands/status.md`. The
++  approval is quoted with its date and source in decisions_taken below, and repeated on the MR
++  head's Locked files line.
  
  impact_map: >
--  Leaf copy change on the consumption surface, the same shape as !217 a few hours earlier.
--  The key is read at exactly two call sites (`SiteHeader.astro:32`, `SiteFooter.astro:24`) and
--  named in two documents (`09_chrome.md`'s chrome key table, `design-mocks/gen_navmap.py`'s
--  navigation map). No page, route, payload, mart or export is touched; the item has no `href`,
--  so no link graph changes and `audit-seo`'s link resolution is unaffected.
--  ⚠ SWEEP BY THE CONCEPT, NOT THE KEY — !217's round-1 FAIL. The word also appears as prose in
--  the six-item menu list in `09_chrome.md` (the quote, both ASCII diagrams, the States bullet),
--  `site_architecture.md:222` and `ui_design_brief.md:71`, and as a superseded ruling in
--  `10_home.md:9`. Each of those is a menu label and moves. Each of these is NOT and stays:
--  `site_architecture.md:247` (the `leaderboards/{league_code}` export payload row),
--  `north_star.md:115` (the GitLab MILESTONE list, and milestone 7 is named Leaderboards),
--  `10_home.md:1002` and `gen_navmap.py:155` (the Leaderboards PAGE, #139) — the hub keeps its name.
--  blast_radius: every page of the built site shows the new word; nothing else moves.
-+  Two independent leaf changes, ridden together deliberately — see decisions_taken.
-+
-+  THE CHECK. `DEFAULT_LANGS` feeds one `--langs` default. Built pages need no other code:
-+  `resolve_built` substitutes the first `en/` of the Pages-table URL, and the German tree is the
-+  same shape (443 `index.html` under both `dist/de` and `dist/en`). The `FI` column does NOT gate
-+  built pages — that branch is inside `if p.kind == "mock"`. The mocks stay EN/FI: their
-+  generators emit `(en, fi, probe)` tuples into one HTML with a CSS toggle, there is no German
-+  text in any mock, and the FI strings are documented as width probes, not approved copy. The
-+  existing guard `if lang not in ("en", "fi"): continue` already skips them correctly.
-+  ⚠ Because of that skip, the summary's `len(langs)` would claim "3 languages" while 13 of the 20
-+  pages saw two. A gate overstating its own coverage is the very defect being fixed, so the
-+  summary states the mock set.
-+  ⚠ SWEEP BY THE CONCEPT: four LIVE places write "EN and FI" in prose and go stale on this
-+  commit — `block_standard.md:12`, the `validate:ui` comment in `.gitlab-ci.yml`,
-+  `.claude/skills/validate-local/SKILL.md`, `design-mocks/README.md`. THREE ARE FIXED HERE; THE
-+  CI COMMENT IS NOT, AND STAYS STALE. `.gitlab-ci.yml` is a protected governance path: the
-+  contract gate refuses the edit without a CPO-approved `protected_override`, and a comment is
-+  not worth loosening a guard or spending a governance task on. Disclosed on the MR head rather
-+  than quietly left. Not touched, deliberately:
-+  `docs/tracker/gitlab_snapshot.md` (generated from GitLab, never hand-edited) and
-+  `.claude/task/acceptance_evidence.md`'s pasted historical readings.
-+  No test asserts a language or render count: `tests/test_design_inventory.py` pins floors and
-+  shapes, and its two subprocess proofs pass `--langs en` explicitly, so they are unaffected.
-+  CI: `.ui_paths` already covers every file here, so `validate:ui` fires on its own.
-+
-+  THE STRING. One value, read at one call site (`SiteHeader.astro`, the search input's
-+  placeholder). `docs/wireframes/09_chrome.md` names the KEY, not the value, so it does not move.
-+  The legacy corpus has no search placeholder. Nothing pins the value.
-+  blast_radius: the check does 14 more renders per run; every German page shows the new
-+  placeholder; no page, link, payload or rule changes.
+-  Two independent leaf changes, ridden together deliberately — see decisions_taken.
++  THE HOOK. `.claude/hooks/handover_in.py` fires on every SessionStart (`.claude/settings.json`,
++  the only SessionStart entry; `settings.json` itself is untouched). Nothing imports it; it is run
++  by path. It enforces nothing: it injects context, and today it reads
++  `<CLAUDE_PROJECT_DIR>/.claude/active_work.md` from the working tree, so the handover a session
++  sees is the checked-out branch's copy. After: it reads the description of issue #157 through
++  `glab api projects/85168767/issues/157` (the numeric project id, so the coming group move does
++  not break it), with a timeout, decoding UTF-8 bytes itself (the cp1252 trap); writes that text
++  to the gitignored `.claude/handover.cache.md`; and when GitLab or `glab` is unavailable, injects
++  the cache labelled with the time it was saved, or says plainly that no handover could be read.
++  The 16,000-character cap and the truncation warning are kept. On failure it still fails open
++  (no output, exit 0). What breaks if it is wrong: a session starts without its handover, which
++  the no-handover message makes visible. `glab auth` is only read, never touched.
++  EVERY OTHER MENTION OF THE OLD FILE, from `grep -rn active_work` over the whole tree outside
++  `.venv/`, `docs/tracker/` and `.claude/task/` (round 1 claimed this sweep and missed three;
++  scope-auditor found the first). Changed here: `.claude/commands/status.md` (`/status`, now
++  `glab issue view 157`); `design-mocks/check_handover.py` and `design-mocks/section_sizes.py`
++  (manual tools that read the file, now a path argument or the cache);
++  `scripts/sync_metric_docs_blocks.py:419` (a comment citing the handover as the record of a
++  finding, reworded to state the finding); `tests/test_no_dead_issue_refs.py` (asserts the file
++  exists; the handover leaves the repo, so it leaves the list and CLAUDE.md stays covered);
++  `tests/test_governance_hooks.py` (the hook's tests). Knowingly left, each harmless:
++  `.gitlab-ci.yml:1123`, a protected file this contract does not open, whose comment says an owed
++  follow-up is "recorded ... in `active_work.md`": the follow-up (setting the
++  `deploy-nightly-image` resource group to `oldest_first`, still `unordered` on 2026-09-23 by the
++  resource_groups API) had already left the handover before this branch, so the comment was
++  already pointing at nothing; it is carried into issue #157 at this session's end, and the
++  comment is named on the MR head. `.gitlab-ci.yml:455-456` says the check renders "375px and
++  700px in EN and FI", stale on both counts, same protected file, same disclosure.
++  `.claude/review_routing.json` (protected; the path stays in its artifact lists, which simply
++  never match again); `tests/test_materialisation_policy.py:278` and
++  `tests/test_governance_doc_parity.py:137` (exclusions for a path that no longer exists);
++  `docs/working_agreement.md:233` (names the path among exempt artifacts, still true of the
++  routing); `tests/test_governance_hooks.py` routing and review-patch tests (they write the path
++  into a temporary repo); `docs/portable_guardrails/**` (the copy-out archive, deliberately left
++  alone by `docs/agent_guardrails.md`); `CLAUDE.md:140`, `docs/wireframes/10_home.md:113,843`,
++  `docs/audits/2026-06_alignment_audit.md` (history). The dbt-agent-kit plugin's plan-back gate
++  keys on the file's presence and stops firing here; it is advisory and not this repo's hook.
++  WHAT STOPS CHECKING THE HANDOVER (cto-reviewer round 1). As a tracked file, every tool write to
++  it passed `host_fingerprint_gate.py` (a public network address is refused), and CI's
++  `test_no_host_fingerprint_in_tree.py` and gitleaks scanned it. Written to a GitLab issue, no hook
++  sees it, and the project's issues are public. The replacement: `design-mocks/check_handover.py`
++  imports the gate's own `flagged_lines` and exits non-zero on a hit or on a draft over the
++  16,000-character cap, and the one documented write is
++  `python design-mocks/check_handover.py <draft> && glab issue update 157 ...`, so the check runs
++  on the only path the procedure names. It is a step in a command, not a hook: a session that
++  writes the issue another way skips it, and CI still catches a leak afterwards when the tracker
++  backup, which carries closed issues, is next committed. Stated on the MR head.
++  `.claude/active_work.md` is deleted from the tree and added to `.gitignore` beside the cache, so
++  an old branch's copy cannot be re-added by accident. Checking out an older branch restores its
++  stale copy on disk; nothing reads it any more.
++  THE CHECK. `DEFAULT_VIEWPORTS` gains 1010 and is the only width list (`--viewports` defaults to
++  it; `validate:ui` passes no flag, so `.gitlab-ci.yml` is untouched). An assertion may carry a
++  width condition, `[>=1010px]` or `[<1010px]`, parsed fail-closed; measure_page skips an
++  assertion outside its range. Three element rows: Search field `.header-actions .searchbox`
++  (ruled), Search button `.iconbtn.search-m` (ruled), Header row `.header-in` `fits` (proposed:
++  reported, never failing, because every page at 700px scrolls sideways today, the known defect).
++  The mocks carry no header, so the rows are absent there and skip. The RED proof's fixtures gain
++  the site header; the red one hides the field and shows the button at 1010px.
++  PRESENCE (platform-reviewer round 1). A `visible=` assertion is measured only when the selector
++  finds something, so a search field REMOVED from the page, rather than hidden, passed. The Pages
++  table's Expect column, which already fails a page that shows none of an element, now accepts
++  the same width condition, and every built page expects `Search field [>=1010px]` and
++  `Search button [<1010px]`. A RED case runs the check on a built page with the field deleted.
++  The text-line counter (`one-line`) now counts lines of text only: an icon beside the text sat
++  at its own top and counted as a second line.
++  blast_radius: `validate:ui` renders about 50% more (94 to about 141); every built page is
++  measured at a desktop width for the first time, so a desktop-only defect elsewhere would now
++  fail, measured before commit. No site file changes.
  
- acceptance_criteria:
--  - Every built page under `site_v2/dist` shows "Statistics" as the sixth header item and in the footer link row in EN, "Statistiken" in `/de/`, "Tilastot" in `/fi/`, and no page in any locale still shows "Leaderboards", "Bestenlisten" or "Kärkilistat" as a menu item.
--  - The item is still dead text (no `href`): no page gains a link, and `audit-seo` passes.
--  - The word "Leaderboards" survives exactly where it names the HUB and not the menu item: `site_architecture.md`'s export payload row, `north_star.md`'s milestone list, `10_home.md`'s reference to the #139 page, and `gen_navmap.py`'s competition-page note.
--  - `python scripts/check_copy_gate.py` exits 0; `cd site_v2 && npm test` green; `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0.
-+  - `python scripts/check_design_inventory.py --dist site_v2/dist`, with NO `--langs` flag, exits 0 and reports 3 languages and 94 renders, naming the two languages the mocks were measured in.
-+  - The German built pages are actually measured: a deliberately broken German-only rule is caught. Demonstrated by running the check against a mutated German string and showing the FAIL line carries `de`, then reverting.
-+  - `tests/test_design_inventory.py` fails when `DEFAULT_LANGS` drops a locale the site declares in `site_v2/src/lib/href.ts`, and passes as shipped. Seen RED.
-+  - Every built page under `site_v2/dist/de/` shows the header search placeholder "Mannschaften, Spieler suchen…", and no German page still shows "Teams, Spieler suchen…".
-+  - The German header at 375 and 700 px: the search input's placeholder is not clipped, and the page's `scrollWidth` is no worse than it was before this change (the 700px header overflow is pre-existing and disclosed, not introduced here).
-+  - No live document the contract may touch still says the check renders "EN and FI"; the one in `.gitlab-ci.yml` is named on the MR head as knowingly left, being behind a protected path.
+-  THE CHECK. `DEFAULT_LANGS` feeds one `--langs` default. Built pages need no other code:
+-  `resolve_built` substitutes the first `en/` of the Pages-table URL, and the German tree is the
+-  same shape (443 `index.html` under both `dist/de` and `dist/en`). The `FI` column does NOT gate
+-  built pages — that branch is inside `if p.kind == "mock"`. The mocks stay EN/FI: their
+-  generators emit `(en, fi, probe)` tuples into one HTML with a CSS toggle, there is no German
+-  text in any mock, and the FI strings are documented as width probes, not approved copy. The
+-  existing guard `if lang not in ("en", "fi"): continue` already skips them correctly.
+-  ⚠ Because of that skip, the summary's `len(langs)` would claim "3 languages" while 13 of the 20
+-  pages saw two. A gate overstating its own coverage is the very defect being fixed, so the
+-  summary states the mock set.
+-  ⚠ SWEEP BY THE CONCEPT: four LIVE places write "EN and FI" in prose and go stale on this
+-  commit — `block_standard.md:12`, the `validate:ui` comment in `.gitlab-ci.yml`,
+-  `.claude/skills/validate-local/SKILL.md`, `design-mocks/README.md`. THREE ARE FIXED HERE; THE
+-  CI COMMENT IS NOT, AND STAYS STALE. `.gitlab-ci.yml` is a protected governance path: the
+-  contract gate refuses the edit without a CPO-approved `protected_override`, and a comment is
+-  not worth loosening a guard or spending a governance task on. Disclosed on the MR head rather
+-  than quietly left. Not touched, deliberately:
+-  `docs/tracker/gitlab_snapshot.md` (generated from GitLab, never hand-edited) and
+-  `.claude/task/acceptance_evidence.md`'s pasted historical readings.
+-  No test asserts a language or render count: `tests/test_design_inventory.py` pins floors and
+-  shapes, and its two subprocess proofs pass `--langs en` explicitly, so they are unaffected.
+-  CI: `.ui_paths` already covers every file here, so `validate:ui` fires on its own.
++decisions_taken: >
++  The approval for the two protected paths, quoted: the CPO's opening message of 2026-09-23 in
++  this session, "Give it a home that does not ride a feature branch.", and the plan he approved
++  the same day, which said of this change: "This edits the locked session-start step. Approving
++  this plan is the approval for that edit." The plan named the home as a GitLab issue read at
++  session start with a local fallback; `/status` reads the same issue because it read the same
++  file.
  
- decisions_taken: >
--  All three words are the CPO's, quoted in `refs` with the evidence he cited (the Premier League
--  menu) and the evidence gathered for the other two languages. The key is renamed
--  `navLeaderboards` → `navStatistics` so the identifier says what the item says, the same reason
--  `navStats` → `navLeaderboards` carried this morning.
-+  ONE BRANCH FOR TWO UNRELATED ITEMS, stated so the scope-auditor judges it rather than discovers
-+  it. The design check would never have caught a word choice; they are connected only by both
-+  being German parity and both being one-liners. One review cycle rather than two is the whole
-+  reason. If the auditor calls it scope drift, splitting is cheap and the builder splits.
-+  The mocks are NOT given German. Inventing German copy for a width probe is the coined-word trap
-+  the CPO caught on !216's Finnish label; the mocks' own header says the FI strings are probes,
-+  not approved copy.
-+  The `FI` column is NOT renamed to a general per-language field. It would touch the schema, the
-+  table header and all 20 rows and buys nothing: German reaches built pages without it, and the
-+  mocks have no German to reach. Its definition line is corrected to say it governs the mocks'
-+  toggle only, which is already true.
-+  The German placeholder keeps the existing comma form ("Mannschaften, Spieler suchen…"), mirroring
-+  the English "Search teams, players…", so only the word changes.
+-  THE STRING. One value, read at one call site (`SiteHeader.astro`, the search input's
+-  placeholder). `docs/wireframes/09_chrome.md` names the KEY, not the value, so it does not move.
+-  The legacy corpus has no search placeholder. Nothing pins the value.
+-  blast_radius: the check does 14 more renders per run; every German page shows the new
+-  placeholder; no page, link, payload or rule changes.
++  The width is 1010px because that is where `system.css` shows the search field (`@media
++  (min-width: 1010px)`), the narrowest desktop layout and so the tightest; a test ties the two.
++  Tuning a guard toward the rule it exists for is the builder's; the three new rows cite
++  `docs/wireframes/09_chrome.md`, which already specifies the field at that width.
+ 
+-acceptance_criteria:
+-  - `python scripts/check_design_inventory.py --dist site_v2/dist`, with NO `--langs` flag, exits 0 and reports 3 languages and 94 renders, naming the two languages the mocks were measured in.
+-  - The German built pages are actually measured: a deliberately broken German-only rule is caught. Demonstrated by running the check against a mutated German string and showing the FAIL line carries `de`, then reverting.
+-  - `tests/test_design_inventory.py` fails when `DEFAULT_LANGS` drops a locale the site declares in `site_v2/src/lib/href.ts`, and passes as shipped. Seen RED.
+-  - Every built page under `site_v2/dist/de/` shows the header search placeholder "Mannschaften, Spieler suchen…", and no German page still shows "Teams, Spieler suchen…".
+-  - The German header at 375 and 700 px: the search input's placeholder is not clipped, and the page's `scrollWidth` is no worse than it was before this change (the 700px header overflow is pre-existing and disclosed, not introduced here).
+-  - No live document the contract may touch still says the check renders "EN and FI"; the one in `.gitlab-ci.yml` is named on the MR head as knowingly left, being behind a protected path.
++  The Header row is `proposed`, not `ruled`: it reports the 700px sideways scroll on every page
++  without failing, because fixing the header is the CPO's call and a gate that is red on arrival
++  gets ignored.
+ 
+-decisions_taken: >
+-  ONE BRANCH FOR TWO UNRELATED ITEMS, stated so the scope-auditor judges it rather than discovers
+-  it. The design check would never have caught a word choice; they are connected only by both
+-  being German parity and both being one-liners. One review cycle rather than two is the whole
+-  reason. If the auditor calls it scope drift, splitting is cheap and the builder splits.
+-  The mocks are NOT given German. Inventing German copy for a width probe is the coined-word trap
+-  the CPO caught on !216's Finnish label; the mocks' own header says the FI strings are probes,
+-  not approved copy.
+-  The `FI` column is NOT renamed to a general per-language field. It would touch the schema, the
+-  table header and all 20 rows and buys nothing: German reaches built pages without it, and the
+-  mocks have no German to reach. Its definition line is corrected to say it governs the mocks'
+-  toggle only, which is already true.
+-  The German placeholder keeps the existing comma form ("Mannschaften, Spieler suchen…"), mirroring
+-  the English "Search teams, players…", so only the word changes.
++  The hook writes its cache through a temporary file and a rename, so an interrupted write never
++  leaves a half copy, and an empty cache counts as none. Its GitLab read has a 15-second timeout,
++  tested with a `glab` that hangs.
++
++  The pre-publish check reuses the host-address gate's own patterns rather than a copy, and
++  reuses the handover checker that already existed; no new tool, no new hook.
++
++  The tracker backup (`docs/tracker/gitlab_snapshot.md`) keeps its one writer and its checksum;
++  it stops riding a handover commit and is refreshed in whichever change is committed next,
++  because it is read only when GitLab is down.
++
++  Threshold declarations: the hook's source of truth changes (a mechanism change, CPO-approved as
++  quoted); the hook calls GitLab once per session start (seconds, no billed service); the design
++  check's run grows by about 50%, stated to him in the plan. No new dependency.
  
  decisions_reserved:
--  - Whether the HUB and its milestone keep the name Leaderboards while the menu item leading there says Statistics. Not this task's: #139 owns what that page is called, and nothing published depends on it. Named on the MR head so the CPO sees the divergence rather than discovers it.
-+  - Whether page addresses follow a written vocabulary before go-live. The CPO's, raised by him on !216, deliberately not touched here.
-+  - Whether the mocks should ever carry German copy. That needs approved German strings, which would be a naming decision; today the mocks are measured in EN and a documented FI width probe.
+-  - Whether page addresses follow a written vocabulary before go-live. The CPO's, raised by him on !216, deliberately not touched here.
+-  - Whether the mocks should ever carry German copy. That needs approved German strings, which would be a naming decision; today the mocks are measured in EN and a documented FI width probe.
++  - Fixing the header's sideways scroll at 700px. Reported by the new proposed row, not fixed.
++  - Whether the Header row becomes `ruled` once that is fixed.
  
  done_when:
--  - `grep -rn "navLeaderboards" site_v2/ docs/ design-mocks/` returns nothing.
--  - `python scripts/check_copy_gate.py`, `python scripts/check_ui_i18n_metrics.py` exit 0; `cd site_v2 && npm test` green.
--  - `npm run build` green; the acceptance criteria read from `dist` in `acceptance_evidence.md`.
--  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0.
-+  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0 with the new summary; the German FAIL demonstrated and reverted.
-+  - `python -m pytest tests/test_design_inventory.py -q` green, the new pin seen RED.
-+  - `python scripts/check_copy_gate.py`, `python scripts/check_ui_i18n_metrics.py` exit 0; `cd site_v2 && npm test` green; `npm run build` green.
-+  - `grep -rn "EN and FI" docs/ design-mocks/ .claude/skills/` returns nothing that describes this check (`.gitlab-ci.yml` excluded and disclosed).
-+  - The German header measured at 375 and 700 px and recorded in `rendered_page_evidence.md`.
+-  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0 with the new summary; the German FAIL demonstrated and reverted.
+-  - `python -m pytest tests/test_design_inventory.py -q` green, the new pin seen RED.
+-  - `python scripts/check_copy_gate.py`, `python scripts/check_ui_i18n_metrics.py` exit 0; `cd site_v2 && npm test` green; `npm run build` green.
+-  - `grep -rn "EN and FI" docs/ design-mocks/ .claude/skills/` returns nothing that describes this check (`.gitlab-ci.yml` excluded and disclosed).
+-  - The German header measured at 375 and 700 px and recorded in `rendered_page_evidence.md`.
++  - "`python -m pytest tests/test_design_inventory.py -q` passes, including a test that fails when `DEFAULT_VIEWPORTS` loses the width `system.css` shows the search field at, and the RED proof failing on Search field and Search button."
++  - "`python scripts/check_design_inventory.py --dist site_v2/dist` on a fresh build: 3 viewports, 0 failures; the Header row's warnings named."
++  - "A mutation hiding `.searchbox` at 1010px in `system.css` turns the check red on the built site; reverted."
++  - "`python -m pytest tests/test_governance_hooks.py -q -k handover` passes: the issue is injected and cached; the cache is injected with its time when GitLab is unreachable; a plain message when neither exists; truncation announced; the multibyte case not truncated; the hook asks for issue 157 of project 85168767."
++  - "A built page with the search field deleted from its header fails the check at 1010px on `Search field`; seen RED in `tests/test_design_inventory.py`."
++  - "A `glab` that hangs longer than the timeout leaves the hook injecting the saved copy; an empty saved copy gives the no-handover message; the fail-open test never reaches the real `glab`."
++  - "`python design-mocks/check_handover.py <draft>` exits non-zero on a draft carrying a public network address or over 16,000 characters, and zero on the current handover; tested."
++  - "`echo {} | python .claude/hooks/handover_in.py` in this repo injects issue #157's description."
++  - "`.claude/active_work.md` is gone from the tree and ignored; `pytest tests/` green."
++  - "Routed reviewers PASS (scope-auditor; platform-reviewer and cto-reviewer at opus for the hook; bi-analyst-reviewer for the block standard); MR open with the Locked files line."
  
  amendments:
-   - none yet
+-  - none yet
++  - 2026-09-23, round 2, on a clean tree: + `design-mocks/section_sizes.py` (reads the old file)
++    and `scripts/sync_metric_docs_blocks.py` (a comment citing it). Authority: the approved change
++    itself, moving the handover out of the repo; these are two more readers of the file it
++    deletes, which round 1's sweep missed. The impact map now lists every mention with its
++    disposition, the host-address coverage the move loses and its replacement, and the presence
++    requirement for the search field. Raised by scope-auditor, platform-reviewer and cto-reviewer
++    in round 1.
+diff --git a/.gitignore b/.gitignore
+index aaeb573d..24846594 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -229,6 +229,10 @@ artifacts/*.js
+ .claude/settings.local.json
+ .claude/launch.json
+ .claude/worktrees/
++# The handover lives in GitLab issue #157; the session-start hook saves its last copy here for when
++# GitLab is down. The old in-repo handover stays ignored so an older branch's copy is never re-added.
++.claude/handover.cache.md*
++.claude/active_work.md
+ 
+ # site_v2 per-entity export build artifact (#365)
+ artifacts/site_data/
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 24f6c0c5..17ef8a3f 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -42,7 +42,7 @@ found nowhere in it is not a fact.
+ |---|---|
+ | **What does a screen show?** | the design chain, in the reading order [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns — ending at the surface's GitLab issue |
+ | **What is required, and what is next?** | the **GitLab issue** (`glab issue list`; the `Task` template: What exactly / Why / How) |
+-| **Where are we right now?** | [.claude/active_work.md](.claude/active_work.md) — current state only, never history or requirements |
++| **Where are we right now?** | the handover, GitLab issue **#157**, kept closed so it never shows as work: injected at every session start by `.claude/hooks/handover_in.py`, which falls back to the copy it saved in `.claude/handover.cache.md` when GitLab is down. Current state only, never history or requirements. It rides no branch |
+ | **How do we work?** | [docs/working_agreement.md](docs/working_agreement.md), then this file |
+ | *(backup only)* the tracker's last state, when GitLab is unreachable | [docs/tracker/gitlab_snapshot.md](docs/tracker/gitlab_snapshot.md) — generated by `scripts/snapshot_tracker.py`, never edited by hand (a hook refuses every tool edit; a test fails any change that did not also rewrite the header checksum — a deliberate shell write that forges the header is forbidden by rule, like `--no-verify`, not prevented), never cited while GitLab is up; refreshed at the end of every session |
+ 
+@@ -177,10 +177,14 @@ every session that learned something had to delete something. None of this is cu
+   pattern copied from a reviewer's verdict into `review.md` to prove the address was gone. A host's
+   size, city and open ports are the same class and no pattern can catch them: describe the host,
+   say the value lives in the provider's console.
+-- **At the end of every session, before the handover commit, run `python scripts/snapshot_tracker.py`.**
+-  It rewrites the tracker's backup from GitLab; the file rides in the handover commit outside the
+-  review patch and hash (`docs/tracker/**` is artifact-only). Skipping it is the only way the backup
+-  goes stale.
++- **At the end of every session, rewrite the handover issue and refresh the tracker backup.** Draft
++  the handover in the scratchpad and publish it with ONE command,
++  `python design-mocks/check_handover.py <draft> && glab issue update 157 --description "$(cat <draft>)"`:
++  the check refuses a draft over 16,000 characters or carrying a public network address, which
++  no hook sees on its way to the public issue. Nothing is committed for it. Then run
++  `python scripts/snapshot_tracker.py`: the backup rides the next commit on any branch, outside the
++  review patch and hash (`docs/tracker/**` is artifact-only), and a rebase conflict on it is resolved
++  by running the script again. It is read only when GitLab is down, so a few days' lag is harmless.
+ - **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
+   blocks the turn once if any fails. Do not end a turn on a red gate silently.
+ - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
 diff --git a/design-mocks/README.md b/design-mocks/README.md
-index 9f43e0db..01c24d1b 100644
+index 01c24d1b..5762bc07 100644
 --- a/design-mocks/README.md
 +++ b/design-mocks/README.md
-@@ -32,7 +32,8 @@ element's CSS is `site_v2/src/styles/system.css`, inlined verbatim; the element,
+@@ -32,7 +32,7 @@ element's CSS is `site_v2/src/styles/system.css`, inlined verbatim; the element,
  its measurements are `docs/wireframes/block_standard.md` (the block standard). Two scripts hold
  it: `scripts/check_page_css.py` fails a generator (or a module it imports) whose CSS string
  touches an inventory class, and `scripts/check_design_inventory.py` renders every generator the
--block standard lists at 375px and 700px in EN and FI and measures every element. A page-level
-+block standard lists at 375px and 700px in EN and FI — the only two languages a mock carries; a
-+built page is rendered in every locale the site publishes — and measures every element. A page-level
+-block standard lists at 375px and 700px in EN and FI — the only two languages a mock carries; a
++block standard lists at 375px, 700px and 1010px in EN and FI — the only two languages a mock carries; a
+ built page is rendered in every locale the site publishes — and measures every element. A page-level
  class that happens to share a name with an element's is renamed, not argued about.
  
- **Proposed seed shapes** live beside the generators and are read by them, because `!27` needs a
+diff --git a/design-mocks/check_handover.py b/design-mocks/check_handover.py
+index 814a0d99..cbe50a6d 100644
+--- a/design-mocks/check_handover.py
++++ b/design-mocks/check_handover.py
+@@ -1,39 +1,42 @@
+-"""Size + content check on the handover. Run from anywhere."""
++"""Check a handover before it is written to GitLab issue #157. Run from anywhere.
++
++    python design-mocks/check_handover.py <draft> && glab issue update 157 --description "$(cat <draft>)"
++
++Exit 1 when the draft is over the 16,000 characters the session-start hook injects, or carries a
++public network address: the issue is public, and no hook sees a write to it, so the address check
++that guarded the handover while it was a file in the repo runs here, with the gate's own
++patterns. With no argument it reads the copy the hook saved at session start.
++"""
+ import re as _re
++import sys
+ from collections import Counter
+ from pathlib import Path
+ 
+-p = Path(__file__).resolve().parent.parent / ".claude/active_work.md"
+-s = p.read_text(encoding="utf-8")
+-print("chars:", len(s), "/ 16000 | headroom", 16000 - len(s))
+-print("tail intact:", s.rstrip().endswith("so a spec can overstate its page and pass."))
+-
+-# NEXT must be a single unbroken run; a duplicated or colliding number means an edit went wrong
+-nums = [int(m) for m in _re.findall(r"^(\d+)\. ", s, flags=_re.M)]
+-print("NEXT numbering:", nums, "->", "OK" if nums == list(range(0, len(nums))) else "BROKEN")
+-print("duplicate lines:", sum(1 for _line, c in
+-      Counter([ln for ln in s.splitlines() if ln.strip()]).items() if c > 1))
+-
+-MUST = [
+-    "PER BOARD, never per row",
+-    "is the ONLY new key",
+-    "NO GOALKEEPER BOARD EXISTS",
+-    "container query on `.board`",
+-    "Goals \u00b7\n  Assists \u00b7 Passes \u00b7 Key passes",
+-    "MULTI-COMMIT",
+-]
+-STALE = [
+-    "FIVE boards",
+-    "Goal contributions",
+-    "two value columns is PLAYERS ONLY",
+-    "63 rows",
+-    "Shots on target faced",
+-]
+-# ⚠ Collapse whitespace before matching. A line-based check misses a phrase that straddles
+-# a line break, which is exactly what the handover itself warns about -- it reported
+-# "container query on `.board`" as LOST when the text was present, just wrapped.
+-flat = " ".join(s.split())
+-for k in MUST:
+-    print(("  keep  " if " ".join(k.split()) in flat else "  LOST  ") + repr(k[:48]))
+-for k in STALE:
+-    print(("  STALE " if " ".join(k.split()) in flat else "  clean ") + repr(k))
++REPO = Path(__file__).resolve().parent.parent
++sys.path.insert(0, str(REPO / ".claude" / "hooks"))
++import host_fingerprint_gate as gate  # noqa: E402
++
++MAX_CHARS = 16000
++
++
++def main(argv):
++    p = Path(argv[1]) if len(argv) > 1 else REPO / ".claude" / "handover.cache.md"
++    s = p.read_text(encoding="utf-8")
++    print("chars:", len(s), "/ %d | headroom" % MAX_CHARS, MAX_CHARS - len(s))
++
++    # NEXT must be a single unbroken run; a duplicated or colliding number means an edit went wrong
++    nums = [int(m) for m in _re.findall(r"^(\d+)\. ", s, flags=_re.M)]
++    print("NEXT numbering:", nums, "->", "OK" if nums == list(range(0, len(nums))) else "BROKEN")
++    print("duplicate lines:", sum(1 for _line, c in
++          Counter([ln for ln in s.splitlines() if ln.strip()]).items() if c > 1))
++
++    hits = list(gate.flagged_lines(s))
++    for n, kind in hits:
++        print("REFUSED: a public %s address on line %d; describe the host instead" % (kind, n))
++    if len(s) > MAX_CHARS:
++        print("REFUSED: %d characters over the budget the hook injects" % (len(s) - MAX_CHARS))
++    return 1 if hits or len(s) > MAX_CHARS else 0
++
++
++if __name__ == "__main__":
++    sys.exit(main(sys.argv))
+diff --git a/design-mocks/section_sizes.py b/design-mocks/section_sizes.py
+index 87883e14..0361a6fa 100644
+--- a/design-mocks/section_sizes.py
++++ b/design-mocks/section_sizes.py
+@@ -1,4 +1,5 @@
+-"""Size of each handover section, largest first -- so a trim targets the real weight."""
++"""Size of each handover section, largest first -- so a trim targets the real weight. Reads the
++draft named as the argument, else the copy of GitLab issue #157 the session-start hook saved."""
+ import io
+ import re
+ import sys
+@@ -6,7 +7,9 @@ from pathlib import Path
+ 
+ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+ 
+-s = (Path(__file__).resolve().parent.parent / ".claude/active_work.md").read_text(encoding="utf-8")
++p = (Path(sys.argv[1]) if len(sys.argv) > 1
++     else Path(__file__).resolve().parent.parent / ".claude/handover.cache.md")
++s = p.read_text(encoding="utf-8")
+ parts = re.split(r"\n(?=## )", s)
+ rows = []
+ for p in parts:
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index e6831f84..d51fcc3d 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -54,7 +54,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
+ | `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit whose written text adds, to a code file, a comment line carrying decision history — a date, "CPO", a review credit (a named role — `platform-reviewer`, `scope-auditor` — or what an unnamed reviewer did: "a reviewer caught it", "two reviewers failed it", "found by a reviewer"; the bare word alone is the review gate's own vocabulary and is not a marker), "round N" or an MR number — and says where that belongs: the commit message, the MR and the issue, reached from any line by `git blame` (`engineering_standards.md` §1.2). A comment line is one with a marker (`#`, `--`, `//`, `/*`, `*`, `<!--`, `{#`) at its start or after whitespace, any line inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`), and any line of a Python docstring (`ast` on a whole file; a line opening with a triple quote in an edit fragment). A quoted span on the line (`"CPO ANSWER:"`, a `'2026-05-07 17:55:00'` usage example) is a literal and is blanked before matching; an apostrophe inside a word opens no span, a triple quote is a docstring delimiter, and backticks are NOT literals — measured over the tree, two in three backticked markers were credits. Checks only the text being written, so an edit that re-includes an existing flagged line is denied until the marker goes — every ordinary edit helps the sweep. Markdown, docs, `.claude/task/` and unlisted trees are never checked. Its twin in CI, `tests/test_no_decision_history_in_code.py`, imports the hook's own pattern and tree list and pins the count of flagged lines already in the tree in BOTH directions, so a sweep must lower the pin and the number never moves silently. Fails open. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+-| `handover_in.py` | SessionStart | Injects `.claude/active_work.md` into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it, and says so explicitly when the file is missing. Announces truncation rather than cutting in silence. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
++| `handover_in.py` | SessionStart | Injects the handover, GitLab issue #157, into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it. Reads it through `glab`, saves the copy to the gitignored `.claude/handover.cache.md`, injects that copy with its time when GitLab is down, and says so plainly when neither exists. Announces truncation rather than cutting in silence. Until 2026-09-23 it read `.claude/active_work.md` from the working tree, so the handover rode whichever branch was checked out. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+ | `memory_budget_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `~/.claude/projects/<slug>/memory/*.md` | **Denies** a write to the agent's memory folder when the RESULTING file would exceed its surface's budget — the index `MEMORY.md`, or any other note — or when a new note would push the count past the cap: adding a note means removing one. Measures the file the tool call will produce (a `Write`'s content; an `Edit` or `MultiEdit` applied to the file on disk), in characters; a result no larger than the file on disk always passes, so an over-budget note can always be cut. The three budgets are pinned to what the folder MEASURED after the cut that introduced them (50 notes, a 7,669-character index, a 4,232-character largest note) and move down only — the same shape as the comment guard's pinned count. Memory is the one surface no other gate looks at (`task_contract_gate.py` deliberately ignores paths outside the repo), and it is where two 2026-09 sessions took a product fact the repo contradicted; a budget is what makes the cut hold. `--report` prints the three measurements; `tests/test_memory_budget_gate.py` drives every deny and pass on a temp folder. A shell write into the folder bypasses it, as it bypasses the comment gate; the repo's rule already forbids shell writes for files. |
+ | `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on any path inside the repo | **Denies** a write whose text puts a public network address — an IPv4 outside the loopback, private, link-local, multicast and reserved ranges, or a global-unicast IPv6 — into any file inside the repo, `.claude/task/**` included. That is where it slipped: a CI runner's address went into a doc (caught by review), then into `review.md` as the grep pattern a reviewer had used to prove it was gone (not caught — the copy sat inside the review's own record), and was pushed to the public repo before anyone noticed. The deny names the file and line and never echoes the value; it also names what no pattern can catch — a host's size, city and open ports — so the moment of writing is the moment of the reminder. Reads only the written text; paths outside the repo pass; fails open. `tests/test_no_host_fingerprint_in_tree.py` imports the same patterns and pins the tracked tree at zero (measured: zero public, the mocks README's loopback preview address passes). Accepted false positive: a bare four-part version string; a `v` prefix is enough to pass. A shell write bypasses it like every edit-time gate; the pin catches that at CI. |
+@@ -152,23 +152,31 @@ TWICE, roughly 26 KB, one copy being the pre-fix one with the character-versus-b
+ other four have no project twin and cannot collide. (The snippet is not edited here: it belongs to
+ the portable archive, which this task deliberately leaves alone. Fixing it is a separate unit.)
+ 
+-### The enforced handover — `.claude/active_work.md`
++### The enforced handover — GitLab issue #157
+ 
+-Continuity across chats is enforced, not hoped for. Each project keeps a single
+-**`.claude/active_work.md`** — a short, authoritative handover: current task, the
+-locked spec (or link), status (done / in-progress / next concrete action), and an
+-explicit **do-NOT** list. It is the *only* thing a fresh chat is guaranteed to read
+-(injected by `handover_in.py`). The loop:
++Continuity across chats is enforced, not hoped for. The project keeps a single handover — a
++short, authoritative note: current task, the locked spec (or link), status (done / in-progress /
++next concrete action), and an explicit **do-NOT** list. It is the *only* thing a fresh chat is
++guaranteed to read (injected by `handover_in.py`). It lives in **GitLab issue #157**, kept closed
++so it never shows up as work, and is rewritten at the end of every session with
++`glab issue update 157`. It used to be `.claude/active_work.md`, a tracked file: every branch
++carried its own copy, a session saw whichever branch it started on, and a handover committed on a
++feature branch went stale when a sibling merged. The loop:
+ 
+-- **Read-in (hard):** `.claude/hooks/handover_in.py` injects it at SessionStart. *"Unavoidable"
++- **Read-in (hard):** `.claude/hooks/handover_in.py` injects it at SessionStart, from GitLab, or
++  from the copy it saved in `.claude/handover.cache.md` when GitLab is down. *"Unavoidable"
+   was wrong for months*: nothing was wired to SessionStart anywhere, so the injection never
+   happened and this document said otherwise. Wired in the project settings on 2026-07-22.
+ - **Size is a hard constraint, not a style note.** The injection is capped at 16,000 **characters**
+   (the unit matters: the hook once read characters and decided truncation from the file's size in
+   bytes, so a handover under one cap and over the other was injected whole and labelled cut). The
+   handover reached 112,233 and would have been delivered 14% deep and cut off in silence. It is
+-  now under the cap, the hook announces truncation when it happens, and the file's own header
+-  states the budget. Keep it current state only; history belongs in git.
++  now under the cap, the hook announces truncation when it happens, and
++  `design-mocks/check_handover.py <draft>` refuses a draft over the cap, or carrying a public
++  network address (with `host_fingerprint_gate.py`'s own patterns), before it is written to the
++  issue: no hook sees that write, so the check is chained in front of it in the one documented
++  command (`CLAUDE.md`, the session-end bullet).
++  Keep it current state only; history belongs in git and in the issue's own edit history.
+ - ⚠️ **Plan-back and write-out DO NOT RUN.** `handover_plan_gate.py` (restate-and-approve before
+   the first code edit) and `handover_out.py` (a push reminder to update the handover) are both in
+   the not-installed global set above. So the loop has ONE enforced leg, the read-in, and two that
+@@ -178,7 +186,7 @@ explicit **do-NOT** list. It is the *only* thing a fresh chat is guaranteed to r
+ 
+ This exists because a fresh chat once re-scoped a fully-specified task (it read the
+ issue title + memory and built the wrong thing). Auto-loaded memory was not enough —
+-the handover must be a single focused file, pushed in, with the user as the gate.
++the handover must be a single focused note, pushed in, with the user as the gate.
+ 
+ ---
+ 
 diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
-index 21be62f3..72bc901d 100644
+index 72bc901d..8185c96c 100644
 --- a/docs/wireframes/block_standard.md
 +++ b/docs/wireframes/block_standard.md
-@@ -9,7 +9,8 @@
+@@ -9,7 +9,7 @@
  > Two scripts read the two tables below and nothing else: `scripts/check_page_css.py` (the lint:
  > a `<style>` block, a `style=` attribute or a mock's CSS string touching a class named in the
  > Selector column fails) and `scripts/check_design_inventory.py` (the measured check: every page in
--> the Pages table rendered at 375px and 700px in EN and FI, every element measured as its
-+> the Pages table rendered at 375px and 700px in every locale the site publishes — EN, DE and FI
-+> for a built page, EN and FI for a mock, which carries no German text — every element measured as its
+-> the Pages table rendered at 375px and 700px in every locale the site publishes — EN, DE and FI
++> the Pages table rendered at 375px, 700px and 1010px in every locale the site publishes — EN, DE and FI
+ > for a built page, EN and FI for a mock, which carries no German text — every element measured as its
  > `Measured as` column says). `scripts/design_inventory.py` parses both tables and fails closed on
  > a column, key, token or status it does not know. A rendered page that shows none of these elements
- > fails too.
-@@ -90,8 +91,10 @@ note); a name, a "Matchday N" and a date never break inside themselves
- Every design-mock generator that renders a page, and every built page type. `Source` is the
- command for a mock (`{out}` is where the check tells it to write; a generator with a fixed output
- name lists it as `URL` and the check copies it) or `site_v2/dist` for a built page; `URL` is the
--file the check opens (a glob for a built page: the first match in sorted order); `FI` says how the
--check reaches Finnish (`path`: the `/fi/` page; `toggle`: the mock's FI switch; `none`: EN only);
-+file the check opens (a glob for a built page: the first match in sorted order); `FI` governs the
-+MOCKS only — it says how the check reaches a mock's Finnish (`toggle`: the mock's FI switch;
-+`none`: EN only) — while a built page's other locales come from its URL, so `path` on a built row
-+means every locale the site publishes, German included;
- `Expect` names elements the page must show — a page showing none of the inventory fails anyway.
+@@ -30,6 +30,8 @@
+   or pressing, the first visible match); `fits` (no sideways overflow); `one-line`; `visible=1`;
+   `min-box=34px`. Colours are tokens read from the page (`ink`, `muted`, `accent`, `sunk`,
+   `pill-ink`, …), `transparent`, or `token@pct` for a tint. Tolerances: ±0.5px on a style, ±1px on a gap, ±1/255 a colour channel.
++  An assertion ending in `[>=1010px]` or `[<1010px]` is measured only at those widths, for an
++  element the stylesheet shows from one width on.
+ - **Status** — `ruled`: the check fails on a miss. `proposed`: measured and reported, never fails.
+ - **Ruled on** — the issue (and date where it matters) that fixed the rule.
+ 
+@@ -78,6 +80,9 @@
+ | Tab bar | `nav.tabs` | the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling | `fits` | ruled | #129 header |
+ | Tab | `nav.tabs .tab` | one line each, never wrapped; the side padding is what the label needs | `one-line` | ruled | #129 header |
+ | Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
++| Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
++| Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
++| Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
+ 
+ Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
+ there is no page title under the tab bar (#129); a board shows five rows on a competition page and
+@@ -95,7 +100,8 @@ file the check opens (a glob for a built page: the first match in sorted order);
+ MOCKS only — it says how the check reaches a mock's Finnish (`toggle`: the mock's FI switch;
+ `none`: EN only) — while a built page's other locales come from its URL, so `path` on a built row
+ means every locale the site publishes, German included;
+-`Expect` names elements the page must show — a page showing none of the inventory fails anyway.
++`Expect` names elements the page must show — a page showing none of the inventory fails anyway;
++an entry ending in a width condition (`Search field [>=1010px]`) is required at those widths only.
  The lint reads this table too: a mock generator listed here (and every module it imports) may
  carry no CSS that touches an inventory class; a generator not listed is not a page.
+ 
+@@ -107,13 +113,13 @@ and `gen_taxonomy.py` are diagrams.
+ 
+ | Page | Kind | Source | URL | FI | Expect |
+ |---|---|---|---|---|---|
+-| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value |
+-| Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link |
+-| Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar |
+-| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+-| Competition rankings | built | `site_v2/dist` | `en/bundesliga/rankings/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar |
+-| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading |
+-| Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar |
++| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value, Search field [>=1010px], Search button [<1010px] |
++| Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link, Search field [>=1010px], Search button [<1010px] |
++| Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
++| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
++| Competition rankings | built | `site_v2/dist` | `en/bundesliga/rankings/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
++| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
++| Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+ | competition-matchdays | mock | `gen_competition_matchdays.py {out}` | `competition-matchdays.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+ | competition-rankings | mock | `gen_competition_teams.py {out}` | `competition-rankings.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
 diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
-index e713dbef..f75b7338 100644
+index f75b7338..b5af5354 100644
 --- a/scripts/check_design_inventory.py
 +++ b/scripts/check_design_inventory.py
-@@ -36,7 +36,14 @@ import design_inventory as di  # noqa: E402
+@@ -35,7 +35,9 @@ import design_inventory as di  # noqa: E402
+ 
  REPO = di.REPO
  MOCKS = REPO / "design-mocks"
- DEFAULT_VIEWPORTS = (375, 700)
--DEFAULT_LANGS = ("en", "fi")
-+# Every locale the site publishes. A language the check does not render is a language whose layout
-+# can break green — the tab bar's rule names EN, DE and FI, so all three are measured.
-+# `tests/test_design_inventory.py` pins this against the site's own `LOCALES`.
-+DEFAULT_LANGS = ("en", "de", "fi")
-+
-+# The design mocks carry English and a marked Finnish width probe in one file, toggled by CSS;
-+# no other language exists in them to render.
-+MOCK_LANGS = ("en", "fi")
- 
- # One evaluation per rendered page: every element's visible matches, with the measurements its
- # assertions need. Runs inside the page; returns plain JSON.
-@@ -344,6 +351,7 @@ def main(argv=None) -> int:
+-DEFAULT_VIEWPORTS = (375, 700)
++# A phone, the width the menu goes inline, and the width the header's search field appears: the
++# narrowest desktop layout. `tests/test_design_inventory.py` ties the last to `system.css`.
++DEFAULT_VIEWPORTS = (375, 700, 1010)
+ # Every locale the site publishes. A language the check does not render is a language whose layout
+ # can break green — the tab bar's rule names EN, DE and FI, so all three are measured.
+ # `tests/test_design_inventory.py` pins this against the site's own `LOCALES`.
+@@ -99,13 +101,18 @@ MEASURE_JS = r"""
+   const nextEl = (el) => { let s = el.nextElementSibling; while (s && !visible(s)) s = s.nextElementSibling; return s; };
+   const prevEl = (el) => { let s = el.previousElementSibling; while (s && !visible(s)) s = s.previousElementSibling; return s; };
+   const container = (el) => el.closest('section') || el.closest('.inner') || document.body;
++  // Lines of TEXT: an icon beside the text sits at its own top and is not a second line.
+   const lines = (el) => {
+-    const range = document.createRange();
+-    range.selectNodeContents(el);
+     const tops = [];
+-    for (const r of range.getClientRects()) {
+-      if (r.height <= 0 || r.width <= 0) continue;
+-      if (!tops.some((t) => Math.abs(t - r.top) < 1)) tops.push(r.top);
++    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
++    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
++      if (!n.textContent.trim()) continue;
++      const range = document.createRange();
++      range.selectNodeContents(n);
++      for (const r of range.getClientRects()) {
++        if (r.height <= 0 || r.width <= 0) continue;
++        if (!tops.some((t) => Math.abs(t - r.top) < 1)) tops.push(r.top);
++      }
      }
-     failures: list[Failure] = []
-     renders = 0
-+    covered: dict[str, set[str]] = {}   # language -> the pages actually rendered in it
-     artifacts = Path(args.artifacts) if args.artifacts else None
-     if artifacts:
-         artifacts.mkdir(parents=True, exist_ok=True)
-@@ -380,7 +388,7 @@ def main(argv=None) -> int:
-                             for lang in langs:
-                                 if lang != "en" and p.fi == "none":
-                                     continue
--                                if lang not in ("en", "fi"):
-+                                if lang not in MOCK_LANGS:
-                                     continue
-                                 targets.append((p, lang, mock_base + p.url))
-                         else:
-@@ -409,6 +417,7 @@ def main(argv=None) -> int:
-                         before = len(failures)
-                         measure_page(pw_page, inv, spec, p, viewport, lang, failures)
-                         renders += 1
-+                        covered.setdefault(lang, set()).add(p.name)
-                         if artifacts and any(f.level == "FAIL" for f in failures[before:]):
-                             pw_page.screenshot(path=str(artifacts / ("%s_%d_%s.png" % (p.name, viewport, lang))), full_page=True)
-                     ctx.close()
-@@ -423,8 +432,20 @@ def main(argv=None) -> int:
-     for f in failures:
-         print(f.line())
-     hard = [f for f in failures if f.level == "FAIL"]
--    print("%d pages · %d viewports · %d languages · %d renders · %d failures · %d warnings"
--          % (len(pages) + len(adhoc), len(viewports), len(langs), renders, len(hard), len(failures) - len(hard)))
-+    # A gate that overstates its own coverage is the defect this check exists to catch, so the
-+    # language count never stands for pages it did not reach. Read from the renders that actually
-+    # happened, not from what was asked for: the mocks carry no German, and an ad-hoc page is
-+    # English only, and both would otherwise hide inside "N languages".
-+    # Count every language ASKED FOR, not only those that rendered something: a language that
-+    # reached no page at all is the loudest version of this problem and would otherwise vanish
-+    # from the tally instead of showing as 0.
-+    per_lang = [(lang, len(covered.get(lang, ()))) for lang in langs]
-+    reached = max((n for _lang, n in per_lang), default=0)
-+    caveat = ""
-+    if any(n < reached for _lang, n in per_lang):
-+        caveat = " (pages per language: %s)" % ", ".join("%s %d" % (lang, n) for lang, n in per_lang)
-+    print("%d pages · %d viewports · %d languages%s · %d renders · %d failures · %d warnings"
-+          % (len(pages) + len(adhoc), len(viewports), len(langs), caveat, renders, len(hard), len(failures) - len(hard)))
-     if artifacts and hard:
-         (artifacts / "failures.json").write_text(json.dumps([f.__dict__ for f in failures], indent=1), encoding="utf-8")
-     return 1 if hard else 0
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index f22289c2..eaa9268f 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -445,7 +445,7 @@ const DE: Dict = {
-   navStandings: "Tabelle",
-   navStatistics: "Statistiken",
-   mainNavAria: "Hauptnavigation",
--  searchPlaceholder: "Teams, Spieler suchen…",
-+  searchPlaceholder: "Mannschaften, Spieler suchen…",
-   searchAria: "Suche",
-   themeToggleAria: "Design umschalten",
-   menuAria: "Menü",
+     return tops.length;
+   };
+@@ -234,7 +241,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+             seen.add(el.name)
+             total += len(matches)
+         for a in el.assertions:
+-            if a.kind in ("hover", "press"):
++            if a.kind in ("hover", "press") or not di.applies(a, viewport):
+                 continue
+             if a.kind == "visible":
+                 if res.get("inDom", 0):
+@@ -271,7 +278,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+                 if msg:
+                     failures.append(Failure(page.name, viewport, lang, "%s [%s #%d]" % (el.name, el.selector, m_i), msg, level))
+                     break
+-        pointer = [a for a in el.assertions if a.kind in ("hover", "press")]
++        pointer = [a for a in el.assertions if a.kind in ("hover", "press") and di.applies(a, viewport)]
+         if pointer and matches:
+             handle = None
+             for h in pw_page.query_selector_all(el.selector):
+@@ -295,7 +302,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+                 if msg:
+                     failures.append(Failure(page.name, viewport, lang, "%s [%s #1]" % (el.name, el.selector), msg, level))
+             pw_page.mouse.move(0, 0)
+-    for name in page.expect:
++    for name in page.expected_at(viewport):
+         if name not in seen:
+             failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
+     if total == 0:
+diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
+index 31ed0c6c..f8f59858 100644
+--- a/scripts/design_inventory.py
++++ b/scripts/design_inventory.py
+@@ -22,6 +22,13 @@ The "Measured as" column is a small notation, `;`-separated, one assertion each:
+     visible=<n>              exactly n matches are laid out
+     min-box=<px>             width and height at least px
+ 
++Any assertion may end in a width condition, `[>=1010px]` or `[<1010px]`, and is then measured
++only at the viewports it names: an element the stylesheet shows from one width on (the header's
++search field) is asserted present there and absent below. An entry of a page's Expect column
++takes the same condition, so the page must show that element at those widths; a `visible=`
++assertion alone cannot catch an element removed from the page, because it measures only what
++the selector finds.
++
+ A colour is `transparent`, a token name (`ink`, `accent`, ...) read from the page's `.fx`
+ element, or `<token>@<pct>` for that token at an alpha. The parser fails closed: an unknown
+ key, property, token, status or column header is an error, never a silently empty inventory.
+@@ -64,6 +71,7 @@ class Assertion:
+     prop: str | None     # for hover()/press(): the property measured
+     expected: str        # the right-hand side as written
+     raw: str
++    when: str = ""       # "", or a width condition: ">=1010" / "<1010"
+ 
+ 
+ @dataclass(frozen=True)
+@@ -84,6 +92,12 @@ class Page:
+     url: str
+     fi: str
+     expect: tuple[str, ...]
++    expect_when: tuple[str, ...] = ()   # per expect entry: "" or a width condition, ">=1010"
++
++    def expected_at(self, viewport: int) -> tuple[str, ...]:
++        """The elements this page must show at this viewport width."""
++        whens = self.expect_when or ("",) * len(self.expect)
++        return tuple(n for n, w in zip(self.expect, whens) if _applies_when(w, viewport))
+ 
+ 
+ @dataclass(frozen=True)
+@@ -102,6 +116,30 @@ _COLOUR = re.compile(r"^(transparent|(?P<tok>[a-z][a-z0-9-]*)(@(?P<pct>\d{1,3})%
+ _PX = re.compile(r"^-?\d+(\.\d+)?px$")
+ _STRIPE = re.compile(r"^(?P<colour>\S+) from (?P<n>\d+)$")
+ _CALL = re.compile(r"^(?P<fn>hover|press)\((?P<prop>[a-z-]+)\)$")
++_WHEN = re.compile(r"^(?P<body>.*\S)\s+\[(?P<op>>=|<)(?P<px>\d+)px\]$")
++
++
++def _applies_when(when: str, viewport: int) -> bool:
++    if not when:
++        return True
++    px = int(when.lstrip("<>="))
++    return viewport >= px if when.startswith(">=") else viewport < px
++
++
++def applies(a: Assertion, viewport: int) -> bool:
++    """Whether an assertion is measured at this viewport width."""
++    return _applies_when(a.when, viewport)
++
++
++def _split_when(text: str, where: str) -> tuple[str, str]:
++    """`body [>=Npx]` -> (body, ">=N"); no condition -> (text, ""). Fails closed on a malformed one."""
++    if "[" not in text and "]" not in text:
++        return text, ""
++    m = _WHEN.match(text)
++    if not m:
++        raise InventoryError("%s: cannot read the width condition in %r (write [>=Npx] or [<Npx])"
++                             % (where, text))
++    return m.group("body"), m.group("op") + m.group("px")
+ 
+ 
+ def _check_value(kind: str, prop: str, value: str, where: str) -> None:
+@@ -134,14 +172,15 @@ def parse_measured(text: str, where: str = "row") -> tuple[Assertion, ...]:
+     for raw in (part.strip() for part in text.strip().strip("`").split(";")):
+         if not raw:
+             continue
+-        if raw in FLAG_KINDS:
+-            if raw in ("left-edge", "tracks"):
+-                raise InventoryError("%s: %r needs a value (left-edge=section, tracks=head)" % (where, raw))
+-            out.append(Assertion(raw, None, "", raw))
++        body, when = _split_when(raw, where)
++        if body in FLAG_KINDS:
++            if body in ("left-edge", "tracks"):
++                raise InventoryError("%s: %r needs a value (left-edge=section, tracks=head)" % (where, body))
++            out.append(Assertion(body, None, "", raw, when))
+             continue
+-        if "=" not in raw:
++        if "=" not in body:
+             raise InventoryError("%s: cannot read %r" % (where, raw))
+-        key, value = (s.strip() for s in raw.split("=", 1))
++        key, value = (s.strip() for s in body.split("=", 1))
+         if key == "left-edge":
+             if value != "section":
+                 raise InventoryError("%s: left-edge expects 'section', got %r" % (where, value))
+@@ -165,13 +204,13 @@ def parse_measured(text: str, where: str = "row") -> tuple[Assertion, ...]:
+             if prop not in PROPS:
+                 raise InventoryError("%s: %s() measures an unknown property %r" % (where, m.group("fn"), prop))
+             _check_value(key, prop, value, where)
+-            out.append(Assertion(m.group("fn"), prop, value, raw))
++            out.append(Assertion(m.group("fn"), prop, value, raw, when))
+             continue
+         elif key in PROPS:
+             _check_value(key, key, value, where)
+         else:
+             raise InventoryError("%s: unknown key %r" % (where, key))
+-        out.append(Assertion(key, None, value, raw))
++        out.append(Assertion(key, None, value, raw, when))
+     return tuple(out)
+ 
+ 
+@@ -232,13 +271,15 @@ def load(path: Path = DOC) -> Inventory:
+             raise InventoryError("Pages: %s: kind must be built or mock, got %r" % (name, kind))
+         if fi not in FI_MODES:
+             raise InventoryError("Pages: %s: FI must be path, toggle or none, got %r" % (name, fi))
+-        expected = tuple(s.strip() for s in expect.split(",") if s.strip())
++        entries = [_split_when(s.strip(), "Pages: " + name) for s in expect.split(",") if s.strip()]
++        expected = tuple(n for n, _ in entries)
++        expect_when = tuple(w for _, w in entries)
+         unknown = [s for s in expected if s not in names]
+         if unknown:
+             raise InventoryError("Pages: %s expects elements the inventory does not name: %s" % (name, ", ".join(unknown)))
+         if any(p.name == name for p in pages):
+             raise InventoryError("Pages: %s listed twice" % name)
+-        pages.append(Page(name, kind, _strip_code(source), _strip_code(url), fi, expected))
++        pages.append(Page(name, kind, _strip_code(source), _strip_code(url), fi, expected, expect_when))
+     if not pages:
+         raise InventoryError("Pages: no rows")
+     return Inventory(tuple(elements), tuple(pages))
+diff --git a/scripts/snapshot_tracker.py b/scripts/snapshot_tracker.py
+index 7f012026..5f68d208 100644
+--- a/scripts/snapshot_tracker.py
++++ b/scripts/snapshot_tracker.py
+@@ -7,7 +7,8 @@ the body; `tests/test_tracker_snapshot.py` recomputes it, so any change the scri
+ make fails CI, and `.claude/hooks/tracker_snapshot_gate.py` refuses an Edit or Write to the
+ folder, so no session can change the file by hand. The file is read only when GitLab is
+ unreachable — `CLAUDE.md` "Which source answers which question" — and is regenerated at the
+-end of every session, riding in the handover commit outside the review patch and hash.
++end of every session, riding the next commit on any branch outside the review patch and hash.
++It carries closed issues too, so the handover (issue #157, kept closed) is in the backup.
+ 
+ Usage: python scripts/snapshot_tracker.py [--project 85168767] [--out docs/tracker/gitlab_snapshot.md]
+ """
+diff --git a/scripts/sync_metric_docs_blocks.py b/scripts/sync_metric_docs_blocks.py
+index 90903824..155e866f 100644
+--- a/scripts/sync_metric_docs_blocks.py
++++ b/scripts/sync_metric_docs_blocks.py
+@@ -415,8 +415,8 @@ def _derived_blocks(rows: list[dict], names: list[str],
+     it, because the block resolves, the length is fine and the YAML parses.
+ 
+     The obvious fix — teach the generator which models are team-scoped and which
+-    are player-scoped — is the one this repo has already failed at three times
+-    (see `active_work.md`: "NO CLASSIFIER WORKS"). So the generator is not made
++    are player-scoped — is the one this repo has already failed at three times:
++    no classifier of model names works. So the generator is not made
+     cleverer; it is made unable to be wrong. Every derived block carries the entity
+     the catalogue actually defined, the caller points at the entity its column
+     actually is, and a metric the catalogue never defined for that entity has no
+diff --git a/tests/fixtures/design_inventory/green.html b/tests/fixtures/design_inventory/green.html
+index 7d8e082e..b5724626 100644
+--- a/tests/fixtures/design_inventory/green.html
++++ b/tests/fixtures/design_inventory/green.html
+@@ -4,6 +4,18 @@
+ <title>Inventory fixture</title>
+ <link rel="stylesheet" href="system.css">
+ <body class="fx">
++<header class="site-header">
++  <div class="header-in">
++    <a class="brand" href="#">Matchday<span class="iq">Pilot</span></a>
++    <nav class="mainnav" aria-label="Main"><a href="#">Competitions</a><span>Matches</span><span>Teams</span><span>Players</span><span>Standings</span><span>Statistics</span></nav>
++    <div class="header-actions">
++      <div class="searchbox"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>Search teams, players…</div>
++      <button class="iconbtn search-m" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></button>
++      <button class="iconbtn" aria-label="Theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
++      <button class="iconbtn hamburger" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"></path></svg></button>
++    </div>
++  </div>
++</header>
+ <div class="inner">
+   <nav class="tabs comp-tabs" aria-label="Sections">
+     <span class="tab on" aria-current="page">Yleiskatsaus</span>
+diff --git a/tests/fixtures/design_inventory/red.html b/tests/fixtures/design_inventory/red.html
+index 66d98a8d..672fbe5a 100644
+--- a/tests/fixtures/design_inventory/red.html
++++ b/tests/fixtures/design_inventory/red.html
+@@ -20,8 +20,23 @@
+ /* the picker showing every matchday's step at once, with 20px arrows */
+ .md > .mdnav { display: block; }
+ .mdstep .step { width: 20px; height: 20px; }
++/* the search box the check never saw: the field gone and the icon button left in its place on a
++   wide screen */
++@media (min-width: 1010px) { .searchbox { display: none !important; } .iconbtn.search-m { display: grid !important; } }
+ </style>
+ <body class="fx">
++<header class="site-header">
++  <div class="header-in">
++    <a class="brand" href="#">Matchday<span class="iq">Pilot</span></a>
++    <nav class="mainnav" aria-label="Main"><a href="#">Competitions</a><span>Matches</span><span>Teams</span><span>Players</span><span>Standings</span><span>Statistics</span></nav>
++    <div class="header-actions">
++      <div class="searchbox"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>Search teams, players…</div>
++      <button class="iconbtn search-m" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></button>
++      <button class="iconbtn" aria-label="Theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
++      <button class="iconbtn hamburger" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"></path></svg></button>
++    </div>
++  </div>
++</header>
+ <div class="inner">
+   <nav class="tabs comp-tabs" aria-label="Sections">
+     <span class="tab on" aria-current="page">Yleiskatsaus</span>
 diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
-index eb062a1a..c14b1513 100644
+index c14b1513..84ddf310 100644
 --- a/tests/test_design_inventory.py
 +++ b/tests/test_design_inventory.py
-@@ -16,6 +16,7 @@ lint tests run everywhere.
- from __future__ import annotations
- 
- import os
-+import re
- import shutil
- import subprocess
- import sys
-@@ -59,6 +60,31 @@ def _doc(tmp_path: Path, rows: str, pages: str = PAGES) -> Path:
- GOOD_ROW = "| Block heading | `.sechead .eyebrow` | 13px capitals | `font-size=13px; text-transform=uppercase; color=muted` | ruled | #129 |\n"
+@@ -85,6 +85,46 @@ def test_the_check_renders_every_locale_the_site_publishes():
+     assert set(cdi.MOCK_LANGS) <= set(cdi.DEFAULT_LANGS)
  
  
-+def test_the_check_renders_every_locale_the_site_publishes():
-+    """The check's language set against the site's own, so neither can move alone.
-+
-+    German went unmeasured for the whole life of this check because the two lists are maintained
-+    independently: the site declared three locales while `DEFAULT_LANGS` named two, and the
-+    summary line reported success either way. A fourth locale would repeat it silently, so the
-+    two files are pinned to each other the way `FAST_GATES` and the validate-local skill are.
-+    """
++def test_the_check_renders_the_width_the_search_field_appears_at():
++    """The header's search field is hidden below the width `system.css` shows it at, so a check
++    that never renders that width has never seen the field, and a broken one passed. The width
++    is read from the stylesheet, so moving the breakpoint without the check turns this red."""
 +    sys.path.insert(0, str(REPO / "scripts"))
 +    import check_design_inventory as cdi  # noqa: PLC0415
 +
-+    href = (REPO / "site_v2" / "src" / "lib" / "href.ts").read_text(encoding="utf-8")
-+    declared = re.search(r"export const LOCALES: Lang\[\] = \[([^\]]*)\]", href)
-+    assert declared, "href.ts no longer declares LOCALES in the shape this test reads"
-+    site_locales = sorted(re.findall(r'"([a-z]{2})"', declared.group(1)))
++    css = SYSTEM_CSS.read_text(encoding="utf-8")
++    shown = re.search(r"@media \(min-width: (\d+)px\) \{\s*\.searchbox \{ display: flex; \}", css)
++    assert shown, "system.css no longer shows .searchbox in the media query this test reads"
++    width = int(shown.group(1))
++    assert width in cdi.DEFAULT_VIEWPORTS, (
++        "the search field appears at %dpx and the check renders %s: it cannot see the field"
++        % (width, cdi.DEFAULT_VIEWPORTS))
++    inv = di.load()
++    field = inv.element("Search field")
++    assert any(a.kind == "visible" and a.expected == "1" and a.when == ">=%d" % width
++               for a in field.assertions), "the Search field row must assert it is shown from %dpx" % width
 +
-+    assert sorted(cdi.DEFAULT_LANGS) == site_locales, (
-+        "the measured check renders %s while the site publishes %s — a locale the check does not "
-+        "render can break its layout and still pass" % (sorted(cdi.DEFAULT_LANGS), site_locales)
-+    )
-+    # The mocks are the documented exception: one HTML file, English plus a marked Finnish width
-+    # probe, no German text to render. That narrower set must stay a subset, not drift wider.
-+    assert set(cdi.MOCK_LANGS) <= set(cdi.DEFAULT_LANGS)
++
++def test_a_width_condition_limits_an_assertion_to_its_viewports(tmp_path):
++    row = "| X | `.x` | r | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line` | ruled | #1 |\n"
++    wide, narrow, always = di.load(_doc(tmp_path, GOOD_ROW + row)).element("X").assertions
++    assert (wide.when, narrow.when, always.when) == (">=1010", "<1010", "")
++    assert [di.applies(wide, v) for v in (375, 700, 1009, 1010, 1280)] == [False, False, False, True, True]
++    assert [di.applies(narrow, v) for v in (375, 700, 1009, 1010, 1280)] == [True, True, True, False, False]
++    assert all(di.applies(always, v) for v in (375, 700, 1010))
++    assert "[>=1010px]" in di.compare(wide, 0, {}), "a failure names the condition it was measured under"
++
++
++def test_a_page_expects_an_element_only_at_the_widths_it_names():
++    page = di.Page("p", "built", "site_v2/dist", "en/index.html", "path",
++                   ("Block heading", "Search field", "Search button"), ("", ">=1010", "<1010"))
++    assert page.expected_at(375) == ("Block heading", "Search button")
++    assert page.expected_at(1010) == ("Block heading", "Search field")
++    built = [p for p in di.load().pages if p.kind == "built"]
++    assert built and all("Search field" in p.expected_at(1010) and "Search button" in p.expected_at(375)
++                         for p in built), "every built page carries the site header, so each must show its search"
 +
 +
  # ---------------------------------------------------------------- the parser
  
  def test_the_committed_inventory_parses_and_is_not_empty():
-@@ -284,6 +310,41 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
+@@ -94,7 +134,8 @@ def test_the_committed_inventory_parses_and_is_not_empty():
+     assert len(inv.pages) >= 10
+     assert {p.kind for p in inv.pages} == {"built", "mock"}
+     proposed = [e.name for e in inv.elements if e.status == "proposed"]
+-    assert proposed == ["Breadcrumb current page"], "a proposed row is measured but never fails: %s" % proposed
++    assert proposed == ["Breadcrumb current page", "Header row"], (
++        "a proposed row is measured but never fails: %s" % proposed)
+     names = {e.name for e in inv.elements}
+     for p in inv.pages:
+         assert set(p.expect) <= names
+@@ -115,6 +156,10 @@ def test_the_committed_inventory_names_every_generator_of_record():
+     ("| X | `.x` | r | `hover(opacity)=1` | ruled | #1 |\n", "unknown property"),
+     ("| X | `.x` | r | `stripe=ink from two` | ruled | #1 |\n", "stripe expects"),
+     ("| X | `.x` | r | `left-edge` | ruled | #1 |\n", "needs a value"),
++    ("| X | `.x` | r | `visible=1 [>1010px]` | ruled | #1 |\n", "width condition"),
++    ("| X | `.x` | r | `visible=1 [>=1010]` | ruled | #1 |\n", "width condition"),
++    ("| X | `.x` | r | `visible=1 >=1010px]` | ruled | #1 |\n", "width condition"),
++    ("| X | `.x` | r | `[>=1010px]` | ruled | #1 |\n", "width condition"),
+     ("| X | `.x` | r | `font-size=13px` | maybe | #1 |\n", "status"),
+     ("| X |  | r | `font-size=13px` | ruled | #1 |\n", "without a name or a selector"),
+     (GOOD_ROW + GOOD_ROW, "listed twice"),
+@@ -135,6 +180,7 @@ def test_the_parser_fails_closed_on_a_renamed_column(tmp_path):
+     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | page | `g.py` | `h.html` | toggle | |\n", "kind must be"),
+     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | mock | `g.py` | `h.html` | finnish | |\n", "FI must be"),
+     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | mock | `g.py` | `h.html` | toggle | Picker |\n", "does not name"),
++    ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n| h | mock | `g.py` | `h.html` | toggle | Block heading [>1010px] |\n", "width condition"),
+     ("\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n|---|---|---|---|---|---|\n", "no rows"),
+     ("\n", "needs a '## Elements' table and a '## Pages' table"),
+ ])
+@@ -301,7 +347,9 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
+     assert code == 1, out
+     failed = {line.split(" · ")[3].split(" [")[0] for line in out.splitlines() if line.startswith("FAIL")}
+     assert failed == {"Block heading", "Block heading gap", "Row link", "Table row", "Tab bar", "Fact row value",
+-                      "Matchday picker", "Picker arrow"}, failed
++                      "Matchday picker", "Picker arrow", "Search field", "Search button"}, failed
++    assert "expected visible=1 [>=1010px] · measured 0" in out
++    assert "expected visible=0 [>=1010px] · measured 1" in out
+     assert "measured 11px" in out
+     assert "measured 49.0px" in out
+     assert "expected visible=1 · measured 3" in out
+@@ -310,6 +358,40 @@ def test_the_check_goes_red_on_the_defects_it_exists_for(tmp_path):
      assert "row 1 measured" in out
  
  
++def _built_page_check(tmp_path: Path, html: str) -> tuple[int, str]:
++    """The check on one BUILT page whose only Expect is the header's search, at 1010px. A
++    `visible=` assertion measures only what its selector finds, so removal is caught here or
++    nowhere."""
++    real = di.DOC.read_text(encoding="utf-8")
++    tmp_path.mkdir(parents=True, exist_ok=True)
++    doc = tmp_path / "block_standard.md"
++    doc.write_text(real.split("\n## Pages")[0] + "\n## Pages\n\n| Page | Kind | Source | URL | FI | Expect |\n"
++                   "|---|---|---|---|---|---|\n| header | built | `site_v2/dist` | `en/index.html` | path | "
++                   "Search field [>=1010px], Search button [<1010px] |\n", encoding="utf-8")
++    dist = tmp_path / "dist" / "en"
++    dist.mkdir(parents=True)
++    (dist / "index.html").write_text(html, encoding="utf-8")
++    shutil.copy(SYSTEM_CSS, dist / "system.css")
++    proc = subprocess.run(
++        [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks",
++         "--inventory", str(doc), "--dist", str(tmp_path / "dist"), "--langs", "en", "--viewports", "1010"],
++        capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
++    )
++    return proc.returncode, proc.stdout + proc.stderr
++
++
 +@needs_browser
-+def test_the_summary_names_a_language_that_did_not_reach_every_page(tmp_path):
-+    """The one-line summary may never let a language count stand for pages it did not reach.
-+
-+    This is the gate reporting on itself, so it is the one number nobody double-checks. An
-+    earlier version of this caveat was computed from the CONFIGURED page list rather than from
-+    the renders that happened, which left `--page` targets — English only, always — counted as
-+    covered in every requested language, and suppressed the caveat entirely when no inventory
-+    page was selected. Both shapes are pinned here.
-+    """
-+    folder = tmp_path / "pages"
-+    folder.mkdir()
-+    shutil.copy(FIXTURES / "green.html", folder / "green.html")
-+    shutil.copy(SYSTEM_CSS, folder / "system.css")
-+
-+    def run(langs):
-+        proc = subprocess.run(
-+            [sys.executable, str(REPO / "scripts" / "check_design_inventory.py"), "--no-mocks", "--no-built",
-+             "--page", "green=%s" % (folder / "green.html"), "--langs", langs, "--viewports", "375"],
-+            capture_output=True, text=True, encoding="utf-8", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
-+        )
-+        return [ln for ln in (proc.stdout + proc.stderr).splitlines() if "renders" in ln][-1]
-+
-+    # An ad-hoc page renders in English whatever is asked for, so the two others reached nothing
-+    # and must say so as 0 rather than disappear from the tally.
-+    asked_three = run("en,de,fi")
-+    assert "pages per language: en 1, de 0, fi 0" in asked_three, asked_three
-+    assert "3 languages" in asked_three, asked_three
-+
-+    # Coverage is uniform when only one language is asked for: no caveat, or it is noise that
-+    # trains the reader to ignore the line.
-+    asked_one = run("en")
-+    assert "pages per language" not in asked_one, asked_one
++def test_a_search_field_removed_from_the_page_fails(tmp_path):
++    green = (FIXTURES / "green.html").read_text(encoding="utf-8")
++    code, out = _built_page_check(tmp_path, green)
++    assert code == 0, out
++    removed = re.sub(r'<div class="searchbox">.*?</div>', "", green, flags=re.S)
++    assert removed != green
++    code, out = _built_page_check(tmp_path / "removed", removed)
++    assert code == 1, out
++    assert "Search field · expected on this page · measured 0 matches" in out, out
 +
 +
  @needs_browser
- def test_the_check_fails_a_page_that_shows_nothing_from_the_inventory(tmp_path):
-     folder = tmp_path / "pages"
+ def test_the_summary_names_a_language_that_did_not_reach_every_page(tmp_path):
+     """The one-line summary may never let a language count stand for pages it did not reach.
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 124ec53f..5fc2aaba 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -7,6 +7,7 @@ No BigQuery, no network.
+ from __future__ import annotations
+ 
+ import fnmatch
++import importlib.util
+ import json
+ import os
+ import pathlib
+@@ -2960,8 +2961,11 @@ def blocked(out: str) -> bool:
+     "task_contract_gate.py", "handover_in.py",
+ ])
+ @pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}'])
+-def test_hooks_fail_open_on_malformed_input(repo, script, junk):
+-    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
++def test_hooks_fail_open_on_malformed_input(repo, script, junk, tmp_path):
++    # The handover hook reads GitLab; a failing fake keeps this test off the network and the
++    # same on every machine, whether or not a real `glab` is installed there.
++    base = _fake_glab(tmp_path, fail=True) if script == "handover_in.py" else os.environ
++    env = dict(base, CLAUDE_PROJECT_DIR=str(repo))
+     r = subprocess.run(
+         [sys.executable, os.path.join(HOOKS, script)],
+         input=junk, capture_output=True, text=True, env=env, cwd=str(repo), timeout=60,
+@@ -2971,54 +2975,125 @@ def test_hooks_fail_open_on_malformed_input(repo, script, junk):
+ 
+ 
+ # --------------------------------------------------------------------------- #
+-# handover_in — the delivery half. For a long time it was not wired at all,
+-# while the handover file claimed it was.
++# handover_in — the delivery half. The handover is a GitLab issue read through
++# `glab`; these tests put a fake `glab` first on PATH, so they never reach
++# GitLab and can make it unreachable at will.
+ # --------------------------------------------------------------------------- #
+ 
+-def test_handover_injected(repo):
+-    (repo / ".claude" / "active_work.md").write_text(
+-        "# Active work\nTHE GOAL: ship the site.", encoding="utf-8")
+-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+-    assert "THE GOAL: ship the site." in ctx and "BEGIN HANDOVER" in ctx
+-
+-
+-def test_handover_found_from_a_subdirectory(repo):
+-    """The discriminating case for the root-resolution change. The hook used
+-    `cwd` alone, so a session started below the repo root reported the handover
+-    missing and invited writing a second one in the wrong place. Every other
+-    branch of the test harness sets cwd, CLAUDE_PROJECT_DIR and the event's cwd
+-    to the same directory, so all four existing handover tests passed identically
+-    against the old code."""
+-    (repo / ".claude" / "active_work.md").write_text(
+-        "# Active work\nTHE GOAL: ship the site.", encoding="utf-8")
+-    sub = repo / "dbt_project" / "models"
++def _fake_glab(tmp_path, body=None, fail=False, sleep=0):
++    """A `glab` that answers with `body` as the issue's description, or exits 1,
++    after `sleep` seconds, and writes the arguments it was called with to
++    `glab_args.txt`. Returns the environment to run the hook in."""
++    bindir = tmp_path / "fakebin"
++    bindir.mkdir()
++    impl = bindir / "glab_fake.py"
++    impl.write_text(
++        "import json, sys, time\n"
++        "open(%r, 'w', encoding='utf-8').write(' '.join(sys.argv[1:]))\n"
++        "time.sleep(%r)\n"
++        "if %r:\n    sys.exit(1)\n"
++        "sys.stdout.buffer.write(json.dumps({'description': %r}).encode('utf-8'))\n"
++        % (str(tmp_path / "glab_args.txt"), sleep, fail, body),
++        encoding="utf-8")
++    if os.name == "nt":
++        (bindir / "glab.cmd").write_text('@"%s" "%s" %%*\n' % (sys.executable, impl))
++    else:
++        launcher = bindir / "glab"
++        launcher.write_text('#!/bin/sh\nexec "%s" "%s" "$@"\n' % (sys.executable, impl))
++        launcher.chmod(0o755)
++    return dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
++
++
++def _handover(repo, env, event=None, cwd=None) -> str:
+     r = subprocess.run(
+         [sys.executable, os.path.join(HOOKS, "handover_in.py")],
+-        input=json.dumps({}),                       # no cwd key at all
+-        capture_output=True, text=True, cwd=str(sub),
+-        env=dict(os.environ, CLAUDE_PROJECT_DIR=str(repo)), timeout=60,
++        input=json.dumps({"cwd": str(repo)} if event is None else event),
++        capture_output=True, text=True, cwd=str(cwd or repo),
++        env=dict(env, CLAUDE_PROJECT_DIR=str(repo)), timeout=60,
+     )
+-    ctx = json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
+-    assert "THE GOAL: ship the site." in ctx
++    return json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
++
+ 
++CACHE = (".claude", "handover.cache.md")
+ 
+-def test_handover_says_so_when_missing(repo):
+-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+-    assert "No .claude/active_work.md found" in ctx
+ 
++def test_handover_injected_from_the_issue_and_saved(repo, tmp_path):
++    body = "# Active work\nTHE GOAL: ship the site."
++    ctx = _handover(repo, _fake_glab(tmp_path, body))
++    assert "THE GOAL: ship the site." in ctx and "BEGIN HANDOVER" in ctx and "#157" in ctx
++    assert (tmp_path / "glab_args.txt").read_text(encoding="utf-8") == "api projects/85168767/issues/157"
++    assert repo.joinpath(*CACHE).read_text(encoding="utf-8") == body
+ 
+-def test_handover_announces_truncation(repo):
++
++def test_handover_cache_lands_at_the_project_root_from_a_subdirectory(repo, tmp_path):
++    """A session started below the repo root must save and find the same copy.
++    `cwd` alone once made the hook look in the subdirectory."""
++    sub = repo / "dbt_project" / "models"
++    ctx = _handover(repo, _fake_glab(tmp_path, "THE GOAL: ship the site."), event={}, cwd=sub)
++    assert "THE GOAL: ship the site." in ctx
++    assert repo.joinpath(*CACHE).is_file() and not sub.joinpath(*CACHE).exists()
++
++
++def test_handover_falls_back_to_the_saved_copy_when_gitlab_is_down(repo, tmp_path):
++    repo.joinpath(*CACHE).write_text("SAVED COPY: ship the site.", encoding="utf-8")
++    ctx = _handover(repo, _fake_glab(tmp_path, fail=True))
++    assert "SAVED COPY: ship the site." in ctx
++    assert "could not be reached" in ctx and "UTC" in ctx
++    assert repo.joinpath(*CACHE).read_text(encoding="utf-8") == "SAVED COPY: ship the site.", (
++        "a failed read must never overwrite the saved copy")
++
++
++def test_handover_says_so_when_neither_exists(repo, tmp_path):
++    ctx = _handover(repo, _fake_glab(tmp_path, fail=True))
++    assert "No handover could be read" in ctx and "BEGIN HANDOVER" not in ctx
++
++
++def test_an_empty_saved_copy_counts_as_none(repo, tmp_path):
++    repo.joinpath(*CACHE).write_text("  \n", encoding="utf-8")
++    ctx = _handover(repo, _fake_glab(tmp_path, fail=True))
++    assert "No handover could be read" in ctx and "BEGIN HANDOVER" not in ctx
++
++
++def test_the_handover_check_refuses_a_host_address_or_an_oversize_draft(tmp_path):
++    """The handover is written to a public issue that no hook sees, so the pre-publish check is
++    what still refuses a server's address in it. The address is assembled at run time: a literal
++    one in this file is exactly what the tree test forbids."""
++    tool = os.path.join(os.path.dirname(__file__), "..", "design-mocks", "check_handover.py")
++    drafts = {
++        "clean": "# Active work\nNothing open. The runner is ci-runner-01.\n",
++        "address": "# Active work\nThe runner answers on %s.\n" % ".".join(str(o) for o in (8, 8, 4, 4)),
++        "oversize": "y" * 16001,
++    }
++    codes = {}
++    for name, text in drafts.items():
++        path = tmp_path / ("%s.md" % name)
++        path.write_text(text, encoding="utf-8")
++        codes[name] = subprocess.run([sys.executable, tool, str(path)], capture_output=True, text=True,
++                                     env=dict(os.environ, PYTHONIOENCODING="utf-8"), timeout=60).returncode
++    assert codes == {"clean": 0, "address": 1, "oversize": 1}, codes
++
++
++def test_a_hanging_gitlab_read_times_out(tmp_path, monkeypatch):
++    """The timeout is what lets the saved copy be used when GitLab hangs rather
++    than refuses: without it the hook waits until the harness kills it, and the
++    session gets no handover and no message."""
++    spec = importlib.util.spec_from_file_location("handover_in_under_test", os.path.join(HOOKS, "handover_in.py"))
++    hook = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(hook)
++    monkeypatch.setattr(hook, "FETCH_TIMEOUT_S", 1)
++    env = _fake_glab(tmp_path, "LATE ANSWER", sleep=5)
++    monkeypatch.setenv("PATH", env["PATH"])
++    assert hook.fetch() is None
++
++
++def test_handover_announces_truncation(repo, tmp_path):
+     """Silent truncation is how a handover looks complete while its tail is
+     missing — the failure that hid 86% of the file before it was cut down."""
+-    (repo / ".claude" / "active_work.md").write_text("y" * 20000, encoding="utf-8")
+-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
++    ctx = _handover(repo, _fake_glab(tmp_path, "y" * 20000))
+     assert "TRUNCATED" in ctx
+ 
+ 
+-def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo):
++def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo, tmp_path):
+     """The cap is CHARACTERS. Reading characters while deciding truncation from
+     the file's SIZE IN BYTES meant any handover under the character cap but over
+     the byte cap was injected whole AND labelled truncated. A pure-ASCII fixture
+@@ -3028,10 +3103,8 @@ def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo):
+     '⭐' is 3 bytes and 1 character: 15,900 of them is comfortably under the
+     16,000-character cap and comfortably over 16,000 bytes."""
+     text = "⭐" * 15900
+-    (repo / ".claude" / "active_work.md").write_text(text, encoding="utf-8")
+     assert len(text) < 16000 < len(text.encode("utf-8"))      # the fixture is the point
+-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
+-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
++    ctx = _handover(repo, _fake_glab(tmp_path, text))
+     assert "TRUNCATED" not in ctx
+     assert text in ctx                                        # and nothing was dropped
+ 
+diff --git a/tests/test_no_dead_issue_refs.py b/tests/test_no_dead_issue_refs.py
+index cb52ea98..84514980 100644
+--- a/tests/test_no_dead_issue_refs.py
++++ b/tests/test_no_dead_issue_refs.py
+@@ -1,10 +1,11 @@
+-"""The two files that INSTRUCT must not cite an issue that resolves to nothing.
++"""The files that INSTRUCT must not cite an issue that resolves to nothing.
+ 
+ GitHub's tracker did not migrate — its issues are unreachable — and GitLab's numbering restarted
+ from 1. So every GitHub-era number left in this repo points at an empty page.
+ 
+ That is harmless in an archive and harmful in an instruction. `CLAUDE.md` is read at the start of
+-every session and `.claude/active_work.md` is the handover a cold session continues from. It has
++every session. The handover a cold session continues from was the second file here until it moved
++to GitLab issue #157, out of the repository and out of this offline test's reach. It has
+ happened twice: `CLAUDE.md` told every session its next work was "player insights chain
+ (#153 -> #156)", and a memory file names issue #753 as the authority for the player page design —
+ which is why that page could not be built from the record.
+@@ -43,7 +44,7 @@ in this set, a legitimate reference to it would be flagged. The fix is to delete
+ from the set — a one-line, visible, deliberate edit with a reason, not a silent breakage. Contrast
+ the boundary version, where the same event silenced or broke the guard invisibly.
+ 
+-Scope is deliberately these two files. The ~292 references under `docs/` are left alone: most are
++Scope is deliberately the instructing files. The ~292 references under `docs/` are left alone: most are
+ provenance rather than instruction, and 180 of the 257 distinct numbers survive as merged PRs in
+ git history, so the work is recoverable even where the number is not.
+ """
+@@ -55,7 +56,7 @@ import re
+ 
+ REPO = pathlib.Path(__file__).resolve().parent.parent
+ 
+-INSTRUCTING_FILES = ("CLAUDE.md", ".claude/active_work.md")
++INSTRUCTING_FILES = ("CLAUDE.md",)
+ 
+ # Every GitHub-era issue number this repo still refers to. Closed set — see the module docstring.
+ DEAD_GITHUB_ISSUES = frozenset({
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/active_work.md          |  224 -----
+#    .claude/task/review_input.patch | 1708 +++++++++++++++++++++++++++++++--------
+#    docs/tracker/gitlab_snapshot.md |  233 +++++-
+#    3 files changed, 1611 insertions(+), 554 deletions(-)
+# ============================================================================

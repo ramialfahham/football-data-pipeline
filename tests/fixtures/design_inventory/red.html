@@ -20,8 +20,23 @@
 /* the picker showing every matchday's step at once, with 20px arrows */
 .md > .mdnav { display: block; }
 .mdstep .step { width: 20px; height: 20px; }
+/* the search box the check never saw: the field gone and the icon button left in its place on a
+   wide screen */
+@media (min-width: 1010px) { .searchbox { display: none !important; } .iconbtn.search-m { display: grid !important; } }
 </style>
 <body class="fx">
+<header class="site-header">
+  <div class="header-in">
+    <a class="brand" href="#">Matchday<span class="iq">Pilot</span></a>
+    <nav class="mainnav" aria-label="Main"><a href="#">Competitions</a><span>Matches</span><span>Teams</span><span>Players</span><span>Standings</span><span>Statistics</span></nav>
+    <div class="header-actions">
+      <div class="searchbox"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>Search teams, players…</div>
+      <button class="iconbtn search-m" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg></button>
+      <button class="iconbtn" aria-label="Theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg></button>
+      <button class="iconbtn hamburger" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"></path></svg></button>
+    </div>
+  </div>
+</header>
 <div class="inner">
   <nav class="tabs comp-tabs" aria-label="Sections">
     <span class="tab on" aria-current="page">Yleiskatsaus</span>

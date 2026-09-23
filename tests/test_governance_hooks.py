@@ -7,6 +7,7 @@ No BigQuery, no network.
 from __future__ import annotations
 
 import fnmatch
+import importlib.util
 import json
 import os
 import pathlib
@@ -2960,8 +2961,11 @@ def blocked(out: str) -> bool:
     "task_contract_gate.py", "handover_in.py",
 ])
 @pytest.mark.parametrize("junk", ["", "not json", "null", "[]", '{"tool_name": 5}'])
-def test_hooks_fail_open_on_malformed_input(repo, script, junk):
-    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+def test_hooks_fail_open_on_malformed_input(repo, script, junk, tmp_path):
+    # The handover hook reads GitLab; a failing fake keeps this test off the network and the
+    # same on every machine, whether or not a real `glab` is installed there.
+    base = _fake_glab(tmp_path, fail=True) if script == "handover_in.py" else os.environ
+    env = dict(base, CLAUDE_PROJECT_DIR=str(repo))
     r = subprocess.run(
         [sys.executable, os.path.join(HOOKS, script)],
         input=junk, capture_output=True, text=True, env=env, cwd=str(repo), timeout=60,
@@ -2971,54 +2975,125 @@ def test_hooks_fail_open_on_malformed_input(repo, script, junk):
 
 
 # --------------------------------------------------------------------------- #
-# handover_in — the delivery half. For a long time it was not wired at all,
-# while the handover file claimed it was.
+# handover_in — the delivery half. The handover is a GitLab issue read through
+# `glab`; these tests put a fake `glab` first on PATH, so they never reach
+# GitLab and can make it unreachable at will.
 # --------------------------------------------------------------------------- #
 
-def test_handover_injected(repo):
-    (repo / ".claude" / "active_work.md").write_text(
-        "# Active work\nTHE GOAL: ship the site.", encoding="utf-8")
-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
-    assert "THE GOAL: ship the site." in ctx and "BEGIN HANDOVER" in ctx
+def _fake_glab(tmp_path, body=None, fail=False, sleep=0):
+    """A `glab` that answers with `body` as the issue's description, or exits 1,
+    after `sleep` seconds, and writes the arguments it was called with to
+    `glab_args.txt`. Returns the environment to run the hook in."""
+    bindir = tmp_path / "fakebin"
+    bindir.mkdir()
+    impl = bindir / "glab_fake.py"
+    impl.write_text(
+        "import json, sys, time\n"
+        "open(%r, 'w', encoding='utf-8').write(' '.join(sys.argv[1:]))\n"
+        "time.sleep(%r)\n"
+        "if %r:\n    sys.exit(1)\n"
+        "sys.stdout.buffer.write(json.dumps({'description': %r}).encode('utf-8'))\n"
+        % (str(tmp_path / "glab_args.txt"), sleep, fail, body),
+        encoding="utf-8")
+    if os.name == "nt":
+        (bindir / "glab.cmd").write_text('@"%s" "%s" %%*\n' % (sys.executable, impl))
+    else:
+        launcher = bindir / "glab"
+        launcher.write_text('#!/bin/sh\nexec "%s" "%s" "$@"\n' % (sys.executable, impl))
+        launcher.chmod(0o755)
+    return dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
 
 
-def test_handover_found_from_a_subdirectory(repo):
-    """The discriminating case for the root-resolution change. The hook used
-    `cwd` alone, so a session started below the repo root reported the handover
-    missing and invited writing a second one in the wrong place. Every other
-    branch of the test harness sets cwd, CLAUDE_PROJECT_DIR and the event's cwd
-    to the same directory, so all four existing handover tests passed identically
-    against the old code."""
-    (repo / ".claude" / "active_work.md").write_text(
-        "# Active work\nTHE GOAL: ship the site.", encoding="utf-8")
-    sub = repo / "dbt_project" / "models"
+def _handover(repo, env, event=None, cwd=None) -> str:
     r = subprocess.run(
         [sys.executable, os.path.join(HOOKS, "handover_in.py")],
-        input=json.dumps({}),                       # no cwd key at all
-        capture_output=True, text=True, cwd=str(sub),
-        env=dict(os.environ, CLAUDE_PROJECT_DIR=str(repo)), timeout=60,
+        input=json.dumps({"cwd": str(repo)} if event is None else event),
+        capture_output=True, text=True, cwd=str(cwd or repo),
+        env=dict(env, CLAUDE_PROJECT_DIR=str(repo)), timeout=60,
     )
-    ctx = json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
+    return json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
+
+
+CACHE = (".claude", "handover.cache.md")
+
+
+def test_handover_injected_from_the_issue_and_saved(repo, tmp_path):
+    body = "# Active work\nTHE GOAL: ship the site."
+    ctx = _handover(repo, _fake_glab(tmp_path, body))
+    assert "THE GOAL: ship the site." in ctx and "BEGIN HANDOVER" in ctx and "#157" in ctx
+    assert (tmp_path / "glab_args.txt").read_text(encoding="utf-8") == "api projects/85168767/issues/157"
+    assert repo.joinpath(*CACHE).read_text(encoding="utf-8") == body
+
+
+def test_handover_cache_lands_at_the_project_root_from_a_subdirectory(repo, tmp_path):
+    """A session started below the repo root must save and find the same copy.
+    `cwd` alone once made the hook look in the subdirectory."""
+    sub = repo / "dbt_project" / "models"
+    ctx = _handover(repo, _fake_glab(tmp_path, "THE GOAL: ship the site."), event={}, cwd=sub)
     assert "THE GOAL: ship the site." in ctx
+    assert repo.joinpath(*CACHE).is_file() and not sub.joinpath(*CACHE).exists()
 
 
-def test_handover_says_so_when_missing(repo):
-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
-    assert "No .claude/active_work.md found" in ctx
+def test_handover_falls_back_to_the_saved_copy_when_gitlab_is_down(repo, tmp_path):
+    repo.joinpath(*CACHE).write_text("SAVED COPY: ship the site.", encoding="utf-8")
+    ctx = _handover(repo, _fake_glab(tmp_path, fail=True))
+    assert "SAVED COPY: ship the site." in ctx
+    assert "could not be reached" in ctx and "UTC" in ctx
+    assert repo.joinpath(*CACHE).read_text(encoding="utf-8") == "SAVED COPY: ship the site.", (
+        "a failed read must never overwrite the saved copy")
 
 
-def test_handover_announces_truncation(repo):
+def test_handover_says_so_when_neither_exists(repo, tmp_path):
+    ctx = _handover(repo, _fake_glab(tmp_path, fail=True))
+    assert "No handover could be read" in ctx and "BEGIN HANDOVER" not in ctx
+
+
+def test_an_empty_saved_copy_counts_as_none(repo, tmp_path):
+    repo.joinpath(*CACHE).write_text("  \n", encoding="utf-8")
+    ctx = _handover(repo, _fake_glab(tmp_path, fail=True))
+    assert "No handover could be read" in ctx and "BEGIN HANDOVER" not in ctx
+
+
+def test_the_handover_check_refuses_a_host_address_or_an_oversize_draft(tmp_path):
+    """The handover is written to a public issue that no hook sees, so the pre-publish check is
+    what still refuses a server's address in it. The address is assembled at run time: a literal
+    one in this file is exactly what the tree test forbids."""
+    tool = os.path.join(os.path.dirname(__file__), "..", "design-mocks", "check_handover.py")
+    drafts = {
+        "clean": "# Active work\nNothing open. The runner is ci-runner-01.\n",
+        "address": "# Active work\nThe runner answers on %s.\n" % ".".join(str(o) for o in (8, 8, 4, 4)),
+        "oversize": "y" * 16001,
+    }
+    codes = {}
+    for name, text in drafts.items():
+        path = tmp_path / ("%s.md" % name)
+        path.write_text(text, encoding="utf-8")
+        codes[name] = subprocess.run([sys.executable, tool, str(path)], capture_output=True, text=True,
+                                     env=dict(os.environ, PYTHONIOENCODING="utf-8"), timeout=60).returncode
+    assert codes == {"clean": 0, "address": 1, "oversize": 1}, codes
+
+
+def test_a_hanging_gitlab_read_times_out(tmp_path, monkeypatch):
+    """The timeout is what lets the saved copy be used when GitLab hangs rather
+    than refuses: without it the hook waits until the harness kills it, and the
+    session gets no handover and no message."""
+    spec = importlib.util.spec_from_file_location("handover_in_under_test", os.path.join(HOOKS, "handover_in.py"))
+    hook = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hook)
+    monkeypatch.setattr(hook, "FETCH_TIMEOUT_S", 1)
+    env = _fake_glab(tmp_path, "LATE ANSWER", sleep=5)
+    monkeypatch.setenv("PATH", env["PATH"])
+    assert hook.fetch() is None
+
+
+def test_handover_announces_truncation(repo, tmp_path):
     """Silent truncation is how a handover looks complete while its tail is
     missing — the failure that hid 86% of the file before it was cut down."""
-    (repo / ".claude" / "active_work.md").write_text("y" * 20000, encoding="utf-8")
-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+    ctx = _handover(repo, _fake_glab(tmp_path, "y" * 20000))
     assert "TRUNCATED" in ctx
 
 
-def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo):
+def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo, tmp_path):
     """The cap is CHARACTERS. Reading characters while deciding truncation from
     the file's SIZE IN BYTES meant any handover under the character cap but over
     the byte cap was injected whole AND labelled truncated. A pure-ASCII fixture
@@ -3028,10 +3103,8 @@ def test_handover_under_the_cap_is_not_called_truncated_when_multibyte(repo):
     '⭐' is 3 bytes and 1 character: 15,900 of them is comfortably under the
     16,000-character cap and comfortably over 16,000 bytes."""
     text = "⭐" * 15900
-    (repo / ".claude" / "active_work.md").write_text(text, encoding="utf-8")
     assert len(text) < 16000 < len(text.encode("utf-8"))      # the fixture is the point
-    out, _ = run_hook("handover_in.py", {"cwd": str(repo)}, repo)
-    ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+    ctx = _handover(repo, _fake_glab(tmp_path, text))
     assert "TRUNCATED" not in ctx
     assert text in ctx                                        # and nothing was dropped
 
