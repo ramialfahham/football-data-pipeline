@@ -272,7 +272,7 @@ index 5762bc07..cd577225 100644
  
 diff --git a/design-mocks/gen_matches_hub.py b/design-mocks/gen_matches_hub.py
 new file mode 100644
-index 00000000..0239871b
+index 00000000..3f97a272
 --- /dev/null
 +++ b/design-mocks/gen_matches_hub.py
 @@ -0,0 +1,210 @@
@@ -296,7 +296,7 @@ index 00000000..0239871b
 +day: a block may omit a level the page supplies (`rows.group_head`).
 +
 +    python design-mocks/render.py gen_matches_hub.py matches-hub                             19 Sep
-+    MATCHES_HUB_DAY=2026-09-26 python design-mocks/render.py gen_matches_hub.py matches-hub  26 Sep
++    MATCHES_HUB_DAY='2026-09-26' python design-mocks/render.py gen_matches_hub.py matches-hub
 +"""
 +import json
 +import os
@@ -3983,7 +3983,7 @@ index 8185c96c..d37c5b5f 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |   61 +-
-#    .claude/task/review_input.patch | 4278 ++++++++++++++++++++++++++-------------
-#    2 files changed, 2893 insertions(+), 1446 deletions(-)
+#   .claude/task/review.md          |   69 +-
+#    .claude/task/review_input.patch | 5352 ++++++++++++++++++++++++++++-----------
+#    2 files changed, 3974 insertions(+), 1447 deletions(-)
 # ============================================================================

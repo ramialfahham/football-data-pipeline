@@ -18,7 +18,7 @@ match row from `rows.py`. The block omits the date heading because the picker al
 day: a block may omit a level the page supplies (`rows.group_head`).
 
     python design-mocks/render.py gen_matches_hub.py matches-hub                             19 Sep
-    MATCHES_HUB_DAY=2026-09-26 python design-mocks/render.py gen_matches_hub.py matches-hub  26 Sep
+    MATCHES_HUB_DAY='2026-09-26' python design-mocks/render.py gen_matches_hub.py matches-hub
 """
 import json
 import os

@@ -1,8 +1,9 @@
 # Review — design/matches-hub — 2026-09-23
 
-diff_sha256: 46c797d735d8e54159467b2dcaa8be894f242c95b8c6b21a416f25ac38864228
+diff_sha256: 3084e26011eee01f277b74bdbb6a5927f323482ba99f58567abe722e584ae8c6
 
-rounds: 3
+rounds: 4
+rounds_cap_override: Round 4 was a one-line fix after CI's test:python failed on round 3's commit: an unquoted date in the generator's usage example, which the comment-history pin reads as decision history. It clears a standing CI failure, not a reviewer FAIL; the CPO did not rule on the cap.
 
 Round 1: scope-auditor FAIL, bi-analyst-reviewer PASS. The FAIL was that the second render (Home's
 fold) and its switch were not declared in the contract, which reserves that choice for the CPO.
@@ -22,9 +23,14 @@ generator draws the fold as the design, takes the day from `MATCHES_HUB_DAY`, an
 national-team variant (Saturday 26 September, real fixtures) as `_03`. Delta review by the
 scope-auditor, PASS. No path the bi-analyst routes on changed in this round.
 
+Round 4, after CI's `test:python` failed on round 3's commit (`tests/test_no_decision_history_in_code.py`,
+pin 0): the generator's usage example carried an unquoted ISO date. Quoted, the gate's documented
+form for a literal; nothing else changed. Local `pytest tests/` 1278 passed. Delta review, PASS.
+
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
+- Round 4 delta: the diff is one docstring line (`gen_matches_hub.py:21`), the usage example with its date quoted; no logic reads it, and `date.fromisoformat` receives the same value either way; the round-3 findings stand.
 - Round 3 delta: the two ruled questions leave `decisions_reserved` and are recorded as ruled with issue and date; approval of the page as a whole stays reserved; `FOLD = 3` matches the ruling and render 01 stays on file; `MATCHES_HUB_DAY` is a mock-local selector of a committed pull, no new mechanism; the flag badge is the shared row's existing national-team variant; the new data file is in `scope_paths`; the 1010px width in done_when is the existing standard; no credential-shaped text.
 - Round 1 FAIL closed: `decisions_taken` names both renders and the `MATCHES_HUB_FOLD=3` switch as the two sides of the reserved fold question, drawn for the CPO to answer by looking; `done_when` names `_01` and `_02`.
 - The reserved question itself stays reserved: `decisions_reserved` still lists "All matches with no fold, versus Home's three and a fold", and nothing in the delta resolves it.
