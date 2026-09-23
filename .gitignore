@@ -229,6 +229,10 @@ artifacts/*.js
 .claude/settings.local.json
 .claude/launch.json
 .claude/worktrees/
+# The handover lives in GitLab issue #157; the session-start hook saves its last copy here for when
+# GitLab is down. The old in-repo handover stays ignored so an older branch's copy is never re-added.
+.claude/handover.cache.md*
+.claude/active_work.md
 
 # site_v2 per-entity export build artifact (#365)
 artifacts/site_data/

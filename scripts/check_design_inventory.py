@@ -35,7 +35,9 @@ import design_inventory as di  # noqa: E402
 
 REPO = di.REPO
 MOCKS = REPO / "design-mocks"
-DEFAULT_VIEWPORTS = (375, 700)
+# A phone, the width the menu goes inline, and the width the header's search field appears: the
+# narrowest desktop layout. `tests/test_design_inventory.py` ties the last to `system.css`.
+DEFAULT_VIEWPORTS = (375, 700, 1010)
 # Every locale the site publishes. A language the check does not render is a language whose layout
 # can break green — the tab bar's rule names EN, DE and FI, so all three are measured.
 # `tests/test_design_inventory.py` pins this against the site's own `LOCALES`.
@@ -99,13 +101,18 @@ MEASURE_JS = r"""
   const nextEl = (el) => { let s = el.nextElementSibling; while (s && !visible(s)) s = s.nextElementSibling; return s; };
   const prevEl = (el) => { let s = el.previousElementSibling; while (s && !visible(s)) s = s.previousElementSibling; return s; };
   const container = (el) => el.closest('section') || el.closest('.inner') || document.body;
+  // Lines of TEXT: an icon beside the text sits at its own top and is not a second line.
   const lines = (el) => {
-    const range = document.createRange();
-    range.selectNodeContents(el);
     const tops = [];
-    for (const r of range.getClientRects()) {
-      if (r.height <= 0 || r.width <= 0) continue;
-      if (!tops.some((t) => Math.abs(t - r.top) < 1)) tops.push(r.top);
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (!n.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r of range.getClientRects()) {
+        if (r.height <= 0 || r.width <= 0) continue;
+        if (!tops.some((t) => Math.abs(t - r.top) < 1)) tops.push(r.top);
+      }
     }
     return tops.length;
   };
@@ -234,7 +241,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
             seen.add(el.name)
             total += len(matches)
         for a in el.assertions:
-            if a.kind in ("hover", "press"):
+            if a.kind in ("hover", "press") or not di.applies(a, viewport):
                 continue
             if a.kind == "visible":
                 if res.get("inDom", 0):
@@ -271,7 +278,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
                 if msg:
                     failures.append(Failure(page.name, viewport, lang, "%s [%s #%d]" % (el.name, el.selector, m_i), msg, level))
                     break
-        pointer = [a for a in el.assertions if a.kind in ("hover", "press")]
+        pointer = [a for a in el.assertions if a.kind in ("hover", "press") and di.applies(a, viewport)]
         if pointer and matches:
             handle = None
             for h in pw_page.query_selector_all(el.selector):
@@ -295,7 +302,7 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
                 if msg:
                     failures.append(Failure(page.name, viewport, lang, "%s [%s #1]" % (el.name, el.selector), msg, level))
             pw_page.mouse.move(0, 0)
-    for name in page.expect:
+    for name in page.expected_at(viewport):
         if name not in seen:
             failures.append(Failure(page.name, viewport, lang, name, "expected on this page · measured 0 matches"))
     if total == 0:

@@ -9,7 +9,7 @@
 > Two scripts read the two tables below and nothing else: `scripts/check_page_css.py` (the lint:
 > a `<style>` block, a `style=` attribute or a mock's CSS string touching a class named in the
 > Selector column fails) and `scripts/check_design_inventory.py` (the measured check: every page in
-> the Pages table rendered at 375px and 700px in every locale the site publishes — EN, DE and FI
+> the Pages table rendered at 375px, 700px and 1010px in every locale the site publishes — EN, DE and FI
 > for a built page, EN and FI for a mock, which carries no German text — every element measured as its
 > `Measured as` column says). `scripts/design_inventory.py` parses both tables and fails closed on
 > a column, key, token or status it does not know. A rendered page that shows none of these elements
@@ -30,6 +30,8 @@
   or pressing, the first visible match); `fits` (no sideways overflow); `one-line`; `visible=1`;
   `min-box=34px`. Colours are tokens read from the page (`ink`, `muted`, `accent`, `sunk`,
   `pill-ink`, …), `transparent`, or `token@pct` for a tint. Tolerances: ±0.5px on a style, ±1px on a gap, ±1/255 a colour channel.
+  An assertion ending in `[>=1010px]` or `[<1010px]` is measured only at those widths, for an
+  element the stylesheet shows from one width on.
 - **Status** — `ruled`: the check fails on a miss. `proposed`: measured and reported, never fails.
 - **Ruled on** — the issue (and date where it matters) that fixed the rule.
 
@@ -78,6 +80,9 @@
 | Tab bar | `nav.tabs` | the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling | `fits` | ruled | #129 header |
 | Tab | `nav.tabs .tab` | one line each, never wrapped; the side padding is what the label needs | `one-line` | ruled | #129 header |
 | Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
+| Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
+| Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
+| Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
 
 Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
 there is no page title under the tab bar (#129); a board shows five rows on a competition page and
@@ -95,7 +100,8 @@ file the check opens (a glob for a built page: the first match in sorted order);
 MOCKS only — it says how the check reaches a mock's Finnish (`toggle`: the mock's FI switch;
 `none`: EN only) — while a built page's other locales come from its URL, so `path` on a built row
 means every locale the site publishes, German included;
-`Expect` names elements the page must show — a page showing none of the inventory fails anyway.
+`Expect` names elements the page must show — a page showing none of the inventory fails anyway;
+an entry ending in a width condition (`Search field [>=1010px]`) is required at those widths only.
 The lint reads this table too: a mock generator listed here (and every module it imports) may
 carry no CSS that touches an inventory class; a generator not listed is not a page.
 
@@ -107,13 +113,13 @@ and `gen_taxonomy.py` are diagrams.
 
 | Page | Kind | Source | URL | FI | Expect |
 |---|---|---|---|---|---|
-| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value |
-| Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link |
-| Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar |
-| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
-| Competition rankings | built | `site_v2/dist` | `en/bundesliga/rankings/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar |
-| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading |
-| Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar |
+| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value, Search field [>=1010px], Search button [<1010px] |
+| Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link, Search field [>=1010px], Search button [<1010px] |
+| Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
+| Competition rankings | built | `site_v2/dist` | `en/bundesliga/rankings/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
+| Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
 | competition-matchdays | mock | `gen_competition_matchdays.py {out}` | `competition-matchdays.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
 | competition-rankings | mock | `gen_competition_teams.py {out}` | `competition-rankings.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |

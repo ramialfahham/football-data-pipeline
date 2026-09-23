@@ -415,8 +415,8 @@ def _derived_blocks(rows: list[dict], names: list[str],
     it, because the block resolves, the length is fine and the YAML parses.
 
     The obvious fix — teach the generator which models are team-scoped and which
-    are player-scoped — is the one this repo has already failed at three times
-    (see `active_work.md`: "NO CLASSIFIER WORKS"). So the generator is not made
+    are player-scoped — is the one this repo has already failed at three times:
+    no classifier of model names works. So the generator is not made
     cleverer; it is made unable to be wrong. Every derived block carries the entity
     the catalogue actually defined, the caller points at the entity its column
     actually is, and a metric the catalogue never defined for that entity has no

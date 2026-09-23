@@ -1,10 +1,11 @@
-"""The two files that INSTRUCT must not cite an issue that resolves to nothing.
+"""The files that INSTRUCT must not cite an issue that resolves to nothing.
 
 GitHub's tracker did not migrate — its issues are unreachable — and GitLab's numbering restarted
 from 1. So every GitHub-era number left in this repo points at an empty page.
 
 That is harmless in an archive and harmful in an instruction. `CLAUDE.md` is read at the start of
-every session and `.claude/active_work.md` is the handover a cold session continues from. It has
+every session. The handover a cold session continues from was the second file here until it moved
+to GitLab issue #157, out of the repository and out of this offline test's reach. It has
 happened twice: `CLAUDE.md` told every session its next work was "player insights chain
 (#153 -> #156)", and a memory file names issue #753 as the authority for the player page design —
 which is why that page could not be built from the record.
@@ -43,7 +44,7 @@ in this set, a legitimate reference to it would be flagged. The fix is to delete
 from the set — a one-line, visible, deliberate edit with a reason, not a silent breakage. Contrast
 the boundary version, where the same event silenced or broke the guard invisibly.
 
-Scope is deliberately these two files. The ~292 references under `docs/` are left alone: most are
+Scope is deliberately the instructing files. The ~292 references under `docs/` are left alone: most are
 provenance rather than instruction, and 180 of the 257 distinct numbers survive as merged PRs in
 git history, so the work is recoverable even where the number is not.
 """
@@ -55,7 +56,7 @@ import re
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
-INSTRUCTING_FILES = ("CLAUDE.md", ".claude/active_work.md")
+INSTRUCTING_FILES = ("CLAUDE.md",)
 
 # Every GitHub-era issue number this repo still refers to. Closed set — see the module docstring.
 DEAD_GITHUB_ISSUES = frozenset({

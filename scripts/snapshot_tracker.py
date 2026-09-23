@@ -7,7 +7,8 @@ the body; `tests/test_tracker_snapshot.py` recomputes it, so any change the scri
 make fails CI, and `.claude/hooks/tracker_snapshot_gate.py` refuses an Edit or Write to the
 folder, so no session can change the file by hand. The file is read only when GitLab is
 unreachable — `CLAUDE.md` "Which source answers which question" — and is regenerated at the
-end of every session, riding in the handover commit outside the review patch and hash.
+end of every session, riding the next commit on any branch outside the review patch and hash.
+It carries closed issues too, so the handover (issue #157, kept closed) is in the backup.
 
 Usage: python scripts/snapshot_tracker.py [--project 85168767] [--out docs/tracker/gitlab_snapshot.md]
 """

@@ -32,7 +32,7 @@ element's CSS is `site_v2/src/styles/system.css`, inlined verbatim; the element,
 its measurements are `docs/wireframes/block_standard.md` (the block standard). Two scripts hold
 it: `scripts/check_page_css.py` fails a generator (or a module it imports) whose CSS string
 touches an inventory class, and `scripts/check_design_inventory.py` renders every generator the
-block standard lists at 375px and 700px in EN and FI — the only two languages a mock carries; a
+block standard lists at 375px, 700px and 1010px in EN and FI — the only two languages a mock carries; a
 built page is rendered in every locale the site publishes — and measures every element. A page-level
 class that happens to share a name with an element's is renamed, not argued about.
 

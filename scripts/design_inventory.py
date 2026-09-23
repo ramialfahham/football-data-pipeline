@@ -22,6 +22,13 @@ The "Measured as" column is a small notation, `;`-separated, one assertion each:
     visible=<n>              exactly n matches are laid out
     min-box=<px>             width and height at least px
 
+Any assertion may end in a width condition, `[>=1010px]` or `[<1010px]`, and is then measured
+only at the viewports it names: an element the stylesheet shows from one width on (the header's
+search field) is asserted present there and absent below. An entry of a page's Expect column
+takes the same condition, so the page must show that element at those widths; a `visible=`
+assertion alone cannot catch an element removed from the page, because it measures only what
+the selector finds.
+
 A colour is `transparent`, a token name (`ink`, `accent`, ...) read from the page's `.fx`
 element, or `<token>@<pct>` for that token at an alpha. The parser fails closed: an unknown
 key, property, token, status or column header is an error, never a silently empty inventory.
@@ -64,6 +71,7 @@ class Assertion:
     prop: str | None     # for hover()/press(): the property measured
     expected: str        # the right-hand side as written
     raw: str
+    when: str = ""       # "", or a width condition: ">=1010" / "<1010"
 
 
 @dataclass(frozen=True)
@@ -84,6 +92,12 @@ class Page:
     url: str
     fi: str
     expect: tuple[str, ...]
+    expect_when: tuple[str, ...] = ()   # per expect entry: "" or a width condition, ">=1010"
+
+    def expected_at(self, viewport: int) -> tuple[str, ...]:
+        """The elements this page must show at this viewport width."""
+        whens = self.expect_when or ("",) * len(self.expect)
+        return tuple(n for n, w in zip(self.expect, whens) if _applies_when(w, viewport))
 
 
 @dataclass(frozen=True)
@@ -102,6 +116,30 @@ _COLOUR = re.compile(r"^(transparent|(?P<tok>[a-z][a-z0-9-]*)(@(?P<pct>\d{1,3})%
 _PX = re.compile(r"^-?\d+(\.\d+)?px$")
 _STRIPE = re.compile(r"^(?P<colour>\S+) from (?P<n>\d+)$")
 _CALL = re.compile(r"^(?P<fn>hover|press)\((?P<prop>[a-z-]+)\)$")
+_WHEN = re.compile(r"^(?P<body>.*\S)\s+\[(?P<op>>=|<)(?P<px>\d+)px\]$")
+
+
+def _applies_when(when: str, viewport: int) -> bool:
+    if not when:
+        return True
+    px = int(when.lstrip("<>="))
+    return viewport >= px if when.startswith(">=") else viewport < px
+
+
+def applies(a: Assertion, viewport: int) -> bool:
+    """Whether an assertion is measured at this viewport width."""
+    return _applies_when(a.when, viewport)
+
+
+def _split_when(text: str, where: str) -> tuple[str, str]:
+    """`body [>=Npx]` -> (body, ">=N"); no condition -> (text, ""). Fails closed on a malformed one."""
+    if "[" not in text and "]" not in text:
+        return text, ""
+    m = _WHEN.match(text)
+    if not m:
+        raise InventoryError("%s: cannot read the width condition in %r (write [>=Npx] or [<Npx])"
+                             % (where, text))
+    return m.group("body"), m.group("op") + m.group("px")
 
 
 def _check_value(kind: str, prop: str, value: str, where: str) -> None:
@@ -134,14 +172,15 @@ def parse_measured(text: str, where: str = "row") -> tuple[Assertion, ...]:
     for raw in (part.strip() for part in text.strip().strip("`").split(";")):
         if not raw:
             continue
-        if raw in FLAG_KINDS:
-            if raw in ("left-edge", "tracks"):
-                raise InventoryError("%s: %r needs a value (left-edge=section, tracks=head)" % (where, raw))
-            out.append(Assertion(raw, None, "", raw))
+        body, when = _split_when(raw, where)
+        if body in FLAG_KINDS:
+            if body in ("left-edge", "tracks"):
+                raise InventoryError("%s: %r needs a value (left-edge=section, tracks=head)" % (where, body))
+            out.append(Assertion(body, None, "", raw, when))
             continue
-        if "=" not in raw:
+        if "=" not in body:
             raise InventoryError("%s: cannot read %r" % (where, raw))
-        key, value = (s.strip() for s in raw.split("=", 1))
+        key, value = (s.strip() for s in body.split("=", 1))
         if key == "left-edge":
             if value != "section":
                 raise InventoryError("%s: left-edge expects 'section', got %r" % (where, value))
@@ -165,13 +204,13 @@ def parse_measured(text: str, where: str = "row") -> tuple[Assertion, ...]:
             if prop not in PROPS:
                 raise InventoryError("%s: %s() measures an unknown property %r" % (where, m.group("fn"), prop))
             _check_value(key, prop, value, where)
-            out.append(Assertion(m.group("fn"), prop, value, raw))
+            out.append(Assertion(m.group("fn"), prop, value, raw, when))
             continue
         elif key in PROPS:
             _check_value(key, key, value, where)
         else:
             raise InventoryError("%s: unknown key %r" % (where, key))
-        out.append(Assertion(key, None, value, raw))
+        out.append(Assertion(key, None, value, raw, when))
     return tuple(out)
 
 
@@ -232,13 +271,15 @@ def load(path: Path = DOC) -> Inventory:
             raise InventoryError("Pages: %s: kind must be built or mock, got %r" % (name, kind))
         if fi not in FI_MODES:
             raise InventoryError("Pages: %s: FI must be path, toggle or none, got %r" % (name, fi))
-        expected = tuple(s.strip() for s in expect.split(",") if s.strip())
+        entries = [_split_when(s.strip(), "Pages: " + name) for s in expect.split(",") if s.strip()]
+        expected = tuple(n for n, _ in entries)
+        expect_when = tuple(w for _, w in entries)
         unknown = [s for s in expected if s not in names]
         if unknown:
             raise InventoryError("Pages: %s expects elements the inventory does not name: %s" % (name, ", ".join(unknown)))
         if any(p.name == name for p in pages):
             raise InventoryError("Pages: %s listed twice" % name)
-        pages.append(Page(name, kind, _strip_code(source), _strip_code(url), fi, expected))
+        pages.append(Page(name, kind, _strip_code(source), _strip_code(url), fi, expected, expect_when))
     if not pages:
         raise InventoryError("Pages: no rows")
     return Inventory(tuple(elements), tuple(pages))
