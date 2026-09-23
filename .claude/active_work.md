@@ -22,58 +22,62 @@ is PASSPHRASE-PROTECTED, so `ssh -o BatchMode=yes` fails `publickey` — not a b
 
 ## ⛔ WHERE WE ARE
 
-**#151 (THE RANKINGS TAB + THE OVERVIEW REWORK) IS MERGED (!216, nine review rounds).** ⛔ **THE
-ONLY OPEN MR IS !218**, `fix/menu-statistics`: the header and footer menu item reads
-**Statistics / Statistiken / Tilastot**, one copy key and its two call sites plus the documents
-that write the menu out, dead text until #139 builds the hub. Reviewed (1 round, both PASS),
-**rebased onto `main` after !216 merged and rebound** — CI green (6 jobs; no `data:build:mr`, it
-touches no model). His merge closes it. ⚠ Its handover commit was DROPPED in that rebase: it
-named both MRs as open, which the merge made false. **A handover commit riding a feature branch
-goes stale the moment a sibling merges — that is a real defect in the practice, unfiled, his call.**
+⛔ **NOTHING IS OPEN.** `glab mr list` is empty. Next in menu order is **the Matches hub, #130** —
+a DESIGN issue, so it needs an approved design before anything is built, and that is the CPO's.
+`glab issue list` decides, never this file.
 
-**Naming ruled by him on !216, 2026-09-22, all shipped and recorded in that contract:** the tab
-address is `/rankings/`; **the "(fewest first)" note is GONE from every board** ("the user is not
-an idiot") — `rank_order` is still served and still drives the mart's ranking, the zero rule and
-the singular test, it is simply not drawn, and the built-page check now reads a board's direction
-off the payload by rendered position, not off the page; the German surface is **Ranglisten /
-Mannschafts-Ranglisten / Spieler-Ranglisten** with the page title and description moved to
-**Mannschafts- und Spielerstatistiken**; the Finnish team block is **Joukkuerankingit** (the tab
-keeps **Rankingit** deliberately — real Finnish football usage, and it must stay distinct from the
-menu's Tilastot, as EN and DE keep theirs distinct). ⚠ **The measured design check renders EN and
-FI ONLY** — a German layout break passes it silently; today's German tab bar was measured BY HAND
-(343 of 343 at 375px, Ranglisten 118). German coverage for it is unfiled, his call.
-⚠ Also unfiled: the German search box says "Teams, Spieler suchen" beside copy now saying
-Mannschaften — sitewide, predating this.
+**Merged this session:** **#151** the Rankings tab and the Overview rework (!216) · **!218** the
+menu item reading **Statistics / Statistiken / Tilastot**, dead text until #139 · **!219** the
+design check rendering German.
+
+⚠ **A HANDOVER COMMIT ON A FEATURE BRANCH GOES STALE WHEN A SIBLING MERGES.** !218's own handover
+commit was DROPPED in its rebase for naming both MRs as open. This file rides its own branch for
+that reason. The practice is the defect, unfiled, his call.
+
+**Naming he ruled on !216 and !219, all shipped; the words are in `strings.ts` and the reasoning
+in those contracts, not here.** Two that a later change could undo by accident: **no board states
+its ranking direction** ("the user is not an idiot") — `rank_order` is still served and still
+drives the mart's ranking, the zero rule and the singular test, it is simply not drawn, and the
+built-page check reads a board's direction off the PAYLOAD by rendered position; and the Finnish
+tab keeps the loanword **Rankingit** deliberately, because it must stay distinct from the menu's
+Tilastot the way EN and DE keep theirs distinct.
+
+**THE MEASURED DESIGN CHECK NOW RENDERS GERMAN** (!219) — it never had, so a German-only layout
+break used to pass `validate:ui` silently, and #151's German tab bar had to be measured by hand.
+`20 pages · 2 viewports · 3 languages (pages per language: en 20, de 7, fi 20) · 94 renders`. The
+13 design MOCKS stay EN and FI deliberately: they carry no German text at all, and inventing
+German copy for a width probe is the coined-word trap. A test pins the check's language set
+against the site's declared locales so the two cannot drift apart again.
+⚠ **TWO GAPS KNOWINGLY LEFT, both named on !219.** (1) One comment in `.gitlab-ci.yml` still says
+the check renders "EN and FI" — that file is a PROTECTED governance path and a comment does not
+justify a `protected_override`. (2) `.searchbox` is HIDDEN at both viewports the check measures,
+so a search-box defect still passes in every language — a different gap from the one !219 closed.
 
 ⚠ **ADDRESSES FOLLOW NO WRITTEN SCHEME AND HE KNOWS IT** — he asked on !216 whether one exists;
 the honest answer was no: two tab addresses were chosen for search, the rest of the tree is entity
 names, nothing is written down. **An open decision for him before go-live.** ⚠ **The committed
 `competitions/BL1/2026.json` was produced by inlining #151's marts against prod (the !191 method);
 a plain `--entities competitions` export cannot reproduce it until the first nightly builds the
-new marts.** **#152 merged as !215 (closes
-#98).** ⚠ Pre-existing, NOT this MR: DE/FI pages scroll sideways at 700px because of the header's
-search button (`div.header-actions`), Home included; the design check does not measure page
-scrollWidth; no issue filed — his call. **#109 step 3's check ran live on `af081cae`'s
-`data:build:main`: `OK: 101 models, 1915 listed columns, 0 absent`.** **After #151 in menu order:
-Matches (#130–#132). `glab issue list` decides — not this file.**
+new marts.** **#152 merged as !215 (closes #98).** ⚠ Pre-existing and unfiled, his call: every
+locale scrolls sideways at 700px because of the header's search button (`div.header-actions`),
+Home included, and the design check does not measure page scrollWidth.
 **#150 is merged** (!209). !209's rulings, recorded in its
 contract: **the match slug comes from the warehouse**; **played rows are inert until the match
 report page exists**; the EN/DE/FI copy shipped as drafted. Until the next `deploy:export` (manual,
-still `teams,fixtures`) production shows the committed sample, as it does for Home. **#150 is not
-blocked on #155.** **#156** (filed 2026-09-19 at his word): the nightly export, build and deploy from
-live data, the go-live item that ends the committed sample; its export-and-build half is worth
-running before go-live, since full-scale defects (#155) show only there.
+still `teams,fixtures`) production shows the committed sample, as it does for Home. **#156**: the nightly export,
+build and deploy from live data — the go-live item that ends the committed sample; run its
+export-and-build half before go-live, since full-scale defects like #155 show only there.
 
 **#155 (Matches milestone): two unplayed meetings of the same clubs share the match preview page's
 title**, 12 pairings × 3 locales; the full-scale build (15,078 pages, 8 GB heap, 14 min) fails
 `audit-seo` on exactly that and nothing else. The title's wording is his; the fix is the fixture
 page's title template.
 
-**What #150 left behind:** `mart_competition_fixtures` is the mart #131 reads by date; the shared
-row is `site_v2/src/components/ui/MatchRow.astro` (`linkPlayed` flips when #132's report page
-lands; Home's `FixtureRow.astro` still has its own markup — converge under #131); the sample
-carries all 279 unplayed Bundesliga payloads (`.gitignore` range 1575167–1575445; move its start as
-matchdays are played, refresh with `competitions/BL1/2026.json`).
+**What #150 left behind, for #131:** `mart_competition_fixtures` is the mart it reads by date; the
+shared row is `MatchRow.astro` (`linkPlayed` flips when #132's report page lands; Home's
+`FixtureRow.astro` still has its own markup — converge under #131); the sample carries all 279
+unplayed Bundesliga payloads (`.gitignore` range 1575167–1575445; move its start as matchdays are
+played).
 
 **GITHUB IS A READ-ONLY MIRROR OF `main` SINCE 2026-09-18** (his ruling; `CLAUDE.md`'s mirror
 bullet is the durable text, including what the token's renewal needs). **Actions are disabled at
