@@ -130,6 +130,7 @@ and `gen_taxonomy.py` are diagrams.
 | competition-hub offseason | mock | `gen_competition_hub.py offseason` | `competition_hub_mock_offseason.html` | toggle | Block heading, Tab bar |
 | matches next | mock | `gen_matches.py` | `matches_next_mock.html` | toggle | Competition group head, Date heading, Match row kick-off |
 | matches past | mock | `gen_matches.py` | `matches_past_mock.html` | toggle | Competition group head, Match row score |
+| matches hub | mock | `gen_matches_hub.py {out}` | `matches-hub.html` | toggle | Block heading, Matchday picker, Competition group head, Match row kick-off |
 | top players | mock | `gen_top_players.py` | `top_players_mock.html` | toggle | Legacy board value |
 | top teams | mock | `gen_top_teams.py` | `top_teams_mock.html` | toggle | Legacy board value |
 | home legacy | mock | `gen_home.py` | `home_mock.html` | toggle | Block heading, Competition group head, Legacy board value |
