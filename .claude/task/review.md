@@ -1,6 +1,6 @@
 # Review — design/matches-hub — 2026-09-23
 
-diff_sha256: f2c714f317714fe820ed7e5ef607f1c364d28efdb0eea7cdc7b8b4860e7579a8
+diff_sha256: 28a1bf0a6200d496a4da86fe8ccfc4bee678fdd7bf5a292f2e3f638f3d39cf97
 
 rounds: 2
 
@@ -10,6 +10,12 @@ Round 2 declared them as the two sides of the reserved question, named both rend
 recorded the amendment, and reworded the README row so the switch reads as an open question, not a
 feature. The generator and both renders did not change between rounds, so the bi-analyst's round-1
 PASS covers them as reviewed.
+
+Rebound after the rebase onto main (the cleanup, !223, merged first). The three task artifacts were
+the only conflicts and were resolved to this task's side; the branch's own diff against main is
+the same eight files as reviewed. The cleanup added a third width to the design check, which this
+mock had never been measured at: re-run for both variants, `1 pages · 3 viewports · 6 renders ·
+0 failures · 0 warnings` each, and the lint 0 findings.
 
 ## scope-auditor
 VERDICT: PASS
