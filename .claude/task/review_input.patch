@@ -1,27 +1,37 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index eaefb4c6..f725e1e4 100644
+index ff268e64..f725e1e4 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,119 +1,88 @@
--# Task contract — German is measured like the other two languages
+@@ -1,182 +1,88 @@
+-# Task contract — the design check sees the search box; the handover leaves the branches
 +# Task contract — page addresses use the reader's language: the rules and the word list
  
  objective: >
--  The measured design check renders German as well as English and Finnish, so a German layout
--  break fails `validate:ui` instead of passing it silently; its summary stops overstating its own
--  coverage; and the check's language set is pinned against the site's declared locales so it
--  cannot drift again. Separately, the one German string still saying "Team" for a club takes the
--  word the rest of the German copy uses. No page, route, payload, mart or rule changes.
+-  Two fixes the CPO asked to ride together as one cleanup. (1) The measured design check renders a
+-  third, wide screen (1010px, where the header's search field appears) and measures the search
+-  field and the small search button, so a broken search box fails `validate:ui`; whether the
+-  header fits its row is measured too, reported and not failing. (2) The session handover moves
+-  out of the repository into GitLab issue #157, read at session start by the session-start hook,
+-  so it no longer rides whichever branch is checked out. No page, route, payload, mart or rule of
+-  the site changes.
 +  Write down how page addresses are formed now that the CPO has decided their words follow the
 +  reader's language, and propose the word for every page the site has, in English, German and
 +  Finnish. Documentation only: the site keeps emitting the English words under every locale until
 +  the address switch is built, which is its own issue, filed once this word list is approved.
  
  refs: >
--  Both items are the builder's, handed back by the CPO on 2026-09-23 after being put to him as
--  open questions: "Well, here is a lot of blabla that reads like you need something from me!!"
--  Neither is a naming or product decision. The third item raised with them — whether page
--  addresses follow a written vocabulary — IS his and is not in this task.
+-  The CPO's session-opening message, 2026-09-23: "the measured design check only renders 375 and
+-  700 px, and the search box only exists on desktop, so the check has never seen it. A broken
+-  search box would pass." and "my session handover travels with whatever code branch is open, so
+-  it goes stale when a sibling branch merges. It cost a dropped commit on 2026-09-23. Give it a
+-  home that does not ride a feature branch." Both "can ride along as one cleanup, not their own
+-  ceremony".
+-  The plan he approved the same day chose the home (a GitLab issue, kept closed, with the last
+-  fetched copy saved on this machine for when GitLab is down) over the alternative (a file on
+-  this machine outside git), and named the width, the three measurements and the cost (about 50%
+-  more renders).
+-  Both gaps were recorded on !219 and in the handover: `.searchbox` hidden at both widths the
+-  check measures; `!218`'s handover commit dropped in a rebase for naming both MRs as open.
 +  The decision, taken in this session on 2026-09-23. Asked "Should page addresses use the reader's
 +  language (/de/spiele/, /fi/ottelut/), or stay English in every language (/de/matches/)?", the
 +  CPO chose "Reader's language (Recommended)". The costs were put with the question: about two days
@@ -29,19 +39,7 @@ index eaefb4c6..f725e1e4 100644
 +  against English everywhere, which costs nothing now and means redirects for every German and
 +  Finnish page if changed after launch. He then approved the plan that carries these rules and this
 +  list as proposed wording, "yours to change".
- 
--  1. THE CHECK HAS NEVER RENDERED GERMAN. `scripts/check_design_inventory.py:39` reads
--  `DEFAULT_LANGS = ("en", "fi")`, and CI invokes it with no `--langs`. This is NOT a rule
--  extension: `docs/wireframes/block_standard.md:77` already RULES the tab bar "the tabs share the
--  row and fit in one row at 375px in EN, DE and FI". The ruling names three languages; the guard
--  enforces two, so it has never enforced the rule as written. Tuning a guard toward its own rule
--  is the builder's (memory: guard tuning is the builder's).
--  It cost something real on #151: the German tab bar took the longest word of the nine
--  (`Ranglisten`, 118px of 343) and had to be measured BY HAND, outside the gate, because the gate
--  does not look. A German-only overflow would have shipped green.
--  Measured before planning, on `main` at `db70ab1d` with a fresh build:
--  `--langs en,de,fi` → `20 pages · 2 viewports · 3 languages · 94 renders · 0 failures · 0
--  warnings`. German passes clean today, so this closes a blind spot rather than opening a backlog.
++
 +  ROUND 2 (same day). He asked whether the first word list was researched ("are you guessing
 +  again?"); it was not. Research followed: the addresses of German, Finnish and English football
 +  sites, Google's autocomplete in each market, then an independent SEO assessment written by a
@@ -51,61 +49,134 @@ index eaefb4c6..f725e1e4 100644
 +  asked how it holds while most pages are not designed; the answer he was given: settled words for
 +  the pages built today, provisional words for pages not designed yet, confirmed or dropped at
 +  each page's own review, and tabs a future design adds named at that review by the same rule.
- 
--  2. ONE GERMAN STRING STILL SAYS TEAM. `searchPlaceholder` (`strings.ts`, DE) reads "Teams,
--  Spieler suchen…". Every other German club reference is Mannschaft(en) — `navTeams`,
--  `homeTopTeams`, `homeTopTeamsIntro`, `compDeservedExplainer`, and, since !216, the competition
--  page's title, description and headings. A sweep of the German dictionary shows this is the only
--  remaining outlier. The bi-analyst flagged it while reviewing !216 and correctly ruled it out of
--  that branch's scope: "pre-existing, branch-untouched … worth a future consistency pass". This is
--  that pass. The word itself is settled by the CPO's ruling on !216, so no new naming call.
++
 +  Answers the open line of #46 ("Whether the tab segment is localised. /squad/ or /kader/ /
 +  /kokoonpano/? ... that rule was written about entity slugs, not path segments"). Restates #49
 +  item 1 (a competition slug can collide with a reserved segment) as a rule, which the switch
 +  enforces. The Matches hub (#130) needs its address word before its design can be recorded.
  
  scope_paths:
+-  - scripts/design_inventory.py
 -  - scripts/check_design_inventory.py
 -  - tests/test_design_inventory.py
--  - site_v2/src/i18n/strings.ts
+-  - tests/fixtures/design_inventory/green.html
+-  - tests/fixtures/design_inventory/red.html
 -  - docs/wireframes/block_standard.md
 -  - design-mocks/README.md
 -  - .claude/skills/validate-local/SKILL.md
+-  - .claude/hooks/handover_in.py
+-  - .claude/commands/status.md
+-  - tests/test_governance_hooks.py
+-  - tests/test_no_dead_issue_refs.py
+-  - design-mocks/check_handover.py
+-  - design-mocks/section_sizes.py
+-  - scripts/sync_metric_docs_blocks.py
+-  - .claude/active_work.md
+-  - .gitignore
+-  - CLAUDE.md
+-  - docs/agent_guardrails.md
+-  - scripts/snapshot_tracker.py
+-  - docs/tracker/gitlab_snapshot.md
 +  - docs/site_architecture.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--  - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
--  - .claude/active_work.md
--  - docs/tracker/gitlab_snapshot.md
  
--impact_map: >
--  Two independent leaf changes, ridden together deliberately — see decisions_taken.
+-protected_override: >
+-  Two protected paths, `.claude/hooks/handover_in.py` and `.claude/commands/status.md`. The
+-  approval is quoted with its date and source in decisions_taken below, and repeated on the MR
+-  head's Locked files line.
 -
--  THE CHECK. `DEFAULT_LANGS` feeds one `--langs` default. Built pages need no other code:
--  `resolve_built` substitutes the first `en/` of the Pages-table URL, and the German tree is the
--  same shape (443 `index.html` under both `dist/de` and `dist/en`). The `FI` column does NOT gate
--  built pages — that branch is inside `if p.kind == "mock"`. The mocks stay EN/FI: their
--  generators emit `(en, fi, probe)` tuples into one HTML with a CSS toggle, there is no German
--  text in any mock, and the FI strings are documented as width probes, not approved copy. The
--  existing guard `if lang not in ("en", "fi"): continue` already skips them correctly.
--  ⚠ Because of that skip, the summary's `len(langs)` would claim "3 languages" while 13 of the 20
--  pages saw two. A gate overstating its own coverage is the very defect being fixed, so the
--  summary states the mock set.
--  ⚠ SWEEP BY THE CONCEPT: four LIVE places write "EN and FI" in prose and go stale on this
--  commit — `block_standard.md:12`, the `validate:ui` comment in `.gitlab-ci.yml`,
--  `.claude/skills/validate-local/SKILL.md`, `design-mocks/README.md`. THREE ARE FIXED HERE; THE
--  CI COMMENT IS NOT, AND STAYS STALE. `.gitlab-ci.yml` is a protected governance path: the
--  contract gate refuses the edit without a CPO-approved `protected_override`, and a comment is
--  not worth loosening a guard or spending a governance task on. Disclosed on the MR head rather
--  than quietly left. Not touched, deliberately:
--  `docs/tracker/gitlab_snapshot.md` (generated from GitLab, never hand-edited) and
--  `.claude/task/acceptance_evidence.md`'s pasted historical readings.
--  No test asserts a language or render count: `tests/test_design_inventory.py` pins floors and
--  shapes, and its two subprocess proofs pass `--langs en` explicitly, so they are unaffected.
--  CI: `.ui_paths` already covers every file here, so `validate:ui` fires on its own.
-+decisions_taken: >
+-impact_map: >
+-  THE HOOK. `.claude/hooks/handover_in.py` fires on every SessionStart (`.claude/settings.json`,
+-  the only SessionStart entry; `settings.json` itself is untouched). Nothing imports it; it is run
+-  by path. It enforces nothing: it injects context, and today it reads
+-  `<CLAUDE_PROJECT_DIR>/.claude/active_work.md` from the working tree, so the handover a session
+-  sees is the checked-out branch's copy. After: it reads the description of issue #157 through
+-  `glab api projects/85168767/issues/157` (the numeric project id, so the coming group move does
+-  not break it), with a timeout, decoding UTF-8 bytes itself (the cp1252 trap); writes that text
+-  to the gitignored `.claude/handover.cache.md`; and when GitLab or `glab` is unavailable, injects
+-  the cache labelled with the time it was saved, or says plainly that no handover could be read.
+-  The 16,000-character cap and the truncation warning are kept. On failure it still fails open
+-  (no output, exit 0). What breaks if it is wrong: a session starts without its handover, which
+-  the no-handover message makes visible. `glab auth` is only read, never touched.
+-  EVERY OTHER MENTION OF THE OLD FILE, from `grep -rn active_work` over the whole tree outside
+-  `.venv/`, `docs/tracker/` and `.claude/task/` (round 1 claimed this sweep and missed three;
+-  scope-auditor found the first). Changed here: `.claude/commands/status.md` (`/status`, now
+-  `glab issue view 157`); `design-mocks/check_handover.py` and `design-mocks/section_sizes.py`
+-  (manual tools that read the file, now a path argument or the cache);
+-  `scripts/sync_metric_docs_blocks.py:419` (a comment citing the handover as the record of a
+-  finding, reworded to state the finding); `tests/test_no_dead_issue_refs.py` (asserts the file
+-  exists; the handover leaves the repo, so it leaves the list and CLAUDE.md stays covered);
+-  `tests/test_governance_hooks.py` (the hook's tests). Knowingly left, each harmless:
+-  `.gitlab-ci.yml:1123`, a protected file this contract does not open, whose comment says an owed
+-  follow-up is "recorded ... in `active_work.md`": the follow-up (setting the
+-  `deploy-nightly-image` resource group to `oldest_first`, still `unordered` on 2026-09-23 by the
+-  resource_groups API) had already left the handover before this branch, so the comment was
+-  already pointing at nothing; it is carried into issue #157 at this session's end, and the
+-  comment is named on the MR head. `.gitlab-ci.yml:455-456` says the check renders "375px and
+-  700px in EN and FI", stale on both counts, same protected file, same disclosure.
+-  `.claude/review_routing.json` (protected; the path stays in its artifact lists, which simply
+-  never match again); `tests/test_materialisation_policy.py:278` and
+-  `tests/test_governance_doc_parity.py:137` (exclusions for a path that no longer exists);
+-  `docs/working_agreement.md:233` (names the path among exempt artifacts, still true of the
+-  routing); `tests/test_governance_hooks.py` routing and review-patch tests (they write the path
+-  into a temporary repo); `docs/portable_guardrails/**` (the copy-out archive, deliberately left
+-  alone by `docs/agent_guardrails.md`); `CLAUDE.md:140`, `docs/wireframes/10_home.md:113,843`,
+-  `docs/audits/2026-06_alignment_audit.md` (history). The dbt-agent-kit plugin's plan-back gate
+-  keys on the file's presence and stops firing here; it is advisory and not this repo's hook.
+-  WHAT STOPS CHECKING THE HANDOVER (cto-reviewer round 1). As a tracked file, every tool write to
+-  it passed `host_fingerprint_gate.py` (a public network address is refused), and CI's
+-  `test_no_host_fingerprint_in_tree.py` and gitleaks scanned it. Written to a GitLab issue, no hook
+-  sees it, and the project's issues are public. The replacement: `design-mocks/check_handover.py`
+-  imports the gate's own `flagged_lines` and exits non-zero on a hit or on a draft over the
+-  16,000-character cap, and the one documented write is
+-  `python design-mocks/check_handover.py <draft> && glab issue update 157 ...`, so the check runs
+-  on the only path the procedure names. It is a step in a command, not a hook: a session that
+-  writes the issue another way skips it, and CI still catches a leak afterwards when the tracker
+-  backup, which carries closed issues, is next committed. Stated on the MR head.
+-  `.claude/active_work.md` is deleted from the tree and added to `.gitignore` beside the cache, so
+-  an old branch's copy cannot be re-added by accident. Checking out an older branch restores its
+-  stale copy on disk; nothing reads it any more.
+-  THE CHECK. `DEFAULT_VIEWPORTS` gains 1010 and is the only width list (`--viewports` defaults to
+-  it; `validate:ui` passes no flag, so `.gitlab-ci.yml` is untouched). An assertion may carry a
+-  width condition, `[>=1010px]` or `[<1010px]`, parsed fail-closed; measure_page skips an
+-  assertion outside its range. Three element rows: Search field `.header-actions .searchbox`
+-  (ruled), Search button `.iconbtn.search-m` (ruled), Header row `.header-in` `fits` (proposed:
+-  reported, never failing, because every page at 700px scrolls sideways today, the known defect).
+-  The mocks carry no header, so the rows are absent there and skip. The RED proof's fixtures gain
+-  the site header; the red one hides the field and shows the button at 1010px.
+-  PRESENCE (platform-reviewer round 1). A `visible=` assertion is measured only when the selector
+-  finds something, so a search field REMOVED from the page, rather than hidden, passed. The Pages
+-  table's Expect column, which already fails a page that shows none of an element, now accepts
+-  the same width condition, and every built page expects `Search field [>=1010px]` and
+-  `Search button [<1010px]`. A RED case runs the check on a built page with the field deleted.
+-  The text-line counter (`one-line`) now counts lines of text only: an icon beside the text sat
+-  at its own top and counted as a second line.
+-  blast_radius: `validate:ui` renders about 50% more (94 to about 141); every built page is
+-  measured at a desktop width for the first time, so a desktop-only defect elsewhere would now
+-  fail, measured before commit. No site file changes.
+-
+ decisions_taken: >
+-  The approval for the two protected paths, quoted: the CPO's opening message of 2026-09-23 in
+-  this session, "Give it a home that does not ride a feature branch.", and the plan he approved
+-  the same day, which said of this change: "This edits the locked session-start step. Approving
+-  this plan is the approval for that edit." The plan named the home as a GitLab issue read at
+-  session start with a local fallback; `/status` reads the same issue because it read the same
+-  file.
+-
+-  The width is 1010px because that is where `system.css` shows the search field (`@media
+-  (min-width: 1010px)`), the narrowest desktop layout and so the tightest; a test ties the two.
+-  Tuning a guard toward the rule it exists for is the builder's; the three new rows cite
+-  `docs/wireframes/09_chrome.md`, which already specifies the field at that width.
+-
+-  The Header row is `proposed`, not `ruled`: it reports the 700px sideways scroll on every page
+-  without failing, because fixing the header is the CPO's call and a gate that is red on arrival
+-  gets ignored.
+-
+-  The hook writes its cache through a temporary file and a rename, so an interrupted write never
+-  leaves a half copy, and an empty cache counts as none. Its GitLab read has a 15-second timeout,
+-  tested with a `glab` that hangs.
 +  The direction is his, quoted above: address words in the reader's language. The two lines of
 +  §3 that pinned `/fixtures/` and `/rankings/` to "the same segment ... every locale" (his rulings
 +  on #129 and on #151's MR) are replaced, because this decision supersedes their "every locale"
@@ -113,46 +184,28 @@ index eaefb4c6..f725e1e4 100644
 +  the Rankings tab `stats`, both accepted by him with the assessment's section 4 (see refs). The
 +  "every kind of competition" half stands.
  
--  THE STRING. One value, read at one call site (`SiteHeader.astro`, the search input's
--  placeholder). `docs/wireframes/09_chrome.md` names the KEY, not the value, so it does not move.
--  The legacy corpus has no search placeholder. Nothing pins the value.
--  blast_radius: the check does 14 more renders per run; every German page shows the new
--  placeholder; no page, link, payload or rule changes.
+-  The pre-publish check reuses the host-address gate's own patterns rather than a copy, and
+-  reuses the handover checker that already existed; no new tool, no new hook.
 +  Names stay one spelling in every language. That is the existing rule of §3 "Slugs
 +  (locale-independent)", ruled 2026-07-27, and this task does not reopen it; it only separates
 +  words from names so the two rules cannot be read as one.
  
--acceptance_criteria:
--  - `python scripts/check_design_inventory.py --dist site_v2/dist`, with NO `--langs` flag, exits 0 and reports 3 languages and 94 renders, naming the two languages the mocks were measured in.
--  - The German built pages are actually measured: a deliberately broken German-only rule is caught. Demonstrated by running the check against a mutated German string and showing the FAIL line carries `de`, then reverting.
--  - `tests/test_design_inventory.py` fails when `DEFAULT_LANGS` drops a locale the site declares in `site_v2/src/lib/href.ts`, and passes as shipped. Seen RED.
--  - Every built page under `site_v2/dist/de/` shows the header search placeholder "Mannschaften, Spieler suchen…", and no German page still shows "Teams, Spieler suchen…".
--  - The German header at 375 and 700 px: the search input's placeholder is not clipped, and the page's `scrollWidth` is no worse than it was before this change (the 700px header overflow is pre-existing and disclosed, not introduced here).
--  - No live document the contract may touch still says the check renders "EN and FI"; the one in `.gitlab-ci.yml` is named on the MR head as knowingly left, being behind a protected path.
+-  The tracker backup (`docs/tracker/gitlab_snapshot.md`) keeps its one writer and its checksum;
+-  it stops riding a handover commit and is refreshed in whichever change is committed next,
+-  because it is read only when GitLab is down.
 +  The rules and the word list are written into the document that owns the URL scheme, where a
 +  changed mind replaces the text (working_agreement §11). Each word carries its evidence on the MR
 +  head, and his merge is the approval of every word.
  
--decisions_taken: >
--  ONE BRANCH FOR TWO UNRELATED ITEMS, stated so the scope-auditor judges it rather than discovers
--  it. The design check would never have caught a word choice; they are connected only by both
--  being German parity and both being one-liners. One review cycle rather than two is the whole
--  reason. If the auditor calls it scope drift, splitting is cheap and the builder splits.
--  The mocks are NOT given German. Inventing German copy for a width probe is the coined-word trap
--  the CPO caught on !216's Finnish label; the mocks' own header says the FI strings are probes,
--  not approved copy.
--  The `FI` column is NOT renamed to a general per-language field. It would touch the schema, the
--  table header and all 20 rows and buys nothing: German reaches built pages without it, and the
--  mocks have no German to reach. Its definition line is corrected to say it governs the mocks'
--  toggle only, which is already true.
--  The German placeholder keeps the existing comma form ("Mannschaften, Spieler suchen…"), mirroring
--  the English "Search teams, players…", so only the word changes.
+-  Threshold declarations: the hook's source of truth changes (a mechanism change, CPO-approved as
+-  quoted); the hook calls GitLab once per session start (seconds, no billed service); the design
+-  check's run grows by about 50%, stated to him in the plan. No new dependency.
 +  Threshold declarations: no new mechanism (a document edit; the word table in code, the collision
 +  check and the hreflang change are the switch's, in its own issue), no recurring cost.
  
  decisions_reserved:
--  - Whether page addresses follow a written vocabulary before go-live. The CPO's, raised by him on !216, deliberately not touched here.
--  - Whether the mocks should ever carry German copy. That needs approved German strings, which would be a naming decision; today the mocks are measured in EN and a documented FI width probe.
+-  - Fixing the header's sideways scroll at 700px. Reported by the new proposed row, not fixed.
+-  - Whether the Header row becomes `ruled` once that is fixed.
 +  - The words themselves. Accepted by him as the assessment's section 4 ("Basically, yes"); his
 +    merge of the MR head, which lists them with their sources, is the approval of each.
 +  - The words for pages not designed yet (the menu pages for Matches, Teams, Players, Standings and
@@ -168,11 +221,16 @@ index eaefb4c6..f725e1e4 100644
 +    leaves §3. Not this task; the word table simply does not name it.
  
  done_when:
--  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0 with the new summary; the German FAIL demonstrated and reverted.
--  - `python -m pytest tests/test_design_inventory.py -q` green, the new pin seen RED.
--  - `python scripts/check_copy_gate.py`, `python scripts/check_ui_i18n_metrics.py` exit 0; `cd site_v2 && npm test` green; `npm run build` green.
--  - `grep -rn "EN and FI" docs/ design-mocks/ .claude/skills/` returns nothing that describes this check (`.gitlab-ci.yml` excluded and disclosed).
--  - The German header measured at 375 and 700 px and recorded in `rendered_page_evidence.md`.
+-  - "`python -m pytest tests/test_design_inventory.py -q` passes, including a test that fails when `DEFAULT_VIEWPORTS` loses the width `system.css` shows the search field at, and the RED proof failing on Search field and Search button."
+-  - "`python scripts/check_design_inventory.py --dist site_v2/dist` on a fresh build: 3 viewports, 0 failures; the Header row's warnings named."
+-  - "A mutation hiding `.searchbox` at 1010px in `system.css` turns the check red on the built site; reverted."
+-  - "`python -m pytest tests/test_governance_hooks.py -q -k handover` passes: the issue is injected and cached; the cache is injected with its time when GitLab is unreachable; a plain message when neither exists; truncation announced; the multibyte case not truncated; the hook asks for issue 157 of project 85168767."
+-  - "A built page with the search field deleted from its header fails the check at 1010px on `Search field`; seen RED in `tests/test_design_inventory.py`."
+-  - "A `glab` that hangs longer than the timeout leaves the hook injecting the saved copy; an empty saved copy gives the no-handover message; the fail-open test never reaches the real `glab`."
+-  - "`python design-mocks/check_handover.py <draft>` exits non-zero on a draft carrying a public network address or over 16,000 characters, and zero on the current handover; tested."
+-  - "`echo {} | python .claude/hooks/handover_in.py` in this repo injects issue #157's description."
+-  - "`.claude/active_work.md` is gone from the tree and ignored; `pytest tests/` green."
+-  - "Routed reviewers PASS (scope-auditor; platform-reviewer and cto-reviewer at opus for the hook; bi-analyst-reviewer for the block standard); MR open with the Locked files line."
 +  - "`docs/site_architecture.md` §3 separates words from names, carries the rules and the word table in EN/DE/FI with every page marked settled (built today) or provisional (not designed yet), and no line in it says a word is the same in every locale."
 +  - "The URL scheme block and every other line of §3 name the new English words (`matches` for the Matchdays tab and match pages, `stats` for the Rankings tab, `teams`, `players`), so the document never shows two words for one page."
 +  - "A sweep of docs/ for the old rule (`every locale`, `same segment`) finds no other home of it."
@@ -180,7 +238,13 @@ index eaefb4c6..f725e1e4 100644
 +  - "Routed reviewers PASS; `review.md` bound with `--staged-hash`; MR open with the word list on its head."
  
  amendments:
--  - none yet
+-  - 2026-09-23, round 2, on a clean tree: + `design-mocks/section_sizes.py` (reads the old file)
+-    and `scripts/sync_metric_docs_blocks.py` (a comment citing it). Authority: the approved change
+-    itself, moving the handover out of the repo; these are two more readers of the file it
+-    deletes, which round 1's sweep missed. The impact map now lists every mention with its
+-    disposition, the host-address coverage the move loses and its replacement, and the presence
+-    requirement for the search field. Raised by scope-auditor, platform-reviewer and cto-reviewer
+-    in round 1.
 +  - 2026-09-23, round 2, on a clean tree: the word list and rule 2 are replaced by the independent
 +    assessment's section 4, which he accepted ("Basically, yes"). The rule becomes: the address
 +    word is the menu word in that language, plural, and every page sits under the page that lists
@@ -329,7 +393,7 @@ index 41bf8049..a9d19159 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |  56 +---
-#    .claude/task/review_input.patch | 623 +++++++++++++++-------------------------
-#    2 files changed, 251 insertions(+), 428 deletions(-)
+#   .claude/task/review.md          |   52 +-
+#    .claude/task/review_input.patch | 1536 ++++++---------------------------------
+#    2 files changed, 219 insertions(+), 1369 deletions(-)
 # ============================================================================

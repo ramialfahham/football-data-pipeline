@@ -1,6 +1,6 @@
 # Review — docs/address-words — 2026-09-23
 
-diff_sha256: 036ff628b9982a9925a268df8b641203c1311f9ce3efd5b20f6ebce3ffb661b7
+diff_sha256: 46e201c33b1ceec703eb5fe55d89501d3a4f2dbb680336878a39154e89a1ba89
 
 rounds: 2
 
@@ -8,6 +8,11 @@ Round 1 passed the first word list, which turned out to be unresearched. The CPO
 an independent search assessment followed; he accepted its list and asked how it holds for pages
 not designed yet. Round 2 rewrote the list, marked planned pages provisional and removed a reason
 the document had attributed to him. Delta review, PASS.
+
+Rebound after the rebase onto main (the cleanup, !223, merged first). The three task artifacts were
+the only conflicts and were resolved to this task's side; `docs/site_architecture.md` and
+`.claude/task/contract.md` are byte-identical to the reviewed commit (`git diff f8be58ec HEAD`
+empty), so the verdict stands and only the binding moves with the new base.
 
 ## scope-auditor
 VERDICT: PASS
