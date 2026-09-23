@@ -142,6 +142,10 @@ with_stats as (
         opp.shots_total as opponent_shots_total,
         opp.shots_inside_box as opponent_shots_inside_box,
         opp.corner_kicks as opponent_corner_kicks,
+        -- the provider writes zero cards as a blank in a team's statistics line, so a blank card on
+        -- a row that HAS a stat line is 0; only a team with no stat row at all is unknown (NULL)
+        if(own.team_sk is not null, coalesce(own.yellow_cards, 0), null) as yellow_cards,
+        if(own.team_sk is not null, coalesce(own.red_cards, 0), null) as red_cards,
         -- open-play goal split: goals_for stays the authoritative scoreline; this
         -- team's penalties and the own goals credited to it (the OPPONENT's own-goal events) are
         -- subtracted downstream to get goals_open_play. Catalogued as goals_penalty / goals_own.

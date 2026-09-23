@@ -16,9 +16,11 @@ interface Props {
   active?: TabKey;
   competitionSlug?: string | null;
   hasFixturesPage?: boolean;
+  hasRankingsPage?: boolean;
 }
 const {
   lang, hasMatchdays, active = "overview", competitionSlug = null, hasFixturesPage = false,
+  hasRankingsPage = false,
 } = Astro.props;
 
 const tabs: { key: TabKey; label: string; href: string | null }[] = [
@@ -32,7 +34,11 @@ const tabs: { key: TabKey; label: string; href: string | null }[] = [
     label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"),
     href: competitionSlug && hasFixturesPage ? localeHref(lang, `${competitionSlug}/fixtures/`) : null,
   },
-  { key: "rankings", label: t(lang, "compTabRankings"), href: null },
+  {
+    key: "rankings",
+    label: t(lang, "compTabRankings"),
+    href: competitionSlug && hasRankingsPage ? localeHref(lang, `${competitionSlug}/rankings/`) : null,
+  },
 ];
 ---
 

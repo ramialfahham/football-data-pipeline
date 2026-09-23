@@ -615,6 +615,20 @@ the opposing side — the mirror of the team's own corner_kicks. NULL when the c
 supplies no team statistics for the fixture.
 {% enddocs %}
 
+{% docs yellow_cards__leg %}
+Yellow cards shown to this team in this match, from the provider's team match statistics. The
+provider writes zero cards as a blank, so a blank on a row that has a statistics line is 0 here;
+NULL only when the competition supplies no team statistics for the fixture — the reading the
+season total cards_yellow sums.
+{% enddocs %}
+
+{% docs red_cards__leg %}
+Red cards shown to this team in this match, from the provider's team match statistics. The
+provider writes zero cards as a blank, so a blank on a row that has a statistics line is 0 here;
+NULL only when the competition supplies no team statistics for the fixture — the reading the
+season total cards_red sums.
+{% enddocs %}
+
 {% docs opponent_shots_on_goal__leg %}
 Shots on target by the opponent in this match, from the provider's team match statistics for
 the opposing side — the mirror of the team's own shots_on_goal. NULL when the competition

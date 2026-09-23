@@ -51,6 +51,14 @@ five root files below, the Bundesliga competition payload, 283 fixture payloads,
 - `teams/*.json` — **1** real exported team, `33` (Manchester United), the team-page sample. Six
   more were tracked until 2026-08-08; they existed only because the landing's trending rows linked
   to them, and that block was cut. No page on the site links to a team page today.
+- `competitions/BL1/2026.json` — the one competition payload, the Bundesliga 2026/27 season, all
+  three tabs of the competition page in one file (`standings`, `deserved`, `summary`, `fixtures`,
+  `team_boards`, `player_boards`), produced verbatim by
+  `python scripts/export_site_data.py --entities competitions`. Refreshed 2026-09-22 with four
+  matchdays played; every unplayed row of its Matchdays tab has its match payload in the
+  `fixtures/` allowlist above. ⚠ The marts the two board keys read (`mart_team_leaderboards`,
+  `mart_leaderboards`, and the card totals under them) reach prod with the merge of #151 and its
+  first nightly; until then a plain rerun of the export against prod cannot reproduce the file.
 - `competitions.json` — `league_code → { name, slug }` for all **48** registry entries (the
   registry's authored slug; the frontend never generates slugs). At scale this is the export's
   `nav.json` / `slug_map.json`.

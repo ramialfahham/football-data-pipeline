@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import {
   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
   specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
-  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf,
+  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf, sharesHeader,
 } from "./audit-seo.mjs";
 
 const SITE = "https://matchdaypilot.com";
@@ -234,6 +234,15 @@ test("auditSet: an entity page and its tab page share the h1 by design, and only
   assert.ok(sibling.some((i) => i.includes("h1 is not unique")));
   assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/fixtures/") && isTabOf("/en/bundesliga/fixtures/", "/en/bundesliga/"));
   assert.ok(!isTabOf("/en/teams/a/", "/en/teams/b/"));
+  // two tabs of one entity page share its header too, whatever order the pages arrive in
+  const twoTabs = [tab("/en/bundesliga/fixtures/", "Fixtures"), tab("/en/bundesliga/rankings/", "Rankings"), tab("/en/bundesliga/", "Overview")];
+  assert.ok(!auditSet(twoTabs, OPTS).some((i) => i.includes("h1 is not unique")));
+  // but two neighbours whose parent is not their entity page (or has another h1) do not
+  const neighbours = [tab("/en/teams/a/", "A"), tab("/en/teams/b/", "B")];
+  assert.ok(auditSet(neighbours, OPTS).some((i) => i.includes("h1 is not unique")));
+  const h1Of = new Map([["/en/bundesliga/", "Bundesliga"], ["/en/bundesliga/fixtures/", "Bundesliga"], ["/en/bundesliga/rankings/", "Bundesliga"], ["/en/x/", "Home"], ["/en/x/a/", "Same"], ["/en/x/b/", "Same"]]);
+  assert.ok(sharesHeader("/en/bundesliga/fixtures/", "/en/bundesliga/rankings/", h1Of));
+  assert.ok(!sharesHeader("/en/x/a/", "/en/x/b/", h1Of), "a parent with another h1 makes them neighbours, not tabs");
 });
 
 test("auditSet: JSON-LD must parse, carry the declared @type, and hold no empty values", () => {

@@ -7,43 +7,46 @@
   int_player_season__metrics (the single source) + dim_player identity — NOT mart-from-mart.
   dim_team supplies the club a row belongs to, so a row can link to its club as well as its player.
 
-  15 boards: 10 COUNT + 5 RATE (#506). metric_key = the catalogue metric_id. rank = DENSE_RANK over the
+  13 boards: 11 COUNT + 2 RATE, the set the competition page's Rankings tab shows (GitLab #129,
+  #151; #506 shaped the rate rules). metric_key = the catalogue metric_id. rank = DENSE_RANK over the
   board's metric desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and
   the top-10 cut is inclusive of ties (the mart_top_scorers convention). Only players with a positive
-  value on a board are ranked (a leaderboard shows positive performers).
+  value on a board are ranked (a leaderboard shows positive performers, and a zero is not a ranking
+  on a most-first board). Every board is most first, the two card boards by ruling — the page shows
+  the most-carded players, not a list of clean records.
 
   RATE boards add a qualification rule so a tiny sample can't game a rate: minutes >= 270
-  (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass / duels /
-  dribble / finishing are outfield (excl. GK); save is GK-only. finishing also needs
-  shots_on_goal_player >= 10 (minutes don't bound shot count, so a 1-shot 1-goal player would otherwise
-  read a perfect rate). finishing_efficiency_player_pct is open-play conversion in [0, 1].
+  (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass accuracy
+  and finishing are outfield (excl. GK). finishing also needs shots_on_goal_player >= 10 (minutes
+  don't bound shot count, so a 1-shot 1-goal player would otherwise read a perfect rate).
+  finishing_efficiency_player_pct is open-play conversion in [0, 1].
   sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
 
   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
   what we show); sort_value is the board's own ranked value. Grain: (player_sk, season_sk, metric_key).
 #}
 
+{# The board set, in the ruled order. Adding or removing a key here must also move seeds'
+   accepted_values and the export's list together. #}
 {% set count_boards = [
     'goals_player',
     'assists_player',
-    'scorer_points_player',
     'shots_on_goal_player',
-    'dribbles_success_player',
     'passes_player',
     'passes_key_player',
-    'duels_won_player',
+    'dribbles_attempts_player',
+    'duels_player',
     'defensive_actions_player',
-    'cards_player',
+    'cards_yellow_player',
+    'cards_red_player',
+    'saves_player',
 ] %}
 
 {# RATE boards (#506): qualify on minutes >= 270 + a position scope (+ a SoT floor for finishing). #}
 {% set outfield = "player_position is not null and player_position != 'Goalkeeper'" %}
 {% set rate_boards = [
     {'key': 'passes_accuracy_player_pct', 'qualify': outfield},
-    {'key': 'duels_won_player_pct', 'qualify': outfield},
-    {'key': 'dribbles_success_player_pct', 'qualify': outfield},
     {'key': 'finishing_efficiency_player_pct', 'qualify': outfield ~ ' and shots_on_goal_player >= 10'},
-    {'key': 'saves_player_pct', 'qualify': "player_position = 'Goalkeeper'"},
 ] %}
 
 {# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
@@ -107,6 +110,7 @@ base as (
         s.blocks_player,
         s.cards_yellow_player,
         s.cards_red_player,
+        s.saves_player,
         s.scorer_points_player,
         s.defensive_actions_player,
         s.cards_player,
@@ -229,6 +233,7 @@ select
     blocks_player,
     cards_yellow_player,
     cards_red_player,
+    saves_player,
     scorer_points_player,
     defensive_actions_player,
     cards_player,

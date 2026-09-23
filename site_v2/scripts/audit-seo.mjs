@@ -266,6 +266,23 @@ export function isTabOf(a, b) {
   return rest.length === 1;
 }
 
+/** The path one segment up: a tab's entity page. "/en/x/rankings/" -> "/en/x/". */
+function parentOf(path) {
+  const parts = path.split("/").filter(Boolean);
+  return parts.length > 1 ? "/" + parts.slice(0, -1).join("/") + "/" : null;
+}
+
+/** True when two pages share one header by design: an entity page and one of its tabs, or two
+ *  tabs of the same entity page — the same h1 as that page, which is what makes them its tabs
+ *  rather than two neighbours that happen to agree. `h1Of` is the built set's path -> first h1. */
+export function sharesHeader(a, b, h1Of) {
+  if (isTabOf(a, b)) return true;
+  const parent = parentOf(a);
+  if (!parent || parent !== parentOf(b)) return false;
+  const h1 = h1Of.get(parent);
+  return h1 !== undefined && h1 === h1Of.get(a) && h1 === h1Of.get(b);
+}
+
 /**
  * Pure: audit the whole generated set.
  *
@@ -305,6 +322,8 @@ export function auditSet(pages, opts) {
   // first-wins maps, keyed per locale — the only state that scales with the corpus
   const seen = { title: new Map(), description: new Map(), h1: new Map() };
   const byEntity = new Map();
+  // every page's h1, so a tab can be told from a neighbour whatever order the pages arrive in
+  const h1Of = new Map(pages.map(({ path, head }) => [path, head.h1s[0]]));
 
   for (const { path, head } of pages) {
     if (isRootRedirect(path)) continue;
@@ -349,8 +368,8 @@ export function auditSet(pages, opts) {
         const k = `${l} ${value}`;
         const first = seen[field].get(k);
         // The one h1 that may repeat: an entity page and its tab pages share one header by design
-        // (the competition page's Overview and Matchdays); the title carries the tab for search.
-        if (first && first !== path && !(field === "h1" && isTabOf(first, path)))
+        // (the competition page's Overview, Matchdays and Rankings); the title carries the tab.
+        if (first && first !== path && !(field === "h1" && sharesHeader(first, path, h1Of)))
           add(path, `${field} is not unique within "${l}" — same as ${first}: ${JSON.stringify(value)}`);
         else if (!first) seen[field].set(k, path);
       }

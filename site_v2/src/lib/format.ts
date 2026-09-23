@@ -36,16 +36,6 @@ export function signedInteger(v: number | null | undefined, lang: Lang): string 
 export function percent(ratio: number | null | undefined, lang: Lang): string {
   return isNum(ratio) ? `${nf(lang, 0, 0).format(ratio * 100)}%` : DASH;
 }
-// `count_fraction` (e.g. clean sheets 3/5): numerator and denominator are both
-// served (count + games); this only renders them as a fraction.
-export function countFraction(
-  num: number | null | undefined,
-  den: number | null | undefined,
-  lang: Lang,
-): string {
-  if (!isNum(num) || !isNum(den)) return DASH;
-  return `${nf(lang, 0, 0).format(num)}/${nf(lang, 0, 0).format(den)}`;
-}
 // `points_fraction` (e.g. 13/15): the format's denominator is the maximum points
 // obtainable = games × 3 (3 per game), per the display contract (metrics_display.md
 // §window header / 01_fixture_page.md §5.3a). Presentation scaffold of the format,

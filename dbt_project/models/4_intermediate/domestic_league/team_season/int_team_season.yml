@@ -148,6 +148,10 @@ models:
         description: "{{ doc('passes_total_sum_season') }}"
       - name: goalkeeper_saves_sum_season
         description: "{{ doc('goalkeeper_saves_sum_season') }}"
+      - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
+      - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
       - name: shots_share_pct
@@ -318,6 +322,10 @@ models:
         description: "{{ doc('passes_total_sum_season') }}"
       - name: goalkeeper_saves_sum_season
         description: "{{ doc('goalkeeper_saves_sum_season') }}"
+      - name: cards_yellow
+        description: "{{ doc('cards_yellow') }}"
+      - name: cards_red
+        description: "{{ doc('cards_red') }}"
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
       - name: shots_share_pct

@@ -257,6 +257,8 @@ const EN: Dict = {
   seoCompetitionDesc: "Overview page for {competition}.",
   seoCompetitionFixturesTitle: "{competition}: Fixtures and results {season}",
   seoCompetitionFixturesDesc: "Every matchday of {competition} {season}: results so far and the fixtures to come, one matchday at a time.",
+  seoCompetitionStatsTitle: "{competition}: Team and player stats {season}",
+  seoCompetitionStatsDesc: "The top teams and players of {competition} {season} on every stat: goals, shots on goal, passing, duels, defending, discipline and goalkeeping.",
   // The player page (#40 MR B). Same modest wording and the same reason as the competition hub
   // above: this is a scaffold with no content blocks, so the title promises nothing.
   // ⚠ THE CLUB IS IN THE TITLE FOR UNIQUENESS, not decoration. audit-seo check 5 requires titles to
@@ -285,18 +287,18 @@ const EN: Dict = {
   compColGoalDiff: "GD",
   compColPoints: "Pts",
   compSecTable: "Table",
-  compSecNext: "Next matches",
   compSecSchedule: "Schedule",
   compPickerAria: "Pick a matchday",
   compNextTag: "Next",
   compTBC: "TBC",
   compTopMatch: "Top match",
-  compSecDeserved: "Deserved points",
+  compSecDeserved: "Deserved points table",
   compDeservedExplainer: "Deserved points are the points a team's shot balance usually earns. Shot balance is shots on goal created minus shots on goal conceded. Teams with fewer points than deserved are better than the table says; teams with more are worse.",
-  compBetter: "Better than the table says",
-  compWorse: "Worse than the table says",
+  compColBalance: "Balance",
   compColDeserved: "Deserved",
   compColDiff: "Diff",
+  compSecTeamRankings: "Team rankings",
+  compSecPlayerRankings: "Player rankings",
   compSecFacts: "The season in numbers",
   compFactGoalsPerMatch: "Goals per match",
   compFactGoalsInMatches: "{goals} goals in {matches} matches",
@@ -307,7 +309,6 @@ const EN: Dict = {
   compFactMostGoals: "Most goals in a match",
   compFactLongestUnbeaten: "Longest unbeaten run",
   compFactLongestWinless: "Longest winless run",
-  compFactMatchThatMatters: "The match that matters next",
   compFactMatches: "{n} matches",
   compFactMatchday: "Matchday {n}",
   compVs: "vs",
@@ -495,6 +496,8 @@ const DE: Dict = {
   seoCompetitionDesc: "Überblicksseite für {competition}.",
   seoCompetitionFixturesTitle: "{competition}: Spielplan und Ergebnisse {season}",
   seoCompetitionFixturesDesc: "Alle Spieltage von {competition} {season}: die bisherigen Ergebnisse und die kommenden Spiele, ein Spieltag nach dem anderen.",
+  seoCompetitionStatsTitle: "{competition}: Mannschafts- und Spielerstatistiken {season}",
+  seoCompetitionStatsDesc: "Die besten Mannschaften und Spieler von {competition} {season} in jeder Statistik: Tore, Torschüsse, Passspiel, Zweikämpfe, Defensive, Disziplin und Torwartspiel.",
   seoPlayerTitle: "{player} ({club}): Überblick",
   seoPlayerDesc: "Überblicksseite für {player} von {club}.",
   filterAll: "Alle",
@@ -506,7 +509,7 @@ const DE: Dict = {
   compTabOverview: "Übersicht",
   compTabMatchdays: "Spieltage",
   compTabRounds: "Runden",
-  compTabRankings: "Rankings",
+  compTabRankings: "Ranglisten",
   compSeason: "Saison {season}",
   compColPos: "#",
   compColPlayed: "Sp.",
@@ -517,18 +520,18 @@ const DE: Dict = {
   compColGoalDiff: "Diff.",
   compColPoints: "Pkt.",
   compSecTable: "Tabelle",
-  compSecNext: "Nächste Spiele",
   compSecSchedule: "Spielplan",
   compPickerAria: "Spieltag wählen",
   compNextTag: "Nächster",
   compTBC: "Offen",
   compTopMatch: "Topspiel",
-  compSecDeserved: "Verdiente Punkte",
+  compSecDeserved: "Tabelle nach verdienten Punkten",
   compDeservedExplainer: "Verdiente Punkte sind die Punkte, die die Schussbilanz einer Mannschaft normalerweise einbringt. Die Schussbilanz sind die eigenen Torschüsse minus die zugelassenen Torschüsse. Mannschaften mit weniger Punkten als verdient sind besser, als die Tabelle sagt; Mannschaften mit mehr sind schlechter.",
-  compBetter: "Besser, als die Tabelle sagt",
-  compWorse: "Schlechter, als die Tabelle sagt",
+  compColBalance: "Bilanz",
   compColDeserved: "Verdient",
   compColDiff: "Diff.",
+  compSecTeamRankings: "Mannschafts-Ranglisten",
+  compSecPlayerRankings: "Spieler-Ranglisten",
   compSecFacts: "Die Saison in Zahlen",
   compFactGoalsPerMatch: "Tore pro Spiel",
   compFactGoalsInMatches: "{goals} Tore in {matches} Spielen",
@@ -539,7 +542,6 @@ const DE: Dict = {
   compFactMostGoals: "Torreichstes Spiel",
   compFactLongestUnbeaten: "Längste Serie ohne Niederlage",
   compFactLongestWinless: "Längste Serie ohne Sieg",
-  compFactMatchThatMatters: "Das nächste Spiel, das zählt",
   compFactMatches: "{n} Spiele",
   compFactMatchday: "Spieltag {n}",
   compVs: "gegen",
@@ -735,6 +737,8 @@ const FI: Dict = {
   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
   seoCompetitionFixturesTitle: "{competition}: otteluohjelma ja tulokset {season}",
   seoCompetitionFixturesDesc: "Kilpailun {competition} {season} kaikki kierrokset: tähänastiset tulokset ja tulevat ottelut, kierros kerrallaan.",
+  seoCompetitionStatsTitle: "{competition}: joukkue- ja pelaajatilastot {season}",
+  seoCompetitionStatsDesc: "Kilpailun {competition} {season} parhaat joukkueet ja pelaajat jokaisessa tilastossa: maalit, laukaukset maalia kohti, syötöt, kaksinkamppailut, puolustus, kurinpito ja maalivahtipeli.",
   seoPlayerTitle: "{player} ({club}): yleiskatsaus",
   seoPlayerDesc: "Yleiskatsaussivu pelaajalle {player}, joukkue {club}.",
   filterAll: "Kaikki",
@@ -757,18 +761,18 @@ const FI: Dict = {
   compColGoalDiff: "ME",
   compColPoints: "P",
   compSecTable: "Sarjataulukko",
-  compSecNext: "Seuraavat ottelut",
   compSecSchedule: "Otteluohjelma",
   compPickerAria: "Valitse kierros",
   compNextTag: "Seuraava",
   compTBC: "Avoin",
   compTopMatch: "Huippuottelu",
-  compSecDeserved: "Ansaitut pisteet",
+  compSecDeserved: "Ansaittujen pisteiden taulukko",
   compDeservedExplainer: "Ansaitut pisteet ovat pisteet, jotka joukkueen laukaustase yleensä tuottaa. Laukaustase on luodut laukaukset maalia kohti miinus päästetyt laukaukset maalia kohti. Joukkueet, joilla on vähemmän pisteitä kuin ansaittu, ovat parempia kuin taulukko kertoo; joukkueet, joilla on enemmän, ovat heikompia.",
-  compBetter: "Parempia kuin taulukko kertoo",
-  compWorse: "Heikompia kuin taulukko kertoo",
+  compColBalance: "Tase",
   compColDeserved: "Ansaitut",
   compColDiff: "Ero",
+  compSecTeamRankings: "Joukkuerankingit",
+  compSecPlayerRankings: "Pelaajarankingit",
   compSecFacts: "Kausi numeroina",
   compFactGoalsPerMatch: "Maalia per ottelu",
   compFactGoalsInMatches: "{goals} maalia {matches} ottelussa",
@@ -779,7 +783,6 @@ const FI: Dict = {
   compFactMostGoals: "Eniten maaleja ottelussa",
   compFactLongestUnbeaten: "Pisin tappioton putki",
   compFactLongestWinless: "Pisin voitoton putki",
-  compFactMatchThatMatters: "Seuraava avainottelu",
   compFactMatches: "{n} ottelua",
   compFactMatchday: "Kierros {n}",
   compVs: "vs",
@@ -863,6 +866,9 @@ const METRIC_LABELS_EN: MetricLabels = {
   "metrics.corners_per_match.label": "Ø Corners",
   "metrics.corners_against_per_match.label": "Ø Corners against",
   "metrics.saves_pct.label": "% Save percentage",
+  // The two team card totals (#151), season counts like the player boards below: no "Ø".
+  "metrics.cards_yellow.label": "Yellow cards",
+  "metrics.cards_red.label": "Red cards",
   // Top players' four boards (#40). PLAYER metrics, so the keys are the catalogue's
   // `playerMetrics.*` namespace rather than the `metrics.*` one every entry above uses.
   // EN is the catalogue's `label_en` verbatim — the board name is the metric's name, and #40 says
@@ -873,6 +879,17 @@ const METRIC_LABELS_EN: MetricLabels = {
   "playerMetrics.scorerPoints.assists": "Assists",
   "playerMetrics.passAccuracy.total": "Passes",
   "playerMetrics.keyPasses.label": "Key passes",
+  // The competition page's other player boards (#151): the catalogue's `label_en` verbatim, as
+  // the four above; the two rates keep the "% " prefix every percent metric in this file carries.
+  "playerMetrics.shotsOnTarget.label": "Shots on goal",
+  "playerMetrics.finishingEfficiency.label": "% Goals per shot on goal",
+  "playerMetrics.passAccuracy.label": "% Pass accuracy",
+  "playerMetrics.dribbles.attempts": "Dribbles attempted",
+  "playerMetrics.duels.total": "Duels",
+  "playerMetrics.defensiveActions.label": "Defensive actions",
+  "playerMetrics.cards.yellow": "Yellow cards",
+  "playerMetrics.cards.red": "Red cards",
+  "playerMetrics.savePct.saves": "Saves",
   // The metric GROUPS (#152): a group is defined by its key and order in the catalogue and by
   // these names, keyed `metricGroups.<metric_group>.label`. The key set is bound to
   // `src/data/metric_groups.json` by `check-metric-labels.test.mjs`.
@@ -926,6 +943,8 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.corners_per_match.label": "Ø Ecken",
   "metrics.corners_against_per_match.label": "Ø Ecken gegen",
   "metrics.saves_pct.label": "% Gehaltene Torschüsse",
+  "metrics.cards_yellow.label": "Gelbe Karten",
+  "metrics.cards_red.label": "Rote Karten",
   // Top players' four boards (#40), confirmed copy. The assists label is "Torvorlagen" —
   // *"more precise than just Vorlagen"* — the draft carried the bare "Vorlagen", and "Assists"
   // (current in German football media) was not taken, consistent with every other metric name in
@@ -937,6 +956,23 @@ const METRIC_LABELS_DE: MetricLabels = {
   "playerMetrics.scorerPoints.assists": "Torvorlagen",
   "playerMetrics.passAccuracy.total": "Pässe",
   "playerMetrics.keyPasses.label": "Schlüsselpässe",
+  // The competition page's other player boards (#151): the words the team rows above already
+  // use for the same concept (Torschüsse, Trefferquote, Angekommene Pässe, Zweikämpfe,
+  // Defensivaktionen), without the sigil because these are season totals.
+  // ⚠ TWO have no team row to borrow from and rest on an external source instead, which is the
+  // only other thing that counts (the Finnish block records the same for the same key):
+  // dribbles — FotMob's German says "Erfolgreiche Dribblings" for the completed ones, so the
+  // plain plural is the attempts, the pair the English has; saves — "Paraden" is the word the
+  // frozen legacy corpus `site/i18n/de.json` already uses.
+  "playerMetrics.shotsOnTarget.label": "Torschüsse",
+  "playerMetrics.finishingEfficiency.label": "% Trefferquote",
+  "playerMetrics.passAccuracy.label": "% Angekommene Pässe",
+  "playerMetrics.dribbles.attempts": "Dribblings",
+  "playerMetrics.duels.total": "Zweikämpfe",
+  "playerMetrics.defensiveActions.label": "Defensivaktionen",
+  "playerMetrics.cards.yellow": "Gelbe Karten",
+  "playerMetrics.cards.red": "Rote Karten",
+  "playerMetrics.savePct.saves": "Paraden",
   "metricGroups.goals.label": "Tore",
   "metricGroups.shooting.label": "Schüsse",
   "metricGroups.passing.label": "Pässe",
@@ -985,6 +1021,8 @@ const METRIC_LABELS_FI: MetricLabels = {
   "metrics.corners_per_match.label": "Ø Kulmapotkut",
   "metrics.corners_against_per_match.label": "Ø Päästetyt kulmapotkut",
   "metrics.saves_pct.label": "% Torjuntaosuus",
+  "metrics.cards_yellow.label": "Keltaiset kortit",
+  "metrics.cards_red.label": "Punaiset kortit",
   // Top players' four boards (#40), confirmed copy together with the DE block above; only the
   // German assists label changed on confirmation and these four stood.
   // They were flagged rather than assumed for a reason worth keeping: `10_home.md` §10 records the
@@ -997,6 +1035,23 @@ const METRIC_LABELS_FI: MetricLabels = {
   "playerMetrics.scorerPoints.assists": "Maalisyötöt",
   "playerMetrics.passAccuracy.total": "Syötöt",
   "playerMetrics.keyPasses.label": "Avainsyötöt",
+  // The competition page's other player boards (#151): the words the team rows above already
+  // use for the same concept (Maalilaukaukset, Viimeistelytehokkuus, Syöttötarkkuus,
+  // Kaksinkamppailut, Puolustustoimet), without the sigil because these are season totals.
+  // ⚠ Dribbles and saves have NO team row to borrow from. Dribbles was therefore the one word
+  // coined here, and coining was the defect: the drafted "Harhautusyritykset" is not a word
+  // Finnish football uses. FotMob's Finnish says "Onnistuneet harhautukset" for the completed
+  // ones, so the plain noun is the attempts — the pair the English has. "Torjunnat" shares its
+  // root with the team row's "% Torjuntaosuus", already in this file and in site/i18n/fi.json.
+  "playerMetrics.shotsOnTarget.label": "Maalilaukaukset",
+  "playerMetrics.finishingEfficiency.label": "% Viimeistelytehokkuus",
+  "playerMetrics.passAccuracy.label": "% Syöttötarkkuus",
+  "playerMetrics.dribbles.attempts": "Harhautukset",
+  "playerMetrics.duels.total": "Kaksinkamppailut",
+  "playerMetrics.defensiveActions.label": "Puolustustoimet",
+  "playerMetrics.cards.yellow": "Keltaiset kortit",
+  "playerMetrics.cards.red": "Punaiset kortit",
+  "playerMetrics.savePct.saves": "Torjunnat",
   "metricGroups.goals.label": "Maalit",
   "metricGroups.shooting.label": "Laukaukset",
   "metricGroups.passing.label": "Syötöt",

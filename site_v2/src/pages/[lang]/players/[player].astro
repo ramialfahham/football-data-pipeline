@@ -16,9 +16,10 @@
 // refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
 // page in the index.
 //
-// SOURCE IS landing.json, and deliberately so: the set of players with a page is exactly the set
-// the Home page links to, which is exactly what check 8 requires and nothing more. It adds no
-// export entity and no committed payload — `--entities players` exists but is not run by
+// SOURCE IS THE PAGES THAT LINK HERE — landing.json's Top players boards and every competition
+// payload's Player rankings boards — and deliberately so: the set of players with a page is
+// exactly the set the site links to, which is exactly what check 8 requires and nothing more. It
+// adds no export entity and no committed payload — `--entities players` exists but is not run by
 // deploy:export, and inventing a players/ payload to feed a page with no content would be building
 // #845's plumbing without #845's design. Every value here is a served payload field; nothing on
 // this page is derived, the slug least of all (the export assigns it).
@@ -26,8 +27,15 @@ import Layout from "../../../layouts/Layout.astro";
 import { t } from "../../../i18n/strings";
 import { localeHref, LOCALES } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
-import type { Landing, LandingBoardRow } from "../../../lib/types";
+import type { CompetitionPayload, Landing } from "../../../lib/types";
 import landing from "../../../data/landing.json";
+
+/** What this stub shows of a player: the served name and club, keyed by the served slug. */
+interface LinkedPlayer {
+  slug: string;
+  name: string | null;
+  club: string | null;
+}
 
 export function getStaticPaths() {
   // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
@@ -36,9 +44,17 @@ export function getStaticPaths() {
   // assists and key passes in one export — and two identical params would be a duplicate
   // route, not two pages.
   const data = landing as unknown as Landing;
-  const rows = new Map<string, LandingBoardRow>();
-  for (const board of data.top_players ?? []) {
-    for (const row of board.rows) if (!rows.has(row.slug)) rows.set(row.slug, row);
+  const rows = new Map<string, LinkedPlayer>();
+  const take = (row: { slug: string | null; name: string | null; club?: string | null }) => {
+    if (row.slug && !rows.has(row.slug)) rows.set(row.slug, { slug: row.slug, name: row.name, club: row.club ?? null });
+  };
+  for (const board of data.top_players ?? []) for (const row of board.rows) take(row);
+  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
+    eager: true,
+    import: "default",
+  });
+  for (const payload of Object.values(payloads)) {
+    for (const board of payload.player_boards ?? []) for (const row of board.rows) take(row);
   }
   return [...rows.values()].flatMap((player) =>
     LOCALES.map((lang) => ({
@@ -49,7 +65,7 @@ export function getStaticPaths() {
 }
 
 interface Props {
-  player: LandingBoardRow;
+  player: LinkedPlayer;
   lang: Lang;
 }
 const { player, lang } = Astro.props;

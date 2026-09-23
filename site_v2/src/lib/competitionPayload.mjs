@@ -1,7 +1,8 @@
 // What the competition page does with its payload before rendering: pick the season to show,
-// split the standings into the sections a page draws, take the ends of the served deserved order,
-// and turn the season summary into the fact rows that have something to show. Selection over
-// served columns only — no number is computed here; a value the mart serves as null yields no row.
+// split the standings into the sections a page draws, find the round the warehouse flagged next,
+// file the Rankings tab's boards under their metric groups, and turn the season summary into the
+// fact rows that have something to show. Selection over served columns only — no number is
+// computed here; a value the mart serves as null yields no row.
 //
 // Plain JS for the same reason as competitionOrder.mjs: `competitionPayload.test.mjs` imports it
 // under bare `node --test`.
@@ -30,17 +31,24 @@ export function standingsSections(standings) {
   return [...sections.values()];
 }
 
-/** The two deserved-points boards: the rows the warehouse ranked 1..3 by the gap
- *  (deserved_points_gap_rank — the teams with fewer points than deserved, most under-rewarded
- *  first) and the three highest ranks in reverse (the most over-rewarded first). The order is
- *  the served rank's; the page reads its two ends. Fewer than two ranked rows: no boards. */
-export function deservedBoards(deserved, size = 3) {
-  const rows = (deserved ?? []).filter((r) => r.deserved_points_gap_rank != null);
-  if (rows.length < 2) return null;
-  return {
-    better: rows.slice(0, size),
-    worse: rows.slice(-size).reverse(),
-  };
+/** The round the warehouse flagged as next (the Matchdays tab opens on it; the header's round
+ *  reads it), or null when none is flagged — after the season, or before the first round. */
+export function nextRound(rounds) {
+  return (rounds ?? []).find((r) => r.is_next_round) ?? null;
+}
+
+/** The Rankings tab's boards filed under their metric groups: one entry per group key, in the
+ *  order the keys are given (the catalogue's, from metric_groups.json), holding the boards the
+ *  export served for that group in the export's order (the ruled order within a group). A group
+ *  with no board is absent; a board whose group the catalogue does not list is dropped, since a
+ *  group heading it could sit under does not exist. */
+export function boardGroups(boards, groupKeys) {
+  const byGroup = new Map(groupKeys.map((key) => [key, []]));
+  for (const board of boards ?? []) {
+    if (!board.rows?.length) continue;
+    byGroup.get(board.metric_group)?.push(board);
+  }
+  return [...byGroup].filter(([, list]) => list.length > 0).map(([key, list]) => ({ key, boards: list }));
 }
 
 /** The season facts that have something to show, in the approved order. Each is {key, value,
@@ -72,9 +80,4 @@ export function seasonFacts(summary) {
                  context: { teams: summary.longest_winless_teams } });
   }
   return facts;
-}
-
-/** The next matchday's flagged fixture, if the warehouse flagged one. */
-export function matchThatMatters(nextMatchday) {
-  return (nextMatchday ?? []).find((fx) => fx.is_match_that_matters) ?? null;
 }

@@ -10,17 +10,17 @@
     "schema_org": "SportsOrganization",
     "links": {
       "inbound_hub": "competitionIndex",
-      "outbound": ["team", "fixture", "competition"]
+      "outbound": ["team", "competition"]
     },
-    "minimum_data": "A row in mart_competition_index gives the competition its page, header and tab bar. Each content block needs its own mart to have served something for the latest season in competitions/{league_code}/{season}.json: standings rows for the Table, next-matchday rows for Next matches, deserved_points on the team profile for Deserved points, a summary row for The season in numbers. A block with nothing served is absent; a competition with no payload at all shows header and tabs only. Whether that is enough for a page to be published is the minimum-data question, and it stays a rule over the served marts rather than a list in the frontend.",
+    "minimum_data": "A row in mart_competition_index gives the competition its page, header and tab bar. Each content block needs its own mart to have served something for the latest season in competitions/{league_code}/{season}.json: standings rows for the Table, deserved_rank on the team profile for the Deserved points table, a summary row for The season in numbers. A block with nothing served is absent; a competition with no payload at all shows header and tabs only. Whether that is enough for a page to be published is the minimum-data question, and it stays a rule over the served marts rather than a list in the frontend.",
     "page_count_driver": "count(competition_index.json .competitions) x count(locales)",
     "url_permanence": "permanent",
-    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages: Matchdays at /{locale}/{competition-slug}/fixtures/, linked from the bar when the build emits it for this competition; Rankings is an inert label until built, so no link on this page points at a page the build did not emit."
+    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages, Matchdays at /{locale}/{competition-slug}/fixtures/ and Rankings at /{locale}/{competition-slug}/rankings/, each linked from the bar only when the build emits it for this competition, so no link on this page points at a page the build did not emit."
   },
   "blocks": [
     {
       "block": "Competition header",
-      "mart": "mart_competition_index",
+      "mart": ["mart_competition_index", "mart_competition_fixtures"],
       "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
     },
     {
@@ -29,19 +29,14 @@
       "i18n_keys": ["compSecTable", "compColPos", "compColPlayed", "compColWins", "compColDraws", "compColLosses", "compColGoals", "compColGoalDiff", "compColPoints"]
     },
     {
-      "block": "Next matches",
-      "mart": "mart_next_matchday",
-      "i18n_keys": ["compSecNext"]
-    },
-    {
-      "block": "Deserved points",
+      "block": "Deserved points table",
       "mart": "mart_team_profile",
-      "i18n_keys": ["compSecDeserved", "compDeservedExplainer", "compBetter", "compWorse", "compColDeserved", "compColPoints", "compColDiff"]
+      "i18n_keys": ["compSecDeserved", "compDeservedExplainer", "compColPos", "compColBalance", "compColDeserved", "compColPoints", "compColDiff"]
     },
     {
       "block": "The season in numbers",
-      "mart": ["mart_competition_season_summary", "mart_next_matchday"],
-      "i18n_keys": ["compSecFacts", "compFactGoalsPerMatch", "compFactGoalsInMatches", "compFactHomeWins", "compFactOf", "compFactDrawsAway", "compFactBiggestMargin", "compFactMostGoals", "compFactLongestUnbeaten", "compFactLongestWinless", "compFactMatchThatMatters", "compFactMatches", "compVs"]
+      "mart": "mart_competition_season_summary",
+      "i18n_keys": ["compSecFacts", "compFactGoalsPerMatch", "compFactGoalsInMatches", "compFactHomeWins", "compFactOf", "compFactDrawsAway", "compFactBiggestMargin", "compFactMostGoals", "compFactLongestUnbeaten", "compFactLongestWinless", "compFactMatches", "compVs"]
     }
   ]
 }

@@ -63,6 +63,8 @@ legs as (
         tl.opponent_shots_total,
         tl.opponent_shots_on_goal,
         tl.goalkeeper_saves,
+        tl.yellow_cards,
+        tl.red_cards,
         pl.key_passes,
         pl.tackles,
         pl.interceptions,
@@ -137,6 +139,10 @@ select
     -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
     sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
         as games_with_save_stats,
+    -- card coverage (cumulative): one count for both colours, since the leg reads them from the
+    -- same stat line and a blank on a present line is already a zero there
+    sum(case when yellow_cards is not null then 1 else 0 end) over w
+        as games_with_card_stats,
     -- open-play goal components: goals_open_play = goals_for − goals_penalty
     -- − goals_own (computed in the mart). Full cumulative sums, for display.
     sum(goals_penalty) over w as goals_penalty,
@@ -164,6 +170,8 @@ select
     sum(opponent_shots_total) over w as opponent_shots_total,
     sum(opponent_shots_on_goal) over w as opponent_shots_on_goal,
     sum(goalkeeper_saves) over w as goalkeeper_saves,
+    sum(yellow_cards) over w as yellow_cards,
+    sum(red_cards) over w as red_cards,
     -- player-derived team stats (cumulative; inherit player-stat coverage gaps)
     sum(case when has_player_stats then 1 else 0 end) over w
         as games_with_player_stats,

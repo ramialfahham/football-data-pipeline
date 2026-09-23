@@ -28,7 +28,7 @@ import type { Direction } from "./bars";
 import type { SingleFormat } from "./format";
 import metricGroups from "../data/metric_groups.json";
 
-export type RowFormat = "decimal_1" | "decimal_0" | "percent" | "count_fraction";
+export type RowFormat = "decimal_1" | "decimal_0" | "percent" | "integer";
 
 /** The catalogue's group keys in the catalogue's order, from the exported copy. Every `group:`
  *  below is one of them — `check-metric-labels.test.mjs` asserts it, and that each has a name in
@@ -38,8 +38,8 @@ export const GROUP_KEYS_IN_ORDER: string[] = [...metricGroups.groups]
   .map((g) => g.key);
 
 /** What the TEAM surface binds for a slot whose two surfaces measure different things.
- *  Only `clean_sheets` needs one: the fixture windows serve the COUNT of shut-outs beside the
- *  matches behind it, while the league benchmark and the year-over-year delta serve
+ *  Only `clean_sheets` needs one: the fixture windows serve the COUNT of shut-outs, while the
+ *  league benchmark and the year-over-year delta serve
  *  `clean_sheets_pct`, the proportion — two catalogue metrics, one row of the display contract. */
 export interface TeamBinding {
   field: string;              // key on the benchmark's `metric_key` / the `{field}_delta_yoy` column
@@ -59,21 +59,12 @@ export interface MetricRowDef {
   format: RowFormat;
   direction: Direction;       // drives the green "better" side (never `lower_is_better`)
   sublabel?: string;          // small caption under the label (e.g. the T·I·B aggregate)
-  // count_fraction denominator field per window (both served: count + games). Fixture surface
-  // only — a team season is ranked against a league, which is what `team` below binds instead.
-  denom?: { w1: string; w2: string };
   team?: TeamBinding;         // set only where the team surface measures something else
 }
 
-/** The binding the TEAM surface renders for a row. Without an override that is the row itself;
- *  `count_fraction` is a fixture-window form (numerator beside its denominator), and the team
- *  surface serves neither pair, so it reads as a percent there. */
+/** The binding the TEAM surface renders for a row. Without an override that is the row itself. */
 export function teamBinding(row: MetricRowDef): TeamBinding {
-  return row.team ?? {
-    field: row.field,
-    labelKey: row.labelKey,
-    format: row.format === "count_fraction" ? "percent" : row.format,
-  };
+  return row.team ?? { field: row.field, labelKey: row.labelKey, format: row.format };
 }
 
 // Groups render in `GROUP_KEYS_IN_ORDER` with a subhead; rows in array order within each group.
@@ -81,10 +72,10 @@ export const METRIC_ROWS: MetricRowDef[] = [
   { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "higher_better" },
   { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "lower_better" },
   // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
-  //   `clean_sheets`, a count of shut-outs, rendered against the matches behind it (3/5). The team
-  //   page ranks `clean_sheets_pct`, the proportion, because teams are compared across a league.
+  //   `clean_sheets`, a count of shut-outs shown as a bare count. The team page ranks
+  //   `clean_sheets_pct`, the proportion, because teams are compared across a league.
   //   Read the team side through `teamBinding()`; never assume `field` covers both.
-  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "goals", tier: 2, format: "count_fraction", direction: "higher_better", denom: { w1: "games_in_window", w2: "games_played" },
+  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "goals", tier: 2, format: "integer", direction: "higher_better",
     team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent" } },
   { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
   { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "shooting", tier: 2, format: "percent", direction: "higher_better" },

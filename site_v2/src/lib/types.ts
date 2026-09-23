@@ -425,11 +425,43 @@ export interface StandingRow {
   losses: number | null;
 }
 
+/** One row of the Deserved points table (mart_team_profile): the served deserved rank the table
+ *  is ordered by, the shot balance, the fitted points, the actual points and the gap. */
 export interface DeservedRow extends TeamRef {
   points: number | null;
   deserved_points: number | null;
   deserved_points_gap: number | null;
-  deserved_points_gap_rank: number | null;
+  deserved_rank: number | null;
+  shots_on_goal_difference_per_match: number | null;
+}
+
+/** One row of a competition-page board: the mart's dense rank and value, the entity's identity
+ *  and slug (served, never derived here), and for a player the club under the name. */
+export interface CompetitionBoardRow {
+  rank: number | null;
+  value: number | null;
+  slug: string | null;
+  name: string | null;
+  crest: string | null;
+  team_id?: number | null;
+  player_id?: number | null;
+  club?: string | null;
+  club_slug?: string | null;
+}
+
+/** One board of the Rankings tab: the metric (its label key, format and group from the
+ *  catalogue), whether it is a per-match rate (the title then spells "per match" out), the
+ *  served rank order, and at most five rows as the warehouse ordered them. Nothing renders
+ *  `rank_order`; it tells a reader of the payload which end of the metric the board ranks, and the
+ *  built-page check which boards may carry a zero. A board with no rows is not served. */
+export interface CompetitionBoard {
+  metric_key: string;
+  label_i18n_key: string;
+  format: SingleFormat;
+  metric_group: string;
+  per_match: boolean;
+  rank_order: "asc" | "desc";
+  rows: CompetitionBoardRow[];
 }
 
 export interface SeasonSummary {
@@ -484,8 +516,9 @@ export interface CompetitionPayload {
   competition_type: string | null;
   entity_type: "club" | "national" | null;
   standings: StandingRow[];
-  next_matchday: FixtureRef[];
   deserved: DeservedRow[];
   summary: SeasonSummary | null;
   fixtures?: CompetitionRound[];
+  team_boards?: CompetitionBoard[];
+  player_boards?: CompetitionBoard[];
 }

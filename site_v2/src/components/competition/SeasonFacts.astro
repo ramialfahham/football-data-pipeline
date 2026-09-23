@@ -1,25 +1,22 @@
 ---
-// The season in numbers: one fact row per served fact (mart_competition_season_summary, plus the
-// next matchday's flagged fixture). A fact row is label · value · context; wide screens put the
-// value and its context on the right, a phone stacks them. A null served value is no row. Team
-// facts link to the first team named; the match that matters links to its match page; a played
-// match has no page and its row does not link. Names, rounds and dates never break inside
-// themselves. A score reads home–away with the en dash, as every score on the site does.
+// The season in numbers: one fact row per served fact (mart_competition_season_summary). A fact
+// row is label · value · context; wide screens put the value and its context on the right, a
+// phone stacks them. A null served value is no row. Every row leads to the leaderboard behind its
+// number, and none of those pages exists yet, so no row is a link: within one block every row is
+// a link or none is. Names, rounds and dates never break inside themselves. A score reads
+// home–away with the en dash, as every score on the site does.
 import SectionHead from "../ui/SectionHead.astro";
-import { decimal1, formatShortDate, formatTime, integer } from "../../lib/format";
+import { decimal1, integer } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
-import { matchThatMatters, seasonFacts } from "../../lib/competitionPayload.mjs";
+import { seasonFacts } from "../../lib/competitionPayload.mjs";
 import type { FixtureRef, SeasonSummary, TeamRef } from "../../lib/types";
 
 interface Props {
   summary: SeasonSummary | null;
-  nextMatchday: FixtureRef[];
-  competitionSlug: string | null;
   lang: Lang;
 }
-const { summary, nextMatchday, competitionSlug, lang } = Astro.props;
+const { summary, lang } = Astro.props;
 
 interface Piece {
   text: string;
@@ -29,14 +26,10 @@ interface Row {
   label: string;
   value: Piece[];
   context: Piece[];
-  href?: string;
 }
 
 const vs = t(lang, "compVs");
 
-function teamHref(team: TeamRef | undefined): string | undefined {
-  return team?.slug ? localeHref(lang, `teams/${team.slug}/`) : undefined;
-}
 function score(fx: FixtureRef): string {
   return `${integer(fx.goals_home, lang)}–${integer(fx.goals_away, lang)}`;
 }
@@ -84,22 +77,8 @@ for (const fact of seasonFacts(summary)) {
       label: t(lang, fact.key === "longestUnbeaten" ? "compFactLongestUnbeaten" : "compFactLongestWinless"),
       value: [{ text: t(lang, "compFactMatches", { n: integer(v.matches, lang) }) }],
       context: teamPieces(c.teams),
-      href: teamHref(c.teams[0]),
     });
   }
-}
-const matters = matchThatMatters(nextMatchday);
-if (matters) {
-  rows.push({
-    label: t(lang, "compFactMatchThatMatters"),
-    value: [
-      { text: matters.home.name ?? "", nb: true },
-      { text: ` ${vs} ` },
-      { text: matters.away.name ?? "", nb: true },
-    ],
-    context: [{ text: formatShortDate(matters.kickoff, lang), nb: true }, { text: `, ${formatTime(matters.kickoff, lang)}` }],
-    href: competitionSlug ? localeHref(lang, `${competitionSlug}/matches/${matters.slug}/`) : undefined,
-  });
 }
 ---
 
@@ -107,25 +86,15 @@ if (matters) {
   <section>
     <SectionHead label={t(lang, "compSecFacts")} />
     <div class="facts">
-      {rows.map((row) =>
-        row.href ? (
-          <a class="frow" href={row.href}>
-            <span class="fl">{row.label}</span>
-            <span class="fv">
-              <span class="fvv"><b>{row.value.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
-              <span class="sub">{row.context.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
-            </span>
-          </a>
-        ) : (
-          <div class="frow">
-            <span class="fl">{row.label}</span>
-            <span class="fv">
-              <span class="fvv"><b>{row.value.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
-              <span class="sub">{row.context.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
-            </span>
-          </div>
-        ),
-      )}
+      {rows.map((row) => (
+        <div class="frow">
+          <span class="fl">{row.label}</span>
+          <span class="fv">
+            <span class="fvv"><b>{row.value.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</b></span>
+            <span class="sub">{row.context.map((p) => (p.nb ? <span class="nb">{p.text}</span> : p.text))}</span>
+          </span>
+        </div>
+      ))}
     </div>
   </section>
 )}

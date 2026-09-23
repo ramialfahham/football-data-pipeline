@@ -1,0 +1,52 @@
+---
+// The Deserved points table on the competition page: the block name, the explanation, then every
+// team of the season in one table in the served deserved order (mart_team_profile: deserved_rank,
+// shots_on_goal_difference_per_match, deserved_points, points, deserved_points_gap). The columns
+// read # · club · Balance · Deserved · Pts · Diff; Deserved is the number the table is ordered by
+// and carries the ordered-by style. The gap is the catalogue's, actual minus deserved, signed. The
+// whole row links to the team page. Renders nothing unless the model fitted this competition.
+import Crest from "../ui/Crest.astro";
+import SectionHead from "../ui/SectionHead.astro";
+import { decimal1, integer, signedDelta } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import type { DeservedRow } from "../../lib/types";
+
+interface Props {
+  deserved: DeservedRow[];
+  lang: Lang;
+}
+const { deserved, lang } = Astro.props;
+const rows = deserved.filter((row) => row.deserved_rank != null);
+---
+
+{rows.length > 0 && (
+  <section>
+    <SectionHead label={t(lang, "compSecDeserved")} />
+    <p class="bsub">{t(lang, "compDeservedExplainer")}</p>
+    <div class="ctab dpt">
+      <div class="ctab-head">
+        <span class="h rk">{t(lang, "compColPos")}</span>
+        <span class="h nmh"></span>
+        <span class="h">{t(lang, "compColBalance")}</span>
+        <span class="h">{t(lang, "compColDeserved")}</span>
+        <span class="h">{t(lang, "compColPoints")}</span>
+        <span class="h">{t(lang, "compColDiff")}</span>
+      </div>
+      {rows.map((row) => (
+        <a class="ctab-row" href={row.slug ? localeHref(lang, `teams/${row.slug}/`) : undefined}>
+          <span class="rk num">{integer(row.deserved_rank, lang)}</span>
+          <span class="tm">
+            <Crest name={row.name} crest={row.crest} size="xs" />
+            <span class="nm">{row.name}</span>
+          </span>
+          <span class="n num">{signedDelta(row.shots_on_goal_difference_per_match, "decimal_1", lang).value}</span>
+          <span class="n num pts">{decimal1(row.deserved_points, lang)}</span>
+          <span class="n num">{integer(row.points, lang)}</span>
+          <span class="n num">{signedDelta(row.deserved_points_gap, "decimal_1", lang).value}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+)}

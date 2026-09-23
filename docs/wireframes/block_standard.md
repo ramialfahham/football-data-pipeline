@@ -80,8 +80,9 @@
 
 Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
 there is no page title under the tab bar (#129); a board shows five rows on a competition page and
-seven on Home, a zero is not a rank on a most-first board, a "fewest first" board says so beside
-its name (#129 board rules); a name, a "Matchday N" and a date never break inside themselves
+seven on Home, a zero is not a rank on a most-first board (#129 board rules); a board does not say
+which way it ranks — its name and its top value do (CPO, #151 MR, replacing #129's "fewest first"
+note); a name, a "Matchday N" and a date never break inside themselves
 (#129 the fact row). Those are content rules, checked where the content is built.
 
 ## Pages
@@ -107,6 +108,7 @@ and `gen_taxonomy.py` are diagrams.
 | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link |
 | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar |
 | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+| Competition rankings | built | `site_v2/dist` | `en/bundesliga/rankings/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar |
 | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading |
 | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar |
 | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |

@@ -1,0 +1,35 @@
+---
+// One of the Rankings tab's two blocks, Team rankings or Player rankings (GitLab #129, #151): the
+// block name, then the served boards under their metric groups — the group key, order and name
+// from the catalogue (#152), the group heading the block standard's `.rkgroup` (the level-1 head
+// without its line), the boards inside a group in the order the export lists them. A group with
+// no board is absent; a block with no group renders nothing, and the page then has no tab.
+import SectionHead from "../ui/SectionHead.astro";
+import RankingBoard from "./RankingBoard.astro";
+import type { Lang } from "../../lib/format";
+import { metricLabel } from "../../i18n/strings";
+import { GROUP_KEYS_IN_ORDER } from "../../lib/metricRows";
+import { boardGroups } from "../../lib/competitionPayload.mjs";
+import type { CompetitionBoard } from "../../lib/types";
+
+interface Props {
+  label: string;
+  boards: CompetitionBoard[];
+  entity: "team" | "player";
+  lang: Lang;
+}
+const { label, boards, entity, lang } = Astro.props;
+const groups = boardGroups(boards, GROUP_KEYS_IN_ORDER) as { key: string; boards: CompetitionBoard[] }[];
+---
+
+{groups.length > 0 && (
+  <section>
+    <SectionHead label={label} />
+    {groups.map((group) => (
+      <div class="fxgroup rkgroup">
+        <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${group.key}.label`)}</span></div>
+        {group.boards.map((board) => <RankingBoard board={board} entity={entity} lang={lang} />)}
+      </div>
+    ))}
+  </section>
+)}

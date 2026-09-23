@@ -48,12 +48,34 @@ REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 
-# Player leaderboards: the 9 COUNT boards from mart_leaderboards (LONG, one row per
-# board, pre-ranked by the warehouse). metric_key drives the board; the 5 rate boards
-# are deferred (#506). The order here is the display order.
-_LEADERBOARD_METRICS = ("goals_player", "scorer_points_player", "shots_on_goal_player", "dribbles_success_player",
-                        "passes_player", "passes_key_player", "duels_won_player", "defensive_actions_player",
-                        "cards_player")
+# The competition page's Rankings tab (GitLab #129, #151): the twelve team boards and the thirteen
+# player boards, each tuple in the RULED order within its groups — the page groups them by the
+# catalogue's metric_group in metric_groups.json's order and keeps this order inside a group.
+# These are the marts' own metric_key values; `tests/test_leaderboard_board_sets.py` pins each
+# tuple to its mart's Jinja list and to the yml's accepted_values, so the three cannot drift.
+_COMPETITION_TEAM_BOARDS = (
+    "goals_per_match", "goals_against_per_match",
+    "shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match",
+    "passes_per_match", "passes_accuracy_pct",
+    "defensive_actions_per_match",
+    "duels_per_match", "duels_won_pct",
+    "cards_yellow", "cards_red",
+)
+_COMPETITION_PLAYER_BOARDS = (
+    "goals_player", "assists_player",
+    "shots_on_goal_player", "finishing_efficiency_player_pct",
+    "passes_player", "passes_key_player", "passes_accuracy_player_pct",
+    "dribbles_attempts_player", "duels_player",
+    "defensive_actions_player",
+    "cards_yellow_player", "cards_red_player",
+    "saves_player",
+)
+# Five rows per board on a competition page (#129 board rules); the warehouse ranks and orders,
+# this is the cut.
+_COMPETITION_BOARD_ROWS = 5
+# Player leaderboards (the per-league `leaderboards/` payload): every board mart_leaderboards
+# ranks, in the ruled order — the same thirteen the Rankings tab shows.
+_LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
 # The HOME page's Top players boards (#40): four boards, one metric each, in display order.
 # ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
 # different consumer with a different board set. Sharing one list would couple two surfaces that
@@ -78,7 +100,7 @@ _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
             "goals_player", "assists_player", "shots_on_goal_player", "dribbles_success_player", "dribbles_attempts_player",
             "passes_player", "passes_key_player", "duels_won_player", "duels_player",
             "tackles_player", "interceptions_player", "blocks_player",
-            "cards_yellow_player", "cards_red_player",
+            "cards_yellow_player", "cards_red_player", "saves_player",
             "scorer_points_player", "defensive_actions_player", "cards_player")
 
 # Join/identity keys dropped from each per-side block in the fixture payload
@@ -705,13 +727,16 @@ def shape_season_summary(row: dict | None, teams: dict, slugs: dict) -> dict | N
 
 
 def shape_competition_payload(league_code: str, season: int, meta: dict,
-                              standings: list[dict], next_matchday: list[dict],
-                              deserved: list[dict], summary: dict | None,
-                              fixtures: list[dict] | None = None) -> dict:
-    """A competition-season page: header facts, the standings sections, the next matchday, the
-    deserved-points rows, the season summary and every fixture of the season by round. Selection
-    and ordering by served columns only: standings by section then rank, the matchday by kickoff,
-    deserved rows by the served gap rank, rounds by the served round sequence."""
+                              standings: list[dict], deserved: list[dict], summary: dict | None,
+                              fixtures: list[dict] | None = None,
+                              team_boards: list[dict] | None = None,
+                              player_boards: list[dict] | None = None) -> dict:
+    """A competition-season page: header facts, the standings sections, the deserved-points
+    table, the season summary, every fixture of the season by round, and the Rankings tab's
+    boards. Selection and ordering by served columns only: standings by section then rank,
+    deserved rows by the served deserved rank, rounds by the served round sequence, the boards
+    as the warehouse ordered them. The next matchday is not carried: the Matchdays tab opens on
+    it from the fixtures' served flag, and Home reads mart_next_matchday itself."""
     meta = meta or {}
     return {
         "type": "competition",
@@ -727,14 +752,74 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
         "standings": sorted(
             standings, key=lambda r: (r.get("group_name") or "", r.get("standing_rank") or 999)
         ),
-        "next_matchday": sorted(next_matchday, key=lambda r: r.get("kickoff") or datetime.max),
         "deserved": sorted(
-            [r for r in deserved if r.get("deserved_points_gap_rank") is not None],
-            key=lambda r: r["deserved_points_gap_rank"],
+            [r for r in deserved if r.get("deserved_rank") is not None],
+            key=lambda r: r["deserved_rank"],
         ),
         "summary": summary,
         "fixtures": group_fixtures_by_round(fixtures or []),
+        "team_boards": team_boards or [],
+        "player_boards": player_boards or [],
     }
+
+
+def shape_competition_boards(rows: list[dict], boards: tuple[str, ...], catalogue: dict[str, dict],
+                             entity: str, limit: int = _COMPETITION_BOARD_ROWS) -> list[dict]:
+    """The Rankings tab's boards for one competition-season, from the served leaderboard rows of
+    one entity (team or player): grouped by board in the ruled order, each cut at `limit` rows in
+    the order the warehouse served them (its tie-broken league_leader_order). A board with no
+    rows is omitted; a group with no board is then absent on the page.
+
+    Every fact a page needs to render a board travels with it, from the catalogue: the label key
+    and the format (as the Home boards carry them), the metric group (so the page groups without
+    classifying), whether the metric is a per-match rate (the catalogue's denominator is
+    count(*) — the board's title then spells "per match" out), and the served rank_order, which is
+    what says "fewest first". The value is the mart's sort_value in the metric's own unit; the
+    rank is the mart's dense rank, shown as served."""
+    by_board: dict[str, list[dict]] = {key: [] for key in boards}
+    rank_order: dict[str, str] = {}
+    for row in rows:
+        key = row.get("metric_key")
+        if key not in by_board:
+            continue
+        rank_order.setdefault(key, row.get("rank_order") or "desc")
+        entry = {
+            "rank": row.get("rank"),
+            "value": row.get("sort_value"),
+        }
+        if entity == "team":
+            entry.update({
+                "team_id": row.get("team_sk"),
+                "slug": row.get("team_slug"),
+                "name": row.get("team_name"),
+                "crest": row.get("team_logo_url"),
+            })
+        else:
+            entry.update({
+                "player_id": row.get("player_sk"),
+                "slug": player_slug_with_id(row.get("player_name"), row.get("player_sk")),
+                "name": row.get("player_name"),
+                "club": row.get("team_name"),
+                "club_slug": row.get("team_slug"),
+                "crest": row.get("team_logo_url"),
+            })
+        by_board[key].append(entry)
+
+    out = []
+    for key in boards:
+        entries = by_board[key]
+        if not entries:
+            continue
+        out.append({
+            "metric_key": key,
+            "label_i18n_key": catalogue[key]["label_i18n_key"],
+            "format": catalogue[key]["format"],
+            "metric_group": catalogue[key]["metric_group"],
+            "per_match": catalogue[key]["per_match"],
+            "rank_order": rank_order[key],
+            "rows": entries[:limit],
+        })
+    return out
 
 
 def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
@@ -1178,9 +1263,10 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     """competitions/{league_code}/{season}.json — one per competition-season with standings.
 
     Every block is a mart read whole or filtered by served columns: the standings row as
-    published (with its section kind), the next matchday with the warehouse's "match that
-    matters" flag, the team profile's deserved-points columns, the season summary. Team identity
-    is joined from dim_team so a row can be named and linked; nothing is computed."""
+    published (with its section kind), the team profile's deserved-points columns, the season
+    summary, every fixture of the season, and the Rankings tab's boards (the two leaderboard
+    marts, the ruled board sets, the warehouse's top five per league-board). Team identity is
+    joined from dim_team so a row can be named and linked; nothing is computed."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     meta = {
         c["league_code"]: {"name": c.get("name"), "slug": c.get("slug")}
@@ -1204,22 +1290,41 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         _query(client, f"select * from `{marts}.mart_standings`"),
         "league_code", "season_api_year",
     )
-    matchday = _group2(
-        _query(client, f"""
-            select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name,
-                   home_team_sk, away_team_sk, is_match_that_matters
-            from `{marts}.mart_next_matchday`
-        """),
-        "league_code", "season_api_year",
-    )
     deserved = _group2(
         _query(client, f"""
             select league_code, season_api_year, team_sk, points, deserved_points,
-                   deserved_points_gap, deserved_points_gap_rank
+                   deserved_points_gap, deserved_rank, shots_on_goal_difference_per_match
             from `{marts}.mart_team_profile`
         """),
         "league_code", "season_api_year",
     )
+    # The Rankings tab's boards: the warehouse's top five per league-board-season by its
+    # tie-broken order (#129: five rows, the dense rank shown as it is). The zero rule and the
+    # direction are the marts' (`rank_order`); this selects the ruled boards and the cut.
+    team_board_rows = _group2(
+        _query(client, f"""
+            select league_code, season_api_year, metric_key, rank_order, rank, sort_value,
+                   team_sk, team_name, team_slug, team_logo_url
+            from `{marts}.mart_team_leaderboards`
+            where metric_key in ({", ".join(f"'{k}'" for k in _COMPETITION_TEAM_BOARDS)})
+              and league_leader_order <= {_COMPETITION_BOARD_ROWS}
+            order by league_code, season_api_year, metric_key, league_leader_order
+        """),
+        "league_code", "season_api_year",
+    )
+    player_board_rows = _group2(
+        _query(client, f"""
+            select league_code, season_api_year, metric_key, rank, sort_value,
+                   player_sk, player_name, team_name, team_slug, team_logo_url
+            from `{marts}.mart_leaderboards`
+            where metric_key in ({", ".join(f"'{k}'" for k in _COMPETITION_PLAYER_BOARDS)})
+              and league_leader_order <= {_COMPETITION_BOARD_ROWS}
+            order by league_code, season_api_year, metric_key, league_leader_order
+        """),
+        "league_code", "season_api_year",
+    )
+    team_catalogue = _board_catalogue(_COMPETITION_TEAM_BOARDS, "team")
+    player_catalogue = _board_catalogue(_COMPETITION_PLAYER_BOARDS, "player")
     summaries = {
         (r["league_code"], int(r["season_api_year"])): r
         for r in _query(client, f"select * from `{marts}.mart_competition_season_summary`")
@@ -1239,7 +1344,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
 
     # A competition-season has a page when any block has something to show: a cup has no
     # standings but a next round, a season summary and its rounds.
-    combos = sorted(set(standings) | set(matchday) | set(summaries) | set(fixtures))
+    combos = sorted(set(standings) | set(summaries) | set(fixtures))
     if sample:
         combos = combos[:sample]
     if not combos:
@@ -1249,14 +1354,6 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         row = _drop(r, _STANDING_DROP)
         row["team_slug"] = (teams.get(int(r["team_sk"])) or {}).get("team_slug")
         return row
-
-    def _next(r: dict) -> dict:
-        home = teams.get(int(r["home_team_sk"])) if r.get("home_team_sk") is not None else None
-        away = teams.get(int(r["away_team_sk"])) if r.get("away_team_sk") is not None else None
-        ref = _fixture_ref(slugs.get(int(r["fixture_sk"])), r.get("kickoff_datetime"),
-                           r.get("round_name"), home, away, int(r["fixture_sk"]))
-        ref["is_match_that_matters"] = bool(r.get("is_match_that_matters"))
-        return ref
 
     def _fixture(r: dict) -> dict:
         return {
@@ -1285,7 +1382,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
             "points": r.get("points"),
             "deserved_points": r.get("deserved_points"),
             "deserved_points_gap": r.get("deserved_points_gap"),
-            "deserved_points_gap_rank": r.get("deserved_points_gap_rank"),
+            "deserved_rank": r.get("deserved_rank"),
+            "shots_on_goal_difference_per_match": r.get("shots_on_goal_difference_per_match"),
         }
 
     payloads = []
@@ -1293,10 +1391,13 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         payloads.append(shape_competition_payload(
             lc, season, meta.get(lc),
             [_standing(r) for r in standings.get((lc, season), [])],
-            [_next(r) for r in matchday.get((lc, season), [])],
             [_deserved(r) for r in deserved.get((lc, season), [])],
             shape_season_summary(summaries.get((lc, season)), teams, slugs),
             [_fixture(r) for r in fixtures.get((lc, season), [])],
+            shape_competition_boards(team_board_rows.get((lc, season), []),
+                                     _COMPETITION_TEAM_BOARDS, team_catalogue, "team"),
+            shape_competition_boards(player_board_rows.get((lc, season), []),
+                                     _COMPETITION_PLAYER_BOARDS, player_catalogue, "player"),
         ))
     return payloads
 
@@ -1440,8 +1541,18 @@ def _board_catalogue(
             f"no {entity} format in {seed_path} for: {', '.join(no_format)}. "
             "A board's number format is the catalogue's, never the component's."
         )
+    # `metric_group` and `per_match` ride along for the competition boards: the group the page
+    # files a board under, and whether the catalogue defines the metric per match (its
+    # denominator is `count(*)`) — the fact a board TITLE turns into the words "per match". Both
+    # are read here rather than judged from the id's spelling, which is the trap
+    # `boardTitle()` in strings.ts records.
     return {
-        k: {"label_i18n_key": by_id[k]["label_i18n_key"], "format": by_id[k]["format"]}
+        k: {
+            "label_i18n_key": by_id[k]["label_i18n_key"],
+            "format": by_id[k]["format"],
+            "metric_group": by_id[k].get("metric_group") or "",
+            "per_match": (by_id[k].get("denominator_expr") or "").strip() == "count(*)",
+        }
         for k in boards
     }
 

@@ -17,6 +17,7 @@ from scripts.export_site_data import (
     build_nav,
     fetch_glossary,
     group_fixtures_by_round,
+    shape_competition_boards,
     shape_competition_index,
     shape_competition_payload,
     shape_season_summary,
@@ -150,31 +151,31 @@ def test_shape_top_players_selects_by_rank_and_joins_names():
 
 
 def test_shape_competition_payload_orders_every_block_by_served_columns():
-    """Standings by section then rank, the matchday by kickoff, deserved rows by the served gap
-    rank (1 = the most under-rewarded team) — the export orders by served columns, it never ranks."""
+    """Standings by section then rank, deserved rows by the served deserved rank (1 = the most
+    deserved points) — the export orders by served columns, it never ranks. No next-matchday key:
+    the Matchdays tab opens on the fixtures' served flag."""
     p = shape_competition_payload(
         "BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"},
         standings=[{"group_name": "Bundesliga", "standing_rank": 2},
                    {"group_name": "Bundesliga", "standing_rank": 1}],
-        next_matchday=[{"fixture_id": 2, "kickoff": "2026-09-19T13:30:00"},
-                       {"fixture_id": 1, "kickoff": "2026-09-18T18:30:00"}],
-        deserved=[{"name": "Dortmund", "deserved_points": 6.3, "deserved_points_gap": 2.7, "deserved_points_gap_rank": 3},
-                  {"name": "Mainz", "deserved_points": 6.7, "deserved_points_gap": -2.7, "deserved_points_gap_rank": 1},
-                  {"name": "Köln", "deserved_points": 4.2, "deserved_points_gap": -0.2, "deserved_points_gap_rank": 2}],
+        deserved=[{"name": "Dortmund", "deserved_points": 6.3, "deserved_points_gap": 2.7, "deserved_rank": 2},
+                  {"name": "Mainz", "deserved_points": 6.7, "deserved_points_gap": -2.7, "deserved_rank": 1},
+                  {"name": "Köln", "deserved_points": 4.2, "deserved_points_gap": -0.2, "deserved_rank": 3}],
         summary=None,
     )
     assert p["type"] == "competition" and p["slug"] == "bundesliga"
     assert [s["standing_rank"] for s in p["standings"]] == [1, 2]
-    assert [f["fixture_id"] for f in p["next_matchday"]] == [1, 2]
-    assert [d["name"] for d in p["deserved"]] == ["Mainz", "Köln", "Dortmund"]
+    assert [d["name"] for d in p["deserved"]] == ["Mainz", "Dortmund", "Köln"]
+    assert "next_matchday" not in p
+    assert p["team_boards"] == [] and p["player_boards"] == []
     assert p["summary"] is None
 
 
 def test_shape_competition_payload_drops_deserved_rows_the_warehouse_did_not_rank():
     p = shape_competition_payload(
-        "BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"}, standings=[], next_matchday=[],
-        deserved=[{"name": "A", "deserved_points": None, "deserved_points_gap": None, "deserved_points_gap_rank": None},
-                  {"name": "B", "deserved_points": 3.0, "deserved_points_gap": 1.0, "deserved_points_gap_rank": 1}],
+        "BL1", 2026, {"name": "Bundesliga", "slug": "bundesliga"}, standings=[],
+        deserved=[{"name": "A", "deserved_points": None, "deserved_points_gap": None, "deserved_rank": None},
+                  {"name": "B", "deserved_points": 3.0, "deserved_points_gap": 1.0, "deserved_rank": 1}],
         summary=None,
     )
     assert [d["name"] for d in p["deserved"]] == ["B"]
@@ -186,7 +187,7 @@ def test_shape_competition_payload_surfaces_the_served_header_facts():
         {"name": "Bundesliga", "slug": "bundesliga", "logo_url": "https://x/78.png",
          "region_label_en": "Germany", "region_label_i18n_key": "regionGermany",
          "competition_type": "domestic_league", "entity_type": "club"},
-        standings=[], next_matchday=[], deserved=[], summary=None,
+        standings=[], deserved=[], summary=None,
     )
     assert p["crest"] == "https://x/78.png"
     assert p["region_label_en"] == "Germany" and p["region_label_i18n_key"] == "regionGermany"
@@ -195,8 +196,61 @@ def test_shape_competition_payload_surfaces_the_served_header_facts():
 
 def test_shape_competition_payload_identity_absent_is_none():
     p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
-                                  standings=[], next_matchday=[], deserved=[], summary=None)
+                                  standings=[], deserved=[], summary=None)
     assert p["crest"] is None and p["region_label_en"] is None and p["entity_type"] is None
+
+
+_TEAM_CAT = {
+    "goals_per_match": {"label_i18n_key": "metrics.goals_per_match.label", "format": "decimal_1",
+                        "metric_group": "goals", "per_match": True},
+    "goals_against_per_match": {"label_i18n_key": "metrics.goals_against_per_match.label",
+                                "format": "decimal_1", "metric_group": "goals", "per_match": True},
+    "cards_red": {"label_i18n_key": "metrics.cards_red.label", "format": "integer",
+                  "metric_group": "discipline", "per_match": False},
+}
+
+
+def _tb(key, order, rank, value, name, rank_order="desc"):
+    return {"metric_key": key, "rank_order": rank_order, "rank": rank, "sort_value": value,
+            "team_sk": hash(name) % 1000, "team_name": name, "team_slug": name.lower(),
+            "team_logo_url": f"https://x/{name}.png", "league_leader_order": order}
+
+
+def test_shape_competition_boards_groups_in_the_ruled_order_and_cuts_at_five_as_served():
+    """The boards come back in the tuple's order, each board's rows in the order the rows arrived
+    (the warehouse's league_leader_order — nothing is sorted here), cut at five; the dense rank
+    and the value are the mart's; every catalogue fact rides on the board."""
+    rows = [_tb("goals_against_per_match", 1, 1, 0.0, "Mainz", "asc"),
+            _tb("goals_against_per_match", 2, 2, 0.5, "Koeln", "asc")]
+    rows += [_tb("goals_per_match", i, 1 if i < 3 else i - 1, 3.0 - (0 if i < 3 else i * 0.1), f"T{i}")
+             for i in range(1, 8)]
+    boards = shape_competition_boards(rows, ("goals_per_match", "goals_against_per_match", "cards_red"),
+                                      _TEAM_CAT, "team")
+    assert [b["metric_key"] for b in boards] == ["goals_per_match", "goals_against_per_match"], \
+        "the ruled order, and a board with no rows is omitted"
+    goals = boards[0]
+    assert len(goals["rows"]) == 5 and [r["rank"] for r in goals["rows"]] == [1, 1, 2, 3, 4]
+    assert goals["rank_order"] == "desc" and goals["per_match"] is True
+    assert goals["metric_group"] == "goals" and goals["format"] == "decimal_1"
+    assert goals["label_i18n_key"] == "metrics.goals_per_match.label"
+    against = boards[1]
+    assert against["rank_order"] == "asc"
+    assert [r["name"] for r in against["rows"]] == ["Mainz", "Koeln"]
+    assert against["rows"][0]["value"] == 0.0, "a zero on a fewest-first board is served as it is"
+    assert set(against["rows"][0]) == {"rank", "value", "team_id", "slug", "name", "crest"}
+
+
+def test_shape_competition_boards_player_rows_carry_the_club_and_the_export_slug():
+    rows = [{"metric_key": "goals_player", "rank": 1, "sort_value": 9.0, "player_sk": 77,
+             "player_name": "Harry Kane", "team_name": "Bayern", "team_slug": "bayern",
+             "team_logo_url": "https://x/b.png", "league_leader_order": 1}]
+    cat = {"goals_player": {"label_i18n_key": "playerMetrics.scorerPoints.goals", "format": "integer",
+                            "metric_group": "goals", "per_match": False}}
+    boards = shape_competition_boards(rows, ("goals_player",), cat, "player")
+    row = boards[0]["rows"][0]
+    assert row["slug"] == player_slug_with_id("Harry Kane", 77)
+    assert row["club"] == "Bayern" and row["club_slug"] == "bayern" and row["crest"] == "https://x/b.png"
+    assert boards[0]["rank_order"] == "desc", "a player row serves no rank_order; every player board is most first"
 
 
 _SUMMARY_TEAMS = {
@@ -313,7 +367,7 @@ def test_group_fixtures_by_round_follows_the_served_fixture_order():
 def test_group_fixtures_by_round_is_empty_when_nothing_is_served():
     assert group_fixtures_by_round([]) == []
     p = shape_competition_payload("XX", 2025, {"name": "X", "slug": "x"},
-                                  standings=[], next_matchday=[], deserved=[], summary=None)
+                                  standings=[], deserved=[], summary=None)
     assert p["fixtures"] == []
 
 
