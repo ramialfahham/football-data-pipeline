@@ -1,8 +1,8 @@
 # Review — design/matches-hub — 2026-09-23
 
-diff_sha256: 28a1bf0a6200d496a4da86fe8ccfc4bee678fdd7bf5a292f2e3f638f3d39cf97
+diff_sha256: 46c797d735d8e54159467b2dcaa8be894f242c95b8c6b21a416f25ac38864228
 
-rounds: 2
+rounds: 3
 
 Round 1: scope-auditor FAIL, bi-analyst-reviewer PASS. The FAIL was that the second render (Home's
 fold) and its switch were not declared in the contract, which reserves that choice for the CPO.
@@ -17,9 +17,15 @@ the same eight files as reviewed. The cleanup added a third width to the design 
 mock had never been measured at: re-run for both variants, `1 pages · 3 viewports · 6 renders ·
 0 failures · 0 warnings` each, and the lint 0 findings.
 
+Round 3, after the CPO ruled the fold ("B") on #130 and the day switcher's reach on #131: the
+generator draws the fold as the design, takes the day from `MATCHES_HUB_DAY`, and renders the
+national-team variant (Saturday 26 September, real fixtures) as `_03`. Delta review by the
+scope-auditor, PASS. No path the bi-analyst routes on changed in this round.
+
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
+- Round 3 delta: the two ruled questions leave `decisions_reserved` and are recorded as ruled with issue and date; approval of the page as a whole stays reserved; `FOLD = 3` matches the ruling and render 01 stays on file; `MATCHES_HUB_DAY` is a mock-local selector of a committed pull, no new mechanism; the flag badge is the shared row's existing national-team variant; the new data file is in `scope_paths`; the 1010px width in done_when is the existing standard; no credential-shaped text.
 - Round 1 FAIL closed: `decisions_taken` names both renders and the `MATCHES_HUB_FOLD=3` switch as the two sides of the reserved fold question, drawn for the CPO to answer by looking; `done_when` names `_01` and `_02`.
 - The reserved question itself stays reserved: `decisions_reserved` still lists "All matches with no fold, versus Home's three and a fold", and nothing in the delta resolves it.
 - The `amendments:` entry discloses the method and its trigger and claims no prior CPO approval, so it is not a `protected_override` and needs no approval quote.

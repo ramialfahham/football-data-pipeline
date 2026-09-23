@@ -21,6 +21,7 @@ refs: >
 scope_paths:
   - design-mocks/gen_matches_hub.py
   - design-mocks/matches_2026-09-19.json
+  - design-mocks/matches_2026-09-26.json
   - design-mocks/renders/matches-hub_*.html
   - design-mocks/README.md
   - docs/wireframes/block_standard.md
@@ -60,16 +61,20 @@ decisions_reserved:
     Schedule block) is the CPO's to keep, change or strike, on #130.
   - Which day the hub shows (the build day, else the next day with a match), and that it carries
     no "Today" label.
-  - All matches with no fold, versus Home's three and a fold.
   - The order of competitions within the day (the shared key: region rank, then kick-off, then
     code).
-  - The day pages behind the hub, how far each way, and past days with scores (#131).
-  - The national-team variant (an international weekend), rendered only after the first is ruled.
+  - Approval of the page as a whole, on #130, after he has seen the national-team variant.
+
+  Ruled since, recorded on the issues and not re-decided here: the list uses Home's fold, "B"
+  (#130, 2026-09-23); the day switcher is the Matchdays picker with a date, one page per day,
+  forward to the end of each competition's next matchday and back to its last matchday of this
+  season, no archive by date (#131, 2026-09-23).
 
 done_when:
   - "`python design-mocks/render.py gen_matches_hub.py matches-hub` writes `design-mocks/renders/matches-hub_2026-09-23_01.html` (every match), and the same command with `MATCHES_HUB_FOLD=3` writes `_02` (Home's fold)."
   - "`python scripts/check_page_css.py` exits 0 with the new generator listed in the Pages table."
-  - "`python scripts/check_design_inventory.py --no-built --pages \"matches hub\"` exits 0 at 375 and 700 px, EN and FI."
+  - "`python scripts/check_design_inventory.py --no-built --pages \"matches hub\"` exits 0 at 375, 700 and 1010 px, EN and FI, for 19 and 26 September."
+  - "`MATCHES_HUB_DAY=2026-09-26 python design-mocks/render.py gen_matches_hub.py matches-hub` writes `_03`: every row one of the 26 September fixtures in the committed pull, national teams under a flag."
   - "`python -m pytest tests/test_design_mock_renders.py tests/test_design_inventory.py -q` passes."
   - "Every row in the render is one of the 152 fixtures of 2026-09-19 in the committed pull, and every competition heading is one of its 19 competitions."
   - "The render is sent to the CPO and the proposal posted on #130."
@@ -80,3 +85,11 @@ amendments:
     versus Home's three and a fold" is his, and a render of each side is how it is put to him
     (a ruling request names its variants file by file). No path added; both renders were already
     inside `design-mocks/renders/matches-hub_*.html`. Raised by scope-auditor round 1.
+  - 2026-09-23, after his rulings, on a clean tree: + `design-mocks/matches_2026-09-26.json`, the
+    real fixtures of Saturday 26 September 2026 (an international weekend), for the national-team
+    variant this contract reserved "rendered only after the first is ruled". Authority: he ruled
+    the fold ("B then") and the day switcher's reach on #130 and #131. The generator draws the
+    fold as the design (the `MATCHES_HUB_FOLD` switch goes: "whichever he picks, the other goes";
+    render 01 stays on file as the option not taken), takes the day from `MATCHES_HUB_DAY`
+    (default 2026-09-19, the file the Pages table's check renders) and writes the day line from
+    that date. The new render is `matches-hub_2026-09-23_03.html`.

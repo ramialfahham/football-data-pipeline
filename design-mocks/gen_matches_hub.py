@@ -1,11 +1,15 @@
 """Render the MATCHES HUB, /{locale}/matches/, what the Matches menu item lands on, for #130.
 
-Real data: every fixture of Saturday 19 September 2026 (the UTC kick-off date) as prod
+Real data: every fixture of one day (the UTC kick-off date) as prod
 `marts.mart_competition_fixtures` held it, joined to `marts.mart_competition_index` for the
-competition's name, kind, confederation and region rank: 152 matches in 19 competitions
-(`matches_2026-09-19.json`, the JSON the `bq` CLI wrote). Drawn as the page read that morning,
-so every row shows its kick-off and none its score. Times in UTC with the label, as the built
-site shows them until the venue's clock lands (#146).
+competition's name, kind, confederation and region rank (`matches_<day>.json`, the JSON the `bq`
+CLI wrote). Saturday 19 September 2026 is a league weekend, 152 matches in 19 competitions;
+Saturday 26 September is an international weekend, 33 matches, 19 of them national teams. Drawn
+as the page read that morning, so every row shows its kick-off and none its score. Times in UTC
+with the label, as the built site shows them until the venue's clock lands (#146).
+
+Each competition shows its first three matches and folds the rest under Home's "Show all"
+(`.fxmore`), as ruled on #130.
 
 Composed only of what the site already has: the Competitions page's breadcrumb, heading and two
 filter rows (their radios and CSS unchanged, so the filters work here too); the Matchdays tab's
@@ -13,13 +17,14 @@ picker with a date as its title; its Schedule block holding the shared competiti
 match row from `rows.py`. The block omits the date heading because the picker already names the
 day: a block may omit a level the page supplies (`rows.group_head`).
 
-    python design-mocks/render.py gen_matches_hub.py matches-hub                        every match
-    MATCHES_HUB_FOLD=3 python design-mocks/render.py gen_matches_hub.py matches-hub     Home's fold
+    python design-mocks/render.py gen_matches_hub.py matches-hub                             19 Sep
+    MATCHES_HUB_DAY=2026-09-26 python design-mocks/render.py gen_matches_hub.py matches-hub  26 Sep
 """
 import json
 import os
 import sys
 from collections import OrderedDict
+from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -29,10 +34,16 @@ from gen_competition_hub import COPY, E, MOCK_CSS, SYSTEM_CSS, loc  # noqa: E402
 from gen_competition_matchdays import CHEV_L, CHEV_R  # noqa: E402
 from rows import group_head, upcoming_row  # noqa: E402
 
-DATA = HERE / "matches_2026-09-19.json"
-# rows shown per competition before Home's fold (`.fxmore`); unset shows every row. The variant
-# exists because the FA Cup plays 77 qualifying ties that Saturday and sorts second.
-FOLD = int(os.environ.get("MATCHES_HUB_FOLD", "0")) or None
+DAY = date.fromisoformat(os.environ.get("MATCHES_HUB_DAY", "2026-09-19"))
+DATA = HERE / ("matches_%s.json" % DAY.isoformat())
+FOLD = 3
+
+EN_DAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+FI_DAYS = ("Maanantai", "Tiistai", "Keskiviikko", "Torstai", "Perjantai", "Lauantai", "Sunnuntai")
+EN_MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August",
+             "September", "October", "November", "December")
+FI_MONTHS = ("tammikuuta", "helmikuuta", "maaliskuuta", "huhtikuuta", "toukokuuta", "kesäkuuta",
+             "heinäkuuta", "elokuuta", "syyskuuta", "lokakuuta", "marraskuuta", "joulukuuta")
 
 COPY.update({
     "navMatches":     ("Matches", "Ottelut", False),
@@ -46,7 +57,8 @@ COPY.update({
     "confedAfc":      ("Asia", "Aasia", False),
     "confedOfc":      ("Oceania", "Oseania", False),
     "confedFifa":     ("World", "Maailma", False),
-    "day":            ("Saturday 19 September", "Lauantai 19. syyskuuta", False),
+    "day":            ("%s %d %s" % (EN_DAYS[DAY.weekday()], DAY.day, EN_MONTHS[DAY.month - 1]),
+                       "%s %d. %s" % (FI_DAYS[DAY.weekday()], DAY.day, FI_MONTHS[DAY.month - 1]), False),
     "homeShowAll":    ("Show all {n}", "Näytä kaikki {n}", False),
     "jumpLabel":      ("Schedule", "Otteluohjelma", False),
 })
@@ -104,9 +116,9 @@ def filters_html():
 
 def day_html(groups):
     step = ('<nav class="mdnav" aria-label="Pick a day"><span class="mdstep">'
-            '<a class="step prev" href="#" aria-label="Friday 18 September">%s</a>'
+            '<a class="step prev" href="#" aria-label="The day before">%s</a>'
             '<span class="mdtitle"><b class="num">%s</b></span>'
-            '<a class="step next" href="#" aria-label="Sunday 20 September">%s</a>'
+            '<a class="step next" href="#" aria-label="The day after">%s</a>'
             '</span></nav>' % (CHEV_L, loc("day"), CHEV_R))
     body = []
     for g in groups:
@@ -116,7 +128,7 @@ def day_html(groups):
                              r["kickoff_datetime"][11:16], "UTC",
                              "/en/%s/matches/%s/" % (r["competition_slug"], r["fixture_slug"]))
                 for r in g]
-        if FOLD and len(rows) > FOLD:
+        if len(rows) > FOLD:
             rows = rows[:FOLD] + [
                 '<details class="fxmore"><summary><span class="lbl">%s</span>%s</summary>\n%s\n</details>'
                 % (loc_n("homeShowAll", len(rows)), SUMMARY_CHEV, "\n".join(rows[FOLD:]))]
@@ -124,13 +136,13 @@ def day_html(groups):
                     % (E(first["entity_type"]), E(first["confederation"]),
                        group_head(first["competition_slug"], first["competition_name"]), "\n".join(rows)))
     return """<div class="md">
-<input class="md-in" type="radio" name="day" id="day-2026-09-19" checked>
+<input class="md-in" type="radio" name="day" id="day-%s" checked>
 %s
 <section>
   <div class="sechead"><span class="eyebrow">%s</span></div>
 %s
 </section>
-</div>""" % (step, loc("jumpLabel"), "\n".join(body))
+</div>""" % (DAY.isoformat(), step, loc("jumpLabel"), "\n".join(body))
 
 
 def provenance_html():
@@ -141,9 +153,7 @@ def provenance_html():
 def build():
     groups = load()
     n_matches = sum(len(g) for g in groups)
-    variant = ("One day, every competition playing it, the first %d matches of each, the rest under "
-               "Home's &ldquo;Show all&rdquo;." % FOLD if FOLD else
-               "One day, every competition playing it, every match.")
+    n_national = sum(len(g) for g in groups if g[0]["entity_type"] == "national")
     return """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -180,15 +190,17 @@ def build():
 </div>
 
 <div class="legend">
-  <b>Mock: the Matches hub, what the Matches menu item lands on (proposal for #130).</b>
-  %s Real data: the %d matches in %d
-  competitions of Saturday 19 September 2026 as prod held them, drawn as the page read that
-  morning, so rows show kick-offs, not scores. Times in UTC. The filters work; the day arrows
-  lead to the days behind the hub, which are #131.
+  <b>Mock: the Matches hub, what the Matches menu item lands on (#130).</b>
+  One day, every competition playing it, the first %d matches of each and the rest under Home's
+  &ldquo;Show all&rdquo;. Real data: the %d matches (%d of them national teams) in %d competitions
+  of %s %d %s %d as prod held them, drawn as the page read that morning, so rows show kick-offs,
+  not scores. Times in UTC. The filters work; the day arrows lead to the days behind the hub
+  (#131).
   %s
 </div>
 """ % (SYSTEM_CSS.read_text(encoding="utf-8"), MOCK_CSS, loc("crumbHome"), loc("navMatches"),
-       loc("navMatches"), filters_html(), day_html(groups), variant, n_matches, len(groups),
+       loc("navMatches"), filters_html(), day_html(groups), FOLD, n_matches, n_national,
+       len(groups), EN_DAYS[DAY.weekday()], DAY.day, EN_MONTHS[DAY.month - 1], DAY.year,
        provenance_html())
 
 
