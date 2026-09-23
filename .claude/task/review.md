@@ -1,8 +1,19 @@
 # Review — fix/menu-statistics — 2026-09-22
 
-diff_sha256: 3653d084dc8d2e15b27a051b1d750a1db4c08871643ee3ce92428ee3d3d35b3c
+diff_sha256: 5e1079756429cc87d130dd836175fe67f8cc60c64526fbdbe64389bbc95678e6
 
 rounds: 1
+
+⚠ REBASED onto `main` after !216 (#151, the Rankings tab) merged, which moved the base under this
+branch. The hash above is the recomputed cumulative diff against the new base; the round-1
+verdicts below stand unchanged, because **this branch's own change did not move**: the five task
+artifacts were the only conflicts and were resolved to this task's side, `site_v2/src/i18n/strings.ts`
+and `docs/site_architecture.md` auto-merged, and the branch's own patch before and after the rebase
+covers the same eight files with identical added and removed lines — only blob hashes and two hunk
+line numbers differ (`-442` → `-443`, `-683` → `-685`), because #151 inserted copy above in the same
+file. The branch's second commit, a session handover naming both requests as open, was dropped
+rather than replayed: `main` already carries a newer handover, and replaying it would have
+overwritten current state with the claim that !216 is still open.
 
 One round, both required reviewers PASS. The scope-auditor's only finding was a stale line
 number in the contract's own impact map (`10_home.md:999`, actually 1002), corrected and
