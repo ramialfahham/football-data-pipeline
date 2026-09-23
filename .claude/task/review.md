@@ -1,6 +1,6 @@
 # Review — design/matches-hub — 2026-09-23
 
-diff_sha256: 3084e26011eee01f277b74bdbb6a5927f323482ba99f58567abe722e584ae8c6
+diff_sha256: b164586492750741e3b81b437433a533d3bea894322153d63ebcf41ff30cac66
 
 rounds: 4
 rounds_cap_override: Round 4 was a one-line fix after CI's test:python failed on round 3's commit: an unquoted date in the generator's usage example, which the comment-history pin reads as decision history. It clears a standing CI failure, not a reviewer FAIL; the CPO did not rule on the cap.
@@ -26,6 +26,10 @@ scope-auditor, PASS. No path the bi-analyst routes on changed in this round.
 Round 4, after CI's `test:python` failed on round 3's commit (`tests/test_no_decision_history_in_code.py`,
 pin 0): the generator's usage example carried an unquoted ISO date. Quoted, the gate's documented
 form for a literal; nothing else changed. Local `pytest tests/` 1278 passed. Delta review, PASS.
+
+Rebound after a second rebase onto main (the address words, !221, merged). The task artifacts were
+the only conflicts, resolved to this task's side; the generator, data, renders, README, block
+standard row and contract are byte-identical to round 4 (`git diff 72cde34a HEAD` empty on them).
 
 ## scope-auditor
 VERDICT: PASS
