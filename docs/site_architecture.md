@@ -48,13 +48,25 @@ The scheme is written here with the English words.
 /{locale}/football/{country-slug}/                           country hub (e.g. /football/germany/)
 /{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
 /{locale}/{competition-slug}/{season-slug}/                  competition season archive
-/{locale}/{competition-slug}/fixtures/                       competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition, ruled with the tab's review on GitLab #129 (built by #150)
-/{locale}/{competition-slug}/rankings/                       competition page, Rankings tab (the top five of every team and player board under the catalogue's groups), the same word for every kind of competition, the tab's own name; ruled by the CPO on #151's MR, where the builder's `/stats/` collided with the metric glossary's word below (built by #151)
-/{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report)
-/{locale}/teams/{team-slug}/                                 team profile
+/{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition (#129; built by #150 at /fixtures/)
+/{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report), under its competition's Matchdays tab
+/{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings (built by #151 at /rankings/)
+/{locale}/teams/{team-slug}/                                 team profile, a club or a national team
 /{locale}/players/{player-slug}/                             player profile
+```
+
+Planned, not designed yet; each address is provisional until its page's review (§ Address words):
+
+```
+/{locale}/matches/                                           Matches menu page: one day, every competition playing it (#130)
+/{locale}/matches/{yyyy-mm-dd}/                              the other days behind it (#131)
+/{locale}/teams/                                             Teams menu page (#133)
+/{locale}/players/                                           Players menu page (#135)
+/{locale}/standings/                                         Standings menu page (#137)
+/{locale}/stats/                                             Statistics menu page (#139)
+/{locale}/stats/{metric-slug}/                               one statistic across competitions; whether it also holds the metric's definition, in place of a separate glossary, is the Statistics review's
+/{locale}/{competition-slug}/stats/{metric-slug}/            one statistic's full list in one competition (#140)
 /{locale}/h2h/{teamA}-vs-{teamB}/                            head-to-head
-/{locale}/stats/{metric-slug}/                               metric glossary page
 ```
 
 Reserved (structural only, render nothing until built — #376):
@@ -66,21 +78,30 @@ Reserved (structural only, render nothing until built — #376):
 ### Address words: in the reader's language
 
 The CPO decided on 2026-09-23 that the words of an address follow the reader's language, asked
-with the cost of each side: a small edge in German and Finnish search against about two days of
-build work now and every word named once per language. Nothing is public yet, which made it the
-cheapest moment to decide.
+with the cost of each side: about two days of build work now and every word named once per
+language. Nothing is public yet, which made it the cheapest moment to decide. The words below come
+from an independent search assessment he accepted the same day: Google's own guidance (words in
+the audience's language), the addresses of German, Finnish and English football sites, and what
+fans type into Google in each market. Google weighs address words very lightly; a page's title,
+headings and content decide far more, so the words are chosen to be clear and stable, and each
+page's title is where its search phrase must appear.
 
-⚠ **Not built yet.** The site still emits the English words under every locale. Switching them
+⚠ **Not built yet.** The site still emits the English words under every locale, and the two
+competition tabs still sit at their old English words (`/fixtures/`, `/rankings/`). Switching them
 is its own build item, filed once this table is approved, and it lands before the Matches hub is
 built.
 
 1. **Words are in the reader's language; names are not.** Competition, season, club, player and
    match names keep one spelling in every language (§ Slugs).
-2. **A word is the term a fan in that language types into a search engine for that page.** Usually
-   the menu or tab name, lower case. Not always: the Matchdays tab is `fixtures` in English and
-   `spielplan` in German, because that is what people search.
-3. **Letters fold to their base letter**, the rule club names follow (§ Spelling): `ä` → `a`,
-   `ü` → `u`, `ß` → `ss`.
+2. **A word is the menu word in that language, lower case**, and one word serves a list and the
+   pages it lists: `/de/mannschaften/` lists the teams, `/de/mannschaften/bayern-munchen/` is one
+   of them. English uses `stats`, which fans type far more than "statistics". A competition's tab
+   takes the word of what it lists, so the Matchdays tab is `/de/bundesliga/spiele/` and each match
+   sits under it. A tab or menu item may be named on screen differently from its address word: the
+   Rankings tab lives at `stats`.
+3. **Words avoid umlauts.** Names fold them to the base letter (§ Spelling: `ä` → `a`, `ü` → `u`,
+   `ß` → `ss`), which is fine for a name and reads as a misspelling in a word; none of the words
+   below has one.
 4. **One list holds every word in every language**, and every link and the language switch read
    from it; nothing else spells a word. The language switch translates each word through the list,
    so it can never assume two languages share a path after the prefix.
@@ -91,21 +112,32 @@ built.
 6. **Once a page is public, its words never change**, the same promise names carry (#852). A new
    language ships only with every word in the table named.
 7. **A date in an address is `yyyy-mm-dd`** in every language.
+8. **A page not designed yet has a provisional word**, the one this rule gives it. Its own review
+   confirms it, changes it, or drops it if the page is not built. A tab a future design adds is
+   named at that review by the same rule, as an address under its page
+   (`/de/mannschaften/bayern-munchen/kader/`), so adding a tab never moves its page.
 
-| Page | `en` | `de` | `fi` |
-|---|---|---|---|
-| Competitions index | `competitions` | `wettbewerbe` | `kilpailut` |
-| Matches hub and its day pages (designed on #130, #131) | `matches` | `spiele` | `ottelut` |
-| A match, under its competition | `matches` | `spiele` | `ottelut` |
-| A club's page | `teams` | `mannschaften` | `joukkueet` |
-| A player's page | `players` | `spieler` | `pelaajat` |
-| Competition page, Matchdays tab | `fixtures` | `spielplan` | `otteluohjelma` |
-| Competition page, Rankings tab | `rankings` | `ranglisten` | `rankingit` |
+| Word | `en` | `de` | `fi` | Settled: pages built today | Provisional: pages not designed yet |
+|---|---|---|---|---|---|
+| competitions | `competitions` | `wettbewerbe` | `kilpailut` | the competitions index | |
+| matches | `matches` | `spiele` | `ottelut` | a competition's Matchdays tab, and every match under it | the Matches menu page and its day pages |
+| teams | `teams` | `mannschaften` | `joukkueet` | a team's page, club or national team | the Teams menu page |
+| players | `players` | `spieler` | `pelaajat` | a player's page | the Players menu page |
+| stats | `stats` | `statistiken` | `tilastot` | a competition's Rankings tab | the Statistics menu page, one statistic's pages |
+| standings | `standings` | `tabelle` | `sarjataulukko` | | the Standings menu page |
+| h2h | `h2h` | `h2h` | `h2h` | | head-to-head |
 
-So `/de/bundesliga/spielplan/`, `/fi/ottelut/`,
-`/de/bundesliga/spiele/2026-09-26-bayern-munchen-vs-borussia-dortmund/`. A word the scheme above
-shows and this table does not (`football`, `h2h`, `stats`, `prediction`) is named with its page's
-own design, before that page is built.
+The name of each statistic in an address (`/de/bundesliga/statistiken/tore/`) is a word too, named
+at the Statistics review by the same rule.
+
+So `/de/bundesliga/spiele/`, `/de/bundesliga/statistiken/`, `/fi/joukkueet/hjk/` and
+`/de/bundesliga/spiele/2026-09-26-bayern-munchen-vs-borussia-dortmund/`. A word the scheme shows
+and this table does not (`football`, `prediction`) is named with its page's own design, before
+that page is built.
+
+⚠ **Open, not decided here:** a match's address carries its kick-off date, which moves when a league
+fixes its schedule, and is the UTC date rather than the local one. Whether the address keeps the
+date (fixed once, the old one forwarded, #852) or drops it is a separate decision for the CPO.
 
 ### Locale routing
 - **Every locale is prefixed** (`/de/…`, `/en/…`, …) — no unprefixed default. This keeps

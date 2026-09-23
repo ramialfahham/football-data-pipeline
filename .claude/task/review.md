@@ -1,20 +1,23 @@
 # Review — docs/address-words — 2026-09-23
 
-diff_sha256: 23c8eb47babad1a7059ec45d140f454531d5f37d7011cba4d61e267f053191d5
+diff_sha256: 036ff628b9982a9925a268df8b641203c1311f9ce3efd5b20f6ebce3ffb661b7
 
-rounds: 1
+rounds: 2
+
+Round 1 passed the first word list, which turned out to be unresearched. The CPO asked; research and
+an independent search assessment followed; he accepted its list and asked how it holds for pages
+not designed yet. Round 2 rewrote the list, marked planned pages provisional and removed a reason
+the document had attributed to him. Delta review, PASS.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: the diff touches exactly `.claude/task/contract.md` and `docs/site_architecture.md`, both in `scope_paths`; no other file in `review_input.patch`.
-- Naming and URL-format decision rights (working_agreement §10): the direction (reader's language vs English everywhere) carries the dated CPO answer in the contract's refs; the word table is listed under `decisions_reserved` as proposed copy approved by his merge of the MR head. Not a silent §10 taking.
-- Prior CPO rulings on `/fixtures/` and `/rankings/` (#129, #151): their "same segment ... every locale" wording is removed and the removal is disclosed in `decisions_taken` with its reason; the "every kind of competition" half and the English words stand.
-- `decisions_reserved` items (country hub line, words for undesigned pages, the switch's own build issue): the diff decides none of them; the table defers `football`, `h2h`, `stats`, `prediction` to their pages' designs.
-- Threshold declarations: prose only, no new file, script, mechanism, cadence or cost.
-- Credentials sweep: two markdown files, no key, token or credential-shaped string.
-- Impact map: no structural path touched, so none required and none given.
-- Doc sync: the replaced rule lived only in `docs/site_architecture.md` §3; no other document states it.
+- The reason "collided with the metric glossary's word", which the CPO said was never his, is gone from both files, not reworded.
+- No line presents two words for one page as current: the remaining `fixtures`/`rankings` mentions are marked as the built site's old addresses, not yet switched.
+- Naming and URL decision rights: the settled words carry his dated acceptance in the contract's refs; the provisional words, the glossary question and the match-date question stay in `decisions_reserved` and are marked provisional or open in the document itself.
+- The settled/provisional split in the word table matches the pages built today; `standings` and `h2h` are provisional only.
+- Scope: the same two files as round 1, both in `scope_paths`; prose only, no mechanism, no cost, no credential.
+- Round 1, unchanged since: the direction carries his dated answer; the prior tab rulings' "every locale" half is disclosed as replaced; no impact map needed for a document.
 
 ## escalations
 (none)
