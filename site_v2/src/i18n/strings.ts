@@ -445,7 +445,7 @@ const DE: Dict = {
   navStandings: "Tabelle",
   navStatistics: "Statistiken",
   mainNavAria: "Hauptnavigation",
-  searchPlaceholder: "Teams, Spieler suchen…",
+  searchPlaceholder: "Mannschaften, Spieler suchen…",
   searchAria: "Suche",
   themeToggleAria: "Design umschalten",
   menuAria: "Menü",

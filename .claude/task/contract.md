@@ -1,39 +1,46 @@
-# Task contract — the menu item reads Statistics, the word football sites use
+# Task contract — German is measured like the other two languages
 
 objective: >
-  The header and footer menu item is "Statistics" / "Statistiken" / "Tilastot". One copy key in
-  three languages and its two call sites, plus the documents that write the menu out. No page, no
-  link, no layout change; the item stays dead text until #139 builds the hub behind it.
+  The measured design check renders German as well as English and Finnish, so a German layout
+  break fails `validate:ui` instead of passing it silently; its summary stops overstating its own
+  coverage; and the check's language set is pinned against the site's declared locales so it
+  cannot drift again. Separately, the one German string still saying "Team" for a club takes the
+  word the rest of the German copy uses. No page, route, payload, mart or rule changes.
 
 refs: >
-  The ruling: the CPO on !217's thread, 2026-09-22 — "Premier League uses a menu 'Statistics'
-  for leaderboards as well. Let's go with Statistics / Statistiken / Tilastot", after asking
-  whether the German and Finnish drafts had been researched in a football context. They had not.
-  The research, done then: premierleague.com's top-level item is Statistics and its page is
-  the scorers and club-stats leaderboards; bundesliga.com's German section is Statistiken
-  (`/de/bundesliga/stats`, "Statistiken 2025/26 | Spieler | Tore"); veikkausliiga.com's Finnish
-  section is Tilastot (`/tilastot/pelaajat/`), with the individual lists named maalipörssi,
-  syöttöpörssi and pistepörssi; kicker uses Rangliste for one ranking table and Torjäger for the
-  scorers list. No German or Finnish football site in that search labels the section
-  "Bestenlisten" or "Kärkilistat".
-  This SUPERSEDES the English half of #127 (2026-09-13, "the menu item Stats is renamed
-  Leaderboards"), which !217 shipped this morning together with two drafted words the research
-  does not support. The hub behind the item keeps its own name — #139 is "Leaderboards hub: what
-  this menu item lands on", milestone 7 is "7 · Leaderboards" — because what that page is called
-  is #139's question, not the menu label's.
-  Measured on `main` at `c0688e3b`: `navLeaderboards` is "Leaderboards" / "Bestenlisten" /
-  "Kärkilistat" in `strings.ts`, rendered by `SiteHeader.astro` (6th nav item, no href) and
-  `SiteFooter.astro` (4th footer link) on every built page in all three locales.
+  Both items are the builder's, handed back by the CPO on 2026-09-23 after being put to him as
+  open questions: "Well, here is a lot of blabla that reads like you need something from me!!"
+  Neither is a naming or product decision. The third item raised with them — whether page
+  addresses follow a written vocabulary — IS his and is not in this task.
+
+  1. THE CHECK HAS NEVER RENDERED GERMAN. `scripts/check_design_inventory.py:39` reads
+  `DEFAULT_LANGS = ("en", "fi")`, and CI invokes it with no `--langs`. This is NOT a rule
+  extension: `docs/wireframes/block_standard.md:77` already RULES the tab bar "the tabs share the
+  row and fit in one row at 375px in EN, DE and FI". The ruling names three languages; the guard
+  enforces two, so it has never enforced the rule as written. Tuning a guard toward its own rule
+  is the builder's (memory: guard tuning is the builder's).
+  It cost something real on #151: the German tab bar took the longest word of the nine
+  (`Ranglisten`, 118px of 343) and had to be measured BY HAND, outside the gate, because the gate
+  does not look. A German-only overflow would have shipped green.
+  Measured before planning, on `main` at `db70ab1d` with a fresh build:
+  `--langs en,de,fi` → `20 pages · 2 viewports · 3 languages · 94 renders · 0 failures · 0
+  warnings`. German passes clean today, so this closes a blind spot rather than opening a backlog.
+
+  2. ONE GERMAN STRING STILL SAYS TEAM. `searchPlaceholder` (`strings.ts`, DE) reads "Teams,
+  Spieler suchen…". Every other German club reference is Mannschaft(en) — `navTeams`,
+  `homeTopTeams`, `homeTopTeamsIntro`, `compDeservedExplainer`, and, since !216, the competition
+  page's title, description and headings. A sweep of the German dictionary shows this is the only
+  remaining outlier. The bi-analyst flagged it while reviewing !216 and correctly ruled it out of
+  that branch's scope: "pre-existing, branch-untouched … worth a future consistency pass". This is
+  that pass. The word itself is settled by the CPO's ruling on !216, so no new naming call.
 
 scope_paths:
+  - scripts/check_design_inventory.py
+  - tests/test_design_inventory.py
   - site_v2/src/i18n/strings.ts
-  - site_v2/src/components/chrome/SiteHeader.astro
-  - site_v2/src/components/chrome/SiteFooter.astro
-  - docs/wireframes/09_chrome.md
-  - docs/wireframes/10_home.md
-  - docs/site_architecture.md
-  - docs/ui_design_brief.md
-  - design-mocks/gen_navmap.py
+  - docs/wireframes/block_standard.md
+  - design-mocks/README.md
+  - .claude/skills/validate-local/SKILL.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -43,40 +50,70 @@ scope_paths:
   - docs/tracker/gitlab_snapshot.md
 
 impact_map: >
-  Leaf copy change on the consumption surface, the same shape as !217 a few hours earlier.
-  The key is read at exactly two call sites (`SiteHeader.astro:32`, `SiteFooter.astro:24`) and
-  named in two documents (`09_chrome.md`'s chrome key table, `design-mocks/gen_navmap.py`'s
-  navigation map). No page, route, payload, mart or export is touched; the item has no `href`,
-  so no link graph changes and `audit-seo`'s link resolution is unaffected.
-  ⚠ SWEEP BY THE CONCEPT, NOT THE KEY — !217's round-1 FAIL. The word also appears as prose in
-  the six-item menu list in `09_chrome.md` (the quote, both ASCII diagrams, the States bullet),
-  `site_architecture.md:222` and `ui_design_brief.md:71`, and as a superseded ruling in
-  `10_home.md:9`. Each of those is a menu label and moves. Each of these is NOT and stays:
-  `site_architecture.md:247` (the `leaderboards/{league_code}` export payload row),
-  `north_star.md:115` (the GitLab MILESTONE list, and milestone 7 is named Leaderboards),
-  `10_home.md:1002` and `gen_navmap.py:155` (the Leaderboards PAGE, #139) — the hub keeps its name.
-  blast_radius: every page of the built site shows the new word; nothing else moves.
+  Two independent leaf changes, ridden together deliberately — see decisions_taken.
+
+  THE CHECK. `DEFAULT_LANGS` feeds one `--langs` default. Built pages need no other code:
+  `resolve_built` substitutes the first `en/` of the Pages-table URL, and the German tree is the
+  same shape (443 `index.html` under both `dist/de` and `dist/en`). The `FI` column does NOT gate
+  built pages — that branch is inside `if p.kind == "mock"`. The mocks stay EN/FI: their
+  generators emit `(en, fi, probe)` tuples into one HTML with a CSS toggle, there is no German
+  text in any mock, and the FI strings are documented as width probes, not approved copy. The
+  existing guard `if lang not in ("en", "fi"): continue` already skips them correctly.
+  ⚠ Because of that skip, the summary's `len(langs)` would claim "3 languages" while 13 of the 20
+  pages saw two. A gate overstating its own coverage is the very defect being fixed, so the
+  summary states the mock set.
+  ⚠ SWEEP BY THE CONCEPT: four LIVE places write "EN and FI" in prose and go stale on this
+  commit — `block_standard.md:12`, the `validate:ui` comment in `.gitlab-ci.yml`,
+  `.claude/skills/validate-local/SKILL.md`, `design-mocks/README.md`. THREE ARE FIXED HERE; THE
+  CI COMMENT IS NOT, AND STAYS STALE. `.gitlab-ci.yml` is a protected governance path: the
+  contract gate refuses the edit without a CPO-approved `protected_override`, and a comment is
+  not worth loosening a guard or spending a governance task on. Disclosed on the MR head rather
+  than quietly left. Not touched, deliberately:
+  `docs/tracker/gitlab_snapshot.md` (generated from GitLab, never hand-edited) and
+  `.claude/task/acceptance_evidence.md`'s pasted historical readings.
+  No test asserts a language or render count: `tests/test_design_inventory.py` pins floors and
+  shapes, and its two subprocess proofs pass `--langs en` explicitly, so they are unaffected.
+  CI: `.ui_paths` already covers every file here, so `validate:ui` fires on its own.
+
+  THE STRING. One value, read at one call site (`SiteHeader.astro`, the search input's
+  placeholder). `docs/wireframes/09_chrome.md` names the KEY, not the value, so it does not move.
+  The legacy corpus has no search placeholder. Nothing pins the value.
+  blast_radius: the check does 14 more renders per run; every German page shows the new
+  placeholder; no page, link, payload or rule changes.
 
 acceptance_criteria:
-  - Every built page under `site_v2/dist` shows "Statistics" as the sixth header item and in the footer link row in EN, "Statistiken" in `/de/`, "Tilastot" in `/fi/`, and no page in any locale still shows "Leaderboards", "Bestenlisten" or "Kärkilistat" as a menu item.
-  - The item is still dead text (no `href`): no page gains a link, and `audit-seo` passes.
-  - The word "Leaderboards" survives exactly where it names the HUB and not the menu item: `site_architecture.md`'s export payload row, `north_star.md`'s milestone list, `10_home.md`'s reference to the #139 page, and `gen_navmap.py`'s competition-page note.
-  - `python scripts/check_copy_gate.py` exits 0; `cd site_v2 && npm test` green; `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0.
+  - `python scripts/check_design_inventory.py --dist site_v2/dist`, with NO `--langs` flag, exits 0 and reports 3 languages and 94 renders, naming the two languages the mocks were measured in.
+  - The German built pages are actually measured: a deliberately broken German-only rule is caught. Demonstrated by running the check against a mutated German string and showing the FAIL line carries `de`, then reverting.
+  - `tests/test_design_inventory.py` fails when `DEFAULT_LANGS` drops a locale the site declares in `site_v2/src/lib/href.ts`, and passes as shipped. Seen RED.
+  - Every built page under `site_v2/dist/de/` shows the header search placeholder "Mannschaften, Spieler suchen…", and no German page still shows "Teams, Spieler suchen…".
+  - The German header at 375 and 700 px: the search input's placeholder is not clipped, and the page's `scrollWidth` is no worse than it was before this change (the 700px header overflow is pre-existing and disclosed, not introduced here).
+  - No live document the contract may touch still says the check renders "EN and FI"; the one in `.gitlab-ci.yml` is named on the MR head as knowingly left, being behind a protected path.
 
 decisions_taken: >
-  All three words are the CPO's, quoted in `refs` with the evidence he cited (the Premier League
-  menu) and the evidence gathered for the other two languages. The key is renamed
-  `navLeaderboards` → `navStatistics` so the identifier says what the item says, the same reason
-  `navStats` → `navLeaderboards` carried this morning.
+  ONE BRANCH FOR TWO UNRELATED ITEMS, stated so the scope-auditor judges it rather than discovers
+  it. The design check would never have caught a word choice; they are connected only by both
+  being German parity and both being one-liners. One review cycle rather than two is the whole
+  reason. If the auditor calls it scope drift, splitting is cheap and the builder splits.
+  The mocks are NOT given German. Inventing German copy for a width probe is the coined-word trap
+  the CPO caught on !216's Finnish label; the mocks' own header says the FI strings are probes,
+  not approved copy.
+  The `FI` column is NOT renamed to a general per-language field. It would touch the schema, the
+  table header and all 20 rows and buys nothing: German reaches built pages without it, and the
+  mocks have no German to reach. Its definition line is corrected to say it governs the mocks'
+  toggle only, which is already true.
+  The German placeholder keeps the existing comma form ("Mannschaften, Spieler suchen…"), mirroring
+  the English "Search teams, players…", so only the word changes.
 
 decisions_reserved:
-  - Whether the HUB and its milestone keep the name Leaderboards while the menu item leading there says Statistics. Not this task's: #139 owns what that page is called, and nothing published depends on it. Named on the MR head so the CPO sees the divergence rather than discovers it.
+  - Whether page addresses follow a written vocabulary before go-live. The CPO's, raised by him on !216, deliberately not touched here.
+  - Whether the mocks should ever carry German copy. That needs approved German strings, which would be a naming decision; today the mocks are measured in EN and a documented FI width probe.
 
 done_when:
-  - `grep -rn "navLeaderboards" site_v2/ docs/ design-mocks/` returns nothing.
-  - `python scripts/check_copy_gate.py`, `python scripts/check_ui_i18n_metrics.py` exit 0; `cd site_v2 && npm test` green.
-  - `npm run build` green; the acceptance criteria read from `dist` in `acceptance_evidence.md`.
-  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0.
+  - `python scripts/check_design_inventory.py --dist site_v2/dist` exits 0 with the new summary; the German FAIL demonstrated and reverted.
+  - `python -m pytest tests/test_design_inventory.py -q` green, the new pin seen RED.
+  - `python scripts/check_copy_gate.py`, `python scripts/check_ui_i18n_metrics.py` exit 0; `cd site_v2 && npm test` green; `npm run build` green.
+  - `grep -rn "EN and FI" docs/ design-mocks/ .claude/skills/` returns nothing that describes this check (`.gitlab-ci.yml` excluded and disclosed).
+  - The German header measured at 375 and 700 px and recorded in `rendered_page_evidence.md`.
 
 amendments:
   - none yet

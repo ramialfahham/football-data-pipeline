@@ -36,7 +36,14 @@ import design_inventory as di  # noqa: E402
 REPO = di.REPO
 MOCKS = REPO / "design-mocks"
 DEFAULT_VIEWPORTS = (375, 700)
-DEFAULT_LANGS = ("en", "fi")
+# Every locale the site publishes. A language the check does not render is a language whose layout
+# can break green — the tab bar's rule names EN, DE and FI, so all three are measured.
+# `tests/test_design_inventory.py` pins this against the site's own `LOCALES`.
+DEFAULT_LANGS = ("en", "de", "fi")
+
+# The design mocks carry English and a marked Finnish width probe in one file, toggled by CSS;
+# no other language exists in them to render.
+MOCK_LANGS = ("en", "fi")
 
 # One evaluation per rendered page: every element's visible matches, with the measurements its
 # assertions need. Runs inside the page; returns plain JSON.
@@ -344,6 +351,7 @@ def main(argv=None) -> int:
     }
     failures: list[Failure] = []
     renders = 0
+    covered: dict[str, set[str]] = {}   # language -> the pages actually rendered in it
     artifacts = Path(args.artifacts) if args.artifacts else None
     if artifacts:
         artifacts.mkdir(parents=True, exist_ok=True)
@@ -380,7 +388,7 @@ def main(argv=None) -> int:
                             for lang in langs:
                                 if lang != "en" and p.fi == "none":
                                     continue
-                                if lang not in ("en", "fi"):
+                                if lang not in MOCK_LANGS:
                                     continue
                                 targets.append((p, lang, mock_base + p.url))
                         else:
@@ -409,6 +417,7 @@ def main(argv=None) -> int:
                         before = len(failures)
                         measure_page(pw_page, inv, spec, p, viewport, lang, failures)
                         renders += 1
+                        covered.setdefault(lang, set()).add(p.name)
                         if artifacts and any(f.level == "FAIL" for f in failures[before:]):
                             pw_page.screenshot(path=str(artifacts / ("%s_%d_%s.png" % (p.name, viewport, lang))), full_page=True)
                     ctx.close()
@@ -423,8 +432,20 @@ def main(argv=None) -> int:
     for f in failures:
         print(f.line())
     hard = [f for f in failures if f.level == "FAIL"]
-    print("%d pages · %d viewports · %d languages · %d renders · %d failures · %d warnings"
-          % (len(pages) + len(adhoc), len(viewports), len(langs), renders, len(hard), len(failures) - len(hard)))
+    # A gate that overstates its own coverage is the defect this check exists to catch, so the
+    # language count never stands for pages it did not reach. Read from the renders that actually
+    # happened, not from what was asked for: the mocks carry no German, and an ad-hoc page is
+    # English only, and both would otherwise hide inside "N languages".
+    # Count every language ASKED FOR, not only those that rendered something: a language that
+    # reached no page at all is the loudest version of this problem and would otherwise vanish
+    # from the tally instead of showing as 0.
+    per_lang = [(lang, len(covered.get(lang, ()))) for lang in langs]
+    reached = max((n for _lang, n in per_lang), default=0)
+    caveat = ""
+    if any(n < reached for _lang, n in per_lang):
+        caveat = " (pages per language: %s)" % ", ".join("%s %d" % (lang, n) for lang, n in per_lang)
+    print("%d pages · %d viewports · %d languages%s · %d renders · %d failures · %d warnings"
+          % (len(pages) + len(adhoc), len(viewports), len(langs), caveat, renders, len(hard), len(failures) - len(hard)))
     if artifacts and hard:
         (artifacts / "failures.json").write_text(json.dumps([f.__dict__ for f in failures], indent=1), encoding="utf-8")
     return 1 if hard else 0

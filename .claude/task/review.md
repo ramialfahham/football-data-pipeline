@@ -1,43 +1,50 @@
-# Review — fix/menu-statistics — 2026-09-22
+# Review — fix/german-coverage — 2026-09-23
 
-diff_sha256: 5e1079756429cc87d130dd836175fe67f8cc60c64526fbdbe64389bbc95678e6
+diff_sha256: b5b5aa3e8bcb5d2c350be20461e40bb29055cf4087cccf93e164fcfdb2e460fb
 
-rounds: 1
+rounds: 3
 
-⚠ REBASED onto `main` after !216 (#151, the Rankings tab) merged, which moved the base under this
-branch. The hash above is the recomputed cumulative diff against the new base; the round-1
-verdicts below stand unchanged, because **this branch's own change did not move**: the five task
-artifacts were the only conflicts and were resolved to this task's side, `site_v2/src/i18n/strings.ts`
-and `docs/site_architecture.md` auto-merged, and the branch's own patch before and after the rebase
-covers the same eight files with identical added and removed lines — only blob hashes and two hunk
-line numbers differ (`-442` → `-443`, `-683` → `-685`), because #151 inserted copy above in the same
-file. The branch's second commit, a session handover naming both requests as open, was dropped
-rather than replayed: `main` already carries a newer handover, and replaying it would have
-overwritten current state with the claim that !216 is still open.
-
-One round, both required reviewers PASS. The scope-auditor's only finding was a stale line
-number in the contract's own impact map (`10_home.md:999`, actually 1002), corrected and
-confirmed in a one-line delta. The bi-analyst read that same citation the other way; checked
-directly afterwards — `grep -n "Leaderboards page exists (#139)"` returns 1002, so the contract
-as it stands is right.
+Three rounds, all three required reviewers PASS at the end. The platform reviewer FAILed twice, and
+both findings were in the code this branch adds rather than around it: first the new coverage
+caveat computed from configuration instead of from what rendered, then the caveat having no test
+at all. The second is the sharper of the two — the whole branch exists because a gate was not
+measuring what it claimed, and the fix for it initially shipped unpinned.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All three words trace to a dated CPO quote in `refs` ("the CPO on !217's thread, 2026-09-22"), which is what a §10 user-visible naming decision requires; the builder's earlier drafts were overridden, not defended.
-- Superseding a prior ruling is recorded in place: `10_home.md:9-13` now carries the chain (Stats → Leaderboards on #127 → Statistics today, with the reason), rather than the old text annotated beside the new.
-- The hub/label distinction was applied in both directions: `site_architecture.md:247`, `north_star.md:115`, `10_home.md:1002` and `gen_navmap.py:155` still read Leaderboards (the page, the milestone, the export payload); every six-item menu list reads Statistics. Neither over- nor under-swept.
-- `grep -rn "navLeaderboards"` across `site_v2/`, `docs/`, `design-mocks/` returns zero live hits.
-- Dead text preserved: the two component hunks swap the key and add no `href`; `audit-seo` unaffected.
-- Every touched path is in `scope_paths`; `north_star.md` is correctly absent from both the diff and the list, because it must not change.
-- No credential-shaped content, no new mechanism, no recurring cost.
-- Delta: the contract's line-number citation corrected; no code, scope or decision field touched.
+- Two unrelated items on one branch: stated in `decisions_taken` rather than hidden, and tied to the CPO's own pushback quoted and dated in `refs`. Neither item is a naming, product or metric decision on its own. Disclosed, not smuggled — defensible, not drift.
+- The German word: checked against the handover's record that Mannschaft(en) was ruled sitewide on !216, which predates this task, then grepped the whole German block for remaining "Team" — none outside the `{team}` interpolation placeholder. Applying a settled ruling, not a new naming call.
+- `scope_paths` against the staged diff: every file matches an entry; nothing outside it.
+- `.gitlab-ci.yml`'s stale "EN and FI" comment: the file is absent from the diff, no `protected_override` was taken, and the staleness is disclosed in three places rather than forced through or silently left. Correct handling of a protected governance path.
+- The rule-extension question: read `block_standard.md` and confirmed it already rules the tab bar to fit "in EN, DE and FI" while the guard enforced two. Tuning a guard to an existing written rule is the builder's, not a §10 extension.
+- Attribution: the CPO quote is dated, no entry was added to the frozen escalations log, and `decisions_reserved` keeps the address-vocabulary question off this branch.
+- No new mechanism, no credential-shaped content; the +14 renders are disclosed in the impact map.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL: the new coverage caveat was computed from the CONFIGURED page list, so `--page` ad-hoc targets — hard-coded to render English only — were counted in the page total and implied covered in every requested language; with no inventory page selected the caveat was suppressed entirely. The same class of overstatement the branch exists to fix, reproduced in miniature. Fixed by reading the tally from the renders as they happen and counting every language ASKED FOR, so one that reached nothing shows as 0. Re-traced in round 2 against the original repro: closed.
+- Every `continue` above the counter — mock generator failure, the `fi == "none"` skip, a language outside the mock set, no built file, a missing or unresponsive FI toggle — sits before the increment, so nothing that failed to render is counted as covered, and nothing increments without having been measured.
+- Round 2 FAIL: the caveat had no test. Every existing subprocess test hardcodes `--langs en`, so the branch was unreachable and a regression would have turned nothing red; the only evidence was hand-run transcripts, which CI never re-runs. Closed by a `@needs_browser` subprocess test asserting the exact tally on a three-language ad-hoc run and asserting silence on a one-language run. Checked that it is an exact-substring assertion, so a caveat firing with wrong numbers still fails; that the "last line containing renders" selection cannot pick up a spurious line; and that the RED mutation targets the same lines the round-1 defect lived in.
+- `MOCK_LANGS` faithfully replaces the literal it came from, and the neighbouring `p.fi == "none"` guard still runs first and behaves identically. A `fi = "none"` row, if one is ever added, falls through correctly with no new code.
+- The new locale pin parses `href.ts` with a regex but asserts the match before using it, so a format drift fails CLOSED. `check_design_inventory` imports Playwright inside `main()` under a guard, so importing it at test time needs no browser and the suite still runs where Chromium is absent.
+- Test idiom matches its neighbours — `@needs_browser`, subprocess, `PYTHONIOENCODING`, `encoding="utf-8"`, the shared fixture constants — and the `--page NAME=PATH` argument is a list element, so Windows paths are not a parsing hazard. It cannot reuse `_run_check`, which hardcodes one language.
+- Cost: +14 renders per run, plus two browser launches in the new test. Stated in the impact map and the evidence; acceptable for `validate:ui`.
+- The prose edits in this territory now describe built pages and mocks separately and carry no stale claim. `.gitlab-ci.yml` still says "EN and FI" and is confirmed knowingly left, not forgotten.
+- Stated limitation: this reviewer had no execution tool, so the pass/fail counts and the RED transcript were checked for logical consistency against the source rather than re-run.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Swept `docs/wireframes/**`, `site_v2/src/**`, `design-mocks/gen_navmap.py`, `site_architecture.md`, `ui_design_brief.md` and `north_star.md` in both directions rather than trusting the claim: every menu-label site moved, every hub-name site stayed — including `00_overview.md:139`'s `05_leaderboards.md` page reference, which this task correctly leaves alone.
-- Exactly one `navStatistics` definition per locale; no orphaned `navStats` or `navLeaderboards` outside the task artifacts; `gen_navmap.py` derives the label from the header and the strings, so no second place can drift.
-- Chrome labels are exempt from the field-binding rule by `09_chrome.md` §3 (fixed product IA, not registry- or mart-driven), so there is no fabricated field here; no metric, catalogue or percentage concern.
-- Dead text preserved: only the key swap in both components, `href` null at every measured width and locale.
-- The evidence files are this branch's and honest about method — a built-`dist` sweep plus headless-Chromium DOM and geometry at 375/700/1280 in three locales, stated as such rather than as a screenshot claim, with the pre-existing 700px sideways scroll disclosed rather than omitted.
+- Swept the whole German dictionary for remaining "Team" after the change: every German value now reads Mannschaft(en), and the only surviving occurrences in the file are English code comments. "Mannschaften, Spieler suchen…" is a correct plural and mirrors the English and Finnish constructions rather than being newly invented wording.
+- Verified against the built output, not the source: the German pages carry the new text and a grep for the old string under `dist/de` returns zero files.
+- Read the BUNDLED CSS rather than `system.css`: `.searchbox{display:none; … min-width:180px}` with `@media (min-width:1010px){.searchbox{display:flex}}`. So the control is structurally hidden below 1010px — covering both viewports the check measures — and where it is visible it has no fixed or maximum width, which means a longer word cannot clip by construction. That is a stronger confirmation than the measurement it was checking.
+- Traced the built-page branch of the check to confirm the block standard's corrected `FI` line is true of the code: a built page loops over every requested language and never reads `p.fi`; only the mock branch consults it. The correction is accurate, not a new inaccuracy.
+- Counted the Pages table against the reported coverage: 7 built rows and 13 mock rows, consistent with `en 20, de 7, fi 20`.
+- The header paragraph names today's three locales as well as the general clause, so a fourth locale would need a follow-up edit. Judged consistent with the document's existing convention — the tab-bar rule names the three the same way — rather than a defect this diff introduces.
+- Checked the patch hunks for both files against the working tree: no edits beyond the one German value and the two disclosed prose corrections.
+
+## Noted, not fixed here
+- `.searchbox` is hidden at both viewports the check measures, so a search-box defect in any language would still pass the gate. A different gap from the one closed here; named on the MR head rather than folded in.
+- `covered` counts distinct page NAMES per language, accumulated across both viewports, so a page rendering at 375 but failing to render at 700 in one language would still read as covered on the summary line. Not silent: each skip appends a failure carrying its viewport. Raised by the reviewer as narrow and not failed on.

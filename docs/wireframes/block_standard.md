@@ -9,7 +9,8 @@
 > Two scripts read the two tables below and nothing else: `scripts/check_page_css.py` (the lint:
 > a `<style>` block, a `style=` attribute or a mock's CSS string touching a class named in the
 > Selector column fails) and `scripts/check_design_inventory.py` (the measured check: every page in
-> the Pages table rendered at 375px and 700px in EN and FI, every element measured as its
+> the Pages table rendered at 375px and 700px in every locale the site publishes — EN, DE and FI
+> for a built page, EN and FI for a mock, which carries no German text — every element measured as its
 > `Measured as` column says). `scripts/design_inventory.py` parses both tables and fails closed on
 > a column, key, token or status it does not know. A rendered page that shows none of these elements
 > fails too.
@@ -90,8 +91,10 @@ note); a name, a "Matchday N" and a date never break inside themselves
 Every design-mock generator that renders a page, and every built page type. `Source` is the
 command for a mock (`{out}` is where the check tells it to write; a generator with a fixed output
 name lists it as `URL` and the check copies it) or `site_v2/dist` for a built page; `URL` is the
-file the check opens (a glob for a built page: the first match in sorted order); `FI` says how the
-check reaches Finnish (`path`: the `/fi/` page; `toggle`: the mock's FI switch; `none`: EN only);
+file the check opens (a glob for a built page: the first match in sorted order); `FI` governs the
+MOCKS only — it says how the check reaches a mock's Finnish (`toggle`: the mock's FI switch;
+`none`: EN only) — while a built page's other locales come from its URL, so `path` on a built row
+means every locale the site publishes, German included;
 `Expect` names elements the page must show — a page showing none of the inventory fails anyway.
 The lint reads this table too: a mock generator listed here (and every module it imports) may
 carry no CSS that touches an inventory class; a generator not listed is not a page.
