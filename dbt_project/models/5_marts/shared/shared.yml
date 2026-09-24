@@ -2817,6 +2817,13 @@ models:
           - accepted_values:
               values: [true, false]
               quote: false
+      - name: is_last_round
+        description: "True on every played fixture of the competition's last matchday: the latest round, by round_sequence, with a played fixture in the season of the competition's next matchday. A round still in progress carries this flag on its played fixtures and is_next_round on all of them; an unplayed fixture is never flagged; a competition with no upcoming fixture has no current season and no flagged row."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
       - name: is_match_that_matters
         description: "mart_next_matchday's flag on the one fixture of the next round whose two teams have the lowest sum of table positions; false on every other row."
         tests:

@@ -18,6 +18,12 @@
   over, false on every other row. fixture_order is the reading order of a competition-season's
   rows, rounds in sequence and each round by kick-off, so nothing downstream sorts.
 
+  is_last_round is the round just played: in the season of the competition's next matchday (its
+  current season), the latest round by round_sequence with a played fixture, and only that round's
+  played fixtures. A round in progress carries both flags, its played rows this one and its unplayed
+  rows is_next_round; a postponed fixture is never flagged until it is played; a competition with no
+  next matchday (a finished tournament) has no current season and no flag.
+
   fixture_slug is the match's permanent URL segment: the kick-off date, the home team's slug,
   "-vs-", the away team's slug — the two published team slugs, so a team is spelt the same in its
   own URL and in every match URL. A fixture whose team is unknown to dim_team gets no slug and
@@ -83,6 +89,26 @@ rounds as (
         ) as round_sequence
     from fixtures
     group by league_code, season_api_year, round_name
+),
+
+last_round as (
+    select
+        f.league_code,
+        f.season_api_year,
+        max(r.round_sequence) as round_sequence
+    from fixtures as f
+    inner join next_round as n
+        on
+            f.league_code = n.league_code
+            and f.season_api_year = n.season_api_year
+    inner join played as p
+        on f.fixture_sk = p.fixture_sk
+    inner join rounds as r
+        on
+            f.league_code = r.league_code
+            and f.season_api_year = r.season_api_year
+            and f.round_name = r.round_name
+    group by f.league_code, f.season_api_year
 )
 
 select
@@ -113,6 +139,7 @@ select
             )
     end as fixture_slug,
     n.round_name is not null as is_next_round,
+    l.league_code is not null and p.fixture_sk is not null as is_last_round,
     coalesce(m.is_match_that_matters, false) as is_match_that_matters,
     row_number() over (
         partition by f.league_code, f.season_api_year
@@ -137,3 +164,8 @@ left join next_round as n
         f.league_code = n.league_code
         and f.season_api_year = n.season_api_year
         and f.round_name = n.round_name
+left join last_round as l
+    on
+        f.league_code = l.league_code
+        and f.season_api_year = l.season_api_year
+        and r.round_sequence = l.round_sequence
