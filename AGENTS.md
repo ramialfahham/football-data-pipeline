@@ -37,7 +37,7 @@ if creds.strip().startswith('{'):
 export GOOGLE_APPLICATION_CREDENTIALS=/home/ubuntu/.config/gcloud/service-account.json
 ```
 
-The dbt profile at `~/.dbt/profiles.yml` must use `method: service-account` with `keyfile` pointing to this file (not `method: oauth`). The update script copies `profiles.example.yml` (which uses oauth) — you need to override it for Cloud Agent use.
+The dbt profile must use `method: service-account` with `keyfile` pointing to this file (not `method: oauth`), because a Cloud Agent VM has no browser for the OAuth flow. Write it to **`profiles.yml` in the repo root**: dbt reads the working directory before `~/.dbt`, and every documented command runs dbt from the root. `profiles.example.yml` uses oauth, so change the auth method in the copy.
 
 ### Running tests and checks (no GCP required)
 
@@ -63,7 +63,7 @@ These fail without a valid service account JSON written to disk:
 ### Gotchas
 
 - **`GOOGLE_APPLICATION_CREDENTIALS` injected as JSON content, not a file path.** The GCP SDK expects a file path, but the Cursor secret is injected as raw JSON. You must write it to disk and re-export the env var as the file path (see "GCP credential setup" above).
-- **dbt profiles.yml must use `method: service-account`** in Cloud Agent VMs (no browser for OAuth). The update script copies the example profile which uses `method: oauth` — override `~/.dbt/profiles.yml` on first use.
+- **dbt profiles.yml must use `method: service-account`** in Cloud Agent VMs (no browser for OAuth). The example profile uses `method: oauth`, so change it in `profiles.yml` in the repo root on first use, not in `~/.dbt`, which is shared by every dbt project on the machine.
 - **SQLFluff requires BigQuery auth.** The `.sqlfluff` config uses `templater = dbt`, which invokes `dbt compile` internally. Without GCP credentials, linting fails.
 - **Run SQLFluff from `dbt_project/`**, not the repo root, so the dbt templater picks up `.sqlfluff`.
 - **`dbt_project.yml` warning about unused snapshot config** is benign — it fires because no snapshot models are currently defined under that path.

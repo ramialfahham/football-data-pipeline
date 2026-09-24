@@ -148,8 +148,12 @@ venv.bak/
 dbt_packages/
 target/
 logs/
-# dbt local user identifier (machine-specific)
+# dbt local user identifier (machine-specific). dbt writes it next to the profile it reads.
 dbt_project/.user.yml
+/.user.yml
+# The local dbt profile, created from dbt_project/profiles.example.yml by scripts/bootstrap.py.
+# Root-anchored: deploy/nightly/profiles.yml is tracked on purpose for the nightly image.
+/profiles.yml
 
 # Spyder project settings
 .spyderproject
@@ -189,9 +193,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#  and can be added to the global gitignore or merged into this file. However, if you prefer,
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
@@ -227,7 +231,6 @@ artifacts/*.js
 
 # Claude Code local state (machine-specific, not project config)
 .claude/settings.local.json
-.claude/launch.json
 .claude/worktrees/
 # The handover lives in GitLab issue #157; the session-start hook saves its last copy here for when
 # GitLab is down. The old in-repo handover stays ignored so an older branch's copy is never re-added.

@@ -10,6 +10,63 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
 
 **Status.** The pipeline runs daily behind automated data-quality and CI checks. The first fan-facing web app was a prototype and is now retired; its successor (**Matchday Pilot**) is in development with a new information architecture.
 
+## Getting started
+
+### Prerequisites
+
+| Tool | Version | Needed for |
+|---|---|---|
+| Python | 3.11 | everything (pinned in `.python-version`) |
+| Node.js | 24 | the site (pinned in `.nvmrc` and `site_v2/package.json`) |
+| git | any recent | everything |
+| [uv](https://docs.astral.sh/uv/) | any recent | only the dbt tool inside Claude Code (`.mcp.json`) |
+| [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) | any recent | only the credentialed level below |
+
+**Windows: clone into a short folder**, for example `C:\src\football-data-pipeline`. Some installed
+files sit 150 characters below the repo folder, and Windows refuses paths longer than 260 characters
+unless long paths are turned on. Setup stops with this explanation if the folder is too deep. To turn
+long paths on instead (once per machine, PowerShell as administrator):
+`New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`
+
+### Set up (no credentials needed)
+
+```bash
+git clone https://gitlab.com/rami.al-fahham/football-data-pipeline.git
+cd football-data-pipeline
+python scripts/bootstrap.py
+```
+
+On Windows, if `python` is not 3.11: `py -3.11 scripts/bootstrap.py`.
+
+It creates `.venv` with every `requirements*.txt`, installs the git hooks (pre-commit), the site's
+packages, the dbt packages and Playwright's Chromium, creates `.env` and `profiles.yml` from their
+examples, and names the GitLab remote `gitlab`. Every step skips itself when already done, and no
+existing local file is overwritten, so it is safe to run again.
+
+### Prove it works
+
+```bash
+python scripts/bootstrap.py --verify
+```
+
+Runs the tests, every pre-commit check on every file, and the site build from the committed sample
+data. Preview the site with `npm run dev --prefix site_v2` (http://localhost:4321).
+
+Every commit then runs the pre-commit checks, pushes the branch to `gitlab` and opens a merge
+request (`.githooks/post-commit`).
+
+### With credentials (dbt against BigQuery, ingestion)
+
+- **BigQuery:** run `gcloud auth application-default login` with a Google account that has access to
+  project `football-data-pipeline-gcp`. dbt uses `profiles.yml` in the repo root (created by setup,
+  `dev` target only, gitignored). Check it from the repo root with `.venv` active:
+  `dbt debug --project-dir dbt_project`.
+- **API-Football key:** `API_FOOTBALL_API_KEY` in `.env` in the repo root (created by setup,
+  gitignored). With access to the project's Secret Manager, `python scripts/bootstrap.py --fetch-key`
+  writes it there without printing it (after `gcloud auth login`); it never overwrites a key that is
+  already set. Read [`docs/operations_guide.md`](docs/operations_guide.md) before running an ingest:
+  it spends API quota.
+
 ## Architecture
 
 ```mermaid
@@ -82,36 +139,26 @@ Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_proje
 
 ## dbt (local setup)
 
-The dbt project lives in `dbt_project/`. For CI/CD readiness, `profiles.yml` is **not** committed.
+The dbt project lives in `dbt_project/`. [Getting started](#getting-started) sets it up: `.venv` at
+the root, and the profile as **`profiles.yml` in the repo root** (gitignored), copied from
+`dbt_project/profiles.example.yml`.
 
-- Copy `dbt_project/profiles.example.yml` to your local dbt profiles directory as `profiles.yml`
-  - Default location on Windows: `%USERPROFILE%\.dbt\profiles.yml`
-  - Or set `DBT_PROFILES_DIR` to point to a folder containing `profiles.yml`
-
-**Local Python (single convention):** the repo uses **`.venv/`** at the root (gitignored). Set it up once, then use it for ingestion, dbt, and SQLFluff:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+- Not `~/.dbt/profiles.yml`: that file is one per machine and shared by every dbt project on it, so
+  another project can overwrite it. dbt reads the working directory before `~/.dbt`.
+- `--project-dir` does not move the profile lookup: run dbt from the repo root, not from inside
+  `dbt_project/`.
 
 ### Pre-commit hooks (local quality gate)
 
-`.pre-commit-config.yaml` runs sqlfluff (SQL lint), ruff (Python lint + format), basic file hygiene checks, and the existing secret scan. Catches the class of bug that auto-merged-without-CI used to ship to main.
+`.pre-commit-config.yaml` runs ruff (Python lint, CI's ruleset in `.ruff-ci.toml`), basic file
+hygiene checks and the secret scan, on every `git commit`; a failing hook blocks the commit. CI's
+`lint:python` job runs the same hooks on every file, so a commit that passes locally passes there.
+SQL lint needs BigQuery credentials, so it runs in CI's data jobs, not here. To run every hook on
+every file:
 
 ```powershell
-pip install pre-commit
-pre-commit install
+.\.venv\Scripts\python -m pre_commit run --all-files
 ```
-
-After install, hooks run automatically on every `git commit`. A failing hook blocks the commit. To run all hooks on the full repo (e.g. after the first install):
-
-```powershell
-pre-commit run --all-files
-```
-
-CI runs the same sqlfluff in `validate:governance` as defense-in-depth, but catching lint locally is fast (~5s on small diffs) and avoids round-tripping through the pipeline.
 
 Run dbt from the repo root with **`.venv`** activated:
 

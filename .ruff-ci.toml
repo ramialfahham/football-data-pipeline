@@ -1,28 +1,11 @@
-# Python lint config for the CI `lint:python` job. CORRECTNESS ONLY.
+# Python lint config. CORRECTNESS ONLY. The ruff hook in `.pre-commit-config.yaml` passes it
+# explicitly, and CI's `lint:python` runs that hook, so local commits and CI enforce the same rules.
 #
 # ⚠ THE FILENAME IS LOAD-BEARING. Do NOT rename this to `ruff.toml` or `.ruff.toml`, and do not
-# move these settings into a root `pyproject.toml`.
-#
-# Ruff auto-discovers exactly those three names by walking UP from each linted file. This repo has
-# run ruff on every local commit since long before this file existed — `.pre-commit-config.yaml`
-# (`rev: v0.7.4`, `args: [--fix, --exit-non-zero-on-fix]`) over
-# `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, passing no `--config`, so it uses
-# ruff's DEFAULTS. An auto-discoverable config at the root is silently adopted by that hook too,
-# and then both ways of proceeding lose:
-#
-#   · Narrowing `select` here switches rules off on every local commit. Measured over the hook's
-#     own file set: ruff's defaults report 10 violations (all E402); `["F","E9"]` reports 0. The
-#     first version of this file shipped `["F","E9"]` and would have done exactly that — a guard
-#     loosened as a side effect of adding a file.
-#   · "Just align the two ruff versions" is not a fix either: the pre-commit `rev` also governs
-#     `ruff-format`, which rewrites files on commit. Measured across v0.7.4 -> v0.16.2 with
-#     `ruff format --diff`: **75 files would be reformatted** — the unreviewable mechanical diff
-#     this whole change argues against.
-#
-# So CI passes `--config .ruff-ci.toml` explicitly and the local hook keeps its own defaults. The
-# two enforcement points stay independent: no shared config, no version alignment owed, and neither
-# can silently change the other. `tests/test_lint_config.py` fails if an auto-discoverable config
-# appears at the root, or if the CI job stops passing `--config`.
+# move these settings into a root `pyproject.toml`: ruff auto-discovers exactly those names, and a
+# second, auto-discovered source would make bare `ruff check` and editors disagree with the hook.
+# `tests/test_lint_config.py` fails if an auto-discoverable config appears at the root, if the hook
+# stops passing `--config`, or if its ruff version drifts from `requirements-dev.txt`.
 
 target-version = "py311"
 
@@ -35,8 +18,8 @@ extend-exclude = [".venv", "site_v2/node_modules", "site_v2/dist", "dbt_project/
 #   E9  syntax and IO errors
 #   F   pyflakes — undefined names, unused imports, redefinitions, unused locals
 #
-# Matching the default is deliberate in BOTH directions. Narrower would enforce less in CI than the
-# local hook already does, which is a backstop that backs nothing. Wider would adopt a new class of
+# Matching the default is deliberate in BOTH directions. Narrower would enforce less than ruff's
+# own baseline, on every commit and in CI alike. Wider would adopt a new class of
 # enforced opinion across the whole tree — style, import order, complexity — producing a large
 # mechanical diff no reviewer can meaningfully read. Moving this list either way is a decision.
 select = ["E4", "E7", "E9", "F"]

@@ -258,5 +258,3 @@ def run_player_squads_catchup(
             )
         except Exception as e:
             ctx.errors.append(f"league {league_code} player_squads catch-up: {e}")
-
-

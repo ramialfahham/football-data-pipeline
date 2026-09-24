@@ -1,95 +1,168 @@
-# Task contract — the Matches hub: a proposal the CPO can see
+# Task contract — Clone and continue: one setup command (#161)
 
 objective: >
-  Put a design for the Matches hub (#130, what the Matches menu item lands on) in front of the CPO
-  as a render he can open: the page as it would have read on the morning of Saturday 19 September
-  2026, built from the real fixtures and kick-off times of that day, composed only of elements the
-  site already has. Design only. Nothing under `site_v2/` changes; no mart, export or route.
-
+  After `git clone`, one command (`python scripts/bootstrap.py`) sets up everything that needs no
+  credentials, and `python scripts/bootstrap.py --verify` proves it: tests, pre-commit on all files,
+  the site build from sample data. The README says what the credentialed level needs and where it
+  goes. Generic config is committed, personal config stays out, and old-machine paths are gone.
 refs: >
-  #130 (the design issue; "nothing gets built until I approve a design"). The plan the CPO approved
-  on 2026-09-23 carries the content boundary and the proposed composition this render draws:
-  the hub answers "what is on today, everywhere", one calendar day, every competition playing,
-  every match; Home's Next matches block and the competition page's Matchdays tab group by round
-  and are unchanged; the days behind the hub are #131; the match page is #132.
-  #127's approved design records "filter buttons by competition and date ... belong to the
-  Matches page". north_star.md: "Open the app, instantly see what's on today across competitions,
-  tap a match".
-  Measured before planning: 152 matches in 19 competitions on 2026-09-19; 33 in 5 on 2026-09-26
-  (an international break), from `marts.mart_competition_fixtures`.
+  GitLab #161 (the requirement, its checklist and its plan; approved in plan mode 2026-09-24).
+  Plan produced by an independent expert review from the requirement and the measurements in the
+  issue's exploration fold. Doc wording reused from the parked branch
+  `parked/fix/dbt-profile-local-to-this-repo--profile-root`; its guard script is NOT reused.
 
 scope_paths:
-  - design-mocks/gen_matches_hub.py
-  - design-mocks/matches_2026-09-19.json
-  - design-mocks/matches_2026-09-26.json
-  - design-mocks/renders/matches-hub_*.html
-  - design-mocks/README.md
-  - docs/wireframes/block_standard.md
-  - .claude/task/contract.md
-  - .claude/task/review.md
-  - .claude/task/review_input.patch
+  - scripts/bootstrap.py
+  - tests/test_bootstrap.py
+  - tests/test_lint_config.py
+  - tests/test_governance_hooks.py
+  - README.md
+  - CLAUDE.md
+  - AGENTS.md
+  - .gitignore
+  - .claude/launch.json
+  - .mcp.json
+  - .gitlab-ci.yml
+  - .pre-commit-config.yaml
+  - .ruff-ci.toml
+  - requirements-dev.txt
+  - .python-version
+  - .nvmrc
+  - site_v2/package.json
+  - site_v2/package-lock.json
+  - dbt_project/profiles.example.yml
+  - .claude/skills/onboard-endpoint/SKILL.md
+  # end-of-file / trailing-whitespace fixes the new pre-commit config requires (whitespace only)
+  - requirements.txt
+  - dbt_project/packages.yml
+  - dbt_project/models/3_core/.gitkeep
+  - dbt_project/models/4_intermediate/.gitkeep
+  - dbt_project/models/5_marts/.gitkeep
+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+  - ingestion/api_football/loads/competition_runner.py
+  - design-mocks/rows.py
+  - design-mocks/interaction.py
+  - .claude/task/**
+  - docs/tracker/**
+
+protected_override: >
+  `.gitlab-ci.yml` and `.mcp.json` are protected paths. Authority: the plan for GitLab #161,
+  approved in plan mode on 2026-09-24, whose How names both ("`.gitlab-ci.yml`: `lint:python` runs
+  pre-commit, the two site jobs move to `node:24`, and the new setup job (never on a schedule ...)"
+  and "`.mcp.json` (relative paths, `${DBT_PATH:-.venv/Scripts/dbt.exe}`)"), and whose header says
+  the contract quotes that approval for the two protected files. The item-by-item answers in chat
+  the same day: Node 24 in CI "ok"; the CI job on Linux, on setup-file MRs and manual, "ok". The
+  commit message and the MR head repeat this under `Locked files`; his merge is the approval
+  (working_agreement §11).
+
+impact_map: >
+  writers: none. No raw writer, dbt model logic, seed or export script changes. Structural paths
+  touched are whitespace only: `dbt_project/models/**` (three `.gitkeep` files that hold a single
+  CRLF, and `domestic_league.yml` gains a final newline) and
+  `ingestion/api_football/loads/competition_runner.py` (final newline). A final newline changes no
+  parsed YAML, no compiled SQL and no Python AST: blast radius none, checked by `dbt parse` and
+  pytest staying green.
+  .gitlab-ci.yml, what fires it: (1) `lint:python` (every non-schedule pipeline, `*not_on_schedule`
+  first, unchanged) now runs `pre-commit run --all-files`; its name is unchanged, so
+  `build:nightly-image`'s `needs:` on it (pinned by
+  `test_governance_hooks.py::...required_gates`) still holds. (2) `build:site-v2` and
+  `deploy:site-v2` image `node:22` -> `node:24`; rules, scripts and artifacts unchanged;
+  `validate:ui` still needs `build:site-v2` (pinned by `test_design_inventory.py`). (3) new job
+  `setup:clean-clone`: `*not_on_schedule` as its FIRST rule (pinned by
+  `test_every_job_except_the_nightly_is_guarded_against_schedules`, because any GitLab schedule
+  also starts the prod `data:nightly`), then MR pipelines whose changes touch the setup inputs,
+  then `web` manual. No GCP auth, no `id_tokens`, no warehouse, no deploy, no `resource_group`.
+  What imports the file: `tests/test_lint_config.py` (requires a `ruff check --config .ruff-ci.toml`
+  invocation; the invocation moves to `.pre-commit-config.yaml`, so the test reads both files),
+  `tests/test_governance_hooks.py` (schedule guard, required gates, the `DBT_PROFILES_DIR` pin:
+  untouched properties), `tests/test_design_inventory.py`, `tests/test_ci_data_job_invariants.py`,
+  `tests/test_persist_docs_policy.py`, `scripts/check_task_artifacts.py` (none of their jobs change).
+  What stops being enforced if wrong: if pre-commit in `lint:python` failed to run ruff with the CI
+  config, CI's Python lint would weaken silently; the updated `test_lint_config.py` pins the hook's
+  entry, its `--config` and the absence of `--select`/`--ignore`, and pins the hook's ruff version
+  to the `requirements-dev.txt` pin. Failure behaviour: no `allow_failure` anywhere; a red hook is a
+  red job.
+  .mcp.json, what fires it: Claude Code launches the `dbt` MCP server at session start. Today it
+  fails to connect (old-machine paths). After: relative `DBT_PROJECT_DIR`/`DBT_PROFILES_DIR` and
+  `${DBT_PATH:-.venv/Scripts/dbt.exe}`. Nothing imports it; no guard depends on it; its failure mode
+  is the dbt tool not starting, which is the state today. The enabled tool list is unchanged
+  (read-only lineage/list/parse tools).
+  layer_rules: none touched (`check_layer_contract.py` reads models; whitespace only).
+  deploy_order: nothing reaches a host or a dataset. The nightly (Cloud Scheduler `fdp-nightly`) is
+  untouched; no GitLab schedule is created.
+  blast_radius: none on data. Developer-facing: every clone that runs the setup gets pre-commit
+  (pre-commit + post-commit hook types) installed into `.git/hooks`; the post-commit hook is the
+  existing `.githooks/post-commit`, unchanged.
 
 decisions_taken: >
-  Composition from the approved plan, every part an element the site already has, reused as is:
-  the breadcrumb and page heading of the Competitions page; its two filter rows (Clubs / National
-  teams, region); the Matchdays tab's picker with a date as its title; one block named with the
-  Matchdays tab's existing "Schedule" copy, holding the competition group head (crest, name,
-  chevron) and the match row. No new element, no new label, no CSS of the mock's own beyond its
-  harness: `system.css` is inlined verbatim and `scripts/check_page_css.py` holds that.
+  Every item below is a line of GitLab #161, approved in plan mode 2026-09-24, or an item answered
+  in chat that day.
 
-  The data is real: one `bq` pull of `mart_competition_fixtures` for 2026-09-19 joined to
-  `mart_competition_index`, committed beside the generator the way the #129 pulls were. The day
-  is rendered as it read that morning, so every row shows its kick-off and none its score; the
-  kick-offs, teams, competitions and order are the warehouse's. Times in UTC with the label, as
-  the built site shows them until #146.
+  pre-commit (item 1, "ok"): runs exactly what CI runs offline. In: file hygiene with generated or
+  frozen trees excluded (`site_v2/src/data/`, `site/` retired and frozen, `.github/workflows/`
+  protected and kept unedited, `.claude/task/` generated review artifacts), ruff check at CI's
+  version with `--config .ruff-ci.toml`, the secret scan. Out: `ruff-format` (never enforced; would
+  reformat 112 files) and `sqlfluff` (needs BigQuery; CI's data jobs still lint SQL). CI's
+  `lint:python` runs pre-commit, so there is one config. This reverses the documented choice to
+  keep the two independent (`.ruff-ci.toml` header, `.gitlab-ci.yml` lint comment); both are
+  rewritten, not appended.
 
-  Two renders, and the difference between them is the reserved question below, drawn so he can
-  answer it by looking rather than decided here. The real Saturday has 77 FA Cup qualifying ties
-  sorting second, so every competition after them starts about 80 rows down. Render 01 is the
-  plan's "every match, no fold"; render 02 is the same page with Home's fold, the element and
-  label the site already ships (`.fxmore`, copy `homeShowAll`, three rows then "Show all {n}").
-  One generator draws both; `MATCHES_HUB_FOLD=3` selects the fold, and the README names it as the
-  variant for this ruling, not a settled feature. Whichever he picks, the other goes.
+  Windows path limit (item 2, "ok", as corrected the same turn): setup stops only when long paths
+  are off AND the repo path is too long. Measured: the deepest installed file is 150 characters
+  below the root (`.venv\Lib\site-packages\google\cloud\bigquery_storage_v1alpha\...`); Windows
+  allows 259; the limit is set at 80 for margin. The script never changes the system setting.
 
-  The render is named by `design-mocks/render.py` and is a file of record once sent. The mock is
-  added to the block standard's Pages table so the measured check covers it like every other mock.
+  Node 24 (item 3, "ok"): `.nvmrc` `24`, `engines.node` `>=24 <25`, CI site jobs on `node:24`.
 
-  Threshold declarations: no new mechanism, no recurring cost (one read of about 200 rows).
+  npm install scripts (item 4, "ok"; #161 line): denied if the site builds without them, allowed
+  otherwise; the build is the test.
+
+  Parked guard script (item 5, "ok"): left out; the root-anchored `.gitignore` entry is the control.
+
+  CI setup job (item 6 as revised, "ok"): Linux only, MR pipelines touching setup inputs plus
+  manual, never on a schedule. No Windows runner, no scheduled run.
+
+  Proof folder (item 7, "ok"): `C:\01_Projects\fdp-proof`, cloned from GitLab, deleted after.
+
+  Git hooks (independent review, his "yes" 2026-09-24 to "Should every clone, including yours,
+  auto-push each commit and open an MR?"): pre-commit installs both hook types; the existing
+  `.githooks/post-commit` runs as a pre-commit post-commit hook. No `core.hooksPath`: the agent
+  guard blocks setting it and AGENTS.md already says to unset it; setup stops with that instruction
+  if it finds one set.
+
+  `.mcp.json`: Claude Code documents `${VAR}` and `${VAR:-default}`; `${CLAUDE_PROJECT_DIR}` is
+  documented only for plugin servers and a project server's working directory is undocumented, so
+  relative paths are used and the proof shows the tool connecting.
+
+  `--fetch-key` (#161 line "`python scripts/bootstrap.py --fetch-key` puts the API key from Secret
+  Manager into `.env` without printing it; you run it, Claude never does"): it reads the EXISTING
+  secret `api-football-key` with the caller's own gcloud login and writes it into `.env` only where
+  `API_FOOTBALL_API_KEY` is empty. No IAM change, no new secret, no key printed or logged.
+
+  Secret scans keep full coverage: `detect-private-key` and `check-no-secrets` carry no path
+  exclusion; only the whitespace fixers skip the generated or frozen trees. `API_KEY_SECRET_NAME`
+  in `scripts/bootstrap.py` holds the secret's NAME, spelled so the scan does not read it as a value.
+
+  THRESHOLD DECLARATIONS. NEW MECHANISM: `scripts/bootstrap.py` (setup script) and CI job
+  `setup:clean-clone`, both lines of #161 as approved; the pre-commit post-commit wiring (his "yes"
+  above). No new runtime dependency: `pre-commit` joins `requirements-dev.txt` (developer-only,
+  named in his requirement). RECURRING COST: `setup:clean-clone` uses the existing self-hosted
+  runner (roughly 5-8 minutes) only on MRs that change setup inputs or on a manual run; no money,
+  no BigQuery, no API-Football calls. `lint:python` gains the pre-commit hook-environment install
+  (cached).
 
 decisions_reserved:
-  - Everything the page shows: each of the four parts (breadcrumb and heading, filters, day line,
-    Schedule block) is the CPO's to keep, change or strike, on #130.
-  - Which day the hub shows (the build day, else the next day with a match), and that it carries
-    no "Today" label.
-  - The order of competitions within the day (the shared key: region rank, then kick-off, then
-    code).
-  - Approval of the page as a whole, on #130, after he has seen the national-team variant.
-
-  Ruled since, recorded on the issues and not re-decided here: the list uses Home's fold, "B"
-  (#130, 2026-09-23); the day switcher is the Matchdays picker with a date, one page per day,
-  forward to the end of each competition's next matchday and back to its last matchday of this
-  season, no archive by date (#131, 2026-09-23).
+  - none open: every choice in this task was put to the CPO item by item on 2026-09-24 and is
+    recorded above; a new CPO-class question found while building is brought to him, not decided.
 
 done_when:
-  - "`python design-mocks/render.py gen_matches_hub.py matches-hub` writes `design-mocks/renders/matches-hub_2026-09-23_01.html` (every match), and the same command with `MATCHES_HUB_FOLD=3` writes `_02` (Home's fold)."
-  - "`python scripts/check_page_css.py` exits 0 with the new generator listed in the Pages table."
-  - "`python scripts/check_design_inventory.py --no-built --pages \"matches hub\"` exits 0 at 375, 700 and 1010 px, EN and FI, for 19 and 26 September."
-  - "`MATCHES_HUB_DAY=2026-09-26 python design-mocks/render.py gen_matches_hub.py matches-hub` writes `_03`: every row one of the 26 September fixtures in the committed pull, national teams under a flag."
-  - "`python -m pytest tests/test_design_mock_renders.py tests/test_design_inventory.py -q` passes."
-  - "Every row in the render is one of the 152 fixtures of 2026-09-19 in the committed pull, and every competition heading is one of its 19 competitions."
-  - "The render is sent to the CPO and the proposal posted on #130."
+  - fresh clone from GitLab into C:\01_Projects\fdp-proof; `python scripts/bootstrap.py` exits 0;
+    a second run exits 0 and changes no file
+  - in that clone `python scripts/bootstrap.py --verify` exits 0 (pytest, pre-commit --all-files,
+    site build) and `dbt debug` passes from the root with the written profile
+  - the dbt MCP tool connects from this repo
+  - `.venv/Scripts/python.exe -m pytest tests/ -q` green in the working repo
+  - blinded review cycle PASS; MR opened with the `Default` head; CI green
+  - output of the proof pasted into the MR
 
-amendments:
-  - 2026-09-23 (before the first commit): the second render and its switch declared in
-    decisions_taken and done_when. Authority: the reserved question "All matches with no fold,
-    versus Home's three and a fold" is his, and a render of each side is how it is put to him
-    (a ruling request names its variants file by file). No path added; both renders were already
-    inside `design-mocks/renders/matches-hub_*.html`. Raised by scope-auditor round 1.
-  - 2026-09-23, after his rulings, on a clean tree: + `design-mocks/matches_2026-09-26.json`, the
-    real fixtures of Saturday 26 September 2026 (an international weekend), for the national-team
-    variant this contract reserved "rendered only after the first is ruled". Authority: he ruled
-    the fold ("B then") and the day switcher's reach on #130 and #131. The generator draws the
-    fold as the design (the `MATCHES_HUB_FOLD` switch goes: "whichever he picks, the other goes";
-    render 01 stays on file as the option not taken), takes the day from `MATCHES_HUB_DAY`
-    (default 2026-09-19, the file the Pages table's check renders) and writes the day line from
-    that date. The new render is `matches-hub_2026-09-23_03.html`.
+amendments: (none)

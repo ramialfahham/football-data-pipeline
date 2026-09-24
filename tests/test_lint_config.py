@@ -9,11 +9,14 @@ and every one of them shares a shape: the lint setup keeps failing in ways that 
   * The ruleset can be narrowed and nothing goes red — it just stops finding things.
   * `dummy-variable-rgx` can be deleted and the violation count does not move, because the repo
     currently has no violation of the rule it restores.
-  * The config can be made auto-discoverable and the only symptom is that a DIFFERENT tool, the
-    pre-commit hook, quietly changes behaviour.
+  * The config can be made auto-discoverable and the only symptom is that bare `ruff check` and
+    editors quietly change behaviour.
   * `per-file-ignores` can grow an entry that disables a whole rule for a whole directory.
-  * The CI job can add `--select`, which overrides the config file wholesale, and every test here
+  * The hook can add `--select`, which overrides the config file wholesale, and every test here
     would still pass while the config stops mattering.
+
+CI's `lint:python` runs `pre-commit run --all-files`, so the ruff hook in `.pre-commit-config.yaml`
+is the one place ruff is invoked, locally and in CI.
 
 Each of those is a guard that looks strong and is nearly inert — the failure
 `tests/test_materialisation_policy.py` was written about.
@@ -24,9 +27,8 @@ Values are read from parsed TOML and YAML, never grepped from file text. A guard
 prose is defeated by a reword, which is that same file's other lesson.
 
 `select` is asserted to equal ruff's DEFAULT set exactly, and that is deliberate in both
-directions. Narrower means CI enforces less than the local pre-commit hook already does — a
-backstop that backs nothing. Wider adopts a new class of enforced opinion across the whole tree.
-Either is a decision, not a tidy-up.
+directions. Narrower means CI enforces less than ruff's own baseline. Wider adopts a new class of
+enforced opinion across the whole tree. Either is a decision, not a tidy-up.
 """
 
 from __future__ import annotations
@@ -35,9 +37,13 @@ import pathlib
 import re
 import tomllib
 
+import yaml
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CI_CONFIG = ROOT / ".ruff-ci.toml"
 GITLAB_CI = ROOT / ".gitlab-ci.yml"
+PRE_COMMIT = ROOT / ".pre-commit-config.yaml"
+REQUIREMENTS_DEV = ROOT / "requirements-dev.txt"
 
 # Ruff's own default. Changing this constant is the deliberate act; changing the config alone is not.
 RUFF_DEFAULT_SELECT = ["E4", "E7", "E9", "F"]
@@ -51,13 +57,13 @@ def _config() -> dict:
 
 
 def test_select_is_exactly_ruffs_default_set():
-    """Narrowing enforces less than the local hook; widening is a new class of opinion."""
+    """Narrowing enforces less than ruff's baseline; widening is a new class of opinion."""
     select = _config()["lint"]["select"]
 
     assert sorted(select) == sorted(RUFF_DEFAULT_SELECT), (
-        f"`select` is {select}, not ruff's default {RUFF_DEFAULT_SELECT}. Narrower means the CI "
-        "backstop enforces less than .pre-commit-config.yaml already does locally; wider adopts "
-        "style/import-order/complexity rules across the whole tree. Both are decisions."
+        f"`select` is {select}, not ruff's default {RUFF_DEFAULT_SELECT}. Narrower means CI "
+        "enforces less than ruff's own baseline; wider adopts style/import-order/complexity "
+        "rules across the whole tree. Both are decisions."
     )
 
 
@@ -86,15 +92,14 @@ def test_the_dummy_variable_override_survives():
 
 
 def test_the_ci_config_is_not_auto_discoverable():
-    """The filename is the whole mechanism keeping CI and the pre-commit hook independent.
+    """The config is passed explicitly; an auto-discovered one would be a second, silent source.
 
-    Ruff walks up for `ruff.toml` / `.ruff.toml` / `pyproject.toml`. If this config becomes one of
-    those, `.pre-commit-config.yaml`'s ruff hook silently adopts it: narrowing `select` would then
-    switch rules off on every local commit, and "just align the versions" drags `ruff-format`,
-    which reformats 75 files. Neither symptom appears in CI.
+    Ruff walks up for `ruff.toml` / `.ruff.toml` / `pyproject.toml`. A root file of that name is
+    adopted by bare `ruff check` and by editors, which then disagree with the hook CI runs, and
+    nothing in CI shows it.
     """
     assert CI_CONFIG.name not in AUTO_DISCOVERED, (
-        f"{CI_CONFIG.name} is one of ruff's auto-discovered names, so the pre-commit hook now "
+        f"{CI_CONFIG.name} is one of ruff's auto-discovered names, so bare `ruff check` now "
         "reads it too"
     )
     for name in AUTO_DISCOVERED:
@@ -105,8 +110,8 @@ def test_the_ci_config_is_not_auto_discoverable():
             )
             continue
         assert not candidate.exists(), (
-            f"{name} exists at the repo root. Ruff auto-discovers it, so the pre-commit hook "
-            "silently adopts its settings — the coupling .ruff-ci.toml's filename exists to avoid."
+            f"{name} exists at the repo root. Ruff auto-discovers it, so bare `ruff check` and "
+            "editors silently adopt its settings — the drift .ruff-ci.toml's filename exists to avoid."
         )
 
 
@@ -130,25 +135,56 @@ def test_per_file_ignores_only_exempt_e402_in_the_shim_scripts():
         )
 
 
-def test_the_ci_job_passes_the_config_and_no_select_override():
+def _ruff_hooks() -> list[tuple[str, dict]]:
+    config = yaml.safe_load(PRE_COMMIT.read_text(encoding="utf-8"))
+    return [
+        (repo.get("rev", ""), hook)
+        for repo in config["repos"]
+        for hook in repo["hooks"]
+        if hook["id"] == "ruff-check"
+    ]
+
+
+def test_the_ruff_hook_passes_the_config_and_no_select_override():
     """`--select` on the command line OVERRIDES the config file wholesale.
 
     The acceptance criterion of the change that added the config itself once named
     `ruff check . --select F,E9`, which would have passed on a tree where E4/E7 were red or where
-    the config failed to load at all. The same mistake in the CI job would make every other test
+    the config failed to load at all. The same mistake in the hook would make every other test
     in this file meaningless.
     """
-    text = GITLAB_CI.read_text(encoding="utf-8")
-    invocations = re.findall(r"^\s*-\s*(ruff check .*)$", text, re.M)
+    hooks = _ruff_hooks()
 
-    assert invocations, "no `ruff check` invocation found in .gitlab-ci.yml"
-    for cmd in invocations:
-        assert "--config .ruff-ci.toml" in cmd, (
-            f"`{cmd}` does not pass `--config .ruff-ci.toml`. Without it ruff finds no config at "
-            "all (the filename is deliberately not auto-discovered) and silently falls back to "
-            "its defaults, losing dummy-variable-rgx and the per-file-ignores."
-        )
-        assert "--select" not in cmd and "--ignore" not in cmd, (
-            f"`{cmd}` overrides the config from the command line. A CLI --select/--ignore replaces "
-            "the config's ruleset, so .ruff-ci.toml stops governing what CI enforces."
-        )
+    assert len(hooks) == 1, f"expected exactly one ruff hook in .pre-commit-config.yaml, found {len(hooks)}"
+    args = hooks[0][1].get("args", [])
+    assert "--config" in args and args[args.index("--config") + 1] == ".ruff-ci.toml", (
+        f"the ruff hook's args {args} do not pass `--config .ruff-ci.toml`. Without it ruff finds "
+        "no config at all (the filename is deliberately not auto-discovered) and silently falls "
+        "back to its defaults, losing dummy-variable-rgx and the per-file-ignores."
+    )
+    assert not any(a.startswith(("--select", "--ignore", "--extend-select")) for a in args), (
+        f"the ruff hook's args {args} override the config from the command line, so "
+        ".ruff-ci.toml stops governing what CI enforces."
+    )
+
+
+def test_the_ruff_hook_runs_the_pinned_ruff_version():
+    """Two pins of one tool drift apart unless something compares them."""
+    pinned = re.search(r"^ruff==(\S+)$", REQUIREMENTS_DEV.read_text(encoding="utf-8"), re.M)
+
+    assert pinned, "requirements-dev.txt has no exact ruff pin"
+    assert _ruff_hooks()[0][0] == f"v{pinned.group(1)}", (
+        f"the ruff hook runs {_ruff_hooks()[0][0]} but requirements-dev.txt pins ruff "
+        f"{pinned.group(1)}; local and CI lint would disagree with a direct `ruff check`"
+    )
+
+
+def test_ci_lint_runs_pre_commit_on_all_files():
+    """CI and the local hook are one config only while CI actually runs it."""
+    ci = yaml.safe_load(GITLAB_CI.read_text(encoding="utf-8"))
+    script = " ".join(ci["lint:python"]["script"])
+
+    assert "pre_commit run --all-files" in script or "pre-commit run --all-files" in script, (
+        f"lint:python runs `{script}`, not pre-commit on all files, so CI and the local hooks "
+        "can drift apart again"
+    )

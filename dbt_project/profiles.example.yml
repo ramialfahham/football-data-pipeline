@@ -1,21 +1,27 @@
-# dbt connection profile — copy to ~/.dbt/profiles.yml and adjust for your machine.
+# dbt connection profile for local development. `python scripts/bootstrap.py` copies it to
+# `profiles.yml` in the REPO ROOT (gitignored) when that file is missing.
+#
+# Why the repo root and not ~/.dbt: ~/.dbt/profiles.yml is one file per machine, shared by every
+# dbt project on it, so another project can overwrite or rewrite it. dbt reads the WORKING
+# DIRECTORY before ~/.dbt, and every documented command runs dbt from the repo root
+# (`dbt ... --project-dir dbt_project`). `--project-dir` does not move the profile lookup, so run
+# dbt from the root, not from inside dbt_project/.
 #
 # ENVIRONMENT ISOLATION (see macros/generate_schema_name.sql):
-#   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME.
-#   `prod` is the ONLY target that writes the canonical BARE datasets the live site export
-#   reads (`marts`, `core`, …). Every other target is auto-prefixed:
-#     target dev        -> dev_marts,      dev_core,      …  (local development)
-#     target ci_mr<IID> -> ci_mr114_marts, ci_mr114_core, …  (CI, ONE PER MERGE REQUEST)
-#     target prod       -> marts,          core,          …  (nightly / main-push only)
-#   So a local build can NEVER clobber prod as long as your target is named anything but
-#   `prod`. Keep your local default target = `dev`.
-#   Models WITHOUT a `+schema` (the base models + seeds) fall back to the profile `dataset` below,
-#   which is already per-environment.
+#   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME. `prod` is
+#   the ONLY target that writes the bare, site-facing datasets (`marts`, `core`, ...). Every other
+#   target is prefixed: target `dev` writes dev_marts, dev_core, ... So this profile has no `prod`
+#   target, and must never get one. CI writes its own per-merge-request profile
+#   (`.gitlab-ci.yml`, the `.dbt_profile` anchor); the nightly image carries
+#   `deploy/nightly/profiles.yml`.
+#   Models WITHOUT a `+schema` (the base models + seeds) fall back to `dataset` below.
+#
+# Credentials: `method: oauth` uses your Google login. Run once:
+#   gcloud auth application-default login
 
 football_data_pipeline:
   target: dev
   outputs:
-    # Local development — the default. Writes dev_* datasets.
     dev:
       type: bigquery
       method: oauth
@@ -25,31 +31,4 @@ football_data_pipeline:
       threads: 4
       timeout_seconds: 300
       location: EU  # keep in sync with ingestion raw dataset (default dataset id: raw)
-      priority: interactive
-
-    # CI / merge-request builds — REFERENCE ONLY. `.gitlab-ci.yml`'s .dbt_profile anchor writes the
-    # real one (WIF/oauth) and names this target `ci_mr${CI_MERGE_REQUEST_IID}` — one per merge
-    # request, so no branch can read another's tables (#92, 2026-08-27). The literal `ci` below is a
-    # stand-in to keep this example readable; there is no shared `ci` target in CI.
-    # Slim builds run here and defer unchanged upstreams to prod.
-    ci:
-      type: bigquery
-      method: oauth
-      project: football-data-pipeline-gcp
-      dataset: ci_analytics  # in CI this is ci_mr<IID>: fallback for base + seeds
-      threads: 4
-      timeout_seconds: 300
-      location: EU
-      priority: interactive
-
-    # Production — reference only; written by dbt-scheduled / main-push / pages workflows
-    # (WIF/oauth). This is the ONLY target that writes the bare, site-facing datasets.
-    prod:
-      type: bigquery
-      method: oauth
-      project: football-data-pipeline-gcp
-      dataset: dbt_analytics  # fallback for base + seeds in prod
-      threads: 4
-      timeout_seconds: 300
-      location: EU
       priority: interactive

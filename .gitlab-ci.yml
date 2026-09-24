@@ -524,25 +524,18 @@ validate:ui:
 # test stage
 # ---------------------------------------------------------------------------
 
-# Correctness-only Python lint (ruff; ruleset in .ruff-ci.toml).
+# The repo's lint: every pre-commit hook on every file, the same config a local commit runs, so
+# the two cannot drift apart. Ruff (correctness only, ruleset in .ruff-ci.toml) is one of the hooks.
 #
-# WHY IT EXISTS: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
+# WHY RUFF IS HERE: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
 # duplicate module-level function name, and three of the four defects across that MR's three
 # review rounds were mechanically decidable. LLM reviewers are the most expensive check here and
 # belong on judgement, not on facts a tool settles for free.
 #
-# ruff was NOT new to the repo — `.pre-commit-config.yaml` has run it locally for a long time. What
-# was missing is a CI BACKSTOP: that hook is local-only, so it binds one machine and can be skipped,
-# and its `files:` regex excludes `.claude/hooks/` entirely. Nine F401s inside its own file pattern
-# had survived it, on a hook whose args are `--fix, --exit-non-zero-on-fix` — evidence it was not
-# being run.
-#
-# ⚠ `--config .ruff-ci.toml` IS REQUIRED, not decoration. Ruff auto-discovers only `ruff.toml`,
-# `.ruff.toml` and `pyproject.toml`; the config is deliberately named outside that set so the
-# pre-commit hook never adopts it, which keeps the two enforcement points independent and means no
-# ruff version alignment is owed (aligning would drag `ruff-format` and reformat 75 files).
-# Do NOT add `--select` here: a CLI `--select` OVERRIDES the config file wholesale, so the job
-# would silently stop enforcing what `.ruff-ci.toml` sets. `tests/test_lint_config.py` pins both.
+# ⚠ The ruff hook's `--config .ruff-ci.toml` IS REQUIRED: the config is named outside ruff's
+# auto-discovered set, so without it ruff silently runs its defaults. Never add `--select`: it
+# OVERRIDES the config wholesale. `tests/test_lint_config.py` pins both, the hook's ruff version
+# against requirements-dev.txt, and that this job runs pre-commit on all files.
 #
 # It deliberately does NOT use the `*python` anchor: linting imports nothing, so installing the
 # runtime dependencies would add minutes for no benefit. Its cache key is requirements-dev.txt.
@@ -550,17 +543,21 @@ lint:python:
   image: python:3.11
   needs: []
   stage: test
+  variables:
+    PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.cache/pre-commit"
   cache:
     key:
       files:
         - requirements-dev.txt
+        - .pre-commit-config.yaml
     paths:
       - .cache/pip
+      - .cache/pre-commit
   before_script:
     - python -m pip install --upgrade pip
     - pip install -r requirements-dev.txt
   script:
-    - ruff check . --config .ruff-ci.toml
+    - pre-commit run --all-files --show-diff-on-failure
   rules:
     - *not_on_schedule
     - when: on_success
@@ -575,6 +572,49 @@ test:python:
     - *not_on_schedule
     - when: on_success
 
+# The files a fresh clone's setup reads. A change to any of them can break `scripts/bootstrap.py`.
+.setup_paths: &setup_paths
+  - scripts/bootstrap.py
+  - requirements*.txt
+  - .pre-commit-config.yaml
+  - .githooks/**
+  - .python-version
+  - .nvmrc
+  - site_v2/package.json
+  - site_v2/package-lock.json
+  - .env.example
+  - dbt_project/profiles.example.yml
+  - dbt_project/packages.yml
+  - .gitlab-ci.yml
+
+# A new person's first two commands, on a clean machine: `python scripts/bootstrap.py`, then
+# `--verify` (pytest, pre-commit on all files, the site build). No cache, so it is a real first run.
+# Never on a schedule: any GitLab schedule also starts the prod `data:nightly`.
+# python:3.11 has no Node, so Node 24 comes from nodejs.org, checked against its published SHA-256.
+setup:clean-clone:
+  image: python:3.11
+  needs: []
+  stage: test
+  script:
+    - |
+      NODE_DIST=https://nodejs.org/dist/latest-v24.x
+      curl -fsSL "$NODE_DIST/SHASUMS256.txt" -o SHASUMS256.txt
+      NODE_TAR=$(grep -o 'node-v24\.[0-9.]*-linux-x64\.tar\.xz' SHASUMS256.txt | head -1)
+      curl -fsSLO "$NODE_DIST/$NODE_TAR"
+      grep " $NODE_TAR\$" SHASUMS256.txt | sha256sum -c -
+      mkdir -p /opt/node
+      tar -xJf "$NODE_TAR" -C /opt/node --strip-components=1
+      rm "$NODE_TAR" SHASUMS256.txt
+    - export PATH="/opt/node/bin:$PATH"
+    - python scripts/bootstrap.py
+    - python scripts/bootstrap.py --verify
+  rules:
+    - *not_on_schedule
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: *setup_paths
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+
 # ---------------------------------------------------------------------------
 # build stage
 # ---------------------------------------------------------------------------
@@ -586,7 +626,7 @@ test:python:
 build:site-v2:
   stage: build
   needs: []
-  image: node:22
+  image: node:24
   # Cache npm's download cache, NOT site_v2/node_modules: `npm ci` deletes
   # node_modules before installing, so a restored node_modules cache is
   # discarded every run and re-uploaded for nothing.
@@ -977,7 +1017,7 @@ data:nightly:
 # table), so it does NOT join prod-warehouse-write — its own group, as before.
 # ---------------------------------------------------------------------------
 
-# SPLIT INTO TWO JOBS, because the export needs Python and the build needs Node 22
+# SPLIT INTO TWO JOBS, because the export needs Python and the build needs Node 24
 # and no single image here is both. GitHub used `ubuntu-latest` with setup-python
 # AND setup-node; GitLab jobs get one image each. The alternative — installing a
 # whole language runtime at job time — is what validate:ui does for a single
@@ -1016,7 +1056,7 @@ deploy:export:
 
 deploy:site-v2:
   <<: *gcp_job
-  image: node:22
+  image: node:24
   stage: deploy
   needs: ["deploy:export"]
   resource_group: deploy-site-v2

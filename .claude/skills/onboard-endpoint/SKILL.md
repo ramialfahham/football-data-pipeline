@@ -63,7 +63,7 @@ as a header, and keep shell trace OFF. Load it into a shell var:
 
 ```bash
 set +x                                   # never echo the key (no shell trace)
-KEY=$(grep -E '^API_FOOTBALL_API_KEY=' .env | cut -d= -f2- | tr -d '"' | tr -d '\r')
+KEY=$(sed -n 's/^API_FOOTBALL_API_KEY=//p' .env | tr -d '"\r')
 B=https://v3.football.api-sports.io
 ```
 

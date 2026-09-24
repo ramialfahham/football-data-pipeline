@@ -143,8 +143,12 @@ when it overflows — so the most durable knowledge in the repo sat in the most 
 every session that learned something had to delete something. None of this is current state.
 
 - **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 +
-  bigquery 1.7.2, the `requirements.txt` pin) with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`: `parse`,
-  `ls`, `ls --select <model>+` all work. Use it for `impact_map` lineage.
+  bigquery 1.7.2, the `requirements.txt` pin) **from the REPO ROOT with `--project-dir dbt_project`
+  and no `DBT_PROFILES_DIR`**: `parse`, `ls`, `ls --select <model>+` all work. Use it for
+  `impact_map` lineage. The profile is `profiles.yml` in the repo root (gitignored, `dev` target
+  only, created by `scripts/bootstrap.py`); dbt finds it because it reads the working directory
+  before `~/.dbt`. ⚠ `--project-dir` does not move the profile lookup: from inside `dbt_project/`
+  dbt falls through to `~/.dbt`, which is what keeps CI (it always `cd`s in) on its own profile.
   **Never run `dbt build`.** The reason is NOT that CI and prod share datasets — they have not
   since `b96cf76` (2026-07-08). `macros/generate_schema_name.sql` prefixes every non-prod
   target, so `dev` writes `dev_staging`/`dev_core`/`dev_marts`… and cannot touch prod's layer
