@@ -177,8 +177,9 @@ Base models read directly from the generic staging model. The `league_code` colu
   `python scripts/snapshot_tracker.py`: the backup rides the next commit on any branch, outside the
   review patch and hash (`docs/tracker/**` is artifact-only), and a rebase conflict on it is resolved
   by running the script again. It is read only when GitLab is down, so a few days' lag is harmless.
-- **The Stop hook runs five offline gates** when the tree is dirty and in scope, and
-  blocks the turn once if any fails. Do not end a turn on a red gate silently.
+- **The Stop hook runs the offline gates in `FAST_GATES`** (`.claude/hooks/stop_gate.py`, with the
+  repo's `.venv`) when the tree is dirty and in scope, and blocks the turn once if any fails. Do
+  not end a turn on a red gate silently.
 - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit.** It hashes
   `git diff --raw` — mode, blob SHAs, status, path — cumulatively from the base, so it is
   byte-identical to the CI recompute on every platform and on a branch of any length.
@@ -208,14 +209,12 @@ Base models read directly from the generic staging model. The `league_code` colu
 
 ## Memory files
 
-Claude memory for this project lives at:
-`C:\Users\Rami\.claude\projects\D--Projects-football-data-pipeline\memory\`
+Claude memory for this project lives under `~/.claude/projects/`, in the folder named after this
+repo's path on the machine.
 
 Read `MEMORY.md` there for the index. It holds how to work with Rami and what has gone wrong
 before — never the answer to any of the four questions above ("Which source answers which
-question"). Key files:
-- `feedback_engineering.md` — the quality bar and the corrections behind it
-- `user_profile.md` — who Rami is and how he works
+question").
 
 **The folder has a budget, and `.claude/hooks/memory_budget_gate.py` enforces it**: at most 50
 notes, an index of at most 7,669 characters, no note over 4,232 characters; the numbers move down
@@ -232,10 +231,8 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the 
 - BigQuery (GCP project `football-data-pipeline-gcp`)
 - dbt (project in `dbt_project/`)
 - SQLFluff for SQL linting
-- **CI is GitLab, in `.gitlab-ci.yml`** (one file, 5 stages). Jobs: `validate:governance`,
-  `validate:secrets`, `validate:ui`, `test:python`, `build:site-v2`, `data:build:mr`,
-  `data:build:main`, `data:nightly`, `deploy:export`, `deploy:site-v2`. Use `glab`, and open
-  **MRs**, not PRs.
+- **CI is GitLab, in `.gitlab-ci.yml`** (one file, 5 stages); the jobs are the ones that file
+  defines. Use `glab`, and open **MRs**, not PRs.
 - **dbt descriptions have READERS — write them for a stranger.**
   `+persist_docs: {relation: true, columns: true}` is on for every model and seed, so each
   `description:` is attached to its BigQuery table and column and shows up in `bq show --schema`
