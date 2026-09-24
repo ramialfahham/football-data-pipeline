@@ -2835,6 +2835,57 @@ models:
         description: "The reading order of the competition-season's fixtures, 1 first: rounds in their sequence, and within a round by kick-off. Consumers render rows in this order and sort nothing."
         tests: [not_null]
 
+  - name: mart_match_days
+    description: >
+      Every match the Matches page shows, one row per fixture, with the day it falls on. Behind
+      the build day a day holds its competitions' last matchday of this season (the played
+      fixtures of the round just played); ahead of it, their next matchday (the rows the Home page
+      shows). Nothing earlier and nothing later. Grain: fixture_sk.
+
+      A day is the fixture's UTC date. A day with no match is not one of the page's days, so each
+      day names its neighbouring days with a match; the opening day is the build day when it has
+      a match, else the next day that has one. Rebuilt nightly, so the reach and the opening day
+      are correct as of the morning it was built.
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "medium"
+    config:
+      tags: ["marts", "football", "fixtures"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [match_day, league_code, day_row_order]
+          name: match_days_row_order_unique_per_day_and_competition
+    columns:
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('mart_competition_fixtures')
+              field: fixture_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: match_day
+        description: "The day the match falls on: its UTC kick-off date, one of the Matches page's days."
+        tests: [not_null]
+      - name: day_row_order
+        description: "The match's place among its competition's matches that day, 1 first, by kick-off. Consumers render a competition's rows in this order and sort nothing."
+        tests: [not_null]
+      - name: is_opening_day
+        description: "True on every match of the day the Matches page opens on: the build day when it has a match, else the next day that has one. False on every other row."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
+      - name: previous_day
+        description: "The page's day before this match's day: the latest earlier day with a match in reach. Null on the first day."
+      - name: next_day
+        description: "The page's day after this match's day: the earliest later day with a match in reach. Null on the last day."
+
   - name: mart_team_fixtures
     description: >
       Every fixture from one team's perspective, upcoming and finished alike. Each fixture appears
