@@ -1,28 +1,20 @@
-# Review — feat/address-words — #158
+# Review — feat/last-matchday-flag — #159
 
-diff_sha256: bff15cbb8ace1bad72ae64387c170f96318042b2a25ecac507eaf0517b4606be
+diff_sha256: 8b042d31c4bde1d3a120877b095d5d537e4896f882f412ba2e7e1adb69b749fa
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1: every changed file matched against scope_paths, all inside; the word table and its rules predate the diff and are implemented, not authored; the clash check is declared under THRESHOLD DECLARATIONS with its authority and placement (existing build and pytest job, no new CI job), recurring cost none; the impact_map enumerates the real link sites; decisions_reserved items untouched; no credential-shaped string.
-- Round 2 delta: the amendment adding tests/test_no_decision_history_in_docs.py quotes the CPO's answer; the patch's file list equals round 1's plus that one file; the two pins move down by exactly the two dated lines removed; both corrected rows state what this branch built.
+- Every changed file is in scope_paths; the definition rests on the CPO's Option-1 answer quoted in decisions_taken; the impact_map names the dbt ls command and its test list with a measured blast radius matching the evidence; THRESHOLD DECLARATIONS state no new mechanism and no recurring cost, and the diff is an additive column on the is_next_round pattern; no site, export or ingestion file touched; no credential-shaped string.
 
-## bi-analyst-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 (FAIL, fixed): docs/wireframes/00_overview.md:138 still named the Matchdays tab at /fixtures/, a directory the branch removes.
-- Traced every localeHref call site in site_v2/src: no hardcoded English word left in a link, each goes through word(lang, key); addressWords.mjs, href.ts alternatePaths and check_design_inventory.py translate_path read against the "Address words" rules 1-8; specPathFor resolves the renamed route folders to the unchanged spec files; rendered_page_evidence.md read as built-output evidence (1330 pages, design check 147 renders 0 failures, 3987 reciprocal hreflang pairs, dev-server 200/404).
-- Round 2 delta: 00_overview.md:138 and the site_architecture.md decisions row now state the built state without dates; pins 8->7 and 22->21 match; no /fixtures/ or /rankings/ literal left in audit-seo.mjs or its test.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 1: the changed check functions (translate_path/resolve_built, wordParam/specRouteRegex/entityKey/hreflang reciprocity, tabPath/checkTabPagesFound) are pure and re-run safe; new tests fail if the code reverts to the language-agnostic form; the new build checks fail closed; no dependency, lockfile, hosting or CI change; old route folders are deleted, not left beside the new ones. Noted: the positional rule is duplicated in Python with mirrored test cases only; a drift fails closed through resolve_built's Failure, so not a defect.
-- Round 2 delta: the pin changes match the two real history-line removals; the audit-seo changes are fixture strings and one docstring, no logic.
+- is_last_round sits in the mart beside is_next_round, built from fct_fixture, int_legs__team_match and mart_next_matchday; traced by hand: last_round is season-scoped through next_round, takes the max round_sequence among rounds with a played fixture, and the column also requires the row to be played, so a round in progress carries both flags and a finished tournament none.
+- The new column has not_null and accepted_values; the singular test recomputes from fct_fixture and int_legs__team_match, not the model's CTEs; no metric catalogue entry needed (a boolean flag, as its siblings); no hardcoded league; the export's explicit column list excludes the column; the mart is a leaf (only its own tests reference it); grain unchanged.
 
 ## escalations
-- question: May I add tests/test_no_decision_history_in_docs.py to the #158 contract, so I can remove the dates from the two stale rows, correct them, and lower their pins (00_overview.md 8->7, site_architecture.md 22->21)?
-  CPO ANSWER: Yes, amend (answered in chat; recorded in contract.md amendments).
+- question: When a competition's latest round is only partly played (a round in progress, or a postponed match inside it), which matches are its 'last matchday'?
+  CPO ANSWER: Option 1: the played part of the newest round; only played matches are ever flagged (answered in plan mode; issue #159's first line reworded to match).

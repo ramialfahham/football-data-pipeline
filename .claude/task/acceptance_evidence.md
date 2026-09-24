@@ -1,43 +1,20 @@
-# Acceptance evidence — #158, page addresses follow the reader's language
+# Acceptance evidence — #159, the last-matchday flag
 
-Every item read from `site_v2/dist` built by `npm run build` on the committed sample (1330 pages),
-from the dev server (`preview_start` v2), or from a command's exit code read bare. HJK and Jamal
-Musiala are not in the committed sample, so the same shapes are shown on Borussia Dortmund and
-P. Schick, which are.
+No `site_v2/src/` change, so no acceptance gate applies; this records what was run. The compiled
+model and the compiled test were run read-only against prod (dev datasets swapped for prod's, the
+model inlined into the test), never `dbt build`.
 
 criteria_demonstrated:
-  - EVERY ADDRESS USES ITS LANGUAGE'S WORD. dist holds `/de/wettbewerbe/`, `/fi/kilpailut/`,
-    `/en/competitions/`, `/de/bundesliga/spiele/`, `/de/bundesliga/statistiken/`,
-    `/fi/bundesliga/ottelut/`, `/fi/bundesliga/tilastot/`, and 36 pages each under
-    `/de/mannschaften/`, `/fi/joukkueet/`, `/en/teams/`, 72 each under `/de/spieler/`,
-    `/fi/pelaajat/`, `/en/players/`; a scan of all 1330 built paths finds 0 at an old shape
-    (`/fixtures/`, `/rankings/`, or an English word under /de/ or /fi/). Dev server: 200 for
-    `/de/mannschaften/borussia-dortmund/` (h1 "Borussia Dortmund"), `/fi/joukkueet/borussia-dortmund/`,
-    `/de/spieler/p-schick-794/` (h1 "P. Schick"), `/fi/pelaajat/p-schick-794/`,
-    `/de/bundesliga/spiele/2026-10-09-borussia-dortmund-vs-sv-werder-bremen/`; 404 for `/de/teams/x/`.
-  - THE TWO TABS MOVED, THEIR NAMES DID NOT. Built `/de/bundesliga/index.html` tab bar:
-    `Übersicht` (on), `<a href="/de/bundesliga/spiele/">Spieltage</a>`,
-    `<a href="/de/bundesliga/statistiken/">Ranglisten</a>`; EN `/en/bundesliga/matches/` and
-    `/en/bundesliga/stats/` and FI `/fi/bundesliga/ottelut/` and `/fi/bundesliga/tilastot/` are
-    emitted; `/en/bundesliga/fixtures/` returns 404 on the dev server; no i18n string changed.
-  - EVERY HREFLANG PAIR POINTS BOTH WAYS AT A REAL PAGE. A script over the built HTML: 1330 pages,
-    3987 reciprocal hreflang pairs (1329 localised pages x 3 languages), 0 problems (each page's own
-    language names itself, each target is emitted, each target names the page back). audit-seo now
-    checks the same on every build: "1330 built page(s) checked. OK."; with `alternatePaths`
-    reverted to the prefix swap it went RED with 4728 violations ("hreflang "en" points at
-    /en/bundesliga/spiele/..., which the build did not emit", "... a different page than ...").
-  - THE BUILD FAILS ON A SLUG THAT EQUALS A WORD. With the German matches word set to `bundesliga`
-    the build stopped in the competition hub's getStaticPaths: "competition slug equals an address
-    word: bundesliga = matches (de)", nonzero exit; `tests/test_address_words.py::
-    test_no_registry_slug_equals_an_address_word` went RED on the same mutation (the registry's
-    slugs against the table); reverted, both green.
-  - THE SEARCH CHECKS MATCH ACROSS LANGUAGES THROUGH THE WORD LIST AND PASS. `npm run build` exit 0:
-    node tests "pass 111, fail 0"; "check-page-specs: 8 page(s) validated against their specs. OK.";
-    "audit-seo: 1330 built page(s) checked. OK." (the page-count driver lists
-    `/[lang]/[competition]/[matches]` -> 3, `/[lang]/[competition]/[stats]` -> 3, `/[lang]/[teams]/[team]`
-    -> 108); "check-built-pages: 849 match page(s) = 283 payload(s) x 3 ...; 3 fixtures page(s) and 3
-    rankings page(s) checked. OK."; with its Matchdays shape set back to `/fixtures/` it went RED:
-    "a payload carries fixtures but no Matchdays page matched FIXTURES_PAGE". `python
-    scripts/check_design_inventory.py --dist site_v2/dist` exit 0: "21 pages · 3 viewports · 3
-    languages (pages per language: en 21, de 7, fi 21) · 147 renders · 0 failures · 21 warnings",
-    the German and Finnish built pages opened at their own words.
+  - EVERY PLAYED MATCH OF THE ROUND JUST PLAYED IS FLAGGED. The inlined model: 479 flagged fixtures in
+    29 rounds across 29 competitions, 0 of them unplayed; 1 competition with a round in progress
+    carries both flags on that round; the new test returns 0 rows (the flagged set equals the played
+    fixtures of each competition's latest round with a played fixture, recomputed from fct_fixture).
+  - THE CURRENT SEASON IS THE NEXT MATCHDAY'S SEASON. The test's season property returns 0 rows;
+    with the season condition removed from the model it returns 46 rows (AFCCL, APD, BL1, BL2, ...),
+    earlier seasons flagged; a competition with no upcoming fixture has no flag (3 competitions carry
+    a next round and no played fixture this season, and no last-round flag).
+  - A TEST FAILS ON AN UNPLAYED OR OTHER-SEASON FLAG. RED under each mutation: flagging the round's
+    unplayed fixtures too (CAFCL, CNL), dropping the season condition (46), choosing the round of the
+    latest played kick-off (MLS, a played straggler), taking the round before the next round (CAFCL,
+    KL1). dbt parse OK; sqlfluff clean on the model and the test; check_layer_contract and
+    check_description_hygiene pass; pytest 1325 passed.
