@@ -3789,3 +3789,35 @@ def test_stop_gate_reports_scope_violation_before_correctness(repo):
     assert '"decision": "block"' in out
     assert "does not match the task contract" in out
     assert "correctness" not in out
+
+
+_GATE_PASSES_ONLY_IN_REPO_VENV = (
+    "import os, sys\n"
+    "venv = os.path.realpath(os.path.join(os.getcwd(), '.venv'))\n"
+    "if os.path.normcase(os.path.realpath(sys.prefix)) != os.path.normcase(venv):\n"
+    "    print('- ran outside the repo .venv')\n"
+    "    sys.exit(1)\n"
+)
+
+
+def test_stop_gate_runs_gates_with_the_repo_venv(repo):
+    """On a fresh machine the hook starts under the system Python, which lacks the gates' packages;
+    the repo's `.venv` (created by scripts/bootstrap.py) has them, so the gates must run there."""
+    import venv
+
+    (repo / ".gitignore").write_text(".venv/\n")
+    _install_fast_gate(repo, _GATE_PASSES_ONLY_IN_REPO_VENV)
+    venv.create(repo / ".venv", with_pip=False)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 9\n")
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert out.strip() == "", out
+
+
+def test_stop_gate_without_a_venv_runs_gates_with_its_own_python(repo):
+    """Before setup has run there is no `.venv`: the gates run as before, and a failure still blocks."""
+    _install_fast_gate(repo, _GATE_PASSES_ONLY_IN_REPO_VENV)
+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 10\n")
+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
+    assert '"decision": "block"' in out, out
+    assert "ran outside the repo .venv" in out
+    assert sys.executable in out.replace("\\\\", "\\")

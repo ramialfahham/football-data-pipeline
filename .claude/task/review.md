@@ -1,37 +1,24 @@
-# Review — chore/clone-and-continue — 2026-09-24
+# Review — fix/stop-gate-uses-venv — 2026-09-24
 
-diff_sha256: 4301872f54f0a411f31f516f024878c94c595d12a677e50743852c5e0222d194
+diff_sha256: aade84dd5b44341fb70e6185966adc22abaa78df99d347774dda73cbca43511c
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1: every touched file is in `scope_paths`; the protected `.gitlab-ci.yml` and `.mcp.json` changes match the approved plan quoted in `protected_override`; `scripts/bootstrap.py`, `setup:clean-clone` and the post-commit wiring are declared as new mechanisms with dated authority; the recurring cost is declared; structural paths are whitespace only; no credential-shaped literal in the patch.
-- Round 2 (delta): the contract amendment adds the `--fetch-key` and secret-scan-coverage paragraphs and only narrows `scope_paths`; the pre-commit exclusion now sits on the two whitespace fixers only; `API_KEY_SECRET_NAME` holds a name, not a value; the new test adds no mechanism.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 1 FAIL (fixed): nothing pinned the pre-commit post-commit wiring. Round 2: `tests/test_bootstrap.py::test_pre_commit_installs_the_push_and_open_mr_hook` asserts `post-commit` in `default_install_hook_types` and the hook's entry, stage, `always_run` and `pass_filenames`; each removal reverts red (builder mutation check: control green, three mutations red).
-- Checked `scripts/bootstrap.py` re-run and interruption safety, `lint:python` failing closed with pinned `--config`/no `--select`/ruff version, ruff coverage after the move, `--all-files` passing on the tree, `setup:clean-clone` guards (`*not_on_schedule` first, no GCP auth, checksum-verified Node download), dependency pins, credentials, and the unchanged `lint:python` job name that `build:nightly-image` needs.
-- Round 2: widened secret scans fail closed; `.patch` is outside the scanner's extensions and `.claude/task/` has no private-key marker; `.ruff-ci.toml` stale sentence reworded.
+- Every touched file (`.claude/hooks/stop_gate.py`, `tests/test_governance_hooks.py`, `.claude/task/**`) is in `scope_paths`; `protected_override` quotes the dated #162 plan approval naming the function; `NEW MECHANISM: none` and `RECURRING COST: none` match the diff; no credential-shaped string; no doc describes the changed behaviour.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL (fixed): a top-level pre-commit `exclude` removed `.claude/task/**` and `.github/workflows/**` from both secret scans without approval. Round 2: the exclusion moved to the two whitespace fixers only; both secret scans cover every tracked file again; the scanner itself is unchanged and the constant rename is an honest false-positive fix, declared in the contract.
-- Authority for the protected paths (`protected_override` quoting the 2026-09-24 plan approval) and a non-placeholder `impact_map`; declared new mechanisms; `pre-commit==4.6.2` developer-only; recurring cost on the self-hosted runner only, no schedule; no credential or widened permission; `--fetch-key` now declared.
+- Authority: `protected_override` plus a real `impact_map` for the protected hook. The hook still fails open (`_gate_python` runs inside `main()`'s `try`; a raising `subprocess.run` skips the gate). Gate scripts, `FAST_GATES`, scope and stash checks are unchanged, so no gate can pass that should fail. `.venv` is gitignored, so the trust model is unchanged. Choosing the interpreter inside the hook rather than in `.claude/settings.json` keeps the hook startable before setup. No new mechanism, dependency, cost or permission.
 
-## analytics-engineer-reviewer
+## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- `dbt_project/models/**` changes are whitespace only (three `.gitkeep` files to empty, `domestic_league.yml` loses a trailing blank line); `packages.yml` gains a final newline with `dbt_utils` still at 1.3.3; `profiles.example.yml` drops the reference-only `ci`/`prod` targets while the `dev` connection fields are byte-identical. No model, grain, metric or layer-contract exposure.
-
-## data-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- `ingestion/api_football/loads/competition_runner.py`: one hunk removing trailing blank lines at end of file; no parser, merge, write-mode, cost knob or raw-schema change; the contract's impact_map matches the diff.
+- `_gate_python` is stateless; an interrupted setup gives the same false failure as today and a rerun fixes it. `test_stop_gate_runs_gates_with_the_repo_venv` goes red on revert (the stub passes only inside the temp repo's `.venv`); `test_stop_gate_without_a_venv_runs_gates_with_its_own_python` pins the fallback and the interpreter in the message; `.gitignore` is committed before `.venv` is created so the scope check is not what the test hits; both venv layouts are exercised on Windows and CI Linux. Fails open locally; worktrees fall back as today; CI never runs the hook.
+- Non-blocking observation (not taken): `.venv/Scripts/python.exe` is tried first on every OS, which would matter only for a Linux process on this Windows checkout (e.g. WSL); nothing here runs the hook that way.
 
 ## escalations
 (none)

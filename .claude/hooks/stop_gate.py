@@ -93,7 +93,21 @@ def _parked_stashes(root: str) -> list[str]:
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
-def _failing_gates(root: str) -> list[tuple[str, str]]:
+def _gate_python(root: str) -> str:
+    """The repo's `.venv` interpreter when setup has created it, else the one running this hook.
+
+    The hook is started with whatever `python` is on PATH. On a fresh machine that is the system
+    Python, which lacks the packages the gates import (PyYAML), so every gate reported a false
+    failure. `scripts/bootstrap.py` creates `.venv` with every requirement.
+    """
+    for rel in (os.path.join(".venv", "Scripts", "python.exe"), os.path.join(".venv", "bin", "python")):
+        candidate = os.path.join(root, rel)
+        if os.path.isfile(candidate):
+            return candidate
+    return sys.executable
+
+
+def _failing_gates(root: str, python: str) -> list[tuple[str, str]]:
     """(script, first meaningful output line) for each fast gate that fails.
 
     A gate whose SCRIPT IS ABSENT is skipped, not reported: this hook also runs in
@@ -107,7 +121,7 @@ def _failing_gates(root: str) -> list[tuple[str, str]]:
             continue
         try:
             proc = subprocess.run(
-                [sys.executable, path], cwd=root, capture_output=True,
+                [python, path], cwd=root, capture_output=True,
                 timeout=GATE_TIMEOUT_S,
             )
         except Exception:
@@ -177,7 +191,8 @@ def main() -> int:
         # clean tree cannot have broken a gate that was passing.
         if not _dirty_outside_task_dir(root):
             return 0
-        failures = _failing_gates(root)
+        python = _gate_python(root)
+        failures = _failing_gates(root, python)
         if failures:
             detail = "; ".join(f"{rel} -> {msg}" for rel, msg in failures)
             print(json.dumps({
@@ -188,7 +203,7 @@ def main() -> int:
                     "checks CI runs, so ending the turn here ships a known-red branch. "
                     "Fix them, or — if a failure is pre-existing and unrelated — say so "
                     "explicitly with the command output rather than ending silently. "
-                    "Run `python <script>` for the full report."
+                    f"Run `{python} <script>` for the full report."
                 ),
             }))
     except Exception:
