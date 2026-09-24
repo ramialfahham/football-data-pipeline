@@ -215,10 +215,39 @@ def render_mocks(pages: list[di.Page], tmp: Path) -> dict[str, str]:
     return failed
 
 
+ADDRESS_WORDS = REPO / "site_v2" / "src" / "i18n" / "address_words.json"
+_TOP_WORDS = ("competitions", "teams", "players")
+_TAB_WORDS = ("matches", "stats")
+
+
+@functools.lru_cache(maxsize=1)
+def address_words() -> dict[str, dict[str, str]]:
+    return json.loads(ADDRESS_WORDS.read_text(encoding="utf-8"))
+
+
+def translate_path(rest: str, from_lang: str, to_lang: str) -> str:
+    """The path after the locale in another language, by position, as `translatePath` in
+    `site_v2/src/lib/addressWords.mjs` does it: the first segment is a top word or a competition
+    slug, the second a tab word only after a slug, every other segment a name (`*` included)."""
+    words = address_words()
+    segs = rest.split("/")
+
+    def swap(i: int, keys: tuple[str, ...]) -> bool:
+        for key in keys:
+            if words[key][from_lang] == segs[i]:
+                segs[i] = words[key][to_lang]
+                return True
+        return False
+
+    if segs and segs[0] and not swap(0, _TOP_WORDS) and len(segs) > 1 and segs[1]:
+        swap(1, _TAB_WORDS)
+    return "/".join(segs)
+
+
 def resolve_built(page: di.Page, dist: Path, lang: str) -> Path | None:
     url = page.url
-    if lang != "en":
-        url = url.replace("en/", "%s/" % lang, 1)
+    if lang != "en" and url.startswith("en/"):
+        url = "%s/%s" % (lang, translate_path(url[len("en/"):], "en", lang))
     hits = sorted(dist.glob(url))
     return hits[0] if hits else None
 

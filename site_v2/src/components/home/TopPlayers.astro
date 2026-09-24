@@ -23,7 +23,7 @@ import SectionHead from "../ui/SectionHead.astro";
 import { integer } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, metricLabel } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
+import { localeHref, word } from "../../lib/href";
 import type { LandingBoard } from "../../lib/types";
 
 interface Props {
@@ -51,7 +51,7 @@ const leagueNames = [
       <div class="bhd"><span class="bt">{metricLabel(lang, board.label_i18n_key)}</span></div>
       <div class="bgrid">
         {board.rows.map((row, i) => (
-          <a class="brow" href={localeHref(lang, `players/${row.slug}/`)}>
+          <a class="brow" href={localeHref(lang, `${word(lang, "players")}/${row.slug}/`)}>
             <span class="rk num">{i + 1}</span>
             <Crest name={row.club} crest={row.crest} size="xs" />
             <span class="ent">

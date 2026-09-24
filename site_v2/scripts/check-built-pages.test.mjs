@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   checkFixturesPage, checkMatchPageCount, checkRankingsPage, boards, isZeroValue, renderedBoards,
-  rounds, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+  rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
 } from "./check-built-pages.mjs";
 
 function round(n, { checked = false, next = false, rows = [] } = {}) {
@@ -31,12 +31,31 @@ function round(n, { checked = false, next = false, rows = [] } = {}) {
 
 test("the URL shapes: a match page, a fixtures page and a rankings page, nothing else", () => {
   assert.ok(MATCH_PAGE.test("/en/bundesliga/matches/2026-09-18-a-vs-b/"));
+  assert.ok(MATCH_PAGE.test("/de/bundesliga/spiele/2026-09-18-a-vs-b/"));
   assert.ok(!MATCH_PAGE.test("/en/bundesliga/matches/"));
-  assert.ok(FIXTURES_PAGE.test("/fi/bundesliga/fixtures/"));
+  assert.ok(FIXTURES_PAGE.test("/fi/bundesliga/ottelut/"));
+  assert.ok(FIXTURES_PAGE.test("/en/bundesliga/matches/"));
   assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/"));
-  assert.ok(!MATCH_PAGE.test("/en/bundesliga/fixtures/"));
-  assert.ok(RANKINGS_PAGE.test("/de/bundesliga/rankings/"));
-  assert.ok(!RANKINGS_PAGE.test("/de/rankings/") && !RANKINGS_PAGE.test("/de/bundesliga/"));
+  assert.ok(!MATCH_PAGE.test("/en/bundesliga/stats/"));
+  assert.ok(RANKINGS_PAGE.test("/de/bundesliga/statistiken/"));
+  assert.ok(RANKINGS_PAGE.test("/en/bundesliga/stats/"));
+  assert.ok(!RANKINGS_PAGE.test("/de/statistiken/") && !RANKINGS_PAGE.test("/de/bundesliga/"));
+});
+
+test("each locale is paired with its own word: another language's word is not that tab", () => {
+  assert.ok(!FIXTURES_PAGE.test("/de/bundesliga/matches/"));
+  assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/spiele/"));
+  assert.ok(!RANKINGS_PAGE.test("/fi/bundesliga/stats/"));
+  assert.ok(!MATCH_PAGE.test("/fi/bundesliga/spiele/x/"));
+  assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/fixtures/") && !RANKINGS_PAGE.test("/en/bundesliga/rankings/"));
+});
+
+test("a tab the payloads call for that matched no page is an issue, not a silent pass", () => {
+  const expected = new Map([["bundesliga", { ascending: [false], hasFixtures: true }]]);
+  assert.equal(checkTabPagesFound({ fixturesPages: 0, rankingsPages: 0, expected }).length, 2);
+  assert.deepEqual(checkTabPagesFound({ fixturesPages: 3, rankingsPages: 3, expected }), []);
+  const bare = new Map([["x", { ascending: [], hasFixtures: false }]]);
+  assert.deepEqual(checkTabPagesFound({ fixturesPages: 0, rankingsPages: 0, expected: bare }), []);
 });
 
 // A board as RankingBoard.astro emits it: the head with the name, then the rows — a linked row

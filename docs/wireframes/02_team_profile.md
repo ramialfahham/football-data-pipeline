@@ -157,7 +157,7 @@ the fixture comparison, not here. Coverage caption from
 approved): ships via the team-export extension from `fct_fixture`/legs. Rows
 reuse the fixture-row component (opponent, H/A, score, result chip; next fixture
 links to its fixture page). Until the data PR lands the section renders links to
-the competition's `/fixtures/` page. Internal links: competition hub, `/table/`,
+the competition's Matchdays tab. Internal links: competition hub, `/table/`,
 `/top-scorers/`, the **Squad** sub-screen ([11](11_team_squad.md), backed by
 `mart_roster` — export wiring pending [GAP-20](99_gaps_register.md)), and the **Stats**
 sub-screen ([14](14_team_stats.md), rank vs league — export wiring pending

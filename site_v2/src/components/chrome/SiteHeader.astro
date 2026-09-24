@@ -15,7 +15,7 @@
 // exists. system.css styles `.mainnav a`/`.mainnav span` identically, so the tag swap is the
 // whole visual change (#54's own text). Every other item stays a span until its own index ships.
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
+import { localeHref, word } from "../../lib/href";
 import type { Lang } from "../../lib/format";
 
 interface Props {
@@ -24,7 +24,7 @@ interface Props {
 const { lang } = Astro.props;
 
 const navItems: { label: string; href?: string }[] = [
-  { label: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
+  { label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
   { label: t(lang, "navMatches") },
   { label: t(lang, "navTeams") },
   { label: t(lang, "navPlayers") },

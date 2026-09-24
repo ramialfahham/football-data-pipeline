@@ -35,7 +35,7 @@ import SectionHead from "../ui/SectionHead.astro";
 import { formatValue } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, boardTitle } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
+import { localeHref, word } from "../../lib/href";
 import type { LandingTeamBoard } from "../../lib/types";
 
 interface Props {
@@ -64,7 +64,7 @@ const leagueNames = [
       </div>
       <div class="bgrid">
         {board.rows.map((row, i) => (
-          <a class="brow" href={localeHref(lang, `teams/${row.slug}/`)}>
+          <a class="brow" href={localeHref(lang, `${word(lang, "teams")}/${row.slug}/`)}>
             <span class="rk num">{i + 1}</span>
             <Crest name={row.name} crest={row.crest} size="xs" />
             <span class="ent">

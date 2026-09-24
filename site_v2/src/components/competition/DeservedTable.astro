@@ -10,7 +10,7 @@ import SectionHead from "../ui/SectionHead.astro";
 import { decimal1, integer, signedDelta } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
+import { localeHref, word } from "../../lib/href";
 import type { DeservedRow } from "../../lib/types";
 
 interface Props {
@@ -35,7 +35,7 @@ const rows = deserved.filter((row) => row.deserved_rank != null);
         <span class="h">{t(lang, "compColDiff")}</span>
       </div>
       {rows.map((row) => (
-        <a class="ctab-row" href={row.slug ? localeHref(lang, `teams/${row.slug}/`) : undefined}>
+        <a class="ctab-row" href={row.slug ? localeHref(lang, `${word(lang, "teams")}/${row.slug}/`) : undefined}>
           <span class="rk num">{integer(row.deserved_rank, lang)}</span>
           <span class="tm">
             <Crest name={row.name} crest={row.crest} size="xs" />

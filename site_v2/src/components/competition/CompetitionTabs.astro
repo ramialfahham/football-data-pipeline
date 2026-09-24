@@ -6,7 +6,7 @@
 // where a league reads "Matchdays".
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
+import { localeHref, word } from "../../lib/href";
 
 type TabKey = "overview" | "matchdays" | "rankings";
 
@@ -32,12 +32,12 @@ const tabs: { key: TabKey; label: string; href: string | null }[] = [
   {
     key: "matchdays",
     label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"),
-    href: competitionSlug && hasFixturesPage ? localeHref(lang, `${competitionSlug}/fixtures/`) : null,
+    href: competitionSlug && hasFixturesPage ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/`) : null,
   },
   {
     key: "rankings",
     label: t(lang, "compTabRankings"),
-    href: competitionSlug && hasRankingsPage ? localeHref(lang, `${competitionSlug}/rankings/`) : null,
+    href: competitionSlug && hasRankingsPage ? localeHref(lang, `${competitionSlug}/${word(lang, "stats")}/`) : null,
   },
 ];
 ---

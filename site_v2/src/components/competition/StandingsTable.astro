@@ -9,7 +9,7 @@ import SectionHead from "../ui/SectionHead.astro";
 import { integer, signedInteger } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import { localeHref } from "../../lib/href";
+import { localeHref, word } from "../../lib/href";
 import { standingsSections } from "../../lib/competitionPayload.mjs";
 import type { StandingRow } from "../../lib/types";
 
@@ -43,7 +43,7 @@ const showSectionNames = sections.length > 1;
           {sec.rows.map((row) => (
             <a
               class="ctab-row"
-              href={row.team_slug ? localeHref(lang, `teams/${row.team_slug}/`) : undefined}
+              href={row.team_slug ? localeHref(lang, `${word(lang, "teams")}/${row.team_slug}/`) : undefined}
             >
               <span class="rk num">{row.standing_rank}</span>
               <span class="tm">

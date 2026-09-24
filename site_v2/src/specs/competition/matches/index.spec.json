@@ -1,6 +1,6 @@
 {
   "$schema": "../../page-spec.schema.json",
-  "page": "[lang]/[competition]/fixtures/index.astro",
+  "page": "[lang]/[competition]/[matches]/index.astro",
   "entity": "competition",
   "seo": {
     "canonical": "self",
@@ -15,7 +15,7 @@
     "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one round in its fixtures list, read whole from mart_competition_fixtures. A competition with no fixtures served has no page here, and its Overview shows the tab as an inert label. Every unplayed row links to its match preview page, which the build emits from fixtures/{fixture_id}.json for every unplayed fixture the export wrote; a played row is not a link until the match report page exists.",
     "page_count_driver": "count(competitions with fixtures served for their latest season) x count(locales)",
     "url_permanence": "permanent",
-    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Matchdays tab, /{locale}/{competition-slug}/fixtures/, the same segment for every kind of competition and every locale. The slug is the registry's authored slug, served through mart_competition_index."
+    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Matchdays tab, /{locale}/{competition-slug}/{matches word}/, the same word for every kind of competition, spelled per locale by the word table (site_architecture.md \"Address words\"); every match page sits under it. The slug is the registry's authored slug, served through mart_competition_index."
   },
   "blocks": [
     {

@@ -1,6 +1,6 @@
 ---
 // Fixture page (screen 01) — the v2 design system's first real screen.
-// URL: /{lang}/{competition-slug}/matches/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
+// URL: /{lang}/{competition-slug}/{matches word}/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
 // This increment renders ONE committed real fixture across the three locales; at scale
 // getStaticPaths iterates every exported fixture (data/fixtures/*.json). The page only
 // COMPOSES the shared components in order — it holds no styling and derives no facts.
@@ -15,7 +15,7 @@ import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
 import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
 import { t, BRAND } from "../../../../i18n/strings";
-import { localeHref } from "../../../../lib/href";
+import { localeHref, word } from "../../../../lib/href";
 import type { Lang } from "../../../../lib/format";
 import type { Fixture } from "../../../../lib/types";
 import competitions from "../../../../data/competitions.json";
@@ -39,7 +39,7 @@ export function getStaticPaths() {
       );
     }
     return locales.map((lang) => ({
-      params: { lang, competition: comp.slug, fixture: fixture.slug },
+      params: { lang, competition: comp.slug, matches: word(lang, "matches"), fixture: fixture.slug },
       props: { fixture, lang },
     }));
   });

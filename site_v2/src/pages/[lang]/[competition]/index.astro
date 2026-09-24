@@ -20,13 +20,19 @@ import StandingsTable from "../../../components/competition/StandingsTable.astro
 import DeservedTable from "../../../components/competition/DeservedTable.astro";
 import SeasonFacts from "../../../components/competition/SeasonFacts.astro";
 import { t } from "../../../i18n/strings";
-import { localeHref, LOCALES } from "../../../lib/href";
+import { localeHref, LOCALES, word } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
 import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../lib/types";
 import { latestSeasonPayload, nextRound } from "../../../lib/competitionPayload.mjs";
+import { assertNoClash } from "../../../lib/addressWords.mjs";
 import competitionIndex from "../../../data/competition_index.json";
+import competitions from "../../../data/competitions.json";
 
 export function getStaticPaths() {
+  // A slug is the segment after the locale, where the top words also sit; one equal to a word
+  // would put two pages on one address, so the build stops (competitions.json holds every
+  // registry slug).
+  assertNoClash(Object.values(competitions).map((c) => c.slug));
   const data = competitionIndex as unknown as CompetitionIndex;
   const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
     eager: true,
@@ -69,7 +75,7 @@ const entity = {
 
 const crumbs = [
   { name: t(lang, "crumbHome"), href: localeHref(lang) },
-  { name: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
+  { name: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
   { name },
 ];
 
@@ -83,7 +89,7 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
       <span class="sep">›</span>
-      <a class="lnk" href={localeHref(lang, "competitions/")}>{t(lang, "navCompetitions")}</a>
+      <a class="lnk" href={localeHref(lang, `${word(lang, "competitions")}/`)}>{t(lang, "navCompetitions")}</a>
       <span class="sep">›</span>
       <span class="here">{name}</span>
     </nav>

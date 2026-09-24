@@ -46,10 +46,14 @@ const SEO_KEYS = ["seoTitleKey", "seoDescKey"];
 const martSources = (...names) => ({ mart: new Set(names) });
 
 test("specPathFor mirrors the real page paths this repo has today", () => {
-  assert.match(specPathFor("[lang]/teams/[team].astro").replace(/\\/g, "/"), /specs\/teams\/team\.spec\.json$/);
+  assert.match(specPathFor("[lang]/[teams]/[team].astro").replace(/\\/g, "/"), /specs\/teams\/team\.spec\.json$/);
   assert.match(
-    specPathFor("[lang]/[competition]/matches/[fixture].astro").replace(/\\/g, "/"),
+    specPathFor("[lang]/[competition]/[matches]/[fixture].astro").replace(/\\/g, "/"),
     /specs\/competition\/matches\/fixture\.spec\.json$/,
+  );
+  assert.match(
+    specPathFor("[lang]/[competition]/[stats]/index.astro").replace(/\\/g, "/"),
+    /specs\/competition\/stats\/index\.spec\.json$/,
   );
 });
 
