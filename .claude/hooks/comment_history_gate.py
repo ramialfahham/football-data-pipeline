@@ -18,7 +18,11 @@ accepted, rare, and the deny names the line.
 
 The check reads only the text being written, not the whole file. So an edit that re-includes an
 existing flagged line is denied until the marker is removed — every ordinary edit helps the sweep.
-Markdown, docs, `.claude/task/` and any tree not listed below are not code and are never checked.
+
+Markdown documents are checked too (`is_doc_path`; `.claude/task/`, `docs/tracker/` and `site/`
+are exempt), with narrower markers (`DOC_MARKERS`) and one difference: only lines the edit ADDS
+are refused, so history already in a document never blocks editing it.
+`tests/test_no_decision_history_in_docs.py` pins each document's count so it can only go down.
 
 `tests/test_no_decision_history_in_code.py` imports the definitions below and pins the count of
 flagged lines already in the tree, so the CI count and this deny cannot drift apart. Fails OPEN on
@@ -242,6 +246,99 @@ def count_tree(root: str) -> tuple[int, int]:
     return lines, files
 
 
+# Documents are prose, so every line counts, except examples: inline code spans and fenced blocks.
+# Their markers are narrower than code's: a document's rules legitimately name a review role, the
+# product owner's title and a football round, so only history-shaped text is a marker.
+DOC_EXEMPT = (".claude/task/", "docs/tracker/", "site/")
+ISSUE_FREE_DOCS = frozenset({"CLAUDE.md"})
+DOC_MARKERS = {
+    "date": MARKERS["date"],
+    "reviewer credit": re.compile(
+        rf"\b(?:(?:{_ROLES})-reviewer|scope-auditor|reviewers?)\s+(?:{_FOUND})\b"
+        rf"|\b(?:{_FOUND})\s+by\s+(?:a|the|one|another|every|each|both|two|three|all)?\s*"
+        rf"(?:(?:{_ROLES})-reviewer|scope-auditor|reviewers?)\b",
+        re.IGNORECASE),
+    "review round": re.compile(r"\breview rounds? \d", re.IGNORECASE),
+    "merge request": MARKERS["merge request"],
+}
+_ISSUE = re.compile(r"(?<![\w&/])#\d{1,4}\b")
+_CODE_SPAN = re.compile(r"`[^`\n]*`")
+_FENCE = re.compile(r"^\s*(```|~~~)")
+
+
+def is_doc_path(rel: str) -> bool:
+    """True when a repo-relative path is a Markdown document the guard covers."""
+    rel = rel.replace("\\", "/")
+    if rel.startswith("./"):
+        rel = rel[2:]
+    if not rel.lower().endswith(".md") or rel.startswith(DOC_EXEMPT):
+        return False
+    return not _SKIP_SEGMENTS.intersection(rel.split("/"))
+
+
+def doc_marker_kind(line: str, rel: str) -> str | None:
+    """The marker kind a document line carries outside its code spans and quoted spans, or None."""
+    prose = _LITERAL.sub(" ", _CODE_SPAN.sub(" ", line))
+    for kind, rx in DOC_MARKERS.items():
+        if rx.search(prose):
+            return kind
+    if rel.replace("\\", "/") in ISSUE_FREE_DOCS and _ISSUE.search(prose):
+        return "issue number"
+    return None
+
+
+def doc_flagged_lines(text: str, rel: str) -> list[tuple[int, str, str]]:
+    """(1-based line number, marker kind, line) for every prose line of a document carrying history."""
+    out = []
+    in_fence = False
+    for n, line in enumerate(text.splitlines(), 1):
+        if _FENCE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        kind = doc_marker_kind(line, rel)
+        if kind:
+            out.append((n, kind, line.strip()))
+    return out
+
+
+def doc_added_hits(tool_input: dict, rel: str, on_disk: str) -> list[tuple[int, str, str]]:
+    """Flagged lines the write ADDS: present in the new text, absent from the text it replaces.
+
+    Existing history in a document never blocks an edit to it; only new history does.
+    """
+    pairs = []
+    if isinstance(tool_input.get("content"), str):
+        pairs.append((on_disk, tool_input["content"]))
+    if isinstance(tool_input.get("new_string"), str):
+        pairs.append((tool_input.get("old_string") or "", tool_input["new_string"]))
+    for edit in tool_input.get("edits") or []:
+        if isinstance(edit, dict) and isinstance(edit.get("new_string"), str):
+            pairs.append((edit.get("old_string") or "", edit["new_string"]))
+    hits = []
+    for before, after in pairs:
+        existing = {line for _n, _k, line in doc_flagged_lines(before, rel)}
+        hits.extend(h for h in doc_flagged_lines(after, rel) if h[2] not in existing)
+    return hits
+
+
+def count_docs(root: str, paths: list[str]) -> dict[str, int]:
+    """{document: flagged-line count} for the given repo-relative paths that the guard covers."""
+    counts = {}
+    for rel in paths:
+        if not is_doc_path(rel):
+            continue
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+                hits = doc_flagged_lines(fh.read(), rel)
+        except OSError:
+            continue
+        if hits:
+            counts[rel.replace("\\", "/")] = len(hits)
+    return counts
+
+
 def _written_texts(tool_input: dict) -> list[str]:
     texts = []
     if isinstance(tool_input.get("new_string"), str):
@@ -274,6 +371,23 @@ def main() -> int:
         except ValueError:
             return 0
         if rel.startswith(".."):
+            return 0
+        if is_doc_path(rel):
+            try:
+                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+                    on_disk = fh.read()
+            except OSError:
+                on_disk = ""
+            hits = doc_added_hits(tool_input, rel, on_disk)
+            if hits:
+                shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])
+                emit_deny(
+                    "COMMENT HISTORY GATE: this edit adds decision history to a document — "
+                    f"{shown}. A document says WHAT and WHY; dates, issue and MR numbers, review "
+                    "rounds and who found or decided what live in the commit message, the MR and "
+                    "the issue (engineering_standards.md section 1.2). Rewrite the line as the rule "
+                    "or the reason alone."
+                )
             return 0
         if not is_code_path(rel):
             return 0

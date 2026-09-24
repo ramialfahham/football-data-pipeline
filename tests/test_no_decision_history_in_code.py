@@ -242,7 +242,7 @@ def test_hook_denies_a_history_comment_in_a_code_file():
     assert "COMMENT HISTORY GATE" in out and "section 1.2" in out
 
 
-def test_hook_allows_the_same_text_in_markdown_and_in_task_artifacts():
+def test_hook_allows_a_code_only_marker_in_markdown_and_in_task_artifacts():
     text = history_line(SAMPLE_MARKERS["product owner"])
     assert run_hook(edit_event("docs/working_agreement.md", text)).strip() == ""
     assert run_hook(edit_event(".claude/task/contract.md", text)).strip() == ""
