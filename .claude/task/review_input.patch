@@ -1,1576 +1,317 @@
-diff --git a/.claude/launch.json b/.claude/launch.json
-new file mode 100644
-index 00000000..82a8ec30
---- /dev/null
-+++ b/.claude/launch.json
-@@ -0,0 +1,11 @@
-+{
-+  "version": "0.0.1",
-+  "configurations": [
-+    {
-+      "name": "v2",
-+      "runtimeExecutable": "npm",
-+      "runtimeArgs": ["run", "dev", "--prefix", "site_v2"],
-+      "port": 4321
-+    }
-+  ]
-+}
-diff --git a/.claude/skills/onboard-endpoint/SKILL.md b/.claude/skills/onboard-endpoint/SKILL.md
-index 254cdb0d..5743aac3 100644
---- a/.claude/skills/onboard-endpoint/SKILL.md
-+++ b/.claude/skills/onboard-endpoint/SKILL.md
-@@ -63,7 +63,7 @@ as a header, and keep shell trace OFF. Load it into a shell var:
+diff --git a/.claude/hooks/stop_gate.py b/.claude/hooks/stop_gate.py
+index cd6f0670..798b7c74 100644
+--- a/.claude/hooks/stop_gate.py
++++ b/.claude/hooks/stop_gate.py
+@@ -93,7 +93,21 @@ def _parked_stashes(root: str) -> list[str]:
+     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
  
- ```bash
- set +x                                   # never echo the key (no shell trace)
--KEY=$(grep -E '^API_FOOTBALL_API_KEY=' .env | cut -d= -f2- | tr -d '"' | tr -d '\r')
-+KEY=$(sed -n 's/^API_FOOTBALL_API_KEY=//p' .env | tr -d '"\r')
- B=https://v3.football.api-sports.io
- ```
  
+-def _failing_gates(root: str) -> list[tuple[str, str]]:
++def _gate_python(root: str) -> str:
++    """The repo's `.venv` interpreter when setup has created it, else the one running this hook.
++
++    The hook is started with whatever `python` is on PATH. On a fresh machine that is the system
++    Python, which lacks the packages the gates import (PyYAML), so every gate reported a false
++    failure. `scripts/bootstrap.py` creates `.venv` with every requirement.
++    """
++    for rel in (os.path.join(".venv", "Scripts", "python.exe"), os.path.join(".venv", "bin", "python")):
++        candidate = os.path.join(root, rel)
++        if os.path.isfile(candidate):
++            return candidate
++    return sys.executable
++
++
++def _failing_gates(root: str, python: str) -> list[tuple[str, str]]:
+     """(script, first meaningful output line) for each fast gate that fails.
+ 
+     A gate whose SCRIPT IS ABSENT is skipped, not reported: this hook also runs in
+@@ -107,7 +121,7 @@ def _failing_gates(root: str) -> list[tuple[str, str]]:
+             continue
+         try:
+             proc = subprocess.run(
+-                [sys.executable, path], cwd=root, capture_output=True,
++                [python, path], cwd=root, capture_output=True,
+                 timeout=GATE_TIMEOUT_S,
+             )
+         except Exception:
+@@ -177,7 +191,8 @@ def main() -> int:
+         # clean tree cannot have broken a gate that was passing.
+         if not _dirty_outside_task_dir(root):
+             return 0
+-        failures = _failing_gates(root)
++        python = _gate_python(root)
++        failures = _failing_gates(root, python)
+         if failures:
+             detail = "; ".join(f"{rel} -> {msg}" for rel, msg in failures)
+             print(json.dumps({
+@@ -188,7 +203,7 @@ def main() -> int:
+                     "checks CI runs, so ending the turn here ships a known-red branch. "
+                     "Fix them, or — if a failure is pre-existing and unrelated — say so "
+                     "explicitly with the command output rather than ending silently. "
+-                    "Run `python <script>` for the full report."
++                    f"Run `{python} <script>` for the full report."
+                 ),
+             }))
+     except Exception:
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b096118b..903f5c16 100644
+index 903f5c16..9f945307 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,95 +1,168 @@
--# Task contract — the Matches hub: a proposal the CPO can see
-+# Task contract — Clone and continue: one setup command (#161)
+@@ -1,168 +1,73 @@
+-# Task contract — Clone and continue: one setup command (#161)
++# Task contract — The stop gate runs its checks in the repo's own Python environment (#162)
  
  objective: >
--  Put a design for the Matches hub (#130, what the Matches menu item lands on) in front of the CPO
--  as a render he can open: the page as it would have read on the morning of Saturday 19 September
--  2026, built from the real fixtures and kick-off times of that day, composed only of elements the
--  site already has. Design only. Nothing under `site_v2/` changes; no mart, export or route.
--
-+  After `git clone`, one command (`python scripts/bootstrap.py`) sets up everything that needs no
-+  credentials, and `python scripts/bootstrap.py --verify` proves it: tests, pre-commit on all files,
-+  the site build from sample data. The README says what the credentialed level needs and where it
-+  goes. Generic config is committed, personal config stays out, and old-machine paths are gone.
+-  After `git clone`, one command (`python scripts/bootstrap.py`) sets up everything that needs no
+-  credentials, and `python scripts/bootstrap.py --verify` proves it: tests, pre-commit on all files,
+-  the site build from sample data. The README says what the credentialed level needs and where it
+-  goes. Generic config is committed, personal config stays out, and old-machine paths are gone.
++  The turn-end stop gate runs its fast offline gates with the repo's `.venv` interpreter when
++  `scripts/bootstrap.py` has created it, and with the hook's own interpreter otherwise. A fresh
++  machine's system Python lacks the gates' packages (PyYAML), so today every turn with a dirty tree
++  reports three false failures.
  refs: >
--  #130 (the design issue; "nothing gets built until I approve a design"). The plan the CPO approved
--  on 2026-09-23 carries the content boundary and the proposed composition this render draws:
--  the hub answers "what is on today, everywhere", one calendar day, every competition playing,
--  every match; Home's Next matches block and the competition page's Matchdays tab group by round
--  and are unchanged; the days behind the hub are #131; the match page is #132.
--  #127's approved design records "filter buttons by competition and date ... belong to the
--  Matches page". north_star.md: "Open the app, instantly see what's on today across competitions,
--  tap a match".
--  Measured before planning: 152 matches in 19 competitions on 2026-09-19; 33 in 5 on 2026-09-26
--  (an international break), from `marts.mart_competition_fixtures`.
-+  GitLab #161 (the requirement, its checklist and its plan; approved in plan mode 2026-09-24).
-+  Plan produced by an independent expert review from the requirement and the measurements in the
-+  issue's exploration fold. Doc wording reused from the parked branch
-+  `parked/fix/dbt-profile-local-to-this-repo--profile-root`; its guard script is NOT reused.
+-  GitLab #161 (the requirement, its checklist and its plan; approved in plan mode 2026-09-24).
+-  Plan produced by an independent expert review from the requirement and the measurements in the
+-  issue's exploration fold. Doc wording reused from the parked branch
+-  `parked/fix/dbt-profile-local-to-this-repo--profile-root`; its guard script is NOT reused.
++  GitLab #162 (requirement, checklist and plan; approved in plan mode 2026-09-24). Follows #161
++  (clone and continue), whose setup creates `.venv` with every requirement.
  
  scope_paths:
--  - design-mocks/gen_matches_hub.py
--  - design-mocks/matches_2026-09-19.json
--  - design-mocks/matches_2026-09-26.json
--  - design-mocks/renders/matches-hub_*.html
--  - design-mocks/README.md
--  - docs/wireframes/block_standard.md
--  - .claude/task/contract.md
--  - .claude/task/review.md
--  - .claude/task/review_input.patch
-+  - scripts/bootstrap.py
-+  - tests/test_bootstrap.py
-+  - tests/test_lint_config.py
-+  - tests/test_governance_hooks.py
-+  - README.md
-+  - CLAUDE.md
-+  - AGENTS.md
-+  - .gitignore
-+  - .claude/launch.json
-+  - .mcp.json
-+  - .gitlab-ci.yml
-+  - .pre-commit-config.yaml
-+  - .ruff-ci.toml
-+  - requirements-dev.txt
-+  - .python-version
-+  - .nvmrc
-+  - site_v2/package.json
-+  - site_v2/package-lock.json
-+  - dbt_project/profiles.example.yml
-+  - .claude/skills/onboard-endpoint/SKILL.md
-+  # end-of-file / trailing-whitespace fixes the new pre-commit config requires (whitespace only)
-+  - requirements.txt
-+  - dbt_project/packages.yml
-+  - dbt_project/models/3_core/.gitkeep
-+  - dbt_project/models/4_intermediate/.gitkeep
-+  - dbt_project/models/5_marts/.gitkeep
-+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
-+  - ingestion/api_football/loads/competition_runner.py
-+  - design-mocks/rows.py
-+  - design-mocks/interaction.py
-+  - .claude/task/**
-+  - docs/tracker/**
-+
-+protected_override: >
-+  `.gitlab-ci.yml` and `.mcp.json` are protected paths. Authority: the plan for GitLab #161,
-+  approved in plan mode on 2026-09-24, whose How names both ("`.gitlab-ci.yml`: `lint:python` runs
-+  pre-commit, the two site jobs move to `node:24`, and the new setup job (never on a schedule ...)"
-+  and "`.mcp.json` (relative paths, `${DBT_PATH:-.venv/Scripts/dbt.exe}`)"), and whose header says
-+  the contract quotes that approval for the two protected files. The item-by-item answers in chat
-+  the same day: Node 24 in CI "ok"; the CI job on Linux, on setup-file MRs and manual, "ok". The
-+  commit message and the MR head repeat this under `Locked files`; his merge is the approval
-+  (working_agreement §11).
-+
-+impact_map: >
-+  writers: none. No raw writer, dbt model logic, seed or export script changes. Structural paths
-+  touched are whitespace only: `dbt_project/models/**` (three `.gitkeep` files that hold a single
-+  CRLF, and `domestic_league.yml` gains a final newline) and
-+  `ingestion/api_football/loads/competition_runner.py` (final newline). A final newline changes no
-+  parsed YAML, no compiled SQL and no Python AST: blast radius none, checked by `dbt parse` and
-+  pytest staying green.
-+  .gitlab-ci.yml, what fires it: (1) `lint:python` (every non-schedule pipeline, `*not_on_schedule`
-+  first, unchanged) now runs `pre-commit run --all-files`; its name is unchanged, so
-+  `build:nightly-image`'s `needs:` on it (pinned by
-+  `test_governance_hooks.py::...required_gates`) still holds. (2) `build:site-v2` and
-+  `deploy:site-v2` image `node:22` -> `node:24`; rules, scripts and artifacts unchanged;
-+  `validate:ui` still needs `build:site-v2` (pinned by `test_design_inventory.py`). (3) new job
-+  `setup:clean-clone`: `*not_on_schedule` as its FIRST rule (pinned by
-+  `test_every_job_except_the_nightly_is_guarded_against_schedules`, because any GitLab schedule
-+  also starts the prod `data:nightly`), then MR pipelines whose changes touch the setup inputs,
-+  then `web` manual. No GCP auth, no `id_tokens`, no warehouse, no deploy, no `resource_group`.
-+  What imports the file: `tests/test_lint_config.py` (requires a `ruff check --config .ruff-ci.toml`
-+  invocation; the invocation moves to `.pre-commit-config.yaml`, so the test reads both files),
-+  `tests/test_governance_hooks.py` (schedule guard, required gates, the `DBT_PROFILES_DIR` pin:
-+  untouched properties), `tests/test_design_inventory.py`, `tests/test_ci_data_job_invariants.py`,
-+  `tests/test_persist_docs_policy.py`, `scripts/check_task_artifacts.py` (none of their jobs change).
-+  What stops being enforced if wrong: if pre-commit in `lint:python` failed to run ruff with the CI
-+  config, CI's Python lint would weaken silently; the updated `test_lint_config.py` pins the hook's
-+  entry, its `--config` and the absence of `--select`/`--ignore`, and pins the hook's ruff version
-+  to the `requirements-dev.txt` pin. Failure behaviour: no `allow_failure` anywhere; a red hook is a
-+  red job.
-+  .mcp.json, what fires it: Claude Code launches the `dbt` MCP server at session start. Today it
-+  fails to connect (old-machine paths). After: relative `DBT_PROJECT_DIR`/`DBT_PROFILES_DIR` and
-+  `${DBT_PATH:-.venv/Scripts/dbt.exe}`. Nothing imports it; no guard depends on it; its failure mode
-+  is the dbt tool not starting, which is the state today. The enabled tool list is unchanged
-+  (read-only lineage/list/parse tools).
-+  layer_rules: none touched (`check_layer_contract.py` reads models; whitespace only).
-+  deploy_order: nothing reaches a host or a dataset. The nightly (Cloud Scheduler `fdp-nightly`) is
-+  untouched; no GitLab schedule is created.
-+  blast_radius: none on data. Developer-facing: every clone that runs the setup gets pre-commit
-+  (pre-commit + post-commit hook types) installed into `.git/hooks`; the post-commit hook is the
-+  existing `.githooks/post-commit`, unchanged.
+-  - scripts/bootstrap.py
+-  - tests/test_bootstrap.py
+-  - tests/test_lint_config.py
++  - .claude/hooks/stop_gate.py
+   - tests/test_governance_hooks.py
+-  - README.md
+-  - CLAUDE.md
+-  - AGENTS.md
+-  - .gitignore
+-  - .claude/launch.json
+-  - .mcp.json
+-  - .gitlab-ci.yml
+-  - .pre-commit-config.yaml
+-  - .ruff-ci.toml
+-  - requirements-dev.txt
+-  - .python-version
+-  - .nvmrc
+-  - site_v2/package.json
+-  - site_v2/package-lock.json
+-  - dbt_project/profiles.example.yml
+-  - .claude/skills/onboard-endpoint/SKILL.md
+-  # end-of-file / trailing-whitespace fixes the new pre-commit config requires (whitespace only)
+-  - requirements.txt
+-  - dbt_project/packages.yml
+-  - dbt_project/models/3_core/.gitkeep
+-  - dbt_project/models/4_intermediate/.gitkeep
+-  - dbt_project/models/5_marts/.gitkeep
+-  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+-  - ingestion/api_football/loads/competition_runner.py
+-  - design-mocks/rows.py
+-  - design-mocks/interaction.py
+   - .claude/task/**
+   - docs/tracker/**
+ 
+ protected_override: >
+-  `.gitlab-ci.yml` and `.mcp.json` are protected paths. Authority: the plan for GitLab #161,
+-  approved in plan mode on 2026-09-24, whose How names both ("`.gitlab-ci.yml`: `lint:python` runs
+-  pre-commit, the two site jobs move to `node:24`, and the new setup job (never on a schedule ...)"
+-  and "`.mcp.json` (relative paths, `${DBT_PATH:-.venv/Scripts/dbt.exe}`)"), and whose header says
+-  the contract quotes that approval for the two protected files. The item-by-item answers in chat
+-  the same day: Node 24 in CI "ok"; the CI job on Linux, on setup-file MRs and manual, "ok". The
+-  commit message and the MR head repeat this under `Locked files`; his merge is the approval
+-  (working_agreement §11).
++  `.claude/hooks/stop_gate.py` is a protected path. Authority: the plan for GitLab #162, approved in
++  plan mode on 2026-09-24, whose How names the file ("`.claude/hooks/stop_gate.py`,
++  `_failing_gates`: run each check with the repo's `.venv` Python when it exists ..., otherwise with
++  the Python that runs the hook, as today") and whose header says the contract quotes that approval
++  for this protected file. His go in chat before it: "do it". The commit message and the MR head
++  repeat this under `Locked files`; his merge is the approval (working_agreement §11).
+ 
+ impact_map: >
+-  writers: none. No raw writer, dbt model logic, seed or export script changes. Structural paths
+-  touched are whitespace only: `dbt_project/models/**` (three `.gitkeep` files that hold a single
+-  CRLF, and `domestic_league.yml` gains a final newline) and
+-  `ingestion/api_football/loads/competition_runner.py` (final newline). A final newline changes no
+-  parsed YAML, no compiled SQL and no Python AST: blast radius none, checked by `dbt parse` and
+-  pytest staying green.
+-  .gitlab-ci.yml, what fires it: (1) `lint:python` (every non-schedule pipeline, `*not_on_schedule`
+-  first, unchanged) now runs `pre-commit run --all-files`; its name is unchanged, so
+-  `build:nightly-image`'s `needs:` on it (pinned by
+-  `test_governance_hooks.py::...required_gates`) still holds. (2) `build:site-v2` and
+-  `deploy:site-v2` image `node:22` -> `node:24`; rules, scripts and artifacts unchanged;
+-  `validate:ui` still needs `build:site-v2` (pinned by `test_design_inventory.py`). (3) new job
+-  `setup:clean-clone`: `*not_on_schedule` as its FIRST rule (pinned by
+-  `test_every_job_except_the_nightly_is_guarded_against_schedules`, because any GitLab schedule
+-  also starts the prod `data:nightly`), then MR pipelines whose changes touch the setup inputs,
+-  then `web` manual. No GCP auth, no `id_tokens`, no warehouse, no deploy, no `resource_group`.
+-  What imports the file: `tests/test_lint_config.py` (requires a `ruff check --config .ruff-ci.toml`
+-  invocation; the invocation moves to `.pre-commit-config.yaml`, so the test reads both files),
+-  `tests/test_governance_hooks.py` (schedule guard, required gates, the `DBT_PROFILES_DIR` pin:
+-  untouched properties), `tests/test_design_inventory.py`, `tests/test_ci_data_job_invariants.py`,
+-  `tests/test_persist_docs_policy.py`, `scripts/check_task_artifacts.py` (none of their jobs change).
+-  What stops being enforced if wrong: if pre-commit in `lint:python` failed to run ruff with the CI
+-  config, CI's Python lint would weaken silently; the updated `test_lint_config.py` pins the hook's
+-  entry, its `--config` and the absence of `--select`/`--ignore`, and pins the hook's ruff version
+-  to the `requirements-dev.txt` pin. Failure behaviour: no `allow_failure` anywhere; a red hook is a
+-  red job.
+-  .mcp.json, what fires it: Claude Code launches the `dbt` MCP server at session start. Today it
+-  fails to connect (old-machine paths). After: relative `DBT_PROJECT_DIR`/`DBT_PROFILES_DIR` and
+-  `${DBT_PATH:-.venv/Scripts/dbt.exe}`. Nothing imports it; no guard depends on it; its failure mode
+-  is the dbt tool not starting, which is the state today. The enabled tool list is unchanged
+-  (read-only lineage/list/parse tools).
+-  layer_rules: none touched (`check_layer_contract.py` reads models; whitespace only).
+-  deploy_order: nothing reaches a host or a dataset. The nightly (Cloud Scheduler `fdp-nightly`) is
+-  untouched; no GitLab schedule is created.
+-  blast_radius: none on data. Developer-facing: every clone that runs the setup gets pre-commit
+-  (pre-commit + post-commit hook types) installed into `.git/hooks`; the post-commit hook is the
+-  existing `.githooks/post-commit`, unchanged.
++  writers: none. No raw writer, dbt model, seed, export script or site file.
++  what fires it: the `Stop` hook in `.claude/settings.json` (line 119, `python
++  "$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py"`, unchanged) at every agent turn end. The
++  changed code runs only in the CORRECTNESS branch: after the stash check, after the scope check,
++  and only when the tree is dirty outside `.claude/task/`.
++  what imports it: `tests/test_governance_hooks.py` (runs the hook as a subprocess, and imports
++  `stop_gate.FAST_GATES` for the validate-local agreement test; `FAST_GATES` is unchanged).
++  Nothing else imports it.
++  what stops being enforced if it is wrong: if the interpreter choice broke, every gate would fail
++  to start; `subprocess.run` raising is caught and the gate skipped (fail open, the file's house
++  rule), so a wrong path would silently skip gates rather than block. The new test pins both
++  branches: with `.venv` the gate runs in it; without, it runs with the hook's interpreter and a
++  failing gate is still reported. Scope and stash checks are untouched.
++  failure behaviour: unchanged — block once, `stop_hook_active` prevents loops, any unexpected
++  error returns 0.
++  layer_rules: none touched.
++  deploy_order: nothing reaches a host, a dataset or CI; the hook is local to agent sessions.
++  blast_radius: none on data. Agent sessions on a machine with `.venv` stop seeing false
++  PyYAML failures; sessions without `.venv` behave as today.
  
  decisions_taken: >
--  Composition from the approved plan, every part an element the site already has, reused as is:
--  the breadcrumb and page heading of the Competitions page; its two filter rows (Clubs / National
--  teams, region); the Matchdays tab's picker with a date as its title; one block named with the
--  Matchdays tab's existing "Schedule" copy, holding the competition group head (crest, name,
--  chevron) and the match row. No new element, no new label, no CSS of the mock's own beyond its
--  harness: `system.css` is inlined verbatim and `scripts/check_page_css.py` holds that.
+-  Every item below is a line of GitLab #161, approved in plan mode 2026-09-24, or an item answered
+-  in chat that day.
++  Every item is a line of GitLab #162, approved in plan mode 2026-09-24.
+ 
+-  pre-commit (item 1, "ok"): runs exactly what CI runs offline. In: file hygiene with generated or
+-  frozen trees excluded (`site_v2/src/data/`, `site/` retired and frozen, `.github/workflows/`
+-  protected and kept unedited, `.claude/task/` generated review artifacts), ruff check at CI's
+-  version with `--config .ruff-ci.toml`, the secret scan. Out: `ruff-format` (never enforced; would
+-  reformat 112 files) and `sqlfluff` (needs BigQuery; CI's data jobs still lint SQL). CI's
+-  `lint:python` runs pre-commit, so there is one config. This reverses the documented choice to
+-  keep the two independent (`.ruff-ci.toml` header, `.gitlab-ci.yml` lint comment); both are
+-  rewritten, not appended.
++  Interpreter choice inside the hook, not in `.claude/settings.json`: launching the hook itself
++  with `.venv` would fail to start it at all before setup has run. The hook stays standard-library
++  only. Both venv layouts are checked (`.venv/Scripts/python.exe`, `.venv/bin/python`); the first
++  that exists wins; otherwise `sys.executable`, as today.
+ 
+-  Windows path limit (item 2, "ok", as corrected the same turn): setup stops only when long paths
+-  are off AND the repo path is too long. Measured: the deepest installed file is 150 characters
+-  below the root (`.venv\Lib\site-packages\google\cloud\bigquery_storage_v1alpha\...`); Windows
+-  allows 259; the limit is set at 80 for margin. The script never changes the system setting.
++  The failure message names the interpreter the gates ran with, so the suggested re-run command
++  reproduces what the hook saw.
+ 
+-  Node 24 (item 3, "ok"): `.nvmrc` `24`, `engines.node` `>=24 <25`, CI site jobs on `node:24`.
 -
--  The data is real: one `bq` pull of `mart_competition_fixtures` for 2026-09-19 joined to
--  `mart_competition_index`, committed beside the generator the way the #129 pulls were. The day
--  is rendered as it read that morning, so every row shows its kick-off and none its score; the
--  kick-offs, teams, competitions and order are the warehouse's. Times in UTC with the label, as
--  the built site shows them until #146.
+-  npm install scripts (item 4, "ok"; #161 line): denied if the site builds without them, allowed
+-  otherwise; the build is the test.
 -
--  Two renders, and the difference between them is the reserved question below, drawn so he can
--  answer it by looking rather than decided here. The real Saturday has 77 FA Cup qualifying ties
--  sorting second, so every competition after them starts about 80 rows down. Render 01 is the
--  plan's "every match, no fold"; render 02 is the same page with Home's fold, the element and
--  label the site already ships (`.fxmore`, copy `homeShowAll`, three rows then "Show all {n}").
--  One generator draws both; `MATCHES_HUB_FOLD=3` selects the fold, and the README names it as the
--  variant for this ruling, not a settled feature. Whichever he picks, the other goes.
+-  Parked guard script (item 5, "ok"): left out; the root-anchored `.gitignore` entry is the control.
 -
--  The render is named by `design-mocks/render.py` and is a file of record once sent. The mock is
--  added to the block standard's Pages table so the measured check covers it like every other mock.
+-  CI setup job (item 6 as revised, "ok"): Linux only, MR pipelines touching setup inputs plus
+-  manual, never on a schedule. No Windows runner, no scheduled run.
 -
--  Threshold declarations: no new mechanism, no recurring cost (one read of about 200 rows).
-+  Every item below is a line of GitLab #161, approved in plan mode 2026-09-24, or an item answered
-+  in chat that day.
-+
-+  pre-commit (item 1, "ok"): runs exactly what CI runs offline. In: file hygiene with generated or
-+  frozen trees excluded (`site_v2/src/data/`, `site/` retired and frozen, `.github/workflows/`
-+  protected and kept unedited, `.claude/task/` generated review artifacts), ruff check at CI's
-+  version with `--config .ruff-ci.toml`, the secret scan. Out: `ruff-format` (never enforced; would
-+  reformat 112 files) and `sqlfluff` (needs BigQuery; CI's data jobs still lint SQL). CI's
-+  `lint:python` runs pre-commit, so there is one config. This reverses the documented choice to
-+  keep the two independent (`.ruff-ci.toml` header, `.gitlab-ci.yml` lint comment); both are
-+  rewritten, not appended.
-+
-+  Windows path limit (item 2, "ok", as corrected the same turn): setup stops only when long paths
-+  are off AND the repo path is too long. Measured: the deepest installed file is 150 characters
-+  below the root (`.venv\Lib\site-packages\google\cloud\bigquery_storage_v1alpha\...`); Windows
-+  allows 259; the limit is set at 80 for margin. The script never changes the system setting.
-+
-+  Node 24 (item 3, "ok"): `.nvmrc` `24`, `engines.node` `>=24 <25`, CI site jobs on `node:24`.
-+
-+  npm install scripts (item 4, "ok"; #161 line): denied if the site builds without them, allowed
-+  otherwise; the build is the test.
-+
-+  Parked guard script (item 5, "ok"): left out; the root-anchored `.gitignore` entry is the control.
-+
-+  CI setup job (item 6 as revised, "ok"): Linux only, MR pipelines touching setup inputs plus
-+  manual, never on a schedule. No Windows runner, no scheduled run.
-+
-+  Proof folder (item 7, "ok"): `C:\01_Projects\fdp-proof`, cloned from GitLab, deleted after.
-+
-+  Git hooks (independent review, his "yes" 2026-09-24 to "Should every clone, including yours,
-+  auto-push each commit and open an MR?"): pre-commit installs both hook types; the existing
-+  `.githooks/post-commit` runs as a pre-commit post-commit hook. No `core.hooksPath`: the agent
-+  guard blocks setting it and AGENTS.md already says to unset it; setup stops with that instruction
-+  if it finds one set.
-+
-+  `.mcp.json`: Claude Code documents `${VAR}` and `${VAR:-default}`; `${CLAUDE_PROJECT_DIR}` is
-+  documented only for plugin servers and a project server's working directory is undocumented, so
-+  relative paths are used and the proof shows the tool connecting.
-+
-+  `--fetch-key` (#161 line "`python scripts/bootstrap.py --fetch-key` puts the API key from Secret
-+  Manager into `.env` without printing it; you run it, Claude never does"): it reads the EXISTING
-+  secret `api-football-key` with the caller's own gcloud login and writes it into `.env` only where
-+  `API_FOOTBALL_API_KEY` is empty. No IAM change, no new secret, no key printed or logged.
-+
-+  Secret scans keep full coverage: `detect-private-key` and `check-no-secrets` carry no path
-+  exclusion; only the whitespace fixers skip the generated or frozen trees. `API_KEY_SECRET_NAME`
-+  in `scripts/bootstrap.py` holds the secret's NAME, spelled so the scan does not read it as a value.
-+
-+  THRESHOLD DECLARATIONS. NEW MECHANISM: `scripts/bootstrap.py` (setup script) and CI job
-+  `setup:clean-clone`, both lines of #161 as approved; the pre-commit post-commit wiring (his "yes"
-+  above). No new runtime dependency: `pre-commit` joins `requirements-dev.txt` (developer-only,
-+  named in his requirement). RECURRING COST: `setup:clean-clone` uses the existing self-hosted
-+  runner (roughly 5-8 minutes) only on MRs that change setup inputs or on a manual run; no money,
-+  no BigQuery, no API-Football calls. `lint:python` gains the pre-commit hook-environment install
-+  (cached).
+-  Proof folder (item 7, "ok"): `C:\01_Projects\fdp-proof`, cloned from GitLab, deleted after.
+-
+-  Git hooks (independent review, his "yes" 2026-09-24 to "Should every clone, including yours,
+-  auto-push each commit and open an MR?"): pre-commit installs both hook types; the existing
+-  `.githooks/post-commit` runs as a pre-commit post-commit hook. No `core.hooksPath`: the agent
+-  guard blocks setting it and AGENTS.md already says to unset it; setup stops with that instruction
+-  if it finds one set.
+-
+-  `.mcp.json`: Claude Code documents `${VAR}` and `${VAR:-default}`; `${CLAUDE_PROJECT_DIR}` is
+-  documented only for plugin servers and a project server's working directory is undocumented, so
+-  relative paths are used and the proof shows the tool connecting.
+-
+-  `--fetch-key` (#161 line "`python scripts/bootstrap.py --fetch-key` puts the API key from Secret
+-  Manager into `.env` without printing it; you run it, Claude never does"): it reads the EXISTING
+-  secret `api-football-key` with the caller's own gcloud login and writes it into `.env` only where
+-  `API_FOOTBALL_API_KEY` is empty. No IAM change, no new secret, no key printed or logged.
+-
+-  Secret scans keep full coverage: `detect-private-key` and `check-no-secrets` carry no path
+-  exclusion; only the whitespace fixers skip the generated or frozen trees. `API_KEY_SECRET_NAME`
+-  in `scripts/bootstrap.py` holds the secret's NAME, spelled so the scan does not read it as a value.
+-
+-  THRESHOLD DECLARATIONS. NEW MECHANISM: `scripts/bootstrap.py` (setup script) and CI job
+-  `setup:clean-clone`, both lines of #161 as approved; the pre-commit post-commit wiring (his "yes"
+-  above). No new runtime dependency: `pre-commit` joins `requirements-dev.txt` (developer-only,
+-  named in his requirement). RECURRING COST: `setup:clean-clone` uses the existing self-hosted
+-  runner (roughly 5-8 minutes) only on MRs that change setup inputs or on a manual run; no money,
+-  no BigQuery, no API-Football calls. `lint:python` gains the pre-commit hook-environment install
+-  (cached).
++  THRESHOLD DECLARATIONS. NEW MECHANISM: none; the existing gate runner chooses a different
++  interpreter. RECURRING COST: none.
  
  decisions_reserved:
--  - Everything the page shows: each of the four parts (breadcrumb and heading, filters, day line,
--    Schedule block) is the CPO's to keep, change or strike, on #130.
--  - Which day the hub shows (the build day, else the next day with a match), and that it carries
--    no "Today" label.
--  - The order of competitions within the day (the shared key: region rank, then kick-off, then
--    code).
--  - Approval of the page as a whole, on #130, after he has seen the national-team variant.
--
--  Ruled since, recorded on the issues and not re-decided here: the list uses Home's fold, "B"
--  (#130, 2026-09-23); the day switcher is the Matchdays picker with a date, one page per day,
--  forward to the end of each competition's next matchday and back to its last matchday of this
--  season, no archive by date (#131, 2026-09-23).
-+  - none open: every choice in this task was put to the CPO item by item on 2026-09-24 and is
-+    recorded above; a new CPO-class question found while building is brought to him, not decided.
+-  - none open: every choice in this task was put to the CPO item by item on 2026-09-24 and is
+-    recorded above; a new CPO-class question found while building is brought to him, not decided.
++  - none open: #162's plan was approved as written; a new CPO-class question found while building
++    is brought to him, not decided.
  
  done_when:
--  - "`python design-mocks/render.py gen_matches_hub.py matches-hub` writes `design-mocks/renders/matches-hub_2026-09-23_01.html` (every match), and the same command with `MATCHES_HUB_FOLD=3` writes `_02` (Home's fold)."
--  - "`python scripts/check_page_css.py` exits 0 with the new generator listed in the Pages table."
--  - "`python scripts/check_design_inventory.py --no-built --pages \"matches hub\"` exits 0 at 375, 700 and 1010 px, EN and FI, for 19 and 26 September."
--  - "`MATCHES_HUB_DAY=2026-09-26 python design-mocks/render.py gen_matches_hub.py matches-hub` writes `_03`: every row one of the 26 September fixtures in the committed pull, national teams under a flag."
--  - "`python -m pytest tests/test_design_mock_renders.py tests/test_design_inventory.py -q` passes."
--  - "Every row in the render is one of the 152 fixtures of 2026-09-19 in the committed pull, and every competition heading is one of its 19 competitions."
--  - "The render is sent to the CPO and the proposal posted on #130."
--
--amendments:
--  - 2026-09-23 (before the first commit): the second render and its switch declared in
--    decisions_taken and done_when. Authority: the reserved question "All matches with no fold,
--    versus Home's three and a fold" is his, and a render of each side is how it is put to him
--    (a ruling request names its variants file by file). No path added; both renders were already
--    inside `design-mocks/renders/matches-hub_*.html`. Raised by scope-auditor round 1.
--  - 2026-09-23, after his rulings, on a clean tree: + `design-mocks/matches_2026-09-26.json`, the
--    real fixtures of Saturday 26 September 2026 (an international weekend), for the national-team
--    variant this contract reserved "rendered only after the first is ruled". Authority: he ruled
--    the fold ("B then") and the day switcher's reach on #130 and #131. The generator draws the
--    fold as the design (the `MATCHES_HUB_FOLD` switch goes: "whichever he picks, the other goes";
--    render 01 stays on file as the option not taken), takes the day from `MATCHES_HUB_DAY`
--    (default 2026-09-19, the file the Pages table's check renders) and writes the day line from
--    that date. The new render is `matches-hub_2026-09-23_03.html`.
-+  - fresh clone from GitLab into C:\01_Projects\fdp-proof; `python scripts/bootstrap.py` exits 0;
-+    a second run exits 0 and changes no file
-+  - in that clone `python scripts/bootstrap.py --verify` exits 0 (pytest, pre-commit --all-files,
-+    site build) and `dbt debug` passes from the root with the written profile
-+  - the dbt MCP tool connects from this repo
-+  - `.venv/Scripts/python.exe -m pytest tests/ -q` green in the working repo
-+  - blinded review cycle PASS; MR opened with the `Default` head; CI green
-+  - output of the proof pasted into the MR
-+
-+amendments: (none)
-diff --git a/.gitignore b/.gitignore
-index 24846594..32499127 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -148,8 +148,12 @@ venv.bak/
- dbt_packages/
- target/
- logs/
--# dbt local user identifier (machine-specific)
-+# dbt local user identifier (machine-specific). dbt writes it next to the profile it reads.
- dbt_project/.user.yml
-+/.user.yml
-+# The local dbt profile, created from dbt_project/profiles.example.yml by scripts/bootstrap.py.
-+# Root-anchored: deploy/nightly/profiles.yml is tracked on purpose for the nightly image.
-+/profiles.yml
+-  - fresh clone from GitLab into C:\01_Projects\fdp-proof; `python scripts/bootstrap.py` exits 0;
+-    a second run exits 0 and changes no file
+-  - in that clone `python scripts/bootstrap.py --verify` exits 0 (pytest, pre-commit --all-files,
+-    site build) and `dbt debug` passes from the root with the written profile
+-  - the dbt MCP tool connects from this repo
+-  - `.venv/Scripts/python.exe -m pytest tests/ -q` green in the working repo
++  - `.venv/Scripts/python.exe -m pytest tests/test_governance_hooks.py -k stop_gate` green,
++    including the new interpreter test, and it turns red when `_gate_python` returns
++    `sys.executable` unconditionally
++  - on this machine, with a dirty in-scope tree, running the hook with the system `python` reports
++    no correctness failure; with a deliberately failing gate it still blocks
+   - blinded review cycle PASS; MR opened with the `Default` head; CI green
+-  - output of the proof pasted into the MR
  
- # Spyder project settings
- .spyderproject
-@@ -189,9 +193,9 @@ cython_debug/
- .abstra/
- 
- # Visual Studio Code
--#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
-+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
- #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
--#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
-+#  and can be added to the global gitignore or merged into this file. However, if you prefer,
- #  you could uncomment the following to ignore the entire vscode folder
- # .vscode/
- 
-@@ -227,7 +231,6 @@ artifacts/*.js
- 
- # Claude Code local state (machine-specific, not project config)
- .claude/settings.local.json
--.claude/launch.json
- .claude/worktrees/
- # The handover lives in GitLab issue #157; the session-start hook saves its last copy here for when
- # GitLab is down. The old in-repo handover stays ignored so an older branch's copy is never re-added.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 51455910..d639c171 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -524,25 +524,18 @@ validate:ui:
- # test stage
- # ---------------------------------------------------------------------------
- 
--# Correctness-only Python lint (ruff; ruleset in .ruff-ci.toml).
-+# The repo's lint: every pre-commit hook on every file, the same config a local commit runs, so
-+# the two cannot drift apart. Ruff (correctness only, ruleset in .ruff-ci.toml) is one of the hooks.
- #
--# WHY IT EXISTS: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
-+# WHY RUFF IS HERE: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
- # duplicate module-level function name, and three of the four defects across that MR's three
- # review rounds were mechanically decidable. LLM reviewers are the most expensive check here and
- # belong on judgement, not on facts a tool settles for free.
- #
--# ruff was NOT new to the repo — `.pre-commit-config.yaml` has run it locally for a long time. What
--# was missing is a CI BACKSTOP: that hook is local-only, so it binds one machine and can be skipped,
--# and its `files:` regex excludes `.claude/hooks/` entirely. Nine F401s inside its own file pattern
--# had survived it, on a hook whose args are `--fix, --exit-non-zero-on-fix` — evidence it was not
--# being run.
--#
--# ⚠ `--config .ruff-ci.toml` IS REQUIRED, not decoration. Ruff auto-discovers only `ruff.toml`,
--# `.ruff.toml` and `pyproject.toml`; the config is deliberately named outside that set so the
--# pre-commit hook never adopts it, which keeps the two enforcement points independent and means no
--# ruff version alignment is owed (aligning would drag `ruff-format` and reformat 75 files).
--# Do NOT add `--select` here: a CLI `--select` OVERRIDES the config file wholesale, so the job
--# would silently stop enforcing what `.ruff-ci.toml` sets. `tests/test_lint_config.py` pins both.
-+# ⚠ The ruff hook's `--config .ruff-ci.toml` IS REQUIRED: the config is named outside ruff's
-+# auto-discovered set, so without it ruff silently runs its defaults. Never add `--select`: it
-+# OVERRIDES the config wholesale. `tests/test_lint_config.py` pins both, the hook's ruff version
-+# against requirements-dev.txt, and that this job runs pre-commit on all files.
- #
- # It deliberately does NOT use the `*python` anchor: linting imports nothing, so installing the
- # runtime dependencies would add minutes for no benefit. Its cache key is requirements-dev.txt.
-@@ -550,17 +543,21 @@ lint:python:
-   image: python:3.11
-   needs: []
-   stage: test
-+  variables:
-+    PRE_COMMIT_HOME: "$CI_PROJECT_DIR/.cache/pre-commit"
-   cache:
-     key:
-       files:
-         - requirements-dev.txt
-+        - .pre-commit-config.yaml
-     paths:
-       - .cache/pip
-+      - .cache/pre-commit
-   before_script:
-     - python -m pip install --upgrade pip
-     - pip install -r requirements-dev.txt
-   script:
--    - ruff check . --config .ruff-ci.toml
-+    - pre-commit run --all-files --show-diff-on-failure
-   rules:
-     - *not_on_schedule
-     - when: on_success
-@@ -575,6 +572,49 @@ test:python:
-     - *not_on_schedule
-     - when: on_success
- 
-+# The files a fresh clone's setup reads. A change to any of them can break `scripts/bootstrap.py`.
-+.setup_paths: &setup_paths
-+  - scripts/bootstrap.py
-+  - requirements*.txt
-+  - .pre-commit-config.yaml
-+  - .githooks/**
-+  - .python-version
-+  - .nvmrc
-+  - site_v2/package.json
-+  - site_v2/package-lock.json
-+  - .env.example
-+  - dbt_project/profiles.example.yml
-+  - dbt_project/packages.yml
-+  - .gitlab-ci.yml
-+
-+# A new person's first two commands, on a clean machine: `python scripts/bootstrap.py`, then
-+# `--verify` (pytest, pre-commit on all files, the site build). No cache, so it is a real first run.
-+# Never on a schedule: any GitLab schedule also starts the prod `data:nightly`.
-+# python:3.11 has no Node, so Node 24 comes from nodejs.org, checked against its published SHA-256.
-+setup:clean-clone:
-+  image: python:3.11
-+  needs: []
-+  stage: test
-+  script:
-+    - |
-+      NODE_DIST=https://nodejs.org/dist/latest-v24.x
-+      curl -fsSL "$NODE_DIST/SHASUMS256.txt" -o SHASUMS256.txt
-+      NODE_TAR=$(grep -o 'node-v24\.[0-9.]*-linux-x64\.tar\.xz' SHASUMS256.txt | head -1)
-+      curl -fsSLO "$NODE_DIST/$NODE_TAR"
-+      grep " $NODE_TAR\$" SHASUMS256.txt | sha256sum -c -
-+      mkdir -p /opt/node
-+      tar -xJf "$NODE_TAR" -C /opt/node --strip-components=1
-+      rm "$NODE_TAR" SHASUMS256.txt
-+    - export PATH="/opt/node/bin:$PATH"
-+    - python scripts/bootstrap.py
-+    - python scripts/bootstrap.py --verify
-+  rules:
-+    - *not_on_schedule
-+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-+      changes: *setup_paths
-+    - if: $CI_PIPELINE_SOURCE == "web"
-+      when: manual
-+
- # ---------------------------------------------------------------------------
- # build stage
- # ---------------------------------------------------------------------------
-@@ -586,7 +626,7 @@ test:python:
- build:site-v2:
-   stage: build
-   needs: []
--  image: node:22
-+  image: node:24
-   # Cache npm's download cache, NOT site_v2/node_modules: `npm ci` deletes
-   # node_modules before installing, so a restored node_modules cache is
-   # discarded every run and re-uploaded for nothing.
-@@ -977,7 +1017,7 @@ data:nightly:
- # table), so it does NOT join prod-warehouse-write — its own group, as before.
- # ---------------------------------------------------------------------------
- 
--# SPLIT INTO TWO JOBS, because the export needs Python and the build needs Node 22
-+# SPLIT INTO TWO JOBS, because the export needs Python and the build needs Node 24
- # and no single image here is both. GitHub used `ubuntu-latest` with setup-python
- # AND setup-node; GitLab jobs get one image each. The alternative — installing a
- # whole language runtime at job time — is what validate:ui does for a single
-@@ -1016,7 +1056,7 @@ deploy:export:
- 
- deploy:site-v2:
-   <<: *gcp_job
--  image: node:22
-+  image: node:24
-   stage: deploy
-   needs: ["deploy:export"]
-   resource_group: deploy-site-v2
-diff --git a/.mcp.json b/.mcp.json
-index 8dab347d..d8e90695 100644
---- a/.mcp.json
-+++ b/.mcp.json
-@@ -4,9 +4,9 @@
-       "command": "uvx",
-       "args": ["--python", "3.12.13", "dbt-mcp"],
-       "env": {
--        "DBT_PROJECT_DIR": "D:/Projects/football-data-pipeline/dbt_project",
--        "DBT_PATH": "D:/Projects/football-data-pipeline/.venv/Scripts/dbt.exe",
--        "DBT_PROFILES_DIR": "C:/Users/Rami/.dbt",
-+        "DBT_PROJECT_DIR": "dbt_project",
-+        "DBT_PATH": "${DBT_PATH:-.venv/Scripts/dbt.exe}",
-+        "DBT_PROFILES_DIR": ".",
-         "DBT_MCP_ENABLE_TOOLS": "get_lineage_dev,get_node_details_dev,list,parse"
-       }
-     }
-diff --git a/.nvmrc b/.nvmrc
-new file mode 100644
-index 00000000..a45fd52c
---- /dev/null
-+++ b/.nvmrc
-@@ -0,0 +1 @@
-+24
-diff --git a/.pre-commit-config.yaml b/.pre-commit-config.yaml
-index 2d992599..6d6ed261 100644
---- a/.pre-commit-config.yaml
-+++ b/.pre-commit-config.yaml
-@@ -1,3 +1,10 @@
-+# The same checks CI runs offline: CI's `lint:python` job runs `pre-commit run --all-files`.
-+# Nothing here may need credentials. SQL lint needs BigQuery and runs in CI's data jobs instead.
-+default_install_hook_types: [pre-commit, post-commit]
-+
-+# The whitespace fixers skip what is written by tools or frozen, never edited by hand: generated
-+# data, the retired `site/`, the protected `.github/workflows/` snapshot, and the review artifacts
-+# under `.claude/task/`. The secret scans have no exclusion: they see every file.
- repos:
-   - repo: https://github.com/pre-commit/pre-commit-hooks
-     rev: v5.0.0
-@@ -6,35 +13,21 @@ repos:
-       - id: check-merge-conflict
-       - id: detect-private-key
-       - id: check-yaml
--        # Allow GitHub Actions workflow files that use !! tag-like syntax
-         args: [--unsafe]
-       - id: check-json
--        # Skip dbt-generated JSON that may include trailing commas etc.
-         exclude: ^dbt_project/target/
-       - id: end-of-file-fixer
--        exclude: ^(.*\.svg|.*\.png|.*\.jpg|.*\.jpeg)$
-+        exclude: ^(site_v2/src/data/|site/|\.github/workflows/|\.claude/task/|.*\.svg$|.*\.png$|.*\.jpg$|.*\.jpeg$)
-       - id: trailing-whitespace
--        exclude: ^(.*\.md|.*\.svg)$
-+        exclude: ^(site_v2/src/data/|site/|\.github/workflows/|\.claude/task/|.*\.md$|.*\.svg$)
-         args: [--markdown-linebreak-ext=md]
- 
-+  # Must match the ruff pin in requirements-dev.txt; tests/test_lint_config.py checks both.
-   - repo: https://github.com/astral-sh/ruff-pre-commit
--    rev: v0.7.4
--    hooks:
--      - id: ruff
--        args: [--fix, --exit-non-zero-on-fix]
--        # Limit ruff to first-party Python; avoid generated/vendored paths.
--        files: ^(ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds)/.*\.py$
--      - id: ruff-format
--        files: ^(ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds)/.*\.py$
--
--  - repo: https://github.com/sqlfluff/sqlfluff
--    rev: 3.2.5
-+    rev: v0.16.2
-     hooks:
--      - id: sqlfluff-lint
--        # Match the CI invocation: lint from dbt_project root with its .sqlfluff config.
--        files: ^dbt_project/models/.*\.sql$
--        args: [--config, dbt_project/.sqlfluff]
--        additional_dependencies: ['sqlfluff-templater-dbt==3.2.5']
-+      - id: ruff-check
-+        args: [--config, .ruff-ci.toml]
- 
-   - repo: local
-     hooks:
-@@ -43,3 +36,11 @@ repos:
-         entry: python scripts/security/check_no_secrets.py
-         language: system
-         pass_filenames: true
-+      - id: push-and-open-mr
-+        name: Push the branch and open a merge request
-+        entry: .githooks/post-commit
-+        language: script
-+        stages: [post-commit]
-+        always_run: true
-+        pass_filenames: false
-+        verbose: true
-diff --git a/.python-version b/.python-version
-new file mode 100644
-index 00000000..2c073331
---- /dev/null
-+++ b/.python-version
-@@ -0,0 +1 @@
-+3.11
-diff --git a/.ruff-ci.toml b/.ruff-ci.toml
-index 7e438e86..318930a2 100644
---- a/.ruff-ci.toml
-+++ b/.ruff-ci.toml
-@@ -1,28 +1,11 @@
--# Python lint config for the CI `lint:python` job. CORRECTNESS ONLY.
-+# Python lint config. CORRECTNESS ONLY. The ruff hook in `.pre-commit-config.yaml` passes it
-+# explicitly, and CI's `lint:python` runs that hook, so local commits and CI enforce the same rules.
- #
- # ⚠ THE FILENAME IS LOAD-BEARING. Do NOT rename this to `ruff.toml` or `.ruff.toml`, and do not
--# move these settings into a root `pyproject.toml`.
--#
--# Ruff auto-discovers exactly those three names by walking UP from each linted file. This repo has
--# run ruff on every local commit since long before this file existed — `.pre-commit-config.yaml`
--# (`rev: v0.7.4`, `args: [--fix, --exit-non-zero-on-fix]`) over
--# `ingestion|scripts|tests|dbt_project/macros|dbt_project/seeds`, passing no `--config`, so it uses
--# ruff's DEFAULTS. An auto-discoverable config at the root is silently adopted by that hook too,
--# and then both ways of proceeding lose:
--#
--#   · Narrowing `select` here switches rules off on every local commit. Measured over the hook's
--#     own file set: ruff's defaults report 10 violations (all E402); `["F","E9"]` reports 0. The
--#     first version of this file shipped `["F","E9"]` and would have done exactly that — a guard
--#     loosened as a side effect of adding a file.
--#   · "Just align the two ruff versions" is not a fix either: the pre-commit `rev` also governs
--#     `ruff-format`, which rewrites files on commit. Measured across v0.7.4 -> v0.16.2 with
--#     `ruff format --diff`: **75 files would be reformatted** — the unreviewable mechanical diff
--#     this whole change argues against.
--#
--# So CI passes `--config .ruff-ci.toml` explicitly and the local hook keeps its own defaults. The
--# two enforcement points stay independent: no shared config, no version alignment owed, and neither
--# can silently change the other. `tests/test_lint_config.py` fails if an auto-discoverable config
--# appears at the root, or if the CI job stops passing `--config`.
-+# move these settings into a root `pyproject.toml`: ruff auto-discovers exactly those names, and a
-+# second, auto-discovered source would make bare `ruff check` and editors disagree with the hook.
-+# `tests/test_lint_config.py` fails if an auto-discoverable config appears at the root, if the hook
-+# stops passing `--config`, or if its ruff version drifts from `requirements-dev.txt`.
- 
- target-version = "py311"
- 
-@@ -35,8 +18,8 @@ extend-exclude = [".venv", "site_v2/node_modules", "site_v2/dist", "dbt_project/
- #   E9  syntax and IO errors
- #   F   pyflakes — undefined names, unused imports, redefinitions, unused locals
- #
--# Matching the default is deliberate in BOTH directions. Narrower would enforce less in CI than the
--# local hook already does, which is a backstop that backs nothing. Wider would adopt a new class of
-+# Matching the default is deliberate in BOTH directions. Narrower would enforce less than ruff's
-+# own baseline, on every commit and in CI alike. Wider would adopt a new class of
- # enforced opinion across the whole tree — style, import order, complexity — producing a large
- # mechanical diff no reviewer can meaningfully read. Moving this list either way is a decision.
- select = ["E4", "E7", "E9", "F"]
-diff --git a/AGENTS.md b/AGENTS.md
-index c956d20b..617f7971 100644
---- a/AGENTS.md
-+++ b/AGENTS.md
-@@ -37,7 +37,7 @@ if creds.strip().startswith('{'):
- export GOOGLE_APPLICATION_CREDENTIALS=/home/ubuntu/.config/gcloud/service-account.json
- ```
- 
--The dbt profile at `~/.dbt/profiles.yml` must use `method: service-account` with `keyfile` pointing to this file (not `method: oauth`). The update script copies `profiles.example.yml` (which uses oauth) — you need to override it for Cloud Agent use.
-+The dbt profile must use `method: service-account` with `keyfile` pointing to this file (not `method: oauth`), because a Cloud Agent VM has no browser for the OAuth flow. Write it to **`profiles.yml` in the repo root**: dbt reads the working directory before `~/.dbt`, and every documented command runs dbt from the root. `profiles.example.yml` uses oauth, so change the auth method in the copy.
- 
- ### Running tests and checks (no GCP required)
- 
-@@ -63,7 +63,7 @@ These fail without a valid service account JSON written to disk:
- ### Gotchas
- 
- - **`GOOGLE_APPLICATION_CREDENTIALS` injected as JSON content, not a file path.** The GCP SDK expects a file path, but the Cursor secret is injected as raw JSON. You must write it to disk and re-export the env var as the file path (see "GCP credential setup" above).
--- **dbt profiles.yml must use `method: service-account`** in Cloud Agent VMs (no browser for OAuth). The update script copies the example profile which uses `method: oauth` — override `~/.dbt/profiles.yml` on first use.
-+- **dbt profiles.yml must use `method: service-account`** in Cloud Agent VMs (no browser for OAuth). The example profile uses `method: oauth`, so change it in `profiles.yml` in the repo root on first use, not in `~/.dbt`, which is shared by every dbt project on the machine.
- - **SQLFluff requires BigQuery auth.** The `.sqlfluff` config uses `templater = dbt`, which invokes `dbt compile` internally. Without GCP credentials, linting fails.
- - **Run SQLFluff from `dbt_project/`**, not the repo root, so the dbt templater picks up `.sqlfluff`.
- - **`dbt_project.yml` warning about unused snapshot config** is benign — it fires because no snapshot models are currently defined under that path.
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 17ef8a3f..65e2bbf8 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -143,8 +143,12 @@ when it overflows — so the most durable knowledge in the repo sat in the most
- every session that learned something had to delete something. None of this is current state.
- 
- - **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 +
--  bigquery 1.7.2, the `requirements.txt` pin) with `DBT_PROFILES_DIR=C:/Users/Rami/.dbt`: `parse`,
--  `ls`, `ls --select <model>+` all work. Use it for `impact_map` lineage.
-+  bigquery 1.7.2, the `requirements.txt` pin) **from the REPO ROOT with `--project-dir dbt_project`
-+  and no `DBT_PROFILES_DIR`**: `parse`, `ls`, `ls --select <model>+` all work. Use it for
-+  `impact_map` lineage. The profile is `profiles.yml` in the repo root (gitignored, `dev` target
-+  only, created by `scripts/bootstrap.py`); dbt finds it because it reads the working directory
-+  before `~/.dbt`. ⚠ `--project-dir` does not move the profile lookup: from inside `dbt_project/`
-+  dbt falls through to `~/.dbt`, which is what keeps CI (it always `cd`s in) on its own profile.
-   **Never run `dbt build`.** The reason is NOT that CI and prod share datasets — they have not
-   since `b96cf76` (2026-07-08). `macros/generate_schema_name.sql` prefixes every non-prod
-   target, so `dev` writes `dev_staging`/`dev_core`/`dev_marts`… and cannot touch prod's layer
-diff --git a/README.md b/README.md
-index 7c215527..08a90bb4 100644
---- a/README.md
-+++ b/README.md
-@@ -10,6 +10,63 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
- 
- **Status.** The pipeline runs daily behind automated data-quality and CI checks. The first fan-facing web app was a prototype and is now retired; its successor (**Matchday Pilot**) is in development with a new information architecture.
- 
-+## Getting started
-+
-+### Prerequisites
-+
-+| Tool | Version | Needed for |
-+|---|---|---|
-+| Python | 3.11 | everything (pinned in `.python-version`) |
-+| Node.js | 24 | the site (pinned in `.nvmrc` and `site_v2/package.json`) |
-+| git | any recent | everything |
-+| [uv](https://docs.astral.sh/uv/) | any recent | only the dbt tool inside Claude Code (`.mcp.json`) |
-+| [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) | any recent | only the credentialed level below |
-+
-+**Windows: clone into a short folder**, for example `C:\src\football-data-pipeline`. Some installed
-+files sit 150 characters below the repo folder, and Windows refuses paths longer than 260 characters
-+unless long paths are turned on. Setup stops with this explanation if the folder is too deep. To turn
-+long paths on instead (once per machine, PowerShell as administrator):
-+`New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`
-+
-+### Set up (no credentials needed)
-+
-+```bash
-+git clone https://gitlab.com/rami.al-fahham/football-data-pipeline.git
-+cd football-data-pipeline
-+python scripts/bootstrap.py
-+```
-+
-+On Windows, if `python` is not 3.11: `py -3.11 scripts/bootstrap.py`.
-+
-+It creates `.venv` with every `requirements*.txt`, installs the git hooks (pre-commit), the site's
-+packages, the dbt packages and Playwright's Chromium, creates `.env` and `profiles.yml` from their
-+examples, and names the GitLab remote `gitlab`. Every step skips itself when already done, and no
-+existing local file is overwritten, so it is safe to run again.
-+
-+### Prove it works
-+
-+```bash
-+python scripts/bootstrap.py --verify
-+```
-+
-+Runs the tests, every pre-commit check on every file, and the site build from the committed sample
-+data. Preview the site with `npm run dev --prefix site_v2` (http://localhost:4321).
-+
-+Every commit then runs the pre-commit checks, pushes the branch to `gitlab` and opens a merge
-+request (`.githooks/post-commit`).
-+
-+### With credentials (dbt against BigQuery, ingestion)
-+
-+- **BigQuery:** run `gcloud auth application-default login` with a Google account that has access to
-+  project `football-data-pipeline-gcp`. dbt uses `profiles.yml` in the repo root (created by setup,
-+  `dev` target only, gitignored). Check it from the repo root with `.venv` active:
-+  `dbt debug --project-dir dbt_project`.
-+- **API-Football key:** `API_FOOTBALL_API_KEY` in `.env` in the repo root (created by setup,
-+  gitignored). With access to the project's Secret Manager, `python scripts/bootstrap.py --fetch-key`
-+  writes it there without printing it (after `gcloud auth login`); it never overwrites a key that is
-+  already set. Read [`docs/operations_guide.md`](docs/operations_guide.md) before running an ingest:
-+  it spends API quota.
-+
- ## Architecture
- 
- ```mermaid
-@@ -82,37 +139,27 @@ Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_proje
- 
- ## dbt (local setup)
- 
--The dbt project lives in `dbt_project/`. For CI/CD readiness, `profiles.yml` is **not** committed.
--
--- Copy `dbt_project/profiles.example.yml` to your local dbt profiles directory as `profiles.yml`
--  - Default location on Windows: `%USERPROFILE%\.dbt\profiles.yml`
--  - Or set `DBT_PROFILES_DIR` to point to a folder containing `profiles.yml`
--
--**Local Python (single convention):** the repo uses **`.venv/`** at the root (gitignored). Set it up once, then use it for ingestion, dbt, and SQLFluff:
-+The dbt project lives in `dbt_project/`. [Getting started](#getting-started) sets it up: `.venv` at
-+the root, and the profile as **`profiles.yml` in the repo root** (gitignored), copied from
-+`dbt_project/profiles.example.yml`.
- 
--```powershell
--python -m venv .venv
--.\.venv\Scripts\Activate.ps1
--pip install -r requirements.txt
--```
-+- Not `~/.dbt/profiles.yml`: that file is one per machine and shared by every dbt project on it, so
-+  another project can overwrite it. dbt reads the working directory before `~/.dbt`.
-+- `--project-dir` does not move the profile lookup: run dbt from the repo root, not from inside
-+  `dbt_project/`.
- 
- ### Pre-commit hooks (local quality gate)
- 
--`.pre-commit-config.yaml` runs sqlfluff (SQL lint), ruff (Python lint + format), basic file hygiene checks, and the existing secret scan. Catches the class of bug that auto-merged-without-CI used to ship to main.
-+`.pre-commit-config.yaml` runs ruff (Python lint, CI's ruleset in `.ruff-ci.toml`), basic file
-+hygiene checks and the secret scan, on every `git commit`; a failing hook blocks the commit. CI's
-+`lint:python` job runs the same hooks on every file, so a commit that passes locally passes there.
-+SQL lint needs BigQuery credentials, so it runs in CI's data jobs, not here. To run every hook on
-+every file:
- 
- ```powershell
--pip install pre-commit
--pre-commit install
-+.\.venv\Scripts\python -m pre_commit run --all-files
- ```
- 
--After install, hooks run automatically on every `git commit`. A failing hook blocks the commit. To run all hooks on the full repo (e.g. after the first install):
--
--```powershell
--pre-commit run --all-files
--```
--
--CI runs the same sqlfluff in `validate:governance` as defense-in-depth, but catching lint locally is fast (~5s on small diffs) and avoids round-tripping through the pipeline.
--
- Run dbt from the repo root with **`.venv`** activated:
- 
- ```powershell
-diff --git a/dbt_project/models/3_core/.gitkeep b/dbt_project/models/3_core/.gitkeep
-index 8b137891..e69de29b 100644
---- a/dbt_project/models/3_core/.gitkeep
-+++ b/dbt_project/models/3_core/.gitkeep
-@@ -1 +0,0 @@
--
-diff --git a/dbt_project/models/4_intermediate/.gitkeep b/dbt_project/models/4_intermediate/.gitkeep
-index 8b137891..e69de29b 100644
---- a/dbt_project/models/4_intermediate/.gitkeep
-+++ b/dbt_project/models/4_intermediate/.gitkeep
-@@ -1 +0,0 @@
--
-diff --git a/dbt_project/models/5_marts/.gitkeep b/dbt_project/models/5_marts/.gitkeep
-index 8b137891..e69de29b 100644
---- a/dbt_project/models/5_marts/.gitkeep
-+++ b/dbt_project/models/5_marts/.gitkeep
-@@ -1 +0,0 @@
--
-diff --git a/dbt_project/models/5_marts/domestic_league/domestic_league.yml b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-index 7dfb04a6..c4fda357 100644
---- a/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-+++ b/dbt_project/models/5_marts/domestic_league/domestic_league.yml
-@@ -392,4 +392,3 @@ models:
-         description: "Home: saves / (saves + goals conceded in save-covered games); self-bounded."
-       - name: away_saves_pct_recent
-         description: "Away: save ratio over the form window."
--
-diff --git a/dbt_project/packages.yml b/dbt_project/packages.yml
-index 3a1bd6a0..aeb31bec 100644
---- a/dbt_project/packages.yml
-+++ b/dbt_project/packages.yml
-@@ -4,4 +4,4 @@
- # fetched two unused packages. Removed 2026-08-08 under issue #33, Wave 1 item 6.
- packages:
-   - package: dbt-labs/dbt_utils
--    version: 1.3.3  # Updated to the latest stable version
-\ No newline at end of file
-+    version: 1.3.3  # Updated to the latest stable version
-diff --git a/dbt_project/profiles.example.yml b/dbt_project/profiles.example.yml
-index 4b274256..882c7dfe 100644
---- a/dbt_project/profiles.example.yml
-+++ b/dbt_project/profiles.example.yml
-@@ -1,21 +1,27 @@
--# dbt connection profile — copy to ~/.dbt/profiles.yml and adjust for your machine.
-+# dbt connection profile for local development. `python scripts/bootstrap.py` copies it to
-+# `profiles.yml` in the REPO ROOT (gitignored) when that file is missing.
-+#
-+# Why the repo root and not ~/.dbt: ~/.dbt/profiles.yml is one file per machine, shared by every
-+# dbt project on it, so another project can overwrite or rewrite it. dbt reads the WORKING
-+# DIRECTORY before ~/.dbt, and every documented command runs dbt from the repo root
-+# (`dbt ... --project-dir dbt_project`). `--project-dir` does not move the profile lookup, so run
-+# dbt from the root, not from inside dbt_project/.
- #
- # ENVIRONMENT ISOLATION (see macros/generate_schema_name.sql):
--#   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME.
--#   `prod` is the ONLY target that writes the canonical BARE datasets the live site export
--#   reads (`marts`, `core`, …). Every other target is auto-prefixed:
--#     target dev        -> dev_marts,      dev_core,      …  (local development)
--#     target ci_mr<IID> -> ci_mr114_marts, ci_mr114_core, …  (CI, ONE PER MERGE REQUEST)
--#     target prod       -> marts,          core,          …  (nightly / main-push only)
--#   So a local build can NEVER clobber prod as long as your target is named anything but
--#   `prod`. Keep your local default target = `dev`.
--#   Models WITHOUT a `+schema` (the base models + seeds) fall back to the profile `dataset` below,
--#   which is already per-environment.
-+#   The layer datasets (staging/core/intermediate/marts) are prefixed by the TARGET NAME. `prod` is
-+#   the ONLY target that writes the bare, site-facing datasets (`marts`, `core`, ...). Every other
-+#   target is prefixed: target `dev` writes dev_marts, dev_core, ... So this profile has no `prod`
-+#   target, and must never get one. CI writes its own per-merge-request profile
-+#   (`.gitlab-ci.yml`, the `.dbt_profile` anchor); the nightly image carries
-+#   `deploy/nightly/profiles.yml`.
-+#   Models WITHOUT a `+schema` (the base models + seeds) fall back to `dataset` below.
-+#
-+# Credentials: `method: oauth` uses your Google login. Run once:
-+#   gcloud auth application-default login
- 
- football_data_pipeline:
-   target: dev
-   outputs:
--    # Local development — the default. Writes dev_* datasets.
-     dev:
-       type: bigquery
-       method: oauth
-@@ -26,30 +32,3 @@ football_data_pipeline:
-       timeout_seconds: 300
-       location: EU  # keep in sync with ingestion raw dataset (default dataset id: raw)
-       priority: interactive
--
--    # CI / merge-request builds — REFERENCE ONLY. `.gitlab-ci.yml`'s .dbt_profile anchor writes the
--    # real one (WIF/oauth) and names this target `ci_mr${CI_MERGE_REQUEST_IID}` — one per merge
--    # request, so no branch can read another's tables (#92, 2026-08-27). The literal `ci` below is a
--    # stand-in to keep this example readable; there is no shared `ci` target in CI.
--    # Slim builds run here and defer unchanged upstreams to prod.
--    ci:
--      type: bigquery
--      method: oauth
--      project: football-data-pipeline-gcp
--      dataset: ci_analytics  # in CI this is ci_mr<IID>: fallback for base + seeds
--      threads: 4
--      timeout_seconds: 300
--      location: EU
--      priority: interactive
--
--    # Production — reference only; written by dbt-scheduled / main-push / pages workflows
--    # (WIF/oauth). This is the ONLY target that writes the bare, site-facing datasets.
--    prod:
--      type: bigquery
--      method: oauth
--      project: football-data-pipeline-gcp
--      dataset: dbt_analytics  # fallback for base + seeds in prod
--      threads: 4
--      timeout_seconds: 300
--      location: EU
--      priority: interactive
-diff --git a/design-mocks/interaction.py b/design-mocks/interaction.py
-index 8cafd6f1..94b97022 100644
---- a/design-mocks/interaction.py
-+++ b/design-mocks/interaction.py
-@@ -48,4 +48,3 @@ also why it works in both themes with no extra rules.
- CHEVRON = ('<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
-            '<path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"'
-            ' stroke-linecap="round" stroke-linejoin="round"/></svg>')
--
-diff --git a/design-mocks/rows.py b/design-mocks/rows.py
-index 0db68e7f..78948f13 100644
---- a/design-mocks/rows.py
-+++ b/design-mocks/rows.py
-@@ -187,4 +187,3 @@ def group_head(slug, name):
-     return ('<div class="gh"><a class="cnm" href="/en/%s/">'
-             '<span class="clogo">%s</span><span class="nm">%s</span>%s</a></div>'
-             % (E(slug), LEAGUE_LOGO, E(name), CHEVRON))
--
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index e29a729b..b939a8a5 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -258,5 +258,3 @@ def run_player_squads_catchup(
-             )
-         except Exception as e:
-             ctx.errors.append(f"league {league_code} player_squads catch-up: {e}")
--
--
-diff --git a/requirements-dev.txt b/requirements-dev.txt
-index 7f838fed..9eae28c8 100644
---- a/requirements-dev.txt
-+++ b/requirements-dev.txt
-@@ -8,3 +8,4 @@
- # way out is to loosen the ruleset — which is how a guard dies.
- 
- ruff==0.16.2
-+pre-commit==4.6.2
-diff --git a/requirements.txt b/requirements.txt
-index cd5a0af1..1e23607f 100644
---- a/requirements.txt
-+++ b/requirements.txt
-@@ -7,4 +7,4 @@ dbt-bigquery==1.7.2
- sqlfluff==4.1.0
- sqlfluff-templater-dbt==4.1.0
- PyYAML>=6.0
--pytest>=7.0
-\ No newline at end of file
-+pytest>=7.0
-diff --git a/scripts/bootstrap.py b/scripts/bootstrap.py
-new file mode 100644
-index 00000000..46a7bff5
---- /dev/null
-+++ b/scripts/bootstrap.py
-@@ -0,0 +1,262 @@
-+"""Set up a fresh clone of this repo with one command, and prove it works with a second.
-+
-+    python scripts/bootstrap.py            # set up everything that needs no credentials
-+    python scripts/bootstrap.py --verify   # tests, pre-commit on all files, site build
-+    python scripts/bootstrap.py --fetch-key  # API key from Secret Manager into .env (you run it)
-+
-+Every step skips itself when its work is already done, and no existing local file is overwritten.
-+Standard library only: it runs before any dependency is installed.
-+"""
-+
-+from __future__ import annotations
-+
-+import argparse
-+import os
-+import shutil
-+import subprocess
-+import sys
-+from pathlib import Path
-+
-+ROOT = Path(__file__).resolve().parents[1]
-+PYTHON_VERSION = (3, 11)
-+NODE_MAJOR = 24
-+REQUIREMENTS = ("requirements.txt", "requirements-dev.txt", "requirements-ui.txt")
-+LOCAL_COPIES = ((".env.example", ".env"), ("dbt_project/profiles.example.yml", "profiles.yml"))
-+GCP_PROJECT = "football-data-pipeline-gcp"
-+API_KEY_SECRET_NAME = "api-football-key"
-+API_KEY_VAR = "API_FOOTBALL_API_KEY"
-+
-+# The deepest file an install writes is 150 characters below the repo root
-+# (.venv\Lib\site-packages\google\cloud\bigquery_storage_v1alpha\...). Windows refuses paths over
-+# 259 characters unless long paths are enabled, so 80 leaves room for dependencies to grow.
-+MAX_ROOT_CHARS_WITHOUT_LONG_PATHS = 80
-+
-+
-+class SetupError(Exception):
-+    pass
-+
-+
-+def say(status: str, message: str) -> None:
-+    print(f"[{status}] {message}", flush=True)
-+
-+
-+def run(cmd: list[str], cwd: Path = ROOT) -> None:
-+    say("run", " ".join(cmd))
-+    result = subprocess.run(cmd, cwd=cwd)
-+    if result.returncode != 0:
-+        raise SetupError(f"`{' '.join(cmd)}` failed with exit code {result.returncode}")
-+
-+
-+def tool(name: str) -> str:
-+    found = shutil.which(name)
-+    if not found:
-+        raise SetupError(f"`{name}` is not installed or not on PATH. See README 'Getting started'.")
-+    return found
-+
-+
-+def venv_tool(name: str, root: Path = ROOT) -> Path:
-+    if os.name == "nt":
-+        return root / ".venv" / "Scripts" / f"{name}.exe"
-+    return root / ".venv" / "bin" / name
-+
-+
-+def venv_python(root: Path = ROOT) -> Path:
-+    return venv_tool("python", root)
-+
-+
-+def path_too_long(root: Path, is_windows: bool, long_paths_enabled: bool) -> bool:
-+    return is_windows and not long_paths_enabled and len(str(root)) > MAX_ROOT_CHARS_WITHOUT_LONG_PATHS
-+
-+
-+def windows_long_paths_enabled() -> bool:
-+    import winreg
-+
-+    try:
-+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Control\FileSystem") as key:
-+            return winreg.QueryValueEx(key, "LongPathsEnabled")[0] == 1
-+    except OSError:
-+        return False
-+
-+
-+def remote_rename_needed(remotes: dict[str, str]) -> bool:
-+    return "gitlab" not in remotes and "gitlab.com" in remotes.get("origin", "")
-+
-+
-+def copy_if_missing(source: Path, target: Path) -> bool:
-+    if target.exists():
-+        return False
-+    shutil.copyfile(source, target)
-+    return True
-+
-+
-+def npm_install_needed(site: Path) -> bool:
-+    installed = site / "node_modules" / ".package-lock.json"
-+    lock = site / "package-lock.json"
-+    return not installed.exists() or lock.stat().st_mtime > installed.stat().st_mtime
-+
-+
-+def write_api_key(env_file: Path, key: str) -> None:
-+    lines = env_file.read_text(encoding="utf-8").splitlines(keepends=True)
-+    prefix = f"{API_KEY_VAR}="
-+    for index, line in enumerate(lines):
-+        if line.startswith(prefix):
-+            if line[len(prefix):].strip():
-+                raise SetupError(f"{API_KEY_VAR} already has a value in .env; it is not overwritten.")
-+            lines[index] = f"{prefix}{key}\n"
-+            break
-+    else:
-+        lines.append(f"{prefix}{key}\n")
-+    env_file.write_text("".join(lines), encoding="utf-8")
-+
-+
-+def check_prerequisites() -> None:
-+    if sys.version_info[:2] != PYTHON_VERSION:
-+        raise SetupError(
-+            f"Run this with Python {PYTHON_VERSION[0]}.{PYTHON_VERSION[1]} (found "
-+            f"{sys.version_info[0]}.{sys.version_info[1]}). On Windows: py -3.11 scripts/bootstrap.py"
-+        )
-+    if os.name == "nt" and path_too_long(ROOT, True, windows_long_paths_enabled()):
-+        raise SetupError(
-+            f"The repo folder path is {len(str(ROOT))} characters long and Windows long paths are off, "
-+            "so the install would fail with 'file name too long'. Clone into a short folder "
-+            r"(for example C:\src\football-data-pipeline), or turn on long paths as described in "
-+            "the README."
-+        )
-+    node = subprocess.run([tool("node"), "--version"], capture_output=True, text=True).stdout.strip()
-+    if not node.startswith(f"v{NODE_MAJOR}."):
-+        raise SetupError(f"Node {NODE_MAJOR} is required (found {node or 'none'}).")
-+    tool("npm")
-+    tool("git")
-+
-+
-+def check_hooks_path() -> None:
-+    result = subprocess.run(
-+        ["git", "config", "--get", "core.hooksPath"], cwd=ROOT, capture_output=True, text=True
-+    )
-+    if result.stdout.strip():
-+        raise SetupError(
-+            "git's core.hooksPath is set, so pre-commit cannot install its hooks. "
-+            "Remove it with: git config --unset-all core.hooksPath (then run this again)."
-+        )
-+
-+
-+def set_up_remote() -> None:
-+    names = subprocess.run(["git", "remote"], cwd=ROOT, capture_output=True, text=True).stdout.split()
-+    remotes = {
-+        name: subprocess.run(
-+            ["git", "remote", "get-url", name], cwd=ROOT, capture_output=True, text=True
-+        ).stdout.strip()
-+        for name in names
-+    }
-+    if remote_rename_needed(remotes):
-+        run(["git", "remote", "rename", "origin", "gitlab"])
-+    else:
-+        say("skip", "git remote: nothing to rename")
-+
-+
-+def set_up_python() -> Path:
-+    python = venv_python()
-+    if python.exists():
-+        say("skip", ".venv exists")
-+    else:
-+        run([sys.executable, "-m", "venv", ".venv"])
-+    version = subprocess.run(
-+        [str(python), "-c", "import sys; print(sys.version_info[0], sys.version_info[1])"],
-+        capture_output=True,
-+        text=True,
-+    ).stdout.split()
-+    if tuple(int(part) for part in version) != PYTHON_VERSION:
-+        raise SetupError(
-+            f".venv uses Python {'.'.join(version)}, not {PYTHON_VERSION[0]}.{PYTHON_VERSION[1]}. "
-+            "Delete .venv and run this again."
-+        )
-+    run([str(python), "-m", "pip", "install", "--quiet", "--upgrade", "pip"])
-+    install = [str(python), "-m", "pip", "install", "--quiet"]
-+    for requirements in REQUIREMENTS:
-+        install += ["-r", requirements]
-+    run(install)
-+    return python
-+
-+
-+def set_up_local_files() -> None:
-+    for source, target in LOCAL_COPIES:
-+        if copy_if_missing(ROOT / source, ROOT / target):
-+            say("ok", f"created {target} from {source}")
-+        else:
-+            say("skip", f"{target} exists, left unchanged")
-+
-+
-+def set_up(python: Path) -> None:
-+    run([str(python), "-m", "pre_commit", "install", "--install-hooks"])
-+    site = ROOT / "site_v2"
-+    if npm_install_needed(site):
-+        run([tool("npm"), "ci", "--no-audit", "--no-fund"], cwd=site)
-+    else:
-+        say("skip", "site_v2/node_modules is up to date")
-+    run([str(venv_tool("dbt")), "deps", "--project-dir", "dbt_project", "--quiet"])
-+    run([str(python), "-m", "playwright", "install", "chromium"])
-+
-+
-+def verify(python: Path) -> None:
-+    run([str(python), "-m", "pytest", "tests", "-q", "--no-header"])
-+    run([str(python), "-m", "pre_commit", "run", "--all-files", "--show-diff-on-failure"])
-+    run([tool("npm"), "run", "build"], cwd=ROOT / "site_v2")
-+
-+
-+def fetch_key() -> None:
-+    env_file = ROOT / ".env"
-+    copy_if_missing(ROOT / ".env.example", env_file)
-+    result = subprocess.run(
-+        [
-+            tool("gcloud"),
-+            "secrets",
-+            "versions",
-+            "access",
-+            "latest",
-+            f"--secret={API_KEY_SECRET_NAME}",
-+            f"--project={GCP_PROJECT}",
-+        ],
-+        capture_output=True,
-+        text=True,
-+    )
-+    if result.returncode != 0:
-+        raise SetupError(f"gcloud could not read the secret: {result.stderr.strip()}")
-+    key = result.stdout.strip()
-+    if not key:
-+        raise SetupError("the secret is empty")
-+    write_api_key(env_file, key)
-+    say("ok", f"{API_KEY_VAR} written to .env")
-+
-+
-+def main(argv: list[str] | None = None) -> int:
-+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-+    mode = parser.add_mutually_exclusive_group()
-+    mode.add_argument("--verify", action="store_true", help="prove the setup works (no credentials)")
-+    mode.add_argument("--fetch-key", action="store_true", help="API key from Secret Manager into .env")
-+    args = parser.parse_args(argv)
-+    try:
-+        if args.fetch_key:
-+            fetch_key()
-+            return 0
-+        if args.verify:
-+            python = venv_python()
-+            if not python.exists():
-+                raise SetupError("no .venv yet: run `python scripts/bootstrap.py` first")
-+            verify(python)
-+            say("ok", "verified: tests, pre-commit and the site build pass")
-+            return 0
-+        check_prerequisites()
-+        check_hooks_path()
-+        set_up_remote()
-+        python = set_up_python()
-+        set_up_local_files()
-+        set_up(python)
-+        say("ok", "setup complete. Prove it with: python scripts/bootstrap.py --verify")
-+        return 0
-+    except SetupError as error:
-+        say("stop", str(error))
-+        return 1
-+
-+
-+if __name__ == "__main__":
-+    sys.exit(main())
-diff --git a/site_v2/package-lock.json b/site_v2/package-lock.json
-index 523b991c..5c6d7350 100644
---- a/site_v2/package-lock.json
-+++ b/site_v2/package-lock.json
-@@ -10,7 +10,7 @@
-         "astro": "^5.0.0"
-       },
-       "engines": {
--        "node": ">=22"
-+        "node": ">=24 <25"
-       }
-     },
-     "node_modules/@astrojs/compiler": {
-diff --git a/site_v2/package.json b/site_v2/package.json
-index f9ad3e6b..d4fe871d 100644
---- a/site_v2/package.json
-+++ b/site_v2/package.json
-@@ -3,7 +3,7 @@
-   "private": true,
-   "type": "module",
-   "engines": {
--    "node": ">=22"
-+    "node": ">=24 <25"
-   },
-   "scripts": {
-     "test": "node --test",
-@@ -15,5 +15,9 @@
-   "dependencies": {
-     "@astrojs/sitemap": "^3.7.3",
-     "astro": "^5.0.0"
-+  },
-+  "allowScripts": {
-+    "esbuild": false,
-+    "sharp": false
-   }
- }
-diff --git a/tests/test_bootstrap.py b/tests/test_bootstrap.py
-new file mode 100644
-index 00000000..73c5a953
---- /dev/null
-+++ b/tests/test_bootstrap.py
-@@ -0,0 +1,145 @@
-+"""Pin what `scripts/bootstrap.py` decides: skip what is done, never overwrite, never print the key."""
-+
-+from __future__ import annotations
-+
-+import os
-+import sys
-+import time
-+from pathlib import Path
-+
-+import pytest
-+import yaml
-+
-+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-+import bootstrap  # noqa: E402
-+
-+FAKE_KEY = "k3y-that-must-never-be-printed-0123456789"
-+
-+
-+def test_copy_if_missing_creates_the_file(tmp_path: Path):
-+    source, target = tmp_path / "a.example", tmp_path / "a"
-+    source.write_text("template", encoding="utf-8")
-+
-+    assert bootstrap.copy_if_missing(source, target) is True
-+    assert target.read_text(encoding="utf-8") == "template"
-+
-+
-+def test_copy_if_missing_never_overwrites(tmp_path: Path):
-+    source, target = tmp_path / "a.example", tmp_path / "a"
-+    source.write_text("template", encoding="utf-8")
-+    target.write_text("mine", encoding="utf-8")
-+
-+    assert bootstrap.copy_if_missing(source, target) is False
-+    assert target.read_text(encoding="utf-8") == "mine"
-+
-+
-+@pytest.mark.parametrize(
-+    ("root", "is_windows", "long_paths", "expected"),
-+    [
-+        ("C:\\" + "x" * 90, True, False, True),
-+        ("C:\\" + "x" * 90, True, True, False),
-+        ("C:\\" + "x" * 90, False, False, False),
-+        ("C:\\01_Projects\\football-data-pipeline", True, False, False),
-+    ],
+ amendments: (none)
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 5fc2aaba..4c0d964e 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -3789,3 +3789,35 @@ def test_stop_gate_reports_scope_violation_before_correctness(repo):
+     assert '"decision": "block"' in out
+     assert "does not match the task contract" in out
+     assert "correctness" not in out
++
++
++_GATE_PASSES_ONLY_IN_REPO_VENV = (
++    "import os, sys\n"
++    "venv = os.path.realpath(os.path.join(os.getcwd(), '.venv'))\n"
++    "if os.path.normcase(os.path.realpath(sys.prefix)) != os.path.normcase(venv):\n"
++    "    print('- ran outside the repo .venv')\n"
++    "    sys.exit(1)\n"
 +)
-+def test_path_too_long_only_when_windows_limits_apply(root, is_windows, long_paths, expected):
-+    assert bootstrap.path_too_long(Path(root), is_windows, long_paths) is expected
 +
 +
-+@pytest.mark.parametrize(
-+    ("remotes", "expected"),
-+    [
-+        ({"origin": "https://gitlab.com/group/repo.git"}, True),
-+        ({"origin": "https://github.com/owner/repo.git"}, False),
-+        ({"gitlab": "https://gitlab.com/group/repo.git"}, False),
-+        ({"origin": "https://gitlab.com/a.git", "gitlab": "https://gitlab.com/b.git"}, False),
-+        ({}, False),
-+    ],
-+)
-+def test_remote_is_renamed_only_for_a_gitlab_origin_without_a_gitlab_remote(remotes, expected):
-+    assert bootstrap.remote_rename_needed(remotes) is expected
++def test_stop_gate_runs_gates_with_the_repo_venv(repo):
++    """On a fresh machine the hook starts under the system Python, which lacks the gates' packages;
++    the repo's `.venv` (created by scripts/bootstrap.py) has them, so the gates must run there."""
++    import venv
++
++    (repo / ".gitignore").write_text(".venv/\n")
++    _install_fast_gate(repo, _GATE_PASSES_ONLY_IN_REPO_VENV)
++    venv.create(repo / ".venv", with_pip=False)
++    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 9\n")
++    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
++    assert out.strip() == "", out
 +
 +
-+def test_npm_install_skipped_when_node_modules_is_newer_than_the_lock(tmp_path: Path):
-+    (tmp_path / "package-lock.json").write_text("{}", encoding="utf-8")
-+    assert bootstrap.npm_install_needed(tmp_path) is True
-+
-+    installed = tmp_path / "node_modules" / ".package-lock.json"
-+    installed.parent.mkdir()
-+    installed.write_text("{}", encoding="utf-8")
-+    later = time.time() + 10
-+    os.utime(installed, (later, later))
-+    assert bootstrap.npm_install_needed(tmp_path) is False
-+
-+
-+def test_write_api_key_fills_the_empty_line_and_keeps_the_rest(tmp_path: Path):
-+    env = tmp_path / ".env"
-+    env.write_text("# comment\nAPI_FOOTBALL_API_KEY=\n# API_FOOTBALL_INGEST_PROFILE=default\n", encoding="utf-8")
-+
-+    bootstrap.write_api_key(env, FAKE_KEY)
-+
-+    assert env.read_text(encoding="utf-8") == (
-+        f"# comment\nAPI_FOOTBALL_API_KEY={FAKE_KEY}\n# API_FOOTBALL_INGEST_PROFILE=default\n"
-+    )
-+
-+
-+def test_write_api_key_never_overwrites_a_key(tmp_path: Path):
-+    env = tmp_path / ".env"
-+    env.write_text("API_FOOTBALL_API_KEY=existing\n", encoding="utf-8")
-+
-+    with pytest.raises(bootstrap.SetupError):
-+        bootstrap.write_api_key(env, FAKE_KEY)
-+    assert env.read_text(encoding="utf-8") == "API_FOOTBALL_API_KEY=existing\n"
-+
-+
-+def test_fetch_key_writes_the_key_and_never_prints_it(tmp_path: Path, monkeypatch, capsys):
-+    (tmp_path / ".env.example").write_text("API_FOOTBALL_API_KEY=\n", encoding="utf-8")
-+    calls = []
-+
-+    class Result:
-+        returncode = 0
-+        stdout = FAKE_KEY + "\n"
-+        stderr = ""
-+
-+    def fake_run(cmd, **kwargs):
-+        calls.append(cmd)
-+        return Result()
-+
-+    monkeypatch.setattr(bootstrap, "ROOT", tmp_path)
-+    monkeypatch.setattr(bootstrap, "tool", lambda name: name)
-+    monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
-+
-+    bootstrap.fetch_key()
-+
-+    assert calls == [[
-+        "gcloud", "secrets", "versions", "access", "latest",
-+        "--secret=api-football-key", "--project=football-data-pipeline-gcp",
-+    ]]
-+    assert (tmp_path / ".env").read_text(encoding="utf-8") == f"API_FOOTBALL_API_KEY={FAKE_KEY}\n"
-+    output = capsys.readouterr()
-+    assert FAKE_KEY not in output.out and FAKE_KEY not in output.err
-+
-+
-+def test_pre_commit_installs_the_push_and_open_mr_hook():
-+    """The setup's `pre-commit install` is the only thing that puts the auto-push hook into a clone.
-+
-+    Dropping `post-commit` from the install types, or the hook itself, leaves every test and the
-+    setup job green while new clones silently stop pushing and opening a merge request.
-+    """
-+    config = yaml.safe_load((Path(bootstrap.ROOT) / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
-+
-+    assert "post-commit" in config.get("default_install_hook_types", []), (
-+        "`pre-commit install` no longer installs a post-commit hook, so no clone pushes or opens an MR"
-+    )
-+    hooks = [
-+        hook
-+        for repo in config["repos"]
-+        for hook in repo["hooks"]
-+        if hook.get("entry") == ".githooks/post-commit"
-+    ]
-+    assert len(hooks) == 1, f"expected one hook running .githooks/post-commit, found {len(hooks)}"
-+    hook = hooks[0]
-+    assert hook.get("stages") == ["post-commit"], "the push hook must run after a commit, never before"
-+    assert hook.get("always_run") is True and hook.get("pass_filenames") is False, (
-+        "the push hook must run on every commit and take no file arguments"
-+    )
-diff --git a/tests/test_lint_config.py b/tests/test_lint_config.py
-index 962dfb5c..7e83647b 100644
---- a/tests/test_lint_config.py
-+++ b/tests/test_lint_config.py
-@@ -9,12 +9,15 @@ and every one of them shares a shape: the lint setup keeps failing in ways that
-   * The ruleset can be narrowed and nothing goes red — it just stops finding things.
-   * `dummy-variable-rgx` can be deleted and the violation count does not move, because the repo
-     currently has no violation of the rule it restores.
--  * The config can be made auto-discoverable and the only symptom is that a DIFFERENT tool, the
--    pre-commit hook, quietly changes behaviour.
-+  * The config can be made auto-discoverable and the only symptom is that bare `ruff check` and
-+    editors quietly change behaviour.
-   * `per-file-ignores` can grow an entry that disables a whole rule for a whole directory.
--  * The CI job can add `--select`, which overrides the config file wholesale, and every test here
-+  * The hook can add `--select`, which overrides the config file wholesale, and every test here
-     would still pass while the config stops mattering.
- 
-+CI's `lint:python` runs `pre-commit run --all-files`, so the ruff hook in `.pre-commit-config.yaml`
-+is the one place ruff is invoked, locally and in CI.
-+
- Each of those is a guard that looks strong and is nearly inert — the failure
- `tests/test_materialisation_policy.py` was written about.
- 
-@@ -24,9 +27,8 @@ Values are read from parsed TOML and YAML, never grepped from file text. A guard
- prose is defeated by a reword, which is that same file's other lesson.
- 
- `select` is asserted to equal ruff's DEFAULT set exactly, and that is deliberate in both
--directions. Narrower means CI enforces less than the local pre-commit hook already does — a
--backstop that backs nothing. Wider adopts a new class of enforced opinion across the whole tree.
--Either is a decision, not a tidy-up.
-+directions. Narrower means CI enforces less than ruff's own baseline. Wider adopts a new class of
-+enforced opinion across the whole tree. Either is a decision, not a tidy-up.
- """
- 
- from __future__ import annotations
-@@ -35,9 +37,13 @@ import pathlib
- import re
- import tomllib
- 
-+import yaml
-+
- ROOT = pathlib.Path(__file__).resolve().parents[1]
- CI_CONFIG = ROOT / ".ruff-ci.toml"
- GITLAB_CI = ROOT / ".gitlab-ci.yml"
-+PRE_COMMIT = ROOT / ".pre-commit-config.yaml"
-+REQUIREMENTS_DEV = ROOT / "requirements-dev.txt"
- 
- # Ruff's own default. Changing this constant is the deliberate act; changing the config alone is not.
- RUFF_DEFAULT_SELECT = ["E4", "E7", "E9", "F"]
-@@ -51,13 +57,13 @@ def _config() -> dict:
- 
- 
- def test_select_is_exactly_ruffs_default_set():
--    """Narrowing enforces less than the local hook; widening is a new class of opinion."""
-+    """Narrowing enforces less than ruff's baseline; widening is a new class of opinion."""
-     select = _config()["lint"]["select"]
- 
-     assert sorted(select) == sorted(RUFF_DEFAULT_SELECT), (
--        f"`select` is {select}, not ruff's default {RUFF_DEFAULT_SELECT}. Narrower means the CI "
--        "backstop enforces less than .pre-commit-config.yaml already does locally; wider adopts "
--        "style/import-order/complexity rules across the whole tree. Both are decisions."
-+        f"`select` is {select}, not ruff's default {RUFF_DEFAULT_SELECT}. Narrower means CI "
-+        "enforces less than ruff's own baseline; wider adopts style/import-order/complexity "
-+        "rules across the whole tree. Both are decisions."
-     )
- 
- 
-@@ -86,15 +92,14 @@ def test_the_dummy_variable_override_survives():
- 
- 
- def test_the_ci_config_is_not_auto_discoverable():
--    """The filename is the whole mechanism keeping CI and the pre-commit hook independent.
-+    """The config is passed explicitly; an auto-discovered one would be a second, silent source.
- 
--    Ruff walks up for `ruff.toml` / `.ruff.toml` / `pyproject.toml`. If this config becomes one of
--    those, `.pre-commit-config.yaml`'s ruff hook silently adopts it: narrowing `select` would then
--    switch rules off on every local commit, and "just align the versions" drags `ruff-format`,
--    which reformats 75 files. Neither symptom appears in CI.
-+    Ruff walks up for `ruff.toml` / `.ruff.toml` / `pyproject.toml`. A root file of that name is
-+    adopted by bare `ruff check` and by editors, which then disagree with the hook CI runs, and
-+    nothing in CI shows it.
-     """
-     assert CI_CONFIG.name not in AUTO_DISCOVERED, (
--        f"{CI_CONFIG.name} is one of ruff's auto-discovered names, so the pre-commit hook now "
-+        f"{CI_CONFIG.name} is one of ruff's auto-discovered names, so bare `ruff check` now "
-         "reads it too"
-     )
-     for name in AUTO_DISCOVERED:
-@@ -105,8 +110,8 @@ def test_the_ci_config_is_not_auto_discoverable():
-             )
-             continue
-         assert not candidate.exists(), (
--            f"{name} exists at the repo root. Ruff auto-discovers it, so the pre-commit hook "
--            "silently adopts its settings — the coupling .ruff-ci.toml's filename exists to avoid."
-+            f"{name} exists at the repo root. Ruff auto-discovers it, so bare `ruff check` and "
-+            "editors silently adopt its settings — the drift .ruff-ci.toml's filename exists to avoid."
-         )
- 
- 
-@@ -130,25 +135,56 @@ def test_per_file_ignores_only_exempt_e402_in_the_shim_scripts():
-         )
- 
- 
--def test_the_ci_job_passes_the_config_and_no_select_override():
-+def _ruff_hooks() -> list[tuple[str, dict]]:
-+    config = yaml.safe_load(PRE_COMMIT.read_text(encoding="utf-8"))
-+    return [
-+        (repo.get("rev", ""), hook)
-+        for repo in config["repos"]
-+        for hook in repo["hooks"]
-+        if hook["id"] == "ruff-check"
-+    ]
-+
-+
-+def test_the_ruff_hook_passes_the_config_and_no_select_override():
-     """`--select` on the command line OVERRIDES the config file wholesale.
- 
-     The acceptance criterion of the change that added the config itself once named
-     `ruff check . --select F,E9`, which would have passed on a tree where E4/E7 were red or where
--    the config failed to load at all. The same mistake in the CI job would make every other test
-+    the config failed to load at all. The same mistake in the hook would make every other test
-     in this file meaningless.
-     """
--    text = GITLAB_CI.read_text(encoding="utf-8")
--    invocations = re.findall(r"^\s*-\s*(ruff check .*)$", text, re.M)
--
--    assert invocations, "no `ruff check` invocation found in .gitlab-ci.yml"
--    for cmd in invocations:
--        assert "--config .ruff-ci.toml" in cmd, (
--            f"`{cmd}` does not pass `--config .ruff-ci.toml`. Without it ruff finds no config at "
--            "all (the filename is deliberately not auto-discovered) and silently falls back to "
--            "its defaults, losing dummy-variable-rgx and the per-file-ignores."
--        )
--        assert "--select" not in cmd and "--ignore" not in cmd, (
--            f"`{cmd}` overrides the config from the command line. A CLI --select/--ignore replaces "
--            "the config's ruleset, so .ruff-ci.toml stops governing what CI enforces."
--        )
-+    hooks = _ruff_hooks()
-+
-+    assert len(hooks) == 1, f"expected exactly one ruff hook in .pre-commit-config.yaml, found {len(hooks)}"
-+    args = hooks[0][1].get("args", [])
-+    assert "--config" in args and args[args.index("--config") + 1] == ".ruff-ci.toml", (
-+        f"the ruff hook's args {args} do not pass `--config .ruff-ci.toml`. Without it ruff finds "
-+        "no config at all (the filename is deliberately not auto-discovered) and silently falls "
-+        "back to its defaults, losing dummy-variable-rgx and the per-file-ignores."
-+    )
-+    assert not any(a.startswith(("--select", "--ignore", "--extend-select")) for a in args), (
-+        f"the ruff hook's args {args} override the config from the command line, so "
-+        ".ruff-ci.toml stops governing what CI enforces."
-+    )
-+
-+
-+def test_the_ruff_hook_runs_the_pinned_ruff_version():
-+    """Two pins of one tool drift apart unless something compares them."""
-+    pinned = re.search(r"^ruff==(\S+)$", REQUIREMENTS_DEV.read_text(encoding="utf-8"), re.M)
-+
-+    assert pinned, "requirements-dev.txt has no exact ruff pin"
-+    assert _ruff_hooks()[0][0] == f"v{pinned.group(1)}", (
-+        f"the ruff hook runs {_ruff_hooks()[0][0]} but requirements-dev.txt pins ruff "
-+        f"{pinned.group(1)}; local and CI lint would disagree with a direct `ruff check`"
-+    )
-+
-+
-+def test_ci_lint_runs_pre_commit_on_all_files():
-+    """CI and the local hook are one config only while CI actually runs it."""
-+    ci = yaml.safe_load(GITLAB_CI.read_text(encoding="utf-8"))
-+    script = " ".join(ci["lint:python"]["script"])
-+
-+    assert "pre_commit run --all-files" in script or "pre-commit run --all-files" in script, (
-+        f"lint:python runs `{script}`, not pre-commit on all files, so CI and the local hooks "
-+        "can drift apart again"
-+    )
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/review_input.patch | 5313 +++++++++++----------------------------
-#    1 file changed, 1465 insertions(+), 3848 deletions(-)
-# ============================================================================
++def test_stop_gate_without_a_venv_runs_gates_with_its_own_python(repo):
++    """Before setup has run there is no `.venv`: the gates run as before, and a failure still blocks."""
++    _install_fast_gate(repo, _GATE_PASSES_ONLY_IN_REPO_VENV)
++    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 10\n")
++    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
++    assert '"decision": "block"' in out, out
++    assert "ran outside the repo .venv" in out
++    assert sys.executable in out.replace("\\\\", "\\")
