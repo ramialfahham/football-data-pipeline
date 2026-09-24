@@ -75,6 +75,11 @@ GitHub-era numbers in this repo already point at nothing), and it argues with a 
 the next reader has to carry forever. **Argue with a reviewer in the contract's `amendments`**,
 which reviewers read and which the MR carries; it is the review's record, not the code's.
 
+**The same holds for documents.** A Markdown document says what and why; dates, issue and MR
+numbers, review rounds and who found or decided what live in git. The same hook refuses a document
+line that adds one (in `CLAUDE.md` also an issue number), and
+`tests/test_no_decision_history_in_docs.py` pins each document's count so it only goes down.
+
 Why this section exists: the rule above it was ignored. On 2026-09-11 the code held **429**
 comment lines carrying a date, "CPO", "reviewer" or "round N" by a first grep, 850 by the hook
 that replaced it. **The measure is the hook**, `.claude/hooks/comment_history_gate.py`: its

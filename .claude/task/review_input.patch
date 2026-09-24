@@ -1,125 +1,848 @@
+diff --git a/.claude/hooks/comment_history_gate.py b/.claude/hooks/comment_history_gate.py
+index 5d6f797e..fcd201ff 100644
+--- a/.claude/hooks/comment_history_gate.py
++++ b/.claude/hooks/comment_history_gate.py
+@@ -18,7 +18,11 @@ accepted, rare, and the deny names the line.
+ 
+ The check reads only the text being written, not the whole file. So an edit that re-includes an
+ existing flagged line is denied until the marker is removed — every ordinary edit helps the sweep.
+-Markdown, docs, `.claude/task/` and any tree not listed below are not code and are never checked.
++
++Markdown documents are checked too (`is_doc_path`; `.claude/task/`, `docs/tracker/` and `site/`
++are exempt), with narrower markers (`DOC_MARKERS`) and one difference: only lines the edit ADDS
++are refused, so history already in a document never blocks editing it.
++`tests/test_no_decision_history_in_docs.py` pins each document's count so it can only go down.
+ 
+ `tests/test_no_decision_history_in_code.py` imports the definitions below and pins the count of
+ flagged lines already in the tree, so the CI count and this deny cannot drift apart. Fails OPEN on
+@@ -242,6 +246,99 @@ def count_tree(root: str) -> tuple[int, int]:
+     return lines, files
+ 
+ 
++# Documents are prose, so every line counts, except examples: inline code spans and fenced blocks.
++# Their markers are narrower than code's: a document's rules legitimately name a review role, the
++# product owner's title and a football round, so only history-shaped text is a marker.
++DOC_EXEMPT = (".claude/task/", "docs/tracker/", "site/")
++ISSUE_FREE_DOCS = frozenset({"CLAUDE.md"})
++DOC_MARKERS = {
++    "date": MARKERS["date"],
++    "reviewer credit": re.compile(
++        rf"\b(?:(?:{_ROLES})-reviewer|scope-auditor|reviewers?)\s+(?:{_FOUND})\b"
++        rf"|\b(?:{_FOUND})\s+by\s+(?:a|the|one|another|every|each|both|two|three|all)?\s*"
++        rf"(?:(?:{_ROLES})-reviewer|scope-auditor|reviewers?)\b",
++        re.IGNORECASE),
++    "review round": re.compile(r"\breview rounds? \d", re.IGNORECASE),
++    "merge request": MARKERS["merge request"],
++}
++_ISSUE = re.compile(r"(?<![\w&/])#\d{1,4}\b")
++_CODE_SPAN = re.compile(r"`[^`\n]*`")
++_FENCE = re.compile(r"^\s*(```|~~~)")
++
++
++def is_doc_path(rel: str) -> bool:
++    """True when a repo-relative path is a Markdown document the guard covers."""
++    rel = rel.replace("\\", "/")
++    if rel.startswith("./"):
++        rel = rel[2:]
++    if not rel.lower().endswith(".md") or rel.startswith(DOC_EXEMPT):
++        return False
++    return not _SKIP_SEGMENTS.intersection(rel.split("/"))
++
++
++def doc_marker_kind(line: str, rel: str) -> str | None:
++    """The marker kind a document line carries outside its code spans and quoted spans, or None."""
++    prose = _LITERAL.sub(" ", _CODE_SPAN.sub(" ", line))
++    for kind, rx in DOC_MARKERS.items():
++        if rx.search(prose):
++            return kind
++    if rel.replace("\\", "/") in ISSUE_FREE_DOCS and _ISSUE.search(prose):
++        return "issue number"
++    return None
++
++
++def doc_flagged_lines(text: str, rel: str) -> list[tuple[int, str, str]]:
++    """(1-based line number, marker kind, line) for every prose line of a document carrying history."""
++    out = []
++    in_fence = False
++    for n, line in enumerate(text.splitlines(), 1):
++        if _FENCE.match(line):
++            in_fence = not in_fence
++            continue
++        if in_fence:
++            continue
++        kind = doc_marker_kind(line, rel)
++        if kind:
++            out.append((n, kind, line.strip()))
++    return out
++
++
++def doc_added_hits(tool_input: dict, rel: str, on_disk: str) -> list[tuple[int, str, str]]:
++    """Flagged lines the write ADDS: present in the new text, absent from the text it replaces.
++
++    Existing history in a document never blocks an edit to it; only new history does.
++    """
++    pairs = []
++    if isinstance(tool_input.get("content"), str):
++        pairs.append((on_disk, tool_input["content"]))
++    if isinstance(tool_input.get("new_string"), str):
++        pairs.append((tool_input.get("old_string") or "", tool_input["new_string"]))
++    for edit in tool_input.get("edits") or []:
++        if isinstance(edit, dict) and isinstance(edit.get("new_string"), str):
++            pairs.append((edit.get("old_string") or "", edit["new_string"]))
++    hits = []
++    for before, after in pairs:
++        existing = {line for _n, _k, line in doc_flagged_lines(before, rel)}
++        hits.extend(h for h in doc_flagged_lines(after, rel) if h[2] not in existing)
++    return hits
++
++
++def count_docs(root: str, paths: list[str]) -> dict[str, int]:
++    """{document: flagged-line count} for the given repo-relative paths that the guard covers."""
++    counts = {}
++    for rel in paths:
++        if not is_doc_path(rel):
++            continue
++        try:
++            with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
++                hits = doc_flagged_lines(fh.read(), rel)
++        except OSError:
++            continue
++        if hits:
++            counts[rel.replace("\\", "/")] = len(hits)
++    return counts
++
++
+ def _written_texts(tool_input: dict) -> list[str]:
+     texts = []
+     if isinstance(tool_input.get("new_string"), str):
+@@ -275,6 +372,23 @@ def main() -> int:
+             return 0
+         if rel.startswith(".."):
+             return 0
++        if is_doc_path(rel):
++            try:
++                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
++                    on_disk = fh.read()
++            except OSError:
++                on_disk = ""
++            hits = doc_added_hits(tool_input, rel, on_disk)
++            if hits:
++                shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])
++                emit_deny(
++                    "COMMENT HISTORY GATE: this edit adds decision history to a document — "
++                    f"{shown}. A document says WHAT and WHY; dates, issue and MR numbers, review "
++                    "rounds and who found or decided what live in the commit message, the MR and "
++                    "the issue (engineering_standards.md section 1.2). Rewrite the line as the rule "
++                    "or the reason alone."
++                )
++            return 0
+         if not is_code_path(rel):
+             return 0
+         ext = os.path.splitext(rel)[1]
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 9f945307..130cee33 100644
+index 130cee33..c1e9ebf9 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,73 +1,49 @@
--# Task contract — The stop gate runs its checks in the repo's own Python environment (#162)
-+# Task contract — Remove decision history from the lint:python comment
+@@ -1,49 +1,82 @@
+-# Task contract — Remove decision history from the lint:python comment
++# Task contract — No decision history in documents (#163)
  
  objective: >
--  The turn-end stop gate runs its fast offline gates with the repo's `.venv` interpreter when
--  `scripts/bootstrap.py` has created it, and with the hook's own interpreter otherwise. A fresh
--  machine's system Python lacks the gates' packages (PyYAML), so today every turn with a dirty tree
--  reports three false failures.
-+  The comment above `lint:python` in `.gitlab-ci.yml` carries history (a date, a reviewer, a token
-+  count, an MR number). Replace it with the one-line reason the job exists. Comment only; no
-+  behaviour change.
+-  The comment above `lint:python` in `.gitlab-ci.yml` carries history (a date, a reviewer, a token
+-  count, an MR number). Replace it with the one-line reason the job exists. Comment only; no
+-  behaviour change.
++  CLAUDE.md keeps every rule and loses its history (dates, issue and MR numbers, commit ids,
++  incident stories, who decided). A guard refuses, at write time, any Markdown line that ADDS
++  history, and a CI test pins each document's count so it can only go down.
  refs: >
--  GitLab #162 (requirement, checklist and plan; approved in plan mode 2026-09-24). Follows #161
--  (clone and continue), whose setup creates `.venv` with every requirement.
-+  No issue: a comment-only change with no requirement (working_agreement §1 carve-out); the MR head
-+  says "No behaviour change". The rule it applies is `dbt_project/docs/engineering_standards.md`
-+  §1.2 (a comment says why; who, when, which reviewer and which MR live in git).
+-  No issue: a comment-only change with no requirement (working_agreement §1 carve-out); the MR head
+-  says "No behaviour change". The rule it applies is `dbt_project/docs/engineering_standards.md`
+-  §1.2 (a comment says why; who, when, which reviewer and which MR live in git).
++  GitLab #163 (requirement, checklist and plan; approved in plan mode 2026-09-24). Extends the
++  code guard of closed #115 (`comment_history_gate.py`, `tests/test_no_decision_history_in_code.py`)
++  to documents.
  
  scope_paths:
--  - .claude/hooks/stop_gate.py
--  - tests/test_governance_hooks.py
-+  - .gitlab-ci.yml
+-  - .gitlab-ci.yml
++  - CLAUDE.md
++  - .claude/hooks/comment_history_gate.py
++  - tests/test_no_decision_history_in_docs.py
++  - tests/test_no_decision_history_in_code.py
++  - dbt_project/docs/engineering_standards.md
++  - docs/agent_guardrails.md
    - .claude/task/**
    - docs/tracker/**
  
  protected_override: >
--  `.claude/hooks/stop_gate.py` is a protected path. Authority: the plan for GitLab #162, approved in
--  plan mode on 2026-09-24, whose How names the file ("`.claude/hooks/stop_gate.py`,
--  `_failing_gates`: run each check with the repo's `.venv` Python when it exists ..., otherwise with
--  the Python that runs the hook, as today") and whose header says the contract quotes that approval
--  for this protected file. His go in chat before it: "do it". The commit message and the MR head
--  repeat this under `Locked files`; his merge is the approval (working_agreement §11).
-+  `.gitlab-ci.yml` is a protected path. Authority: his go on 2026-09-24 in chat, "do it", to the
-+  proposal to delete the history line from the `lint:python` comment in a tiny MR. The commit
-+  message and the MR head repeat this under `Locked files`; his merge is the approval
-+  (working_agreement §11).
+-  `.gitlab-ci.yml` is a protected path. Authority: his go on 2026-09-24 in chat, "do it", to the
+-  proposal to delete the history line from the `lint:python` comment in a tiny MR. The commit
+-  message and the MR head repeat this under `Locked files`; his merge is the approval
+-  (working_agreement §11).
++  `.claude/hooks/comment_history_gate.py` is a protected path. Authority: the plan for GitLab #163,
++  approved in plan mode on 2026-09-24, whose How names the file ("`.claude/hooks/comment_history_gate.py`:
++  also check Markdown files; ... refuse only lines the edit adds that carry a marker") and whose
++  header says the contract quotes that approval for the protected hook file. The commit message and
++  the MR head repeat this under `Locked files`; his merge is the approval (working_agreement §11).
  
  impact_map: >
--  writers: none. No raw writer, dbt model, seed, export script or site file.
--  what fires it: the `Stop` hook in `.claude/settings.json` (line 119, `python
--  "$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py"`, unchanged) at every agent turn end. The
--  changed code runs only in the CORRECTNESS branch: after the stash check, after the scope check,
--  and only when the tree is dirty outside `.claude/task/`.
--  what imports it: `tests/test_governance_hooks.py` (runs the hook as a subprocess, and imports
--  `stop_gate.FAST_GATES` for the validate-local agreement test; `FAST_GATES` is unchanged).
--  Nothing else imports it.
--  what stops being enforced if it is wrong: if the interpreter choice broke, every gate would fail
--  to start; `subprocess.run` raising is caught and the gate skipped (fail open, the file's house
--  rule), so a wrong path would silently skip gates rather than block. The new test pins both
--  branches: with `.venv` the gate runs in it; without, it runs with the hook's interpreter and a
--  failing gate is still reported. Scope and stash checks are untouched.
--  failure behaviour: unchanged — block once, `stop_hook_active` prevents loops, any unexpected
--  error returns 0.
--  layer_rules: none touched.
--  deploy_order: nothing reaches a host, a dataset or CI; the hook is local to agent sessions.
--  blast_radius: none on data. Agent sessions on a machine with `.venv` stop seeing false
--  PyYAML failures; sessions without `.venv` behave as today.
-+  writers: none. No raw writer, model, seed, export or site file.
-+  what fires it: nothing changes what fires; only YAML comment lines change, which GitLab and
-+  `yaml.safe_load` ignore. Job definitions, rules, scripts, images and anchors are byte-identical.
-+  what imports it: `tests/test_lint_config.py`, `tests/test_governance_hooks.py`,
-+  `tests/test_design_inventory.py`, `tests/test_ci_data_job_invariants.py`,
-+  `tests/test_persist_docs_policy.py` and `scripts/check_task_artifacts.py` parse the file; none
-+  reads comments.
-+  what stops being enforced if it is wrong: nothing; a comment enforces nothing.
-+  failure behaviour: unchanged.
-+  layer_rules: none. deploy_order: none. blast_radius: none; the parsed YAML is identical before
-+  and after.
+   writers: none. No raw writer, model, seed, export or site file.
+-  what fires it: nothing changes what fires; only YAML comment lines change, which GitLab and
+-  `yaml.safe_load` ignore. Job definitions, rules, scripts, images and anchors are byte-identical.
+-  what imports it: `tests/test_lint_config.py`, `tests/test_governance_hooks.py`,
+-  `tests/test_design_inventory.py`, `tests/test_ci_data_job_invariants.py`,
+-  `tests/test_persist_docs_policy.py` and `scripts/check_task_artifacts.py` parse the file; none
+-  reads comments.
+-  what stops being enforced if it is wrong: nothing; a comment enforces nothing.
+-  failure behaviour: unchanged.
+-  layer_rules: none. deploy_order: none. blast_radius: none; the parsed YAML is identical before
+-  and after.
++  what fires it: the PreToolUse hook `comment_history_gate.py` on every `Edit`, `Write` and
++  `MultiEdit` (registered in `.claude/settings.json`, unchanged). Today it checks code files in
++  `TREES` only and returns early for everything else; after, it also checks tracked-style Markdown
++  paths (`*.md` outside `.claude/task/`, `docs/tracker/`, `site/`), where it refuses only marker
++  lines the edit ADDS (a marker line already present in the replaced text or on disk is allowed).
++  Code-file behaviour is unchanged.
++  what imports it: `tests/test_no_decision_history_in_code.py` (imports `marker_kind`, `TREES`,
++  `EXTS`, `is_code_path`, `comment_lines`; all kept with the same behaviour) and the new
++  `tests/test_no_decision_history_in_docs.py`, which imports the doc definitions and pins per-file
++  counts.
++  what stops being enforced if it is wrong: a broken doc check that raised would fail open (the
++  hook's `except` returns 0), so docs would be unguarded, as today; the code check is a separate
++  branch and keeps its own tests. A too-broad doc check would refuse legitimate edits; the tests
++  pin that an unchanged existing marker line and a clean line pass.
++  failure behaviour: unchanged; deny is a PreToolUse refusal the agent sees; any error fails open.
++  layer_rules: none. deploy_order: none; the hook is local to agent sessions, CI runs the test.
++  blast_radius: none on data. The CLAUDE.md rewrite changes what every session reads: every rule
++  line is kept (the MR head lists each before and after); the `1_staging: +materialized: table`
++  and `2_base: +materialized: table` tokens pinned by `tests/test_materialisation_policy.py` stay.
  
  decisions_taken: >
--  Every item is a line of GitLab #162, approved in plan mode 2026-09-24.
--
--  Interpreter choice inside the hook, not in `.claude/settings.json`: launching the hook itself
--  with `.venv` would fail to start it at all before setup has run. The hook stays standard-library
--  only. Both venv layouts are checked (`.venv/Scripts/python.exe`, `.venv/bin/python`); the first
--  that exists wins; otherwise `sys.executable`, as today.
--
--  The failure message names the interpreter the gates ran with, so the suggested re-run command
--  reproduces what the hook saw.
--
--  THRESHOLD DECLARATIONS. NEW MECHANISM: none; the existing gate runner chooses a different
--  interpreter. RECURRING COST: none.
-+  The replacement keeps the one reason that is still true: ruff settles mechanical defects for
-+  free, so reviewers are spent on judgement. THRESHOLD DECLARATIONS: no new mechanism, no recurring
-+  cost.
+-  The replacement keeps the one reason that is still true: ruff settles mechanical defects for
+-  free, so reviewers are spent on judgement. THRESHOLD DECLARATIONS: no new mechanism, no recurring
+-  cost.
++  Every item is a line of GitLab #163, approved in plan mode 2026-09-24.
++
++  Document markers: date, reviewer credit, review round, MR number (the code guard's own
++  definitions, imported); plus an issue number in CLAUDE.md only. The product owner's title is NOT
++  a document marker: the decision-rights rules name that role; a dated ruling is caught by the date.
++
++  Documents: only ADDED marker lines are refused, so existing history never blocks an edit;
++  the per-file CI pin makes the count go down only. The other documents are not swept here.
++
++  CLAUDE.md names the handover issue by role and points to `HANDOVER_ISSUE` in
++  `.claude/hooks/handover_in.py` for its number, which every session also sees in the injected
++  handover header.
++
++  `docs/agent_guardrails.md` lists every hook; its `comment_history_gate.py` row gains that it also
++  covers documents.
++
++  THRESHOLD DECLARATIONS. NEW MECHANISM: none new in kind; the existing write-time guard and its
++  pinned-count test are extended from code to documents. RECURRING COST: none.
  
  decisions_reserved:
--  - none open: #162's plan was approved as written; a new CPO-class question found while building
--    is brought to him, not decided.
-+  - none open: a one-comment change approved as proposed.
+-  - none open: a one-comment change approved as proposed.
++  - none open: #163's plan was approved as written; a new CPO-class question found while building
++    is brought to him, not decided.
  
  done_when:
--  - `.venv/Scripts/python.exe -m pytest tests/test_governance_hooks.py -k stop_gate` green,
--    including the new interpreter test, and it turns red when `_gate_python` returns
--    `sys.executable` unconditionally
--  - on this machine, with a dirty in-scope tree, running the hook with the system `python` reports
--    no correctness failure; with a deliberately failing gate it still blocks
--  - blinded review cycle PASS; MR opened with the `Default` head; CI green
-+  - parsed `.gitlab-ci.yml` is identical before and after (`yaml.safe_load` compared)
-+  - the tests that parse `.gitlab-ci.yml` pass
-+  - blinded review PASS; MR open with "No behaviour change"; CI green
+-  - parsed `.gitlab-ci.yml` is identical before and after (`yaml.safe_load` compared)
+-  - the tests that parse `.gitlab-ci.yml` pass
+-  - blinded review PASS; MR open with "No behaviour change"; CI green
++  - CLAUDE.md: zero marker lines and zero issue numbers; every former rule line present as a rule
++  - hook: refuses an added dated line in a doc, allows an edit that keeps an existing dated line,
++    allows a clean line; code-file tests unchanged and green
++  - `tests/test_no_decision_history_in_docs.py` pins per-file counts and fails if one rises
++  - full `tests/` green; blinded review PASS; MR open; CI green
  
  amendments: (none)
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index d639c171..4f38fc4e 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -527,10 +527,8 @@ validate:ui:
- # The repo's lint: every pre-commit hook on every file, the same config a local commit runs, so
- # the two cannot drift apart. Ruff (correctness only, ruleset in .ruff-ci.toml) is one of the hooks.
- #
--# WHY RUFF IS HERE: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
--# duplicate module-level function name, and three of the four defects across that MR's three
--# review rounds were mechanically decidable. LLM reviewers are the most expensive check here and
--# belong on judgement, not on facts a tool settles for free.
-+# WHY RUFF IS HERE: it settles mechanical defects for free, so the reviewers, the most expensive
-+# check here, are spent on judgement.
- #
- # ⚠ The ruff hook's `--config .ruff-ci.toml` IS REQUIRED: the config is named outside ruff's
- # auto-discovered set, so without it ruff silently runs its defaults. Never add `--select`: it
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 65e2bbf8..fb1f942f 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -16,7 +16,7 @@ Read this at the start of every session before doing anything else.
+ 
+ **Every unit of work runs Explore → Plan → Confirm → Implement → Verify** (§1). Four steps are machine-gated; **Confirm is the human checkpoint — WAIT for the user's explicit go before implementing.** Exploring options or thinking out loud is not a go. For any file-touching task, use **plan mode** so the harness enforces that wait (`EnterPlanMode` → plan-back → the user approves `ExitPlanMode`).
+ 
+-Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, **and a recommendation with its reasoning** — §11 used to forbid one and was corrected 2026-07-22), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, the classification itself is a CPO decision — never decide by analogy.
++Pay particular attention to **§10 Decision rights** (the CPO-only decision classes — product/UX, metrics, naming, anything permanent, NEW mechanisms, rule extensions), **§11 Blinded escalation** (premise check, two conflicting paths, **and a recommendation with its reasoning**), and **Appendix A Historical anti-patterns** (the failure classes every reviewer hunts for). When a case doesn't clearly match a written rule, the classification itself is a CPO decision — never decide by analogy.
+ 
+ ## North star
+ 
+@@ -26,12 +26,10 @@ Pay particular attention to **§10 Decision rights** (the CPO-only decision clas
+ 
+ A football data pipeline: Python ingestion from API-Football → BigQuery raw → dbt staging/base/core/marts → the **Matchday Pilot** v2 site (`site_v2/`, Astro, deployed to Firebase).
+ 
+-The legacy GitHub Pages match-preview UI it used to end in was **retired 2026-07-21** — offline, `site/` frozen. There is no public site today.
++The legacy GitHub Pages match-preview UI is **retired** — offline, `site/` frozen. There is no public site today.
+ 
+ Active competitions (see `docs/competition_registry.yml` for full list): BL1, BL2, PL, PD, SA, L1, VL, WC (2026), WCQ*, LMX, LP, MLS, SPL, ED.
+-**What is next is never written here — run `glab issue list`.** A "next" line in a file this durable
+-goes stale silently and then instructs. This one named two GitHub-era issues that resolve to
+-nothing, and said so to every session until 2026-09-10.
++**What is next is never written here — run `glab issue list`.** A "next" line in a file this durable goes stale silently and then instructs.
+ 
+ ## Which source answers which question
+ 
+@@ -42,16 +40,14 @@ found nowhere in it is not a fact.
+ |---|---|
+ | **What does a screen show?** | the design chain, in the reading order [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns — ending at the surface's GitLab issue |
+ | **What is required, and what is next?** | the **GitLab issue** (`glab issue list`; the `Task` template: What exactly / Why / How) |
+-| **Where are we right now?** | the handover, GitLab issue **#157**, kept closed so it never shows as work: injected at every session start by `.claude/hooks/handover_in.py`, which falls back to the copy it saved in `.claude/handover.cache.md` when GitLab is down. Current state only, never history or requirements. It rides no branch |
++| **Where are we right now?** | the **handover issue**, kept closed so it never shows as work: injected at every session start by `.claude/hooks/handover_in.py` (its number is `HANDOVER_ISSUE` there, and in the injected header), which falls back to the copy it saved in `.claude/handover.cache.md` when GitLab is down. Current state only, never history or requirements. It rides no branch |
+ | **How do we work?** | [docs/working_agreement.md](docs/working_agreement.md), then this file |
+ | *(backup only)* the tracker's last state, when GitLab is unreachable | [docs/tracker/gitlab_snapshot.md](docs/tracker/gitlab_snapshot.md) — generated by `scripts/snapshot_tracker.py`, never edited by hand (a hook refuses every tool edit; a test fails any change that did not also rewrite the header checksum — a deliberate shell write that forges the header is forbidden by rule, like `--no-verify`, not prevented), never cited while GitLab is up; refreshed at the end of every session |
+ 
+ ⛔ **Memory answers none of these.** The memory files under `~/.claude/projects/…/memory/` are the
+ agent's notes — compressed by the agent, reviewed by nobody. A product fact found only in memory is
+-not a fact until it is verified in the repo or an issue. Twice in 2026-09 a session acted on memory
+-against the repo: "the player page is three tabs" (a later handover said four) and "the Overview
+-tab is lost" (it was in a stash). Memory holds behaviour feedback and pointers; when it disagrees
+-with a row above, it loses and gets corrected.
++not a fact until it is verified in the repo or an issue. Memory holds behaviour feedback and
++pointers; when it disagrees with a row above, it loses and gets corrected.
+ 
+ ## Authoritative docs — read before making decisions
+ 
+@@ -68,43 +64,44 @@ with a row above, it loses and gets corrected.
+ | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
+ | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
+ | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
+-| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen** (2026-09-11): cite a past entry, never add one. |
++| **What was DECIDED** — and where it is recorded | The thing it changed, never a log: a requirement → its **GitLab issue** (`Task` template: What exactly / Why / How); a rule → the document that owns it, edited in the same MR; code → the MR, whose head lists the decisions and locked files — **the CPO's merge is the approval**. [working_agreement.md §11](docs/working_agreement.md) has the table. `.claude/task/escalations.log` is **frozen**: cite a past entry, never add one. |
+ | GitHub Actions tree — disabled, kept, do not read as CI | [.github/workflows/README.md](.github/workflows/README.md) |
+ 
+-⛔ **The two bold rows are load-bearing.** Until 2026-09-10 this file pointed at neither, and #41 was
+-rebuilt from scratch against a design its issue had already approved.
++⛔ **The two bold rows are load-bearing.** Without them a page gets rebuilt against a design its
++issue had already approved.
+ 
+ ## Architecture decisions (non-negotiable)
+ 
+ - **Layer contract**: staging = raw cleanup only; base = dedup + first logic; core = facts/dims; marts = consumption.
+ - **league_code** is the competition discriminator on every model — never hardcode a competition
+-  identifier in business logic. It is **not** a BigQuery partition key, and calling it one has
+-  misled cost work: **no dbt model declares `partition_by` or `cluster_by`** —
+-  `grep -rn "partition_by\|cluster_by" dbt_project/models/ dbt_project/dbt_project.yml` returns
+-  zero hits (checked 2026-08-08, #33 Gate 0.2). Physical partitioning is a property of the RAW
++  identifier in business logic. It is **not** a BigQuery partition key: **no dbt model declares
++  `partition_by` or `cluster_by`** (`grep -rn "partition_by\|cluster_by" dbt_project/models/
++  dbt_project/dbt_project.yml` returns nothing). Physical partitioning is a property of the RAW
+   tables only, set by the ingestion loaders — see `docs/data_contract.md`.
+ - **Raw table naming**: `RAW_APIF_{entity}` (e.g. `RAW_APIF_FIXTURES_NEXT`). All competitions
+   share **one table per entity**, discriminated by a `league_code STRING` column. There are no
+   per-competition raw tables. Staging models are generic — one file per entity, not per
+-  competition. Do not quote a fixed count here; it has been wrong before ("six", corrected
+-  2026-08-08 under #33). Recount instead:
++  competition. Never quote a fixed count; recount:
+   `grep -rho "raw_table(\s*[\"'][A-Z_]*[\"']" ingestion/ | sort -u` for what is WRITTEN,
+   `grep -n "      - name: raw_apif" dbt_project/models/1_staging/api_football/sources.yml` for
+-  what is DECLARED. On 2026-08-08 that was **12 written, 11 declared** — `RAW_APIF_INJURIES` is
+-  written by the loaders and modelled nowhere (#33 item 15). `RAW_APIF_INGEST_LOCK` and
+-  `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
++  what is DECLARED. A table written but not declared is modelled nowhere. `RAW_APIF_INGEST_LOCK`
++  and `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
+ - **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
+ - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
+ - **Scale is never the argument** — a feature is built or not on its value to the fan; its page,
+   row or competition count is a consequence, never an input, and a build that cannot carry it is
+   the defect. Money is the separate question and is always asked: recurring spend is measured
+   and put to the CPO with the number (the "Cost is non-negotiable" bullet below). The rule is
+-  `docs/north_star.md` "Scale ambition"; on 2026-09-16 a session argued against a product
+-  feature from its page count, which is exactly what it forbids.
+-- **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home; the hybrid-browse block was dropped 2026-08-19). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP was **RETIRED on 2026-07-21** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**. v2 has its own go-live.
++  `docs/north_star.md` "Scale ambition".
++- **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home, no hybrid-browse block). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP is **retired** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**. v2 has its own go-live.
+ - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
+ - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
+-- **Staging AND base models are TABLES** (base changed 2026-08-02; staging changed 2026-08-12 under #33 items 9/10). Both were views, so nothing stored an intermediate result and every *test* re-scanned the raw JSON. For base, measured over 35 days: tests $23.91 vs $5.84 to build the models. For staging, measured over 24h on 2026-08-12: tests $0.17 vs models $0.07, with **59 staging tests** each re-executing the parse beneath a view. Storing each layer once a night makes every test read a small table instead. ⚠ The `RAW_APIF_TRANSFERS` figure both items were argued from (6.82–6.99 GiB) is STALE — item 8b shrank that table to **0.178 GiB**; do not size future work from it. Materialisation is a LAYER decision set once in `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a model must never override it per model, whatever the value. `scripts/check_layer_contract.py` enforces both layers.
++- **Staging AND base models are TABLES.** As views, nothing stored an intermediate result and every
++  *test* re-scanned the raw JSON, which cost more than building the models; stored once a night,
++  every test reads a small table. Materialisation is a LAYER decision set once in
++  `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a
++  model must never override it per model, whatever the value. `scripts/check_layer_contract.py`
++  enforces both layers. Size cost work from a fresh measurement, never from a figure in a document.
+ 
+ ## Scalability rules — enforced by CI
+ 
+@@ -113,7 +110,7 @@ Do not work around the CI check — fix the approach instead.
+ 
+ | Rule | What it means | CI check |
+ |------|---------------|----------|
+-| **No-new-model rule** | Adding a league requires **no new model, macro, SQL or Python file** — nothing per-competition is ever authored. It is not "zero file edits of any kind" (corrected 2026-08-08, #33 Gate 0.2): three tracked files change, and two of them are written FOR you by `scripts/sync_dbt_vars.py` — `docs/competition_registry.yml` (by hand), then `dbt_project/dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` (generated). | `check_layer_contract.py` — fails if any per-competition staging subdirectory exists; dbt compilation catches any `ref()` pointing to a non-existent per-competition staging model |
++| **No-new-model rule** | Adding a league requires **no new model, macro, SQL or Python file** — nothing per-competition is ever authored. It is not "zero file edits of any kind": three tracked files change, and two of them are written FOR you by `scripts/sync_dbt_vars.py` — `docs/competition_registry.yml` (by hand), then `dbt_project/dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` (generated). | `check_layer_contract.py` — fails if any per-competition staging subdirectory exists; dbt compilation catches any `ref()` pointing to a non-existent per-competition staging model |
+ | **Single-source rule** | The registry is the only place leagues are listed by hand. BOTH `dbt_project.yml` and `dbt_project/seeds/competition_registry.csv` are derived from it via `scripts/sync_dbt_vars.py` | `check_registry_var_sync.py` — fails if `active_competition_league_codes` doesn't match the registry, **or** if the seed's `league_code → (competition_type, parent_competition)` rows drift from it |
+ | **CI ingest rule** | CI detects new leagues by querying `SELECT DISTINCT league_code FROM RAW_APIF_FIXTURES_NEXT` and ingests only those not yet present | `scripts/get_new_league_codes.py` + skip-if-exists logic in `ci-data-build.yml` |
+ 
+@@ -135,30 +132,23 @@ with src as (
+ 
+ Base models read directly from the generic staging model. The `league_code` column flows through from the raw table — no UNION ALL loop, no per-competition `ref()` calls.
+ 
+-## Operational notes — the traps, in the file that is always loaded
+-
+-Moved here from `.claude/active_work.md` on 2026-08-06. They lived in a file hard-capped at
+-16,000 characters whose own header says "CURRENT STATE ONLY", and which silently drops its tail
+-when it overflows — so the most durable knowledge in the repo sat in the most volatile place, and
+-every session that learned something had to delete something. None of this is current state.
++## Operational notes — the traps
+ 
+ - **The dbt CLI is NOT broken; the one on PATH is.** Use `.venv/Scripts/dbt.exe` (1.7.19 +
+   bigquery 1.7.2, the `requirements.txt` pin) **from the REPO ROOT with `--project-dir dbt_project`
+-  and no `DBT_PROFILES_DIR`**: `parse`, `ls`, `ls --select <model>+` all work. Use it for
+-  `impact_map` lineage. The profile is `profiles.yml` in the repo root (gitignored, `dev` target
+-  only, created by `scripts/bootstrap.py`); dbt finds it because it reads the working directory
+-  before `~/.dbt`. ⚠ `--project-dir` does not move the profile lookup: from inside `dbt_project/`
+-  dbt falls through to `~/.dbt`, which is what keeps CI (it always `cd`s in) on its own profile.
+-  **Never run `dbt build`.** The reason is NOT that CI and prod share datasets — they have not
+-  since `b96cf76` (2026-07-08). `macros/generate_schema_name.sql` prefixes every non-prod
+-  target, so `dev` writes `dev_staging`/`dev_core`/`dev_marts`… and cannot touch prod's layer
+-  datasets. The real reasons, both live: (1) models with **no** `+schema` — the base models and
+-  the seeds — ride `target.schema`, i.e. the profile's `dataset:`, and prod's is `dbt_analytics`;
+-  a dev profile pointed there overwrites **prod's base tables and prod's seeds**. Keep the dev
+-  target on `dev_scratch` as `dbt_project/profiles.example.yml` shows (#33 Gate 0.1, applied
+-  2026-08-08). (2) A build is billed BigQuery work against the shared project regardless of
+-  which datasets it writes. Corrected 2026-08-08 under #33 Gate 0.2 — the old sentence had been
+-  false for a month.
++  and no `DBT_PROFILES_DIR`**: `parse`, `ls`, `ls --select <model>+` all work. Use it for `impact_map`
++  lineage. The profile is `profiles.yml` in the repo root (gitignored, `dev` target only, created
++  by `scripts/bootstrap.py`); dbt finds it because it reads the working directory before `~/.dbt`.
++  ⚠ `--project-dir` does not move the profile lookup: from inside `dbt_project/` dbt falls through
++  to `~/.dbt`, which is what keeps CI (it always `cd`s in) on its own profile.
++  **Never run `dbt build`.** Not because CI and prod share datasets — they do not:
++  `macros/generate_schema_name.sql` prefixes every non-prod target, so `dev` writes
++  `dev_staging`/`dev_core`/`dev_marts`… and cannot touch prod's layer datasets. The two real
++  reasons: (1) models with **no** `+schema` — the base models and the seeds — ride
++  `target.schema`, i.e. the profile's `dataset:`, and prod's is `dbt_analytics`; a dev profile
++  pointed there overwrites **prod's base tables and prod's seeds**. Keep the dev target on
++  `dev_scratch` as `dbt_project/profiles.example.yml` shows. (2) A build is billed BigQuery work
++  against the shared project regardless of which datasets it writes.
+ - **SQLFluff: lint from the REPO ROOT** (the root `.sqlfluff` carries the jinja macro path):
+   `python -m sqlfluff lint <model> --templater jinja --dialect bigquery`, FULL rule set.
+   `dbt_utils` is unresolvable under the jinja templater, so `mart_player_profile` reports
+@@ -170,33 +160,28 @@ every session that learned something had to delete something. None of this is cu
+   gate. A post-commit hook auto-pushes and opens the **MR**. `review.md` must be COMMITTED, and
+   its reviewer sections must be `## <exact-routing-key>` headers — the gate parses those
+   literally, and a `verdicts:` block alone does NOT satisfy it.
+-- **Reasoning lives in git, not in code comments.** A comment says WHY in one line; who decided,
+-  when, which reviewer, which round, which MR — never. That is in the commit message, the MR and
+-  the issue, and `git blame` reaches all three from any line
+-  (`dbt_project/docs/engineering_standards.md` §1.2 has the recipe). 429 such lines existed on
+-  2026-09-11; #115 step 8 adds the hook that ratchets them down.
++- **Reasoning lives in git, not in files.** A comment or a document says WHY in one line; who
++  decided, when, which reviewer, which round, which MR — never. That is in the commit message, the
++  MR and the issue, and `git blame` reaches all three from any line
++  (`dbt_project/docs/engineering_standards.md` §1.2 has the recipe).
+ - **A live host's network address never goes into a committed file — the task artifacts
+   included.** `host_fingerprint_gate.py` refuses the write and
+-  `tests/test_no_host_fingerprint_in_tree.py` pins the tree at zero. It slipped once, as a grep
+-  pattern copied from a reviewer's verdict into `review.md` to prove the address was gone. A host's
+-  size, city and open ports are the same class and no pattern can catch them: describe the host,
+-  say the value lives in the provider's console.
++  `tests/test_no_host_fingerprint_in_tree.py` pins the tree at zero. A grep pattern copied from a
++  verdict into `review.md` counts too. A host's size, city and open ports are the same class and no
++  pattern can catch them: describe the host, say the value lives in the provider's console.
+ - **At the end of every session, rewrite the handover issue and refresh the tracker backup.** Draft
+   the handover in the scratchpad and publish it with ONE command,
+-  `python design-mocks/check_handover.py <draft> && glab issue update 157 --description "$(cat <draft>)"`:
++  `python design-mocks/check_handover.py <draft> && glab issue update <handover issue> --description "$(cat <draft>)"`:
+   the check refuses a draft over 16,000 characters or carrying a public network address, which
+   no hook sees on its way to the public issue. Nothing is committed for it. Then run
+   `python scripts/snapshot_tracker.py`: the backup rides the next commit on any branch, outside the
+   review patch and hash (`docs/tracker/**` is artifact-only), and a rebase conflict on it is resolved
+   by running the script again. It is read only when GitLab is down, so a few days' lag is harmless.
+-- **The Stop hook runs five offline gates (~2.9s)** when the tree is dirty and in scope, and
++- **The Stop hook runs five offline gates** when the tree is dirty and in scope, and
+   blocks the turn once if any fails. Do not end a turn on a red gate silently.
+-- **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit** (#63,
+-  2026-08-12). It hashes `git diff --raw` — mode, blob SHAs, status, path — cumulatively from the
+-  base, so it is byte-identical to the CI recompute on every platform and on a branch of any
+-  length. ⚠ The old warning here said `--staged-hash` was "the WRONG number" on a second commit;
+-  that was true of the pre-#63 implementation, which hashed the RENDERED patch of a bare
+-  `--staged`. It is now simply false and has been deleted rather than qualified.
++- **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit.** It hashes
++  `git diff --raw` — mode, blob SHAs, status, path — cumulatively from the base, so it is
++  byte-identical to the CI recompute on every platform and on a branch of any length.
+   `check_task_artifacts.py` still resolves the LIVE remote by default (`origin` is GitLab in CI
+   but the GitHub mirror here, which only ever holds `main` and lags GitLab by a mirror cycle),
+   and a `review.md`-only commit is artifact-exempt, so rebinding is free.
+@@ -211,17 +196,15 @@ every session that learned something had to delete something. None of this is cu
+ - **Frontend.** `deploy:site-v2` is manual-only. The Browser pane drives the dev server
+   (`preview_start` name `v2`); accessibility tree, geometry and console work, `screenshot` fails.
+   `astro build` OOMs at full scale; `git clean -fX site_v2/src/data` before a local dev build.
+-- **`world_championship` keeps its name, deliberately** (deferred by #57) — it's branched on at
++- **`world_championship` keeps its name, deliberately** — it's branched on at
+   `int_team_momentum_window.sql:135`; renaming it without updating that branch silently gives the
+-  WC a last-5 window instead of cumulative, and every test stays green. `display_group` is the
+-  other #57 deferral. It was owed to **#44** (the browse redesign); that block was dropped
+-  2026-08-19, so #44 will not be what unblocks it. Its only remaining reader is `build_nav()`,
+-  which feeds `nav.json` — an export target with no frontend consumer today, so whether the column
+-  can simply go is now an open question rather than a blocked one.
++  WC a last-5 window instead of cumulative, and every test stays green. `display_group` is also
++  kept; its only reader is `build_nav()`, which feeds `nav.json`, an export target with no
++  frontend consumer, so whether the column can go is an open question.
+ - **A second review-gate plugin hook can shadow the repo one.** If a hash mismatch disagrees with
+   `git_discipline.py --staged-hash`, check `~/.claude/settings.json` for a second hook FIRST —
+-  don't re-derive the hash logic from scratch. Cost an hour on 2026-08-18. Also:
+-  `acceptance_evidence.md` bullets must be indented 2sp or the gate reads zero criteria.
++  don't re-derive the hash logic from scratch. Also: `acceptance_evidence.md` bullets must be
++  indented 2sp or the gate reads zero criteria.
+ 
+ ## Memory files
+ 
+@@ -235,10 +218,9 @@ question"). Key files:
+ - `user_profile.md` — who Rami is and how he works
+ 
+ **The folder has a budget, and `.claude/hooks/memory_budget_gate.py` enforces it**: at most 50
+-notes, an index of at most 7,669 characters, no note over 4,232 characters — the numbers the folder
+-measured after #115 step 9 cut it from 108 files, and they move down only. Adding a note means
+-removing or merging one; a note is the rule, why, and how to apply it. `python
+-.claude/hooks/memory_budget_gate.py --report` shows where the folder stands.
++notes, an index of at most 7,669 characters, no note over 4,232 characters; the numbers move down
++only. Adding a note means removing or merging one; a note is the rule, why, and how to apply it.
++`python .claude/hooks/memory_budget_gate.py --report` shows where the folder stands.
+ 
+ ## Cursor integration
+ 
+@@ -254,49 +236,45 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
+   `validate:secrets`, `validate:ui`, `test:python`, `build:site-v2`, `data:build:mr`,
+   `data:build:main`, `data:nightly`, `deploy:export`, `deploy:site-v2`. Use `glab`, and open
+   **MRs**, not PRs.
+-- **dbt descriptions have READERS, since 2026-08-21 — write them for a stranger.**
++- **dbt descriptions have READERS — write them for a stranger.**
+   `+persist_docs: {relation: true, columns: true}` is on for every model and seed, so each
+   `description:` is attached to its BigQuery table and column and shows up in `bq show --schema`
+   and the console. `data:build:main` then runs `dbt docs generate --static` and publishes
+   `static_index.html`, `manifest.json` and `catalog.json` as job artifacts.
+   ⚠ **BigQuery hard-rejects a column description over 1,024 chars (relation: 16,384), and a
+-  rejection fails the model** — so an over-long description now breaks the prod build.
++  rejection fails the model** — so an over-long description breaks the prod build.
+   `scripts/check_description_hygiene.py` holds the line, measuring the RENDERED text; a
+   `{{ doc() }}` block is not a way around the limit. The standard is
+   `dbt_project/docs/engineering_standards.md` §2.
+-- **GitHub is a READ-ONLY MIRROR of `main`.** CPO ruling 2026-09-18: GitLab is the system of
+-  record — CI, MRs, issues, the WIF binding — and GitLab pushes `main` (and only `main`) to
++- **GitHub is a READ-ONLY MIRROR of `main`.** GitLab is the system of record — CI, MRs, issues,
++  the WIF binding — and GitLab pushes `main` (and only `main`) to
+   `github.com/ramialfahham/football-data-pipeline` on every merge (Settings → Repository →
+   Mirroring repositories; the GitHub token lives there and only the CPO handles it). ⚠ The token
+   is a fine-grained PAT that EXPIRES — the mirror row turns red when it does — and its
+   replacement needs **Contents AND Workflows, both read/write**, on that one repository:
+   without Workflows, GitHub rejects the push because `.github/workflows/README.md` counts as a
+-  workflow (it did, on the first sync). Nothing is
+-  pushed to GitHub by hand, nothing is opened or merged there, and **GitHub Actions are disabled
+-  at the repository level** — `.github/workflows/` is a snapshot of what ran before the 2026-08
+-  migration and is deliberately kept unedited; see `.github/workflows/README.md` for why a
+-  re-enable would be a prod-write hazard. Do not read that directory as the CI reference, and
+-  do not edit a workflow there to "keep it in sync".
++  workflow. Nothing is pushed to GitHub by hand, nothing is opened or merged there, and **GitHub
++  Actions are disabled at the repository level** — `.github/workflows/` is a snapshot of the
++  pre-GitLab CI and is deliberately kept unedited; see `.github/workflows/README.md` for why a
++  re-enable would be a prod-write hazard. Do not read that directory as the CI reference, and do
++  not edit a workflow there to "keep it in sync".
+ - **⭐ THE NIGHTLY LIVES IN CLOUD SCHEDULER, NOT IN CI.** Two ENABLED jobs in **europe-west1**:
+   **`fdp-nightly`** (`0 4 * * *`) runs the ingest and the full prod dbt build, and
+-  **`fdp-freshness`** (`7 * * * *`) runs hourly. Moved there by the CPO after GitLab CI limitations
+-  made a CI-hosted cron unworkable. **So the data IS refreshed on a timer** — observed starting
+-  04:01–04:03 UTC every day, writing to `dbt_analytics`, `marts`, `core`, `intermediate`, `staging`.
++  **`fdp-freshness`** (`7 * * * *`) runs hourly. **So the data IS refreshed on a timer**, writing to
++  `dbt_analytics`, `marts`, `core`, `intermediate`, `staging`.
+   ⚠ **`data:nightly` in `.gitlab-ci.yml` is NOT the nightly.** It is written and reachable by manual
+   web dispatch, but nothing triggers it. The GitLab schedule `4379625` exists and is deliberately
+-  **DISABLED** — its last run was 2026-08-10; do not read it as the owner, and do not enable it
+-  without disabling `fdp-nightly`, or the build runs twice.
+-  ⛔ **THE SERVICE ACCOUNT IS CALLED `github-actions-dbt@…` AND THAT NAME IS A LIE OF HISTORY.** It
+-  is the GitHub-era account the GitLab migration reused. It cost a full investigation on 2026-09-01,
+-  which concluded "GitHub Actions must still be running" from the name plus a leftover workflow file
+-  with a matching cron — both circumstantial, both wrong. **Identify a caller by its AUTH PATH, never
+-  by its name**: this SA has zero user-managed keys and exactly one `workloadIdentityUser` binding,
+-  so GitHub could never have been it.
++  **DISABLED**; do not read it as the owner, and do not enable it without disabling
++  `fdp-nightly`, or the build runs twice.
++  ⛔ **THE SERVICE ACCOUNT IS CALLED `github-actions-dbt@…` AND THE NAME IS MISLEADING.** It is the
++  GitHub-era account the GitLab migration reused. **Identify a caller by its AUTH PATH, never by its
++  name**: this SA has zero user-managed keys and exactly one `workloadIdentityUser` binding, so
++  GitHub cannot be it.
+   ⭐ **THE RUNBOOK IS [`deploy/nightly/README.md`](deploy/nightly/README.md)** — the Cloud Run jobs,
+   the scheduler entries, the IAM grants and the `gcloud` commands that created them. Read it before
+   touching any of this; this bullet is a pointer, not a duplicate.
+   ⚠ Measured cost of the two jobs together: **~129 GB/day ≈ 3.8 TiB/month ≈ $17–24**. Whether
+   `fdp-freshness` needs to be hourly is a recurring-cost question and therefore the CPO's.
+ - Hosting: Firebase (`football-data-pipeline-gcp.web.app`, unlisted, every page `noindex`).
+-  GitHub Pages served the legacy MVP and is gone — that product was retired 2026-07-21, and the
+-  GitHub repository is a read-only mirror that hosts nothing.
++  GitHub Pages served the retired legacy MVP and is gone; the GitHub repository is a read-only
++  mirror that hosts nothing.
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index 40439047..0d983df2 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -75,6 +75,11 @@ GitHub-era numbers in this repo already point at nothing), and it argues with a
+ the next reader has to carry forever. **Argue with a reviewer in the contract's `amendments`**,
+ which reviewers read and which the MR carries; it is the review's record, not the code's.
+ 
++**The same holds for documents.** A Markdown document says what and why; dates, issue and MR
++numbers, review rounds and who found or decided what live in git. The same hook refuses a document
++line that adds one (in `CLAUDE.md` also an issue number), and
++`tests/test_no_decision_history_in_docs.py` pins each document's count so it only goes down.
++
+ Why this section exists: the rule above it was ignored. On 2026-09-11 the code held **429**
+ comment lines carrying a date, "CPO", "reviewer" or "round N" by a first grep, 850 by the hook
+ that replaced it. **The measure is the hook**, `.claude/hooks/comment_history_gate.py`: its
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index d51fcc3d..9b538eda 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -52,7 +52,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open MR; not done until the MR URL exists. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
+-| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit whose written text adds, to a code file, a comment line carrying decision history — a date, "CPO", a review credit (a named role — `platform-reviewer`, `scope-auditor` — or what an unnamed reviewer did: "a reviewer caught it", "two reviewers failed it", "found by a reviewer"; the bare word alone is the review gate's own vocabulary and is not a marker), "round N" or an MR number — and says where that belongs: the commit message, the MR and the issue, reached from any line by `git blame` (`engineering_standards.md` §1.2). A comment line is one with a marker (`#`, `--`, `//`, `/*`, `*`, `<!--`, `{#`) at its start or after whitespace, any line inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`), and any line of a Python docstring (`ast` on a whole file; a line opening with a triple quote in an edit fragment). A quoted span on the line (`"CPO ANSWER:"`, a `'2026-05-07 17:55:00'` usage example) is a literal and is blanked before matching; an apostrophe inside a word opens no span, a triple quote is a docstring delimiter, and backticks are NOT literals — measured over the tree, two in three backticked markers were credits. Checks only the text being written, so an edit that re-includes an existing flagged line is denied until the marker goes — every ordinary edit helps the sweep. Markdown, docs, `.claude/task/` and unlisted trees are never checked. Its twin in CI, `tests/test_no_decision_history_in_code.py`, imports the hook's own pattern and tree list and pins the count of flagged lines already in the tree in BOTH directions, so a sweep must lower the pin and the number never moves silently. Fails open. |
++| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit whose written text adds, to a code file, a comment line carrying decision history — a date, "CPO", a review credit (a named role — `platform-reviewer`, `scope-auditor` — or what an unnamed reviewer did: "a reviewer caught it", "two reviewers failed it", "found by a reviewer"; the bare word alone is the review gate's own vocabulary and is not a marker), "round N" or an MR number — and says where that belongs: the commit message, the MR and the issue, reached from any line by `git blame` (`engineering_standards.md` §1.2). A comment line is one with a marker (`#`, `--`, `//`, `/*`, `*`, `<!--`, `{#`) at its start or after whitespace, any line inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`), and any line of a Python docstring (`ast` on a whole file; a line opening with a triple quote in an edit fragment). A quoted span on the line (`"CPO ANSWER:"`, a `'2026-05-07 17:55:00'` usage example) is a literal and is blanked before matching; an apostrophe inside a word opens no span, a triple quote is a docstring delimiter, and backticks are NOT literals — measured over the tree, two in three backticked markers were credits. Checks only the text being written, so an edit that re-includes an existing flagged line is denied until the marker goes — every ordinary edit helps the sweep. **Markdown documents** (outside `.claude/task/`, `docs/tracker/` and `site/`) are checked with narrower markers — a date, a reviewer credit, a review round, an MR number, and in `CLAUDE.md` an issue number; code spans and fenced blocks are examples, not prose — and only lines the edit ADDS are denied, so history already in a document never blocks editing it; `tests/test_no_decision_history_in_docs.py` pins each document's count so it only goes down. Unlisted code trees are never checked. Its twin in CI, `tests/test_no_decision_history_in_code.py`, imports the hook's own pattern and tree list and pins the count of flagged lines already in the tree in BOTH directions, so a sweep must lower the pin and the number never moves silently. Fails open. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `handover_in.py` | SessionStart | Injects the handover, GitLab issue #157, into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it. Reads it through `glab`, saves the copy to the gitignored `.claude/handover.cache.md`, injects that copy with its time when GitLab is down, and says so plainly when neither exists. Announces truncation rather than cutting in silence. Until 2026-09-23 it read `.claude/active_work.md` from the working tree, so the handover rode whichever branch was checked out. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 57ffe640..511f0606 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -242,7 +242,7 @@ def test_hook_denies_a_history_comment_in_a_code_file():
+     assert "COMMENT HISTORY GATE" in out and "section 1.2" in out
+ 
+ 
+-def test_hook_allows_the_same_text_in_markdown_and_in_task_artifacts():
++def test_hook_allows_a_code_only_marker_in_markdown_and_in_task_artifacts():
+     text = history_line(SAMPLE_MARKERS["product owner"])
+     assert run_hook(edit_event("docs/working_agreement.md", text)).strip() == ""
+     assert run_hook(edit_event(".claude/task/contract.md", text)).strip() == ""
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+new file mode 100644
+index 00000000..c1205f27
+--- /dev/null
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -0,0 +1,211 @@
++"""A document says WHAT and WHY, never who decided or when — the guard, both halves.
++
++Half one is the edit-time hook `.claude/hooks/comment_history_gate.py`: for a Markdown document it
++refuses an `Edit`, `Write` or `MultiEdit` that ADDS a line carrying history (a date, a reviewer
++credit, a review round, an MR number; and in CLAUDE.md an issue number). Half two is the pin below:
++each document's count of such lines, which may only move down, in the open.
++
++Everything imports the hook's definitions, so the CI count and the edit-time refusal cannot drift
++apart. Sample lines are built at runtime from pieces, so this file holds no flagged line itself.
++"""
++
++from __future__ import annotations
++
++import json
++import os
++import pathlib
++import subprocess
++import sys
++
++REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
++HOOKS = os.path.join(REPO, ".claude", "hooks")
++sys.path.insert(0, HOOKS)
++import comment_history_gate as gate  # noqa: E402
++
++# The pin: flagged lines per document. A cleanup lowers a number or removes a row; nothing adds one.
++PINNED = {
++    ".claude/agents/analytics-engineer-reviewer.md": 2,
++    ".claude/agents/bi-analyst-reviewer.md": 5,
++    ".claude/agents/cto-reviewer.md": 8,
++    ".claude/agents/data-engineer-reviewer.md": 3,
++    ".claude/agents/football-analytics-expert-reviewer.md": 2,
++    ".claude/agents/platform-reviewer.md": 2,
++    ".claude/agents/scope-auditor.md": 5,
++    ".claude/agents/seo-expert-reviewer.md": 2,
++    ".claude/skills/onboard-competition/SKILL.md": 2,
++    ".github/workflows/README.md": 6,
++    "AGENTS.md": 1,
++    "dbt_project/docs/engineering_standards.md": 5,
++    "dbt_project/docs/layering.md": 14,
++    "deploy/nightly/README.md": 1,
++    "design-mocks/README.md": 6,
++    "docs/agent_guardrails.md": 15,
++    "docs/audits/2026-06_alignment_audit.md": 26,
++    "docs/content_architecture.md": 8,
++    "docs/cursor_dispatch_workflow.md": 1,
++    "docs/data_contract.md": 12,
++    "docs/metrics_context_model.md": 8,
++    "docs/north_star.md": 7,
++    "docs/operations_guide.md": 1,
++    "docs/playoff_window_policy.md": 1,
++    "docs/product_direction_threads.md": 7,
++    "docs/project_status_sync.md": 1,
++    "docs/roles/cto.md": 1,
++    "docs/roles/data_engineer.md": 1,
++    "docs/roles/platform_reliability.md": 2,
++    "docs/roles/seo_expert.md": 1,
++    "docs/site_architecture.md": 22,
++    "docs/ui_design_brief.md": 7,
++    "docs/wireframes/00_overview.md": 8,
++    "docs/wireframes/01_fixture_page.md": 4,
++    "docs/wireframes/02_team_profile.md": 1,
++    "docs/wireframes/03_player_profile.md": 1,
++    "docs/wireframes/08_browse.md": 6,
++    "docs/wireframes/10_home.md": 115,
++    "docs/wireframes/11_team_squad.md": 6,
++    "docs/wireframes/12_player_stats.md": 2,
++    "docs/wireframes/14_team_stats.md": 3,
++    "docs/wireframes/99_gaps_register.md": 28,
++    "docs/wireframes/block_standard.md": 6,
++    "docs/wireframes/metrics_display.md": 34,
++    "docs/working_agreement.md": 16,
++    "site_v2/src/data/README.md": 12,
++}
++
++DATE = "-".join(["20" + "31", "01", "02"])
++ISSUE = "#" + "4" + "2"
++
++
++def _tracked_docs() -> list[str]:
++    out = subprocess.run(["git", "ls-files", "-z", "*.md"], cwd=REPO, capture_output=True, check=True)
++    return [p for p in out.stdout.decode("utf-8").split("\0") if p]
++
++
++def run_hook(tool_input: dict, tool: str = "Edit") -> str:
++    event = {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input}
++    env = dict(os.environ, CLAUDE_PROJECT_DIR=REPO)
++    proc = subprocess.run(
++        [sys.executable, os.path.join(HOOKS, "comment_history_gate.py")],
++        input=json.dumps(event), capture_output=True, text=True, env=env, timeout=60, check=False,
++    )
++    return proc.stdout
++
++
++def denied(out: str) -> bool:
++    return '"permissionDecision": "deny"' in out
++
++
++def doc(rel: str) -> str:
++    return os.path.join(REPO, rel)
++
++
++# --- the pin -----------------------------------------------------------------------------------
++
++def test_every_document_matches_the_pin_in_both_directions():
++    counts = gate.count_docs(REPO, _tracked_docs())
++    grown = {p: n for p, n in counts.items() if n > PINNED.get(p, 0)}
++    assert not grown, (
++        f"documents gained history lines: {grown}. A document says WHAT and WHY; dates, issue and "
++        "MR numbers and who found or decided what live in the commit, the MR and the issue "
++        "(engineering_standards.md section 1.2)."
++    )
++    shrunk = {p: (PINNED[p], counts.get(p, 0)) for p in PINNED if counts.get(p, 0) < PINNED[p]}
++    assert not shrunk, (
++        f"documents lost history lines (pinned, now): {shrunk}. Lower their numbers in PINNED "
++        "(remove a row at zero) so the cleanup is recorded; the pin only moves down"
++    )
++
++
++def test_every_guarded_document_is_readable():
++    """`count_docs` skips a file it cannot open; the pin must never pass because a path was skipped."""
++    unreadable = [p for p in _tracked_docs()
++                  if gate.is_doc_path(p) and not os.path.isfile(os.path.join(REPO, p))]
++    assert not unreadable, f"tracked documents the pin cannot read: {unreadable}"
++
++
++def test_claude_md_holds_no_history():
++    text = pathlib.Path(REPO, "CLAUDE.md").read_text(encoding="utf-8")
++    assert gate.doc_flagged_lines(text, "CLAUDE.md") == []
++    assert "CLAUDE.md" not in PINNED
++
++
++# --- one definition ----------------------------------------------------------------------------
++
++def test_definition_is_imported_not_copied():
++    src = pathlib.Path(__file__).read_text(encoding="utf-8")
++    assert "re." + "compile(" not in src, "the marker patterns live in the hook; this file imports them"
++    for name in ("DOC_MARKERS", "is_doc_path", "doc_flagged_lines", "doc_added_hits", "count_docs"):
++        assert hasattr(gate, name), name
++
++
++# --- the hook ----------------------------------------------------------------------------------
++
++def test_hook_refuses_an_added_dated_line_in_a_document():
++    out = run_hook({"file_path": doc("docs/north_star.md"), "old_string": "x",
++                    "new_string": f"The rule changed on {DATE}."})
++    assert denied(out)
++    assert "COMMENT HISTORY GATE" in out and "document" in out
++
++
++def test_hook_allows_an_edit_that_keeps_an_existing_dated_line():
++    kept = f"An older paragraph dated {DATE}."
++    out = run_hook({"file_path": doc("docs/north_star.md"),
++                    "old_string": kept + "\nA typo here.", "new_string": kept + "\nA fix here."})
++    assert out.strip() == ""
++
++
++def test_hook_allows_a_clean_line_and_a_date_inside_code():
++    assert run_hook({"file_path": doc("docs/north_star.md"), "old_string": "x",
++                     "new_string": "A rule and its reason."}).strip() == ""
++    assert run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
++                     "new_string": f"A match address looks like `/en/bl1/{DATE}/a-vs-b/`."}).strip() == ""
++    fenced = f"```\n/en/bl1/{DATE}/a-vs-b/\n```"
++    assert run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
++                     "new_string": fenced}).strip() == ""
++
++
++def test_hook_allows_role_names_and_football_rounds_in_documents():
++    text = "The " + "cto-" + "reviewer rules on authority. Round " + "5 is a matchday."
++    assert run_hook({"file_path": doc("docs/working_agreement.md"), "old_string": "x",
++                     "new_string": text}).strip() == ""
++
++
++def test_hook_refuses_a_reviewer_credit_and_an_mr_number():
++    credit = "The " + "platform-" + "reviewer caught this."
++    assert denied(run_hook({"file_path": doc("docs/working_agreement.md"), "old_string": "x",
++                            "new_string": credit}))
++    mr = "Fixed in " + "!" + "132."
++    assert denied(run_hook({"file_path": doc("docs/working_agreement.md"), "old_string": "x",
++                            "new_string": mr}))
++
++
++def test_issue_numbers_are_refused_in_claude_md_only():
++    line = f"See {ISSUE} for the plan."
++    assert denied(run_hook({"file_path": doc("CLAUDE.md"), "old_string": "x", "new_string": line}))
++    assert run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
++                     "new_string": line}).strip() == ""
++
++
++def test_write_compares_against_the_file_on_disk(tmp_path):
++    existing = pathlib.Path(REPO, "docs/wireframes/10_home.md").read_text(encoding="utf-8")
++    assert run_hook({"file_path": doc("docs/wireframes/10_home.md"), "content": existing},
++                    tool="Write").strip() == ""
++    assert denied(run_hook({"file_path": doc("docs/wireframes/10_home.md"),
++                            "content": existing + f"\nAdded on {DATE}.\n"}, tool="Write"))
++
++
++def test_multiedit_refuses_an_added_line_and_allows_a_kept_one():
++    kept = f"An older paragraph dated {DATE}."
++    refused = {"file_path": doc("docs/north_star.md"),
++               "edits": [{"old_string": "a", "new_string": "b"},
++                         {"old_string": "c", "new_string": f"Changed on {DATE}."}]}
++    assert denied(run_hook(refused, tool="MultiEdit"))
++    allowed = {"file_path": doc("docs/north_star.md"),
++               "edits": [{"old_string": kept + "\nA typo.", "new_string": kept + "\nA fix."}]}
++    assert run_hook(allowed, tool="MultiEdit").strip() == ""
++
++
++def test_exempt_paths_are_not_checked():
++    line = f"Recorded on {DATE}."
++    for rel in (".claude/task/contract.md", "docs/tracker/gitlab_snapshot.md", "site/README.md"):
++        assert run_hook({"file_path": doc(rel), "old_string": "x", "new_string": line}).strip() == "", rel
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review_input.patch | 934 +++++++++++++++++++++++++++++++++++-----
+#    1 file changed, 831 insertions(+), 103 deletions(-)
+# ============================================================================
