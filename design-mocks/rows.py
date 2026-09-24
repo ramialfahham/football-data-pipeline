@@ -187,4 +187,3 @@ def group_head(slug, name):
     return ('<div class="gh"><a class="cnm" href="/en/%s/">'
             '<span class="clogo">%s</span><span class="nm">%s</span>%s</a></div>'
             % (E(slug), LEAGUE_LOGO, E(name), CHEVRON))
-
