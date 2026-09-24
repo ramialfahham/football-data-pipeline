@@ -48,9 +48,9 @@ The scheme is written here with the English words.
 /{locale}/football/{country-slug}/                           country hub (e.g. /football/germany/)
 /{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
 /{locale}/{competition-slug}/{season-slug}/                  competition season archive
-/{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition (#129; built by #150 at /fixtures/)
+/{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition (#129)
 /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report), under its competition's Matchdays tab
-/{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings (built by #151 at /rankings/)
+/{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
 /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
 /{locale}/players/{player-slug}/                             player profile
 ```
@@ -86,10 +86,8 @@ fans type into Google in each market. Google weighs address words very lightly; 
 headings and content decide far more, so the words are chosen to be clear and stable, and each
 page's title is where its search phrase must appear.
 
-⚠ **Not built yet.** The site still emits the English words under every locale, and the two
-competition tabs still sit at their old English words (`/fixtures/`, `/rankings/`). Switching them
-is its own build item, filed once this table is approved, and it lands before the Matches hub is
-built.
+The site reads the words from `site_v2/src/i18n/address_words.json`, the one list rule 4 names; it
+holds the words of the pages built today, and a page adds its word there when it is built.
 
 1. **Words are in the reader's language; names are not.** Competition, season, club, player and
    match names keep one spelling in every language (§ Slugs).
@@ -384,6 +382,6 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
 | ~~Current MVP stays live until parity cutover~~ | **SUPERSEDED** (CPO, 2026-07-21): the MVP is retired, so there is no parity gate and no cutover — see §2 |
 | All locales URL-prefixed; root redirects by browser language, `en` fallback | proposed default — CPO may override fallback locale |
 | Slug formats per §3 | proposed default — review in #363 PR |
-| Address words in the reader's language, names one spelling (§3 "Address words") | decided (CPO, 2026-09-23); not built yet |
+| Address words in the reader's language, names one spelling (§3 "Address words") | decided; built for the pages that exist, the words in `site_v2/src/i18n/address_words.json` |
 | Island framework for charts (svelte vs preact) | open — decide in #362 |
 | Analytics tool (Plausible / Umami / GA4) | open — decide in #372 with Legal (#374) |

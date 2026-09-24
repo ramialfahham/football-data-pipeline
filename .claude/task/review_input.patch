@@ -1,149 +1,3099 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index c1e9ebf9..09bf49c0 100644
+index 09bf49c0..e97d90c5 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,82 +1,31 @@
--# Task contract — No decision history in documents (#163)
-+# Task contract — Three stale facts in CLAUDE.md
+@@ -1,31 +1,148 @@
+-# Task contract — Three stale facts in CLAUDE.md
++# Task contract — #158: page addresses follow the reader's language
  
  objective: >
--  CLAUDE.md keeps every rule and loses its history (dates, issue and MR numbers, commit ids,
--  incident stories, who decided). A guard refuses, at write time, any Markdown line that ADDS
--  history, and a CI test pins each document's count so it can only go down.
-+  Correct three facts in CLAUDE.md that are wrong today, so none can go stale again: the memory
-+  location (an old machine's path and two files that do not exist), the CI job list (missing
-+  jobs), and the Stop hook's gate count (says five, runs six).
+-  Correct three facts in CLAUDE.md that are wrong today, so none can go stale again: the memory
+-  location (an old machine's path and two files that do not exist), the CI job list (missing
+-  jobs), and the Stop hook's gate count (says five, runs six).
++  Switch every site_v2 page address to the per-language word list in docs/site_architecture.md
++  "Address words": one word table the site and Python read, the words as route parameters, every link
++  and the hreflang language links mapped through it, the build refusing a competition slug that
++  equals a word, and the SEO audit, built-page check, page specs and design check following the table.
++
  refs: >
--  GitLab #163 (requirement, checklist and plan; approved in plan mode 2026-09-24). Extends the
--  code guard of closed #115 (`comment_history_gate.py`, `tests/test_no_decision_history_in_code.py`)
--  to documents.
-+  No issue: a documentation correction with no new requirement (working_agreement §1 carve-out).
-+  His go in chat on 2026-09-24, "clean up", to the three stale facts listed in the MR of #163.
+-  No issue: a documentation correction with no new requirement (working_agreement §1 carve-out).
+-  His go in chat on 2026-09-24, "clean up", to the three stale facts listed in the MR of #163.
++  #158 (the build issue; its What exactly is the requirement); docs/site_architecture.md "Address
++  words" (the ruled word table and its rules 1-8); the plan approved in chat in plan mode.
  
  scope_paths:
-   - CLAUDE.md
--  - .claude/hooks/comment_history_gate.py
--  - tests/test_no_decision_history_in_docs.py
--  - tests/test_no_decision_history_in_code.py
--  - dbt_project/docs/engineering_standards.md
--  - docs/agent_guardrails.md
-   - .claude/task/**
+-  - CLAUDE.md
+-  - .claude/task/**
++  - site_v2/src/i18n/address_words.json
++  - site_v2/src/lib/addressWords.mjs
++  - site_v2/src/lib/addressWords.test.mjs
++  - site_v2/src/lib/href.ts
++  - site_v2/src/layouts/Layout.astro
++  - site_v2/src/config/indexability.mjs
++  - site_v2/src/pages/[[]lang]/competitions/index.astro
++  - site_v2/src/pages/[[]lang]/[[]competitions]/index.astro
++  - site_v2/src/pages/[[]lang]/teams/[[]team].astro
++  - site_v2/src/pages/[[]lang]/[[]teams]/[[]team].astro
++  - site_v2/src/pages/[[]lang]/players/[[]player].astro
++  - site_v2/src/pages/[[]lang]/[[]players]/[[]player].astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/index.astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/fixtures/index.astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/rankings/index.astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/matches/[[]fixture].astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/index.astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
++  - site_v2/src/pages/[[]lang]/[[]competition]/[[]stats]/index.astro
++  - site_v2/src/specs/index.spec.json
++  - site_v2/src/specs/competitions/index.spec.json
++  - site_v2/src/specs/competition/index.spec.json
++  - site_v2/src/specs/competition/fixtures/index.spec.json
++  - site_v2/src/specs/competition/rankings/index.spec.json
++  - site_v2/src/specs/competition/matches/index.spec.json
++  - site_v2/src/specs/competition/matches/fixture.spec.json
++  - site_v2/src/specs/competition/stats/index.spec.json
++  - site_v2/src/specs/teams/team.spec.json
++  - site_v2/src/specs/players/player.spec.json
++  - site_v2/src/components/chrome/SiteHeader.astro
++  - site_v2/src/components/competition/CompetitionTabs.astro
++  - site_v2/src/components/competition/DeservedTable.astro
++  - site_v2/src/components/competition/RankingBoard.astro
++  - site_v2/src/components/competition/StandingsTable.astro
++  - site_v2/src/components/home/FixtureRow.astro
++  - site_v2/src/components/home/TopPlayers.astro
++  - site_v2/src/components/home/TopTeams.astro
++  - site_v2/src/components/ui/MatchRow.astro
++  - site_v2/scripts/audit-seo.mjs
++  - site_v2/scripts/audit-seo.test.mjs
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
++  - site_v2/scripts/check-page-specs.mjs
++  - site_v2/scripts/check-page-specs.test.mjs
++  - scripts/check_design_inventory.py
++  - scripts/design_inventory.py
++  - tests/test_design_inventory.py
++  - tests/test_address_words.py
++  - tests/test_no_decision_history_in_docs.py
++  - docs/site_architecture.md
++  - docs/wireframes/block_standard.md
++  - docs/wireframes/00_overview.md
++  - docs/wireframes/02_team_profile.md
++  - design-mocks/README.md
++  - .claude/task/contract.md
++  - .claude/task/review.md
++  - .claude/task/review_input.patch
++  - .claude/task/acceptance_evidence.md
++  - .claude/task/rendered_page_evidence.md
++  - .claude/task/audit_reviewer_outputs.md
    - docs/tracker/**
  
--protected_override: >
--  `.claude/hooks/comment_history_gate.py` is a protected path. Authority: the plan for GitLab #163,
--  approved in plan mode on 2026-09-24, whose How names the file ("`.claude/hooks/comment_history_gate.py`:
--  also check Markdown files; ... refuse only lines the edit adds that carry a marker") and whose
--  header says the contract quotes that approval for the protected hook file. The commit message and
--  the MR head repeat this under `Locked files`; his merge is the approval (working_agreement §11).
--
--impact_map: >
--  writers: none. No raw writer, model, seed, export or site file.
--  what fires it: the PreToolUse hook `comment_history_gate.py` on every `Edit`, `Write` and
--  `MultiEdit` (registered in `.claude/settings.json`, unchanged). Today it checks code files in
--  `TREES` only and returns early for everything else; after, it also checks tracked-style Markdown
--  paths (`*.md` outside `.claude/task/`, `docs/tracker/`, `site/`), where it refuses only marker
--  lines the edit ADDS (a marker line already present in the replaced text or on disk is allowed).
--  Code-file behaviour is unchanged.
--  what imports it: `tests/test_no_decision_history_in_code.py` (imports `marker_kind`, `TREES`,
--  `EXTS`, `is_code_path`, `comment_lines`; all kept with the same behaviour) and the new
--  `tests/test_no_decision_history_in_docs.py`, which imports the doc definitions and pins per-file
--  counts.
--  what stops being enforced if it is wrong: a broken doc check that raised would fail open (the
--  hook's `except` returns 0), so docs would be unguarded, as today; the code check is a separate
--  branch and keeps its own tests. A too-broad doc check would refuse legitimate edits; the tests
--  pin that an unchanged existing marker line and a clean line pass.
--  failure behaviour: unchanged; deny is a PreToolUse refusal the agent sees; any error fails open.
--  layer_rules: none. deploy_order: none; the hook is local to agent sessions, CI runs the test.
--  blast_radius: none on data. The CLAUDE.md rewrite changes what every session reads: every rule
--  line is kept (the MR head lists each before and after); the `1_staging: +materialized: table`
--  and `2_base: +materialized: table` tokens pinned by `tests/test_materialisation_policy.py` stay.
--
++impact_map: >
++  writers: none in the warehouse; no dbt model, export script or registry field changes. The words are
++    a new site data file; competition slugs keep coming from docs/competition_registry.yml `slug`
++    through src/data/competitions.json and competition_index.json, unchanged.
++  downstream: consumption only. Route files emitting a word today (find site_v2/src/pages -type f):
++    [lang]/competitions/index.astro, [lang]/teams/[team].astro, [lang]/players/[player].astro,
++    [lang]/[competition]/fixtures/index.astro, [lang]/[competition]/rankings/index.astro,
++    [lang]/[competition]/matches/[fixture].astro. Link sites spelling a word (grep of
++    site_v2/src for (competitions|fixtures|rankings|matches|teams|players)/ in hrefs): SiteHeader:27,
++    CompetitionTabs:35,40, DeservedTable:38, RankingBoard:32, StandingsTable:46, FixtureRow:22,
++    TopPlayers:54, TopTeams:67, MatchRow:33, and the competitions crumb and link on the three
++    competition pages. hreflang: Layout.astro:33 via href.ts alternatePaths, its only caller. Checks
++    that assume one path across locales: audit-seo.mjs entityKey/specRouteRegex,
++    check-built-pages.mjs MATCH_PAGE/FIXTURES_PAGE/RANKINGS_PAGE, check_design_inventory.py
++    resolve_built, and the Pages table URLs in block_standard.md.
++  layer_rules: none apply (no dbt model); check_layer_contract.py untouched.
++  deploy_order: site-only. deploy:site-v2 is manual; production is unlisted, noindex and shows the
++    committed sample, so the old /fixtures/, /rankings/ and English-word addresses vanish without
++    redirects; nothing public links them.
++  blast_radius: every non-English page address that has a word, and the two competition tabs in all
++    three languages. No number, label or rendered block changes.
++
++acceptance_criteria:
++  - Every page address uses the word list in `docs/site_architecture.md` "Address words" for its language, for example `/de/bundesliga/spiele/`, `/de/bundesliga/statistiken/`, `/fi/joukkueet/hjk/`, `/de/spieler/jamal-musiala-1090/`.
++  - The Matchdays tab lives at the matches word and the Rankings tab at the stats word, in all three languages; their on-screen names do not change.
++  - The language links between versions of a page (hreflang) point at that page's real address in each language, and every pair points both ways.
++  - The build fails when a competition's address name equals any address word in any language.
++  - The site's search checks (the SEO audit, the built-page check, the page specs) match a page across languages through the word list, and pass.
++
  decisions_taken: >
--  Every item is a line of GitLab #163, approved in plan mode 2026-09-24.
--
--  Document markers: date, reviewer credit, review round, MR number (the code guard's own
--  definitions, imported); plus an issue number in CLAUDE.md only. The product owner's title is NOT
--  a document marker: the decision-rights rules name that role; a dated ruling is caught by the date.
--
--  Documents: only ADDED marker lines are refused, so existing history never blocks an edit;
--  the per-file CI pin makes the count go down only. The other documents are not swept here.
--
--  CLAUDE.md names the handover issue by role and points to `HANDOVER_ISSUE` in
--  `.claude/hooks/handover_in.py` for its number, which every session also sees in the injected
--  handover header.
--
--  `docs/agent_guardrails.md` lists every hook; its `comment_history_gate.py` row gains that it also
--  covers documents.
--
--  THRESHOLD DECLARATIONS. NEW MECHANISM: none new in kind; the existing write-time guard and its
--  pinned-count test are extended from code to documents. RECURRING COST: none.
-+  Each fact becomes a pointer to its single source instead of a copy: the memory folder is named
-+  by its pattern under `~/.claude/projects/`, with `MEMORY.md` as the index; the CI jobs are
-+  whatever `.gitlab-ci.yml` defines; the Stop hook's gates are `FAST_GATES` in
-+  `.claude/hooks/stop_gate.py`, run with the repo's `.venv`. No other line changes.
-+  THRESHOLD DECLARATIONS: no new mechanism, no recurring cost.
+-  Each fact becomes a pointer to its single source instead of a copy: the memory folder is named
+-  by its pattern under `~/.claude/projects/`, with `MEMORY.md` as the index; the CI jobs are
+-  whatever `.gitlab-ci.yml` defines; the Stop hook's gates are `FAST_GATES` in
+-  `.claude/hooks/stop_gate.py`, run with the repo's `.venv`. No other line changes.
+-  THRESHOLD DECLARATIONS: no new mechanism, no recurring cost.
++  The word list and its rules are the CPO's, in docs/site_architecture.md "Address words" (rule 4:
++  one list, every link and the language switch read it, the switch translates each word; rule 5: a
++  word never equals a competition slug, "The switch adds the check that fails the build on one").
++  Built here are only the five words pages use today: competitions, matches, teams, players, stats.
++  The approved plan fixes the mechanics: the word is a route parameter named after its key (so each
++  page keeps its spec file); same-shape routes are used as Astro 5.18.2 falls through between them in
++  dev and emits each route's own paths in the build; the language links translate by position (the
++  segment after the locale is a top word or a competition slug, the next is a tab word only after a
++  slug); the Matchdays and Rankings built-page checks fail on zero pages.
++
++  THRESHOLD DECLARATIONS: NEW MECHANISM: the clash check. It is the check rule 5 says the switch
++  adds; it runs in the site build (the competition hub's getStaticPaths, over the 48 slugs in
++  competitions.json) and as a pytest over the registry, both inside existing jobs; no new job, no CI
++  edit. RECURRING COST: none.
  
  decisions_reserved:
--  - none open: #163's plan was approved as written; a new CPO-class question found while building
--    is brought to him, not decided.
-+  - none open: the three corrections were approved as listed.
+-  - none open: the three corrections were approved as listed.
++  - Words for pages not designed yet (standings, h2h, the menu pages, statistic names, football,
++    prediction): named at each page's review, not here.
++  - Whether a match address keeps its kick-off date: a separate decision, not touched.
++  - The stale comments in .gitlab-ci.yml (the design check's viewports, the owed follow-up): a
++    protected file, out of scope.
  
  done_when:
--  - CLAUDE.md: zero marker lines and zero issue numbers; every former rule line present as a rule
--  - hook: refuses an added dated line in a doc, allows an edit that keeps an existing dated line,
--    allows a clean line; code-file tests unchanged and green
--  - `tests/test_no_decision_history_in_docs.py` pins per-file counts and fails if one rises
--  - full `tests/` green; blinded review PASS; MR open; CI green
-+  - the three passages point at their sources; no other CLAUDE.md line changes
-+  - `tests/test_no_decision_history_in_docs.py` and the governance tests pass
-+  - blinded review PASS; MR open; CI green
+-  - the three passages point at their sources; no other CLAUDE.md line changes
+-  - `tests/test_no_decision_history_in_docs.py` and the governance tests pass
+-  - blinded review PASS; MR open; CI green
++  - npm run build in site_v2 (after git clean -fX site_v2/src/data) exits 0, including the node tests,
++    check-page-specs, audit-seo and check-built-pages.
++  - python -m pytest tests/ -q exits 0; python scripts/check_design_inventory.py --dist site_v2/dist
++    reports 0 failures with the same render count as main.
++  - dist holds /de/bundesliga/spiele/, /de/bundesliga/statistiken/, /fi/joukkueet/<team>/,
++    /de/spieler/<player>/, and no */fixtures/ or */rankings/ directory; every hreflang pair in the
++    built HTML is reciprocal.
++  - Mutations watched red then reverted: a registry slug set to a word fails the pytest and the build;
++    a prefix-only alternatePaths fails audit-seo; a word removed from the table fails the built-page
++    check.
  
- amendments: (none)
-diff --git a/CLAUDE.md b/CLAUDE.md
-index fb1f942f..b88e327d 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -177,8 +177,9 @@ Base models read directly from the generic staging model. The `league_code` colu
-   `python scripts/snapshot_tracker.py`: the backup rides the next commit on any branch, outside the
-   review patch and hash (`docs/tracker/**` is artifact-only), and a rebase conflict on it is resolved
-   by running the script again. It is read only when GitLab is down, so a few days' lag is harmless.
--- **The Stop hook runs five offline gates** when the tree is dirty and in scope, and
--  blocks the turn once if any fails. Do not end a turn on a red gate silently.
-+- **The Stop hook runs the offline gates in `FAST_GATES`** (`.claude/hooks/stop_gate.py`, with the
-+  repo's `.venv`) when the tree is dirty and in scope, and blocks the turn once if any fails. Do
-+  not end a turn on a red gate silently.
- - **The review hash is CONTENT IDENTITY, and `--staged-hash` is correct on any commit.** It hashes
-   `git diff --raw` — mode, blob SHAs, status, path — cumulatively from the base, so it is
-   byte-identical to the CI recompute on every platform and on a branch of any length.
-@@ -208,14 +209,12 @@ Base models read directly from the generic staging model. The `league_code` colu
+-amendments: (none)
++amendments:
++  - + tests/test_no_decision_history_in_docs.py — authority: the CPO in chat, answering "May I add
++    tests/test_no_decision_history_in_docs.py to the #158 contract, so I can remove the dates from
++    the two stale rows, correct them, and lower their pins (00_overview.md 8->7,
++    site_architecture.md 22->21)?" with "Yes, amend". Content: the competition page's row in
++    docs/wireframes/00_overview.md and the "Address words" row of the decisions table in
++    docs/site_architecture.md still say the tabs sit at /fixtures/ or are not built; the history
++    gate refuses rewriting a dated line with its date, so each row is corrected without its date and
++    the document's pin moves down by one.
+diff --git a/design-mocks/README.md b/design-mocks/README.md
+index cd577225..e7ad6ac8 100644
+--- a/design-mocks/README.md
++++ b/design-mocks/README.md
+@@ -18,7 +18,7 @@ preview_start url http://127.0.0.1:8899/<file>.html
+ | `gen_competitions.py` | `/{locale}/competitions/` — the index | **#54** | `python gen_competitions.py` + `prove_region_checks_fail.py` |
+ | `gen_competition_hub.py` | `/{locale}/{slug}/` — the competition page, Overview tab, four kinds (`league`, `groups`, `cup`, `offseason`), one file each | #129 (the approved design), #149 (the build) | `check_competition_hub.py` |
+ | `gen_overview_after_teams.py` | the Overview tab as approved: the Deserved points table as a full table, the six fact rows as links, the three-tab bar — an overlay on `gen_competition_hub.py` | #129 · #151 (the build) | `scripts/check_design_inventory.py` |
+-| `gen_competition_matchdays.py` | `/{locale}/{slug}/fixtures/` — the Matchdays tab: the picker, the Schedule block, the Next and Top match tags | #129 · #150 (the build) | `scripts/check_design_inventory.py` |
++| `gen_competition_matchdays.py` | `/{locale}/{slug}/{matches word}/` — the Matchdays tab: the picker, the Schedule block, the Next and Top match tags | #129 · #150 (the build) | `scripts/check_design_inventory.py` |
+ | `gen_competition_teams.py` | the Rankings tab: Team rankings (12 boards) and Player rankings (13 boards) as striped single-value tables in the catalogue's groups | #129 · #151 · #152 (the groups) | `scripts/check_design_inventory.py` |
+ | `gen_home_with_rules.py` | Home with the page-wide rules of the #129 review: boards as single-value tables, 13px block names, the 14px heading gap, the accent on the ordered-by number, one hover tint — an overlay on `gen_home.py` | #127 (Home's corrections) | `scripts/check_design_inventory.py` |
+ | `gen_matches_hub.py` | `/{locale}/matches/`, the Matches hub: one day, every competition playing it, three matches per competition then Home's fold (ruled on #130), real fixtures of one day: 2026-09-19 by default (`matches_2026-09-19.json`, a league weekend), `MATCHES_HUB_DAY=2026-09-26` for an international weekend (`matches_2026-09-26.json`) | #130 | `scripts/check_design_inventory.py` |
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index a9d19159..26bcc3cb 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -48,9 +48,9 @@ The scheme is written here with the English words.
+ /{locale}/football/{country-slug}/                           country hub (e.g. /football/germany/)
+ /{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
+ /{locale}/{competition-slug}/{season-slug}/                  competition season archive
+-/{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition (#129; built by #150 at /fixtures/)
++/{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition (#129)
+ /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report), under its competition's Matchdays tab
+-/{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings (built by #151 at /rankings/)
++/{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
+ /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
+ /{locale}/players/{player-slug}/                             player profile
+ ```
+@@ -86,10 +86,8 @@ fans type into Google in each market. Google weighs address words very lightly;
+ headings and content decide far more, so the words are chosen to be clear and stable, and each
+ page's title is where its search phrase must appear.
  
- ## Memory files
+-⚠ **Not built yet.** The site still emits the English words under every locale, and the two
+-competition tabs still sit at their old English words (`/fixtures/`, `/rankings/`). Switching them
+-is its own build item, filed once this table is approved, and it lands before the Matches hub is
+-built.
++The site reads the words from `site_v2/src/i18n/address_words.json`, the one list rule 4 names; it
++holds the words of the pages built today, and a page adds its word there when it is built.
  
--Claude memory for this project lives at:
--`C:\Users\Rami\.claude\projects\D--Projects-football-data-pipeline\memory\`
-+Claude memory for this project lives under `~/.claude/projects/`, in the folder named after this
-+repo's path on the machine.
+ 1. **Words are in the reader's language; names are not.** Competition, season, club, player and
+    match names keep one spelling in every language (§ Slugs).
+@@ -384,6 +382,6 @@ data/ (build artifact)      per-entity JSON, slug map, export manifest — not c
+ | ~~Current MVP stays live until parity cutover~~ | **SUPERSEDED** (CPO, 2026-07-21): the MVP is retired, so there is no parity gate and no cutover — see §2 |
+ | All locales URL-prefixed; root redirects by browser language, `en` fallback | proposed default — CPO may override fallback locale |
+ | Slug formats per §3 | proposed default — review in #363 PR |
+-| Address words in the reader's language, names one spelling (§3 "Address words") | decided (CPO, 2026-09-23); not built yet |
++| Address words in the reader's language, names one spelling (§3 "Address words") | decided; built for the pages that exist, the words in `site_v2/src/i18n/address_words.json` |
+ | Island framework for charts (svelte vs preact) | open — decide in #362 |
+ | Analytics tool (Plausible / Umami / GA4) | open — decide in #372 with Legal (#374) |
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 15d13712..9de471ac 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -135,7 +135,7 @@ not made here. See 09_chrome.md §10 for the full note.
+ | — | [metrics_display.md](metrics_display.md) | Metric display contract (team + player, LOCKED) | **ruled** | 1 |
+ | 02 | [02_team_profile.md](02_team_profile.md) | Team profile ⭐ | **spec'd** | 2 |
+ | 03 | [03_player_profile.md](03_player_profile.md) | Player profile ⭐ | **spec'd** | 2 |
+-| 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** (2026-09-16, "The approved design", three tabs superseding the four of 2026-09-15) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149) and the Matchdays tab at /fixtures/ (#150); the Rankings tab is #151 | 3 |
++| 04 | 04_competition_hub.md | Competition page: Overview · Matchdays · Rankings | **Fully approved on GitLab #129** ("The approved design", three tabs) — the authority for the page. No wireframe file: the issue's block list and its data-model tables are the field contract; the elements and their measurements are [block_standard.md](block_standard.md). Built: the Overview (#149), the Matchdays tab (#150) and the Rankings tab (#151), each at its address word ([site_architecture.md](../site_architecture.md) "Address words") | 3 |
+ | 05 | 05_leaderboards.md | Leaderboards + per-metric stats pages | pending | 3 |
+ | 06 | 06_head_to_head.md | Head-to-head page | pending | 3 |
+ | 07 | 07_metric_glossary.md | Metric glossary | pending | 3 |
+diff --git a/docs/wireframes/02_team_profile.md b/docs/wireframes/02_team_profile.md
+index 983a1594..45fa0c62 100644
+--- a/docs/wireframes/02_team_profile.md
++++ b/docs/wireframes/02_team_profile.md
+@@ -157,7 +157,7 @@ the fixture comparison, not here. Coverage caption from
+ approved): ships via the team-export extension from `fct_fixture`/legs. Rows
+ reuse the fixture-row component (opponent, H/A, score, result chip; next fixture
+ links to its fixture page). Until the data PR lands the section renders links to
+-the competition's `/fixtures/` page. Internal links: competition hub, `/table/`,
++the competition's Matchdays tab. Internal links: competition hub, `/table/`,
+ `/top-scorers/`, the **Squad** sub-screen ([11](11_team_squad.md), backed by
+ `mart_roster` — export wiring pending [GAP-20](99_gaps_register.md)), and the **Stats**
+ sub-screen ([14](14_team_stats.md), rank vs league — export wiring pending
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index d37c5b5f..43d03ab9 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -116,8 +116,8 @@ and `gen_taxonomy.py` are diagrams.
+ | Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value, Search field [>=1010px], Search button [<1010px] |
+ | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link, Search field [>=1010px], Search button [<1010px] |
+ | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+-| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/fixtures/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
+-| Competition rankings | built | `site_v2/dist` | `en/bundesliga/rankings/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
++| Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
++| Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index b5af5354..016995be 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -215,10 +215,39 @@ def render_mocks(pages: list[di.Page], tmp: Path) -> dict[str, str]:
+     return failed
  
- Read `MEMORY.md` there for the index. It holds how to work with Rami and what has gone wrong
- before — never the answer to any of the four questions above ("Which source answers which
--question"). Key files:
--- `feedback_engineering.md` — the quality bar and the corrections behind it
--- `user_profile.md` — who Rami is and how he works
-+question").
  
- **The folder has a budget, and `.claude/hooks/memory_budget_gate.py` enforces it**: at most 50
- notes, an index of at most 7,669 characters, no note over 4,232 characters; the numbers move down
-@@ -232,10 +231,8 @@ This project uses Claude Code and Cursor interchangeably. Both tools follow the
- - BigQuery (GCP project `football-data-pipeline-gcp`)
- - dbt (project in `dbt_project/`)
- - SQLFluff for SQL linting
--- **CI is GitLab, in `.gitlab-ci.yml`** (one file, 5 stages). Jobs: `validate:governance`,
--  `validate:secrets`, `validate:ui`, `test:python`, `build:site-v2`, `data:build:mr`,
--  `data:build:main`, `data:nightly`, `deploy:export`, `deploy:site-v2`. Use `glab`, and open
--  **MRs**, not PRs.
-+- **CI is GitLab, in `.gitlab-ci.yml`** (one file, 5 stages); the jobs are the ones that file
-+  defines. Use `glab`, and open **MRs**, not PRs.
- - **dbt descriptions have READERS — write them for a stranger.**
-   `+persist_docs: {relation: true, columns: true}` is on for every model and seed, so each
-   `description:` is attached to its BigQuery table and column and shows up in `bq show --schema`
++ADDRESS_WORDS = REPO / "site_v2" / "src" / "i18n" / "address_words.json"
++_TOP_WORDS = ("competitions", "teams", "players")
++_TAB_WORDS = ("matches", "stats")
++
++
++@functools.lru_cache(maxsize=1)
++def address_words() -> dict[str, dict[str, str]]:
++    return json.loads(ADDRESS_WORDS.read_text(encoding="utf-8"))
++
++
++def translate_path(rest: str, from_lang: str, to_lang: str) -> str:
++    """The path after the locale in another language, by position, as `translatePath` in
++    `site_v2/src/lib/addressWords.mjs` does it: the first segment is a top word or a competition
++    slug, the second a tab word only after a slug, every other segment a name (`*` included)."""
++    words = address_words()
++    segs = rest.split("/")
++
++    def swap(i: int, keys: tuple[str, ...]) -> bool:
++        for key in keys:
++            if words[key][from_lang] == segs[i]:
++                segs[i] = words[key][to_lang]
++                return True
++        return False
++
++    if segs and segs[0] and not swap(0, _TOP_WORDS) and len(segs) > 1 and segs[1]:
++        swap(1, _TAB_WORDS)
++    return "/".join(segs)
++
++
+ def resolve_built(page: di.Page, dist: Path, lang: str) -> Path | None:
+     url = page.url
+-    if lang != "en":
+-        url = url.replace("en/", "%s/" % lang, 1)
++    if lang != "en" and url.startswith("en/"):
++        url = "%s/%s" % (lang, translate_path(url[len("en/"):], "en", lang))
+     hits = sorted(dist.glob(url))
+     return hits[0] if hits else None
+ 
+diff --git a/site_v2/scripts/audit-seo.mjs b/site_v2/scripts/audit-seo.mjs
+index d876574b..aed1c0e6 100644
+--- a/site_v2/scripts/audit-seo.mjs
++++ b/site_v2/scripts/audit-seo.mjs
+@@ -19,6 +19,7 @@
+ import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
+ import { join, relative, sep } from "node:path";
+ import { fileURLToPath, pathToFileURL } from "node:url";
++import { WORDS, translatePath } from "../src/lib/addressWords.mjs";
+ 
+ export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
+ export const DIST_DIR = join(SITE_ROOT, "dist");
+@@ -188,8 +189,9 @@ export function titleWidthPx(text, fontPx = TITLE_FONT_PX) {
+  *
+  * Astro itself has never been ambiguous here — a static route always beats a dynamic one — so
+  * this restores the router's own precedence rather than inventing a rule. Counting literal
+- * segments is enough for that: `[lang]/competitions/index` scores 2 (`competitions`, `index`)
+- * against `[lang]/[competition]/index`'s 1 (`index`).
++ * segments is enough for that: `[lang]/[competitions]/index` scores 2 (the address word
++ * `competitions`, `index`) against `[lang]/[competition]/index`'s 1 (`index`). A route parameter
++ * named after an address word (`wordParam`) is a literal: it only ever takes that word's spellings.
+  *
+  * ⚠ Deliberately NOT an exemption for this one page. Every future top-level dynamic route would
+  * collide with every literal sibling the same way.
+@@ -198,7 +200,13 @@ export function routeSpecificity(pageField) {
+   return pageField
+     .replace(/\.astro$/, "")
+     .split("/")
+-    .filter((seg) => seg && !/^\[.+\]$/.test(seg)).length;
++    .filter((seg) => seg && (!/^\[.+\]$/.test(seg) || wordParam(seg))).length;
++}
++
++/** The address-word key a route segment `[key]` stands for, or null for any other segment. */
++export function wordParam(seg) {
++  const m = /^\[(.+)\]$/.exec(seg);
++  return m && Object.hasOwn(WORDS, m[1]) ? m[1] : null;
+ }
+ 
+ /**
+@@ -230,7 +238,8 @@ export function specForPath(specs, path) {
+  * match `/en/foo/bar/x/`. Nothing today ties — the only live collision is
+  * `[lang]/[competition]/index` against `[lang]/competitions/index`, which the specificity rule
+  * settles 2 to 1 — so this reports a defect that does not exist yet and would otherwise arrive
+- * silently.
++ * silently. The address words keep it so: without `wordParam`, `[lang]/[teams]/[team]` and
++ * `[lang]/[competition]/[matches]/index` would both score 1 and tie on every three-segment path.
+  */
+ export function specTie(specs, path) {
+   const matches = specs.filter((s) => s.match.test(path));
+@@ -244,17 +253,22 @@ export function specRouteRegex(pageField) {
+   const withoutExt = pageField.replace(/\.astro$/, "");
+   const escaped = withoutExt
+     .split("/")
+-    .map((seg) => (/^\[.+\]$/.test(seg) ? "[^/]+" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
++    .map((seg) => {
++      const key = wordParam(seg);
++      if (key) return `(?:${[...new Set(Object.values(WORDS[key]))].join("|")})`;
++      return /^\[.+\]$/.test(seg) ? "[^/]+" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
++    })
+     .join("/");
+   // trailingSlash: "always" -- an index segment collapses to the directory URL.
+   const body = escaped.replace(/\/index$/, "");
+   return new RegExp(`^/${body}/$`);
+ }
+ 
+-/** The path with its locale segment removed — the "same entity, other language" key. */
++/** The path with its locale segment removed and its address words mapped to their keys — the
++ *  "same entity, other language" key: `/de/mannschaften/x/` and `/en/teams/x/` share `/teams/x/`. */
+ export function entityKey(path, locales) {
+   const parts = path.split("/").filter(Boolean);
+-  if (locales.includes(parts[0])) return "/" + parts.slice(1).join("/") + "/";
++  if (locales.includes(parts[0])) return "/" + translatePath(parts.slice(1).join("/"), parts[0], "en") + "/";
+   return path;
+ }
+ 
+@@ -266,7 +280,7 @@ export function isTabOf(a, b) {
+   return rest.length === 1;
+ }
+ 
+-/** The path one segment up: a tab's entity page. "/en/x/rankings/" -> "/en/x/". */
++/** The path one segment up: a tab's entity page. "/en/x/stats/" -> "/en/x/". */
+ function parentOf(path) {
+   const parts = path.split("/").filter(Boolean);
+   return parts.length > 1 ? "/" + parts.slice(0, -1).join("/") + "/" : null;
+@@ -353,7 +367,19 @@ export function auditSet(pages, opts) {
+         const target = resolveHref(href, path, { site, base });
+         if (target && knownPaths && !knownPaths.has(target))
+           add(path, `hreflang "${l}" points at ${target}, which the build did not emit`);
++        // Reciprocal: each target is this entity in that language, so the page there names this
++        // one back (one path per entity per language). Once words differ per language, a prefix
++        // swap alone would still pass the checks above while pointing at a page that is not there.
++        if (target && l !== "x-default") {
++          if (target.split("/").filter(Boolean)[0] !== l)
++            add(path, `hreflang "${l}" points at ${target}, which is not a "${l}" page`);
++          else if (entityKey(target, locales) !== loc)
++            add(path, `hreflang "${l}" points at ${target}, a different page than ${path}`);
++        }
+       }
++      const own = path.split("/").filter(Boolean)[0];
++      if (head.alternates[own] && resolveHref(head.alternates[own], path, { site, base }) !== path)
++        add(path, `hreflang "${own}" does not point at the page itself`);
+       // 4. x-default must be the en URL, never the root redirect stub.
+       const xd = head.alternates["x-default"];
+       if (xd && head.alternates.en && xd !== head.alternates.en)
+diff --git a/site_v2/scripts/audit-seo.test.mjs b/site_v2/scripts/audit-seo.test.mjs
+index 5fae5d1c..016d594f 100644
+--- a/site_v2/scripts/audit-seo.test.mjs
++++ b/site_v2/scripts/audit-seo.test.mjs
+@@ -18,6 +18,9 @@ import {
+ const SITE = "https://matchdaypilot.com";
+ const LOCALES = ["de", "en", "fi"];
+ 
++/** One team page in each language, at that language's address word. */
++const TEAM_X = { de: "/de/mannschaften/x/", en: "/en/teams/x/", fi: "/fi/joukkueet/x/" };
++
+ /** A minimal well-formed page head, as a parseHead() result. */
+ function head(over = {}) {
+   return {
+@@ -28,9 +31,9 @@ function head(over = {}) {
+     ogTitle: "T",
+     ogUrl: `${SITE}/en/teams/x/`,
+     alternates: {
+-      de: "/de/teams/x/",
++      de: "/de/mannschaften/x/",
+       en: "/en/teams/x/",
+-      fi: "/fi/teams/x/",
++      fi: "/fi/joukkueet/x/",
+       "x-default": "/en/teams/x/",
+     },
+     h1s: ["H"],
+@@ -87,12 +90,33 @@ test("resolveHref: internal forms resolve, external and non-page forms do not",
+   assert.equal(resolveHref("", "/en/", o), null);
+ });
+ 
+-test("entityKey strips the locale segment so the same page in 3 languages shares one key", () => {
++test("entityKey strips the locale and maps the address words, so one page in 3 languages shares one key", () => {
+   assert.equal(entityKey("/en/teams/x/", LOCALES), "/teams/x/");
+-  assert.equal(entityKey("/de/teams/x/", LOCALES), "/teams/x/");
++  assert.equal(entityKey("/de/mannschaften/x/", LOCALES), "/teams/x/");
++  assert.equal(entityKey("/fi/joukkueet/x/", LOCALES), "/teams/x/");
++  assert.equal(entityKey("/de/bundesliga/statistiken/", LOCALES), "/bundesliga/stats/");
++  assert.equal(entityKey("/fi/bundesliga/ottelut/m/", LOCALES), "/bundesliga/matches/m/");
++  assert.equal(entityKey("/de/", LOCALES), entityKey("/en/", LOCALES));
+   assert.equal(entityKey("/robots.txt", LOCALES), "/robots.txt");
+ });
+ 
++test("hreflang must name the same page in each language and the page itself", () => {
++  const known = new Set(["/en/teams/x/", "/de/mannschaften/x/", "/fi/joukkueet/x/", "/de/teams/y/"]);
++  const opts = { ...OPTS, knownPaths: known };
++  const page = (path, alternates) => ({ path, head: head({ canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, hrefs: [path], alternates }) });
++  const good = { de: "/de/mannschaften/x/", en: "/en/teams/x/", fi: "/fi/joukkueet/x/", "x-default": "/en/teams/x/" };
++  const pages = ["/en/teams/x/", "/de/mannschaften/x/", "/fi/joukkueet/x/"].map((p) => page(p, good));
++  const reciprocity = (issues) => issues.filter((i) => /hreflang/.test(i));
++  assert.deepEqual(reciprocity(auditSet(pages, opts)), []);
++
++  const other = auditSet([page("/de/mannschaften/x/", { ...good, de: "/de/teams/y/" })], opts);
++  assert.ok(other.some((i) => /hreflang "de" points at \/de\/teams\/y\/, a different page/.test(i)), other.join("\n"));
++  assert.ok(other.some((i) => /does not point at the page itself/.test(i)), other.join("\n"));
++
++  const wrongLang = auditSet([page("/en/teams/x/", { ...good, fi: "/de/mannschaften/x/" })], opts);
++  assert.ok(wrongLang.some((i) => /hreflang "fi" points at \/de\/mannschaften\/x\/, which is not a "fi" page/.test(i)), wrongLang.join("\n"));
++});
++
+ test("isRootRedirect only matches the generated root stub", () => {
+   assert.ok(isRootRedirect("/"));
+   assert.ok(isRootRedirect("/index.html"));
+@@ -108,13 +132,13 @@ test("auditSet: THE LIVE DEFECT — byte-identical titles across locales are cau
+   // This is the regression lock for what shipped before #844: title built by concatenating two
+   // locale-independent fields, so all three locales emitted the same string.
+   const pages = LOCALES.map((l) => ({
+-    path: `/${l}/teams/x/`,
++    path: `${TEAM_X[l]}`,
+     head: head({
+       title: "Manchester United — Premier League",
+       description: `desc ${l}`,
+-      canonical: `${SITE}/${l}/teams/x/`,
++      canonical: `${SITE}${TEAM_X[l]}`,
+       ogTitle: "Manchester United — Premier League",
+-      ogUrl: `${SITE}/${l}/teams/x/`,
++      ogUrl: `${SITE}${TEAM_X[l]}`,
+     }),
+   }));
+   const issues = auditSet(pages, OPTS);
+@@ -131,13 +155,13 @@ test("auditSet: TWO of three locales sharing a value is caught, not just all thr
+     ["en", "shared"],
+     ["fi", "shared"],
+   ].map(([l, d]) => ({
+-    path: `/${l}/teams/x/`,
++    path: `${TEAM_X[l]}`,
+     head: head({
+       title: `t ${l}`,
+       description: d,
+-      canonical: `${SITE}/${l}/teams/x/`,
++      canonical: `${SITE}${TEAM_X[l]}`,
+       ogTitle: `t ${l}`,
+-      ogUrl: `${SITE}/${l}/teams/x/`,
++      ogUrl: `${SITE}${TEAM_X[l]}`,
+     }),
+   }));
+   const issues = auditSet(pages, OPTS);
+@@ -147,13 +171,13 @@ test("auditSet: TWO of three locales sharing a value is caught, not just all thr
+ 
+ test("auditSet: differing titles across locales pass", () => {
+   const pages = LOCALES.map((l) => ({
+-    path: `/${l}/teams/x/`,
++    path: `${TEAM_X[l]}`,
+     head: head({
+       title: `title ${l}`,
+       description: `desc ${l}`,
+-      canonical: `${SITE}/${l}/teams/x/`,
++      canonical: `${SITE}${TEAM_X[l]}`,
+       ogTitle: `title ${l}`,
+-      ogUrl: `${SITE}/${l}/teams/x/`,
++      ogUrl: `${SITE}${TEAM_X[l]}`,
+     }),
+   }));
+   assert.deepEqual(auditSet(pages, OPTS), []);
+@@ -196,15 +220,15 @@ test("auditSet: hreflang must be complete, and x-default must equal the en alter
+ test("auditSet: an hreflang target the build never emitted is caught", () => {
+   const issues = auditSet([{ path: "/en/teams/x/", head: head() }], {
+     ...OPTS,
+-    knownPaths: new Set(["/en/teams/x/", "/de/teams/x/"]), // no /fi/
++    knownPaths: new Set([TEAM_X.en, TEAM_X.de]), // no /fi/
+   });
+-  assert.ok(issues.some((i) => i.includes("/fi/teams/x/, which the build did not emit")));
++  assert.ok(issues.some((i) => i.includes("/fi/joukkueet/x/, which the build did not emit")));
+ });
+ 
+ test("auditSet: dead internal links are caught — Astro validates none of these", () => {
+   const issues = auditSet([{ path: "/en/teams/x/", head: head({ hrefs: ["/en/teams/ghost/"] }) }], {
+     ...OPTS,
+-    knownPaths: new Set(["/en/teams/x/", "/de/teams/x/", "/fi/teams/x/"]),
++    knownPaths: new Set(Object.values(TEAM_X)),
+   });
+   assert.ok(issues.some((i) => i.includes("dead internal link")));
+ });
+@@ -222,26 +246,26 @@ test("auditSet: within a locale, a duplicate title/description/h1 is caught", ()
+ test("auditSet: an entity page and its tab page share the h1 by design, and only they do", () => {
+   const tab = (path, title) =>
+     ({ path, head: head({ title, canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, alternates: {} }) });
+-  const shared = auditSet([tab("/en/bundesliga/", "Overview"), tab("/en/bundesliga/fixtures/", "Fixtures")], OPTS);
++  const shared = auditSet([tab("/en/bundesliga/", "Overview"), tab("/en/bundesliga/matches/", "Fixtures")], OPTS);
+   assert.ok(!shared.some((i) => i.includes("h1 is not unique")), shared.join("\n"));
+   // the title still has to differ between the two
+-  const sameTitle = auditSet([tab("/en/bundesliga/", "T"), tab("/en/bundesliga/fixtures/", "T")], OPTS);
++  const sameTitle = auditSet([tab("/en/bundesliga/", "T"), tab("/en/bundesliga/matches/", "T")], OPTS);
+   assert.ok(sameTitle.some((i) => i.includes('title is not unique within "en"')));
+   // two segments down is not a tab, and a sibling is not a tab
+   const deep = auditSet([tab("/en/bundesliga/", "A"), tab("/en/bundesliga/matches/x/", "B")], OPTS);
+   assert.ok(deep.some((i) => i.includes("h1 is not unique")));
+   const sibling = auditSet([tab("/en/bundesliga/", "A"), tab("/en/premier-league/", "B")], OPTS);
+   assert.ok(sibling.some((i) => i.includes("h1 is not unique")));
+-  assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/fixtures/") && isTabOf("/en/bundesliga/fixtures/", "/en/bundesliga/"));
++  assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/matches/") && isTabOf("/en/bundesliga/matches/", "/en/bundesliga/"));
+   assert.ok(!isTabOf("/en/teams/a/", "/en/teams/b/"));
+   // two tabs of one entity page share its header too, whatever order the pages arrive in
+-  const twoTabs = [tab("/en/bundesliga/fixtures/", "Fixtures"), tab("/en/bundesliga/rankings/", "Rankings"), tab("/en/bundesliga/", "Overview")];
++  const twoTabs = [tab("/en/bundesliga/matches/", "Fixtures"), tab("/en/bundesliga/stats/", "Rankings"), tab("/en/bundesliga/", "Overview")];
+   assert.ok(!auditSet(twoTabs, OPTS).some((i) => i.includes("h1 is not unique")));
+   // but two neighbours whose parent is not their entity page (or has another h1) do not
+   const neighbours = [tab("/en/teams/a/", "A"), tab("/en/teams/b/", "B")];
+   assert.ok(auditSet(neighbours, OPTS).some((i) => i.includes("h1 is not unique")));
+-  const h1Of = new Map([["/en/bundesliga/", "Bundesliga"], ["/en/bundesliga/fixtures/", "Bundesliga"], ["/en/bundesliga/rankings/", "Bundesliga"], ["/en/x/", "Home"], ["/en/x/a/", "Same"], ["/en/x/b/", "Same"]]);
+-  assert.ok(sharesHeader("/en/bundesliga/fixtures/", "/en/bundesliga/rankings/", h1Of));
++  const h1Of = new Map([["/en/bundesliga/", "Bundesliga"], ["/en/bundesliga/matches/", "Bundesliga"], ["/en/bundesliga/stats/", "Bundesliga"], ["/en/x/", "Home"], ["/en/x/a/", "Same"], ["/en/x/b/", "Same"]]);
++  assert.ok(sharesHeader("/en/bundesliga/matches/", "/en/bundesliga/stats/", h1Of));
+   assert.ok(!sharesHeader("/en/x/a/", "/en/x/b/", h1Of), "a parent with another h1 makes them neighbours, not tabs");
+ });
+ 
+@@ -277,14 +301,17 @@ test("auditSet: the root redirect stub is skipped rather than audited as a page"
+ });
+ 
+ test("specRouteRegex turns a spec's page field into the URLs that template emits", () => {
+-  const team = specRouteRegex("[lang]/teams/[team].astro");
++  const team = specRouteRegex("[lang]/[teams]/[team].astro");
+   assert.ok(team.test("/en/teams/manchester-united/"));
++  assert.ok(team.test("/de/mannschaften/manchester-united/"));
+   assert.ok(!team.test("/en/teams/"));
+   assert.ok(!team.test("/en/players/x/"));
++  assert.ok(!team.test("/en/bundesliga/stats/"), "a word parameter takes only its own word");
+ 
+-  const fixture = specRouteRegex("[lang]/[competition]/matches/[fixture].astro");
+-  assert.ok(fixture.test("/de/brasileirao/matches/2026-07-26-a-vs-b/"));
+-  assert.ok(!fixture.test("/de/brasileirao/matches/"));
++  const fixture = specRouteRegex("[lang]/[competition]/[matches]/[fixture].astro");
++  assert.ok(fixture.test("/de/brasileirao/spiele/2026-07-26-a-vs-b/"));
++  assert.ok(fixture.test("/fi/brasileirao/ottelut/2026-07-26-a-vs-b/"));
++  assert.ok(!fixture.test("/de/brasileirao/spiele/"));
+ 
+   // trailingSlash: "always" — an index segment collapses to the directory URL.
+   const landing = specRouteRegex("[lang]/index.astro");
+@@ -299,9 +326,11 @@ test("THE LOOP IS CLOSED: expected @type comes from the committed specs, not a h
+   const specs = readSpecExpectations();
+   assert.ok(specs.length >= 3, `expected at least the 3 committed specs, got ${specs.length}`);
+ 
+-  const team = specs.find((s) => s.page === "[lang]/teams/[team].astro");
++  const team = specs.find((s) => s.page === "[lang]/[teams]/[team].astro");
+   assert.equal(team.schemaOrg, "SportsTeam");
+   assert.ok(team.match.test("/en/teams/manchester-united/"));
++  assert.ok(team.match.test("/de/mannschaften/manchester-united/"));
++  assert.ok(team.match.test("/fi/joukkueet/manchester-united/"));
+ 
+   const fixture = specs.find((s) => s.page.includes("matches"));
+   assert.equal(fixture.schemaOrg, "SportsEvent");
+@@ -347,7 +376,7 @@ test("auditSet: a title past the HARD width limit is caught", () => {
+     "Borussia Mönchengladbach gegen Eintracht Frankfurt: Form, Statistiken, Kader & Spiele | Bundesliga";
+   assert.ok(titleWidthPx(long) > TITLE_PX_HARD, "fixture for this test must exceed the hard limit, not just the budget");
+   const issues = auditSet(
+-    [{ path: "/de/teams/x/", head: head({ title: long, ogTitle: long, canonical: `${SITE}/de/teams/x/`, ogUrl: `${SITE}/de/teams/x/` }) }],
++    [{ path: TEAM_X.de, head: head({ title: long, ogTitle: long, canonical: `${SITE}${TEAM_X.de}`, ogUrl: `${SITE}${TEAM_X.de}` }) }],
+     OPTS,
+   );
+   assert.ok(issues.some((i) => i.includes("hard limit")), issues.join(" | "));
+@@ -362,7 +391,7 @@ test("auditSet: a title merely over the ~600px budget does NOT fail the build",
+   const px = titleWidthPx(marginal);
+   assert.ok(px > TITLE_PX_BUDGET && px <= TITLE_PX_HARD, `expected a marginal overrun, got ~${px}px`);
+   const issues = auditSet(
+-    [{ path: "/de/teams/x/", head: head({ title: marginal, ogTitle: marginal, canonical: `${SITE}/de/teams/x/`, ogUrl: `${SITE}/de/teams/x/` }) }],
++    [{ path: TEAM_X.de, head: head({ title: marginal, ogTitle: marginal, canonical: `${SITE}${TEAM_X.de}`, ogUrl: `${SITE}${TEAM_X.de}` }) }],
+     OPTS,
+   );
+   assert.deepEqual(issues, []);
+@@ -424,7 +453,7 @@ test("THE COLLISION: a dynamic route's regex also matches its literal sibling's
+   // This is the ambiguity, asserted rather than described. Both specs genuinely match
+   // /en/competitions/, which is why picking the FIRST match was picking by directory-walk order.
+   const hub = specRouteRegex("[lang]/[competition]/index.astro");
+-  const index = specRouteRegex("[lang]/competitions/index.astro");
++  const index = specRouteRegex("[lang]/[competitions]/index.astro");
+   assert.ok(hub.test("/en/competitions/"), "the hub pattern matches the index URL — the collision");
+   assert.ok(index.test("/en/competitions/"), "the index pattern matches its own URL");
+   assert.ok(hub.test("/en/bundesliga/"), "the hub pattern still matches a real competition");
+@@ -435,19 +464,45 @@ test("routeSpecificity ranks the literal sibling above the dynamic one", () => {
+   // The tie-break. Without it the competitions INDEX was judged against the competition HUB's
+   // spec and failed for emitting ItemList instead of SportsOrganization — three violations, one
+   // per locale, on a page that was correct.
+-  assert.equal(routeSpecificity("[lang]/competitions/index.astro"), 2); // competitions + index
++  assert.equal(routeSpecificity("[lang]/[competitions]/index.astro"), 2); // competitions + index
+   assert.equal(routeSpecificity("[lang]/[competition]/index.astro"), 1); // index
+   assert.ok(
+-    routeSpecificity("[lang]/competitions/index.astro") >
++    routeSpecificity("[lang]/[competitions]/index.astro") >
+       routeSpecificity("[lang]/[competition]/index.astro"),
+     "a literal segment must outrank a dynamic one, or the index inherits the hub's spec",
+   );
+-  // Not a special case for this pair: the deeper literal route also wins.
+-  assert.equal(routeSpecificity("[lang]/[competition]/matches/[fixture].astro"), 1);
+-  assert.equal(routeSpecificity("[lang]/teams/[team].astro"), 1);
++  // Not a special case for this pair: an address-word parameter counts as a literal everywhere.
++  assert.equal(routeSpecificity("[lang]/[competition]/[matches]/[fixture].astro"), 1);
++  assert.equal(routeSpecificity("[lang]/[teams]/[team].astro"), 1);
++  assert.equal(routeSpecificity("[lang]/[competition]/[stats]/index.astro"), 2);
+   assert.equal(routeSpecificity("index.astro"), 1);
+ });
+ 
++test("the live three-segment routes never tie: each word parameter takes only its own word", () => {
++  const spec = (page) => ({
++    page, schemaOrg: page, match: specRouteRegex(page), specificity: routeSpecificity(page),
++  });
++  const specs = [
++    "[lang]/[teams]/[team].astro",
++    "[lang]/[players]/[player].astro",
++    "[lang]/[competition]/[matches]/index.astro",
++    "[lang]/[competition]/[stats]/index.astro",
++  ].map(spec);
++  const cases = {
++    "/de/mannschaften/x/": "[lang]/[teams]/[team].astro",
++    "/fi/pelaajat/x/": "[lang]/[players]/[player].astro",
++    "/de/bundesliga/spiele/": "[lang]/[competition]/[matches]/index.astro",
++    "/fi/bundesliga/tilastot/": "[lang]/[competition]/[stats]/index.astro",
++    "/en/bundesliga/stats/": "[lang]/[competition]/[stats]/index.astro",
++  };
++  for (const [path, page] of Object.entries(cases)) {
++    assert.deepEqual(specTie(specs, path), [], path);
++    assert.equal(specForPath(specs, path).page, page, path);
++  }
++  assert.equal(specForPath(specs, "/de/competitions/"), null);
++  assert.equal(specForPath([spec("[lang]/[competitions]/index.astro")], "/de/wettbewerbe/").page, "[lang]/[competitions]/index.astro");
++});
++
+ test("specForPath: the literal route wins the collision, in EITHER array order", () => {
+   // The mutation guard. The previous implementation was `specs.find(s => s.match.test(p))`, which
+   // returns the first match — so it passed or failed on directory-walk order. Asserting BOTH
+@@ -456,7 +511,7 @@ test("specForPath: the literal route wins the collision, in EITHER array order",
+     page, schemaOrg, match: specRouteRegex(page), specificity: routeSpecificity(page),
+   });
+   const hub = spec("[lang]/[competition]/index.astro", "SportsOrganization");
+-  const index = spec("[lang]/competitions/index.astro", "ItemList");
++  const index = spec("[lang]/[competitions]/index.astro", "ItemList");
+ 
+   for (const order of [[hub, index], [index, hub]]) {
+     assert.equal(
+@@ -490,7 +545,7 @@ test("specTie: an EQUAL-specificity overlap is reported, not silently resolved",
+ 
+   // And the live spec set does NOT tie — the real collision is settled 2 to 1 by specificity.
+   const hub = spec("[lang]/[competition]/index.astro");
+-  const index = spec("[lang]/competitions/index.astro");
++  const index = spec("[lang]/[competitions]/index.astro");
+   assert.deepEqual(specTie([hub, index], "/en/competitions/"), [], "specificity settles this one");
+   assert.deepEqual(specTie([hub, index], "/en/bundesliga/"), [], "only one spec matches at all");
+ });
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index 073a214a..12290b5d 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -11,7 +11,7 @@
+ // 2. On every fixtures page exactly one round is checked on load, and it is the round the
+ //    warehouse flagged next whenever one is flagged; every unplayed row is a link and no played row
+ //    is, until the match report page exists.
+-// 3. On every Rankings page (`/rankings/`) every board keeps the board rules: one to five rows,
++// 3. On every Rankings page (at the stats word) every board keeps the board rules: one to five rows,
+ //    every row a link, the boards the payload served and no others, and no zero on a most-first
+ //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
+ //    page names its direction, so the directions come from the payload, grouped the way the page
+@@ -25,15 +25,22 @@ import { join } from "node:path";
+ import { fileURLToPath, pathToFileURL } from "node:url";
+ import { readDist } from "./audit-seo.mjs";
+ import { boardGroups } from "../src/lib/competitionPayload.mjs";
++import { word } from "../src/lib/addressWords.mjs";
+ 
+ export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
+ export const DIST_DIR = join(SITE_ROOT, "dist");
+ export const DATA_DIR = join(SITE_ROOT, "src", "data");
+ export const LOCALES = ["de", "en", "fi"];
+ 
+-export const MATCH_PAGE = /^\/(de|en|fi)\/[^/]+\/matches\/[^/]+\/$/;
+-export const FIXTURES_PAGE = /^\/(de|en|fi)\/[^/]+\/fixtures\/$/;
+-export const RANKINGS_PAGE = /^\/(de|en|fi)\/[^/]+\/rankings\/$/;
++/** A competition tab's path shape, each locale paired with its own spelling of the address word. */
++function tabPath(key, tail) {
++  const alts = LOCALES.map((l) => `${l}/[^/]+/${word(l, key)}`).join("|");
++  return new RegExp(`^/(?:${alts})/${tail}$`);
++}
++
++export const MATCH_PAGE = tabPath("matches", "[^/]+/");
++export const FIXTURES_PAGE = tabPath("matches", "");
++export const RANKINGS_PAGE = tabPath("stats", "");
+ export const BOARD_ROWS_MAX = 5;
+ 
+ /** Issues for the match-page count against the payloads written and, when present, the manifest. */
+@@ -186,11 +193,29 @@ export function expectedBoards(dataDir = DATA_DIR) {
+     const seasons = readdirSync(join(dir, code)).filter((f) => f.endsWith(".json")).sort();
+     if (!seasons.length) continue;
+     const p = JSON.parse(readFileSync(join(dir, code, seasons[seasons.length - 1]), "utf8"));
+-    if (p.slug) latest.set(p.slug, { ascending: renderedBoards(p, keys).map((b) => b.rank_order === "asc") });
++    if (p.slug) {
++      latest.set(p.slug, {
++        ascending: renderedBoards(p, keys).map((b) => b.rank_order === "asc"),
++        hasFixtures: Boolean(p.fixtures?.length),
++      });
++    }
+   }
+   return latest;
+ }
+ 
++/** Issues when a tab the payloads call for matched no built page: the tab checks above only run on
++ *  the pages their path shape finds, so a shape that drifts from the address words would otherwise
++ *  check nothing and pass. */
++export function checkTabPagesFound({ fixturesPages, rankingsPages, expected }) {
++  const issues = [];
++  const values = [...expected.values()];
++  if (fixturesPages === 0 && values.some((v) => v.hasFixtures))
++    issues.push("a payload carries fixtures but no Matchdays page matched FIXTURES_PAGE");
++  if (rankingsPages === 0 && values.some((v) => v.ascending.length > 0))
++    issues.push("a payload carries boards but no Rankings page matched RANKINGS_PAGE");
++  return issues;
++}
++
+ export function readManifest(dataDir = DATA_DIR) {
+   const file = join(dataDir, "manifest.json");
+   return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
+@@ -225,6 +250,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   const payloadFiles = countPayloads(dataDir);
+   const manifest = readManifest(dataDir);
+   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
++  issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
+   if (issues.length) {
+     console.error(`check-built-pages: ${issues.length} issue(s)`);
+     for (const i of issues) console.error(`  - ${i}`);
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index 4fdbe71e..b4ab4e5e 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -6,7 +6,7 @@ import { test } from "node:test";
+ import assert from "node:assert/strict";
+ import {
+   checkFixturesPage, checkMatchPageCount, checkRankingsPage, boards, isZeroValue, renderedBoards,
+-  rounds, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
++  rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+ } from "./check-built-pages.mjs";
+ 
+ function round(n, { checked = false, next = false, rows = [] } = {}) {
+@@ -31,12 +31,31 @@ function round(n, { checked = false, next = false, rows = [] } = {}) {
+ 
+ test("the URL shapes: a match page, a fixtures page and a rankings page, nothing else", () => {
+   assert.ok(MATCH_PAGE.test("/en/bundesliga/matches/2026-09-18-a-vs-b/"));
++  assert.ok(MATCH_PAGE.test("/de/bundesliga/spiele/2026-09-18-a-vs-b/"));
+   assert.ok(!MATCH_PAGE.test("/en/bundesliga/matches/"));
+-  assert.ok(FIXTURES_PAGE.test("/fi/bundesliga/fixtures/"));
++  assert.ok(FIXTURES_PAGE.test("/fi/bundesliga/ottelut/"));
++  assert.ok(FIXTURES_PAGE.test("/en/bundesliga/matches/"));
+   assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/"));
+-  assert.ok(!MATCH_PAGE.test("/en/bundesliga/fixtures/"));
+-  assert.ok(RANKINGS_PAGE.test("/de/bundesliga/rankings/"));
+-  assert.ok(!RANKINGS_PAGE.test("/de/rankings/") && !RANKINGS_PAGE.test("/de/bundesliga/"));
++  assert.ok(!MATCH_PAGE.test("/en/bundesliga/stats/"));
++  assert.ok(RANKINGS_PAGE.test("/de/bundesliga/statistiken/"));
++  assert.ok(RANKINGS_PAGE.test("/en/bundesliga/stats/"));
++  assert.ok(!RANKINGS_PAGE.test("/de/statistiken/") && !RANKINGS_PAGE.test("/de/bundesliga/"));
++});
++
++test("each locale is paired with its own word: another language's word is not that tab", () => {
++  assert.ok(!FIXTURES_PAGE.test("/de/bundesliga/matches/"));
++  assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/spiele/"));
++  assert.ok(!RANKINGS_PAGE.test("/fi/bundesliga/stats/"));
++  assert.ok(!MATCH_PAGE.test("/fi/bundesliga/spiele/x/"));
++  assert.ok(!FIXTURES_PAGE.test("/en/bundesliga/fixtures/") && !RANKINGS_PAGE.test("/en/bundesliga/rankings/"));
++});
++
++test("a tab the payloads call for that matched no page is an issue, not a silent pass", () => {
++  const expected = new Map([["bundesliga", { ascending: [false], hasFixtures: true }]]);
++  assert.equal(checkTabPagesFound({ fixturesPages: 0, rankingsPages: 0, expected }).length, 2);
++  assert.deepEqual(checkTabPagesFound({ fixturesPages: 3, rankingsPages: 3, expected }), []);
++  const bare = new Map([["x", { ascending: [], hasFixtures: false }]]);
++  assert.deepEqual(checkTabPagesFound({ fixturesPages: 0, rankingsPages: 0, expected: bare }), []);
+ });
+ 
+ // A board as RankingBoard.astro emits it: the head with the name, then the rows — a linked row
+diff --git a/site_v2/scripts/check-page-specs.test.mjs b/site_v2/scripts/check-page-specs.test.mjs
+index 250fe2e1..dea22e70 100644
+--- a/site_v2/scripts/check-page-specs.test.mjs
++++ b/site_v2/scripts/check-page-specs.test.mjs
+@@ -46,11 +46,15 @@ const SEO_KEYS = ["seoTitleKey", "seoDescKey"];
+ const martSources = (...names) => ({ mart: new Set(names) });
+ 
+ test("specPathFor mirrors the real page paths this repo has today", () => {
+-  assert.match(specPathFor("[lang]/teams/[team].astro").replace(/\\/g, "/"), /specs\/teams\/team\.spec\.json$/);
++  assert.match(specPathFor("[lang]/[teams]/[team].astro").replace(/\\/g, "/"), /specs\/teams\/team\.spec\.json$/);
+   assert.match(
+-    specPathFor("[lang]/[competition]/matches/[fixture].astro").replace(/\\/g, "/"),
++    specPathFor("[lang]/[competition]/[matches]/[fixture].astro").replace(/\\/g, "/"),
+     /specs\/competition\/matches\/fixture\.spec\.json$/,
+   );
++  assert.match(
++    specPathFor("[lang]/[competition]/[stats]/index.astro").replace(/\\/g, "/"),
++    /specs\/competition\/stats\/index\.spec\.json$/,
++  );
+ });
+ 
+ test("specPathFor only strips a LEADING [lang] segment; deeper brackets still stripped, extension still swapped", () => {
+diff --git a/site_v2/src/components/chrome/SiteHeader.astro b/site_v2/src/components/chrome/SiteHeader.astro
+index d7417918..242b417b 100644
+--- a/site_v2/src/components/chrome/SiteHeader.astro
++++ b/site_v2/src/components/chrome/SiteHeader.astro
+@@ -15,7 +15,7 @@
+ // exists. system.css styles `.mainnav a`/`.mainnav span` identically, so the tag swap is the
+ // whole visual change (#54's own text). Every other item stays a span until its own index ships.
+ import { t } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import type { Lang } from "../../lib/format";
+ 
+ interface Props {
+@@ -24,7 +24,7 @@ interface Props {
+ const { lang } = Astro.props;
+ 
+ const navItems: { label: string; href?: string }[] = [
+-  { label: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
++  { label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
+   { label: t(lang, "navMatches") },
+   { label: t(lang, "navTeams") },
+   { label: t(lang, "navPlayers") },
+diff --git a/site_v2/src/components/competition/CompetitionTabs.astro b/site_v2/src/components/competition/CompetitionTabs.astro
+index cff7baaa..8c0bf58f 100644
+--- a/site_v2/src/components/competition/CompetitionTabs.astro
++++ b/site_v2/src/components/competition/CompetitionTabs.astro
+@@ -6,7 +6,7 @@
+ // where a league reads "Matchdays".
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ 
+ type TabKey = "overview" | "matchdays" | "rankings";
+ 
+@@ -32,12 +32,12 @@ const tabs: { key: TabKey; label: string; href: string | null }[] = [
+   {
+     key: "matchdays",
+     label: t(lang, hasMatchdays ? "compTabMatchdays" : "compTabRounds"),
+-    href: competitionSlug && hasFixturesPage ? localeHref(lang, `${competitionSlug}/fixtures/`) : null,
++    href: competitionSlug && hasFixturesPage ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/`) : null,
+   },
+   {
+     key: "rankings",
+     label: t(lang, "compTabRankings"),
+-    href: competitionSlug && hasRankingsPage ? localeHref(lang, `${competitionSlug}/rankings/`) : null,
++    href: competitionSlug && hasRankingsPage ? localeHref(lang, `${competitionSlug}/${word(lang, "stats")}/`) : null,
+   },
+ ];
+ ---
+diff --git a/site_v2/src/components/competition/DeservedTable.astro b/site_v2/src/components/competition/DeservedTable.astro
+index d40b097b..752c28c7 100644
+--- a/site_v2/src/components/competition/DeservedTable.astro
++++ b/site_v2/src/components/competition/DeservedTable.astro
+@@ -10,7 +10,7 @@ import SectionHead from "../ui/SectionHead.astro";
+ import { decimal1, integer, signedDelta } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import type { DeservedRow } from "../../lib/types";
+ 
+ interface Props {
+@@ -35,7 +35,7 @@ const rows = deserved.filter((row) => row.deserved_rank != null);
+         <span class="h">{t(lang, "compColDiff")}</span>
+       </div>
+       {rows.map((row) => (
+-        <a class="ctab-row" href={row.slug ? localeHref(lang, `teams/${row.slug}/`) : undefined}>
++        <a class="ctab-row" href={row.slug ? localeHref(lang, `${word(lang, "teams")}/${row.slug}/`) : undefined}>
+           <span class="rk num">{integer(row.deserved_rank, lang)}</span>
+           <span class="tm">
+             <Crest name={row.name} crest={row.crest} size="xs" />
+diff --git a/site_v2/src/components/competition/RankingBoard.astro b/site_v2/src/components/competition/RankingBoard.astro
+index 1c89c326..67e1723e 100644
+--- a/site_v2/src/components/competition/RankingBoard.astro
++++ b/site_v2/src/components/competition/RankingBoard.astro
+@@ -13,7 +13,7 @@ import Crest from "../ui/Crest.astro";
+ import { formatValue } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { metricLabel, boardTitle } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import type { CompetitionBoard } from "../../lib/types";
+ 
+ interface Props {
+@@ -29,7 +29,7 @@ const title = board.per_match ? boardTitle(lang, board.label_i18n_key) : metricL
+ 
+ function href(slug: string | null): string | undefined {
+   if (!slug) return undefined;
+-  return localeHref(lang, entity === "team" ? `teams/${slug}/` : `players/${slug}/`);
++  return localeHref(lang, `${word(lang, entity === "team" ? "teams" : "players")}/${slug}/`);
+ }
+ ---
+ 
+diff --git a/site_v2/src/components/competition/StandingsTable.astro b/site_v2/src/components/competition/StandingsTable.astro
+index 355200c2..30ae80a7 100644
+--- a/site_v2/src/components/competition/StandingsTable.astro
++++ b/site_v2/src/components/competition/StandingsTable.astro
+@@ -9,7 +9,7 @@ import SectionHead from "../ui/SectionHead.astro";
+ import { integer, signedInteger } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import { standingsSections } from "../../lib/competitionPayload.mjs";
+ import type { StandingRow } from "../../lib/types";
+ 
+@@ -43,7 +43,7 @@ const showSectionNames = sections.length > 1;
+           {sec.rows.map((row) => (
+             <a
+               class="ctab-row"
+-              href={row.team_slug ? localeHref(lang, `teams/${row.team_slug}/`) : undefined}
++              href={row.team_slug ? localeHref(lang, `${word(lang, "teams")}/${row.team_slug}/`) : undefined}
+             >
+               <span class="rk num">{row.standing_rank}</span>
+               <span class="tm">
+diff --git a/site_v2/src/components/home/FixtureRow.astro b/site_v2/src/components/home/FixtureRow.astro
+index a81bfc7e..9b5485bc 100644
+--- a/site_v2/src/components/home/FixtureRow.astro
++++ b/site_v2/src/components/home/FixtureRow.astro
+@@ -6,7 +6,7 @@
+ import Crest from "../ui/Crest.astro";
+ import { formatShortDate, formatTime } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import type { LandingFixture } from "../../lib/types";
+ 
+ interface Props {
+@@ -19,7 +19,7 @@ const { fx, competitionSlug, lang } = Astro.props;
+ 
+ <a
+   class="fxrow"
+-  href={competitionSlug ? localeHref(lang, `${competitionSlug}/matches/${fx.slug}/`) : undefined}
++  href={competitionSlug ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/${fx.slug}/`) : undefined}
+ >
+   <span class="sides">
+     <span class="side">
+diff --git a/site_v2/src/components/home/TopPlayers.astro b/site_v2/src/components/home/TopPlayers.astro
+index 9da34336..4d8e53fd 100644
+--- a/site_v2/src/components/home/TopPlayers.astro
++++ b/site_v2/src/components/home/TopPlayers.astro
+@@ -23,7 +23,7 @@ import SectionHead from "../ui/SectionHead.astro";
+ import { integer } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, metricLabel } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import type { LandingBoard } from "../../lib/types";
+ 
+ interface Props {
+@@ -51,7 +51,7 @@ const leagueNames = [
+       <div class="bhd"><span class="bt">{metricLabel(lang, board.label_i18n_key)}</span></div>
+       <div class="bgrid">
+         {board.rows.map((row, i) => (
+-          <a class="brow" href={localeHref(lang, `players/${row.slug}/`)}>
++          <a class="brow" href={localeHref(lang, `${word(lang, "players")}/${row.slug}/`)}>
+             <span class="rk num">{i + 1}</span>
+             <Crest name={row.club} crest={row.crest} size="xs" />
+             <span class="ent">
+diff --git a/site_v2/src/components/home/TopTeams.astro b/site_v2/src/components/home/TopTeams.astro
+index 5c5c0a13..042f68bd 100644
+--- a/site_v2/src/components/home/TopTeams.astro
++++ b/site_v2/src/components/home/TopTeams.astro
+@@ -35,7 +35,7 @@ import SectionHead from "../ui/SectionHead.astro";
+ import { formatValue } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+ import { t, boardTitle } from "../../i18n/strings";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import type { LandingTeamBoard } from "../../lib/types";
+ 
+ interface Props {
+@@ -64,7 +64,7 @@ const leagueNames = [
+       </div>
+       <div class="bgrid">
+         {board.rows.map((row, i) => (
+-          <a class="brow" href={localeHref(lang, `teams/${row.slug}/`)}>
++          <a class="brow" href={localeHref(lang, `${word(lang, "teams")}/${row.slug}/`)}>
+             <span class="rk num">{i + 1}</span>
+             <Crest name={row.name} crest={row.crest} size="xs" />
+             <span class="ent">
+diff --git a/site_v2/src/components/ui/MatchRow.astro b/site_v2/src/components/ui/MatchRow.astro
+index ba894e56..0dad8d00 100644
+--- a/site_v2/src/components/ui/MatchRow.astro
++++ b/site_v2/src/components/ui/MatchRow.astro
+@@ -14,7 +14,7 @@
+ import Crest from "./Crest.astro";
+ import { formatTime } from "../../lib/format";
+ import type { Lang } from "../../lib/format";
+-import { localeHref } from "../../lib/href";
++import { localeHref, word } from "../../lib/href";
+ import { t } from "../../i18n/strings";
+ import type { CompetitionFixture } from "../../lib/types";
+ 
+@@ -30,7 +30,7 @@ const { fx, competitionSlug, lang, topMatch = false, linkPlayed = false } = Astr
+ const ZONE = "UTC";
+ const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
+ const linked = Boolean(competitionSlug && fx.slug) && (!played || linkPlayed);
+-const href = linked ? localeHref(lang, `${competitionSlug}/matches/${fx.slug}/`) : undefined;
++const href = linked ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/${fx.slug}/`) : undefined;
+ const Row = linked ? "a" : "div";
+ const homeWins = played && (fx.goals_home as number) > (fx.goals_away as number);
+ const awayWins = played && (fx.goals_away as number) > (fx.goals_home as number);
+diff --git a/site_v2/src/config/indexability.mjs b/site_v2/src/config/indexability.mjs
+index d54fe0b5..4827c11c 100644
+--- a/site_v2/src/config/indexability.mjs
++++ b/site_v2/src/config/indexability.mjs
+@@ -45,7 +45,7 @@ export const INDEXABLE = false;
+  * scaffold Next matches' competition heading needed a destination for; it left the list when its
+  * Overview tab was built to the design approved on GitLab #129.
+  *
+- * `[lang]/players/[player].astro` — the player profile, added with the Home page's Top players
++ * `[lang]/[players]/[player].astro` — the player profile, added with the Home page's Top players
+  * block (**#40**), whose every board row links to its player. `audit-seo.mjs` check 8 fails the
+  * build on an internal href that resolves to no emitted page, so the block cannot ship without
+  * this route; it was green before only because no page in the site emitted a player href at all.
+@@ -53,7 +53,7 @@ export const INDEXABLE = false;
+  * happens to link to, so like the competition entry above it is ONE row however many pages emit.
+  */
+ export const STUB_PAGES = [
+-  "[lang]/players/[player].astro",
++  "[lang]/[players]/[player].astro",
+ ];
+ 
+ /**
+diff --git a/site_v2/src/i18n/address_words.json b/site_v2/src/i18n/address_words.json
+new file mode 100644
+index 00000000..78495e5f
+--- /dev/null
++++ b/site_v2/src/i18n/address_words.json
+@@ -0,0 +1,7 @@
++{
++  "competitions": { "en": "competitions", "de": "wettbewerbe", "fi": "kilpailut" },
++  "matches": { "en": "matches", "de": "spiele", "fi": "ottelut" },
++  "teams": { "en": "teams", "de": "mannschaften", "fi": "joukkueet" },
++  "players": { "en": "players", "de": "spieler", "fi": "pelaajat" },
++  "stats": { "en": "stats", "de": "statistiken", "fi": "tilastot" }
++}
+diff --git a/site_v2/src/lib/addressWords.mjs b/site_v2/src/lib/addressWords.mjs
+new file mode 100644
+index 00000000..a7ac990a
+--- /dev/null
++++ b/site_v2/src/lib/addressWords.mjs
+@@ -0,0 +1,61 @@
++// The address words: the part of a page address that follows the reader's language
++// (docs/site_architecture.md "Address words"). `address_words.json` is the only place a word is
++// spelled; the site, the build checks and scripts/check_design_inventory.py all read it.
++//
++// Plain JS for the same reason as competitionOrder.mjs: the build checks import it under bare
++// `node --test`.
++
++import WORDS from "../i18n/address_words.json" with { type: "json" };
++
++export { WORDS };
++
++const TOP_WORDS = ["competitions", "teams", "players"];
++const TAB_WORDS = ["matches", "stats"];
++
++/** The address word for `key` in `lang`. Throws on an unknown key or language, so a typo fails the
++ *  build instead of emitting a broken link. */
++export function word(lang, key) {
++  const w = WORDS[key]?.[lang];
++  if (!w) throw new Error(`no address word "${key}" for language "${lang}"`);
++  return w;
++}
++
++/** The key whose word in `lang` is `segment`, among `keys`, or null. */
++function keyOf(lang, segment, keys) {
++  return keys.find((k) => WORDS[k][lang] === segment) ?? null;
++}
++
++/** The path after the locale (`"mannschaften/x/"`) as the language-neutral key path
++ *  (`"teams/x/"`), or the reverse with `toLang`. Translation is by position: the first segment is a
++ *  top word or a competition slug (rule 5 keeps the two apart); the second is a tab word only after
++ *  a slug; everything else is a name and passes through. `*` is a name, so a glob translates too. */
++export function translatePath(rest, fromLang, toLang) {
++  const segs = rest.split("/");
++  const swap = (i, keys) => {
++    const key = keyOf(fromLang, segs[i], keys);
++    if (key) segs[i] = WORDS[key][toLang];
++    return key;
++  };
++  if (segs.length > 0 && segs[0] !== "" && !swap(0, TOP_WORDS) && segs.length > 1 && segs[1] !== "") {
++    swap(1, TAB_WORDS);
++  }
++  return segs.join("/");
++}
++
++/** Every language the table names, in the table's order. */
++export function wordLanguages() {
++  return Object.keys(Object.values(WORDS)[0]);
++}
++
++/** Throws when a competition slug equals an address word in any language: both sit directly after
++ *  the locale, so the two pages would claim one address (rule 5). */
++export function assertNoClash(slugs) {
++  const words = new Map();
++  for (const [key, byLang] of Object.entries(WORDS)) {
++    for (const [lang, w] of Object.entries(byLang)) words.set(w, `${key} (${lang})`);
++  }
++  const clashes = [...new Set(slugs)].filter((s) => words.has(s)).map((s) => `${s} = ${words.get(s)}`);
++  if (clashes.length) {
++    throw new Error(`competition slug equals an address word: ${clashes.join(", ")}`);
++  }
++}
+diff --git a/site_v2/src/lib/addressWords.test.mjs b/site_v2/src/lib/addressWords.test.mjs
+new file mode 100644
+index 00000000..0e634010
+--- /dev/null
++++ b/site_v2/src/lib/addressWords.test.mjs
+@@ -0,0 +1,57 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import { assertNoClash, translatePath, word, wordLanguages, WORDS } from "./addressWords.mjs";
++
++test("word reads the table and throws on an unknown key or language", () => {
++  assert.equal(word("de", "teams"), "mannschaften");
++  assert.equal(word("fi", "stats"), "tilastot");
++  assert.throws(() => word("de", "standing"));
++  assert.throws(() => word("sv", "teams"));
++});
++
++test("every word is named in every language and none carries an umlaut", () => {
++  const langs = wordLanguages();
++  assert.deepEqual([...langs].sort(), ["de", "en", "fi"]);
++  for (const [key, byLang] of Object.entries(WORDS)) {
++    assert.deepEqual(Object.keys(byLang).sort(), [...langs].sort(), key);
++    for (const w of Object.values(byLang)) assert.match(w, /^[a-z0-9-]+$/, `${key}: ${w}`);
++  }
++});
++
++test("a key path translates to every language and back", () => {
++  const cases = [
++    ["teams/x/", { de: "mannschaften/x/", fi: "joukkueet/x/" }],
++    ["players/p-1/", { de: "spieler/p-1/", fi: "pelaajat/p-1/" }],
++    ["competitions/", { de: "wettbewerbe/", fi: "kilpailut/" }],
++    ["bundesliga/matches/", { de: "bundesliga/spiele/", fi: "bundesliga/ottelut/" }],
++    ["bundesliga/stats/", { de: "bundesliga/statistiken/", fi: "bundesliga/tilastot/" }],
++    ["bundesliga/matches/m-1/", { de: "bundesliga/spiele/m-1/", fi: "bundesliga/ottelut/m-1/" }],
++    ["*/matches/*/index.html", { de: "*/spiele/*/index.html", fi: "*/ottelut/*/index.html" }],
++    ["bundesliga/", { de: "bundesliga/", fi: "bundesliga/" }],
++    ["", { de: "", fi: "" }],
++  ];
++  for (const [en, byLang] of cases) {
++    for (const [lang, localised] of Object.entries(byLang)) {
++      assert.equal(translatePath(en, "en", lang), localised, `${en} -> ${lang}`);
++      assert.equal(translatePath(localised, lang, "en"), en, `${localised} <- ${lang}`);
++    }
++  }
++});
++
++test("only the position decides: a name that spells a word elsewhere passes through", () => {
++  assert.equal(translatePath("teams/matches/", "en", "de"), "mannschaften/matches/");
++  assert.equal(translatePath("bundesliga/x/stats/", "en", "de"), "bundesliga/x/stats/");
++  assert.equal(translatePath("teams/", "de", "en"), "teams/");
++});
++
++test("assertNoClash refuses a slug that equals a word in any language", () => {
++  assert.doesNotThrow(() => assertNoClash(["bundesliga", "premier-league"]));
++  assert.throws(() => assertNoClash(["bundesliga", "spiele"]), /spiele = matches \(de\)/);
++  assert.throws(() => assertNoClash(["stats"]), /stats = stats \(en\)/);
++});
++
++test("today's committed competitions clash with no word", () => {
++  const comps = JSON.parse(readFileSync(new URL("../data/competitions.json", import.meta.url), "utf8"));
++  assertNoClash(Object.values(comps).map((c) => c.slug));
++});
+diff --git a/site_v2/src/lib/href.ts b/site_v2/src/lib/href.ts
+index d91e6c12..a66f7bd5 100644
+--- a/site_v2/src/lib/href.ts
++++ b/site_v2/src/lib/href.ts
+@@ -3,6 +3,9 @@
+ // changes. Routing only — no identity/slug generation (slugs come from the payload /
+ // the registry-derived competitions map).
+ import type { Lang } from "./format";
++import { translatePath } from "./addressWords.mjs";
++
++export { word } from "./addressWords.mjs";
+ 
+ const BASE = import.meta.env.BASE_URL; // e.g. "/v2/", always ends with "/"
+ 
+@@ -23,15 +26,16 @@ export function localeOf(pathname: string): Lang | null {
+   return (LOCALES as string[]).includes(first) ? (first as Lang) : null;
+ }
+ 
+-/** Every locale's URL for the page at `pathname`, for hreflang. Swaps only the locale segment, so
+- * it is a pure routing transform — it never invents a path that the build did not emit. Returns an
+- * empty map for a pathname with no locale segment (the root redirect stub). */
++/** Every locale's URL for the page at `pathname`, for hreflang. Swaps the locale segment and maps
++ * each address word through the word table (`translatePath`), so every language gets the address
++ * its own route emits. Returns an empty map for a pathname with no locale segment (the root
++ * redirect stub). */
+ export function alternatePaths(pathname: string): Record<string, string> {
+   const current = localeOf(pathname);
+   if (!current) return {};
+   const withoutBase = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : pathname.replace(/^\//, "");
+   const rest = withoutBase.split("/").slice(1).join("/");
+-  return Object.fromEntries(LOCALES.map((l) => [l, localeHref(l, rest)]));
++  return Object.fromEntries(LOCALES.map((l) => [l, localeHref(l, translatePath(rest, current, l))]));
+ }
+ 
+ /** Join the deploy base with an app-absolute path ("/en/…" -> "/v2/en/…"). */
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+new file mode 100644
+index 00000000..bdb119de
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+@@ -0,0 +1,154 @@
++---
++// Fixture page (screen 01) — the v2 design system's first real screen.
++// URL: /{lang}/{competition-slug}/{matches word}/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
++// This increment renders ONE committed real fixture across the three locales; at scale
++// getStaticPaths iterates every exported fixture (data/fixtures/*.json). The page only
++// COMPOSES the shared components in order — it holds no styling and derives no facts.
++import Layout from "../../../../layouts/Layout.astro";
++import Breadcrumb from "../../../../components/fixture/Breadcrumb.astro";
++import Masthead from "../../../../components/fixture/Masthead.astro";
++import NarrativeSlot from "../../../../components/fixture/NarrativeSlot.astro";
++import FormSegment from "../../../../components/fixture/FormSegment.astro";
++import SplitSection from "../../../../components/fixture/SplitSection.astro";
++import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
++import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
++import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
++import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
++import { t, BRAND } from "../../../../i18n/strings";
++import { localeHref, word } from "../../../../lib/href";
++import type { Lang } from "../../../../lib/format";
++import type { Fixture } from "../../../../lib/types";
++import competitions from "../../../../data/competitions.json";
++
++export function getStaticPaths() {
++  const locales: Lang[] = ["de", "en", "fi"];
++  const comps = competitions as Record<string, { slug: string }>;
++  // Every fixture the export wrote to src/data/fixtures/*.json becomes a page. Dev/PR: the committed
++  // sample(s); production: the full export at build time (the bulk is gitignored). One page per
++  // fixture x 3 locales; the competition URL segment is each fixture's league slug from the full map.
++  // The glob is called inside getStaticPaths (Astro extracts this fn in isolation).
++  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", {
++    eager: true,
++    import: "default",
++  });
++  return Object.values(fixtures).flatMap((fixture) => {
++    const comp = comps[fixture.league_code];
++    if (!comp) {
++      throw new Error(
++        `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
++      );
++    }
++    return locales.map((lang) => ({
++      params: { lang, competition: comp.slug, matches: word(lang, "matches"), fixture: fixture.slug },
++      props: { fixture, lang },
++    }));
++  });
++}
++
++interface Props {
++  fixture: Fixture;
++  lang: Lang;
++}
++const { fixture, lang } = Astro.props;
++const { home, away } = fixture;
++
++// Title per 01_fixture_page.md section 8, THROUGH t() (#844). It was string-concatenated from two
++// locale-independent fields, so all three locales shipped a byte-identical <title>. That wireframe
++// ends the fixture title with the COMPETITION (unlike the team title, which ends with the brand) —
++// both are built exactly as approved rather than generalised to one shape.
++// The competition name comes from the REGISTRY (competitions.json), not the provider's
++// `fixture.league_name`. The provider calls the Brazilian top flight "Serie A" — ambiguous with
++// Italy's, on a Brazilian match — while the registry has "Brasileirão Série A" and the team page
++// already reads it. Two pages were naming the same concept from two sources; this is the
++// authoritative one. (Provider names taken on trust are the #850 class.)
++const compName =
++  (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code]?.name ??
++  fixture.league_name ??
++  fixture.league_code;
++// The title carries the two teams plus a one-word descriptor, not the competition — the same
++// `{entity}: <descriptor>` shape as the team title, and no brand suffix, per the rule
++// recorded in strings.ts. Researched rather than preferred: Sofascore and FBref both omit
++// the competition from a match title. Keeping it failed 4 of 26 competitions against the 660px
++// hard cap, worst 886px; the shape below measures 597px at its worst, inside the 600px budget.
++//
++// The title was `compName`'s ONLY consumer. Dropping it here would have stranded the fix above and
++// left every remaining mention of the competition on the provider's name — the very ambiguity
++// ("Serie A" for Brazil) it was introduced to remove. So the breadcrumb and the JSON-LD superEvent
++// below now read `compName` too, and the authoritative name outlives its removal from the title.
++const title = t(lang, "seoFixtureTitle", {
++  home: home.name ?? "",
++  away: away.name ?? "",
++});
++const description = t(lang, "aboutNoH2h", {
++  home: home.name ?? "",
++  away: away.name ?? "",
++  round: fixture.round ?? "",
++});
++
++// Home is a real target (the locale landing); competition hub + Matches are not built
++// yet → hrefless (plain text), no dead links.
++const crumbs = [
++  { label: t(lang, "crumbHome"), href: localeHref(lang) },
++  { label: compName },
++  { label: t(lang, "crumbMatches") },
++];
++
++// schema.org/SportsEvent per 01_fixture_page.md section 8. Selection only — every value is a served
++// payload field. Optional members are omitted rather than emitted null: the audit rejects a graph
++// carrying null/empty values, because a present-but-empty property is worse than an absent one.
++const entity = {
++  "@type": "SportsEvent",
++  name: `${home.name} vs ${away.name}`,
++  sport: "Football",
++  ...(fixture.kickoff ? { startDate: fixture.kickoff } : {}),
++  ...(fixture.venue ? { location: { "@type": "Place", name: fixture.venue } } : {}),
++  ...(compName ? { superEvent: { "@type": "SportsOrganization", name: compName } } : {}),
++  competitor: [home, away]
++    .filter((s) => s?.name)
++    .map((s) => ({ "@type": "SportsTeam", name: s.name, ...(s.crest ? { logo: s.crest } : {}) })),
++};
++---
++
++<Layout
++  lang={lang}
++  title={title}
++  description={description}
++  entity={entity}
++  crumbs={crumbs.map((c) => ({ name: c.label, href: c.href }))}
++  image={home.crest ?? undefined}
++>
++  <div class="inner">
++    <Breadcrumb items={crumbs} />
++    <Masthead fixture={fixture} lang={lang} />
++    <NarrativeSlot fixture={fixture} lang={lang} />
++    <FormSegment fixture={fixture} lang={lang} />
++
++    <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
++      <Fragment slot="home">
++        {(home.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
++      </Fragment>
++      <Fragment slot="away">
++        {(away.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
++      </Fragment>
++    </SplitSection>
++
++    <SplitSection
++      label={t(lang, "secPlayers")}
++      note={t(lang, "playersWindow")}
++      homeLabel={home.name}
++      awayLabel={away.name}
++    >
++      <Fragment slot="home">
++        {(home.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
++      </Fragment>
++      <Fragment slot="away">
++        {(away.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
++      </Fragment>
++    </SplitSection>
++
++    <HeadToHead h2h={fixture.head_to_head} homeName={home.name} awayName={away.name} lang={lang} />
++    <LinksFooter fixture={fixture} lang={lang} />
++
++    <div class="footnote">{t(lang, "footnote", { brand: BRAND })}</div>
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro b/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
+new file mode 100644
+index 00000000..a183fcb8
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
+@@ -0,0 +1,108 @@
++---
++// Competition page, Matchdays tab (spec: src/specs/competition/matches/index.spec.json), at the
++// matches word, the address each match sits under.
++//
++// One page per competition per locale, for every competition whose latest served season carries
++// fixtures in competitions/{league_code}/{season}.json. The header and the tab bar are the
++// Overview's, this tab lit; no sentence under the bar. Under it the picker and the Schedule block,
++// one round on screen at a time. A competition with no fixtures served has no page here and its
++// Overview shows the tab as an inert label, so no link points at a page the build did not emit.
++//
++// Nothing on this page is derived: the slug, the name, the crest, every round, flag and score is a
++// served field of the competition payload.
++import Layout from "../../../../layouts/Layout.astro";
++import CompetitionHeader from "../../../../components/competition/CompetitionHeader.astro";
++import CompetitionTabs from "../../../../components/competition/CompetitionTabs.astro";
++import MatchdaySchedule from "../../../../components/competition/MatchdaySchedule.astro";
++import { t } from "../../../../i18n/strings";
++import { localeHref, LOCALES, word } from "../../../../lib/href";
++import type { Lang } from "../../../../lib/format";
++import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
++import { latestSeasonPayload, nextRound } from "../../../../lib/competitionPayload.mjs";
++import competitionIndex from "../../../../data/competition_index.json";
++
++export function getStaticPaths() {
++  const data = competitionIndex as unknown as CompetitionIndex;
++  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
++    eager: true,
++    import: "default",
++  });
++  return data.competitions.flatMap((competition) => {
++    const payload = latestSeasonPayload(
++      Object.values(payloads).filter((p) => p.league_code === competition.league_code),
++    );
++    if (!payload?.fixtures?.length) return [];
++    return LOCALES.map((lang) => ({
++      params: { lang, competition: competition.slug, matches: word(lang, "matches") },
++      props: { competition, lang, payload },
++    }));
++  });
++}
++
++interface Props {
++  competition: CompetitionIndexRow;
++  lang: Lang;
++  payload: CompetitionPayload;
++}
++const { competition, lang, payload } = Astro.props;
++
++const name = payload.name ?? competition.competition_name ?? "";
++const competitionType = payload.competition_type ?? competition.competition_type;
++const isLeague = competitionType === "domestic_league";
++const tabLabel = t(lang, isLeague ? "compTabMatchdays" : "compTabRounds");
++
++const title = t(lang, "seoCompetitionFixturesTitle", { competition: name, season: String(payload.season) });
++const description = t(lang, "seoCompetitionFixturesDesc", { competition: name, season: String(payload.season) });
++
++const entity = {
++  "@type": "SportsOrganization",
++  name: name || undefined,
++  sport: "Football",
++};
++
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
++  { name, href: localeHref(lang, `${competition.slug}/`) },
++  { name: tabLabel },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <a class="lnk" href={localeHref(lang, `${word(lang, "competitions")}/`)}>{t(lang, "navCompetitions")}</a>
++      <span class="sep">›</span>
++      <a class="lnk" href={localeHref(lang, `${competition.slug}/`)}>{name}</a>
++      <span class="sep">›</span>
++      <span class="here">{tabLabel}</span>
++    </nav>
++
++    <CompetitionHeader
++      name={payload.name ?? competition.competition_name}
++      crest={payload.crest ?? competition.logo_url}
++      regionLabelEn={payload.region_label_en ?? competition.region_label_en}
++      regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
++      season={payload.season}
++      round={nextRound(payload.fixtures)?.round ?? null}
++      lang={lang}
++    />
++    <CompetitionTabs
++      lang={lang}
++      hasMatchdays={isLeague}
++      active="matchdays"
++      competitionSlug={competition.slug}
++      hasFixturesPage={true}
++      hasRankingsPage={Boolean(payload.team_boards?.length || payload.player_boards?.length)}
++    />
++
++    <MatchdaySchedule
++      rounds={payload.fixtures ?? []}
++      competitionSlug={payload.slug}
++      lang={lang}
++      isLeague={isLeague}
++    />
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro b/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
+new file mode 100644
+index 00000000..2a1c390f
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
+@@ -0,0 +1,105 @@
++---
++// Competition page, Rankings tab (spec: src/specs/competition/stats/index.spec.json).
++//
++// One page per competition per locale, for every competition whose latest served season carries
++// a board in competitions/{league_code}/{season}.json. The header and the tab bar are the
++// Overview's, this tab lit; no sentence under the bar and no title. Two blocks, Team rankings and
++// Player rankings, each the served boards under the catalogue's metric groups. A competition with
++// no board served has no page here and its Overview shows the tab as an inert label, so no link
++// points at a page the build did not emit.
++//
++// The address is the stats word, not the tab's on-screen name: the tab lists statistics.
++// Nothing on this page is derived: the slug, the name, the crest, every rank and value is a served
++// field of the competition payload.
++import Layout from "../../../../layouts/Layout.astro";
++import CompetitionHeader from "../../../../components/competition/CompetitionHeader.astro";
++import CompetitionTabs from "../../../../components/competition/CompetitionTabs.astro";
++import RankingsBlock from "../../../../components/competition/RankingsBlock.astro";
++import { t } from "../../../../i18n/strings";
++import { localeHref, LOCALES, word } from "../../../../lib/href";
++import type { Lang } from "../../../../lib/format";
++import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
++import { latestSeasonPayload, nextRound } from "../../../../lib/competitionPayload.mjs";
++import competitionIndex from "../../../../data/competition_index.json";
++
++export function getStaticPaths() {
++  const data = competitionIndex as unknown as CompetitionIndex;
++  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
++    eager: true,
++    import: "default",
++  });
++  return data.competitions.flatMap((competition) => {
++    const payload = latestSeasonPayload(
++      Object.values(payloads).filter((p) => p.league_code === competition.league_code),
++    );
++    if (!payload?.team_boards?.length && !payload?.player_boards?.length) return [];
++    return LOCALES.map((lang) => ({
++      params: { lang, competition: competition.slug, stats: word(lang, "stats") },
++      props: { competition, lang, payload },
++    }));
++  });
++}
++
++interface Props {
++  competition: CompetitionIndexRow;
++  lang: Lang;
++  payload: CompetitionPayload;
++}
++const { competition, lang, payload } = Astro.props;
++
++const name = payload.name ?? competition.competition_name ?? "";
++const competitionType = payload.competition_type ?? competition.competition_type;
++const isLeague = competitionType === "domestic_league";
++const tabLabel = t(lang, "compTabRankings");
++
++const title = t(lang, "seoCompetitionStatsTitle", { competition: name, season: String(payload.season) });
++const description = t(lang, "seoCompetitionStatsDesc", { competition: name, season: String(payload.season) });
++
++const entity = {
++  "@type": "SportsOrganization",
++  name: name || undefined,
++  sport: "Football",
++};
++
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
++  { name, href: localeHref(lang, `${competition.slug}/`) },
++  { name: tabLabel },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <a class="lnk" href={localeHref(lang, `${word(lang, "competitions")}/`)}>{t(lang, "navCompetitions")}</a>
++      <span class="sep">›</span>
++      <a class="lnk" href={localeHref(lang, `${competition.slug}/`)}>{name}</a>
++      <span class="sep">›</span>
++      <span class="here">{tabLabel}</span>
++    </nav>
++
++    <CompetitionHeader
++      name={payload.name ?? competition.competition_name}
++      crest={payload.crest ?? competition.logo_url}
++      regionLabelEn={payload.region_label_en ?? competition.region_label_en}
++      regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
++      season={payload.season}
++      round={nextRound(payload.fixtures)?.round ?? null}
++      lang={lang}
++    />
++    <CompetitionTabs
++      lang={lang}
++      hasMatchdays={isLeague}
++      active="rankings"
++      competitionSlug={competition.slug}
++      hasFixturesPage={Boolean(payload.fixtures?.length)}
++      hasRankingsPage={true}
++    />
++
++    <RankingsBlock label={t(lang, "compSecTeamRankings")} boards={payload.team_boards ?? []} entity="team" lang={lang} />
++    <RankingsBlock label={t(lang, "compSecPlayerRankings")} boards={payload.player_boards ?? []} entity="player" lang={lang} />
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro b/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro
+deleted file mode 100644
+index e3bde12e..00000000
+--- a/site_v2/src/pages/[lang]/[competition]/fixtures/index.astro
++++ /dev/null
+@@ -1,107 +0,0 @@
+----
+-// Competition page, Matchdays tab (spec: src/specs/competition/fixtures/index.spec.json).
+-//
+-// One page per competition per locale, for every competition whose latest served season carries
+-// fixtures in competitions/{league_code}/{season}.json. The header and the tab bar are the
+-// Overview's, this tab lit; no sentence under the bar. Under it the picker and the Schedule block,
+-// one round on screen at a time. A competition with no fixtures served has no page here and its
+-// Overview shows the tab as an inert label, so no link points at a page the build did not emit.
+-//
+-// Nothing on this page is derived: the slug, the name, the crest, every round, flag and score is a
+-// served field of the competition payload.
+-import Layout from "../../../../layouts/Layout.astro";
+-import CompetitionHeader from "../../../../components/competition/CompetitionHeader.astro";
+-import CompetitionTabs from "../../../../components/competition/CompetitionTabs.astro";
+-import MatchdaySchedule from "../../../../components/competition/MatchdaySchedule.astro";
+-import { t } from "../../../../i18n/strings";
+-import { localeHref, LOCALES } from "../../../../lib/href";
+-import type { Lang } from "../../../../lib/format";
+-import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
+-import { latestSeasonPayload, nextRound } from "../../../../lib/competitionPayload.mjs";
+-import competitionIndex from "../../../../data/competition_index.json";
+-
+-export function getStaticPaths() {
+-  const data = competitionIndex as unknown as CompetitionIndex;
+-  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
+-    eager: true,
+-    import: "default",
+-  });
+-  return data.competitions.flatMap((competition) => {
+-    const payload = latestSeasonPayload(
+-      Object.values(payloads).filter((p) => p.league_code === competition.league_code),
+-    );
+-    if (!payload?.fixtures?.length) return [];
+-    return LOCALES.map((lang) => ({
+-      params: { lang, competition: competition.slug },
+-      props: { competition, lang, payload },
+-    }));
+-  });
+-}
+-
+-interface Props {
+-  competition: CompetitionIndexRow;
+-  lang: Lang;
+-  payload: CompetitionPayload;
+-}
+-const { competition, lang, payload } = Astro.props;
+-
+-const name = payload.name ?? competition.competition_name ?? "";
+-const competitionType = payload.competition_type ?? competition.competition_type;
+-const isLeague = competitionType === "domestic_league";
+-const tabLabel = t(lang, isLeague ? "compTabMatchdays" : "compTabRounds");
+-
+-const title = t(lang, "seoCompetitionFixturesTitle", { competition: name, season: String(payload.season) });
+-const description = t(lang, "seoCompetitionFixturesDesc", { competition: name, season: String(payload.season) });
+-
+-const entity = {
+-  "@type": "SportsOrganization",
+-  name: name || undefined,
+-  sport: "Football",
+-};
+-
+-const crumbs = [
+-  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+-  { name: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
+-  { name, href: localeHref(lang, `${competition.slug}/`) },
+-  { name: tabLabel },
+-];
+----
+-
+-<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+-  <div class="inner">
+-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+-      <span class="sep">›</span>
+-      <a class="lnk" href={localeHref(lang, "competitions/")}>{t(lang, "navCompetitions")}</a>
+-      <span class="sep">›</span>
+-      <a class="lnk" href={localeHref(lang, `${competition.slug}/`)}>{name}</a>
+-      <span class="sep">›</span>
+-      <span class="here">{tabLabel}</span>
+-    </nav>
+-
+-    <CompetitionHeader
+-      name={payload.name ?? competition.competition_name}
+-      crest={payload.crest ?? competition.logo_url}
+-      regionLabelEn={payload.region_label_en ?? competition.region_label_en}
+-      regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
+-      season={payload.season}
+-      round={nextRound(payload.fixtures)?.round ?? null}
+-      lang={lang}
+-    />
+-    <CompetitionTabs
+-      lang={lang}
+-      hasMatchdays={isLeague}
+-      active="matchdays"
+-      competitionSlug={competition.slug}
+-      hasFixturesPage={true}
+-      hasRankingsPage={Boolean(payload.team_boards?.length || payload.player_boards?.length)}
+-    />
+-
+-    <MatchdaySchedule
+-      rounds={payload.fixtures ?? []}
+-      competitionSlug={payload.slug}
+-      lang={lang}
+-      isLeague={isLeague}
+-    />
+-  </div>
+-</Layout>
+diff --git a/site_v2/src/pages/[lang]/[competition]/index.astro b/site_v2/src/pages/[lang]/[competition]/index.astro
+index 9419a728..c41d5b69 100644
+--- a/site_v2/src/pages/[lang]/[competition]/index.astro
++++ b/site_v2/src/pages/[lang]/[competition]/index.astro
+@@ -20,13 +20,19 @@ import StandingsTable from "../../../components/competition/StandingsTable.astro
+ import DeservedTable from "../../../components/competition/DeservedTable.astro";
+ import SeasonFacts from "../../../components/competition/SeasonFacts.astro";
+ import { t } from "../../../i18n/strings";
+-import { localeHref, LOCALES } from "../../../lib/href";
++import { localeHref, LOCALES, word } from "../../../lib/href";
+ import type { Lang } from "../../../lib/format";
+ import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../lib/types";
+ import { latestSeasonPayload, nextRound } from "../../../lib/competitionPayload.mjs";
++import { assertNoClash } from "../../../lib/addressWords.mjs";
+ import competitionIndex from "../../../data/competition_index.json";
++import competitions from "../../../data/competitions.json";
+ 
+ export function getStaticPaths() {
++  // A slug is the segment after the locale, where the top words also sit; one equal to a word
++  // would put two pages on one address, so the build stops (competitions.json holds every
++  // registry slug).
++  assertNoClash(Object.values(competitions).map((c) => c.slug));
+   const data = competitionIndex as unknown as CompetitionIndex;
+   const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
+     eager: true,
+@@ -69,7 +75,7 @@ const entity = {
+ 
+ const crumbs = [
+   { name: t(lang, "crumbHome"), href: localeHref(lang) },
+-  { name: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
++  { name: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
+   { name },
+ ];
+ 
+@@ -83,7 +89,7 @@ const competitionType = payload?.competition_type ?? competition.competition_typ
+     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+       <span class="sep">›</span>
+-      <a class="lnk" href={localeHref(lang, "competitions/")}>{t(lang, "navCompetitions")}</a>
++      <a class="lnk" href={localeHref(lang, `${word(lang, "competitions")}/`)}>{t(lang, "navCompetitions")}</a>
+       <span class="sep">›</span>
+       <span class="here">{name}</span>
+     </nav>
+diff --git a/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
+deleted file mode 100644
+index b3166c2c..00000000
+--- a/site_v2/src/pages/[lang]/[competition]/matches/[fixture].astro
++++ /dev/null
+@@ -1,154 +0,0 @@
+----
+-// Fixture page (screen 01) — the v2 design system's first real screen.
+-// URL: /{lang}/{competition-slug}/matches/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
+-// This increment renders ONE committed real fixture across the three locales; at scale
+-// getStaticPaths iterates every exported fixture (data/fixtures/*.json). The page only
+-// COMPOSES the shared components in order — it holds no styling and derives no facts.
+-import Layout from "../../../../layouts/Layout.astro";
+-import Breadcrumb from "../../../../components/fixture/Breadcrumb.astro";
+-import Masthead from "../../../../components/fixture/Masthead.astro";
+-import NarrativeSlot from "../../../../components/fixture/NarrativeSlot.astro";
+-import FormSegment from "../../../../components/fixture/FormSegment.astro";
+-import SplitSection from "../../../../components/fixture/SplitSection.astro";
+-import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
+-import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
+-import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
+-import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
+-import { t, BRAND } from "../../../../i18n/strings";
+-import { localeHref } from "../../../../lib/href";
+-import type { Lang } from "../../../../lib/format";
+-import type { Fixture } from "../../../../lib/types";
+-import competitions from "../../../../data/competitions.json";
+-
+-export function getStaticPaths() {
+-  const locales: Lang[] = ["de", "en", "fi"];
+-  const comps = competitions as Record<string, { slug: string }>;
+-  // Every fixture the export wrote to src/data/fixtures/*.json becomes a page. Dev/PR: the committed
+-  // sample(s); production: the full export at build time (the bulk is gitignored). One page per
+-  // fixture x 3 locales; the competition URL segment is each fixture's league slug from the full map.
+-  // The glob is called inside getStaticPaths (Astro extracts this fn in isolation).
+-  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", {
+-    eager: true,
+-    import: "default",
+-  });
+-  return Object.values(fixtures).flatMap((fixture) => {
+-    const comp = comps[fixture.league_code];
+-    if (!comp) {
+-      throw new Error(
+-        `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
+-      );
+-    }
+-    return locales.map((lang) => ({
+-      params: { lang, competition: comp.slug, fixture: fixture.slug },
+-      props: { fixture, lang },
+-    }));
+-  });
+-}
+-
+-interface Props {
+-  fixture: Fixture;
+-  lang: Lang;
+-}
+-const { fixture, lang } = Astro.props;
+-const { home, away } = fixture;
+-
+-// Title per 01_fixture_page.md section 8, THROUGH t() (#844). It was string-concatenated from two
+-// locale-independent fields, so all three locales shipped a byte-identical <title>. That wireframe
+-// ends the fixture title with the COMPETITION (unlike the team title, which ends with the brand) —
+-// both are built exactly as approved rather than generalised to one shape.
+-// The competition name comes from the REGISTRY (competitions.json), not the provider's
+-// `fixture.league_name`. The provider calls the Brazilian top flight "Serie A" — ambiguous with
+-// Italy's, on a Brazilian match — while the registry has "Brasileirão Série A" and the team page
+-// already reads it. Two pages were naming the same concept from two sources; this is the
+-// authoritative one. (Provider names taken on trust are the #850 class.)
+-const compName =
+-  (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code]?.name ??
+-  fixture.league_name ??
+-  fixture.league_code;
+-// The title carries the two teams plus a one-word descriptor, not the competition — the same
+-// `{entity}: <descriptor>` shape as the team title, and no brand suffix, per the rule
+-// recorded in strings.ts. Researched rather than preferred: Sofascore and FBref both omit
+-// the competition from a match title. Keeping it failed 4 of 26 competitions against the 660px
+-// hard cap, worst 886px; the shape below measures 597px at its worst, inside the 600px budget.
+-//
+-// The title was `compName`'s ONLY consumer. Dropping it here would have stranded the fix above and
+-// left every remaining mention of the competition on the provider's name — the very ambiguity
+-// ("Serie A" for Brazil) it was introduced to remove. So the breadcrumb and the JSON-LD superEvent
+-// below now read `compName` too, and the authoritative name outlives its removal from the title.
+-const title = t(lang, "seoFixtureTitle", {
+-  home: home.name ?? "",
+-  away: away.name ?? "",
+-});
+-const description = t(lang, "aboutNoH2h", {
+-  home: home.name ?? "",
+-  away: away.name ?? "",
+-  round: fixture.round ?? "",
+-});
+-
+-// Home is a real target (the locale landing); competition hub + Matches are not built
+-// yet → hrefless (plain text), no dead links.
+-const crumbs = [
+-  { label: t(lang, "crumbHome"), href: localeHref(lang) },
+-  { label: compName },
+-  { label: t(lang, "crumbMatches") },
+-];
+-
+-// schema.org/SportsEvent per 01_fixture_page.md section 8. Selection only — every value is a served
+-// payload field. Optional members are omitted rather than emitted null: the audit rejects a graph
+-// carrying null/empty values, because a present-but-empty property is worse than an absent one.
+-const entity = {
+-  "@type": "SportsEvent",
+-  name: `${home.name} vs ${away.name}`,
+-  sport: "Football",
+-  ...(fixture.kickoff ? { startDate: fixture.kickoff } : {}),
+-  ...(fixture.venue ? { location: { "@type": "Place", name: fixture.venue } } : {}),
+-  ...(compName ? { superEvent: { "@type": "SportsOrganization", name: compName } } : {}),
+-  competitor: [home, away]
+-    .filter((s) => s?.name)
+-    .map((s) => ({ "@type": "SportsTeam", name: s.name, ...(s.crest ? { logo: s.crest } : {}) })),
+-};
+----
+-
+-<Layout
+-  lang={lang}
+-  title={title}
+-  description={description}
+-  entity={entity}
+-  crumbs={crumbs.map((c) => ({ name: c.label, href: c.href }))}
+-  image={home.crest ?? undefined}
+->
+-  <div class="inner">
+-    <Breadcrumb items={crumbs} />
+-    <Masthead fixture={fixture} lang={lang} />
+-    <NarrativeSlot fixture={fixture} lang={lang} />
+-    <FormSegment fixture={fixture} lang={lang} />
+-
+-    <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
+-      <Fragment slot="home">
+-        {(home.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
+-      </Fragment>
+-      <Fragment slot="away">
+-        {(away.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
+-      </Fragment>
+-    </SplitSection>
+-
+-    <SplitSection
+-      label={t(lang, "secPlayers")}
+-      note={t(lang, "playersWindow")}
+-      homeLabel={home.name}
+-      awayLabel={away.name}
+-    >
+-      <Fragment slot="home">
+-        {(home.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
+-      </Fragment>
+-      <Fragment slot="away">
+-        {(away.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
+-      </Fragment>
+-    </SplitSection>
+-
+-    <HeadToHead h2h={fixture.head_to_head} homeName={home.name} awayName={away.name} lang={lang} />
+-    <LinksFooter fixture={fixture} lang={lang} />
+-
+-    <div class="footnote">{t(lang, "footnote", { brand: BRAND })}</div>
+-  </div>
+-</Layout>
+diff --git a/site_v2/src/pages/[lang]/[competition]/rankings/index.astro b/site_v2/src/pages/[lang]/[competition]/rankings/index.astro
+deleted file mode 100644
+index 23bf048c..00000000
+--- a/site_v2/src/pages/[lang]/[competition]/rankings/index.astro
++++ /dev/null
+@@ -1,105 +0,0 @@
+----
+-// Competition page, Rankings tab (spec: src/specs/competition/rankings/index.spec.json).
+-//
+-// One page per competition per locale, for every competition whose latest served season carries
+-// a board in competitions/{league_code}/{season}.json. The header and the tab bar are the
+-// Overview's, this tab lit; no sentence under the bar and no title. Two blocks, Team rankings and
+-// Player rankings, each the served boards under the catalogue's metric groups. A competition with
+-// no board served has no page here and its Overview shows the tab as an inert label, so no link
+-// points at a page the build did not emit.
+-//
+-// The address is the tab's own name, /rankings/; "stats" is the metric glossary's word.
+-// Nothing on this page is derived: the slug, the name, the crest, every rank and value is a served
+-// field of the competition payload.
+-import Layout from "../../../../layouts/Layout.astro";
+-import CompetitionHeader from "../../../../components/competition/CompetitionHeader.astro";
+-import CompetitionTabs from "../../../../components/competition/CompetitionTabs.astro";
+-import RankingsBlock from "../../../../components/competition/RankingsBlock.astro";
+-import { t } from "../../../../i18n/strings";
+-import { localeHref, LOCALES } from "../../../../lib/href";
+-import type { Lang } from "../../../../lib/format";
+-import type { CompetitionIndex, CompetitionIndexRow, CompetitionPayload } from "../../../../lib/types";
+-import { latestSeasonPayload, nextRound } from "../../../../lib/competitionPayload.mjs";
+-import competitionIndex from "../../../../data/competition_index.json";
+-
+-export function getStaticPaths() {
+-  const data = competitionIndex as unknown as CompetitionIndex;
+-  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
+-    eager: true,
+-    import: "default",
+-  });
+-  return data.competitions.flatMap((competition) => {
+-    const payload = latestSeasonPayload(
+-      Object.values(payloads).filter((p) => p.league_code === competition.league_code),
+-    );
+-    if (!payload?.team_boards?.length && !payload?.player_boards?.length) return [];
+-    return LOCALES.map((lang) => ({
+-      params: { lang, competition: competition.slug },
+-      props: { competition, lang, payload },
+-    }));
+-  });
+-}
+-
+-interface Props {
+-  competition: CompetitionIndexRow;
+-  lang: Lang;
+-  payload: CompetitionPayload;
+-}
+-const { competition, lang, payload } = Astro.props;
+-
+-const name = payload.name ?? competition.competition_name ?? "";
+-const competitionType = payload.competition_type ?? competition.competition_type;
+-const isLeague = competitionType === "domestic_league";
+-const tabLabel = t(lang, "compTabRankings");
+-
+-const title = t(lang, "seoCompetitionStatsTitle", { competition: name, season: String(payload.season) });
+-const description = t(lang, "seoCompetitionStatsDesc", { competition: name, season: String(payload.season) });
+-
+-const entity = {
+-  "@type": "SportsOrganization",
+-  name: name || undefined,
+-  sport: "Football",
+-};
+-
+-const crumbs = [
+-  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+-  { name: t(lang, "navCompetitions"), href: localeHref(lang, "competitions/") },
+-  { name, href: localeHref(lang, `${competition.slug}/`) },
+-  { name: tabLabel },
+-];
+----
+-
+-<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+-  <div class="inner">
+-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+-      <span class="sep">›</span>
+-      <a class="lnk" href={localeHref(lang, "competitions/")}>{t(lang, "navCompetitions")}</a>
+-      <span class="sep">›</span>
+-      <a class="lnk" href={localeHref(lang, `${competition.slug}/`)}>{name}</a>
+-      <span class="sep">›</span>
+-      <span class="here">{tabLabel}</span>
+-    </nav>
+-
+-    <CompetitionHeader
+-      name={payload.name ?? competition.competition_name}
+-      crest={payload.crest ?? competition.logo_url}
+-      regionLabelEn={payload.region_label_en ?? competition.region_label_en}
+-      regionLabelI18nKey={payload.region_label_i18n_key ?? competition.region_label_i18n_key}
+-      season={payload.season}
+-      round={nextRound(payload.fixtures)?.round ?? null}
+-      lang={lang}
+-    />
+-    <CompetitionTabs
+-      lang={lang}
+-      hasMatchdays={isLeague}
+-      active="rankings"
+-      competitionSlug={competition.slug}
+-      hasFixturesPage={Boolean(payload.fixtures?.length)}
+-      hasRankingsPage={true}
+-    />
+-
+-    <RankingsBlock label={t(lang, "compSecTeamRankings")} boards={payload.team_boards ?? []} entity="team" lang={lang} />
+-    <RankingsBlock label={t(lang, "compSecPlayerRankings")} boards={payload.player_boards ?? []} entity="player" lang={lang} />
+-  </div>
+-</Layout>
+diff --git a/site_v2/src/pages/[lang]/[competitions]/index.astro b/site_v2/src/pages/[lang]/[competitions]/index.astro
+new file mode 100644
+index 00000000..c3a15b30
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[competitions]/index.astro
+@@ -0,0 +1,58 @@
++---
++// Competitions index (#62 step 5, GitLab #54, spec: docs/wireframes/08_browse.md). Reads the
++// committed competition_index.json (mart_competition_index verbatim, #62 step 3+4) and composes
++// the one block a single-page-per-locale index needs. The page holds no styling and derives no
++// facts — grouping and ordering are lib/competitionOrder.mjs, rendering is
++// CompetitionIndexGrid.astro.
++//
++// H1 and the breadcrumb's own segment both reuse navCompetitions rather than a separate key
++// (#54: "the H1 deliberately reuses the NAV item's key, so the menu and the page it leads to
++// cannot drift apart").
++import Layout from "../../../layouts/Layout.astro";
++import CompetitionIndexGrid from "../../../components/competitions/CompetitionIndexGrid.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref, word } from "../../../lib/href";
++import type { Lang } from "../../../lib/format";
++import type { CompetitionIndex } from "../../../lib/types";
++import competitionIndex from "../../../data/competition_index.json";
++
++export function getStaticPaths() {
++  return (["de", "en", "fi"] as const).map((lang) => ({
++    params: { lang, competitions: word(lang, "competitions") },
++  }));
++}
++
++const lang = (Astro.params.lang ?? "en") as Lang;
++const data = competitionIndex as unknown as CompetitionIndex;
++
++const title = t(lang, "seoCompetitionsTitle");
++const description = t(lang, "seoCompetitionsDesc");
++
++// schema.org/ItemList (page-spec: schema_org). Format only per page-spec.schema.json's own
++// note — itemListElement is not populated: rows carry no URL yet (see the component's comment
++// on why they're inert), so a list of hrefs would point nowhere.
++const entity = {
++  "@type": "ItemList",
++  name: title,
++  numberOfItems: data.competitions.length,
++};
++
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navCompetitions") },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <span class="here">{t(lang, "navCompetitions")}</span>
++    </nav>
++
++    <h1>{t(lang, "navCompetitions")}</h1>
++
++    <CompetitionIndexGrid competitions={data.competitions} lang={lang} />
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
+new file mode 100644
+index 00000000..b7b38a6d
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[players]/[player].astro
+@@ -0,0 +1,113 @@
++---
++// Player page — SCAFFOLD (spec: src/specs/players/player.spec.json, "stub": true).
++//
++// This ships the URL section 3 of docs/site_architecture.md already reserves for a player
++// (/{locale}/{players word}/{player-slug}/), with a real canonical, a real hreflang set and a
++// locale-distinct title — all true facts about a URL that exists — and NO content blocks. The
++// Player Overview owns the real content (#845) and its open design decisions are untouched here.
++//
++// WHY IT EXISTS NOW: the Top players block (#40) makes every board row a link to its player, and
++// audit-seo.mjs check 8 fails the build on an internal href that resolves to no emitted page. No
++// page in site_v2 emitted a player href before this one, which is why check 8 was green without a
++// player route. A destination that does not exist yet is BUILT, not routed around — 10_home.md
++// section 0: "do not reorder the build because a destination page does not exist yet."
++//
++// Listed in STUB_PAGES (src/config/indexability.mjs), which is the expiry trigger: the SEO audit
++// refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
++// page in the index.
++//
++// SOURCE IS THE PAGES THAT LINK HERE — landing.json's Top players boards and every competition
++// payload's Player rankings boards — and deliberately so: the set of players with a page is
++// exactly the set the site links to, which is exactly what check 8 requires and nothing more. It
++// adds no export entity and no committed payload — `--entities players` exists but is not run by
++// deploy:export, and inventing a players/ payload to feed a page with no content would be building
++// #845's plumbing without #845's design. Every value here is a served payload field; nothing on
++// this page is derived, the slug least of all (the export assigns it).
++import Layout from "../../../layouts/Layout.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref, LOCALES, word } from "../../../lib/href";
++import type { Lang } from "../../../lib/format";
++import type { CompetitionPayload, Landing } from "../../../lib/types";
++import landing from "../../../data/landing.json";
++
++/** What this stub shows of a player: the served name and club, keyed by the served slug. */
++interface LinkedPlayer {
++  slug: string;
++  name: string | null;
++  club: string | null;
++}
++
++export function getStaticPaths() {
++  // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
++  // leaders changes this set on the next export with no code change here.
++  // Deduped by slug, because a player can lead more than one board — Dybala held rank 1 on both
++  // assists and key passes in one export — and two identical params would be a duplicate
++  // route, not two pages.
++  const data = landing as unknown as Landing;
++  const rows = new Map<string, LinkedPlayer>();
++  const take = (row: { slug: string | null; name: string | null; club?: string | null }) => {
++    if (row.slug && !rows.has(row.slug)) rows.set(row.slug, { slug: row.slug, name: row.name, club: row.club ?? null });
++  };
++  for (const board of data.top_players ?? []) for (const row of board.rows) take(row);
++  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
++    eager: true,
++    import: "default",
++  });
++  for (const payload of Object.values(payloads)) {
++    for (const board of payload.player_boards ?? []) for (const row of board.rows) take(row);
++  }
++  return [...rows.values()].flatMap((player) =>
++    LOCALES.map((lang) => ({
++      params: { lang, players: word(lang, "players"), player: player.slug },
++      props: { player, lang },
++    })),
++  );
++}
++
++interface Props {
++  player: LinkedPlayer;
++  lang: Lang;
++}
++const { player, lang } = Astro.props;
++
++const name = player.name ?? "";
++const club = player.club ?? "";
++
++// Through t() with the served fields as parameters, never concatenated: a concatenated title is
++// locale-independent, which is how all three locales came to ship byte-identical titles before
++// #844's gate existed. The descriptive words are the entire locale signal.
++// The CLUB is in the title for UNIQUENESS, not decoration — audit check 5 requires titles unique
++// within a locale and 1.6% of provider full names collide (site_architecture.md:93).
++const title = t(lang, "seoPlayerTitle", { player: name, club });
++const description = t(lang, "seoPlayerDesc", { player: name, club });
++
++// schema.org/Person — a footballer is a person, and there is no narrower type for one. Selection
++// only; every value is a served payload field. Undefined rather than null on a missing value: the
++// audit fails a JSON-LD node carrying empty or placeholder values, and an absent key is honest
++// where an empty string is not.
++const entity = {
++  "@type": "Person",
++  name: name || undefined,
++  affiliation: club || undefined,
++};
++
++// Two items, not three. The competition stub's trail passes through the competitions index because
++// that page is its hub; there is no player hub to pass through, and inventing one in a breadcrumb
++// would point at a URL the build does not emit.
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <span class="here">{name}</span>
++    </nav>
++
++    <h1>{name}</h1>
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
+new file mode 100644
+index 00000000..3be420a7
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
+@@ -0,0 +1,143 @@
++---
++// Team page (screen 02) — the v2 design system's second real screen, from the
++// approved mock f6348775. URL: /{lang}/{teams word}/{team-slug}/ (site_architecture.md).
++// This increment builds the OVERVIEW tab from ONE committed real team across the three
++// locales; Performance and Squad are chrome + the honest coming-state (their data
++// binding — benchmarks GAP-23, roster GAP-20 + the metricRows.ts 16-row contract — is
++// the next PR). The page only COMPOSES the shared components in mock order; it holds no
++// styling and derives no facts.
++import Layout from "../../../layouts/Layout.astro";
++import TeamHeader from "../../../components/team/TeamHeader.astro";
++import Tabs from "../../../components/team/Tabs.astro";
++import RecordStrip from "../../../components/team/RecordStrip.astro";
++import DeservedHero from "../../../components/team/DeservedHero.astro";
++import YearOverYear from "../../../components/team/YearOverYear.astro";
++import TeamFixtures from "../../../components/team/TeamFixtures.astro";
++import TeamPerformance from "../../../components/team/TeamPerformance.astro";
++import TeamSquad from "../../../components/team/TeamSquad.astro";
++import SectionHead from "../../../components/ui/SectionHead.astro";
++import { t, BRAND } from "../../../i18n/strings";
++import { localeHref, word } from "../../../lib/href";
++import type { Lang } from "../../../lib/format";
++import type { Team, TeamSeason } from "../../../lib/types";
++import competitions from "../../../data/competitions.json";
++
++export function getStaticPaths() {
++  const locales: Lang[] = ["de", "en", "fi"];
++  // Every team the export wrote to src/data/teams/*.json becomes a page. Dev/PR: the committed
++  // sample(s); production: the full export populated into the dir at build time (the bulk is
++  // gitignored, never committed). One page per team x 3 locales. The glob is called inside
++  // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope).
++  const teams = import.meta.glob<Team>("/src/data/teams/*.json", {
++    eager: true,
++    import: "default",
++  });
++  return Object.values(teams).flatMap((team) =>
++    locales.map((lang) => ({
++      params: { lang, teams: word(lang, "teams"), team: team.slug },
++      props: { team, lang },
++    })),
++  );
++}
++
++interface Props {
++  team: Team;
++  lang: Lang;
++}
++const { team, lang } = Astro.props;
++
++// The season this page opens on is decided in the warehouse and served on the row (#846).
++// This is a lookup of a flag, not a choice: the rule used to be written here, again on the
++// player page in different code, and a third time in the export, and the three had already
++// drifted. Exactly one season carries the flag, asserted by a dbt test, so the `!` is the
++// contract rather than an assumption.
++// Reaching a season OTHER than this one is #882 and does not exist yet: there is no season
++// segment in the URL and no selector, so today this is the only season a reader can see.
++const season: TeamSeason = team.seasons.find((s) => s.is_featured_season)!;
++
++const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
++const compName = comp?.name ?? season.league_code;
++
++// Title/description per 02_team_profile.md section 8, THROUGH t() (#844). Before this they were
++// built by string concatenation from `team.name` + `compName`, both of which are locale-independent
++// (the registry carries ONE `name` per competition), so all three locales shipped byte-identical
++// <title> and <meta description>. The descriptive words are the entire locale signal.
++// No numbers here until #838: `points` is a synthetic 3-1-0 tally, so a templated "N points" would
++// put a known-false figure into a surface search engines cache separately from the page.
++const title = t(lang, "seoTeamTitle", { team: team.name ?? "" });
++const description = t(lang, "seoTeamDesc", { team: team.name ?? "", competition: compName });
++
++// schema.org/SportsTeam per the same section. Selection only — every value is a served payload
++// field; nothing here is computed.
++const entity = {
++  "@type": "SportsTeam",
++  name: team.name ?? undefined,
++  sport: "Football",
++  ...(team.crest ? { logo: team.crest } : {}),
++  ...(team.founded_year ? { foundingDate: String(team.founded_year) } : {}),
++  ...(team.country ? { location: { "@type": "Place", name: team.country } } : {}),
++  ...(comp?.name ? { memberOf: { "@type": "SportsOrganization", name: comp.name } } : {}),
++};
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "crumbTeams") },
++  { name: team.name ?? "" },
++];
++
++// Explore chips (SEO/navigation) — inert this increment; the league table and
++// top-scorers pages are not built yet.
++const linkChips = [t(lang, "table"), t(lang, "topScorers")];
++---
++
++<Layout
++  lang={lang}
++  title={title}
++  description={description}
++  entity={entity}
++  crumbs={crumbs}
++  image={team.crest ?? undefined}
++>
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      <span>{t(lang, "crumbTeams")}</span>
++      <span class="sep">›</span>
++      <span class="here">{team.name}</span>
++    </nav>
++
++    <TeamHeader team={team} season={season} lang={lang} />
++
++    {/* Hidden radios drive the JS-free tab toggle; the checked one shows its .page (CSS). */}
++    <input type="radio" name="team-tab" id="tab-overview" class="tab-in" checked />
++    <input type="radio" name="team-tab" id="tab-performance" class="tab-in" />
++    <input type="radio" name="team-tab" id="tab-squad" class="tab-in" />
++    <Tabs lang={lang} />
++
++    <div class="page" data-page="overview">
++      <RecordStrip season={season} lang={lang} />
++
++      <section aria-label={t(lang, "secDeserved")}>
++        <SectionHead label={t(lang, "secDeserved")} />
++        <DeservedHero season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
++      </section>
++
++      <YearOverYear season={season} lang={lang} />
++      <TeamFixtures season={season} lang={lang} />
++
++      <div class="linkrow">
++        {linkChips.map((c) => <span class="linkchip">{c}</span>)}
++      </div>
++    </div>
++
++    <div class="page" data-page="performance">
++      <TeamPerformance season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
++    </div>
++
++    <div class="page" data-page="squad">
++      <TeamSquad season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
++    </div>
++
++    <div class="footnote">{t(lang, "teamFootnote", { brand: BRAND })}</div>
++  </div>
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/competitions/index.astro b/site_v2/src/pages/[lang]/competitions/index.astro
+deleted file mode 100644
+index 0dd86014..00000000
+--- a/site_v2/src/pages/[lang]/competitions/index.astro
++++ /dev/null
+@@ -1,60 +0,0 @@
+----
+-// Competitions index (#62 step 5, GitLab #54, spec: docs/wireframes/08_browse.md). Reads the
+-// committed competition_index.json (mart_competition_index verbatim, #62 step 3+4) and composes
+-// the one block a single-page-per-locale index needs. The page holds no styling and derives no
+-// facts — grouping and ordering are lib/competitionOrder.mjs, rendering is
+-// CompetitionIndexGrid.astro.
+-//
+-// H1 and the breadcrumb's own segment both reuse navCompetitions rather than a separate key
+-// (#54: "the H1 deliberately reuses the NAV item's key, so the menu and the page it leads to
+-// cannot drift apart").
+-import Layout from "../../../layouts/Layout.astro";
+-import CompetitionIndexGrid from "../../../components/competitions/CompetitionIndexGrid.astro";
+-import { t } from "../../../i18n/strings";
+-import { localeHref } from "../../../lib/href";
+-import type { Lang } from "../../../lib/format";
+-import type { CompetitionIndex } from "../../../lib/types";
+-import competitionIndex from "../../../data/competition_index.json";
+-
+-export function getStaticPaths() {
+-  return [
+-    { params: { lang: "de" } },
+-    { params: { lang: "en" } },
+-    { params: { lang: "fi" } },
+-  ];
+-}
+-
+-const lang = (Astro.params.lang ?? "en") as Lang;
+-const data = competitionIndex as unknown as CompetitionIndex;
+-
+-const title = t(lang, "seoCompetitionsTitle");
+-const description = t(lang, "seoCompetitionsDesc");
+-
+-// schema.org/ItemList (page-spec: schema_org). Format only per page-spec.schema.json's own
+-// note — itemListElement is not populated: rows carry no URL yet (see the component's comment
+-// on why they're inert), so a list of hrefs would point nowhere.
+-const entity = {
+-  "@type": "ItemList",
+-  name: title,
+-  numberOfItems: data.competitions.length,
+-};
+-
+-const crumbs = [
+-  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+-  { name: t(lang, "navCompetitions") },
+-];
+----
+-
+-<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+-  <div class="inner">
+-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+-      <span class="sep">›</span>
+-      <span class="here">{t(lang, "navCompetitions")}</span>
+-    </nav>
+-
+-    <h1>{t(lang, "navCompetitions")}</h1>
+-
+-    <CompetitionIndexGrid competitions={data.competitions} lang={lang} />
+-  </div>
+-</Layout>
+diff --git a/site_v2/src/pages/[lang]/players/[player].astro b/site_v2/src/pages/[lang]/players/[player].astro
+deleted file mode 100644
+index dccf49b5..00000000
+--- a/site_v2/src/pages/[lang]/players/[player].astro
++++ /dev/null
+@@ -1,113 +0,0 @@
+----
+-// Player page — SCAFFOLD (spec: src/specs/players/player.spec.json, "stub": true).
+-//
+-// This ships the URL section 3 of docs/site_architecture.md already reserves for a player
+-// (/{locale}/players/{player-slug}/), with a real canonical, a real hreflang set and a
+-// locale-distinct title — all true facts about a URL that exists — and NO content blocks. The
+-// Player Overview owns the real content (#845) and its open design decisions are untouched here.
+-//
+-// WHY IT EXISTS NOW: the Top players block (#40) makes every board row a link to its player, and
+-// audit-seo.mjs check 8 fails the build on an internal href that resolves to no emitted page. No
+-// page in site_v2 emitted a player href before this one, which is why check 8 was green without a
+-// player route. A destination that does not exist yet is BUILT, not routed around — 10_home.md
+-// section 0: "do not reorder the build because a destination page does not exist yet."
+-//
+-// Listed in STUB_PAGES (src/config/indexability.mjs), which is the expiry trigger: the SEO audit
+-// refuses INDEXABLE === true while that array is non-empty, so this cannot quietly become a thin
+-// page in the index.
+-//
+-// SOURCE IS THE PAGES THAT LINK HERE — landing.json's Top players boards and every competition
+-// payload's Player rankings boards — and deliberately so: the set of players with a page is
+-// exactly the set the site links to, which is exactly what check 8 requires and nothing more. It
+-// adds no export entity and no committed payload — `--entities players` exists but is not run by
+-// deploy:export, and inventing a players/ payload to feed a page with no content would be building
+-// #845's plumbing without #845's design. Every value here is a served payload field; nothing on
+-// this page is derived, the slug least of all (the export assigns it).
+-import Layout from "../../../layouts/Layout.astro";
+-import { t } from "../../../i18n/strings";
+-import { localeHref, LOCALES } from "../../../lib/href";
+-import type { Lang } from "../../../lib/format";
+-import type { CompetitionPayload, Landing } from "../../../lib/types";
+-import landing from "../../../data/landing.json";
+-
+-/** What this stub shows of a player: the served name and club, keyed by the served slug. */
+-interface LinkedPlayer {
+-  slug: string;
+-  name: string | null;
+-  club: string | null;
+-}
+-
+-export function getStaticPaths() {
+-  // One page per LINKED player per locale, ITERATED not enumerated: a board that changes its
+-  // leaders changes this set on the next export with no code change here.
+-  // Deduped by slug, because a player can lead more than one board — Dybala held rank 1 on both
+-  // assists and key passes in one export — and two identical params would be a duplicate
+-  // route, not two pages.
+-  const data = landing as unknown as Landing;
+-  const rows = new Map<string, LinkedPlayer>();
+-  const take = (row: { slug: string | null; name: string | null; club?: string | null }) => {
+-    if (row.slug && !rows.has(row.slug)) rows.set(row.slug, { slug: row.slug, name: row.name, club: row.club ?? null });
+-  };
+-  for (const board of data.top_players ?? []) for (const row of board.rows) take(row);
+-  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
+-    eager: true,
+-    import: "default",
+-  });
+-  for (const payload of Object.values(payloads)) {
+-    for (const board of payload.player_boards ?? []) for (const row of board.rows) take(row);
+-  }
+-  return [...rows.values()].flatMap((player) =>
+-    LOCALES.map((lang) => ({
+-      params: { lang, player: player.slug },
+-      props: { player, lang },
+-    })),
+-  );
+-}
+-
+-interface Props {
+-  player: LinkedPlayer;
+-  lang: Lang;
+-}
+-const { player, lang } = Astro.props;
+-
+-const name = player.name ?? "";
+-const club = player.club ?? "";
+-
+-// Through t() with the served fields as parameters, never concatenated: a concatenated title is
+-// locale-independent, which is how all three locales came to ship byte-identical titles before
+-// #844's gate existed. The descriptive words are the entire locale signal.
+-// The CLUB is in the title for UNIQUENESS, not decoration — audit check 5 requires titles unique
+-// within a locale and 1.6% of provider full names collide (site_architecture.md:93).
+-const title = t(lang, "seoPlayerTitle", { player: name, club });
+-const description = t(lang, "seoPlayerDesc", { player: name, club });
+-
+-// schema.org/Person — a footballer is a person, and there is no narrower type for one. Selection
+-// only; every value is a served payload field. Undefined rather than null on a missing value: the
+-// audit fails a JSON-LD node carrying empty or placeholder values, and an absent key is honest
+-// where an empty string is not.
+-const entity = {
+-  "@type": "Person",
+-  name: name || undefined,
+-  affiliation: club || undefined,
+-};
+-
+-// Two items, not three. The competition stub's trail passes through the competitions index because
+-// that page is its hub; there is no player hub to pass through, and inventing one in a breadcrumb
+-// would point at a URL the build does not emit.
+-const crumbs = [
+-  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+-  { name },
+-];
+----
+-
+-<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+-  <div class="inner">
+-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+-      <span class="sep">›</span>
+-      <span class="here">{name}</span>
+-    </nav>
+-
+-    <h1>{name}</h1>
+-  </div>
+-</Layout>
+diff --git a/site_v2/src/pages/[lang]/teams/[team].astro b/site_v2/src/pages/[lang]/teams/[team].astro
+deleted file mode 100644
+index e4708fc7..00000000
+--- a/site_v2/src/pages/[lang]/teams/[team].astro
++++ /dev/null
+@@ -1,143 +0,0 @@
+----
+-// Team page (screen 02) — the v2 design system's second real screen, from the
+-// approved mock f6348775. URL: /{lang}/teams/{team-slug}/ (site_architecture.md).
+-// This increment builds the OVERVIEW tab from ONE committed real team across the three
+-// locales; Performance and Squad are chrome + the honest coming-state (their data
+-// binding — benchmarks GAP-23, roster GAP-20 + the metricRows.ts 16-row contract — is
+-// the next PR). The page only COMPOSES the shared components in mock order; it holds no
+-// styling and derives no facts.
+-import Layout from "../../../layouts/Layout.astro";
+-import TeamHeader from "../../../components/team/TeamHeader.astro";
+-import Tabs from "../../../components/team/Tabs.astro";
+-import RecordStrip from "../../../components/team/RecordStrip.astro";
+-import DeservedHero from "../../../components/team/DeservedHero.astro";
+-import YearOverYear from "../../../components/team/YearOverYear.astro";
+-import TeamFixtures from "../../../components/team/TeamFixtures.astro";
+-import TeamPerformance from "../../../components/team/TeamPerformance.astro";
+-import TeamSquad from "../../../components/team/TeamSquad.astro";
+-import SectionHead from "../../../components/ui/SectionHead.astro";
+-import { t, BRAND } from "../../../i18n/strings";
+-import { localeHref } from "../../../lib/href";
+-import type { Lang } from "../../../lib/format";
+-import type { Team, TeamSeason } from "../../../lib/types";
+-import competitions from "../../../data/competitions.json";
+-
+-export function getStaticPaths() {
+-  const locales: Lang[] = ["de", "en", "fi"];
+-  // Every team the export wrote to src/data/teams/*.json becomes a page. Dev/PR: the committed
+-  // sample(s); production: the full export populated into the dir at build time (the bulk is
+-  // gitignored, never committed). One page per team x 3 locales. The glob is called inside
+-  // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope).
+-  const teams = import.meta.glob<Team>("/src/data/teams/*.json", {
+-    eager: true,
+-    import: "default",
+-  });
+-  return Object.values(teams).flatMap((team) =>
+-    locales.map((lang) => ({
+-      params: { lang, team: team.slug },
+-      props: { team, lang },
+-    })),
+-  );
+-}
+-
+-interface Props {
+-  team: Team;
+-  lang: Lang;
+-}
+-const { team, lang } = Astro.props;
+-
+-// The season this page opens on is decided in the warehouse and served on the row (#846).
+-// This is a lookup of a flag, not a choice: the rule used to be written here, again on the
+-// player page in different code, and a third time in the export, and the three had already
+-// drifted. Exactly one season carries the flag, asserted by a dbt test, so the `!` is the
+-// contract rather than an assumption.
+-// Reaching a season OTHER than this one is #882 and does not exist yet: there is no season
+-// segment in the URL and no selector, so today this is the only season a reader can see.
+-const season: TeamSeason = team.seasons.find((s) => s.is_featured_season)!;
+-
+-const comp = (competitions as Record<string, { slug: string; name?: string }>)[season.league_code];
+-const compName = comp?.name ?? season.league_code;
+-
+-// Title/description per 02_team_profile.md section 8, THROUGH t() (#844). Before this they were
+-// built by string concatenation from `team.name` + `compName`, both of which are locale-independent
+-// (the registry carries ONE `name` per competition), so all three locales shipped byte-identical
+-// <title> and <meta description>. The descriptive words are the entire locale signal.
+-// No numbers here until #838: `points` is a synthetic 3-1-0 tally, so a templated "N points" would
+-// put a known-false figure into a surface search engines cache separately from the page.
+-const title = t(lang, "seoTeamTitle", { team: team.name ?? "" });
+-const description = t(lang, "seoTeamDesc", { team: team.name ?? "", competition: compName });
+-
+-// schema.org/SportsTeam per the same section. Selection only — every value is a served payload
+-// field; nothing here is computed.
+-const entity = {
+-  "@type": "SportsTeam",
+-  name: team.name ?? undefined,
+-  sport: "Football",
+-  ...(team.crest ? { logo: team.crest } : {}),
+-  ...(team.founded_year ? { foundingDate: String(team.founded_year) } : {}),
+-  ...(team.country ? { location: { "@type": "Place", name: team.country } } : {}),
+-  ...(comp?.name ? { memberOf: { "@type": "SportsOrganization", name: comp.name } } : {}),
+-};
+-const crumbs = [
+-  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+-  { name: t(lang, "crumbTeams") },
+-  { name: team.name ?? "" },
+-];
+-
+-// Explore chips (SEO/navigation) — inert this increment; the league table and
+-// top-scorers pages are not built yet.
+-const linkChips = [t(lang, "table"), t(lang, "topScorers")];
+----
+-
+-<Layout
+-  lang={lang}
+-  title={title}
+-  description={description}
+-  entity={entity}
+-  crumbs={crumbs}
+-  image={team.crest ?? undefined}
+->
+-  <div class="inner">
+-    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+-      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+-      <span class="sep">›</span>
+-      <span>{t(lang, "crumbTeams")}</span>
+-      <span class="sep">›</span>
+-      <span class="here">{team.name}</span>
+-    </nav>
+-
+-    <TeamHeader team={team} season={season} lang={lang} />
+-
+-    {/* Hidden radios drive the JS-free tab toggle; the checked one shows its .page (CSS). */}
+-    <input type="radio" name="team-tab" id="tab-overview" class="tab-in" checked />
+-    <input type="radio" name="team-tab" id="tab-performance" class="tab-in" />
+-    <input type="radio" name="team-tab" id="tab-squad" class="tab-in" />
+-    <Tabs lang={lang} />
+-
+-    <div class="page" data-page="overview">
+-      <RecordStrip season={season} lang={lang} />
+-
+-      <section aria-label={t(lang, "secDeserved")}>
+-        <SectionHead label={t(lang, "secDeserved")} />
+-        <DeservedHero season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
+-      </section>
+-
+-      <YearOverYear season={season} lang={lang} />
+-      <TeamFixtures season={season} lang={lang} />
+-
+-      <div class="linkrow">
+-        {linkChips.map((c) => <span class="linkchip">{c}</span>)}
+-      </div>
+-    </div>
+-
+-    <div class="page" data-page="performance">
+-      <TeamPerformance season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
+-    </div>
+-
+-    <div class="page" data-page="squad">
+-      <TeamSquad season={season} teamName={team.name ?? ""} compName={compName} lang={lang} />
+-    </div>
+-
+-    <div class="footnote">{t(lang, "teamFootnote", { brand: BRAND })}</div>
+-  </div>
+-</Layout>
+diff --git a/site_v2/src/specs/competition/fixtures/index.spec.json b/site_v2/src/specs/competition/fixtures/index.spec.json
+deleted file mode 100644
+index 46c8b1d4..00000000
+--- a/site_v2/src/specs/competition/fixtures/index.spec.json
++++ /dev/null
+@@ -1,37 +0,0 @@
+-{
+-  "$schema": "../../page-spec.schema.json",
+-  "page": "[lang]/[competition]/fixtures/index.astro",
+-  "entity": "competition",
+-  "seo": {
+-    "canonical": "self",
+-    "hreflang": "all-locales",
+-    "title": "seoCompetitionFixturesTitle",
+-    "description": "seoCompetitionFixturesDesc",
+-    "schema_org": "SportsOrganization",
+-    "links": {
+-      "inbound_hub": "competition",
+-      "outbound": ["competition", "fixture"]
+-    },
+-    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one round in its fixtures list, read whole from mart_competition_fixtures. A competition with no fixtures served has no page here, and its Overview shows the tab as an inert label. Every unplayed row links to its match preview page, which the build emits from fixtures/{fixture_id}.json for every unplayed fixture the export wrote; a played row is not a link until the match report page exists.",
+-    "page_count_driver": "count(competitions with fixtures served for their latest season) x count(locales)",
+-    "url_permanence": "permanent",
+-    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Matchdays tab, /{locale}/{competition-slug}/fixtures/, the same segment for every kind of competition and every locale. The slug is the registry's authored slug, served through mart_competition_index."
+-  },
+-  "blocks": [
+-    {
+-      "block": "Competition header",
+-      "mart": "mart_competition_index",
+-      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
+-    },
+-    {
+-      "block": "Matchday picker",
+-      "mart": "mart_competition_fixtures",
+-      "i18n_keys": ["compPickerAria", "compFactMatchday", "compNextTag"]
+-    },
+-    {
+-      "block": "Schedule",
+-      "mart": "mart_competition_fixtures",
+-      "i18n_keys": ["compSecSchedule", "compTBC", "compTopMatch"]
+-    }
+-  ]
+-}
+diff --git a/site_v2/src/specs/competition/index.spec.json b/site_v2/src/specs/competition/index.spec.json
+index 0a357bbe..143207f3 100644
+--- a/site_v2/src/specs/competition/index.spec.json
++++ b/site_v2/src/specs/competition/index.spec.json
+@@ -15,7 +15,7 @@
+     "minimum_data": "A row in mart_competition_index gives the competition its page, header and tab bar. Each content block needs its own mart to have served something for the latest season in competitions/{league_code}/{season}.json: standings rows for the Table, deserved_rank on the team profile for the Deserved points table, a summary row for The season in numbers. A block with nothing served is absent; a competition with no payload at all shows header and tabs only. Whether that is enough for a page to be published is the minimum-data question, and it stays a rule over the served marts rather than a list in the frontend.",
+     "page_count_driver": "count(competition_index.json .competitions) x count(locales)",
+     "url_permanence": "permanent",
+-    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages, Matchdays at /{locale}/{competition-slug}/fixtures/ and Rankings at /{locale}/{competition-slug}/rankings/, each linked from the bar only when the build emits it for this competition, so no link on this page points at a page the build did not emit."
++    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page, the Overview tab. The slug is the registry's authored slug, served through mart_competition_index. The two other tabs are standalone pages, Matchdays at /{locale}/{competition-slug}/{matches word}/ and Rankings at /{locale}/{competition-slug}/{stats word}/, each linked from the bar only when the build emits it for this competition, so no link on this page points at a page the build did not emit."
+   },
+   "blocks": [
+     {
+diff --git a/site_v2/src/specs/competition/matches/fixture.spec.json b/site_v2/src/specs/competition/matches/fixture.spec.json
+index e1a55158..e7cef538 100644
+--- a/site_v2/src/specs/competition/matches/fixture.spec.json
++++ b/site_v2/src/specs/competition/matches/fixture.spec.json
+@@ -1,6 +1,6 @@
+ {
+   "$schema": "../../page-spec.schema.json",
+-  "page": "[lang]/[competition]/matches/[fixture].astro",
++  "page": "[lang]/[competition]/[matches]/[fixture].astro",
+   "entity": "fixture",
+   "seo": {
+     "canonical": "self",
+diff --git a/site_v2/src/specs/competition/matches/index.spec.json b/site_v2/src/specs/competition/matches/index.spec.json
+new file mode 100644
+index 00000000..768c9377
+--- /dev/null
++++ b/site_v2/src/specs/competition/matches/index.spec.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "../../page-spec.schema.json",
++  "page": "[lang]/[competition]/[matches]/index.astro",
++  "entity": "competition",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoCompetitionFixturesTitle",
++    "description": "seoCompetitionFixturesDesc",
++    "schema_org": "SportsOrganization",
++    "links": {
++      "inbound_hub": "competition",
++      "outbound": ["competition", "fixture"]
++    },
++    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one round in its fixtures list, read whole from mart_competition_fixtures. A competition with no fixtures served has no page here, and its Overview shows the tab as an inert label. Every unplayed row links to its match preview page, which the build emits from fixtures/{fixture_id}.json for every unplayed fixture the export wrote; a played row is not a link until the match report page exists.",
++    "page_count_driver": "count(competitions with fixtures served for their latest season) x count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Matchdays tab, /{locale}/{competition-slug}/{matches word}/, the same word for every kind of competition, spelled per locale by the word table (site_architecture.md \"Address words\"); every match page sits under it. The slug is the registry's authored slug, served through mart_competition_index."
++  },
++  "blocks": [
++    {
++      "block": "Competition header",
++      "mart": "mart_competition_index",
++      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
++    },
++    {
++      "block": "Matchday picker",
++      "mart": "mart_competition_fixtures",
++      "i18n_keys": ["compPickerAria", "compFactMatchday", "compNextTag"]
++    },
++    {
++      "block": "Schedule",
++      "mart": "mart_competition_fixtures",
++      "i18n_keys": ["compSecSchedule", "compTBC", "compTopMatch"]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/competition/rankings/index.spec.json b/site_v2/src/specs/competition/rankings/index.spec.json
+deleted file mode 100644
+index b8eebbe4..00000000
+--- a/site_v2/src/specs/competition/rankings/index.spec.json
++++ /dev/null
+@@ -1,37 +0,0 @@
+-{
+-  "$schema": "../../page-spec.schema.json",
+-  "page": "[lang]/[competition]/rankings/index.astro",
+-  "entity": "competition",
+-  "seo": {
+-    "canonical": "self",
+-    "hreflang": "all-locales",
+-    "title": "seoCompetitionStatsTitle",
+-    "description": "seoCompetitionStatsDesc",
+-    "schema_org": "SportsOrganization",
+-    "links": {
+-      "inbound_hub": "competition",
+-      "outbound": ["competition", "team", "player"]
+-    },
+-    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one board in team_boards or player_boards, the top five of a board from mart_team_leaderboards or mart_leaderboards. A competition with no board served has no page here, and its Overview shows the tab as an inert label. Every team row links to the team page and every player row to the player page, which the build emits for every player a board names; the board headings and their full lists are the Leaderboards pages (#140) and stay plain names until those exist.",
+-    "page_count_driver": "count(competitions with a team or player board served for their latest season) x count(locales)",
+-    "url_permanence": "permanent",
+-    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Rankings tab, /{locale}/{competition-slug}/rankings/, the same segment for every kind of competition and every locale: the tab's own name, ruled by the CPO on the build MR (the builder's first choice, /stats/, collided with the metric glossary's word). The slug is the registry's authored slug, served through mart_competition_index."
+-  },
+-  "blocks": [
+-    {
+-      "block": "Competition header",
+-      "mart": ["mart_competition_index", "mart_competition_fixtures"],
+-      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
+-    },
+-    {
+-      "block": "Team rankings",
+-      "mart": "mart_team_leaderboards",
+-      "i18n_keys": ["compSecTeamRankings", "perMatch"]
+-    },
+-    {
+-      "block": "Player rankings",
+-      "mart": "mart_leaderboards",
+-      "i18n_keys": ["compSecPlayerRankings"]
+-    }
+-  ]
+-}
+diff --git a/site_v2/src/specs/competition/stats/index.spec.json b/site_v2/src/specs/competition/stats/index.spec.json
+new file mode 100644
+index 00000000..f9edef3f
+--- /dev/null
++++ b/site_v2/src/specs/competition/stats/index.spec.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "../../page-spec.schema.json",
++  "page": "[lang]/[competition]/[stats]/index.astro",
++  "entity": "competition",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoCompetitionStatsTitle",
++    "description": "seoCompetitionStatsDesc",
++    "schema_org": "SportsOrganization",
++    "links": {
++      "inbound_hub": "competition",
++      "outbound": ["competition", "team", "player"]
++    },
++    "minimum_data": "The competition's latest served season in competitions/{league_code}/{season}.json carries at least one board in team_boards or player_boards, the top five of a board from mart_team_leaderboards or mart_leaderboards. A competition with no board served has no page here, and its Overview shows the tab as an inert label. Every team row links to the team page and every player row to the player page, which the build emits for every player a board names; the board headings and their full lists are the Leaderboards pages (#140) and stay plain names until those exist.",
++    "page_count_driver": "count(competitions with a team or player board served for their latest season) x count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "The URL is the one site_architecture.md section 3 reserves for the competition page's Rankings tab, /{locale}/{competition-slug}/{stats word}/, the same word for every kind of competition, spelled per locale by the word table (site_architecture.md \"Address words\"): the tab lists statistics, so it takes the stats word, not its on-screen name. The slug is the registry's authored slug, served through mart_competition_index."
++  },
++  "blocks": [
++    {
++      "block": "Competition header",
++      "mart": ["mart_competition_index", "mart_competition_fixtures"],
++      "i18n_keys": ["crumbHome", "navCompetitions", "compSeason", "compTabsAria", "compTabOverview", "compTabMatchdays", "compTabRounds", "compTabRankings"]
++    },
++    {
++      "block": "Team rankings",
++      "mart": "mart_team_leaderboards",
++      "i18n_keys": ["compSecTeamRankings", "perMatch"]
++    },
++    {
++      "block": "Player rankings",
++      "mart": "mart_leaderboards",
++      "i18n_keys": ["compSecPlayerRankings"]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/competitions/index.spec.json b/site_v2/src/specs/competitions/index.spec.json
+index f6d45469..66ec7000 100644
+--- a/site_v2/src/specs/competitions/index.spec.json
++++ b/site_v2/src/specs/competitions/index.spec.json
+@@ -1,6 +1,6 @@
+ {
+   "$schema": "../page-spec.schema.json",
+-  "page": "[lang]/competitions/index.astro",
++  "page": "[lang]/[competitions]/index.astro",
+   "entity": "competitionIndex",
+   "seo": {
+     "canonical": "self",
+diff --git a/site_v2/src/specs/players/player.spec.json b/site_v2/src/specs/players/player.spec.json
+index e4cb4cae..af3f3c80 100644
+--- a/site_v2/src/specs/players/player.spec.json
++++ b/site_v2/src/specs/players/player.spec.json
+@@ -1,6 +1,6 @@
+ {
+   "$schema": "../page-spec.schema.json",
+-  "page": "[lang]/players/[player].astro",
++  "page": "[lang]/[players]/[player].astro",
+   "entity": "player",
+   "stub": true,
+   "seo": {
+diff --git a/site_v2/src/specs/teams/team.spec.json b/site_v2/src/specs/teams/team.spec.json
+index 24f5293c..3729fa40 100644
+--- a/site_v2/src/specs/teams/team.spec.json
++++ b/site_v2/src/specs/teams/team.spec.json
+@@ -1,6 +1,6 @@
+ {
+   "$schema": "../page-spec.schema.json",
+-  "page": "[lang]/teams/[team].astro",
++  "page": "[lang]/[teams]/[team].astro",
+   "entity": "team",
+   "seo": {
+     "canonical": "self",
+diff --git a/tests/test_address_words.py b/tests/test_address_words.py
+new file mode 100644
+index 00000000..26d2b9c7
+--- /dev/null
++++ b/tests/test_address_words.py
+@@ -0,0 +1,87 @@
++"""The address words (docs/site_architecture.md "Address words") against the registry and the
++design check.
++
++`site_v2/src/i18n/address_words.json` is the one list of words; a competition slug sits in the same
++address position as a top word, so rule 5 says no slug may equal a word. The site build refuses a
++clash over the exported competitions; this refuses it at the registry, in the MR that adds the
++league. The design check opens a built page's German and Finnish files through the same words, so
++its translation is pinned to the cases `site_v2/src/lib/addressWords.test.mjs` pins for the site.
++"""
++
++from __future__ import annotations
++
++import json
++import sys
++from pathlib import Path
++
++import pytest
++import yaml
++
++REPO = Path(__file__).resolve().parent.parent
++sys.path.insert(0, str(REPO / "scripts"))
++import check_design_inventory as cdi  # noqa: E402
++import design_inventory as di  # noqa: E402
++
++REGISTRY = REPO / "docs" / "competition_registry.yml"
++WORDS = json.loads(cdi.ADDRESS_WORDS.read_text(encoding="utf-8"))
++
++
++def _registry_slugs() -> list[str]:
++    data = yaml.safe_load(REGISTRY.read_text(encoding="utf-8"))
++    return [r["slug"] for r in data["competitions"] if isinstance(r, dict) and r.get("slug")]
++
++
++def _clashes(slugs: list[str]) -> list[str]:
++    words = {w: "%s (%s)" % (key, lang) for key, by_lang in WORDS.items() for lang, w in by_lang.items()}
++    return sorted("%s = %s" % (s, words[s]) for s in set(slugs) if s in words)
++
++
++def test_no_registry_slug_equals_an_address_word():
++    slugs = _registry_slugs()
++    assert len(slugs) >= 40, "the registry read found only %d slugs; the parse broke" % len(slugs)
++    assert _clashes(slugs) == [], "a competition slug equals an address word: %s" % _clashes(slugs)
++
++
++def test_the_clash_check_goes_red_on_a_word():
++    assert _clashes(["bundesliga", "spiele", "tilastot"]) == ["spiele = matches (de)", "tilastot = stats (fi)"]
++
++
++def test_every_word_is_named_in_every_published_language():
++    for key, by_lang in WORDS.items():
++        assert sorted(by_lang) == sorted(cdi.DEFAULT_LANGS), key
++
++
++CASES = [
++    ("teams/x/", {"de": "mannschaften/x/", "fi": "joukkueet/x/"}),
++    ("players/p-1/", {"de": "spieler/p-1/", "fi": "pelaajat/p-1/"}),
++    ("competitions/", {"de": "wettbewerbe/", "fi": "kilpailut/"}),
++    ("bundesliga/matches/", {"de": "bundesliga/spiele/", "fi": "bundesliga/ottelut/"}),
++    ("bundesliga/stats/", {"de": "bundesliga/statistiken/", "fi": "bundesliga/tilastot/"}),
++    ("bundesliga/matches/m-1/", {"de": "bundesliga/spiele/m-1/", "fi": "bundesliga/ottelut/m-1/"}),
++    ("*/matches/*/index.html", {"de": "*/spiele/*/index.html", "fi": "*/ottelut/*/index.html"}),
++    ("bundesliga/", {"de": "bundesliga/", "fi": "bundesliga/"}),
++    ("", {"de": "", "fi": ""}),
++]
++
++
++@pytest.mark.parametrize("en,by_lang", CASES)
++def test_translate_path_matches_the_site_both_ways(en, by_lang):
++    for lang, localised in by_lang.items():
++        assert cdi.translate_path(en, "en", lang) == localised
++        assert cdi.translate_path(localised, lang, "en") == en
++
++
++def test_only_the_position_decides():
++    assert cdi.translate_path("teams/matches/", "en", "de") == "mannschaften/matches/"
++    assert cdi.translate_path("bundesliga/x/stats/", "en", "de") == "bundesliga/x/stats/"
++
++
++def test_resolve_built_opens_each_language_at_its_own_words(tmp_path):
++    for rel in ("en/bundesliga/stats/index.html", "de/bundesliga/statistiken/index.html",
++                "fi/bundesliga/tilastot/index.html", "de/bundesliga/stats/index.html"):
++        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
++        (tmp_path / rel).write_text("<html></html>", encoding="utf-8")
++    page = di.Page("Competition rankings", "built", "site_v2/dist", "en/bundesliga/stats/index.html", "path", ())
++    assert cdi.resolve_built(page, tmp_path, "en") == tmp_path / "en/bundesliga/stats/index.html"
++    assert cdi.resolve_built(page, tmp_path, "de") == tmp_path / "de/bundesliga/statistiken/index.html"
++    assert cdi.resolve_built(page, tmp_path, "fi") == tmp_path / "fi/bundesliga/tilastot/index.html"
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index c1205f27..e3d90920 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -54,9 +54,9 @@ PINNED = {
+     "docs/roles/data_engineer.md": 1,
+     "docs/roles/platform_reliability.md": 2,
+     "docs/roles/seo_expert.md": 1,
+-    "docs/site_architecture.md": 22,
++    "docs/site_architecture.md": 21,
+     "docs/ui_design_brief.md": 7,
+-    "docs/wireframes/00_overview.md": 8,
++    "docs/wireframes/00_overview.md": 7,
+     "docs/wireframes/01_fixture_page.md": 4,
+     "docs/wireframes/02_team_profile.md": 1,
+     "docs/wireframes/03_player_profile.md": 1,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    |  116 +-
+#    .claude/task/rendered_page_evidence.md |   65 +-
+#    .claude/task/review_input.patch        | 3120 ++++++++++++++++++++++++++++++--
+#    3 files changed, 3053 insertions(+), 248 deletions(-)
+# ============================================================================

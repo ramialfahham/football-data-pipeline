@@ -6,7 +6,7 @@
 import Crest from "../ui/Crest.astro";
 import { formatShortDate, formatTime } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { localeHref } from "../../lib/href";
+import { localeHref, word } from "../../lib/href";
 import type { LandingFixture } from "../../lib/types";
 
 interface Props {
@@ -19,7 +19,7 @@ const { fx, competitionSlug, lang } = Astro.props;
 
 <a
   class="fxrow"
-  href={competitionSlug ? localeHref(lang, `${competitionSlug}/matches/${fx.slug}/`) : undefined}
+  href={competitionSlug ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/${fx.slug}/`) : undefined}
 >
   <span class="sides">
     <span class="side">

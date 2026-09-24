@@ -45,7 +45,7 @@ export const INDEXABLE = false;
  * scaffold Next matches' competition heading needed a destination for; it left the list when its
  * Overview tab was built to the design approved on GitLab #129.
  *
- * `[lang]/players/[player].astro` — the player profile, added with the Home page's Top players
+ * `[lang]/[players]/[player].astro` — the player profile, added with the Home page's Top players
  * block (**#40**), whose every board row links to its player. `audit-seo.mjs` check 8 fails the
  * build on an internal href that resolves to no emitted page, so the block cannot ship without
  * this route; it was green before only because no page in the site emitted a player href at all.
@@ -53,7 +53,7 @@ export const INDEXABLE = false;
  * happens to link to, so like the competition entry above it is ONE row however many pages emit.
  */
 export const STUB_PAGES = [
-  "[lang]/players/[player].astro",
+  "[lang]/[players]/[player].astro",
 ];
 
 /**

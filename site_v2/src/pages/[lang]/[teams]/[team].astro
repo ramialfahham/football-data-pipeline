@@ -1,6 +1,6 @@
 ---
 // Team page (screen 02) — the v2 design system's second real screen, from the
-// approved mock f6348775. URL: /{lang}/teams/{team-slug}/ (site_architecture.md).
+// approved mock f6348775. URL: /{lang}/{teams word}/{team-slug}/ (site_architecture.md).
 // This increment builds the OVERVIEW tab from ONE committed real team across the three
 // locales; Performance and Squad are chrome + the honest coming-state (their data
 // binding — benchmarks GAP-23, roster GAP-20 + the metricRows.ts 16-row contract — is
@@ -17,7 +17,7 @@ import TeamPerformance from "../../../components/team/TeamPerformance.astro";
 import TeamSquad from "../../../components/team/TeamSquad.astro";
 import SectionHead from "../../../components/ui/SectionHead.astro";
 import { t, BRAND } from "../../../i18n/strings";
-import { localeHref } from "../../../lib/href";
+import { localeHref, word } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
 import type { Team, TeamSeason } from "../../../lib/types";
 import competitions from "../../../data/competitions.json";
@@ -34,7 +34,7 @@ export function getStaticPaths() {
   });
   return Object.values(teams).flatMap((team) =>
     locales.map((lang) => ({
-      params: { lang, team: team.slug },
+      params: { lang, teams: word(lang, "teams"), team: team.slug },
       props: { team, lang },
     })),
   );

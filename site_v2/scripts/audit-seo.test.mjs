@@ -18,6 +18,9 @@ import {
 const SITE = "https://matchdaypilot.com";
 const LOCALES = ["de", "en", "fi"];
 
+/** One team page in each language, at that language's address word. */
+const TEAM_X = { de: "/de/mannschaften/x/", en: "/en/teams/x/", fi: "/fi/joukkueet/x/" };
+
 /** A minimal well-formed page head, as a parseHead() result. */
 function head(over = {}) {
   return {
@@ -28,9 +31,9 @@ function head(over = {}) {
     ogTitle: "T",
     ogUrl: `${SITE}/en/teams/x/`,
     alternates: {
-      de: "/de/teams/x/",
+      de: "/de/mannschaften/x/",
       en: "/en/teams/x/",
-      fi: "/fi/teams/x/",
+      fi: "/fi/joukkueet/x/",
       "x-default": "/en/teams/x/",
     },
     h1s: ["H"],
@@ -87,10 +90,31 @@ test("resolveHref: internal forms resolve, external and non-page forms do not", 
   assert.equal(resolveHref("", "/en/", o), null);
 });
 
-test("entityKey strips the locale segment so the same page in 3 languages shares one key", () => {
+test("entityKey strips the locale and maps the address words, so one page in 3 languages shares one key", () => {
   assert.equal(entityKey("/en/teams/x/", LOCALES), "/teams/x/");
-  assert.equal(entityKey("/de/teams/x/", LOCALES), "/teams/x/");
+  assert.equal(entityKey("/de/mannschaften/x/", LOCALES), "/teams/x/");
+  assert.equal(entityKey("/fi/joukkueet/x/", LOCALES), "/teams/x/");
+  assert.equal(entityKey("/de/bundesliga/statistiken/", LOCALES), "/bundesliga/stats/");
+  assert.equal(entityKey("/fi/bundesliga/ottelut/m/", LOCALES), "/bundesliga/matches/m/");
+  assert.equal(entityKey("/de/", LOCALES), entityKey("/en/", LOCALES));
   assert.equal(entityKey("/robots.txt", LOCALES), "/robots.txt");
+});
+
+test("hreflang must name the same page in each language and the page itself", () => {
+  const known = new Set(["/en/teams/x/", "/de/mannschaften/x/", "/fi/joukkueet/x/", "/de/teams/y/"]);
+  const opts = { ...OPTS, knownPaths: known };
+  const page = (path, alternates) => ({ path, head: head({ canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, hrefs: [path], alternates }) });
+  const good = { de: "/de/mannschaften/x/", en: "/en/teams/x/", fi: "/fi/joukkueet/x/", "x-default": "/en/teams/x/" };
+  const pages = ["/en/teams/x/", "/de/mannschaften/x/", "/fi/joukkueet/x/"].map((p) => page(p, good));
+  const reciprocity = (issues) => issues.filter((i) => /hreflang/.test(i));
+  assert.deepEqual(reciprocity(auditSet(pages, opts)), []);
+
+  const other = auditSet([page("/de/mannschaften/x/", { ...good, de: "/de/teams/y/" })], opts);
+  assert.ok(other.some((i) => /hreflang "de" points at \/de\/teams\/y\/, a different page/.test(i)), other.join("\n"));
+  assert.ok(other.some((i) => /does not point at the page itself/.test(i)), other.join("\n"));
+
+  const wrongLang = auditSet([page("/en/teams/x/", { ...good, fi: "/de/mannschaften/x/" })], opts);
+  assert.ok(wrongLang.some((i) => /hreflang "fi" points at \/de\/mannschaften\/x\/, which is not a "fi" page/.test(i)), wrongLang.join("\n"));
 });
 
 test("isRootRedirect only matches the generated root stub", () => {
@@ -108,13 +132,13 @@ test("auditSet: THE LIVE DEFECT — byte-identical titles across locales are cau
   // This is the regression lock for what shipped before #844: title built by concatenating two
   // locale-independent fields, so all three locales emitted the same string.
   const pages = LOCALES.map((l) => ({
-    path: `/${l}/teams/x/`,
+    path: `${TEAM_X[l]}`,
     head: head({
       title: "Manchester United — Premier League",
       description: `desc ${l}`,
-      canonical: `${SITE}/${l}/teams/x/`,
+      canonical: `${SITE}${TEAM_X[l]}`,
       ogTitle: "Manchester United — Premier League",
-      ogUrl: `${SITE}/${l}/teams/x/`,
+      ogUrl: `${SITE}${TEAM_X[l]}`,
     }),
   }));
   const issues = auditSet(pages, OPTS);
@@ -131,13 +155,13 @@ test("auditSet: TWO of three locales sharing a value is caught, not just all thr
     ["en", "shared"],
     ["fi", "shared"],
   ].map(([l, d]) => ({
-    path: `/${l}/teams/x/`,
+    path: `${TEAM_X[l]}`,
     head: head({
       title: `t ${l}`,
       description: d,
-      canonical: `${SITE}/${l}/teams/x/`,
+      canonical: `${SITE}${TEAM_X[l]}`,
       ogTitle: `t ${l}`,
-      ogUrl: `${SITE}/${l}/teams/x/`,
+      ogUrl: `${SITE}${TEAM_X[l]}`,
     }),
   }));
   const issues = auditSet(pages, OPTS);
@@ -147,13 +171,13 @@ test("auditSet: TWO of three locales sharing a value is caught, not just all thr
 
 test("auditSet: differing titles across locales pass", () => {
   const pages = LOCALES.map((l) => ({
-    path: `/${l}/teams/x/`,
+    path: `${TEAM_X[l]}`,
     head: head({
       title: `title ${l}`,
       description: `desc ${l}`,
-      canonical: `${SITE}/${l}/teams/x/`,
+      canonical: `${SITE}${TEAM_X[l]}`,
       ogTitle: `title ${l}`,
-      ogUrl: `${SITE}/${l}/teams/x/`,
+      ogUrl: `${SITE}${TEAM_X[l]}`,
     }),
   }));
   assert.deepEqual(auditSet(pages, OPTS), []);
@@ -196,15 +220,15 @@ test("auditSet: hreflang must be complete, and x-default must equal the en alter
 test("auditSet: an hreflang target the build never emitted is caught", () => {
   const issues = auditSet([{ path: "/en/teams/x/", head: head() }], {
     ...OPTS,
-    knownPaths: new Set(["/en/teams/x/", "/de/teams/x/"]), // no /fi/
+    knownPaths: new Set([TEAM_X.en, TEAM_X.de]), // no /fi/
   });
-  assert.ok(issues.some((i) => i.includes("/fi/teams/x/, which the build did not emit")));
+  assert.ok(issues.some((i) => i.includes("/fi/joukkueet/x/, which the build did not emit")));
 });
 
 test("auditSet: dead internal links are caught — Astro validates none of these", () => {
   const issues = auditSet([{ path: "/en/teams/x/", head: head({ hrefs: ["/en/teams/ghost/"] }) }], {
     ...OPTS,
-    knownPaths: new Set(["/en/teams/x/", "/de/teams/x/", "/fi/teams/x/"]),
+    knownPaths: new Set(Object.values(TEAM_X)),
   });
   assert.ok(issues.some((i) => i.includes("dead internal link")));
 });
@@ -222,26 +246,26 @@ test("auditSet: within a locale, a duplicate title/description/h1 is caught", ()
 test("auditSet: an entity page and its tab page share the h1 by design, and only they do", () => {
   const tab = (path, title) =>
     ({ path, head: head({ title, canonical: `${SITE}${path}`, ogUrl: `${SITE}${path}`, alternates: {} }) });
-  const shared = auditSet([tab("/en/bundesliga/", "Overview"), tab("/en/bundesliga/fixtures/", "Fixtures")], OPTS);
+  const shared = auditSet([tab("/en/bundesliga/", "Overview"), tab("/en/bundesliga/matches/", "Fixtures")], OPTS);
   assert.ok(!shared.some((i) => i.includes("h1 is not unique")), shared.join("\n"));
   // the title still has to differ between the two
-  const sameTitle = auditSet([tab("/en/bundesliga/", "T"), tab("/en/bundesliga/fixtures/", "T")], OPTS);
+  const sameTitle = auditSet([tab("/en/bundesliga/", "T"), tab("/en/bundesliga/matches/", "T")], OPTS);
   assert.ok(sameTitle.some((i) => i.includes('title is not unique within "en"')));
   // two segments down is not a tab, and a sibling is not a tab
   const deep = auditSet([tab("/en/bundesliga/", "A"), tab("/en/bundesliga/matches/x/", "B")], OPTS);
   assert.ok(deep.some((i) => i.includes("h1 is not unique")));
   const sibling = auditSet([tab("/en/bundesliga/", "A"), tab("/en/premier-league/", "B")], OPTS);
   assert.ok(sibling.some((i) => i.includes("h1 is not unique")));
-  assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/fixtures/") && isTabOf("/en/bundesliga/fixtures/", "/en/bundesliga/"));
+  assert.ok(isTabOf("/en/bundesliga/", "/en/bundesliga/matches/") && isTabOf("/en/bundesliga/matches/", "/en/bundesliga/"));
   assert.ok(!isTabOf("/en/teams/a/", "/en/teams/b/"));
   // two tabs of one entity page share its header too, whatever order the pages arrive in
-  const twoTabs = [tab("/en/bundesliga/fixtures/", "Fixtures"), tab("/en/bundesliga/rankings/", "Rankings"), tab("/en/bundesliga/", "Overview")];
+  const twoTabs = [tab("/en/bundesliga/matches/", "Fixtures"), tab("/en/bundesliga/stats/", "Rankings"), tab("/en/bundesliga/", "Overview")];
   assert.ok(!auditSet(twoTabs, OPTS).some((i) => i.includes("h1 is not unique")));
   // but two neighbours whose parent is not their entity page (or has another h1) do not
   const neighbours = [tab("/en/teams/a/", "A"), tab("/en/teams/b/", "B")];
   assert.ok(auditSet(neighbours, OPTS).some((i) => i.includes("h1 is not unique")));
-  const h1Of = new Map([["/en/bundesliga/", "Bundesliga"], ["/en/bundesliga/fixtures/", "Bundesliga"], ["/en/bundesliga/rankings/", "Bundesliga"], ["/en/x/", "Home"], ["/en/x/a/", "Same"], ["/en/x/b/", "Same"]]);
-  assert.ok(sharesHeader("/en/bundesliga/fixtures/", "/en/bundesliga/rankings/", h1Of));
+  const h1Of = new Map([["/en/bundesliga/", "Bundesliga"], ["/en/bundesliga/matches/", "Bundesliga"], ["/en/bundesliga/stats/", "Bundesliga"], ["/en/x/", "Home"], ["/en/x/a/", "Same"], ["/en/x/b/", "Same"]]);
+  assert.ok(sharesHeader("/en/bundesliga/matches/", "/en/bundesliga/stats/", h1Of));
   assert.ok(!sharesHeader("/en/x/a/", "/en/x/b/", h1Of), "a parent with another h1 makes them neighbours, not tabs");
 });
 
@@ -277,14 +301,17 @@ test("auditSet: the root redirect stub is skipped rather than audited as a page"
 });
 
 test("specRouteRegex turns a spec's page field into the URLs that template emits", () => {
-  const team = specRouteRegex("[lang]/teams/[team].astro");
+  const team = specRouteRegex("[lang]/[teams]/[team].astro");
   assert.ok(team.test("/en/teams/manchester-united/"));
+  assert.ok(team.test("/de/mannschaften/manchester-united/"));
   assert.ok(!team.test("/en/teams/"));
   assert.ok(!team.test("/en/players/x/"));
+  assert.ok(!team.test("/en/bundesliga/stats/"), "a word parameter takes only its own word");
 
-  const fixture = specRouteRegex("[lang]/[competition]/matches/[fixture].astro");
-  assert.ok(fixture.test("/de/brasileirao/matches/2026-07-26-a-vs-b/"));
-  assert.ok(!fixture.test("/de/brasileirao/matches/"));
+  const fixture = specRouteRegex("[lang]/[competition]/[matches]/[fixture].astro");
+  assert.ok(fixture.test("/de/brasileirao/spiele/2026-07-26-a-vs-b/"));
+  assert.ok(fixture.test("/fi/brasileirao/ottelut/2026-07-26-a-vs-b/"));
+  assert.ok(!fixture.test("/de/brasileirao/spiele/"));
 
   // trailingSlash: "always" — an index segment collapses to the directory URL.
   const landing = specRouteRegex("[lang]/index.astro");
@@ -299,9 +326,11 @@ test("THE LOOP IS CLOSED: expected @type comes from the committed specs, not a h
   const specs = readSpecExpectations();
   assert.ok(specs.length >= 3, `expected at least the 3 committed specs, got ${specs.length}`);
 
-  const team = specs.find((s) => s.page === "[lang]/teams/[team].astro");
+  const team = specs.find((s) => s.page === "[lang]/[teams]/[team].astro");
   assert.equal(team.schemaOrg, "SportsTeam");
   assert.ok(team.match.test("/en/teams/manchester-united/"));
+  assert.ok(team.match.test("/de/mannschaften/manchester-united/"));
+  assert.ok(team.match.test("/fi/joukkueet/manchester-united/"));
 
   const fixture = specs.find((s) => s.page.includes("matches"));
   assert.equal(fixture.schemaOrg, "SportsEvent");
@@ -347,7 +376,7 @@ test("auditSet: a title past the HARD width limit is caught", () => {
     "Borussia Mönchengladbach gegen Eintracht Frankfurt: Form, Statistiken, Kader & Spiele | Bundesliga";
   assert.ok(titleWidthPx(long) > TITLE_PX_HARD, "fixture for this test must exceed the hard limit, not just the budget");
   const issues = auditSet(
-    [{ path: "/de/teams/x/", head: head({ title: long, ogTitle: long, canonical: `${SITE}/de/teams/x/`, ogUrl: `${SITE}/de/teams/x/` }) }],
+    [{ path: TEAM_X.de, head: head({ title: long, ogTitle: long, canonical: `${SITE}${TEAM_X.de}`, ogUrl: `${SITE}${TEAM_X.de}` }) }],
     OPTS,
   );
   assert.ok(issues.some((i) => i.includes("hard limit")), issues.join(" | "));
@@ -362,7 +391,7 @@ test("auditSet: a title merely over the ~600px budget does NOT fail the build", 
   const px = titleWidthPx(marginal);
   assert.ok(px > TITLE_PX_BUDGET && px <= TITLE_PX_HARD, `expected a marginal overrun, got ~${px}px`);
   const issues = auditSet(
-    [{ path: "/de/teams/x/", head: head({ title: marginal, ogTitle: marginal, canonical: `${SITE}/de/teams/x/`, ogUrl: `${SITE}/de/teams/x/` }) }],
+    [{ path: TEAM_X.de, head: head({ title: marginal, ogTitle: marginal, canonical: `${SITE}${TEAM_X.de}`, ogUrl: `${SITE}${TEAM_X.de}` }) }],
     OPTS,
   );
   assert.deepEqual(issues, []);
@@ -424,7 +453,7 @@ test("THE COLLISION: a dynamic route's regex also matches its literal sibling's 
   // This is the ambiguity, asserted rather than described. Both specs genuinely match
   // /en/competitions/, which is why picking the FIRST match was picking by directory-walk order.
   const hub = specRouteRegex("[lang]/[competition]/index.astro");
-  const index = specRouteRegex("[lang]/competitions/index.astro");
+  const index = specRouteRegex("[lang]/[competitions]/index.astro");
   assert.ok(hub.test("/en/competitions/"), "the hub pattern matches the index URL — the collision");
   assert.ok(index.test("/en/competitions/"), "the index pattern matches its own URL");
   assert.ok(hub.test("/en/bundesliga/"), "the hub pattern still matches a real competition");
@@ -435,17 +464,43 @@ test("routeSpecificity ranks the literal sibling above the dynamic one", () => {
   // The tie-break. Without it the competitions INDEX was judged against the competition HUB's
   // spec and failed for emitting ItemList instead of SportsOrganization — three violations, one
   // per locale, on a page that was correct.
-  assert.equal(routeSpecificity("[lang]/competitions/index.astro"), 2); // competitions + index
+  assert.equal(routeSpecificity("[lang]/[competitions]/index.astro"), 2); // competitions + index
   assert.equal(routeSpecificity("[lang]/[competition]/index.astro"), 1); // index
   assert.ok(
-    routeSpecificity("[lang]/competitions/index.astro") >
+    routeSpecificity("[lang]/[competitions]/index.astro") >
       routeSpecificity("[lang]/[competition]/index.astro"),
     "a literal segment must outrank a dynamic one, or the index inherits the hub's spec",
   );
-  // Not a special case for this pair: the deeper literal route also wins.
-  assert.equal(routeSpecificity("[lang]/[competition]/matches/[fixture].astro"), 1);
-  assert.equal(routeSpecificity("[lang]/teams/[team].astro"), 1);
+  // Not a special case for this pair: an address-word parameter counts as a literal everywhere.
+  assert.equal(routeSpecificity("[lang]/[competition]/[matches]/[fixture].astro"), 1);
+  assert.equal(routeSpecificity("[lang]/[teams]/[team].astro"), 1);
+  assert.equal(routeSpecificity("[lang]/[competition]/[stats]/index.astro"), 2);
   assert.equal(routeSpecificity("index.astro"), 1);
+});
+
+test("the live three-segment routes never tie: each word parameter takes only its own word", () => {
+  const spec = (page) => ({
+    page, schemaOrg: page, match: specRouteRegex(page), specificity: routeSpecificity(page),
+  });
+  const specs = [
+    "[lang]/[teams]/[team].astro",
+    "[lang]/[players]/[player].astro",
+    "[lang]/[competition]/[matches]/index.astro",
+    "[lang]/[competition]/[stats]/index.astro",
+  ].map(spec);
+  const cases = {
+    "/de/mannschaften/x/": "[lang]/[teams]/[team].astro",
+    "/fi/pelaajat/x/": "[lang]/[players]/[player].astro",
+    "/de/bundesliga/spiele/": "[lang]/[competition]/[matches]/index.astro",
+    "/fi/bundesliga/tilastot/": "[lang]/[competition]/[stats]/index.astro",
+    "/en/bundesliga/stats/": "[lang]/[competition]/[stats]/index.astro",
+  };
+  for (const [path, page] of Object.entries(cases)) {
+    assert.deepEqual(specTie(specs, path), [], path);
+    assert.equal(specForPath(specs, path).page, page, path);
+  }
+  assert.equal(specForPath(specs, "/de/competitions/"), null);
+  assert.equal(specForPath([spec("[lang]/[competitions]/index.astro")], "/de/wettbewerbe/").page, "[lang]/[competitions]/index.astro");
 });
 
 test("specForPath: the literal route wins the collision, in EITHER array order", () => {
@@ -456,7 +511,7 @@ test("specForPath: the literal route wins the collision, in EITHER array order",
     page, schemaOrg, match: specRouteRegex(page), specificity: routeSpecificity(page),
   });
   const hub = spec("[lang]/[competition]/index.astro", "SportsOrganization");
-  const index = spec("[lang]/competitions/index.astro", "ItemList");
+  const index = spec("[lang]/[competitions]/index.astro", "ItemList");
 
   for (const order of [[hub, index], [index, hub]]) {
     assert.equal(
@@ -490,7 +545,7 @@ test("specTie: an EQUAL-specificity overlap is reported, not silently resolved",
 
   // And the live spec set does NOT tie — the real collision is settled 2 to 1 by specificity.
   const hub = spec("[lang]/[competition]/index.astro");
-  const index = spec("[lang]/competitions/index.astro");
+  const index = spec("[lang]/[competitions]/index.astro");
   assert.deepEqual(specTie([hub, index], "/en/competitions/"), [], "specificity settles this one");
   assert.deepEqual(specTie([hub, index], "/en/bundesliga/"), [], "only one spec matches at all");
 });

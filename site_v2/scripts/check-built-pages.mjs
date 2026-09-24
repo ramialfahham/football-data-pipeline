@@ -11,7 +11,7 @@
 // 2. On every fixtures page exactly one round is checked on load, and it is the round the
 //    warehouse flagged next whenever one is flagged; every unplayed row is a link and no played row
 //    is, until the match report page exists.
-// 3. On every Rankings page (`/rankings/`) every board keeps the board rules: one to five rows,
+// 3. On every Rankings page (at the stats word) every board keeps the board rules: one to five rows,
 //    every row a link, the boards the payload served and no others, and no zero on a most-first
 //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
 //    page names its direction, so the directions come from the payload, grouped the way the page
@@ -25,15 +25,22 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readDist } from "./audit-seo.mjs";
 import { boardGroups } from "../src/lib/competitionPayload.mjs";
+import { word } from "../src/lib/addressWords.mjs";
 
 export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 export const DIST_DIR = join(SITE_ROOT, "dist");
 export const DATA_DIR = join(SITE_ROOT, "src", "data");
 export const LOCALES = ["de", "en", "fi"];
 
-export const MATCH_PAGE = /^\/(de|en|fi)\/[^/]+\/matches\/[^/]+\/$/;
-export const FIXTURES_PAGE = /^\/(de|en|fi)\/[^/]+\/fixtures\/$/;
-export const RANKINGS_PAGE = /^\/(de|en|fi)\/[^/]+\/rankings\/$/;
+/** A competition tab's path shape, each locale paired with its own spelling of the address word. */
+function tabPath(key, tail) {
+  const alts = LOCALES.map((l) => `${l}/[^/]+/${word(l, key)}`).join("|");
+  return new RegExp(`^/(?:${alts})/${tail}$`);
+}
+
+export const MATCH_PAGE = tabPath("matches", "[^/]+/");
+export const FIXTURES_PAGE = tabPath("matches", "");
+export const RANKINGS_PAGE = tabPath("stats", "");
 export const BOARD_ROWS_MAX = 5;
 
 /** Issues for the match-page count against the payloads written and, when present, the manifest. */
@@ -186,9 +193,27 @@ export function expectedBoards(dataDir = DATA_DIR) {
     const seasons = readdirSync(join(dir, code)).filter((f) => f.endsWith(".json")).sort();
     if (!seasons.length) continue;
     const p = JSON.parse(readFileSync(join(dir, code, seasons[seasons.length - 1]), "utf8"));
-    if (p.slug) latest.set(p.slug, { ascending: renderedBoards(p, keys).map((b) => b.rank_order === "asc") });
+    if (p.slug) {
+      latest.set(p.slug, {
+        ascending: renderedBoards(p, keys).map((b) => b.rank_order === "asc"),
+        hasFixtures: Boolean(p.fixtures?.length),
+      });
+    }
   }
   return latest;
+}
+
+/** Issues when a tab the payloads call for matched no built page: the tab checks above only run on
+ *  the pages their path shape finds, so a shape that drifts from the address words would otherwise
+ *  check nothing and pass. */
+export function checkTabPagesFound({ fixturesPages, rankingsPages, expected }) {
+  const issues = [];
+  const values = [...expected.values()];
+  if (fixturesPages === 0 && values.some((v) => v.hasFixtures))
+    issues.push("a payload carries fixtures but no Matchdays page matched FIXTURES_PAGE");
+  if (rankingsPages === 0 && values.some((v) => v.ascending.length > 0))
+    issues.push("a payload carries boards but no Rankings page matched RANKINGS_PAGE");
+  return issues;
 }
 
 export function readManifest(dataDir = DATA_DIR) {
@@ -225,6 +250,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   const payloadFiles = countPayloads(dataDir);
   const manifest = readManifest(dataDir);
   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
+  issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
   if (issues.length) {
     console.error(`check-built-pages: ${issues.length} issue(s)`);
     for (const i of issues) console.error(`  - ${i}`);

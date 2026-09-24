@@ -11,17 +11,15 @@
 import Layout from "../../../layouts/Layout.astro";
 import CompetitionIndexGrid from "../../../components/competitions/CompetitionIndexGrid.astro";
 import { t } from "../../../i18n/strings";
-import { localeHref } from "../../../lib/href";
+import { localeHref, word } from "../../../lib/href";
 import type { Lang } from "../../../lib/format";
 import type { CompetitionIndex } from "../../../lib/types";
 import competitionIndex from "../../../data/competition_index.json";
 
 export function getStaticPaths() {
-  return [
-    { params: { lang: "de" } },
-    { params: { lang: "en" } },
-    { params: { lang: "fi" } },
-  ];
+  return (["de", "en", "fi"] as const).map((lang) => ({
+    params: { lang, competitions: word(lang, "competitions") },
+  }));
 }
 
 const lang = (Astro.params.lang ?? "en") as Lang;

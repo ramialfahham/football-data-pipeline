@@ -19,6 +19,7 @@
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { WORDS, translatePath } from "../src/lib/addressWords.mjs";
 
 export const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
 export const DIST_DIR = join(SITE_ROOT, "dist");
@@ -188,8 +189,9 @@ export function titleWidthPx(text, fontPx = TITLE_FONT_PX) {
  *
  * Astro itself has never been ambiguous here — a static route always beats a dynamic one — so
  * this restores the router's own precedence rather than inventing a rule. Counting literal
- * segments is enough for that: `[lang]/competitions/index` scores 2 (`competitions`, `index`)
- * against `[lang]/[competition]/index`'s 1 (`index`).
+ * segments is enough for that: `[lang]/[competitions]/index` scores 2 (the address word
+ * `competitions`, `index`) against `[lang]/[competition]/index`'s 1 (`index`). A route parameter
+ * named after an address word (`wordParam`) is a literal: it only ever takes that word's spellings.
  *
  * ⚠ Deliberately NOT an exemption for this one page. Every future top-level dynamic route would
  * collide with every literal sibling the same way.
@@ -198,7 +200,13 @@ export function routeSpecificity(pageField) {
   return pageField
     .replace(/\.astro$/, "")
     .split("/")
-    .filter((seg) => seg && !/^\[.+\]$/.test(seg)).length;
+    .filter((seg) => seg && (!/^\[.+\]$/.test(seg) || wordParam(seg))).length;
+}
+
+/** The address-word key a route segment `[key]` stands for, or null for any other segment. */
+export function wordParam(seg) {
+  const m = /^\[(.+)\]$/.exec(seg);
+  return m && Object.hasOwn(WORDS, m[1]) ? m[1] : null;
 }
 
 /**
@@ -230,7 +238,8 @@ export function specForPath(specs, path) {
  * match `/en/foo/bar/x/`. Nothing today ties — the only live collision is
  * `[lang]/[competition]/index` against `[lang]/competitions/index`, which the specificity rule
  * settles 2 to 1 — so this reports a defect that does not exist yet and would otherwise arrive
- * silently.
+ * silently. The address words keep it so: without `wordParam`, `[lang]/[teams]/[team]` and
+ * `[lang]/[competition]/[matches]/index` would both score 1 and tie on every three-segment path.
  */
 export function specTie(specs, path) {
   const matches = specs.filter((s) => s.match.test(path));
@@ -244,17 +253,22 @@ export function specRouteRegex(pageField) {
   const withoutExt = pageField.replace(/\.astro$/, "");
   const escaped = withoutExt
     .split("/")
-    .map((seg) => (/^\[.+\]$/.test(seg) ? "[^/]+" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))
+    .map((seg) => {
+      const key = wordParam(seg);
+      if (key) return `(?:${[...new Set(Object.values(WORDS[key]))].join("|")})`;
+      return /^\[.+\]$/.test(seg) ? "[^/]+" : seg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
     .join("/");
   // trailingSlash: "always" -- an index segment collapses to the directory URL.
   const body = escaped.replace(/\/index$/, "");
   return new RegExp(`^/${body}/$`);
 }
 
-/** The path with its locale segment removed — the "same entity, other language" key. */
+/** The path with its locale segment removed and its address words mapped to their keys — the
+ *  "same entity, other language" key: `/de/mannschaften/x/` and `/en/teams/x/` share `/teams/x/`. */
 export function entityKey(path, locales) {
   const parts = path.split("/").filter(Boolean);
-  if (locales.includes(parts[0])) return "/" + parts.slice(1).join("/") + "/";
+  if (locales.includes(parts[0])) return "/" + translatePath(parts.slice(1).join("/"), parts[0], "en") + "/";
   return path;
 }
 
@@ -266,7 +280,7 @@ export function isTabOf(a, b) {
   return rest.length === 1;
 }
 
-/** The path one segment up: a tab's entity page. "/en/x/rankings/" -> "/en/x/". */
+/** The path one segment up: a tab's entity page. "/en/x/stats/" -> "/en/x/". */
 function parentOf(path) {
   const parts = path.split("/").filter(Boolean);
   return parts.length > 1 ? "/" + parts.slice(0, -1).join("/") + "/" : null;
@@ -353,7 +367,19 @@ export function auditSet(pages, opts) {
         const target = resolveHref(href, path, { site, base });
         if (target && knownPaths && !knownPaths.has(target))
           add(path, `hreflang "${l}" points at ${target}, which the build did not emit`);
+        // Reciprocal: each target is this entity in that language, so the page there names this
+        // one back (one path per entity per language). Once words differ per language, a prefix
+        // swap alone would still pass the checks above while pointing at a page that is not there.
+        if (target && l !== "x-default") {
+          if (target.split("/").filter(Boolean)[0] !== l)
+            add(path, `hreflang "${l}" points at ${target}, which is not a "${l}" page`);
+          else if (entityKey(target, locales) !== loc)
+            add(path, `hreflang "${l}" points at ${target}, a different page than ${path}`);
+        }
       }
+      const own = path.split("/").filter(Boolean)[0];
+      if (head.alternates[own] && resolveHref(head.alternates[own], path, { site, base }) !== path)
+        add(path, `hreflang "${own}" does not point at the page itself`);
       // 4. x-default must be the en URL, never the root redirect stub.
       const xd = head.alternates["x-default"];
       if (xd && head.alternates.en && xd !== head.alternates.en)
