@@ -527,10 +527,8 @@ validate:ui:
 # The repo's lint: every pre-commit hook on every file, the same config a local commit runs, so
 # the two cannot drift apart. Ruff (correctness only, ruleset in .ruff-ci.toml) is one of the hooks.
 #
-# WHY RUFF IS HERE: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
-# duplicate module-level function name, and three of the four defects across that MR's three
-# review rounds were mechanically decidable. LLM reviewers are the most expensive check here and
-# belong on judgement, not on facts a tool settles for free.
+# WHY RUFF IS HERE: it settles mechanical defects for free, so the reviewers, the most expensive
+# check here, are spent on judgement.
 #
 # ⚠ The ruff hook's `--config .ruff-ci.toml` IS REQUIRED: the config is named outside ruff's
 # auto-discovered set, so without it ruff silently runs its defaults. Never add `--select`: it

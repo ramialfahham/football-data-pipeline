@@ -1,317 +1,125 @@
-diff --git a/.claude/hooks/stop_gate.py b/.claude/hooks/stop_gate.py
-index cd6f0670..798b7c74 100644
---- a/.claude/hooks/stop_gate.py
-+++ b/.claude/hooks/stop_gate.py
-@@ -93,7 +93,21 @@ def _parked_stashes(root: str) -> list[str]:
-     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
- 
- 
--def _failing_gates(root: str) -> list[tuple[str, str]]:
-+def _gate_python(root: str) -> str:
-+    """The repo's `.venv` interpreter when setup has created it, else the one running this hook.
-+
-+    The hook is started with whatever `python` is on PATH. On a fresh machine that is the system
-+    Python, which lacks the packages the gates import (PyYAML), so every gate reported a false
-+    failure. `scripts/bootstrap.py` creates `.venv` with every requirement.
-+    """
-+    for rel in (os.path.join(".venv", "Scripts", "python.exe"), os.path.join(".venv", "bin", "python")):
-+        candidate = os.path.join(root, rel)
-+        if os.path.isfile(candidate):
-+            return candidate
-+    return sys.executable
-+
-+
-+def _failing_gates(root: str, python: str) -> list[tuple[str, str]]:
-     """(script, first meaningful output line) for each fast gate that fails.
- 
-     A gate whose SCRIPT IS ABSENT is skipped, not reported: this hook also runs in
-@@ -107,7 +121,7 @@ def _failing_gates(root: str) -> list[tuple[str, str]]:
-             continue
-         try:
-             proc = subprocess.run(
--                [sys.executable, path], cwd=root, capture_output=True,
-+                [python, path], cwd=root, capture_output=True,
-                 timeout=GATE_TIMEOUT_S,
-             )
-         except Exception:
-@@ -177,7 +191,8 @@ def main() -> int:
-         # clean tree cannot have broken a gate that was passing.
-         if not _dirty_outside_task_dir(root):
-             return 0
--        failures = _failing_gates(root)
-+        python = _gate_python(root)
-+        failures = _failing_gates(root, python)
-         if failures:
-             detail = "; ".join(f"{rel} -> {msg}" for rel, msg in failures)
-             print(json.dumps({
-@@ -188,7 +203,7 @@ def main() -> int:
-                     "checks CI runs, so ending the turn here ships a known-red branch. "
-                     "Fix them, or — if a failure is pre-existing and unrelated — say so "
-                     "explicitly with the command output rather than ending silently. "
--                    "Run `python <script>` for the full report."
-+                    f"Run `{python} <script>` for the full report."
-                 ),
-             }))
-     except Exception:
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 903f5c16..9f945307 100644
+index 9f945307..130cee33 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,168 +1,73 @@
--# Task contract — Clone and continue: one setup command (#161)
-+# Task contract — The stop gate runs its checks in the repo's own Python environment (#162)
+@@ -1,73 +1,49 @@
+-# Task contract — The stop gate runs its checks in the repo's own Python environment (#162)
++# Task contract — Remove decision history from the lint:python comment
  
  objective: >
--  After `git clone`, one command (`python scripts/bootstrap.py`) sets up everything that needs no
--  credentials, and `python scripts/bootstrap.py --verify` proves it: tests, pre-commit on all files,
--  the site build from sample data. The README says what the credentialed level needs and where it
--  goes. Generic config is committed, personal config stays out, and old-machine paths are gone.
-+  The turn-end stop gate runs its fast offline gates with the repo's `.venv` interpreter when
-+  `scripts/bootstrap.py` has created it, and with the hook's own interpreter otherwise. A fresh
-+  machine's system Python lacks the gates' packages (PyYAML), so today every turn with a dirty tree
-+  reports three false failures.
+-  The turn-end stop gate runs its fast offline gates with the repo's `.venv` interpreter when
+-  `scripts/bootstrap.py` has created it, and with the hook's own interpreter otherwise. A fresh
+-  machine's system Python lacks the gates' packages (PyYAML), so today every turn with a dirty tree
+-  reports three false failures.
++  The comment above `lint:python` in `.gitlab-ci.yml` carries history (a date, a reviewer, a token
++  count, an MR number). Replace it with the one-line reason the job exists. Comment only; no
++  behaviour change.
  refs: >
--  GitLab #161 (the requirement, its checklist and its plan; approved in plan mode 2026-09-24).
--  Plan produced by an independent expert review from the requirement and the measurements in the
--  issue's exploration fold. Doc wording reused from the parked branch
--  `parked/fix/dbt-profile-local-to-this-repo--profile-root`; its guard script is NOT reused.
-+  GitLab #162 (requirement, checklist and plan; approved in plan mode 2026-09-24). Follows #161
-+  (clone and continue), whose setup creates `.venv` with every requirement.
+-  GitLab #162 (requirement, checklist and plan; approved in plan mode 2026-09-24). Follows #161
+-  (clone and continue), whose setup creates `.venv` with every requirement.
++  No issue: a comment-only change with no requirement (working_agreement §1 carve-out); the MR head
++  says "No behaviour change". The rule it applies is `dbt_project/docs/engineering_standards.md`
++  §1.2 (a comment says why; who, when, which reviewer and which MR live in git).
  
  scope_paths:
--  - scripts/bootstrap.py
--  - tests/test_bootstrap.py
--  - tests/test_lint_config.py
-+  - .claude/hooks/stop_gate.py
-   - tests/test_governance_hooks.py
--  - README.md
--  - CLAUDE.md
--  - AGENTS.md
--  - .gitignore
--  - .claude/launch.json
--  - .mcp.json
--  - .gitlab-ci.yml
--  - .pre-commit-config.yaml
--  - .ruff-ci.toml
--  - requirements-dev.txt
--  - .python-version
--  - .nvmrc
--  - site_v2/package.json
--  - site_v2/package-lock.json
--  - dbt_project/profiles.example.yml
--  - .claude/skills/onboard-endpoint/SKILL.md
--  # end-of-file / trailing-whitespace fixes the new pre-commit config requires (whitespace only)
--  - requirements.txt
--  - dbt_project/packages.yml
--  - dbt_project/models/3_core/.gitkeep
--  - dbt_project/models/4_intermediate/.gitkeep
--  - dbt_project/models/5_marts/.gitkeep
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
--  - ingestion/api_football/loads/competition_runner.py
--  - design-mocks/rows.py
--  - design-mocks/interaction.py
+-  - .claude/hooks/stop_gate.py
+-  - tests/test_governance_hooks.py
++  - .gitlab-ci.yml
    - .claude/task/**
    - docs/tracker/**
  
  protected_override: >
--  `.gitlab-ci.yml` and `.mcp.json` are protected paths. Authority: the plan for GitLab #161,
--  approved in plan mode on 2026-09-24, whose How names both ("`.gitlab-ci.yml`: `lint:python` runs
--  pre-commit, the two site jobs move to `node:24`, and the new setup job (never on a schedule ...)"
--  and "`.mcp.json` (relative paths, `${DBT_PATH:-.venv/Scripts/dbt.exe}`)"), and whose header says
--  the contract quotes that approval for the two protected files. The item-by-item answers in chat
--  the same day: Node 24 in CI "ok"; the CI job on Linux, on setup-file MRs and manual, "ok". The
--  commit message and the MR head repeat this under `Locked files`; his merge is the approval
--  (working_agreement §11).
-+  `.claude/hooks/stop_gate.py` is a protected path. Authority: the plan for GitLab #162, approved in
-+  plan mode on 2026-09-24, whose How names the file ("`.claude/hooks/stop_gate.py`,
-+  `_failing_gates`: run each check with the repo's `.venv` Python when it exists ..., otherwise with
-+  the Python that runs the hook, as today") and whose header says the contract quotes that approval
-+  for this protected file. His go in chat before it: "do it". The commit message and the MR head
-+  repeat this under `Locked files`; his merge is the approval (working_agreement §11).
+-  `.claude/hooks/stop_gate.py` is a protected path. Authority: the plan for GitLab #162, approved in
+-  plan mode on 2026-09-24, whose How names the file ("`.claude/hooks/stop_gate.py`,
+-  `_failing_gates`: run each check with the repo's `.venv` Python when it exists ..., otherwise with
+-  the Python that runs the hook, as today") and whose header says the contract quotes that approval
+-  for this protected file. His go in chat before it: "do it". The commit message and the MR head
+-  repeat this under `Locked files`; his merge is the approval (working_agreement §11).
++  `.gitlab-ci.yml` is a protected path. Authority: his go on 2026-09-24 in chat, "do it", to the
++  proposal to delete the history line from the `lint:python` comment in a tiny MR. The commit
++  message and the MR head repeat this under `Locked files`; his merge is the approval
++  (working_agreement §11).
  
  impact_map: >
--  writers: none. No raw writer, dbt model logic, seed or export script changes. Structural paths
--  touched are whitespace only: `dbt_project/models/**` (three `.gitkeep` files that hold a single
--  CRLF, and `domestic_league.yml` gains a final newline) and
--  `ingestion/api_football/loads/competition_runner.py` (final newline). A final newline changes no
--  parsed YAML, no compiled SQL and no Python AST: blast radius none, checked by `dbt parse` and
--  pytest staying green.
--  .gitlab-ci.yml, what fires it: (1) `lint:python` (every non-schedule pipeline, `*not_on_schedule`
--  first, unchanged) now runs `pre-commit run --all-files`; its name is unchanged, so
--  `build:nightly-image`'s `needs:` on it (pinned by
--  `test_governance_hooks.py::...required_gates`) still holds. (2) `build:site-v2` and
--  `deploy:site-v2` image `node:22` -> `node:24`; rules, scripts and artifacts unchanged;
--  `validate:ui` still needs `build:site-v2` (pinned by `test_design_inventory.py`). (3) new job
--  `setup:clean-clone`: `*not_on_schedule` as its FIRST rule (pinned by
--  `test_every_job_except_the_nightly_is_guarded_against_schedules`, because any GitLab schedule
--  also starts the prod `data:nightly`), then MR pipelines whose changes touch the setup inputs,
--  then `web` manual. No GCP auth, no `id_tokens`, no warehouse, no deploy, no `resource_group`.
--  What imports the file: `tests/test_lint_config.py` (requires a `ruff check --config .ruff-ci.toml`
--  invocation; the invocation moves to `.pre-commit-config.yaml`, so the test reads both files),
--  `tests/test_governance_hooks.py` (schedule guard, required gates, the `DBT_PROFILES_DIR` pin:
--  untouched properties), `tests/test_design_inventory.py`, `tests/test_ci_data_job_invariants.py`,
--  `tests/test_persist_docs_policy.py`, `scripts/check_task_artifacts.py` (none of their jobs change).
--  What stops being enforced if wrong: if pre-commit in `lint:python` failed to run ruff with the CI
--  config, CI's Python lint would weaken silently; the updated `test_lint_config.py` pins the hook's
--  entry, its `--config` and the absence of `--select`/`--ignore`, and pins the hook's ruff version
--  to the `requirements-dev.txt` pin. Failure behaviour: no `allow_failure` anywhere; a red hook is a
--  red job.
--  .mcp.json, what fires it: Claude Code launches the `dbt` MCP server at session start. Today it
--  fails to connect (old-machine paths). After: relative `DBT_PROJECT_DIR`/`DBT_PROFILES_DIR` and
--  `${DBT_PATH:-.venv/Scripts/dbt.exe}`. Nothing imports it; no guard depends on it; its failure mode
--  is the dbt tool not starting, which is the state today. The enabled tool list is unchanged
--  (read-only lineage/list/parse tools).
--  layer_rules: none touched (`check_layer_contract.py` reads models; whitespace only).
--  deploy_order: nothing reaches a host or a dataset. The nightly (Cloud Scheduler `fdp-nightly`) is
--  untouched; no GitLab schedule is created.
--  blast_radius: none on data. Developer-facing: every clone that runs the setup gets pre-commit
--  (pre-commit + post-commit hook types) installed into `.git/hooks`; the post-commit hook is the
--  existing `.githooks/post-commit`, unchanged.
-+  writers: none. No raw writer, dbt model, seed, export script or site file.
-+  what fires it: the `Stop` hook in `.claude/settings.json` (line 119, `python
-+  "$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py"`, unchanged) at every agent turn end. The
-+  changed code runs only in the CORRECTNESS branch: after the stash check, after the scope check,
-+  and only when the tree is dirty outside `.claude/task/`.
-+  what imports it: `tests/test_governance_hooks.py` (runs the hook as a subprocess, and imports
-+  `stop_gate.FAST_GATES` for the validate-local agreement test; `FAST_GATES` is unchanged).
-+  Nothing else imports it.
-+  what stops being enforced if it is wrong: if the interpreter choice broke, every gate would fail
-+  to start; `subprocess.run` raising is caught and the gate skipped (fail open, the file's house
-+  rule), so a wrong path would silently skip gates rather than block. The new test pins both
-+  branches: with `.venv` the gate runs in it; without, it runs with the hook's interpreter and a
-+  failing gate is still reported. Scope and stash checks are untouched.
-+  failure behaviour: unchanged — block once, `stop_hook_active` prevents loops, any unexpected
-+  error returns 0.
-+  layer_rules: none touched.
-+  deploy_order: nothing reaches a host, a dataset or CI; the hook is local to agent sessions.
-+  blast_radius: none on data. Agent sessions on a machine with `.venv` stop seeing false
-+  PyYAML failures; sessions without `.venv` behave as today.
+-  writers: none. No raw writer, dbt model, seed, export script or site file.
+-  what fires it: the `Stop` hook in `.claude/settings.json` (line 119, `python
+-  "$CLAUDE_PROJECT_DIR/.claude/hooks/stop_gate.py"`, unchanged) at every agent turn end. The
+-  changed code runs only in the CORRECTNESS branch: after the stash check, after the scope check,
+-  and only when the tree is dirty outside `.claude/task/`.
+-  what imports it: `tests/test_governance_hooks.py` (runs the hook as a subprocess, and imports
+-  `stop_gate.FAST_GATES` for the validate-local agreement test; `FAST_GATES` is unchanged).
+-  Nothing else imports it.
+-  what stops being enforced if it is wrong: if the interpreter choice broke, every gate would fail
+-  to start; `subprocess.run` raising is caught and the gate skipped (fail open, the file's house
+-  rule), so a wrong path would silently skip gates rather than block. The new test pins both
+-  branches: with `.venv` the gate runs in it; without, it runs with the hook's interpreter and a
+-  failing gate is still reported. Scope and stash checks are untouched.
+-  failure behaviour: unchanged — block once, `stop_hook_active` prevents loops, any unexpected
+-  error returns 0.
+-  layer_rules: none touched.
+-  deploy_order: nothing reaches a host, a dataset or CI; the hook is local to agent sessions.
+-  blast_radius: none on data. Agent sessions on a machine with `.venv` stop seeing false
+-  PyYAML failures; sessions without `.venv` behave as today.
++  writers: none. No raw writer, model, seed, export or site file.
++  what fires it: nothing changes what fires; only YAML comment lines change, which GitLab and
++  `yaml.safe_load` ignore. Job definitions, rules, scripts, images and anchors are byte-identical.
++  what imports it: `tests/test_lint_config.py`, `tests/test_governance_hooks.py`,
++  `tests/test_design_inventory.py`, `tests/test_ci_data_job_invariants.py`,
++  `tests/test_persist_docs_policy.py` and `scripts/check_task_artifacts.py` parse the file; none
++  reads comments.
++  what stops being enforced if it is wrong: nothing; a comment enforces nothing.
++  failure behaviour: unchanged.
++  layer_rules: none. deploy_order: none. blast_radius: none; the parsed YAML is identical before
++  and after.
  
  decisions_taken: >
--  Every item below is a line of GitLab #161, approved in plan mode 2026-09-24, or an item answered
--  in chat that day.
-+  Every item is a line of GitLab #162, approved in plan mode 2026-09-24.
- 
--  pre-commit (item 1, "ok"): runs exactly what CI runs offline. In: file hygiene with generated or
--  frozen trees excluded (`site_v2/src/data/`, `site/` retired and frozen, `.github/workflows/`
--  protected and kept unedited, `.claude/task/` generated review artifacts), ruff check at CI's
--  version with `--config .ruff-ci.toml`, the secret scan. Out: `ruff-format` (never enforced; would
--  reformat 112 files) and `sqlfluff` (needs BigQuery; CI's data jobs still lint SQL). CI's
--  `lint:python` runs pre-commit, so there is one config. This reverses the documented choice to
--  keep the two independent (`.ruff-ci.toml` header, `.gitlab-ci.yml` lint comment); both are
--  rewritten, not appended.
-+  Interpreter choice inside the hook, not in `.claude/settings.json`: launching the hook itself
-+  with `.venv` would fail to start it at all before setup has run. The hook stays standard-library
-+  only. Both venv layouts are checked (`.venv/Scripts/python.exe`, `.venv/bin/python`); the first
-+  that exists wins; otherwise `sys.executable`, as today.
- 
--  Windows path limit (item 2, "ok", as corrected the same turn): setup stops only when long paths
--  are off AND the repo path is too long. Measured: the deepest installed file is 150 characters
--  below the root (`.venv\Lib\site-packages\google\cloud\bigquery_storage_v1alpha\...`); Windows
--  allows 259; the limit is set at 80 for margin. The script never changes the system setting.
-+  The failure message names the interpreter the gates ran with, so the suggested re-run command
-+  reproduces what the hook saw.
- 
--  Node 24 (item 3, "ok"): `.nvmrc` `24`, `engines.node` `>=24 <25`, CI site jobs on `node:24`.
+-  Every item is a line of GitLab #162, approved in plan mode 2026-09-24.
 -
--  npm install scripts (item 4, "ok"; #161 line): denied if the site builds without them, allowed
--  otherwise; the build is the test.
+-  Interpreter choice inside the hook, not in `.claude/settings.json`: launching the hook itself
+-  with `.venv` would fail to start it at all before setup has run. The hook stays standard-library
+-  only. Both venv layouts are checked (`.venv/Scripts/python.exe`, `.venv/bin/python`); the first
+-  that exists wins; otherwise `sys.executable`, as today.
 -
--  Parked guard script (item 5, "ok"): left out; the root-anchored `.gitignore` entry is the control.
+-  The failure message names the interpreter the gates ran with, so the suggested re-run command
+-  reproduces what the hook saw.
 -
--  CI setup job (item 6 as revised, "ok"): Linux only, MR pipelines touching setup inputs plus
--  manual, never on a schedule. No Windows runner, no scheduled run.
--
--  Proof folder (item 7, "ok"): `C:\01_Projects\fdp-proof`, cloned from GitLab, deleted after.
--
--  Git hooks (independent review, his "yes" 2026-09-24 to "Should every clone, including yours,
--  auto-push each commit and open an MR?"): pre-commit installs both hook types; the existing
--  `.githooks/post-commit` runs as a pre-commit post-commit hook. No `core.hooksPath`: the agent
--  guard blocks setting it and AGENTS.md already says to unset it; setup stops with that instruction
--  if it finds one set.
--
--  `.mcp.json`: Claude Code documents `${VAR}` and `${VAR:-default}`; `${CLAUDE_PROJECT_DIR}` is
--  documented only for plugin servers and a project server's working directory is undocumented, so
--  relative paths are used and the proof shows the tool connecting.
--
--  `--fetch-key` (#161 line "`python scripts/bootstrap.py --fetch-key` puts the API key from Secret
--  Manager into `.env` without printing it; you run it, Claude never does"): it reads the EXISTING
--  secret `api-football-key` with the caller's own gcloud login and writes it into `.env` only where
--  `API_FOOTBALL_API_KEY` is empty. No IAM change, no new secret, no key printed or logged.
--
--  Secret scans keep full coverage: `detect-private-key` and `check-no-secrets` carry no path
--  exclusion; only the whitespace fixers skip the generated or frozen trees. `API_KEY_SECRET_NAME`
--  in `scripts/bootstrap.py` holds the secret's NAME, spelled so the scan does not read it as a value.
--
--  THRESHOLD DECLARATIONS. NEW MECHANISM: `scripts/bootstrap.py` (setup script) and CI job
--  `setup:clean-clone`, both lines of #161 as approved; the pre-commit post-commit wiring (his "yes"
--  above). No new runtime dependency: `pre-commit` joins `requirements-dev.txt` (developer-only,
--  named in his requirement). RECURRING COST: `setup:clean-clone` uses the existing self-hosted
--  runner (roughly 5-8 minutes) only on MRs that change setup inputs or on a manual run; no money,
--  no BigQuery, no API-Football calls. `lint:python` gains the pre-commit hook-environment install
--  (cached).
-+  THRESHOLD DECLARATIONS. NEW MECHANISM: none; the existing gate runner chooses a different
-+  interpreter. RECURRING COST: none.
+-  THRESHOLD DECLARATIONS. NEW MECHANISM: none; the existing gate runner chooses a different
+-  interpreter. RECURRING COST: none.
++  The replacement keeps the one reason that is still true: ruff settles mechanical defects for
++  free, so reviewers are spent on judgement. THRESHOLD DECLARATIONS: no new mechanism, no recurring
++  cost.
  
  decisions_reserved:
--  - none open: every choice in this task was put to the CPO item by item on 2026-09-24 and is
--    recorded above; a new CPO-class question found while building is brought to him, not decided.
-+  - none open: #162's plan was approved as written; a new CPO-class question found while building
-+    is brought to him, not decided.
+-  - none open: #162's plan was approved as written; a new CPO-class question found while building
+-    is brought to him, not decided.
++  - none open: a one-comment change approved as proposed.
  
  done_when:
--  - fresh clone from GitLab into C:\01_Projects\fdp-proof; `python scripts/bootstrap.py` exits 0;
--    a second run exits 0 and changes no file
--  - in that clone `python scripts/bootstrap.py --verify` exits 0 (pytest, pre-commit --all-files,
--    site build) and `dbt debug` passes from the root with the written profile
--  - the dbt MCP tool connects from this repo
--  - `.venv/Scripts/python.exe -m pytest tests/ -q` green in the working repo
-+  - `.venv/Scripts/python.exe -m pytest tests/test_governance_hooks.py -k stop_gate` green,
-+    including the new interpreter test, and it turns red when `_gate_python` returns
-+    `sys.executable` unconditionally
-+  - on this machine, with a dirty in-scope tree, running the hook with the system `python` reports
-+    no correctness failure; with a deliberately failing gate it still blocks
-   - blinded review cycle PASS; MR opened with the `Default` head; CI green
--  - output of the proof pasted into the MR
+-  - `.venv/Scripts/python.exe -m pytest tests/test_governance_hooks.py -k stop_gate` green,
+-    including the new interpreter test, and it turns red when `_gate_python` returns
+-    `sys.executable` unconditionally
+-  - on this machine, with a dirty in-scope tree, running the hook with the system `python` reports
+-    no correctness failure; with a deliberately failing gate it still blocks
+-  - blinded review cycle PASS; MR opened with the `Default` head; CI green
++  - parsed `.gitlab-ci.yml` is identical before and after (`yaml.safe_load` compared)
++  - the tests that parse `.gitlab-ci.yml` pass
++  - blinded review PASS; MR open with "No behaviour change"; CI green
  
  amendments: (none)
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index 5fc2aaba..4c0d964e 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -3789,3 +3789,35 @@ def test_stop_gate_reports_scope_violation_before_correctness(repo):
-     assert '"decision": "block"' in out
-     assert "does not match the task contract" in out
-     assert "correctness" not in out
-+
-+
-+_GATE_PASSES_ONLY_IN_REPO_VENV = (
-+    "import os, sys\n"
-+    "venv = os.path.realpath(os.path.join(os.getcwd(), '.venv'))\n"
-+    "if os.path.normcase(os.path.realpath(sys.prefix)) != os.path.normcase(venv):\n"
-+    "    print('- ran outside the repo .venv')\n"
-+    "    sys.exit(1)\n"
-+)
-+
-+
-+def test_stop_gate_runs_gates_with_the_repo_venv(repo):
-+    """On a fresh machine the hook starts under the system Python, which lacks the gates' packages;
-+    the repo's `.venv` (created by scripts/bootstrap.py) has them, so the gates must run there."""
-+    import venv
-+
-+    (repo / ".gitignore").write_text(".venv/\n")
-+    _install_fast_gate(repo, _GATE_PASSES_ONLY_IN_REPO_VENV)
-+    venv.create(repo / ".venv", with_pip=False)
-+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 9\n")
-+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
-+    assert out.strip() == "", out
-+
-+
-+def test_stop_gate_without_a_venv_runs_gates_with_its_own_python(repo):
-+    """Before setup has run there is no `.venv`: the gates run as before, and a failure still blocks."""
-+    _install_fast_gate(repo, _GATE_PASSES_ONLY_IN_REPO_VENV)
-+    (repo / "dbt_project" / "models" / "allowed.sql").write_text("select 10\n")
-+    out, _ = run_hook("stop_gate.py", {"hook_event_name": "Stop"}, repo)
-+    assert '"decision": "block"' in out, out
-+    assert "ran outside the repo .venv" in out
-+    assert sys.executable in out.replace("\\\\", "\\")
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index d639c171..4f38fc4e 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -527,10 +527,8 @@ validate:ui:
+ # The repo's lint: every pre-commit hook on every file, the same config a local commit runs, so
+ # the two cannot drift apart. Ruff (correctness only, ruleset in .ruff-ci.toml) is one of the hooks.
+ #
+-# WHY RUFF IS HERE: on 2026-08-07 `platform-reviewer` at opus spent ~125k tokens on !19 finding a
+-# duplicate module-level function name, and three of the four defects across that MR's three
+-# review rounds were mechanically decidable. LLM reviewers are the most expensive check here and
+-# belong on judgement, not on facts a tool settles for free.
++# WHY RUFF IS HERE: it settles mechanical defects for free, so the reviewers, the most expensive
++# check here, are spent on judgement.
+ #
+ # ⚠ The ruff hook's `--config .ruff-ci.toml` IS REQUIRED: the config is named outside ruff's
+ # auto-discovered set, so without it ruff silently runs its defaults. Never add `--select`: it
