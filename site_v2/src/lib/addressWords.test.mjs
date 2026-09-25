@@ -24,6 +24,8 @@ test("a key path translates to every language and back", () => {
     ["teams/x/", { de: "mannschaften/x/", fi: "joukkueet/x/" }],
     ["players/p-1/", { de: "spieler/p-1/", fi: "pelaajat/p-1/" }],
     ["competitions/", { de: "wettbewerbe/", fi: "kilpailut/" }],
+    ["matches/", { de: "spiele/", fi: "ottelut/" }],
+    ["matches/2026-09-27/", { de: "spiele/2026-09-27/", fi: "ottelut/2026-09-27/" }],
     ["bundesliga/matches/", { de: "bundesliga/spiele/", fi: "bundesliga/ottelut/" }],
     ["bundesliga/stats/", { de: "bundesliga/statistiken/", fi: "bundesliga/tilastot/" }],
     ["bundesliga/matches/m-1/", { de: "bundesliga/spiele/m-1/", fi: "bundesliga/ottelut/m-1/" }],

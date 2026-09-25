@@ -1,0 +1,75 @@
+{
+  "type": "match_day",
+  "slug": "2027-01-11",
+  "day": "2027-01-11",
+  "is_opening_day": false,
+  "previous_day": "2027-01-10",
+  "next_day": null,
+  "competitions": [
+    {
+      "league_code": "ACN",
+      "name": "AFC Asian Cup",
+      "slug": "asian-cup",
+      "crest": "https://media.api-sports.io/football/leagues/7.png",
+      "entity_type": "national",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1545967,
+          "slug": "2027-01-11-japan-vs-indonesia",
+          "kickoff": "2027-01-11 14:00:00+00:00",
+          "round": "Group Stage - 1",
+          "round_order": 1,
+          "round_sequence": 1,
+          "fixture_order": 11,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 12,
+            "name": "Japan",
+            "slug": "japan",
+            "crest": "https://media.api-sports.io/football/teams/12.png"
+          },
+          "away": {
+            "team_id": 1571,
+            "name": "Indonesia",
+            "slug": "indonesia",
+            "crest": "https://media.api-sports.io/football/teams/1571.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1545968,
+          "slug": "2027-01-11-qatar-vs-thailand",
+          "kickoff": "2027-01-11 14:00:00+00:00",
+          "round": "Group Stage - 1",
+          "round_order": 1,
+          "round_sequence": 1,
+          "fixture_order": 12,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1569,
+            "name": "Qatar",
+            "slug": "qatar",
+            "crest": "https://media.api-sports.io/football/teams/1569.png"
+          },
+          "away": {
+            "team_id": 1564,
+            "name": "Thailand",
+            "slug": "thailand",
+            "crest": "https://media.api-sports.io/football/teams/1564.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

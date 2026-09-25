@@ -1,0 +1,75 @@
+{
+  "type": "match_day",
+  "slug": "2026-09-03",
+  "day": "2026-09-03",
+  "is_opening_day": false,
+  "previous_day": "2026-09-02",
+  "next_day": "2026-09-04",
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1629057,
+          "slug": "2026-09-03-palermo-vs-mantova",
+          "kickoff": "2026-09-03 16:00:00+00:00",
+          "round": "Round of 32",
+          "round_order": 32,
+          "round_sequence": 3,
+          "fixture_order": 25,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 5,
+          "goals_away": 2,
+          "home": {
+            "team_id": 522,
+            "name": "Palermo",
+            "slug": "palermo",
+            "crest": "https://media.api-sports.io/football/teams/522.png"
+          },
+          "away": {
+            "team_id": 1693,
+            "name": "Mantova",
+            "slug": "mantova",
+            "crest": "https://media.api-sports.io/football/teams/1693.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1628956,
+          "slug": "2026-09-03-cagliari-calcio-vs-hellas-verona-fc",
+          "kickoff": "2026-09-03 19:00:00+00:00",
+          "round": "Round of 32",
+          "round_order": 32,
+          "round_sequence": 3,
+          "fixture_order": 26,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 2,
+          "home": {
+            "team_id": 490,
+            "name": "Cagliari Calcio",
+            "slug": "cagliari-calcio",
+            "crest": "https://media.api-sports.io/football/teams/490.png"
+          },
+          "away": {
+            "team_id": 504,
+            "name": "Hellas Verona FC",
+            "slug": "hellas-verona-fc",
+            "crest": "https://media.api-sports.io/football/teams/504.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

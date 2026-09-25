@@ -43,7 +43,7 @@ SEEDS_DATASET = "dbt_analytics"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "leaderboards", "matchstats", "glossary", "metric_groups", "landing",
-                "competition_index")
+                "competition_index", "matches")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
@@ -1232,6 +1232,106 @@ def fetch_competition_index(client) -> dict:
     return {"type": "competition_index", "competitions": shape_competition_index(rows)}
 
 
+_COMPETITION_FIXTURE_COLUMNS = (
+    "fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence, "
+    "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
+    "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
+    "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
+    "fixture_slug, is_next_round, is_match_that_matters"
+)
+
+
+def _competition_fixture(r: dict) -> dict:
+    """One mart_competition_fixtures row as a match row: the shape the competition payload's
+    rounds and the match-day payload's competitions both carry, so the site's one match row
+    renders either."""
+    return {
+        "fixture_id": int(r["fixture_sk"]),
+        "slug": r.get("fixture_slug"),
+        "kickoff": r.get("kickoff_datetime"),
+        "round": r.get("round_name"),
+        "round_order": r.get("round_order"),
+        "round_sequence": r.get("round_sequence"),
+        "fixture_order": int(r["fixture_order"]),
+        "status": r.get("status_short"),
+        "is_played": bool(r.get("is_played")),
+        "goals_home": r.get("goals_home"),
+        "goals_away": r.get("goals_away"),
+        "home": {"team_id": int(r["home_team_sk"]), "name": r.get("home_team_name"),
+                 "slug": r.get("home_team_slug"), "crest": r.get("home_team_logo_url")},
+        "away": {"team_id": int(r["away_team_sk"]), "name": r.get("away_team_name"),
+                 "slug": r.get("away_team_slug"), "crest": r.get("away_team_logo_url")},
+        "is_next_round": bool(r.get("is_next_round")),
+        "is_match_that_matters": bool(r.get("is_match_that_matters")),
+    }
+
+
+def shape_match_day_payloads(rows: list[dict], competitions: dict[str, dict]) -> list[dict]:
+    """One payload per day of the Matches page, from mart_match_days rows joined to their
+    mart_competition_fixtures row. Grouped by day, then by competition; a competition's rows in
+    the served day_row_order. The day, its neighbours and the opening flag are the mart's; the
+    competition facts are `competitions[league_code]`. Nothing is selected or ranked here: the
+    competitions of a day are written by league_code for a stable diff, and the page orders them."""
+    days: dict = {}
+    for r in rows:
+        day = str(r["match_day"])
+        payload = days.setdefault(day, {
+            "type": "match_day",
+            "slug": day,
+            "day": day,
+            "is_opening_day": bool(r.get("is_opening_day")),
+            "previous_day": str(r["previous_day"]) if r.get("previous_day") else None,
+            "next_day": str(r["next_day"]) if r.get("next_day") else None,
+            "competitions": {},
+        })
+        lc = r["league_code"]
+        group = payload["competitions"].setdefault(lc, {
+            "league_code": lc, **(competitions.get(lc) or {}), "fixtures": [],
+        })
+        group["fixtures"].append((int(r["day_row_order"]), _competition_fixture(r)))
+    out = []
+    for day in sorted(days):
+        payload = days[day]
+        groups = []
+        for lc in sorted(payload["competitions"]):
+            group = payload["competitions"][lc]
+            group["fixtures"] = [f for _, f in sorted(group["fixtures"], key=lambda p: p[0])]
+            groups.append(group)
+        payload["competitions"] = groups
+        out.append(payload)
+    return out
+
+
+def fetch_match_day_payloads(client, registry_path: str = REGISTRY_PATH) -> list[dict]:
+    """matches/{yyyy-mm-dd}.json -- the Matches page's days, from `mart_match_days` (which decides
+    the reach, each day's neighbours and the opening day) joined to the match rows. A competition
+    carries the name and region rank the site displays (`_warehouse_competition_meta`), its crest
+    and kind (`_competition_page_meta`), and the registry's slug and confederation, the same
+    sources every other page reads them from."""
+    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+    rows = _query(client, f"""
+        select d.match_day, d.day_row_order, d.is_opening_day, d.previous_day, d.next_day,
+               {", ".join("c." + col.strip() for col in _COMPETITION_FIXTURE_COLUMNS.split(","))}
+        from `{marts}.mart_match_days` as d
+        inner join `{marts}.mart_competition_fixtures` as c on d.fixture_sk = c.fixture_sk
+    """)
+    registry = {c["league_code"]: c for c in _registry_competitions(registry_path)}
+    served = _warehouse_competition_meta(client)
+    page_meta = _competition_page_meta(client)
+    competitions = {
+        lc: {
+            "name": (served.get(lc) or {}).get("name") or (registry.get(lc) or {}).get("name"),
+            "slug": (registry.get(lc) or {}).get("slug"),
+            "crest": (page_meta.get(lc) or {}).get("logo_url"),
+            "entity_type": (page_meta.get(lc) or {}).get("entity_type"),
+            "confederation": (registry.get(lc) or {}).get("confederation"),
+            "region_rank": (served.get(lc) or {}).get("region_rank"),
+        }
+        for lc in {r["league_code"] for r in rows}
+    }
+    return shape_match_day_payloads(rows, competitions)
+
+
 def _group2(rows: list[dict], k1: str, k2: str) -> dict:
     g: dict = {}
     for r in rows:
@@ -1332,11 +1432,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     # Every fixture of every competition-season, whole: the Matchdays tab's rows, and the one
     # source of a match's slug for every other block that links a match.
     fixture_rows = _query(client, f"""
-        select fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence,
-               fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away,
-               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
-               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
-               fixture_slug, is_next_round, is_match_that_matters
+        select {_COMPETITION_FIXTURE_COLUMNS}
         from `{marts}.mart_competition_fixtures`
     """)
     fixtures = _group2(fixture_rows, "league_code", "season_api_year")
@@ -1355,26 +1451,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
         row["team_slug"] = (teams.get(int(r["team_sk"])) or {}).get("team_slug")
         return row
 
-    def _fixture(r: dict) -> dict:
-        return {
-            "fixture_id": int(r["fixture_sk"]),
-            "slug": r.get("fixture_slug"),
-            "kickoff": r.get("kickoff_datetime"),
-            "round": r.get("round_name"),
-            "round_order": r.get("round_order"),
-            "round_sequence": r.get("round_sequence"),
-            "fixture_order": int(r["fixture_order"]),
-            "status": r.get("status_short"),
-            "is_played": bool(r.get("is_played")),
-            "goals_home": r.get("goals_home"),
-            "goals_away": r.get("goals_away"),
-            "home": {"team_id": int(r["home_team_sk"]), "name": r.get("home_team_name"),
-                     "slug": r.get("home_team_slug"), "crest": r.get("home_team_logo_url")},
-            "away": {"team_id": int(r["away_team_sk"]), "name": r.get("away_team_name"),
-                     "slug": r.get("away_team_slug"), "crest": r.get("away_team_logo_url")},
-            "is_next_round": bool(r.get("is_next_round")),
-            "is_match_that_matters": bool(r.get("is_match_that_matters")),
-        }
+    _fixture = _competition_fixture
 
     def _deserved(r: dict) -> dict:
         return {
@@ -1992,6 +2069,9 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "competition_index.json", fetch_competition_index(client))
         entries.append({"type": "competition_index", "id": "competition_index", "slug": None,
                         "path": "competition_index.json", "sha256": sha})
+    if "matches" in entities:
+        for p in fetch_match_day_payloads(client):
+            entries.append(write_entity(out_root, "matches", p["day"], p))
 
     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a

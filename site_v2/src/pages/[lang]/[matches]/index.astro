@@ -1,0 +1,47 @@
+---
+// The Matches page (#130; spec: src/specs/matches/index.spec.json): the day the page opens on,
+// which the warehouse flags (mart_match_days: the build day, else the next day with a match). It
+// lives only here; every other day is [day].astro under its date.
+import Layout from "../../../layouts/Layout.astro";
+import MatchesDay from "../../../components/matches/MatchesDay.astro";
+import { t } from "../../../i18n/strings";
+import { localeHref, LOCALES, word } from "../../../lib/href";
+import { formatLongDate } from "../../../lib/format";
+import type { Lang } from "../../../lib/format";
+import type { MatchDayPayload } from "../../../lib/types";
+
+export function getStaticPaths() {
+  const days = Object.values(
+    import.meta.glob<MatchDayPayload>("/src/data/matches/*.json", { eager: true, import: "default" }),
+  );
+  const opening = days.find((d) => d.is_opening_day);
+  if (!opening) return [];
+  return LOCALES.map((lang) => ({
+    params: { lang, matches: word(lang, "matches") },
+    props: { day: opening },
+  }));
+}
+
+interface Props {
+  day: MatchDayPayload;
+}
+const { day } = Astro.props;
+const lang = (Astro.params.lang ?? "en") as Lang;
+const longDate = formatLongDate(day.day, lang);
+
+const title = t(lang, "seoMatchesTitle", { date: longDate });
+const description = t(lang, "seoMatchesDesc", { date: longDate, n: day.competitions.length });
+const entity = {
+  "@type": "ItemList",
+  name: title,
+  numberOfItems: day.competitions.reduce((n, c) => n + c.fixtures.length, 0),
+};
+const crumbs = [
+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+  { name: t(lang, "navMatches") },
+];
+---
+
+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+  <MatchesDay day={day} openingDay={day.day} lang={lang} />
+</Layout>

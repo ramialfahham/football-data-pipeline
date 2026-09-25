@@ -53,13 +53,13 @@ The scheme is written here with the English words.
 /{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
 /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
 /{locale}/players/{player-slug}/                             player profile
+/{locale}/matches/                                           Matches menu page: the day it opens on (the build day, else the next day with a match), every competition playing it (#130)
+/{locale}/matches/{yyyy-mm-dd}/                              every other day in reach, from each competition's last matchday to the end of its next (#131)
 ```
 
 Planned, not designed yet; each address is provisional until its page's review (§ Address words):
 
 ```
-/{locale}/matches/                                           Matches menu page: one day, every competition playing it (#130)
-/{locale}/matches/{yyyy-mm-dd}/                              the other days behind it (#131)
 /{locale}/teams/                                             Teams menu page (#133)
 /{locale}/players/                                           Players menu page (#135)
 /{locale}/standings/                                         Standings menu page (#137)
@@ -118,7 +118,7 @@ holds the words of the pages built today, and a page adds its word there when it
 | Word | `en` | `de` | `fi` | Settled: pages built today | Provisional: pages not designed yet |
 |---|---|---|---|---|---|
 | competitions | `competitions` | `wettbewerbe` | `kilpailut` | the competitions index | |
-| matches | `matches` | `spiele` | `ottelut` | a competition's Matchdays tab, and every match under it | the Matches menu page and its day pages |
+| matches | `matches` | `spiele` | `ottelut` | a competition's Matchdays tab, and every match under it; the Matches menu page and its day pages | |
 | teams | `teams` | `mannschaften` | `joukkueet` | a team's page, club or national team | the Teams menu page |
 | players | `players` | `spieler` | `pelaajat` | a player's page | the Players menu page |
 | stats | `stats` | `statistiken` | `tilastot` | a competition's Rankings tab | the Statistics menu page, one statistic's pages |
@@ -318,6 +318,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
 |---|---|---|
 | Landing | `landing.json` | `mart_next_matchday` (every competition's next round, read whole) + `core.dim_team` (the next-matchday hero), plus `mart_competition_index` for `region_rank` — read `fetch_landing_payload` in `scripts/export_site_data.py` for the live list, which is the authority. ⚠ NOT `mart_team_profile`: the trending block it fed was cut 2026-08-08, as the browse block was dropped 2026-08-19. Top players / Top teams will add marts here when built |
 | Competitions index / country hub | `competition_index.json` (#62 step 4) | `mart_competition_index` |
+| Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank) — read `fetch_match_day_payloads` |
 | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | `mart_competition_index` (header), `mart_standings` (the table, with `table_kind`), `mart_team_profile` (the deserved points table), `mart_competition_season_summary` (the season in numbers), `mart_competition_fixtures` (the Matchdays tab, the header's round and the match-that-matters flag), `mart_team_leaderboards` and `mart_leaderboards` (the Rankings tab's boards, the top five per board) — read `fetch_competition_payloads` for the live list |
 | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
 | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |

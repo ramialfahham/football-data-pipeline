@@ -1,0 +1,75 @@
+{
+  "type": "match_day",
+  "slug": "2026-10-20",
+  "day": "2026-10-20",
+  "is_opening_day": false,
+  "previous_day": "2026-10-15",
+  "next_day": "2026-10-27",
+  "competitions": [
+    {
+      "league_code": "LIBER",
+      "name": "Copa Libertadores",
+      "slug": "copa-libertadores",
+      "crest": "https://media.api-sports.io/football/leagues/13.png",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1640021,
+          "slug": "2026-10-20-palmeiras-vs-fluminense",
+          "kickoff": "2026-10-20 20:00:00+00:00",
+          "round": "Semi-finals",
+          "round_order": null,
+          "round_sequence": 12,
+          "fixture_order": 153,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 121,
+            "name": "Palmeiras",
+            "slug": "palmeiras",
+            "crest": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "away": {
+            "team_id": 124,
+            "name": "Fluminense",
+            "slug": "fluminense",
+            "crest": "https://media.api-sports.io/football/teams/124.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1640556,
+          "slug": "2026-10-20-flamengo-vs-estudiantes-l-p",
+          "kickoff": "2026-10-20 20:00:00+00:00",
+          "round": "Semi-finals",
+          "round_order": null,
+          "round_sequence": 12,
+          "fixture_order": 154,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 127,
+            "name": "Flamengo",
+            "slug": "flamengo",
+            "crest": "https://media.api-sports.io/football/teams/127.png"
+          },
+          "away": {
+            "team_id": 450,
+            "name": "Estudiantes L.P.",
+            "slug": "estudiantes-l-p",
+            "crest": "https://media.api-sports.io/football/teams/450.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

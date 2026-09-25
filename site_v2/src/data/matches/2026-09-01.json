@@ -1,0 +1,113 @@
+{
+  "type": "match_day",
+  "slug": "2026-09-01",
+  "day": "2026-09-01",
+  "is_opening_day": false,
+  "previous_day": "2026-08-27",
+  "next_day": "2026-09-02",
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1629056,
+          "slug": "2026-09-01-parma-vs-us-cremonese",
+          "kickoff": "2026-09-01 16:00:00+00:00",
+          "round": "Round of 32",
+          "round_order": 32,
+          "round_sequence": 3,
+          "fixture_order": 21,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 2,
+          "home": {
+            "team_id": 523,
+            "name": "Parma",
+            "slug": "parma",
+            "crest": "https://media.api-sports.io/football/teams/523.png"
+          },
+          "away": {
+            "team_id": 520,
+            "name": "US Cremonese",
+            "slug": "us-cremonese",
+            "crest": "https://media.api-sports.io/football/teams/520.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1628894,
+          "slug": "2026-09-01-torino-fc-vs-monza",
+          "kickoff": "2026-09-01 19:00:00+00:00",
+          "round": "Round of 32",
+          "round_order": 32,
+          "round_sequence": 3,
+          "fixture_order": 22,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 1,
+          "home": {
+            "team_id": 503,
+            "name": "Torino FC",
+            "slug": "torino-fc",
+            "crest": "https://media.api-sports.io/football/teams/503.png"
+          },
+          "away": {
+            "team_id": 1579,
+            "name": "Monza",
+            "slug": "monza",
+            "crest": "https://media.api-sports.io/football/teams/1579.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "DFBP",
+      "name": "DFB-Pokal",
+      "slug": "dfb-pokal",
+      "crest": "https://media.api-sports.io/football/leagues/81.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1550704,
+          "slug": "2026-09-01-hebc-vs-borussia-dortmund",
+          "kickoff": "2026-09-01 18:45:00+00:00",
+          "round": "Round of 64",
+          "round_order": 64,
+          "round_sequence": 1,
+          "fixture_order": 31,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 5,
+          "home": {
+            "team_id": 16078,
+            "name": "HEBC",
+            "slug": "hebc",
+            "crest": "https://media.api-sports.io/football/teams/16078.png"
+          },
+          "away": {
+            "team_id": 165,
+            "name": "Borussia Dortmund",
+            "slug": "borussia-dortmund",
+            "crest": "https://media.api-sports.io/football/teams/165.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

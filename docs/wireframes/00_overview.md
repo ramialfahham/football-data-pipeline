@@ -146,6 +146,7 @@ not made here. See 09_chrome.md §10 for the full note.
 | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
 | 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
 | 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats (rank vs league) | **spec'd** | #391 ⁑ |
+| 15 | — | Matches page and its day pages | **built**; **approved on GitLab #130** ("The approved design") with the reach ruled on #131 — the authority for the page. No wireframe file: the issue is the field contract; the elements and their measurements are [block_standard.md](block_standard.md) | #160 |
 | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |
 
 Order rationale: the fixture page first — the product's heart and the most

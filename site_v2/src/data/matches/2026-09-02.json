@@ -1,0 +1,113 @@
+{
+  "type": "match_day",
+  "slug": "2026-09-02",
+  "day": "2026-09-02",
+  "is_opening_day": false,
+  "previous_day": "2026-09-01",
+  "next_day": "2026-09-03",
+  "competitions": [
+    {
+      "league_code": "CIT",
+      "name": "Coppa Italia",
+      "slug": "coppa-italia",
+      "crest": "https://media.api-sports.io/football/leagues/137.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1629059,
+          "slug": "2026-09-02-us-sassuolo-vs-frosinone",
+          "kickoff": "2026-09-02 13:00:00+00:00",
+          "round": "Round of 32",
+          "round_order": 32,
+          "round_sequence": 3,
+          "fixture_order": 23,
+          "status": "PEN",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
+          "home": {
+            "team_id": 488,
+            "name": "US Sassuolo",
+            "slug": "us-sassuolo",
+            "crest": "https://media.api-sports.io/football/teams/488.png"
+          },
+          "away": {
+            "team_id": 512,
+            "name": "Frosinone",
+            "slug": "frosinone",
+            "crest": "https://media.api-sports.io/football/teams/512.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1628895,
+          "slug": "2026-09-02-udinese-calcio-vs-venezia",
+          "kickoff": "2026-09-02 16:00:00+00:00",
+          "round": "Round of 32",
+          "round_order": 32,
+          "round_sequence": 3,
+          "fixture_order": 24,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
+          "home": {
+            "team_id": 494,
+            "name": "Udinese Calcio",
+            "slug": "udinese-calcio",
+            "crest": "https://media.api-sports.io/football/teams/494.png"
+          },
+          "away": {
+            "team_id": 517,
+            "name": "Venezia",
+            "slug": "venezia",
+            "crest": "https://media.api-sports.io/football/teams/517.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "DFBP",
+      "name": "DFB-Pokal",
+      "slug": "dfb-pokal",
+      "crest": "https://media.api-sports.io/football/leagues/81.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1550705,
+          "slug": "2026-09-02-vfl-osnabruck-vs-bayern-munchen",
+          "kickoff": "2026-09-02 18:45:00+00:00",
+          "round": "Round of 64",
+          "round_order": 64,
+          "round_sequence": 1,
+          "fixture_order": 32,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 4,
+          "home": {
+            "team_id": 1324,
+            "name": "VfL Osnabrück",
+            "slug": "vfl-osnabruck",
+            "crest": "https://media.api-sports.io/football/teams/1324.png"
+          },
+          "away": {
+            "team_id": 157,
+            "name": "Bayern München",
+            "slug": "bayern-munchen",
+            "crest": "https://media.api-sports.io/football/teams/157.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

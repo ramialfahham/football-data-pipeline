@@ -504,6 +504,30 @@ export interface CompetitionRound {
   fixtures: CompetitionFixture[];
 }
 
+/** One competition on a day of the Matches page: its served facts and its matches that day, in
+ *  the served order. */
+export interface MatchDayCompetition {
+  league_code: string;
+  name: string | null;
+  slug: string | null;
+  crest: string | null;
+  entity_type: "club" | "national" | null;
+  confederation: string | null;
+  region_rank: number | null;
+  fixtures: CompetitionFixture[];
+}
+
+/** One day of the Matches page (matches/{yyyy-mm-dd}.json): the mart decides the day's matches,
+ *  its neighbouring days with a match, and whether the page opens on it. */
+export interface MatchDayPayload {
+  type: "match_day";
+  day: string;
+  is_opening_day: boolean;
+  previous_day: string | null;
+  next_day: string | null;
+  competitions: MatchDayCompetition[];
+}
+
 export interface CompetitionPayload {
   type: string;
   league_code: string;

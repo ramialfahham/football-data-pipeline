@@ -1,0 +1,48 @@
+{
+  "type": "match_day",
+  "slug": "2026-08-26",
+  "day": "2026-08-26",
+  "is_opening_day": false,
+  "previous_day": "2026-08-24",
+  "next_day": "2026-08-27",
+  "competitions": [
+    {
+      "league_code": "UECL",
+      "name": "UEFA Conference League",
+      "slug": "conference-league",
+      "crest": "https://media.api-sports.io/football/leagues/848.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1623429,
+          "slug": "2026-08-26-rapid-vienna-vs-heart-of-midlothian",
+          "kickoff": "2026-08-26 16:45:00+00:00",
+          "round": "Playoff round",
+          "round_order": null,
+          "round_sequence": 4,
+          "fixture_order": 235,
+          "status": "PEN",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
+          "home": {
+            "team_id": 781,
+            "name": "Rapid Vienna",
+            "slug": "rapid-vienna",
+            "crest": "https://media.api-sports.io/football/teams/781.png"
+          },
+          "away": {
+            "team_id": 254,
+            "name": "Heart Of Midlothian",
+            "slug": "heart-of-midlothian",
+            "crest": "https://media.api-sports.io/football/teams/254.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

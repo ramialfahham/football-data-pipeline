@@ -1,0 +1,86 @@
+{
+  "type": "match_day",
+  "slug": "2026-10-02",
+  "day": "2026-10-02",
+  "is_opening_day": false,
+  "previous_day": "2026-09-29",
+  "next_day": "2026-10-03",
+  "competitions": [
+    {
+      "league_code": "APD",
+      "name": "Liga Profesional de Fútbol (Argentina)",
+      "slug": "liga-profesional-argentina",
+      "crest": "https://media.api-sports.io/football/leagues/128.png",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1493161,
+          "slug": "2026-10-02-independiente-vs-instituto-cordoba",
+          "kickoff": "2026-10-02 22:15:00+00:00",
+          "round": "Clausura - 11",
+          "round_order": 11,
+          "round_sequence": 31,
+          "fixture_order": 406,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 453,
+            "name": "Independiente",
+            "slug": "independiente",
+            "crest": "https://media.api-sports.io/football/teams/453.png"
+          },
+          "away": {
+            "team_id": 478,
+            "name": "Instituto Cordoba",
+            "slug": "instituto-cordoba",
+            "crest": "https://media.api-sports.io/football/teams/478.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1639975,
+          "slug": "2026-10-02-st-lucia-vs-guadeloupe",
+          "kickoff": "2026-10-02 19:00:00+00:00",
+          "round": "League B - 2",
+          "round_order": 2,
+          "round_sequence": 6,
+          "fixture_order": 47,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 5540,
+            "name": "St. Lucia",
+            "slug": "st-lucia",
+            "crest": "https://media.api-sports.io/football/teams/5540.png"
+          },
+          "away": {
+            "team_id": 10983,
+            "name": "Guadeloupe",
+            "slug": "guadeloupe",
+            "crest": "https://media.api-sports.io/football/teams/10983.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

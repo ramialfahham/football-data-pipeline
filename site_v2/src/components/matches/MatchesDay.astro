@@ -1,0 +1,117 @@
+---
+// One day of the Matches page (#130, #131): the breadcrumb and the heading as on the Competitions
+// page, its two filter rows, the Matchdays tab's picker with the day as its title and the
+// neighbouring days as links, and one Schedule block: each competition playing that day under its
+// crest and name (Home's group heading), its first three matches and the rest under Home's
+// "Show all {n}", every row THE match row.
+//
+// The day, its matches, its neighbours and whether the page opens on it are the warehouse's
+// (mart_match_days, one payload per day); the competitions of the day take the site's shared
+// order, the one Home uses. The opening day lives only at the matches word's own address, so a
+// neighbour that is the opening day is linked there.
+import SectionHead from "../ui/SectionHead.astro";
+import MatchRow from "../ui/MatchRow.astro";
+import Crest from "../ui/Crest.astro";
+import FilterRows from "../competitions/FilterRows.astro";
+import { t } from "../../i18n/strings";
+import { localeHref, word } from "../../lib/href";
+import { formatLongDate } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import type { MatchDayPayload } from "../../lib/types";
+import { orderUpcomingGroups } from "../../lib/competitionOrder.mjs";
+
+interface Props {
+  day: MatchDayPayload;
+  openingDay: string;
+  lang: Lang;
+}
+const { day, openingDay, lang } = Astro.props;
+
+const VISIBLE_ROWS = 3;
+const matchesWord = word(lang, "matches");
+const dayHref = (d: string) => localeHref(lang, d === openingDay ? `${matchesWord}/` : `${matchesWord}/${d}/`);
+const isOpening = day.day === openingDay;
+const longDate = formatLongDate(day.day, lang);
+const groups = orderUpcomingGroups(day.competitions);
+---
+
+  <div class="inner">
+    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
+      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
+      <span class="sep">›</span>
+      {isOpening ? (
+        <span class="here">{t(lang, "navMatches")}</span>
+      ) : (
+        <>
+          <a class="lnk" href={dayHref(openingDay)}>{t(lang, "navMatches")}</a>
+          <span class="sep">›</span>
+          <span class="here">{longDate}</span>
+        </>
+      )}
+    </nav>
+
+    <h1>{t(lang, "navMatches")}</h1>
+
+    <FilterRows lang={lang} />
+
+    <div class="categories">
+      <div class="md">
+        <input class="md-in" type="radio" name="day" id={`day-${day.day}`} checked />
+        <nav class="mdnav" aria-label={t(lang, "dayPickerAria")}>
+          <span class="mdstep">
+            {day.previous_day ? (
+              <a class="step prev" href={dayHref(day.previous_day)} aria-label={formatLongDate(day.previous_day, lang)}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+            ) : (
+              <span class="step prev off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            )}
+            <span class="mdtitle"><b class="num">{longDate}</b></span>
+            {day.next_day ? (
+              <a class="step next" href={dayHref(day.next_day)} aria-label={formatLongDate(day.next_day, lang)}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </a>
+            ) : (
+              <span class="step next off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            )}
+          </span>
+        </nav>
+        <section>
+          <SectionHead label={t(lang, "compSecSchedule")} />
+          {groups.map((group) => (
+            <div class="fxgroup" data-entity-type={group.entity_type} data-confederation={group.confederation}>
+              <div class="gh">
+                {group.slug ? (
+                  <a class="cnm" href={localeHref(lang, `${group.slug}/`)}>
+                    <span class="clogo"><Crest name={group.name} crest={group.crest} size="xs" /></span>
+                    <span class="nm">{group.name ?? group.league_code}</span>
+                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </a>
+                ) : (
+                  <span class="nm">{group.name ?? group.league_code}</span>
+                )}
+              </div>
+
+              {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+
+              {group.fixtures.length > VISIBLE_ROWS && (
+                <details class="fxmore">
+                  <summary>
+                    <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
+                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+                            stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </summary>
+                  {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+                </details>
+              )}
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+  </div>

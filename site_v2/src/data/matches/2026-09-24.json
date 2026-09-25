@@ -1,0 +1,75 @@
+{
+  "type": "match_day",
+  "slug": "2026-09-24",
+  "day": "2026-09-24",
+  "is_opening_day": false,
+  "previous_day": "2026-09-23",
+  "next_day": "2026-09-25",
+  "competitions": [
+    {
+      "league_code": "UNL",
+      "name": "UEFA Nations League",
+      "slug": "nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/5.png",
+      "entity_type": "national",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1528878,
+          "slug": "2026-09-24-austria-vs-israel",
+          "kickoff": "2026-09-24 18:45:00+00:00",
+          "round": "League B - 1",
+          "round_order": 1,
+          "round_sequence": 3,
+          "fixture_order": 11,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 1,
+          "home": {
+            "team_id": 775,
+            "name": "Austria",
+            "slug": "austria",
+            "crest": "https://media.api-sports.io/football/teams/775.png"
+          },
+          "away": {
+            "team_id": 1116,
+            "name": "Israel",
+            "slug": "israel",
+            "crest": "https://media.api-sports.io/football/teams/1116.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1528879,
+          "slug": "2026-09-24-kosovo-vs-rep-of-ireland",
+          "kickoff": "2026-09-24 18:45:00+00:00",
+          "round": "League B - 1",
+          "round_order": 1,
+          "round_sequence": 3,
+          "fixture_order": 12,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 0,
+          "home": {
+            "team_id": 1111,
+            "name": "Kosovo",
+            "slug": "kosovo",
+            "crest": "https://media.api-sports.io/football/teams/1111.png"
+          },
+          "away": {
+            "team_id": 776,
+            "name": "Rep. Of Ireland",
+            "slug": "rep-of-ireland",
+            "crest": "https://media.api-sports.io/football/teams/776.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

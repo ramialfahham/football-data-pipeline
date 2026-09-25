@@ -9,7 +9,7 @@ import WORDS from "../i18n/address_words.json" with { type: "json" };
 
 export { WORDS };
 
-const TOP_WORDS = ["competitions", "teams", "players"];
+const TOP_WORDS = ["competitions", "matches", "teams", "players"];
 const TAB_WORDS = ["matches", "stats"];
 
 /** The address word for `key` in `lang`. Throws on an unknown key or language, so a typo fails the

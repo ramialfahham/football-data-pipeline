@@ -1,0 +1,86 @@
+{
+  "type": "match_day",
+  "slug": "2026-10-06",
+  "day": "2026-10-06",
+  "is_opening_day": false,
+  "previous_day": "2026-10-05",
+  "next_day": "2026-10-07",
+  "competitions": [
+    {
+      "league_code": "APD",
+      "name": "Liga Profesional de Fútbol (Argentina)",
+      "slug": "liga-profesional-argentina",
+      "crest": "https://media.api-sports.io/football/leagues/128.png",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1493154,
+          "slug": "2026-10-06-banfield-vs-rosario-central",
+          "kickoff": "2026-10-06 00:15:00+00:00",
+          "round": "Clausura - 11",
+          "round_order": 11,
+          "round_sequence": 31,
+          "fixture_order": 420,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 449,
+            "name": "Banfield",
+            "slug": "banfield",
+            "crest": "https://media.api-sports.io/football/teams/449.png"
+          },
+          "away": {
+            "team_id": 437,
+            "name": "Rosario Central",
+            "slug": "rosario-central",
+            "crest": "https://media.api-sports.io/football/teams/437.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1639995,
+          "slug": "2026-10-06-bermuda-vs-barbados",
+          "kickoff": "2026-10-06 00:00:00+00:00",
+          "round": "League B - 2",
+          "round_order": 2,
+          "round_sequence": 6,
+          "fixture_order": 50,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 5158,
+            "name": "Bermuda",
+            "slug": "bermuda",
+            "crest": "https://media.api-sports.io/football/teams/5158.png"
+          },
+          "away": {
+            "team_id": 5527,
+            "name": "Barbados",
+            "slug": "barbados",
+            "crest": "https://media.api-sports.io/football/teams/5527.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}
