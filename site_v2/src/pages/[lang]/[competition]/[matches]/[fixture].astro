@@ -16,6 +16,7 @@ import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
 import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
 import { t, BRAND } from "../../../../i18n/strings";
 import { localeHref, word } from "../../../../lib/href";
+import { formatShortDate } from "../../../../lib/format";
 import type { Lang } from "../../../../lib/format";
 import type { Fixture } from "../../../../lib/types";
 import competitions from "../../../../data/competitions.json";
@@ -75,9 +76,13 @@ const compName =
 // left every remaining mention of the competition on the provider's name — the very ambiguity
 // ("Serie A" for Brazil) it was introduced to remove. So the breadcrumb and the JSON-LD superEvent
 // below now read `compName` too, and the authoritative name outlives its removal from the title.
+// The date tells apart two meetings of the same clubs (a cup tie and a league match, or two
+// league meetings in a season), which would otherwise share a title; it is the UTC day the
+// match's address carries.
 const title = t(lang, "seoFixtureTitle", {
   home: home.name ?? "",
   away: away.name ?? "",
+  date: formatShortDate(fixture.kickoff, lang),
 });
 const description = t(lang, "aboutNoH2h", {
   home: home.name ?? "",

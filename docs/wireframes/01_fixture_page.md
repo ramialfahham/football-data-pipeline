@@ -252,7 +252,7 @@ full H2H — the SEO internal-link graph (§8).
 - `schema.org/SportsEvent`: `startDate` = `kickoff`, `competitor` = both teams
   (SportsTeam: name + crest), `location` = `venue` (when present), part of
   `league_name`.
-- Title: `{home.name} <connector> {away.name}: {descriptor}` (localized template).
+- Title: `{home.name} <connector> {away.name}, {date}` (localized template).
   **The competition is NOT in the title** (CPO, 2026-08-03), and neither is the brand.
   - *Why not the competition.* Measured over every competition's worst real upcoming fixture,
     ending the title with the competition name failed 4 of 26 against the 660px hard cap, worst
@@ -261,12 +261,15 @@ full H2H — the SEO internal-link graph (§8).
     in the URL. It is not lost: it stays in the breadcrumb, the URL and the JSON-LD `superEvent`.
   - *Why not the brand.* Same ruling as the team title (2026-07-28): a suffix is earned by equity,
     and an identical one on every match page reads as boilerplate.
-  - *Per locale*, each measured at its worst real fixture: EN `{home} vs {away}: Preview` 597px ·
-    DE `{home} - {away}: Vorschau` 595px · FI `{home}–{away}: Ennakko` 573px. All inside the 600px
-    budget, not merely under the hard cap. The German dash replaces "gegen" (also the convention in
+  - *The date closes the title* (`{date}`, the short day and month of the UTC kick-off, the day the
+    match's address carries), in place of a descriptor word: two meetings of the same clubs, a cup
+    tie and a league match or two league meetings in a season, otherwise share a title, and the
+    audit fails the build on it. The date alone tells every meeting apart; the competition would
+    not fit (see above). With no descriptor, the title stays true once a match is played.
+  - *Per locale*, each measured at its worst real fixture over every upcoming match: EN
+    `{home} vs {away}, {date}` 534px · DE `{home} - {away}, {date}` 535px · FI
+    `{home}–{away}, {date}` 505px. All inside the 600px budget. The German dash replaces "gegen" (also the convention in
     German football writing); the Finnish tight en dash follows Yle/MTV's "KuPS–HJK".
-  - ⚠ "Preview" holds only while a fixture page IS a preview. The export writes upcoming fixtures
-    only (#861); when finished matches get pages this needs a played/upcoming split.
 - Meta description: templated from real fields (round, kickoff date, h2h record)
   until GAP-03 narratives.
 - `BreadcrumbList` mirroring §2; canonical per locale + hreflang set + OG/Twitter

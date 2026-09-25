@@ -1,419 +1,210 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4e1361fd..18d4267c 100644
+index 18d4267c..9db12bbf 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,21 +1,21 @@
--# Task contract — #159: flag each competition's last matchday of this season
-+# Task contract — #160 part 1: the warehouse decides the Matches page's days
+@@ -1,21 +1,19 @@
+-# Task contract — #160 part 1: the warehouse decides the Matches page's days
++# Task contract — #155: two meetings of the same clubs share one match-page title
  
  objective: >
--  Add is_last_round to marts.mart_competition_fixtures: the played matches of each competition's
--  newest round with a played match, within the season of its next matchday, so the Matches page's
--  past days can reach back to it without deciding it in the site. One leaf mart, its YAML and one
--  singular test; no export or site change.
-+  Add marts.mart_match_days: one row per fixture the Matches page shows, with its day, its order
-+  within its competition that day, the opening day and each day's neighbouring days with a match,
-+  so the export and the site select and order nothing. Part 1 of #160; the export and the page are
-+  part 2, in a second MR after this is built in prod.
+-  Add marts.mart_match_days: one row per fixture the Matches page shows, with its day, its order
+-  within its competition that day, the opening day and each day's neighbouring days with a match,
+-  so the export and the site select and order nothing. Part 1 of #160; the export and the page are
+-  part 2, in a second MR after this is built in prod.
++  Give every match preview page a title no other match page of its language shares, by adding the
++  match's date to seoFixtureTitle in EN/DE/FI, so the full-scale build's SEO audit passes and #160's
++  every-competition sample can ship.
  
  refs: >
--  #159 (the build issue; its What exactly is the requirement, first line reworded to the CPO's
--  definition); #131 "The days behind the Matches hub: how far back" (the ruling); the plan approved
--  in plan mode, with the CPO's answer "Option 1": only played matches are flagged, a round in progress
--  carries both flags, a postponed unplayed match is never flagged.
-+  #160 (the build issue); #130 "The approved design" (opens on the build day or the next day with a
-+  match; each day its own page); #131 rulings (forward to the end of each competition's next
-+  matchday, back to its last matchday of this season; days with none skipped); #159 (is_last_round);
-+  the plan approved in plan mode (two MRs, the warehouse decides reach, opening day and neighbours).
+-  #160 (the build issue); #130 "The approved design" (opens on the build day or the next day with a
+-  match; each day its own page); #131 rulings (forward to the end of each competition's next
+-  matchday, back to its last matchday of this season; days with none skipped); #159 (is_last_round);
+-  the plan approved in plan mode (two MRs, the warehouse decides reach, opening day and neighbours).
++  #155 (the build issue; its What exactly is the requirement); docs/wireframes/01_fixture_page.md §8
++  (the title rule: the competition is not in the title); the plan approved in plan mode, with its
++  measurement over last night's 4,795 upcoming fixtures x 3 languages.
  
  scope_paths:
--  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-+  - dbt_project/models/5_marts/shared/mart_match_days.sql
-   - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_mart_competition_fixtures_last_round_is_the_round_just_played.sql
-+  - dbt_project/tests/assert_mart_match_days_is_the_matches_page_reach.sql
+-  - dbt_project/models/5_marts/shared/mart_match_days.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/tests/assert_mart_match_days_is_the_matches_page_reach.sql
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
++  - docs/wireframes/01_fixture_page.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -25,47 +25,42 @@ scope_paths:
+@@ -25,42 +23,41 @@ scope_paths:
    - docs/tracker/**
  
  impact_map: >
--  writers: dbt only; the mart reads fct_fixture, dim_team, int_legs__team_match (the played
--    definition, by semi-join) and mart_next_matchday (the next round and so the current season).
--    No new input.
--  downstream: `.venv/Scripts/dbt.exe ls --project-dir dbt_project --select mart_competition_fixtures+`
--    → football_data_pipeline.5_marts.shared.mart_competition_fixtures and only its own tests
--    (accepted_values x3, not_null x15, unique fixture_sk, relationships x3,
--    competition_fixtures_order_unique_per_season, _played_has_a_score, _slug_unique_per_competition,
--    _top_match_is_in_the_next_round, assert_mart_competition_fixtures_next_round_is_one_round,
--    _one_row_per_fixture, _team_slugs_resolve). Leaf mart, no downstream model. The export reads it
--    by an explicit column list (scripts/export_site_data.py:1339), so the new column reaches no
--    payload.
-+  writers: dbt only; the new mart reads mart_competition_fixtures (is_last_round, fixture_date,
-+    kickoff_datetime) and mart_next_matchday (the next matchday's upcoming fixtures, the rows Home
-+    shows); mart-to-mart refs are established (mart_competition_fixtures reads mart_next_matchday).
-+  downstream: a new model, so `dbt ls --select mart_match_days+` lists only it and its own tests;
-+    nothing reads it until part 2's export does. Upstream unchanged.
-   layer_rules: marts select and present; league_code on every row; no partition_by or cluster_by;
-     materialisation from the layer config (check_layer_contract.py).
--  deploy_order: additive column; nothing reads it until the Matches page is built; the 04:00 nightly
--    builds it after merge.
--  blast_radius: no existing column or row changes. Measured read-only today: 29 competitions, 479
--    matches carry the new flag.
-+  deploy_order: additive; a new table the 04:00 nightly builds after merge; part 2 exports from it
-+    only after that build.
-+  blast_radius: no existing model, column or row changes. Measured read-only today: 58 days, 32
-+    competitions, 837 rows.
+-  writers: dbt only; the new mart reads mart_competition_fixtures (is_last_round, fixture_date,
+-    kickoff_datetime) and mart_next_matchday (the next matchday's upcoming fixtures, the rows Home
+-    shows); mart-to-mart refs are established (mart_competition_fixtures reads mart_next_matchday).
+-  downstream: a new model, so `dbt ls --select mart_match_days+` lists only it and its own tests;
+-    nothing reads it until part 2's export does. Upstream unchanged.
+-  layer_rules: marts select and present; league_code on every row; no partition_by or cluster_by;
+-    materialisation from the layer config (check_layer_contract.py).
+-  deploy_order: additive; a new table the 04:00 nightly builds after merge; part 2 exports from it
+-    only after that build.
+-  blast_radius: no existing model, column or row changes. Measured read-only today: 58 days, 32
+-    competitions, 837 rows.
++  writers: none; the date is the fixture payload's served `kickoff`, formatted by the existing
++    formatShortDate (UTC, the day the match's address already carries).
++  downstream: seoFixtureTitle has one consumer, the match page ([fixture].astro), which feeds
++    <title>, og:title and twitter:title through Layout.astro; the JSON-LD name and the description
++    are unchanged. `grep -rn seoFixtureTitle site_v2/src` → strings.ts (3 locales), [fixture].astro,
++    src/specs/competition/matches/fixture.spec.json (the key, unchanged).
++  layer_rules: consumption layer formats only; no value computed.
++  deploy_order: site-only; deploy:site-v2 is manual; the site is unlisted and noindex.
++  blast_radius: every match page title in three languages: 849 in the committed sample, 14,385 at
++    full scale. Measured: duplicates 30 -> 0; worst width 551px -> 535px; every title inside the
++    600px budget.
++
++acceptance_criteria:
++  - "Two match preview pages of one locale never share a `<title>`. Today the title is `{home} vs {away}: Preview` (`seoFixtureTitle`, EN/DE/FI), so two unplayed meetings of the same two clubs collide: a cup tie and a league match (SC Paderborn 07 vs VfB Stuttgart in the DFB-Pokal on 2026-10-27 and in the Bundesliga on 2026-10-10), or two league meetings inside one season (Gangwon FC vs Incheon United, K League 1, 2026-09-27 and 2026-10-18). The audit's check 5 fails the build on each."
++  - "The wording of the corrected title is the CPO's (user-visible copy, all three languages), put on the MR that changes it; the competition and the date are the two facts that tell the meetings apart, both served on the fixture payload."
++  - "`node scripts/audit-seo.mjs site_v2/dist` is clean on a build that carries every unplayed match (`check-built-pages` proves the count: 5,022 on 2026-09-19)."
  
  decisions_taken: >
--  The definition is the CPO's (Option 1 in plan mode): the newest round (by round_sequence) of the
--  season of the competition's next matchday that has a played match; only its played matches are
--  flagged; a round in progress carries both flags; a postponed unplayed match is never flagged; a
--  competition with no next matchday has no flag. Builder's: the column name is_last_round, beside
--  is_next_round; the test's file name.
-+  The reach is the CPO's (#131): a past day shows its competition's last matchday (is_last_round,
-+  played by definition), a future day its next matchday (mart_next_matchday's rows, the same rows
-+  Home's Next matches block shows); days with none are skipped. The opening day is #130's: the build
-+  day, else the next day with a match. A day is the UTC fixture_date until #146. The competition
-+  order within a day stays the site's shared order (#130 names it so). Builder's: the name
-+  mart_match_days, its column names, the test's file name, and splitting #160 into two MRs.
+-  The reach is the CPO's (#131): a past day shows its competition's last matchday (is_last_round,
+-  played by definition), a future day its next matchday (mart_next_matchday's rows, the same rows
+-  Home's Next matches block shows); days with none are skipped. The opening day is #130's: the build
+-  day, else the next day with a match. A day is the UTC fixture_date until #146. The competition
+-  order within a day stays the site's shared order (#130 names it so). Builder's: the name
+-  mart_match_days, its column names, the test's file name, and splitting #160 into two MRs.
++  The competition stays out of the title, as 01_fixture_page.md §8 rules; measured, adding it puts
++  1,672 titles over the 660px hard cap. The date alone leaves no duplicate. The CPO chose, in chat,
++  "Date replaces Preview": EN `{home} vs {away}, {date}`, DE `{home} - {away}, {date}`, FI
++  `{home}–{away}, {date}`, the date in the short month form ("29 Dec", "29. Dez.", "29.12.");
++  measured worst 535px, every title inside the 600px budget, so the budget guard stands. The word
++  "Preview" leaves the title. The final wording is shown on the MR head, as #155 says.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a column and a singular test on an existing mart, the
--  pattern the next-round flag set). RECURRING COST: none measurable; one more column on a table the
--  nightly already builds.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a new mart and a singular test, the established
-+  pattern). RECURRING COST: one more small mart table in the nightly build; its input tables are
-+  already built, so the added scan is a few MB.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a new mart and a singular test, the established
+-  pattern). RECURRING COST: one more small mart table in the nightly build; its input tables are
+-  already built, so the added scan is a few MB.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
  
  decisions_reserved:
--  - Anything on the site or in the export (the Matches page, #160).
--  - Earlier seasons: not flagged, by the #131 ruling.
-+  - Everything on the site and in the export: part 2 of #160.
-+  - The venue's local day: #146.
+-  - Everything on the site and in the export: part 2 of #160.
+-  - The venue's local day: #146.
++  - The final title wording in all three languages: shown to the CPO on the MR head.
++  - The match page's content (#132).
  
  done_when:
-   - dbt parse succeeds; sqlfluff (repo root, full rule set) passes on the model and the test;
-     check_layer_contract.py and check_description_hygiene.py pass.
--  - The compiled model, inlined read-only against prod, flags 29 competitions and 479 matches, every
--    one played, in the next matchday's season, one round per competition.
--  - The compiled test, run against the inlined model, returns 0 rows, and at least one row under each
--    mutation: flagging unplayed matches too, dropping the season condition, choosing the round of the
--    latest played kick-off, taking the round before the next round.
-+  - The compiled model, inlined read-only against prod: 58 days, 32 competitions, 837 rows, exactly
-+    one opening day.
-+  - The compiled test against the inlined model returns 0 rows, and at least one row under each
-+    mutation: past unplayed matches included, next-matchday rows dated in the past included, the
-+    opening day taken from the first day overall, a neighbour that skips a day with a match.
-   - python -m pytest tests/ -q passes.
+-  - dbt parse succeeds; sqlfluff (repo root, full rule set) passes on the model and the test;
+-    check_layer_contract.py and check_description_hygiene.py pass.
+-  - The compiled model, inlined read-only against prod: 58 days, 32 competitions, 837 rows, exactly
+-    one opening day.
+-  - The compiled test against the inlined model returns 0 rows, and at least one row under each
+-    mutation: past unplayed matches included, next-matchday rows dated in the past included, the
+-    opening day taken from the first day overall, a neighbour that skips a day with a match.
+-  - python -m pytest tests/ -q passes.
++  - npm run build on the committed sample exits 0; pytest passes; check_copy_gate passes.
++  - A build carrying every unplayed fixture (last night's export) passes audit-seo with 0 violations
++    and check-built-pages proves its match page count; with {date} removed from the EN title the
++    same build fails check 5.
  
  amendments: (none)
-diff --git a/dbt_project/models/5_marts/shared/mart_match_days.sql b/dbt_project/models/5_marts/shared/mart_match_days.sql
-new file mode 100644
-index 00000000..17b74cfd
---- /dev/null
-+++ b/dbt_project/models/5_marts/shared/mart_match_days.sql
-@@ -0,0 +1,77 @@
-+{#
-+  mart_match_days — every match the Matches page shows, one row per fixture, with the day it falls
-+  on and that day's place among the page's days. The export writes one file per day from it and
-+  selects nothing; the site orders the competitions of a day by the site's shared order and renders
-+  each competition's rows in day_row_order.
-+
-+  Reach. A day's matches are its competitions' last matchday (is_last_round on
-+  mart_competition_fixtures: the played fixtures of the round just played, in the season of the
-+  next matchday) and their next matchday (mart_next_matchday's rows, the same the Home page shows:
-+  the round of each competition's earliest fixture not yet started, its fixtures not yet started and
-+  dated from the build day on). A round in progress sits on both sides, its played fixtures behind
-+  the build day and the rest ahead. Nothing earlier and nothing later: no archive by date.
-+
-+  Days. match_day is the fixture's UTC date until the venue's clock is served (#146). A day with no
-+  match is not a day of the page, so previous_day and next_day step over it; they are null at the
-+  two ends. is_opening_day marks the day the Matches page opens on: the build day when it has a
-+  match, else the next day that has one.
-+
-+  Grain: fixture_sk. league_code discriminates the competition and is not a BigQuery partition or
-+  cluster key.
-+#}
-+
-+with fixtures as (
-+    select
-+        fixture_sk,
-+        league_code,
-+        fixture_date,
-+        kickoff_datetime,
-+        is_last_round
-+    from {{ ref('mart_competition_fixtures') }}
-+),
-+
-+next_matchday as (
-+    select fixture_sk
-+    from {{ ref('mart_next_matchday') }}
-+),
-+
-+in_reach as (
-+    select
-+        f.fixture_sk,
-+        f.league_code,
-+        f.fixture_date as match_day,
-+        f.kickoff_datetime
-+    from fixtures as f
-+    left join next_matchday as n
-+        on f.fixture_sk = n.fixture_sk
-+    where f.is_last_round or n.fixture_sk is not null
-+),
-+
-+days as (
-+    select distinct match_day
-+    from in_reach
-+),
-+
-+day_links as (
-+    select
-+        match_day,
-+        lag(match_day) over (order by match_day asc) as previous_day,
-+        lead(match_day) over (order by match_day asc) as next_day,
-+        match_day = min(if(match_day >= current_date(), match_day, null)) over () as is_opening_day
-+    from days
-+)
-+
-+select
-+    r.fixture_sk,
-+    r.league_code,
-+    r.match_day,
-+    d.previous_day,
-+    d.next_day,
-+    row_number() over (
-+        partition by r.match_day, r.league_code
-+        order by r.kickoff_datetime asc, r.fixture_sk asc
-+    ) as day_row_order,
-+    coalesce(d.is_opening_day, false) as is_opening_day
-+from in_reach as r
-+inner join day_links as d
-+    on r.match_day = d.match_day
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 2b369864..31512c85 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -2835,6 +2835,57 @@ models:
-         description: "The reading order of the competition-season's fixtures, 1 first: rounds in their sequence, and within a round by kick-off. Consumers render rows in this order and sort nothing."
-         tests: [not_null]
- 
-+  - name: mart_match_days
-+    description: >
-+      Every match the Matches page shows, one row per fixture, with the day it falls on. Behind
-+      the build day a day holds its competitions' last matchday of this season (the played
-+      fixtures of the round just played); ahead of it, their next matchday (the rows the Home page
-+      shows). Nothing earlier and nothing later. Grain: fixture_sk.
-+
-+      A day is the fixture's UTC date. A day with no match is not one of the page's days, so each
-+      day names its neighbouring days with a match; the opening day is the build day when it has
-+      a match, else the next day that has one. Rebuilt nightly, so the reach and the opening day
-+      are correct as of the morning it was built.
-+    meta:
-+      owner: "data-platform"
-+      domain: "football"
-+      criticality: "medium"
-+    config:
-+      tags: ["marts", "football", "fixtures"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [match_day, league_code, day_row_order]
-+          name: match_days_row_order_unique_per_day_and_competition
-+    columns:
-+      - name: fixture_sk
-+        description: "{{ doc('fixture_sk') }}"
-+        tests:
-+          - not_null
-+          - unique
-+          - relationships:
-+              to: ref('mart_competition_fixtures')
-+              field: fixture_sk
-+      - name: league_code
-+        description: "{{ doc('league_code') }}"
-+        tests: [not_null]
-+      - name: match_day
-+        description: "The day the match falls on: its UTC kick-off date, one of the Matches page's days."
-+        tests: [not_null]
-+      - name: day_row_order
-+        description: "The match's place among its competition's matches that day, 1 first, by kick-off. Consumers render a competition's rows in this order and sort nothing."
-+        tests: [not_null]
-+      - name: is_opening_day
-+        description: "True on every match of the day the Matches page opens on: the build day when it has a match, else the next day that has one. False on every other row."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: [true, false]
-+              quote: false
-+      - name: previous_day
-+        description: "The page's day before this match's day: the latest earlier day with a match in reach. Null on the first day."
-+      - name: next_day
-+        description: "The page's day after this match's day: the earliest later day with a match in reach. Null on the last day."
-+
-   - name: mart_team_fixtures
-     description: >
-       Every fixture from one team's perspective, upcoming and finished alike. Each fixture appears
-diff --git a/dbt_project/tests/assert_mart_match_days_is_the_matches_page_reach.sql b/dbt_project/tests/assert_mart_match_days_is_the_matches_page_reach.sql
-new file mode 100644
-index 00000000..2cc098b4
---- /dev/null
-+++ b/dbt_project/tests/assert_mart_match_days_is_the_matches_page_reach.sql
-@@ -0,0 +1,155 @@
-+-- mart_match_days holds exactly the Matches page's reach and its days: each competition's last
-+-- matchday (the played fixtures of the latest round with a played fixture, in the season of its
-+-- earliest fixture not yet started) and its next matchday (the not-yet-started fixtures, dated from
-+-- the build day on, of the round of that earliest fixture); every served day names the adjacent days
-+-- with a match as its neighbours; the opening day is the first day from the build day on; and no
-+-- day before the build day holds an unplayed fixture.
-+--
-+-- Recomputed from fct_fixture and int_legs__team_match, not from either mart, so a rewrite that
-+-- lets in a past unplayed fixture, a next-matchday fixture dated in the past, opens on the first day
-+-- overall, or links a day past a neighbour with a match fails here even when the schema tests stay
-+-- green.
-+--
-+-- Returns a row (= fails) per fixture where any property does not hold.
-+{{ config(store_failures = true) }}
-+
-+with fixtures as (
-+    select
-+        fixture_sk,
-+        league_code,
-+        season_api_year,
-+        round_name,
-+        status_short,
-+        fixture_date,
-+        kickoff_datetime
-+    from {{ ref('fct_fixture') }}
-+),
-+
-+played as (
-+    select distinct fixture_sk
-+    from {{ ref('int_legs__team_match') }}
-+),
-+
-+upcoming as (
-+    select *
-+    from fixtures
-+    where
-+        status_short in ('NS', 'TBD')
-+        and fixture_date >= current_date()
-+),
-+
-+next_round as (
-+    select
-+        league_code,
-+        season_api_year,
-+        round_name
-+    from upcoming
-+    qualify row_number() over (
-+        partition by league_code
-+        order by fixture_date asc, kickoff_datetime asc, fixture_sk asc
-+    ) = 1
-+),
-+
-+next_rows as (
-+    select u.fixture_sk
-+    from upcoming as u
-+    inner join next_round as n
-+        on
-+            u.league_code = n.league_code
-+            and u.season_api_year = n.season_api_year
-+            and u.round_name = n.round_name
-+),
-+
-+rounds as (
-+    select
-+        league_code,
-+        season_api_year,
-+        round_name,
-+        dense_rank() over (
-+            partition by league_code, season_api_year
-+            order by min(kickoff_datetime) asc, round_name asc
-+        ) as round_sequence
-+    from fixtures
-+    group by league_code, season_api_year, round_name
-+),
-+
-+season_played as (
-+    select
-+        f.fixture_sk,
-+        f.league_code,
-+        r.round_sequence
-+    from fixtures as f
-+    inner join next_round as n
-+        on
-+            f.league_code = n.league_code
-+            and f.season_api_year = n.season_api_year
-+    inner join played as p
-+        on f.fixture_sk = p.fixture_sk
-+    inner join rounds as r
-+        on
-+            f.league_code = r.league_code
-+            and f.season_api_year = r.season_api_year
-+            and f.round_name = r.round_name
-+),
-+
-+last_rows as (
-+    select fixture_sk
-+    from season_played
-+    qualify round_sequence = max(round_sequence) over (partition by league_code)
-+),
-+
-+expected as (
-+    select
-+        f.fixture_sk,
-+        f.fixture_date as match_day
-+    from fixtures as f
-+    where
-+        f.fixture_sk in (select n.fixture_sk from next_rows as n)
-+        or f.fixture_sk in (select l.fixture_sk from last_rows as l)
-+),
-+
-+expected_days as (
-+    select
-+        match_day,
-+        lag(match_day) over (order by match_day asc) as previous_day,
-+        lead(match_day) over (order by match_day asc) as next_day,
-+        match_day = min(if(match_day >= current_date(), match_day, null)) over () as is_opening_day
-+    from (select distinct match_day from expected)
-+),
-+
-+served as (
-+    select
-+        fixture_sk,
-+        match_day,
-+        previous_day,
-+        next_day,
-+        is_opening_day
-+    from {{ ref('mart_match_days') }}
-+)
-+
-+select
-+    s.match_day,
-+    e.match_day as expected_day,
-+    s.previous_day,
-+    d.previous_day as expected_previous_day,
-+    s.next_day,
-+    d.next_day as expected_next_day,
-+    s.is_opening_day,
-+    d.is_opening_day as expected_opening_day,
-+    coalesce(s.fixture_sk, e.fixture_sk) as fixture_sk,
-+    p.fixture_sk is not null as is_played
-+from served as s
-+full outer join expected as e
-+    on s.fixture_sk = e.fixture_sk
-+left join expected_days as d
-+    on e.match_day = d.match_day
-+left join played as p
-+    on coalesce(s.fixture_sk, e.fixture_sk) = p.fixture_sk
-+where
-+    s.fixture_sk is null
-+    or e.fixture_sk is null
-+    or s.match_day != e.match_day
-+    or s.previous_day is distinct from d.previous_day
-+    or s.next_day is distinct from d.next_day
-+    or s.is_opening_day != coalesce(d.is_opening_day, false)
-+    or (s.match_day < current_date() and p.fixture_sk is null)
+diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
+index e9ef6c8e..7d3773bf 100644
+--- a/docs/wireframes/01_fixture_page.md
++++ b/docs/wireframes/01_fixture_page.md
+@@ -252,7 +252,7 @@ full H2H — the SEO internal-link graph (§8).
+ - `schema.org/SportsEvent`: `startDate` = `kickoff`, `competitor` = both teams
+   (SportsTeam: name + crest), `location` = `venue` (when present), part of
+   `league_name`.
+-- Title: `{home.name} <connector> {away.name}: {descriptor}` (localized template).
++- Title: `{home.name} <connector> {away.name}, {date}` (localized template).
+   **The competition is NOT in the title** (CPO, 2026-08-03), and neither is the brand.
+   - *Why not the competition.* Measured over every competition's worst real upcoming fixture,
+     ending the title with the competition name failed 4 of 26 against the 660px hard cap, worst
+@@ -261,12 +261,15 @@ full H2H — the SEO internal-link graph (§8).
+     in the URL. It is not lost: it stays in the breadcrumb, the URL and the JSON-LD `superEvent`.
+   - *Why not the brand.* Same ruling as the team title (2026-07-28): a suffix is earned by equity,
+     and an identical one on every match page reads as boilerplate.
+-  - *Per locale*, each measured at its worst real fixture: EN `{home} vs {away}: Preview` 597px ·
+-    DE `{home} - {away}: Vorschau` 595px · FI `{home}–{away}: Ennakko` 573px. All inside the 600px
+-    budget, not merely under the hard cap. The German dash replaces "gegen" (also the convention in
++  - *The date closes the title* (`{date}`, the short day and month of the UTC kick-off, the day the
++    match's address carries), in place of a descriptor word: two meetings of the same clubs, a cup
++    tie and a league match or two league meetings in a season, otherwise share a title, and the
++    audit fails the build on it. The date alone tells every meeting apart; the competition would
++    not fit (see above). With no descriptor, the title stays true once a match is played.
++  - *Per locale*, each measured at its worst real fixture over every upcoming match: EN
++    `{home} vs {away}, {date}` 534px · DE `{home} - {away}, {date}` 535px · FI
++    `{home}–{away}, {date}` 505px. All inside the 600px budget. The German dash replaces "gegen" (also the convention in
+     German football writing); the Finnish tight en dash follows Yle/MTV's "KuPS–HJK".
+-  - ⚠ "Preview" holds only while a fixture page IS a preview. The export writes upcoming fixtures
+-    only (#861); when finished matches get pages this needs a played/upcoming split.
+ - Meta description: templated from real fields (round, kickoff date, h2h record)
+   until GAP-03 narratives.
+ - `BreadcrumbList` mirroring §2; canonical per locale + hreflang set + OG/Twitter
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index eaa9268f..1c234545 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -161,12 +161,10 @@ const EN: Dict = {
+   // FBref.com") both omit it; kicker uses an editorial headline with the teams only in the URL.
+   // Keeping it failed 4 of 26 competitions against the 660px hard cap, worst 886px. It is not
+   // lost: it stays in the breadcrumb, the URL and the JSON-LD superEvent.
+-  // Measured over every competition's worst real upcoming fixture: 597px, inside the 600px budget.
+-  //
+-  // ⚠ "Preview" is true only while a fixture page IS a preview. The export writes upcoming
+-  // fixtures only today (#861). When finished matches get pages this needs a played/upcoming
+-  // split, or every match report will be titled "Preview".
+-  seoFixtureTitle: "{home} vs {away}: Preview",
++  // The date (short day and month, UTC) tells apart two meetings of the same clubs, which would
++  // otherwise share a title; with no descriptor word the title stays true once a match is played.
++  // Measured over every real upcoming fixture: worst 535px, inside the 600px budget.
++  seoFixtureTitle: "{home} vs {away}, {date}",
+   // --- chrome (site-wide header/footer, #825) ---
+   navCompetitions: "Competitions",
+   navMatches: "Matches",
+@@ -436,7 +434,7 @@ const DE: Dict = {
+   // "gegen" becomes a dash: it is what German football writing uses for a pairing, and it is also
+   // what gets DE under the limit (2 of 26 competitions failed with "gegen", 0 with the dash).
+   // Worst real fixture: 595px, inside the 600px budget. See the EN entry for the full reasoning.
+-  seoFixtureTitle: "{home} - {away}: Vorschau",
++  seoFixtureTitle: "{home} - {away}, {date}",
+   // --- chrome (site-wide header/footer, #825) ---
+   navCompetitions: "Wettbewerbe",
+   navMatches: "Spiele",
+@@ -678,7 +676,7 @@ const FI: Dict = {
+   // the limit: "vs." overflowed by 1px on one competition (661 against a 660 hard cap), the tight
+   // en dash lands at 634px. Approved with the source on the table.
+   // Worst real fixture: 573px, the widest headroom of the three. See the EN entry for the reasoning.
+-  seoFixtureTitle: "{home}–{away}: Ennakko",
++  seoFixtureTitle: "{home}–{away}, {date}",
+   // --- chrome (site-wide header/footer, #825) ---
+   navCompetitions: "Kilpailut",
+   navMatches: "Ottelut",
+diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+index bdb119de..31d32a50 100644
+--- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
++++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
+@@ -16,6 +16,7 @@ import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
+ import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
+ import { t, BRAND } from "../../../../i18n/strings";
+ import { localeHref, word } from "../../../../lib/href";
++import { formatShortDate } from "../../../../lib/format";
+ import type { Lang } from "../../../../lib/format";
+ import type { Fixture } from "../../../../lib/types";
+ import competitions from "../../../../data/competitions.json";
+@@ -75,9 +76,13 @@ const compName =
+ // left every remaining mention of the competition on the provider's name — the very ambiguity
+ // ("Serie A" for Brazil) it was introduced to remove. So the breadcrumb and the JSON-LD superEvent
+ // below now read `compName` too, and the authoritative name outlives its removal from the title.
++// The date tells apart two meetings of the same clubs (a cup tie and a league match, or two
++// league meetings in a season), which would otherwise share a title; it is the UTC day the
++// match's address carries.
+ const title = t(lang, "seoFixtureTitle", {
+   home: home.name ?? "",
+   away: away.name ?? "",
++  date: formatShortDate(fixture.kickoff, lang),
+ });
+ const description = t(lang, "aboutNoH2h", {
+   home: home.name ?? "",
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -427,6 +218,8 @@ index 00000000..2cc098b4
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 25 +++++++++++--------------
-#    1 file changed, 11 insertions(+), 14 deletions(-)
+#   .claude/task/acceptance_evidence.md    |  35 +-
+#    .claude/task/rendered_page_evidence.md |  42 +--
+#    .claude/task/review_input.patch        | 572 ++++++++++-----------------------
+#    3 files changed, 211 insertions(+), 438 deletions(-)
 # ============================================================================

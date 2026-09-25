@@ -1,18 +1,21 @@
-# Review — feat/match-days-mart — #160 part 1
+# Review — fix/fixture-title-unique — #155
 
-diff_sha256: f52464c06de2ac72d3c0fcb9edee755b1ae8f715d3d19667379632aa6db301af
+diff_sha256: 4a91200660c42990c2b0628435409b1c8d788004fb8e15fc993355859568ed2f
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed file is in scope_paths; the reach, the opening day and the UTC day are attributed to the #130/#131 rulings and #146 reserved, and the SQL implements exactly that; no metric, no product text, no new mechanism (store_failures and unique_combination_of_columns are existing patterns); no export or site change; THRESHOLD DECLARATIONS checked against the SQL; no credential-shaped string. The marts table in layering.md lacks this mart as it lacks mart_competition_fixtures: a pre-existing gap outside scope.
+- Round 1: every changed file is in scope_paths; the wording is the CPO's chat decision recorded in decisions_taken and shown on the MR head; no protected path; the impact_map carries the grep of seoFixtureTitle's single consumer and the measured duplicate and width counts; 01_fixture_page.md §8 updated in the same diff; formatShortDate and the served kickoff reused, no new mechanism or cost; no credential-shaped string; canonical, JSON-LD name, breadcrumb and description unchanged.
+- Round 2 delta: only the EN comment above seoFixtureTitle changed, now matching the 535px figure verified in round 1; no string, scope or contract change.
 
-## analytics-engineer-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Mart-to-mart refs are allowed and precedented; no ordering or selection pushed to the export or site; no catalogue metric; no hardcoded league; no seed or project config change; fixture_sk unique/not_null/relationships plus a unique (match_day, league_code, day_row_order); the singular test recomputes reach, neighbours and opening day from fct_fixture and int_legs__team_match; is_last_round and mart_next_matchday's rows are disjoint (played vs future-dated unplayed), so nothing double-counts and no past day holds an unplayed fixture; materialisation from the layer config. Noted, not a defect: with no competition having an upcoming fixture there would be no opening day, a state that yields no rows at all.
+- Round 1: `date` binds to the payload's served kickoff (shape_fixture_payload), already used for the JSON-LD startDate; the three strings match the CPO's chosen wording; §8's rule that the competition stays out of the title is kept; formatShortDate falls back to the dash on a null kickoff; the full-scale audit (14,905 pages, 0 violations) and the mutation (date removed, 11 duplicate EN titles) demonstrate the fix; §8 no longer mentions Preview. Noted a stale source comment in strings.ts.
+- Round 2 delta: the stale comment now describes the date and the 535px measurement; no string value changed.
 
 ## escalations
-(none)
+- question: Which match-page title fixes #155, "Date replaces Preview" or "Date after Preview" (each breaks one recorded rule)?
+  CPO ANSWER: Date replaces Preview (answered in chat; recorded in contract.md decisions_taken).

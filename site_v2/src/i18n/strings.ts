@@ -161,12 +161,10 @@ const EN: Dict = {
   // FBref.com") both omit it; kicker uses an editorial headline with the teams only in the URL.
   // Keeping it failed 4 of 26 competitions against the 660px hard cap, worst 886px. It is not
   // lost: it stays in the breadcrumb, the URL and the JSON-LD superEvent.
-  // Measured over every competition's worst real upcoming fixture: 597px, inside the 600px budget.
-  //
-  // ⚠ "Preview" is true only while a fixture page IS a preview. The export writes upcoming
-  // fixtures only today (#861). When finished matches get pages this needs a played/upcoming
-  // split, or every match report will be titled "Preview".
-  seoFixtureTitle: "{home} vs {away}: Preview",
+  // The date (short day and month, UTC) tells apart two meetings of the same clubs, which would
+  // otherwise share a title; with no descriptor word the title stays true once a match is played.
+  // Measured over every real upcoming fixture: worst 535px, inside the 600px budget.
+  seoFixtureTitle: "{home} vs {away}, {date}",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Competitions",
   navMatches: "Matches",
@@ -436,7 +434,7 @@ const DE: Dict = {
   // "gegen" becomes a dash: it is what German football writing uses for a pairing, and it is also
   // what gets DE under the limit (2 of 26 competitions failed with "gegen", 0 with the dash).
   // Worst real fixture: 595px, inside the 600px budget. See the EN entry for the full reasoning.
-  seoFixtureTitle: "{home} - {away}: Vorschau",
+  seoFixtureTitle: "{home} - {away}, {date}",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Wettbewerbe",
   navMatches: "Spiele",
@@ -678,7 +676,7 @@ const FI: Dict = {
   // the limit: "vs." overflowed by 1px on one competition (661 against a 660 hard cap), the tight
   // en dash lands at 634px. Approved with the source on the table.
   // Worst real fixture: 573px, the widest headroom of the three. See the EN entry for the reasoning.
-  seoFixtureTitle: "{home}–{away}: Ennakko",
+  seoFixtureTitle: "{home}–{away}, {date}",
   // --- chrome (site-wide header/footer, #825) ---
   navCompetitions: "Kilpailut",
   navMatches: "Ottelut",
