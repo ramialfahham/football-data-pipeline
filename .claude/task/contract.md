@@ -1,21 +1,19 @@
-# Task contract — #160 part 1: the warehouse decides the Matches page's days
+# Task contract — #155: two meetings of the same clubs share one match-page title
 
 objective: >
-  Add marts.mart_match_days: one row per fixture the Matches page shows, with its day, its order
-  within its competition that day, the opening day and each day's neighbouring days with a match,
-  so the export and the site select and order nothing. Part 1 of #160; the export and the page are
-  part 2, in a second MR after this is built in prod.
+  Give every match preview page a title no other match page of its language shares, by adding the
+  match's date to seoFixtureTitle in EN/DE/FI, so the full-scale build's SEO audit passes and #160's
+  every-competition sample can ship.
 
 refs: >
-  #160 (the build issue); #130 "The approved design" (opens on the build day or the next day with a
-  match; each day its own page); #131 rulings (forward to the end of each competition's next
-  matchday, back to its last matchday of this season; days with none skipped); #159 (is_last_round);
-  the plan approved in plan mode (two MRs, the warehouse decides reach, opening day and neighbours).
+  #155 (the build issue; its What exactly is the requirement); docs/wireframes/01_fixture_page.md §8
+  (the title rule: the competition is not in the title); the plan approved in plan mode, with its
+  measurement over last night's 4,795 upcoming fixtures x 3 languages.
 
 scope_paths:
-  - dbt_project/models/5_marts/shared/mart_match_days.sql
-  - dbt_project/models/5_marts/shared/shared.yml
-  - dbt_project/tests/assert_mart_match_days_is_the_matches_page_reach.sql
+  - site_v2/src/i18n/strings.ts
+  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
+  - docs/wireframes/01_fixture_page.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -25,42 +23,41 @@ scope_paths:
   - docs/tracker/**
 
 impact_map: >
-  writers: dbt only; the new mart reads mart_competition_fixtures (is_last_round, fixture_date,
-    kickoff_datetime) and mart_next_matchday (the next matchday's upcoming fixtures, the rows Home
-    shows); mart-to-mart refs are established (mart_competition_fixtures reads mart_next_matchday).
-  downstream: a new model, so `dbt ls --select mart_match_days+` lists only it and its own tests;
-    nothing reads it until part 2's export does. Upstream unchanged.
-  layer_rules: marts select and present; league_code on every row; no partition_by or cluster_by;
-    materialisation from the layer config (check_layer_contract.py).
-  deploy_order: additive; a new table the 04:00 nightly builds after merge; part 2 exports from it
-    only after that build.
-  blast_radius: no existing model, column or row changes. Measured read-only today: 58 days, 32
-    competitions, 837 rows.
+  writers: none; the date is the fixture payload's served `kickoff`, formatted by the existing
+    formatShortDate (UTC, the day the match's address already carries).
+  downstream: seoFixtureTitle has one consumer, the match page ([fixture].astro), which feeds
+    <title>, og:title and twitter:title through Layout.astro; the JSON-LD name and the description
+    are unchanged. `grep -rn seoFixtureTitle site_v2/src` → strings.ts (3 locales), [fixture].astro,
+    src/specs/competition/matches/fixture.spec.json (the key, unchanged).
+  layer_rules: consumption layer formats only; no value computed.
+  deploy_order: site-only; deploy:site-v2 is manual; the site is unlisted and noindex.
+  blast_radius: every match page title in three languages: 849 in the committed sample, 14,385 at
+    full scale. Measured: duplicates 30 -> 0; worst width 551px -> 535px; every title inside the
+    600px budget.
+
+acceptance_criteria:
+  - "Two match preview pages of one locale never share a `<title>`. Today the title is `{home} vs {away}: Preview` (`seoFixtureTitle`, EN/DE/FI), so two unplayed meetings of the same two clubs collide: a cup tie and a league match (SC Paderborn 07 vs VfB Stuttgart in the DFB-Pokal on 2026-10-27 and in the Bundesliga on 2026-10-10), or two league meetings inside one season (Gangwon FC vs Incheon United, K League 1, 2026-09-27 and 2026-10-18). The audit's check 5 fails the build on each."
+  - "The wording of the corrected title is the CPO's (user-visible copy, all three languages), put on the MR that changes it; the competition and the date are the two facts that tell the meetings apart, both served on the fixture payload."
+  - "`node scripts/audit-seo.mjs site_v2/dist` is clean on a build that carries every unplayed match (`check-built-pages` proves the count: 5,022 on 2026-09-19)."
 
 decisions_taken: >
-  The reach is the CPO's (#131): a past day shows its competition's last matchday (is_last_round,
-  played by definition), a future day its next matchday (mart_next_matchday's rows, the same rows
-  Home's Next matches block shows); days with none are skipped. The opening day is #130's: the build
-  day, else the next day with a match. A day is the UTC fixture_date until #146. The competition
-  order within a day stays the site's shared order (#130 names it so). Builder's: the name
-  mart_match_days, its column names, the test's file name, and splitting #160 into two MRs.
+  The competition stays out of the title, as 01_fixture_page.md §8 rules; measured, adding it puts
+  1,672 titles over the 660px hard cap. The date alone leaves no duplicate. The CPO chose, in chat,
+  "Date replaces Preview": EN `{home} vs {away}, {date}`, DE `{home} - {away}, {date}`, FI
+  `{home}–{away}, {date}`, the date in the short month form ("29 Dec", "29. Dez.", "29.12.");
+  measured worst 535px, every title inside the 600px budget, so the budget guard stands. The word
+  "Preview" leaves the title. The final wording is shown on the MR head, as #155 says.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a new mart and a singular test, the established
-  pattern). RECURRING COST: one more small mart table in the nightly build; its input tables are
-  already built, so the added scan is a few MB.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
 
 decisions_reserved:
-  - Everything on the site and in the export: part 2 of #160.
-  - The venue's local day: #146.
+  - The final title wording in all three languages: shown to the CPO on the MR head.
+  - The match page's content (#132).
 
 done_when:
-  - dbt parse succeeds; sqlfluff (repo root, full rule set) passes on the model and the test;
-    check_layer_contract.py and check_description_hygiene.py pass.
-  - The compiled model, inlined read-only against prod: 58 days, 32 competitions, 837 rows, exactly
-    one opening day.
-  - The compiled test against the inlined model returns 0 rows, and at least one row under each
-    mutation: past unplayed matches included, next-matchday rows dated in the past included, the
-    opening day taken from the first day overall, a neighbour that skips a day with a match.
-  - python -m pytest tests/ -q passes.
+  - npm run build on the committed sample exits 0; pytest passes; check_copy_gate passes.
+  - A build carrying every unplayed fixture (last night's export) passes audit-seo with 0 violations
+    and check-built-pages proves its match page count; with {date} removed from the EN title the
+    same build fails check 5.
 
 amendments: (none)
