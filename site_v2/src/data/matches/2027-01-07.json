@@ -1,0 +1,75 @@
+{
+  "type": "match_day",
+  "slug": "2027-01-07",
+  "day": "2027-01-07",
+  "is_opening_day": false,
+  "previous_day": "2026-12-02",
+  "next_day": "2027-01-08",
+  "competitions": [
+    {
+      "league_code": "ACN",
+      "name": "AFC Asian Cup",
+      "slug": "asian-cup",
+      "crest": "https://media.api-sports.io/football/leagues/7.png",
+      "entity_type": "national",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1545958,
+          "slug": "2027-01-07-kuwait-vs-oman",
+          "kickoff": "2027-01-07 14:00:00+00:00",
+          "round": "Group Stage - 1",
+          "round_order": 1,
+          "round_sequence": 1,
+          "fixture_order": 1,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1570,
+            "name": "Kuwait",
+            "slug": "kuwait",
+            "crest": "https://media.api-sports.io/football/teams/1570.png"
+          },
+          "away": {
+            "team_id": 1552,
+            "name": "Oman",
+            "slug": "oman",
+            "crest": "https://media.api-sports.io/football/teams/1552.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        },
+        {
+          "fixture_id": 1545959,
+          "slug": "2027-01-07-saudi-arabia-vs-palestine",
+          "kickoff": "2027-01-07 14:00:00+00:00",
+          "round": "Group Stage - 1",
+          "round_order": 1,
+          "round_sequence": 1,
+          "fixture_order": 2,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 23,
+            "name": "Saudi Arabia",
+            "slug": "saudi-arabia",
+            "crest": "https://media.api-sports.io/football/teams/23.png"
+          },
+          "away": {
+            "team_id": 1562,
+            "name": "Palestine",
+            "slug": "palestine",
+            "crest": "https://media.api-sports.io/football/teams/1562.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "type": "match_day",
+  "slug": "2026-09-28",
+  "day": "2026-09-28",
+  "is_opening_day": false,
+  "previous_day": "2026-09-27",
+  "next_day": "2026-09-29",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1639955,
+          "slug": "2026-09-28-guadeloupe-vs-barbados",
+          "kickoff": "2026-09-28 19:00:00+00:00",
+          "round": "League B - 2",
+          "round_order": 2,
+          "round_sequence": 6,
+          "fixture_order": 45,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 10983,
+            "name": "Guadeloupe",
+            "slug": "guadeloupe",
+            "crest": "https://media.api-sports.io/football/teams/10983.png"
+          },
+          "away": {
+            "team_id": 5527,
+            "name": "Barbados",
+            "slug": "barbados",
+            "crest": "https://media.api-sports.io/football/teams/5527.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "LMX",
+      "name": "Liga MX",
+      "slug": "liga-mx",
+      "crest": "https://media.api-sports.io/football/leagues/262.png",
+      "entity_type": "club",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1550982,
+          "slug": "2026-09-28-leon-vs-fc-juarez",
+          "kickoff": "2026-09-28 01:00:00+00:00",
+          "round": "Apertura - 10",
+          "round_order": 10,
+          "round_sequence": 10,
+          "fixture_order": 89,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2289,
+            "name": "Leon",
+            "slug": "leon",
+            "crest": "https://media.api-sports.io/football/teams/2289.png"
+          },
+          "away": {
+            "team_id": 2298,
+            "name": "FC Juarez",
+            "slug": "fc-juarez",
+            "crest": "https://media.api-sports.io/football/teams/2298.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1550983,
+          "slug": "2026-09-28-necaxa-vs-club-america",
+          "kickoff": "2026-09-28 03:00:00+00:00",
+          "round": "Apertura - 10",
+          "round_order": 10,
+          "round_sequence": 10,
+          "fixture_order": 90,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2288,
+            "name": "Necaxa",
+            "slug": "necaxa",
+            "crest": "https://media.api-sports.io/football/teams/2288.png"
+          },
+          "away": {
+            "team_id": 2287,
+            "name": "Club America",
+            "slug": "club-america",
+            "crest": "https://media.api-sports.io/football/teams/2287.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

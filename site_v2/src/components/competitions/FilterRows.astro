@@ -1,0 +1,51 @@
+---
+// The two filter rows, by type (clubs or national teams) and by region: the zero-JS `.seg-in` /
+// `.seg-btn` radio pattern (system.css). The radios come first because the stylesheet hides
+// whatever carries a non-matching `data-entity-type` / `data-confederation` inside the `.categories`
+// element that must follow them as a sibling. The Competitions page and the Matches page both
+// render these rows, so the two cannot drift.
+import { t } from "../../i18n/strings";
+import type { Lang } from "../../lib/format";
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+
+const ENTITY_FILTERS: { id: string; value: string | null; label: string }[] = [
+  { id: "filter-entity-all", value: null, label: t(lang, "filterAll") },
+  { id: "filter-entity-club", value: "club", label: t(lang, "filterClubs") },
+  { id: "filter-entity-national", value: "national", label: t(lang, "filterNational") },
+];
+
+// Fixed, known set (confederations.csv) — hand-enumerated rather than derived from the page's own
+// data, so a confederation with zero rows TODAY (none currently) still gets a working filter
+// button the day a competition from it is onboarded.
+const REGION_FILTERS: { id: string; value: string | null; labelKey: string | null }[] = [
+  { id: "filter-region-all", value: null, labelKey: null },
+  { id: "filter-region-uefa", value: "UEFA", labelKey: "confedUefa" },
+  { id: "filter-region-conmebol", value: "CONMEBOL", labelKey: "confedConmebol" },
+  { id: "filter-region-concacaf", value: "CONCACAF", labelKey: "confedConcacaf" },
+  { id: "filter-region-caf", value: "CAF", labelKey: "confedCaf" },
+  { id: "filter-region-afc", value: "AFC", labelKey: "confedAfc" },
+  { id: "filter-region-ofc", value: "OFC", labelKey: "confedOfc" },
+  { id: "filter-region-fifa", value: "FIFA", labelKey: "confedFifa" },
+];
+---
+
+{/* The radio's value is what a collapse script matches rows against; "All" is empty. */}
+{ENTITY_FILTERS.map((f) => (
+  <input class="seg-in" type="radio" name="entity-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+))}
+{REGION_FILTERS.map((f) => (
+  <input class="seg-in" type="radio" name="region-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+))}
+
+<div class="seg" role="group" aria-label={t(lang, "filterByType")}>
+  {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
+</div>
+<div class="seg wrap" role="group" aria-label={t(lang, "filterByRegion")}>
+  {REGION_FILTERS.map((f) => (
+    <label class="seg-btn" for={f.id}>{f.labelKey ? t(lang, f.labelKey) : t(lang, "filterAll")}</label>
+  ))}
+</div>

@@ -1,0 +1,53 @@
+---
+// A day behind or ahead of the Matches page (#131; spec: src/specs/matches/day.spec.json): every
+// day in the warehouse's reach but the opening day, which lives at the matches word's own address.
+// A day drops off once the next round is played, so these addresses are not permanent.
+import Layout from "../../../layouts/Layout.astro";
+import MatchesDay from "../../../components/matches/MatchesDay.astro";
+import { t } from "../../../i18n/strings";
+import { localeHref, LOCALES, word } from "../../../lib/href";
+import { formatLongDate } from "../../../lib/format";
+import type { Lang } from "../../../lib/format";
+import type { MatchDayPayload } from "../../../lib/types";
+
+export function getStaticPaths() {
+  const days = Object.values(
+    import.meta.glob<MatchDayPayload>("/src/data/matches/*.json", { eager: true, import: "default" }),
+  );
+  const opening = days.find((d) => d.is_opening_day);
+  if (!opening) return [];
+  return days
+    .filter((d) => !d.is_opening_day)
+    .flatMap((day) =>
+      LOCALES.map((lang) => ({
+        params: { lang, matches: word(lang, "matches"), day: day.day },
+        props: { day, openingDay: opening.day },
+      })),
+    );
+}
+
+interface Props {
+  day: MatchDayPayload;
+  openingDay: string;
+}
+const { day, openingDay } = Astro.props;
+const lang = (Astro.params.lang ?? "en") as Lang;
+const longDate = formatLongDate(day.day, lang);
+
+const title = t(lang, "seoMatchDayTitle", { date: longDate });
+const description = t(lang, "seoMatchesDesc", { date: longDate, n: day.competitions.length });
+const entity = {
+  "@type": "ItemList",
+  name: title,
+  numberOfItems: day.competitions.reduce((n, c) => n + c.fixtures.length, 0),
+};
+const crumbs = [
+  { name: t(lang, "crumbHome"), href: localeHref(lang) },
+  { name: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
+  { name: longDate },
+];
+---
+
+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+  <MatchesDay day={day} openingDay={openingDay} lang={lang} />
+</Layout>

@@ -1,0 +1,37 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/[matches]/[day].astro",
+  "entity": "matchDay",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoMatchDayTitle",
+    "description": "seoMatchesDesc",
+    "schema_org": "ItemList",
+    "links": {
+      "inbound_hub": "none",
+      "outbound": ["competition", "fixture"]
+    },
+    "minimum_data": "A day of mart_match_days other than the opening day: behind the build day its competitions' last matchday with scores, ahead of it their next matchday with kick-offs. Days with no match are not days of the page. Every unplayed row links to its match page; a played row is not a link until the match report page exists.",
+    "page_count_driver": "(count(distinct match_day in mart_match_days) - 1) x count(locales)",
+    "url_permanence": "ephemeral",
+    "url_permanence_note": "A day page exists while its day is in reach: a past day drops off once its competitions play their next round, a future one becomes the opening day at /matches/ when it arrives. No archive by date (#131). The date segment is yyyy-mm-dd in every language (site_architecture.md \"Address words\" rule 7)."
+  },
+  "blocks": [
+    {
+      "block": "Filter rows",
+      "mart": "mart_competition_index",
+      "i18n_keys": ["crumbHome", "navMatches", "filterAll", "filterClubs", "filterNational", "filterByType", "filterByRegion", "confedUefa"]
+    },
+    {
+      "block": "Day switcher",
+      "mart": "mart_match_days",
+      "i18n_keys": ["dayPickerAria"]
+    },
+    {
+      "block": "Schedule",
+      "mart": ["mart_match_days", "mart_competition_fixtures", "mart_competition_index"],
+      "i18n_keys": ["compSecSchedule", "homeShowAll", "compTBC"]
+    }
+  ]
+}

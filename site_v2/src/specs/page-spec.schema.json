@@ -13,7 +13,7 @@
     },
     "entity": {
       "type": "string",
-      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home"],
+      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay"],
       "description": "The entity type this template renders, per docs/content_architecture.md section 2."
     },
     "stub": {

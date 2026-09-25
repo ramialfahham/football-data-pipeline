@@ -25,7 +25,7 @@ const { lang } = Astro.props;
 
 const navItems: { label: string; href?: string }[] = [
   { label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
-  { label: t(lang, "navMatches") },
+  { label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
   { label: t(lang, "navTeams") },
   { label: t(lang, "navPlayers") },
   { label: t(lang, "navStandings") },

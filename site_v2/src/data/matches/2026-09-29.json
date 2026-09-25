@@ -1,0 +1,48 @@
+{
+  "type": "match_day",
+  "slug": "2026-09-29",
+  "day": "2026-09-29",
+  "is_opening_day": false,
+  "previous_day": "2026-09-28",
+  "next_day": "2026-10-02",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1639960,
+          "slug": "2026-09-29-st-lucia-vs-bermuda",
+          "kickoff": "2026-09-29 00:00:00+00:00",
+          "round": "League B - 2",
+          "round_order": 2,
+          "round_sequence": 6,
+          "fixture_order": 46,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 5540,
+            "name": "St. Lucia",
+            "slug": "st-lucia",
+            "crest": "https://media.api-sports.io/football/teams/5540.png"
+          },
+          "away": {
+            "team_id": 5158,
+            "name": "Bermuda",
+            "slug": "bermuda",
+            "crest": "https://media.api-sports.io/football/teams/5158.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

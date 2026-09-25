@@ -1,0 +1,37 @@
+{
+  "$schema": "../page-spec.schema.json",
+  "page": "[lang]/[matches]/index.astro",
+  "entity": "matchDay",
+  "seo": {
+    "canonical": "self",
+    "hreflang": "all-locales",
+    "title": "seoMatchesTitle",
+    "description": "seoMatchesDesc",
+    "schema_org": "ItemList",
+    "links": {
+      "inbound_hub": "none",
+      "outbound": ["competition", "fixture"]
+    },
+    "minimum_data": "The warehouse flags an opening day in mart_match_days (the build day, else the next day with a match); a day exists only when a competition's last or next matchday has a match on it. Every unplayed row links to its match page, which the build emits from fixtures/{fixture_id}.json; a played row is not a link until the match report page exists.",
+    "page_count_driver": "count(locales)",
+    "url_permanence": "permanent",
+    "url_permanence_note": "The address is the matches word of site_architecture.md \"Address words\" and never moves; the day it shows is the opening day of each nightly build, which is why no dated address repeats it."
+  },
+  "blocks": [
+    {
+      "block": "Filter rows",
+      "mart": "mart_competition_index",
+      "i18n_keys": ["crumbHome", "navMatches", "filterAll", "filterClubs", "filterNational", "filterByType", "filterByRegion", "confedUefa"]
+    },
+    {
+      "block": "Day switcher",
+      "mart": "mart_match_days",
+      "i18n_keys": ["dayPickerAria"]
+    },
+    {
+      "block": "Schedule",
+      "mart": ["mart_match_days", "mart_competition_fixtures", "mart_competition_index"],
+      "i18n_keys": ["compSecSchedule", "homeShowAll", "compTBC"]
+    }
+  ]
+}

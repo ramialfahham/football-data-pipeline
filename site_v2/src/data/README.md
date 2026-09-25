@@ -15,7 +15,8 @@ That trap sprang once inside this branch's own life. The allowlist in `.gitignor
 rather than by line range: the range written here was `249-270`, and it had already rotted.)
 
 Tracked today (count with `git ls-files site_v2/src/data`; the number written here has been wrong before): the
-five root files below, the Bundesliga competition payload, 283 fixture payloads, 36 team payloads.
+five root files below, the Bundesliga competition payload, 58 day payloads of the Matches page,
+628 fixture payloads, 36 team payloads.
 
 - `competition_index.json` — the competitions index page's payload (#62 step 5), produced
   verbatim by `python scripts/export_site_data.py --entities competition_index`. All **48**
@@ -24,10 +25,10 @@ five root files below, the Bundesliga competition payload, 283 fixture payloads,
 - `fixtures/*.json` — real exported fixtures, produced verbatim by
   `python scripts/export_site_data.py --entities fixtures`. Two sets: the **4** matches
   `landing.json` links to (the **2026-09-01** matchday, 4 fixtures across 3 competitions:
-  `CIT` ×2, `DFBP`, `SPL`), and every unplayed Bundesliga 2026/27 fixture (**279**, ids 1575167 to
-  1575445), because every unplayed row of the competition sample's Matchdays tab links to its match
-  page and the build refuses a link to a page it did not emit. Refresh the second set together with
-  `competitions/BL1/2026.json` and move the `.gitignore` range's start as matchdays are played.
+  `CIT` ×2, `DFBP`, `SPL`), and the **624** every unplayed row of a committed page links to: each
+  day of the Matches page and the Bundesliga sample's Matchdays tab, because the build refuses a
+  link to a page it did not emit. Refresh the second set together with `matches/*.json` and
+  `competitions/BL1/2026.json`, from one export, and regenerate its `.gitignore` patterns.
   ⭐ **A deliberately thin set, and the CPO ruled it acceptable** — "we're doing infrastructure work
   and don't show anything now", so the sample is a BUILD INPUT, not a display. What matters is
   whether it still exercises the components, which was MEASURED before committing to it, not hoped:
@@ -48,6 +49,11 @@ five root files below, the Bundesliga competition payload, 283 fixture payloads,
   rows** in both marts for `1492306` and `1622620`). A stale id left in the allowlist therefore
   pins a payload that no rerun can ever update — which is exactly how the previous set came to
   serve column names that had been renamed two merge requests earlier.
+- `matches/*.json` — the Matches page's days (#160), one file per day in reach, produced verbatim
+  by `python scripts/export_site_data.py --entities matches` from `mart_match_days`: 58 days, 32
+  competitions. The file flagged `is_opening_day` is the page at `/{locale}/{matches word}/`; every
+  other day has its own dated page. Days drop off as rounds are played, so the whole directory is
+  replaced on a refresh, never appended to.
 - `teams/*.json` — **1** real exported team, `33` (Manchester United), the team-page sample. Six
   more were tracked until 2026-08-08; they existed only because the landing's trending rows linked
   to them, and that block was cut. No page on the site links to a team page today.

@@ -1,210 +1,1962 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 18d4267c..9db12bbf 100644
+index 9db12bbf..3d477509 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,21 +1,19 @@
--# Task contract — #160 part 1: the warehouse decides the Matches page's days
-+# Task contract — #155: two meetings of the same clubs share one match-page title
+@@ -1,19 +1,52 @@
+-# Task contract — #155: two meetings of the same clubs share one match-page title
++# Task contract — #160 part 2: the Matches page and its day pages
  
  objective: >
--  Add marts.mart_match_days: one row per fixture the Matches page shows, with its day, its order
--  within its competition that day, the opening day and each day's neighbouring days with a match,
--  so the export and the site select and order nothing. Part 1 of #160; the export and the page are
--  part 2, in a second MR after this is built in prod.
-+  Give every match preview page a title no other match page of its language shares, by adding the
-+  match's date to seoFixtureTitle in EN/DE/FI, so the full-scale build's SEO audit passes and #160's
-+  every-competition sample can ship.
+-  Give every match preview page a title no other match page of its language shares, by adding the
+-  match's date to seoFixtureTitle in EN/DE/FI, so the full-scale build's SEO audit passes and #160's
+-  every-competition sample can ship.
++  Build the Matches page and its day pages to #130's "The approved design": an export entity writing
++  one payload per day from mart_match_days, the page composed only of shipped elements (breadcrumb and
++  heading, the Competitions page's filter rows, the Matchdays picker as a day switcher, the Schedule
++  block with Home's competition heading and fold, THE match row), the menu link, the page specs and
++  copy, the three inventory rows, the committed sample refreshed as one set, and the documents.
  
  refs: >
--  #160 (the build issue); #130 "The approved design" (opens on the build day or the next day with a
--  match; each day its own page); #131 rulings (forward to the end of each competition's next
--  matchday, back to its last matchday of this season; days with none skipped); #159 (is_last_round);
--  the plan approved in plan mode (two MRs, the warehouse decides reach, opening day and neighbours).
-+  #155 (the build issue; its What exactly is the requirement); docs/wireframes/01_fixture_page.md §8
-+  (the title rule: the competition is not in the title); the plan approved in plan mode, with its
-+  measurement over last night's 4,795 upcoming fixtures x 3 languages.
+-  #155 (the build issue; its What exactly is the requirement); docs/wireframes/01_fixture_page.md §8
+-  (the title rule: the competition is not in the title); the plan approved in plan mode, with its
+-  measurement over last night's 4,795 upcoming fixtures x 3 languages.
++  #160 (the build issue; its What exactly is the requirement); #130 "The approved design" and its
++  rulings (the fold); #131 rulings (reach); part 1 merged (mart_match_days); the plan approved in plan
++  mode, with the CPO's answers: the committed sample holds every competition; the opening day lives
++  only at /matches/.
  
  scope_paths:
--  - dbt_project/models/5_marts/shared/mart_match_days.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_mart_match_days_is_the_matches_page_reach.sql
-+  - site_v2/src/i18n/strings.ts
-+  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
-+  - docs/wireframes/01_fixture_page.md
++  - scripts/export_site_data.py
++  - tests/test_export_matches.py
++  - scripts/check_design_inventory.py
++  - tests/test_address_words.py
++  - tests/test_design_inventory.py
++  - site_v2/src/pages/[[]lang]/[[]matches]/index.astro
++  - site_v2/src/pages/[[]lang]/[[]matches]/[[]day].astro
++  - site_v2/src/components/matches/MatchesDay.astro
++  - site_v2/src/components/competitions/FilterRows.astro
++  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
++  - site_v2/src/components/chrome/SiteHeader.astro
++  - site_v2/src/lib/addressWords.mjs
++  - site_v2/src/lib/addressWords.test.mjs
++  - site_v2/src/lib/format.ts
++  - site_v2/src/lib/types.ts
+   - site_v2/src/i18n/strings.ts
+-  - site_v2/src/pages/[[]lang]/[[]competition]/[[]matches]/[[]fixture].astro
+-  - docs/wireframes/01_fixture_page.md
++  - site_v2/src/specs/matches/index.spec.json
++  - site_v2/src/specs/matches/day.spec.json
++  - site_v2/src/specs/page-spec.schema.json
++  - site_v2/scripts/check-page-specs.mjs
++  - site_v2/scripts/check-page-specs.test.mjs
++  - site_v2/scripts/audit-seo.test.mjs
++  - site_v2/src/data/matches/*.json
++  - site_v2/src/data/fixtures/*.json
++  - site_v2/src/data/competitions/BL1/2026.json
++  - site_v2/src/data/competitions.json
++  - site_v2/src/data/competition_index.json
++  - site_v2/src/data/README.md
++  - .gitignore
++  - docs/wireframes/block_standard.md
++  - docs/wireframes/00_overview.md
++  - docs/site_architecture.md
++  - design-mocks/renders/*
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -25,42 +23,41 @@ scope_paths:
+@@ -23,41 +56,67 @@ scope_paths:
    - docs/tracker/**
  
  impact_map: >
--  writers: dbt only; the new mart reads mart_competition_fixtures (is_last_round, fixture_date,
--    kickoff_datetime) and mart_next_matchday (the next matchday's upcoming fixtures, the rows Home
--    shows); mart-to-mart refs are established (mart_competition_fixtures reads mart_next_matchday).
--  downstream: a new model, so `dbt ls --select mart_match_days+` lists only it and its own tests;
--    nothing reads it until part 2's export does. Upstream unchanged.
--  layer_rules: marts select and present; league_code on every row; no partition_by or cluster_by;
--    materialisation from the layer config (check_layer_contract.py).
--  deploy_order: additive; a new table the 04:00 nightly builds after merge; part 2 exports from it
--    only after that build.
--  blast_radius: no existing model, column or row changes. Measured read-only today: 58 days, 32
--    competitions, 837 rows.
-+  writers: none; the date is the fixture payload's served `kickoff`, formatted by the existing
-+    formatShortDate (UTC, the day the match's address already carries).
-+  downstream: seoFixtureTitle has one consumer, the match page ([fixture].astro), which feeds
-+    <title>, og:title and twitter:title through Layout.astro; the JSON-LD name and the description
-+    are unchanged. `grep -rn seoFixtureTitle site_v2/src` → strings.ts (3 locales), [fixture].astro,
-+    src/specs/competition/matches/fixture.spec.json (the key, unchanged).
-+  layer_rules: consumption layer formats only; no value computed.
-+  deploy_order: site-only; deploy:site-v2 is manual; the site is unlisted and noindex.
-+  blast_radius: every match page title in three languages: 849 in the committed sample, 14,385 at
-+    full scale. Measured: duplicates 30 -> 0; worst width 551px -> 535px; every title inside the
-+    600px budget.
-+
-+acceptance_criteria:
-+  - "Two match preview pages of one locale never share a `<title>`. Today the title is `{home} vs {away}: Preview` (`seoFixtureTitle`, EN/DE/FI), so two unplayed meetings of the same two clubs collide: a cup tie and a league match (SC Paderborn 07 vs VfB Stuttgart in the DFB-Pokal on 2026-10-27 and in the Bundesliga on 2026-10-10), or two league meetings inside one season (Gangwon FC vs Incheon United, K League 1, 2026-09-27 and 2026-10-18). The audit's check 5 fails the build on each."
-+  - "The wording of the corrected title is the CPO's (user-visible copy, all three languages), put on the MR that changes it; the competition and the date are the two facts that tell the meetings apart, both served on the fixture payload."
-+  - "`node scripts/audit-seo.mjs site_v2/dist` is clean on a build that carries every unplayed match (`check-built-pages` proves the count: 5,022 on 2026-09-19)."
+-  writers: none; the date is the fixture payload's served `kickoff`, formatted by the existing
+-    formatShortDate (UTC, the day the match's address already carries).
+-  downstream: seoFixtureTitle has one consumer, the match page ([fixture].astro), which feeds
+-    <title>, og:title and twitter:title through Layout.astro; the JSON-LD name and the description
+-    are unchanged. `grep -rn seoFixtureTitle site_v2/src` → strings.ts (3 locales), [fixture].astro,
+-    src/specs/competition/matches/fixture.spec.json (the key, unchanged).
+-  layer_rules: consumption layer formats only; no value computed.
+-  deploy_order: site-only; deploy:site-v2 is manual; the site is unlisted and noindex.
+-  blast_radius: every match page title in three languages: 849 in the committed sample, 14,385 at
+-    full scale. Measured: duplicates 30 -> 0; worst width 551px -> 535px; every title inside the
+-    600px budget.
++  writers: no warehouse change. The export gains an entity `matches` that reads mart_match_days,
++    mart_competition_fixtures and mart_competition_index (through the existing name, crest and
++    region helpers) and the registry slug, and writes matches/{yyyy-mm-dd}.json. The competition
++    payload's fixture shaper moves to module level unchanged so both entities share it.
++  downstream: the site only. New routes [lang]/[matches]/index.astro and [lang]/[matches]/[day].astro
++    (same-shape siblings of [competition] and [teams]/[players] routes, which Astro 5.18.2 resolves
++    by trying each; the clash check already refuses a slug equal to `spiele`/`ottelut`/`matches`);
++    SiteHeader's Matches item becomes a link; CompetitionIndexGrid's filter rows move into a shared
++    component with unchanged markup. addressWords.mjs: `matches` becomes a top word too, so the
++    language links of /de/spiele/ translate (the Python copy in check_design_inventory.py follows).
++    deploy:export's entity list (protected .gitlab-ci.yml) is NOT changed: a manual deploy keeps the
++    committed matches sample and re-exports teams and fixtures live.
++  layer_rules: the export groups by day and competition and orders nothing except by served order
++    columns (day_row_order); the site orders a day's competitions by the site's shared order
++    (orderUpcomingGroups), as Home does and as #130 names it.
++  deploy_order: part 1 is built in prod (the nightly after its merge); the sample is exported after
++    that. deploy:site-v2 is manual; the site is unlisted and noindex.
++  blast_radius: the committed sample moves to one date: 58 day files, the fixture payloads their
++    unplayed rows link to, the Bundesliga payload and its fixtures, competitions.json and
++    competition_index.json; landing.json is untouched. The Competitions page renders the same markup
++    from the extracted filter component.
+ 
+ acceptance_criteria:
+-  - "Two match preview pages of one locale never share a `<title>`. Today the title is `{home} vs {away}: Preview` (`seoFixtureTitle`, EN/DE/FI), so two unplayed meetings of the same two clubs collide: a cup tie and a league match (SC Paderborn 07 vs VfB Stuttgart in the DFB-Pokal on 2026-10-27 and in the Bundesliga on 2026-10-10), or two league meetings inside one season (Gangwon FC vs Incheon United, K League 1, 2026-09-27 and 2026-10-18). The audit's check 5 fails the build on each."
+-  - "The wording of the corrected title is the CPO's (user-visible copy, all three languages), put on the MR that changes it; the competition and the date are the two facts that tell the meetings apart, both served on the fixture payload."
+-  - "`node scripts/audit-seo.mjs site_v2/dist` is clean on a build that carries every unplayed match (`check-built-pages` proves the count: 5,022 on 2026-09-19)."
++  - The Matches menu item links to the Matches page (`/en/matches/`, `/de/spiele/`, `/fi/ottelut/`), built to the design approved on #130.
++  - "Every day in reach has its own page: forward to the end of each competition's next matchday, back to its last matchday of this season; the switcher's arrows step through them and skip days without a match (#131)."
++  - Each competition shows its first 3 matches by kick-off and folds the rest under "Show all {n}"; a played match shows its score, an unplayed one its kick-off.
++  - The filter rows, the fold and the page heading are in the block standard's inventory and measured on the built page in EN, DE and FI.
++  - Every page has its own title and description in all three languages; the Matches page's title carries the search phrase ("Fußball heute", "football today", "jalkapallo tänään"); the wording is on the MR head as copy.
++  - A competition heading links to its competition page and a row to its match page.
  
  decisions_taken: >
--  The reach is the CPO's (#131): a past day shows its competition's last matchday (is_last_round,
--  played by definition), a future day its next matchday (mart_next_matchday's rows, the same rows
--  Home's Next matches block shows); days with none are skipped. The opening day is #130's: the build
--  day, else the next day with a match. A day is the UTC fixture_date until #146. The competition
--  order within a day stays the site's shared order (#130 names it so). Builder's: the name
--  mart_match_days, its column names, the test's file name, and splitting #160 into two MRs.
-+  The competition stays out of the title, as 01_fixture_page.md §8 rules; measured, adding it puts
-+  1,672 titles over the 660px hard cap. The date alone leaves no duplicate. The CPO chose, in chat,
-+  "Date replaces Preview": EN `{home} vs {away}, {date}`, DE `{home} - {away}, {date}`, FI
-+  `{home}–{away}, {date}`, the date in the short month form ("29 Dec", "29. Dez.", "29.12.");
-+  measured worst 535px, every title inside the 600px budget, so the budget guard stands. The word
-+  "Preview" leaves the title. The final wording is shown on the MR head, as #155 says.
+-  The competition stays out of the title, as 01_fixture_page.md §8 rules; measured, adding it puts
+-  1,672 titles over the 660px hard cap. The date alone leaves no duplicate. The CPO chose, in chat,
+-  "Date replaces Preview": EN `{home} vs {away}, {date}`, DE `{home} - {away}, {date}`, FI
+-  `{home}–{away}, {date}`, the date in the short month form ("29 Dec", "29. Dez.", "29.12.");
+-  measured worst 535px, every title inside the 600px budget, so the budget guard stands. The word
+-  "Preview" leaves the title. The final wording is shown on the MR head, as #155 says.
++  The design is the CPO's (#130 "The approved design", the fold ruling; #131 reach) and so are two
++  answers in plan mode: the committed sample holds every competition; the opening day lives only at
++  /matches/, every other day at /matches/yyyy-mm-dd/. Every element is a shipped one; the three the
++  inventory lacks (filter rows, fold, page heading) join it measured from the CSS that ships. The
++  crest sits in the competition heading as the rule and #160 say. Day pages carry the site's
++  breadcrumb mechanic (Home › Matches › the day). The title and description wording is proposed on
++  the MR head for the CPO, as #130 rules. Builder's: the entity name `matches`, the payload shape,
++  the component names, the spec entity `matchDay`, `matches` as a top word.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a new mart and a singular test, the established
--  pattern). RECURRING COST: one more small mart table in the nightly build; its input tables are
--  already built, so the added scan is a few MB.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none (an export entity, routes and specs on the existing
++  patterns; the spec entity enum gains a value). RECURRING COST: none; the export entity is not in
++  any scheduled job.
  
  decisions_reserved:
--  - Everything on the site and in the export: part 2 of #160.
--  - The venue's local day: #146.
-+  - The final title wording in all three languages: shown to the CPO on the MR head.
-+  - The match page's content (#132).
+-  - The final title wording in all three languages: shown to the CPO on the MR head.
+-  - The match page's content (#132).
++  - The title and description wording: proposed on the MR head, the CPO's to approve.
++  - The venue's local day (#146); the match page (#132); the nightly export (#156).
++  - The Home page's missing crest in its competition headings: Home's defect, not touched here.
  
  done_when:
--  - dbt parse succeeds; sqlfluff (repo root, full rule set) passes on the model and the test;
--    check_layer_contract.py and check_description_hygiene.py pass.
--  - The compiled model, inlined read-only against prod: 58 days, 32 competitions, 837 rows, exactly
--    one opening day.
--  - The compiled test against the inlined model returns 0 rows, and at least one row under each
--    mutation: past unplayed matches included, next-matchday rows dated in the past included, the
--    opening day taken from the first day overall, a neighbour that skips a day with a match.
--  - python -m pytest tests/ -q passes.
-+  - npm run build on the committed sample exits 0; pytest passes; check_copy_gate passes.
-+  - A build carrying every unplayed fixture (last night's export) passes audit-seo with 0 violations
-+    and check-built-pages proves its match page count; with {date} removed from the EN title the
-+    same build fails check 5.
+-  - npm run build on the committed sample exits 0; pytest passes; check_copy_gate passes.
+-  - A build carrying every unplayed fixture (last night's export) passes audit-seo with 0 violations
+-    and check-built-pages proves its match page count; with {date} removed from the EN title the
+-    same build fails check 5.
++  - npm run build (node tests, check-page-specs, audit-seo, check-built-pages) exits 0 on the
++    refreshed committed sample.
++  - python -m pytest tests/ -q passes; python scripts/check_design_inventory.py --dist site_v2/dist
++    reports 0 failures with the Matches rows measured in EN, DE and FI.
++  - dist holds /{en,de,fi}/{matches word}/ as the opening day and one page per other day in reach;
++    every arrow resolves; a competition with more than 3 matches shows 3 rows and "Show all {n}".
++  - A self-contained snapshot of the built pages (site_v2/dist, the stylesheet inlined) is sent to
++    the CPO; the design's render of record stays design-mocks/renders/matches-hub_2026-09-23_02.html.
  
- amendments: (none)
-diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
-index e9ef6c8e..7d3773bf 100644
---- a/docs/wireframes/01_fixture_page.md
-+++ b/docs/wireframes/01_fixture_page.md
-@@ -252,7 +252,7 @@ full H2H — the SEO internal-link graph (§8).
- - `schema.org/SportsEvent`: `startDate` = `kickoff`, `competitor` = both teams
-   (SportsTeam: name + crest), `location` = `venue` (when present), part of
-   `league_name`.
--- Title: `{home.name} <connector> {away.name}: {descriptor}` (localized template).
-+- Title: `{home.name} <connector> {away.name}, {date}` (localized template).
-   **The competition is NOT in the title** (CPO, 2026-08-03), and neither is the brand.
-   - *Why not the competition.* Measured over every competition's worst real upcoming fixture,
-     ending the title with the competition name failed 4 of 26 against the 660px hard cap, worst
-@@ -261,12 +261,15 @@ full H2H — the SEO internal-link graph (§8).
-     in the URL. It is not lost: it stays in the breadcrumb, the URL and the JSON-LD `superEvent`.
-   - *Why not the brand.* Same ruling as the team title (2026-07-28): a suffix is earned by equity,
-     and an identical one on every match page reads as boilerplate.
--  - *Per locale*, each measured at its worst real fixture: EN `{home} vs {away}: Preview` 597px ·
--    DE `{home} - {away}: Vorschau` 595px · FI `{home}–{away}: Ennakko` 573px. All inside the 600px
--    budget, not merely under the hard cap. The German dash replaces "gegen" (also the convention in
-+  - *The date closes the title* (`{date}`, the short day and month of the UTC kick-off, the day the
-+    match's address carries), in place of a descriptor word: two meetings of the same clubs, a cup
-+    tie and a league match or two league meetings in a season, otherwise share a title, and the
-+    audit fails the build on it. The date alone tells every meeting apart; the competition would
-+    not fit (see above). With no descriptor, the title stays true once a match is played.
-+  - *Per locale*, each measured at its worst real fixture over every upcoming match: EN
-+    `{home} vs {away}, {date}` 534px · DE `{home} - {away}, {date}` 535px · FI
-+    `{home}–{away}, {date}` 505px. All inside the 600px budget. The German dash replaces "gegen" (also the convention in
-     German football writing); the Finnish tight en dash follows Yle/MTV's "KuPS–HJK".
--  - ⚠ "Preview" holds only while a fixture page IS a preview. The export writes upcoming fixtures
--    only (#861); when finished matches get pages this needs a played/upcoming split.
- - Meta description: templated from real fields (round, kickoff date, h2h record)
-   until GAP-03 narratives.
- - `BreadcrumbList` mirroring §2; canonical per locale + hreflang set + OG/Twitter
+-amendments: (none)
++amendments:
++  - done_when's render line: render.py runs mock generators only, so a built page is sent as a
++    snapshot of site_v2/dist instead; no scope, criterion or decision changes. Authority: the
++    builder's correction of its own done_when (not a CPO-class change; acceptance_criteria
++    untouched).
+diff --git a/.gitignore b/.gitignore
+index 32499127..1a374156 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -341,17 +341,114 @@ site_v2/src/data/fixtures/*.json
+ !site_v2/src/data/fixtures/1603007.json
+ !site_v2/src/data/fixtures/1628894.json
+ !site_v2/src/data/fixtures/1629056.json
+-# Every unplayed Bundesliga 2026/27 fixture, matchdays 4 to 34 (ids 1575167 to 1575445, one
+-# contiguous range): every unplayed row of the committed competition page sample's Matchdays tab
+-# is a link to its match page, and the Overview's Next matches rows are the first nine of them
+-# (GitLab #149, #150). The same replace-never-add rule as the set above; refresh together with
+-# competitions/BL1/2026.json, and move the range's start as matchdays are played.
+-!site_v2/src/data/fixtures/157516[7-9].json
+-!site_v2/src/data/fixtures/15751[7-9][0-9].json
++# Every fixture an unplayed row of a committed page links to, from one export: every day of the
++# Matches page (matches/*.json, the next matchday of every competition) and every unplayed
++# Bundesliga fixture of competitions/BL1/2026.json's Matchdays tab (#149, #150, #160). 624 ids, one
++# pattern per run of ids. The same replace-never-add rule as the set above: refresh the day files,
++# the Bundesliga payload and this list together, and regenerate the list rather than edit it.
++!site_v2/src/data/fixtures/149049[6-9].json
++!site_v2/src/data/fixtures/149050[0-9].json
++!site_v2/src/data/fixtures/1490510.json
++!site_v2/src/data/fixtures/149239[0-9].json
++!site_v2/src/data/fixtures/149315[2-9].json
++!site_v2/src/data/fixtures/149316[0-6].json
++!site_v2/src/data/fixtures/1507024.json
++!site_v2/src/data/fixtures/152888[14-6].json
++!site_v2/src/data/fixtures/154565[68].json
++!site_v2/src/data/fixtures/154595[89].json
++!site_v2/src/data/fixtures/154596[0-8].json
++!site_v2/src/data/fixtures/1549407.json
++!site_v2/src/data/fixtures/155013[7-9].json
++!site_v2/src/data/fixtures/155014[0-6].json
++!site_v2/src/data/fixtures/155097[5-9].json
++!site_v2/src/data/fixtures/155098[0-3].json
++!site_v2/src/data/fixtures/155218[0-8].json
++!site_v2/src/data/fixtures/155277[4-9].json
++!site_v2/src/data/fixtures/155278[0-2].json
++!site_v2/src/data/fixtures/155318[2-9].json
++!site_v2/src/data/fixtures/1553190.json
++!site_v2/src/data/fixtures/155608[1-9].json
++!site_v2/src/data/fixtures/1556090.json
++!site_v2/src/data/fixtures/155741[7-9].json
++!site_v2/src/data/fixtures/155742[0-6].json
++!site_v2/src/data/fixtures/155864[4-9].json
++!site_v2/src/data/fixtures/155865[0-2].json
++!site_v2/src/data/fixtures/157040[3-9].json
++!site_v2/src/data/fixtures/157041[0-2].json
++!site_v2/src/data/fixtures/15751[89][0-9].json
++!site_v2/src/data/fixtures/157517[6-9].json
+ !site_v2/src/data/fixtures/15752[0-9][0-9].json
+ !site_v2/src/data/fixtures/15753[0-9][0-9].json
+ !site_v2/src/data/fixtures/15754[0-3][0-9].json
+ !site_v2/src/data/fixtures/157544[0-5].json
++!site_v2/src/data/fixtures/1575509.json
++!site_v2/src/data/fixtures/157551[0-7].json
++!site_v2/src/data/fixtures/157618[89].json
++!site_v2/src/data/fixtures/157619[0-6].json
++!site_v2/src/data/fixtures/158442[1-9].json
++!site_v2/src/data/fixtures/160303[5-9].json
++!site_v2/src/data/fixtures/160304[0-3].json
++!site_v2/src/data/fixtures/1619086.json
++!site_v2/src/data/fixtures/162993[0-9].json
++!site_v2/src/data/fixtures/162992[7-9].json
++!site_v2/src/data/fixtures/162994[0-2].json
++!site_v2/src/data/fixtures/163561[24].json
++!site_v2/src/data/fixtures/163562[03].json
++!site_v2/src/data/fixtures/163563[59].json
++!site_v2/src/data/fixtures/163566[56].json
++!site_v2/src/data/fixtures/163567[149].json
++!site_v2/src/data/fixtures/1635690.json
++!site_v2/src/data/fixtures/1635711.json
++!site_v2/src/data/fixtures/163572[15].json
++!site_v2/src/data/fixtures/1635733.json
++!site_v2/src/data/fixtures/163574[28].json
++!site_v2/src/data/fixtures/163622[28].json
++!site_v2/src/data/fixtures/163623[69].json
++!site_v2/src/data/fixtures/1636243.json
++!site_v2/src/data/fixtures/1636256.json
++!site_v2/src/data/fixtures/163626[08].json
++!site_v2/src/data/fixtures/163627[49].json
++!site_v2/src/data/fixtures/163629[35].json
++!site_v2/src/data/fixtures/1636300.json
++!site_v2/src/data/fixtures/163632[68].json
++!site_v2/src/data/fixtures/163633[28].json
++!site_v2/src/data/fixtures/1636350.json
++!site_v2/src/data/fixtures/1636382.json
++!site_v2/src/data/fixtures/163639[26].json
++!site_v2/src/data/fixtures/163640[146].json
++!site_v2/src/data/fixtures/163641[149].json
++!site_v2/src/data/fixtures/1636423.json
++!site_v2/src/data/fixtures/163644[05].json
++!site_v2/src/data/fixtures/1636453.json
++!site_v2/src/data/fixtures/163646[48].json
++!site_v2/src/data/fixtures/1636471.json
++!site_v2/src/data/fixtures/163648[02].json
++!site_v2/src/data/fixtures/163792[67].json
++!site_v2/src/data/fixtures/163810[1-3].json
++!site_v2/src/data/fixtures/163813[45].json
++!site_v2/src/data/fixtures/163820[67].json
++!site_v2/src/data/fixtures/163856[0-9].json
++!site_v2/src/data/fixtures/163855[7-9].json
++!site_v2/src/data/fixtures/163857[0-2].json
++!site_v2/src/data/fixtures/163918[0-9].json
++!site_v2/src/data/fixtures/163917[3-9].json
++!site_v2/src/data/fixtures/163919[0-2].json
++!site_v2/src/data/fixtures/163988[34].json
++!site_v2/src/data/fixtures/1639938.json
++!site_v2/src/data/fixtures/1639940.json
++!site_v2/src/data/fixtures/1639955.json
++!site_v2/src/data/fixtures/1639960.json
++!site_v2/src/data/fixtures/163997[58].json
++!site_v2/src/data/fixtures/163999[25].json
++!site_v2/src/data/fixtures/164000[46].json
++!site_v2/src/data/fixtures/164001[37].json
++!site_v2/src/data/fixtures/164002[01].json
++!site_v2/src/data/fixtures/164055[56].json
++!site_v2/src/data/fixtures/16411[01][0-9].json
++!site_v2/src/data/fixtures/164112[0-8].json
++!site_v2/src/data/fixtures/164162[4-9].json
++!site_v2/src/data/fixtures/164163[0-3].json
++!site_v2/src/data/fixtures/1641730.json
+ # The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
+ # matchdays. Every competition the index lists gets a page; only this one carries content in the
+ # committed build, and the 18 teams and 9 fixtures above are what it links to.
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 26bcc3cb..aaca5f2f 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -53,13 +53,13 @@ The scheme is written here with the English words.
+ /{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
+ /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
+ /{locale}/players/{player-slug}/                             player profile
++/{locale}/matches/                                           Matches menu page: the day it opens on (the build day, else the next day with a match), every competition playing it (#130)
++/{locale}/matches/{yyyy-mm-dd}/                              every other day in reach, from each competition's last matchday to the end of its next (#131)
+ ```
+ 
+ Planned, not designed yet; each address is provisional until its page's review (§ Address words):
+ 
+ ```
+-/{locale}/matches/                                           Matches menu page: one day, every competition playing it (#130)
+-/{locale}/matches/{yyyy-mm-dd}/                              the other days behind it (#131)
+ /{locale}/teams/                                             Teams menu page (#133)
+ /{locale}/players/                                           Players menu page (#135)
+ /{locale}/standings/                                         Standings menu page (#137)
+@@ -118,7 +118,7 @@ holds the words of the pages built today, and a page adds its word there when it
+ | Word | `en` | `de` | `fi` | Settled: pages built today | Provisional: pages not designed yet |
+ |---|---|---|---|---|---|
+ | competitions | `competitions` | `wettbewerbe` | `kilpailut` | the competitions index | |
+-| matches | `matches` | `spiele` | `ottelut` | a competition's Matchdays tab, and every match under it | the Matches menu page and its day pages |
++| matches | `matches` | `spiele` | `ottelut` | a competition's Matchdays tab, and every match under it; the Matches menu page and its day pages | |
+ | teams | `teams` | `mannschaften` | `joukkueet` | a team's page, club or national team | the Teams menu page |
+ | players | `players` | `spieler` | `pelaajat` | a player's page | the Players menu page |
+ | stats | `stats` | `statistiken` | `tilastot` | a competition's Rankings tab | the Statistics menu page, one statistic's pages |
+@@ -318,6 +318,7 @@ Adding a competition/team/player adds pages with **zero template changes**.
+ |---|---|---|
+ | Landing | `landing.json` | `mart_next_matchday` (every competition's next round, read whole) + `core.dim_team` (the next-matchday hero), plus `mart_competition_index` for `region_rank` — read `fetch_landing_payload` in `scripts/export_site_data.py` for the live list, which is the authority. ⚠ NOT `mart_team_profile`: the trending block it fed was cut 2026-08-08, as the browse block was dropped 2026-08-19. Top players / Top teams will add marts here when built |
+ | Competitions index / country hub | `competition_index.json` (#62 step 4) | `mart_competition_index` |
++| Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank) — read `fetch_match_day_payloads` |
+ | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | `mart_competition_index` (header), `mart_standings` (the table, with `table_kind`), `mart_team_profile` (the deserved points table), `mart_competition_season_summary` (the season in numbers), `mart_competition_fixtures` (the Matchdays tab, the header's round and the match-that-matters flag), `mart_team_leaderboards` and `mart_leaderboards` (the Rankings tab's boards, the top five per board) — read `fetch_competition_payloads` for the live list |
+ | Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
+diff --git a/docs/wireframes/00_overview.md b/docs/wireframes/00_overview.md
+index 9de471ac..9cea636d 100644
+--- a/docs/wireframes/00_overview.md
++++ b/docs/wireframes/00_overview.md
+@@ -146,6 +146,7 @@ not made here. See 09_chrome.md §10 for the full note.
+ | 12 | [12_player_stats.md](12_player_stats.md) | Player → Stats (percentile vs peers) | **spec'd** | #391 ⁑ |
+ | 13 | [13_player_career.md](13_player_career.md) | Player → Career (clubs · competitions · seasons) | **spec'd** | #391 ⁑ |
+ | 14 | [14_team_stats.md](14_team_stats.md) | Team → Stats (rank vs league) | **spec'd** | #391 ⁑ |
++| 15 | — | Matches page and its day pages | **built**; **approved on GitLab #130** ("The approved design") with the reach ruled on #131 — the authority for the page. No wireframe file: the issue is the field contract; the elements and their measurements are [block_standard.md](block_standard.md) | #160 |
+ | 99 | [99_gaps_register.md](99_gaps_register.md) | Data-gap register | live | 1+ |
+ 
+ Order rationale: the fixture page first — the product's heart and the most
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 43d03ab9..f4283a8e 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -80,6 +80,10 @@
+ | Tab bar | `nav.tabs` | the tabs share the row and fit in one row at 375px in EN, DE and FI, no sideways scrolling | `fits` | ruled | #129 header |
+ | Tab | `nav.tabs .tab` | one line each, never wrapped; the side padding is what the label needs | `one-line` | ruled | #129 header |
+ | Breadcrumb current page | `.crumb .here` | the page you are on differs from the links at rest; the shipped site has the current page `ink-2` and the links muted, #52's mock had the two inverted | `color=ink-2` | proposed | put to the CPO on the #153 MR; measured, never fails, until ruled |
++| Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
++| Filter row | `.seg` | the Competitions page's two filter rows, by type and by region, a sunk ground holding one button per choice; the Matches page carries the same two | `background-color=sunk` | ruled | #130 (the Competitions page's filters, as they ship) |
++| Filter button | `.seg .seg-btn` | 13px, each on one line | `font-size=13px; one-line` | ruled | #130 (the Competitions page's filters, as they ship) |
++| Fold | `.fxmore > summary` | Home's "Show all {n}" under a competition's first three matches, n the competition's count: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | #130 ruling B (Home's fold) |
+ | Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
+ | Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
+ | Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
+@@ -120,6 +124,8 @@ and `gen_taxonomy.py` are diagrams.
+ | Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
++| Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
++| Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
+ | competition-overview | mock | `gen_overview_after_teams.py {out}` | `competition-overview.html` | toggle | Block heading, Table head, Table row, Ordered-by number, Fact row value, Tab bar |
+ | competition-matchdays | mock | `gen_competition_matchdays.py {out}` | `competition-matchdays.html` | toggle | Block heading, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar |
+ | competition-rankings | mock | `gen_competition_teams.py {out}` | `competition-rankings.html` | toggle | Block heading, Metric group heading, Board name, Board sub-line, Tab bar |
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index 016995be..d586cbc8 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -216,7 +216,7 @@ def render_mocks(pages: list[di.Page], tmp: Path) -> dict[str, str]:
+ 
+ 
+ ADDRESS_WORDS = REPO / "site_v2" / "src" / "i18n" / "address_words.json"
+-_TOP_WORDS = ("competitions", "teams", "players")
++_TOP_WORDS = ("competitions", "matches", "teams", "players")
+ _TAB_WORDS = ("matches", "stats")
+ 
+ 
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 4b9e59b5..6b700285 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -43,7 +43,7 @@ SEEDS_DATASET = "dbt_analytics"
+ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+                 "leaderboards", "matchstats", "glossary", "metric_groups", "landing",
+-                "competition_index")
++                "competition_index", "matches")
+ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
+@@ -1232,6 +1232,106 @@ def fetch_competition_index(client) -> dict:
+     return {"type": "competition_index", "competitions": shape_competition_index(rows)}
+ 
+ 
++_COMPETITION_FIXTURE_COLUMNS = (
++    "fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence, "
++    "fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away, "
++    "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, "
++    "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, "
++    "fixture_slug, is_next_round, is_match_that_matters"
++)
++
++
++def _competition_fixture(r: dict) -> dict:
++    """One mart_competition_fixtures row as a match row: the shape the competition payload's
++    rounds and the match-day payload's competitions both carry, so the site's one match row
++    renders either."""
++    return {
++        "fixture_id": int(r["fixture_sk"]),
++        "slug": r.get("fixture_slug"),
++        "kickoff": r.get("kickoff_datetime"),
++        "round": r.get("round_name"),
++        "round_order": r.get("round_order"),
++        "round_sequence": r.get("round_sequence"),
++        "fixture_order": int(r["fixture_order"]),
++        "status": r.get("status_short"),
++        "is_played": bool(r.get("is_played")),
++        "goals_home": r.get("goals_home"),
++        "goals_away": r.get("goals_away"),
++        "home": {"team_id": int(r["home_team_sk"]), "name": r.get("home_team_name"),
++                 "slug": r.get("home_team_slug"), "crest": r.get("home_team_logo_url")},
++        "away": {"team_id": int(r["away_team_sk"]), "name": r.get("away_team_name"),
++                 "slug": r.get("away_team_slug"), "crest": r.get("away_team_logo_url")},
++        "is_next_round": bool(r.get("is_next_round")),
++        "is_match_that_matters": bool(r.get("is_match_that_matters")),
++    }
++
++
++def shape_match_day_payloads(rows: list[dict], competitions: dict[str, dict]) -> list[dict]:
++    """One payload per day of the Matches page, from mart_match_days rows joined to their
++    mart_competition_fixtures row. Grouped by day, then by competition; a competition's rows in
++    the served day_row_order. The day, its neighbours and the opening flag are the mart's; the
++    competition facts are `competitions[league_code]`. Nothing is selected or ranked here: the
++    competitions of a day are written by league_code for a stable diff, and the page orders them."""
++    days: dict = {}
++    for r in rows:
++        day = str(r["match_day"])
++        payload = days.setdefault(day, {
++            "type": "match_day",
++            "slug": day,
++            "day": day,
++            "is_opening_day": bool(r.get("is_opening_day")),
++            "previous_day": str(r["previous_day"]) if r.get("previous_day") else None,
++            "next_day": str(r["next_day"]) if r.get("next_day") else None,
++            "competitions": {},
++        })
++        lc = r["league_code"]
++        group = payload["competitions"].setdefault(lc, {
++            "league_code": lc, **(competitions.get(lc) or {}), "fixtures": [],
++        })
++        group["fixtures"].append((int(r["day_row_order"]), _competition_fixture(r)))
++    out = []
++    for day in sorted(days):
++        payload = days[day]
++        groups = []
++        for lc in sorted(payload["competitions"]):
++            group = payload["competitions"][lc]
++            group["fixtures"] = [f for _, f in sorted(group["fixtures"], key=lambda p: p[0])]
++            groups.append(group)
++        payload["competitions"] = groups
++        out.append(payload)
++    return out
++
++
++def fetch_match_day_payloads(client, registry_path: str = REGISTRY_PATH) -> list[dict]:
++    """matches/{yyyy-mm-dd}.json -- the Matches page's days, from `mart_match_days` (which decides
++    the reach, each day's neighbours and the opening day) joined to the match rows. A competition
++    carries the name and region rank the site displays (`_warehouse_competition_meta`), its crest
++    and kind (`_competition_page_meta`), and the registry's slug and confederation, the same
++    sources every other page reads them from."""
++    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
++    rows = _query(client, f"""
++        select d.match_day, d.day_row_order, d.is_opening_day, d.previous_day, d.next_day,
++               {", ".join("c." + col.strip() for col in _COMPETITION_FIXTURE_COLUMNS.split(","))}
++        from `{marts}.mart_match_days` as d
++        inner join `{marts}.mart_competition_fixtures` as c on d.fixture_sk = c.fixture_sk
++    """)
++    registry = {c["league_code"]: c for c in _registry_competitions(registry_path)}
++    served = _warehouse_competition_meta(client)
++    page_meta = _competition_page_meta(client)
++    competitions = {
++        lc: {
++            "name": (served.get(lc) or {}).get("name") or (registry.get(lc) or {}).get("name"),
++            "slug": (registry.get(lc) or {}).get("slug"),
++            "crest": (page_meta.get(lc) or {}).get("logo_url"),
++            "entity_type": (page_meta.get(lc) or {}).get("entity_type"),
++            "confederation": (registry.get(lc) or {}).get("confederation"),
++            "region_rank": (served.get(lc) or {}).get("region_rank"),
++        }
++        for lc in {r["league_code"] for r in rows}
++    }
++    return shape_match_day_payloads(rows, competitions)
++
++
+ def _group2(rows: list[dict], k1: str, k2: str) -> dict:
+     g: dict = {}
+     for r in rows:
+@@ -1332,11 +1432,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+     # Every fixture of every competition-season, whole: the Matchdays tab's rows, and the one
+     # source of a match's slug for every other block that links a match.
+     fixture_rows = _query(client, f"""
+-        select fixture_sk, league_code, season_api_year, round_name, round_order, round_sequence,
+-               fixture_order, kickoff_datetime, status_short, is_played, goals_home, goals_away,
+-               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
+-               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
+-               fixture_slug, is_next_round, is_match_that_matters
++        select {_COMPETITION_FIXTURE_COLUMNS}
+         from `{marts}.mart_competition_fixtures`
+     """)
+     fixtures = _group2(fixture_rows, "league_code", "season_api_year")
+@@ -1355,26 +1451,7 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
+         row["team_slug"] = (teams.get(int(r["team_sk"])) or {}).get("team_slug")
+         return row
+ 
+-    def _fixture(r: dict) -> dict:
+-        return {
+-            "fixture_id": int(r["fixture_sk"]),
+-            "slug": r.get("fixture_slug"),
+-            "kickoff": r.get("kickoff_datetime"),
+-            "round": r.get("round_name"),
+-            "round_order": r.get("round_order"),
+-            "round_sequence": r.get("round_sequence"),
+-            "fixture_order": int(r["fixture_order"]),
+-            "status": r.get("status_short"),
+-            "is_played": bool(r.get("is_played")),
+-            "goals_home": r.get("goals_home"),
+-            "goals_away": r.get("goals_away"),
+-            "home": {"team_id": int(r["home_team_sk"]), "name": r.get("home_team_name"),
+-                     "slug": r.get("home_team_slug"), "crest": r.get("home_team_logo_url")},
+-            "away": {"team_id": int(r["away_team_sk"]), "name": r.get("away_team_name"),
+-                     "slug": r.get("away_team_slug"), "crest": r.get("away_team_logo_url")},
+-            "is_next_round": bool(r.get("is_next_round")),
+-            "is_match_that_matters": bool(r.get("is_match_that_matters")),
+-        }
++    _fixture = _competition_fixture
+ 
+     def _deserved(r: dict) -> dict:
+         return {
+@@ -1992,6 +2069,9 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+         sha = write_file(out_root, "competition_index.json", fetch_competition_index(client))
+         entries.append({"type": "competition_index", "id": "competition_index", "slug": None,
+                         "path": "competition_index.json", "sha256": sha})
++    if "matches" in entities:
++        for p in fetch_match_day_payloads(client):
++            entries.append(write_entity(out_root, "matches", p["day"], p))
+ 
+     # Full league_code -> {name, slug} map (registry-only) — the frontend's competition lookup for
+     # every active league. Always emitted (site_v2/src/data/competitions.json consumes it, even on a
+diff --git a/site_v2/scripts/check-page-specs.mjs b/site_v2/scripts/check-page-specs.mjs
+index 051f2a72..77a91aa5 100644
+--- a/site_v2/scripts/check-page-specs.mjs
++++ b/site_v2/scripts/check-page-specs.mjs
+@@ -28,7 +28,7 @@ export const STRINGS_FILE = join(SITE_ROOT, "src", "i18n", "strings.ts");
+ export const SCHEMA_FILE = join(SITE_ROOT, "src", "specs", "page-spec.schema.json");
+ 
+ const LAYOUT_IMPORT_RE = /["'](?:\.\.\/)+layouts\/Layout\.astro["']/;
+-export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home"]);
++export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay"]);
+ 
+ // --- the SEO gate's declaration half (#844) -------------------------------------------------
+ // This file checks that what a spec DECLARES exists. scripts/audit-seo.mjs checks that what the
+diff --git a/site_v2/src/components/chrome/SiteHeader.astro b/site_v2/src/components/chrome/SiteHeader.astro
+index 242b417b..163e3355 100644
+--- a/site_v2/src/components/chrome/SiteHeader.astro
++++ b/site_v2/src/components/chrome/SiteHeader.astro
+@@ -25,7 +25,7 @@ const { lang } = Astro.props;
+ 
+ const navItems: { label: string; href?: string }[] = [
+   { label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
+-  { label: t(lang, "navMatches") },
++  { label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
+   { label: t(lang, "navTeams") },
+   { label: t(lang, "navPlayers") },
+   { label: t(lang, "navStandings") },
+diff --git a/site_v2/src/components/competitions/CompetitionIndexGrid.astro b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+index 15c0efb0..3580d188 100644
+--- a/site_v2/src/components/competitions/CompetitionIndexGrid.astro
++++ b/site_v2/src/components/competitions/CompetitionIndexGrid.astro
+@@ -18,6 +18,7 @@
+ // The unfiltered page (no JS) already shows every non-empty category correctly; JS only handles
+ // filtering, so nothing breaks if it fails to load.
+ import Crest from "../ui/Crest.astro";
++import FilterRows from "./FilterRows.astro";
+ import { t } from "../../i18n/strings";
+ import { localeHref } from "../../lib/href";
+ import { groupAndOrderCompetitions } from "../../lib/competitionOrder";
+@@ -30,45 +31,10 @@ interface Props {
+ }
+ const { competitions, lang } = Astro.props;
+ const categories = groupAndOrderCompetitions(competitions);
+-
+-const ENTITY_FILTERS: { id: string; value: string | null; label: string }[] = [
+-  { id: "filter-entity-all", value: null, label: t(lang, "filterAll") },
+-  { id: "filter-entity-club", value: "club", label: t(lang, "filterClubs") },
+-  { id: "filter-entity-national", value: "national", label: t(lang, "filterNational") },
+-];
+-
+-// Fixed, known set (confederations.csv) — hand-enumerated rather than derived from the page's own
+-// data, so a confederation with zero rows TODAY (none currently) still gets a working filter
+-// button the day a competition from it is onboarded.
+-const REGION_FILTERS: { id: string; value: string | null; labelKey: string | null }[] = [
+-  { id: "filter-region-all", value: null, labelKey: null },
+-  { id: "filter-region-uefa", value: "UEFA", labelKey: "confedUefa" },
+-  { id: "filter-region-conmebol", value: "CONMEBOL", labelKey: "confedConmebol" },
+-  { id: "filter-region-concacaf", value: "CONCACAF", labelKey: "confedConcacaf" },
+-  { id: "filter-region-caf", value: "CAF", labelKey: "confedCaf" },
+-  { id: "filter-region-afc", value: "AFC", labelKey: "confedAfc" },
+-  { id: "filter-region-ofc", value: "OFC", labelKey: "confedOfc" },
+-  { id: "filter-region-fifa", value: "FIFA", labelKey: "confedFifa" },
+-];
+ ---
+ 
+ <section class="compindex">
+-  {/* The radio's value is what the collapse script matches rows against; "All" is empty. */}
+-  {ENTITY_FILTERS.map((f) => (
+-    <input class="seg-in" type="radio" name="entity-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+-  ))}
+-  {REGION_FILTERS.map((f) => (
+-    <input class="seg-in" type="radio" name="region-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
+-  ))}
+-
+-  <div class="seg" role="group" aria-label={t(lang, "filterByType")}>
+-    {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
+-  </div>
+-  <div class="seg wrap" role="group" aria-label={t(lang, "filterByRegion")}>
+-    {REGION_FILTERS.map((f) => (
+-      <label class="seg-btn" for={f.id}>{f.labelKey ? t(lang, f.labelKey) : t(lang, "filterAll")}</label>
+-    ))}
+-  </div>
++  <FilterRows lang={lang} />
+ 
+   <div class="categories">
+     {categories.map((cat) => (
+diff --git a/site_v2/src/components/competitions/FilterRows.astro b/site_v2/src/components/competitions/FilterRows.astro
+new file mode 100644
+index 00000000..0088cf22
+--- /dev/null
++++ b/site_v2/src/components/competitions/FilterRows.astro
+@@ -0,0 +1,51 @@
++---
++// The two filter rows, by type (clubs or national teams) and by region: the zero-JS `.seg-in` /
++// `.seg-btn` radio pattern (system.css). The radios come first because the stylesheet hides
++// whatever carries a non-matching `data-entity-type` / `data-confederation` inside the `.categories`
++// element that must follow them as a sibling. The Competitions page and the Matches page both
++// render these rows, so the two cannot drift.
++import { t } from "../../i18n/strings";
++import type { Lang } from "../../lib/format";
++
++interface Props {
++  lang: Lang;
++}
++const { lang } = Astro.props;
++
++const ENTITY_FILTERS: { id: string; value: string | null; label: string }[] = [
++  { id: "filter-entity-all", value: null, label: t(lang, "filterAll") },
++  { id: "filter-entity-club", value: "club", label: t(lang, "filterClubs") },
++  { id: "filter-entity-national", value: "national", label: t(lang, "filterNational") },
++];
++
++// Fixed, known set (confederations.csv) — hand-enumerated rather than derived from the page's own
++// data, so a confederation with zero rows TODAY (none currently) still gets a working filter
++// button the day a competition from it is onboarded.
++const REGION_FILTERS: { id: string; value: string | null; labelKey: string | null }[] = [
++  { id: "filter-region-all", value: null, labelKey: null },
++  { id: "filter-region-uefa", value: "UEFA", labelKey: "confedUefa" },
++  { id: "filter-region-conmebol", value: "CONMEBOL", labelKey: "confedConmebol" },
++  { id: "filter-region-concacaf", value: "CONCACAF", labelKey: "confedConcacaf" },
++  { id: "filter-region-caf", value: "CAF", labelKey: "confedCaf" },
++  { id: "filter-region-afc", value: "AFC", labelKey: "confedAfc" },
++  { id: "filter-region-ofc", value: "OFC", labelKey: "confedOfc" },
++  { id: "filter-region-fifa", value: "FIFA", labelKey: "confedFifa" },
++];
++---
++
++{/* The radio's value is what a collapse script matches rows against; "All" is empty. */}
++{ENTITY_FILTERS.map((f) => (
++  <input class="seg-in" type="radio" name="entity-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
++))}
++{REGION_FILTERS.map((f) => (
++  <input class="seg-in" type="radio" name="region-filter" id={f.id} value={f.value ?? ""} checked={f.value === null} />
++))}
++
++<div class="seg" role="group" aria-label={t(lang, "filterByType")}>
++  {ENTITY_FILTERS.map((f) => <label class="seg-btn" for={f.id}>{f.label}</label>)}
++</div>
++<div class="seg wrap" role="group" aria-label={t(lang, "filterByRegion")}>
++  {REGION_FILTERS.map((f) => (
++    <label class="seg-btn" for={f.id}>{f.labelKey ? t(lang, f.labelKey) : t(lang, "filterAll")}</label>
++  ))}
++</div>
+diff --git a/site_v2/src/components/matches/MatchesDay.astro b/site_v2/src/components/matches/MatchesDay.astro
+new file mode 100644
+index 00000000..dbcbd6b4
+--- /dev/null
++++ b/site_v2/src/components/matches/MatchesDay.astro
+@@ -0,0 +1,117 @@
++---
++// One day of the Matches page (#130, #131): the breadcrumb and the heading as on the Competitions
++// page, its two filter rows, the Matchdays tab's picker with the day as its title and the
++// neighbouring days as links, and one Schedule block: each competition playing that day under its
++// crest and name (Home's group heading), its first three matches and the rest under Home's
++// "Show all {n}", every row THE match row.
++//
++// The day, its matches, its neighbours and whether the page opens on it are the warehouse's
++// (mart_match_days, one payload per day); the competitions of the day take the site's shared
++// order, the one Home uses. The opening day lives only at the matches word's own address, so a
++// neighbour that is the opening day is linked there.
++import SectionHead from "../ui/SectionHead.astro";
++import MatchRow from "../ui/MatchRow.astro";
++import Crest from "../ui/Crest.astro";
++import FilterRows from "../competitions/FilterRows.astro";
++import { t } from "../../i18n/strings";
++import { localeHref, word } from "../../lib/href";
++import { formatLongDate } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import type { MatchDayPayload } from "../../lib/types";
++import { orderUpcomingGroups } from "../../lib/competitionOrder.mjs";
++
++interface Props {
++  day: MatchDayPayload;
++  openingDay: string;
++  lang: Lang;
++}
++const { day, openingDay, lang } = Astro.props;
++
++const VISIBLE_ROWS = 3;
++const matchesWord = word(lang, "matches");
++const dayHref = (d: string) => localeHref(lang, d === openingDay ? `${matchesWord}/` : `${matchesWord}/${d}/`);
++const isOpening = day.day === openingDay;
++const longDate = formatLongDate(day.day, lang);
++const groups = orderUpcomingGroups(day.competitions);
++---
++
++  <div class="inner">
++    <nav class="crumb" aria-label={t(lang, "crumbAria")}>
++      <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
++      <span class="sep">›</span>
++      {isOpening ? (
++        <span class="here">{t(lang, "navMatches")}</span>
++      ) : (
++        <>
++          <a class="lnk" href={dayHref(openingDay)}>{t(lang, "navMatches")}</a>
++          <span class="sep">›</span>
++          <span class="here">{longDate}</span>
++        </>
++      )}
++    </nav>
++
++    <h1>{t(lang, "navMatches")}</h1>
++
++    <FilterRows lang={lang} />
++
++    <div class="categories">
++      <div class="md">
++        <input class="md-in" type="radio" name="day" id={`day-${day.day}`} checked />
++        <nav class="mdnav" aria-label={t(lang, "dayPickerAria")}>
++          <span class="mdstep">
++            {day.previous_day ? (
++              <a class="step prev" href={dayHref(day.previous_day)} aria-label={formatLongDate(day.previous_day, lang)}>
++                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++              </a>
++            ) : (
++              <span class="step prev off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
++            )}
++            <span class="mdtitle"><b class="num">{longDate}</b></span>
++            {day.next_day ? (
++              <a class="step next" href={dayHref(day.next_day)} aria-label={formatLongDate(day.next_day, lang)}>
++                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
++              </a>
++            ) : (
++              <span class="step next off"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
++            )}
++          </span>
++        </nav>
++        <section>
++          <SectionHead label={t(lang, "compSecSchedule")} />
++          {groups.map((group) => (
++            <div class="fxgroup" data-entity-type={group.entity_type} data-confederation={group.confederation}>
++              <div class="gh">
++                {group.slug ? (
++                  <a class="cnm" href={localeHref(lang, `${group.slug}/`)}>
++                    <span class="clogo"><Crest name={group.name} crest={group.crest} size="xs" /></span>
++                    <span class="nm">{group.name ?? group.league_code}</span>
++                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
++                            stroke-linecap="round" stroke-linejoin="round"></path>
++                    </svg>
++                  </a>
++                ) : (
++                  <span class="nm">{group.name ?? group.league_code}</span>
++                )}
++              </div>
++
++              {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
++
++              {group.fixtures.length > VISIBLE_ROWS && (
++                <details class="fxmore">
++                  <summary>
++                    <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
++                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
++                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
++                            stroke-linecap="round" stroke-linejoin="round"></path>
++                    </svg>
++                  </summary>
++                  {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
++                </details>
++              )}
++            </div>
++          ))}
++        </section>
++      </div>
++    </div>
++  </div>
 diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index eaa9268f..1c234545 100644
+index 1c234545..a9845806 100644
 --- a/site_v2/src/i18n/strings.ts
 +++ b/site_v2/src/i18n/strings.ts
-@@ -161,12 +161,10 @@ const EN: Dict = {
-   // FBref.com") both omit it; kicker uses an editorial headline with the teams only in the URL.
-   // Keeping it failed 4 of 26 competitions against the 660px hard cap, worst 886px. It is not
-   // lost: it stays in the breadcrumb, the URL and the JSON-LD superEvent.
--  // Measured over every competition's worst real upcoming fixture: 597px, inside the 600px budget.
--  //
--  // ⚠ "Preview" is true only while a fixture page IS a preview. The export writes upcoming
--  // fixtures only today (#861). When finished matches get pages this needs a played/upcoming
--  // split, or every match report will be titled "Preview".
--  seoFixtureTitle: "{home} vs {away}: Preview",
-+  // The date (short day and month, UTC) tells apart two meetings of the same clubs, which would
-+  // otherwise share a title; with no descriptor word the title stays true once a match is played.
-+  // Measured over every real upcoming fixture: worst 535px, inside the 600px budget.
-+  seoFixtureTitle: "{home} vs {away}, {date}",
-   // --- chrome (site-wide header/footer, #825) ---
-   navCompetitions: "Competitions",
-   navMatches: "Matches",
-@@ -436,7 +434,7 @@ const DE: Dict = {
-   // "gegen" becomes a dash: it is what German football writing uses for a pairing, and it is also
-   // what gets DE under the limit (2 of 26 competitions failed with "gegen", 0 with the dash).
-   // Worst real fixture: 595px, inside the 600px budget. See the EN entry for the full reasoning.
--  seoFixtureTitle: "{home} - {away}: Vorschau",
-+  seoFixtureTitle: "{home} - {away}, {date}",
-   // --- chrome (site-wide header/footer, #825) ---
-   navCompetitions: "Wettbewerbe",
-   navMatches: "Spiele",
-@@ -678,7 +676,7 @@ const FI: Dict = {
-   // the limit: "vs." overflowed by 1px on one competition (661 against a 660 hard cap), the tight
-   // en dash lands at 634px. Approved with the source on the table.
-   // Worst real fixture: 573px, the widest headroom of the three. See the EN entry for the reasoning.
--  seoFixtureTitle: "{home}–{away}: Ennakko",
-+  seoFixtureTitle: "{home}–{away}, {date}",
-   // --- chrome (site-wide header/footer, #825) ---
-   navCompetitions: "Kilpailut",
-   navMatches: "Ottelut",
-diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-index bdb119de..31d32a50 100644
---- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-+++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-@@ -16,6 +16,7 @@ import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
- import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
- import { t, BRAND } from "../../../../i18n/strings";
- import { localeHref, word } from "../../../../lib/href";
-+import { formatShortDate } from "../../../../lib/format";
- import type { Lang } from "../../../../lib/format";
- import type { Fixture } from "../../../../lib/types";
- import competitions from "../../../../data/competitions.json";
-@@ -75,9 +76,13 @@ const compName =
- // left every remaining mention of the competition on the provider's name — the very ambiguity
- // ("Serie A" for Brazil) it was introduced to remove. So the breadcrumb and the JSON-LD superEvent
- // below now read `compName` too, and the authoritative name outlives its removal from the title.
-+// The date tells apart two meetings of the same clubs (a cup tie and a league match, or two
-+// league meetings in a season), which would otherwise share a title; it is the UTC day the
-+// match's address carries.
- const title = t(lang, "seoFixtureTitle", {
-   home: home.name ?? "",
-   away: away.name ?? "",
-+  date: formatShortDate(fixture.kickoff, lang),
- });
- const description = t(lang, "aboutNoH2h", {
-   home: home.name ?? "",
+@@ -255,6 +255,10 @@ const EN: Dict = {
+   seoCompetitionDesc: "Overview page for {competition}.",
+   seoCompetitionFixturesTitle: "{competition}: Fixtures and results {season}",
+   seoCompetitionFixturesDesc: "Every matchday of {competition} {season}: results so far and the fixtures to come, one matchday at a time.",
++  seoMatchesTitle: "Football today: all matches, {date}",
++  seoMatchDayTitle: "Football on {date}: all matches",
++  seoMatchesDesc: "Every football match on {date} from {n} competitions: the kick-off time before the match, the result after it.",
++  dayPickerAria: "Pick a day",
+   seoCompetitionStatsTitle: "{competition}: Team and player stats {season}",
+   seoCompetitionStatsDesc: "The top teams and players of {competition} {season} on every stat: goals, shots on goal, passing, duels, defending, discipline and goalkeeping.",
+   // The player page (#40 MR B). Same modest wording and the same reason as the competition hub
+@@ -494,6 +498,10 @@ const DE: Dict = {
+   seoCompetitionDesc: "Überblicksseite für {competition}.",
+   seoCompetitionFixturesTitle: "{competition}: Spielplan und Ergebnisse {season}",
+   seoCompetitionFixturesDesc: "Alle Spieltage von {competition} {season}: die bisherigen Ergebnisse und die kommenden Spiele, ein Spieltag nach dem anderen.",
++  seoMatchesTitle: "Fußball heute: alle Spiele, {date}",
++  seoMatchDayTitle: "Fußball am {date}: alle Spiele",
++  seoMatchesDesc: "Alle Fußballspiele am {date} aus {n} Wettbewerben: vor dem Spiel die Anstoßzeit, danach das Ergebnis.",
++  dayPickerAria: "Tag wählen",
+   seoCompetitionStatsTitle: "{competition}: Mannschafts- und Spielerstatistiken {season}",
+   seoCompetitionStatsDesc: "Die besten Mannschaften und Spieler von {competition} {season} in jeder Statistik: Tore, Torschüsse, Passspiel, Zweikämpfe, Defensive, Disziplin und Torwartspiel.",
+   seoPlayerTitle: "{player} ({club}): Überblick",
+@@ -735,6 +743,10 @@ const FI: Dict = {
+   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
+   seoCompetitionFixturesTitle: "{competition}: otteluohjelma ja tulokset {season}",
+   seoCompetitionFixturesDesc: "Kilpailun {competition} {season} kaikki kierrokset: tähänastiset tulokset ja tulevat ottelut, kierros kerrallaan.",
++  seoMatchesTitle: "Jalkapallo tänään: kaikki ottelut, {date}",
++  seoMatchDayTitle: "Jalkapallo {date}: kaikki ottelut",
++  seoMatchesDesc: "Kaikki jalkapallo-ottelut {date}, {n} kilpailusta: ennen ottelua alkamisaika, sen jälkeen tulos.",
++  dayPickerAria: "Valitse päivä",
+   seoCompetitionStatsTitle: "{competition}: joukkue- ja pelaajatilastot {season}",
+   seoCompetitionStatsDesc: "Kilpailun {competition} {season} parhaat joukkueet ja pelaajat jokaisessa tilastossa: maalit, laukaukset maalia kohti, syötöt, kaksinkamppailut, puolustus, kurinpito ja maalivahtipeli.",
+   seoPlayerTitle: "{player} ({club}): yleiskatsaus",
+diff --git a/site_v2/src/lib/addressWords.mjs b/site_v2/src/lib/addressWords.mjs
+index a7ac990a..95493391 100644
+--- a/site_v2/src/lib/addressWords.mjs
++++ b/site_v2/src/lib/addressWords.mjs
+@@ -9,7 +9,7 @@ import WORDS from "../i18n/address_words.json" with { type: "json" };
+ 
+ export { WORDS };
+ 
+-const TOP_WORDS = ["competitions", "teams", "players"];
++const TOP_WORDS = ["competitions", "matches", "teams", "players"];
+ const TAB_WORDS = ["matches", "stats"];
+ 
+ /** The address word for `key` in `lang`. Throws on an unknown key or language, so a typo fails the
+diff --git a/site_v2/src/lib/addressWords.test.mjs b/site_v2/src/lib/addressWords.test.mjs
+index 0e634010..ab8d2346 100644
+--- a/site_v2/src/lib/addressWords.test.mjs
++++ b/site_v2/src/lib/addressWords.test.mjs
+@@ -24,6 +24,8 @@ test("a key path translates to every language and back", () => {
+     ["teams/x/", { de: "mannschaften/x/", fi: "joukkueet/x/" }],
+     ["players/p-1/", { de: "spieler/p-1/", fi: "pelaajat/p-1/" }],
+     ["competitions/", { de: "wettbewerbe/", fi: "kilpailut/" }],
++    ["matches/", { de: "spiele/", fi: "ottelut/" }],
++    ["matches/2026-09-27/", { de: "spiele/2026-09-27/", fi: "ottelut/2026-09-27/" }],
+     ["bundesliga/matches/", { de: "bundesliga/spiele/", fi: "bundesliga/ottelut/" }],
+     ["bundesliga/stats/", { de: "bundesliga/statistiken/", fi: "bundesliga/tilastot/" }],
+     ["bundesliga/matches/m-1/", { de: "bundesliga/spiele/m-1/", fi: "bundesliga/ottelut/m-1/" }],
+diff --git a/site_v2/src/lib/format.ts b/site_v2/src/lib/format.ts
+index 773dd02c..222354e5 100644
+--- a/site_v2/src/lib/format.ts
++++ b/site_v2/src/lib/format.ts
+@@ -118,6 +118,14 @@ export function formatDate(iso: string | null | undefined, lang: Lang): string {
+     weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+   }).format(d);
+ }
++/** A day in full, "Saturday 19 September": the Matches page's day switcher and titles. */
++export function formatLongDate(iso: string | null | undefined, lang: Lang): string {
++  const d = toDate(iso);
++  if (!d) return DASH;
++  return new Intl.DateTimeFormat(LOCALE[lang], {
++    weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
++  }).format(d);
++}
+ export function formatShortDate(iso: string | null | undefined, lang: Lang): string {
+   const d = toDate(iso);
+   if (!d) return DASH;
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index ccca5ac4..2b95d42e 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -504,6 +504,30 @@ export interface CompetitionRound {
+   fixtures: CompetitionFixture[];
+ }
+ 
++/** One competition on a day of the Matches page: its served facts and its matches that day, in
++ *  the served order. */
++export interface MatchDayCompetition {
++  league_code: string;
++  name: string | null;
++  slug: string | null;
++  crest: string | null;
++  entity_type: "club" | "national" | null;
++  confederation: string | null;
++  region_rank: number | null;
++  fixtures: CompetitionFixture[];
++}
++
++/** One day of the Matches page (matches/{yyyy-mm-dd}.json): the mart decides the day's matches,
++ *  its neighbouring days with a match, and whether the page opens on it. */
++export interface MatchDayPayload {
++  type: "match_day";
++  day: string;
++  is_opening_day: boolean;
++  previous_day: string | null;
++  next_day: string | null;
++  competitions: MatchDayCompetition[];
++}
++
+ export interface CompetitionPayload {
+   type: string;
+   league_code: string;
+diff --git a/site_v2/src/pages/[lang]/[matches]/[day].astro b/site_v2/src/pages/[lang]/[matches]/[day].astro
+new file mode 100644
+index 00000000..b54da8e6
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[matches]/[day].astro
+@@ -0,0 +1,53 @@
++---
++// A day behind or ahead of the Matches page (#131; spec: src/specs/matches/day.spec.json): every
++// day in the warehouse's reach but the opening day, which lives at the matches word's own address.
++// A day drops off once the next round is played, so these addresses are not permanent.
++import Layout from "../../../layouts/Layout.astro";
++import MatchesDay from "../../../components/matches/MatchesDay.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref, LOCALES, word } from "../../../lib/href";
++import { formatLongDate } from "../../../lib/format";
++import type { Lang } from "../../../lib/format";
++import type { MatchDayPayload } from "../../../lib/types";
++
++export function getStaticPaths() {
++  const days = Object.values(
++    import.meta.glob<MatchDayPayload>("/src/data/matches/*.json", { eager: true, import: "default" }),
++  );
++  const opening = days.find((d) => d.is_opening_day);
++  if (!opening) return [];
++  return days
++    .filter((d) => !d.is_opening_day)
++    .flatMap((day) =>
++      LOCALES.map((lang) => ({
++        params: { lang, matches: word(lang, "matches"), day: day.day },
++        props: { day, openingDay: opening.day },
++      })),
++    );
++}
++
++interface Props {
++  day: MatchDayPayload;
++  openingDay: string;
++}
++const { day, openingDay } = Astro.props;
++const lang = (Astro.params.lang ?? "en") as Lang;
++const longDate = formatLongDate(day.day, lang);
++
++const title = t(lang, "seoMatchDayTitle", { date: longDate });
++const description = t(lang, "seoMatchesDesc", { date: longDate, n: day.competitions.length });
++const entity = {
++  "@type": "ItemList",
++  name: title,
++  numberOfItems: day.competitions.reduce((n, c) => n + c.fixtures.length, 0),
++};
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
++  { name: longDate },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <MatchesDay day={day} openingDay={openingDay} lang={lang} />
++</Layout>
+diff --git a/site_v2/src/pages/[lang]/[matches]/index.astro b/site_v2/src/pages/[lang]/[matches]/index.astro
+new file mode 100644
+index 00000000..9295e0f0
+--- /dev/null
++++ b/site_v2/src/pages/[lang]/[matches]/index.astro
+@@ -0,0 +1,47 @@
++---
++// The Matches page (#130; spec: src/specs/matches/index.spec.json): the day the page opens on,
++// which the warehouse flags (mart_match_days: the build day, else the next day with a match). It
++// lives only here; every other day is [day].astro under its date.
++import Layout from "../../../layouts/Layout.astro";
++import MatchesDay from "../../../components/matches/MatchesDay.astro";
++import { t } from "../../../i18n/strings";
++import { localeHref, LOCALES, word } from "../../../lib/href";
++import { formatLongDate } from "../../../lib/format";
++import type { Lang } from "../../../lib/format";
++import type { MatchDayPayload } from "../../../lib/types";
++
++export function getStaticPaths() {
++  const days = Object.values(
++    import.meta.glob<MatchDayPayload>("/src/data/matches/*.json", { eager: true, import: "default" }),
++  );
++  const opening = days.find((d) => d.is_opening_day);
++  if (!opening) return [];
++  return LOCALES.map((lang) => ({
++    params: { lang, matches: word(lang, "matches") },
++    props: { day: opening },
++  }));
++}
++
++interface Props {
++  day: MatchDayPayload;
++}
++const { day } = Astro.props;
++const lang = (Astro.params.lang ?? "en") as Lang;
++const longDate = formatLongDate(day.day, lang);
++
++const title = t(lang, "seoMatchesTitle", { date: longDate });
++const description = t(lang, "seoMatchesDesc", { date: longDate, n: day.competitions.length });
++const entity = {
++  "@type": "ItemList",
++  name: title,
++  numberOfItems: day.competitions.reduce((n, c) => n + c.fixtures.length, 0),
++};
++const crumbs = [
++  { name: t(lang, "crumbHome"), href: localeHref(lang) },
++  { name: t(lang, "navMatches") },
++];
++---
++
++<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
++  <MatchesDay day={day} openingDay={day.day} lang={lang} />
++</Layout>
+diff --git a/site_v2/src/specs/matches/day.spec.json b/site_v2/src/specs/matches/day.spec.json
+new file mode 100644
+index 00000000..06c421ed
+--- /dev/null
++++ b/site_v2/src/specs/matches/day.spec.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "../page-spec.schema.json",
++  "page": "[lang]/[matches]/[day].astro",
++  "entity": "matchDay",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoMatchDayTitle",
++    "description": "seoMatchesDesc",
++    "schema_org": "ItemList",
++    "links": {
++      "inbound_hub": "none",
++      "outbound": ["competition", "fixture"]
++    },
++    "minimum_data": "A day of mart_match_days other than the opening day: behind the build day its competitions' last matchday with scores, ahead of it their next matchday with kick-offs. Days with no match are not days of the page. Every unplayed row links to its match page; a played row is not a link until the match report page exists.",
++    "page_count_driver": "(count(distinct match_day in mart_match_days) - 1) x count(locales)",
++    "url_permanence": "ephemeral",
++    "url_permanence_note": "A day page exists while its day is in reach: a past day drops off once its competitions play their next round, a future one becomes the opening day at /matches/ when it arrives. No archive by date (#131). The date segment is yyyy-mm-dd in every language (site_architecture.md \"Address words\" rule 7)."
++  },
++  "blocks": [
++    {
++      "block": "Filter rows",
++      "mart": "mart_competition_index",
++      "i18n_keys": ["crumbHome", "navMatches", "filterAll", "filterClubs", "filterNational", "filterByType", "filterByRegion", "confedUefa"]
++    },
++    {
++      "block": "Day switcher",
++      "mart": "mart_match_days",
++      "i18n_keys": ["dayPickerAria"]
++    },
++    {
++      "block": "Schedule",
++      "mart": ["mart_match_days", "mart_competition_fixtures", "mart_competition_index"],
++      "i18n_keys": ["compSecSchedule", "homeShowAll", "compTBC"]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/matches/index.spec.json b/site_v2/src/specs/matches/index.spec.json
+new file mode 100644
+index 00000000..0625199f
+--- /dev/null
++++ b/site_v2/src/specs/matches/index.spec.json
+@@ -0,0 +1,37 @@
++{
++  "$schema": "../page-spec.schema.json",
++  "page": "[lang]/[matches]/index.astro",
++  "entity": "matchDay",
++  "seo": {
++    "canonical": "self",
++    "hreflang": "all-locales",
++    "title": "seoMatchesTitle",
++    "description": "seoMatchesDesc",
++    "schema_org": "ItemList",
++    "links": {
++      "inbound_hub": "none",
++      "outbound": ["competition", "fixture"]
++    },
++    "minimum_data": "The warehouse flags an opening day in mart_match_days (the build day, else the next day with a match); a day exists only when a competition's last or next matchday has a match on it. Every unplayed row links to its match page, which the build emits from fixtures/{fixture_id}.json; a played row is not a link until the match report page exists.",
++    "page_count_driver": "count(locales)",
++    "url_permanence": "permanent",
++    "url_permanence_note": "The address is the matches word of site_architecture.md \"Address words\" and never moves; the day it shows is the opening day of each nightly build, which is why no dated address repeats it."
++  },
++  "blocks": [
++    {
++      "block": "Filter rows",
++      "mart": "mart_competition_index",
++      "i18n_keys": ["crumbHome", "navMatches", "filterAll", "filterClubs", "filterNational", "filterByType", "filterByRegion", "confedUefa"]
++    },
++    {
++      "block": "Day switcher",
++      "mart": "mart_match_days",
++      "i18n_keys": ["dayPickerAria"]
++    },
++    {
++      "block": "Schedule",
++      "mart": ["mart_match_days", "mart_competition_fixtures", "mart_competition_index"],
++      "i18n_keys": ["compSecSchedule", "homeShowAll", "compTBC"]
++    }
++  ]
++}
+diff --git a/site_v2/src/specs/page-spec.schema.json b/site_v2/src/specs/page-spec.schema.json
+index 0f68f481..bf746d97 100644
+--- a/site_v2/src/specs/page-spec.schema.json
++++ b/site_v2/src/specs/page-spec.schema.json
+@@ -13,7 +13,7 @@
+     },
+     "entity": {
+       "type": "string",
+-      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home"],
++      "enum": ["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay"],
+       "description": "The entity type this template renders, per docs/content_architecture.md section 2."
+     },
+     "stub": {
+diff --git a/tests/test_address_words.py b/tests/test_address_words.py
+index 26d2b9c7..fe76e11c 100644
+--- a/tests/test_address_words.py
++++ b/tests/test_address_words.py
+@@ -55,6 +55,8 @@ CASES = [
+     ("teams/x/", {"de": "mannschaften/x/", "fi": "joukkueet/x/"}),
+     ("players/p-1/", {"de": "spieler/p-1/", "fi": "pelaajat/p-1/"}),
+     ("competitions/", {"de": "wettbewerbe/", "fi": "kilpailut/"}),
++    ("matches/", {"de": "spiele/", "fi": "ottelut/"}),
++    ("matches/2026-09-27/", {"de": "spiele/2026-09-27/", "fi": "ottelut/2026-09-27/"}),
+     ("bundesliga/matches/", {"de": "bundesliga/spiele/", "fi": "bundesliga/ottelut/"}),
+     ("bundesliga/stats/", {"de": "bundesliga/statistiken/", "fi": "bundesliga/tilastot/"}),
+     ("bundesliga/matches/m-1/", {"de": "bundesliga/spiele/m-1/", "fi": "bundesliga/ottelut/m-1/"}),
+diff --git a/tests/test_export_matches.py b/tests/test_export_matches.py
+new file mode 100644
+index 00000000..f9141e19
+--- /dev/null
++++ b/tests/test_export_matches.py
+@@ -0,0 +1,101 @@
++"""Unit tests for the Matches page's export: one payload per day from `mart_match_days` (#160).
++
++No BigQuery: fabricated rows only. What is pinned is what the consumption-layer contract allows
++the export to do and nothing more. It groups rows by day and competition and carries the mart's
++day facts (neighbours, opening day) and the match rows unchanged. It never decides which match is
++in reach, which day opens or which competition comes first: the mart decides the first two and
++the page the third.
++"""
++
++from scripts import export_site_data
++from scripts.export_site_data import _competition_fixture, shape_match_day_payloads
++
++
++def _row(sk, lc, day, order, *, opening=False, prev=None, nxt=None, played=False):
++    return {
++        "match_day": day, "day_row_order": order, "is_opening_day": opening,
++        "previous_day": prev, "next_day": nxt,
++        "fixture_sk": sk, "league_code": lc, "season_api_year": 2026, "round_name": "Regular Season - 5",
++        "round_order": 5, "round_sequence": 5, "fixture_order": sk, "kickoff_datetime": f"{day} 18:30:00+00:00",
++        "status_short": "FT" if played else "NS", "is_played": played,
++        "goals_home": 2 if played else None, "goals_away": 1 if played else None,
++        "home_team_sk": sk * 10, "home_team_name": f"H{sk}", "home_team_slug": f"h{sk}", "home_team_logo_url": None,
++        "away_team_sk": sk * 10 + 1, "away_team_name": f"A{sk}", "away_team_slug": f"a{sk}", "away_team_logo_url": None,
++        "fixture_slug": f"{day}-h{sk}-vs-a{sk}", "is_next_round": not played, "is_match_that_matters": False,
++    }
++
++
++_COMPS = {
++    "BL1": {"name": "Bundesliga", "slug": "bundesliga", "crest": "https://x/bl1.png",
++            "entity_type": "club", "confederation": "UEFA", "region_rank": 1},
++    "MLS": {"name": "MLS", "slug": "mls", "crest": None,
++            "entity_type": "club", "confederation": "CONCACAF", "region_rank": 4},
++}
++
++
++def test_one_payload_per_day_with_the_marts_day_facts():
++    rows = [
++        _row(1, "BL1", "2026-09-20", 1, prev=None, nxt="2026-09-26", played=True),
++        _row(2, "MLS", "2026-09-26", 1, opening=True, prev="2026-09-20", nxt=None),
++    ]
++    days = shape_match_day_payloads(rows, _COMPS)
++    assert [d["day"] for d in days] == ["2026-09-20", "2026-09-26"]
++    first, second = days
++    assert (first["is_opening_day"], first["previous_day"], first["next_day"]) == (False, None, "2026-09-26")
++    assert (second["is_opening_day"], second["previous_day"], second["next_day"]) == (True, "2026-09-20", None)
++    assert first["type"] == "match_day" and first["slug"] == "2026-09-20"
++
++
++def test_rows_keep_the_served_day_row_order_and_the_match_row_shape():
++    """Rows arrive shuffled; the payload keeps day_row_order, the mart's order, and each row is the
++    competition payload's match row, unchanged, so the site's one match row renders it."""
++    rows = [
++        _row(3, "BL1", "2026-09-26", 3, opening=True),
++        _row(1, "BL1", "2026-09-26", 1, opening=True),
++        _row(2, "BL1", "2026-09-26", 2, opening=True),
++    ]
++    (day,) = shape_match_day_payloads(rows, _COMPS)
++    (bl1,) = day["competitions"]
++    assert [f["fixture_id"] for f in bl1["fixtures"]] == [1, 2, 3]
++    assert bl1["fixtures"][0] == _competition_fixture(rows[1])
++
++
++def test_a_competition_carries_its_facts_and_no_order_is_invented():
++    rows = [_row(2, "MLS", "2026-09-26", 1, opening=True), _row(1, "BL1", "2026-09-26", 1, opening=True)]
++    (day,) = shape_match_day_payloads(rows, _COMPS)
++    assert [c["league_code"] for c in day["competitions"]] == ["BL1", "MLS"]
++    bl1 = day["competitions"][0]
++    assert {k: bl1[k] for k in _COMPS["BL1"]} == _COMPS["BL1"]
++    assert set(bl1) == {"league_code", *_COMPS["BL1"], "fixtures"}
++
++
++def test_a_played_row_carries_its_score():
++    (day,) = shape_match_day_payloads([_row(1, "BL1", "2026-09-20", 1, played=True)], _COMPS)
++    row = day["competitions"][0]["fixtures"][0]
++    assert (row["is_played"], row["goals_home"], row["goals_away"]) == (True, 2, 1)
++
++
++def test_the_fetch_reads_the_mart_whole_and_selects_nothing(monkeypatch):
++    """The reach, the neighbours and the opening day are the mart's: the query joins the day rows to
++    their match rows and filters, ranks and windows nothing."""
++    captured = []
++
++    def fake_query(client, sql):
++        captured.append(sql)
++        if "mart_match_days" in sql:
++            return [_row(1, "BL1", "2026-09-26", 1, opening=True)]
++        return []
++
++    monkeypatch.setattr(export_site_data, "_query", fake_query)
++    monkeypatch.setattr(export_site_data, "_warehouse_competition_meta",
++                        lambda client: {"BL1": {"name": "Bundesliga", "region_rank": 1}})
++    monkeypatch.setattr(export_site_data, "_competition_page_meta",
++                        lambda client: {"BL1": {"logo_url": "https://x/bl1.png", "entity_type": "club"}})
++    (day,) = export_site_data.fetch_match_day_payloads(object())
++    sql = next(s for s in captured if "mart_match_days" in s).lower()
++    for word in ("where", "row_number", "qualify", "current_date", "order by", "limit"):
++        assert word not in sql, word
++    bl1 = day["competitions"][0]
++    assert (bl1["name"], bl1["slug"], bl1["crest"], bl1["entity_type"], bl1["region_rank"]) == (
++        "Bundesliga", "bundesliga", "https://x/bl1.png", "club", 1)
++    assert bl1["confederation"] == "UEFA"
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md                         |   16 +-
+#    site_v2/src/data/competition_index.json            |  116 +-
+#    site_v2/src/data/fixtures/1490496.json             |  754 ++++
+#    site_v2/src/data/fixtures/1490497.json             |  747 ++++
+#    site_v2/src/data/fixtures/1490498.json             |  754 ++++
+#    site_v2/src/data/fixtures/1490499.json             |  754 ++++
+#    site_v2/src/data/fixtures/1490500.json             |  673 +++
+#    site_v2/src/data/fixtures/1490501.json             |  754 ++++
+#    site_v2/src/data/fixtures/1490502.json             |  761 ++++
+#    site_v2/src/data/fixtures/1490503.json             |  747 ++++
+#    site_v2/src/data/fixtures/1490504.json             |  712 ++++
+#    site_v2/src/data/fixtures/1490505.json             |  761 ++++
+#    site_v2/src/data/fixtures/1490506.json             |  705 ++++
+#    site_v2/src/data/fixtures/1490507.json             |  761 ++++
+#    site_v2/src/data/fixtures/1490508.json             |  698 ++++
+#    site_v2/src/data/fixtures/1490509.json             |  754 ++++
+#    site_v2/src/data/fixtures/1490510.json             |  754 ++++
+#    site_v2/src/data/fixtures/1492390.json             |  754 ++++
+#    site_v2/src/data/fixtures/1492391.json             |  740 ++++
+#    site_v2/src/data/fixtures/1492392.json             |  712 ++++
+#    site_v2/src/data/fixtures/1492393.json             |  740 ++++
+#    site_v2/src/data/fixtures/1492394.json             |  727 ++++
+#    site_v2/src/data/fixtures/1492395.json             |  755 ++++
+#    site_v2/src/data/fixtures/1492396.json             |  741 ++++
+#    site_v2/src/data/fixtures/1492397.json             |  698 ++++
+#    site_v2/src/data/fixtures/1492398.json             |  741 ++++
+#    site_v2/src/data/fixtures/1492399.json             |  698 ++++
+#    site_v2/src/data/fixtures/1493152.json             |  740 ++++
+#    site_v2/src/data/fixtures/1493153.json             |  719 ++++
+#    site_v2/src/data/fixtures/1493154.json             |  719 ++++
+#    site_v2/src/data/fixtures/1493155.json             |  733 ++++
+#    site_v2/src/data/fixtures/1493156.json             |  726 ++++
+#    site_v2/src/data/fixtures/1493157.json             |  719 ++++
+#    site_v2/src/data/fixtures/1493158.json             |  699 ++++
+#    site_v2/src/data/fixtures/1493159.json             |  698 ++++
+#    site_v2/src/data/fixtures/1493160.json             |  726 ++++
+#    site_v2/src/data/fixtures/1493161.json             |  726 ++++
+#    site_v2/src/data/fixtures/1493162.json             |  705 ++++
+#    site_v2/src/data/fixtures/1493163.json             |  719 ++++
+#    site_v2/src/data/fixtures/1493164.json             |  740 ++++
+#    site_v2/src/data/fixtures/1493165.json             |  733 ++++
+#    site_v2/src/data/fixtures/1493166.json             |  734 ++++
+#    site_v2/src/data/fixtures/1507024.json             |  761 ++++
+#    site_v2/src/data/fixtures/1528881.json             |   51 +
+#    site_v2/src/data/fixtures/1528884.json             |   51 +
+#    site_v2/src/data/fixtures/1528885.json             |   51 +
+#    site_v2/src/data/fixtures/1528886.json             |   51 +
+#    site_v2/src/data/fixtures/1545656.json             |   51 +
+#    site_v2/src/data/fixtures/1545658.json             |   51 +
+#    site_v2/src/data/fixtures/1545958.json             |   83 +
+#    site_v2/src/data/fixtures/1545959.json             |   51 +
+#    site_v2/src/data/fixtures/1545960.json             |   51 +
+#    site_v2/src/data/fixtures/1545961.json             |   51 +
+#    site_v2/src/data/fixtures/1545962.json             |   51 +
+#    site_v2/src/data/fixtures/1545963.json             |   51 +
+#    site_v2/src/data/fixtures/1545964.json             |   51 +
+#    site_v2/src/data/fixtures/1545965.json             |   51 +
+#    site_v2/src/data/fixtures/1545966.json             |   51 +
+#    site_v2/src/data/fixtures/1545967.json             |   83 +
+#    site_v2/src/data/fixtures/1545968.json             |   51 +
+#    site_v2/src/data/fixtures/1549407.json             |   51 +
+#    site_v2/src/data/fixtures/1550137.json             |  728 ++++
+#    site_v2/src/data/fixtures/1550138.json             |  763 ++++
+#    site_v2/src/data/fixtures/1550139.json             |  721 ++++
+#    site_v2/src/data/fixtures/1550140.json             |  763 ++++
+#    site_v2/src/data/fixtures/1550141.json             |  763 ++++
+#    site_v2/src/data/fixtures/1550142.json             |  734 ++++
+#    site_v2/src/data/fixtures/1550143.json             |  761 ++++
+#    site_v2/src/data/fixtures/1550144.json             |  728 ++++
+#    site_v2/src/data/fixtures/1550145.json             |  763 ++++
+#    site_v2/src/data/fixtures/1550146.json             |  763 ++++
+#    site_v2/src/data/fixtures/1550975.json             |  673 +++
+#    site_v2/src/data/fixtures/1550976.json             |  754 ++++
+#    site_v2/src/data/fixtures/1550977.json             |  747 ++++
+#    site_v2/src/data/fixtures/1550978.json             |  754 ++++
+#    site_v2/src/data/fixtures/1550979.json             |  761 ++++
+#    site_v2/src/data/fixtures/1550980.json             |  747 ++++
+#    site_v2/src/data/fixtures/1550981.json             |  747 ++++
+#    site_v2/src/data/fixtures/1550982.json             |  747 ++++
+#    site_v2/src/data/fixtures/1550983.json             |  747 ++++
+#    site_v2/src/data/fixtures/1552180.json             |  748 ++++
+#    site_v2/src/data/fixtures/1552181.json             |  749 ++++
+#    site_v2/src/data/fixtures/1552182.json             |  747 ++++
+#    site_v2/src/data/fixtures/1552183.json             |  748 ++++
+#    site_v2/src/data/fixtures/1552184.json             |  747 ++++
+#    site_v2/src/data/fixtures/1552185.json             |  705 ++++
+#    site_v2/src/data/fixtures/1552186.json             |  705 ++++
+#    site_v2/src/data/fixtures/1552187.json             |  673 +++
+#    site_v2/src/data/fixtures/1552188.json             |  719 ++++
+#    site_v2/src/data/fixtures/1552774.json             |  761 ++++
+#    site_v2/src/data/fixtures/1552775.json             |  763 ++++
+#    site_v2/src/data/fixtures/1552776.json             |  734 ++++
+#    site_v2/src/data/fixtures/1552777.json             |  712 ++++
+#    site_v2/src/data/fixtures/1552778.json             |  762 ++++
+#    site_v2/src/data/fixtures/1552779.json             |  761 ++++
+#    site_v2/src/data/fixtures/1552780.json             |  699 ++++
+#    site_v2/src/data/fixtures/1552781.json             |  734 ++++
+#    site_v2/src/data/fixtures/1552782.json             |  734 ++++
+#    site_v2/src/data/fixtures/1553182.json             |  747 ++++
+#    site_v2/src/data/fixtures/1553183.json             |  748 ++++
+#    site_v2/src/data/fixtures/1553184.json             |  673 +++
+#    site_v2/src/data/fixtures/1553185.json             |  747 ++++
+#    site_v2/src/data/fixtures/1553186.json             |  747 ++++
+#    site_v2/src/data/fixtures/1553187.json             |  719 ++++
+#    site_v2/src/data/fixtures/1553188.json             |  719 ++++
+#    site_v2/src/data/fixtures/1553189.json             |  734 ++++
+#    site_v2/src/data/fixtures/1553190.json             |  673 +++
+#    site_v2/src/data/fixtures/1556081.json             |  719 ++++
+#    site_v2/src/data/fixtures/1556082.json             |  747 ++++
+#    site_v2/src/data/fixtures/1556083.json             |  673 +++
+#    site_v2/src/data/fixtures/1556084.json             |  761 ++++
+#    site_v2/src/data/fixtures/1556085.json             |  747 ++++
+#    site_v2/src/data/fixtures/1556086.json             |  747 ++++
+#    site_v2/src/data/fixtures/1556087.json             |  747 ++++
+#    site_v2/src/data/fixtures/1556088.json             |  719 ++++
+#    site_v2/src/data/fixtures/1556089.json             |  673 +++
+#    site_v2/src/data/fixtures/1556090.json             |  719 ++++
+#    site_v2/src/data/fixtures/1557417.json             |  748 ++++
+#    site_v2/src/data/fixtures/1557418.json             |  762 ++++
+#    site_v2/src/data/fixtures/1557419.json             |  762 ++++
+#    site_v2/src/data/fixtures/1557420.json             |  673 +++
+#    site_v2/src/data/fixtures/1557421.json             |  748 ++++
+#    site_v2/src/data/fixtures/1557422.json             |  712 ++++
+#    site_v2/src/data/fixtures/1557423.json             |  705 ++++
+#    site_v2/src/data/fixtures/1557424.json             |  763 ++++
+#    site_v2/src/data/fixtures/1557425.json             |  762 ++++
+#    site_v2/src/data/fixtures/1557426.json             |  707 ++++
+#    site_v2/src/data/fixtures/1558644.json             |  673 +++
+#    site_v2/src/data/fixtures/1558645.json             |  762 ++++
+#    site_v2/src/data/fixtures/1558646.json             |  733 ++++
+#    site_v2/src/data/fixtures/1558647.json             |  761 ++++
+#    site_v2/src/data/fixtures/1558648.json             |  706 ++++
+#    site_v2/src/data/fixtures/1558649.json             |  748 ++++
+#    site_v2/src/data/fixtures/1558650.json             |  761 ++++
+#    site_v2/src/data/fixtures/1558651.json             |  719 ++++
+#    site_v2/src/data/fixtures/1558652.json             |  761 ++++
+#    site_v2/src/data/fixtures/1570403.json             |  762 ++++
+#    site_v2/src/data/fixtures/1570404.json             |  762 ++++
+#    site_v2/src/data/fixtures/1570405.json             |  762 ++++
+#    site_v2/src/data/fixtures/1570406.json             |  748 ++++
+#    site_v2/src/data/fixtures/1570407.json             |  761 ++++
+#    site_v2/src/data/fixtures/1570408.json             |  719 ++++
+#    site_v2/src/data/fixtures/1570409.json             |  673 +++
+#    site_v2/src/data/fixtures/1570410.json             |  761 ++++
+#    site_v2/src/data/fixtures/1570411.json             |  763 ++++
+#    site_v2/src/data/fixtures/1570412.json             |  720 ++++
+#    site_v2/src/data/fixtures/1575169.json             |  765 ----
+#    site_v2/src/data/fixtures/1575171.json             |  720 ----
+#    site_v2/src/data/fixtures/1575172.json             |  727 ----
+#    site_v2/src/data/fixtures/1575176.json             |  454 ++-
+#    site_v2/src/data/fixtures/1575177.json             |  537 +--
+#    site_v2/src/data/fixtures/1575178.json             |  609 +--
+#    site_v2/src/data/fixtures/1575179.json             |  475 +--
+#    site_v2/src/data/fixtures/1575180.json             |  576 +--
+#    site_v2/src/data/fixtures/1575181.json             |  529 +--
+#    site_v2/src/data/fixtures/1575182.json             |  420 +-
+#    site_v2/src/data/fixtures/1575183.json             |  542 +--
+#    site_v2/src/data/fixtures/1575184.json             |  629 +--
+#    site_v2/src/data/fixtures/1575185.json             |  623 ++-
+#    site_v2/src/data/fixtures/1575186.json             |  568 ++-
+#    site_v2/src/data/fixtures/1575187.json             |  484 ++-
+#    site_v2/src/data/fixtures/1575188.json             |  442 +-
+#    site_v2/src/data/fixtures/1575189.json             |  603 +--
+#    site_v2/src/data/fixtures/1575190.json             |  617 +--
+#    site_v2/src/data/fixtures/1575191.json             |  514 +--
+#    site_v2/src/data/fixtures/1575192.json             |  436 +-
+#    site_v2/src/data/fixtures/1575193.json             |  484 ++-
+#    site_v2/src/data/fixtures/1575194.json             |  484 +--
+#    site_v2/src/data/fixtures/1575195.json             |  531 +--
+#    site_v2/src/data/fixtures/1575196.json             |  611 +--
+#    site_v2/src/data/fixtures/1575197.json             |  592 ++-
+#    site_v2/src/data/fixtures/1575198.json             |  607 ++-
+#    site_v2/src/data/fixtures/1575199.json             |  448 +-
+#    site_v2/src/data/fixtures/1575200.json             |  452 +-
+#    site_v2/src/data/fixtures/1575201.json             |  438 +-
+#    site_v2/src/data/fixtures/1575202.json             |  608 +--
+#    site_v2/src/data/fixtures/1575203.json             |  570 +--
+#    site_v2/src/data/fixtures/1575204.json             |  600 ++-
+#    site_v2/src/data/fixtures/1575205.json             |  532 +--
+#    site_v2/src/data/fixtures/1575206.json             |  543 +--
+#    site_v2/src/data/fixtures/1575207.json             |  442 +-
+#    site_v2/src/data/fixtures/1575208.json             |  602 +--
+#    site_v2/src/data/fixtures/1575209.json             |  515 +--
+#    site_v2/src/data/fixtures/1575210.json             |  491 +--
+#    site_v2/src/data/fixtures/1575211.json             |  476 ++-
+#    site_v2/src/data/fixtures/1575212.json             |  478 +--
+#    site_v2/src/data/fixtures/1575213.json             |  559 +--
+#    site_v2/src/data/fixtures/1575214.json             |  523 +--
+#    site_v2/src/data/fixtures/1575215.json             |  499 +--
+#    site_v2/src/data/fixtures/1575216.json             |  479 +--
+#    site_v2/src/data/fixtures/1575217.json             |  568 +--
+#    site_v2/src/data/fixtures/1575218.json             |  590 +--
+#    site_v2/src/data/fixtures/1575219.json             |  531 +--
+#    site_v2/src/data/fixtures/1575220.json             |  544 +--
+#    site_v2/src/data/fixtures/1575221.json             |  570 +--
+#    site_v2/src/data/fixtures/1575222.json             |  591 +--
+#    site_v2/src/data/fixtures/1575223.json             |  545 +--
+#    site_v2/src/data/fixtures/1575224.json             |  504 +--
+#    site_v2/src/data/fixtures/1575225.json             |  495 +--
+#    site_v2/src/data/fixtures/1575226.json             |  542 +--
+#    site_v2/src/data/fixtures/1575227.json             |  502 +--
+#    site_v2/src/data/fixtures/1575228.json             |  507 +--
+#    site_v2/src/data/fixtures/1575229.json             |  515 +--
+#    site_v2/src/data/fixtures/1575230.json             |  531 ++-
+#    site_v2/src/data/fixtures/1575231.json             |  553 +--
+#    site_v2/src/data/fixtures/1575232.json             |  567 +--
+#    site_v2/src/data/fixtures/1575233.json             |  590 ++-
+#    site_v2/src/data/fixtures/1575234.json             |  440 +-
+#    site_v2/src/data/fixtures/1575235.json             |  618 +--
+#    site_v2/src/data/fixtures/1575236.json             |  478 ++-
+#    site_v2/src/data/fixtures/1575237.json             |  496 +--
+#    site_v2/src/data/fixtures/1575238.json             |  498 +--
+#    site_v2/src/data/fixtures/1575239.json             |  630 +--
+#    site_v2/src/data/fixtures/1575240.json             |  551 +--
+#    site_v2/src/data/fixtures/1575241.json             |  573 +--
+#    site_v2/src/data/fixtures/1575242.json             |  598 ++-
+#    site_v2/src/data/fixtures/1575243.json             |  438 +-
+#    site_v2/src/data/fixtures/1575244.json             |  506 +--
+#    site_v2/src/data/fixtures/1575245.json             |  490 +--
+#    site_v2/src/data/fixtures/1575246.json             |  438 +-
+#    site_v2/src/data/fixtures/1575247.json             |  547 +--
+#    site_v2/src/data/fixtures/1575248.json             |  631 ++-
+#    site_v2/src/data/fixtures/1575249.json             |  526 +--
+#    site_v2/src/data/fixtures/1575250.json             |  506 +--
+#    site_v2/src/data/fixtures/1575251.json             |  511 +--
+#    site_v2/src/data/fixtures/1575252.json             |  535 +--
+#    site_v2/src/data/fixtures/1575253.json             |  486 ++-
+#    site_v2/src/data/fixtures/1575254.json             |  553 +--
+#    site_v2/src/data/fixtures/1575255.json             |  485 +--
+#    site_v2/src/data/fixtures/1575256.json             |  538 +--
+#    site_v2/src/data/fixtures/1575257.json             |  524 +--
+#    site_v2/src/data/fixtures/1575258.json             |  553 ++-
+#    site_v2/src/data/fixtures/1575259.json             |  515 +--
+#    site_v2/src/data/fixtures/1575260.json             |  606 ++-
+#    site_v2/src/data/fixtures/1575261.json             |  566 +--
+#    site_v2/src/data/fixtures/1575262.json             |  503 +--
+#    site_v2/src/data/fixtures/1575263.json             |  480 ++-
+#    site_v2/src/data/fixtures/1575264.json             |  526 +--
+#    site_v2/src/data/fixtures/1575265.json             |  498 +--
+#    site_v2/src/data/fixtures/1575266.json             |  498 +--
+#    site_v2/src/data/fixtures/1575267.json             |  575 +--
+#    site_v2/src/data/fixtures/1575268.json             |  539 +--
+#    site_v2/src/data/fixtures/1575269.json             |  422 +-
+#    site_v2/src/data/fixtures/1575270.json             |  612 +--
+#    site_v2/src/data/fixtures/1575271.json             |  579 +--
+#    site_v2/src/data/fixtures/1575272.json             |  537 +--
+#    site_v2/src/data/fixtures/1575273.json             |  396 +-
+#    site_v2/src/data/fixtures/1575274.json             |  613 +--
+#    site_v2/src/data/fixtures/1575275.json             |  601 ++-
+#    site_v2/src/data/fixtures/1575276.json             |  622 ++-
+#    site_v2/src/data/fixtures/1575277.json             |  585 +--
+#    site_v2/src/data/fixtures/1575278.json             |  548 +--
+#    site_v2/src/data/fixtures/1575279.json             |  559 +--
+#    site_v2/src/data/fixtures/1575280.json             |  502 +--
+#    site_v2/src/data/fixtures/1575281.json             |  500 +--
+#    site_v2/src/data/fixtures/1575282.json             |  392 +-
+#    site_v2/src/data/fixtures/1575283.json             |  462 ++-
+#    site_v2/src/data/fixtures/1575284.json             |  537 ++-
+#    site_v2/src/data/fixtures/1575285.json             |  567 +--
+#    site_v2/src/data/fixtures/1575286.json             |  614 ++-
+#    site_v2/src/data/fixtures/1575287.json             |  469 ++-
+#    site_v2/src/data/fixtures/1575288.json             |  554 +--
+#    site_v2/src/data/fixtures/1575289.json             |  484 ++-
+#    site_v2/src/data/fixtures/1575290.json             |  554 +--
+#    site_v2/src/data/fixtures/1575291.json             |  432 +-
+#    site_v2/src/data/fixtures/1575292.json             |  560 +--
+#    site_v2/src/data/fixtures/1575293.json             |  639 ++-
+#    site_v2/src/data/fixtures/1575294.json             |  561 +--
+#    site_v2/src/data/fixtures/1575295.json             |  509 +--
+#    site_v2/src/data/fixtures/1575296.json             |  426 +-
+#    site_v2/src/data/fixtures/1575297.json             |  595 +--
+#    site_v2/src/data/fixtures/1575298.json             |  548 +--
+#    site_v2/src/data/fixtures/1575299.json             |  491 +--
+#    site_v2/src/data/fixtures/1575300.json             |  444 +-
+#    site_v2/src/data/fixtures/1575301.json             |  558 +--
+#    site_v2/src/data/fixtures/1575302.json             |  508 +--
+#    site_v2/src/data/fixtures/1575303.json             |  561 ++-
+#    site_v2/src/data/fixtures/1575304.json             |  507 +--
+#    site_v2/src/data/fixtures/1575305.json             |  597 +--
+#    site_v2/src/data/fixtures/1575306.json             |  490 +--
+#    site_v2/src/data/fixtures/1575307.json             |  546 +--
+#    site_v2/src/data/fixtures/1575308.json             |  473 +--
+#    site_v2/src/data/fixtures/1575309.json             |  569 +--
+#    site_v2/src/data/fixtures/1575310.json             |  520 +--
+#    site_v2/src/data/fixtures/1575311.json             |  548 +--
+#    site_v2/src/data/fixtures/1575312.json             |  630 ++-
+#    site_v2/src/data/fixtures/1575313.json             |  537 +--
+#    site_v2/src/data/fixtures/1575314.json             |  482 ++-
+#    site_v2/src/data/fixtures/1575315.json             |  579 +--
+#    site_v2/src/data/fixtures/1575316.json             |  601 +--
+#    site_v2/src/data/fixtures/1575317.json             |  380 +-
+#    site_v2/src/data/fixtures/1575318.json             |  560 +--
+#    site_v2/src/data/fixtures/1575319.json             |  454 ++-
+#    site_v2/src/data/fixtures/1575320.json             |  597 ++-
+#    site_v2/src/data/fixtures/1575321.json             |  610 ++-
+#    site_v2/src/data/fixtures/1575322.json             |  646 +--
+#    site_v2/src/data/fixtures/1575323.json             |  549 +--
+#    site_v2/src/data/fixtures/1575324.json             |  490 +--
+#    site_v2/src/data/fixtures/1575325.json             |  574 +--
+#    site_v2/src/data/fixtures/1575326.json             |  536 +--
+#    site_v2/src/data/fixtures/1575327.json             |  573 +--
+#    site_v2/src/data/fixtures/1575328.json             |  437 +-
+#    site_v2/src/data/fixtures/1575329.json             |  576 +--
+#    site_v2/src/data/fixtures/1575330.json             |  629 +--
+#    site_v2/src/data/fixtures/1575331.json             |  529 +--
+#    site_v2/src/data/fixtures/1575332.json             |  537 +--
+#    site_v2/src/data/fixtures/1575333.json             |  542 +--
+#    site_v2/src/data/fixtures/1575334.json             |  609 +--
+#    site_v2/src/data/fixtures/1575335.json             |  454 ++-
+#    site_v2/src/data/fixtures/1575336.json             |  475 +--
+#    site_v2/src/data/fixtures/1575337.json             |  420 +-
+#    site_v2/src/data/fixtures/1575338.json             |  442 +-
+#    site_v2/src/data/fixtures/1575339.json             |  623 ++-
+#    site_v2/src/data/fixtures/1575340.json             |  617 +--
+#    site_v2/src/data/fixtures/1575341.json             |  603 +--
+#    site_v2/src/data/fixtures/1575342.json             |  568 ++-
+#    site_v2/src/data/fixtures/1575343.json             |  484 ++-
+#    site_v2/src/data/fixtures/1575344.json             |  436 +-
+#    site_v2/src/data/fixtures/1575345.json             |  484 ++-
+#    site_v2/src/data/fixtures/1575346.json             |  514 +--
+#    site_v2/src/data/fixtures/1575347.json             |  607 ++-
+#    site_v2/src/data/fixtures/1575348.json             |  592 ++-
+#    site_v2/src/data/fixtures/1575349.json             |  484 +--
+#    site_v2/src/data/fixtures/1575350.json             |  448 +-
+#    site_v2/src/data/fixtures/1575351.json             |  611 +--
+#    site_v2/src/data/fixtures/1575352.json             |  608 +--
+#    site_v2/src/data/fixtures/1575353.json             |  452 +-
+#    site_v2/src/data/fixtures/1575354.json             |  438 +-
+#    site_v2/src/data/fixtures/1575355.json             |  531 +--
+#    site_v2/src/data/fixtures/1575356.json             |  570 +--
+#    site_v2/src/data/fixtures/1575357.json             |  491 +--
+#    site_v2/src/data/fixtures/1575358.json             |  600 ++-
+#    site_v2/src/data/fixtures/1575359.json             |  515 +--
+#    site_v2/src/data/fixtures/1575360.json             |  543 +--
+#    site_v2/src/data/fixtures/1575361.json             |  476 ++-
+#    site_v2/src/data/fixtures/1575362.json             |  532 +--
+#    site_v2/src/data/fixtures/1575363.json             |  442 +-
+#    site_v2/src/data/fixtures/1575364.json             |  602 +--
+#    site_v2/src/data/fixtures/1575365.json             |  568 +--
+#    site_v2/src/data/fixtures/1575366.json             |  531 +--
+#    site_v2/src/data/fixtures/1575367.json             |  544 +--
+#    site_v2/src/data/fixtures/1575368.json             |  559 +--
+#    site_v2/src/data/fixtures/1575369.json             |  479 +--
+#    site_v2/src/data/fixtures/1575370.json             |  590 +--
+#    site_v2/src/data/fixtures/1575371.json             |  523 +--
+#    site_v2/src/data/fixtures/1575372.json             |  499 +--
+#    site_v2/src/data/fixtures/1575373.json             |  478 +--
+#    site_v2/src/data/fixtures/1575374.json             |  542 +--
+#    site_v2/src/data/fixtures/1575375.json             |  495 +--
+#    site_v2/src/data/fixtures/1575376.json             |  507 +--
+#    site_v2/src/data/fixtures/1575377.json             |  545 +--
+#    site_v2/src/data/fixtures/1575378.json             |  515 +--
+#    site_v2/src/data/fixtures/1575379.json             |  504 +--
+#    site_v2/src/data/fixtures/1575380.json             |  502 +--
+#    site_v2/src/data/fixtures/1575381.json             |  570 +--
+#    site_v2/src/data/fixtures/1575382.json             |  591 +--
+#    site_v2/src/data/fixtures/1575383.json             |  618 +--
+#    site_v2/src/data/fixtures/1575384.json             |  590 ++-
+#    site_v2/src/data/fixtures/1575385.json             |  531 ++-
+#    site_v2/src/data/fixtures/1575386.json             |  553 +--
+#    site_v2/src/data/fixtures/1575387.json             |  567 +--
+#    site_v2/src/data/fixtures/1575388.json             |  440 +-
+#    site_v2/src/data/fixtures/1575389.json             |  496 +--
+#    site_v2/src/data/fixtures/1575390.json             |  498 +--
+#    site_v2/src/data/fixtures/1575391.json             |  478 ++-
+#    site_v2/src/data/fixtures/1575392.json             |  438 +-
+#    site_v2/src/data/fixtures/1575393.json             |  547 +--
+#    site_v2/src/data/fixtures/1575394.json             |  598 ++-
+#    site_v2/src/data/fixtures/1575395.json             |  551 +--
+#    site_v2/src/data/fixtures/1575396.json             |  573 +--
+#    site_v2/src/data/fixtures/1575397.json             |  490 +--
+#    site_v2/src/data/fixtures/1575398.json             |  506 +--
+#    site_v2/src/data/fixtures/1575399.json             |  438 +-
+#    site_v2/src/data/fixtures/1575400.json             |  630 +--
+#    site_v2/src/data/fixtures/1575401.json             |  631 ++-
+#    site_v2/src/data/fixtures/1575402.json             |  553 +--
+#    site_v2/src/data/fixtures/1575403.json             |  485 +--
+#    site_v2/src/data/fixtures/1575404.json             |  535 +--
+#    site_v2/src/data/fixtures/1575405.json             |  526 +--
+#    site_v2/src/data/fixtures/1575406.json             |  506 +--
+#    site_v2/src/data/fixtures/1575407.json             |  511 +--
+#    site_v2/src/data/fixtures/1575408.json             |  486 ++-
+#    site_v2/src/data/fixtures/1575409.json             |  538 +--
+#    site_v2/src/data/fixtures/1575410.json             |  553 ++-
+#    site_v2/src/data/fixtures/1575411.json             |  606 ++-
+#    site_v2/src/data/fixtures/1575412.json             |  503 +--
+#    site_v2/src/data/fixtures/1575413.json             |  515 +--
+#    site_v2/src/data/fixtures/1575414.json             |  480 ++-
+#    site_v2/src/data/fixtures/1575415.json             |  526 +--
+#    site_v2/src/data/fixtures/1575416.json             |  498 +--
+#    site_v2/src/data/fixtures/1575417.json             |  524 +--
+#    site_v2/src/data/fixtures/1575418.json             |  566 +--
+#    site_v2/src/data/fixtures/1575419.json             |  612 +--
+#    site_v2/src/data/fixtures/1575420.json             |  613 +--
+#    site_v2/src/data/fixtures/1575421.json             |  579 +--
+#    site_v2/src/data/fixtures/1575422.json             |  537 +--
+#    site_v2/src/data/fixtures/1575423.json             |  575 +--
+#    site_v2/src/data/fixtures/1575424.json             |  498 +--
+#    site_v2/src/data/fixtures/1575425.json             |  396 +-
+#    site_v2/src/data/fixtures/1575426.json             |  422 +-
+#    site_v2/src/data/fixtures/1575427.json             |  539 +--
+#    site_v2/src/data/fixtures/1575428.json             |  548 +--
+#    site_v2/src/data/fixtures/1575429.json             |  585 +--
+#    site_v2/src/data/fixtures/1575430.json             |  392 +-
+#    site_v2/src/data/fixtures/1575431.json             |  502 +--
+#    site_v2/src/data/fixtures/1575432.json             |  500 +--
+#    site_v2/src/data/fixtures/1575433.json             |  622 ++-
+#    site_v2/src/data/fixtures/1575434.json             |  559 +--
+#    site_v2/src/data/fixtures/1575435.json             |  601 ++-
+#    site_v2/src/data/fixtures/1575436.json             |  462 ++-
+#    site_v2/src/data/fixtures/1575437.json             |  554 +--
+#    site_v2/src/data/fixtures/1575438.json             |  614 ++-
+#    site_v2/src/data/fixtures/1575439.json             |  537 ++-
+#    site_v2/src/data/fixtures/1575440.json             |  554 +--
+#    site_v2/src/data/fixtures/1575441.json             |  567 +--
+#    site_v2/src/data/fixtures/1575442.json             |  484 ++-
+#    site_v2/src/data/fixtures/1575443.json             |  560 +--
+#    site_v2/src/data/fixtures/1575444.json             |  469 ++-
+#    site_v2/src/data/fixtures/1575445.json             |  432 +-
+#    site_v2/src/data/fixtures/1575509.json             |  673 +++
+#    site_v2/src/data/fixtures/1575510.json             |  733 ++++
+#    site_v2/src/data/fixtures/1575511.json             |  762 ++++
+#    site_v2/src/data/fixtures/1575512.json             |  762 ++++
+#    site_v2/src/data/fixtures/1575513.json             |  733 ++++
+#    site_v2/src/data/fixtures/1575514.json             |  705 ++++
+#    site_v2/src/data/fixtures/1575515.json             |  720 ++++
+#    site_v2/src/data/fixtures/1575516.json             |  747 ++++
+#    site_v2/src/data/fixtures/1575517.json             |  719 ++++
+#    site_v2/src/data/fixtures/1576188.json             |  728 ++++
+#    site_v2/src/data/fixtures/1576189.json             |  735 ++++
+#    site_v2/src/data/fixtures/1576190.json             |  675 +++
+#    site_v2/src/data/fixtures/1576191.json             |  707 ++++
+#    site_v2/src/data/fixtures/1576192.json             |  749 ++++
+#    site_v2/src/data/fixtures/1576193.json             |  749 ++++
+#    site_v2/src/data/fixtures/1576194.json             |  707 ++++
+#    site_v2/src/data/fixtures/1576195.json             |  735 ++++
+#    site_v2/src/data/fixtures/1576196.json             |  675 +++
+#    site_v2/src/data/fixtures/1584421.json             |  673 +++
+#    site_v2/src/data/fixtures/1584422.json             |  706 ++++
+#    site_v2/src/data/fixtures/1584423.json             |  719 ++++
+#    site_v2/src/data/fixtures/1584424.json             |  748 ++++
+#    site_v2/src/data/fixtures/1584425.json             |  673 +++
+#    site_v2/src/data/fixtures/1584426.json             |  673 +++
+#    site_v2/src/data/fixtures/1584427.json             |  747 ++++
+#    site_v2/src/data/fixtures/1584428.json             |  734 ++++
+#    site_v2/src/data/fixtures/1584429.json             |  734 ++++
+#    site_v2/src/data/fixtures/1603035.json             |  705 ++++
+#    site_v2/src/data/fixtures/1603036.json             |  747 ++++
+#    site_v2/src/data/fixtures/1603037.json             |  748 ++++
+#    site_v2/src/data/fixtures/1603038.json             |  733 ++++
+#    site_v2/src/data/fixtures/1603039.json             |  705 ++++
+#    site_v2/src/data/fixtures/1603040.json             |  763 ++++
+#    site_v2/src/data/fixtures/1603041.json             |  720 ++++
+#    site_v2/src/data/fixtures/1603042.json             |  674 +++
+#    site_v2/src/data/fixtures/1603043.json             |  761 ++++
+#    site_v2/src/data/fixtures/1619086.json             |  242 ++
+#    site_v2/src/data/fixtures/1629927.json             |  464 +++
+#    site_v2/src/data/fixtures/1629928.json             |  471 +++
+#    site_v2/src/data/fixtures/1629929.json             |  373 ++
+#    site_v2/src/data/fixtures/1629930.json             |  398 ++
+#    site_v2/src/data/fixtures/1629931.json             |  602 +++
+#    site_v2/src/data/fixtures/1629932.json             |  498 +++
+#    site_v2/src/data/fixtures/1629933.json             |  602 +++
+#    site_v2/src/data/fixtures/1629934.json             |  602 +++
+#    site_v2/src/data/fixtures/1629935.json             |  641 +++
+#    site_v2/src/data/fixtures/1629936.json             |  602 +++
+#    site_v2/src/data/fixtures/1629937.json             |  561 +++
+#    site_v2/src/data/fixtures/1629938.json             |  620 +++
+#    site_v2/src/data/fixtures/1629939.json             |  499 +++
+#    site_v2/src/data/fixtures/1629940.json             |  471 +++
+#    site_v2/src/data/fixtures/1629941.json             |  602 +++
+#    site_v2/src/data/fixtures/1629942.json             |  700 ++++
+#    site_v2/src/data/fixtures/1635612.json             |  675 +++
+#    site_v2/src/data/fixtures/1635614.json             |  707 ++++
+#    site_v2/src/data/fixtures/1635620.json             |  700 ++++
+#    site_v2/src/data/fixtures/1635623.json             |  707 ++++
+#    site_v2/src/data/fixtures/1635635.json             |  675 +++
+#    site_v2/src/data/fixtures/1635639.json             |  700 ++++
+#    site_v2/src/data/fixtures/1635665.json             |  675 +++
+#    site_v2/src/data/fixtures/1635666.json             |  707 ++++
+#    site_v2/src/data/fixtures/1635671.json             |  675 +++
+#    site_v2/src/data/fixtures/1635674.json             |  670 +++
+#    site_v2/src/data/fixtures/1635679.json             |  675 +++
+#    site_v2/src/data/fixtures/1635690.json             |  728 ++++
+#    site_v2/src/data/fixtures/1635711.json             |  675 +++
+#    site_v2/src/data/fixtures/1635721.json             |  601 +++
+#    site_v2/src/data/fixtures/1635725.json             |  565 +++
+#    site_v2/src/data/fixtures/1635733.json             |  699 ++++
+#    site_v2/src/data/fixtures/1635742.json             |  639 +++
+#    site_v2/src/data/fixtures/1635748.json             |  675 +++
+#    site_v2/src/data/fixtures/1636222.json             |  675 +++
+#    site_v2/src/data/fixtures/1636228.json             |  639 +++
+#    site_v2/src/data/fixtures/1636236.json             |  675 +++
+#    site_v2/src/data/fixtures/1636239.json             |  674 +++
+#    site_v2/src/data/fixtures/1636243.json             |  675 +++
+#    site_v2/src/data/fixtures/1636256.json             |  707 ++++
+#    site_v2/src/data/fixtures/1636260.json             |  676 +++
+#    site_v2/src/data/fixtures/1636268.json             |  675 +++
+#    site_v2/src/data/fixtures/1636274.json             |  675 +++
+#    site_v2/src/data/fixtures/1636279.json             |  675 +++
+#    site_v2/src/data/fixtures/1636293.json             |  675 +++
+#    site_v2/src/data/fixtures/1636295.json             |  671 +++
+#    site_v2/src/data/fixtures/1636300.json             |  675 +++
+#    site_v2/src/data/fixtures/1636326.json             |  638 +++
+#    site_v2/src/data/fixtures/1636328.json             |  675 +++
+#    site_v2/src/data/fixtures/1636332.json             |  706 ++++
+#    site_v2/src/data/fixtures/1636338.json             |  602 +++
+#    site_v2/src/data/fixtures/1636350.json             |  602 +++
+#    site_v2/src/data/fixtures/1636382.json             |  675 +++
+#    site_v2/src/data/fixtures/1636392.json             |  519 +++
+#    site_v2/src/data/fixtures/1636396.json             |  519 +++
+#    site_v2/src/data/fixtures/1636401.json             |  487 +++
+#    site_v2/src/data/fixtures/1636404.json             |  519 +++
+#    site_v2/src/data/fixtures/1636406.json             |  673 +++
+#    site_v2/src/data/fixtures/1636411.json             |  674 +++
+#    site_v2/src/data/fixtures/1636414.json             |  643 +++
+#    site_v2/src/data/fixtures/1636419.json             |  674 +++
+#    site_v2/src/data/fixtures/1636423.json             |  675 +++
+#    site_v2/src/data/fixtures/1636440.json             |  644 +++
+#    site_v2/src/data/fixtures/1636445.json             |  487 +++
+#    site_v2/src/data/fixtures/1636453.json             |  332 ++
+#    site_v2/src/data/fixtures/1636464.json             |  542 +++
+#    site_v2/src/data/fixtures/1636468.json             |  643 +++
+#    site_v2/src/data/fixtures/1636471.json             |  487 +++
+#    site_v2/src/data/fixtures/1636480.json             |  643 +++
+#    site_v2/src/data/fixtures/1636482.json             |  518 +++
+#    site_v2/src/data/fixtures/1637926.json             |  652 +++
+#    site_v2/src/data/fixtures/1637927.json             |  735 ++++
+#    site_v2/src/data/fixtures/1638101.json             |  755 ++++
+#    site_v2/src/data/fixtures/1638102.json             |  761 ++++
+#    site_v2/src/data/fixtures/1638103.json             |  762 ++++
+#    site_v2/src/data/fixtures/1638134.json             |  763 ++++
+#    site_v2/src/data/fixtures/1638135.json             |  763 ++++
+#    site_v2/src/data/fixtures/1638206.json             |  708 ++++
+#    site_v2/src/data/fixtures/1638207.json             |  651 +++
+#    site_v2/src/data/fixtures/1638557.json             |  707 ++++
+#    site_v2/src/data/fixtures/1638558.json             |  676 +++
+#    site_v2/src/data/fixtures/1638559.json             |  700 ++++
+#    .../data/fixtures/{1575174.json => 1638560.json}   |  807 ++--
+#    .../data/fixtures/{1575168.json => 1638561.json}   |  925 +++--
+#    site_v2/src/data/fixtures/1638562.json             |  721 ++++
+#    .../data/fixtures/{1575167.json => 1638563.json}   |  745 ++--
+#    site_v2/src/data/fixtures/1638564.json             |  763 ++++
+#    site_v2/src/data/fixtures/1638565.json             |  602 +++
+#    .../data/fixtures/{1575170.json => 1638566.json}   |  961 +++--
+#    site_v2/src/data/fixtures/1638567.json             |  749 ++++
+#    site_v2/src/data/fixtures/1638568.json             |  714 ++++
+#    site_v2/src/data/fixtures/1638569.json             |  602 +++
+#    .../data/fixtures/{1575175.json => 1638570.json}   |  784 ++--
+#    site_v2/src/data/fixtures/1638571.json             |  627 +++
+#    .../data/fixtures/{1575173.json => 1638572.json}   |  914 +++--
+#    site_v2/src/data/fixtures/1639173.json             |   51 +
+#    site_v2/src/data/fixtures/1639174.json             |   82 +
+#    site_v2/src/data/fixtures/1639175.json             |   51 +
+#    site_v2/src/data/fixtures/1639176.json             |   51 +
+#    site_v2/src/data/fixtures/1639177.json             |   51 +
+#    site_v2/src/data/fixtures/1639178.json             |   51 +
+#    site_v2/src/data/fixtures/1639179.json             |   82 +
+#    site_v2/src/data/fixtures/1639180.json             |   82 +
+#    site_v2/src/data/fixtures/1639181.json             |   51 +
+#    site_v2/src/data/fixtures/1639182.json             |   51 +
+#    site_v2/src/data/fixtures/1639183.json             |   51 +
+#    site_v2/src/data/fixtures/1639184.json             |   82 +
+#    site_v2/src/data/fixtures/1639185.json             |   82 +
+#    site_v2/src/data/fixtures/1639186.json             |   51 +
+#    site_v2/src/data/fixtures/1639187.json             |   51 +
+#    site_v2/src/data/fixtures/1639188.json             |   51 +
+#    site_v2/src/data/fixtures/1639189.json             |   51 +
+#    site_v2/src/data/fixtures/1639190.json             |   82 +
+#    site_v2/src/data/fixtures/1639191.json             |   51 +
+#    site_v2/src/data/fixtures/1639192.json             |   51 +
+#    site_v2/src/data/fixtures/1639883.json             |  763 ++++
+#    site_v2/src/data/fixtures/1639884.json             |  763 ++++
+#    site_v2/src/data/fixtures/1639938.json             |  113 +
+#    site_v2/src/data/fixtures/1639940.json             |  138 +
+#    site_v2/src/data/fixtures/1639955.json             |  113 +
+#    site_v2/src/data/fixtures/1639960.json             |  113 +
+#    site_v2/src/data/fixtures/1639975.json             |  145 +
+#    site_v2/src/data/fixtures/1639978.json             |  113 +
+#    site_v2/src/data/fixtures/1639992.json             |  145 +
+#    site_v2/src/data/fixtures/1639995.json             |  113 +
+#    site_v2/src/data/fixtures/1640004.json             |  113 +
+#    site_v2/src/data/fixtures/1640006.json             |  113 +
+#    site_v2/src/data/fixtures/1640013.json             |  113 +
+#    site_v2/src/data/fixtures/1640017.json             |  138 +
+#    site_v2/src/data/fixtures/1640020.json             |  763 ++++
+#    site_v2/src/data/fixtures/1640021.json             |  763 ++++
+#    site_v2/src/data/fixtures/1640555.json             |  721 ++++
+#    site_v2/src/data/fixtures/1640556.json             |  721 ++++
+#    site_v2/src/data/fixtures/1641100.json             |  253 ++
+#    site_v2/src/data/fixtures/1641101.json             |  217 +
+#    site_v2/src/data/fixtures/1641102.json             |  253 ++
+#    site_v2/src/data/fixtures/1641103.json             |  235 ++
+#    site_v2/src/data/fixtures/1641104.json             |  217 +
+#    site_v2/src/data/fixtures/1641105.json             |  253 ++
+#    site_v2/src/data/fixtures/1641106.json             |  235 ++
+#    site_v2/src/data/fixtures/1641107.json             |  235 ++
+#    site_v2/src/data/fixtures/1641108.json             |  271 ++
+#    site_v2/src/data/fixtures/1641109.json             |  235 ++
+#    site_v2/src/data/fixtures/1641110.json             |  253 ++
+#    site_v2/src/data/fixtures/1641111.json             |  289 ++
+#    site_v2/src/data/fixtures/1641112.json             |  253 ++
+#    site_v2/src/data/fixtures/1641113.json             |  271 ++
+#    site_v2/src/data/fixtures/1641114.json             |  217 +
+#    site_v2/src/data/fixtures/1641115.json             |  278 ++
+#    site_v2/src/data/fixtures/1641116.json             |  217 +
+#    site_v2/src/data/fixtures/1641117.json             |  271 ++
+#    site_v2/src/data/fixtures/1641118.json             |  235 ++
+#    site_v2/src/data/fixtures/1641119.json             |  235 ++
+#    site_v2/src/data/fixtures/1641120.json             |  271 ++
+#    site_v2/src/data/fixtures/1641121.json             |  235 ++
+#    site_v2/src/data/fixtures/1641122.json             |  271 ++
+#    site_v2/src/data/fixtures/1641123.json             |  217 +
+#    site_v2/src/data/fixtures/1641124.json             |  253 ++
+#    site_v2/src/data/fixtures/1641125.json             |  271 ++
+#    site_v2/src/data/fixtures/1641126.json             |  217 +
+#    site_v2/src/data/fixtures/1641127.json             |  253 ++
+#    site_v2/src/data/fixtures/1641128.json             |  253 ++
+#    site_v2/src/data/fixtures/1641624.json             |  253 ++
+#    site_v2/src/data/fixtures/1641625.json             |  271 ++
+#    site_v2/src/data/fixtures/1641626.json             |  271 ++
+#    site_v2/src/data/fixtures/1641627.json             |  325 ++
+#    site_v2/src/data/fixtures/1641628.json             |  325 ++
+#    site_v2/src/data/fixtures/1641629.json             |  253 ++
+#    site_v2/src/data/fixtures/1641630.json             |  271 ++
+#    site_v2/src/data/fixtures/1641631.json             |  271 ++
+#    site_v2/src/data/fixtures/1641632.json             |  271 ++
+#    site_v2/src/data/fixtures/1641633.json             |  253 ++
+#    site_v2/src/data/fixtures/1641730.json             |  271 ++
+#    site_v2/src/data/matches/2026-08-20.json           |  669 +++
+#    site_v2/src/data/matches/2026-08-21.json           |  129 +
+#    site_v2/src/data/matches/2026-08-22.json           |  318 ++
+#    site_v2/src/data/matches/2026-08-23.json           |  318 ++
+#    site_v2/src/data/matches/2026-08-24.json           |  129 +
+#    site_v2/src/data/matches/2026-08-26.json           |   48 +
+#    site_v2/src/data/matches/2026-08-27.json           |  642 +++
+#    site_v2/src/data/matches/2026-09-01.json           |  113 +
+#    site_v2/src/data/matches/2026-09-02.json           |  113 +
+#    site_v2/src/data/matches/2026-09-03.json           |   75 +
+#    site_v2/src/data/matches/2026-09-04.json           |  102 +
+#    site_v2/src/data/matches/2026-09-05.json           |  345 ++
+#    site_v2/src/data/matches/2026-09-06.json           |  372 ++
+#    site_v2/src/data/matches/2026-09-08.json           |  221 +
+#    site_v2/src/data/matches/2026-09-09.json           |  221 +
+#    site_v2/src/data/matches/2026-09-10.json           |  259 ++
+#    site_v2/src/data/matches/2026-09-11.json           |  232 ++
+#    site_v2/src/data/matches/2026-09-12.json           |  518 +++
+#    site_v2/src/data/matches/2026-09-13.json           |  383 ++
+#    site_v2/src/data/matches/2026-09-14.json           |  183 +
+#    site_v2/src/data/matches/2026-09-15.json           |  340 ++
+#    site_v2/src/data/matches/2026-09-16.json           |  367 ++
+#    site_v2/src/data/matches/2026-09-17.json           |  302 ++
+#    site_v2/src/data/matches/2026-09-18.json           |  688 ++++
+#    site_v2/src/data/matches/2026-09-19.json           | 4296 ++++++++++++++++++++
+#    site_v2/src/data/matches/2026-09-20.json           | 2206 ++++++++++
+#    site_v2/src/data/matches/2026-09-21.json           |  194 +
+#    site_v2/src/data/matches/2026-09-22.json           |  410 ++
+#    site_v2/src/data/matches/2026-09-23.json           |   48 +
+#    site_v2/src/data/matches/2026-09-24.json           |   75 +
+#    site_v2/src/data/matches/2026-09-25.json           |  248 ++
+#    site_v2/src/data/matches/2026-09-26.json           |  524 +++
+#    site_v2/src/data/matches/2026-09-27.json           |  567 +++
+#    site_v2/src/data/matches/2026-09-28.json           |  113 +
+#    site_v2/src/data/matches/2026-09-29.json           |   48 +
+#    site_v2/src/data/matches/2026-10-02.json           |   86 +
+#    site_v2/src/data/matches/2026-10-03.json           | 1415 +++++++
+#    site_v2/src/data/matches/2026-10-04.json           |  329 ++
+#    site_v2/src/data/matches/2026-10-05.json           |  167 +
+#    site_v2/src/data/matches/2026-10-06.json           |   86 +
+#    site_v2/src/data/matches/2026-10-07.json           |  194 +
+#    site_v2/src/data/matches/2026-10-08.json           |  167 +
+#    site_v2/src/data/matches/2026-10-09.json           |  590 +++
+#    site_v2/src/data/matches/2026-10-10.json           | 1719 ++++++++
+#    site_v2/src/data/matches/2026-10-11.json           | 1249 ++++++
+#    site_v2/src/data/matches/2026-10-12.json           |  438 ++
+#    site_v2/src/data/matches/2026-10-13.json           |  556 +++
+#    site_v2/src/data/matches/2026-10-14.json           |  329 ++
+#    site_v2/src/data/matches/2026-10-15.json           | 1004 +++++
+#    site_v2/src/data/matches/2026-10-20.json           |   75 +
+#    site_v2/src/data/matches/2026-10-27.json           |  453 +++
+#    site_v2/src/data/matches/2026-11-11.json           |  129 +
+#    site_v2/src/data/matches/2026-12-02.json           |  237 ++
+#    site_v2/src/data/matches/2027-01-07.json           |   75 +
+#    site_v2/src/data/matches/2027-01-08.json           |   75 +
+#    site_v2/src/data/matches/2027-01-09.json           |  102 +
+#    site_v2/src/data/matches/2027-01-10.json           |  102 +
+#    site_v2/src/data/matches/2027-01-11.json           |   75 +
+#    687 files changed, 296421 insertions(+), 73590 deletions(-)
+# ============================================================================
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -218,8 +1970,8 @@ index bdb119de..31d32a50 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    |  35 +-
-#    .claude/task/rendered_page_evidence.md |  42 +--
-#    .claude/task/review_input.patch        | 572 ++++++++++-----------------------
-#    3 files changed, 211 insertions(+), 438 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   56 +-
+#    .claude/task/rendered_page_evidence.md |   40 +-
+#    .claude/task/review_input.patch        | 2125 +++++++++++++++++++++++++++++---
+#    3 files changed, 2001 insertions(+), 220 deletions(-)
 # ============================================================================

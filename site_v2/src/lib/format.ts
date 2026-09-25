@@ -118,6 +118,14 @@ export function formatDate(iso: string | null | undefined, lang: Lang): string {
     weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
   }).format(d);
 }
+/** A day in full, "Saturday 19 September": the Matches page's day switcher and titles. */
+export function formatLongDate(iso: string | null | undefined, lang: Lang): string {
+  const d = toDate(iso);
+  if (!d) return DASH;
+  return new Intl.DateTimeFormat(LOCALE[lang], {
+    weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+  }).format(d);
+}
 export function formatShortDate(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);
   if (!d) return DASH;

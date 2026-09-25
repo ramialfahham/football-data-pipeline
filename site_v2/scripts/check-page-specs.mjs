@@ -28,7 +28,7 @@ export const STRINGS_FILE = join(SITE_ROOT, "src", "i18n", "strings.ts");
 export const SCHEMA_FILE = join(SITE_ROOT, "src", "specs", "page-spec.schema.json");
 
 const LAYOUT_IMPORT_RE = /["'](?:\.\.\/)+layouts\/Layout\.astro["']/;
-export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home"]);
+export const ENTITY_VALUES = new Set(["team", "player", "fixture", "competition", "competitionIndex", "home", "matchDay"]);
 
 // --- the SEO gate's declaration half (#844) -------------------------------------------------
 // This file checks that what a spec DECLARES exists. scripts/audit-seo.mjs checks that what the

@@ -216,7 +216,7 @@ def render_mocks(pages: list[di.Page], tmp: Path) -> dict[str, str]:
 
 
 ADDRESS_WORDS = REPO / "site_v2" / "src" / "i18n" / "address_words.json"
-_TOP_WORDS = ("competitions", "teams", "players")
+_TOP_WORDS = ("competitions", "matches", "teams", "players")
 _TAB_WORDS = ("matches", "stats")
 
 
