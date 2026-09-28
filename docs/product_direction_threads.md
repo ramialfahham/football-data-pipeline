@@ -111,6 +111,6 @@ The site is evolving from a mobile MVP into a professional multi-device website.
 
 ## Related open items (not threads, but linked)
 
-- ML/data science role brief — needs drafting before prediction mart design starts
-- Prediction mart — deferred until role is defined and training data discussion happens
+- Data Scientist role brief: [`roles/data_scientist.md`](roles/data_scientist.md) owns prediction work
+- Prediction mart: waits until the Data Scientist specifies the training data; the product decisions and open questions live in the predictions GitLab issue
 - `mart_league_standings`, `mart_team_season_stats`, `mart_team_squad`, `mart_player_season_stats` — scoped but not ticketed yet; wait until threads 2–3 are resolved

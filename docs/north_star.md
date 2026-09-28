@@ -98,7 +98,7 @@ Multiple revenue streams, built in layers:
 ## Future features (in priority order)
 
 1. **Cool visualizations** — radar charts, trend lines. Stats you can feel. (Shot maps are **data-gated**: the provider feed has no shot coordinates — do not design them until a data source exists.)
-2. **Predictions** — rule-based first, ML eventually. Honest probabilities, not guesses.
+2. **Predictions** — interpretable ML that has to beat a simple baseline on seasons it has not seen. One prediction per match, frozen before kickoff and never changed, with a public track record. Honest probabilities, not guesses.
 3. **Social / sharing** — share a match card, start a debate, see what your friends think.
 4. **Live match companion** — stats updating in real time during the match.
 5. **Historical deep dives** — head-to-head history (✅ modelled: `mart_head_to_head`), season comparisons, player career arcs.
@@ -141,6 +141,7 @@ wakes is the defect the 2026-07-31 org exercise existed to fix.
 | [Analytics Engineer](roles/analytics_engineer.md) | dbt models, data quality, layer architecture | `dbt_project/**`, `scripts/export_*.py` |
 | [Data Engineer](roles/data_engineer.md) | Ingestion, BigQuery, pipeline reliability | `ingestion/**`, the competition registry, the data contract |
 | [Football Analytics Expert](roles/football_analytics_expert.md) | Which metrics matter in football and why — domain truth | `metric_catalogue.csv` |
+| [Data Scientist](roles/data_scientist.md) | Prediction models: training data specification, model choice, evaluation, the public track record | nothing — brief only, no agent |
 | [BI Analyst](roles/bi_analyst.md) | What to show fans and how to frame it — does the page tell a truth a fan can read | all of `site_v2/src/**`, the wireframes, `site/i18n/**` |
 | Scope Auditor | The CPO's proxy: diff versus contract, §10 classes, secrets, undeclared thresholds | **every commit** |
 | [SEO Expert](roles/seo_expert.md) | Findability: URLs, metadata, structured data, the internal link graph | **NOTHING — brief and agent exist, no routing row (#842).** Approved in principle 2026-07-31, not commissioned |
