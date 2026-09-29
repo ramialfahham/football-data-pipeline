@@ -1,23 +1,42 @@
-# Review — design/match-page-review — #132 states 1 to 3
+# Review — fix/own-goal-shootout-goal-split — #179 own goals and shoot-out kicks in the goal split
 
-diff_sha256: f826f3c8e04723544917b25e0d33ae1bce957624941765b8f185e28940edfb05
+diff_sha256: 4c9b766f5023339b64faf6fd193b2a0be1148df69eb33f50a0cde00684e484bd
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: 149 files in the patch; three are not renders (`.claude/task/contract.md`, `design-mocks/README.md`, `design-mocks/gen_match_page.py`) and 146 are `design-mocks/renders/*`, all inside the contract's scope_paths; no diff header under site*, dbt_project, ingestion, scripts, docs or tests.
-- Amendment authority: the 2026-09-29 amendment adding states 2 and 3 quotes dated CPO wording (the #132 state 2 decision comment, the CPO's chat "yes, state 3 decided"); recorded authority, no unrecorded scope growth.
-- Impact map: none of ingestion/**, dbt_project/models/**, scripts/export_*.py or site*/ is touched, so none is required; no coverage-cut pattern in a design-mock-only change.
-- Doc sync: design-mocks/README.md gains the gen_match_page.py row with its MATCH_STATE variants; no layering, guardrail, wireframe or metrics_display content changes.
-- Secrets: the whole patch grepped for key, token, password, bearer, private-key and provider-key patterns: none; the only URLs are the media.api-sports.io image URLs the built site emits; the generator imports no network, subprocess or BigQuery module.
-- Thresholds: "NEW MECHANISM: none, RECURRING COST: none" matches the diff (a generator and static HTML reading only local site_v2/dist and site_v2/src/data).
-- Reserved decisions (#174, the #176 mart name, the German name of shots on target, player-name links) are stated as open and not resolved; the stand-ins (SEASON_PLAYERS, FORM_STANDIN, H2H_HOME) are named as gaps in the legend, not presented as served values.
-- §10 and Appendix A: the proposals are attributed to the CPO's decisions on #132; no bare product decision presented as agreed (A2); nothing computed in the site's frontend (A5); no new escalations.log entry.
-- Renders: headers and first diffs sampled; generated HTML with the stable naming pattern, no non-render content.
-- Round 2 delta: the pre-commit ruff check (F841) refused the commit; the one unused assignment `codes = …` at design-mocks/gen_match_page.py:920 was deleted. No other use of the variable remains, the render output is unchanged, and no mechanism, dependency, cost, file or scope changed; the round-1 findings stand.
-- Rebound after rebasing onto main (#165's merge, which touched only its own docs and the task files): the same 149 files with the same content; the hash changed because the base's task files did.
+- Scope: all 7 non-artifact files (4 models, the new test, metric_catalogue.csv, metric_columns.md) are in scope_paths; no amendments; nothing out of scope touched.
+- Decision classes: catalogue and description wording change with meaning unchanged; the contract cites the CPO's plan approval and his ruling "A. Error, 3 named"; the three excluded fixture ids match that ruling; no metric label, format or URL changed.
+- Doc sync: seed and metric_columns.md consistent; no other contract document describes the changed filter.
+- decisions_reserved: the provider-event correction for the three matches and a player-side shoot-out test are not done in the diff.
+- Impact map: carries the actual dbt ls selection and its 42-model output, measured counts, the reader list and the deploy order (test merges with the model change); not a coverage cut.
+- Thresholds: NEW MECHANISM none (singular test, store_failures an established pattern, the id list is the CPO's ruling); RECURRING COST declared at 38 MB per run.
+- Secrets and permissions: nothing credential-shaped, no workflow or permission change.
+- A1 to A5: no new metric, logic stays in the intermediate layer, no frontend logic, no escalations.log entry.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Layer placement: the four changes are in 4_intermediate models reading only fct_fixture_event; no stg or mart ref, no materialisation override, no partition_by or cluster_by; exactly four fct_fixture_event readers exist and all four are in the diff.
+- Own-goal fix: the ev_own / ev_opp double join is one join on l.team_sk; events groups by (fixture_sk, team_sk) so the leg grain is unchanged; the rename own_goals_scored to own_goals_credited leaves no stale reference.
+- Shoot-out filter: `event_comments is distinct from 'Penalty Shootout'` is NULL-safe; event_comments exists on fct_fixture_event; same wording in the four models and the test.
+- Test: recounts open-play goals from 'Normal Goal' events, so it is not checked against the model's own difference and goes red if the own-goal join or the shoot-out filter regresses; coverage keeps only matches whose attributable goal events sum to the score; error severity per the ruling.
+- Hardcoded fixture ids: fixture_sk equals fixture_api_id, so the ids are valid; fixture, not competition, identifiers; each named with its reason.
+- Catalogue: description text only on the three rows; expression, source, grain, format, group and order untouched; metric_columns.md matches the seed.
+- Consumption layer: no export script or frontend code in the diff.
+- Impact map: writers, lineage, column readers, layer rules, deploy order and blast radius all present and specific.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Catalogue diff: three rows, description only; every other cell on those rows unchanged against main; no new metric or formula.
+- Football validity: a shoot-out kick is not a goal in the scoreline, so leaving it out of penalty goals and the open-play split is right; an own goal counts for the side it benefits; the new goals_own wording is accurate and matches the corrected join.
+- Model, test and description agree: own-goal event joined on the team's own team_sk; all four readers filter shoot-out kicks NULL-safely; the test checks events against the scoreline at error severity.
+- Edge cases: the finishing rows stay untouched and nothing is capped; the three provider-mislabelled matches are named in the test with reasons and reserved to the CPO.
+- Direction: goals_penalty and goals_own stay higher_better; no direction changed.
+- Scope: every changed file inside scope_paths; the docs block regenerated from the seed.
 
 ## escalations
 (none)
