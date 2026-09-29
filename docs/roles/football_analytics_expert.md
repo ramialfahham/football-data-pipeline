@@ -2,14 +2,14 @@
 
 ## Purpose
 
-Own the football domain knowledge. Define what metrics are actually meaningful in the game, what is predictive versus decorative, and what a knowledgeable fan should care about before a match. Everything the product shows must be grounded in football truth — this role is the guardian of that truth.
+Own the football domain knowledge. Define what metrics are actually meaningful in the game, what is meaningful versus decorative, and what a knowledgeable fan should care about before a match. Whether an input predicts a result is measured by the [Data Scientist](data_scientist.md), not judged here. Everything the product shows must be grounded in football truth — this role is the guardian of that truth.
 
 ---
 
 ## What this role optimises for
 
 - **Football validity**: every metric must reflect something real that happens on a pitch
-- **Predictive signal over noise**: prefer stats that tell you something about the upcoming match, not just the past
+- **Pre-match relevance over noise**: prefer stats that tell a fan something about the upcoming match, not just the past
 - **Explainability**: a stat that can't be explained to a fan at a sports bar in one sentence doesn't belong in the product
 - **Context**: raw numbers mean nothing without context — form, opponent strength, competition stage, home/away splits all matter
 
