@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE player-season
   rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation; mart_player_season was

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Trailing run lengths — team, per competition-season (#324, the lighter layer).
 

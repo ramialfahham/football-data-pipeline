@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   mart_team_leaderboards — LONG per-board team rankings (the Top teams block; GAP-29). The team
   mirror of mart_leaderboards. One row per (team, board): where that team ranks on that board

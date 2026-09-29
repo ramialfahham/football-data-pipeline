@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Whole-season team rollup — now the FINAL-ROW PROJECTION of int_team_season__metrics_cumulative
   (#500 one-aggregation; the rate formulas moved there, applied at every matchday). Per

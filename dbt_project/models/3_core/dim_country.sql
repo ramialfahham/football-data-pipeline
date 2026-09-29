@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
     The canonical country dimension (#69). Countries existed nowhere in the model layer before
     this: they were free text in four dims (dim_league, dim_team, dim_player, dim_coach), spelled

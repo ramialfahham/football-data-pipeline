@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
     Conformed team↔competition↔season membership. One row per team per competition per
     season in which the team has at least one fixture — finished OR scheduled. A

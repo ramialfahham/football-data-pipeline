@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   Player competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
   LONG: one row per (player, season, position_group, metric_key). Each row places the player against his

@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   Wide fixture-preview mart — one row per upcoming fixture (next round per league).
 

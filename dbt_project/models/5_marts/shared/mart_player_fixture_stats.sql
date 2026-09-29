@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Per-fixture player stat lines (#323). The player half of the match detail
   view: every player's stat line for one finished fixture, both sides. Pure

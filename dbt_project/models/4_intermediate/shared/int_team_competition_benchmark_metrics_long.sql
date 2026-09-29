@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   The 22 team competition-benchmark metrics in LONG form, per team-season: one row per
   (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (season-to-date, teams with

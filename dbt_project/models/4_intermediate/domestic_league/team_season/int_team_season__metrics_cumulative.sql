@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Per-matchday cumulative team-season metrics — the season rate formulas applied to EVERY
   cumulative row of int_team_season_record (not just the final one). This is the single home of

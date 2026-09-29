@@ -96,12 +96,9 @@ issue had already approved.
 - **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home, no hybrid-browse block). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP is **retired** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**. v2 has its own go-live.
 - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
 - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
-- **Staging AND base models are TABLES.** As views, nothing stored an intermediate result and every
-  *test* re-scanned the raw JSON, which cost more than building the models; stored once a night,
-  every test reads a small table. Materialisation is a LAYER decision set once in
-  `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a
-  model must never override it per model, whatever the value. `scripts/check_layer_contract.py`
-  enforces both layers. Size cost work from a fresh measurement, never from a figure in a document.
+- **Materialisation** is one rule for every layer, stated in `dbt_project/docs/layering.md`
+  §Materialisation and enforced by `scripts/check_layer_contract.py`. Size cost work from a fresh
+  measurement, never from a figure in a document.
 
 ## Scalability rules — enforced by CI
 

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Canonical per (player, CLUB, competition-season) aggregate over all finished matches — the finest-grain
   player rollup (#480 §8.3). Where int_player_season__metrics pools a whole competition-season, this keeps

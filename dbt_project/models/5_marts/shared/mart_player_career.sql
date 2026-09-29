@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Player Career log (content_architecture §4; #480 §8.3). One row per (player, CLUB, competition-season):
   the player's appearances / goals / assists at that club that competition-season + player identity

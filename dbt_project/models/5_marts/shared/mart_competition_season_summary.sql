@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   mart_competition_season_summary — one row per competition-season with the season's headline
   numbers: how many matches and goals, goals per match, how results split between home wins,

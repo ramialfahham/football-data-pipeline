@@ -106,44 +106,28 @@ models:
       relation: true
       columns: true
 
-    # 1. Staging: Raw cleanup. TABLES since 2026-08-12 (#33 items 9/10). These were views from
-    # the project's first commit, on the same "not storing an intermediate result is cheaper"
-    # reasoning #547 already disproved one layer up. A view stores nothing, so every reader
-    # re-executes the JSON parse underneath it: 59 staging tests plus ~20 base-model reads scan
-    # each raw table about five times a night to answer questions a stored table answers for
-    # BigQuery's 10 MB minimum. Measured on 2026-08-12, prod build over 24h: tests $0.17 against
-    # models $0.07 — the same tests-cost-more-than-models signature #547 was diagnosed from.
-    # Storing staging once a night collapses that multiplier to one scan per model.
-    # The saving today is ~$3-4/month and the case is NOT today's money: item 8b shrank
-    # RAW_APIF_TRANSFERS from 6.99 GiB to 0.178 GiB, so #33's own figures for this item are
-    # stale. What is bought is that cost stops scaling with (tests x raw size) as competitions
-    # are added. Storage added is ~0.5 GiB — the whole base layer, which is this layer's parsed
-    # output, is 0.415 GiB.
+    # Materialisation: dbt_project/docs/layering.md §Materialisation.
+
+    # 1. Staging: Raw cleanup
     1_staging:
       +materialized: table
       +schema: staging
 
-    # 2. Base: UNION ALL + dedup. TABLES since 2026-08-02 (#547). These were views, on the reasoning
-    # that not storing an intermediate result is cheaper. Measured, it is the opposite: staging and
-    # base were BOTH views, so nothing stored anything and every TEST on a base model re-executed
-    # the whole chain down to the raw JSON. Over 35 days on prod, tests cost $23.91 against $5.84 to
-    # build the models. RAW_APIF_TRANSFERS is 6.82 GiB over 1,117 rows and was scanned about seven
-    # times a night (six tests plus a fact build) for $8.56 of a $29.79 total. Storing base once a
-    # night makes every test read a small table instead. See dbt_project/docs/layering.md.
+    # 2. Base: UNION ALL + dedup
     2_base:
       +materialized: table
 
-    # 3. Core: Star Schema / Dimensional Entities (Tables)
+    # 3. Core: Star Schema / Dimensional Entities
     3_core:
       +materialized: table
       +schema: core
 
-    # 4. Intermediate: Business logic & heavy math (Tables)
+    # 4. Intermediate: Business logic & heavy math
     4_intermediate:
       +materialized: table
       +schema: intermediate
 
-    # 5. Marts: BI-ready data products (Tables)
+    # 5. Marts: BI-ready data products
     5_marts:
       +materialized: table
       +schema: marts

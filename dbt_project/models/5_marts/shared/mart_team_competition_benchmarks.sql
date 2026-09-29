@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   Team competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
   LONG: one row per (team, season, metric_key) over the 22 team season metrics. Each row places the team

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Team profile (#324). One row per (team, competition-season): the full profile
   surface a team page renders. Composes existing season rollups and adds the two

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Appearances-aligned year-over-year — player, domestic leagues only (Phase C, #391;
   the player mirror of int_team_profile__yoy, #324).

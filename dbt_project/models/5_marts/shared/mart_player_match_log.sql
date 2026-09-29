@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Player match log (#325). One row per (player, finished fixture): the player's
   stat line for that match plus the match context (opponent, score, result from

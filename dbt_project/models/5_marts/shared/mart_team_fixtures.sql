@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   Team fixtures (GAP-15). One row per (team, fixture), team perspective: the
   team-profile page's "next fixture + recent results" surface.

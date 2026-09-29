@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   mart_leaderboards — LONG per-board player rankings (the Leaderboards block; content_architecture §3).
   Generalises the retired mart_top_scorers beyond goals. One row per (player, board): the player's rank on

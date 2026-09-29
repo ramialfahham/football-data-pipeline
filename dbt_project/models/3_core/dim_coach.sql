@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Pure coach ENTITY: one row per coach_api_id (identity / bio only; NO league_code — mirrors
   dim_player and dim_team). "Which clubs and when" lives in dim_coach_team_mapping, not here.

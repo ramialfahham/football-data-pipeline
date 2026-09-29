@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Building-block player-match leg: one row per (player, finished match) with that player's
   raw counts, plus the competition's type/entity classification and the dimensions windows

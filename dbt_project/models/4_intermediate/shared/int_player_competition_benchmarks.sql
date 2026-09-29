@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Competition benchmark engine (player). Per (league_code, season_api_year, position_group, metric_key): the
   distribution of each benchmarked metric over the position's qualifying players, so a player's per-90 can be

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   W2 season-record builder — player. Cumulative running totals over a player's finished
   matches within one competition+season, one row per match the player appeared in (totals

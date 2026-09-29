@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   W2 season-record mart — team. One row per upcoming fixture side: the team's cumulative
   record in the fixture's own competition this season (the number shown beside W1 momentum).

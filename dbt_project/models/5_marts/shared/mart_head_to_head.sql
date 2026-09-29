@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Head-to-head (#375). All-time past meetings between two teams, DIRECTED: one
   row per (team_sk, opponent_team_sk) = that team's record against that opponent.

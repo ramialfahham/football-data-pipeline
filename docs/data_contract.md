@@ -25,7 +25,7 @@ No `response` data is discarded at ingest, so new fields surface in modelling wi
 Raw tables are **created** partitioned by `DATE(ingested_at)` and clustered by `league_code` (`ingestion/api_football/bigquery.py:88-93`). Two cautions go with that, and the second one has cost real money:
 
 - Creation uses `exists_ok=True`, so a table that predates the partitioning code is **never retro-fitted**. Do not assume a given raw table is partitioned — check it: `bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_<ENTITY>` and read `timePartitioning` (metadata only, free).
-- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. Bounding the table by deleting at write time was tried (#33 item 8) and **reversed on 2026-08-17** — see [Raw appends and never deletes](#raw-appends-and-never-deletes). The way scan cost is actually bounded today is that staging is materialised as a **table**, so each raw table is parsed once a night rather than once per test (#33 items 9/10). If the raw tables ever need bounding again it is compaction by **version count** per key in a separate job, never a delete at write time, and never keyed on time (#892).
+- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. Bounding the table by deleting at write time was tried (#33 item 8) and **reversed on 2026-08-17** — see [Raw appends and never deletes](#raw-appends-and-never-deletes). The way scan cost is actually bounded today is that staging is a **table** (`dbt_project/docs/layering.md` §Materialisation), so each raw table is parsed once a night rather than once per test. If the raw tables ever need bounding again it is compaction by **version count** per key in a separate job, never a delete at write time, and never keyed on time (#892).
 
 dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
 
@@ -111,8 +111,8 @@ indistinguishable from it. Three deletes were built on that signal and all three
 | `delete_superseded_league_rows` (per league) | never fired destructively that we know of; it would have wiped a competition's entire standings/teams/transfers history in one run |
 
 The scan-cost argument that bought them is spent. `RAW_APIF_TRANSFERS` really did fall from 6.99 GiB
-to 0.178 GiB under 8b, but staging became a materialised **table** four days later (#33 items 9/10),
-so each raw table is now parsed once a night instead of once per test. Append-only costs roughly
+to 0.178 GiB under 8b, but staging is a **table** (`dbt_project/docs/layering.md` §Materialisation),
+so each raw table is parsed once a night instead of once per test. Append-only costs roughly
 $1-2/month in scanning plus cents of storage.
 
 **Do not reintroduce a delete to bound a table.** If growth needs bounding, compact by **version

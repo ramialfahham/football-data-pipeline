@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   W1 momentum-window list mart — team. The drill-down behind the momentum metrics
   (#323): the same window matches mart_team_momentum aggregates, exposed

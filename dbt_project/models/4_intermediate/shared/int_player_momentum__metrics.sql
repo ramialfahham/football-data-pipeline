@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   W1 momentum builder — player.
 

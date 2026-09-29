@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Per-fixture team stat line (#323). The detail view behind a match in the
   form-window list: the full team stat line for one finished fixture, both

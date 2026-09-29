@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   Latest market_value_eur snapshot per team (max as_of_date, then source_code for tie-break).
 #}
