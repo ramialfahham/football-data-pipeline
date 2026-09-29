@@ -1,48 +1,63 @@
-# Task contract — #165: the Data Scientist role brief
+# Task contract — #132: the match page review renders, states 1 to 3
 
 objective: >
-  Write the Data Scientist role brief, the role that owns the prediction models, and move the
-  "predictive" claim off the Football Analytics Expert; update the prediction lines in
-  product_direction_threads.md and north_star.md, and add the role to the north star's Roles table.
-  Docs only.
+  Put the match page in front of the CPO for the #132 review, one state at a time: the next matchday
+  (state 1), a match further out (state 2) and a played match (state 3). A design mock generated from
+  the BUILT page where one exists, with a "Built today" / "Proposed" switch, every proposed change
+  marked and numbered, each block's data source shown on a toggle, and the approved instance of each
+  element beside the block that uses it; filed as renders of record through design-mocks/render.py.
+  No site change.
 
 refs: >
-  #165 (the build issue; its What exactly is the requirement); #164 (the predictions decisions issue
-  the brief enforces); the plan approved in plan mode.
+  #132 (the review issue: block by block, data sources, links), its decision comments "State 1 — the
+  next matchday: decided", "State 2 — the future match page: decided" and "State 3 — the played
+  match's page: decided"; the reference mock d70aae67 ("Fixture page — clean design");
+  docs/wireframes/01_fixture_page.md; the CPO's go in chat for each state.
 
 scope_paths:
-  - docs/roles/data_scientist.md
-  - docs/roles/football_analytics_expert.md
-  - docs/product_direction_threads.md
-  - docs/north_star.md
+  - design-mocks/gen_match_page.py
+  - design-mocks/renders/*
+  - design-mocks/README.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
+  - .claude/task/acceptance_evidence.md
+  - .claude/task/rendered_page_evidence.md
+  - .claude/task/audit_reviewer_outputs.md
+  - docs/tracker/**
 
 decisions_taken: >
-  The CPO's rulings, recorded on #165 and approved in plan mode: the role is named "Data Scientist"
-  (over ML Engineer and Predictive Modeller), because it spans exploration, modelling and the
-  published analysis pages. The Football Analytics Expert stays, but without the claim to decide what
-  is predictive, because predictiveness is now measured on unseen seasons; it keeps the football
-  validity of displayed metrics. The Data Scientist specifies each input and its as-of-kickoff rule;
-  the Analytics Engineer builds it in dbt under the layer rules and DQ tests; the model code belongs
-  to the Data Scientist. No reviewer agent and no review routing for the Data Scientist yet: the
-  north star's Roles row says "nothing — brief only, no agent". Builder's: the brief's wording within
-  the plan's approved text, the file name data_scientist.md.
+  The renders show the built page unchanged under "Built today" and, under "Proposed", only changes
+  made of elements the site already ships or elements the CPO approved in the review, each with its
+  approved instance shown beside it. Every decision is the CPO's, made block by block in chat and
+  recorded in his words on #132; the renders record them, the build issues filed from them
+  (#166, #167, #94, #174 to #181) carry them to the site.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a document; no agent, no routing row). RECURRING
-  COST: none.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a design-mock generator, the established pattern).
+  RECURRING COST: none.
 
 decisions_reserved:
-  - A reviewer agent and a routing row for the Data Scientist: a separate governance step (#165 Not in scope).
-  - docs/ui_design_brief.md ("no win probability"): changes when the prediction page is designed.
-  - Every product decision on predictions (launch bar, cost, variables): #164, the CPO's.
+  - Which played matches get a page, and its cost: #174, the CPO's.
+  - The name of the mart that serves a match as a window of one: the CPO's, at build (#176).
+  - The German name of shots on target ("Torschüsse" or "Schüsse aufs Tor"): the CPO's, with #177's
+    German names.
+  - Player-name links: player pages exist only for players on the rankings boards; whether every
+    player gets a page is #169's.
 
 done_when:
-  - python -m pytest tests/ -q passes, including test_no_decision_history_in_docs.py,
-    test_governance_doc_parity.py and test_no_dead_issue_refs.py.
-  - python scripts/check_task_artifacts.py passes.
-  - git diff --stat gitlab/main shows exactly the 4 docs plus the task artifacts.
-  - The MR pipeline passes on GitLab.
+  - python design-mocks/render.py gen_match_page.py match-page (and future-match-page,
+    played-match-page with MATCH_STATE future, future-unmet, played, played-pen) writes a render of
+    record, after npm run build for the states with a built page.
+  - python scripts/check_design_inventory.py --no-built --no-mocks --page on each decided render
+    reports only the failures #167 changes (the competition group head's left edge) and the prose
+    links #166 changes.
+  - python scripts/check_page_css.py reports 0 findings; pytest tests/test_design_mock_renders.py
+    passes.
+  - Each render is sent to the CPO; the decisions are recorded on #132.
 
-amendments: (none)
+amendments:
+  - 2026-09-29: + states 2 and 3 (renders future-match-page_*, played-match-page_*; the generator's
+    MATCH_STATE future, future-unmet, played and played-pen), inside the existing scope_paths —
+    authority: #132 "State 2 — the future match page: decided" (CPO, 2026-09-27); CPO in chat:
+    "Continue #132, the match page review, state 3 of 3" and "yes, state 3 decided, post on #132";
+    content: objective, refs, decisions_taken, decisions_reserved and done_when cover all three states.
