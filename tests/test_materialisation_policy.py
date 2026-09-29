@@ -22,7 +22,7 @@ quote the config line VERBATIM — `2_base: +materialized: <value>`. That token 
   * changing the policy fails every site at once until each is updated;
   * a site cannot drift by being reworded, because the token is checked, not the sentence.
 
-The cost figures behind the current policy are in dbt_project/docs/layering.md, reproducible with
+The policy is dbt_project/docs/layering.md §Materialisation; measure its cost with
 `python scripts/report_bq_cost.py`.
 """
 
@@ -74,22 +74,22 @@ EXPECTED = {
 # ⚠ KEYED BY LAYER SINCE #33 items 9/10. It was a flat base-only tuple, and when `1_staging`
 # became a table three new prose sites appeared (CLAUDE.md, layering.md, engineering_standards.md)
 # that NOTHING guarded — the precise regression class this file exists for, reintroduced for the
-# layer the change was about. A layer with prose sites belongs here;
-# `3_core`/`4_intermediate`/`5_marts` are absent because no document states their materialisation
-# in the pinned token form.
+# layer the change was about. The rule is stated once, in layering.md §Materialisation, for every
+# layer; the enforcement code (the check script, the layer hook) quotes the lines it enforces, and
+# every other document points to the section and quotes no token.
 POLICY_SITES = {
     "2_base": (
         "dbt_project/docs/layering.md",
-        "CLAUDE.md",
         "scripts/check_layer_contract.py",
         ".claude/hooks/dbt_layer_gate.py",
-        "docs/roles/analytics_engineer.md",
     ),
     "1_staging": (
         "dbt_project/docs/layering.md",
-        "CLAUDE.md",
         "scripts/check_layer_contract.py",
     ),
+    "3_core": ("dbt_project/docs/layering.md",),
+    "4_intermediate": ("dbt_project/docs/layering.md",),
+    "5_marts": ("dbt_project/docs/layering.md",),
 }
 
 # The prose form of the same claim, per layer: "<layer> ... is a <materialisation>". Used by the
@@ -252,6 +252,73 @@ def test_check_layer_contract_rejects_a_staging_per_model_override(tmp_path, mon
         f"layer default is {EXPECTED['1_staging']!r} and no per-model override is allowed. "
         f"errors={errors}"
     )
+
+
+UPPER_LAYERS = ("3_core", "4_intermediate", "5_marts")
+
+
+def test_upper_layer_models_never_override_materialisation_per_model():
+    """Core, intermediate and marts follow the layer too; `incremental` in core is the one exception.
+
+    A per-model setting in these layers is how 13 models became views with no stated reason while
+    every layer default said table.
+    """
+    offenders = []
+    for layer in UPPER_LAYERS:
+        for p in sorted((ROOT / "dbt_project" / "models" / layer).rglob("*.sql")):
+            kinds = set(
+                re.findall(
+                    r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
+                    p.read_text(encoding="utf-8"),
+                    re.IGNORECASE,
+                )
+            )
+            allowed = {"incremental"} if layer == "3_core" and p.name.startswith("fct_") else set()
+            if kinds - allowed:
+                offenders.append(f"{p.relative_to(ROOT).as_posix()} -> {sorted(kinds)}")
+    assert offenders == [], f"models overriding their layer's materialisation: {offenders}"
+
+
+def test_check_layer_contract_rejects_upper_layer_overrides_and_allows_core_incremental(
+    tmp_path, monkeypatch
+):
+    """The CI guard, proved on each of the three layers it newly covers."""
+    mod = _load_layer_contract()
+    dirs = {name: tmp_path / name for name in ("core", "intermediate", "marts")}
+    for d in dirs.values():
+        d.mkdir()
+    (dirs["core"] / "fct_probe_delta.sql").write_text(
+        "{{ config(materialized='incremental', unique_key='k') }}\nselect 1 as k\n",
+        encoding="utf-8",
+    )
+    (dirs["core"] / "dim_probe.sql").write_text(
+        "{{ config(materialized='view') }}\nselect 1 as x\n", encoding="utf-8"
+    )
+    (dirs["core"] / "dim_probe_delta.sql").write_text(
+        "{{ config(materialized='incremental', unique_key='k') }}\nselect 1 as k\n",
+        encoding="utf-8",
+    )
+    (dirs["intermediate"] / "int_probe.sql").write_text(
+        "{{ config(materialized='table') }}\nselect 1 as x\n", encoding="utf-8"
+    )
+    (dirs["marts"] / "mart_probe.sql").write_text(
+        "{{ config(materialized='view') }}\nselect 1 as x\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(mod, "CORE_DIR", dirs["core"])
+    monkeypatch.setattr(mod, "INTERMEDIATE_DIR", dirs["intermediate"])
+    monkeypatch.setattr(mod, "MARTS_DIR", dirs["marts"])
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+
+    errors: list[str] = []
+    mod.check_upper_layer_materialisation(errors)
+
+    flagged = {e.split(":", 1)[0] for e in errors}
+    assert flagged == {
+        "core/dim_probe.sql",
+        "core/dim_probe_delta.sql",
+        "intermediate/int_probe.sql",
+        "marts/mart_probe.sql",
+    }, f"expected every override rejected and only the core incremental FACT allowed: {errors}"
 
 
 def _is_bookkeeping(rel: str) -> bool:

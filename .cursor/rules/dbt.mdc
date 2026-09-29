@@ -14,7 +14,8 @@ alwaysApply: false
 ## Where rules live (do not re-derive here)
 
 - Layer contract and dim/fact qualification: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
-- Testing policy per layer (staging, base, core, intermediate, marts), materialization, CI gate, change management: [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).
+- Testing policy per layer (staging, base, core, intermediate, marts), CI gate, change management: [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).
+- Materialization: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md) §Materialisation.
 
 ## Mandatory layer guardrails
 

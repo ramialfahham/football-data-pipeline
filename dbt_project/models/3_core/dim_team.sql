@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 with import_base_apif__teams_global as (
     select * from {{ ref('base_apif__teams_global') }}
 )

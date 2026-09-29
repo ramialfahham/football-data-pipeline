@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   mart_roster — the club roster identity for the Squad tab (feeds it alongside mart_player_career; content_architecture §3).
   One row per rostered player per (club team, competition-season), from

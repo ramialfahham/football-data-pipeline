@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 with players as (
     select * from {{ ref('base_apif__players') }}
 ),

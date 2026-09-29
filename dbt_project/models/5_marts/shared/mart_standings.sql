@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   Generic standings mart — one approach for every competition that has standings.
   Serves two jobs:

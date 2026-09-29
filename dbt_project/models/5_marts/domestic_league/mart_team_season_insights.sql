@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Full-season team insights for the latest season_api_year per league_code.
   Same metric depth as matchday form; grain one row per team. Use when there is no upcoming

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Building-block team-match leg: one row per (team, finished match), carrying that team's
   raw stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   GAP-16 — the player's team per competition-season: the club of their MOST RECENT finished match
   that season (chosen because it is deterministic and byte-stable, where the roster

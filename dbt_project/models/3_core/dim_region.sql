@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
     The region dimension (#69) — the counterpart to dim_country. A competition points at ONE of the
     two: a domestic competition has a country, a continental or international one has a region.

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Player contribution-share — a player's goal-involvement share of the team's WHOLE-SEASON goals
   (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of

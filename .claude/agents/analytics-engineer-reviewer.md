@@ -23,8 +23,8 @@ and pass.
 
 ## Your hunt — every item, every time
 
-1. **Layer placement**: staging = raw cleanup only; base = first logic/dedup
-   (views); core = facts/dims, no stg refs, no parsing; intermediate never
+1. **Layer placement**: staging = raw cleanup only; base = first logic/dedup;
+   core = facts/dims, no stg refs, no parsing; intermediate never
    refs marts; marts = consumption. Logic in a convenient-but-wrong layer is
    a defect even when the SQL is correct.
 2. **Tests with the change**: new/changed model → grain test present? New

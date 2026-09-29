@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Games-played-aligned year-over-year — team, domestic leagues only (#324). Now covers ALL
   season metrics (not just the 3 totals): COMPOSES int_team_season__metrics_cumulative (the rate

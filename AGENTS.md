@@ -69,4 +69,4 @@ These fail without a valid service account JSON written to disk:
 - **`dbt_project.yml` warning about unused snapshot config** is benign — it fires because no snapshot models are currently defined under that path.
 - **Python 3.12** works with the current dependency set despite the README mentioning 3.11.
 - **`core.hooksPath`** may be set in the git config, blocking `pre-commit install`. Run `git config --unset-all core.hooksPath` first if you see "Cowardly refusing to install hooks."
-- **`dbt build` takes ~7 minutes** for the full project (153 views, 29 tables, 677 tests, 3 seeds).
+- **`dbt build` takes ~7 minutes** for the full project.

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Dated player transfers (moves). One row per distinct move: which player moved from
   which team to which team, on which date, plus the provider's raw type string. The

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
     One row per competition — the SINGLE source for the competitions page (#54, #62 step 3).
     Before this, that page would have read four things to render one row: the registry YAML,

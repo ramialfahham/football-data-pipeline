@@ -9,11 +9,11 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
 | Dataset | What lives there |
 |---------|------------------|
 | **`raw`** | 1:1 ingestion from Python (unified `RAW_APIF_*` tables, e.g. `RAW_APIF_FIXTURES_NEXT`, shared across all competitions and discriminated by a `league_code STRING` column — there are no per-competition raw tables). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
-| **`staging`** | `1_staging` dbt models (tables since #33 items 9/10): light cleanup on top of `raw`. |
-| **`base`** | `2_base` models (tables since #547): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
-| **`core`** | `3_core` models (tables): **system of record**—canonical **dimension** and **fact** tables. |
-| **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
-| **`marts`** | `5_marts` models (tables): **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
+| **`staging`** | `1_staging` dbt models: light cleanup on top of `raw`. |
+| **`base`** | `2_base` models: **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
+| **`core`** | `3_core` models: **system of record**—canonical **dimension** and **fact** tables. |
+| **`intermediate`** | `4_intermediate` models: **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
+| **`marts`** | `5_marts` models: **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
 
 dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema` (the base models + seeds). Configured layer models take their dataset from [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), which prefixes the name by dbt target — see **Environment isolation** below.
 
@@ -65,6 +65,31 @@ From `2_base` upward, a model may `ref()` any model in the **same layer or any u
 - `base` — cannot `ref()` `dim_*`, `fct_*`, `int_*`, or `mart_*`
 - `core` — cannot `ref()` `stg_*` (must go through base) or `mart_*`
 - `intermediate` — cannot `ref()` `mart_*`
+- every layer — no model sets its own materialisation, except `incremental` on a `3_core` fact (§Materialisation)
+
+## Materialisation
+
+Set once per layer in `dbt_project/dbt_project.yml`. A model never sets its own, with the one
+exception below; `scripts/check_layer_contract.py` enforces this on every layer.
+
+| Layer | Config line |
+|---|---|
+| `1_staging` | `1_staging: +materialized: table` |
+| `2_base` | `2_base: +materialized: table` |
+| `3_core` | `3_core: +materialized: table` |
+| `4_intermediate` | `4_intermediate: +materialized: table` |
+| `5_marts` | `5_marts: +materialized: table` |
+
+- **Tables, not views.** BigQuery bills every read of a view as a full re-run of everything beneath
+  it, at least 10 MB for each table it reads. Every model has tests and readers, so a view is paid
+  for many times a night and a table once. A view that ranks also ranks again on every read, so
+  two readers of the same build can see different orders.
+- **The one exception: `incremental` on a `3_core` fact whose source delivers only a per-run
+  delta** (the latest fixtures), because a full rebuild from that source would lose the history:
+  `fct_fixture_event`, `fct_fixture_player_stats` and `fct_fixture_team_stats`, each with a
+  documented `unique_key`. A fact whose source returns the full history on every call
+  (`fct_fixture`, `fct_standings`, `fct_team_market_value_snapshot`) stays a full-refresh table.
+- No ephemeral models.
 
 ## Goals
 
@@ -76,37 +101,7 @@ From `2_base` upward, a model may `ref()` any model in the **same layer or any u
 
 Purpose: source-near cleanup with minimal transformation.
 
-**Why tables, changed 2026-08-12 (#33 items 9/10).** Staging was a view from the project's first
-commit (`1f422c0`, 2026-04-10) on the same "not storing an intermediate result is cheaper"
-reasoning #547 had already disproved one layer down. A view stores nothing, so every reader
-re-executes the JSON parse beneath it: **59 staging tests** plus ~20 base-model reads scanned each
-raw table roughly five times a night to answer questions a stored table answers for BigQuery's
-10 MB minimum. Measured on 2026-08-12 across 24h of prod builds, tests cost **$0.17** against
-**$0.07** to build the models — the same tests-cost-more-than-models signature #547 was diagnosed
-from. Storing staging once a night collapses the multiplier to one scan per model.
-
-⚠ **Do not size future work from #33's figures for this item.** That issue justified the change on
-`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) shrank it to **0.178 GiB**, a
-39x reduction, so the largest scan the item was written about was already gone by the time it
-landed. The saving today is ~**$3-4/month**. What the change actually buys is that cost stops
-scaling with (number of tests × raw size) as competitions are added. Storage added is ~0.5 GiB —
-for scale, the entire base layer, which is this layer's parsed output, is 0.415 GiB across 43
-tables, while the `staging` dataset was 0.0 GiB because views store nothing.
-
-⚠ **And do not size from 0.178 GiB either.** Item 8b was REVERSED on 2026-08-17 (CPO: raw appends
-and never deletes), so `RAW_APIF_TRANSFERS` grows again by one row per league per ingest. Measure
-before quoting; `bq show` per table is free. The causality also runs the other way and is worth
-keeping straight: materialising THIS layer as a table is what made the reversal affordable, because
-raw is now parsed once a night instead of once per test.
-
-Materialisation is a **LAYER** decision set once in `dbt_project.yml`.
-The policy line is `1_staging: +materialized: table`, and a staging model must never override it
-per model. `scripts/check_layer_contract.py`
-(`check_staging_materialisation`) enforces that in CI and
-`tests/test_materialisation_policy.py` is the offline twin. The rule is "no per-model
-`config(materialized=...)` at all", not "no wrong value": a model pinned to the layer's current
-value silently stops moving when the layer is re-costed. Reproduce the figures with
-`python scripts/report_bq_cost.py`.
+Materialisation: see §Materialisation.
 
 A staging model does exactly two things, in this order:
 
@@ -194,9 +189,7 @@ Not allowed:
 - Declaring the authoritative business **fact** or **dimension** system of record (that belongs in **core**).
 - Presentation or delivery logic aimed at a specific app or report.
 - `ref()`-ing a core / intermediate / mart model. Base sits below them in the DAG and may only read `stg_*` or other `base_*` models. *(CI-enforced by `scripts/check_layer_contract.py`.)*
-- Overriding materialization: base models materialise as **tables** (`dbt_project.yml` `2_base: +materialized: table`). Do not add a per-model `config(materialized=...)` at all — the layer default governs, and a per-model override is what lets one model drift from the policy. *(CI-enforced by `check_layer_contract.py`.)*
-
-  **Why tables, changed 2026-08-02 (#547).** They were views, on the reasoning that not storing an intermediate result is cheaper. Measured, it was the opposite. Staging and base were BOTH views, so nothing stored anything and every **test** on a base model re-executed the whole chain down to the raw JSON. Over 35 days on the prod target, tests cost **$23.91** against **$5.84** to build the models — testing cost four times what building cost. `RAW_APIF_TRANSFERS` is **6.82 GiB across 1,117 rows**, carries six tests plus a fact build, and was scanned about seven times a night for **$8.56** of a $29.79 total. A base table is read once per night and every test then reads a small stored table. Reproduce the figures with `python scripts/report_bq_cost.py`.
+- Setting materialisation on a model (§Materialisation). *(CI-enforced by `check_layer_contract.py`.)*
 
 ## 3_core
 
@@ -254,7 +247,7 @@ A table earns `fct_` status only when **all three** conditions hold:
 
 Patterns that look like facts but are not:
 
-- **Derived metric table.** Top scorers, top assists, top yellow cards from API-Football are rankings over per-player events and statistics. They are **derived views** over `fct_fixture_player_stats` and `fct_fixture_event` and live in `4_intermediate` or `5_marts` once a consumer needs them. Ingesting them as facts in `3_core` would duplicate the underlying measures.
+- **Derived metric table.** Top scorers, top assists, top yellow cards from API-Football are rankings over per-player events and statistics. They are **derived** from `fct_fixture_player_stats` and `fct_fixture_event` and live in `4_intermediate` or `5_marts` once a consumer needs them. Ingesting them as facts in `3_core` would duplicate the underlying measures.
 - **Degenerate fact.** Rounds are only labels attached to fixtures, with no measures of their own. Keep them as a degenerate attribute on `fct_fixture` (`round_name`); a separate `fct_round` adds no information.
 - **Consumer-specific denormalization.** A wide per-team season summary is a **mart**, not a core fact, even when it carries measures — facts in `3_core` stay at their atomic grain so multiple marts can aggregate them differently.
 - **Deferred fact.** `fct_prediction` and `fct_fixture_lineup` each pass the three-condition test in principle but are deferred until a mart consumer actually queries them; ingesting to `3_core` without a consumer adds maintenance without value.
@@ -268,26 +261,12 @@ Canonical fact inventory for this project:
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
 | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
-| `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR); full-refresh table. WC-scoped — no `league_code`. |
+| `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR). WC-scoped — no `league_code`. |
 
 Most facts propagate `league_code` so they are safe to union across future leagues
 (the seed-sourced `fct_team_market_value_snapshot` is the WC-only exception).
 
-### Materialization: incremental vs full-refresh
-
-Core materialization is **decided per fact by how its raw source delivers data**, not by a blanket rule. Dimensions are always full-refresh `table`.
-
-| Source delivery pattern | Materialization | Why |
-|-------------------------|-----------------|-----|
-| Raw snapshot carries the **full history** every run | `table` (full-refresh) | The latest snapshot already contains every record, so a full rebuild reproduces complete history. Incremental would add merge complexity for no gain. |
-| Raw delivers only a **delta/subset** per run (per-fixture fanout) | `incremental` (with documented `unique_key`) | Each run fetches only the missing fixtures, so history must accumulate in core — a full rebuild would see only today's subset. |
-
-Applied to the current inventory:
-
-- **Full-refresh `table`:** `fct_fixture`, `fct_standings`, `fct_team_market_value_snapshot`. The `/fixtures` and `/standings` endpoints return the complete season on every call, and the loader writes the whole snapshot (see [`docs/data_contract.md`](../../docs/data_contract.md) append-only section). The latest staging partition therefore holds full history; the table is correct and simpler.
-- **`incremental`:** `fct_fixture_event` (`unique_key='event_sk'`), `fct_fixture_player_stats` (`fixture_player_stat_sk`), `fct_fixture_team_stats` (`fixture_team_stat_sk`). These per-fixture fanout tables fetch only the next round's fixtures each run, so prior fixtures' rows must persist in core.
-
-**Rule for the next agent:** do **not** "upgrade" a reference-derived fact (`fct_fixture` etc.) to `incremental` — full-refresh is intentional and depends on the raw snapshot carrying full history (a property PR #311 / issue #283 explicitly preserves by still writing skipped historical seasons into the snapshot). Only make a *new* fact incremental if its source delivers a partial payload per run, and document the `unique_key` and the reason inline, mirroring the fanout facts. This split is the historical resolution of issue #223 (which originally proposed making *all* core facts incremental — that premise only held for the fanout tables).
+Materialisation, including which facts are `incremental`: see §Materialisation.
 
 ### Snapshots
 
@@ -322,37 +301,37 @@ Not allowed:
 ### Mart conventions
 
 - Every mart carries `league_code` as a column so multi-league slicing is a filter, not a schema change. When a second league is onboarded, marts do not need to be rewritten.
-- Rollup marts (one row per business entity and grain) materialize as `table`; flat denormalized projections materialize as `view` unless a latency requirement forces a table.
+- Materialisation: see §Materialisation.
 
 Canonical mart inventory (exhaustive) for this project:
 
-| Mart | Grain | Materialization | Notes |
-|------|-------|-----------------|-------|
-| `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
-| `mart_leaderboards` | (player_sk, season_sk, metric_key) | view | LONG per-board player leaderboards, the thirteen boards of the competition page's Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share, every board most first. |
-| `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | view | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
-| `mart_next_matchday` | fixture_sk | table | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
-| `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
-| `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
-| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | The provider's official standings row as published (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
-| `mart_competition_season_summary` | (league_code, season_api_year) | table | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
-| `mart_team_market_value` | team_sk | view | Team squad market value; currently WC-scoped (see #418 to generalize). |
-| `mart_team_profile` | (team_sk, season_sk) | table | v2 team profile: full-season metrics, YoY deltas, streaks. |
-| `mart_player_profile` | (player_sk, season_sk) | table | v2 player profile rollup. |
-| `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
-| `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 momentum aggregate (team). |
-| `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
-| `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
-| `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | view | W2 season-record aggregate (team). |
-| `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
-| `mart_team_fixture_stats` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
-| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
-| `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
-| `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
-| `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
-| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 22 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). Direction-agnostic (positional). |
-| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | view | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmarks`. Floor: minutes ≥ 270 in position. Direction-agnostic (positional). |
-| `mart_player_career` | (player_sk, team_sk, season_sk) | table | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
+| Mart | Grain | Notes |
+|------|-------|-------|
+| `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
+| `mart_leaderboards` | (player_sk, season_sk, metric_key) | LONG per-board player leaderboards, the thirteen boards of the competition page's Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share, every board most first. |
+| `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
+| `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
+| `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+| `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
+| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The provider's official standings row as published (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
+| `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
+| `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
+| `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
+| `mart_player_profile` | (player_sk, season_sk) | v2 player profile rollup. |
+| `mart_player_match_log` | (player_sk, fixture_sk) | Per-player per-fixture match log. |
+| `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | W1 last-5 momentum aggregate (team). |
+| `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | W1 momentum aggregate (player). |
+| `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
+| `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
+| `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
+| `mart_team_fixture_stats` | (fixture_sk, team_sk) | Per-fixture team stat lines. |
+| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | Per-fixture player stat lines. |
+| `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
+| `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
+| `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
+| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | LONG team-vs-league benchmark over the 22 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). Direction-agnostic (positional). |
+| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmarks`. Floor: minutes ≥ 270 in position. Direction-agnostic (positional). |
+| `mart_player_career` | (player_sk, team_sk, season_sk) | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
 
 ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
 

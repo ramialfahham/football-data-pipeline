@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 with date_series as (
     {{
         dbt_utils.date_spine(

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Per (player, competition-season, POSITION) aggregate over all finished matches — the position-split
   sibling of int_player_season__metrics, built for the player competition benchmark (content_architecture

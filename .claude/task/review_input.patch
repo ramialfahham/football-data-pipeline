@@ -1,424 +1,1554 @@
+diff --git a/.claude/agents/analytics-engineer-reviewer.md b/.claude/agents/analytics-engineer-reviewer.md
+index 3759968f..609ce1ef 100644
+--- a/.claude/agents/analytics-engineer-reviewer.md
++++ b/.claude/agents/analytics-engineer-reviewer.md
+@@ -23,8 +23,8 @@ and pass.
+ 
+ ## Your hunt — every item, every time
+ 
+-1. **Layer placement**: staging = raw cleanup only; base = first logic/dedup
+-   (views); core = facts/dims, no stg refs, no parsing; intermediate never
++1. **Layer placement**: staging = raw cleanup only; base = first logic/dedup;
++   core = facts/dims, no stg refs, no parsing; intermediate never
+    refs marts; marts = consumption. Logic in a convenient-but-wrong layer is
+    a defect even when the SQL is correct.
+ 2. **Tests with the change**: new/changed model → grain test present? New
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 2955221b..d41a5b72 100644
+index d41a5b72..d9698e85 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,22 +1,28 @@
--# Task contract — #179: own goals credited to the wrong side, shoot-out kicks counted as penalties
-+# Task contract — #180: team save percentage counts an own goal as a shot the keeper failed to save
+@@ -1,30 +1,97 @@
+-# Task contract — #180: team save percentage counts an own goal as a shot the keeper failed to save
++# Task contract — materialisation: one strategy, written once, true in the code
  
  objective: >
--  Fix the open-play goal split behind Goals per shot on target. An own goal counts for the side it
--  benefits (the provider files the own-goal event under the team it counts for; int_legs__team_match
--  joins it as the opponent's), and shoot-out kicks (event_comments = 'Penalty Shootout') count as no
--  goal and no penalty in the four readers of goal events. A new error-level test holds the split to
--  the scoreline; the catalogue's descriptions state the corrected filter.
-+  Team save percentage (saves_pct) becomes saves / (saves + goals conceded that were not own goals).
-+  The team leg gains the own goals it conceded (goals_own_against); the two same-window models sum
-+  them over save-covered games beside goals_against_in_save_games; the two places that divide
-+  subtract them; the catalogue formula and description say so.
+-  Team save percentage (saves_pct) becomes saves / (saves + goals conceded that were not own goals).
+-  The team leg gains the own goals it conceded (goals_own_against); the two same-window models sum
+-  them over save-covered games beside goals_against_in_save_games; the two places that divide
+-  subtract them; the catalogue formula and description say so.
++  Every dbt model is a table, set once per layer in dbt_project.yml; the single exception is
++  `incremental` for a core fact whose source delivers only a per-run delta (today the three fan-out
++  facts). The 13 views become tables, the 52 per-model `table` configs that repeat the layer
++  default are removed, check_layer_contract.py and its test enforce the rule on all five layers,
++  and the rule is written once, in dbt_project/docs/layering.md §Materialisation, with every other
++  document pointing to it.
  
  refs: >
--  #179 (What exactly / Why / How). The CPO's approval of the plan in chat, and his ruling on the
--  test: "A. Error, 3 named". docs/metric_layer.md.
-+  #180 (What exactly / Why / How), as edited to team only. The CPO's ruling on the scope, chosen from
-+  three options: "B. Team now, player issue" — player save percentage is #184. The CPO's approval
-+  of the plan in chat. docs/metric_layer.md. The id pattern recorded on #94 (goals_own_against:
-+  noun goals, qualifier own, _against).
+-  #180 (What exactly / Why / How), as edited to team only. The CPO's ruling on the scope, chosen from
+-  three options: "B. Team now, player issue" — player save percentage is #184. The CPO's approval
+-  of the plan in chat. docs/metric_layer.md. The id pattern recorded on #94 (goals_own_against:
+-  noun goals, qualifier own, _against).
++  The CPO's request in chat to start with layering.md and materialisation, and his instruction to
++  act as the expert on the strategy; the plan he approved in chat. Measured before any edit
++  (read-only, job history, last 14 days): tests on the 13 views billed about 211 GiB in prod over
++  13 days; building all 13 as tables scans about 0.5 GiB (dry run).
  
  scope_paths:
-   - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
--  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
--  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
--  - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
-+  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
-+  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++  - dbt_project/models/3_core/dim_coach.sql
++  - dbt_project/models/3_core/dim_coach_team_mapping.sql
++  - dbt_project/models/3_core/dim_competition_season.sql
++  - dbt_project/models/3_core/dim_country.sql
++  - dbt_project/models/3_core/dim_date.sql
++  - dbt_project/models/3_core/dim_league.sql
++  - dbt_project/models/3_core/dim_player.sql
++  - dbt_project/models/3_core/dim_player_team_season_mapping.sql
++  - dbt_project/models/3_core/dim_region.sql
++  - dbt_project/models/3_core/dim_team.sql
++  - dbt_project/models/3_core/dim_team_competition_season_mapping.sql
++  - dbt_project/models/3_core/fct_fixture.sql
++  - dbt_project/models/3_core/fct_standings.sql
++  - dbt_project/models/3_core/fct_team_market_value_snapshot.sql
++  - dbt_project/models/3_core/fct_transfer.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
 +  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
-+  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
-+  - dbt_project/models/4_intermediate/shared/int_legs.yml
-+  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
-+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-   - dbt_project/seeds/metric_catalogue.csv
-   - dbt_project/models/docs/metric_columns.md
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++  - dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
+   - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+-  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++  - dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season__team.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+   - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
++  - dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+   - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+-  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++  - dbt_project/models/4_intermediate/shared/team/int_team__market_value_latest.sql
++  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++  - dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++  - dbt_project/models/5_marts/shared/mart_competition_index.sql
++  - dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
++  - dbt_project/models/5_marts/shared/mart_fixture_standing_context.sql
++  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_player_career.sql
++  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
++  - dbt_project/models/5_marts/shared/mart_player_momentum.sql
++  - dbt_project/models/5_marts/shared/mart_player_profile.sql
++  - dbt_project/models/5_marts/shared/mart_player_season_record.sql
++  - dbt_project/models/5_marts/shared/mart_roster.sql
++  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++  - dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_team_market_value.sql
+   - dbt_project/models/5_marts/shared/mart_team_momentum.sql
+-  - dbt_project/models/4_intermediate/shared/int_legs.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+-  - dbt_project/seeds/metric_catalogue.csv
+-  - dbt_project/models/docs/metric_columns.md
++  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++  - dbt_project/models/5_marts/shared/mart_team_profile.sql
++  - dbt_project/models/5_marts/shared/mart_team_season.sql
++  - dbt_project/models/5_marts/shared/mart_team_season_record.sql
++  - dbt_project/docs/layering.md
++  - dbt_project/docs/engineering_standards.md
++  - dbt_project/dbt_project.yml
++  - CLAUDE.md
++  - AGENTS.md
++  - docs/roles/analytics_engineer.md
++  - .cursor/rules/dbt.mdc
++  - scripts/check_layer_contract.py
++  - tests/test_materialisation_policy.py
++  - .claude/agents/analytics-engineer-reviewer.md
++  - docs/data_contract.md
++  - tests/test_no_decision_history_in_docs.py
    - .claude/task/contract.md
-@@ -28,85 +34,61 @@ scope_paths:
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
+@@ -33,62 +100,101 @@ scope_paths:
+   - .claude/task/audit_reviewer_outputs.md
    - docs/tracker/**
  
++protected_override: >
++  .claude/agents/analytics-engineer-reviewer.md: remove the word "(views)" after "base = first
++  logic/dedup", which contradicts the base layer being a table. Approved by the CPO in chat through
++  the plan, whose line reads: "`.claude/agents/analytics-engineer-reviewer.md` says base is
++  "(views)", which is wrong; fixed by removing that word. Approving this plan approves that edit."
++  (approved 2026-09-29, in chat, through the plan). The MR head's `Locked files:` line repeats this
++  quote.
++
  impact_map: >
--  writers: each of the four models is written only by its own SQL file (dbt `table`,
--  materialisation from dbt_project.yml's 4_intermediate layer); fct_fixture_event, the one table
--  they read events from, is only read here and not changed.
-+  writers: each changed model is written only by its own SQL file (dbt `table`); the event and
-+  fixture facts are only read.
- 
-   downstream: `dbt ls --project-dir dbt_project --resource-type model --output name --select
--  "int_legs__team_match+ int_legs__player_match+ int_player_club_season__metrics+
--  int_player_season_position__metrics+"` returned 42 models: int_legs__player_match
--  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
--  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
--  int_player_profile__yoy int_player_season__metrics int_player_season__team
--  int_player_season_position__metrics int_player_season_record
--  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
--  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
--  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
--  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
--  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
--  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
--  mart_player_momentum mart_player_profile mart_player_season_record
--  mart_team_competition_benchmarks mart_team_fixtures mart_team_leaderboards mart_team_momentum
--  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
--  mart_team_season_record. The columns that change are goals_own and goals_penalty on the team leg
--  and goals_penalty / goals_penalty_player on the three player models; the readers of those columns
--  are int_team_momentum_window, int_team_momentum__metrics, int_team_season_record,
--  int_team_season__metrics_cumulative, int_player_season__metrics, mart_team_momentum and the
--  player_benchmark_metrics() macro (grep of goals_own|goals_penalty over dbt_project/**/*.sql).
-+  "int_legs__team_match+"` returned 29 models: int_legs__team_match int_player_momentum__metrics
-+  int_player_profile__contribution int_team_competition_benchmark_metrics_long
-+  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
-+  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
-+  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
-+  mart_competition_fixtures mart_competition_season_summary mart_head_to_head mart_match_days
-+  mart_matchday_insights mart_player_momentum mart_player_profile mart_team_competition_benchmarks
-+  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
-+  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record. The new
-+  columns stay in intermediate models: every mart that reads int_team_momentum_window,
-+  int_team_momentum__metrics or int_team_season_record lists its columns, and
-+  int_team_season__metrics_cumulative lists its output, so no mart gains a column and the season
-+  drift guard sees none. saves_pct is read, unchanged in code, by int_team_profile__yoy,
-+  int_team_competition_benchmark_metrics_long, mart_team_season_insights, mart_team_profile,
-+  mart_team_season_record and mart_matchday_insights.
- 
--  layer_rules: intermediate models stay intermediate; no partition_by / cluster_by; no
--  per-competition file; no materialisation override (check_layer_contract.py). league_code is not
--  branched on.
-+  layer_rules: intermediate stays intermediate; no partition_by / cluster_by; no per-competition
-+  file; no materialisation override (check_layer_contract.py). league_code is not branched on.
- 
--  deploy_order: the four are tables rebuilt in full by every build, so the fix reaches prod at the
--  first 04:00 nightly after merge with no full refresh. No incremental fact is changed. The new test
--  runs in that nightly and in every MR's data build; measured against prod it is 0 rows with the
--  fixed logic (52,361 matches with goal events) and 9,107 rows in 4,559 matches on today's model,
--  so it must merge together with the model change, never before it.
-+  deploy_order: all changed models are tables rebuilt in full by every build; the fix reaches prod
-+  at the first 04:00 nightly after merge with no full refresh. No incremental fact is changed.
- 
--  blast_radius: every team metric built on goals_own / goals_penalty (open-play goals, own goals,
--  penalty goals, Goals per shot on target) in matches with an own goal (4,283 in fct_fixture_event)
--  or a shoot-out (394), and every player metric built on the penalty count in the 394 shoot-out
--  matches (open-play goals, penalty goals, Goals per shot on target, the finishing benchmark).
--  Nothing else: the scoreline and player goals_total are untouched and already leave the shoot-out
--  out (measured: 1,163 of 1,294 shoot-out legs match the non-shoot-out events; 10,706 of 10,713
--  player rows, and none include the shoot-out).
-+  blast_radius: team saves_pct and what reads it, only for teams that conceded an own goal in the
-+  window or season: 4,371 of 119,674 team legs conceded an own goal, 3,897 of them with save stats
-+  (prod, measured). Player save percentage is untouched (#184).
+-  writers: each changed model is written only by its own SQL file (dbt `table`); the event and
+-  fixture facts are only read.
+-
+-  downstream: `dbt ls --project-dir dbt_project --resource-type model --output name --select
+-  "int_legs__team_match+"` returned 29 models: int_legs__team_match int_player_momentum__metrics
+-  int_player_profile__contribution int_team_competition_benchmark_metrics_long
+-  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
+-  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
+-  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
+-  mart_competition_fixtures mart_competition_season_summary mart_head_to_head mart_match_days
+-  mart_matchday_insights mart_player_momentum mart_player_profile mart_team_competition_benchmarks
+-  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
+-  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record. The new
+-  columns stay in intermediate models: every mart that reads int_team_momentum_window,
+-  int_team_momentum__metrics or int_team_season_record lists its columns, and
+-  int_team_season__metrics_cumulative lists its output, so no mart gains a column and the season
+-  drift guard sees none. saves_pct is read, unchanged in code, by int_team_profile__yoy,
+-  int_team_competition_benchmark_metrics_long, mart_team_season_insights, mart_team_profile,
+-  mart_team_season_record and mart_matchday_insights.
+-
+-  layer_rules: intermediate stays intermediate; no partition_by / cluster_by; no per-competition
+-  file; no materialisation override (check_layer_contract.py). league_code is not branched on.
+-
+-  deploy_order: all changed models are tables rebuilt in full by every build; the fix reaches prod
+-  at the first 04:00 nightly after merge with no full refresh. No incremental fact is changed.
+-
+-  blast_radius: team saves_pct and what reads it, only for teams that conceded an own goal in the
+-  window or season: 4,371 of 119,674 team legs conceded an own goal, 3,897 of them with save stats
+-  (prod, measured). Player save percentage is untouched (#184).
++  writers: each model is written only by its own SQL file; no model's SELECT changes. The only
++  model change is the removal of a first-line `{{ config(materialized=...) }}` in 65 files.
++
++  effect per model: 52 models carried `config(materialized='table')`, the same value as their
++  layer default in dbt_project.yml (3_core, 4_intermediate, 5_marts all `+materialized: table`),
++  so their materialisation does not change. 13 carried `config(materialized='view')` and become
++  tables: int_team__market_value_latest, int_team_competition_benchmark_metrics_long,
++  mart_leaderboards, mart_team_leaderboards, mart_matchday_insights, mart_standings, mart_roster,
++  mart_team_fixtures, mart_team_market_value, mart_team_season_record, mart_player_season_record,
++  mart_team_competition_benchmarks, mart_player_competition_benchmarks. The three incremental
++  facts (fct_fixture_event, fct_fixture_player_stats, fct_fixture_team_stats) are untouched.
++
++  downstream, dbt: `dbt ls --project-dir dbt_project --resource-type model --output name --select
++  "<model>+"`, per converted model, downstream models only:
++  int_team__market_value_latest -> mart_team_market_value;
++  int_team_competition_benchmark_metrics_long -> int_team_competition_benchmarks,
++  mart_team_competition_benchmarks;
++  mart_standings -> mart_fixture_standing_context, mart_matchday_insights;
++  mart_leaderboards, mart_team_leaderboards, mart_matchday_insights, mart_roster,
++  mart_team_fixtures, mart_team_market_value, mart_team_season_record, mart_player_season_record,
++  mart_team_competition_benchmarks, mart_player_competition_benchmarks -> no downstream models.
++  Every reader refs the relation by name, which does not change.
++
++  downstream, outside dbt: `grep -rlw <model>` over scripts, site_v2/src (committed data excluded),
++  site_v2/scripts and ingestion: mart_leaderboards, mart_team_leaderboards, mart_team_season_record,
++  mart_player_competition_benchmarks -> export_site_data.py; mart_matchday_insights ->
++  export_matchday_json.py, export_pages_data.py, export_site_data.py, gen_domestic_marts.py;
++  mart_standings -> export_site_data.py, StandingsTable.astro, types.ts; mart_roster,
++  mart_team_fixtures -> export_site_data.py, check-page-specs.test.mjs, types.ts;
++  mart_team_competition_benchmarks -> export_site_data.py, types.ts;
++  int_team__market_value_latest -> check_description_hygiene.py (a name check, not a reader);
++  int_team_competition_benchmark_metrics_long, mart_team_market_value, mart_player_season_record ->
++  none. The export reads each by dataset.table name and selects columns, never the relation type,
++  so a table serves it as the view did; the site reads the export's JSON, not the warehouse.
++
++  row content: unchanged, with two stated exceptions. (1) Values that depend on unbroken ties
++  (#183) can differ between builds as before; a table no longer changes them between reads.
++  (2) Three models filter on `current_date()` (mart_matchday_insights.sql:81,
++  mart_team_season_record.sql:26, mart_player_season_record.sql:25). As views the date was the
++  day of the read; as tables it is the day of the build, as for their table siblings
++  (mart_next_matchday, int_team_momentum_window, mart_team_momentum). Read the same day as the
++  nightly they are identical; after a failed nightly they keep the last build's cut.
++
++  layer_rules: check_layer_contract.py gains the same no-per-model-setting rule for 3_core,
++  4_intermediate and 5_marts, with `incremental` the one value allowed in 3_core.
++
++  protected path: the reviewer brief is read only by the analytics-engineer-reviewer agent when it
++  is spawned; removing a wrong word changes no gate, hook or routing.
++
++  deploy_order: the MR's data:build:mr rebuilds the 65 models and their downstream once in the MR's
++  own ci_mr datasets; the merge's data:build:main is the full prod build every merge already runs.
++
++  blast_radius: object type of 13 relations (view to table); BigQuery cost, measured: tests on the
++  13 views billed about 211 GiB in prod over 13 days, about 16 GiB a day; one build of all 13 as
++  tables scans about 0.5 GiB (dry run). No metric value changes.
  
  decisions_taken: >
--  The CPO approved the plan for #179 in chat: the four models as in the issue's How, the new test,
--  the before/after comparison, and the catalogue wording below. His ruling on the test, chosen from
--  three options: "A. Error, 3 named" — error severity, the three matches whose provider events
--  disagree with the score on who scored left out by fixture id with their reasons (21650, 247587,
--  1373026).
-+  The CPO ruled the scope ("B. Team now, player issue") and approved the plan: the new column
-+  goals_own_against on the team leg, its same-window sum goals_own_against_in_save_games beside the
-+  existing goals_against_in_save_games (which keeps its meaning), the two dividing sites, the
-+  catalogue formula and description (label unchanged), the column docs, no new test (#180 asks for
-+  none), and the before/after compared before the merge.
+-  The CPO ruled the scope ("B. Team now, player issue") and approved the plan: the new column
+-  goals_own_against on the team leg, its same-window sum goals_own_against_in_save_games beside the
+-  existing goals_against_in_save_games (which keeps its meaning), the two dividing sites, the
+-  catalogue formula and description (label unchanged), the column docs, no new test (#180 asks for
+-  none), and the before/after compared before the merge.
++  The CPO approved the plan in chat: every layer table, set once per layer; `incremental` only for
++  a core fact whose source delivers a per-run delta; no views, no ephemeral, no per-model setting
++  elsewhere; the 13 views converted after the cost was measured and found to go down; the 52
++  repeated `table` configs removed; the check extended to all five layers; the rule written once in
++  layering.md with pointers elsewhere; the protected reviewer-brief word removed.
  
--  Catalogue wording, meaning unchanged: goals_penalty and goals_penalty_player state that penalty
--  shoot-out kicks are left out; goals_own says the own goals are the opponents' own goals and that
--  the provider files each such event under the team it counts for. metric_columns.md is regenerated
--  from the seed by scripts/sync_metric_docs_blocks.py.
--
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none — a singular dbt test, the established pattern; its
--  list of three excluded fixture ids is the CPO's ruling above, and no test in dbt_project/tests has
--  one today. RECURRING COST: the test reads 38,352,533 bytes per run (dry run against prod), about
--  1.2 GB a month on the nightly — under one cent a month.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none measurable — one more integer
-+  column carried through tables the nightly already builds.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none measurable — one more integer
+-  column carried through tables the nightly already builds.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none — an existing check extended to three more layers.
++  RECURRING COST: down, measured — see blast_radius.
  
  decisions_reserved:
--  - Correcting the provider's events for the three excluded matches (they keep the provider's wrong
--    split on the site): outside this task, the CPO's.
--  - A player-side test for the shoot-out rule: not in #179, which names one test; the CPO's to ask for.
-+  - Player save percentage: #184, the CPO's to schedule.
-+  - The id saves_pct: renamed by #94, not here.
+-  - Player save percentage: #184, the CPO's to schedule.
+-  - The id saves_pct: renamed by #94, not here.
++  - The tie-breaks that make some values differ between builds: #183, not here.
  
  done_when:
-   - .venv/Scripts/dbt.exe parse --project-dir dbt_project succeeds.
--  - python -m sqlfluff lint on the five SQL files (repo root, jinja templater, bigquery) reports no new
-+  - SQLFluff on the six changed SQL files (repo root, jinja templater, bigquery) reports no new
-     violation against main.
-   - python scripts/sync_metric_docs_blocks.py --check and python scripts/check_description_hygiene.py
--    pass.
--  - Read-only bq, the compiled fixed int_legs__team_match inlined into the test: 0 rows; the test on
--    today's prod model: red (9,107 rows); with the shoot-out filter removed and with the own-goal
--    join put back on the opponent: red.
--  - The fixed leg for fixture 1575150 gives Goals per shot on target 33% | 50%.
--  - The validate-local gates pass; review.md binds the staged hash with every routed verdict PASS.
--  - After the MR's data:build:mr: every site-facing mart in ci_mr<IID>_marts compared with prod's,
--    each changed row traced to a window holding an own-goal or shoot-out match of that team or
--    player, and none elsewhere; the result in the MR head.
-+    pass; the validate-local gates and pytest pass.
-+  - Read-only bq on the compiled fixed team leg: fixture 1575150 gives Hoffenheim goals_own_against
-+    1 and a match save percentage of 0.5; no saves_pct above 1 in the compiled window and season models.
-+  - review.md binds the staged hash with every routed verdict PASS.
-+  - After the MR's data:build:mr and before the merge: every site mart in ci_mr<IID>_marts compared
-+    with prod, each changed saves_pct traced to an own goal conceded in that team's window or season,
-+    the known ties of #183 reported apart; the result in the MR head.
+-  - .venv/Scripts/dbt.exe parse --project-dir dbt_project succeeds.
+-  - SQLFluff on the six changed SQL files (repo root, jinja templater, bigquery) reports no new
+-    violation against main.
+-  - python scripts/sync_metric_docs_blocks.py --check and python scripts/check_description_hygiene.py
+-    pass; the validate-local gates and pytest pass.
+-  - Read-only bq on the compiled fixed team leg: fixture 1575150 gives Hoffenheim goals_own_against
+-    1 and a match save percentage of 0.5; no saves_pct above 1 in the compiled window and season models.
++  - dbt ls lists every model as table except the three incremental facts.
++  - check_layer_contract.py passes, and fails on a model in 3_core, 4_intermediate or 5_marts that
++    sets a per-model materialisation (watched red), and on a core model setting anything but
++    incremental.
++  - pytest tests/test_materialisation_policy.py and the full suite pass; the governance gates and
++    dbt parse pass.
++  - An independent agent confirms no file other than layering.md states a materialisation rule,
++    other than the enforcement code and the pinned token sites.
+   - review.md binds the staged hash with every routed verdict PASS.
+-  - After the MR's data:build:mr and before the merge: every site mart in ci_mr<IID>_marts compared
+-    with prod, each changed saves_pct traced to an own goal conceded in that team's window or season,
+-    the known ties of #183 reported apart; the result in the MR head.
++  - Before the merge: the MR's data:build:mr builds the 13 as tables, and each is compared with the
++    prod view (same rows, same values except the #183 ties); the result in the MR head.
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-09-29: + docs/data_contract.md, tests/test_no_decision_history_in_docs.py — authority: the
++    CPO's approved plan (the rule written once, with no history; other documents point to it) and
++    the standing rule that a reference an approved change breaks is part of that change; content:
++    data_contract.md's two sentences restating staging's materialisation with issue history become
++    a pointer to layering.md §Materialisation, and the decision-history pin is lowered for the
++    documents this change cleaned.
+diff --git a/.cursor/rules/dbt.mdc b/.cursor/rules/dbt.mdc
+index 8588fbec..e7985c81 100644
+--- a/.cursor/rules/dbt.mdc
++++ b/.cursor/rules/dbt.mdc
+@@ -14,7 +14,8 @@ alwaysApply: false
+ ## Where rules live (do not re-derive here)
+ 
+ - Layer contract and dim/fact qualification: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
+-- Testing policy per layer (staging, base, core, intermediate, marts), materialization, CI gate, change management: [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).
++- Testing policy per layer (staging, base, core, intermediate, marts), CI gate, change management: [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).
++- Materialization: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md) §Materialisation.
+ 
+ ## Mandatory layer guardrails
+ 
+diff --git a/AGENTS.md b/AGENTS.md
+index 617f7971..77f6d924 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -69,4 +69,4 @@ These fail without a valid service account JSON written to disk:
+ - **`dbt_project.yml` warning about unused snapshot config** is benign — it fires because no snapshot models are currently defined under that path.
+ - **Python 3.12** works with the current dependency set despite the README mentioning 3.11.
+ - **`core.hooksPath`** may be set in the git config, blocking `pre-commit install`. Run `git config --unset-all core.hooksPath` first if you see "Cowardly refusing to install hooks."
+-- **`dbt build` takes ~7 minutes** for the full project (153 views, 29 tables, 677 tests, 3 seeds).
++- **`dbt build` takes ~7 minutes** for the full project.
+diff --git a/CLAUDE.md b/CLAUDE.md
+index b88e327d..5dfab7dc 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -96,12 +96,9 @@ issue had already approved.
+ - **UI flow**: v2 website IA per `docs/site_architecture.md` (fixtures-first home, no hybrid-browse block). The product is **Matchday Pilot** (`matchdaypilot.com`). The legacy card MVP is **retired** — offline, Pages deleted, `site/` frozen — so there is **no parity requirement and no cutover**. v2 has its own go-live.
+ - **History window is per-source** — how many seasons/years to backfill is a CPO decision made at onboarding time, stored in the registry. No global defaults.
+ - **Cost is non-negotiable** — every competition in `docs/competition_registry.yml` must have `ingest_active` set explicitly before any code is written. `history_seasons` cannot be increased without explicit CPO approval in the same conversation. The pipeline runs once daily at 04:00 UTC; do not add extra runs without approval.
+-- **Staging AND base models are TABLES.** As views, nothing stored an intermediate result and every
+-  *test* re-scanned the raw JSON, which cost more than building the models; stored once a night,
+-  every test reads a small table. Materialisation is a LAYER decision set once in
+-  `dbt_project.yml` — `1_staging: +materialized: table`, `2_base: +materialized: table` — and a
+-  model must never override it per model, whatever the value. `scripts/check_layer_contract.py`
+-  enforces both layers. Size cost work from a fresh measurement, never from a figure in a document.
++- **Materialisation** is one rule for every layer, stated in `dbt_project/docs/layering.md`
++  §Materialisation and enforced by `scripts/check_layer_contract.py`. Size cost work from a fresh
++  measurement, never from a figure in a document.
+ 
+ ## Scalability rules — enforced by CI
+ 
+diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
+index 2a534a37..053dc971 100644
+--- a/dbt_project/dbt_project.yml
++++ b/dbt_project/dbt_project.yml
+@@ -106,44 +106,28 @@ models:
+       relation: true
+       columns: true
+ 
+-    # 1. Staging: Raw cleanup. TABLES since 2026-08-12 (#33 items 9/10). These were views from
+-    # the project's first commit, on the same "not storing an intermediate result is cheaper"
+-    # reasoning #547 already disproved one layer up. A view stores nothing, so every reader
+-    # re-executes the JSON parse underneath it: 59 staging tests plus ~20 base-model reads scan
+-    # each raw table about five times a night to answer questions a stored table answers for
+-    # BigQuery's 10 MB minimum. Measured on 2026-08-12, prod build over 24h: tests $0.17 against
+-    # models $0.07 — the same tests-cost-more-than-models signature #547 was diagnosed from.
+-    # Storing staging once a night collapses that multiplier to one scan per model.
+-    # The saving today is ~$3-4/month and the case is NOT today's money: item 8b shrank
+-    # RAW_APIF_TRANSFERS from 6.99 GiB to 0.178 GiB, so #33's own figures for this item are
+-    # stale. What is bought is that cost stops scaling with (tests x raw size) as competitions
+-    # are added. Storage added is ~0.5 GiB — the whole base layer, which is this layer's parsed
+-    # output, is 0.415 GiB.
++    # Materialisation: dbt_project/docs/layering.md §Materialisation.
++
++    # 1. Staging: Raw cleanup
+     1_staging:
+       +materialized: table
+       +schema: staging
+ 
+-    # 2. Base: UNION ALL + dedup. TABLES since 2026-08-02 (#547). These were views, on the reasoning
+-    # that not storing an intermediate result is cheaper. Measured, it is the opposite: staging and
+-    # base were BOTH views, so nothing stored anything and every TEST on a base model re-executed
+-    # the whole chain down to the raw JSON. Over 35 days on prod, tests cost $23.91 against $5.84 to
+-    # build the models. RAW_APIF_TRANSFERS is 6.82 GiB over 1,117 rows and was scanned about seven
+-    # times a night (six tests plus a fact build) for $8.56 of a $29.79 total. Storing base once a
+-    # night makes every test read a small table instead. See dbt_project/docs/layering.md.
++    # 2. Base: UNION ALL + dedup
+     2_base:
+       +materialized: table
+ 
+-    # 3. Core: Star Schema / Dimensional Entities (Tables)
++    # 3. Core: Star Schema / Dimensional Entities
+     3_core:
+       +materialized: table
+       +schema: core
+ 
+-    # 4. Intermediate: Business logic & heavy math (Tables)
++    # 4. Intermediate: Business logic & heavy math
+     4_intermediate:
+       +materialized: table
+       +schema: intermediate
+ 
+-    # 5. Marts: BI-ready data products (Tables)
++    # 5. Marts: BI-ready data products
+     5_marts:
+       +materialized: table
+       +schema: marts
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index 0d983df2..c6ff238c 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -339,14 +339,7 @@ has not landed is a rule in progress, and the issue that owns it says so:
+ 
+ ## 5) Performance Standards (BigQuery)
+ 
+-- **Materialisation is a LAYER decision, never a per-model one.** It is set once in
+-  `dbt_project.yml` and enforced by `scripts/check_layer_contract.py`; a per-model
+-  `config(materialized=...)` is rejected in `1_staging` and `2_base` whatever its value.
+-- `staging` and `base` are **tables** (#547, and #33 items 9/10). "Prefer views for lightweight
+-  staging" was the rule here until 2026-08-12 and it was wrong for a measurable reason: a view
+-  stores nothing, so every test on it re-executes the parse of the raw JSON underneath. Testing
+-  cost more than building. See `dbt_project/docs/layering.md` §1_staging.
+-- Use tables for heavy transforms in `intermediate` and high-query `marts`.
++- Materialisation: `dbt_project/docs/layering.md` §Materialisation.
+ - For large tables, apply partitioning and clustering (typically on date/time and league/team keys).
+ - Avoid repeated expensive expressions across layers; centralize once in `intermediate` if reused.
+ 
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 91299a55..72a0307f 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -9,11 +9,11 @@ In BigQuery, a **dataset** is the unit that other databases often call a **schem
+ | Dataset | What lives there |
+ |---------|------------------|
+ | **`raw`** | 1:1 ingestion from Python (unified `RAW_APIF_*` tables, e.g. `RAW_APIF_FIXTURES_NEXT`, shared across all competitions and discriminated by a `league_code STRING` column — there are no per-competition raw tables). dbt **sources** point here (`sources.yml` → `schema: raw`). Created by the `ingestion.api_football` package (entrypoint `python -m ingestion.api_football.main`); dataset id overridable with **`API_FOOTBALL_BIGQUERY_DATASET`**. |
+-| **`staging`** | `1_staging` dbt models (tables since #33 items 9/10): light cleanup on top of `raw`. |
+-| **`base`** | `2_base` models (tables since #547): **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
+-| **`core`** | `3_core` models (tables): **system of record**—canonical **dimension** and **fact** tables. |
+-| **`intermediate`** | `4_intermediate` models (tables): **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
+-| **`marts`** | `5_marts` models (tables): **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
++| **`staging`** | `1_staging` dbt models: light cleanup on top of `raw`. |
++| **`base`** | `2_base` models: **preparation for core**—entity resolution and first logical transformations (for example aligning how teams and fixtures are represented across sources). |
++| **`core`** | `3_core` models: **system of record**—canonical **dimension** and **fact** tables. |
++| **`intermediate`** | `4_intermediate` models: **preparation for marts**—complex logic, calculations, and cross-table joins that would be too heavy in a final delivery model. |
++| **`marts`** | `5_marts` models: **consumption layer**—flattened, optimized shapes for application performance and for analytical exploration. |
+ 
+ dbt’s profile field **`dataset`** (`profiles.yml` / `profiles.example.yml`) is the **fallback** dataset for any model **without** a `+schema` (the base models + seeds). Configured layer models take their dataset from [`macros/generate_schema_name.sql`](../macros/generate_schema_name.sql), which prefixes the name by dbt target — see **Environment isolation** below.
+ 
+@@ -65,6 +65,31 @@ From `2_base` upward, a model may `ref()` any model in the **same layer or any u
+ - `base` — cannot `ref()` `dim_*`, `fct_*`, `int_*`, or `mart_*`
+ - `core` — cannot `ref()` `stg_*` (must go through base) or `mart_*`
+ - `intermediate` — cannot `ref()` `mart_*`
++- every layer — no model sets its own materialisation, except `incremental` on a `3_core` fact (§Materialisation)
++
++## Materialisation
++
++Set once per layer in `dbt_project/dbt_project.yml`. A model never sets its own, with the one
++exception below; `scripts/check_layer_contract.py` enforces this on every layer.
++
++| Layer | Config line |
++|---|---|
++| `1_staging` | `1_staging: +materialized: table` |
++| `2_base` | `2_base: +materialized: table` |
++| `3_core` | `3_core: +materialized: table` |
++| `4_intermediate` | `4_intermediate: +materialized: table` |
++| `5_marts` | `5_marts: +materialized: table` |
++
++- **Tables, not views.** BigQuery bills every read of a view as a full re-run of everything beneath
++  it, at least 10 MB for each table it reads. Every model has tests and readers, so a view is paid
++  for many times a night and a table once. A view that ranks also ranks again on every read, so
++  two readers of the same build can see different orders.
++- **The one exception: `incremental` on a `3_core` fact whose source delivers only a per-run
++  delta** (the latest fixtures), because a full rebuild from that source would lose the history:
++  `fct_fixture_event`, `fct_fixture_player_stats` and `fct_fixture_team_stats`, each with a
++  documented `unique_key`. A fact whose source returns the full history on every call
++  (`fct_fixture`, `fct_standings`, `fct_team_market_value_snapshot`) stays a full-refresh table.
++- No ephemeral models.
+ 
+ ## Goals
+ 
+@@ -76,37 +101,7 @@ From `2_base` upward, a model may `ref()` any model in the **same layer or any u
+ 
+ Purpose: source-near cleanup with minimal transformation.
+ 
+-**Why tables, changed 2026-08-12 (#33 items 9/10).** Staging was a view from the project's first
+-commit (`1f422c0`, 2026-04-10) on the same "not storing an intermediate result is cheaper"
+-reasoning #547 had already disproved one layer down. A view stores nothing, so every reader
+-re-executes the JSON parse beneath it: **59 staging tests** plus ~20 base-model reads scanned each
+-raw table roughly five times a night to answer questions a stored table answers for BigQuery's
+-10 MB minimum. Measured on 2026-08-12 across 24h of prod builds, tests cost **$0.17** against
+-**$0.07** to build the models — the same tests-cost-more-than-models signature #547 was diagnosed
+-from. Storing staging once a night collapses the multiplier to one scan per model.
+-
+-⚠ **Do not size future work from #33's figures for this item.** That issue justified the change on
+-`RAW_APIF_TRANSFERS` at 6.99 GiB; item 8b (merge-on-write) shrank it to **0.178 GiB**, a
+-39x reduction, so the largest scan the item was written about was already gone by the time it
+-landed. The saving today is ~**$3-4/month**. What the change actually buys is that cost stops
+-scaling with (number of tests × raw size) as competitions are added. Storage added is ~0.5 GiB —
+-for scale, the entire base layer, which is this layer's parsed output, is 0.415 GiB across 43
+-tables, while the `staging` dataset was 0.0 GiB because views store nothing.
+-
+-⚠ **And do not size from 0.178 GiB either.** Item 8b was REVERSED on 2026-08-17 (CPO: raw appends
+-and never deletes), so `RAW_APIF_TRANSFERS` grows again by one row per league per ingest. Measure
+-before quoting; `bq show` per table is free. The causality also runs the other way and is worth
+-keeping straight: materialising THIS layer as a table is what made the reversal affordable, because
+-raw is now parsed once a night instead of once per test.
+-
+-Materialisation is a **LAYER** decision set once in `dbt_project.yml`.
+-The policy line is `1_staging: +materialized: table`, and a staging model must never override it
+-per model. `scripts/check_layer_contract.py`
+-(`check_staging_materialisation`) enforces that in CI and
+-`tests/test_materialisation_policy.py` is the offline twin. The rule is "no per-model
+-`config(materialized=...)` at all", not "no wrong value": a model pinned to the layer's current
+-value silently stops moving when the layer is re-costed. Reproduce the figures with
+-`python scripts/report_bq_cost.py`.
++Materialisation: see §Materialisation.
+ 
+ A staging model does exactly two things, in this order:
+ 
+@@ -194,9 +189,7 @@ Not allowed:
+ - Declaring the authoritative business **fact** or **dimension** system of record (that belongs in **core**).
+ - Presentation or delivery logic aimed at a specific app or report.
+ - `ref()`-ing a core / intermediate / mart model. Base sits below them in the DAG and may only read `stg_*` or other `base_*` models. *(CI-enforced by `scripts/check_layer_contract.py`.)*
+-- Overriding materialization: base models materialise as **tables** (`dbt_project.yml` `2_base: +materialized: table`). Do not add a per-model `config(materialized=...)` at all — the layer default governs, and a per-model override is what lets one model drift from the policy. *(CI-enforced by `check_layer_contract.py`.)*
+-
+-  **Why tables, changed 2026-08-02 (#547).** They were views, on the reasoning that not storing an intermediate result is cheaper. Measured, it was the opposite. Staging and base were BOTH views, so nothing stored anything and every **test** on a base model re-executed the whole chain down to the raw JSON. Over 35 days on the prod target, tests cost **$23.91** against **$5.84** to build the models — testing cost four times what building cost. `RAW_APIF_TRANSFERS` is **6.82 GiB across 1,117 rows**, carries six tests plus a fact build, and was scanned about seven times a night for **$8.56** of a $29.79 total. A base table is read once per night and every test then reads a small stored table. Reproduce the figures with `python scripts/report_bq_cost.py`.
++- Setting materialisation on a model (§Materialisation). *(CI-enforced by `check_layer_contract.py`.)*
+ 
+ ## 3_core
+ 
+@@ -254,7 +247,7 @@ A table earns `fct_` status only when **all three** conditions hold:
+ 
+ Patterns that look like facts but are not:
+ 
+-- **Derived metric table.** Top scorers, top assists, top yellow cards from API-Football are rankings over per-player events and statistics. They are **derived views** over `fct_fixture_player_stats` and `fct_fixture_event` and live in `4_intermediate` or `5_marts` once a consumer needs them. Ingesting them as facts in `3_core` would duplicate the underlying measures.
++- **Derived metric table.** Top scorers, top assists, top yellow cards from API-Football are rankings over per-player events and statistics. They are **derived** from `fct_fixture_player_stats` and `fct_fixture_event` and live in `4_intermediate` or `5_marts` once a consumer needs them. Ingesting them as facts in `3_core` would duplicate the underlying measures.
+ - **Degenerate fact.** Rounds are only labels attached to fixtures, with no measures of their own. Keep them as a degenerate attribute on `fct_fixture` (`round_name`); a separate `fct_round` adds no information.
+ - **Consumer-specific denormalization.** A wide per-team season summary is a **mart**, not a core fact, even when it carries measures — facts in `3_core` stay at their atomic grain so multiple marts can aggregate them differently.
+ - **Deferred fact.** `fct_prediction` and `fct_fixture_lineup` each pass the three-condition test in principle but are deferred until a mart consumer actually queries them; ingesting to `3_core` without a consumer adds maintenance without value.
+@@ -268,26 +261,12 @@ Canonical fact inventory for this project:
+ | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
+ | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
+ | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
+-| `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR); full-refresh table. WC-scoped — no `league_code`. |
++| `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR). WC-scoped — no `league_code`. |
+ 
+ Most facts propagate `league_code` so they are safe to union across future leagues
+ (the seed-sourced `fct_team_market_value_snapshot` is the WC-only exception).
+ 
+-### Materialization: incremental vs full-refresh
+-
+-Core materialization is **decided per fact by how its raw source delivers data**, not by a blanket rule. Dimensions are always full-refresh `table`.
+-
+-| Source delivery pattern | Materialization | Why |
+-|-------------------------|-----------------|-----|
+-| Raw snapshot carries the **full history** every run | `table` (full-refresh) | The latest snapshot already contains every record, so a full rebuild reproduces complete history. Incremental would add merge complexity for no gain. |
+-| Raw delivers only a **delta/subset** per run (per-fixture fanout) | `incremental` (with documented `unique_key`) | Each run fetches only the missing fixtures, so history must accumulate in core — a full rebuild would see only today's subset. |
+-
+-Applied to the current inventory:
+-
+-- **Full-refresh `table`:** `fct_fixture`, `fct_standings`, `fct_team_market_value_snapshot`. The `/fixtures` and `/standings` endpoints return the complete season on every call, and the loader writes the whole snapshot (see [`docs/data_contract.md`](../../docs/data_contract.md) append-only section). The latest staging partition therefore holds full history; the table is correct and simpler.
+-- **`incremental`:** `fct_fixture_event` (`unique_key='event_sk'`), `fct_fixture_player_stats` (`fixture_player_stat_sk`), `fct_fixture_team_stats` (`fixture_team_stat_sk`). These per-fixture fanout tables fetch only the next round's fixtures each run, so prior fixtures' rows must persist in core.
+-
+-**Rule for the next agent:** do **not** "upgrade" a reference-derived fact (`fct_fixture` etc.) to `incremental` — full-refresh is intentional and depends on the raw snapshot carrying full history (a property PR #311 / issue #283 explicitly preserves by still writing skipped historical seasons into the snapshot). Only make a *new* fact incremental if its source delivers a partial payload per run, and document the `unique_key` and the reason inline, mirroring the fanout facts. This split is the historical resolution of issue #223 (which originally proposed making *all* core facts incremental — that premise only held for the fanout tables).
++Materialisation, including which facts are `incremental`: see §Materialisation.
+ 
+ ### Snapshots
+ 
+@@ -322,37 +301,37 @@ Not allowed:
+ ### Mart conventions
+ 
+ - Every mart carries `league_code` as a column so multi-league slicing is a filter, not a schema change. When a second league is onboarded, marts do not need to be rewritten.
+-- Rollup marts (one row per business entity and grain) materialize as `table`; flat denormalized projections materialize as `view` unless a latency requirement forces a table.
++- Materialisation: see §Materialisation.
+ 
+ Canonical mart inventory (exhaustive) for this project:
+ 
+-| Mart | Grain | Materialization | Notes |
+-|------|-------|-----------------|-------|
+-| `mart_team_season` | (team_sk, season_sk) | table | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
+-| `mart_leaderboards` | (player_sk, season_sk, metric_key) | view | LONG per-board player leaderboards, the thirteen boards of the competition page's Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share, every board most first. |
+-| `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | view | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
+-| `mart_next_matchday` | fixture_sk | table | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
+-| `mart_matchday_insights` | fixture_sk (per `league_code`) | view | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+-| `mart_team_season_insights` | (league_code, team_sk) | table | MVP latest season per league; slice by `league_code` at export/UI. |
+-| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | view | The provider's official standings row as published (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
+-| `mart_competition_season_summary` | (league_code, season_api_year) | table | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
+-| `mart_team_market_value` | team_sk | view | Team squad market value; currently WC-scoped (see #418 to generalize). |
+-| `mart_team_profile` | (team_sk, season_sk) | table | v2 team profile: full-season metrics, YoY deltas, streaks. |
+-| `mart_player_profile` | (player_sk, season_sk) | table | v2 player profile rollup. |
+-| `mart_player_match_log` | (player_sk, fixture_sk) | table | Per-player per-fixture match log. |
+-| `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | table | W1 last-5 momentum aggregate (team). |
+-| `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | table | W1 momentum aggregate (player). |
+-| `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | table | W1 momentum-window drill-down legs (team). |
+-| `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | view | W2 season-record aggregate (team). |
+-| `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | view | W2 season-record aggregate (player). |
+-| `mart_team_fixture_stats` | (fixture_sk, team_sk) | table | Per-fixture team stat lines. |
+-| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | table | Per-fixture player stat lines. |
+-| `mart_fixture_standing_context` | (fixture_sk, team_sk) | table | Pre-fixture standings / rank context. |
+-| `mart_head_to_head` | (team_sk, opponent_team_sk) | table | Head-to-head history per team pair. |
+-| `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | view | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
+-| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | view | LONG team-vs-league benchmark over the 22 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). Direction-agnostic (positional). |
+-| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | view | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmarks`. Floor: minutes ≥ 270 in position. Direction-agnostic (positional). |
+-| `mart_player_career` | (player_sk, team_sk, season_sk) | table | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
++| Mart | Grain | Notes |
++|------|-------|-------|
++| `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
++| `mart_leaderboards` | (player_sk, season_sk, metric_key) | LONG per-board player leaderboards, the thirteen boards of the competition page's Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share, every board most first. |
++| `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
++| `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
++| `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
++| `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
++| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The provider's official standings row as published (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
++| `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
++| `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
++| `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
++| `mart_player_profile` | (player_sk, season_sk) | v2 player profile rollup. |
++| `mart_player_match_log` | (player_sk, fixture_sk) | Per-player per-fixture match log. |
++| `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | W1 last-5 momentum aggregate (team). |
++| `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | W1 momentum aggregate (player). |
++| `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
++| `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
++| `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
++| `mart_team_fixture_stats` | (fixture_sk, team_sk) | Per-fixture team stat lines. |
++| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | Per-fixture player stat lines. |
++| `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
++| `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
++| `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
++| `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | LONG team-vs-league benchmark over the 22 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). Direction-agnostic (positional). |
++| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmarks`. Floor: minutes ≥ 270 in position. Direction-agnostic (positional). |
++| `mart_player_career` | (player_sk, team_sk, season_sk) | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
+ 
+ ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
+ 
+diff --git a/dbt_project/models/3_core/dim_coach.sql b/dbt_project/models/3_core/dim_coach.sql
+index f4a727f6..60a1deaf 100644
+--- a/dbt_project/models/3_core/dim_coach.sql
++++ b/dbt_project/models/3_core/dim_coach.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Pure coach ENTITY: one row per coach_api_id (identity / bio only; NO league_code — mirrors
+   dim_player and dim_team). "Which clubs and when" lives in dim_coach_team_mapping, not here.
+diff --git a/dbt_project/models/3_core/dim_coach_team_mapping.sql b/dbt_project/models/3_core/dim_coach_team_mapping.sql
+index 7353ace8..a1e05bc0 100644
+--- a/dbt_project/models/3_core/dim_coach_team_mapping.sql
++++ b/dbt_project/models/3_core/dim_coach_team_mapping.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Coach<->team AFFILIATION: one row per (coach, team, stint) — the managerial career history (clubs
+   managed) with start/end dates, from base_apif__coach_career. team_sk is a SOFT link to dim_team:
+diff --git a/dbt_project/models/3_core/dim_competition_season.sql b/dbt_project/models/3_core/dim_competition_season.sql
+index 00fc68d8..ba37ec1f 100644
+--- a/dbt_project/models/3_core/dim_competition_season.sql
++++ b/dbt_project/models/3_core/dim_competition_season.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ with import_base_apif__competition_seasons as (
+     select * from {{ ref('base_apif__competition_seasons') }}
+ )
+diff --git a/dbt_project/models/3_core/dim_country.sql b/dbt_project/models/3_core/dim_country.sql
+index 8d4d4bb6..66ecaf96 100644
+--- a/dbt_project/models/3_core/dim_country.sql
++++ b/dbt_project/models/3_core/dim_country.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+     The canonical country dimension (#69). Countries existed nowhere in the model layer before
+     this: they were free text in four dims (dim_league, dim_team, dim_player, dim_coach), spelled
+diff --git a/dbt_project/models/3_core/dim_date.sql b/dbt_project/models/3_core/dim_date.sql
+index 2a1330f7..d87b7324 100644
+--- a/dbt_project/models/3_core/dim_date.sql
++++ b/dbt_project/models/3_core/dim_date.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ with date_series as (
+     {{
+         dbt_utils.date_spine(
+diff --git a/dbt_project/models/3_core/dim_league.sql b/dbt_project/models/3_core/dim_league.sql
+index b1017987..a83fa592 100644
+--- a/dbt_project/models/3_core/dim_league.sql
++++ b/dbt_project/models/3_core/dim_league.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ with import_base_apif__league_entity as (
+     select * from {{ ref('base_apif__league_entity') }}
+ )
+diff --git a/dbt_project/models/3_core/dim_player.sql b/dbt_project/models/3_core/dim_player.sql
+index 5371d86b..628fa156 100644
+--- a/dbt_project/models/3_core/dim_player.sql
++++ b/dbt_project/models/3_core/dim_player.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ with players as (
+     select * from {{ ref('base_apif__players') }}
+ ),
+diff --git a/dbt_project/models/3_core/dim_player_team_season_mapping.sql b/dbt_project/models/3_core/dim_player_team_season_mapping.sql
+index 00d4c75f..2cfe6530 100644
+--- a/dbt_project/models/3_core/dim_player_team_season_mapping.sql
++++ b/dbt_project/models/3_core/dim_player_team_season_mapping.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+     Rostered player↔team↔season membership (conformed). One row per player per team
+     per season they were in the /players roster — including squad members with zero
+diff --git a/dbt_project/models/3_core/dim_region.sql b/dbt_project/models/3_core/dim_region.sql
+index 2209b9f0..2dfdbc1f 100644
+--- a/dbt_project/models/3_core/dim_region.sql
++++ b/dbt_project/models/3_core/dim_region.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+     The region dimension (#69) — the counterpart to dim_country. A competition points at ONE of the
+     two: a domestic competition has a country, a continental or international one has a region.
+diff --git a/dbt_project/models/3_core/dim_team.sql b/dbt_project/models/3_core/dim_team.sql
+index 13cda50e..54c13fc2 100644
+--- a/dbt_project/models/3_core/dim_team.sql
++++ b/dbt_project/models/3_core/dim_team.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ with import_base_apif__teams_global as (
+     select * from {{ ref('base_apif__teams_global') }}
+ )
+diff --git a/dbt_project/models/3_core/dim_team_competition_season_mapping.sql b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
+index 5d2b4d12..63c57232 100644
+--- a/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
++++ b/dbt_project/models/3_core/dim_team_competition_season_mapping.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+     Conformed team↔competition↔season membership. One row per team per competition per
+     season in which the team has at least one fixture — finished OR scheduled. A
+diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
+index 27b95019..180116cd 100644
+--- a/dbt_project/models/3_core/fct_fixture.sql
++++ b/dbt_project/models/3_core/fct_fixture.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ with import_base_apif__fixtures_next as (
+     select * from {{ ref('base_apif__fixtures_next') }}
+ )
+diff --git a/dbt_project/models/3_core/fct_standings.sql b/dbt_project/models/3_core/fct_standings.sql
+index 4dc19e45..61bdb2a5 100644
+--- a/dbt_project/models/3_core/fct_standings.sql
++++ b/dbt_project/models/3_core/fct_standings.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ with import_base_apif__standings as (
+     select * from {{ ref('base_apif__standings') }}
+ ),
+diff --git a/dbt_project/models/3_core/fct_team_market_value_snapshot.sql b/dbt_project/models/3_core/fct_team_market_value_snapshot.sql
+index 343a36a5..24bf6f10 100644
+--- a/dbt_project/models/3_core/fct_team_market_value_snapshot.sql
++++ b/dbt_project/models/3_core/fct_team_market_value_snapshot.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Team-level squad market value estimates (published-style total in EUR).
+   Grain: (team_sk, as_of_date, source_code). Loaded from seed wc_team_market_value_snapshot
+diff --git a/dbt_project/models/3_core/fct_transfer.sql b/dbt_project/models/3_core/fct_transfer.sql
+index e1f92a91..05eb4f2b 100644
+--- a/dbt_project/models/3_core/fct_transfer.sql
++++ b/dbt_project/models/3_core/fct_transfer.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Dated player transfers (moves). One row per distinct move: which player moved from
+   which team to which team, on which date, plus the provider's raw type string. The
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+index a250fe52..6f1f3417 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Canonical per (player, competition-season) aggregate over all finished matches — the SINGLE player-season
+   rollup consumed by mart_player_profile and mart_leaderboards (#480 consolidation; mart_player_season was
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+index 542a162c..7568aa07 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   TEAM deserved-vs-actual read (points-space). One row per (team_sk, season_sk): the points the
+   team's process deserved, versus the points it actually has.
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+index d5e87d08..18cadd4e 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Whole-season team rollup — now the FINAL-ROW PROJECTION of int_team_season__metrics_cumulative
+   (#500 one-aggregation; the rate formulas moved there, applied at every matchday). Per
 diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
-index 354b42d7..ebb82780 100644
+index ebb82780..e53747c3 100644
 --- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
 +++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
-@@ -178,7 +178,8 @@ select
-     case
-         when games_with_save_stats < games_expecting_team_stats then null
-         else safe_divide(
--            goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
-+            goalkeeper_saves,
-+            goalkeeper_saves + goals_against_in_save_games - goals_own_against_in_save_games
-         )
-     end as saves_pct,
-     -- player-derived team metrics: a game without the player feed has no input, so these
-diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
-index 268a83f0..17b25ec4 100644
---- a/dbt_project/models/4_intermediate/shared/int_legs.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
-@@ -115,6 +115,8 @@ models:
-         description: "{{ doc('goals_penalty') }}"
-       - name: goals_own
-         description: "{{ doc('goals_own') }}"
-+      - name: goals_own_against
-+        description: "Own goals this team conceded in the match: its players put the ball into their own net, and the goal counts for the opponent. Part of goals_against, but not a shot on target the keeper faced, so save percentage leaves them out. Counted from match events; 0 when there were none."
- 
-   - name: int_legs__player_match
-     description: >
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Per-matchday cumulative team-season metrics — the season rate formulas applied to EVERY
+   cumulative row of int_team_season_record (not just the final one). This is the single home of
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+index da13ae6a..9fe3d1a7 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__standings_primary.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   One row per (team_sk, season_sk) for table display and marts.
+   fct_standings grain can include multiple rows (e.g. group_description);
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+index 392807c8..7a9b1961 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Building-block player-match leg: one row per (player, finished match) with that player's
+   raw counts, plus the competition's type/entity classification and the dimensions windows
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
+index eae02060..266f8a22 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__team_from_players.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Player-match legs aggregated to (team, finished match). This unlocks team-level metrics
+   that fct_fixture_team_stats does not provide — tackles, interceptions, blocks, duels,
 diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-index 47aa97d4..5a89159a 100644
+index 5a89159a..c0108976 100644
 --- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-@@ -153,7 +153,10 @@ with_stats as (
-         -- team's penalties and the own goals credited to it are subtracted downstream to get
-         -- goals_open_play. Catalogued as goals_penalty / goals_own.
-         coalesce(ev.penalty_goals, 0) as goals_penalty,
--        coalesce(ev.own_goals_credited, 0) as goals_own
-+        coalesce(ev.own_goals_credited, 0) as goals_own,
-+        -- own goals this team conceded: credited to the opponent, so they sit on its events. Part
-+        -- of goals_against, but not a shot on target the keeper faced (saves_pct leaves them out).
-+        coalesce(ev_opp.own_goals_credited, 0) as goals_own_against
-     from legs as l
-     left join team_stats as own
-         on l.fixture_sk = own.fixture_sk and l.team_sk = own.team_sk
-@@ -161,6 +164,8 @@ with_stats as (
-         on l.fixture_sk = opp.fixture_sk and l.opponent_team_sk = opp.team_sk
-     left join events as ev
-         on l.fixture_sk = ev.fixture_sk and l.team_sk = ev.team_sk
-+    left join events as ev_opp
-+        on l.fixture_sk = ev_opp.fixture_sk and l.opponent_team_sk = ev_opp.team_sk
- )
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Building-block team-match leg: one row per (team, finished match), carrying that team's
+   raw stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+index 19140c2b..53efc147 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Canonical per (player, CLUB, competition-season) aggregate over all finished matches — the finest-grain
+   player rollup (#480 §8.3). Where int_player_season__metrics pools a whole competition-season, this keeps
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+index 177749d3..03d516ce 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Competition benchmark engine (player). Per (league_code, season_api_year, position_group, metric_key): the
+   distribution of each benchmarked metric over the position's qualifying players, so a player's per-90 can be
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+index de2426a7..d248716a 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W1 momentum builder — player.
  
- select
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-index 9a672a35..0d8122c7 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
-@@ -89,6 +89,8 @@ models:
-         description: "{{ doc('goals_own') }}"
-       - name: goals_against_in_save_games
-         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps saves_pct same-window."
-+      - name: goals_own_against_in_save_games
-+        description: "The own goals among goals_against_in_save_games, over the same legs. saves_pct subtracts them: an own goal is conceded but is not a shot on target the keeper faced."
-       - name: contributing_competitions
-         description: "{{ doc('contributing_competitions') }}"
-         tests: [not_null]
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-index 2834eb97..c5398e3c 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-@@ -95,6 +95,8 @@ models:
-         description: "{{ doc('goals_penalty') }}"
-       - name: goals_own
-         description: "{{ doc('goals_own') }}"
-+      - name: goals_own_against
-+        description: "Own goals this team conceded in the window match: part of goals_against, but not a shot on target the keeper faced. 0 when there were none."
-       - name: shots_total
-         description: "{{ doc('shots_player') }}"
-       - name: shots_on_goal
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-index 689d42cf..2e0cda4b 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-@@ -136,6 +136,8 @@ models:
-         description: "{{ doc('goals_own') }}"
-       - name: goals_against_in_save_games
-         description: "Goals conceded summed only over the legs whose goalkeeper-save data exists, so saves_pct divides a numerator and denominator that cover the same games."
-+      - name: goals_own_against_in_save_games
-+        description: "The own goals among goals_against_in_save_games, over the same legs. saves_pct subtracts them: an own goal is conceded but is not a shot on target the keeper faced."
-       - name: goals_open_play_in_sot_games
-         description: "Open-play goals (goals minus penalties minus own goals) summed ONLY over the legs that have shots-on-target data, so finishing_efficiency_pct divides over the games its denominator can see. Required because awarded results (technical loss, walkover) count as played: their goals are real and enter the full goal sums, but they carry no shots-on-target, so a full-sum numerator would credit goals no shot could explain."
-       - name: shots_total
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+index 3a5bc66a..2982efcc 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile__contribution.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Player contribution-share — a player's goal-involvement share of the team's WHOLE-SEASON goals
+   (content_architecture §6.4, the "bonus" flagship; a player-profile differentiator, sibling of
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+index 055f30d9..ecb45609 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_profile__yoy.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Appearances-aligned year-over-year — player, domestic leagues only (Phase C, #391;
+   the player mirror of int_team_profile__yoy, #324).
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season__team.sql b/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
+index de6af625..6c67b11b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season__team.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   GAP-16 — the player's team per competition-season: the club of their MOST RECENT finished match
+   that season (chosen because it is deterministic and byte-stable, where the roster
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index be58afc1..b7f959f5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Per (player, competition-season, POSITION) aggregate over all finished matches — the position-split
+   sibling of int_player_season__metrics, built for the player competition benchmark (content_architecture
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+index 3baed6ba..929676f7 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W2 season-record builder — player. Cumulative running totals over a player's finished
+   matches within one competition+season, one row per match the player appeared in (totals
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+index 52d072ae..47ac313d 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   The 22 team competition-benchmark metrics in LONG form, per team-season: one row per
+   (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (season-to-date, teams with
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+index 5bb4249e..b8c9ac33 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmarks.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Competition benchmark engine (team). Per (league_code, season_api_year, metric_key): the league
+   distribution of each of the 22 team season metrics, so a team's value can be read against its peers.
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-index 147325b3..b1609980 100644
+index b1609980..7843be2c 100644
 --- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
-@@ -85,6 +85,9 @@ team_agg as (
-         -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
-         sum(if(goalkeeper_saves is not null, goals_against, null))
-             as goals_against_in_save_games,
-+        -- the own goals among them: conceded, but never a shot on target the keeper faced
-+        sum(if(goalkeeper_saves is not null, goals_own_against, null))
-+            as goals_own_against_in_save_games,
-         sum(shots_total) as shots_total,
-         sum(shots_on_goal) as shots_on_goal,
-         sum(shots_inside_box) as shots_inside_box,
-@@ -148,6 +151,7 @@ select
-     ta.goals_penalty,
-     ta.goals_own,
-     ta.goals_against_in_save_games,
-+    ta.goals_own_against_in_save_games,
-     ta.goals_open_play_in_sot_games,
-     ta.shots_total,
-     ta.shots_on_goal,
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W1 momentum builder — team.
+ 
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
-index eab8f7db..38049b57 100644
+index 38049b57..57233d57 100644
 --- a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
-@@ -119,6 +119,7 @@ candidate_legs as (
-         l.goals_against,
-         l.goals_penalty,
-         l.goals_own,
-+        l.goals_own_against,
-         l.shots_total,
-         l.shots_on_goal,
-         l.shots_inside_box,
-@@ -254,6 +255,7 @@ select
-     goals_against,
-     goals_penalty,
-     goals_own,
-+    goals_own_against,
-     shots_total,
-     shots_on_goal,
-     shots_inside_box,
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W1 momentum-window selection — team.
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
+index 19653edb..513508ee 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Trailing run lengths — team, per competition-season (#324, the lighter layer).
+ 
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+index 344c2015..db854aa1 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_profile__yoy.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Games-played-aligned year-over-year — team, domestic leagues only (#324). Now covers ALL
+   season metrics (not just the 3 totals): COMPOSES int_team_season__metrics_cumulative (the rate
 diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
-index ccd60c37..a817a821 100644
+index a817a821..9a4dc656 100644
 --- a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
-@@ -53,6 +53,7 @@ legs as (
-         tl.goals_against,
-         tl.goals_penalty,
-         tl.goals_own,
-+        tl.goals_own_against,
-         tl.shots_total,
-         tl.shots_on_goal,
-         tl.shots_inside_box,
-@@ -159,6 +160,9 @@ select
-     -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
-     sum(if(goalkeeper_saves is not null, goals_against, null)) over w
-         as goals_against_in_save_games,
-+    -- the own goals among them: conceded, but never a shot on target the keeper faced
-+    sum(if(goalkeeper_saves is not null, goals_own_against, null)) over w
-+        as goals_own_against_in_save_games,
-     -- team stats (cumulative)
-     sum(shots_total) over w as shots_total,
-     sum(shots_on_goal) over w as shots_on_goal,
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W2 season-record builder — team. Cumulative running totals over a team's finished
+   matches within one competition+season, one row per match played (the totals THROUGH
+diff --git a/dbt_project/models/4_intermediate/shared/team/int_team__market_value_latest.sql b/dbt_project/models/4_intermediate/shared/team/int_team__market_value_latest.sql
+index ddddf318..c0bb736c 100644
+--- a/dbt_project/models/4_intermediate/shared/team/int_team__market_value_latest.sql
++++ b/dbt_project/models/4_intermediate/shared/team/int_team__market_value_latest.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   Latest market_value_eur snapshot per team (max as_of_date, then source_code for tie-break).
+ #}
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+index 95063d4a..196273b6 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   Wide fixture-preview mart — one row per upcoming fixture (next round per league).
+ 
+diff --git a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+index 89cfb970..aa334468 100644
+--- a/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
++++ b/dbt_project/models/5_marts/domestic_league/mart_team_season_insights.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Full-season team insights for the latest season_api_year per league_code.
+   Same metric depth as matchday form; grain one row per team. Use when there is no upcoming
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_index.sql b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+index 3dab0c3a..ff7bb3d3 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_index.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_index.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+     One row per competition — the SINGLE source for the competitions page (#54, #62 step 3).
+     Before this, that page would have read four things to render one row: the registry YAML,
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
+index 2d879f47..6734e854 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_season_summary.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   mart_competition_season_summary — one row per competition-season with the season's headline
+   numbers: how many matches and goals, goals per match, how results split between home wins,
+diff --git a/dbt_project/models/5_marts/shared/mart_fixture_standing_context.sql b/dbt_project/models/5_marts/shared/mart_fixture_standing_context.sql
+index e00475c1..b6c00f02 100644
+--- a/dbt_project/models/5_marts/shared/mart_fixture_standing_context.sql
++++ b/dbt_project/models/5_marts/shared/mart_fixture_standing_context.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Phase-relevant standings context per upcoming-fixture side (epic #361).
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_head_to_head.sql b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
+index b28ae872..9ab6f835 100644
+--- a/dbt_project/models/5_marts/shared/mart_head_to_head.sql
++++ b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Head-to-head (#375). All-time past meetings between two teams, DIRECTED: one
+   row per (team_sk, opponent_team_sk) = that team's record against that opponent.
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index 7dbdcb3e..74de2d8e 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   mart_leaderboards — LONG per-board player rankings (the Leaderboards block; content_architecture §3).
+   Generalises the retired mart_top_scorers beyond goals. One row per (player, board): the player's rank on
+diff --git a/dbt_project/models/5_marts/shared/mart_player_career.sql b/dbt_project/models/5_marts/shared/mart_player_career.sql
+index 4da5115f..7cdc37cc 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_career.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_career.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Player Career log (content_architecture §4; #480 §8.3). One row per (player, CLUB, competition-season):
+   the player's appearances / goals / assists at that club that competition-season + player identity
+diff --git a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+index 913aab8d..8296f9d4 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   Player competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
+   LONG: one row per (player, season, position_group, metric_key). Each row places the player against his
+diff --git a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+index d5707cc0..9c1ad912 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Per-fixture player stat lines (#323). The player half of the match detail
+   view: every player's stat line for one finished fixture, both sides. Pure
+diff --git a/dbt_project/models/5_marts/shared/mart_player_match_log.sql b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+index d2e28516..73e7f879 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_match_log.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_match_log.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Player match log (#325). One row per (player, finished fixture): the player's
+   stat line for that match plus the match context (opponent, score, result from
+diff --git a/dbt_project/models/5_marts/shared/mart_player_momentum.sql b/dbt_project/models/5_marts/shared/mart_player_momentum.sql
+index 47a3a8c7..b6dfbbee 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_momentum.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_momentum.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W1 momentum mart — player.
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_player_profile.sql b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+index b3dc663d..827d93be 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_profile.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Player profile (#325). One row per (player, competition-season): the player's season profile a
+   player page renders. Mirrors mart_team_profile.
+diff --git a/dbt_project/models/5_marts/shared/mart_player_season_record.sql b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
+index a269d609..ac0be8d6 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_season_record.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   W2 season-record mart — player. One row per player per upcoming fixture side: the
+   player's cumulative record in the fixture's own competition this season (complement to
+diff --git a/dbt_project/models/5_marts/shared/mart_roster.sql b/dbt_project/models/5_marts/shared/mart_roster.sql
+index 4239af69..85b759b3 100644
+--- a/dbt_project/models/5_marts/shared/mart_roster.sql
++++ b/dbt_project/models/5_marts/shared/mart_roster.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   mart_roster — the club roster identity for the Squad tab (feeds it alongside mart_player_career; content_architecture §3).
+   One row per rostered player per (club team, competition-season), from
+diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
+index 144d6fbe..c2070c46 100644
+--- a/dbt_project/models/5_marts/shared/mart_standings.sql
++++ b/dbt_project/models/5_marts/shared/mart_standings.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   Generic standings mart — one approach for every competition that has standings.
+   Serves two jobs:
+diff --git a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+index b7a2ae01..90aec990 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_competition_benchmarks.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   Team competition benchmark (the vs-benchmark block; content_architecture §6 — the engine, table stakes).
+   LONG: one row per (team, season, metric_key) over the 22 team season metrics. Each row places the team
+diff --git a/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
+index 87717a79..f140cf87 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Per-fixture team stat line (#323). The detail view behind a match in the
+   form-window list: the full team stat line for one finished fixture, both
+diff --git a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+index e89450b7..6e05cd15 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_fixtures.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   Team fixtures (GAP-15). One row per (team, fixture), team perspective: the
+   team-profile page's "next fixture + recent results" surface.
+diff --git a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+index ef68f916..7e8cbc5b 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_leaderboards.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   mart_team_leaderboards — LONG per-board team rankings (the Top teams block; GAP-29). The team
+   mirror of mart_leaderboards. One row per (team, board): where that team ranks on that board
+diff --git a/dbt_project/models/5_marts/shared/mart_team_market_value.sql b/dbt_project/models/5_marts/shared/mart_team_market_value.sql
+index 6d475a81..2c4c32d8 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_market_value.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_market_value.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   WC national teams: latest published-style squad market value estimate (EUR).
+   Grain: one row per team_sk. Canonical metric name: market_value_eur.
 diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum.sql b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
-index 191b9887..5824488e 100644
+index 5824488e..f29ef9f9 100644
 --- a/dbt_project/models/5_marts/shared/mart_team_momentum.sql
 +++ b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
-@@ -105,11 +105,13 @@ select
-         when b.games_with_opp_stats < b.games_expecting_team_stats then null
-         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
-         as corners_against_per_match,
--    -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded
-+    -- goalkeeper: saves / (saves + goals conceded in save-covered games, own goals left out);
-+    -- self-bounded
-     case
-         when b.games_with_save_stats < b.games_expecting_team_stats then null
-         else safe_divide(
--            b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
-+            b.goalkeeper_saves,
-+            b.goalkeeper_saves + b.goals_against_in_save_games - b.goals_own_against_in_save_games
-         )
-     end as saves_pct,
-     -- player-derived team metrics: a leg without the player feed has no input, so these follow
-diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index 33751725..6f351313 100644
---- a/dbt_project/models/docs/metric_columns.md
-+++ b/dbt_project/models/docs/metric_columns.md
-@@ -1001,39 +1001,41 @@ fixtures can be understated rather than null.
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W1 momentum mart — team.
  
- {% docs saves_pct %}
- Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
--conceded in save-covered games). Null when no save-covered games. NULL unless every input of
--its formula is present for every match counted; an awarded result (technical loss, walkover) is
--never counted against that.
-+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
-+Null when no save-covered games. NULL unless every input of its formula is present for every
-+match counted; an awarded result (technical loss, walkover) is never counted against that.
- {% enddocs %}
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+index 25b3994d..3f1b65a8 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   W1 momentum-window list mart — team. The drill-down behind the momentum metrics
+   (#323): the same window matches mart_team_momentum aggregates, exposed
+diff --git a/dbt_project/models/5_marts/shared/mart_team_profile.sql b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+index 9f8f6d8a..c941c457 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_profile.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_profile.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+   Team profile (#324). One row per (team, competition-season): the full profile
+   surface a team page renders. Composes existing season rollups and adds the two
+diff --git a/dbt_project/models/5_marts/shared/mart_team_season.sql b/dbt_project/models/5_marts/shared/mart_team_season.sql
+index a7a65d7b..24dc0329 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_season.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_season.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='table') }}
+-
+ {#
+     Per-team, per-season rollup for table display and marts. The season counts COMPOSE the
+     canonical rollup int_team_season__metrics (finished matches only via int_legs__team_match) —
+diff --git a/dbt_project/models/5_marts/shared/mart_team_season_record.sql b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+index 3a2fdd10..ccf31338 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_season_record.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_season_record.sql
+@@ -1,5 +1,3 @@
+-{{ config(materialized='view') }}
+-
+ {#
+   W2 season-record mart — team. One row per upcoming fixture side: the team's cumulative
+   record in the fixture's own competition this season (the number shown beside W1 momentum).
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index 13258dfe..fa867a10 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -25,7 +25,7 @@ No `response` data is discarded at ingest, so new fields surface in modelling wi
+ Raw tables are **created** partitioned by `DATE(ingested_at)` and clustered by `league_code` (`ingestion/api_football/bigquery.py:88-93`). Two cautions go with that, and the second one has cost real money:
+ 
+ - Creation uses `exists_ok=True`, so a table that predates the partitioning code is **never retro-fitted**. Do not assume a given raw table is partitioned — check it: `bq show --format=prettyjson football-data-pipeline-gcp:raw.RAW_APIF_<ENTITY>` and read `timePartitioning` (metadata only, free).
+-- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. Bounding the table by deleting at write time was tried (#33 item 8) and **reversed on 2026-08-17** — see [Raw appends and never deletes](#raw-appends-and-never-deletes). The way scan cost is actually bounded today is that staging is materialised as a **table**, so each raw table is parsed once a night rather than once per test (#33 items 9/10). If the raw tables ever need bounding again it is compaction by **version count** per key in a separate job, never a delete at write time, and never keyed on time (#892).
++- **Do not add an `ingested_at` time filter to a reader in order to "prune".** Nine biennial and quadrennial competitions go months between ingests, so any time window silently drops them — that is issue #892, and it is why partition expiry and a current/archive split were both rejected. `DATE(ingested_at)` partitioning is a write-side property; it is **not** available as a general read-side cost lever, because the only thing a reader can safely key on is `league_code`. Bounding the table by deleting at write time was tried (#33 item 8) and **reversed on 2026-08-17** — see [Raw appends and never deletes](#raw-appends-and-never-deletes). The way scan cost is actually bounded today is that staging is a **table** (`dbt_project/docs/layering.md` §Materialisation), so each raw table is parsed once a night rather than once per test. If the raw tables ever need bounding again it is compaction by **version count** per key in a separate job, never a delete at write time, and never keyed on time (#892).
+ 
+ dbt staging reads `payload` and exposes `ingested_at` as `raw_ingested_at`.
+ 
+@@ -111,8 +111,8 @@ indistinguishable from it. Three deletes were built on that signal and all three
+ | `delete_superseded_league_rows` (per league) | never fired destructively that we know of; it would have wiped a competition's entire standings/teams/transfers history in one run |
+ 
+ The scan-cost argument that bought them is spent. `RAW_APIF_TRANSFERS` really did fall from 6.99 GiB
+-to 0.178 GiB under 8b, but staging became a materialised **table** four days later (#33 items 9/10),
+-so each raw table is now parsed once a night instead of once per test. Append-only costs roughly
++to 0.178 GiB under 8b, but staging is a **table** (`dbt_project/docs/layering.md` §Materialisation),
++so each raw table is parsed once a night instead of once per test. Append-only costs roughly
+ $1-2/month in scanning plus cents of storage.
+ 
+ **Do not reintroduce a delete to bound a table.** If growth needs bounding, compact by **version
+diff --git a/docs/roles/analytics_engineer.md b/docs/roles/analytics_engineer.md
+index 01cea8ca..5ed415e6 100644
+--- a/docs/roles/analytics_engineer.md
++++ b/docs/roles/analytics_engineer.md
+@@ -28,7 +28,7 @@ Build and maintain the dbt pipeline that transforms raw football data into relia
+ 
+ 1. **Generic staging, unified raw tables (the zero-file rule).** All competitions share six unified raw tables discriminated by a `league_code` column; staging models are generic — one per entity, never per competition. Adding a league is one registry entry and zero model files; `league_code` flows through every layer as a column. There is NO per-competition staging and NO UNION-per-league loop (that architecture was retired; CI enforces).
+ 2. **Tests are not optional.** Every new model needs grain tests. Every new metric needs a consistency test (rate = sum/count, ratio = num/denom) and, for ratios, the same-window rule: numerator and denominator computed over the same game set (coverage counts).
+-3. **Deduplication lives in base, not staging.** Staging is raw cleanup only. Base applies the first business logic (dedup, entity alignment). Materialisation is a LAYER decision set once in `dbt_project.yml` — currently `2_base: +materialized: table` (#547) — and a base model must never override it per model.
++3. **Deduplication lives in base, not staging.** Staging is raw cleanup only. Base applies the first business logic (dedup, entity alignment). Materialisation: `dbt_project/docs/layering.md` §Materialisation.
+ 4. **Singular tests for pipeline health.** Stale fixtures, metric arithmetic, completeness — these are singular dbt tests, not schema tests, and they run in CI.
+ 5. **Document the grain.** Every model description must state its grain. If you can't state the grain, the model isn't ready.
+ 6. **Seeds and project config are code.** A seed row or `dbt_project.yml` change can alter mart behavior with zero SQL in the diff — it gets the same review, documentation and tests as a model change. The `metric_catalogue` seed is the single source of metric definitions (CPO-gated).
+@@ -41,7 +41,7 @@ Build and maintain the dbt pipeline that transforms raw football data into relia
+ | Layer | Allowed | Not allowed |
+ |-------|---------|-------------|
+ | `1_staging` | Renaming, casting, unnesting, flattening — generic models reading the unified raw tables | Business logic, deduplication, per-competition models |
+-| `2_base` | Deduplication, entity alignment, first business logic (`2_base: +materialized: table`) | Metric calculation, joins to dims, per-competition ref() loops, any per-model materialized= |
++| `2_base` | Deduplication, entity alignment, first business logic | Metric calculation, joins to dims, per-competition ref() loops |
+ | `3_core` | Surrogate keys, fact/dim grain enforcement, clean joins | `stg_*` refs, raw JSON parsing, competition-specific logic |
+ | `4_intermediate` | Complex transforms, feature engineering, window builders | Consumption-level formatting, refs to marts |
+ | `5_marts` | Denormalised, consumer-ready, competition-agnostic | Raw column exposure, untested metrics, hardcoded competitions |
+diff --git a/scripts/check_layer_contract.py b/scripts/check_layer_contract.py
+index ac5e8f7e..306849ca 100644
+--- a/scripts/check_layer_contract.py
++++ b/scripts/check_layer_contract.py
+@@ -8,6 +8,7 @@ DBT_MODELS = REPO_ROOT / "dbt_project" / "models"
+ BASE_DIR = DBT_MODELS / "2_base"
+ CORE_DIR = DBT_MODELS / "3_core"
+ INTERMEDIATE_DIR = DBT_MODELS / "4_intermediate"
++MARTS_DIR = DBT_MODELS / "5_marts"
+ STAGING_API_DIR = DBT_MODELS / "1_staging" / "api_football"
+ STAGING_DIR = DBT_MODELS / "1_staging"
+ 
+@@ -25,22 +26,19 @@ BASE_FORBIDDEN_UPWARD_REF = re.compile(
+     re.IGNORECASE,
+ )
+ 
+-# Materialization is set once, per LAYER, in dbt_project.yml:
++# Materialization is set once, per LAYER, in dbt_project.yml (the rule:
++# dbt_project/docs/layering.md §Materialisation), e.g.
+ #   1_staging: +materialized: table
+ #   2_base: +materialized: table
+-# (base since #547, staging since #33 items 9/10 — see dbt_project/docs/layering.md
+-# for the measurements behind both; tests/test_materialisation_policy.py pins these
+-# lines against the config).
+-# A model in either layer must not carry a per-model
+-# config(materialized=...) AT ALL, whatever the value: the point is that one
+-# place decides, so the layer can be re-costed by editing one line. Before #547
+-# this check allowed `view` and rejected everything else, which silently became
+-# wrong the moment the layer default changed — which is exactly why the rule is
+-# "no override", not "no override to the wrong value".
++# tests/test_materialisation_policy.py pins these lines against the config.
++# A model must not carry a per-model config(materialized=...) AT ALL, whatever the
++# value, so one place decides; the single exception is `incremental` on a 3_core fact
++# whose source delivers only a per-run delta.
+ PER_MODEL_MATERIALIZED = re.compile(
+     r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
+     re.IGNORECASE,
+ )
++MATERIALISATION_REF = "See dbt_project/docs/layering.md §Materialisation."
+ 
+ CORE_FORBIDDEN_PATTERNS = (
+     re.compile(r"\bjson_value\s*\(", re.IGNORECASE),
+@@ -117,7 +115,9 @@ def check_base_layer(errors: list[str]) -> None:
+             )
+ 
+         # 2. Materialization is a LAYER decision, so a base model must not set it at all.
+-        _check_no_per_model_materialisation(errors, sql_path, content, "base", layering_ref)
++        _check_no_per_model_materialisation(
++            errors, sql_path, content, "base", MATERIALISATION_REF
++        )
  
  
- {% docs saves_pct_delta_yoy__team %}
- Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
--conceded in save-covered games). Null when no save-covered games. NULL unless every input of
--its formula is present for every match counted; an awarded result (technical loss, walkover) is
--never counted against that. The change from the previous season to the current one, compared at
--the same point of the campaign: the current value minus the previous one. NULL when either side
--is missing, which covers a competition that carries no year-on-year comparison, a prior season
--that was never loaded, and a season whose first matches are not fully stat-covered.
-+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
-+Null when no save-covered games. NULL unless every input of its formula is present for every
-+match counted; an awarded result (technical loss, walkover) is never counted against that. The
-+change from the previous season to the current one, compared at the same point of the campaign:
-+the current value minus the previous one. NULL when either side is missing, which covers a
-+competition that carries no year-on-year comparison, a prior season that was never loaded, and
-+a season whose first matches are not fully stat-covered.
- {% enddocs %}
+ def _check_no_per_model_materialisation(
+@@ -155,10 +155,35 @@ def check_staging_materialisation(errors: list[str]) -> None:
+     """
+     if not STAGING_DIR.is_dir():
+         return
+-    layering_ref = "See dbt_project/docs/layering.md §1_staging."
+     for sql_path in sorted(STAGING_DIR.rglob("*.sql")):
+         content = sql_path.read_text(encoding="utf-8")
+-        _check_no_per_model_materialisation(errors, sql_path, content, "staging", layering_ref)
++        _check_no_per_model_materialisation(
++            errors, sql_path, content, "staging", MATERIALISATION_REF
++        )
++
++
++def check_upper_layer_materialisation(errors: list[str]) -> None:
++    """Core, intermediate and marts follow the same no-per-model rule as staging and base.
++
++    The one per-model setting allowed is `incremental` on a 3_core fact (`fct_*`): a fact whose
++    source delivers only the latest fixtures per run would lose its history on a full rebuild.
++    """
++    for layer_dir, layer_label in (
++        (CORE_DIR, "core"),
++        (INTERMEDIATE_DIR, "intermediate"),
++        (MARTS_DIR, "marts"),
++    ):
++        if not layer_dir.is_dir():
++            continue
++        for sql_path in sorted(layer_dir.rglob("*.sql")):
++            content = sql_path.read_text(encoding="utf-8")
++            if layer_label == "core" and sql_path.name.startswith("fct_"):
++                kinds = {m.group(1).lower() for m in PER_MODEL_MATERIALIZED.finditer(content)}
++                if kinds <= {"incremental"}:
++                    continue
++            _check_no_per_model_materialisation(
++                errors, sql_path, content, layer_label, MATERIALISATION_REF
++            )
  
  
- {% docs saves_pct_prev_season__team %}
- Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
--conceded in save-covered games). Null when no save-covered games. NULL unless every input of
--its formula is present for every match counted; an awarded result (technical loss, walkover) is
--never counted against that. Value for the season before, through the same number of matches as
--the current season has played so far, so the two are compared at the same point of a campaign
--rather than a part season against a full one.
-+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
-+Null when no save-covered games. NULL unless every input of its formula is present for every
-+match counted; an awarded result (technical loss, walkover) is never counted against that.
-+Value for the season before, through the same number of matches as the current season has
-+played so far, so the two are compared at the same point of a campaign rather than a part
-+season against a full one.
- {% enddocs %}
+ def check_intermediate_no_mart_refs(errors: list[str]) -> None:
+@@ -262,6 +287,7 @@ def main() -> int:
+     check_staging_purity(errors)
+     check_staging_no_refs(errors)
+     check_staging_materialisation(errors)
++    check_upper_layer_materialisation(errors)
+ 
+     if errors:
+         print("Layer contract checks failed:")
+diff --git a/tests/test_materialisation_policy.py b/tests/test_materialisation_policy.py
+index 95e00f18..0bfa7739 100644
+--- a/tests/test_materialisation_policy.py
++++ b/tests/test_materialisation_policy.py
+@@ -22,7 +22,7 @@ quote the config line VERBATIM — `2_base: +materialized: <value>`. That token
+   * changing the policy fails every site at once until each is updated;
+   * a site cannot drift by being reworded, because the token is checked, not the sentence.
+ 
+-The cost figures behind the current policy are in dbt_project/docs/layering.md, reproducible with
++The policy is dbt_project/docs/layering.md §Materialisation; measure its cost with
+ `python scripts/report_bq_cost.py`.
+ """
+ 
+@@ -74,22 +74,22 @@ EXPECTED = {
+ # ⚠ KEYED BY LAYER SINCE #33 items 9/10. It was a flat base-only tuple, and when `1_staging`
+ # became a table three new prose sites appeared (CLAUDE.md, layering.md, engineering_standards.md)
+ # that NOTHING guarded — the precise regression class this file exists for, reintroduced for the
+-# layer the change was about. A layer with prose sites belongs here;
+-# `3_core`/`4_intermediate`/`5_marts` are absent because no document states their materialisation
+-# in the pinned token form.
++# layer the change was about. The rule is stated once, in layering.md §Materialisation, for every
++# layer; the enforcement code (the check script, the layer hook) quotes the lines it enforces, and
++# every other document points to the section and quotes no token.
+ POLICY_SITES = {
+     "2_base": (
+         "dbt_project/docs/layering.md",
+-        "CLAUDE.md",
+         "scripts/check_layer_contract.py",
+         ".claude/hooks/dbt_layer_gate.py",
+-        "docs/roles/analytics_engineer.md",
+     ),
+     "1_staging": (
+         "dbt_project/docs/layering.md",
+-        "CLAUDE.md",
+         "scripts/check_layer_contract.py",
+     ),
++    "3_core": ("dbt_project/docs/layering.md",),
++    "4_intermediate": ("dbt_project/docs/layering.md",),
++    "5_marts": ("dbt_project/docs/layering.md",),
+ }
+ 
+ # The prose form of the same claim, per layer: "<layer> ... is a <materialisation>". Used by the
+@@ -254,6 +254,73 @@ def test_check_layer_contract_rejects_a_staging_per_model_override(tmp_path, mon
+     )
  
  
- {% docs saves_pct_this_season__team %}
- Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
--conceded in save-covered games). Null when no save-covered games. NULL unless every input of
--its formula is present for every match counted; an awarded result (technical loss, walkover) is
--never counted against that. Value for the season now in progress, accumulated through the
--matches played so far.
-+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
-+Null when no save-covered games. NULL unless every input of its formula is present for every
-+match counted; an awarded result (technical loss, walkover) is never counted against that.
-+Value for the season now in progress, accumulated through the matches played so far.
- {% enddocs %}
++UPPER_LAYERS = ("3_core", "4_intermediate", "5_marts")
++
++
++def test_upper_layer_models_never_override_materialisation_per_model():
++    """Core, intermediate and marts follow the layer too; `incremental` in core is the one exception.
++
++    A per-model setting in these layers is how 13 models became views with no stated reason while
++    every layer default said table.
++    """
++    offenders = []
++    for layer in UPPER_LAYERS:
++        for p in sorted((ROOT / "dbt_project" / "models" / layer).rglob("*.sql")):
++            kinds = set(
++                re.findall(
++                    r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
++                    p.read_text(encoding="utf-8"),
++                    re.IGNORECASE,
++                )
++            )
++            allowed = {"incremental"} if layer == "3_core" and p.name.startswith("fct_") else set()
++            if kinds - allowed:
++                offenders.append(f"{p.relative_to(ROOT).as_posix()} -> {sorted(kinds)}")
++    assert offenders == [], f"models overriding their layer's materialisation: {offenders}"
++
++
++def test_check_layer_contract_rejects_upper_layer_overrides_and_allows_core_incremental(
++    tmp_path, monkeypatch
++):
++    """The CI guard, proved on each of the three layers it newly covers."""
++    mod = _load_layer_contract()
++    dirs = {name: tmp_path / name for name in ("core", "intermediate", "marts")}
++    for d in dirs.values():
++        d.mkdir()
++    (dirs["core"] / "fct_probe_delta.sql").write_text(
++        "{{ config(materialized='incremental', unique_key='k') }}\nselect 1 as k\n",
++        encoding="utf-8",
++    )
++    (dirs["core"] / "dim_probe.sql").write_text(
++        "{{ config(materialized='view') }}\nselect 1 as x\n", encoding="utf-8"
++    )
++    (dirs["core"] / "dim_probe_delta.sql").write_text(
++        "{{ config(materialized='incremental', unique_key='k') }}\nselect 1 as k\n",
++        encoding="utf-8",
++    )
++    (dirs["intermediate"] / "int_probe.sql").write_text(
++        "{{ config(materialized='table') }}\nselect 1 as x\n", encoding="utf-8"
++    )
++    (dirs["marts"] / "mart_probe.sql").write_text(
++        "{{ config(materialized='view') }}\nselect 1 as x\n", encoding="utf-8"
++    )
++    monkeypatch.setattr(mod, "CORE_DIR", dirs["core"])
++    monkeypatch.setattr(mod, "INTERMEDIATE_DIR", dirs["intermediate"])
++    monkeypatch.setattr(mod, "MARTS_DIR", dirs["marts"])
++    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
++
++    errors: list[str] = []
++    mod.check_upper_layer_materialisation(errors)
++
++    flagged = {e.split(":", 1)[0] for e in errors}
++    assert flagged == {
++        "core/dim_probe.sql",
++        "core/dim_probe_delta.sql",
++        "intermediate/int_probe.sql",
++        "marts/mart_probe.sql",
++    }, f"expected every override rejected and only the core incremental FACT allowed: {errors}"
++
++
+ def _is_bookkeeping(rel: str) -> bool:
+     """Files that legitimately hold BOTH the old and new wording, so neither walk may judge them.
  
- 
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index 39c3ec8e..4c2674de 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -25,7 +25,7 @@ passes_accuracy_pct,team,metrics.passes_accuracy_pct.label,% Pass accuracy,Share
- passes_key_per_match,team,metrics.passes_key_per_match.label,Ø Key passes,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(key_passes),count(*),expression,false,decimal_1,passing,2,higher_better,Creativity - passes leading to a shot; high = creates chances,3
- corners_per_match,team,metrics.corners_per_match.label,Ø Corners,Average corner kicks won per match with available team stats.,int_legs__team_match,sum(corner_kicks),count(*),expression,false,decimal_1,set_pieces,3,higher_better,Corners won - high = sustained attacking pressure (a weak proxy),8
- corners_against_per_match,team,metrics.corners_against_per_match.label,Ø Corners against,Average corner kicks conceded per match with available opponent stats.,int_legs__team_match,sum(opponent_corner_kicks),count(*),expression,true,decimal_1,set_pieces,3,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy),8
--saves_pct,team,metrics.saves_pct.label,% Shots saved,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,7
-+saves_pct,team,metrics.saves_pct.label,% Shots saved,"Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games, own goals left out: an own goal is not a shot on target faced). Null when no save-covered games.",int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against - goals_own_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,7
- goals_player,player,playerMetrics.scorerPoints.goals,Goals,Goals scored.,int_legs__player_match,sum(goals_total),,expression,false,integer,goals,1,higher_better,Scoring output - goals scored in the window; high = a productive goalscorer (a raw count so it also tracks minutes played),1
- assists_player,player,playerMetrics.scorerPoints.assists,Assists,Goal assists.,int_legs__player_match,sum(goals_assists),,expression,false,integer,goals,1,higher_better,Creative output - goals set up in the window; high = a productive creator (a raw count so it also tracks minutes played),1
- goals_penalty_player,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index e3d90920..90da25ab 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -35,8 +35,8 @@ PINNED = {
+     ".claude/skills/onboard-competition/SKILL.md": 2,
+     ".github/workflows/README.md": 6,
+     "AGENTS.md": 1,
+-    "dbt_project/docs/engineering_standards.md": 5,
+-    "dbt_project/docs/layering.md": 14,
++    "dbt_project/docs/engineering_standards.md": 4,
++    "dbt_project/docs/layering.md": 9,
+     "deploy/nightly/README.md": 1,
+     "design-mocks/README.md": 6,
+     "docs/agent_guardrails.md": 15,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review_input.patch | 1853 +++++++++++++++++++++++++++++++--------
+#    1 file changed, 1469 insertions(+), 384 deletions(-)
+# ============================================================================

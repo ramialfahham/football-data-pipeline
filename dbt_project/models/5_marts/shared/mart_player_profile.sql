@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Player profile (#325). One row per (player, competition-season): the player's season profile a
   player page renders. Mirrors mart_team_profile.

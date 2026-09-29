@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   WC national teams: latest published-style squad market value estimate (EUR).
   Grain: one row per team_sk. Canonical metric name: market_value_eur.

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Competition benchmark engine (team). Per (league_code, season_api_year, metric_key): the league
   distribution of each of the 22 team season metrics, so a team's value can be read against its peers.

@@ -1,5 +1,3 @@
-{{ config(materialized='view') }}
-
 {#
   W2 season-record mart — player. One row per player per upcoming fixture side: the
   player's cumulative record in the fixture's own competition this season (complement to

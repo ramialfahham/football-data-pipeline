@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Coach<->team AFFILIATION: one row per (coach, team, stint) — the managerial career history (clubs
   managed) with start/end dates, from base_apif__coach_career. team_sk is a SOFT link to dim_team:

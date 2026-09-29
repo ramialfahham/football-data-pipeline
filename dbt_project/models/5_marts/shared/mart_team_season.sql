@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
     Per-team, per-season rollup for table display and marts. The season counts COMPOSE the
     canonical rollup int_team_season__metrics (finished matches only via int_legs__team_match) —

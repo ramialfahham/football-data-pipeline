@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
     Rostered player↔team↔season membership (conformed). One row per player per team
     per season they were in the /players roster — including squad members with zero

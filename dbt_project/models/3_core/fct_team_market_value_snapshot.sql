@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Team-level squad market value estimates (published-style total in EUR).
   Grain: (team_sk, as_of_date, source_code). Loaded from seed wc_team_market_value_snapshot

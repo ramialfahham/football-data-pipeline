@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   TEAM deserved-vs-actual read (points-space). One row per (team_sk, season_sk): the points the
   team's process deserved, versus the points it actually has.

@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   One row per (team_sk, season_sk) for table display and marts.
   fct_standings grain can include multiple rows (e.g. group_description);

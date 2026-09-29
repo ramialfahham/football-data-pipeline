@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Player-match legs aggregated to (team, finished match). This unlocks team-level metrics
   that fct_fixture_team_stats does not provide — tackles, interceptions, blocks, duels,

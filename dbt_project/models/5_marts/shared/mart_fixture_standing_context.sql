@@ -1,5 +1,3 @@
-{{ config(materialized='table') }}
-
 {#
   Phase-relevant standings context per upcoming-fixture side (epic #361).
 

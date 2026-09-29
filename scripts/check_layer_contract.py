@@ -8,6 +8,7 @@ DBT_MODELS = REPO_ROOT / "dbt_project" / "models"
 BASE_DIR = DBT_MODELS / "2_base"
 CORE_DIR = DBT_MODELS / "3_core"
 INTERMEDIATE_DIR = DBT_MODELS / "4_intermediate"
+MARTS_DIR = DBT_MODELS / "5_marts"
 STAGING_API_DIR = DBT_MODELS / "1_staging" / "api_football"
 STAGING_DIR = DBT_MODELS / "1_staging"
 
@@ -25,22 +26,19 @@ BASE_FORBIDDEN_UPWARD_REF = re.compile(
     re.IGNORECASE,
 )
 
-# Materialization is set once, per LAYER, in dbt_project.yml:
+# Materialization is set once, per LAYER, in dbt_project.yml (the rule:
+# dbt_project/docs/layering.md §Materialisation), e.g.
 #   1_staging: +materialized: table
 #   2_base: +materialized: table
-# (base since #547, staging since #33 items 9/10 — see dbt_project/docs/layering.md
-# for the measurements behind both; tests/test_materialisation_policy.py pins these
-# lines against the config).
-# A model in either layer must not carry a per-model
-# config(materialized=...) AT ALL, whatever the value: the point is that one
-# place decides, so the layer can be re-costed by editing one line. Before #547
-# this check allowed `view` and rejected everything else, which silently became
-# wrong the moment the layer default changed — which is exactly why the rule is
-# "no override", not "no override to the wrong value".
+# tests/test_materialisation_policy.py pins these lines against the config.
+# A model must not carry a per-model config(materialized=...) AT ALL, whatever the
+# value, so one place decides; the single exception is `incremental` on a 3_core fact
+# whose source delivers only a per-run delta.
 PER_MODEL_MATERIALIZED = re.compile(
     r"""materialized\s*=\s*['"]([a-z_]+)['"]""",
     re.IGNORECASE,
 )
+MATERIALISATION_REF = "See dbt_project/docs/layering.md §Materialisation."
 
 CORE_FORBIDDEN_PATTERNS = (
     re.compile(r"\bjson_value\s*\(", re.IGNORECASE),
@@ -117,7 +115,9 @@ def check_base_layer(errors: list[str]) -> None:
             )
 
         # 2. Materialization is a LAYER decision, so a base model must not set it at all.
-        _check_no_per_model_materialisation(errors, sql_path, content, "base", layering_ref)
+        _check_no_per_model_materialisation(
+            errors, sql_path, content, "base", MATERIALISATION_REF
+        )
 
 
 def _check_no_per_model_materialisation(
@@ -155,10 +155,35 @@ def check_staging_materialisation(errors: list[str]) -> None:
     """
     if not STAGING_DIR.is_dir():
         return
-    layering_ref = "See dbt_project/docs/layering.md §1_staging."
     for sql_path in sorted(STAGING_DIR.rglob("*.sql")):
         content = sql_path.read_text(encoding="utf-8")
-        _check_no_per_model_materialisation(errors, sql_path, content, "staging", layering_ref)
+        _check_no_per_model_materialisation(
+            errors, sql_path, content, "staging", MATERIALISATION_REF
+        )
+
+
+def check_upper_layer_materialisation(errors: list[str]) -> None:
+    """Core, intermediate and marts follow the same no-per-model rule as staging and base.
+
+    The one per-model setting allowed is `incremental` on a 3_core fact (`fct_*`): a fact whose
+    source delivers only the latest fixtures per run would lose its history on a full rebuild.
+    """
+    for layer_dir, layer_label in (
+        (CORE_DIR, "core"),
+        (INTERMEDIATE_DIR, "intermediate"),
+        (MARTS_DIR, "marts"),
+    ):
+        if not layer_dir.is_dir():
+            continue
+        for sql_path in sorted(layer_dir.rglob("*.sql")):
+            content = sql_path.read_text(encoding="utf-8")
+            if layer_label == "core" and sql_path.name.startswith("fct_"):
+                kinds = {m.group(1).lower() for m in PER_MODEL_MATERIALIZED.finditer(content)}
+                if kinds <= {"incremental"}:
+                    continue
+            _check_no_per_model_materialisation(
+                errors, sql_path, content, layer_label, MATERIALISATION_REF
+            )
 
 
 def check_intermediate_no_mart_refs(errors: list[str]) -> None:
@@ -262,6 +287,7 @@ def main() -> int:
     check_staging_purity(errors)
     check_staging_no_refs(errors)
     check_staging_materialisation(errors)
+    check_upper_layer_materialisation(errors)
 
     if errors:
         print("Layer contract checks failed:")
