@@ -85,6 +85,9 @@ team_agg as (
         -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
         sum(if(goalkeeper_saves is not null, goals_against, null))
             as goals_against_in_save_games,
+        -- the own goals among them: conceded, but never a shot on target the keeper faced
+        sum(if(goalkeeper_saves is not null, goals_own_against, null))
+            as goals_own_against_in_save_games,
         sum(shots_total) as shots_total,
         sum(shots_on_goal) as shots_on_goal,
         sum(shots_inside_box) as shots_inside_box,
@@ -148,6 +151,7 @@ select
     ta.goals_penalty,
     ta.goals_own,
     ta.goals_against_in_save_games,
+    ta.goals_own_against_in_save_games,
     ta.goals_open_play_in_sot_games,
     ta.shots_total,
     ta.shots_on_goal,

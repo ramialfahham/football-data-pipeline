@@ -95,6 +95,8 @@ models:
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
+      - name: goals_own_against
+        description: "Own goals this team conceded in the window match: part of goals_against, but not a shot on target the keeper faced. 0 when there were none."
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on_goal

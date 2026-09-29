@@ -1001,39 +1001,41 @@ fixtures can be understated rather than null.
 
 {% docs saves_pct %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
-its formula is present for every match counted; an awarded result (technical loss, walkover) is
-never counted against that.
+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
+Null when no save-covered games. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
 {% enddocs %}
 
 
 {% docs saves_pct_delta_yoy__team %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
-its formula is present for every match counted; an awarded result (technical loss, walkover) is
-never counted against that. The change from the previous season to the current one, compared at
-the same point of the campaign: the current value minus the previous one. NULL when either side
-is missing, which covers a competition that carries no year-on-year comparison, a prior season
-that was never loaded, and a season whose first matches are not fully stat-covered.
+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
+Null when no save-covered games. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that. The
+change from the previous season to the current one, compared at the same point of the campaign:
+the current value minus the previous one. NULL when either side is missing, which covers a
+competition that carries no year-on-year comparison, a prior season that was never loaded, and
+a season whose first matches are not fully stat-covered.
 {% enddocs %}
 
 
 {% docs saves_pct_prev_season__team %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
-its formula is present for every match counted; an awarded result (technical loss, walkover) is
-never counted against that. Value for the season before, through the same number of matches as
-the current season has played so far, so the two are compared at the same point of a campaign
-rather than a part season against a full one.
+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
+Null when no save-covered games. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season before, through the same number of matches as the current season has
+played so far, so the two are compared at the same point of a campaign rather than a part
+season against a full one.
 {% enddocs %}
 
 
 {% docs saves_pct_this_season__team %}
 Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
-its formula is present for every match counted; an awarded result (technical loss, walkover) is
-never counted against that. Value for the season now in progress, accumulated through the
-matches played so far.
+conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
+Null when no save-covered games. NULL unless every input of its formula is present for every
+match counted; an awarded result (technical loss, walkover) is never counted against that.
+Value for the season now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 

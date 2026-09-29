@@ -1,42 +1,43 @@
-# Review — fix/own-goal-shootout-goal-split — #179 own goals and shoot-out kicks in the goal split
+# Review — fix/save-pct-own-goals — #180 team save percentage leaves out own goals conceded
 
-diff_sha256: 4c9b766f5023339b64faf6fd193b2a0be1148df69eb33f50a0cde00684e484bd
+diff_sha256: 5988187ad111a3d1a5360073f8a7b66d791e59abf959cba879eec9c91e1171e7
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: all 7 non-artifact files (4 models, the new test, metric_catalogue.csv, metric_columns.md) are in scope_paths; no amendments; nothing out of scope touched.
-- Decision classes: catalogue and description wording change with meaning unchanged; the contract cites the CPO's plan approval and his ruling "A. Error, 3 named"; the three excluded fixture ids match that ruling; no metric label, format or URL changed.
-- Doc sync: seed and metric_columns.md consistent; no other contract document describes the changed filter.
-- decisions_reserved: the provider-event correction for the three matches and a player-side shoot-out test are not done in the diff.
-- Impact map: carries the actual dbt ls selection and its 42-model output, measured counts, the reader list and the deploy order (test merges with the model change); not a coverage cut.
-- Thresholds: NEW MECHANISM none (singular test, store_failures an established pattern, the id list is the CPO's ruling); RECURRING COST declared at 38 MB per run.
-- Secrets and permissions: nothing credential-shaped, no workflow or permission change.
-- A1 to A5: no new metric, logic stays in the intermediate layer, no frontend logic, no escalations.log entry.
+- Scope: all 12 non-artifact files (6 SQL, 4 yml, metric_catalogue.csv, metric_columns.md) are in scope_paths; no amendments needed.
+- decisions_reserved: no player save percentage code touched (#184); the saves_pct id and the label "% Shots saved" unchanged.
+- Decision classes: the definition change rests on the CPO's scope ruling "B. Team now, player issue" and the plan approval, both in decisions_taken; goals_own_against follows the id pattern recorded on #94; no unapproved wording, URL or format change.
+- Thresholds: NEW MECHANISM and RECURRING COST declared none; one self-join on the existing events CTE, one integer column, two sums in models the nightly already builds.
+- Impact map: dbt ls lineage (29 models), reader list, layer rules, deploy order and measured blast radius (4,371 of 119,674 legs); no coverage cut.
+- Undeclared reach: every downstream reader of saves_pct named; new columns stay in intermediate models, no mart schema gains a column.
+- Doc sync: metric_columns.md and the catalogue formula and description updated together; only a historical audit note and the tracker snapshot mention the old formula outside the models.
+- A1, A4, A5: logic in intermediate and mart SQL; the new window sums use the same goalkeeper_saves-not-null filter as goals_against_in_save_games; frontend untouched.
+- Secrets: nothing credential-shaped, no workflow change, no escalations.log entry, no host address.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Layer placement: the four changes are in 4_intermediate models reading only fct_fixture_event; no stg or mart ref, no materialisation override, no partition_by or cluster_by; exactly four fct_fixture_event readers exist and all four are in the diff.
-- Own-goal fix: the ev_own / ev_opp double join is one join on l.team_sk; events groups by (fixture_sk, team_sk) so the leg grain is unchanged; the rename own_goals_scored to own_goals_credited leaves no stale reference.
-- Shoot-out filter: `event_comments is distinct from 'Penalty Shootout'` is NULL-safe; event_comments exists on fct_fixture_event; same wording in the four models and the test.
-- Test: recounts open-play goals from 'Normal Goal' events, so it is not checked against the model's own difference and goes red if the own-goal join or the shoot-out filter regresses; coverage keeps only matches whose attributable goal events sum to the score; error severity per the ruling.
-- Hardcoded fixture ids: fixture_sk equals fixture_api_id, so the ids are valid; fixture, not competition, identifiers; each named with its reason.
-- Catalogue: description text only on the three rows; expression, source, grain, format, group and order untouched; metric_columns.md matches the seed.
-- Consumption layer: no export script or frontend code in the diff.
-- Impact map: writers, lineage, column readers, layer rules, deploy order and blast radius all present and specific.
+- Layer placement: own-goal count read from fct_fixture_event in int_legs__team_match's existing events CTE; coverage-restricted sums in the two same-window intermediates; the subtraction at the two existing division sites; no inversion, no new ref.
+- Fan-out: the new ev_opp join reads events grouped by (fixture_sk, team_sk), at most one row per leg; grain holds; missing event row coalesces to 0 like goals_own.
+- Dividing sites: only mart_team_momentum and int_team_season__metrics_cumulative divide; every other reader carries saves_pct unchanged; no consumption-layer computation.
+- Same-window rule: goals_own_against_in_save_games uses the goalkeeper_saves-is-not-null predicate of goals_against_in_save_games in both the sum and the window variants.
+- Column propagation: new columns reach no mart; mart_team_momentum_window, mart_team_momentum and int_team_season__metrics_cumulative select explicitly.
+- Tests: no new test by the recorded ruling; the saves_pct 0-1 range tests remain on the marts and int_team_season; none deleted or weakened.
+- Catalogue: a redefinition, not a new metric; formula and description change, label, id and format unchanged; the seed row keeps its column count; metric_columns.md in step.
+- Competition-agnostic: no league identifier added.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Catalogue diff: three rows, description only; every other cell on those rows unchanged against main; no new metric or formula.
-- Football validity: a shoot-out kick is not a goal in the scoreline, so leaving it out of penalty goals and the open-play split is right; an own goal counts for the side it benefits; the new goals_own wording is accurate and matches the corrected join.
-- Model, test and description agree: own-goal event joined on the team's own team_sk; all four readers filter shoot-out kicks NULL-safely; the test checks events against the scoreline at error severity.
-- Edge cases: the finishing rows stay untouched and nothing is capped; the three provider-mislabelled matches are named in the test with reasons and reserved to the CPO.
-- Direction: goals_penalty and goals_own stay higher_better; no direction changed.
-- Scope: every changed file inside scope_paths; the docs block regenerated from the seed.
+- Football validity: saves / (saves + goals_against - goals_own_against); an own goal is conceded but no opposing shot on target reached the keeper; penalties stay in the denominator as shots on target.
+- Own-goal side: goals_own_against reads the events credited to the opponent, the mirror of goals_own; shoot-out events already excluded in the same CTE.
+- Zero denominators: safe_divide gives NULL when saves plus non-own goals conceded is 0; the coverage guard is untouched.
+- Same-window consistency: the new sum uses the same save-covered filter as goals_against_in_save_games and is divided at both sites.
+- Direction higher_better unchanged and correct; label unchanged; one transparent ratio of counts.
+- Deferred: the player rows still count own goals, reserved as #184; team and player "% Shots saved" can differ for a keeper until then.
 
 ## escalations
 (none)

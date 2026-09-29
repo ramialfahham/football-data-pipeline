@@ -136,6 +136,8 @@ models:
         description: "{{ doc('goals_own') }}"
       - name: goals_against_in_save_games
         description: "Goals conceded summed only over the legs whose goalkeeper-save data exists, so saves_pct divides a numerator and denominator that cover the same games."
+      - name: goals_own_against_in_save_games
+        description: "The own goals among goals_against_in_save_games, over the same legs. saves_pct subtracts them: an own goal is conceded but is not a shot on target the keeper faced."
       - name: goals_open_play_in_sot_games
         description: "Open-play goals (goals minus penalties minus own goals) summed ONLY over the legs that have shots-on-target data, so finishing_efficiency_pct divides over the games its denominator can see. Required because awarded results (technical loss, walkover) count as played: their goals are real and enter the full goal sums, but they carry no shots-on-target, so a full-sum numerator would credit goals no shot could explain."
       - name: shots_total
