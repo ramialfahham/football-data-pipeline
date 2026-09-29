@@ -652,22 +652,23 @@ finishing_efficiency_player_pct. (goals_total already excludes own goals.)
 
 
 {% docs goals_own %}
-Own goals credited to the team (the opponents' own-goal events in the team's matches), counted
-from match events (event_detail = 'Own Goal'). A component of the open-play split.
+Own goals credited to the team (goals the opponents put into their own net in the team's
+matches; the provider files each such event under the team it counts for), counted from match
+events (event_detail = 'Own Goal'). A component of the open-play split.
 {% enddocs %}
 
 
 {% docs goals_penalty %}
 Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail =
-'Penalty'). A component of the open-play split — not the team finishing its own on-target
-shots.
+'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the team
+finishing its own on-target shots.
 {% enddocs %}
 
 
 {% docs goals_penalty_player %}
 Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail =
-'Penalty'). A component of the open-play split — not the player finishing his own on-target
-shots.
+'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the
+player finishing his own on-target shots.
 {% enddocs %}
 
 

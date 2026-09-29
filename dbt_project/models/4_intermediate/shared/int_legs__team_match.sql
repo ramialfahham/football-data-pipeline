@@ -36,18 +36,21 @@ types as (
 
 -- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
 -- (open-play = goals minus penalties minus own goals credited).
--- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
--- = an own goal THIS team scored into its own net — which counts for the OPPONENT, so it is joined
--- as the opponent's own goals downstream. The remaining goals ('Normal Goal') are open play. Only
--- the components are event-derived; goals_for stays the authoritative scoreline.
+-- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal' = an own goal credited to
+-- this team: the provider files it under the team it counts for, not the team whose player put it
+-- in. A shoot-out kick is no goal: the scoreline leaves the shoot-out out, and so do these counts.
+-- The remaining goals ('Normal Goal') are open play. Only the components are event-derived;
+-- goals_for stays the authoritative scoreline.
 events as (
     select
         fixture_sk,
         team_sk,
         countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals,
-        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals_scored
+        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals_credited
     from {{ ref('fct_fixture_event') }}
-    where team_sk is not null
+    where
+        team_sk is not null
+        and event_comments is distinct from 'Penalty Shootout'
     group by fixture_sk, team_sk
 ),
 
@@ -147,19 +150,17 @@ with_stats as (
         if(own.team_sk is not null, coalesce(own.yellow_cards, 0), null) as yellow_cards,
         if(own.team_sk is not null, coalesce(own.red_cards, 0), null) as red_cards,
         -- open-play goal split: goals_for stays the authoritative scoreline; this
-        -- team's penalties and the own goals credited to it (the OPPONENT's own-goal events) are
-        -- subtracted downstream to get goals_open_play. Catalogued as goals_penalty / goals_own.
-        coalesce(ev_own.penalty_goals, 0) as goals_penalty,
-        coalesce(ev_opp.own_goals_scored, 0) as goals_own
+        -- team's penalties and the own goals credited to it are subtracted downstream to get
+        -- goals_open_play. Catalogued as goals_penalty / goals_own.
+        coalesce(ev.penalty_goals, 0) as goals_penalty,
+        coalesce(ev.own_goals_credited, 0) as goals_own
     from legs as l
     left join team_stats as own
         on l.fixture_sk = own.fixture_sk and l.team_sk = own.team_sk
     left join team_stats as opp
         on l.fixture_sk = opp.fixture_sk and l.opponent_team_sk = opp.team_sk
-    left join events as ev_own
-        on l.fixture_sk = ev_own.fixture_sk and l.team_sk = ev_own.team_sk
-    left join events as ev_opp
-        on l.fixture_sk = ev_opp.fixture_sk and l.opponent_team_sk = ev_opp.team_sk
+    left join events as ev
+        on l.fixture_sk = ev.fixture_sk and l.team_sk = ev.team_sk
 )
 
 select

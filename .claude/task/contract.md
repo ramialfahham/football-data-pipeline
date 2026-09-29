@@ -1,23 +1,24 @@
-# Task contract — #132: the match page review renders, states 1 to 3
+# Task contract — #179: own goals credited to the wrong side, shoot-out kicks counted as penalties
 
 objective: >
-  Put the match page in front of the CPO for the #132 review, one state at a time: the next matchday
-  (state 1), a match further out (state 2) and a played match (state 3). A design mock generated from
-  the BUILT page where one exists, with a "Built today" / "Proposed" switch, every proposed change
-  marked and numbered, each block's data source shown on a toggle, and the approved instance of each
-  element beside the block that uses it; filed as renders of record through design-mocks/render.py.
-  No site change.
+  Fix the open-play goal split behind Goals per shot on target. An own goal counts for the side it
+  benefits (the provider files the own-goal event under the team it counts for; int_legs__team_match
+  joins it as the opponent's), and shoot-out kicks (event_comments = 'Penalty Shootout') count as no
+  goal and no penalty in the four readers of goal events. A new error-level test holds the split to
+  the scoreline; the catalogue's descriptions state the corrected filter.
 
 refs: >
-  #132 (the review issue: block by block, data sources, links), its decision comments "State 1 — the
-  next matchday: decided", "State 2 — the future match page: decided" and "State 3 — the played
-  match's page: decided"; the reference mock d70aae67 ("Fixture page — clean design");
-  docs/wireframes/01_fixture_page.md; the CPO's go in chat for each state.
+  #179 (What exactly / Why / How). The CPO's approval of the plan in chat, and his ruling on the
+  test: "A. Error, 3 named". docs/metric_layer.md.
 
 scope_paths:
-  - design-mocks/gen_match_page.py
-  - design-mocks/renders/*
-  - design-mocks/README.md
+  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+  - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
+  - dbt_project/seeds/metric_catalogue.csv
+  - dbt_project/models/docs/metric_columns.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -26,38 +27,86 @@ scope_paths:
   - .claude/task/audit_reviewer_outputs.md
   - docs/tracker/**
 
-decisions_taken: >
-  The renders show the built page unchanged under "Built today" and, under "Proposed", only changes
-  made of elements the site already ships or elements the CPO approved in the review, each with its
-  approved instance shown beside it. Every decision is the CPO's, made block by block in chat and
-  recorded in his words on #132; the renders record them, the build issues filed from them
-  (#166, #167, #94, #174 to #181) carry them to the site.
+impact_map: >
+  writers: each of the four models is written only by its own SQL file (dbt `table`,
+  materialisation from dbt_project.yml's 4_intermediate layer); fct_fixture_event, the one table
+  they read events from, is only read here and not changed.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a design-mock generator, the established pattern).
-  RECURRING COST: none.
+  downstream: `dbt ls --project-dir dbt_project --resource-type model --output name --select
+  "int_legs__team_match+ int_legs__player_match+ int_player_club_season__metrics+
+  int_player_season_position__metrics+"` returned 42 models: int_legs__player_match
+  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
+  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
+  int_player_profile__yoy int_player_season__metrics int_player_season__team
+  int_player_season_position__metrics int_player_season_record
+  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
+  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
+  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
+  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
+  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
+  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
+  mart_player_momentum mart_player_profile mart_player_season_record
+  mart_team_competition_benchmarks mart_team_fixtures mart_team_leaderboards mart_team_momentum
+  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
+  mart_team_season_record. The columns that change are goals_own and goals_penalty on the team leg
+  and goals_penalty / goals_penalty_player on the three player models; the readers of those columns
+  are int_team_momentum_window, int_team_momentum__metrics, int_team_season_record,
+  int_team_season__metrics_cumulative, int_player_season__metrics, mart_team_momentum and the
+  player_benchmark_metrics() macro (grep of goals_own|goals_penalty over dbt_project/**/*.sql).
+
+  layer_rules: intermediate models stay intermediate; no partition_by / cluster_by; no
+  per-competition file; no materialisation override (check_layer_contract.py). league_code is not
+  branched on.
+
+  deploy_order: the four are tables rebuilt in full by every build, so the fix reaches prod at the
+  first 04:00 nightly after merge with no full refresh. No incremental fact is changed. The new test
+  runs in that nightly and in every MR's data build; measured against prod it is 0 rows with the
+  fixed logic (52,361 matches with goal events) and 9,107 rows in 4,559 matches on today's model,
+  so it must merge together with the model change, never before it.
+
+  blast_radius: every team metric built on goals_own / goals_penalty (open-play goals, own goals,
+  penalty goals, Goals per shot on target) in matches with an own goal (4,283 in fct_fixture_event)
+  or a shoot-out (394), and every player metric built on the penalty count in the 394 shoot-out
+  matches (open-play goals, penalty goals, Goals per shot on target, the finishing benchmark).
+  Nothing else: the scoreline and player goals_total are untouched and already leave the shoot-out
+  out (measured: 1,163 of 1,294 shoot-out legs match the non-shoot-out events; 10,706 of 10,713
+  player rows, and none include the shoot-out).
+
+decisions_taken: >
+  The CPO approved the plan for #179 in chat: the four models as in the issue's How, the new test,
+  the before/after comparison, and the catalogue wording below. His ruling on the test, chosen from
+  three options: "A. Error, 3 named" — error severity, the three matches whose provider events
+  disagree with the score on who scored left out by fixture id with their reasons (21650, 247587,
+  1373026).
+
+  Catalogue wording, meaning unchanged: goals_penalty and goals_penalty_player state that penalty
+  shoot-out kicks are left out; goals_own says the own goals are the opponents' own goals and that
+  the provider files each such event under the team it counts for. metric_columns.md is regenerated
+  from the seed by scripts/sync_metric_docs_blocks.py.
+
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none — a singular dbt test, the established pattern; its
+  list of three excluded fixture ids is the CPO's ruling above, and no test in dbt_project/tests has
+  one today. RECURRING COST: the test reads 38,352,533 bytes per run (dry run against prod), about
+  1.2 GB a month on the nightly — under one cent a month.
 
 decisions_reserved:
-  - Which played matches get a page, and its cost: #174, the CPO's.
-  - The name of the mart that serves a match as a window of one: the CPO's, at build (#176).
-  - The German name of shots on target ("Torschüsse" or "Schüsse aufs Tor"): the CPO's, with #177's
-    German names.
-  - Player-name links: player pages exist only for players on the rankings boards; whether every
-    player gets a page is #169's.
+  - Correcting the provider's events for the three excluded matches (they keep the provider's wrong
+    split on the site): outside this task, the CPO's.
+  - A player-side test for the shoot-out rule: not in #179, which names one test; the CPO's to ask for.
 
 done_when:
-  - python design-mocks/render.py gen_match_page.py match-page (and future-match-page,
-    played-match-page with MATCH_STATE future, future-unmet, played, played-pen) writes a render of
-    record, after npm run build for the states with a built page.
-  - python scripts/check_design_inventory.py --no-built --no-mocks --page on each decided render
-    reports only the failures #167 changes (the competition group head's left edge) and the prose
-    links #166 changes.
-  - python scripts/check_page_css.py reports 0 findings; pytest tests/test_design_mock_renders.py
-    passes.
-  - Each render is sent to the CPO; the decisions are recorded on #132.
+  - .venv/Scripts/dbt.exe parse --project-dir dbt_project succeeds.
+  - python -m sqlfluff lint on the five SQL files (repo root, jinja templater, bigquery) reports no new
+    violation against main.
+  - python scripts/sync_metric_docs_blocks.py --check and python scripts/check_description_hygiene.py
+    pass.
+  - Read-only bq, the compiled fixed int_legs__team_match inlined into the test: 0 rows; the test on
+    today's prod model: red (9,107 rows); with the shoot-out filter removed and with the own-goal
+    join put back on the opponent: red.
+  - The fixed leg for fixture 1575150 gives Goals per shot on target 33% | 50%.
+  - The validate-local gates pass; review.md binds the staged hash with every routed verdict PASS.
+  - After the MR's data:build:mr: every site-facing mart in ci_mr<IID>_marts compared with prod's,
+    each changed row traced to a window holding an own-goal or shoot-out match of that team or
+    player, and none elsewhere; the result in the MR head.
 
-amendments:
-  - 2026-09-29: + states 2 and 3 (renders future-match-page_*, played-match-page_*; the generator's
-    MATCH_STATE future, future-unmet, played and played-pen), inside the existing scope_paths —
-    authority: #132 "State 2 — the future match page: decided" (CPO, 2026-09-27); CPO in chat:
-    "Continue #132, the match page review, state 3 of 3" and "yes, state 3 decided, post on #132";
-    content: objective, refs, decisions_taken, decisions_reserved and done_when cover all three states.
+amendments: (none)

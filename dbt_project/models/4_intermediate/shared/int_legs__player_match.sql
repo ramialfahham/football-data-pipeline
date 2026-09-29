@@ -45,13 +45,16 @@ finished as (
 -- Penalty goals per (fixture, player) from match events — the open-play finishing numerator
 -- component (goals_total - goals_penalty). goals_total stays authoritative; only the penalty
 -- component is event-derived. Mirrors int_player_season_position__metrics' events derivation.
+-- A shoot-out kick is no goal: goals_total leaves the shoot-out out, and so does this count.
 events as (
     select
         fixture_sk,
         player_sk,
         countif(event_type = 'Goal' and event_detail = 'Penalty') as goals_penalty
     from {{ ref('fct_fixture_event') }}
-    where player_sk is not null
+    where
+        player_sk is not null
+        and event_comments is distinct from 'Penalty Shootout'
     group by fixture_sk, player_sk
 )
 
