@@ -153,7 +153,10 @@ with_stats as (
         -- team's penalties and the own goals credited to it are subtracted downstream to get
         -- goals_open_play. Catalogued as goals_penalty / goals_own.
         coalesce(ev.penalty_goals, 0) as goals_penalty,
-        coalesce(ev.own_goals_credited, 0) as goals_own
+        coalesce(ev.own_goals_credited, 0) as goals_own,
+        -- own goals this team conceded: credited to the opponent, so they sit on its events. Part
+        -- of goals_against, but not a shot on target the keeper faced (saves_pct leaves them out).
+        coalesce(ev_opp.own_goals_credited, 0) as goals_own_against
     from legs as l
     left join team_stats as own
         on l.fixture_sk = own.fixture_sk and l.team_sk = own.team_sk
@@ -161,6 +164,8 @@ with_stats as (
         on l.fixture_sk = opp.fixture_sk and l.opponent_team_sk = opp.team_sk
     left join events as ev
         on l.fixture_sk = ev.fixture_sk and l.team_sk = ev.team_sk
+    left join events as ev_opp
+        on l.fixture_sk = ev_opp.fixture_sk and l.opponent_team_sk = ev_opp.team_sk
 )
 
 select

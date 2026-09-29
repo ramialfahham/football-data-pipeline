@@ -115,6 +115,8 @@ models:
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
+      - name: goals_own_against
+        description: "Own goals this team conceded in the match: its players put the ball into their own net, and the goal counts for the opponent. Part of goals_against, but not a shot on target the keeper faced, so save percentage leaves them out. Counted from match events; 0 when there were none."
 
   - name: int_legs__player_match
     description: >

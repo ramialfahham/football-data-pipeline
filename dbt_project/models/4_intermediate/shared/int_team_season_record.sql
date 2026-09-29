@@ -53,6 +53,7 @@ legs as (
         tl.goals_against,
         tl.goals_penalty,
         tl.goals_own,
+        tl.goals_own_against,
         tl.shots_total,
         tl.shots_on_goal,
         tl.shots_inside_box,
@@ -159,6 +160,9 @@ select
     -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
     sum(if(goalkeeper_saves is not null, goals_against, null)) over w
         as goals_against_in_save_games,
+    -- the own goals among them: conceded, but never a shot on target the keeper faced
+    sum(if(goalkeeper_saves is not null, goals_own_against, null)) over w
+        as goals_own_against_in_save_games,
     -- team stats (cumulative)
     sum(shots_total) over w as shots_total,
     sum(shots_on_goal) over w as shots_on_goal,

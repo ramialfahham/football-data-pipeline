@@ -178,7 +178,8 @@ select
     case
         when games_with_save_stats < games_expecting_team_stats then null
         else safe_divide(
-            goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
+            goalkeeper_saves,
+            goalkeeper_saves + goals_against_in_save_games - goals_own_against_in_save_games
         )
     end as saves_pct,
     -- player-derived team metrics: a game without the player feed has no input, so these

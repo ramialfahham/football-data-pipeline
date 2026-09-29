@@ -1,435 +1,424 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 97c6a746..2955221b 100644
+index 2955221b..d41a5b72 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,23 +1,24 @@
--# Task contract — #132: the match page review renders, states 1 to 3
-+# Task contract — #179: own goals credited to the wrong side, shoot-out kicks counted as penalties
+@@ -1,22 +1,28 @@
+-# Task contract — #179: own goals credited to the wrong side, shoot-out kicks counted as penalties
++# Task contract — #180: team save percentage counts an own goal as a shot the keeper failed to save
  
  objective: >
--  Put the match page in front of the CPO for the #132 review, one state at a time: the next matchday
--  (state 1), a match further out (state 2) and a played match (state 3). A design mock generated from
--  the BUILT page where one exists, with a "Built today" / "Proposed" switch, every proposed change
--  marked and numbered, each block's data source shown on a toggle, and the approved instance of each
--  element beside the block that uses it; filed as renders of record through design-mocks/render.py.
--  No site change.
-+  Fix the open-play goal split behind Goals per shot on target. An own goal counts for the side it
-+  benefits (the provider files the own-goal event under the team it counts for; int_legs__team_match
-+  joins it as the opponent's), and shoot-out kicks (event_comments = 'Penalty Shootout') count as no
-+  goal and no penalty in the four readers of goal events. A new error-level test holds the split to
-+  the scoreline; the catalogue's descriptions state the corrected filter.
+-  Fix the open-play goal split behind Goals per shot on target. An own goal counts for the side it
+-  benefits (the provider files the own-goal event under the team it counts for; int_legs__team_match
+-  joins it as the opponent's), and shoot-out kicks (event_comments = 'Penalty Shootout') count as no
+-  goal and no penalty in the four readers of goal events. A new error-level test holds the split to
+-  the scoreline; the catalogue's descriptions state the corrected filter.
++  Team save percentage (saves_pct) becomes saves / (saves + goals conceded that were not own goals).
++  The team leg gains the own goals it conceded (goals_own_against); the two same-window models sum
++  them over save-covered games beside goals_against_in_save_games; the two places that divide
++  subtract them; the catalogue formula and description say so.
  
  refs: >
--  #132 (the review issue: block by block, data sources, links), its decision comments "State 1 — the
--  next matchday: decided", "State 2 — the future match page: decided" and "State 3 — the played
--  match's page: decided"; the reference mock d70aae67 ("Fixture page — clean design");
--  docs/wireframes/01_fixture_page.md; the CPO's go in chat for each state.
-+  #179 (What exactly / Why / How). The CPO's approval of the plan in chat, and his ruling on the
-+  test: "A. Error, 3 named". docs/metric_layer.md.
+-  #179 (What exactly / Why / How). The CPO's approval of the plan in chat, and his ruling on the
+-  test: "A. Error, 3 named". docs/metric_layer.md.
++  #180 (What exactly / Why / How), as edited to team only. The CPO's ruling on the scope, chosen from
++  three options: "B. Team now, player issue" — player save percentage is #184. The CPO's approval
++  of the plan in chat. docs/metric_layer.md. The id pattern recorded on #94 (goals_own_against:
++  noun goals, qualifier own, _against).
  
  scope_paths:
--  - design-mocks/gen_match_page.py
--  - design-mocks/renders/*
--  - design-mocks/README.md
-+  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-+  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-+  - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
-+  - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/models/docs/metric_columns.md
+   - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+-  - dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+-  - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
++  - dbt_project/models/4_intermediate/shared/int_legs.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++  - dbt_project/models/4_intermediate/shared/int_momentum.yml
++  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+   - dbt_project/seeds/metric_catalogue.csv
+   - dbt_project/models/docs/metric_columns.md
    - .claude/task/contract.md
-   - .claude/task/review.md
-   - .claude/task/review_input.patch
-@@ -26,38 +27,86 @@ scope_paths:
-   - .claude/task/audit_reviewer_outputs.md
+@@ -28,85 +34,61 @@ scope_paths:
    - docs/tracker/**
  
-+impact_map: >
-+  writers: each of the four models is written only by its own SQL file (dbt `table`,
-+  materialisation from dbt_project.yml's 4_intermediate layer); fct_fixture_event, the one table
-+  they read events from, is only read here and not changed.
-+
-+  downstream: `dbt ls --project-dir dbt_project --resource-type model --output name --select
-+  "int_legs__team_match+ int_legs__player_match+ int_player_club_season__metrics+
-+  int_player_season_position__metrics+"` returned 42 models: int_legs__player_match
-+  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
-+  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
-+  int_player_profile__yoy int_player_season__metrics int_player_season__team
-+  int_player_season_position__metrics int_player_season_record
-+  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
-+  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
-+  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
-+  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
-+  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
-+  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
-+  mart_player_momentum mart_player_profile mart_player_season_record
-+  mart_team_competition_benchmarks mart_team_fixtures mart_team_leaderboards mart_team_momentum
-+  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
-+  mart_team_season_record. The columns that change are goals_own and goals_penalty on the team leg
-+  and goals_penalty / goals_penalty_player on the three player models; the readers of those columns
-+  are int_team_momentum_window, int_team_momentum__metrics, int_team_season_record,
-+  int_team_season__metrics_cumulative, int_player_season__metrics, mart_team_momentum and the
-+  player_benchmark_metrics() macro (grep of goals_own|goals_penalty over dbt_project/**/*.sql).
-+
-+  layer_rules: intermediate models stay intermediate; no partition_by / cluster_by; no
-+  per-competition file; no materialisation override (check_layer_contract.py). league_code is not
-+  branched on.
-+
-+  deploy_order: the four are tables rebuilt in full by every build, so the fix reaches prod at the
-+  first 04:00 nightly after merge with no full refresh. No incremental fact is changed. The new test
-+  runs in that nightly and in every MR's data build; measured against prod it is 0 rows with the
-+  fixed logic (52,361 matches with goal events) and 9,107 rows in 4,559 matches on today's model,
-+  so it must merge together with the model change, never before it.
-+
-+  blast_radius: every team metric built on goals_own / goals_penalty (open-play goals, own goals,
-+  penalty goals, Goals per shot on target) in matches with an own goal (4,283 in fct_fixture_event)
-+  or a shoot-out (394), and every player metric built on the penalty count in the 394 shoot-out
-+  matches (open-play goals, penalty goals, Goals per shot on target, the finishing benchmark).
-+  Nothing else: the scoreline and player goals_total are untouched and already leave the shoot-out
-+  out (measured: 1,163 of 1,294 shoot-out legs match the non-shoot-out events; 10,706 of 10,713
-+  player rows, and none include the shoot-out).
-+
- decisions_taken: >
--  The renders show the built page unchanged under "Built today" and, under "Proposed", only changes
--  made of elements the site already ships or elements the CPO approved in the review, each with its
--  approved instance shown beside it. Every decision is the CPO's, made block by block in chat and
--  recorded in his words on #132; the renders record them, the build issues filed from them
--  (#166, #167, #94, #174 to #181) carry them to the site.
-+  The CPO approved the plan for #179 in chat: the four models as in the issue's How, the new test,
-+  the before/after comparison, and the catalogue wording below. His ruling on the test, chosen from
-+  three options: "A. Error, 3 named" — error severity, the three matches whose provider events
-+  disagree with the score on who scored left out by fixture id with their reasons (21650, 247587,
-+  1373026).
-+
-+  Catalogue wording, meaning unchanged: goals_penalty and goals_penalty_player state that penalty
-+  shoot-out kicks are left out; goals_own says the own goals are the opponents' own goals and that
-+  the provider files each such event under the team it counts for. metric_columns.md is regenerated
-+  from the seed by scripts/sync_metric_docs_blocks.py.
+ impact_map: >
+-  writers: each of the four models is written only by its own SQL file (dbt `table`,
+-  materialisation from dbt_project.yml's 4_intermediate layer); fct_fixture_event, the one table
+-  they read events from, is only read here and not changed.
++  writers: each changed model is written only by its own SQL file (dbt `table`); the event and
++  fixture facts are only read.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a design-mock generator, the established pattern).
--  RECURRING COST: none.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none — a singular dbt test, the established pattern; its
-+  list of three excluded fixture ids is the CPO's ruling above, and no test in dbt_project/tests has
-+  one today. RECURRING COST: the test reads 38,352,533 bytes per run (dry run against prod), about
-+  1.2 GB a month on the nightly — under one cent a month.
+   downstream: `dbt ls --project-dir dbt_project --resource-type model --output name --select
+-  "int_legs__team_match+ int_legs__player_match+ int_player_club_season__metrics+
+-  int_player_season_position__metrics+"` returned 42 models: int_legs__player_match
+-  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
+-  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
+-  int_player_profile__yoy int_player_season__metrics int_player_season__team
+-  int_player_season_position__metrics int_player_season_record
+-  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
+-  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
+-  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
+-  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
+-  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
+-  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
+-  mart_player_momentum mart_player_profile mart_player_season_record
+-  mart_team_competition_benchmarks mart_team_fixtures mart_team_leaderboards mart_team_momentum
+-  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
+-  mart_team_season_record. The columns that change are goals_own and goals_penalty on the team leg
+-  and goals_penalty / goals_penalty_player on the three player models; the readers of those columns
+-  are int_team_momentum_window, int_team_momentum__metrics, int_team_season_record,
+-  int_team_season__metrics_cumulative, int_player_season__metrics, mart_team_momentum and the
+-  player_benchmark_metrics() macro (grep of goals_own|goals_penalty over dbt_project/**/*.sql).
++  "int_legs__team_match+"` returned 29 models: int_legs__team_match int_player_momentum__metrics
++  int_player_profile__contribution int_team_competition_benchmark_metrics_long
++  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
++  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
++  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
++  mart_competition_fixtures mart_competition_season_summary mart_head_to_head mart_match_days
++  mart_matchday_insights mart_player_momentum mart_player_profile mart_team_competition_benchmarks
++  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
++  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record. The new
++  columns stay in intermediate models: every mart that reads int_team_momentum_window,
++  int_team_momentum__metrics or int_team_season_record lists its columns, and
++  int_team_season__metrics_cumulative lists its output, so no mart gains a column and the season
++  drift guard sees none. saves_pct is read, unchanged in code, by int_team_profile__yoy,
++  int_team_competition_benchmark_metrics_long, mart_team_season_insights, mart_team_profile,
++  mart_team_season_record and mart_matchday_insights.
+ 
+-  layer_rules: intermediate models stay intermediate; no partition_by / cluster_by; no
+-  per-competition file; no materialisation override (check_layer_contract.py). league_code is not
+-  branched on.
++  layer_rules: intermediate stays intermediate; no partition_by / cluster_by; no per-competition
++  file; no materialisation override (check_layer_contract.py). league_code is not branched on.
+ 
+-  deploy_order: the four are tables rebuilt in full by every build, so the fix reaches prod at the
+-  first 04:00 nightly after merge with no full refresh. No incremental fact is changed. The new test
+-  runs in that nightly and in every MR's data build; measured against prod it is 0 rows with the
+-  fixed logic (52,361 matches with goal events) and 9,107 rows in 4,559 matches on today's model,
+-  so it must merge together with the model change, never before it.
++  deploy_order: all changed models are tables rebuilt in full by every build; the fix reaches prod
++  at the first 04:00 nightly after merge with no full refresh. No incremental fact is changed.
+ 
+-  blast_radius: every team metric built on goals_own / goals_penalty (open-play goals, own goals,
+-  penalty goals, Goals per shot on target) in matches with an own goal (4,283 in fct_fixture_event)
+-  or a shoot-out (394), and every player metric built on the penalty count in the 394 shoot-out
+-  matches (open-play goals, penalty goals, Goals per shot on target, the finishing benchmark).
+-  Nothing else: the scoreline and player goals_total are untouched and already leave the shoot-out
+-  out (measured: 1,163 of 1,294 shoot-out legs match the non-shoot-out events; 10,706 of 10,713
+-  player rows, and none include the shoot-out).
++  blast_radius: team saves_pct and what reads it, only for teams that conceded an own goal in the
++  window or season: 4,371 of 119,674 team legs conceded an own goal, 3,897 of them with save stats
++  (prod, measured). Player save percentage is untouched (#184).
+ 
+ decisions_taken: >
+-  The CPO approved the plan for #179 in chat: the four models as in the issue's How, the new test,
+-  the before/after comparison, and the catalogue wording below. His ruling on the test, chosen from
+-  three options: "A. Error, 3 named" — error severity, the three matches whose provider events
+-  disagree with the score on who scored left out by fixture id with their reasons (21650, 247587,
+-  1373026).
++  The CPO ruled the scope ("B. Team now, player issue") and approved the plan: the new column
++  goals_own_against on the team leg, its same-window sum goals_own_against_in_save_games beside the
++  existing goals_against_in_save_games (which keeps its meaning), the two dividing sites, the
++  catalogue formula and description (label unchanged), the column docs, no new test (#180 asks for
++  none), and the before/after compared before the merge.
+ 
+-  Catalogue wording, meaning unchanged: goals_penalty and goals_penalty_player state that penalty
+-  shoot-out kicks are left out; goals_own says the own goals are the opponents' own goals and that
+-  the provider files each such event under the team it counts for. metric_columns.md is regenerated
+-  from the seed by scripts/sync_metric_docs_blocks.py.
+-
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none — a singular dbt test, the established pattern; its
+-  list of three excluded fixture ids is the CPO's ruling above, and no test in dbt_project/tests has
+-  one today. RECURRING COST: the test reads 38,352,533 bytes per run (dry run against prod), about
+-  1.2 GB a month on the nightly — under one cent a month.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none measurable — one more integer
++  column carried through tables the nightly already builds.
  
  decisions_reserved:
--  - Which played matches get a page, and its cost: #174, the CPO's.
--  - The name of the mart that serves a match as a window of one: the CPO's, at build (#176).
--  - The German name of shots on target ("Torschüsse" or "Schüsse aufs Tor"): the CPO's, with #177's
--    German names.
--  - Player-name links: player pages exist only for players on the rankings boards; whether every
--    player gets a page is #169's.
-+  - Correcting the provider's events for the three excluded matches (they keep the provider's wrong
-+    split on the site): outside this task, the CPO's.
-+  - A player-side test for the shoot-out rule: not in #179, which names one test; the CPO's to ask for.
+-  - Correcting the provider's events for the three excluded matches (they keep the provider's wrong
+-    split on the site): outside this task, the CPO's.
+-  - A player-side test for the shoot-out rule: not in #179, which names one test; the CPO's to ask for.
++  - Player save percentage: #184, the CPO's to schedule.
++  - The id saves_pct: renamed by #94, not here.
  
  done_when:
--  - python design-mocks/render.py gen_match_page.py match-page (and future-match-page,
--    played-match-page with MATCH_STATE future, future-unmet, played, played-pen) writes a render of
--    record, after npm run build for the states with a built page.
--  - python scripts/check_design_inventory.py --no-built --no-mocks --page on each decided render
--    reports only the failures #167 changes (the competition group head's left edge) and the prose
--    links #166 changes.
--  - python scripts/check_page_css.py reports 0 findings; pytest tests/test_design_mock_renders.py
--    passes.
--  - Each render is sent to the CPO; the decisions are recorded on #132.
--
--amendments:
--  - 2026-09-29: + states 2 and 3 (renders future-match-page_*, played-match-page_*; the generator's
--    MATCH_STATE future, future-unmet, played and played-pen), inside the existing scope_paths —
--    authority: #132 "State 2 — the future match page: decided" (CPO, 2026-09-27); CPO in chat:
--    "Continue #132, the match page review, state 3 of 3" and "yes, state 3 decided, post on #132";
--    content: objective, refs, decisions_taken, decisions_reserved and done_when cover all three states.
-+  - .venv/Scripts/dbt.exe parse --project-dir dbt_project succeeds.
-+  - python -m sqlfluff lint on the five SQL files (repo root, jinja templater, bigquery) reports no new
-+    violation against main.
-+  - python scripts/sync_metric_docs_blocks.py --check and python scripts/check_description_hygiene.py
-+    pass.
-+  - Read-only bq, the compiled fixed int_legs__team_match inlined into the test: 0 rows; the test on
-+    today's prod model: red (9,107 rows); with the shoot-out filter removed and with the own-goal
-+    join put back on the opponent: red.
-+  - The fixed leg for fixture 1575150 gives Goals per shot on target 33% | 50%.
-+  - The validate-local gates pass; review.md binds the staged hash with every routed verdict PASS.
-+  - After the MR's data:build:mr: every site-facing mart in ci_mr<IID>_marts compared with prod's,
-+    each changed row traced to a window holding an own-goal or shoot-out match of that team or
-+    player, and none elsewhere; the result in the MR head.
-+
-+amendments: (none)
-diff --git a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-index 2b35c3e2..392807c8 100644
---- a/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_legs__player_match.sql
-@@ -45,13 +45,16 @@ finished as (
- -- Penalty goals per (fixture, player) from match events — the open-play finishing numerator
- -- component (goals_total - goals_penalty). goals_total stays authoritative; only the penalty
- -- component is event-derived. Mirrors int_player_season_position__metrics' events derivation.
-+-- A shoot-out kick is no goal: goals_total leaves the shoot-out out, and so does this count.
- events as (
-     select
-         fixture_sk,
-         player_sk,
-         countif(event_type = 'Goal' and event_detail = 'Penalty') as goals_penalty
-     from {{ ref('fct_fixture_event') }}
--    where player_sk is not null
-+    where
-+        player_sk is not null
-+        and event_comments is distinct from 'Penalty Shootout'
-     group by fixture_sk, player_sk
- )
+   - .venv/Scripts/dbt.exe parse --project-dir dbt_project succeeds.
+-  - python -m sqlfluff lint on the five SQL files (repo root, jinja templater, bigquery) reports no new
++  - SQLFluff on the six changed SQL files (repo root, jinja templater, bigquery) reports no new
+     violation against main.
+   - python scripts/sync_metric_docs_blocks.py --check and python scripts/check_description_hygiene.py
+-    pass.
+-  - Read-only bq, the compiled fixed int_legs__team_match inlined into the test: 0 rows; the test on
+-    today's prod model: red (9,107 rows); with the shoot-out filter removed and with the own-goal
+-    join put back on the opponent: red.
+-  - The fixed leg for fixture 1575150 gives Goals per shot on target 33% | 50%.
+-  - The validate-local gates pass; review.md binds the staged hash with every routed verdict PASS.
+-  - After the MR's data:build:mr: every site-facing mart in ci_mr<IID>_marts compared with prod's,
+-    each changed row traced to a window holding an own-goal or shoot-out match of that team or
+-    player, and none elsewhere; the result in the MR head.
++    pass; the validate-local gates and pytest pass.
++  - Read-only bq on the compiled fixed team leg: fixture 1575150 gives Hoffenheim goals_own_against
++    1 and a match save percentage of 0.5; no saves_pct above 1 in the compiled window and season models.
++  - review.md binds the staged hash with every routed verdict PASS.
++  - After the MR's data:build:mr and before the merge: every site mart in ci_mr<IID>_marts compared
++    with prod, each changed saves_pct traced to an own goal conceded in that team's window or season,
++    the known ties of #183 reported apart; the result in the MR head.
  
+ amendments: (none)
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+index 354b42d7..ebb82780 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+@@ -178,7 +178,8 @@ select
+     case
+         when games_with_save_stats < games_expecting_team_stats then null
+         else safe_divide(
+-            goalkeeper_saves, goalkeeper_saves + goals_against_in_save_games
++            goalkeeper_saves,
++            goalkeeper_saves + goals_against_in_save_games - goals_own_against_in_save_games
+         )
+     end as saves_pct,
+     -- player-derived team metrics: a game without the player feed has no input, so these
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
+index 268a83f0..17b25ec4 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs.yml
++++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
+@@ -115,6 +115,8 @@ models:
+         description: "{{ doc('goals_penalty') }}"
+       - name: goals_own
+         description: "{{ doc('goals_own') }}"
++      - name: goals_own_against
++        description: "Own goals this team conceded in the match: its players put the ball into their own net, and the goal counts for the opponent. Part of goals_against, but not a shot on target the keeper faced, so save percentage leaves them out. Counted from match events; 0 when there were none."
+ 
+   - name: int_legs__player_match
+     description: >
 diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-index a310033e..47aa97d4 100644
+index 47aa97d4..5a89159a 100644
 --- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
 +++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-@@ -36,18 +36,21 @@ types as (
- 
- -- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
- -- (open-play = goals minus penalties minus own goals credited).
---- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal'
---- = an own goal THIS team scored into its own net — which counts for the OPPONENT, so it is joined
---- as the opponent's own goals downstream. The remaining goals ('Normal Goal') are open play. Only
---- the components are event-derived; goals_for stays the authoritative scoreline.
-+-- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal' = an own goal credited to
-+-- this team: the provider files it under the team it counts for, not the team whose player put it
-+-- in. A shoot-out kick is no goal: the scoreline leaves the shoot-out out, and so do these counts.
-+-- The remaining goals ('Normal Goal') are open play. Only the components are event-derived;
-+-- goals_for stays the authoritative scoreline.
- events as (
-     select
-         fixture_sk,
-         team_sk,
-         countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals,
--        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals_scored
-+        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals_credited
-     from {{ ref('fct_fixture_event') }}
--    where team_sk is not null
-+    where
-+        team_sk is not null
-+        and event_comments is distinct from 'Penalty Shootout'
-     group by fixture_sk, team_sk
- ),
- 
-@@ -147,19 +150,17 @@ with_stats as (
-         if(own.team_sk is not null, coalesce(own.yellow_cards, 0), null) as yellow_cards,
-         if(own.team_sk is not null, coalesce(own.red_cards, 0), null) as red_cards,
-         -- open-play goal split: goals_for stays the authoritative scoreline; this
--        -- team's penalties and the own goals credited to it (the OPPONENT's own-goal events) are
--        -- subtracted downstream to get goals_open_play. Catalogued as goals_penalty / goals_own.
--        coalesce(ev_own.penalty_goals, 0) as goals_penalty,
--        coalesce(ev_opp.own_goals_scored, 0) as goals_own
-+        -- team's penalties and the own goals credited to it are subtracted downstream to get
-+        -- goals_open_play. Catalogued as goals_penalty / goals_own.
-+        coalesce(ev.penalty_goals, 0) as goals_penalty,
-+        coalesce(ev.own_goals_credited, 0) as goals_own
+@@ -153,7 +153,10 @@ with_stats as (
+         -- team's penalties and the own goals credited to it are subtracted downstream to get
+         -- goals_open_play. Catalogued as goals_penalty / goals_own.
+         coalesce(ev.penalty_goals, 0) as goals_penalty,
+-        coalesce(ev.own_goals_credited, 0) as goals_own
++        coalesce(ev.own_goals_credited, 0) as goals_own,
++        -- own goals this team conceded: credited to the opponent, so they sit on its events. Part
++        -- of goals_against, but not a shot on target the keeper faced (saves_pct leaves them out).
++        coalesce(ev_opp.own_goals_credited, 0) as goals_own_against
      from legs as l
      left join team_stats as own
          on l.fixture_sk = own.fixture_sk and l.team_sk = own.team_sk
-     left join team_stats as opp
+@@ -161,6 +164,8 @@ with_stats as (
          on l.fixture_sk = opp.fixture_sk and l.opponent_team_sk = opp.team_sk
--    left join events as ev_own
--        on l.fixture_sk = ev_own.fixture_sk and l.team_sk = ev_own.team_sk
--    left join events as ev_opp
--        on l.fixture_sk = ev_opp.fixture_sk and l.opponent_team_sk = ev_opp.team_sk
-+    left join events as ev
-+        on l.fixture_sk = ev.fixture_sk and l.team_sk = ev.team_sk
+     left join events as ev
+         on l.fixture_sk = ev.fixture_sk and l.team_sk = ev.team_sk
++    left join events as ev_opp
++        on l.fixture_sk = ev_opp.fixture_sk and l.opponent_team_sk = ev_opp.team_sk
  )
  
  select
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-index e0892662..19140c2b 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_club_season__metrics.sql
-@@ -37,14 +37,17 @@ finished as (
- -- Penalty goals per (fixture, player) from match events, for the open-play finishing numerator
- -- (the open-play definition). event_detail='Penalty' = a scored penalty by this player; goals_total stays the
- -- authoritative player goal count (already excludes own goals) — only the penalty component is
---- event-derived. Mirrors int_player_season__metrics exactly.
-+-- event-derived. Mirrors int_player_season__metrics exactly. A shoot-out kick is no goal:
-+-- goals_total leaves the shoot-out out, and so does this count.
- events as (
-     select
-         fixture_sk,
-         player_sk,
-         countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals
-     from {{ ref('fct_fixture_event') }}
--    where player_sk is not null
-+    where
-+        player_sk is not null
-+        and event_comments is distinct from 'Penalty Shootout'
-     group by fixture_sk, player_sk
- ),
- 
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-index 13f34879..be58afc1 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
-@@ -35,14 +35,17 @@ finished as (
- 
- -- Penalty goals per (fixture, player) from match events, for the open-play finishing
- -- numerator. goals_total stays authoritative; only the penalty component is
---- event-derived. (Player goals_total already excludes own goals.)
-+-- event-derived. (Player goals_total already excludes own goals.) A shoot-out kick is no goal:
-+-- goals_total leaves the shoot-out out, and so does this count.
- events as (
-     select
-         fixture_sk,
-         player_sk,
-         countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals
-     from {{ ref('fct_fixture_event') }}
--    where player_sk is not null
-+    where
-+        player_sk is not null
-+        and event_comments is distinct from 'Penalty Shootout'
-     group by fixture_sk, player_sk
- ),
- 
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 9a672a35..0d8122c7 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -89,6 +89,8 @@ models:
+         description: "{{ doc('goals_own') }}"
+       - name: goals_against_in_save_games
+         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps saves_pct same-window."
++      - name: goals_own_against_in_save_games
++        description: "The own goals among goals_against_in_save_games, over the same legs. saves_pct subtracts them: an own goal is conceded but is not a shot on target the keeper faced."
+       - name: contributing_competitions
+         description: "{{ doc('contributing_competitions') }}"
+         tests: [not_null]
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+index 2834eb97..c5398e3c 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+@@ -95,6 +95,8 @@ models:
+         description: "{{ doc('goals_penalty') }}"
+       - name: goals_own
+         description: "{{ doc('goals_own') }}"
++      - name: goals_own_against
++        description: "Own goals this team conceded in the window match: part of goals_against, but not a shot on target the keeper faced. 0 when there were none."
+       - name: shots_total
+         description: "{{ doc('shots_player') }}"
+       - name: shots_on_goal
+diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+index 689d42cf..2e0cda4b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
++++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
+@@ -136,6 +136,8 @@ models:
+         description: "{{ doc('goals_own') }}"
+       - name: goals_against_in_save_games
+         description: "Goals conceded summed only over the legs whose goalkeeper-save data exists, so saves_pct divides a numerator and denominator that cover the same games."
++      - name: goals_own_against_in_save_games
++        description: "The own goals among goals_against_in_save_games, over the same legs. saves_pct subtracts them: an own goal is conceded but is not a shot on target the keeper faced."
+       - name: goals_open_play_in_sot_games
+         description: "Open-play goals (goals minus penalties minus own goals) summed ONLY over the legs that have shots-on-target data, so finishing_efficiency_pct divides over the games its denominator can see. Required because awarded results (technical loss, walkover) count as played: their goals are real and enter the full goal sums, but they carry no shots-on-target, so a full-sum numerator would credit goals no shot could explain."
+       - name: shots_total
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+index 147325b3..b1609980 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+@@ -85,6 +85,9 @@ team_agg as (
+         -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
+         sum(if(goalkeeper_saves is not null, goals_against, null))
+             as goals_against_in_save_games,
++        -- the own goals among them: conceded, but never a shot on target the keeper faced
++        sum(if(goalkeeper_saves is not null, goals_own_against, null))
++            as goals_own_against_in_save_games,
+         sum(shots_total) as shots_total,
+         sum(shots_on_goal) as shots_on_goal,
+         sum(shots_inside_box) as shots_inside_box,
+@@ -148,6 +151,7 @@ select
+     ta.goals_penalty,
+     ta.goals_own,
+     ta.goals_against_in_save_games,
++    ta.goals_own_against_in_save_games,
+     ta.goals_open_play_in_sot_games,
+     ta.shots_total,
+     ta.shots_on_goal,
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+index eab8f7db..38049b57 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+@@ -119,6 +119,7 @@ candidate_legs as (
+         l.goals_against,
+         l.goals_penalty,
+         l.goals_own,
++        l.goals_own_against,
+         l.shots_total,
+         l.shots_on_goal,
+         l.shots_inside_box,
+@@ -254,6 +255,7 @@ select
+     goals_against,
+     goals_penalty,
+     goals_own,
++    goals_own_against,
+     shots_total,
+     shots_on_goal,
+     shots_inside_box,
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+index ccd60c37..a817a821 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+@@ -53,6 +53,7 @@ legs as (
+         tl.goals_against,
+         tl.goals_penalty,
+         tl.goals_own,
++        tl.goals_own_against,
+         tl.shots_total,
+         tl.shots_on_goal,
+         tl.shots_inside_box,
+@@ -159,6 +160,9 @@ select
+     -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
+     sum(if(goalkeeper_saves is not null, goals_against, null)) over w
+         as goals_against_in_save_games,
++    -- the own goals among them: conceded, but never a shot on target the keeper faced
++    sum(if(goalkeeper_saves is not null, goals_own_against, null)) over w
++        as goals_own_against_in_save_games,
+     -- team stats (cumulative)
+     sum(shots_total) over w as shots_total,
+     sum(shots_on_goal) over w as shots_on_goal,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum.sql b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+index 191b9887..5824488e 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+@@ -105,11 +105,13 @@ select
+         when b.games_with_opp_stats < b.games_expecting_team_stats then null
+         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
+         as corners_against_per_match,
+-    -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded
++    -- goalkeeper: saves / (saves + goals conceded in save-covered games, own goals left out);
++    -- self-bounded
+     case
+         when b.games_with_save_stats < b.games_expecting_team_stats then null
+         else safe_divide(
+-            b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
++            b.goalkeeper_saves,
++            b.goalkeeper_saves + b.goals_against_in_save_games - b.goals_own_against_in_save_games
+         )
+     end as saves_pct,
+     -- player-derived team metrics: a leg without the player feed has no input, so these follow
 diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index 4dace95f..33751725 100644
+index 33751725..6f351313 100644
 --- a/dbt_project/models/docs/metric_columns.md
 +++ b/dbt_project/models/docs/metric_columns.md
-@@ -652,22 +652,23 @@ finishing_efficiency_player_pct. (goals_total already excludes own goals.)
+@@ -1001,39 +1001,41 @@ fixtures can be understated rather than null.
  
- 
- {% docs goals_own %}
--Own goals credited to the team (the opponents' own-goal events in the team's matches), counted
--from match events (event_detail = 'Own Goal'). A component of the open-play split.
-+Own goals credited to the team (goals the opponents put into their own net in the team's
-+matches; the provider files each such event under the team it counts for), counted from match
-+events (event_detail = 'Own Goal'). A component of the open-play split.
+ {% docs saves_pct %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+-its formula is present for every match counted; an awarded result (technical loss, walkover) is
+-never counted against that.
++conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
++Null when no save-covered games. NULL unless every input of its formula is present for every
++match counted; an awarded result (technical loss, walkover) is never counted against that.
  {% enddocs %}
  
  
- {% docs goals_penalty %}
- Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail =
--'Penalty'). A component of the open-play split — not the team finishing its own on-target
--shots.
-+'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the team
-+finishing its own on-target shots.
+ {% docs saves_pct_delta_yoy__team %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+-its formula is present for every match counted; an awarded result (technical loss, walkover) is
+-never counted against that. The change from the previous season to the current one, compared at
+-the same point of the campaign: the current value minus the previous one. NULL when either side
+-is missing, which covers a competition that carries no year-on-year comparison, a prior season
+-that was never loaded, and a season whose first matches are not fully stat-covered.
++conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
++Null when no save-covered games. NULL unless every input of its formula is present for every
++match counted; an awarded result (technical loss, walkover) is never counted against that. The
++change from the previous season to the current one, compared at the same point of the campaign:
++the current value minus the previous one. NULL when either side is missing, which covers a
++competition that carries no year-on-year comparison, a prior season that was never loaded, and
++a season whose first matches are not fully stat-covered.
  {% enddocs %}
  
  
- {% docs goals_penalty_player %}
- Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail =
--'Penalty'). A component of the open-play split — not the player finishing his own on-target
--shots.
-+'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the
-+player finishing his own on-target shots.
+ {% docs saves_pct_prev_season__team %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+-its formula is present for every match counted; an awarded result (technical loss, walkover) is
+-never counted against that. Value for the season before, through the same number of matches as
+-the current season has played so far, so the two are compared at the same point of a campaign
+-rather than a part season against a full one.
++conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
++Null when no save-covered games. NULL unless every input of its formula is present for every
++match counted; an awarded result (technical loss, walkover) is never counted against that.
++Value for the season before, through the same number of matches as the current season has
++played so far, so the two are compared at the same point of a campaign rather than a part
++season against a full one.
+ {% enddocs %}
+ 
+ 
+ {% docs saves_pct_this_season__team %}
+ Share of shots on target faced that were saved. Self-bounding denominator (saves + goals
+-conceded in save-covered games). Null when no save-covered games. NULL unless every input of
+-its formula is present for every match counted; an awarded result (technical loss, walkover) is
+-never counted against that. Value for the season now in progress, accumulated through the
+-matches played so far.
++conceded in save-covered games, own goals left out: an own goal is not a shot on target faced).
++Null when no save-covered games. NULL unless every input of its formula is present for every
++match counted; an awarded result (technical loss, walkover) is never counted against that.
++Value for the season now in progress, accumulated through the matches played so far.
  {% enddocs %}
  
  
 diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index 053cddca..39c3ec8e 100644
+index 39c3ec8e..4c2674de 100644
 --- a/dbt_project/seeds/metric_catalogue.csv
 +++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -4,8 +4,8 @@ points_won,team,metrics.points_won.label,Points won,"Total points earned: 3 per
- goals_per_match,team,metrics.goals_per_match.label,Ø Goals,Average goals scored per match.,int_legs__team_match,sum(goals_for),count(*),expression,false,decimal_1,goals,1,higher_better,Attacking output - goals scored per game; high = a potent attack,1
- goals_against_per_match,team,metrics.goals_against_per_match.label,Ø Goals against,Average goals conceded per match.,int_legs__team_match,sum(goals_against),count(*),expression,true,decimal_1,goals,1,lower_better,Defensive vulnerability - goals conceded per game; low = a mean defence,1
- clean_sheets_pct,team,metrics.clean_sheets_pct.label,% Clean sheets,"The share of matches the team finished without conceding a goal: matches with zero goals against divided by matches played. clean_sheets is the same measurement expressed as a whole number of matches.",int_legs__team_match,countif(goals_against = 0),count(*),expression,false,percent,goals,2,higher_better,Shut-out rate - the share of matches conceding zero; high = reliable at the back,1
--goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls,1
--goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (the opponents' own-goal events in the team's matches), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced,1
-+goals_penalty,team,metrics.goals_penalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the team finishing its own on-target shots.",int_legs__team_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and often reward pressure that wins fouls,1
-+goals_own,team,metrics.goals_own.label,Own goals,"Own goals credited to the team (goals the opponents put into their own net in the team's matches; the provider files each such event under the team it counts for), counted from match events (event_detail = 'Own Goal'). A component of the open-play split.",int_legs__team_match,sum(goals_own),,expression,false,integer,goals,3,higher_better,Own goals for - goals from opponents' own nets in the team's favour; they count toward the result and are often pressure-forced,1
- goals_open_play,team,metrics.goals_open_play.label,Open-play goals,Open-play goals: the authoritative scoreline minus penalties and own goals (goals_for - goals_penalty - goals_own). The numerator of finishing_efficiency_pct.,int_legs__team_match,sum(goals_for - goals_penalty - goals_own),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties and own goals); the core attacking output,1
- shots_per_match,team,metrics.shots_per_match.label,Ø Shots,"Average total shots attempted per match with available team stats. Includes on-target, off-target and blocked shots.",int_legs__team_match,sum(shots_total),count(*),expression,false,decimal_1,shooting,2,higher_better,Shot volume - attacking attempts per game; high = more attacking threat (volume not shot quality),2
- shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,% Shots on goal,Share of shots that were on goal. Total shots include blocked shots. Null when shots_total is zero.,int_legs__team_match,sum(shots_on_goal),sum(shots_total),expression,false,percent,shooting,2,higher_better,Striking precision - share of shots on goal,2
-@@ -28,7 +28,7 @@ corners_against_per_match,team,metrics.corners_against_per_match.label,Ø Corner
- saves_pct,team,metrics.saves_pct.label,% Shots saved,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,7
+@@ -25,7 +25,7 @@ passes_accuracy_pct,team,metrics.passes_accuracy_pct.label,% Pass accuracy,Share
+ passes_key_per_match,team,metrics.passes_key_per_match.label,Ø Key passes,Average key passes per match. Aggregated from player stats; inherits player-stat coverage gaps.,int_legs__team_from_players,sum(key_passes),count(*),expression,false,decimal_1,passing,2,higher_better,Creativity - passes leading to a shot; high = creates chances,3
+ corners_per_match,team,metrics.corners_per_match.label,Ø Corners,Average corner kicks won per match with available team stats.,int_legs__team_match,sum(corner_kicks),count(*),expression,false,decimal_1,set_pieces,3,higher_better,Corners won - high = sustained attacking pressure (a weak proxy),8
+ corners_against_per_match,team,metrics.corners_against_per_match.label,Ø Corners against,Average corner kicks conceded per match with available opponent stats.,int_legs__team_match,sum(opponent_corner_kicks),count(*),expression,true,decimal_1,set_pieces,3,lower_better,Corners conceded - low = less defensive pressure faced (a weak proxy),8
+-saves_pct,team,metrics.saves_pct.label,% Shots saved,Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games). Null when no save-covered games.,int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,7
++saves_pct,team,metrics.saves_pct.label,% Shots saved,"Share of shots on target faced that were saved. Self-bounding denominator (saves + goals conceded in save-covered games, own goals left out: an own goal is not a shot on target faced). Null when no save-covered games.",int_legs__team_match,sum(goalkeeper_saves),sum(goalkeeper_saves + goals_against - goals_own_against),expression,false,percent,goalkeeping,2,higher_better,Shot-stopping - share of on-target shots saved; high = strong keeping,7
  goals_player,player,playerMetrics.scorerPoints.goals,Goals,Goals scored.,int_legs__player_match,sum(goals_total),,expression,false,integer,goals,1,higher_better,Scoring output - goals scored in the window; high = a productive goalscorer (a raw count so it also tracks minutes played),1
  assists_player,player,playerMetrics.scorerPoints.assists,Assists,Goal assists.,int_legs__player_match,sum(goals_assists),,expression,false,integer,goals,1,higher_better,Creative output - goals set up in the window; high = a productive creator (a raw count so it also tracks minutes played),1
--goals_penalty_player,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1
-+goals_penalty_player,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1
- goals_open_play_player,player,playerMetrics.goalsOpenPlay.label,Open-play goals,Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of finishing_efficiency_player_pct. (goals_total already excludes own goals.),int_legs__player_match,sum(goals_total - goals_penalty),,expression,false,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output,1
- penalty_won_player,player,playerMetrics.penalties.won,Penalties won,Penalties won.,int_legs__player_match,sum(penalty_won),,expression,false,integer,goals,3,higher_better,Penalties won - spot kicks earned in the window; high = draws fouls in dangerous areas (rare enough that small differences mean little),1
- shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on goal,Shots on target.,int_legs__player_match,sum(shots_on),,expression,false,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played),2
-diff --git a/dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql b/dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
-new file mode 100644
-index 00000000..e60b0ad7
---- /dev/null
-+++ b/dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
-@@ -0,0 +1,68 @@
-+{{ config(severity = 'error', store_failures = true) }}
-+
-+-- A team's goals are its open-play goals, its penalties and the own goals credited to it, nothing
-+-- else. Open-play goals are counted from the events here, so the model's goals_penalty and goals_own
-+-- are checked against the scoreline rather than against their own difference. The provider files an
-+-- own goal under the team it counts for, and a shoot-out kick is no goal. Only matches whose
-+-- attributable goal events add up to the score are checked: elsewhere the events are incomplete.
-+--
-+-- Three matches are left out because the provider's events disagree with the score on who scored:
-+-- 21650, Sassuolo v Pescara, Serie A 2016/17: awarded 0-3, the events keep the 2-1 played;
-+-- 247587, Flamengo v River Plate, Libertadores 2019 final: Flamengo's two late goals filed under River;
-+-- 1373026, AC Milan v Bologna, Coppa Italia 2025 final: Bologna's goal filed under Milan.
-+
-+with goal_events as (
-+    select
-+        fixture_sk,
-+        team_sk,
-+        event_detail
-+    from {{ ref('fct_fixture_event') }}
-+    where
-+        event_type = 'Goal'
-+        and event_detail in ('Normal Goal', 'Penalty', 'Own Goal')
-+        and event_comments is distinct from 'Penalty Shootout'
-+        and team_sk is not null
-+),
-+
-+open_play as (
-+    select
-+        fixture_sk,
-+        team_sk,
-+        countif(event_detail = 'Normal Goal') as goals_open_play_events
-+    from goal_events
-+    group by fixture_sk, team_sk
-+),
-+
-+event_totals as (
-+    select
-+        fixture_sk,
-+        count(*) as goal_events
-+    from goal_events
-+    group by fixture_sk
-+),
-+
-+covered as (
-+    select l.fixture_sk
-+    from {{ ref('int_legs__team_match') }} as l
-+    left join event_totals as t
-+        on l.fixture_sk = t.fixture_sk
-+    group by l.fixture_sk
-+    having sum(l.goals_for) = max(coalesce(t.goal_events, 0))
-+)
-+
-+select
-+    l.fixture_sk,
-+    l.team_sk,
-+    l.league_code,
-+    l.goals_for,
-+    l.goals_penalty,
-+    l.goals_own,
-+    coalesce(o.goals_open_play_events, 0) as goals_open_play_events
-+from {{ ref('int_legs__team_match') }} as l
-+inner join covered as c
-+    on l.fixture_sk = c.fixture_sk
-+left join open_play as o
-+    on l.fixture_sk = o.fixture_sk and l.team_sk = o.team_sk
-+where
-+    l.fixture_sk not in (21650, 247587, 1373026)
-+    and coalesce(o.goals_open_play_events, 0) + l.goals_penalty + l.goals_own != l.goals_for
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   docs/tracker/gitlab_snapshot.md | 6 +++---
-#    1 file changed, 3 insertions(+), 3 deletions(-)
-# ============================================================================
+ goals_penalty_player,player,playerMetrics.goalsPenalty.label,Penalty goals,"Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail = 'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the player finishing his own on-target shots.",int_legs__player_match,sum(goals_penalty),,expression,false,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1

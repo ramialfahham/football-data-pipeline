@@ -105,11 +105,13 @@ select
         when b.games_with_opp_stats < b.games_expecting_team_stats then null
         else safe_divide(b.opponent_corner_kicks, b.games_with_opp_stats) end
         as corners_against_per_match,
-    -- goalkeeper: saves / (saves + goals conceded in save-covered games); self-bounded
+    -- goalkeeper: saves / (saves + goals conceded in save-covered games, own goals left out);
+    -- self-bounded
     case
         when b.games_with_save_stats < b.games_expecting_team_stats then null
         else safe_divide(
-            b.goalkeeper_saves, b.goalkeeper_saves + b.goals_against_in_save_games
+            b.goalkeeper_saves,
+            b.goalkeeper_saves + b.goals_against_in_save_games - b.goals_own_against_in_save_games
         )
     end as saves_pct,
     -- player-derived team metrics: a leg without the player feed has no input, so these follow

@@ -89,6 +89,8 @@ models:
         description: "{{ doc('goals_own') }}"
       - name: goals_against_in_save_games
         description: "Goals conceded summed only over legs with goalkeeper_saves present; keeps saves_pct same-window."
+      - name: goals_own_against_in_save_games
+        description: "The own goals among goals_against_in_save_games, over the same legs. saves_pct subtracts them: an own goal is conceded but is not a shot on target the keeper faced."
       - name: contributing_competitions
         description: "{{ doc('contributing_competitions') }}"
         tests: [not_null]
