@@ -41,11 +41,11 @@ with std as (
         league_code,
         season_api_year,
         match_number,
-        goals_total,
-        goals_assists,
-        shots_on,
+        goals_player,
+        assists_player,
+        shots_on_goal_player,
         passes_key_player,
-        tackles_player + interceptions_player + blocks_player as defensive_actions_player
+        defensive_actions_player
     from {{ ref('int_player_season_record') }}
 ),
 
@@ -73,9 +73,9 @@ cur as (
         league_code,
         season_api_year as cur_season,
         match_number as appearances_cutoff,
-        goals_total as goals_player_this_season,
-        goals_assists as assists_player_this_season,
-        shots_on as shots_on_goal_player_this_season,
+        goals_player as goals_player_this_season,
+        assists_player as assists_player_this_season,
+        shots_on_goal_player as shots_on_goal_player_this_season,
         passes_key_player as passes_key_player_this_season,
         defensive_actions_player as defensive_actions_player_this_season
     from dom
@@ -93,9 +93,9 @@ prev as (
         d.player_sk,
         d.league_code,
         d.match_number as appearances_prev,
-        d.goals_total as goals_player_prev_season,
-        d.goals_assists as assists_player_prev_season,
-        d.shots_on as shots_on_goal_player_prev_season,
+        d.goals_player as goals_player_prev_season,
+        d.assists_player as assists_player_prev_season,
+        d.shots_on_goal_player as shots_on_goal_player_prev_season,
         d.passes_key_player as passes_key_player_prev_season,
         d.defensive_actions_player as defensive_actions_player_prev_season
     from dom as d
@@ -122,9 +122,9 @@ prev_full as (
         d.player_sk,
         d.league_code,
         d.match_number as appearances_prev_full,
-        d.goals_total as goals_player_prev_season_full,
-        d.goals_assists as assists_player_prev_season_full,
-        d.shots_on as shots_on_goal_player_prev_season_full,
+        d.goals_player as goals_player_prev_season_full,
+        d.assists_player as assists_player_prev_season_full,
+        d.shots_on_goal_player as shots_on_goal_player_prev_season_full,
         d.passes_key_player as passes_key_player_prev_season_full,
         d.defensive_actions_player as defensive_actions_player_prev_season_full
     from dom as d

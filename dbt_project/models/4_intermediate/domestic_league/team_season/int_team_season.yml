@@ -553,13 +553,11 @@ models:
       A player's whole-season aggregate over all their finished matches — the single player-season
       rollup. Grain: (player_sk, season_sk).
 
-      Composed from the per-club atoms: the club rows re-summed to the competition-season, with
-      ratios and per-90s re-derived from the re-summed atoms rather than averaged.
-
-      The atoms follow the metric_catalogue seed. passes_accurate_player is rounded per fixture then
-      summed, the weighted-ratio numerator. Counts treat NULL as 0. `appearances` counts matches
-      actually PLAYED. Rates are NULL on a zero denominator. team_sk is the player's last known
-      club that season.
+      Every metric is its metric_catalogue formula over the player's matches that
+      competition-season, at every club, never composed from pre-summed parts. NULL when a match
+      lacks an input: a blank the provider did not count, or a match of one of his clubs with no
+      player data at all. `appearances` counts matches actually PLAYED. Rates are NULL on a zero
+      denominator. team_sk is the player's last known club that season.
     config:
       tags: ["intermediate", "football", "team_season", "player"]
     tests:
@@ -631,7 +629,6 @@ models:
               field: team_sk
       - name: appearances
         description: "{{ doc('appearances__season_to_date') }}"
-        tests: [not_null]
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: starts
@@ -694,6 +691,8 @@ models:
         description: "{{ doc('defensive_actions_player') }}"
       - name: cards_player
         description: "{{ doc('cards_player') }}"
+      - name: shots_on_goal_against_player
+        description: "{{ doc('shots_on_goal_against_player') }}"
       - name: duels_won_player_pct
         description: "{{ doc('duels_won_player_pct') }}"
       - name: dribbles_success_player_pct

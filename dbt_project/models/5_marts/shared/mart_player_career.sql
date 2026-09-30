@@ -68,6 +68,7 @@ typed as (
         cs.season_api_year,
         cs.appearances,
         cs.minutes,
+        cs.minutes_per_appearance,
         cs.goals_player,
         cs.assists_player,
         cs.last_kickoff_at,
@@ -88,6 +89,7 @@ with_caps as (
         typed.entity_type,
         typed.appearances,
         typed.minutes,
+        typed.minutes_per_appearance,
         typed.goals_player,
         typed.assists_player,
         typed.last_kickoff_at,
@@ -99,9 +101,14 @@ with_caps as (
             over (partition by typed.player_sk, typed.team_sk) as club_latest_kickoff_at,
         -- per-player national-appearance total (covered comps only — honestly not true caps),
         -- denormalised so the export reads it directly (never derived in the consumption layer).
-        sum(case when typed.entity_type = 'national' then typed.appearances else 0 end)
-            over (partition by typed.player_sk) as national_appearances_total
+        -- Unknown when any national season's appearances are unknown, never a total of the known ones.
+        if(
+            countif(typed.entity_type = 'national' and typed.appearances is null) over player_rows = 0,
+            sum(case when typed.entity_type = 'national' then typed.appearances else 0 end) over player_rows,
+            null
+        ) as national_appearances_total
     from typed
+    window player_rows as (partition by typed.player_sk)
 )
 
 select
@@ -129,11 +136,9 @@ select
     -- catalogued member of that family is the RATE below, minutes_per_appearance (group
     -- playing_time).
     wc.minutes,
-    -- mins/app for the Squad tab, computed here so the consumption layer never divides. A
-    -- catalogue-governed rate (metric_catalogue: minutes_per_appearance). safe_divide -> null when
-    -- appearances = 0 (a squad member who never played), which is honest: no mins/app without an
-    -- appearance. `appearances` here is the corrected played-legs count (#813).
-    safe_divide(wc.minutes, wc.appearances) as minutes_per_appearance,
+    -- mins/app for the Squad tab, from int_player_club_season__metrics, which computes it from its
+    -- catalogue formula; null for a squad member who never played: no mins/app without an appearance.
+    wc.minutes_per_appearance,
     wc.goals_player,
     wc.assists_player,
     wc.national_appearances_total,

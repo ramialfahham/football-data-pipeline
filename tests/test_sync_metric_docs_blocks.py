@@ -645,11 +645,10 @@ def test_a_rate_metric_still_takes_the_NON_totalling_affixes(monkeypatch, tmp_pa
 
 
 def test_the_yoy_null_cause_differs_by_entity(monkeypatch, tmp_path):
-    """"A gap in statistical coverage" is a real NULL cause for a TEAM and an
-    impossible one for a PLAYER: a player's null per-match stat MEANS ZERO, so a
-    running sum never goes null for coverage, and the player model names only the
-    absent prior season at that club. Shipping the team sentence on four player
-    columns was a false claim in the warehouse."""
+    """Each entity's sentence names its own NULL causes. The team side nulls a rate
+    when the season's first games are not fully stat-covered; the player side aligns
+    by appearances at the same club, so it names the absent prior season there, and,
+    under the blank rule, a match whose input the provider did not record."""
     monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
         _row("goals", entity="player", description="Goals scored."),
         _row("clean_sheets", entity="team", description="Clean sheets."),
@@ -662,6 +661,7 @@ def test_the_yoy_null_cause_differs_by_entity(monkeypatch, tmp_path):
     assert "stat-covered" in blocks["clean_sheets_delta_yoy__team"]
     assert "stat-cover" not in blocks["goals_delta_yoy__player"]
     assert "no prior season at this club" in blocks["goals_delta_yoy__player"]
+    assert "lacks an input the provider did not record" in blocks["goals_delta_yoy__player"]
     # ⚠ AND THE CAUSE THE FIRST FIX DROPPED. Removing the false coverage clause
     # also removed a true one: the block is reused at `mart_player_profile`, which
     # carries cup and tournament seasons where there is no year-on-year comparison

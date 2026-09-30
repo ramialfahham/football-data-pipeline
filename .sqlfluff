@@ -4,6 +4,9 @@ dialect = bigquery
 max_line_length = 120
 indent_unit = space
 tab_space_size = 4
+# Above the default 20,000 bytes sqlfluff skips a file with only a warning, so the lint would pass
+# on a model it never read.
+large_file_skip_byte_limit = 60000
 
 [sqlfluff:templater:dbt]
 project_dir = dbt_project

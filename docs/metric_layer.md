@@ -25,8 +25,13 @@ No prose document defines a metric. Docs *reference* the seed; they never redefi
 over the matches we happen to have, so a thinly covered competition shows no per-match metrics —
 that is the correct output, not a gap.
 
-What counts as *available* differs by entity: a blank **player** stat is a zero (the player did
-nothing), so it is available; a blank **team** stat means we do not know, so it is not.
+What counts as *available* differs by entity. A blank **player** stat is a zero only where the
+provider counted that stat in the match — someone else in it has a value, or the score, the match
+events or the team's own statistics line prove the zero — and missing otherwise; a team match with
+no player data at all makes every player metric of that team NULL for any window that contains it.
+That cleaning is done once, in `base_apif__fixture_players`, together with the pass-accuracy format,
+the player goals reconciled to the score and the match-stat corrections; the issue that ruled them
+states each rule. A blank **team** stat means we do not know, so it is not available.
 
 A forfeit or walkover (`AWD`/`WO`) is the one thing that does not count against a season's coverage:
 the match was never played, so there are no statistics to be missing. `games_expecting_team_stats`
@@ -52,26 +57,27 @@ document, seed or component spells a group's name or order on its own. Three che
 `assert_metric_group_order_is_one_per_group` in the warehouse, `tests/test_metric_groups.py` on
 the committed export, and `site_v2/scripts/check-metric-labels.test.mjs` on the copy.
 
-Each metric is computed in exactly one place, so the same metric cannot be derived three different
-ways. The canonical models are:
+**Player metrics are generated from the seed.** `scripts/generate_metric_sql.py` writes every player
+surface's metric SQL between two marker lines in the model: each metric is its catalogue formula
+over the rows of that surface's own window of `int_legs__player_match`, NULL unless the window is
+complete and every row has its input. The window — which matches, and whether one of them lacks
+player data — is hand-written in the model; the formula never is. A ratio is always computed from
+the window's rows, never composed from pre-summed parts. The player surfaces are listed in the
+script.
 
 | grain | model |
 |---|---|
-| player, per club-season | `int_player_club_season__metrics` — the **atoms** source |
-| player, per competition-season | `int_player_season__metrics` — **composes** the atoms |
-| team, per season | `int_team_season__metrics` |
-
-⚠ **Which player model depends on whether the metric is summable.** A COUNT that adds up across
-clubs — goals, assists, passes, saves — goes in the **atoms** model, because both consumers sum it.
-A ratio, a per-90 or a count composite does **not** add up, so it is derived where it is consumed:
-in `int_player_season__metrics`, and in `mart_player_career` for the career log. That is the COMPOSE
-pattern, and putting a ratio in the atoms model breaks it.
+| player, per club-season | `int_player_club_season__metrics` |
+| player, per competition-season | `int_player_season__metrics` |
+| team, per season | `int_team_season__metrics` (formulas written in the model) |
 
 ## Adding or changing a metric
 
-1. Add the computation to the canonical model for its grain (see the table above).
-2. Add the `metric_catalogue.csv` row. `description`, `direction` and `interpretation` are required —
+1. Add the `metric_catalogue.csv` row. `description`, `direction` and `interpretation` are required —
    a row without them fails a guard, not a review.
+2. A player metric: add it to the surface's list in `scripts/generate_metric_sql.py` and run
+   `python scripts/generate_metric_sql.py`; the pytest in `test:python` fails when a model and the
+   catalogue differ. A team metric: add the computation to the canonical model for its grain.
 3. Run `python scripts/sync_metric_docs_blocks.py` and commit the result.
    `models/docs/metric_columns.md` is **generated** from the seed; hand-editing it fails CI
    (`--check` runs in `validate:governance`).
@@ -90,6 +96,11 @@ pattern, and putting a ratio in the atoms model breaks it.
 | `assert_metric_catalogue_unique_by_entity` | one `metric_id` is defined twice for an entity |
 | `assert_form_window_rates_inputs_covered` | a team rate is shown on the form window while an input of its formula is missing from a non-awarded game of that window — the rule above, checked from the catalogue's own formula on every rate the surface carries |
 | `assert_season_rates_inputs_covered` | the same on the season surface, at every matchday |
+| `assert_player_metrics_follow_catalogue_formula` | a player surface's value differs from its catalogue formula recomputed from the legs over the same window |
+| `assert_base_player_stats_cleaned` | a cleaned player row breaks a cleaning rule: a blank the provider counted, a part above its whole, goals that miss the score where a source adds up |
+| `assert_player_match_cleaning_answer_key` | the cleaning returns anything but the hand-worked value of a real case |
+| `assert_player_stat_corrections_within_limit` | a competition-season's share of corrected or blanked player rows exceeds the limit |
+| `tests/test_generate_metric_sql.py` | the generated player metric SQL differs from what the catalogue generates |
 
 Plus the standard model tests: ratios asserted in 0–1, `not_null` and `relationships` on keys,
 `unique` on the grain.
@@ -121,6 +132,6 @@ reconciliation test guards the pair rather than one replacing the other.
 
 ## What this is NOT
 
-There is no bespoke metric engine, and no test that re-derives a metric from the raw legs to
-cross-check the model. The model computes it once, the catalogue defines it, and the guards stop the
-two diverging. That is the whole mechanism.
+There is no metric engine at run time. The catalogue defines each metric; for players a script writes
+the formula into the models as plain SQL, and a test recomputes every player metric from the legs
+to prove the models return it.

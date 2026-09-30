@@ -693,7 +693,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_player_stats
-    description: "Per-player, per-fixture statistics. Grain: (fixture_sk, team_sk, player_sk). Staging flattens and types player statistics; core keys and constrains the fact grain."
+    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players (the blank rule, accurate passes as a count, goals and penalty goals reconciled to the score, match stats checked against results). Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -744,7 +744,7 @@ models:
         description: "{{ doc('team_api_id') }}"
       - name: player_api_id
         description: "{{ doc('player_api_id') }}"
-      - name: minutes_played
+      - name: minutes
         description: "{{ doc('minutes_played') }}"
       - name: shirt_number
         description: "{{ doc('shirt_number') }}"
@@ -758,57 +758,59 @@ models:
         description: "{{ doc('is_starter') }}"
       - name: offsides
         description: "{{ doc('offsides_player') }}"
-      - name: shots_total
+      - name: shots
         description: "{{ doc('shots_player') }}"
-      - name: shots_on
+      - name: shots_on_target
         description: "{{ doc('shots_on__leg') }}"
-      - name: goals_total
+      - name: goals
         description: "{{ doc('goals_total__leg') }}"
+      - name: goals_penalty
+        description: "{{ doc('goals_penalty_player') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
-      - name: goals_assists
+      - name: assists
         description: "{{ doc('goals_assists__leg') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
-      - name: passes_total
+      - name: passes
         description: "{{ doc('passes_player') }}"
       - name: passes_key
         description: "{{ doc('passes_key_player') }}"
-      - name: passes_accuracy_percent
-        description: "{{ doc('passes_accuracy_percent') }}"
-      - name: tackles_total
+      - name: passes_accurate
+        description: "{{ doc('passes_accurate_player') }}"
+      - name: tackles
         description: "{{ doc('tackles_player') }}"
-      - name: tackles_blocks
+      - name: blocks
         description: "{{ doc('blocks_player') }}"
-      - name: tackles_interceptions
+      - name: interceptions
         description: "{{ doc('interceptions_player') }}"
-      - name: duels_total
+      - name: duels
         description: "{{ doc('duels_player') }}"
       - name: duels_won
         description: "{{ doc('duels_won_player') }}"
-      - name: dribbles_attempts
+      - name: dribbles
         description: "{{ doc('dribbles_attempts_player') }}"
       - name: dribbles_success
         description: "{{ doc('dribbles_success_player') }}"
-      - name: dribbles_past
+      - name: dribbles_against
         description: "{{ doc('dribbles_past_player') }}"
-      - name: fouls_drawn
+      - name: fouls_against
         description: "{{ doc('fouls_drawn') }}"
-      - name: fouls_committed
+      - name: fouls
         description: "{{ doc('fouls_committed') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red
         description: "{{ doc('cards_red_player') }}"
-      - name: penalty_won
+      - name: penalties_won
         description: "{{ doc('penalty_won_player') }}"
-      - name: penalty_committed
+      - name: penalties_committed
         description: "{{ doc('penalty_committed_player') }}"
-      - name: penalty_scored
+      - name: penalties_scored
         description: "{{ doc('penalty_scored') }}"
-      - name: penalty_missed
+      - name: penalties_missed
         description: "{{ doc('penalty_missed') }}"
-      - name: penalty_saved
+      - name: penalties_saved
         description: "{{ doc('penalty_saved') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"

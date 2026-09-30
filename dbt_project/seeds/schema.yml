@@ -333,7 +333,7 @@ seeds:
       - name: denominator_expr
         description: >
           The metric's fixed mathematical denominator: count(*) = number of matches in the window
-          (per-match rates); sum(<expr>) for ratios; sum(minutes_played) for per-90 (the * 90 sits in
+          (per-match rates); sum(<expr>) for ratios; sum(minutes) for per-90 (the * 90 sits in
           numerator_expr); 3 * count(*) for points_capture_pct. Like the numerator it is the DEFINITION
           only — coverage/availability handling lives in the model, never here. Blank for raw count
           metrics and the blank-base_relation rows above.
@@ -517,6 +517,47 @@ seeds:
         description: "Human note + external-evidence reference for the correction (required — the governance control)."
         tests:
           - not_null
+
+  - name: player_match_cleaning_answer_key
+    description: >
+      Hand-worked answers for the player-match cleaning in base_apif__fixture_players: real player
+      matches, at least one per cleaning rule, each value worked out by hand from the provider's
+      raw values (the player's own line, the other values in his match, both teams' statistics
+      lines, the match events and the score). assert_player_match_cleaning_answer_key fails when
+      the model returns anything else. A blank expected_value means the rule must leave the stat
+      blank.
+    config:
+      column_types:
+        fixture_id: int64
+        team_id: int64
+        player_id: int64
+        stat: string
+        expected_value: int64
+        rule: string
+        working: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id, team_id, player_id, stat]
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: player_id
+        description: "{{ doc('player_api_id') }}"
+        tests: [not_null]
+      - name: stat
+        description: "The base_apif__fixture_players column the case checks."
+        tests: [not_null]
+      - name: expected_value
+        description: "The value worked out by hand. Blank where the rule must leave the stat blank."
+      - name: rule
+        description: "The stat_corrections rule the case exercises, blank where the case exercises the blank rule, the pass format or a value the cleaning must keep."
+      - name: working
+        description: "The hand working: the raw values the answer rests on and the step from them to the expected value."
+        tests: [not_null]
 
   - name: team_name_overrides
     description: >
