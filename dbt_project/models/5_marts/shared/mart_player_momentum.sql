@@ -1,10 +1,9 @@
 {#
   W1 momentum mart — player.
 
-  Computes final displayed metrics from the raw sums in int_player_momentum__metrics.
-  Raw counts (goals, assists, cards, …) are passed through directly. Ratios
-  (saves_player_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct) are
-  computed here via safe_divide — NULL when denominator is zero.
+  The displayed metrics of int_player_momentum__metrics, which computes every one of them (counts and
+  ratios) from its catalogue formula. Goals, assists and shots on target are handed to the export under
+  the keys the site reads (goals_total, goals_assists, shots_on).
 
   window_type is carried through from the builder: last_5 for most fixtures, or the
   cumulative tournament_to_date / qualifiers window on tournament fixtures (GAP-18) —
@@ -39,11 +38,11 @@ select
     b.window_type,
     b.games_in_window,
     b.position_code,
-    -- raw counts
-    b.goals_total,
-    b.goals_assists,
+    -- counts
+    b.goals_player as goals_total,
+    b.assists_player as goals_assists,
     b.saves_player,
-    b.shots_on,
+    b.shots_on_goal_player as shots_on,
     b.passes_key_player,
     b.passes_accurate_player,
     b.passes_player,
@@ -60,21 +59,21 @@ select
     b.penalty_committed_player,
     b.cards_yellow_player,
     b.cards_red_player,
+    -- ratios
+    b.saves_player_pct,
+    b.dribbles_success_player_pct,
+    b.passes_accuracy_player_pct,
+    b.duels_won_player_pct,
     -- calculations
     b.team_sk = f.home_team_sk as is_home,
-    -- ratios
-    safe_divide(b.saves_player, b.saves_player + b.goals_against_player) as saves_player_pct,
-    safe_divide(b.dribbles_success_player, b.dribbles_attempts_player) as dribbles_success_player_pct,
-    safe_divide(b.passes_accurate_player, b.passes_player) as passes_accuracy_player_pct,
-    safe_divide(b.duels_won_player, b.duels_player) as duels_won_player_pct,
     -- per-side ranking for the top-players strip (GAP-19.2): goals, then assists, then
     -- key passes (the order named in the GAP); ROW_NUMBER = strict pick order, player_sk
     -- breaks ties deterministically. Selection rank, so ROW_NUMBER not DENSE_RANK.
     row_number() over (
         partition by b.upcoming_fixture_sk, b.team_sk
         order by
-            coalesce(b.goals_total, 0) desc,
-            coalesce(b.goals_assists, 0) desc,
+            coalesce(b.goals_player, 0) desc,
+            coalesce(b.assists_player, 0) desc,
             coalesce(b.passes_key_player, 0) desc,
             b.player_sk asc
     ) as top_player_rank

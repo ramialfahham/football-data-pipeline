@@ -3,16 +3,12 @@ version: 2
 models:
   - name: int_player_club_season__metrics
     description: >
-      A player's totals at ONE club in one competition-season — the finest grain the player atoms
-      exist at. Grain: (player_sk, team_sk, season_sk). A mid-season transfer gives one row per
-      club, with no collapse to a last club.
+      A player's totals at ONE club in one competition-season. Grain: (player_sk, team_sk,
+      season_sk). A mid-season transfer gives one row per club, with no collapse to a last club.
 
-      The single source of those atoms, so anything needing player-season numbers re-sums these
-      rather than re-aggregating the matches itself.
-
-      Atoms follow the metric_catalogue seed exactly: passes_accurate_player rounded per fixture then
-      summed, counts treating NULL as 0, `appearances` counting only matches PLAYED. Ratios and
-      per-90s are derived where consumed, never here.
+      Every metric is its metric_catalogue formula over the club's competition-season, and is NULL
+      when a match of it lacks an input: a blank the provider did not count, or a club match with no
+      player data at all. `appearances` counts only matches PLAYED.
     config:
       tags: ["intermediate", "football", "player"]
     tests:
@@ -70,8 +66,8 @@ models:
         description: >
           Finished matches this player actually PLAYED for this club that competition-season, that
           is minutes greater than 0. 0 is legitimate rather than missing: a squad member named on
-          the bench all season and never brought on keeps his row.
-        tests: [not_null]
+          the bench all season and never brought on keeps his row. NULL when a match's minutes are
+          unknown or the club has a match with no player data at all.
       - name: last_kickoff_at
         description: "{{ doc('last_kickoff_at') }}"
       - name: starts
@@ -79,7 +75,7 @@ models:
       - name: substitute_appearances
         description: "{{ doc('substitute_appearances') }}"
       - name: minutes
-        description: "Total minutes this player played for this club that competition-season, summed across the club's finished matches. Zero, not NULL, for a squad member who was named but never brought on."
+        description: "Total minutes this player played for this club that competition-season, summed across the club's finished matches. Zero for a squad member who was named but never brought on; NULL when a match's minutes are unknown or the club has a match with no player data at all."
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: goals_penalty_player
@@ -126,3 +122,5 @@ models:
         description: "{{ doc('saves_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
+      - name: minutes_per_appearance
+        description: "{{ doc('minutes_per_appearance') }}"

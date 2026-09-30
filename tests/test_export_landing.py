@@ -525,7 +525,7 @@ def test_the_team_board_set_is_all_per_match_rates():
     (`metrics_display.md` records that mismatch causing a defect in #370).
 
     The catalogue states the distinction in DATA: a per-match rate divides by `count(*)`, a per-90
-    divides by `sum(minutes_played)`. So the premise is asserted here, against the seed, once —
+    divides by `sum(minutes)`. So the premise is asserted here, against the seed, once —
     and a future board that is not a per-match rate turns this RED before its heading can lie.
     """
     with open(CATALOGUE_SEED_PATH, encoding="utf-8") as fh:
@@ -541,7 +541,7 @@ def test_the_team_board_set_is_all_per_match_rates():
 
     # Two-sided: the catalogue really does distinguish the two, so the assertion above is not
     # vacuously true of every rate in the seed.
-    per90 = [r for r in rows.values() if r["denominator_expr"] == "sum(minutes_played)"]
+    per90 = [r for r in rows.values() if r["denominator_expr"] == "sum(minutes)"]
     assert per90, "no per-90 metric in the catalogue; this guard would then discriminate nothing"
 
 

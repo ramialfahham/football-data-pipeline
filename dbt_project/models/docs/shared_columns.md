@@ -183,7 +183,7 @@ nothing, which is not the same as false.
 
 
 {% docs is_starter %}
-Derived: minutes_played > 0 AND NOT is_substitute.
+Derived: minutes > 0 AND NOT is_substitute.
 {% enddocs %}
 
 
@@ -227,8 +227,8 @@ Losses (all).
 
 {% docs minutes_played %}
 Minutes the provider credits this player with in the match, from its per-player statistics.
-NULL where the competition supplies no player statistics for the fixture, and zero for a named
-substitute who was not brought on.
+Zero for a named substitute who was not brought on. NULL where the provider counted no minutes
+in the match, and for a player with no minutes who nevertheless did something in it.
 {% enddocs %}
 
 
@@ -243,21 +243,23 @@ Pass accuracy as an integer percent (0-100).
 
 
 {% docs penalty_scored %}
-Penalties this player scored in the match, from the provider's per-player statistics. It is
-the provider's own count on the player's statistics line, which is a different source from the
-match event feed.
+Penalties this player scored in the match: the same number as the player's penalty goals, from
+the match events and never more than his goals. Where the provider's own per-player count
+differs, it is replaced by that number.
 {% enddocs %}
 
 
 {% docs penalty_saved %}
 Penalties this player saved in the match, from the provider's per-player statistics. It is the
-goalkeeper's side of a penalty - not a penalty this player took and missed.
+goalkeeper's side of a penalty - not a penalty this player took and missed. A blank is zero where
+the provider counted it in the match or the opponent had no penalty.
 {% enddocs %}
 
 
 {% docs penalty_missed %}
 Penalties this player took and did not score in the match, from the provider's per-player
-statistics.
+statistics. A blank is zero where the provider counted it in the match or the team had no
+penalty.
 {% enddocs %}
 
 
@@ -337,7 +339,8 @@ different physical groups.
 {% docs starts %}
 Matches this player started - not named among the substitutes, and with recorded playing time.
 Counted over the matches the row covers, so a player who changed clubs mid-season has one row
-per club at the finest grain and those are re-summed at season grain.
+per club at the finest grain and one for the whole competition-season at season grain. NULL
+when a match's minutes are unknown or a club has a match with no player data at all.
 {% enddocs %}
 
 
@@ -683,22 +686,25 @@ opponent_team_sk. NULL when the opponent has no crest ingested.
 {% enddocs %}
 
 {% docs goals_total__leg %}
-Goals this player scored in this match, the provider's own per-player count (statistics
-goals.total). Includes penalties scored and excludes own goals, which the provider does not
-credit to a player. NULL when the provider's statistics line for this player omitted the goals
-object.
+Goals this player scored in this match. The provider's own per-player count (statistics
+goals.total), or the match's goal events where only they add up to the score, or where both add
+up and credit different players who both played. Includes penalties scored and excludes own
+goals, which the provider does not credit to a player. NULL only where the provider counted no
+goals in the match and neither the score nor the events prove a zero.
 {% enddocs %}
 
 {% docs goals_assists__leg %}
 Assists this player registered in this match, the provider's own per-player count (statistics
-goals.assists), by the provider's own definition of an assist. NULL when the provider's
-statistics line for this player omitted the goals object.
+goals.assists), by the provider's own definition of an assist. A blank is zero where the
+provider counted assists in the match, or the score or the match events show none of the team's
+goals was assisted; NULL otherwise.
 {% enddocs %}
 
 {% docs shots_on__leg %}
 Shots on target this player took in this match, the provider's own per-player count
-(statistics shots.on). NULL when the provider's statistics line for this player omitted the
-shots object.
+(statistics shots.on), raised to his open-play goals where it was lower by at most 2 and NULL
+where the gap is larger. A blank is zero where the provider counted it in the match or the
+team's statistics line shows none.
 {% enddocs %}
 
 {% docs position_code__leg %}
@@ -722,16 +728,19 @@ records carry only `season_to_date`.
 {% docs appearances__season_to_date %}
 Finished matches the player actually played (minutes greater than 0) in this
 competition-season, summed across every club the player turned out for that season. A squad
-member named but never brought on counts 0 rather than being excluded.
+member named but never brought on counts 0 rather than being excluded. NULL when a match's
+minutes are unknown or a club has a match with no player data at all.
 {% enddocs %}
 
 {% docs minutes__season_to_date %}
 Total minutes played in this competition-season, summed across every club the player turned out
-for that season.
+for that season. NULL when a match's minutes are unknown or a club has a match with no player
+data at all.
 {% enddocs %}
 
 {% docs substitute_appearances %}
 Appearances that came off the bench: matches where the player was listed as a substitute and
 still recorded minutes greater than 0. Excludes a named substitute never brought on, so
-substitute_appearances plus starts accounts for every appearance.
+substitute_appearances plus starts accounts for every appearance. NULL when a match's minutes
+are unknown or a club has a match with no player data at all.
 {% enddocs %}

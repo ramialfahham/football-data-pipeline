@@ -185,8 +185,10 @@ models:
       Grain: (team_sk, player_sk, league_code, season_api_year, fixture_sk).
 
       A stat row exists wherever the provider reports one, which includes unused substitutes on 0
-      minutes. Those are filtered out here, so games_played counts matches played rather than
-      matchday selections, and every ratio is over the same set of matches by construction.
+      minutes. Those are not output, so games_played counts matches played rather than matchday
+      selections. Every metric, counts and ratios, is its metric_catalogue formula over the
+      player's matches through this one, NULL from the first match that lacks an input or the
+      first team match with no player data at all.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, player_sk, league_code, season_api_year, fixture_sk]
@@ -239,18 +241,18 @@ models:
         description: "{{ doc('round_order') }}"
       - name: match_number
         description: "The player's Nth finished match played that competition-season, ordered by kickoff (equal to games_played) — the appearance cutoff the year-over-year comparison aligns two seasons on."
-      - name: goals_total
-        description: "Cumulative goals through this match within the competition-season — the running sum of int_legs__player_match's goals_total, so penalties are included and own goals excluded as there."
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
-      - name: goals_assists
-        description: "Cumulative assists through this match within the competition-season — the running sum of int_legs__player_match's goals_assists."
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_player
         description: "{{ doc('shots_player') }}"
-      - name: shots_on
-        description: "Cumulative shots on target through this match within the competition-season — the running sum of int_legs__player_match's shots_on."
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_player
         description: "{{ doc('passes_player') }}"
       - name: passes_key_player
@@ -283,3 +285,13 @@ models:
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red_player
         description: "{{ doc('cards_red_player') }}"
+      - name: defensive_actions_player
+        description: "{{ doc('defensive_actions_player') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
+      - name: passes_accuracy_player_pct
+        description: "{{ doc('passes_accuracy_player_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"

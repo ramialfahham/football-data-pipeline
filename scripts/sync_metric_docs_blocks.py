@@ -166,23 +166,18 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
      "season against a full one."),
     ("_this_season", "suffix",
      "Value for the season now in progress, accumulated through the matches played so far."),
-    # ⚠ ENTITY-SPECIFIC, and it has to be. "A gap in statistical coverage" is a
-    # real NULL cause on the TEAM side — `int_team_profile__yoy.sql` nulls a rate
-    # when the season's first N games are not fully stat-covered. It is IMPOSSIBLE
-    # on the player side: a player's per-match null stat MEANS ZERO, not missing,
-    # so a running sum over zero-filled fields never becomes null for coverage.
-    # `int_player_profile__yoy.sql` says so itself and names only the absent prior
-    # season at that club. Shipping the team sentence on four player columns is
-    # the same failure the docstring above warns about: prose inherited without
-    # reading the model.
+    # ⚠ ENTITY-SPECIFIC, and it has to be. The team side nulls a rate when the
+    # season's first N games are not fully stat-covered (`int_team_profile__yoy.sql`).
+    # The player side aligns by appearances at the same club, so its NULL causes are
+    # the absent prior season at that club and, under the blank rule, a running total
+    # that went NULL at the first match with a missing input or a club match with no
+    # player data at all (`int_player_season_record.sql`). Each entity's sentence
+    # names its own causes, traced to its own model.
     #
-    # ⚠ AND THE FIX FOR THAT WAS WRONG IN THE MIRROR DIRECTION. Dropping the false
-    # coverage cause also dropped a TRUE one. The player sentence is complete
-    # inside `int_player_profile__yoy`,
-    # which is domestic-league-only at the row level — but the block is reused at
-    # `mart_player_profile`, which carries every competition-season a player has
-    # and left-joins the domestic-only yoy rows onto it. A cup or tournament row is
-    # NULL there because that competition has no year-on-year comparison at all.
+    # ⚠ THE PLAYER BLOCK IS REUSED AT `mart_player_profile`, which carries every
+    # competition-season a player has and left-joins the domestic-only yoy rows onto
+    # it. A cup or tournament row is NULL there because that competition has no
+    # year-on-year comparison at all.
     # ⭐ THE RULE THIS LEAVES: A SHARED BLOCK IS ONLY AS TRUE AS ITS WIDEST CALL
     # SITE. Read every model the block reaches, not the one you happened to open.
     ("_delta_yoy", "suffix", {
@@ -196,7 +191,8 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
             "The change from the previous season to the current one, compared at the same point "
             "of the campaign: the current value minus the previous one. NULL when there is no "
             "prior season at this club to compare against, which covers a transfer, a first "
-            "season at this level and a prior season that was never loaded, and NULL for a "
+            "season at this level and a prior season that was never loaded; NULL when a match "
+            "counted on either side lacks an input the provider did not record; and NULL for a "
             "competition that carries no year-on-year comparison at all, such as a cup, a "
             "qualifying campaign or an international tournament.",
     }),

@@ -1,12 +1,11 @@
 {#
   W1 momentum builder — player.
 
-  For each upcoming fixture side, aggregates raw player stat totals for every player who appeared
-  in the side's window legs. The window selection is NOT re-derived here — it is consumed from the
-  shared int_team_momentum_window model (extracted in #323), the SAME selection the team aggregate
-  (int_team_momentum__metrics) and the drill-down list (mart_team_momentum_window) use. This keeps
-  the player top-players strip and the team form panel on ONE window and prevents drift (#484).
-  No ratios — those are computed in mart_player_momentum.
+  For each upcoming fixture side, the metrics of every player who appeared in the side's window legs. The
+  window selection is NOT re-derived here — it is consumed from the shared int_team_momentum_window model
+  (extracted in #323), the SAME selection the team aggregate (int_team_momentum__metrics) and the
+  drill-down list (mart_team_momentum_window) use. This keeps the player top-players strip and the team
+  form panel on ONE window and prevents drift (#484).
 
   Window (carried through from int_team_momentum_window):
   - window_type='last_5' (default): the team's last 5 finished matches, cross-competition within
@@ -17,20 +16,15 @@
 
   Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
-  Scope: all competition types — club and national. W1 is shown alongside W2 for every fixture;
-  both numbers are always presented together.
-
   A player absent from some of the window legs contributes stats only for the matches they appeared
   in — honest absence, not zero. games_in_window is the player's appearance count within the side's
   window (0..5 for last_5, uncapped for tournament windows), not the team window size. It counts legs
   the player actually PLAYED (minutes > 0), so 0 is legitimate: named in the matchday squad for the
   window's legs but never brought on.
 
-  passes_accurate_player is derived per fixture as ROUND(passes_player * passes_accuracy_percent / 100)
-  then summed; inherits small rounding error.
-
-  saves_player_pct requires goals_against_player which is not currently carried in int_legs__player_match —
-  mart_player_momentum will emit null for that metric.
+  Every metric is its catalogue formula over the window's leg rows, written by
+  scripts/generate_metric_sql.py, and is NULL when the window lacks an input: a player row with a blank
+  the provider did not count, or a window leg of the side with no player data at all.
 #}
 
 with window_legs as (
@@ -44,59 +38,44 @@ with window_legs as (
     from {{ ref('int_team_momentum_window') }}
 ),
 
--- Aggregate player stats across the side's window legs
-player_agg as (
+-- A team match with no player data at all: nobody knows who played or what they did, so every player
+-- metric of that team is blank for any window that contains it. Awarded results are no match played.
+team_matches_without_player_data as (
+    select
+        tm.fixture_sk,
+        tm.team_sk
+    from {{ ref('int_legs__team_match') }} as tm
+    left join {{ ref('int_legs__team_from_players') }} as tp
+        on tm.fixture_sk = tp.fixture_sk and tm.team_sk = tp.team_sk
+    where not tm.is_awarded_result and tp.fixture_sk is null
+),
+
+window_completeness as (
     select
         wl.upcoming_fixture_sk,
         wl.team_sk,
-        p.player_sk,
+        logical_and(uncovered.fixture_sk is null) as window_is_complete
+    from window_legs as wl
+    left join team_matches_without_player_data as uncovered
+        on wl.leg_fixture_sk = uncovered.fixture_sk and wl.team_sk = uncovered.team_sk
+    group by wl.upcoming_fixture_sk, wl.team_sk
+),
+
+window_rows as (
+    select
+        p.* except (season_api_year, entity_type),
+        wl.upcoming_fixture_sk,
         wl.season_api_year,
         wl.entity_type,
         wl.window_type,
-        -- pitch time required, same rule as the season models: the provider lists
-        -- whole matchday squads, so count(*) counted unused substitutes as appearances. 0 is now a
-        -- legitimate value (named in the squad for window legs but never brought on).
-        countif(coalesce(p.minutes_played, 0) > 0) as games_in_window,
-        any_value(p.position_code) as position_code,
-        sum(p.goals_total) as goals_total,
-        sum(p.goals_against) as goals_against_player,
-        sum(p.goals_assists) as goals_assists,
-        sum(p.saves) as saves_player,
-        sum(p.shots_total) as shots_player,
-        sum(p.shots_on) as shots_on,
-        sum(p.passes_total) as passes_player,
-        sum(p.passes_key) as passes_key_player,
-        sum(p.tackles_total) as tackles_player,
-        sum(p.tackles_blocks) as blocks_player,
-        sum(p.tackles_interceptions) as interceptions_player,
-        sum(p.duels_total) as duels_player,
-        sum(p.duels_won) as duels_won_player,
-        sum(p.dribbles_attempts) as dribbles_attempts_player,
-        sum(p.dribbles_success) as dribbles_success_player,
-        sum(p.cards_yellow) as cards_yellow_player,
-        sum(p.cards_red) as cards_red_player,
-        sum(p.offsides) as offsides_player,
-        sum(p.dribbles_past) as dribbles_past_player,
-        sum(p.penalty_won) as penalty_won_player,
-        sum(p.penalty_committed) as penalty_committed_player,
-        -- passes_accurate_player: derived per fixture, then summed (small rounding error)
-        sum(
-            safe_cast(
-                round(p.passes_total * p.passes_accuracy_percent / 100.0) as int64
-            )
-        ) as passes_accurate_player
+        wc.window_is_complete
     from window_legs as wl
     inner join {{ ref('int_legs__player_match') }} as p
         on
             wl.leg_fixture_sk = p.fixture_sk
             and wl.team_sk = p.team_sk
-    group by
-        wl.upcoming_fixture_sk,
-        wl.team_sk,
-        p.player_sk,
-        wl.season_api_year,
-        wl.entity_type,
-        wl.window_type
+    inner join window_completeness as wc
+        on wl.upcoming_fixture_sk = wc.upcoming_fixture_sk and wl.team_sk = wc.team_sk
 )
 
 select
@@ -106,28 +85,73 @@ select
     season_api_year,
     entity_type,
     window_type,
-    games_in_window,
-    position_code,
-    goals_total,
-    goals_against_player,
-    goals_assists,
-    saves_player,
-    shots_player,
-    shots_on,
-    passes_player,
-    passes_key_player,
-    passes_accurate_player,
-    tackles_player,
-    blocks_player,
-    interceptions_player,
-    duels_player,
-    duels_won_player,
-    dribbles_attempts_player,
-    dribbles_success_player,
-    cards_yellow_player,
-    cards_red_player,
-    offsides_player,
-    dribbles_past_player,
-    penalty_won_player,
-    penalty_committed_player
-from player_agg
+    if(logical_and(window_is_complete and minutes is not null), countif(minutes > 0), null) as games_in_window,
+    any_value(position_code) as position_code,
+    -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+    if(logical_and(window_is_complete and goals is not null), sum(goals), null) as goals_player,
+    if(logical_and(window_is_complete and assists is not null), sum(assists), null) as assists_player,
+    if(logical_and(window_is_complete and goals_against is not null), sum(goals_against), null) as goals_against_player,
+    if(logical_and(window_is_complete and saves is not null), sum(saves), null) as saves_player,
+    if(logical_and(window_is_complete and shots is not null), sum(shots), null) as shots_player,
+    if(
+        logical_and(window_is_complete and shots_on_target is not null),
+        sum(shots_on_target),
+        null
+    ) as shots_on_goal_player,
+    if(logical_and(window_is_complete and passes is not null), sum(passes), null) as passes_player,
+    if(logical_and(window_is_complete and passes_key is not null), sum(passes_key), null) as passes_key_player,
+    if(
+        logical_and(window_is_complete and passes_accurate is not null),
+        sum(passes_accurate),
+        null
+    ) as passes_accurate_player,
+    if(logical_and(window_is_complete and tackles is not null), sum(tackles), null) as tackles_player,
+    if(logical_and(window_is_complete and blocks is not null), sum(blocks), null) as blocks_player,
+    if(logical_and(window_is_complete and interceptions is not null), sum(interceptions), null) as interceptions_player,
+    if(logical_and(window_is_complete and duels is not null), sum(duels), null) as duels_player,
+    if(logical_and(window_is_complete and duels_won is not null), sum(duels_won), null) as duels_won_player,
+    if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null) as dribbles_attempts_player,
+    if(
+        logical_and(window_is_complete and dribbles_success is not null),
+        sum(dribbles_success),
+        null
+    ) as dribbles_success_player,
+    if(
+        logical_and(window_is_complete and dribbles_against is not null),
+        sum(dribbles_against),
+        null
+    ) as dribbles_past_player,
+    if(logical_and(window_is_complete and offsides is not null), sum(offsides), null) as offsides_player,
+    if(logical_and(window_is_complete and cards_yellow is not null), sum(cards_yellow), null) as cards_yellow_player,
+    if(logical_and(window_is_complete and cards_red is not null), sum(cards_red), null) as cards_red_player,
+    if(logical_and(window_is_complete and penalties_won is not null), sum(penalties_won), null) as penalty_won_player,
+    if(
+        logical_and(window_is_complete and penalties_committed is not null),
+        sum(penalties_committed),
+        null
+    ) as penalty_committed_player,
+    safe_divide(
+        if(logical_and(window_is_complete and saves is not null), sum(saves), null),
+        if(logical_and(window_is_complete and (saves + goals_against) is not null), sum(saves + goals_against), null)
+    ) as saves_player_pct,
+    safe_divide(
+        if(logical_and(window_is_complete and dribbles_success is not null), sum(dribbles_success), null),
+        if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null)
+    ) as dribbles_success_player_pct,
+    safe_divide(
+        if(logical_and(window_is_complete and passes_accurate is not null), sum(passes_accurate), null),
+        if(logical_and(window_is_complete and passes is not null), sum(passes), null)
+    ) as passes_accuracy_player_pct,
+    safe_divide(
+        if(logical_and(window_is_complete and duels_won is not null), sum(duels_won), null),
+        if(logical_and(window_is_complete and duels is not null), sum(duels), null)
+    ) as duels_won_player_pct
+    -- end of generated metric sql
+from window_rows
+group by
+    upcoming_fixture_sk,
+    team_sk,
+    player_sk,
+    season_api_year,
+    entity_type,
+    window_type

@@ -120,9 +120,10 @@ models:
 
   - name: int_legs__player_match
     description: >
-      Building-block player-match leg: one row per (player, finished match) with raw player
-      counts, competition classification, and windowing dimensions. Naturally sparse where a
-      competition lacks statistics_players. Grain: (fixture_sk, player_sk).
+      Building-block player-match leg: one row per (player, finished match) with the player's
+      cleaned counts, competition classification, and windowing dimensions; the base_relation of
+      every player formula in metric_catalogue.csv. Naturally sparse where a competition lacks
+      statistics_players. Grain: (fixture_sk, player_sk).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [fixture_sk, player_sk]
@@ -162,6 +163,20 @@ models:
         tests:
           - accepted_values:
               values: ["home", "away"]
+      - name: league_sk
+        description: "{{ doc('league_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: kickoff_datetime
@@ -170,7 +185,7 @@ models:
         description: "{{ doc('round_name') }}"
       - name: competition_type
         description: "{{ doc('competition_type') }}"
-      - name: minutes_played
+      - name: minutes
         description: "{{ doc('minutes_played') }}"
       - name: is_starter
         description: "{{ doc('is_starter') }}"
@@ -178,53 +193,53 @@ models:
         description: "{{ doc('is_substitute') }}"
       - name: position_code
         description: "{{ doc('position_code__leg') }}"
-      - name: shots_total
+      - name: shots
         description: "{{ doc('shots_player') }}"
-      - name: shots_on
+      - name: shots_on_target
         description: "{{ doc('shots_on__leg') }}"
-      - name: goals_total
+      - name: goals
         description: "{{ doc('goals_total__leg') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
-      - name: goals_assists
+      - name: assists
         description: "{{ doc('goals_assists__leg') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
-      - name: passes_total
+      - name: passes
         description: "{{ doc('passes_player') }}"
       - name: passes_key
         description: "{{ doc('passes_key_player') }}"
-      - name: passes_accuracy_percent
-        description: "{{ doc('passes_accuracy_percent') }}"
-      - name: tackles_total
+      - name: passes_accurate
+        description: "{{ doc('passes_accurate_player') }}"
+      - name: tackles
         description: "{{ doc('tackles_player') }}"
-      - name: tackles_blocks
+      - name: blocks
         description: "{{ doc('blocks_player') }}"
-      - name: tackles_interceptions
+      - name: interceptions
         description: "{{ doc('interceptions_player') }}"
-      - name: duels_total
+      - name: duels
         description: "{{ doc('duels_player') }}"
       - name: duels_won
         description: "{{ doc('duels_won_player') }}"
-      - name: dribbles_attempts
+      - name: dribbles
         description: "{{ doc('dribbles_attempts_player') }}"
       - name: dribbles_success
         description: "{{ doc('dribbles_success_player') }}"
       - name: offsides
         description: "{{ doc('offsides_player') }}"
-      - name: fouls_drawn
+      - name: fouls_against
         description: "{{ doc('fouls_drawn') }}"
-      - name: fouls_committed
+      - name: fouls
         description: "{{ doc('fouls_committed') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow_player') }}"
       - name: cards_red
         description: "{{ doc('cards_red_player') }}"
-      - name: dribbles_past
+      - name: dribbles_against
         description: "{{ doc('dribbles_past_player') }}"
-      - name: penalty_won
+      - name: penalties_won
         description: "{{ doc('penalty_won_player') }}"
-      - name: penalty_committed
+      - name: penalties_committed
         description: "{{ doc('penalty_committed_player') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty_player') }}"

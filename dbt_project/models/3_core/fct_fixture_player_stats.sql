@@ -6,6 +6,25 @@
     )
 }}
 
+{#
+  A table built before the cleaned columns existed is re-merged in full, once: the build that
+  first finds it without goals_penalty, or with goals_penalty on no row, processes every base row,
+  so no row keeps an empty column after on_schema_change adds the new ones. The second case is a
+  build that failed after adding the columns and before its merge: they are separate statements.
+  Every later build is incremental.
+#}
+{% set cleaned_columns_present = true %}
+{% if is_incremental() %}
+{% set existing_columns = adapter.get_columns_in_relation(this) | map(attribute='name') | map('lower') | list %}
+{% if 'goals_penalty' in existing_columns %}
+{% set cleaned_columns_present = run_query(
+    'select countif(goals_penalty is not null) > 0 from ' ~ this
+).columns[0].values()[0] %}
+{% else %}
+{% set cleaned_columns_present = false %}
+{% endif %}
+{% endif %}
+
 with base as (
     select * from {{ ref('base_apif__fixture_players') }}
 ),
@@ -13,7 +32,7 @@ with base as (
 src as (
     select *
     from base
-    {% if is_incremental() %}
+    {% if is_incremental() and cleaned_columns_present %}
     -- NULL-safe high-water mark: an empty target makes max() NULL and `x > NULL` is
     -- never true, which would trap the table empty forever (see fact-not-empty test).
     -- Coalescing to the epoch lets an empty/zeroed table self-heal on the next run.
@@ -35,38 +54,39 @@ select
     fixture_id as fixture_api_id,
     team_id as team_api_id,
     player_id as player_api_id,
-    minutes_played,
+    minutes,
     shirt_number,
     position_code,
     is_captain,
     is_substitute,
-    coalesce(minutes_played, 0) > 0 and not coalesce(is_substitute, false) as is_starter,
+    coalesce(minutes, 0) > 0 and not coalesce(is_substitute, false) as is_starter,
     offsides,
-    shots_total,
-    shots_on,
-    goals_total,
+    shots,
+    shots_on_target,
+    goals,
+    goals_penalty,
     goals_against,
-    goals_assists,
+    assists,
     saves,
-    passes_total,
+    passes,
     passes_key,
-    passes_accuracy_percent,
-    tackles_total,
-    tackles_blocks,
-    tackles_interceptions,
-    duels_total,
+    passes_accurate,
+    tackles,
+    blocks,
+    interceptions,
+    duels,
     duels_won,
-    dribbles_attempts,
+    dribbles,
     dribbles_success,
-    dribbles_past,
-    fouls_drawn,
-    fouls_committed,
+    dribbles_against,
+    fouls,
+    fouls_against,
     cards_yellow,
     cards_red,
-    penalty_won,
-    penalty_committed,
-    penalty_scored,
-    penalty_missed,
-    penalty_saved,
+    penalties_won,
+    penalties_committed,
+    penalties_scored,
+    penalties_missed,
+    penalties_saved,
     src.raw_ingested_at
 from src

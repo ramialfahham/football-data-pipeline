@@ -1,58 +1,48 @@
-# Review — refactor/materialisation-one-rule — one materialisation rule, written once, true in the code
+# Review — fix/player-cleaning-and-generated-metrics — player stats cleaned once in base, player metrics generated from the catalogue
 
-diff_sha256: 91c599f3eda9a9c1b38a9c639bdfed9ed01c7e334f00b8c8483647acf0228c4d
+diff_sha256: 0e44ff83663615533db43b9fdebdd66ebdb641f4150a48a5865c0172c8b97b4f
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: the impact_map asserted readers and blast radius without pasted lineage. Round 2: contract.md now gives the dbt ls downstream result for each of the 13 converted models, the outside-dbt reader grep (scripts, site_v2/src, site_v2/scripts, ingestion), and the row-content exceptions; the finding is addressed.
-- Behaviour change disclosed: three models filter on current_date(); as tables the date is the build date, as for their table siblings; follows from the CPO-approved conversion and is disclosed to the CPO who merges.
-- protected_override: quoted approval dated 2026-09-29, in chat through the plan; the MR head's Locked files line repeats the quote.
-- Scope: every file in the diff is in scope_paths; docs/data_contract.md and test_no_decision_history_in_docs.py by a dated amendment citing the approved plan.
-- Thresholds unchanged: NEW MECHANISM none, RECURRING COST down and measured; #183 tie-breaks stay reserved; no credentials or workflow changes.
-- Doc sync: layering.md holds the rule; CLAUDE.md, AGENTS.md, engineering_standards.md, analytics_engineer.md, dbt.mdc, data_contract.md point to it; no stale view claims found.
+- Scope: every file in the cumulative diff is in scope_paths; the .sqlfluff, sync_metric_docs_blocks.py and its test, and the new history test carry amendments naming their authority. No secret-shaped string in the patch; escalations.log untouched.
+- Threshold crossings: the generator script with its pytest and the one-time re-merge in fct_fixture_player_stats are declared as NEW MECHANISM with their authority; the recurring read (base reading events, statistics and fixtures; the season and position models reading the legs; the cleaning test reading staging; the re-merge check; the history test) is declared under RECURRING COST with a measure-before-merge commitment.
+- §10 and Appendix A: every catalogue edit is a rename or one of the recorded rulings (pass accuracy as a count, the goal and penalty source rules, raised_to_part, the 8% limit, the finishing-efficiency guard replaced); no invented metric, nothing in the frontend. The builder readings are declared as readings, not as CPO rulings, and surface in the MR head.
+- Rounds 2 and 3 (deltas): the re-merge check is a recovery path of the same ruled re-merge, not a new mechanism class; the renamed history test and its contract entries agree on the file name; its half-of-base line is a test-internal tripwire explained in its header and the amendment.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Layer placement: the 65 model diffs remove only the first-line config() and the blank line after it; 52 table and 13 view removals; no SELECT, ref or join changed.
-- The 13 views named in the contract match the 13 view removals; the layer defaults for core, intermediate and marts are table, so the 52 removals change nothing.
-- The three incremental facts are untouched; materialized now appears under dbt_project/models only in those three; no yml sets a per-model materialisation.
-- No grain, seed or catalogue change; no metric created or redefined; no league identifier added.
-- Enforcement: check_upper_layer_materialisation exempts only a core fct_* file whose values are all incremental; dims, fct with view or table, and any override in intermediate or marts are rejected; tests cover each accept and reject case and the real tree.
-- Rule stated once in layering.md §Materialisation with the incremental rationale preserved; other documents point to it.
-- No consumer of the 13 depends on their being views.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Re-run safety: the only executable change is a stateless read-only scan wired into check_layer_contract.py main(); no state written.
-- Test coverage: the probe test feeds a core dim view, a core dim incremental, an intermediate table and a marts view (all flagged) and a core fct incremental (allowed) through the real function; reverting the exception or the function fails it; a second test walks the real tree.
-- Guard mechanics: the check fails closed and runs in CI (.gitlab-ci.yml) and via pytest; the layer hook is untouched and advisory.
-- No dependency, credential, workflow, site or hosting change.
-- Doc pins: decision-history counts recomputed from the gate's markers match the lowered pins (layering.md 14 to 9, engineering_standards.md 5 to 4, data_contract.md unchanged at 12); token pins match the files that quote the tokens.
+- Layers: base reads only stg_* and base_* models and sets no materialisation; core refs only base; windows and eligibility are hand-written in int and mart models, formulas generated. No layer breach.
+- Tests with the change: the grain test stays; the four new tests are severity error with store_failures; the formula recompute has a floor against a vacuous pass and re-derives each window independently; not_null tests removed only where the descriptions now say NULL is legal.
+- Same-window rule: every generated ratio gates numerator and denominator on the same window_is_complete and per-row input; no mismatched-coverage ratio. Marts keep every export key; no competition identifier in the added lines; the impact map's 38-model lineage recounted.
+- Round 2: the re-merge check covers column absent, column present on no row, and populated; no path makes every build a full re-merge. Round 3: the table-wide history test catches a history never merged and no longer fails on a row whose base value moved after its merge; that limit is stated in deploy_order.
+- Residual, for the team-side step, not this diff: int_legs__team_from_players sums around a player value the cleaning blanked.
 
 ## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Guard authority: the one guard path touched, .claude/agents/analytics-engineer-reviewer.md, carries protected_override quoting the CPO-approved plan line and a real impact_map; the single hunk removes the word "(views)"; no hunt item, verdict rule or output format changed.
-- New mechanism: none; an existing check extended, reusing its helpers and wired into the existing main().
-- Model diffs match the declaration: 13 view and 52 table config removals, no added lines in the model hunks; dbt_project.yml changes comments only.
-- Guard invariant: the change only adds rejections for three layers that had none; the fct_* incremental exemption is narrow.
-- Test changes tighten, not weaken: POLICY_SITES follows the documents that quote the token; decision-history pins go down.
-- Recurring cost declared down with measured numbers; run frequency unchanged; storage for 13 tables is cents a month.
-- Behaviour change noted: three current_date() filters become build-time, consistent with their table siblings.
-- No dependencies, credentials or workflow permission changes.
+- New mechanisms: scripts/generate_metric_sql.py (stdlib only, plain SQL between markers, pytest drift check) matches the issue's decided mechanism; the one-time re-merge is declared with the CPO's answer. No guard path, dependency or credential in the diff; the new tests fail closed.
+- Round 2: the re-merge check is a second condition on the ruled re-merge; countif returns 0 on an empty table, so no NULL trap; its query is under BigQuery's 10 MB minimum and declared.
+- Round 3: the history test is one countif per table, no join; coarser than a per-row comparison, which is acceptable because the failure it guards is all-or-nothing (one merge statement); its nightly read falls from about 0.2 GB to about 30 MB and the change is declared in scope_paths, deploy_order, RECURRING COST and the amendment.
 
-## data-engineer-reviewer
+## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- No ingestion file, registry, registry seed or scheduler workflow in the diff; parser, merge and onboarding classes not triggered.
-- docs/data_contract.md: two prose edits replace the staging-materialisation history with a pointer to layering.md §Materialisation; raw naming, partitioning, merge/append model and endpoints untouched; the pointer target exists.
-- dbt_project.yml: comments only; the five +materialized: table lines and registry-derived vars unchanged.
-- No ingestion cost knob, run cadence or history window moves; nothing writes to raw.
+- Round 1 FAIL, two findings: the re-merge trigger keyed on the column's existence, so a build failing between the schema change and the merge would leave the history empty for good (verified against dbt-bigquery's incremental macro: the schema change and the merge are separate statements); and no test pinned the re-merge branch. Round 2: finding 1 closed by the check for goals_penalty on no row; finding 2 open, because the per-row fact-versus-base test could fail on a base value that moved after its merge. Round 3: both closed by the table-wide history test, which fails when the fact carries goals_penalty on fewer than half as many rows as base and pins the trigger.
+- Generator: idempotent re-run, --check and the pytest fail closed on drift; its aggregate regex meets no nested parentheses in the current catalogue rows.
+- CI lint: `sqlfluff lint models` from dbt_project/ with the dbt templater passes on every model, the files newly inside the raised size limit included.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Catalogue scope: in-place edits only, no row added, removed or re-keyed; the player formulas move to the new input names; the two accurate-passes rows lose the conversion and now read "passes that found a team-mate".
+- Football validity: pass accuracy, per-90, open-play goals and minutes per appearance are formulas a fan accepts; finishing efficiency stays within 0 to 1 without the window guard, because base raises shots on target to open-play goals and limits penalty goals to goals, and the cleaning test names both contradictions.
+- Direction flags unchanged and correct; every rewritten ratio states its zero-denominator NULL; the contribution description matches the model's strict window.
+- Unchanged by this branch and outside this review: player save percentage counts own goals conceded, already filed as its own issue.
+- Its territory (metric_catalogue.csv) is unchanged by the round-2 and round-3 deltas.
 
 ## escalations
 (none)

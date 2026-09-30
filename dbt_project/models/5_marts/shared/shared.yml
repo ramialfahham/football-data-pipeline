@@ -266,9 +266,10 @@ models:
       Recent-form metrics per player for each side of an upcoming fixture, over the same window
       as mart_team_momentum. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
-      Raw counts (goals, assists, cards, …) pass through unchanged from the builder. The ratios —
-      saves_player_pct, dribbles_success_player_pct, passes_accuracy_player_pct, duels_won_player_pct — are computed here with
-      safe_divide, so a zero denominator gives NULL rather than an error.
+      Every metric, counts and ratios alike, passes through from int_player_momentum__metrics,
+      which computes each from its metric_catalogue formula over the window and makes it NULL when
+      a window leg lacks an input. Goals, assists and shots on target keep the keys the export reads
+      (goals_total, goals_assists, shots_on).
 
       saves_player_pct is only meaningful for goalkeepers (position_code = 'G').
     tests:
@@ -336,8 +337,7 @@ models:
           - accepted_values:
               values: ["last_5", "tournament_to_date", "qualifiers"]
       - name: games_in_window
-        description: "The player's appearance count within the side's window (1..5 for last_5, uncapped for tournament windows)."
-        tests: [not_null]
+        description: "The player's appearance count within the side's window (0..5 for last_5, uncapped for tournament windows). NULL when a leg's minutes are unknown or a window leg has no player data at all."
       - name: position_code
         description: "Player position code (e.g. G, D, M, F). Used to scope saves_player_pct to goalkeepers."
       - name: is_home
@@ -346,7 +346,7 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: goals_total
-        description: "This player's goals summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in. Each leg's own value is the provider's per-player goals total, penalties included and own goals excluded. NULL only if every contributing leg's value was NULL, which the window's own construction from legs that carry player stats rules out in practice."
+        description: "This player's goals summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in; goals_player under the key the export reads. Penalties included, own goals excluded. NULL when a leg lacks the input or a window leg has no player data at all."
       - name: goals_assists
         description: "This player's assists summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in."
       - name: saves_player
@@ -1306,8 +1306,10 @@ models:
       fixture's own competition this season. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
       Before the team has played any of it, the row falls back to the previous season and
-      window_type says so. Raw counts pass through unchanged; ratios are computed with
-      safe_divide, so a zero denominator gives NULL.
+      window_type says so. Every metric, counts and ratios, passes through from
+      int_player_season_record, which computes each from its metric_catalogue formula. Goals,
+      assists and shots on target keep the keys the export reads (goals_total, goals_assists,
+      shots_on).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -1366,7 +1368,7 @@ models:
       - name: games_played
         description: "Cumulative matches this player has appeared in, in the fixture's own competition this season (or the previous season when window_type is prev_season), counted through the player's most recent appearance in that season."
       - name: goals_total
-        description: "This player's cumulative goals in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs. Each leg's own value is the provider's per-player goals total, penalties included and own goals excluded."
+        description: "This player's cumulative goals in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs; goals_player under the key the export reads. Penalties included, own goals excluded. NULL when a match lacks the input or a team match up to it has no player data at all."
       - name: goals_assists
         description: "This player's cumulative assists in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs."
       - name: saves_player
@@ -1699,7 +1701,6 @@ models:
         tests: [not_null]
       - name: appearances
         description: "{{ doc('appearances__season_to_date') }}"
-        tests: [not_null]
       - name: position_code
         description: "Most-frequent position that season (role badge). NULL when no fixture carried a position."
       - name: player_birth_place
@@ -3276,7 +3277,7 @@ models:
       - dbt_utils.expression_is_true:
           expression: "appearances >= 0"
           name: player_career_appearances_non_negative
-      # minutes never negative (sum of coalesce(minutes_played, 0) in the atoms base).
+      # minutes never negative (a sum of non-negative minutes, or NULL when a match's minutes are unknown).
       - dbt_utils.expression_is_true:
           expression: "minutes >= 0"
           name: player_career_minutes_non_negative
@@ -3324,15 +3325,14 @@ models:
         description: >
           Finished matches the player actually PLAYED for this club that competition-season, that
           is minutes > 0. 0 is legitimate rather than missing: a squad member who was never
-          brought on keeps his row.
-        tests: [not_null]
+          brought on keeps his row. NULL when a match's minutes are unknown or the club has a
+          match with no player data at all.
       - name: minutes
-        description: "Minutes played at this club that competition-season (raw seasonal sum, carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric)."
+        description: "Minutes played at this club that competition-season (carried up unchanged from int_player_club_season__metrics; a playing-time dimension, not a catalogue metric — exempt in assert_no_uncatalogued_season_metric). NULL under the same conditions as appearances."
       - name: minutes_per_appearance
         description: "{{ doc('minutes_per_appearance') }}"
       - name: national_appearances_total
-        description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps)."
-        tests: [not_null]
+        description: "Per-player denormalised sum of appearances across national-entity rows only (covered comps — not true career caps). NULL when any national row's appearances are NULL, never a total of the known ones."
       - name: last_kickoff_at
         description: "{{ doc('last_kickoff_at') }}"
       - name: club_latest_kickoff_at

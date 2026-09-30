@@ -24,14 +24,14 @@ select
     any_value(opponent_team_sk) as opponent_team_sk,
     count(*) as players_with_stats,
     sum(passes_key) as key_passes,
-    sum(tackles_total) as tackles,
-    sum(tackles_blocks) as blocks,
-    sum(tackles_interceptions) as interceptions,
-    sum(duels_total) as duels_total,
+    sum(tackles) as tackles,
+    sum(blocks) as blocks,
+    sum(interceptions) as interceptions,
+    sum(duels) as duels_total,
     sum(duels_won) as duels_won,
-    sum(dribbles_attempts) as dribbles_attempts,
+    sum(dribbles) as dribbles_attempts,
     sum(dribbles_success) as dribbles_success,
-    sum(fouls_committed) as fouls_committed,
-    sum(fouls_drawn) as fouls_drawn
+    sum(fouls) as fouls_committed,
+    sum(fouls_against) as fouls_drawn
 from player_legs
 group by fixture_sk, team_sk

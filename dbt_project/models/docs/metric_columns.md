@@ -34,9 +34,9 @@ Goal assists.
 Goal assists. The change from the previous season to the current one, compared at the same
 point of the campaign: the current value minus the previous one. NULL when there is no prior
 season at this club to compare against, which covers a transfer, a first season at this level
-and a prior season that was never loaded, and NULL for a competition that carries no
-year-on-year comparison at all, such as a cup, a qualifying campaign or an international
-tournament.
+and a prior season that was never loaded; NULL when a match counted on either side lacks an
+input the provider did not record; and NULL for a competition that carries no year-on-year
+comparison at all, such as a cup, a qualifying campaign or an international tournament.
 {% enddocs %}
 
 
@@ -168,9 +168,8 @@ played. Totalled over the season.
 {% docs contribution_player_pct %}
 Goal-involvement share: the player's goals + assists (scorer_points) as a share of the club's
 whole-season goals. Involved in X% of the club's goals. Computed in
-int_player_profile__contribution (not a single-leg aggregate). Understates where the player's
-match stats are missing, because the denominator is the whole season while the numerator counts
-only covered appearances. Null when the club scored 0 that competition-season.
+int_player_profile__contribution (not a single-leg aggregate). Null when the club scored 0 that
+competition-season, or when the goals plus assists are unknown because an input is missing.
 {% enddocs %}
 
 
@@ -305,8 +304,9 @@ Tackles plus interceptions plus blocks (combined defensive actions). The change 
 previous season to the current one, compared at the same point of the campaign: the current
 value minus the previous one. NULL when there is no prior season at this club to compare
 against, which covers a transfer, a first season at this level and a prior season that was
-never loaded, and NULL for a competition that carries no year-on-year comparison at all, such
-as a cup, a qualifying campaign or an international tournament.
+never loaded; NULL when a match counted on either side lacks an input the provider did not
+record; and NULL for a competition that carries no year-on-year comparison at all, such as a
+cup, a qualifying campaign or an international tournament.
 {% enddocs %}
 
 
@@ -400,7 +400,7 @@ Successful dribbles.
 
 
 {% docs dribbles_success_player_pct %}
-Dribble success rate. Null when dribbles_attempts is zero.
+Dribble success rate. Null when dribbles is zero.
 {% enddocs %}
 
 
@@ -492,7 +492,7 @@ Duels won. A duel is any 1v1 physical contest (ground and aerial pooled).
 
 
 {% docs duels_won_player_pct %}
-Duel win rate. Null when duels_total is zero.
+Duel win rate. Null when duels is zero.
 {% enddocs %}
 
 
@@ -544,9 +544,9 @@ accumulated through the matches played so far.
 
 
 {% docs finishing_efficiency_player_pct %}
-Open-play goal conversion: open-play goals (goals minus penalties; goals_total already excludes
-own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
-finishing the player's own on-target shots. Null when not fully shot-covered or outside [0, 1].
+Open-play goal conversion: open-play goals (goals minus penalty goals; a player's goals never
+include own goals) per shot on target. In [0, 1] - penalties are excluded because they are not
+finishing the player's own on-target shots. Null when an input is missing.
 {% enddocs %}
 
 
@@ -646,8 +646,8 @@ goals_penalty - goals_own). The numerator of finishing_efficiency_pct.
 
 
 {% docs goals_open_play_player %}
-Open-play goals: total goals minus penalties (goals_total - goals_penalty). The numerator of
-finishing_efficiency_player_pct. (goals_total already excludes own goals.)
+Open-play goals: total goals minus penalty goals (goals - goals_penalty). The numerator of
+finishing_efficiency_player_pct. (A player's goals never include own goals.)
 {% enddocs %}
 
 
@@ -667,8 +667,9 @@ finishing its own on-target shots.
 
 {% docs goals_penalty_player %}
 Goals scored from penalties, counted from match events (event_type = 'Goal', event_detail =
-'Penalty'; penalty shoot-out kicks left out). A component of the open-play split — not the
-player finishing his own on-target shots.
+'Penalty'; penalty shoot-out kicks left out), never more than the player's goals; in a match
+without events, the provider's per-player penalty count. A component of the open-play split —
+not the player finishing his own on-target shots.
 {% enddocs %}
 
 
@@ -719,9 +720,9 @@ Goals scored.
 Goals scored. The change from the previous season to the current one, compared at the same
 point of the campaign: the current value minus the previous one. NULL when there is no prior
 season at this club to compare against, which covers a transfer, a first season at this level
-and a prior season that was never loaded, and NULL for a competition that carries no
-year-on-year comparison at all, such as a cup, a qualifying campaign or an international
-tournament.
+and a prior season that was never loaded; NULL when a match counted on either side lacks an
+input the provider did not record; and NULL for a competition that carries no year-on-year
+comparison at all, such as a cup, a qualifying campaign or an international tournament.
 {% enddocs %}
 
 
@@ -778,8 +779,7 @@ Current league standing. Sourced from standings snapshot; not derived from match
 {% docs minutes_per_appearance %}
 Average minutes played per appearance (minutes / appearances, where an appearance is a match
 the player actually played). A squad-list playing-time read describing role - a regular starter
-versus a rotation or impact-sub player - not quality. The mart computes the value inline via
-safe_divide; this row registers its meaning.
+versus a rotation or impact-sub player - not quality.
 {% enddocs %}
 
 
@@ -833,13 +833,12 @@ matches played so far.
 
 {% docs passes_accuracy_player_pct %}
 Pass completion rate: accurate passes over attempted, summed rather than averaged, so a heavier
-passing game weighs more. Null when passes_total is zero.
+passing game weighs more. Null when passes is zero.
 {% enddocs %}
 
 
 {% docs passes_accurate_player %}
-Accurate passes. Derived as SUM(passes_total × passes_accuracy_percent / 100). Inherits small
-per-fixture rounding error.
+Accurate passes: passes that found a team-mate.
 {% enddocs %}
 
 
@@ -893,9 +892,10 @@ Key passes. API definition: a pass leading directly to a shot.
 Key passes. API definition: a pass leading directly to a shot. The change from the previous
 season to the current one, compared at the same point of the campaign: the current value minus
 the previous one. NULL when there is no prior season at this club to compare against, which
-covers a transfer, a first season at this level and a prior season that was never loaded, and
-NULL for a competition that carries no year-on-year comparison at all, such as a cup, a
-qualifying campaign or an international tournament.
+covers a transfer, a first season at this level and a prior season that was never loaded; NULL
+when a match counted on either side lacks an input the provider did not record; and NULL for a
+competition that carries no year-on-year comparison at all, such as a cup, a qualifying
+campaign or an international tournament.
 {% enddocs %}
 
 
@@ -1194,9 +1194,9 @@ Shots on target.
 Shots on target. The change from the previous season to the current one, compared at the same
 point of the campaign: the current value minus the previous one. NULL when there is no prior
 season at this club to compare against, which covers a transfer, a first season at this level
-and a prior season that was never loaded, and NULL for a competition that carries no
-year-on-year comparison at all, such as a cup, a qualifying campaign or an international
-tournament.
+and a prior season that was never loaded; NULL when a match counted on either side lacks an
+input the provider did not record; and NULL for a competition that carries no year-on-year
+comparison at all, such as a cup, a qualifying campaign or an international tournament.
 {% enddocs %}
 
 

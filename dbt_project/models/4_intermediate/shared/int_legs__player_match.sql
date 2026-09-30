@@ -1,8 +1,9 @@
 {#
   Building-block player-match leg: one row per (player, finished match) with that player's
-  raw counts, plus the competition's type/entity classification and the dimensions windows
+  cleaned counts, plus the competition's type/entity classification and the dimensions windows
   need. Cross-competition and cross-type — the shared foundation every player performance
-  metric aggregates over. Grain: (fixture_sk, player_sk).
+  metric aggregates over, and the base_relation of every player formula in metric_catalogue.csv.
+  Grain: (fixture_sk, player_sk).
 
   Restricted to finished matches (FT/AET/PEN) with a valid scoreline, matching the team leg.
   Note: player stats have large coverage gaps (many competitions lack statistics_players),
@@ -28,6 +29,8 @@ types as (
 finished as (
     select
         fixture_sk,
+        league_sk,
+        season_sk,
         season_api_year,
         kickoff_datetime,
         round_name,
@@ -38,22 +41,6 @@ finished as (
         status_short in ('FT', 'AET', 'PEN')
         and goals_home is not null
         and goals_away is not null
-),
-
--- Penalty goals per (fixture, player) from match events — the open-play finishing numerator
--- component (goals_total - goals_penalty). goals_total stays authoritative; only the penalty
--- component is event-derived. Mirrors int_player_season_position__metrics' events derivation.
--- A shoot-out kick is no goal: goals_total leaves the shoot-out out, and so does this count.
-events as (
-    select
-        fixture_sk,
-        player_sk,
-        countif(event_type = 'Goal' and event_detail = 'Penalty') as goals_penalty
-    from {{ ref('fct_fixture_event') }}
-    where
-        player_sk is not null
-        and event_comments is distinct from 'Penalty Shootout'
-    group by fixture_sk, player_sk
 )
 
 select
@@ -61,40 +48,42 @@ select
     ps.player_sk,
     ps.team_sk,
     ps.league_code,
+    f.league_sk,
+    f.season_sk,
     f.season_api_year,
     f.kickoff_datetime,
     f.round_name,
     reg.competition_type,
     typ.entity_type,
-    ps.minutes_played,
+    ps.minutes,
     ps.is_starter,
     ps.is_substitute,
     ps.position_code,
-    ps.shots_total,
-    ps.shots_on,
-    ps.goals_total,
+    ps.shots,
+    ps.shots_on_target,
+    ps.goals,
+    ps.goals_penalty,
     ps.goals_against,
-    ps.goals_assists,
+    ps.assists,
     ps.saves,
-    ps.passes_total,
+    ps.passes,
     ps.passes_key,
-    ps.passes_accuracy_percent,
-    ps.tackles_total,
-    ps.tackles_blocks,
-    ps.tackles_interceptions,
-    ps.duels_total,
+    ps.passes_accurate,
+    ps.tackles,
+    ps.blocks,
+    ps.interceptions,
+    ps.duels,
     ps.duels_won,
-    ps.dribbles_attempts,
+    ps.dribbles,
     ps.dribbles_success,
     ps.offsides,
-    ps.fouls_drawn,
-    ps.fouls_committed,
+    ps.fouls_against,
+    ps.fouls,
     ps.cards_yellow,
     ps.cards_red,
-    ps.dribbles_past,
-    ps.penalty_won,
-    ps.penalty_committed,
-    coalesce(ev.goals_penalty, 0) as goals_penalty,
+    ps.dribbles_against,
+    ps.penalties_won,
+    ps.penalties_committed,
     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
     case when ps.team_sk = f.home_team_sk then f.away_team_sk else f.home_team_sk end
         as opponent_team_sk,
@@ -106,5 +95,3 @@ left join registry as reg
     on ps.league_code = reg.league_code
 left join types as typ
     on reg.competition_type = typ.competition_type
-left join events as ev
-    on ps.fixture_sk = ev.fixture_sk and ps.player_sk = ev.player_sk

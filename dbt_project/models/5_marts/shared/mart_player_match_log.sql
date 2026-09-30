@@ -8,11 +8,41 @@
   (both teams' lines for one fixture); this is player-history-shaped (one player's
   matches over time, with opponent + result attached).
 
+  The stat line keeps the keys the export has always read. passes_accuracy_percent
+  is the catalogue's pass accuracy over the player's own match (written by
+  scripts/generate_metric_sql.py), as a whole percentage.
+
   Grain: (player_sk, fixture_sk).
 #}
 
 with stats as (
-    select * from {{ ref('fct_fixture_player_stats') }}
+    select
+        *,
+        true as window_is_complete
+    from {{ ref('fct_fixture_player_stats') }}
+),
+
+match_rates as (
+    select
+        fixture_sk,
+        team_sk,
+        player_sk,
+        -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+        safe_divide(
+            if(
+                logical_and(window_is_complete and passes_accurate is not null) over w,
+                sum(passes_accurate) over w,
+                null
+            ),
+            if(
+                logical_and(window_is_complete and passes is not null) over w,
+                sum(passes) over w,
+                null
+            )
+        ) as passes_accuracy_player_pct
+        -- end of generated metric sql
+    from stats
+    window w as (partition by fixture_sk, team_sk, player_sk)
 ),
 
 fixtures as (
@@ -60,25 +90,25 @@ joined as (
         f.goals_home,
         f.goals_away,
         s.position_code,
-        s.minutes_played,
+        s.minutes as minutes_played,
         s.is_starter,
         s.is_substitute,
-        s.goals_total,
-        s.goals_assists,
+        s.goals as goals_total,
+        s.assists as goals_assists,
         s.saves,
-        s.shots_total,
-        s.shots_on,
-        s.passes_total,
+        s.shots as shots_total,
+        s.shots_on_target as shots_on,
+        s.passes as passes_total,
         s.passes_key,
-        s.passes_accuracy_percent,
-        s.tackles_total,
-        s.tackles_interceptions,
-        s.duels_total,
+        cast(round(100 * r.passes_accuracy_player_pct) as int64) as passes_accuracy_percent,
+        s.tackles as tackles_total,
+        s.interceptions as tackles_interceptions,
+        s.duels as duels_total,
         s.duels_won,
-        s.dribbles_attempts,
+        s.dribbles as dribbles_attempts,
         s.dribbles_success,
-        s.fouls_drawn,
-        s.fouls_committed,
+        s.fouls_against as fouls_drawn,
+        s.fouls as fouls_committed,
         s.cards_yellow,
         s.cards_red,
         s.team_sk = f.home_team_sk as is_home,
@@ -89,6 +119,8 @@ joined as (
     from stats as s
     inner join fixtures as f
         on s.fixture_sk = f.fixture_sk
+    inner join match_rates as r
+        on s.fixture_sk = r.fixture_sk and s.team_sk = r.team_sk and s.player_sk = r.player_sk
 )
 
 select

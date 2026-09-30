@@ -139,14 +139,16 @@ models:
 
   - name: int_player_momentum__metrics
     description: >
-      Raw recent-form totals per player, for every player who appeared in a side's window legs.
+      Recent-form metrics per player, for every player who appeared in a side's window legs.
       Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
       The window comes from the shared int_team_momentum_window model — the SAME selection the
       team aggregate uses — so player and team figures are always over one set of matches.
 
-      Totals only, no ratios. A player who missed some legs contributes only for the matches they
-      actually appeared in, so their totals are over a shorter window than the side's.
+      Every metric, counts and ratios, is its metric_catalogue formula over the window's leg rows,
+      NULL when a leg lacks an input or a window leg of the side has no player data at all. A player
+      who missed some legs contributes only for the matches they actually appeared in, so their
+      totals are over a shorter window than the side's.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -194,22 +196,22 @@ models:
         description: >
           How many of the side's window matches this player appeared in: 0 to 5 for last_5,
           uncapped for a tournament window. Counts only legs the player actually PLAYED (minutes
-          greater than 0), so 0 means named in the matchday squad and never brought on.
-        tests: [not_null]
+          greater than 0), so 0 means named in the matchday squad and never brought on. NULL when a
+          leg's minutes are unknown or a window leg of the side has no player data at all.
       - name: position_code
         description: "Player position from fct_fixture_player_stats. Used to scope saves_player_pct to GK."
-      - name: goals_total
-        description: "Goals scored, summed over the player's window legs (games_in_window) from int_legs__player_match's goals_total, so penalties are included and own goals excluded as there. A leg with no goals figure for the player contributes nothing to the sum; there is no per-input coverage counter for this field, unlike the team-level rate inputs."
+      - name: goals_player
+        description: "{{ doc('goals_player') }}"
       - name: goals_against_player
         description: "{{ doc('goals_against_player') }}"
-      - name: goals_assists
-        description: "Assists, summed over the player's window legs (games_in_window) from int_legs__player_match's goals_assists. A leg with no assists figure for the player contributes nothing to the sum; there is no per-input coverage counter for this field."
+      - name: assists_player
+        description: "{{ doc('assists_player') }}"
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_player
         description: "{{ doc('shots_player') }}"
-      - name: shots_on
-        description: "Shots on target, summed over the player's window legs (games_in_window) from int_legs__player_match's shots_on. A leg with no shooting figure for the player contributes nothing to the sum; there is no per-input coverage counter for this field."
+      - name: shots_on_goal_player
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_player
         description: "{{ doc('passes_player') }}"
       - name: passes_key_player
@@ -242,3 +244,11 @@ models:
         description: "{{ doc('penalty_won_player') }}"
       - name: penalty_committed_player
         description: "{{ doc('penalty_committed_player') }}"
+      - name: saves_player_pct
+        description: "{{ doc('saves_player_pct') }}"
+      - name: dribbles_success_player_pct
+        description: "{{ doc('dribbles_success_player_pct') }}"
+      - name: passes_accuracy_player_pct
+        description: "{{ doc('passes_accuracy_player_pct') }}"
+      - name: duels_won_player_pct
+        description: "{{ doc('duels_won_player_pct') }}"

@@ -9,8 +9,10 @@ models:
       Positions come from the match-time position code, folded to GK, DEF, MID or ATT. Per-90s and
       rates are computed in-position, over only the minutes played there.
 
-      Atom formulas mirror the whole-season player model, so a single-position player's per-90 here
-      equals his per-90 there. No minutes floor is applied at this layer.
+      Every metric is its metric_catalogue formula over the rows in that position, as on the
+      whole-season player model, so a single-position player's per-90 here equals his per-90 there.
+      NULL when a match lacks an input, or a club the player played for that competition-season has
+      a match with no player data at all. No minutes floor is applied at this layer.
     config:
       tags: ["intermediate", "football", "player"]
     tests:
@@ -68,14 +70,12 @@ models:
           - accepted_values:
               values: ["GK", "DEF", "MID", "ATT"]
       - name: minutes
-        description: "Minutes played IN this position this competition-season (the >= 270 benchmark floor)."
-        tests: [not_null]
+        description: "Minutes played IN this position this competition-season (the >= 270 benchmark floor). NULL when a match's minutes are unknown or a club the player played for has a match with no player data at all."
       - name: appearances
         description: >
           Finished matches the player actually PLAYED IN THIS POSITION this competition-season,
           that is minutes greater than 0. A player who moved role mid-season is counted separately
-          in each.
-        tests: [not_null]
+          in each. NULL under the same conditions as minutes.
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: goals_penalty_player

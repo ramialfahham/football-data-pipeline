@@ -3,12 +3,11 @@
   player's cumulative record in the fixture's own competition this season (complement to
   mart_player_momentum, W1 = last 5).
 
-  Source: int_player_season_record. Each upcoming fixture side's team is joined to its
-  players' latest season-to-date row for the fixture's (league_code, season_api_year);
-  before-phase fallback to the same competition's previous season (window_type='prev_season').
-
-  Raw counts passed through; ratios (saves_player_pct, passes_accuracy_player_pct, duels_won_player_pct,
-  dribbles_success_player_pct) computed here via safe_divide. saves_player_pct is only meaningful for
+  Source: int_player_season_record, which computes every metric (counts and ratios) from its catalogue
+  formula. Each upcoming fixture side's team is joined to its players' latest season-to-date row for the
+  fixture's (league_code, season_api_year); before-phase fallback to the same competition's previous season
+  (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
+  the site reads (goals_total, goals_assists, shots_on). saves_player_pct is only meaningful for
   goalkeepers. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 #}
 
@@ -66,11 +65,10 @@ matched as (
         'season_to_date' as window_type,
         sf.position_code,
         sf.games_played,
-        sf.goals_total,
-        sf.goals_against_player,
-        sf.goals_assists,
+        sf.goals_player,
+        sf.assists_player,
         sf.saves_player,
-        sf.shots_on,
+        sf.shots_on_goal_player,
         sf.passes_key_player,
         sf.passes_accurate_player,
         sf.passes_player,
@@ -87,6 +85,10 @@ matched as (
         sf.penalty_committed_player,
         sf.cards_yellow_player,
         sf.cards_red_player,
+        sf.saves_player_pct,
+        sf.dribbles_success_player_pct,
+        sf.passes_accuracy_player_pct,
+        sf.duels_won_player_pct,
         1 as priority
     from sides as s
     inner join season_final as sf
@@ -108,11 +110,10 @@ matched as (
         'prev_season' as window_type,
         sf.position_code,
         sf.games_played,
-        sf.goals_total,
-        sf.goals_against_player,
-        sf.goals_assists,
+        sf.goals_player,
+        sf.assists_player,
         sf.saves_player,
-        sf.shots_on,
+        sf.shots_on_goal_player,
         sf.passes_key_player,
         sf.passes_accurate_player,
         sf.passes_player,
@@ -129,6 +130,10 @@ matched as (
         sf.penalty_committed_player,
         sf.cards_yellow_player,
         sf.cards_red_player,
+        sf.saves_player_pct,
+        sf.dribbles_success_player_pct,
+        sf.passes_accuracy_player_pct,
+        sf.duels_won_player_pct,
         2 as priority
     from sides as s
     inner join season_final as sf
@@ -158,11 +163,11 @@ select
     position_code,
     games_played,
     is_home,
-    -- raw cumulative counts
-    goals_total,
-    goals_assists,
+    -- cumulative counts
+    goals_player as goals_total,
+    assists_player as goals_assists,
     saves_player,
-    shots_on,
+    shots_on_goal_player as shots_on,
     passes_key_player,
     passes_accurate_player,
     passes_player,
@@ -180,8 +185,8 @@ select
     cards_yellow_player,
     cards_red_player,
     -- ratios
-    safe_divide(saves_player, saves_player + goals_against_player) as saves_player_pct,
-    safe_divide(dribbles_success_player, dribbles_attempts_player) as dribbles_success_player_pct,
-    safe_divide(passes_accurate_player, passes_player) as passes_accuracy_player_pct,
-    safe_divide(duels_won_player, duels_player) as duels_won_player_pct
+    saves_player_pct,
+    dribbles_success_player_pct,
+    passes_accuracy_player_pct,
+    duels_won_player_pct
 from chosen
