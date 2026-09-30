@@ -1,5 +1,5 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d9698e85..064219de 100644
+index d9698e85..7f0423c3 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
 @@ -1,97 +1,87 @@
@@ -168,7 +168,7 @@ index d9698e85..064219de 100644
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -100,101 +90,171 @@ scope_paths:
+@@ -100,101 +90,182 @@ scope_paths:
    - .claude/task/audit_reviewer_outputs.md
    - docs/tracker/**
  
@@ -335,7 +335,10 @@ index d9698e85..064219de 100644
 +  it, and where they do not, none of them can be corrected and all are left blank under
 +  matched_to_team_goals_conceded); the opponent's shots on target plus its in-play missed penalties,
 +  when the team line passes its own check (at least the opponent's open-play goals, at most its
-+  shots), anchor saves; then accurate passes, completed dribbles, duels won and key passes are
++  shots), anchor saves; a player's assists are at most his team's goals minus his own goals (he
++  cannot assist his own goal), and a team-match whose assists still add up to more than its goals
++  has no single assist that can be corrected, so its positive assists are left blank under
++  limited_to_team_goals; then accurate passes, completed dribbles, duels won and key passes are
 +  corrected down to their whole, shots are raised to shots on target, yellow cards are at most 2
 +  and red cards at most 1. Pass format per match: percentage when the players' values sum above
 +  their passes. Own goals sit on the credited team's events (the player-goal measurement adds up
@@ -363,7 +366,12 @@ index d9698e85..064219de 100644
 +  blank because the gap is over 2 carries the same rule with an empty value. Added by the CPO
 +  after the measurement: raised_to_part, for a whole the blank rule filled with a zero below the
 +  player's own delivered part (key passes with blank passes, 292 player-matches; completed dribbles
-+  with blank attempts, 5), where the whole is raised to the part when the gap is at most 2.
++  with blank attempts, 5), where the whole is raised to the part when the gap is at most 2. Added by
++  the CPO after the MR build's measurement: limited_to_team_goals, for a player's assists above his
++  team's goals minus his own goals (34 player-matches, every gap at most 2; 17 of them the scorer
++  also given the goal's assist, 3 from the events' goal credit), and for the positive assists of a
++  team-match whose assists still add up to more than its goals (21 team-matches before the player
++  check), left blank.
  
 -  THRESHOLD DECLARATIONS: NEW MECHANISM: none — an existing check extended to three more layers.
 -  RECURRING COST: down, measured — see blast_radius.
@@ -423,6 +431,9 @@ index d9698e85..064219de 100644
 +    goes NULL for coverage; under the blank rule it does, and the player sentence gains that cause.
 +  - decisions_taken: the rule name raised_to_part and the limit test's level, both answered by the
 +    CPO in chat after the measurement.
++  - decisions_taken: the rule name limited_to_team_goals, answered by the CPO in chat after the
++    MR build failed player_contribution_player_pct_within_unit on a player credited with a goal
++    and its assist; the reading is the issue's contradiction rule, assists being a match stat.
 +  - + dbt_project/tests/assert_fct_fixture_player_stats_history_merged.sql — authority: the CPO's
 +    answer that the core fact re-merges itself, not by his hand (decisions_taken), and the working
 +    agreement's §7 (every pipeline output is covered by an automated test); content: the build
@@ -443,7 +454,7 @@ index e207d41e..5c487681 100644
  [sqlfluff:templater:dbt]
  project_dir = dbt_project
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 6cd99f70..ab8f1c70 100644
+index 6cd99f70..7dd6d432 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
 @@ -199,8 +199,18 @@ models:
@@ -478,14 +489,14 @@ index 6cd99f70..ab8f1c70 100644
 +      - name: stat_corrections.provider_value
 +        description: "The provider's figure before the change: for accurate passes, the count after any percentage was converted; for penalty goals, the events' count, or the provider's per-player count in a match without events."
 +      - name: stat_corrections.cleaned_value
-+        description: "The value this model carries. NULL when the stat was left blank because the gap was over 2, the opponent's shots on target failed their own check, or the keepers who shared the match add up to more goals conceded than the team."
++        description: "The value this model carries. NULL when the stat was left blank because the gap was over 2, the opponent's shots on target failed their own check, the keepers who shared the match add up to more goals conceded than the team, or the team's assists add up to more than its goals."
 +      - name: stat_corrections.rule
-+        description: "The rule that changed it, one of goals_from_events, penalty_goals_limited_to_goals, penalties_scored_matched_to_penalty_goals, raised_to_open_play_goals, raised_to_shots_on_target, matched_to_team_goals_conceded, limited_to_opponent_shots_on_target, opponent_shots_on_target_unverified, limited_to_whole, limited_to_card_maximum, raised_to_part."
++        description: "The rule that changed it, one of goals_from_events, penalty_goals_limited_to_goals, penalties_scored_matched_to_penalty_goals, raised_to_open_play_goals, raised_to_shots_on_target, matched_to_team_goals_conceded, limited_to_opponent_shots_on_target, opponent_shots_on_target_unverified, limited_to_whole, limited_to_card_maximum, raised_to_part, limited_to_team_goals."
  
    - name: base_apif__players
      description: >
 diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index 5bf178c9..a87179e9 100644
+index 5bf178c9..a0d4f58b 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
 @@ -1,3 +1,23 @@
@@ -561,7 +572,7 @@ index 5bf178c9..a87179e9 100644
      from src
      left join overrides as alias_override
          on
-@@ -111,6 +139,523 @@ corrected as (
+@@ -111,6 +139,540 @@ corrected as (
              and reattribute_override.wrong_team_api_id not in (
                  fixture_participants.home_team_id, fixture_participants.away_team_id
              )
@@ -972,7 +983,8 @@ index 5bf178c9..a87179e9 100644
 +),
 +
 +-- 4a. Match stats against results. Keepers who shared the match share the team's goals conceded;
-+-- where their figures add up to more, no one of them can be corrected, so all are left blank.
++-- where their figures add up to more, no one of them can be corrected, so all are left blank. A
++-- player cannot assist his own goal, so his assists are at most the team's goals minus his own.
 +-- The opponent's shots on target (plus the penalties it missed, which a keeper can save) cap the
 +-- saves only when that figure passes its own check: at least the opponent's open-play goals, at
 +-- most its shots.
@@ -999,6 +1011,12 @@ index 5bf178c9..a87179e9 100644
 +            when goals_against_filled <= team_goals_conceded then goals_against_filled
 +            when goals_against_filled - team_goals_conceded <= 2 then team_goals_conceded
 +        end as goals_against_checked,
++        case
++            when assists_filled is null or team_goals_for is null then assists_filled
++            when assists_filled <= greatest(team_goals_for - coalesce(goals_clean, 0), 0) then assists_filled
++            when assists_filled - greatest(team_goals_for - coalesce(goals_clean, 0), 0) <= 2
++                then greatest(team_goals_for - coalesce(goals_clean, 0), 0)
++        end as assists_checked,
 +        opponent_shots_on_target is not null
 +        and opponent_shots_on_target
 +        >= team_goals_conceded - opponent_penalty_goal_events - opponent_own_goals
@@ -1014,8 +1032,18 @@ index 5bf178c9..a87179e9 100644
 +            when saves_filled is null or saves_ceiling is null or saves_filled <= saves_ceiling then saves_filled
 +            when not coalesce(opponent_shots_on_target_verified, false) then null
 +            when saves_filled - saves_ceiling <= 2 then saves_ceiling
-+        end as saves_clean
++        end as saves_clean,
++        sum(assists_checked) over (partition by league_code, fixture_id, team_id) as team_assists_checked
 +    from against_results
++),
++
++-- A team's assists add up to at most its goals; where they still add up to more, no single assist
++-- can be corrected, so the team's positive assists in that match are left blank.
++assists_checked_by_team as (
++    select
++        *,
++        if(team_assists_checked > team_goals_for and assists_checked > 0, null, assists_checked) as assists_clean
++    from saves_checked
 +),
 +
 +-- 4b. A whole the blank rule filled with a zero is only an inference: where the player's own
@@ -1041,7 +1069,7 @@ index 5bf178c9..a87179e9 100644
 +            when coalesce(duels_won_filled, 0) <= duels_filled then duels_filled
 +            when duels_won_filled - duels_filled <= 2 then duels_won_filled
 +        end as duels_clean
-+    from saves_checked
++    from assists_checked_by_team
 +),
 +
 +-- 4c. A part never above its whole, and the card maximum.
@@ -1085,7 +1113,7 @@ index 5bf178c9..a87179e9 100644
  )
  
  select
-@@ -118,49 +663,132 @@ select
+@@ -118,49 +680,136 @@ select
      fixture_id,
      team_id,
      player_id,
@@ -1142,7 +1170,7 @@ index 5bf178c9..a87179e9 100644
 +    goals_clean as goals,
 +    goals_penalty_clean as goals_penalty,
 +    goals_against_checked as goals_against,
-+    assists_filled as assists,
++    assists_clean as assists,
 +    saves_clean as saves,
 +    passes_clean as passes,
 +    passes_key_clean as passes_key,
@@ -1205,6 +1233,10 @@ index 5bf178c9..a87179e9 100644
 +                        'matched_to_team_goals_conceded',
 +                        null
 +                    )
++                ),
++                struct(
++                    'assists', assists, assists_clean,
++                    if(assists_clean is distinct from assists_filled, 'limited_to_team_goals', null)
 +                ),
 +                struct(
 +                    'saves', saves, saves_clean,
@@ -4541,10 +4573,10 @@ index 4c2674de..6cd3ccf0 100644
  corners,team,metrics.corners.label,Corners,"Corner kicks won by the team, taken from the provider's team match statistics rather than from the scoreline or from player records. The provider does not supply team statistics for every fixture, so this can be missing, and a total over several fixtures can be understated rather than null.",int_legs__team_match,sum(corner_kicks),,expression,false,integer,set_pieces,2,higher_better,"Corners won - high = sustained attacking pressure (a weak proxy for threat, and a raw count, so it rises with matches played)",8
 diff --git a/dbt_project/seeds/player_match_cleaning_answer_key.csv b/dbt_project/seeds/player_match_cleaning_answer_key.csv
 new file mode 100644
-index 00000000..35e8f5c8
+index 00000000..40ef7eab
 --- /dev/null
 +++ b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,38 @@
 +fixture_id,team_id,player_id,stat,expected_value,rule,working
 +157550,95,22261,goals,1,goals_from_events,"Amiens 0-4 Strasbourg. The per-player count (4 over four players) and the events (4 goals, every scorer with a row) both add up to 4 but credit different players; the events list this player, and the league re-credited the goal to him."
 +157550,95,3292,goals,0,goals_from_events,"Same match: the per-player count gave this player the goal the events and the league credit to a teammate."
@@ -4582,6 +4614,7 @@ index 00000000..35e8f5c8
 +571491,84,64256,passes_accurate,74,,"The match's pass values sum to 2.9 times its passes, so they are percentages: 84 passes at 88% is 73.92, rounded 74."
 +1575175,167,279905,passes_accurate,27,,"The match's pass values sum below its passes (0.80), so they are counts: 27 stays."
 +1575175,167,163066,penalties_won,0,,"Nobody in the match has a penalties-won value; the match events (substitutions and cards delivered) show no penalty for his team, which proves 0."
++1318812,116,360114,assists,0,limited_to_team_goals,"Lens 1-1 PSG, Coupe de France. The events credit him with Lens's only goal (the per-player count left his goals blank) and the provider gives him that goal's assist. He cannot assist his own goal: his assists are at most 1 team goal minus his 1, so the provider's 1 becomes 0."
 diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
 index 2b002c3c..e345bc5d 100644
 --- a/dbt_project/seeds/schema.yml
@@ -4645,10 +4678,10 @@ index 2b002c3c..e345bc5d 100644
        Corrections to a team's DISPLAY NAME: one row per team whose provider name is not the name
 diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
 new file mode 100644
-index 00000000..b1dea341
+index 00000000..bec14069
 --- /dev/null
 +++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-@@ -0,0 +1,336 @@
+@@ -0,0 +1,346 @@
 +{#
 +  The cleaning rules of docs/metric_layer.md hold on every row of base_apif__fixture_players.
 +  Returns one row per violation, named by the rule it breaks:
@@ -4660,8 +4693,9 @@ index 00000000..b1dea341
 +    events) keeps blank minutes; accurate passes stay blank in a match with no pass data.
 +  - part_above_whole, open_play_goals_above_shots_on_target, penalty_goals_above_goals,
 +    penalties_scored_not_penalty_goals, card_maximum, goals_conceded_above_team,
-+    keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling: a
-+    contradiction the cleaning must have removed.
++    keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling,
++    assists_above_team_goals, team_assists_above_team_goals: a contradiction the cleaning must
++    have removed.
 +  - goals_do_not_add_up: the team's goals from its players and its own goals miss the score in a
 +    match where the per-player count or the goal events add up to it.
 +  - correction_not_on_row: a stat_corrections entry whose value is not the value the row carries,
@@ -4685,7 +4719,7 @@ index 00000000..b1dea341
 +    'goals_from_events', 'penalty_goals_limited_to_goals', 'penalties_scored_matched_to_penalty_goals',
 +    'raised_to_open_play_goals', 'raised_to_shots_on_target', 'matched_to_team_goals_conceded',
 +    'limited_to_opponent_shots_on_target', 'opponent_shots_on_target_unverified', 'limited_to_whole',
-+    'limited_to_card_maximum', 'raised_to_part'
++    'limited_to_card_maximum', 'raised_to_part', 'limited_to_team_goals'
 +] %}
 +
 +with players as (
@@ -4797,7 +4831,8 @@ index 00000000..b1dea341
 +        coalesce(d.has_positive_stat, false) or coalesce(pge.goals, 0) > 0 as did_something,
 +        countif(p.position_code = 'G' and p.minutes > 0) over team_match as team_keepers_with_minutes,
 +        sum(if(p.position_code = 'G' and p.minutes > 0, p.goals_against, null)) over team_match
-+            as team_keepers_goals_against
++            as team_keepers_goals_against,
++        sum(p.assists) over team_match as team_assists
 +    from players as p
 +    left join delivered as d
 +        on
@@ -4902,6 +4937,14 @@ index 00000000..b1dea341
 +    where
 +        position_code = 'G' and minutes > 0 and team_keepers_with_minutes > 1
 +        and team_keepers_goals_against > team_goals_conceded
++    union all
++    select league_code, fixture_id, team_id, player_id, 'assists_above_team_goals', ''
++    from rows_in_context
++    where assists > greatest(team_goals_for - coalesce(goals, 0), 0)
++    union all
++    select distinct league_code, fixture_id, team_id, cast(null as int64), 'team_assists_above_team_goals', ''
++    from rows_in_context
++    where team_assists > team_goals_for
 +    union all
 +    select league_code, fixture_id, team_id, player_id, 'saves_above_ceiling', ''
 +    from rows_in_context
@@ -6022,6 +6065,8 @@ index 31577dac..8b20dd20 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   docs/tracker/gitlab_snapshot.md | 620 +++++++++++++++++++++++++++++++---------
-#    1 file changed, 488 insertions(+), 132 deletions(-)
+#   .claude/task/review.md          |   64 +-
+#    .claude/task/review_input.patch | 7301 +++++++++++++++++++++++++++++++--------
+#    docs/tracker/gitlab_snapshot.md |  620 +++-
+#    3 files changed, 6402 insertions(+), 1583 deletions(-)
 # ============================================================================

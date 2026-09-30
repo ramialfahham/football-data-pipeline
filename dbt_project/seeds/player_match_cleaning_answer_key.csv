@@ -35,3 +35,4 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
 571491,84,64256,passes_accurate,74,,"The match's pass values sum to 2.9 times its passes, so they are percentages: 84 passes at 88% is 73.92, rounded 74."
 1575175,167,279905,passes_accurate,27,,"The match's pass values sum below its passes (0.80), so they are counts: 27 stays."
 1575175,167,163066,penalties_won,0,,"Nobody in the match has a penalties-won value; the match events (substitutions and cards delivered) show no penalty for his team, which proves 0."
+1318812,116,360114,assists,0,limited_to_team_goals,"Lens 1-1 PSG, Coupe de France. The events credit him with Lens's only goal (the per-player count left his goals blank) and the provider gives him that goal's assist. He cannot assist his own goal: his assists are at most 1 team goal minus his 1, so the provider's 1 becomes 0."

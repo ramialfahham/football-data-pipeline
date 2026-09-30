@@ -185,7 +185,10 @@ decisions_taken: >
   it, and where they do not, none of them can be corrected and all are left blank under
   matched_to_team_goals_conceded); the opponent's shots on target plus its in-play missed penalties,
   when the team line passes its own check (at least the opponent's open-play goals, at most its
-  shots), anchor saves; then accurate passes, completed dribbles, duels won and key passes are
+  shots), anchor saves; a player's assists are at most his team's goals minus his own goals (he
+  cannot assist his own goal), and a team-match whose assists still add up to more than its goals
+  has no single assist that can be corrected, so its positive assists are left blank under
+  limited_to_team_goals; then accurate passes, completed dribbles, duels won and key passes are
   corrected down to their whole, shots are raised to shots on target, yellow cards are at most 2
   and red cards at most 1. Pass format per match: percentage when the players' values sum above
   their passes. Own goals sit on the credited team's events (the player-goal measurement adds up
@@ -213,7 +216,12 @@ decisions_taken: >
   blank because the gap is over 2 carries the same rule with an empty value. Added by the CPO
   after the measurement: raised_to_part, for a whole the blank rule filled with a zero below the
   player's own delivered part (key passes with blank passes, 292 player-matches; completed dribbles
-  with blank attempts, 5), where the whole is raised to the part when the gap is at most 2.
+  with blank attempts, 5), where the whole is raised to the part when the gap is at most 2. Added by
+  the CPO after the MR build's measurement: limited_to_team_goals, for a player's assists above his
+  team's goals minus his own goals (34 player-matches, every gap at most 2; 17 of them the scorer
+  also given the goal's assist, 3 from the events' goal credit), and for the positive assists of a
+  team-match whose assists still add up to more than its goals (21 team-matches before the player
+  check), left blank.
 
   The limit test, set from the measurement on the built cleaning and shown to the CPO with the
   numbers (3,186 of 1,898,750 rows corrected or blanked; per competition-season the median 0.1%,
@@ -253,6 +261,9 @@ amendments:
     goes NULL for coverage; under the blank rule it does, and the player sentence gains that cause.
   - decisions_taken: the rule name raised_to_part and the limit test's level, both answered by the
     CPO in chat after the measurement.
+  - decisions_taken: the rule name limited_to_team_goals, answered by the CPO in chat after the
+    MR build failed player_contribution_player_pct_within_unit on a player credited with a goal
+    and its assist; the reading is the issue's contradiction rule, assists being a match stat.
   - + dbt_project/tests/assert_fct_fixture_player_stats_history_merged.sql — authority: the CPO's
     answer that the core fact re-merges itself, not by his hand (decisions_taken), and the working
     agreement's §7 (every pipeline output is covered by an automated test); content: the build

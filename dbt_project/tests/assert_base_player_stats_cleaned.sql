@@ -9,8 +9,9 @@
     events) keeps blank minutes; accurate passes stay blank in a match with no pass data.
   - part_above_whole, open_play_goals_above_shots_on_target, penalty_goals_above_goals,
     penalties_scored_not_penalty_goals, card_maximum, goals_conceded_above_team,
-    keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling: a
-    contradiction the cleaning must have removed.
+    keepers_goals_conceded_above_team, sole_keeper_goals_conceded, saves_above_ceiling,
+    assists_above_team_goals, team_assists_above_team_goals: a contradiction the cleaning must
+    have removed.
   - goals_do_not_add_up: the team's goals from its players and its own goals miss the score in a
     match where the per-player count or the goal events add up to it.
   - correction_not_on_row: a stat_corrections entry whose value is not the value the row carries,
@@ -34,7 +35,7 @@
     'goals_from_events', 'penalty_goals_limited_to_goals', 'penalties_scored_matched_to_penalty_goals',
     'raised_to_open_play_goals', 'raised_to_shots_on_target', 'matched_to_team_goals_conceded',
     'limited_to_opponent_shots_on_target', 'opponent_shots_on_target_unverified', 'limited_to_whole',
-    'limited_to_card_maximum', 'raised_to_part'
+    'limited_to_card_maximum', 'raised_to_part', 'limited_to_team_goals'
 ] %}
 
 with players as (
@@ -146,7 +147,8 @@ rows_in_context as (
         coalesce(d.has_positive_stat, false) or coalesce(pge.goals, 0) > 0 as did_something,
         countif(p.position_code = 'G' and p.minutes > 0) over team_match as team_keepers_with_minutes,
         sum(if(p.position_code = 'G' and p.minutes > 0, p.goals_against, null)) over team_match
-            as team_keepers_goals_against
+            as team_keepers_goals_against,
+        sum(p.assists) over team_match as team_assists
     from players as p
     left join delivered as d
         on
@@ -251,6 +253,14 @@ violations as (
     where
         position_code = 'G' and minutes > 0 and team_keepers_with_minutes > 1
         and team_keepers_goals_against > team_goals_conceded
+    union all
+    select league_code, fixture_id, team_id, player_id, 'assists_above_team_goals', ''
+    from rows_in_context
+    where assists > greatest(team_goals_for - coalesce(goals, 0), 0)
+    union all
+    select distinct league_code, fixture_id, team_id, cast(null as int64), 'team_assists_above_team_goals', ''
+    from rows_in_context
+    where team_assists > team_goals_for
     union all
     select league_code, fixture_id, team_id, player_id, 'saves_above_ceiling', ''
     from rows_in_context

@@ -546,7 +546,8 @@ penalties_chosen as (
 ),
 
 -- 4a. Match stats against results. Keepers who shared the match share the team's goals conceded;
--- where their figures add up to more, no one of them can be corrected, so all are left blank.
+-- where their figures add up to more, no one of them can be corrected, so all are left blank. A
+-- player cannot assist his own goal, so his assists are at most the team's goals minus his own.
 -- The opponent's shots on target (plus the penalties it missed, which a keeper can save) cap the
 -- saves only when that figure passes its own check: at least the opponent's open-play goals, at
 -- most its shots.
@@ -573,6 +574,12 @@ against_results as (
             when goals_against_filled <= team_goals_conceded then goals_against_filled
             when goals_against_filled - team_goals_conceded <= 2 then team_goals_conceded
         end as goals_against_checked,
+        case
+            when assists_filled is null or team_goals_for is null then assists_filled
+            when assists_filled <= greatest(team_goals_for - coalesce(goals_clean, 0), 0) then assists_filled
+            when assists_filled - greatest(team_goals_for - coalesce(goals_clean, 0), 0) <= 2
+                then greatest(team_goals_for - coalesce(goals_clean, 0), 0)
+        end as assists_checked,
         opponent_shots_on_target is not null
         and opponent_shots_on_target
         >= team_goals_conceded - opponent_penalty_goal_events - opponent_own_goals
@@ -588,8 +595,18 @@ saves_checked as (
             when saves_filled is null or saves_ceiling is null or saves_filled <= saves_ceiling then saves_filled
             when not coalesce(opponent_shots_on_target_verified, false) then null
             when saves_filled - saves_ceiling <= 2 then saves_ceiling
-        end as saves_clean
+        end as saves_clean,
+        sum(assists_checked) over (partition by league_code, fixture_id, team_id) as team_assists_checked
     from against_results
+),
+
+-- A team's assists add up to at most its goals; where they still add up to more, no single assist
+-- can be corrected, so the team's positive assists in that match are left blank.
+assists_checked_by_team as (
+    select
+        *,
+        if(team_assists_checked > team_goals_for and assists_checked > 0, null, assists_checked) as assists_clean
+    from saves_checked
 ),
 
 -- 4b. A whole the blank rule filled with a zero is only an inference: where the player's own
@@ -615,7 +632,7 @@ wholes as (
             when coalesce(duels_won_filled, 0) <= duels_filled then duels_filled
             when duels_won_filled - duels_filled <= 2 then duels_won_filled
         end as duels_clean
-    from saves_checked
+    from assists_checked_by_team
 ),
 
 -- 4c. A part never above its whole, and the card maximum.
@@ -674,7 +691,7 @@ select
     goals_clean as goals,
     goals_penalty_clean as goals_penalty,
     goals_against_checked as goals_against,
-    assists_filled as assists,
+    assists_clean as assists,
     saves_clean as saves,
     passes_clean as passes,
     passes_key_clean as passes_key,
@@ -737,6 +754,10 @@ select
                         'matched_to_team_goals_conceded',
                         null
                     )
+                ),
+                struct(
+                    'assists', assists, assists_clean,
+                    if(assists_clean is distinct from assists_filled, 'limited_to_team_goals', null)
                 ),
                 struct(
                     'saves', saves, saves_clean,
