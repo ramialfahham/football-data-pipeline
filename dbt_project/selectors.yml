@@ -1,9 +1,22 @@
 selectors:
   - name: staging
-    description: "Staging models (raw cleanup only). Tests run automatically via dbt build."
+    description: >
+      Staging models (raw cleanup only). Tests run automatically via dbt build, except a test that
+      also reads a model of a later layer: that layer is built in the next stage, so the test runs
+      there, after its parents, instead of against the previous build's table.
     definition:
-      method: path
-      value: models/1_staging
+      union:
+        - method: path
+          value: models/1_staging
+        - exclude:
+            - method: path
+              value: models/2_base
+            - method: path
+              value: models/3_core
+            - method: path
+              value: models/4_intermediate
+            - method: path
+              value: models/5_marts
 
   - name: base
     description: "Base models (unions/alignment). Tests run automatically via dbt build."
