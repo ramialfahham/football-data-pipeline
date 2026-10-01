@@ -404,3 +404,36 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
         "target.schema — this line is the only thing isolating them per merge request. "
         f"dataset: lines seen: {dataset_lines}"
     )
+
+
+SELECTORS_FILE = ROOT / "dbt_project" / "selectors.yml"
+
+
+def _selector_paths(criteria: list) -> set[str]:
+    return {c["value"] for c in criteria if isinstance(c, dict) and c.get("method") == "path"}
+
+
+def test_the_staging_stage_excludes_every_layer_the_downstream_stage_builds() -> None:
+    """The prod build runs `--selector staging`, then `--selector downstream`. dbt puts a test in a
+    stage when any of its parents is in it, so a test reading a staging model and a later-layer model
+    also lands in the staging stage, where it reads the previous build's later-layer table. Only a
+    merge's prod build exercises the selectors, so without this check a lost exclusion shows up as a
+    failed prod build."""
+    main_build = [ln.strip() for ln in _script_lines_by_job(_ci_config())["data:build:main"]]
+    stages = [ln.split()[3] for ln in main_build if ln.startswith("dbt build --selector")]
+    assert stages == ["staging", "downstream"], (
+        f"data:build:main no longer builds the staging stage, then the downstream stage: {stages}"
+    )
+    selectors = {
+        s["name"]: s["definition"]
+        for s in yaml.safe_load(SELECTORS_FILE.read_text(encoding="utf-8"))["selectors"]
+    }
+    downstream = _selector_paths(selectors["downstream"].get("union", []))
+    staging = selectors["staging"].get("union", [selectors["staging"]])
+    excluded = set().union(*(_selector_paths(c["exclude"]) for c in staging if "exclude" in c))
+    assert "models/1_staging" in _selector_paths(staging)
+    assert downstream, "the downstream selector builds no path"
+    assert downstream <= excluded, (
+        f"the staging selector does not exclude {sorted(downstream - excluded)}: a test reading one of "
+        "those layers and a staging model would run in the staging stage against the previous build's table"
+    )
