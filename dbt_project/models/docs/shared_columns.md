@@ -626,6 +626,11 @@ Yellow cards shown to this team in this match, from its cleaned statistics line.
 Red cards shown to this team in this match, from its cleaned statistics line.
 {% enddocs %}
 
+{% docs has_stat_line %}
+TRUE where the provider sent a statistics line for this team in this match with at least one
+value in it, cards included.
+{% enddocs %}
+
 {% docs opponent_shots_on_goal__leg %}
 Shots on target by the opponent in this match, from the provider's team match statistics for
 the opposing side — the mirror of the team's own shots_on_target. NULL when the competition

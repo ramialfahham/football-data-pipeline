@@ -312,7 +312,7 @@ def main() -> None:
             print(f"    !! {src:<24} {lc:<8} team_sk={team_sk} rows={n:,}")
         print(
             "       Fix the team source (e.g. base_apif__teams coverage) or "
-            "full-refresh the incremental fact if these are stale ghosts."
+            "rebuild the fact if these are stale ghosts."
         )
 
     # --- Check 4 -----------------------------------------------------------

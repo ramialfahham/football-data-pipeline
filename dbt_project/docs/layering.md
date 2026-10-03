@@ -86,9 +86,10 @@ exception below; `scripts/check_layer_contract.py` enforces this on every layer.
   two readers of the same build can see different orders.
 - **The one exception: `incremental` on a `3_core` fact whose source delivers only a per-run
   delta** (the latest fixtures), because a full rebuild from that source would lose the history:
-  `fct_fixture_event`, `fct_fixture_player_stats` and `fct_fixture_team_stats`, each with a
-  documented `unique_key`. A fact whose source returns the full history on every call
-  (`fct_fixture`, `fct_standings`, `fct_team_market_value_snapshot`) stays a full-refresh table.
+  `fct_fixture_event`, with a documented `unique_key`. A fact whose source holds the full history
+  stays a table rebuilt in full every night: `fct_fixture`, `fct_standings`,
+  `fct_team_market_value_snapshot`, and `fct_fixture_player_stats` and `fct_fixture_team_stats`,
+  whose base keeps every match's latest line, so a change to the cleaning reaches every match.
 - No ephemeral models.
 
 ## Goals
