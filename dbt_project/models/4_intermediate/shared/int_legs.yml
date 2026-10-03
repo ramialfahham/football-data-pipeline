@@ -106,9 +106,9 @@ models:
       - name: shots_on_target_against
         description: "{{ doc('opponent_shots_on_goal__leg') }}"
       - name: shots_against
-        description: "Total shots (on and off target) by the opponent in this match, from the provider's team match statistics for the opposing side. NULL when the competition supplies no team statistics for the fixture."
+        description: "Total shots (on and off target) by the opponent in this match, from the opponent's cleaned statistics line."
       - name: shots_inside_box_against
-        description: "Shots the opponent took from inside the penalty area in this match, from the provider's team match statistics for the opposing side. NULL when the competition supplies no team statistics for the fixture."
+        description: "Shots the opponent took from inside the penalty area in this match, from the opponent's cleaned statistics line."
       - name: corners_against
         description: "{{ doc('opponent_corner_kicks__leg') }}"
       - name: goals_penalty

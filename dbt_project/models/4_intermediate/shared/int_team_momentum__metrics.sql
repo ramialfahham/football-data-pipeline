@@ -3,10 +3,8 @@
 
   Applies the catalogue formulas to the window legs selected by int_team_momentum_window
   (the selection was extracted there in #323 so this aggregate and the drill-down list
-  mart consume the same matches). The window is last-5 for most competitions and
-  cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
-  window_type carried from the selection says which, and games_in_window is the actual
-  count (1–5 for last_5, unbounded for tournament windows).
+  mart consume the same matches). The window_type carried from the selection names the
+  window, and games_in_window is the actual count.
 
   Grain: (upcoming_fixture_sk, team_sk).
 
@@ -18,7 +16,7 @@
 
   Every catalogue metric is written by scripts/generate_metric_sql.py from metric_catalogue.csv
   over the window's legs, with the team totals from players joined to them, by the rules in
-  docs/metric_layer.md. The match and coverage counts are hand-written.
+  models/docs/metric_rules.md. The match and coverage counts are hand-written.
 #}
 
 with window_legs as (

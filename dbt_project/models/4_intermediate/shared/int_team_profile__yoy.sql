@@ -3,10 +3,7 @@
   season metrics (not just the 3 totals): COMPOSES int_team_season__metrics_cumulative (the rate
   formulas applied at every matchday) at the cutoff N.
 
-  For each domestic-league (team, current season), compares performance through the latest games
-  played this season (N) against the SAME team's immediately prior season through its first N
-  games. "This season vs last season, at the same point" — the only honest comparison while a
-  season is running (a part-season vs a full season would mislead).
+  What it compares, and when a side is blank, is rule R6 in models/docs/metric_rules.md.
 
   Alignment is by GAMES PLAYED (match_number), not date and not the round-name number. For fixed-
   matchday leagues (one match per matchday) games-played == matchday. Games played is unambiguous
@@ -14,10 +11,8 @@
 
   Metrics:
     - Totals (points / goals for / against): the cumulative scoreline sums (always present).
-    - Rates (the LOCKED 16-row team display set): each is NULL on a side when that season's first
-      N games are not fully stat-covered (the coverage gate carries over from the cumulative model)
-      — an honest "no comparison", never a fabricated number.
-    - delta = this − prev; NULL when either side is NULL (no prior season, or a coverage gap).
+    - Rates (the LOCKED 16-row team display set): as the cumulative model holds them at N.
+    - delta = this − prev.
 
   Columns are grouped this-season / prev-season (simple selects) then the deltas (calculations),
   matching the model's prior shape (ST06). The rate formulas live once, in the cumulative model —

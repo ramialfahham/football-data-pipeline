@@ -1,9 +1,9 @@
 {#
   Every player metric a surface computes equals its metric_catalogue formula, recomputed here from
-  int_legs__player_match over the surface's own window, under the eligibility rule: NULL when any
-  match of the window lacks an input or the window holds a team match with no player data at all.
-  The formula is read from the seed at run time, so a surface that drifts from the catalogue, or a
-  catalogue change the surfaces did not follow, fails here. Floats compare at a relative 1e-9.
+  int_legs__player_match over the surface's own window, under the rules in
+  models/docs/metric_rules.md. The formula is read from the seed at run time, so a surface that
+  drifts from the catalogue, or a catalogue change the surfaces did not follow, fails here. Floats
+  compare at a relative 1e-9.
 
   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
   grain present on one side only. The two match-level marts carry the pass accuracy of the player's

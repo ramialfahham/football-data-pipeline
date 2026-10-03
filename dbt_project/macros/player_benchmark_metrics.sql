@@ -6,8 +6,8 @@
 
   Each entry: key = the metric_catalogue metric_id; col = the column in int_player_season_position__metrics;
   pos = the position groups this metric is benchmarked for (eligibility); floor
-  (optional) = an extra per-row qualifier on top of the global minutes >= 270 (finishing needs >= 10 shots
-  on target in the position); num/den (optional, the 5 RATIO metrics only) = numerator/denominator
+  (optional) = an extra per-row qualifier on top of the global minutes floor (both in the ranking_rules
+  doc block); num/den (optional, the 5 RATIO metrics only) = numerator/denominator
   expressions over the same int_player_season_position__metrics atoms, so the mart can carry the volume
   behind each % for the no-naked-% triple {num} of {den} · {pct}% on the Stats screen (GAP-21, #391). Only
   the MART reads num/den; the engine (int_player_competition_benchmarks) ignores them.

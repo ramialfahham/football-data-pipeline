@@ -9,11 +9,10 @@
   per-rate list and no keyword stoplist - a rate added to the catalogue is guarded the moment it
   appears as a column of the surface.
 
-  Availability follows docs/metric_layer.md ("Incomplete data is not calculated"): a team-feed
-  input is present when its column is non-null on the leg; a player-feed input is present when
-  int_legs__team_from_players has the game at all, because a blank player stat is a zero. Player-
-  entity metrics are outside the guard by that same rule. Awarded results (AWD / WO) never count
-  against coverage and are left out of the legs.
+  Availability follows rule R4 in models/docs/metric_rules.md: a team-feed input is present when its
+  column is non-null on the leg; a player-feed input is present when int_legs__team_from_players has
+  the game at all. Player metrics are guarded by assert_player_metrics_follow_catalogue_formula.
+  Awarded results (AWD / WO) never count against coverage and are left out of the legs.
 
   The member floor: `metric in surface_cols` skips a rate silently when its surface column is
   renamed, so a guard that shrank to nothing would pass. Below the floor the build fails loudly.

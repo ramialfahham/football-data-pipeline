@@ -153,9 +153,7 @@ the players the statistics feed covers.
 
 
 {% docs fouls %}
-Fouls this team committed in the match, as the provider's team match statistics report them.
-NULL rather than zero when the competition supplies no team statistics for the fixture, so a
-NULL means unknown and not a clean afternoon.
+Fouls this team committed in the match, from its cleaned statistics line.
 {% enddocs %}
 
 
@@ -226,9 +224,8 @@ Losses (all).
 
 
 {% docs minutes_played %}
-Minutes the provider credits this player with in the match, from its per-player statistics.
-Zero for a named substitute who was not brought on. NULL where the provider counted no minutes
-in the match, and for a player with no minutes who nevertheless did something in it.
+Minutes this player was on the pitch in the match, from the cleaned per-player statistics. Zero
+for a named substitute who was not brought on.
 {% enddocs %}
 
 
@@ -250,16 +247,14 @@ differs, it is replaced by that number.
 
 
 {% docs penalty_saved %}
-Penalties this player saved in the match, from the provider's per-player statistics. It is the
-goalkeeper's side of a penalty - not a penalty this player took and missed. A blank is zero where
-the provider counted it in the match or the opponent had no penalty.
+Penalties this player saved in the match, from the cleaned per-player statistics. It is the
+goalkeeper's side of a penalty - not a penalty this player took and missed.
 {% enddocs %}
 
 
 {% docs penalty_missed %}
-Penalties this player took and did not score in the match, from the provider's per-player
-statistics. A blank is zero where the provider counted it in the match or the team had no
-penalty.
+Penalties this player took and did not score in the match, from the cleaned per-player
+statistics.
 {% enddocs %}
 
 
@@ -299,21 +294,18 @@ alignment.
 
 
 {% docs shots_outside_box %}
-Shots this team took from outside the penalty area, from the provider's team match statistics.
-NULL rather than zero when the competition supplies no team statistics for the fixture.
+Shots this team took from outside the penalty area, from its cleaned statistics line.
 {% enddocs %}
 
 
 {% docs shots_off_goal %}
-Shots by this team that missed the target, from the provider's team match statistics. NULL
-rather than zero when the competition supplies no team statistics for the fixture.
+Shots by this team that missed the target, from its cleaned statistics line.
 {% enddocs %}
 
 
 {% docs shots_blocked %}
-Shots by this team that were blocked before reaching the goal, from the provider's team match
-statistics. It counts the team's OWN attempts that an opponent blocked - not blocks this team
-made. NULL rather than zero when the competition supplies no team statistics for the fixture.
+Shots by this team that were blocked before reaching the goal, from its cleaned statistics line.
+It counts the team's OWN attempts that an opponent blocked - not blocks this team made.
 {% enddocs %}
 
 
@@ -475,63 +467,48 @@ the season.
 {% enddocs %}
 
 {% docs total_shots_sum_season %}
-Total shots the team took, taken from the provider's team match statistics and summed over the
-team's finished matches. NULL for the whole season unless that stat is present for every one of
-the team's non-awarded matches; the provider not supplying it for one match blanks the season
-total rather than understating it.
+Shots the team took, from its cleaned statistics line, summed over its played matches this
+season.
 {% enddocs %}
 
 {% docs opponent_total_shots_sum_season %}
-Total shots the team's opponents took, taken from the provider's team match statistics on the
-opposing side and summed over the team's finished matches. NULL for the whole season unless
-that stat is present for every one of the team's non-awarded matches; the provider not
-supplying it for one match blanks the season total rather than understating it.
+Shots the team's opponents took, from their cleaned statistics lines, summed over the team's
+played matches this season.
 {% enddocs %}
 
 {% docs shots_on_goal_sum_season %}
-Shots on target the team took, taken from the provider's team match statistics and summed over
-the team's finished matches. NULL for the whole season unless that stat is present for every
-one of the team's non-awarded matches; the provider not supplying it for one match blanks the
-season total rather than understating it.
+Shots on target the team had, from its cleaned statistics line, summed over its played matches
+this season.
 {% enddocs %}
 
 {% docs opponent_corner_kicks_sum_season %}
-Corner kicks the team's opponents won, taken from the provider's team match statistics on the
-opposing side and summed over the team's finished matches. NULL for the whole season unless
-that stat is present for every one of the team's non-awarded matches; the provider not
-supplying it for one match blanks the season total rather than understating it.
+Corner kicks the team's opponents won, from their cleaned statistics lines, summed over the
+team's played matches this season.
 {% enddocs %}
 
 {% docs passes_accurate_sum_season %}
-Accurate passes completed by the team, taken from the provider's team match statistics and
-summed over the team's finished matches. NULL for the whole season unless that stat is present
-for every one of the team's non-awarded matches; the provider not supplying it for one match
-blanks the season total rather than understating it.
+The team's passes that reached a teammate, from its cleaned statistics line, summed over its
+played matches this season.
 {% enddocs %}
 
 {% docs passes_total_sum_season %}
-Total passes attempted by the team, taken from the provider's team match statistics and summed
-over the team's finished matches. NULL for the whole season unless that stat is present for
-every one of the team's non-awarded matches; the provider not supplying it for one match blanks
-the season total rather than understating it.
+Passes the team attempted, from its cleaned statistics line, summed over its played matches this
+season.
 {% enddocs %}
 
 {% docs corner_kicks_sum_season %}
-Corner kicks the team won, taken from the provider's team match statistics and summed over the
-team's finished matches. NULL for the whole season unless that stat is present for every one of
-the team's non-awarded matches.
+Corner kicks the team won, from its cleaned statistics line, summed over its played matches this
+season.
 {% enddocs %}
 
 {% docs goalkeeper_saves_sum_season %}
-Saves the team's goalkeeper made, taken from the provider's team match statistics and summed
-over the team's finished matches. NULL for the whole season unless that stat is present for
-every one of the team's non-awarded matches.
+Shots on target the team's goalkeepers saved, from its cleaned statistics line, summed over its
+played matches this season.
 {% enddocs %}
 
 {% docs shots_inside_box_sum_season %}
-Shots the team took from inside the penalty area, taken from the provider's team match
-statistics and summed over the team's finished matches. NULL for the whole season unless that
-stat is present for every one of the team's non-awarded matches.
+Shots the team took from inside the penalty area, from its cleaned statistics line, summed over
+its played matches this season.
 {% enddocs %}
 
 {% docs season_matchdays_used %}
@@ -576,11 +553,6 @@ Finished matches from mart_team_season; NULL when no standings rollup exists for
 team-season.
 {% enddocs %}
 
-{% docs points__team_season %}
-Points won this season (3 per win, 1 per draw), from mart_team_season. NULL when no standings
-rollup exists for the team-season.
-{% enddocs %}
-
 {% docs round_name %}
 The provider's round label for this match (for example 'Regular Season - 12' or
 'Quarter-finals'), carried unchanged from fct_fixture. Free text whose shape varies by
@@ -613,9 +585,8 @@ no estimate is loaded.
 {% enddocs %}
 
 {% docs opponent_corner_kicks__leg %}
-Corner kicks won by the opponent in this match, from the provider's team match statistics for
-the opposing side — the mirror of the team's own corners. NULL when the competition
-supplies no team statistics for the fixture.
+Corner kicks won by the opponent in this match, from the opponent's cleaned statistics line —
+the mirror of the team's own corners.
 {% enddocs %}
 
 {% docs yellow_cards__leg %}
@@ -632,9 +603,8 @@ value in it, cards included.
 {% enddocs %}
 
 {% docs opponent_shots_on_goal__leg %}
-Shots on target by the opponent in this match, from the provider's team match statistics for
-the opposing side — the mirror of the team's own shots_on_target. NULL when the competition
-supplies no team statistics for the fixture.
+Shots on target by the opponent in this match, from the opponent's cleaned statistics line — the
+mirror of the team's own shots_on_target.
 {% enddocs %}
 
 {% docs team_name %}
@@ -685,25 +655,16 @@ opponent_team_sk. NULL when the opponent has no crest ingested.
 {% enddocs %}
 
 {% docs goals_total__leg %}
-Goals this player scored in this match. The provider's own per-player count (statistics
-goals.total), or the match's goal events where only they add up to the score, or where both add
-up and credit different players who both played. Includes penalties scored and excludes own
-goals, which the provider does not credit to a player. NULL only where the provider counted no
-goals in the match and neither the score nor the events prove a zero.
+Goals this player scored in this match, penalties included and own goals not, from the cleaned
+per-player statistics.
 {% enddocs %}
 
 {% docs goals_assists__leg %}
-Assists this player registered in this match, the provider's own per-player count (statistics
-goals.assists), by the provider's own definition of an assist. A blank is zero where the
-provider counted assists in the match, or the score or the match events show none of the team's
-goals was assisted; NULL otherwise.
+Assists this player registered in this match, from the cleaned per-player statistics.
 {% enddocs %}
 
 {% docs shots_on__leg %}
-Shots on target this player took in this match, the provider's own per-player count
-(statistics shots.on), raised to his open-play goals where it was lower by at most 2 and NULL
-where the gap is larger. A blank is zero where the provider counted it in the match or the
-team's statistics line shows none.
+Shots on target this player took in this match, from the cleaned per-player statistics.
 {% enddocs %}
 
 {% docs position_code__leg %}

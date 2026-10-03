@@ -3,11 +3,9 @@
   cleaned stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
   competition's type/entity classification and the dimensions windows need.
 
-  "Finished" includes AWD (technical loss) and WO (walkover):
-  those are official results the league table counts, and excluding them left 24 fixtures
-  contributing nothing — FC Utrecht showing 4 games where its league had played 5. They carry a
-  scoreline and NO stat line, which is what `is_awarded_result` exists to say; the coverage gates
-  downstream must subtract them rather than treat them as missing data.
+  "Finished" includes forfeits (AWD, WO); what they count in is rule R3 in
+  models/docs/metric_rules.md. They carry a scoreline and no stat line, and `is_awarded_result`
+  marks them.
 
   Cross-competition and cross-type — the shared foundation every team performance metric
   aggregates over (a metric = a filter + aggregate of these rows). Grain: (fixture_sk, team_sk).

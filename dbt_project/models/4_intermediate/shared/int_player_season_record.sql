@@ -9,11 +9,10 @@
   matchday squad — so an UNUSED SUBSTITUTE arrives as a 0-minute leg. Those rows are not output, because
   this model's row IS an appearance and match_number/games_played count matches actually played. A leg
   whose minutes are unknown is not output either, but it stays in the running window, so whatever the
-  player did there counts and a blank there makes the totals from that match on NULL.
+  player did there counts.
 
   Every metric is its catalogue formula over the window's leg rows, written by
-  scripts/generate_metric_sql.py, and is NULL when the window lacks an input: a player row with a blank
-  the provider did not count, or a match of the team, up to this one, with no player data at all.
+  scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md.
 
   Carries round_order + match_number for the deferred year-over-year surface.
   Season-bounded (partition by league_code, season_api_year). A national qualifying

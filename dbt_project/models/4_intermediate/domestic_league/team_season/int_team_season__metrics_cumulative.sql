@@ -11,9 +11,9 @@
   int_team_season__metrics (no domestic filter — the YoY consumer applies that).
 
   Every catalogue metric is written by scripts/generate_metric_sql.py from metric_catalogue.csv,
-  by the rules in docs/metric_layer.md. The match counts, the coverage counts and the raw tallies
-  of inputs no catalogue metric names (the *_sum_season columns) are hand-written here and follow
-  the same rules. NAMING NOTE: the `_sum_season` /
+  by the rules in models/docs/metric_rules.md. The match counts, the coverage counts and the raw
+  tallies of inputs no catalogue metric names (the *_sum_season columns) are hand-written here and
+  follow the same rules. NAMING NOTE: the `_sum_season` /
   `season_games_played` / `stat_coverage_season_games` names are kept for the whole-season
   projection; here they mean "cumulative THROUGH THIS matchday".
 #}

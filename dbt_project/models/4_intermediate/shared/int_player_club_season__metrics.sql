@@ -9,8 +9,7 @@
   downstream slicing (each is functionally determined by season_sk).
 
   The window is the club's competition-season. Every metric is its catalogue formula over the window's leg
-  rows, written by scripts/generate_metric_sql.py, and is NULL when the window lacks an input: a player row
-  with a blank the provider did not count, or a club match with no player data at all.
+  rows, written by scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md.
   last_kickoff_at carries the club's latest kickoff so the competition-season model can reproduce the
   "last club that season" stamp.
 #}

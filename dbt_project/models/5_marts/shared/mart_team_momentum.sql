@@ -2,8 +2,7 @@
   W1 momentum mart — team.
 
   The displayed form-window metrics, taken from int_team_momentum__metrics, where they are the
-  catalogue formulas over the window's legs. The window is last-5 for most competitions and
-  cumulative for tournament fixtures (window_type, GAP-18). Nothing is computed here.
+  catalogue formulas over the window that window_type names. Nothing is computed here.
 
   Grain: (upcoming_fixture_sk, team_sk).
 

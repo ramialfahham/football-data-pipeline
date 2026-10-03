@@ -1,38 +1,52 @@
-# Acceptance evidence — #160 part 2, the Matches page and its day pages
+# Acceptance evidence — #190 How step 1, the metric layer's rules stated once
 
-Read from `site_v2/dist` built by `npm run build` on the committed sample (exported 2026-09-25 from
-prod after the nightly built mart_match_days: 58 days, 32 competitions, 628 fixture payloads),
-from the dev server, and from exit codes read bare.
+Read from `dbt_project/target/manifest.json` after `dbt parse` (the descriptions as dbt renders
+them and persist_docs writes them to BigQuery), from the files on disk, from the two GitLab issues,
+and from exit codes read bare. No warehouse query was run.
 
 criteria_demonstrated:
-  - THE MENU LINKS THE PAGE AT EACH LANGUAGE'S WORD. Every page's header: `Spiele→/de/spiele/`,
-    `Matches→/en/matches/`, `Ottelut→/fi/ottelut/` (SiteHeader). dist holds `en/matches/index.html`,
-    `de/spiele/index.html`, `fi/ottelut/index.html`; hreflang of `/de/spiele/` names `/en/matches/`
-    and `/fi/ottelut/`, audit-seo checks every pair both ways: 2539 pages OK. Built to #130: the
-    breadcrumb Home › Matches and the h1, the two filter rows, the day switcher, one Schedule block.
-  - EVERY DAY IN REACH HAS A PAGE; THE ARROWS SKIP EMPTY DAYS. 57 dated pages per language beside the
-    opening day, 58 days = mart_match_days' days (2026-08-20 to 2027-01-11); 342 day arrows across the
-    three languages, 0 pointing at a missing page (audit-seo check 8 and a script over dist); no day
-    page without a match row; the first day has no previous arrow and the last no next; the day
-    before the opening day links to `/en/matches/` itself.
-  - THREE MATCHES, THEN "SHOW ALL {n}"; SCORE WHEN PLAYED, KICK-OFF WHEN NOT. 2026-08-20: UEFA
-    Conference League shows 3 rows then "Show all 24"; the opening day folds CNL and UNL; past days
-    render `.fxrow.played` rows with the score ("Feyenoord 5 FC Utrecht 0") and no link, future
-    rows the kick-off and "UTC" and link to their match page.
-  - THE THREE ELEMENTS ARE IN THE INVENTORY AND MEASURED IN EN, DE, FI. block_standard.md gains Page
-    heading (`.crumb + h1`), Filter row (`.seg`), Filter button (`.seg .seg-btn`) and Fold
-    (`.fxmore > summary`), and the Pages rows "Matches page" and "Matches day page". `python
-    scripts/check_design_inventory.py --dist site_v2/dist` → `23 pages · 3 viewports · 3 languages ·
-    165 renders · 0 failures · 27 warnings` (all the known 700px header row). RED with the built
-    page's fold removed and its heading at 22px: "Page heading ... expected font-size=30px ·
-    measured 22px", "Fold · expected on this page · measured 0 matches".
-  - OWN TITLE AND DESCRIPTION PER PAGE AND LANGUAGE; THE SEARCH PHRASE ON THE MATCHES PAGE.
-    `/de/spiele/`: "Fußball heute: alle Spiele, Freitag, 25. September"; EN "Football today: all
-    matches, Friday 25 September"; FI "Jalkapallo tänään: kaikki ottelut, perjantai 25. syyskuuta";
-    a day page: "Football on Saturday 26 September: all matches". audit-seo's uniqueness per locale
-    and across locales passes on 2539 pages; the wording is on the MR head.
-  - HEADING TO THE COMPETITION PAGE, ROW TO THE MATCH PAGE. `.gh a.cnm` hrefs are the competition
-    pages (`/de/nations-league/`); unplayed rows are `a.fxrow` to `/de/nations-league/spiele/2026-
-    09-24-andorra-vs-malta/`-shaped pages the build emits (check-built-pages: 1884 match pages =
-    628 payloads x 3; audit-seo: no dead link). Filters on the dev server: Clubs hides both
-    national-team groups; National teams + CONCACAF leaves CONCACAF Nations League only.
+  - ONE PLACE PER QUESTION, READABLE IN BIGQUERY. The manifest renders the `metric_catalogue` block
+    as the seed metric_catalogue's description (2,087 characters, lines R1 to R7); the
+    `cleaning_rules` block on base_apif__fixture_players and base_apif__fixture_statistics; the
+    `ranking_rules` block on mart_leaderboards, mart_team_leaderboards,
+    mart_player_competition_benchmarks, mart_team_competition_benchmarks,
+    int_player_competition_benchmarks, int_team_competition_benchmarks and
+    int_team_competition_benchmark_metrics_long; every one of the 10 `window_type` columns carries
+    one of the two window blocks (6 the form block, 4 the season-record block), and the form block
+    is also int_team_momentum_window's description of its selection. `docs/metric_layer.md` is 55
+    lines: the pointer table, plus the two rules the contract keeps there.
+  - R1 TO R7 AS #190 STATES THEM. A script compares each rendered R line of the catalogue
+    description with the same line of `glab issue view 190`, whitespace and backticks ignored:
+    R1 True, R2 True, R3 True, R4 True, R5 True, R6 True, R7 True.
+  - THE STANDARD IS CITED. `engineering_standards.md` section 2, "A metric's description", cites
+    ISO/IEC 11179-4 (states what the thing is, stands alone, no rationale or procedure) and
+    ASD-STE100 (one word with one meaning, short sentences, active voice), each with its link, and
+    lists a window among what a description leaves out.
+  - NO OTHER PLACE RESTATES A RULE. "NULL unless every input" is carried by 59 blocks of `main`'s
+    metric_columns.md and by 0 now; 0 of the 1,941 rendered model-column descriptions carry it, and
+    `metric_columns.md` holds "NULL" 104 times on main and 0 times now. The 51 metric columns
+    described by hand or renamed in a mart (the year-over-year columns of int_team_profile__yoy
+    and mart_team_profile, the home and away form columns of mart_matchday_insights, the three
+    `points` columns, `goals_total` and `goals_assists`) show their metric's block; a script over
+    every yml finds no hand-described metric column left beyond per-match facts, the provider's
+    table and competition tallies. The listed ymls and the model, macro and test headers point to
+    the blocks (`git grep "rule R[1-7]"`).
+  - COMPILED SQL UNCHANGED. A script compares every changed file under dbt_project with main's:
+    27 SQL files equal main's with comments stripped, 15 ymls equal main's with their descriptions
+    removed, 5 files are doc blocks or docs; result "differ beyond comments/descriptions: none".
+    No model reads a description at compile time, and dbt_project.yml carries no run hook.
+  - THE CPO'S DOCUMENTS CHANGE AS POINTERS ONLY. `git diff main` on CLAUDE.md: 2 lines, the metric
+    layer row's label and the form-window bullet ("which matches a window holds is
+    docs/metrics_context_model.md section 4"); north_star.md: 1 line, the window sentence becomes
+    that pointer; metrics_display.md: lines 249-253 only, the restated finishing formula and null
+    clamp become one pointer to the catalogue row and the catalogue table's rules.
+  - #185 HANDS THE DOCUMENTS OVER; THE BLOCK #94 FILLS EXISTS. #185 How step 5 reads
+    "`docs/metric_layer.md`, `engineering_standards.md` §2 and §3 and
+    `dbt_project/seeds/schema.yml` are #190's", and this MR edits all four. The catalogue's doc
+    block exists (`metric_catalogue` in `dbt_project/models/docs/metric_rules.md`); #94 states its
+    id table goes there "WITH THE RENAMES", so it enters with them (the contract's reading).
+  - CHECKS. `dbt parse` 0; check_layer_contract, check_registry_var_sync,
+    check_competition_type_seed, check_ui_i18n_metrics, check_copy_gate, check_description_hygiene
+    0; `sync_metric_docs_blocks.py --check` 0; `generate_metric_sql.py --check` 0; ruff with
+    `.ruff-ci.toml` "All checks passed!"; pytest "1350 passed, 2 skipped"; sqlfluff with the dbt
+    templater on the 21 changed models, exit 0.

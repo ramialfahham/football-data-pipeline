@@ -11,8 +11,8 @@
   two card boards are the ruled exception — most first, whatever the catalogue's direction, so
   the page shows the most-carded sides rather than a list of clean records.
 
-  A zero is not a ranking on a most-first board (#129): the cut `metric_value > 0` applies to
-  `desc` boards only, because on an ascending board a zero conceded IS the top row.
+  Who enters a board is the ranking_rules doc block in models/docs/metric_rules.md; its zero rule
+  is the cut `metric_value > 0`, on `desc` boards only.
 
   rank = DENSE_RANK over the board's metric in its rank_order within (league_code,
   season_api_year): ties share a rank, no ranks are skipped, and the top-10 cut is inclusive of
@@ -21,13 +21,6 @@
   is each league's rank-1 team collected and ordered, and the ranking never
   crosses league_code. That also satisfies the block's rule that club and national-team
   competitions are never mixed: every competition is already its own ranking.
-
-  NO GAMES FLOOR. A team ranks from its first finished game: early-season boards are thin and
-  understood to be, and comparable sites show leaderboards from day one (GitLab #127). The
-  >= 3 finished games gate that int_team_competition_benchmark_metrics_long applies is that
-  model's rule for a DISTRIBUTION, where a one-game rate would distort the percentiles; a
-  ranking has no such distortion to guard. The player mart's minutes/position floors have no
-  analogue here either.
 
   UNPIVOT rather than mart_leaderboards' union-all loop, because all twelve boards share one rule —
   the union there exists to give each rate board its own qualification WHERE. BigQuery UNPIVOT

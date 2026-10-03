@@ -1,19 +1,12 @@
 {#
   One row per player per fixture: the provider's player statistics, cleaned once, in our own
-  words. The rules are docs/metric_layer.md's; the order below is the order they apply in.
+  words. The rules are the cleaning_rules doc block in models/docs/cleaning_rules.md; the steps
+  below apply them in this order:
 
-  1. Blank rule: a blank is a zero only where the provider counted that stat in the match
-     (someone in the match has a value), or where a second source proves the zero (the score,
-     the match events, the team's own stat line). Otherwise it stays blank, which downstream
-     means "missing".
-  2. Accurate passes as a count: the provider sends a percentage in some matches (up to 2019,
-     part of 2020) and a count in the rest; a match is in the percentage format when its
-     players' values add up to more than their passes.
-  3. Goals and penalty goals, results: per team match, the per-player count or the goal events,
-     whichever adds up to the score; penalty goals from the events, never more than the goals.
-  4. Match stats checked against results first (goals, the score), then against their whole
-     (a part never above its total; a whole the blank rule filled is raised to the player's own
-     part), corrected when the gap is at most 2, blank otherwise.
+  1. the blank rule;
+  2. accurate passes as a count;
+  3. goals and penalty goals, the results;
+  4. match stats checked against the results, then against their whole.
 
   Every change made by steps 3 and 4 is listed on its row in stat_corrections.
 #}

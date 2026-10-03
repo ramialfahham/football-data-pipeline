@@ -78,13 +78,10 @@ for a team whose run was a single match.
 The 12 types from the taxonomy (`docs/product_direction_threads.md`). 7 are active; 5
 are taxonomy-only / not yet ingested.
 
-**Window meanings:**
-- **Previous season of this league** — last season's record *in this same competition*
-  (the reminder shown before live form exists).
-- **Last 5 across all the club's / national team's competitions** — this season only,
-  ordered by kickoff, capped at 5; club never includes national matches and vice-versa.
-- **All matches so far in this tournament** — cumulative from the tournament's start.
-- **Full completed edition** — the just-completed season/tournament record.
+**Window meanings:** each window is described once, on the column that names it: the form
+window's `window_type` (the `window_type__form` doc block) and the season record's
+`window_type` (the `window_type__season_record` doc block), both shown in BigQuery. A **full
+completed edition** is the just-completed season or tournament record.
 
 ### Club competitions
 
@@ -254,11 +251,9 @@ There is **one** aggregation logic; the window is the only variable. The per-mat
 (one row per player per finished match, raw stats) is the shared building block. **Form** and
 **season** are the same aggregation over a *different set of legs* — the aggregation never forks.
 
-- **Counts** → sum over the window's legs.
-- **The four ratios** — duels-won %, dribble-success %, pass-accuracy %, save % → **weighted**:
-  `sum(numerator) / sum(denominator)`. **Never** an average of per-match percentages.
-- **Honest absence** — only legs the provider gave stats for count; `games_played` is that
-  appearance count, not team matches.
+- **How each value is computed** over the window's legs, and when it is blank, is rules R1 to
+  R7 of the catalogue table's description (`dbt_project/models/docs/metric_rules.md`); it is not
+  restated here.
 - **Zero denominator** → render `—`, the counts still shown (`0 of 0 · —`).
 - **Display** is **totals + the four weighted %s** (per the locked rows), **not** per-match.
   The single deliberate average is "avg minutes per appearance" in the context block (§8.2),

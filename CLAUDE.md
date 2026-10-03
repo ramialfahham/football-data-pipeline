@@ -57,7 +57,7 @@ pointers; when it disagrees with a row above, it loses and gets corrected.
 | Agent role briefs | [docs/roles/](docs/roles/) — one file per role |
 | Data contract (raw landing, merge model, endpoints) | [docs/data_contract.md](docs/data_contract.md) |
 | dbt layer rules (what belongs where) | [dbt_project/docs/layering.md](dbt_project/docs/layering.md) |
-| Metric layer — where a metric is defined and computed, what makes it NULL | [docs/metric_layer.md](docs/metric_layer.md) |
+| Metric layer — where each thing about a metric lives: its meaning, its rules, its cleaning, its windows | [docs/metric_layer.md](docs/metric_layer.md) |
 | Engineering standards (naming, testing policy) | [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md) |
 | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
 | Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
@@ -86,7 +86,7 @@ issue had already approved.
   `grep -n "      - name: raw_apif" dbt_project/models/1_staging/api_football/sources.yml` for
   what is DECLARED. A table written but not declared is modelled nowhere. `RAW_APIF_INGEST_LOCK`
   and `RAW_APIF_INGEST_COMPLETENESS_SNAPSHOT` are operational tables, not entity data.
-- **Form window**: domestic leagues use up to the last 5 matches in the current season; before matchday 1 they use the full previous season. WC uses qualifier matches through Group Stage Matchday 1, then cumulative finished WC tournament matches from Group Stage Matchday 2 onward (no 5-match cap). Never mix seasons.
+- **Form window**: which matches a window holds is `docs/metrics_context_model.md` section 4; every row names its window in `window_type`.
 - **Data quality is non-negotiable** — the user cannot manually verify numbers. Automated DQ tests are a hard requirement.
 - **Scale is never the argument** — a feature is built or not on its value to the fan; its page,
   row or competition count is a consequence, never an input, and a build that cannot carry it is

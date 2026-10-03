@@ -10,7 +10,7 @@
   season_api_year, position_group, metric_key); the good/bad reading is supplied at display from the
   catalogue's `direction`. Composes int_player_season_position__metrics + the int_player_competition_benchmarks
   engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
-  identical). Floor: minutes >= 270 in the position (finishing also >= 10 shots on target). Multi-position
+  identical). Who enters is the ranking_rules doc block in models/docs/metric_rules.md. Multi-position
   players appear once per qualifying position, each on their in-role value.
 
   Grain: (player_sk, season_sk, position_group, metric_key).

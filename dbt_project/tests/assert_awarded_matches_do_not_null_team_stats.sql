@@ -1,8 +1,7 @@
 -- An awarded match must not blank a team's season statistics.
 --
--- WHY THIS EXISTS. An AWD (technical loss) or WO (walkover) counts as a played
--- match for RESULTS — it has a real scoreline and the league table counts it. It has no STAT LINE
--- and never will: nobody played. The team-stat rates are gated all-or-nothing, so if that gate
+-- WHY THIS EXISTS. A forfeit (AWD, WO; rule R3 in models/docs/metric_rules.md) has a scoreline and
+-- no stat line. The team-stat rates are gated all-or-nothing, so if that gate
 -- compares coverage against `games_played` it reads the awarded match as a missing stat and NULLs
 -- every statistical metric for the whole season. Measured before the fix: ~16 team-seasons, and
 -- because int_team_season__deserved_vs_actual needs full shots-on-target coverage for EVERY team in

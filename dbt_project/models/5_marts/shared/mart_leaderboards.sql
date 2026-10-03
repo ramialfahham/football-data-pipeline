@@ -8,15 +8,11 @@
   13 boards: 11 COUNT + 2 RATE, the set the competition page's Rankings tab shows (GitLab #129,
   #151; #506 shaped the rate rules). metric_key = the catalogue metric_id. rank = DENSE_RANK over the
   board's metric desc within (league_code, season_api_year): ties share a rank, no ranks are skipped, and
-  the top-10 cut is inclusive of ties (the mart_top_scorers convention). Only players with a positive
-  value on a board are ranked (a leaderboard shows positive performers, and a zero is not a ranking
-  on a most-first board). Every board is most first, the two card boards by ruling — the page shows
-  the most-carded players, not a list of clean records.
+  the top-10 cut is inclusive of ties (the mart_top_scorers convention). Every board is most first,
+  the two card boards by ruling — the page shows the most-carded players, not a list of clean
+  records.
 
-  RATE boards add a qualification rule so a tiny sample can't game a rate: minutes >= 270
-  (3 full matches), a position scope, and — for finishing — a shots-on-target floor. pass accuracy
-  and finishing are outfield (excl. GK). finishing also needs shots_on_goal_player >= 10 (minutes
-  don't bound shot count, so a 1-shot 1-goal player would otherwise read a perfect rate).
+  Who enters a board is the ranking_rules doc block in models/docs/metric_rules.md.
   finishing_efficiency_player_pct is open-play conversion in [0, 1].
   sort_value is FLOAT64: it holds both the integer counts and the 0-1 rates (the values are unchanged).
 

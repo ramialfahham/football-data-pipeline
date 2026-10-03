@@ -4,10 +4,12 @@ models:
   - name: int_team_competition_benchmarks
     description: >
       Competition benchmark engine (team): per (league_code, season_api_year, metric_key) the league
-      distribution (median / mean / p25 / p75 / team_count) of the 22 team season metrics, over teams
-      with >= 3 finished games. Median-led (robust to a dominant team). mart_team_competition_benchmarks
-      ranks each team against this. The 22-metric set comes from int_team_competition_benchmark_metrics_long.
+      distribution (median / mean / p25 / p75 / team_count) of the 22 team season metrics. Median-led
+      (robust to a dominant team). mart_team_competition_benchmarks ranks each team against this. The
+      22-metric set comes from int_team_competition_benchmark_metrics_long.
       Grain: (league_code, season_api_year, metric_key).
+
+      {{ doc('ranking_rules') }}
     config:
       tags: ["intermediate", "football", "benchmark"]
     tests:
@@ -41,10 +43,12 @@ models:
   - name: int_team_competition_benchmark_metrics_long
     description: >
       The 22 team competition-benchmark metrics in long form, per team-season: one row per
-      (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (teams with >= 3 finished
-      games). The single source of the benchmark metric set — int_team_competition_benchmarks aggregates
-      it to the league distribution and mart_team_competition_benchmarks ranks each team against it, so
-      the two cannot drift. Replaces the team_benchmark_metrics() macro. Grain: (team_sk, season_sk, metric_key).
+      (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics. The single source of
+      the benchmark metric set — int_team_competition_benchmarks aggregates it to the league
+      distribution and mart_team_competition_benchmarks ranks each team against it, so the two cannot
+      drift. Replaces the team_benchmark_metrics() macro. Grain: (team_sk, season_sk, metric_key).
+
+      {{ doc('ranking_rules') }}
     config:
       tags: ["intermediate", "football", "benchmark"]
     tests:
@@ -89,11 +93,12 @@ models:
   - name: int_player_competition_benchmarks
     description: >
       Competition benchmark engine (player): per (league_code, season_api_year, position_group, metric_key)
-      the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric,
-      over players with >= 270 minutes IN the position (finishing also >= 10 shots on target). Median-led.
-      mart_player_competition_benchmarks ranks each player against this. Metric x position eligibility is the
-      player_benchmark_metrics() macro (GK = 4 keeper metrics; outfield = the other 16).
+      the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric.
+      Median-led. mart_player_competition_benchmarks ranks each player against this. Metric x position
+      eligibility is the player_benchmark_metrics() macro.
       Grain: (league_code, season_api_year, position_group, metric_key).
+
+      {{ doc('ranking_rules') }}
     config:
       tags: ["intermediate", "football", "benchmark"]
     tests:

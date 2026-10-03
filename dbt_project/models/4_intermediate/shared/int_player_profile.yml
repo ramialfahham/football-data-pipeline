@@ -10,8 +10,6 @@ models:
       Carries cumulative goals, assists, shots on target, key passes and defensive actions through
       the latest N appearances this season, against the prior season AT THE SAME CLUB through its
       first N. defensive_actions_player is tackles plus interceptions plus blocks.
-
-      Deltas are NULL when there is no prior season at this club — a transfer, or a first season.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, player_sk, league_code, season_api_year]
@@ -94,10 +92,6 @@ models:
     description: >
       What share of a club's goals a player was involved in: their goals plus assists over the
       club's WHOLE-SEASON goals for. Grain: (player_sk, team_sk, season_sk). Range 0 to 1.
-
-      NULL when the club scored nothing that competition-season, and when the goals plus assists
-      are unknown: a match of the player lacks an input, or the club has a match with no player
-      data at all. So the share is never taken over only the matches the data happens to cover.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [player_sk, team_sk, season_sk]

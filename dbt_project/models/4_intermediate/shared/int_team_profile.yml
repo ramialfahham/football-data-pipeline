@@ -12,16 +12,13 @@ models:
 
       Aligned by GAMES PLAYED, not by matchday: parsed round numbers collide across phases in a
       multi-phase format, so games played is the only key safe for every competition shape.
-
-      A rate is NULL on a side whose first N games are not fully stat-covered, and the delta is
-      NULL when either side is.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, league_code, season_api_year]
       # Ratio bounds are split by invariant family, mirroring int_team_season__metrics_cumulative
       # (the composed source): the YoY cutoff N is low by construction early in every season, so a
       # provider-subset ratio can legitimately be >1 on a side before dilution. Structurally-capped
-      # ratios (finishing_efficiency_pct — guarded to NULL when goals>SoT; saves_pct = saves/(saves+
+      # ratios (finishing_efficiency_pct = open-play goals/shots on target; saves_pct = saves/(saves+
       # goals); clean_sheets_pct = clean_sheet_games/games) stay strict [0,1] on both sides.
       - dbt_utils.expression_is_true:
           expression: "(finishing_efficiency_pct_this_season is null or finishing_efficiency_pct_this_season between 0 and 1) and (saves_pct_this_season is null or saves_pct_this_season between 0 and 1) and (clean_sheets_pct_this_season is null or clean_sheets_pct_this_season between 0 and 1) and (finishing_efficiency_pct_prev_season is null or finishing_efficiency_pct_prev_season between 0 and 1) and (saves_pct_prev_season is null or saves_pct_prev_season between 0 and 1) and (clean_sheets_pct_prev_season is null or clean_sheets_pct_prev_season between 0 and 1)"
@@ -55,20 +52,17 @@ models:
         description: "{{ doc('yoy_games_played_cutoff') }}"
         tests: [not_null]
       - name: points_delta_yoy
-        description: "points_this_season - points_prev_season through N games. NULL when no prior season."
+        description: "{{ doc('points_won') }} Here, this season's minus the previous season's, both through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_per_match_delta_yoy
-        description: >
-          Representative rate-metric YoY delta (this season − last, through the same N games). Every
-          LOCKED 16-row rate metric carries _this_season / _prev_season / _delta_yoy; NULL where the
-          prior season is absent or coverage is incomplete through N.
+        description: "{{ doc('goals_per_match_delta_yoy__team') }}"
       - name: games_played_prev
         description: "The prior season's games played through the same games-played cutoff as yoy_games_played_cutoff (the largest match_number not exceeding it). NULL when the team has no prior domestic season in this league to align against."
       - name: points_this_season
-        description: "Points won this season through the games-played cutoff N (yoy_games_played_cutoff): the cumulative points_won at that matchday. Never NULL for the current season."
+        description: "{{ doc('points_won') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_for_this_season
-        description: "Goals scored by the team this season through the games-played cutoff N (yoy_games_played_cutoff): the cumulative goals at that matchday. Never NULL for the current season."
+        description: "{{ doc('goals') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_against_this_season
-        description: "Goals conceded by the team this season through the games-played cutoff N (yoy_games_played_cutoff): the cumulative goals_against at that matchday. Never NULL for the current season."
+        description: "{{ doc('goals_against_this_season__team') }}"
       - name: goals_per_match_this_season
         description: "{{ doc('goals_per_match_this_season__team') }}"
       - name: goals_against_per_match_this_season
@@ -102,11 +96,11 @@ models:
       - name: saves_pct_this_season
         description: "{{ doc('saves_pct_this_season__team') }}"
       - name: points_prev_season
-        description: "Points won in the prior season through the same games-played cutoff N as the current season (games_played_prev). NULL when there is no prior domestic season in this league to compare against."
+        description: "{{ doc('points_won') }} Here, the previous season through the same games-played cutoff N."
       - name: goals_for_prev_season
-        description: "Goals scored in the prior season through the same games-played cutoff N as the current season (games_played_prev). NULL when there is no prior domestic season in this league to compare against."
+        description: "{{ doc('goals') }} Here, the previous season through the same games-played cutoff N."
       - name: goals_against_prev_season
-        description: "Goals conceded in the prior season through the same games-played cutoff N as the current season (games_played_prev). NULL when there is no prior domestic season in this league to compare against."
+        description: "{{ doc('goals_against_prev_season__team') }}"
       - name: goals_per_match_prev_season
         description: "{{ doc('goals_per_match_prev_season__team') }}"
       - name: goals_against_per_match_prev_season
@@ -140,9 +134,9 @@ models:
       - name: saves_pct_prev_season
         description: "{{ doc('saves_pct_prev_season__team') }}"
       - name: goals_for_delta_yoy
-        description: "goals_for_this_season minus goals_for_prev_season, both through the same games-played cutoff N. NULL when there is no prior season."
+        description: "{{ doc('goals') }} Here, this season's minus the previous season's, both through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_against_delta_yoy
-        description: "goals_against_this_season minus goals_against_prev_season, both through the same games-played cutoff N. NULL when there is no prior season."
+        description: "{{ doc('goals_against_delta_yoy__team') }}"
       - name: goals_against_per_match_delta_yoy
         description: "{{ doc('goals_against_per_match_delta_yoy__team') }}"
       - name: clean_sheets_pct_delta_yoy

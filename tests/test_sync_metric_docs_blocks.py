@@ -437,16 +437,15 @@ def test_a_derived_block_is_ALWAYS_entity_suffixed(monkeypatch, tmp_path):
     assert "{% docs goals_this_season %}" not in text
 
 
-def test_a_team_rate_carries_the_null_rule_and_a_count_or_a_player_rate_does_not(monkeypatch, tmp_path):
-    """engineering_standards.md section 3.1: a coverage-restricted column states its NULL rule.
-    Every team rate is one, so the sentence is derived from the denominator, not typed per rate;
-    a count has no such rule and a player rate follows the entity rule (a blank player stat is
-    a zero), so neither carries it. The derived `_this_season` block composes the same way."""
+def test_a_rate_block_is_its_catalogue_sentence_and_nothing_appended(monkeypatch, tmp_path):
+    """When a value is blank is a rule of the catalogue table's description, stated once there.
+    A rate's block, team or player, and its derived blocks carry the catalogue sentence and the
+    affix's sentence only."""
     rows = [_row("shots_on_goal_pct", "team", "Share of shots on goal.", "sum(shots_total)"),
             _row("shots_total", "team", "Total shots."),
             _row("saves_player_pct", "player", "Saves share.", "sum(saves + goals_against)")]
     blocks = gen._blocks(rows)
-    assert blocks["shots_on_goal_pct"] == "Share of shots on goal. " + gen.RATE_NULL_SENTENCE
+    assert blocks["shots_on_goal_pct"] == "Share of shots on goal."
     assert blocks["shots_total"] == "Total shots."
     assert blocks["saves_player_pct"] == "Saves share."
 
@@ -456,13 +455,9 @@ def test_a_team_rate_carries_the_null_rule_and_a_count_or_a_player_rate_does_not
     text = gen.OUT.read_text(encoding="utf-8")
     start = text.index("{% docs shots_on_goal_pct_this_season__team %}")
     block = " ".join(text[start:text.index("{% enddocs %}", start)].split())
-    assert "Share of shots on goal. " + gen.RATE_NULL_SENTENCE in block
-
-
-def test_the_null_rule_sentence_can_never_trip_the_window_refusal():
-    """The generator refuses the word "window" in a block by design; the derived sentence is
-    composed into 38 blocks, so a rewording that used the word would abort every run."""
-    assert not gen.WINDOW_PHRASING.search(gen.RATE_NULL_SENTENCE)
+    affix_sentence = {a: p for a, _, p in gen.DERIVED_AFFIXES}["_this_season"]
+    assert block.endswith("%} Share of shots on goal. " + affix_sentence)
+    assert "NULL" not in block
 
 
 def test_only_the_entities_the_catalogue_defines_get_a_derived_block(monkeypatch, tmp_path):
@@ -644,11 +639,9 @@ def test_a_rate_metric_still_takes_the_NON_totalling_affixes(monkeypatch, tmp_pa
     assert "clean_sheets_sum_season__team" not in text
 
 
-def test_the_yoy_null_cause_differs_by_entity(monkeypatch, tmp_path):
-    """Each entity's sentence names its own NULL causes. The team side nulls a rate
-    when the season's first games are not fully stat-covered; the player side aligns
-    by appearances at the same club, so it names the absent prior season there, and,
-    under the blank rule, a match whose input the provider did not record."""
+def test_no_yoy_block_carries_a_null_condition(monkeypatch, tmp_path):
+    """When a year-over-year value is blank is rule R6 of the catalogue table's description;
+    the derived sentence says what the column is, alike for a team and a player."""
     monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
         _row("goals", entity="player", description="Goals scored."),
         _row("clean_sheets", entity="team", description="Clean sheets."),
@@ -658,28 +651,10 @@ def test_the_yoy_null_cause_differs_by_entity(monkeypatch, tmp_path):
 
     assert _run(monkeypatch) == 0
     blocks = _parse(gen.OUT.read_text(encoding="utf-8"))
-    assert "stat-covered" in blocks["clean_sheets_delta_yoy__team"]
-    assert "stat-cover" not in blocks["goals_delta_yoy__player"]
-    assert "no prior season at this club" in blocks["goals_delta_yoy__player"]
-    assert "lacks an input the provider did not record" in blocks["goals_delta_yoy__player"]
-    # ⚠ AND THE CAUSE THE FIRST FIX DROPPED. Removing the false coverage clause
-    # also removed a true one: the block is reused at `mart_player_profile`, which
-    # carries cup and tournament seasons where there is no year-on-year comparison
-    # at all. A shared block is only as true as its widest call site.
-    for entity in ("goals_delta_yoy__player", "clean_sheets_delta_yoy__team"):
-        assert "no year-on-year comparison" in blocks[entity], entity
-
-
-def test_an_entity_with_no_phrase_is_refused_rather_than_given_another_ones(
-        monkeypatch, tmp_path, capsys):
-    """The reachable half of the entity-specific phrasing. A third entity, or a
-    renamed one, must stop the run rather than quietly take the team sentence."""
-    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
-        _row("goals", entity="squad", description="Goals scored.")]))
-    monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_delta_yoy"]))
-
-    assert _run(monkeypatch, "--check") == 1
-    assert "another entity's sentence" in capsys.readouterr().err
+    player = blocks["goals_delta_yoy__player"]
+    team = blocks["clean_sheets_delta_yoy__team"]
+    assert "NULL" not in player and "NULL" not in team
+    assert player.removeprefix("Goals scored. ") == team.removeprefix("Clean sheets. ")
 
 
 def _parse(text):

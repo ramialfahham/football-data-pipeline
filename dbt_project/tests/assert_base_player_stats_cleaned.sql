@@ -1,5 +1,5 @@
 {#
-  The cleaning rules of docs/metric_layer.md hold on every row of base_apif__fixture_players.
+  The cleaning rules (models/docs/cleaning_rules.md) hold on every row of base_apif__fixture_players.
   Returns one row per violation, named by the rule it breaks:
 
   - blank_where_counted: a stat is blank although the provider delivered a value for it to someone

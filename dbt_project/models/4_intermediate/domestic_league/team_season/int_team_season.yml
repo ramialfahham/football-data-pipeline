@@ -555,10 +555,8 @@ models:
       rollup. Grain: (player_sk, season_sk).
 
       Every metric is its metric_catalogue formula over the player's matches that
-      competition-season, at every club, never composed from pre-summed parts. NULL when a match
-      lacks an input: a blank the provider did not count, or a match of one of his clubs with no
-      player data at all. `appearances` counts matches actually PLAYED. Rates are NULL on a zero
-      denominator. team_sk is the player's last known club that season.
+      competition-season, at every club. `appearances` counts matches actually PLAYED. team_sk is
+      the player's last known club that season.
     config:
       tags: ["intermediate", "football", "team_season", "player"]
     tests:

@@ -6,10 +6,7 @@ models:
       WHICH past matches count as a side's recent form. One row per (upcoming fixture side,
       selected match). Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
 
-      By default the team's last 5 finished matches before the fixture, across competitions but
-      within the same entity_type, capped to the season for clubs and recency-only for national
-      teams. A tournament fixture instead takes a cumulative, uncapped window: the tournament so
-      far, or its qualifiers.
+      {{ doc('window_type__form') }}
 
       The selection lives here on its own so that everything computing form uses the same set of
       matches, rather than each re-deriving it.
@@ -42,9 +39,7 @@ models:
               to: ref('fct_fixture')
               field: fixture_sk
       - name: window_type
-        description: >
-          Which window this match belongs to: last_5 by default, or tournament_to_date /
-          qualifiers on a tournament fixture. Constant across one side's rows.
+        description: "{{ doc('window_type__form') }}"
         tests:
           - not_null
           - accepted_values:
