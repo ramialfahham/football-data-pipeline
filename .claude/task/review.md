@@ -1,54 +1,35 @@
-# Review — fix/team-cleaning-and-generated-metrics — team side cleaned in base, forfeits by the rule, team metric SQL generated from the catalogue
+# Review — fix/facts-rebuilt-in-full — both stat facts rebuilt in full every night; the match-stats table shows every line the provider sent
 
-diff_sha256: 852f533bf5f51defbc82c70c41382e87de07495416bfbd6e69016f18bf5e8327
+diff_sha256: b29829bb1ad822e5f3ed4e4f0d0b89c45092171ce1adef3626c37b61a2baa455
 
-rounds: 3
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 3 (the keeper's saves judged on the opponent's figures before the team cleaning's corrections): both files already in scope; the last amendment cites What exactly line 5 and the dated delegation; no definition, label or shipped number changes; the answer key is untouched and still has to be met; no new mechanism or cost.
-- Round 1 finding 1 (readings written into decisions_taken without CPO authority): the amendment now quotes the CPO's dated delegation and lists the readings it covers (own-goal correction of the box split, shots held to the open-play goals, possession outside the blank rule, the 20% limit and its 20-line floor).
-- Round 1 finding 2 (forfeit goals out of contribution_player_pct with no doc sync): the amendment quotes the issue's What exactly line 2 verbatim; the catalogue description and the team_goals_season doc block now say the goals the club scored on the pitch.
-- decisions_reserved line 2 against the catalogue edits: a dated CPO quote scopes the supersession to the description column; the diff changes no id, label, formula, format, direction or tier.
-- New mechanisms and cost: the generated pass accuracy on mart_team_fixture_stats keeps the shipped value and is pinned by the formula test; no new service, hook, library, workflow step or cadence.
-- Doc-sync, impact map, secrets and escalations.log: the mart header and shared.yml no longer claim a pure projection; nothing widens the impact map; no credential-shaped string; no new log entry.
+- Scope: every changed path is in scope_paths; shared_columns.md and the verify-competition-ingest skill came in by recorded amendments with their reasons.
+- Authority: the rebuild, the equality test, the has_stat_line column and the mart's rows rest on the CPO's two quoted approvals of 2026-10-03; the four readings rest on the dated delegation and the diff implements each as stated.
+- layering.md: the edit removes the two facts from the incremental exception and records an approved decision; it extends no rule, and fct_fixture_event keeps the exception.
+- Reserved items, mechanism and cost: nothing reserved is decided; no new library, service, hook or step; the recurring cost is declared and owed to the CPO before the merge.
+- Round 2: the skill edit is doc-sync to the approved decision, not a §10 class; no secret or permission change.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 3: the rebuilt pre-correction figure equals the team model's own filled figure in every case it can produce (raised, blanked beyond a gap of 2, a filled zero then corrected, no entry); the opponent's figures feed only the verified flag, the ceiling and the rule label; the team's own proven zeros still read the cleaned line and cannot turn a non-zero into a zero; the cleaning test mirrors the model on the same reconstruction.
-- Round 1 finding (hand-written pass accuracy in mart_team_fixture_stats): resolved; the generated block in match_rates is a registered Surface, the formula test checks the column against the fact at match level, a 0-100 range test is added, and the mart's descriptions are corrected.
-- The edited formula test's Jinja: the CTE chain and the union are well formed; the final comparison uses is distinct from, so a NULL on either side is caught.
-- Same-window rule on the new surface: a constant false awarded flag over a one-row window; the join on the unique grain adds no fan-out.
-- The opponent-line watermark term reads a valid alias and only widens the re-merge trigger.
-- Catalogue governance and layer placement: description column only; a generated formula in a mart is not a forked definition; no competition identifier added. Header and yml cuts remove restatements only; no test deleted or weakened.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- New mechanism: the mart surface is one more Surface line in the existing marker-block generator; the tests use dbt_utils.expression_is_true and the existing pytest module.
-- Authority: the generated mart value implements decisions_taken; the description rewrite and the contribution wording rest on dated CPO quotes in the amendments.
-- Guard invariants, dependencies and secrets: no guard path, package file, credential or workflow permission in the delta.
-- Cost tripwire: no schedule or run change; the mart window and the wider watermark are marginal and fall under the declared condition that the measured nightly bytes go to the CPO before the merge.
+- Layer placement: has_stat_line is derived in base from the delivered line before the blank rule fills it; the two facts only select from base; fct_fixture_event keeps its config.
+- History: staging reads every raw row and base keeps the latest per key, so a rebuild equals the merge on current data; the player base has no filter that drops rows.
+- The equality test lists exactly the columns each fact takes from base (35 player, 20 team), leaves out the derived is_starter and keys, compares both ways, and every compared type is safe for EXCEPT DISTINCT.
+- Readers of the removed config and tests: none left; assert_fanout_facts_not_empty and the CI selectors still hold.
+- Round 2: the skill's check-3 row and its stale-row note now match the script's hint and are true of fct_fixture_team_stats and fct_standings.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 advisory (a): FORFEIT_COUNTED is now pinned to its literal tuple; widening it fails the test.
-- Round 1 advisory (b): the watermark takes the opponent line's fetch from the deduplicated delivered CTE; greatest() only moves up, so the re-merge settles and is safe to re-run.
-- Round 1 advisory (c): sqlfluff is builder-reported (dbt templater, 23 changed models, exit 0); not re-run by the reviewer.
-- New surface: no duplicate is_awarded_result column; a window, not a group by, so the one-to-one join keeps row counts; the export reads the same column name and type.
-- Test coverage: the pytest drift check loops over every Surface; the singular test's match-level check is well formed and outside the member floor; the range test is severity error.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- CPO authority: the dated description ruling and the verbatim forfeit line are quoted in the contract; round 1 point on unquoted wording closed.
-- Round 1 findings on corners, saves, shots inside the box, cards, the per-match averages and saves_pct: the stale caveats are gone and no remaining description contradicts the unchanged formulas.
-- finishing_efficiency_pct "In [0, 1]": true on cleaned data, since base raises shots on target to the open-play goals and blanks beyond a gap of 2.
-- deserved_points and deserved_points_gap "played matches", and contribution_player_pct "on the pitch": each matches the SQL that computes it.
-- Direction, composites and football validity: no id, label, format, formula, tier or direction changed; no composite added; mart pass accuracy equals the catalogue formula over one team-match.
+- The switch from incremental to table is one create or replace per fact: an interrupted build leaves the old fact in place, and a rerun is idempotent.
+- Leftover __dbt_tmp relations expire and are skipped by the cleanup script; a table build never reads one.
+- Nothing in CI, the nightly entrypoint, the runbook or scripts depends on the facts being incremental.
+- The new test's Jinja renders the same column order on both sides, fails closed on a missing column, and runs once per nightly and twice per post-merge build.
+- No dependency, credential, workflow or hosting change.
 
 ## escalations
 (none)

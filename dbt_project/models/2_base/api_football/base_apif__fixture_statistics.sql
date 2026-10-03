@@ -162,6 +162,11 @@ team_matches as (
     select
         d.* except (league_code, fixture_id, team_id, raw_ingested_at),
         d.raw_ingested_at as line_ingested_at,
+        coalesce(
+            d.shots_on_target, d.shots_off_target, d.shots, d.shots_blocked, d.shots_inside_box,
+            d.shots_outside_box, d.fouls, d.corners, d.offsides, d.possession_pct, d.cards_yellow,
+            d.cards_red, d.saves, d.passes, d.passes_accurate
+        ) is not null as has_stat_line,
         coalesce(d.league_code, ft.league_code) as league_code,
         coalesce(d.fixture_id, ft.fixture_id) as fixture_id,
         coalesce(d.team_id, ft.team_id) as team_id
@@ -436,6 +441,7 @@ select
     league_code,
     fixture_id,
     team_id,
+    has_stat_line,
     shots_on_target_clean as shots_on_target,
     shots_off_target_clean as shots_off_target,
     shots_clean as shots,

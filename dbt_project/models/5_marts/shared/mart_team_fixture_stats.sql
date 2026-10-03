@@ -21,18 +21,10 @@ with stats as (
         *,
         false as is_awarded_result
     from {{ ref('fct_fixture_team_stats') }}
-    -- Core holds a row for every team of a finished match, and the API sometimes
-    -- returns a statistics block with every value NULL (e.g. WC qualifier
-    -- fixtures). Neither is a stat line — projecting them would render an
-    -- all-NULL detail view instead of the honest "stats not available" empty
-    -- state. Cards are left out of the test: the match events can prove a zero
-    -- card count for a team the provider sent no line for.
-    where
-        coalesce(
-            shots_on_target, shots_off_target, shots, shots_blocked,
-            shots_inside_box, shots_outside_box, fouls, corners, offsides,
-            possession_pct, saves, passes, passes_accurate
-        ) is not null
+    -- Core holds a row for every team of a finished match; only a line the provider
+    -- sent with a value in it is shown, so a team without one gets the "stats not
+    -- available" state rather than a view of blanks and event-proven zero cards.
+    where has_stat_line
 ),
 
 match_rates as (

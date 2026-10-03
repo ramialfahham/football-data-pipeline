@@ -37,7 +37,7 @@ check is registry-driven and competition-agnostic (keyed on `league_code`).
 |---|-------|--------------|-----------|-------------|
 | 1 | NULL `fixture_id` while payload has `$.fixture.id` | bug #297 | `raw.RAW_APIF_FIXTURE_DETAILS` | `backfill_fixture_ids.py` |
 | 2 | Payload `$.league.id` ≠ registry `provider_league_id` | bug #296 | `raw.RAW_APIF_FIXTURE_DETAILS` | `purge_stale_fixture_details.py` |
-| 3 | `team_sk` in `fct_fixture_team_stats` / `fct_standings` absent from `dim_team` | Inter Miami / GCUP class | `core.*` | fix team source (e.g. `base_apif__teams` coverage) or full-refresh the stale incremental fact |
+| 3 | `team_sk` in `fct_fixture_team_stats` / `fct_standings` absent from `dim_team` | Inter Miami / GCUP class | `core.*` | fix team source (e.g. `base_apif__teams` coverage) or rebuild the stale fact |
 | 4 | Fixture-details row counts, distinct seasons, current_season represented | coverage sanity | `raw.RAW_APIF_FIXTURE_DETAILS` | investigate ingest if an active league has data but the wrong seasons |
 
 Checks 1, 2 and 4 read raw only and work before dbt has built. Check 3 reads the
@@ -86,9 +86,10 @@ contexts; without it the script is report-only and always exits 0).
     `dim_team`, it's a **team-source coverage gap** — fix in `base_apif__teams`
     (the model already unions teams endpoint + fixtures + standings).
   - If the orphan is a stale team from a wrong ID that the source no longer
-    contains, it's a **stuck incremental ghost** — `dbt run --full-refresh
-    --select <fact_model>` drops it (incremental MERGE never deletes rows).
-    Confirm by checking whether the team still exists in the model's source view.
+    contains, it's a **stale row** — both facts are rebuilt in full from their
+    source every night, so the next build drops it; `dbt run --select
+    <fact_model>` drops it sooner. Confirm by checking whether the team still
+    exists in the model's source.
 - **Check 4 `~`:** usually benign. Only act if an active competition that should
   have finished matches shows 0 rows, or shows only stale seasons.
 

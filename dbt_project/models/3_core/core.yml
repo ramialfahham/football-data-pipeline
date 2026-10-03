@@ -635,9 +635,8 @@ models:
       - name: fixture_sk
         description: >
           {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
-          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
-          history forward on full refresh, so the foreign key holds for active and idle
-          competitions alike.
+          fact holds every season its base holds, as fct_fixture does, so the foreign key holds
+          for active and idle competitions alike.
         tests:
           - not_null
           - relationships:
@@ -657,6 +656,9 @@ models:
         description: "{{ doc('fixture_api_id') }}"
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
+      - name: has_stat_line
+        description: "{{ doc('has_stat_line') }}"
+        tests: [not_null]
       - name: shots_on_target
         description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_off_target
@@ -715,9 +717,8 @@ models:
       - name: fixture_sk
         description: >
           {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
-          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
-          history forward on full refresh, so the foreign key holds for active and idle
-          competitions alike.
+          fact holds every season its base holds, as fct_fixture does, so the foreign key holds
+          for active and idle competitions alike.
         tests:
           - not_null
           - relationships:

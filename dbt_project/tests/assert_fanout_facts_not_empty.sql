@@ -1,9 +1,7 @@
--- Guards the incremental high-water-mark trap. The fanout facts load only rows newer
--- than max(raw_ingested_at) of the target; on an EMPTY target that max is NULL and
--- `raw_ingested_at > NULL` is never true, so an emptied table can never repopulate and
--- silently blanks every downstream surface. fct_fixture_player_stats sat empty (0 rows)
--- this way while its base had ~800k rows. The models now coalesce the max to the epoch so
--- an empty table self-heals; this test fails loudly if any fanout fact is empty regardless.
+-- An empty fanout fact silently blanks every downstream surface. fct_fixture_event loads only
+-- rows newer than max(raw_ingested_at) of the target, which on an EMPTY target is NULL, so it
+-- coalesces that max to the epoch to self-heal; the two stat facts are rebuilt in full from base.
+-- This test fails loudly if any fanout fact is empty regardless.
 {{ config(severity = 'error', store_failures = true) }}
 
 with counts as (
