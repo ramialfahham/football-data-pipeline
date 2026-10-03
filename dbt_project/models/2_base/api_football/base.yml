@@ -174,9 +174,10 @@ models:
 
   - name: base_apif__fixture_statistics
     description: >
-      One row per team per fixture with that team's match statistics, from the generic
-      stg_apif__fixture_statistics model, deduplicated on the grain.
-      Grain: (league_code, fixture_id, team_id).
+      The team's line in a match: one row per team with a statistics line (the generic
+      stg_apif__fixture_statistics model pivoted to one column per stat, the latest fetch kept) and
+      per team of every finished match, cleaned once by the rules in docs/metric_layer.md and named
+      in our own words. Grain: (league_code, fixture_id, team_id).
 
       Known provider team-id defects are corrected from the fixture_team_id_overrides seed before
       the deduplication, so a corrected row cannot collide with one the correct team already has.
@@ -195,6 +196,22 @@ models:
       - name: team_id
         description: "The provider's numeric team id for this row, after applying the known-defect corrections in the fixture_team_id_overrides seed (the same alias and reattribute-if-cohabiting logic as base_apif__fixture_players.team_id). Corrected before the (league_code, fixture_id, team_id) dedup, so a corrected row cannot collide with one the correct team already has."
         tests: [not_null]
+      - name: goals_penalty
+        description: "{{ doc('goals_penalty') }}"
+      - name: goals_own
+        description: "{{ doc('goals_own') }}"
+      - name: raw_ingested_at
+        description: "{{ doc('raw_ingested_at') }} Here, the newest fetch among the inputs the row rests on: the team's and the other team's statistics lines, the match events and the fixture."
+      - name: stat_corrections
+        description: "Every value the cleaning changed on this row because a stat contradicted a result, a stat vouched for by its own check or its own total: one entry per changed stat. Empty on a row nothing changed. The blank rule's zeros are not listed."
+      - name: stat_corrections.stat
+        description: "The column that was changed, by its name in this model (e.g. saves, shots_on_target)."
+      - name: stat_corrections.provider_value
+        description: "The provider's figure before the change."
+      - name: stat_corrections.cleaned_value
+        description: "The value this model carries. NULL when the stat was left blank because the gap was over 2, the opponent's shots on target failed their own check, or a split of shots does not add up to the total."
+      - name: stat_corrections.rule
+        description: "The rule that changed it, one of raised_to_open_play_goals, raised_to_shots_on_target, limited_to_opponent_shots_on_target, opponent_shots_on_target_unverified, limited_to_whole, own_goals_left_out, split_does_not_add_up."
 
   - name: base_apif__fixture_players
     description: >

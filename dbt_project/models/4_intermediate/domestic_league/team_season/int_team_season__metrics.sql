@@ -1,13 +1,9 @@
 {#
-  Whole-season team rollup — now the FINAL-ROW PROJECTION of int_team_season__metrics_cumulative
-  (#500 one-aggregation; the rate formulas moved there, applied at every matchday). Per
-  (league_code, season_api_year, team_sk): the last cumulative row of the season (max match_number)
-  + the whole-season-only extras — team_season_sk and season_matchdays_used — re-attached here.
-
-  Output is BYTE-IDENTICAL to the prior model (same formulas over the same input, same final row):
-  every downstream consumer (mart_team_season / _insights / _profile / _record, the benchmark
-  chain, deserved-vs-actual) is unchanged. mart_team_season_insights exposes only the latest
-  season_api_year per league_code.
+  Whole-season team rollup — the FINAL-ROW PROJECTION of int_team_season__metrics_cumulative,
+  where the catalogue formulas are applied at every matchday. Per (league_code, season_api_year,
+  team_sk): the last cumulative row of the season (max match_number) + the whole-season-only
+  extras — team_season_sk and season_matchdays_used — re-attached here. mart_team_season_insights
+  exposes only the latest season_api_year per league_code.
 
   Grain: (team_sk, season_sk).
 #}

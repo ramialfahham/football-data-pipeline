@@ -1,6 +1,6 @@
 """Tests for `scripts/generate_metric_sql.py`.
 
-The first test is the drift check: the SQL in the player models must be exactly what the
+The first test is the drift check: the SQL in the player and team models must be exactly what the
 catalogue generates, so a hand edit inside a generated block, or a catalogue change the models did
 not follow, fails `test:python`. The others drive the generator against a synthetic catalogue and
 model and assert one thing it must do or refuse.
@@ -89,10 +89,47 @@ def test_countif_is_gated_like_sum():
 
 
 def test_no_line_exceeds_the_lint_length():
-    formulas = gen._read_formulas()
+    formulas = {entity: gen._read_formulas(entity=entity) for entity in ("player", "team")}
     for surface in gen.SURFACES:
-        for line in gen._block(surface, formulas, "        "):
+        for line in gen._block(surface, formulas[surface.entity], "        "):
             assert len(line) <= gen.MAX_LINE, (surface.model, line)
+
+
+def test_a_team_rate_leaves_a_forfeit_out_of_numerator_and_denominator():
+    lines = gen._metric_lines("goals_per_match", "sum(goals)", "count(*)", True, "    ", "team")
+    sql = " ".join(line.strip() for line in lines)
+    assert "logical_and(is_awarded_result or goals is not null) over w" in sql
+    assert "sum(if(is_awarded_result, null, goals)) over w" in sql
+    assert "countif(not is_awarded_result) over w" in sql
+    assert "count(*)" not in sql
+
+
+def test_a_team_countif_counts_only_played_matches():
+    lines = gen._metric_lines("clean_sheets", "countif(goals_against = 0)", "", False, "    ", "team")
+    sql = " ".join(line.strip() for line in lines)
+    assert "logical_and(is_awarded_result or (goals_against = 0) is not null)" in sql
+    assert "countif(not is_awarded_result and (goals_against = 0))" in sql
+
+
+def test_points_goals_and_goals_against_count_a_forfeit():
+    assert gen.FORFEIT_COUNTED == ("points_won", "goals", "goals_against")
+    for metric in gen.FORFEIT_COUNTED:
+        sql = " ".join(line.strip() for line in gen._metric_lines(metric, "sum(goals)", "", True, "    ", "team"))
+        assert "is_awarded_result" not in sql, metric
+        assert "if(logical_and(goals is not null) over w, sum(goals) over w, null)" in sql, metric
+
+
+def test_a_player_row_is_never_read_as_a_team_formula(tmp_path):
+    rows = [{"metric_id": f"m{i}", "entity": "team", "base_relation": "int_legs__team_match",
+             "numerator_expr": "sum(goals)"} for i in range(35)]
+    rows.append({"metric_id": "goals_player", "numerator_expr": "sum(goals)"})
+    formulas = gen._read_formulas(_seed(tmp_path, rows), entity="team")
+    assert "goals_player" not in formulas and len(formulas) == 35
+
+
+def test_every_team_expression_metric_is_on_the_season_surface():
+    team = gen._read_formulas(entity="team")
+    assert sorted(team) == sorted(gen.TEAM_SEASON)
 
 
 def test_a_metric_the_catalogue_lacks_aborts(tmp_path, monkeypatch):

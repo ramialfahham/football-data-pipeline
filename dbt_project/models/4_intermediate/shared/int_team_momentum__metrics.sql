@@ -1,13 +1,12 @@
 {#
   W1 momentum builder — team.
 
-  Aggregates raw totals over the window legs selected by int_team_momentum_window
+  Applies the catalogue formulas to the window legs selected by int_team_momentum_window
   (the selection was extracted there in #323 so this aggregate and the drill-down list
   mart consume the same matches). The window is last-5 for most competitions and
   cumulative (tournament_to_date / qualifiers) for tournament fixtures (GAP-18); the
   window_type carried from the selection says which, and games_in_window is the actual
-  count (1–5 for last_5, unbounded for tournament windows). No ratios — those are
-  computed in mart_team_momentum.
+  count (1–5 for last_5, unbounded for tournament windows).
 
   Grain: (upcoming_fixture_sk, team_sk).
 
@@ -17,157 +16,201 @@
   Returns no row when a team has no finished matches yet (before phase for a
   club domestic_league). The mart will emit nulls; #326 fills the gap.
 
-  Player-derived columns (key_passes, tackles, …) are summed over the legs that carry
-  player data; games_with_player_stats counts those legs, and the mart shows a
-  player-derived rate only when every non-awarded leg is covered, like every other rate.
-
-  Coverage rule (same-window): a ratio's numerator and denominator must cover the
-  same games. Team stats (shots, passes, corners, saves) are sparse in lower
-  leagues, so the builder carries per-input coverage counts and coverage-restricted
-  scoreline sums; the mart divides each metric over the matching window. Where no
-  covered game exists the mart yields NULL (we never divide a full-window numerator
-  by a partial-window denominator).
+  Every catalogue metric is written by scripts/generate_metric_sql.py from metric_catalogue.csv
+  over the window's legs, with the team totals from players joined to them, by the rules in
+  docs/metric_layer.md. The match and coverage counts are hand-written.
 #}
 
 with window_legs as (
     select * from {{ ref('int_team_momentum_window') }}
 ),
 
--- Aggregate raw totals over the window legs
-team_agg as (
+window_rows as (
     select
-        upcoming_fixture_sk,
-        team_sk,
-        season_api_year,
-        entity_type,
-        window_type,
-        count(*) as games_in_window,
-        -- the form window's equivalent of games_expecting_team_stats: an awarded result (AWD / WO)
-        -- has no stat line and never will, so the gates below subtract it instead of reading it as
-        -- a coverage gap. The season surface makes the same distinction; leaving it out here would
-        -- have the form figures and the season figures disagree about the same match.
-        countif(not is_awarded_result) as games_expecting_team_stats,
-        -- per-input coverage: the provider's stat line arrives in pieces, so every input a
-        -- rate reads has its own count and the mart gates the rate on each of them
-        -- (engineering_standards.md section 3.2) - never on a proxy for another column
-        countif(shots_total is not null) as games_with_team_stats,
-        countif(shots_on_goal is not null) as games_with_sot_stats,
-        countif(shots_inside_box is not null) as games_with_inside_box_stats,
-        countif(passes_total is not null) as games_with_passes_total_stats,
-        countif(passes_accurate is not null) as games_with_passes_accurate_stats,
-        countif(corner_kicks is not null) as games_with_corner_stats,
-        countif(opponent_corner_kicks is not null) as games_with_opp_stats,
-        -- save coverage: saves_pct is a team-feed (goalkeeper) metric, so it needs its own
-        -- coverage count to NULL on partial coverage (universal incomplete-data rule)
-        countif(goalkeeper_saves is not null) as games_with_save_stats,
-        array_agg(distinct leg_league_code order by leg_league_code)
-            as contributing_competitions,
-        sum(case result when 'W' then 3 when 'D' then 1 else 0 end)
-            as points_won,
-        sum(goals_for) as goals_for,
-        sum(goals_against) as goals_against,
-        -- scoreline-based, full window (clean sheets display as x of games)
-        countif(goals_against = 0) as clean_sheet_games,
-        -- open-play goal components: goals_open_play = goals_for − goals_penalty
-        -- − goals_own (computed in the mart). Full-window sums, for display.
-        sum(goals_penalty) as goals_penalty,
-        sum(goals_own) as goals_own,
-        -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS — the season builder's twin, and required for the
-        -- same reason. This comment used to say finishing is NULL unless the window is fully
-        -- shot-covered "so there is no coverage-restricted goals sum to keep"; that stopped being
-        -- true when awarded results (AWD/WO) became legs. Their goals are real and enter the full
-        -- sums; their shots-on-target do not exist. Same-window pattern as
-        -- goals_against_in_save_games just below.
-        sum(if(shots_on_goal is not null, goals_for - goals_penalty - goals_own, null))
-            as goals_open_play_in_sot_games,
-        -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
-        sum(if(goalkeeper_saves is not null, goals_against, null))
-            as goals_against_in_save_games,
-        -- the own goals among them: conceded, but never a shot on target the keeper faced
-        sum(if(goalkeeper_saves is not null, goals_own_against, null))
-            as goals_own_against_in_save_games,
-        sum(shots_total) as shots_total,
-        sum(shots_on_goal) as shots_on_goal,
-        sum(shots_inside_box) as shots_inside_box,
-        sum(passes_total) as passes_total,
-        sum(passes_accurate) as passes_accurate,
-        sum(corner_kicks) as corner_kicks,
-        sum(opponent_corner_kicks) as opponent_corner_kicks,
-        sum(goalkeeper_saves) as goalkeeper_saves
-    from window_legs
-    group by
-        upcoming_fixture_sk,
-        team_sk,
-        season_api_year,
-        entity_type,
-        window_type
-),
-
--- Sum player-derived stats for the same window legs (inherits player-stat coverage gaps)
-player_derived as (
-    select
-        wl.upcoming_fixture_sk,
-        wl.team_sk,
-        countif(p.fixture_sk is not null) as games_with_player_stats,
-        sum(p.key_passes) as key_passes,
-        sum(p.tackles) as tackles,
-        sum(p.interceptions) as interceptions,
-        sum(p.blocks) as blocks,
-        sum(p.duels_total) as duels_total,
-        sum(p.duels_won) as duels_won
+        wl.*,
+        p.passes_key,
+        p.tackles,
+        p.interceptions,
+        p.blocks,
+        p.duels,
+        p.duels_won,
+        p.fixture_sk is not null as has_player_stats
     from window_legs as wl
     left join {{ ref('int_legs__team_from_players') }} as p
         on
             wl.leg_fixture_sk = p.fixture_sk
             and wl.team_sk = p.team_sk
-    group by
-        wl.upcoming_fixture_sk,
-        wl.team_sk
 )
 
 select
-    ta.upcoming_fixture_sk,
-    ta.team_sk,
-    ta.season_api_year,
-    ta.entity_type,
-    ta.window_type,
-    ta.games_in_window,
-    ta.games_expecting_team_stats,
-    ta.games_with_team_stats,
-    ta.games_with_sot_stats,
-    ta.games_with_inside_box_stats,
-    ta.games_with_passes_total_stats,
-    ta.games_with_passes_accurate_stats,
-    ta.games_with_corner_stats,
-    ta.games_with_opp_stats,
-    ta.games_with_save_stats,
-    ta.contributing_competitions,
-    ta.points_won,
-    ta.goals_for,
-    ta.goals_against,
-    ta.clean_sheet_games,
-    ta.goals_penalty,
-    ta.goals_own,
-    ta.goals_against_in_save_games,
-    ta.goals_own_against_in_save_games,
-    ta.goals_open_play_in_sot_games,
-    ta.shots_total,
-    ta.shots_on_goal,
-    ta.shots_inside_box,
-    ta.passes_total,
-    ta.passes_accurate,
-    ta.corner_kicks,
-    ta.opponent_corner_kicks,
-    ta.goalkeeper_saves,
-    pd.games_with_player_stats,
-    pd.key_passes,
-    pd.tackles,
-    pd.interceptions,
-    pd.blocks,
-    pd.duels_total,
-    pd.duels_won
-from team_agg as ta
-left join player_derived as pd
-    on
-        ta.upcoming_fixture_sk = pd.upcoming_fixture_sk
-        and ta.team_sk = pd.team_sk
+    upcoming_fixture_sk,
+    team_sk,
+    season_api_year,
+    entity_type,
+    window_type,
+    count(*) as games_in_window,
+    -- the window's games that can carry a stat line: an awarded result (AWD / WO) is decided off
+    -- the pitch and has none
+    countif(not is_awarded_result) as games_expecting_team_stats,
+    countif(shots is not null) as games_with_team_stats,
+    countif(has_player_stats) as games_with_player_stats,
+    array_agg(distinct leg_league_code order by leg_league_code) as contributing_competitions,
+    -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+    if(
+        logical_and((case result when 'W' then 3 when 'D' then 1 else 0 end) is not null),
+        sum(case result when 'W' then 3 when 'D' then 1 else 0 end),
+        null
+    ) as points_won,
+    if(
+        logical_and(is_awarded_result or (goals_against = 0) is not null),
+        countif(not is_awarded_result and (goals_against = 0)),
+        null
+    ) as clean_sheets,
+    safe_divide(
+        if(logical_and(is_awarded_result or goals is not null), sum(if(is_awarded_result, null, goals)), null),
+        countif(not is_awarded_result)
+    ) as goals_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or goals_against is not null),
+            sum(if(is_awarded_result, null, goals_against)),
+            null
+        ),
+        countif(not is_awarded_result)
+    ) as goals_against_per_match,
+    safe_divide(
+        if(logical_and(is_awarded_result or shots is not null), sum(if(is_awarded_result, null, shots)), null),
+        countif(not is_awarded_result)
+    ) as shots_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or shots_on_target is not null),
+            sum(if(is_awarded_result, null, shots_on_target)),
+            null
+        ),
+        if(
+            logical_and(is_awarded_result or shots is not null),
+            sum(if(is_awarded_result, null, shots)),
+            null
+        )
+    ) as shots_on_goal_pct,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or shots_inside_box is not null),
+            sum(if(is_awarded_result, null, shots_inside_box)),
+            null
+        ),
+        if(
+            logical_and(is_awarded_result or shots is not null),
+            sum(if(is_awarded_result, null, shots)),
+            null
+        )
+    ) as shots_inside_box_pct,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or shots_on_target is not null),
+            sum(if(is_awarded_result, null, shots_on_target)),
+            null
+        ),
+        countif(not is_awarded_result)
+    ) as shots_on_goal_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or (goals - goals_penalty - goals_own) is not null),
+            sum(if(is_awarded_result, null, goals - goals_penalty - goals_own)),
+            null
+        ),
+        if(
+            logical_and(is_awarded_result or shots_on_target is not null),
+            sum(if(is_awarded_result, null, shots_on_target)),
+            null
+        )
+    ) as finishing_efficiency_pct,
+    safe_divide(
+        if(logical_and(is_awarded_result or passes is not null), sum(if(is_awarded_result, null, passes)), null),
+        countif(not is_awarded_result)
+    ) as passes_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or passes_accurate is not null),
+            sum(if(is_awarded_result, null, passes_accurate)),
+            null
+        ),
+        if(
+            logical_and(is_awarded_result or passes is not null),
+            sum(if(is_awarded_result, null, passes)),
+            null
+        )
+    ) as passes_accuracy_pct,
+    safe_divide(
+        if(logical_and(is_awarded_result or corners is not null), sum(if(is_awarded_result, null, corners)), null),
+        countif(not is_awarded_result)
+    ) as corners_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or corners_against is not null),
+            sum(if(is_awarded_result, null, corners_against)),
+            null
+        ),
+        countif(not is_awarded_result)
+    ) as corners_against_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or saves is not null),
+            sum(if(is_awarded_result, null, saves)),
+            null
+        ),
+        if(
+            logical_and(is_awarded_result or (saves + goals_against - goals_own_against) is not null),
+            sum(if(is_awarded_result, null, saves + goals_against - goals_own_against)),
+            null
+        )
+    ) as saves_pct,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or passes_key is not null),
+            sum(if(is_awarded_result, null, passes_key)),
+            null
+        ),
+        countif(not is_awarded_result)
+    ) as passes_key_per_match,
+    safe_divide(
+        if(logical_and(is_awarded_result or tackles is not null), sum(if(is_awarded_result, null, tackles)), null),
+        countif(not is_awarded_result)
+    ) as tackles_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or interceptions is not null),
+            sum(if(is_awarded_result, null, interceptions)),
+            null
+        ),
+        countif(not is_awarded_result)
+    ) as interceptions_per_match,
+    safe_divide(
+        if(logical_and(is_awarded_result or blocks is not null), sum(if(is_awarded_result, null, blocks)), null),
+        countif(not is_awarded_result)
+    ) as blocks_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or (tackles + interceptions + blocks) is not null),
+            sum(if(is_awarded_result, null, tackles + interceptions + blocks)),
+            null
+        ),
+        countif(not is_awarded_result)
+    ) as defensive_actions_per_match,
+    safe_divide(
+        if(logical_and(is_awarded_result or duels is not null), sum(if(is_awarded_result, null, duels)), null),
+        countif(not is_awarded_result)
+    ) as duels_per_match,
+    safe_divide(
+        if(logical_and(is_awarded_result or duels_won is not null), sum(if(is_awarded_result, null, duels_won)), null),
+        if(logical_and(is_awarded_result or duels is not null), sum(if(is_awarded_result, null, duels)), null)
+    ) as duels_won_pct
+    -- end of generated metric sql
+from window_rows
+group by
+    upcoming_fixture_sk,
+    team_sk,
+    season_api_year,
+    entity_type,
+    window_type

@@ -1,15 +1,17 @@
-"""Write each player surface's metric SQL from `metric_catalogue.csv`, and check it matches.
+"""Write each player and team surface's metric SQL from `metric_catalogue.csv`, and check it matches.
 
 The catalogue is the one place a metric's numerator and denominator are written. A model that
-computes a player metric does not carry its own copy: this script writes the catalogue formula
-into the model, between two marker lines, applied to the rows of that model's own window. The
-window (which matches) and the per-row completeness flag stay hand-written in the model; the
-formula never does.
+computes a metric does not carry its own copy: this script writes the catalogue formula into the
+model, between two marker lines, applied to the rows of that model's own window. The window
+(which matches) and the per-row flags stay hand-written in the model; the formula never does.
 
-Every aggregate in a formula is written with the eligibility rule around it: it is NULL unless
-the window is complete (`window_is_complete`, supplied by the model for every row) and every row
-of the window has its input. So one missing input anywhere in the window makes the metric NULL,
-and a ratio is never divided over the matches we happen to have.
+Every aggregate in a formula is written with the eligibility rule around it, so one missing input
+anywhere in the window makes the metric NULL, and a ratio is never divided over the matches we
+happen to have. On a player surface an aggregate is NULL unless the window is complete
+(`window_is_complete`, supplied by the model for every row) and every row of the window has its
+input. On a team surface a forfeit (`is_awarded_result`) counts only in the metrics the league
+table counts it in; every other metric leaves it out of numerator and denominator, `count(*)`
+included, and is NULL unless every other row of the window has its input.
 
 One `_render()` serves both modes, so the file on disk and the check can never compute two
 different answers. The drift check is `tests/test_generate_metric_sql.py`, which runs in
@@ -34,6 +36,7 @@ SEED = REPO_ROOT / "dbt_project" / "seeds" / "metric_catalogue.csv"
 MODELS = REPO_ROOT / "dbt_project" / "models"
 
 BASE_RELATION = "int_legs__player_match"
+TEAM_BASE_RELATIONS = ("int_legs__team_match", "int_legs__team_from_players")
 BEGIN = "-- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue"
 END = "-- end of generated metric sql"
 INDENT = "    "
@@ -41,9 +44,29 @@ MAX_LINE = 120
 
 # A floor under the read, so a moved seed or a renamed column fails loudly instead of emitting
 # empty blocks.
-MIN_FORMULAS = 40
+MIN_FORMULAS = {"player": 40, "team": 30}
 
 AGGREGATE = re.compile(r"\b(sum|countif)\(([^()]*)\)")
+TEAM_AGGREGATE = re.compile(r"\b(sum|countif)\(([^()]*)\)|\bcount\(\*\)")
+
+# The league table counts a forfeit in these; every other team metric leaves it out.
+FORFEIT_COUNTED = ("points_won", "goals", "goals_against")
+
+TEAM_COUNTS = (
+    "points_won", "goals", "goals_against", "clean_sheets", "goals_penalty", "goals_own", "goals_open_play",
+    "corners", "saves", "shots_inside_box", "cards_yellow", "cards_red",
+)
+TEAM_FORM = (
+    "points_won", "clean_sheets", "goals_per_match", "goals_against_per_match", "shots_per_match",
+    "shots_on_goal_pct", "shots_inside_box_pct", "shots_on_goal_per_match", "finishing_efficiency_pct",
+    "passes_per_match", "passes_accuracy_pct", "corners_per_match", "corners_against_per_match", "saves_pct",
+    "passes_key_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match",
+    "defensive_actions_per_match", "duels_per_match", "duels_won_pct",
+)
+TEAM_SEASON = TEAM_COUNTS + tuple(m for m in TEAM_FORM if m not in TEAM_COUNTS) + (
+    "clean_sheets_pct", "points_capture_pct", "shots_share_pct", "shots_on_goal_against_per_match",
+    "shots_on_goal_difference_per_match",
+)
 
 COUNTS = (
     "goals_player", "goals_penalty_player", "assists_player", "shots_player", "shots_on_goal_player",
@@ -90,6 +113,7 @@ class Surface:
     model: str
     metrics: tuple[str, ...]
     windowed: bool = False
+    entity: str = "player"
 
 
 SURFACES = (
@@ -109,6 +133,10 @@ SURFACES = (
             ("passes_accuracy_player_pct",), windowed=True),
     Surface("5_marts/shared/mart_player_match_log.sql",
             ("passes_accuracy_player_pct",), windowed=True),
+    Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
+            TEAM_SEASON, windowed=True, entity="team"),
+    Surface("4_intermediate/shared/int_team_momentum__metrics.sql", TEAM_FORM, entity="team"),
+    Surface("5_marts/shared/mart_team_fixture_stats.sql", ("passes_accuracy_pct",), windowed=True, entity="team"),
 )
 
 
@@ -116,43 +144,64 @@ class Abort(Exception):
     pass
 
 
-def _read_formulas(seed: pathlib.Path = SEED) -> dict[str, tuple[str, str]]:
-    """metric_id -> (numerator_expr, denominator_expr) for every player expression row."""
+def _read_formulas(seed: pathlib.Path = SEED, entity: str = "player") -> dict[str, tuple[str, str]]:
+    """metric_id -> (numerator_expr, denominator_expr) for every expression row of the entity."""
+    relations = (BASE_RELATION,) if entity == "player" else TEAM_BASE_RELATIONS
     with open(seed, encoding="utf-8", newline="") as fh:
         rows = list(csv.DictReader(fh))
     formulas: dict[str, tuple[str, str]] = {}
     for row in rows:
-        if (row["entity"].strip() != "player" or row["computation_kind"].strip() != "expression"
-                or row["base_relation"].strip() != BASE_RELATION):
+        if (row["entity"].strip() != entity or row["computation_kind"].strip() != "expression"
+                or row["base_relation"].strip() not in relations):
             continue
         metric = row["metric_id"].strip()
         if metric in formulas:
-            raise Abort(f"{metric} is defined twice for the player entity")
+            raise Abort(f"{metric} is defined twice for the {entity} entity")
         numerator = row["numerator_expr"].strip()
         if not numerator:
             raise Abort(f"{metric} has no numerator_expr")
         formulas[metric] = (numerator, row["denominator_expr"].strip())
-    if len(formulas) < MIN_FORMULAS:
-        raise Abort(f"read {len(formulas)} player formulas from {_rel(seed)} (floor {MIN_FORMULAS})")
+    if len(formulas) < MIN_FORMULAS[entity]:
+        raise Abort(f"read {len(formulas)} {entity} formulas from {_rel(seed)} (floor {MIN_FORMULAS[entity]})")
     return formulas
 
 
-def _pieces(expression: str, windowed: bool) -> list:
-    """The expression split into plain text and gated aggregates, each aggregate as (inline, broken).
+def _gate(function: str, inner: str, over: str, entity: str, forfeit_counted: bool) -> tuple[str, str]:
+    """What every counted row must satisfy for the aggregate to be computable, and the aggregate."""
+    subject = f"({inner})" if re.search(r"\W", inner) else inner
+    if entity == "player":
+        return f"window_is_complete and {subject} is not null", f"{function}({inner}){over}"
+    if forfeit_counted:
+        return f"{subject} is not null", f"{function}({inner}){over}"
+    if function == "sum":
+        value = f"sum(if(is_awarded_result, null, {inner})){over}"
+    else:
+        value = f"countif(not is_awarded_result and {subject}){over}"
+    return f"is_awarded_result or {subject} is not null", value
 
-    A gated aggregate is NULL unless the window is complete and every row has its input."""
+
+def _pieces(expression: str, windowed: bool, entity: str = "player", forfeit_counted: bool = False) -> list:
+    """The expression split into plain text and gated aggregates, each aggregate as (inline, broken,
+    broken with its condition on a line of its own).
+
+    A gated aggregate is NULL unless every row it counts has its input (and, for a player, the
+    window is complete). On a team surface `count(*)` counts the rows the metric counts."""
     over = " over w" if windowed else ""
     pieces: list = []
     position = 0
-    for match in AGGREGATE.finditer(expression):
-        function, inner = match.group(1), match.group(2).strip()
-        subject = f"({inner})" if re.search(r"\W", inner) else inner
-        condition = f"logical_and(window_is_complete and {subject} is not null){over}"
-        value = f"{function}({inner}){over}"
+    for match in (AGGREGATE if entity == "player" else TEAM_AGGREGATE).finditer(expression):
         pieces.append(expression[position:match.start()])
-        pieces.append((f"if({condition}, {value}, null)",
-                       ["if(", INDENT + condition + ",", INDENT + value + ",", INDENT + "null", ")"]))
         position = match.end()
+        if match.group(1) is None:
+            matches = f"count(*){over}" if forfeit_counted else f"countif(not is_awarded_result){over}"
+            pieces.append((matches, [matches], [matches]))
+            continue
+        requirement, value = _gate(match.group(1), match.group(2).strip(), over, entity, forfeit_counted)
+        condition = f"logical_and({requirement}){over}"
+        pieces.append((f"if({condition}, {value}, null)",
+                       ["if(", INDENT + condition + ",", INDENT + value + ",", INDENT + "null", ")"],
+                       ["if(", INDENT + "logical_and(", INDENT * 2 + requirement, INDENT + f"){over},",
+                        INDENT + value + ",", INDENT + "null", ")"]))
     if len(pieces) == 0:
         raise Abort(f"no sum() or countif() in `{expression}`")
     pieces.append(expression[position:])
@@ -163,14 +212,15 @@ def _inline(pieces: list) -> str:
     return "".join(piece if isinstance(piece, str) else piece[0] for piece in pieces)
 
 
-def _broken(pieces: list) -> list[str]:
+def _broken(pieces: list, deep: bool = False) -> list[str]:
     lines = [""]
     for piece in pieces:
         if isinstance(piece, str):
             lines[-1] += piece
         else:
-            lines[-1] += piece[1][0]
-            lines.extend(piece[1][1:])
+            form = piece[2] if deep else piece[1]
+            lines[-1] += form[0]
+            lines.extend(form[1:])
     return lines
 
 
@@ -179,21 +229,24 @@ def _fits(lines: list[str], margin: str) -> bool:
 
 
 def _metric_lines(metric: str, numerator: str, denominator: str, windowed: bool,
-                  margin: str) -> list[str]:
+                  margin: str, entity: str = "player") -> list[str]:
     """The most compact layout of the metric whose every line fits the lint's line length."""
-    top = _pieces(numerator, windowed)
+    forfeit_counted = entity == "team" and metric in FORFEIT_COUNTED
+    top = _pieces(numerator, windowed, entity, forfeit_counted)
     if not denominator:
-        layouts = [[f"{_inline(top)} as {metric}"], _broken(top)]
+        layouts = [[f"{_inline(top)} as {metric}"], _broken(top), _broken(top, deep=True)]
         layouts[1][-1] += f" as {metric}"
+        layouts[2][-1] += f" as {metric}"
     else:
-        bottom = _pieces(denominator, windowed)
+        bottom = _pieces(denominator, windowed, entity, forfeit_counted)
         layouts = [
             [f"safe_divide({_inline(top)}, {_inline(bottom)}) as {metric}"],
             ["safe_divide(", INDENT + _inline(top) + ",", INDENT + _inline(bottom), f") as {metric}"],
-            (["safe_divide("] + [INDENT + line for line in _broken(top)]),
         ]
-        layouts[2][-1] += ","
-        layouts[2] += [INDENT + line for line in _broken(bottom)] + [f") as {metric}"]
+        for deep in (False, True):
+            layout = ["safe_divide("] + [INDENT + line for line in _broken(top, deep)]
+            layout[-1] += ","
+            layouts.append(layout + [INDENT + line for line in _broken(bottom, deep)] + [f") as {metric}"])
     for layout in layouts:
         if _fits(layout, margin):
             return layout
@@ -204,14 +257,14 @@ def _block(surface: Surface, formulas: dict[str, tuple[str, str]], margin: str) 
     """The generated select-list lines, indented to `margin`, the begin marker's own indentation."""
     missing = [m for m in surface.metrics if m not in formulas]
     if missing:
-        raise Abort(f"{surface.model}: no player expression formula for {', '.join(missing)}")
+        raise Abort(f"{surface.model}: no {surface.entity} expression formula for {', '.join(missing)}")
     if len(set(surface.metrics)) != len(surface.metrics):
         raise Abort(f"{surface.model}: a metric is listed twice")
     lines = [margin + BEGIN]
     for position, metric in enumerate(surface.metrics):
         numerator, denominator = formulas[metric]
         rendered = [margin + line for line in _metric_lines(metric, numerator, denominator,
-                                                              surface.windowed, margin)]
+                                                              surface.windowed, margin, surface.entity)]
         if position < len(surface.metrics) - 1:
             rendered[-1] += ","
         lines.extend(rendered)
@@ -232,13 +285,13 @@ def _apply(text: str, surface: Surface, formulas: dict[str, tuple[str, str]]) ->
 
 def _render(models: pathlib.Path = MODELS, seed: pathlib.Path = SEED) -> dict[pathlib.Path, str]:
     """Path -> the model text with its generated block as the catalogue says it must be."""
-    formulas = _read_formulas(seed)
+    formulas = {entity: _read_formulas(seed, entity) for entity in sorted({s.entity for s in SURFACES})}
     rendered: dict[pathlib.Path, str] = {}
     for surface in SURFACES:
         path = models / surface.model
         if not path.exists():
             raise Abort(f"{surface.model} does not exist")
-        rendered[path] = _apply(path.read_text(encoding="utf-8"), surface, formulas)
+        rendered[path] = _apply(path.read_text(encoding="utf-8"), surface, formulas[surface.entity])
     return rendered
 
 
@@ -268,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
             print("\nThe catalogue is the source. Do not edit a generated block: run\n"
                   "  python scripts/generate_metric_sql.py")
             return 1
-        print(f"OK: {len(expected)} player surfaces match {_rel(SEED)}.")
+        print(f"OK: {len(expected)} surfaces match {_rel(SEED)}.")
         return 0
 
     for path in drifted:

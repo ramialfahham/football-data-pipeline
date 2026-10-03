@@ -22,7 +22,7 @@ with legs as (
         fixture_sk,
         kickoff_datetime,
         result,
-        goals_for,
+        goals,
         goals_against
     from {{ ref('int_legs__team_match') }}
 ),
@@ -34,7 +34,7 @@ ranked as (
         league_code,
         season_api_year,
         result,
-        goals_for,
+        goals,
         goals_against,
         row_number() over (
             partition by team_sk, season_sk
@@ -58,7 +58,7 @@ agg as (
         min(if(result = 'W', recency_rank, null)) as first_win_rank,
         min(if(coalesce(goals_against, 0) > 0, recency_rank, null))
             as first_conceded_rank,
-        min(if(coalesce(goals_for, 0) = 0, recency_rank, null))
+        min(if(coalesce(goals, 0) = 0, recency_rank, null))
             as first_blank_rank
     from ranked
     group by

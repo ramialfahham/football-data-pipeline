@@ -33,14 +33,14 @@ select
     m.wins_sum_season as wins,
     m.draws_sum_season as draws,
     m.losses_sum_season as losses,
-    m.goals_for_sum_season as goals_for,
-    m.goals_against_sum_season as goals_against,
-    m.points_won_sum_season as points,
-    m.clean_sheets_sum_season as clean_sheets,
+    m.goals as goals_for,
+    m.goals_against,
+    m.points_won as points,
+    m.clean_sheets,
     st.standing_rank as latest_rank,
     st.form as latest_form,
     st.group_description as standings_group_description,
-    m.goals_for_sum_season - m.goals_against_sum_season as goal_diff
+    m.goals - m.goals_against as goal_diff
 from season_metrics as m
 left join dim_team as t on m.team_sk = t.team_sk
 left join import_int_team_season__standings_primary as st

@@ -300,7 +300,8 @@ seeds:
           - not_null
       - name: description
         description: >
-          Plain-English definition: what the metric measures, nullability, and source columns.
+          What the metric means: what it measures and how it is calculated from the cleaned
+          inputs, in plain words, so a reader, human or AI, can use it correctly.
 
           This field is the SOURCE of the generated docs blocks in
           models/docs/metric_columns.md, which every column of that metric's name references, so
@@ -555,6 +556,42 @@ seeds:
         description: "The value worked out by hand. Blank where the rule must leave the stat blank."
       - name: rule
         description: "The stat_corrections rule the case exercises, blank where the case exercises the blank rule, the pass format or a value the cleaning must keep."
+      - name: working
+        description: "The hand working: the raw values the answer rests on and the step from them to the expected value."
+        tests: [not_null]
+
+  - name: team_match_cleaning_answer_key
+    description: >
+      Hand-worked answers for the team-match cleaning in base_apif__fixture_statistics: real team
+      matches, at least one per cleaning rule, each value worked out by hand from the provider's raw
+      values (both teams' statistics lines, the match events and the score).
+      assert_team_match_cleaning_answer_key fails when the model returns anything else. A blank
+      expected_value means the rule must leave the stat blank.
+    config:
+      column_types:
+        fixture_id: int64
+        team_id: int64
+        stat: string
+        expected_value: int64
+        rule: string
+        working: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id, team_id, stat]
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: stat
+        description: "The base_apif__fixture_statistics column the case checks."
+        tests: [not_null]
+      - name: expected_value
+        description: "The value worked out by hand. Blank where the rule must leave the stat blank."
+      - name: rule
+        description: "The stat_corrections rule the case exercises, blank where the case exercises the blank rule or the goal split."
       - name: working
         description: "The hand working: the raw values the answer rests on and the step from them to the expected value."
         tests: [not_null]

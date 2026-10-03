@@ -360,7 +360,7 @@ Short team code (3-4 letters) from API-Football.
 
 
 {% docs team_goals_season %}
-The club's whole-season goals_for (the denominator).
+The goals the club scored on the pitch that competition-season (the denominator).
 {% enddocs %}
 
 
@@ -614,27 +614,21 @@ no estimate is loaded.
 
 {% docs opponent_corner_kicks__leg %}
 Corner kicks won by the opponent in this match, from the provider's team match statistics for
-the opposing side — the mirror of the team's own corner_kicks. NULL when the competition
+the opposing side — the mirror of the team's own corners. NULL when the competition
 supplies no team statistics for the fixture.
 {% enddocs %}
 
 {% docs yellow_cards__leg %}
-Yellow cards shown to this team in this match, from the provider's team match statistics. The
-provider writes zero cards as a blank, so a blank on a row that has a statistics line is 0 here;
-NULL only when the competition supplies no team statistics for the fixture — the reading the
-season total cards_yellow sums.
+Yellow cards shown to this team in this match, from its cleaned statistics line.
 {% enddocs %}
 
 {% docs red_cards__leg %}
-Red cards shown to this team in this match, from the provider's team match statistics. The
-provider writes zero cards as a blank, so a blank on a row that has a statistics line is 0 here;
-NULL only when the competition supplies no team statistics for the fixture — the reading the
-season total cards_red sums.
+Red cards shown to this team in this match, from its cleaned statistics line.
 {% enddocs %}
 
 {% docs opponent_shots_on_goal__leg %}
 Shots on target by the opponent in this match, from the provider's team match statistics for
-the opposing side — the mirror of the team's own shots_on_goal. NULL when the competition
+the opposing side — the mirror of the team's own shots_on_target. NULL when the competition
 supplies no team statistics for the fixture.
 {% enddocs %}
 

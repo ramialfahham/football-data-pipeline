@@ -5,7 +5,8 @@
   Method (locked — a change is a product decision, not a builder's): deserved signal = shots_on_goal_difference_per_match
   (SoT for - against per match). Within each league-season, fit ordinary least squares of
   points-per-match on that signal, then deserved_points = the fitted points-per-match, CAPPED INTO
-  [0, 3], * the team's own games played. The cap is mechanical:
+  [0, 3], * the team's own played matches (a forfeit is left out of the fit and of both sides of the
+  gap). The cap is mechanical:
   points per match is a bounded outcome and least squares is an unbounded predictor, so a fitted rate
   can land fractionally outside a support it cannot actually leave. deserved_points_gap =
   points_won_sum_season - deserved_points, so NEGATIVE = under-
@@ -83,9 +84,11 @@ with metrics as (
         season_api_year,
         entity_type,
         shots_on_goal_difference_per_match,
-        points_won_sum_season,
-        season_games_played,
-        safe_divide(points_won_sum_season, season_games_played) as points_per_match
+        -- a forfeit was not played, so there is no process to deserve anything: the fit, the
+        -- deserved points and the gap all count the played matches only
+        cast(round(3 * points_capture_pct * games_expecting_team_stats) as int64) as points_won_sum_season,
+        games_expecting_team_stats as season_games_played,
+        3 * points_capture_pct as points_per_match
     from {{ ref('int_team_season__metrics') }}
 ),
 

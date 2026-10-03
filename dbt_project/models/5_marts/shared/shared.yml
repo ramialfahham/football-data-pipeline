@@ -94,8 +94,8 @@ models:
       Recent-form metrics for each side of an upcoming fixture, over the last-5 window. Grain:
       (upcoming_fixture_sk, team_sk).
 
-      Every final team metric is computed here from the raw sums in int_team_momentum__metrics:
-      all ratios and per-match rates live in this model, none in the builder beneath it.
+      Every team metric is taken from int_team_momentum__metrics, where it is its catalogue formula
+      over the window's legs; nothing is computed here.
 
       league_rank is deliberately absent — a table position comes from the standings surface, not
       from a form window. Player-derived metrics (passes_key_per_match through duels_won_pct) are
@@ -203,10 +203,10 @@ models:
         description: "How many past matches make up this side's form window: 5 for a last_5 window (fewer only before a team has 5 finished matches to draw on), or the full cumulative count of tournament matches so far on a tournament_to_date or qualifiers window. The denominator every per-match rate on this row divides by."
         tests: [not_null]
       - name: games_expecting_team_stats
-        description: "Window legs that COULD carry a team stat line — the window size minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat rate below is NULL unless its coverage count reaches this, so an awarded match is not read as a missing stat and does not blank a team's form figures."
+        description: "Window legs that COULD carry a team stat line — the window size minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one."
         tests: [not_null]
       - name: games_with_team_stats
-        description: "Window legs with shots_total present — the coverage count of that one input, the gate and denominator of shots_per_match. Every rate here is NULL unless each input it reads is present in every non-awarded leg, each input by its own count in the builder. Never NULL."
+        description: "Window legs with shots present. Never NULL."
         tests: [not_null]
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
@@ -499,7 +499,9 @@ models:
       identity alongside. Both sides of a fixture appear, as two rows. Grain: (fixture_sk,
       team_sk).
 
-      A pure projection of fct_fixture_team_stats — nothing is derived here.
+      A projection of fct_fixture_team_stats; the one derived value, passes_accuracy_percent, is
+      the catalogue's pass accuracy over the team's own match, written by
+      scripts/generate_metric_sql.py and shown as a whole percentage.
 
       Covers finished fixtures that have team stats. Provider shell rows, where the statistics
       block exists but every value is NULL, are excluded, so a fixture missing from here has no
@@ -507,6 +509,9 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [fixture_sk, team_sk]
+      - dbt_utils.expression_is_true:
+          expression: "passes_accuracy_percent is null or (passes_accuracy_percent between 0 and 100)"
+          name: team_fixture_stats_passes_accuracy_percent_in_range
     columns:
       - name: fixture_sk
         description: "{{ doc('fixture_sk') }}"

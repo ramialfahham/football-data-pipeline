@@ -3,13 +3,10 @@
 -- A team's goals are its open-play goals, its penalties and the own goals credited to it, nothing
 -- else. Open-play goals are counted from the events here, so the model's goals_penalty and goals_own
 -- are checked against the scoreline rather than against their own difference. The provider files an
--- own goal under the team it counts for, and a shoot-out kick is no goal. Only matches whose
--- attributable goal events add up to the score are checked: elsewhere the events are incomplete.
---
--- Three matches are left out because the provider's events disagree with the score on who scored:
--- 21650, Sassuolo v Pescara, Serie A 2016/17: awarded 0-3, the events keep the 2-1 played;
--- 247587, Flamengo v River Plate, Libertadores 2019 final: Flamengo's two late goals filed under River;
--- 1373026, AC Milan v Bologna, Coppa Italia 2025 final: Bologna's goal filed under Milan.
+-- own goal under the team it counts for, and a shoot-out kick is no goal. Only team-matches whose
+-- goal events add up to the team's score are checked: elsewhere the events are incomplete or credit
+-- the wrong team, and the split is blank unless the team scored none. Anywhere the split is known it
+-- is at most the score.
 
 with goal_events as (
     select
@@ -24,45 +21,32 @@ with goal_events as (
         and team_sk is not null
 ),
 
-open_play as (
+team_goal_events as (
     select
         fixture_sk,
         team_sk,
+        count(*) as goal_events,
         countif(event_detail = 'Normal Goal') as goals_open_play_events
     from goal_events
     group by fixture_sk, team_sk
-),
-
-event_totals as (
-    select
-        fixture_sk,
-        count(*) as goal_events
-    from goal_events
-    group by fixture_sk
-),
-
-covered as (
-    select l.fixture_sk
-    from {{ ref('int_legs__team_match') }} as l
-    left join event_totals as t
-        on l.fixture_sk = t.fixture_sk
-    group by l.fixture_sk
-    having sum(l.goals_for) = max(coalesce(t.goal_events, 0))
 )
 
 select
     l.fixture_sk,
     l.team_sk,
     l.league_code,
-    l.goals_for,
+    l.goals,
     l.goals_penalty,
     l.goals_own,
-    coalesce(o.goals_open_play_events, 0) as goals_open_play_events
+    coalesce(e.goals_open_play_events, 0) as goals_open_play_events
 from {{ ref('int_legs__team_match') }} as l
-inner join covered as c
-    on l.fixture_sk = c.fixture_sk
-left join open_play as o
-    on l.fixture_sk = o.fixture_sk and l.team_sk = o.team_sk
+left join team_goal_events as e
+    on l.fixture_sk = e.fixture_sk and l.team_sk = e.team_sk
 where
-    l.fixture_sk not in (21650, 247587, 1373026)
-    and coalesce(o.goals_open_play_events, 0) + l.goals_penalty + l.goals_own != l.goals_for
+    l.goals_penalty + l.goals_own > l.goals
+    or (
+        coalesce(e.goal_events, 0) = l.goals
+        and l.goals_penalty is not null
+        and l.goals_own is not null
+        and coalesce(e.goals_open_play_events, 0) + l.goals_penalty + l.goals_own != l.goals
+    )

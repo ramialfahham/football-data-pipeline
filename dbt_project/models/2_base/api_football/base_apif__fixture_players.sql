@@ -274,14 +274,32 @@ player_events as (
     group by fixture_id, team_id, player_id
 ),
 
+-- The saves check judges the opponent's shots as the team cleaning judged them, before its own
+-- corrections: a figure the cleaning had to correct was never vouched for.
 team_lines as (
     select
         fixture_id,
         team_id,
-        shots_total as shots,
-        shots_on_goal as shots_on_target,
-        goalkeeper_saves as saves,
-        offsides
+        shots,
+        shots_on_target,
+        saves,
+        offsides,
+        coalesce(
+            (
+                select coalesce(c.provider_value, 0)
+                from unnest(stat_corrections) as c
+                where c.stat = 'shots'
+            ),
+            shots
+        ) as shots_before_correction,
+        coalesce(
+            (
+                select coalesce(c.provider_value, 0)
+                from unnest(stat_corrections) as c
+                where c.stat = 'shots_on_target'
+            ),
+            shots_on_target
+        ) as shots_on_target_before_correction
     from {{ ref('base_apif__fixture_statistics') }}
 ),
 
@@ -292,8 +310,8 @@ in_context as (
         tl.shots_on_target as team_shots_on_target,
         tl.saves as team_saves,
         tl.offsides as team_offsides,
-        ol.shots as opponent_shots,
-        ol.shots_on_target as opponent_shots_on_target,
+        ol.shots_before_correction as opponent_shots,
+        ol.shots_on_target_before_correction as opponent_shots_on_target,
         pe.goals as event_goals,
         pe.goals_penalty as event_goals_penalty,
         if(d.team_id = f.home_team_id, f.goals_home, f.goals_away) as team_goals_for,

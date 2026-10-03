@@ -1,32 +1,60 @@
 {#
   Per-fixture team stat line (#323). The detail view behind a match in the
   form-window list: the full team stat line for one finished fixture, both
-  sides as two rows. Pure projection of fct_fixture_team_stats — no derived
-  metrics — plus fixture metadata and team identity for display. The app reads
-  this mart, never core.
+  sides as two rows: a projection of fct_fixture_team_stats plus fixture
+  metadata and team identity for display. The one derived value,
+  passes_accuracy_percent, is the catalogue's pass accuracy over the team's own
+  match, written by scripts/generate_metric_sql.py and shown as a whole
+  percentage. The app reads this mart, never core.
 
   Covers ALL finished fixtures that have team stats, not just form-window
   matches: it is selection-free by design and serves the team/player profile
   surfaces (#324/#325) too. A fixture with no rows here has no team stats —
-  the honest "not available" state.
+  the honest "not available" state. The stat line is the cleaned one from
+  core, handed on under the names the export reads.
 
   Grain: (fixture_sk, team_sk).
 #}
 
 with stats as (
-    select *
+    select
+        *,
+        false as is_awarded_result
     from {{ ref('fct_fixture_team_stats') }}
-    -- The API sometimes returns a statistics block with every value NULL
-    -- (e.g. WC qualifier fixtures). Core keeps those shell rows faithfully,
-    -- but they are not stat lines — projecting them would render an all-NULL
-    -- detail view instead of the honest "stats not available" empty state.
+    -- Core holds a row for every team of a finished match, and the API sometimes
+    -- returns a statistics block with every value NULL (e.g. WC qualifier
+    -- fixtures). Neither is a stat line — projecting them would render an
+    -- all-NULL detail view instead of the honest "stats not available" empty
+    -- state. Cards are left out of the test: the match events can prove a zero
+    -- card count for a team the provider sent no line for.
     where
         coalesce(
-            shots_on_goal, shots_off_goal, shots_total, shots_blocked,
-            shots_inside_box, shots_outside_box, fouls, corner_kicks, offsides,
-            ball_possession_percent, yellow_cards, red_cards, goalkeeper_saves,
-            passes_total, passes_accurate, passes_accuracy_percent
+            shots_on_target, shots_off_target, shots, shots_blocked,
+            shots_inside_box, shots_outside_box, fouls, corners, offsides,
+            possession_pct, saves, passes, passes_accurate
         ) is not null
+),
+
+match_rates as (
+    select
+        fixture_sk,
+        team_sk,
+        -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+        safe_divide(
+            if(
+                logical_and(is_awarded_result or passes_accurate is not null) over w,
+                sum(if(is_awarded_result, null, passes_accurate)) over w,
+                null
+            ),
+            if(
+                logical_and(is_awarded_result or passes is not null) over w,
+                sum(if(is_awarded_result, null, passes)) over w,
+                null
+            )
+        ) as passes_accuracy_pct
+        -- end of generated metric sql
+    from stats
+    window w as (partition by fixture_sk, team_sk)
 ),
 
 fixtures as (
@@ -60,26 +88,28 @@ select
     f.round_name,
     t.team_name,
     t.team_logo_url,
-    s.shots_on_goal,
-    s.shots_off_goal,
-    s.shots_total,
+    s.shots_on_target as shots_on_goal,
+    s.shots_off_target as shots_off_goal,
+    s.shots as shots_total,
     s.shots_blocked,
     s.shots_inside_box,
     s.shots_outside_box,
     s.fouls,
-    s.corner_kicks,
+    s.corners as corner_kicks,
     s.offsides,
-    s.ball_possession_percent,
-    s.yellow_cards,
-    s.red_cards,
-    s.goalkeeper_saves,
-    s.passes_total,
+    s.possession_pct as ball_possession_percent,
+    s.cards_yellow as yellow_cards,
+    s.cards_red as red_cards,
+    s.saves as goalkeeper_saves,
+    s.passes as passes_total,
     s.passes_accurate,
-    s.passes_accuracy_percent,
+    cast(round(100 * r.passes_accuracy_pct) as int64) as passes_accuracy_percent,
     s.team_sk = f.home_team_sk as is_home,
     if(s.team_sk = f.home_team_sk, f.goals_home, f.goals_away) as goals_for,
     if(s.team_sk = f.home_team_sk, f.goals_away, f.goals_home) as goals_against
 from stats as s
+inner join match_rates as r
+    on s.fixture_sk = r.fixture_sk and s.team_sk = r.team_sk
 inner join fixtures as f
     on s.fixture_sk = f.fixture_sk
 left join teams as t
