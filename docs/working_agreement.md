@@ -319,6 +319,7 @@ The user cannot manually verify numbers. Every metric and pipeline output must b
 ## 9. Communication style
 
 - Plain language, technically accurate.
+- Explanations, issues and MR heads follow ISO 24495-1 (plain language): the reader finds, understands and can use what they need.
 - No filler, no analogies, no motivational text, no emoji unless asked.
 - Use backticks for file, function, and column names.
 - Proposals proportional to the request — do not over-engineer simple tasks.
