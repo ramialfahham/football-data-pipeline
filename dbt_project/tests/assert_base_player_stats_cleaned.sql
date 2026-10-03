@@ -118,8 +118,22 @@ team_lines as (
     select
         fixture_id,
         team_id,
-        shots,
-        shots_on_target
+        coalesce(
+            (
+                select coalesce(c.provider_value, 0)
+                from unnest(stat_corrections) as c
+                where c.stat = 'shots'
+            ),
+            shots
+        ) as shots,
+        coalesce(
+            (
+                select coalesce(c.provider_value, 0)
+                from unnest(stat_corrections) as c
+                where c.stat = 'shots_on_target'
+            ),
+            shots_on_target
+        ) as shots_on_target
     from {{ ref('base_apif__fixture_statistics') }}
 ),
 

@@ -291,3 +291,12 @@ amendments:
     This supersedes decisions_reserved line 2 for the description column only; ids, labels,
     formats and formulas change only by the approved input renames. The full rewrite of every
     description is its own issue."
+  - "base_apif__fixture_players and assert_base_player_stats_cleaned judge a keeper's saves
+    against the opponent's shots and shots on target as delivered, before the team cleaning's own
+    corrections, as base_apif__fixture_statistics judges them; proven zeros still come from the
+    cleaned team line. Found by the MR build: assert_player_match_cleaning_answer_key failed on
+    fixture 1550091, where the team cleaning raised the opponent's 1 shot on target to its 2
+    open-play goals and the raised figure then passed the check the delivered one fails; both
+    answer keys leave those saves blank. Authority: What exactly line 5, \"a contradiction where
+    neither side is vouched for, leaves the value blank\", read as the team side reads it, under
+    the CPO's delegation quoted above."

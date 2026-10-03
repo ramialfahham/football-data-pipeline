@@ -1,12 +1,13 @@
 # Review — fix/team-cleaning-and-generated-metrics — team side cleaned in base, forfeits by the rule, team metric SQL generated from the catalogue
 
-diff_sha256: 05ac9f2436ab2df40d47990a88dc715855dcd234ee49481ff67b00a1a5cb03db
+diff_sha256: 852f533bf5f51defbc82c70c41382e87de07495416bfbd6e69016f18bf5e8327
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
+- Round 3 (the keeper's saves judged on the opponent's figures before the team cleaning's corrections): both files already in scope; the last amendment cites What exactly line 5 and the dated delegation; no definition, label or shipped number changes; the answer key is untouched and still has to be met; no new mechanism or cost.
 - Round 1 finding 1 (readings written into decisions_taken without CPO authority): the amendment now quotes the CPO's dated delegation and lists the readings it covers (own-goal correction of the box split, shots held to the open-play goals, possession outside the blank rule, the 20% limit and its 20-line floor).
 - Round 1 finding 2 (forfeit goals out of contribution_player_pct with no doc sync): the amendment quotes the issue's What exactly line 2 verbatim; the catalogue description and the team_goals_season doc block now say the goals the club scored on the pitch.
 - decisions_reserved line 2 against the catalogue edits: a dated CPO quote scopes the supersession to the description column; the diff changes no id, label, formula, format, direction or tier.
@@ -16,6 +17,7 @@ risks_checked:
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
+- Round 3: the rebuilt pre-correction figure equals the team model's own filled figure in every case it can produce (raised, blanked beyond a gap of 2, a filled zero then corrected, no entry); the opponent's figures feed only the verified flag, the ceiling and the rule label; the team's own proven zeros still read the cleaned line and cannot turn a non-zero into a zero; the cleaning test mirrors the model on the same reconstruction.
 - Round 1 finding (hand-written pass accuracy in mart_team_fixture_stats): resolved; the generated block in match_rates is a registered Surface, the formula test checks the column against the fact at match level, a 0-100 range test is added, and the mart's descriptions are corrected.
 - The edited formula test's Jinja: the CTE chain and the union are well formed; the final comparison uses is distinct from, so a NULL on either side is caught.
 - Same-window rule on the new surface: a constant false awarded flag over a one-row window; the join on the unique grain adds no fan-out.

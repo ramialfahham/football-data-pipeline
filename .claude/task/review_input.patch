@@ -1,5 +1,5 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 65949605..b8399896 100644
+index 65949605..4378fd1e 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
 @@ -1,29 +1,114 @@
@@ -137,7 +137,7 @@ index 65949605..b8399896 100644
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -33,40 +118,176 @@ scope_paths:
+@@ -33,40 +118,185 @@ scope_paths:
    - docs/tracker/**
  
  impact_map: >
@@ -343,6 +343,15 @@ index 65949605..b8399896 100644
 +    This supersedes decisions_reserved line 2 for the description column only; ids, labels,
 +    formats and formulas change only by the approved input renames. The full rewrite of every
 +    description is its own issue."
++  - "base_apif__fixture_players and assert_base_player_stats_cleaned judge a keeper's saves
++    against the opponent's shots and shots on target as delivered, before the team cleaning's own
++    corrections, as base_apif__fixture_statistics judges them; proven zeros still come from the
++    cleaned team line. Found by the MR build: assert_player_match_cleaning_answer_key failed on
++    fixture 1550091, where the team cleaning raised the opponent's 1 shot on target to its 2
++    open-play goals and the raised figure then passed the check the delivered one fails; both
++    answer keys leave those saves blank. Authority: What exactly line 5, \"a contradiction where
++    neither side is vouched for, leaves the value blank\", read as the team side reads it, under
++    the CPO's delegation quoted above."
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
 index 7dd6d432..9e6bbb23 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
@@ -385,22 +394,57 @@ index 7dd6d432..9e6bbb23 100644
    - name: base_apif__fixture_players
      description: >
 diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index a0d4f58b..2e86a690 100644
+index a0d4f58b..271f0a26 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
 +++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -278,9 +278,9 @@ team_lines as (
+@@ -274,14 +274,32 @@ player_events as (
+     group by fixture_id, team_id, player_id
+ ),
+ 
++-- The saves check judges the opponent's shots as the team cleaning judged them, before its own
++-- corrections: a figure the cleaning had to correct was never vouched for.
+ team_lines as (
      select
          fixture_id,
          team_id,
 -        shots_total as shots,
 -        shots_on_goal as shots_on_target,
 -        goalkeeper_saves as saves,
+-        offsides
 +        shots,
 +        shots_on_target,
 +        saves,
-         offsides
++        offsides,
++        coalesce(
++            (
++                select coalesce(c.provider_value, 0)
++                from unnest(stat_corrections) as c
++                where c.stat = 'shots'
++            ),
++            shots
++        ) as shots_before_correction,
++        coalesce(
++            (
++                select coalesce(c.provider_value, 0)
++                from unnest(stat_corrections) as c
++                where c.stat = 'shots_on_target'
++            ),
++            shots_on_target
++        ) as shots_on_target_before_correction
      from {{ ref('base_apif__fixture_statistics') }}
  ),
+ 
+@@ -292,8 +310,8 @@ in_context as (
+         tl.shots_on_target as team_shots_on_target,
+         tl.saves as team_saves,
+         tl.offsides as team_offsides,
+-        ol.shots as opponent_shots,
+-        ol.shots_on_target as opponent_shots_on_target,
++        ol.shots_before_correction as opponent_shots,
++        ol.shots_on_target_before_correction as opponent_shots_on_target,
+         pe.goals as event_goals,
+         pe.goals_penalty as event_goals_penalty,
+         if(d.team_id = f.home_team_id, f.goals_home, f.goals_away) as team_goals_for,
 diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
 index cbaf2211..412a1c2e 100644
 --- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
@@ -5045,21 +5089,35 @@ index 00000000..17c260d2
 +1223728,502,goals_penalty,0,,"Same team: three open-play goal events, its score: 0 penalties."
 +1223728,505,cards_yellow,0,,"Same match, the other team: no card event of its own in a match whose events were delivered: 0 yellow cards."
 diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-index bec14069..9ee7189a 100644
+index bec14069..24c79c9d 100644
 --- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
 +++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-@@ -118,8 +118,8 @@ team_lines as (
+@@ -118,8 +118,22 @@ team_lines as (
      select
          fixture_id,
          team_id,
 -        shots_total,
 -        shots_on_goal
-+        shots,
-+        shots_on_target
++        coalesce(
++            (
++                select coalesce(c.provider_value, 0)
++                from unnest(stat_corrections) as c
++                where c.stat = 'shots'
++            ),
++            shots
++        ) as shots,
++        coalesce(
++            (
++                select coalesce(c.provider_value, 0)
++                from unnest(stat_corrections) as c
++                where c.stat = 'shots_on_target'
++            ),
++            shots_on_target
++        ) as shots_on_target
      from {{ ref('base_apif__fixture_statistics') }}
  ),
  
-@@ -133,8 +133,8 @@ rows_in_context as (
+@@ -133,8 +147,8 @@ rows_in_context as (
          coalesce(oe.own_goals, 0) as opponent_own_goals,
          coalesce(oe.penalty_goal_events, 0) as opponent_penalty_goal_events,
          coalesce(oe.missed_penalty_events, 0) as opponent_missed_penalty_events,
@@ -6666,6 +6724,8 @@ index 9e4bb9dd..88bec450 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   docs/tracker/gitlab_snapshot.md | 330 ++++++++++++++++++++++++++--------------
-#    1 file changed, 215 insertions(+), 115 deletions(-)
+#   .claude/task/review.md          |   50 +-
+#    .claude/task/review_input.patch | 6991 +++++++++++++++++++++++++++++++++++++--
+#    docs/tracker/gitlab_snapshot.md |  330 +-
+#    3 files changed, 6883 insertions(+), 488 deletions(-)
 # ============================================================================
