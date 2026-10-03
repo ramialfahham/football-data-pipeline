@@ -12,9 +12,10 @@
   and a recent_meetings array. No derived performance ratios.
 
   W/D/L are match RESULTS tallied over the pair, not metrics, and stay out of the
-  catalogue for that reason. `goals_for` / `goals_against` ARE catalogue metrics —
-  sum(goals_for) below is the catalogue's own formula, run over the head-to-head
-  window instead of a season, and a different window is not a different metric.
+  catalogue for that reason. `goals` / `goals_against` ARE catalogue metrics (goals is
+  handed to the site as goals_for) — the sums below are the catalogue's own formulas, run
+  over the head-to-head window instead of a season, and a different window is not a
+  different metric.
   What stays out is a ratio invented for this mart alone
   (see feedback_metric_catalogue_governance).
 
@@ -32,7 +33,7 @@ with legs as (
         fixture_sk,
         league_code,
         kickoff_datetime,
-        goals_for,
+        goals as goals_for,
         goals_against,
         result
     from {{ ref('int_legs__team_match') }}

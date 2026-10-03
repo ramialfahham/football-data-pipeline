@@ -110,20 +110,20 @@ models:
         description: "Games that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate compares against this rather than games played, so an awarded match is not read as missing data and does not blank the statistics."
       - name: games_with_team_stats
         description: "{{ doc('games_with_team_stats__season') }}"
-      - name: points_won_sum_season
-        description: "{{ doc('points_won_sum_season__team') }}"
+      - name: points_won
+        description: "{{ doc('points_won') }}"
       - name: wins_sum_season
         description: "{{ doc('wins_sum_season') }}"
       - name: draws_sum_season
         description: "{{ doc('draws_sum_season') }}"
       - name: losses_sum_season
         description: "{{ doc('losses_sum_season') }}"
-      - name: clean_sheets_sum_season
-        description: "{{ doc('clean_sheets_sum_season__team') }}"
-      - name: goals_for_sum_season
-        description: "{{ doc('goals_for_sum_season') }}"
-      - name: goals_against_sum_season
-        description: "{{ doc('goals_against_sum_season__team') }}"
+      - name: clean_sheets
+        description: "{{ doc('clean_sheets') }}"
+      - name: goals
+        description: "{{ doc('goals') }}"
+      - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
@@ -134,20 +134,20 @@ models:
         description: "{{ doc('total_shots_sum_season') }}"
       - name: opponent_total_shots_sum_season
         description: "{{ doc('opponent_total_shots_sum_season') }}"
-      - name: shots_inside_box_sum_season
-        description: "{{ doc('shots_inside_box_sum_season') }}"
+      - name: shots_inside_box
+        description: "{{ doc('shots_inside_box') }}"
       - name: shots_on_goal_sum_season
         description: "{{ doc('shots_on_goal_sum_season') }}"
-      - name: corner_kicks_sum_season
-        description: "{{ doc('corner_kicks_sum_season') }}"
+      - name: corners
+        description: "{{ doc('corners') }}"
       - name: opponent_corner_kicks_sum_season
         description: "{{ doc('opponent_corner_kicks_sum_season') }}"
       - name: passes_accurate_sum_season
         description: "{{ doc('passes_accurate_sum_season') }}"
       - name: passes_total_sum_season
         description: "{{ doc('passes_total_sum_season') }}"
-      - name: goalkeeper_saves_sum_season
-        description: "{{ doc('goalkeeper_saves_sum_season') }}"
+      - name: saves
+        description: "{{ doc('saves') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow') }}"
       - name: cards_red
@@ -204,11 +204,12 @@ models:
       A team's season metrics as they stood after EVERY matchday, not only at the end. Grain:
       (team_sk, league_code, season_api_year, match_number). All competitions.
 
-      THE SINGLE HOME of the team-season rate formulas: the whole-season model is this model's
-      final row, byte-identical, so the two can never drift apart.
+      THE SINGLE HOME of the team-season metrics, each its catalogue formula written by
+      scripts/generate_metric_sql.py over the season's matches through this matchday. The
+      whole-season model is this model's final row, so the two can never drift apart.
 
-      The `_sum_season` and `season_games_played` names are inherited from that projection to keep
-      it byte-identical; here they mean "cumulative through this matchday", not "for the season".
+      The `_sum_season` and `season_games_played` names are kept for that projection; here they
+      mean "cumulative through this matchday", not "for the season".
     config:
       tags: ["intermediate", "football", "team_season"]
     tests:
@@ -284,20 +285,20 @@ models:
         description: "Games that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate compares against this rather than games played, so an awarded match is not read as missing data and does not blank the statistics."
       - name: games_with_team_stats
         description: "{{ doc('games_with_team_stats__season') }}"
-      - name: points_won_sum_season
-        description: "{{ doc('points_won_sum_season__team') }}"
+      - name: points_won
+        description: "{{ doc('points_won') }}"
       - name: wins_sum_season
         description: "{{ doc('wins_sum_season') }}"
       - name: draws_sum_season
         description: "{{ doc('draws_sum_season') }}"
       - name: losses_sum_season
         description: "{{ doc('losses_sum_season') }}"
-      - name: clean_sheets_sum_season
-        description: "{{ doc('clean_sheets_sum_season__team') }}"
-      - name: goals_for_sum_season
-        description: "{{ doc('goals_for_sum_season') }}"
-      - name: goals_against_sum_season
-        description: "{{ doc('goals_against_sum_season__team') }}"
+      - name: clean_sheets
+        description: "{{ doc('clean_sheets') }}"
+      - name: goals
+        description: "{{ doc('goals') }}"
+      - name: goals_against
+        description: "{{ doc('goals_against') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
@@ -308,20 +309,20 @@ models:
         description: "{{ doc('total_shots_sum_season') }}"
       - name: opponent_total_shots_sum_season
         description: "{{ doc('opponent_total_shots_sum_season') }}"
-      - name: shots_inside_box_sum_season
-        description: "{{ doc('shots_inside_box_sum_season') }}"
+      - name: shots_inside_box
+        description: "{{ doc('shots_inside_box') }}"
       - name: shots_on_goal_sum_season
         description: "{{ doc('shots_on_goal_sum_season') }}"
-      - name: corner_kicks_sum_season
-        description: "{{ doc('corner_kicks_sum_season') }}"
+      - name: corners
+        description: "{{ doc('corners') }}"
       - name: opponent_corner_kicks_sum_season
         description: "{{ doc('opponent_corner_kicks_sum_season') }}"
       - name: passes_accurate_sum_season
         description: "{{ doc('passes_accurate_sum_season') }}"
       - name: passes_total_sum_season
         description: "{{ doc('passes_total_sum_season') }}"
-      - name: goalkeeper_saves_sum_season
-        description: "{{ doc('goalkeeper_saves_sum_season') }}"
+      - name: saves
+        description: "{{ doc('saves') }}"
       - name: cards_yellow
         description: "{{ doc('cards_yellow') }}"
       - name: cards_red
@@ -520,9 +521,9 @@ models:
       - name: actual_rank
         description: "League table rank (standing_rank from int_team_season__standings_primary) — the actual position."
       - name: points_won_sum_season
-        description: "{{ doc('points_won_sum_season__team') }} In this model it is the ACTUAL side of the deserved-versus-actual comparison."
+        description: "The points from the team's played matches in the season, a forfeit left out: the ACTUAL side of the deserved-versus-actual comparison."
       - name: season_games_played
-        description: "Finished games in the season; scales the fitted rate into a points total and bounds the legal-range test."
+        description: "Played matches in the season, a forfeit left out; scales the fitted rate into a points total and bounds the legal-range test."
       - name: deserved_points
         description: "{{ doc('deserved_points') }}"
       - name: actual_table_is_single_ladder

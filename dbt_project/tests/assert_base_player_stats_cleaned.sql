@@ -118,8 +118,8 @@ team_lines as (
     select
         fixture_id,
         team_id,
-        shots_total,
-        shots_on_goal
+        shots,
+        shots_on_target
     from {{ ref('base_apif__fixture_statistics') }}
 ),
 
@@ -133,8 +133,8 @@ rows_in_context as (
         coalesce(oe.own_goals, 0) as opponent_own_goals,
         coalesce(oe.penalty_goal_events, 0) as opponent_penalty_goal_events,
         coalesce(oe.missed_penalty_events, 0) as opponent_missed_penalty_events,
-        ol.shots_total as opponent_shots,
-        ol.shots_on_goal as opponent_shots_on_target,
+        ol.shots as opponent_shots,
+        ol.shots_on_target as opponent_shots_on_target,
         {% for stat in stats %}
         countif(d.{{ stat }} is not null) over fixture as {{ stat }}_values_in_match,
         {% endfor %}

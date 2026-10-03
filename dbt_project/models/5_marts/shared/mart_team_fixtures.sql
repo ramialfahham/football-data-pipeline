@@ -47,7 +47,7 @@ legs as (
     select
         team_sk,
         fixture_sk,
-        goals_for,
+        goals,
         goals_against,
         result
     from {{ ref('int_legs__team_match') }}
@@ -93,7 +93,7 @@ joined as (
         s.opponent_team_sk,
         t.team_name as opponent_name,
         t.team_logo_url as opponent_logo_url,
-        l.goals_for,
+        l.goals as goals_for,
         l.goals_against,
         l.result,
         -- has_result = a tested result leg exists (int_legs requires FT/AET/PEN with

@@ -616,7 +616,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_team_stats
-    description: "Per-team, per-fixture statistics. Grain: (fixture_sk, team_sk). Sources from unified base_apif__fixture_statistics; staging pivots API lines to typed columns."
+    description: "Per-team, per-fixture statistics, cleaned in base_apif__fixture_statistics: one row per team with a statistics line and per team of every finished match (all stats blank where the provider sent no line). Grain: (fixture_sk, team_sk)."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -657,11 +657,11 @@ models:
         description: "{{ doc('fixture_api_id') }}"
       - name: team_api_id
         description: "{{ doc('team_api_id') }}"
-      - name: shots_on_goal
+      - name: shots_on_target
         description: "{{ doc('shots_on_goal_player') }}"
-      - name: shots_off_goal
+      - name: shots_off_target
         description: "{{ doc('shots_off_goal') }}"
-      - name: shots_total
+      - name: shots
         description: "{{ doc('shots_player') }}"
       - name: shots_blocked
         description: "{{ doc('shots_blocked') }}"
@@ -671,24 +671,26 @@ models:
         description: "{{ doc('shots_outside_box') }}"
       - name: fouls
         description: "{{ doc('fouls') }}"
-      - name: corner_kicks
+      - name: corners
         description: "{{ doc('corners') }}"
       - name: offsides
         description: "{{ doc('offsides_player') }}"
-      - name: ball_possession_percent
+      - name: possession_pct
         description: "{{ doc('ball_possession_percent') }}"
-      - name: yellow_cards
+      - name: cards_yellow
         description: "{{ doc('yellow_cards') }}"
-      - name: red_cards
+      - name: cards_red
         description: "{{ doc('red_cards') }}"
-      - name: goalkeeper_saves
+      - name: saves
         description: "{{ doc('saves') }}"
-      - name: passes_total
+      - name: passes
         description: "{{ doc('passes_player') }}"
       - name: passes_accurate
         description: "{{ doc('passes_accurate_player') }}"
-      - name: passes_accuracy_percent
-        description: "{{ doc('passes_accuracy_percent') }}"
+      - name: goals_penalty
+        description: "{{ doc('goals_penalty') }}"
+      - name: goals_own
+        description: "{{ doc('goals_own') }}"
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

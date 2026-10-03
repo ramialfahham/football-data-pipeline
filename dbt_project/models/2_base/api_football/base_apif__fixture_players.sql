@@ -278,9 +278,9 @@ team_lines as (
     select
         fixture_id,
         team_id,
-        shots_total as shots,
-        shots_on_goal as shots_on_target,
-        goalkeeper_saves as saves,
+        shots,
+        shots_on_target,
+        saves,
         offsides
     from {{ ref('base_apif__fixture_statistics') }}
 ),

@@ -1,18 +1,16 @@
 {#
-  W2 season-record builder — team. Cumulative running totals over a team's finished
-  matches within one competition+season, one row per match played (the totals THROUGH
-  that match). The complement to int_team_momentum__metrics (W1 = last 5): this answers
-  "what have they done in this competition this season?".
-
-  The whole-season rollup int_team_season__metrics is the FINAL ROW of this model (one
-  season aggregation, not two — #500 PR1), so this carries league_sk / season_sk and the
-  cumulative opponent_shots_total it needs.
+  W2 season-record window — team. The rows of a team's season in one competition: one row per
+  finished match, with that match's inputs (the team-match leg and the team totals from players)
+  and its place in the season. The window is hand-written here; int_team_season__metrics_cumulative
+  applies the catalogue formulas to it at every matchday (the totals THROUGH each match), and
+  int_team_season__metrics is the final matchday. The complement to the form window
+  (int_team_momentum_window): this answers "what have they done in this competition this season?".
 
   Grain: (team_sk, league_code, season_api_year, fixture_sk).
 
   Ordered by kickoff. Carries round_order (the matchday number parsed from round_name)
-  and match_number (the team's Nth match that season) so the deferred year-over-year
-  surface can align two seasons by matchday without a rewrite.
+  and match_number (the team's Nth match that season) so the year-over-year surface can align two
+  seasons by matchday.
 
   Season-bounded: partitioned by (league_code, season_api_year). This covers clubs and
   single-season tournaments (WC/continental — the latest row is "all matches so far in
@@ -20,11 +18,6 @@
   a whole campaign with a single season_api_year even though its matches span 2–3 calendar
   years (e.g. WCQEU = season 2024, matches 2025-03→2026-03), so this partition already
   cumulates the full campaign — matching the momentum qualifiers window (§4 / #655).
-
-  Coverage rule (same as #320): per-match team stats are sparse in some competitions, so
-  the builder carries cumulative per-input coverage counts and coverage-restricted
-  cumulative scoreline sums; the mart divides each metric over the matching window and
-  yields NULL where no covered game exists. Raw sums only — ratios live in the mart.
 #}
 
 with team_legs as (
@@ -33,164 +26,51 @@ with team_legs as (
 
 player_legs as (
     select * from {{ ref('int_legs__team_from_players') }}
-),
-
--- One row per (team, finished match) with points + player-derived team stats attached
-legs as (
-    select
-        tl.fixture_sk,
-        tl.team_sk,
-        tl.league_code,
-        tl.season_api_year,
-        tl.league_sk,
-        tl.season_sk,
-        tl.entity_type,
-        tl.kickoff_datetime,
-        tl.round_order,
-        tl.goals_for,
-        tl.goals_against,
-        tl.goals_penalty,
-        tl.goals_own,
-        tl.goals_own_against,
-        tl.shots_total,
-        tl.shots_on_goal,
-        tl.shots_inside_box,
-        tl.passes_total,
-        tl.passes_accurate,
-        tl.corner_kicks,
-        tl.opponent_corner_kicks,
-        tl.opponent_shots_total,
-        tl.opponent_shots_on_goal,
-        tl.goalkeeper_saves,
-        tl.yellow_cards,
-        tl.red_cards,
-        pl.key_passes,
-        pl.tackles,
-        pl.interceptions,
-        pl.blocks,
-        pl.duels_total,
-        pl.duels_won,
-        tl.result,
-        tl.is_awarded_result,
-        case tl.result when 'W' then 3 when 'D' then 1 else 0 end as points,
-        pl.fixture_sk is not null as has_player_stats
-    from team_legs as tl
-    left join player_legs as pl
-        on
-            tl.fixture_sk = pl.fixture_sk
-            and tl.team_sk = pl.team_sk
 )
 
 select
-    team_sk,
-    league_sk,
-    season_sk,
-    league_code,
-    season_api_year,
-    fixture_sk,
-    entity_type,
-    kickoff_datetime,
-    round_order,
+    tl.team_sk,
+    tl.league_sk,
+    tl.season_sk,
+    tl.league_code,
+    tl.season_api_year,
+    tl.fixture_sk,
+    tl.entity_type,
+    tl.kickoff_datetime,
+    tl.round_order,
+    tl.result,
+    tl.is_awarded_result,
+    tl.goals,
+    tl.goals_against,
+    tl.goals_penalty,
+    tl.goals_own,
+    tl.goals_own_against,
+    tl.shots,
+    tl.shots_on_target,
+    tl.shots_inside_box,
+    tl.passes,
+    tl.passes_accurate,
+    tl.corners,
+    tl.corners_against,
+    tl.shots_against,
+    tl.shots_on_target_against,
+    tl.saves,
+    tl.cards_yellow,
+    tl.cards_red,
+    pl.passes_key,
+    pl.tackles,
+    pl.interceptions,
+    pl.blocks,
+    pl.duels,
+    pl.duels_won,
     'season_to_date' as window_type,
-    row_number() over w_seq as match_number,
-    row_number() over w_seq as games_played,
-    -- scoreline (always present)
-    sum(points) over w as points_won,
-    sum(case when result = 'W' then 1 else 0 end) over w as wins,
-    sum(case when result = 'D' then 1 else 0 end) over w as draws,
-    sum(case when result = 'L' then 1 else 0 end) over w as losses,
-    sum(goals_for) over w as goals_for,
-    sum(goals_against) over w as goals_against,
-    sum(case when goals_against = 0 then 1 else 0 end) over w as clean_sheet_games,
-    -- THE DENOMINATOR THE COVERAGE GATES COMPARE AGAINST, and it is deliberately not games_played.
-    -- An awarded result (AWD / WO) is decided off the pitch, so it has no stat line and never will.
-    -- Gating on games_played would read that as a coverage gap and NULL every rate for the whole
-    -- season: measured on prod before this existed, Toulouse and FC Nantes (L1 2025) sat at
-    -- 33 played / 33 with stats, and adding their awarded match would have nulled both — which
-    -- cascades, since int_team_season__deserved_vs_actual withholds a league-season unless EVERY
-    -- team has a computable SoT figure. Ligue 1 2025's whole deserved read, from one fixture.
-    sum(case when is_awarded_result then 0 else 1 end) over w as games_expecting_team_stats,
-    -- team-stat coverage (cumulative): the provider's stat line arrives in pieces, so every
-    -- input a rate reads has its own count and the rate is gated on each of them
-    -- (engineering_standards.md section 3.2) - never on a proxy for another column
-    sum(case when shots_total is not null then 1 else 0 end) over w
-        as games_with_team_stats,
-    sum(case when shots_on_goal is not null then 1 else 0 end) over w
-        as games_with_sot_stats,
-    sum(case when shots_inside_box is not null then 1 else 0 end) over w
-        as games_with_inside_box_stats,
-    sum(case when passes_total is not null then 1 else 0 end) over w
-        as games_with_passes_total_stats,
-    sum(case when passes_accurate is not null then 1 else 0 end) over w
-        as games_with_passes_accurate_stats,
-    sum(case when corner_kicks is not null then 1 else 0 end) over w
-        as games_with_corner_stats,
-    sum(case when opponent_corner_kicks is not null then 1 else 0 end) over w
-        as games_with_opp_stats,
-    sum(case when opponent_shots_total is not null then 1 else 0 end) over w
-        as games_with_opp_shots_stats,
-    -- opponent shots-on-target coverage (cumulative), for
-    -- shots_on_goal_difference_per_match / shots_on_goal_against_per_match:
-    -- need their own opponent-SoT count, distinct from games_with_opp_stats (keyed on corners)
-    sum(case when opponent_shots_on_goal is not null then 1 else 0 end) over w
-        as games_with_opp_sot_stats,
-    -- save coverage (cumulative): saves_pct is a team-feed (goalkeeper) metric, so it needs its
-    -- own coverage count to NULL on partial coverage (universal incomplete-data rule)
-    sum(case when goalkeeper_saves is not null then 1 else 0 end) over w
-        as games_with_save_stats,
-    -- card coverage (cumulative): one count for both colours, since the leg reads them from the
-    -- same stat line and a blank on a present line is already a zero there
-    sum(case when yellow_cards is not null then 1 else 0 end) over w
-        as games_with_card_stats,
-    -- open-play goal components: goals_open_play = goals_for − goals_penalty
-    -- − goals_own (computed in the mart). Full cumulative sums, for display.
-    sum(goals_penalty) over w as goals_penalty,
-    sum(goals_own) over w as goals_own,
-    -- ⛔ COVERAGE-RESTRICTED OPEN-PLAY GOALS, REQUIRED because an awarded result (AWD/WO) is a leg
-    -- too: its GOALS are real and land in the full sums above, but it has no shots-on-target, so a
-    -- finishing ratio built from the full goal sum over the SoT-covered shot sum counts goals from
-    -- a match the denominator can never see — a 3-0 technical win adds three goals against zero
-    -- shots. "Finishing is NULL unless the window is fully shot-covered" is not enough on its own.
-    -- Restricting the numerator to the games the denominator covers is the same-window pattern this
-    -- model already applies to saves_pct via goals_against_in_save_games.
-    sum(if(shots_on_goal is not null, goals_for - goals_penalty - goals_own, null)) over w
-        as goals_open_play_in_sot_games,
-    -- coverage-restricted scoreline sum keeps saves_pct same-window with its denominator
-    sum(if(goalkeeper_saves is not null, goals_against, null)) over w
-        as goals_against_in_save_games,
-    -- the own goals among them: conceded, but never a shot on target the keeper faced
-    sum(if(goalkeeper_saves is not null, goals_own_against, null)) over w
-        as goals_own_against_in_save_games,
-    -- team stats (cumulative)
-    sum(shots_total) over w as shots_total,
-    sum(shots_on_goal) over w as shots_on_goal,
-    sum(shots_inside_box) over w as shots_inside_box,
-    sum(passes_total) over w as passes_total,
-    sum(passes_accurate) over w as passes_accurate,
-    sum(corner_kicks) over w as corner_kicks,
-    sum(opponent_corner_kicks) over w as opponent_corner_kicks,
-    sum(opponent_shots_total) over w as opponent_shots_total,
-    sum(opponent_shots_on_goal) over w as opponent_shots_on_goal,
-    sum(goalkeeper_saves) over w as goalkeeper_saves,
-    sum(yellow_cards) over w as yellow_cards,
-    sum(red_cards) over w as red_cards,
-    -- player-derived team stats (cumulative; inherit player-stat coverage gaps)
-    sum(case when has_player_stats then 1 else 0 end) over w
-        as games_with_player_stats,
-    sum(key_passes) over w as key_passes,
-    sum(tackles) over w as tackles,
-    sum(interceptions) over w as interceptions,
-    sum(blocks) over w as blocks,
-    sum(duels_total) over w as duels_total,
-    sum(duels_won) over w as duels_won
-from legs
-window
-    w as (
-        partition by team_sk, league_code, season_api_year
-        order by kickoff_datetime asc, fixture_sk asc
-        rows between unbounded preceding and current row
-    ),
-    w_seq as (
-        partition by team_sk, league_code, season_api_year
-        order by kickoff_datetime asc, fixture_sk asc
-    )
+    row_number() over (
+        partition by tl.team_sk, tl.league_code, tl.season_api_year
+        order by tl.kickoff_datetime asc, tl.fixture_sk asc
+    ) as match_number,
+    pl.fixture_sk is not null as has_player_stats
+from team_legs as tl
+left join player_legs as pl
+    on
+        tl.fixture_sk = pl.fixture_sk
+        and tl.team_sk = pl.team_sk

@@ -7,8 +7,9 @@
     - numerator = scorer_points_player (goals + assists), its catalogue formula over the player's matches
       for the club that competition-season, written by scripts/generate_metric_sql.py; NULL when a match
       lacks an input or the club has a match with no player data at all.
-    - denominator = team_goals_season = the club's goals_for over ALL its matches that competition-season (the
-      authoritative scoreline), NOT just the matches the player appeared in.
+    - denominator = team_goals_season = the club's goals over ALL its played matches that competition-season
+      (the authoritative scoreline; a forfeit's goals, which no player scored, are left out), NOT just the
+      matches the player appeared in.
     - contribution_player_pct = scorer_points_player / team_goals_season. Range [0, 1] (a player's G+A over his
       appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
 
@@ -38,7 +39,7 @@ team_legs as (
         league_code,
         season_api_year,
         fixture_sk,
-        goals_for,
+        goals,
         is_awarded_result
     from {{ ref('int_legs__team_match') }}
 ),
@@ -88,12 +89,12 @@ involvements as (
     group by player_sk, team_sk, season_sk
 ),
 
--- Denominator: the club's whole-season goals_for (all its matches that competition-season).
+-- Denominator: the club's whole-season goals (all its played matches that competition-season).
 team_goals as (
     select
         team_sk,
         season_sk,
-        sum(goals_for) as team_goals_season
+        sum(if(is_awarded_result, null, goals)) as team_goals_season
     from team_legs
     group by team_sk, season_sk
 )

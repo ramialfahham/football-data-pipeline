@@ -31,11 +31,16 @@ events or the team's own statistics line prove the zero — and missing otherwis
 no player data at all makes every player metric of that team NULL for any window that contains it.
 That cleaning is done once, in `base_apif__fixture_players`, together with the pass-accuracy format,
 the player goals reconciled to the score and the match-stat corrections; the issue that ruled them
-states each rule. A blank **team** stat means we do not know, so it is not available.
+states each rule. A blank **team** stat is a zero only where the other team's line has a value for
+it, the match events prove no card, or the opponent had no shot on target; penalty and own goals
+come from the team's goal events only where they add up to its score. That cleaning, with the
+match-stat corrections, is done once in `base_apif__fixture_statistics`, which holds a row for every
+team of every finished match. A team total summed from players is blank where any player's value is.
 
-A forfeit or walkover (`AWD`/`WO`) is the one thing that does not count against a season's coverage:
-the match was never played, so there are no statistics to be missing. `games_expecting_team_stats`
-is the team-side match count that leaves them out.
+A forfeit or walkover (`AWD`/`WO`) counts only where the league table counts it: in `points_won`,
+`goals` and `goals_against`. Every other metric leaves it out of numerator and denominator, so it
+never counts against a window's coverage either: the match was never played, so there are no
+statistics to be missing. `games_expecting_team_stats` is the team-side count of played matches.
 
 ## How the layer works
 
@@ -57,27 +62,29 @@ document, seed or component spells a group's name or order on its own. Three che
 `assert_metric_group_order_is_one_per_group` in the warehouse, `tests/test_metric_groups.py` on
 the committed export, and `site_v2/scripts/check-metric-labels.test.mjs` on the copy.
 
-**Player metrics are generated from the seed.** `scripts/generate_metric_sql.py` writes every player
-surface's metric SQL between two marker lines in the model: each metric is its catalogue formula
-over the rows of that surface's own window of `int_legs__player_match`, NULL unless the window is
-complete and every row has its input. The window — which matches, and whether one of them lacks
-player data — is hand-written in the model; the formula never is. A ratio is always computed from
-the window's rows, never composed from pre-summed parts. The player surfaces are listed in the
-script.
+**Metrics are generated from the seed.** `scripts/generate_metric_sql.py` writes every surface's
+metric SQL between two marker lines in the model: each metric is its catalogue formula over the rows
+of that surface's own window — of `int_legs__player_match` for a player, of `int_legs__team_match`
+with `int_legs__team_from_players` for a team — NULL unless every row it counts has its input (and,
+for a player, the window holds no team match without player data). On a team surface a forfeit
+counts only in `points_won`, `goals` and `goals_against`. The window — which matches, and the flags
+a row carries — is hand-written in the model; the formula never is. A ratio is always computed from
+the window's rows, never composed from pre-summed parts. The surfaces are listed in the script.
 
 | grain | model |
 |---|---|
 | player, per club-season | `int_player_club_season__metrics` |
 | player, per competition-season | `int_player_season__metrics` |
-| team, per season | `int_team_season__metrics` (formulas written in the model) |
+| team, per season, at every matchday | `int_team_season__metrics_cumulative` (`int_team_season__metrics` is its last matchday) |
+| team, form window | `int_team_momentum__metrics` |
 
 ## Adding or changing a metric
 
 1. Add the `metric_catalogue.csv` row. `description`, `direction` and `interpretation` are required —
    a row without them fails a guard, not a review.
-2. A player metric: add it to the surface's list in `scripts/generate_metric_sql.py` and run
+2. Add it to the surface's list in `scripts/generate_metric_sql.py` and run
    `python scripts/generate_metric_sql.py`; the pytest in `test:python` fails when a model and the
-   catalogue differ. A team metric: add the computation to the canonical model for its grain.
+   catalogue differ.
 3. Run `python scripts/sync_metric_docs_blocks.py` and commit the result.
    `models/docs/metric_columns.md` is **generated** from the seed; hand-editing it fails CI
    (`--check` runs in `validate:governance`).
@@ -100,7 +107,13 @@ script.
 | `assert_base_player_stats_cleaned` | a cleaned player row breaks a cleaning rule: a blank the provider counted, a part above its whole, goals that miss the score where a source adds up |
 | `assert_player_match_cleaning_answer_key` | the cleaning returns anything but the hand-worked value of a real case |
 | `assert_player_stat_corrections_within_limit` | a competition-season's share of corrected or blanked player rows exceeds the limit |
-| `tests/test_generate_metric_sql.py` | the generated player metric SQL differs from what the catalogue generates |
+| `assert_team_metrics_follow_catalogue_formula` | a team surface's value differs from its catalogue formula recomputed from the legs over the same window, a forfeit counted only where the rule counts it |
+| `assert_base_team_stats_cleaned` | a cleaned team line breaks a cleaning rule: a blank the rule fills, a goal split the events do not prove, a part above its whole, a contradiction left in place, a team of a finished match without a row |
+| `assert_team_match_cleaning_answer_key` | the team cleaning returns anything but the hand-worked value of a real case |
+| `assert_team_stat_corrections_within_limit` | a competition-season's share of corrected or blanked team lines exceeds the limit |
+| `assert_team_form_window_follows_the_rule` | an upcoming side's form window or season record holds other matches than `docs/metrics_context_model.md` §4 names |
+| `assert_team_yoy_pairs_the_same_games_played` | the year-over-year comparison pairs a season with anything but the previous season's first N matches |
+| `tests/test_generate_metric_sql.py` | the generated metric SQL differs from what the catalogue generates |
 
 Plus the standard model tests: ratios asserted in 0–1, `not_null` and `relationships` on keys,
 `unique` on the grain.
@@ -132,6 +145,6 @@ reconciliation test guards the pair rather than one replacing the other.
 
 ## What this is NOT
 
-There is no metric engine at run time. The catalogue defines each metric; for players a script writes
-the formula into the models as plain SQL, and a test recomputes every player metric from the legs
-to prove the models return it.
+There is no metric engine at run time. The catalogue defines each metric; a script writes the formula
+into the models as plain SQL, and a test per entity recomputes every metric from the legs to prove
+the models return it.

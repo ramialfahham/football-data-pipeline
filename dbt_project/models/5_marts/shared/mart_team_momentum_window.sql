@@ -63,7 +63,7 @@ select
     wl.leg_kickoff_datetime as played_kickoff_datetime,
     wl.leg_round_name as played_round_name,
     wl.home_away,
-    wl.goals_for,
+    wl.goals as goals_for,
     wl.goals_against,
     wl.result,
     wl.opponent_team_sk,

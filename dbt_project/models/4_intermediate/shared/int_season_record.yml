@@ -3,13 +3,11 @@ version: 2
 models:
   - name: int_team_season_record
     description: >
-      A team's season totals as they stood after each of its matches — cumulative running totals
-      within one competition-season, one row per team-match. The season-long counterpart to
-      int_team_momentum__metrics, which does the same over a recent-form window.
+      The rows of a team's season in one competition: one row per team-match, with that match's
+      inputs (the team-match leg and the team totals from players) and its place in the season.
+      int_team_season__metrics_cumulative applies the catalogue formulas to them at every
+      matchday; the season-long counterpart to the form window int_team_momentum_window.
       Grain: (team_sk, league_code, season_api_year, fixture_sk).
-
-      Raw sums only; ratios are derived from these one layer up. The whole-season rollup is this
-      model's final row, so the two cannot drift apart.
 
       Carries round_order and match_number so two seasons can be aligned by matchday.
     tests:
@@ -47,41 +45,6 @@ models:
           - not_null
           - accepted_values:
               values: ["season_to_date"]
-      - name: games_played
-        description: "Cumulative count of the team's finished matches through this one (1..N)."
-        tests: [not_null]
-      - name: games_expecting_team_stats
-        description: "Games in the season so far that COULD carry a team stat line — games played minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one. Every team-stat coverage gate divides against this rather than games played, so an awarded match is not read as missing data and does not blank the season's statistics."
-        # not_null because every coverage gate downstream reads `x < games_expecting_team_stats`, and
-        # a NULL there is not FALSE — the comparison yields NULL, the CASE falls to its ELSE, and an
-        # ungated rate is served instead of the honest NULL. A silent wrong number rather than a loud
-        # failure. It cannot be NULL today (a countif/sum over a CASE never is), so this guards a
-        # future change to how it is derived rather than a live defect.
-        tests: [not_null]
-      - name: games_with_team_stats
-        description: "Cumulative count of those matches with shots_total present — the coverage count of that one input, the gate of shots_per_match and one of the gates of shots_on_goal_pct, shots_inside_box_pct and shots_share_pct. The provider's stat line arrives in pieces, so it says nothing about passes, corners or shots inside the box; those inputs carry their own counts. Never NULL."
-        tests: [not_null]
-      - name: games_with_inside_box_stats
-        description: "Cumulative count of those matches with shots_inside_box present — one of the gates of shots_inside_box_pct. Never NULL."
-        tests: [not_null]
-      - name: games_with_passes_total_stats
-        description: "Cumulative count of those matches with passes_total present — the gate and denominator of passes_per_match and one of the gates of passes_accuracy_pct. Never NULL."
-        tests: [not_null]
-      - name: games_with_passes_accurate_stats
-        description: "Cumulative count of those matches with passes_accurate present — one of the gates of passes_accuracy_pct. Never NULL."
-        tests: [not_null]
-      - name: games_with_corner_stats
-        description: "Cumulative count of those matches with corner_kicks present — the gate and denominator of corners_per_match. Never NULL."
-        tests: [not_null]
-      - name: games_with_opp_shots_stats
-        description: "Cumulative count of those matches with opponent_shots_total present — one of the gates of shots_share_pct. Never NULL."
-        tests: [not_null]
-      - name: games_with_save_stats
-        description: "Cumulative count of those matches with goalkeeper_saves present — saves_pct's own coverage bucket, used to NULL saves_pct on partial coverage."
-        tests: [not_null]
-      - name: games_with_card_stats
-        description: "Cumulative count of those matches with a card figure present (one count for both colours, since the leg reads them from the same statistics line) — the gate of the season card totals cards_yellow and cards_red, which are NULL unless every non-awarded match is covered. Never NULL."
-        tests: [not_null]
       - name: round_order
         description: "{{ doc('round_order') }}"
       - name: match_number
@@ -101,79 +64,60 @@ models:
           - relationships:
               to: ref('dim_competition_season')
               field: season_sk
-      - name: opponent_shots_total
-        description: >
-          Cumulative shots taken by this team's OPPONENTS through this match — the denominator
-          half of a shot-share calculation.
       - name: kickoff_datetime
         description: "{{ doc('kickoff_datetime') }}"
-      - name: points_won
-        description: "{{ doc('points_won') }}"
-      - name: wins
-        description: "{{ doc('wins') }}"
-      - name: draws
-        description: "{{ doc('draws') }}"
-      - name: losses
-        description: "{{ doc('losses') }}"
-      - name: goals_for
-        description: "{{ doc('goals') }}"
+      - name: result
+        description: "{{ doc('result') }}"
+        tests: [not_null]
+      - name: is_awarded_result
+        description: "TRUE where the match was decided off the pitch — a technical loss or walkover."
+        tests: [not_null]
+      - name: goals
+        description: "Goals the team scored in this match: the scoreline."
       - name: goals_against
-        description: "{{ doc('goals_against') }}"
-      - name: clean_sheet_games
-        description: "Cumulative count of matches through this one where the team conceded zero goals — the numerator of clean_sheets_pct, growing as the season progresses. Scoreline-based, so never NULL: every leg carries a valid scoreline by construction."
-      - name: games_with_sot_stats
-        description: "Cumulative count of those matches with shots_on_goal present — the gate and denominator of shots_on_goal_per_match and one of the gates of shots_on_goal_pct, finishing_efficiency_pct and shots_on_goal_difference_per_match. Never NULL."
-        tests: [not_null]
-      - name: games_with_opp_stats
-        description: "Cumulative count of those matches with opponent_corner_kicks present — the gate and denominator of corners_against_per_match. Never NULL."
-        tests: [not_null]
-      - name: games_with_opp_sot_stats
-        description: "Cumulative count of those matches with opponent_shots_on_goal present — the gate and denominator of shots_on_goal_against_per_match and one of the gates of shots_on_goal_difference_per_match. Never NULL."
-        tests: [not_null]
+        description: "Goals the team conceded in this match: the scoreline."
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
         description: "{{ doc('goals_own') }}"
-      - name: goals_against_in_save_games
-        description: "Goals conceded summed only over the legs whose goalkeeper-save data exists, so saves_pct divides a numerator and denominator that cover the same games."
-      - name: goals_own_against_in_save_games
-        description: "The own goals among goals_against_in_save_games, over the same legs. saves_pct subtracts them: an own goal is conceded but is not a shot on target the keeper faced."
-      - name: goals_open_play_in_sot_games
-        description: "Open-play goals (goals minus penalties minus own goals) summed ONLY over the legs that have shots-on-target data, so finishing_efficiency_pct divides over the games its denominator can see. Required because awarded results (technical loss, walkover) count as played: their goals are real and enter the full goal sums, but they carry no shots-on-target, so a full-sum numerator would credit goals no shot could explain."
-      - name: shots_total
+      - name: goals_own_against
+        description: "The own goals the team conceded in this match."
+      - name: shots
         description: "{{ doc('shots_player') }}"
-      - name: shots_on_goal
+      - name: shots_on_target
         description: "{{ doc('shots_on_goal_player') }}"
       - name: shots_inside_box
         description: "{{ doc('shots_inside_box') }}"
-      - name: passes_total
+      - name: passes
         description: "{{ doc('passes_player') }}"
       - name: passes_accurate
         description: "{{ doc('passes_accurate_player') }}"
-      - name: corner_kicks
+      - name: corners
         description: "{{ doc('corners') }}"
-      - name: opponent_corner_kicks
-        description: "Cumulative corners the opponents won through this match, summed over the matches in games_with_opp_stats — the numerator of corners_against_per_match, growing as the season progresses. A match with no opponent-corners figure contributes nothing to the running sum."
-      - name: opponent_shots_on_goal
-        description: "Cumulative shots on target by the opponents through this match, summed over the matches in games_with_opp_sot_stats — one of the inputs of shots_on_goal_difference_per_match, growing as the season progresses. A match with no opponent shots-on-target figure contributes nothing to the running sum."
-      - name: goalkeeper_saves
+      - name: corners_against
+        description: "{{ doc('opponent_corner_kicks__leg') }}"
+      - name: shots_against
+        description: "Total shots by the opponent in this match."
+      - name: shots_on_target_against
+        description: "{{ doc('opponent_shots_on_goal__leg') }}"
+      - name: saves
         description: "{{ doc('saves') }}"
-      - name: yellow_cards
-        description: "{{ doc('cards_yellow') }}"
-      - name: red_cards
-        description: "{{ doc('cards_red') }}"
-      - name: games_with_player_stats
-        description: "Cumulative count of those matches with a row in int_legs__team_from_players — the gate and denominator of the player-derived rates (passes_key_per_match through duels_won_pct), which are NULL unless every non-awarded match is covered. Never NULL."
+      - name: cards_yellow
+        description: "{{ doc('yellow_cards__leg') }}"
+      - name: cards_red
+        description: "{{ doc('red_cards__leg') }}"
+      - name: has_player_stats
+        description: "TRUE where the match has a row in int_legs__team_from_players."
         tests: [not_null]
-      - name: key_passes
-        description: "Cumulative key passes by this team's players through this match, summed over the matches in games_with_player_stats — a match without player statistics contributes nothing to the running sum."
+      - name: passes_key
+        description: "Key passes by this team's players in this match (int_legs__team_from_players)."
       - name: tackles
-        description: "Cumulative tackles by this team's players through this match, summed over the matches in games_with_player_stats — a match without player statistics contributes nothing to the running sum."
+        description: "Tackles by this team's players in this match (int_legs__team_from_players)."
       - name: interceptions
-        description: "Cumulative interceptions by this team's players through this match, summed over the matches in games_with_player_stats — a match without player statistics contributes nothing to the running sum."
+        description: "Interceptions by this team's players in this match (int_legs__team_from_players)."
       - name: blocks
-        description: "Cumulative blocks by this team's players through this match, summed over the matches in games_with_player_stats — a match without player statistics contributes nothing to the running sum."
-      - name: duels_total
+        description: "Blocks by this team's players in this match (int_legs__team_from_players)."
+      - name: duels
         description: "{{ doc('duels_player') }}"
       - name: duels_won
         description: "{{ doc('duels_won_player') }}"

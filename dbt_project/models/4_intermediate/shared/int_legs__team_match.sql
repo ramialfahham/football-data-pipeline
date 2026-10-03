@@ -1,6 +1,6 @@
 {#
   Building-block team-match leg: one row per (team, finished match), carrying that team's
-  raw stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
+  cleaned stats AND the opponent's (so danger-zone-conceded etc. are derivable), plus the
   competition's type/entity classification and the dimensions windows need.
 
   "Finished" includes AWD (technical loss) and WO (walkover):
@@ -32,26 +32,6 @@ types as (
     select * from {{ ref('competition_types') }}
 ),
 
--- Penalty + own-goal counts per (fixture, team) from match events, for the open-play goal split
--- (open-play = goals minus penalties minus own goals credited).
--- event_detail: 'Penalty' = a scored penalty by this team; 'Own Goal' = an own goal credited to
--- this team: the provider files it under the team it counts for, not the team whose player put it
--- in. A shoot-out kick is no goal: the scoreline leaves the shoot-out out, and so do these counts.
--- The remaining goals ('Normal Goal') are open play. Only the components are event-derived;
--- goals_for stays the authoritative scoreline.
-events as (
-    select
-        fixture_sk,
-        team_sk,
-        countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goals,
-        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals_credited
-    from {{ ref('fct_fixture_event') }}
-    where
-        team_sk is not null
-        and event_comments is distinct from 'Penalty Shootout'
-    group by fixture_sk, team_sk
-),
-
 -- Each finished match as two team legs: the home side's perspective and the away side's.
 legs as (
     select
@@ -66,7 +46,7 @@ legs as (
         'home' as home_away,
         f.home_team_sk as team_sk,
         f.away_team_sk as opponent_team_sk,
-        f.goals_home as goals_for,
+        f.goals_home as goals,
         f.goals_away as goals_against,
         case
             when f.goals_home > f.goals_away then 'W'
@@ -96,7 +76,7 @@ legs as (
         'away' as home_away,
         f.away_team_sk as team_sk,
         f.home_team_sk as opponent_team_sk,
-        f.goals_away as goals_for,
+        f.goals_away as goals,
         f.goals_home as goals_against,
         case
             when f.goals_away > f.goals_home then 'W'
@@ -128,42 +108,34 @@ with_stats as (
         l.home_away,
         l.team_sk,
         l.opponent_team_sk,
-        l.goals_for,
+        l.goals,
         l.goals_against,
         l.result,
         l.is_awarded_result,
-        own.shots_on_goal,
-        own.shots_total,
+        own.shots_on_target,
+        own.shots,
         own.shots_inside_box,
-        own.corner_kicks,
-        own.passes_total,
+        own.corners,
+        own.passes,
         own.passes_accurate,
-        own.goalkeeper_saves,
-        opp.shots_on_goal as opponent_shots_on_goal,
-        opp.shots_total as opponent_shots_total,
-        opp.shots_inside_box as opponent_shots_inside_box,
-        opp.corner_kicks as opponent_corner_kicks,
-        -- the provider writes zero cards as a blank in a team's statistics line, so a blank card on
-        -- a row that HAS a stat line is 0; only a team with no stat row at all is unknown (NULL)
-        if(own.team_sk is not null, coalesce(own.yellow_cards, 0), null) as yellow_cards,
-        if(own.team_sk is not null, coalesce(own.red_cards, 0), null) as red_cards,
-        -- open-play goal split: goals_for stays the authoritative scoreline; this
-        -- team's penalties and the own goals credited to it are subtracted downstream to get
-        -- goals_open_play. Catalogued as goals_penalty / goals_own.
-        coalesce(ev.penalty_goals, 0) as goals_penalty,
-        coalesce(ev.own_goals_credited, 0) as goals_own,
-        -- own goals this team conceded: credited to the opponent, so they sit on its events. Part
-        -- of goals_against, but not a shot on target the keeper faced (saves_pct leaves them out).
-        coalesce(ev_opp.own_goals_credited, 0) as goals_own_against
+        own.saves,
+        opp.shots_on_target as shots_on_target_against,
+        opp.shots as shots_against,
+        opp.shots_inside_box as shots_inside_box_against,
+        opp.corners as corners_against,
+        own.cards_yellow,
+        own.cards_red,
+        -- the goal split, cleaned in base from the events; goals stays the scoreline
+        own.goals_penalty,
+        own.goals_own,
+        -- own goals this team conceded: credited to the opponent, so they sit on its row. Part of
+        -- goals_against, but not a shot on target the keeper faced (saves_pct leaves them out).
+        opp.goals_own as goals_own_against
     from legs as l
     left join team_stats as own
         on l.fixture_sk = own.fixture_sk and l.team_sk = own.team_sk
     left join team_stats as opp
         on l.fixture_sk = opp.fixture_sk and l.opponent_team_sk = opp.team_sk
-    left join events as ev
-        on l.fixture_sk = ev.fixture_sk and l.team_sk = ev.team_sk
-    left join events as ev_opp
-        on l.fixture_sk = ev_opp.fixture_sk and l.opponent_team_sk = ev_opp.team_sk
 )
 
 select
