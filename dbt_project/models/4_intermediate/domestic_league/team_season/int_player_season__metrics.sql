@@ -7,9 +7,8 @@
   competition). team_sk = the club of the player's last finished match that competition-season.
 
   The window is the player's competition-season, at every club he played for in it. Every metric is its
-  catalogue formula over the window's leg rows, written by scripts/generate_metric_sql.py, and is NULL when
-  the window lacks an input: a player row with a blank the provider did not count, or a match of one of his
-  clubs with no player data at all. A ratio is never composed from pre-summed parts.
+  catalogue formula over the window's leg rows, written by scripts/generate_metric_sql.py by the rules in
+  models/docs/metric_rules.md.
 #}
 
 with legs as (

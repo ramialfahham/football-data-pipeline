@@ -98,8 +98,7 @@ models:
       over the window's legs; nothing is computed here.
 
       league_rank is deliberately absent — a table position comes from the standings surface, not
-      from a form window. Player-derived metrics (passes_key_per_match through duels_won_pct) are
-      NULL when the window has no player stats.
+      from a form window.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk]
@@ -192,9 +191,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
-        description: >
-          Which form window this row's values were computed over: last_5 by default, or
-          tournament_to_date / qualifiers on a tournament fixture.
+        description: "{{ doc('window_type__form') }}"
         tests:
           - not_null
           - accepted_values:
@@ -216,7 +213,7 @@ models:
       - name: contributing_competitions
         description: "{{ doc('contributing_competitions') }}"
       - name: games_with_player_stats
-        description: "Window legs with a row in int_legs__team_from_players — the gate and denominator of the player-derived rates (passes_key_per_match through duels_won_pct), which are NULL unless every non-awarded leg is covered. Never NULL."
+        description: "Window legs with a row in int_legs__team_from_players. Never NULL."
         tests: [not_null]
       - name: points_won
         description: "{{ doc('points_won') }}"
@@ -267,8 +264,8 @@ models:
       as mart_team_momentum. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
       Every metric, counts and ratios alike, passes through from int_player_momentum__metrics,
-      which computes each from its metric_catalogue formula over the window and makes it NULL when
-      a window leg lacks an input. Goals, assists and shots on target keep the keys the export reads
+      which computes each from its metric_catalogue formula over the window. Goals, assists and
+      shots on target keep the keys the export reads
       (goals_total, goals_assists, shots_on).
 
       saves_player_pct is only meaningful for goalkeepers (position_code = 'G').
@@ -329,9 +326,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
-        description: >
-          Which form window this row's values were computed over, carried from the builder: last_5
-          by default, or tournament_to_date / qualifiers on a tournament fixture.
+        description: "{{ doc('window_type__form') }}"
         tests:
           - not_null
           - accepted_values:
@@ -339,16 +334,16 @@ models:
       - name: games_in_window
         description: "The player's appearance count within the side's window (0..5 for last_5, uncapped for tournament windows). NULL when a leg's minutes are unknown or a window leg has no player data at all."
       - name: position_code
-        description: "Player position code (e.g. G, D, M, F). Used to scope saves_player_pct to goalkeepers."
+        description: "Player position code (e.g. G, D, M, F)."
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: goals_total
-        description: "This player's goals summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in; goals_player under the key the export reads. Penalties included, own goals excluded. NULL when a leg lacks the input or a window leg has no player data at all."
+        description: "{{ doc('goals_player') }} Here, summed over the side's form-window matches the player appeared in; goals_player under the key the export reads."
       - name: goals_assists
-        description: "This player's assists summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in."
+        description: "{{ doc('assists_player') }} Here, summed over the side's form-window matches the player appeared in; assists_player under the key the export reads."
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_on
@@ -432,10 +427,7 @@ models:
         description: "{{ doc('league_code') }} Here it is the UPCOMING fixture's competition; the past match's own competition is played_league_code."
         tests: [not_null]
       - name: window_type
-        description: >
-          Which form window this row belongs to: last_5 by default, or tournament_to_date /
-          qualifiers on a tournament fixture. Tournament windows are cumulative rather than capped,
-          so a side can have more than five rows.
+        description: "{{ doc('window_type__form') }} A tournament window is not capped, so a side can have more than five rows here."
         tests:
           - not_null
           - accepted_values:
@@ -708,9 +700,8 @@ models:
       Composed from dim_team, mart_team_season and the int_team_season__* / int_team_profile__*
       models. Those columns are selected unchanged, so their tests stay upstream.
 
-      DOMESTIC LEAGUES ONLY for the deserved-versus-actual and year-over-year columns: every
-      tournament row is NULL there, a within-group standing not being a comparable league
-      position. Year-over-year is also NULL without an ingested prior season.
+      DOMESTIC LEAGUES ONLY for the deserved-versus-actual columns: every tournament row is NULL
+      there, a within-group standing not being a comparable league position.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, season_sk]
@@ -898,19 +889,11 @@ models:
         description: "{{ doc('league_code') }}"
         tests: [not_null]
       - name: competition_type
-        description: "{{ doc('competition_type') }} The year-over-year columns are populated only for domestic_league."
+        description: "{{ doc('competition_type') }}"
       - name: points_delta_yoy
-        description: >
-          This season's points minus last season's, compared through the same number of games
-          played. Domestic leagues only; NULL when there is no prior season.
+        description: "{{ doc('points_won') }} Here, this season's minus the previous season's, both through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_per_match_delta_yoy
-        description: >
-          One example of the year-over-year rate columns: every rate metric carries a
-          _this_season, a _prev_season and a _delta_yoy, aligned by matchday so the two seasons
-          are compared over the same number of games.
-
-          From int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior
-          season or where coverage through that matchday is incomplete.
+        description: "{{ doc('goals_per_match_delta_yoy__team') }}"
       - name: deserved_rank
         description: "{{ doc('deserved_rank') }}"
       - name: deserved_points
@@ -960,7 +943,7 @@ models:
       - name: goal_diff
         description: "{{ doc('goal_diff') }}"
       - name: points
-        description: "{{ doc('points__team_season') }}"
+        description: "{{ doc('points_won') }} NULL when no standings rollup exists for the team-season."
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
@@ -1016,21 +999,21 @@ models:
       - name: yoy_games_played_cutoff
         description: "{{ doc('yoy_games_played_cutoff') }}"
       - name: points_this_season
-        description: "Points won this season through the same number of games as the year-over-year comparison, from int_team_profile__yoy. Domestic leagues only — NULL for every tournament row."
+        description: "{{ doc('points_won') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: points_prev_season
-        description: "Points won in the prior season through the same number of games as the current season, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
+        description: "{{ doc('points_won') }} Here, the previous season through the same games-played cutoff N."
       - name: goals_for_this_season
-        description: "Goals scored this season through the year-over-year games-played cutoff, from int_team_profile__yoy. Domestic leagues only — NULL for every tournament row."
+        description: "{{ doc('goals') }} Here, this season through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_for_prev_season
-        description: "Goals scored in the prior season through the same games-played cutoff, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
+        description: "{{ doc('goals') }} Here, the previous season through the same games-played cutoff N."
       - name: goals_for_delta_yoy
-        description: "goals_for_this_season minus goals_for_prev_season, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
+        description: "{{ doc('goals') }} Here, this season's minus the previous season's, both through the games-played cutoff N (yoy_games_played_cutoff)."
       - name: goals_against_this_season
-        description: "Goals conceded this season through the year-over-year games-played cutoff, from int_team_profile__yoy. Domestic leagues only — NULL for every tournament row."
+        description: "{{ doc('goals_against_this_season__team') }}"
       - name: goals_against_prev_season
-        description: "Goals conceded in the prior season through the same games-played cutoff, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
+        description: "{{ doc('goals_against_prev_season__team') }}"
       - name: goals_against_delta_yoy
-        description: "goals_against_this_season minus goals_against_prev_season, from int_team_profile__yoy. Domestic leagues only, and NULL where there is no prior season."
+        description: "{{ doc('goals_against_delta_yoy__team') }}"
       - name: goals_per_match_this_season
         description: "{{ doc('goals_per_match_this_season__team') }}"
       - name: goals_per_match_prev_season
@@ -1373,9 +1356,9 @@ models:
       - name: games_played
         description: "Cumulative matches this player has appeared in, in the fixture's own competition this season (or the previous season when window_type is prev_season), counted through the player's most recent appearance in that season."
       - name: goals_total
-        description: "This player's cumulative goals in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs; goals_player under the key the export reads. Penalties included, own goals excluded. NULL when a match lacks the input or a team match up to it has no player data at all."
+        description: "{{ doc('goals_player') }} Here, cumulative in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance; goals_player under the key the export reads."
       - name: goals_assists
-        description: "This player's cumulative assists in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs."
+        description: "{{ doc('assists_player') }} Here, cumulative in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance; assists_player under the key the export reads."
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_on
@@ -1535,7 +1518,7 @@ models:
         description: "{{ doc('losses') }}"
 
   - name: mart_team_season
-    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). Aggregates are over finished matches only (status_short in FT, AET, PEN). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
+    description: "Per-team, per-season rollup. Grain: (team_sk, season_sk). latest_rank, latest_form, and standings_group_description come from fct_standings (null when absent). Interpret latest_rank together with standings_group_description for multi-group competitions."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -1611,7 +1594,7 @@ models:
         description: "{{ doc('goal_diff') }}"
         tests: [not_null]
       - name: points
-        description: "3 points per win, 1 per draw."
+        description: "{{ doc('points_won') }}"
         tests: [not_null]
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
@@ -2265,7 +2248,7 @@ models:
 
       Season-to-date, composed from int_player_season__metrics, dim_player and dim_team. rank is a
       DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
-      share a rank and the top 10 includes them. Only a positive value is ranked.
+      share a rank and the top 10 includes them.
 
       Because ties share a rank, a league can hold several rank-1 players. league_leader_order is
       the tie-broken order in the same partition, so a consumer that must show one player per league
@@ -2275,11 +2258,10 @@ models:
       identifies a team as well as a player. The club is null when the player has no finished
       match in that competition-season.
 
-      RATE boards carry a qualification floor so a small sample cannot game a rate: 270 minutes, a
-      position scope, 10 shots on target for finishing.
-
       is_current_season marks the latest season a competition has, so a consumer showing one season
       filters on a served fact instead of choosing a season itself.
+
+      {{ doc('ranking_rules') }}
     meta:
       owner: "data-platform"
       domain: "football"
@@ -2297,7 +2279,6 @@ models:
           name: mart_leaderboards_sort_value_positive
       # RATE-board ratios are all bounded [0,1]. finishing_efficiency_player_pct is now open-play
       # conversion in [0,1], so it is range-checked here like the other rates.
-      # Rates are null when their denominator is zero.
       - dbt_utils.expression_is_true:
           expression: "passes_accuracy_player_pct is null or (passes_accuracy_player_pct between 0 and 1)"
           name: mart_leaderboards_passes_accuracy_player_pct_in_range
@@ -2452,7 +2433,7 @@ models:
       - name: cards_player
         description: "{{ doc('cards_player') }}"
       # RATE-board values (#506) — the player's season rate, carried on every row as a display
-      # atom; each is the ranked value of its own board. Null when the denominator is zero.
+      # atom; each is the ranked value of its own board.
       - name: passes_accuracy_player_pct
         description: "{{ doc('passes_accuracy_player_pct') }}"
       - name: duels_won_player_pct
@@ -2477,14 +2458,13 @@ models:
       DENSE_RANK over the board's metric within (league_code, season_api_year) in the board's
       rank_order, so ties share a rank and the top 10 includes them. rank_order is the catalogue's
       direction for the metric (asc for lower_better, fewest first), except the two card boards,
-      which rank most first by ruling. A zero is not a ranking on a most-first board and is the top
-      row on a fewest-first one.
+      which rank most first by ruling.
 
       The rank is per league by design: a board is each league's leading team collected and ordered,
-      never a ranking across competitions. A team ranks from its first finished game — there is
-      no games floor, so early-season boards carry one-game rates by design — and the minutes and
-      position floors the player boards use have no analogue. A team with no value for a metric is
-      absent from that board rather than ranked on a null.
+      never a ranking across competitions. A team with no value for a metric is absent from that
+      board rather than ranked on a null.
+
+      {{ doc('ranking_rules') }}
     meta:
       owner: "data-platform"
       domain: "football"
@@ -3054,7 +3034,9 @@ models:
       necessarily the best. The good/bad reading comes from the metric's catalogue direction.
 
       Median-led and ranked rather than percentiled, which stays honest at around 18 teams.
-      Season-to-date, and only teams with at least 3 games.
+      Season-to-date.
+
+      {{ doc('ranking_rules') }}
     meta:
       owner: "data-platform"
       domain: "football"
@@ -3137,9 +3119,10 @@ models:
       DIRECTION-AGNOSTIC: rank is by value descending and percentile by value, so neither says
       whether high is good — that comes from the metric's catalogue direction.
 
-      Floor: 270 minutes in the position, and 10 shots on target for finishing. A player
-      qualifying in two positions appears once per position; the player_benchmark_metrics() macro
-      decides which metrics apply.
+      A player qualifying in two positions appears once per position; the
+      player_benchmark_metrics() macro decides which metrics apply.
+
+      {{ doc('ranking_rules') }}
     meta:
       owner: "data-platform"
       domain: "football"

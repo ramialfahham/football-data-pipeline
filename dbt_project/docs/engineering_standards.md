@@ -127,7 +127,10 @@ from this text alone?**
 - **Business meaning**, in plain language.
 - **Grain** — one row per what. Required on staging models by §3; expected on every model.
 - **Where it comes from / how it is calculated** — the upstream input or the formula.
-- **Known limits** — what NULL means, what is excluded, edge cases that will surprise someone.
+- **Known limits** that no general rule states — a column's own reason to be NULL, what it
+  excludes. A general rule (how a metric is computed and when it is blank, how the provider's
+  values are cleaned, who enters a ranking, what a window holds) is stated once, in the
+  description of the table or column that carries it, and never repeated elsewhere.
 
 ### What a description must never contain
 
@@ -145,6 +148,25 @@ demand: `dbt ls --select <model>+`.**
 version of this said X". Git holds all of it losslessly and cannot rot; a hand-copied version of it
 starts rotting immediately. Rulings belong in `.claude/task/escalations.log`, open questions in the
 tracker, design rationale in `layering.md`.
+
+### A metric's description
+
+The catalogue's `description` column is the one statement of what a metric means; every column
+that carries the metric shows it in BigQuery.
+
+- **One plain sentence, at most 200 characters**, saying what is counted and per what, on cleaned
+  data. A count: "<what> the team or player <did>". An average: "Average number of <what> per
+  match". Per 90: "<what> per 90 minutes played". A share: "<part> as a share of <whole>". A
+  metric a model computes says what its number stands for; the method is that model's
+  description.
+- **No** window, null condition, caveat, display note, history, provider detail, snake_case
+  name or jargon: each has its own home. A team metric and its player twin read alike where their
+  formulas match.
+- It follows ISO/IEC 11179-4, which asks a definition to state what the thing is, to stand alone,
+  and to leave out rationale and procedure
+  ([ISO/IEC 11179-4](https://cdn.standards.iteh.ai/samples/35346/e1828b73c98b4fbca61fe950da0b7748/ISO-IEC-11179-4-2004.pdf)),
+  and the writing rules of ASD-STE100: one word with one meaning, short sentences, active voice
+  ([ASD-STE100](https://www.asd-ste100.org/)).
 
 ### Form
 
@@ -248,7 +270,7 @@ description names the class by what it says.
 |---|---|---|
 | **Key** — part of the grain, or a foreign key | what it identifies | `not_null`; `unique` / `unique_combination_of_columns` on the grain where the grain is new; `relationships` to the parent for every foreign key — the whole key graph, not where someone remembered |
 | **Required** — the row is invalid without it | what it is | `not_null` |
-| **Coverage-restricted** — NULL is the honest answer | the NULL rule in one sentence: "NULL unless …" / "NULL when …" | never `not_null`; a range test if it is a rate |
+| **Coverage-restricted** — NULL is the honest answer | its own NULL rule in one sentence ("NULL when …"), unless a general rule states it: a metric column and a cleaned input say nothing, the catalogue's and the base table's descriptions hold those rules | never `not_null`; a range test if it is a rate |
 | **Derived** — computed from other columns, always present | the formula in words | a range or consistency test where one exists |
 
 A `not_null` is added because the description says the column is never NULL, not because a
@@ -265,8 +287,9 @@ silent; a foreign key with neither is a finding.
 
 ### 3.2) A rate is one definition, gated by its inputs
 
-What a metric's NULL means is ruled in one place, `docs/metric_layer.md` ("Incomplete data is not
-calculated"); it is not repeated here. This section rules how that gate is built and tested.
+What a metric's NULL means is ruled in one place, rule R4 of the catalogue table's description
+(`dbt_project/models/docs/metric_rules.md`); it is not repeated here. This section rules how that
+gate is built and tested.
 
 - **The gate is derived, not picked.** A rate's NULL gate covers every input its formula uses,
   numerator and denominator, over the same set of games. A gate chosen by hand from a menu of
@@ -285,8 +308,9 @@ calculated"); it is not repeated here. This section rules how that gate is built
   surface's window join and the entity rule (a team-feed input is present when its column is
   non-null on the leg, a player-feed input when the game's player row exists at all). One guard
   per window surface: `assert_form_window_rates_inputs_covered` and
-  `assert_season_rates_inputs_covered`. Player-entity metrics need no guard: a blank player stat
-  is a zero, so their inputs are always present.
+  `assert_season_rates_inputs_covered`. The player surfaces are held by
+  `assert_player_metrics_follow_catalogue_formula`, which recomputes every player metric over its
+  window under the same rule.
 
 ### 3.3) Severity is decided by one question
 
@@ -316,9 +340,7 @@ has not landed is a rule in progress, and the issue that owns it says so:
 - every listed column has a description — `scripts/check_description_hygiene.py`, which checks
   that every model, seed and source is described, that every column a model yml lists is, and
   what a description contains; in place;
-- the rate guard — the two generated dbt tests of §3.2, in place; the NULL sentence every team
-  rate's description must carry is composed by `scripts/sync_metric_docs_blocks.py` from the
-  catalogue's denominator, not typed per rate;
+- the rate guard — the two generated dbt tests of §3.2, in place;
 - every documented column exists in the model's projection —
   `scripts/check_yml_vs_projection.py`, run in `data:build:main` right after `dbt docs generate`
   against the catalogue it writes (the one job whose catalogue is the whole warehouse; a

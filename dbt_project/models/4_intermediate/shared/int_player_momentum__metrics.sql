@@ -7,12 +7,7 @@
   drill-down list (mart_team_momentum_window) use. This keeps the player top-players strip and the team
   form panel on ONE window and prevents drift (#484).
 
-  Window (carried through from int_team_momentum_window):
-  - window_type='last_5' (default): the team's last 5 finished matches, cross-competition within
-    the same entity_type; season-capped for clubs, recency-only for national teams.
-  - window_type='tournament_to_date' / 'qualifiers' (GAP-18, matrix §4): on a tournament fixture
-    (world_championship / continental_championship) the window is the CUMULATIVE within-tournament
-    (or qualifier) set, uncapped — so the player strip matches the team form on tournament fixtures.
+  The window is carried through from int_team_momentum_window; window_type names it.
 
   Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
@@ -23,8 +18,7 @@
   window's legs but never brought on.
 
   Every metric is its catalogue formula over the window's leg rows, written by
-  scripts/generate_metric_sql.py, and is NULL when the window lacks an input: a player row with a blank
-  the provider did not count, or a window leg of the side with no player data at all.
+  scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md.
 #}
 
 with window_legs as (

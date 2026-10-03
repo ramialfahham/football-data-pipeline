@@ -76,8 +76,9 @@ OUT = REPO_ROOT / "dbt_project" / "models" / "docs" / "metric_columns.md"
 # Same precedent as `check_description_hygiene.py`'s MIN_DESCRIPTIONS.
 MIN_METRICS = 50
 
-# The seed declares itself window-free: "the window and any null policy are applied
-# where the metric is computed, never here". 35 descriptions contradicted that and
+# A catalogue row is window-free (the catalogue table's description, the
+# metric_catalogue doc block): which matches a metric counts is applied where it is
+# computed, never in its row. 35 descriptions contradicted that and
 # were corrected in this MR. This keeps them corrected — a window claim is FALSE on
 # a per-match core column, and these blocks are attached to core columns.
 #
@@ -87,29 +88,14 @@ MIN_METRICS = 50
 # occurrences, none of them on the list. Worse, the MR's own verification searched
 # with this same pattern, so it could only ever agree with the guard: a too-narrow
 # grep reported as a clean sweep.
-# Since the seed declares itself window-free, ANY occurrence is wrong and there is
-# no phrasing to enumerate.
+# Since a row is window-free, ANY occurrence is wrong and there is no phrasing to
+# enumerate.
 WINDOW_PHRASING = re.compile(r"\bwindow\b", re.I)
 
-# A rate's NULL rule, derived rather than typed into every rate's description: every team
-# metric with a denominator is NULL unless each input of its formula is present in every match
-# the surface counts (engineering_standards.md section 3.1 asks every coverage-restricted column
-# to say so; docs/metric_layer.md owns the meaning). Worded without "window" - the sentence is
-# true on every surface that computes the rate, and WINDOW_PHRASING above refuses the word - and
-# without a file path, because its reader is in the BigQuery console.
-RATE_NULL_SENTENCE = (
-    "NULL unless every input of its formula is present for every match counted; an awarded "
-    "result (technical loss, walkover) is never counted against that."
-)
-
-
 def _definition(row: dict) -> str:
-    """The seed's description, with the NULL rule appended for a team rate."""
-    text = (row["description"] or "").strip()
-    is_team = (row.get("entity") or "").strip() == "team"
-    if is_team and (row.get("denominator_expr") or "").strip():
-        return text + " " + RATE_NULL_SENTENCE
-    return text
+    """The seed's description, as written: when a value is blank is a rule of the catalogue table's
+    own description, stated once there, never appended to a metric's."""
+    return (row["description"] or "").strip()
 
 # ─── DERIVED COLUMNS ────────────────────────────────────────────────────────────
 # 77 model columns are a catalogue metric with one standard affix on it:
@@ -124,10 +110,9 @@ def _definition(row: dict) -> str:
 # DESCRIPTION. MR1 of this programme shipped a description that was simply false
 # because it compressed upstream prose without reading the model underneath it.
 # Sources: `int_team_profile__yoy.sql` (games-played alignment, domestic-league
-# scope, delta NULL when either side is NULL), `int_player_profile__yoy.sql`
-# (appearance alignment, prior season AT THE SAME CLUB, `_prev_season_full` never
-# differenced), `mart_team_profile.sql:14-18` (NULL for non-domestic competitions
-# and where the prior season was never ingested).
+# scope), `int_player_profile__yoy.sql` (appearance alignment, prior season AT THE
+# SAME CLUB, `_prev_season_full` never differenced). When a value is blank is rule
+# R6 of the catalogue table's description, never a phrase here.
 #
 # ⚠ THE PHRASES ARE DELIBERATELY NEUTRAL ABOUT WHAT A "MATCH" IS. The team models
 # align by games played and the player models by appearances, and the same affix
@@ -153,9 +138,7 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
      "campaign rather than a part season against a full one."),
     ("_per_match_delta_yoy", "suffix",
      "The change in the per-match value from the previous season to the current one, compared at "
-     "the same point of the campaign: the current value minus the previous one. NULL when either "
-     "side is missing, which covers a competition that carries no year-on-year comparison, a "
-     "prior season that was never loaded, and a gap in statistical coverage."),
+     "the same point of the campaign: the current value minus the previous one."),
     ("_prev_season_full", "suffix",
      "The previous season's complete total, with no cutoff. It is context for how large that "
      "season was and is never subtracted from the season in progress, because a part season "
@@ -166,36 +149,9 @@ DERIVED_AFFIXES: tuple[tuple[str, str, str], ...] = (
      "season against a full one."),
     ("_this_season", "suffix",
      "Value for the season now in progress, accumulated through the matches played so far."),
-    # ⚠ ENTITY-SPECIFIC, and it has to be. The team side nulls a rate when the
-    # season's first N games are not fully stat-covered (`int_team_profile__yoy.sql`).
-    # The player side aligns by appearances at the same club, so its NULL causes are
-    # the absent prior season at that club and, under the blank rule, a running total
-    # that went NULL at the first match with a missing input or a club match with no
-    # player data at all (`int_player_season_record.sql`). Each entity's sentence
-    # names its own causes, traced to its own model.
-    #
-    # ⚠ THE PLAYER BLOCK IS REUSED AT `mart_player_profile`, which carries every
-    # competition-season a player has and left-joins the domestic-only yoy rows onto
-    # it. A cup or tournament row is NULL there because that competition has no
-    # year-on-year comparison at all.
-    # ⭐ THE RULE THIS LEAVES: A SHARED BLOCK IS ONLY AS TRUE AS ITS WIDEST CALL
-    # SITE. Read every model the block reaches, not the one you happened to open.
-    ("_delta_yoy", "suffix", {
-        "team":
-            "The change from the previous season to the current one, compared at the same point "
-            "of the campaign: the current value minus the previous one. NULL when either side is "
-            "missing, which covers a competition that carries no year-on-year comparison, a prior "
-            "season that was never loaded, and a season whose first matches are not fully "
-            "stat-covered.",
-        "player":
-            "The change from the previous season to the current one, compared at the same point "
-            "of the campaign: the current value minus the previous one. NULL when there is no "
-            "prior season at this club to compare against, which covers a transfer, a first "
-            "season at this level and a prior season that was never loaded; NULL when a match "
-            "counted on either side lacks an input the provider did not record; and NULL for a "
-            "competition that carries no year-on-year comparison at all, such as a cup, a "
-            "qualifying campaign or an international tournament.",
-    }),
+    ("_delta_yoy", "suffix",
+     "The change from the previous season to the current one, compared at the same point of the "
+     "campaign: the current value minus the previous one."),
     ("_sum_season", "suffix", "Totalled over the season."),
     ("last_meeting_", "prefix",
      "Taken from the most recent previous meeting between these two teams."),
@@ -455,16 +411,7 @@ def _derived_blocks(rows: list[dict], names: list[str],
             continue
         found += 1
         for entity, text in by_entity[stem].items():
-            phrase = phrases[affix]
-            if isinstance(phrase, dict):
-                if entity not in phrase:
-                    raise Abort(
-                        "affix " + repr(affix) + " has entity-specific phrasing but "
-                        "none for " + repr(entity) + ", so " + repr(name) + " would "
-                        "silently take another entity's sentence."
-                    )
-                phrase = phrase[entity]
-            out[name + "__" + entity] = text + " " + phrase
+            out[name + "__" + entity] = text + " " + phrases[affix]
     bad = sorted(n for n in out if not BLOCK_NAME_RE.match(n))
     if bad:
         raise Abort(

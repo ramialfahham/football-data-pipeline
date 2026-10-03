@@ -176,11 +176,13 @@ models:
     description: >
       The team's line in a match: one row per team with a statistics line (the generic
       stg_apif__fixture_statistics model pivoted to one column per stat, the latest fetch kept) and
-      per team of every finished match, cleaned once by the rules in docs/metric_layer.md and named
-      in our own words. Grain: (league_code, fixture_id, team_id).
+      per team of every finished match, cleaned once and named in our own words.
+      Grain: (league_code, fixture_id, team_id).
 
       Known provider team-id defects are corrected from the fixture_team_id_overrides seed before
       the deduplication, so a corrected row cannot collide with one the correct team already has.
+
+      {{ doc('cleaning_rules') }}
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -212,9 +214,9 @@ models:
       - name: stat_corrections.provider_value
         description: "The provider's figure before the change."
       - name: stat_corrections.cleaned_value
-        description: "The value this model carries. NULL when the stat was left blank because the gap was over 2, the opponent's shots on target failed their own check, or a split of shots does not add up to the total."
+        description: "{{ doc('stat_corrections_cleaned_value') }}"
       - name: stat_corrections.rule
-        description: "The rule that changed it, one of raised_to_open_play_goals, raised_to_shots_on_target, limited_to_opponent_shots_on_target, opponent_shots_on_target_unverified, limited_to_whole, own_goals_left_out, split_does_not_add_up."
+        description: "{{ doc('stat_corrections_rule') }}"
 
   - name: base_apif__fixture_players
     description: >
@@ -223,14 +225,7 @@ models:
       provider lists twice in one fetch keeps the row with more values), cleaned once and named in
       our own words. Grain: (league_code, fixture_id, team_id, player_id).
 
-      The cleaning, in order (docs/metric_layer.md holds the rules): a blank is a zero only where
-      the provider counted the stat in the match or the score, the match events or the team's own
-      statistics line prove the zero, else it stays blank; accurate passes are a count in every
-      match (the provider's percentage converted where a match's values add up to more than its
-      passes); a player's goals come from the per-player count or the goal events, whichever adds
-      up to the score, and penalty goals from the events, never more than the goals; match stats
-      that contradict a result or their own total are corrected when the gap is at most 2 and left
-      blank otherwise. Every change of the last two steps is listed in stat_corrections.
+      {{ doc('cleaning_rules') }}
 
       Many competitions supply no player statistics at all, so a fixture missing from here has
       none rather than zeroes.
@@ -263,9 +258,9 @@ models:
       - name: stat_corrections.provider_value
         description: "The provider's figure before the change: for accurate passes, the count after any percentage was converted; for penalty goals, the events' count, or the provider's per-player count in a match without events."
       - name: stat_corrections.cleaned_value
-        description: "The value this model carries. NULL when the stat was left blank because the gap was over 2, the opponent's shots on target failed their own check, the keepers who shared the match add up to more goals conceded than the team, or the team's assists add up to more than its goals."
+        description: "{{ doc('stat_corrections_cleaned_value') }}"
       - name: stat_corrections.rule
-        description: "The rule that changed it, one of goals_from_events, penalty_goals_limited_to_goals, penalties_scored_matched_to_penalty_goals, raised_to_open_play_goals, raised_to_shots_on_target, matched_to_team_goals_conceded, limited_to_opponent_shots_on_target, opponent_shots_on_target_unverified, limited_to_whole, limited_to_card_maximum, raised_to_part, limited_to_team_goals."
+        description: "{{ doc('stat_corrections_rule') }}"
 
   - name: base_apif__players
     description: >

@@ -1,11 +1,9 @@
 {#
   Every team metric a surface computes equals its metric_catalogue formula, recomputed here from
   int_legs__team_match and int_legs__team_from_players over the surface's own window, under the
-  eligibility rule: a forfeit counts only in points_won, goals and goals_against, every other metric
-  leaves it out of numerator and denominator, and a metric is NULL when any other match of the window
-  lacks an input. The formula is read from the seed at run time, so a surface that drifts from the
-  catalogue, or a catalogue change the surfaces did not follow, fails here. Floats compare at a
-  relative 1e-9.
+  rules in models/docs/metric_rules.md. The formula is read from the seed at run time, so a surface
+  that drifts from the catalogue, or a catalogue change the surfaces did not follow, fails here.
+  Floats compare at a relative 1e-9.
 
   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
   grain present on one side only. The match-stats mart carries the pass accuracy of the team's own

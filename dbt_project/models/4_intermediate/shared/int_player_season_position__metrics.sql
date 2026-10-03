@@ -4,17 +4,16 @@
   §6). Where int_player_season__metrics pools the whole season, this splits a player's legs by the position
   he played that match (position_code, recorded at match time) and aggregates each role separately. A
   player who logged minutes in two positions gets two rows, each carrying the per-90 he produced IN that
-  role — so a multi-position player is benchmarked honestly per position, and the minutes >= 270 floor
-  applied downstream both qualifies and assigns the position.
+  role — so a multi-position player is benchmarked honestly per position, and the minutes floor applied
+  downstream both qualifies and assigns the position.
 
   position_code G/D/M/F -> position_group GK/DEF/MID/ATT; non-canonical codes ('-'/'SUB'/null) are dropped
   (they cannot be assigned a position). Every metric is its catalogue formula over the window's leg rows,
   written by scripts/generate_metric_sql.py, so a single-position player's per-90 here equals his
-  whole-season per-90 there. The window is complete only when every club he played for that
-  competition-season has player data for every match, as on the whole-season surface.
+  whole-season per-90 there.
 
-  Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart filter
-  minutes >= 270. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
+  Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart apply the
+  minutes floor. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
   macro (shared with int_player_competition_benchmarks + mart_player_competition_benchmarks).
 #}
 

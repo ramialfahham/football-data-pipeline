@@ -1,7 +1,8 @@
 -- The team's line in a match, cleaned once and named in our own words: one row per team with a
 -- statistics line and per team of every finished match, so the goal split and the card zeros the
--- events prove are cleaned here for a team-match with no line too. docs/metric_layer.md holds the
--- rules; the pivot of the long-format staging rows is business reshaping and lives here too.
+-- events prove are cleaned here for a team-match with no line too. The rules are the cleaning_rules
+-- doc block (models/docs/cleaning_rules.md); the pivot of the long-format staging rows is business
+-- reshaping and lives here too.
 with stat_lines as (
     select
         league_code,

@@ -246,11 +246,8 @@ Volume (Ø shots) → location quality (% from box) → on-target volume (Ø sho
 goal) → finishing (% goals per shot on goal). The old label "% Conversion rate"
 was the misnomer and is replaced.
 
-The numerator is OPEN-PLAY goals — penalties and own goals are excluded, because
-they do not finish the team's own on-target shots — over the same games as the
-denominator. The value is therefore in [0, 1] and is asserted so; a value outside
-it means the two sides disagree, and the model serves NULL rather than a figure it
-cannot stand behind.
+What the finishing metric counts is its catalogue row; how it is computed and when it
+is blank are the catalogue table's rules.
 
 ## Player rows — LOCKED (CPO, 2026-06-11)
 

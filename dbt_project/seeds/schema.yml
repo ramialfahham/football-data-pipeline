@@ -238,19 +238,7 @@ seeds:
           pins that both ways and pins the permitted values.
 
   - name: metric_catalogue
-    description: >
-      The single source of truth for every metric we compute. One row per (metric_id, entity), so
-      a metric with both a team and a player form has two rows. Each row carries the formula, the
-      English name and i18n key, the display format, what it measures, how important it is, and
-      which way is better.
-
-      The formula is the correctness contract: any model computing it must match. It is
-      window-free — ids carry no window suffix, and the window and any null policy are applied
-      where the metric is computed, never here.
-
-      What a metric IS, not where it appears: the order of metrics within a group lives in
-      metrics_display.md; the groups themselves and their order are the `metric_group` and
-      `metric_group_order` columns here.
+    description: "{{ doc('metric_catalogue') }}"
     config:
       +full_refresh: true
       column_types:
@@ -301,16 +289,14 @@ seeds:
       - name: description
         description: >
           What the metric means: what it measures and how it is calculated from the cleaned
-          inputs, in plain words, so a reader, human or AI, can use it correctly.
+          inputs, in plain words, so a reader, human or AI, can use it correctly. How it is
+          written: engineering_standards.md section 2.
 
           This field is the SOURCE of the generated docs blocks in
           models/docs/metric_columns.md, which every column of that metric's name references, so
           editing it rewrites the description BigQuery holds for hundreds of columns. Regenerate
           after any change: `python scripts/sync_metric_docs_blocks.py`. A generated file that has
           drifted from this column fails `--check`.
-
-          Keep it window-free, as the seed's own contract above requires. These blocks land on
-          per-match columns, where a claim about a form window is simply false.
         tests: [not_null]
       - name: base_relation
         description: >

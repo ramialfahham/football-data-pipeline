@@ -5,13 +5,12 @@
 
   Metric definition:
     - numerator = scorer_points_player (goals + assists), its catalogue formula over the player's matches
-      for the club that competition-season, written by scripts/generate_metric_sql.py; NULL when a match
-      lacks an input or the club has a match with no player data at all.
+      for the club that competition-season, written by scripts/generate_metric_sql.py.
     - denominator = team_goals_season = the club's goals over ALL its played matches that competition-season
       (the authoritative scoreline; a forfeit's goals, which no player scored, are left out), NOT just the
       matches the player appeared in.
     - contribution_player_pct = scorer_points_player / team_goals_season. Range [0, 1] (a player's G+A over his
-      appearances is <= the club's whole-season goals); NULL when the club scored 0 that competition-season.
+      appearances is <= the club's whole-season goals).
 
   A COMPOSING intermediate: it reuses the leg atoms, never recomputing them (mirrors
   int_team_season__deserved_vs_actual). season_sk is inherited from the team leg. NOT domestic-restricted —

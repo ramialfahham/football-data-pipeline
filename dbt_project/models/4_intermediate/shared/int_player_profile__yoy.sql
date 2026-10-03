@@ -2,11 +2,7 @@
   Appearances-aligned year-over-year — player, domestic leagues only (Phase C, #391;
   the player mirror of int_team_profile__yoy, #324).
 
-  For each domestic-league (player, club, current season), compares cumulative output
-  through the latest appearances this season (N) against the SAME player's immediately
-  prior season AT THE SAME CLUB through its first N appearances. "This season vs last
-  season, at the same point of the campaign" — the only honest comparison while a
-  season is running (a part-season vs a full season would mislead).
+  What it compares, and when a side is blank, is rule R6 in models/docs/metric_rules.md.
 
   Alignment is by APPEARANCES (match_number from int_player_season_record — the running
   count of the matches the player actually PLAYED — a count of player-stat rows would
@@ -23,10 +19,7 @@
   against the still-running current season (a part season vs a full season would mislead,
   the very trap this model avoids). NULL under the same honest-absence as the prev figures.
 
-  Scope: competition_type = 'domestic_league' only — YoY is meaningful for league
-  formats; cups/tournaments have no aligned comparison. Deltas are NULL where the prior
-  season AT THIS CLUB is absent (a transfer, a first top-flight season, or
-  history_seasons = 1).
+  Scope: competition_type = 'domestic_league' only (rule R6).
 
   Grain: (team_sk, player_sk, league_code, season_api_year) — one row per player's
   CURRENT club-league season. season_sk is attached downstream in mart_player_profile

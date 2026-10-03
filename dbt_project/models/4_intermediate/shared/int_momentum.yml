@@ -35,10 +35,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
-        description: >
-          Which form window these totals were summed over: last_5 by default, or
-          tournament_to_date / qualifiers on a tournament fixture. Carried from
-          int_team_momentum_window.
+        description: "{{ doc('window_type__form') }}"
         tests:
           - not_null
           - accepted_values:
@@ -109,10 +106,9 @@ models:
       The window comes from the shared int_team_momentum_window model — the SAME selection the
       team aggregate uses — so player and team figures are always over one set of matches.
 
-      Every metric, counts and ratios, is its metric_catalogue formula over the window's leg rows,
-      NULL when a leg lacks an input or a window leg of the side has no player data at all. A player
-      who missed some legs contributes only for the matches they actually appeared in, so their
-      totals are over a shorter window than the side's.
+      Every metric, counts and ratios, is its metric_catalogue formula over the window's leg rows. A
+      player who missed some legs contributes only for the matches they actually appeared in, so
+      their totals are over a shorter window than the side's.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -148,10 +144,7 @@ models:
           - accepted_values:
               values: ["club", "national"]
       - name: window_type
-        description: >
-          Which form window these totals were summed over, carried from int_team_momentum_window:
-          last_5 by default, or tournament_to_date / qualifiers on a tournament fixture. Constant
-          across all players on one side.
+        description: "{{ doc('window_type__form') }}"
         tests:
           - not_null
           - accepted_values:
@@ -163,7 +156,7 @@ models:
           greater than 0), so 0 means named in the matchday squad and never brought on. NULL when a
           leg's minutes are unknown or a window leg of the side has no player data at all.
       - name: position_code
-        description: "Player position from fct_fixture_player_stats. Used to scope saves_player_pct to GK."
+        description: "Player position from fct_fixture_player_stats."
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: goals_against_player

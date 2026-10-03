@@ -6,9 +6,8 @@ models:
       A player's totals at ONE club in one competition-season. Grain: (player_sk, team_sk,
       season_sk). A mid-season transfer gives one row per club, with no collapse to a last club.
 
-      Every metric is its metric_catalogue formula over the club's competition-season, and is NULL
-      when a match of it lacks an input: a blank the provider did not count, or a club match with no
-      player data at all. `appearances` counts only matches PLAYED.
+      Every metric is its metric_catalogue formula over the club's competition-season.
+      `appearances` counts only matches PLAYED.
     config:
       tags: ["intermediate", "football", "player"]
     tests:

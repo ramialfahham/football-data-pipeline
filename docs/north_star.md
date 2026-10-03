@@ -62,7 +62,7 @@ Open the app, instantly see what's on today across competitions, tap a match, an
 
 ## What we show (and what we don't)
 
-**Show**: form-based metrics grounded in real warehouse data — goals, shots, pass accuracy, save rate, points capture, danger zone ratio, and more. **In-season** domestic leagues: a **rolling window of up to the last five finished matches** in the current competition; **before the season starts**, the **full previous season** for that league. **WC:** through Group Stage Matchday 1, **all** relevant qualifier matches; from Group Stage Matchday 2 onward, **all finished WC matches so far** (cumulative, no five-game cap). When the warehouse exposes a metric as null (optional stat missing or undefined rate), the **mobile-first** match preview shows **“-”** for that value only — cards and fixtures stay visible; we do **not** fabricate zeros.
+**Show**: form-based metrics grounded in real warehouse data — goals, shots, pass accuracy, save rate, points capture, danger zone ratio, and more. Which matches a form window holds: `docs/metrics_context_model.md` section 4. When the warehouse exposes a metric as null (optional stat missing or undefined rate), the **mobile-first** match preview shows **“-”** for that value only — cards and fixtures stay visible; we do **not** fabricate zeros.
 
 **Don't show**: fabricated win probabilities, unmodelled KPIs, anything we can't back with data. Data honesty is non-negotiable. **Integrity failures** (e.g. finished fixture without a valid scoreline) must **fail the pipeline** — they are not a UX copy problem.
 

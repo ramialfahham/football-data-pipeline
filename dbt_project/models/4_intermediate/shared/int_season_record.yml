@@ -131,8 +131,7 @@ models:
       A stat row exists wherever the provider reports one, which includes unused substitutes on 0
       minutes. Those are not output, so games_played counts matches played rather than matchday
       selections. Every metric, counts and ratios, is its metric_catalogue formula over the
-      player's matches through this one, NULL from the first match that lacks an input or the
-      first team match with no player data at all.
+      player's matches through this one.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [team_sk, player_sk, league_code, season_api_year, fixture_sk]
@@ -176,7 +175,7 @@ models:
           greater than 0 — not matchday selections.
         tests: [not_null]
       - name: position_code
-        description: "Player position (any_value over the window). Used to scope saves_player_pct to goalkeepers."
+        description: "Player position (any_value over the window)."
       - name: entity_type
         description: "{{ doc('entity_type') }}"
       - name: kickoff_datetime

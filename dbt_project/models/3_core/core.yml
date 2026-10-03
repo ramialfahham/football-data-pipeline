@@ -697,7 +697,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_player_stats
-    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players (the blank rule, accurate passes as a count, goals and penalty goals reconciled to the score, match stats checked against results). Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
+    description: "Per-player, per-fixture statistics, as cleaned and named in base_apif__fixture_players, whose description holds the cleaning rules. Grain: (fixture_sk, team_sk, player_sk). Core keys and constrains the fact grain."
     meta:
       owner: "data-platform"
       domain: "football"

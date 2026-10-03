@@ -11,10 +11,8 @@
     - season metric rates  int_team_season__metrics
 
   Differentiators:
-    - Vs own history — matchday-aligned year-over-year (this season vs last,
-      through the same matchday), domestic leagues only, from
-      int_team_profile__yoy. NULL for non-domestic competitions and where the
-      prior season is not ingested (history_seasons = 1).
+    - Vs own history — year-over-year (rule R6 in models/docs/metric_rules.md),
+      from int_team_profile__yoy.
     - Streaks (lighter layer) — trailing unbeaten / win / winless / clean-sheet /
       scoring runs from int_team_profile__streaks.
 
@@ -102,10 +100,8 @@ select
     -- player-stat coverage gaps; caption from player_stat_coverage_season_games)
     m.player_stat_coverage_season_games,
     m.shots_on_goal_per_match,
-    -- the on-target pair behind deserved-vs-actual. Gated upstream in
-    -- int_team_season__metrics_cumulative and never re-gated here:
-    -- shots_on_goal_against_per_match is NULL unless OPPONENT shots-on-target data
-    -- covers every season game; shots_on_goal_difference_per_match needs BOTH sides covered.
+    -- the on-target pair behind deserved-vs-actual, taken as
+    -- int_team_season__metrics_cumulative computes it and never re-gated here.
     m.shots_on_goal_against_per_match,
     m.shots_on_goal_difference_per_match,
     m.passes_key_per_match,
@@ -115,7 +111,7 @@ select
     -- shooting dominance + results efficiency (catalogued season metrics)
     m.shots_share_pct,
     m.points_capture_pct,
-    -- year-over-year (domestic only; NULL otherwise / when prior season absent)
+    -- year-over-year (rule R6)
     y.yoy_games_played_cutoff,
     y.points_this_season,
     y.points_prev_season,

@@ -10,7 +10,7 @@
   metrics are style, not quality. Median-led; rank not percentile (honest at N~18). Composes
   int_team_competition_benchmark_metrics_long (the shared per-team long form) + the
   int_team_competition_benchmarks engine — both read the same long form, so the metric set cannot drift.
-  >= 3 games to be ranked.
+  Who is ranked: the ranking_rules doc block in models/docs/metric_rules.md.
 
   Season-to-date (W2). Player benchmark + percentile-vs-peers are the v1.x follow-up.
   Grain: (team_sk, season_sk, metric_key).
