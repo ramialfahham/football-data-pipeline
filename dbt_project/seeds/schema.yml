@@ -339,15 +339,6 @@ seeds:
           - not_null
           - accepted_values:
               values: ["expression", "model", "sourced", "cross_grain"]
-      - name: lower_is_better
-        description: >
-          True when a lower value indicates better performance.
-
-          LEGACY — the boolean predecessor of `direction`, kept only until the last thing depending
-          on it is gone. `direction` is the authority: set this to match it (true exactly when
-          direction is lower_better), never the other way round.
-          assert_metric_direction_lower_is_better_agree fails the build if the two diverge.
-        tests: [not_null]
       - name: format
         description: >
           Display format: integer, decimal_0, decimal_1, percent, or points_fraction

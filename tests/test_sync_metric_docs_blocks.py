@@ -185,6 +185,51 @@ def test_the_same_definition_without_the_window_phrase_is_accepted(monkeypatch, 
     assert _run(monkeypatch) == 0
 
 
+# ---------------------------------------------------------------- the description standard
+
+@pytest.mark.parametrize("description, shown", [
+    ("A" * 201, "201 characters"),
+    ("Goals the team scored, as goals_for.", "goals_for"),
+    ("Goals the team scored, as xG_total.", "xG_total"),
+    ("Goals the player scored per_90 minutes.", "per_90"),
+    ("Goals per match. Null when no games.", "Null"),
+    ("Shots the provider counted.", "provider"),
+    ("Goals taken from the API.", "API"),
+    ("Goals displayed as a whole number.", "displayed"),
+    ("Goals shown as a whole number.", "shown as"),
+    ("The retired count of goals.", "retired"),
+    ("The count formerly kept apart.", "formerly"),
+    ("Goals normalised to a season.", "normalised"),
+    ("Goals aggregated over a season.", "aggregated"),
+])
+def test_a_description_that_breaks_the_standard_is_refused(
+    monkeypatch, tmp_path, capsys, description, shown
+):
+    """engineering_standards.md section 2: at most 200 characters, no snake_case name and none
+    of the listed words."""
+    rows = _filler(2) + [_row("faulty", "team", description)]
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, rows))
+
+    assert _run(monkeypatch, "--check") == 1
+    err = capsys.readouterr().err
+    assert "faulty (team)" in err
+    assert shown in err
+
+
+@pytest.mark.parametrize("description", [
+    "G" * 199 + ".",
+    "Goals annulled by the referee.",
+    "Rapid attacks the team made.",
+    "Shots-on-target the team had per match.",
+])
+def test_a_description_within_the_standard_is_accepted(monkeypatch, tmp_path, description):
+    """A listed word is refused as a whole word only: "annulled" and "rapid" hold one inside."""
+    rows = _filler(2) + [_row("within", "team", description)]
+    monkeypatch.setattr(gen, "SEED", _seed(tmp_path, rows))
+
+    assert _run(monkeypatch) == 0
+
+
 # ---------------------------------------------------------------- what it emits
 
 @pytest.mark.parametrize("endings", [b"\r\n", b"\n"])
@@ -490,13 +535,13 @@ def test_the_most_specific_metric_wins_when_a_name_decomposes_two_ways(
     LESS specific metric here."""
     monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
         _row("goals", description="Goals scored."),
-        _row("goals_per_match", description="Goals per match. Null when no games."),
+        _row("goals_per_match", description="Average goals per match."),
     ]))
     monkeypatch.setattr(gen, "MODELS", _models(tmp_path, ["goals_per_match_this_season"]))
 
     assert _run(monkeypatch) == 0
     body = _parse(gen.OUT.read_text(encoding="utf-8"))["goals_per_match_this_season__team"]
-    assert body.startswith("Goals per match. Null when no games.")
+    assert body.startswith("Average goals per match.")
     assert "Divided by matches played" not in body
 
 
@@ -608,7 +653,7 @@ def test_a_totalling_affix_on_a_rate_metric_gets_no_block(monkeypatch, tmp_path,
     The test is the catalogue's own `denominator_expr`, so it is the CLASS and not
     the one name."""
     monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
-        _row("clean_sheets", description="Clean sheets, shown as e.g. 3/5.",
+        _row("clean_sheets", description="Matches without a goal conceded, as a share of all.",
              denominator_expr="count(*)"),
         _row("goals", description="Goals scored."),
     ]))
@@ -628,7 +673,7 @@ def test_a_rate_metric_still_takes_the_NON_totalling_affixes(monkeypatch, tmp_pa
     metrics take `_this_season` / `_prev_season` / `_delta_yoy` and must keep them.
     """
     monkeypatch.setattr(gen, "SEED", _seed(tmp_path, [
-        _row("clean_sheets", description="Clean sheets, shown as e.g. 3/5.",
+        _row("clean_sheets", description="Matches without a goal conceded, as a share of all.",
              denominator_expr="count(*)")]))
     monkeypatch.setattr(gen, "MODELS", _models(
         tmp_path, ["clean_sheets_this_season", "clean_sheets_sum_season"]))

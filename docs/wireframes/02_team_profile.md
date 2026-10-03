@@ -116,7 +116,7 @@ Header: "after {yoy_games_played_cutoff} games" — the games-aligned cutoff.
 | Goals for | `goals_for_this_season` | `goals_for_prev_season` | `goals_for_delta_yoy` |
 | Goals against | `goals_against_this_season` | `goals_against_prev_season` | `goals_against_delta_yoy` |
 
-Delta direction: goals against is better when negative (`lower_is_better`).
+Delta direction: goals against is better when negative (`direction` is `lower_better`).
 All-null → module renders its designed absent state (§6).
 
 ### (7) Streaks

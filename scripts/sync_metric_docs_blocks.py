@@ -92,6 +92,21 @@ MIN_METRICS = 50
 # enumerate.
 WINDOW_PHRASING = re.compile(r"\bwindow\b", re.I)
 
+# The parts of engineering_standards.md section 2 ("A metric's description") a machine can hold.
+DESCRIPTION_MAX = 200
+SNAKE_CASE_NAME = re.compile(r"\b[a-z0-9]+(?:_[a-z0-9]+)+\b", re.I)
+LISTED_WORD = re.compile(
+    r"\b(?:null|provider|api|displayed|shown as|retired|formerly|normalised|aggregated)\b", re.I
+)
+
+
+def _description_fault(text: str) -> str | None:
+    if len(text) > DESCRIPTION_MAX:
+        return f"{len(text)} characters, over {DESCRIPTION_MAX}"
+    found = SNAKE_CASE_NAME.search(text) or LISTED_WORD.search(text)
+    return f"says {found.group(0)!r}" if found else None
+
+
 def _definition(row: dict) -> str:
     """The seed's description, as written: when a value is blank is a rule of the catalogue table's
     own description, stated once there, never appended to a metric's."""
@@ -449,6 +464,17 @@ def _render(rows: list[dict], names: list[str],
             "these definitions still describe a window, which is false on a "
             "per-match column and contradicts the seed's own contract: "
             + ", ".join(offenders)
+        )
+
+    faults = sorted(
+        f"{r['metric_id']} ({r['entity']}): {fault}"
+        for r in rows
+        if (fault := _description_fault(_definition(r)))
+    )
+    if faults:
+        raise Abort(
+            "these descriptions break engineering_standards.md section 2, \"A metric's "
+            "description\": " + "; ".join(faults)
         )
 
     out = io.StringIO()
