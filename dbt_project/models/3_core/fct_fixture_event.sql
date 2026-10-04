@@ -62,6 +62,19 @@ src as (
                     cast(fx.home_team_id as int64), cast(fx.away_team_id as int64)
                 )
         )
+        -- Self-heal: also re-process any fixture whose committed events name a different team than
+        -- base now does, so a team base moves reaches rows already committed without a full
+        -- rebuild, which would drop the events raw no longer holds. Self-limiting: once merged,
+        -- the two agree.
+        or base.fixture_id in (
+            select committed.fixture_api_id
+            from {{ this }} as committed
+            inner join base as current_event
+                on
+                    committed.fixture_api_id = current_event.fixture_id
+                    and committed.event_index = current_event.event_index
+            where committed.team_api_id is distinct from current_event.team_id
+        )
     {% endif %}
 )
 

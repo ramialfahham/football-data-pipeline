@@ -246,7 +246,7 @@ models:
         description: "{{ doc('fixture_api_id') }}"
         tests: [not_null]
       - name: team_id
-        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
+        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
         tests: [not_null]
       - name: player_id
         description: "{{ doc('player_api_id') }}"
@@ -308,7 +308,9 @@ models:
 
       team_id is then resolved. A null one is recovered from the same team's other events in that
       fixture, matched by name, and known provider team-id defects are corrected from the
-      fixture_team_id_overrides seed.
+      fixture_team_id_overrides seed. Where a player's events and his statistics row name different
+      teams of the match, the player's-team rule of the cleaning rules on base_apif__fixture_players
+      decides, and his events move when they are the side it contradicts.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -324,6 +326,11 @@ models:
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
+      - name: resolved_player_team_id
+        description: >
+          On the events of a player whose statistics row names the other team of the match, the team
+          the player's-team rule decides for him, which his events and his row then both carry. NULL
+          on every other event, on an own goal, and where nothing decides.
 
   - name: base_apif__player_team_season
     description: >

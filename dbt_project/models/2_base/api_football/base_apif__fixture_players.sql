@@ -91,6 +91,17 @@ overrides as (
     from {{ ref('fixture_team_id_overrides') }}
 ),
 
+-- The player's team where his row and his events disagree, decided in base_apif__fixture_events.
+resolved_teams as (
+    select
+        fixture_id,
+        player_id,
+        any_value(resolved_player_team_id) as team_id
+    from {{ ref('base_apif__fixture_events') }}
+    where resolved_player_team_id is not null
+    group by fixture_id, player_id
+),
+
 -- Corrected BEFORE the qualify below, not after, because both of its window functions partition on
 -- team_id: the dedup key, which the model's uniqueness test covers, and the cross-team collision
 -- guard. The guard now sees corrected ids, which is the intended direction -- a player appearing
@@ -100,6 +111,7 @@ corrected as (
     select
         src.* except (team_id),
         coalesce(
+            resolved_teams.team_id,
             alias_override.correct_team_api_id,
             reattribute_override.correct_team_api_id,
             src.team_id
@@ -132,6 +144,10 @@ corrected as (
             and reattribute_override.wrong_team_api_id not in (
                 fixture_participants.home_team_id, fixture_participants.away_team_id
             )
+    left join resolved_teams
+        on
+            src.fixture_id = resolved_teams.fixture_id
+            and src.player_id = resolved_teams.player_id
 ),
 
 -- The provider's values under our names, one row per player per fixture: the latest fetch. A player
