@@ -1,51 +1,34 @@
-# Review — docs/metric-descriptions — every catalogue description in plain words, held by a check; lower_is_better gone
+# Review — docs/metric-map — the metric map: where each catalogue metric can be read in the marts
 
-diff_sha256: f212f9c1bd64f3970822556d40f5ef09142e3a6cb60e50d051b9602a01abe2fc
+diff_sha256: 873bdf67b79160759f0aa83681e783372a0b4f5299177b8857101191f3389f8d
 
 rounds: 2
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- All 89 descriptions against each row's formula: each is real on the pitch, one sentence under 200 characters, no listed word or snake_case name; twins read alike where their formulas match.
-- Round 1 FAIL fixed: goals_against_player, saves_player_pct and shots_on_goal_against_player say "in goal", as the cleaned keeper figure is; passes_key_per_match and league_rank reworded.
-- Shares hold on the pitch: every numerator is part of its denominator; finishing holds through the cleaning's shots-on-target rule.
-- The dropped lower_is_better agreed with direction on all 89 rows (16 lower_better), so no information is lost; the 16 directions read football-correct.
-- Notes on unchanged columns (#177 labels and interpretations, #184 own goals) are recorded in the contract; the goals_against_player interpretation is a note for #187.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- Every description against its numerator, denominator and base relation; no formula column changes.
-- Readers of the dropped column: mart_team_leaderboards reads direction, the catalogue's tests read neither lower_is_better nor description, and the deleted lockstep test has no other reference; the seed drop reaches prod through the nightly seed run.
-- The export maps direction to its legacy flag one to one; the three lower_better bound metrics are exactly the three true entries in the committed legacy file.
-- The conversion is a serialisation of a warehouse value, inside the consumption-layer rule.
-- Round 2 delta: five description texts and their regenerated blocks match the formulas and each other.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- The description check raises Abort in _render, so both the write and --check fail closed, and CI runs --check in validate:governance.
-- Round 1 FAIL fixed: one refused case per listed word, mixed-case and digit snake_case refused, "annulled" and "rapid" accepted, so removing a word or the word boundaries turns a test red; the 200/201 boundary is pinned.
-- The case-insensitive snake_case pattern finds nothing in the real seed; metric_columns.md matches the generator's output, with no stale derived block.
-- The export's removed helper has no remaining reference; no dependency, workflow, hook or build change.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- The four document lines swap lower_is_better for direction and nothing else; no block gains or loses a field, row, tier or order.
-- direction holds what the lines need (higher_better, lower_better, neutral), and the team-profile delta line is correct for goals against.
-- site_v2 reads direction only, and no page reads catalogue descriptions, so nothing a fan sees changes.
-- Given in round 1; the round-2 delta touches no wireframe, site_v2 or i18n file.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: every changed path is in scope_paths; the round-2 contract amendment records the football reviewer's notes with #190's authority, made on a clean tree.
-- Reserved: labels, groups, tiers, order, format, direction and interpretation unchanged on every row; no metric added or removed; no formula column edited.
-- The rewrite rests on the CPO's quoted instruction of 2026-10-02; the two readings are declared under the dated delegation.
-- No new mechanism or recurring cost: the check sits inside the existing script beside the window check.
-- No credential, workflow or permission change; doc-sync holds, the only remaining lower_is_better is the export's output key for the frozen legacy site.
+- Scope: every file in the diff is in scope_paths; amendments are none; the round-2 delta (dead data_tests branch removed, one test added) changes no scope, decision or contract line.
+- Section 10 classes: the table name, marts-only scope, long-format rows, the five added metrics and the 20 questions are quoted from the CPO's answers of 2026-10-04; the variant tokens, the window column and the metric-column rule are declared readings under the 2026-10-02 delegation.
+- Reserved: no catalogue row, id, label or formula changes; the only SQL edits add five pass-through select columns; fct_fixture_team_stats and int_legs__team_match are untouched.
+- Thresholds: no new mechanism (generated seed with a drift check, the competition_registry.csv pattern); recurring cost declared with a number (about 50 MB a night of seed tests, five integer columns).
+- Impact map present with writers, downstream lineage, layer rules, deploy order and blast radius; no coverage cut; no credential, workflow or permission change; docs/metric_layer.md updated in step.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- Layer placement: the five new mart columns pass through from int_team_season__metrics and int_player_season__metrics, where they exist; no new ref, no mart logic, no partition_by or cluster_by.
+- Impact map: mart_team_profile and mart_team_season_insights read mart_team_season by named columns, so the new columns do not reach them; export_site_data.py reads mart_player_profile with select *, as declared.
+- Removed blocks (latest_rank and four season-total blocks) have no remaining doc() reader; their replacements exist in metric_columns.md; the five __team_match blocks are hand-written and correctly ignored by the map.
+- The seed is documented, carries not_null on its key, uniqueness and a relationship to metric_catalogue, and follows the full_refresh precedent; descriptions are under the column limit.
+- All 20 questions traced by hand to a map row; the window filters are accepted values; no competition identifier in SQL, YAML or generator; no metric created or redefined.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Both outputs render inside one try, so an Abort writes nothing; a run interrupted between writes is repaired by the next run; --check sits in validate:governance and fails closed on a missing file, drift, an uncovered metric or an unreadable long-format mart.
+- tests/test_metric_map.py pins every changed branch: row selection, marts-only, derived blocks, window column, long-format rows and value columns, the three refusals, drift in both directions and the committed map against the generator and the 20 questions.
+- Round 2: the data_tests fallback is gone (dead under the dbt 1.7 pin; a data_tests mart would now hit the pins-no-accepted_values Abort, failing closed); the new test pins the rows-match-bytes-differ message.
+- No dependency, credential, workflow, hook or build change; no dangling doc() reference.
 
 ## escalations
 (none)

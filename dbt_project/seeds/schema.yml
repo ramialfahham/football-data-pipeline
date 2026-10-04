@@ -414,6 +414,60 @@ seeds:
             - label_en
           name: metric_catalogue_label_en_unique_within_entity
 
+  - name: metric_map
+    description: >
+      Where each catalogue metric can be read: one row per mart column that holds a
+      metric_catalogue metric, and one per metric that a long-format mart holds as rows. Each row
+      names the table and the column to read and, where the table holds several windows or
+      metrics, the column to filter on. Join metric_catalogue on metric_id for what the metric
+      means.
+
+      Generated, never edited by hand: scripts/sync_metric_docs_blocks.py writes it from the mart
+      YAML, and its --check fails the build when the file drifts or a catalogue metric has no row.
+    config:
+      +full_refresh: true
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - table_name
+            - column_name
+            - metric_id
+    columns:
+      - name: table_name
+        description: "The mart table that holds the metric."
+        tests: [not_null]
+      - name: column_name
+        description: >
+          The column that holds the metric's value. A nested field is written with a dot, as in
+          recent_meetings.goals_for.
+        tests: [not_null]
+      - name: metric_id
+        description: "The metric_catalogue metric the column holds."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('metric_catalogue')
+              field: metric_id
+      - name: variant
+        description: >
+          Which part of the metric the column holds, read from the column's name. NULL: the
+          metric over the table's own row, which is one match, one season or one window as the
+          table says. this_season: the season in progress so far. prev_season: the season before,
+          through the same point. prev_season_full: the whole season before. delta_yoy: this
+          season minus the season before at the same point. sum_season: totalled over the
+          season. form: over the team's form window. home or away: the fixture's home or away
+          side. opponent: the opposing team. last_meeting: the two teams' previous meeting.
+          recent_meetings: each of their recent meetings. A side and a period join with an
+          underscore, as in home_form.
+      - name: window_column
+        description: >
+          Where the table holds several windows, the column that says which one a row holds
+          (window_type): filter on it. NULL where the table holds one.
+      - name: metric_key_column
+        description: >
+          In a long-format table, the column that names the metric on each row (metric_key):
+          filter it to metric_id. NULL where the metric has a column of its own.
+
   - name: wc_team_market_value_snapshot
     description: >
       Squad market-value estimates for World Cup national teams, in whole EUR. One row per (team,

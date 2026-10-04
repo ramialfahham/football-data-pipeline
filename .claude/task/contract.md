@@ -1,40 +1,38 @@
-# Task contract — every catalogue description in plain words, held by a check; lower_is_better gone
+# Task contract — the metric map: where each catalogue metric can be read in the marts
 
 objective: >
-  How step 3 of the issue "Metric layer: every rule in one place, plain descriptions, a map an AI
-  can read" (#190). All 89 descriptions in metric_catalogue.csv are rewritten to
-  engineering_standards.md section 2: one plain sentence saying what the metric counts and per
-  what, on cleaned data. scripts/sync_metric_docs_blocks.py fails the build on a description over
-  200 characters, with a snake_case name or with a listed word, and regenerates the metric column
-  blocks from the new texts. The legacy column lower_is_better goes: direction alone says which
-  way is better, and the documents that name lower_is_better point to direction.
+  How step 4 of the issue "Metric layer: every rule in one place, plain descriptions, a map an AI
+  can read" (#190). scripts/sync_metric_docs_blocks.py generates a seed, metric_map, with one row
+  per mart column that holds a catalogue metric: the table, the column, the metric, its variant
+  (read from the column name) and, where the window or the metric varies by row, the column that
+  says which. Every catalogue metric has a row, so the five season metrics no mart carried become
+  columns of mart_team_season and mart_player_profile. A pytest checks 20 fan questions against
+  the map. Mart columns that hold a catalogue metric but were described by hand point at the
+  metric's block, so the map finds them; five team columns that showed a player's definition
+  point at a team description instead.
 
 refs: >
-  #190, approved by the CPO in chat on 2026-10-03 ("yes"). The CPO's instruction in chat on
-  2026-10-02: "Rewrite every catalogue description yourself: what the metric means, on cleaned
-  data, in plain words; no caveats, null conditions, display notes, history, provider trivia or
-  jargon. I will not read 89 descriptions." #190 steps 1 and 2 are merged (!243, !245); the
-  football reviewer judges this MR.
+  #190, its checklist lines and How step 4 as edited on 2026-10-04 with the CPO's answers in chat
+  that day. #190 steps 1 to 3 are merged (!243, !245, !246).
 
 acceptance_criteria:
   # The issue's checklist lines this MR delivers, verbatim.
-  - "Every catalogue description is one plain sentence, at most 200 characters, saying what the metric counts and per what, on cleaned data, with no null condition, caveat, display note, history, provider detail, snake_case name or jargon. A team metric and its player twin read alike where their formulas match. A check fails the build on a description over 200 characters, with a snake_case name or with a listed word."
-  - "`lower_is_better` is gone; `direction` alone says which way is better."
-  - "Documents the CPO owns change as pointers only: `CLAUDE.md` and `north_star.md` (the window line), `metrics_display.md` (locked: its restated finishing formula and null clamp, lines 249-253), three wireframe lines and one in `ui_design_brief.md` that name `lower_is_better`."
+  - "A generated table in the warehouse, `metric_map`, maps every mart column that holds a catalogue metric (table, column) to its metric, its variant (this season, last season, change, home side, form) and, where the window varies by row, the column that says which. A long-format mart enters with one row per metric it holds: its value column, and `metric_key` as the column that says which metric. 20 fan questions, each with the table and column that answers it, are checked against it."
+  - "Every catalogue metric has at least one mart column in the map: `goals_penalty`, `goals_own` and `goals_open_play` become columns of `mart_team_season`, and `goals_penalty_player` and `goals_open_play_player` of `mart_player_profile`."
 
 scope_paths:
-  - dbt_project/seeds/metric_catalogue.csv
-  - dbt_project/seeds/schema.yml
-  - dbt_project/models/docs/metric_columns.md
   - scripts/sync_metric_docs_blocks.py
   - tests/test_sync_metric_docs_blocks.py
-  - dbt_project/tests/assert_metric_direction_lower_is_better_agree.sql
-  - dbt_project/tests/assert_metric_meaning_complete.sql
-  - scripts/export_metric_definitions_json.py
-  - docs/ui_design_brief.md
-  - docs/wireframes/00_overview.md
-  - docs/wireframes/01_fixture_page.md
-  - docs/wireframes/02_team_profile.md
+  - tests/test_metric_map.py
+  - dbt_project/seeds/metric_map.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/models/docs/metric_columns.md
+  - dbt_project/models/docs/shared_columns.md
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
+  - dbt_project/models/5_marts/shared/mart_team_season.sql
+  - dbt_project/models/5_marts/shared/mart_player_profile.sql
+  - docs/metric_layer.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -44,50 +42,76 @@ scope_paths:
   - docs/tracker/**
 
 impact_map: >
-  `dbt ls --select metric_catalogue+`: mart_team_leaderboards (it reads direction for rank_order)
-  and the catalogue's tests (accepted_values on base_relation, computation_kind, direction,
-  entity, format, importance_tier and metric_group; assert_metric_catalogue_expr_resolvable,
-  assert_metric_catalogue_unique_by_entity, assert_metric_meaning_complete,
-  assert_metric_direction_lower_is_better_agree, the formula and coverage tests). No model selects
-  lower_is_better or description; the one test that reads lower_is_better goes with it. What
-  changes in the warehouse: the seed table loses its lower_is_better column, and the description
-  of the seed's rows and of every metric column that shows a generated block (persist_docs)
-  becomes the new text. Consumption: scripts/export_metric_definitions_json.py, which feeds the
-  retired legacy site, reads lower_is_better today and derives it from direction instead, so its
-  output is unchanged; site_v2 reads direction only. No value, row, model SQL or export output
-  changes. Layer rules: none touched.
+  writers: mart_team_season and mart_player_profile are each written only by their own model;
+  metric_map is a new seed, written by dbt seed from the generated CSV.
+  downstream, `dbt ls --project-dir dbt_project --select mart_team_season+ mart_player_profile+
+  --resource-type model`: mart_player_profile, mart_team_profile, mart_team_season,
+  mart_team_season_insights. mart_team_profile and mart_team_season_insights select named columns
+  from mart_team_season (ts.played ... ts.latest_form), so the three new columns do not reach
+  them. Consumption: scripts/export_site_data.py reads mart_player_profile with select * and copies
+  each season row into the player payload, so the two new player columns reach the player page
+  data; no file under site_v2/src names them. metric_map has no reader.
+  layer_rules: the two marts read the season intermediates they already read
+  (int_team_season__metrics, int_player_season__metrics); no new ref, no partition_by or
+  cluster_by; check_layer_contract.py unchanged.
+  deploy_order: additive. Prod gains the columns and the seed on the first build after the merge
+  (the post-merge data:build:main, else the 04:00 nightly); nothing reads them before.
+  blast_radius: no existing value changes; the two marts gain five columns. The description of
+  29 mart columns changes in BigQuery (persist_docs): 24 point at their metric's block, 5 at a
+  team description. Measured offline: 346 mart columns reference a metric block today, 65 metric
+  rows come from the four long-format marts, and 5 catalogue metrics reach no mart.
 
 decisions_taken: >
-  #190 as the CPO approved it on 2026-10-03, its description standard (engineering_standards.md
-  section 2, merged in !243) and its check; the CPO's instruction of 2026-10-02 to rewrite every
-  description without reading them. Readings, under the CPO's delegation in chat on 2026-10-02
-  ("Readings of approved rules are yours; apply the most plausible one and state it in one
-  line"): the listed words are matched as whole words, any case; the export derives
-  lower_is_better from direction (true exactly when direction is lower_better, which the removed
-  lockstep test held) so the frozen legacy site's input does not change.
+  The CPO's answers in chat on 2026-10-04, to the five questions of #190 step 4: the table name
+  "metric_map (Recommended)"; the scope "Marts only (Recommended)"; the long-format marts "One row
+  per metric (Recommended)"; the five metrics no mart carries "Add them to marts (Recommended)";
+  the 20 fan questions "Approve as listed (Recommended)". #190 records them.
+
+  Readings, under the CPO's delegation in chat on 2026-10-02 ("Readings of approved rules are
+  yours; apply the most plausible one and state it in one line"):
+  - The map is a seed CSV the script writes beside metric_columns.md, as sync_dbt_vars.py writes
+    competition_registry.csv; --check, already in validate:governance, fails on drift, on a
+    catalogue metric with no mart row and on a long-format mart it cannot read.
+  - The map holds placement only: table_name, column_name, metric_id, variant, window_column,
+    metric_key_column. The entity is the catalogue's, joined by metric_id, which is unique.
+  - The variant is read from the column name's affixes: empty for the metric over the table's
+    row; this_season, prev_season, prev_season_full, delta_yoy, sum_season; home, away, opponent,
+    last_meeting, recent_meetings; form for a form-window column; a side and a period join with
+    an underscore (home_form).
+  - window_column names window_type where the table has it. mart_matchday_insights keeps only a
+    qualifiers flag, so its form columns carry the variant home_form or away_form and no window
+    column.
+  - A mart column holds a catalogue metric when its value is that metric's formula, or for
+    league_rank its source, over the table's row, a window, a side, the opponent or a season
+    total. Such a column points at the metric's block; one that holds none points at none. A
+    count the catalogue does not define (a team's shots, passes, offsides), a value scaled to a
+    whole percentage, a provider's table points or goals, and a count of results are not metric
+    columns.
+  - A hand-written block left with no reference is deleted.
+  - The 20 questions are a pytest's cases, read against the committed CSV, not a warehouse table.
+
+  Threshold declarations. NEW MECHANISM: none; a generated seed with a drift check is the
+  competition_registry.csv pattern, and the new checks run inside the existing script and its CI
+  step. RECURRING COST: the seed loads with the nightly seed run and carries five tests (not_null
+  on its three key columns, their uniqueness, and metric_id's relationship to the catalogue) on
+  tables under 1 MB, each billed at BigQuery's 10 MB minimum, about 50 MB a night; the two marts
+  gain five integer columns.
 
 decisions_reserved:
-  - Names, labels, order, direction values and format stay with #177; what a high or low value
-    means (interpretation) stays with #187; metric ids and their pattern stay with #94.
-  - No model's logic changes.
+  - Metric ids, names, labels, formulas and the catalogue's rows are unchanged (#177, #94).
+  - The same player definitions on team stat columns in fct_fixture_team_stats and
+    int_legs__team_match are outside marts-only scope; they go to their own issue.
+  - No existing value changes.
 
 done_when:
-  - dbt parse, the offline gates (including description hygiene and the docs-block check), ruff,
-    pytest pass.
-  - The review cycle passes with every routed reviewer, the football reviewer among them,
-    review.md bound to --staged-hash.
-  - data:build:mr is green.
+  - python scripts/sync_metric_docs_blocks.py --check passes on the real repo, and the map has a
+    row for every catalogue metric.
+  - pytest on tests/test_sync_metric_docs_blocks.py and tests/test_metric_map.py passes; each new
+    check is shown red on a deliberate break.
+  - check_description_hygiene.py, check_relationships_coverage.py, dbt parse, sqlfluff on the two
+    changed SQL files and ruff pass.
+  - The review cycle passes with every routed reviewer, review.md bound to --staged-hash.
+  - data:build:mr is green; its build of the two marts is compared with prod (bytes to the CPO
+    first): existing columns equal, the new columns equal the season intermediates.
 
-notes_for_owning_issues: >
-  The football reviewer's notes on columns this MR does not change, recorded here as #190 asks.
-  #177: the label "Open-play goals" and the interpretation of goals_open_play (team and player),
-  and of finishing_efficiency_pct, say open play while the formula is goals minus penalties and own
-  goals, set pieces included; the team goals_own label "Own goals" reads as the team's own goals;
-  labels say "shots on goal" where descriptions say "shots on target"; finishing efficiency keeps
-  penalty shots in its denominator while its numerator leaves penalty goals out. #184: the player
-  saves_player_pct and shots_on_goal_against_player keep own goals in the goals conceded.
-
-amendments:
-  - 2026-10-03: notes_for_owning_issues added — authority: #190, "A defect it sees in a column the
-    diff does not change (a label, an interpretation) is a note for #177 or #187, recorded in the
-    contract, not a FAIL"; content: the football reviewer's round-1 notes.
+amendments: (none)
