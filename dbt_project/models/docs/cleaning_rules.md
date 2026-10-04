@@ -17,6 +17,10 @@ match stats are good enough.
 - Results. A team's goals are the score. Its penalty and own goals come from its goal events where
   those add up to its score, penalty shoot-outs left out. A player's goals come from the per-player
   count or the goal events, whichever adds up to the score.
+- A player's team. Where his statistics row and his match events, own goals aside, name different
+  teams of the match, the squad list for the season decides, and his other matches decide where it
+  names both teams or neither; the side it contradicts, his row or his events, moves to the team
+  it names. Where nothing decides, both stay where the provider put them.
 - Accurate passes are a count in every match. Where a match's values add up to more than its
   passes, the provider sent a percentage, and it is converted once.
 - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its

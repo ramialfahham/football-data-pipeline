@@ -819,7 +819,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_event
-    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs."
+    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Each build adds new fixtures and merges again any fixture whose stored events base_apif__fixture_events now attributes differently, so a team correction reaches the history while the events raw no longer holds stay."
     meta:
       owner: "data-platform"
       domain: "football"
