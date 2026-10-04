@@ -12,9 +12,6 @@
   justification left. Do NOT reintroduce an entity predicate: an exemption here is invisible by
   construction.
 
-  Companion guard: `assert_metric_direction_lower_is_better_agree` stops `direction` and the legacy
-  `lower_is_better` boolean asserting different things about the same metric.
-
   Blank cells load from the seed as NULL or empty string depending on quoting, so guard both.
 
   CI note. On a merge request this guard reads the BRANCH's seed: `--favor-state` is absent from

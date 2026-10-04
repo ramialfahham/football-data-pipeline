@@ -49,7 +49,7 @@ CPO note: none of these is to be copied; each contributes one thing.
 - **Tabular numerals** for all stat columns (non-negotiable for a stats product).
 - **Color semantics**: Win/Draw/Loss needs a consistent encoding (color + letter,
   never color alone); metrics have a "good direction" (the data carries
-  `lower_is_better`) — the system must express better/worse consistently.
+  `direction`) — the system must express better/worse consistently.
 - **Accessibility WCAG AA**: contrast in both themes, touch targets, reduced motion.
 - **Static site, fast**: no heavy JS; charts are lightweight islands. Core Web
   Vitals budget — design for instant first paint.

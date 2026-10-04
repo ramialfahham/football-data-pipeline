@@ -95,7 +95,7 @@ Every screen file follows this structure:
 - **Formats** from the catalogue `format` column: `integer` (no decimals),
   `decimal_0` / `decimal_1` (fixed decimals, locale separators), `percent`
   (0–100 with %, 0 decimals), `points_fraction` (e.g. `10/15` — won of available).
-- **Direction**: catalogue `lower_is_better` decides which side of a comparison is
+- **Direction**: catalogue `direction` decides which side of a comparison is
   "better"; the encoding (color + shape, never color alone) is a design-pass token.
 - **W/D/L**: letter + color, never color alone (brief §4).
 - **Tabular numerals** on every stat column.

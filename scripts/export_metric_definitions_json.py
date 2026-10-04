@@ -3,7 +3,7 @@
 
 Composes two sources (the catalogue is never modified here):
   - metric_catalogue.csv  — the single source of truth for each metric. This script reads
-    `format`, `lower_is_better` (direction), and `label_i18n_key` from it.
+    `format`, `direction` (exported as `lower_is_better`) and `label_i18n_key` from it.
   - metric_bindings.csv   — the live display wiring: each windowed live id, the catalogue
     metric it maps to, the JSON columns that feed it, and the render context.
 
@@ -18,10 +18,6 @@ import argparse
 import csv
 import json
 from pathlib import Path
-
-
-def _truthy(value: str | None) -> bool:
-    return (value or "").strip().lower() in ("true", "1", "yes")
 
 
 def load_catalogue(path: Path) -> dict[tuple[str, str], dict[str, object]]:
@@ -55,7 +51,7 @@ def load_catalogue(path: Path) -> dict[tuple[str, str], dict[str, object]]:
                 continue
             catalogue[(mid, entity)] = {
                 "format": (row.get("format") or "").strip(),
-                "lower_is_better": _truthy(row.get("lower_is_better")),
+                "lower_is_better": (row.get("direction") or "").strip() == "lower_better",
                 "label_i18n_key": (row.get("label_i18n_key") or "").strip(),
             }
     return catalogue
