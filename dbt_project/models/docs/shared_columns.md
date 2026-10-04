@@ -210,13 +210,6 @@ season.
 {% enddocs %}
 
 
-{% docs latest_rank %}
-Rank from fct_standings for the team's standings row (after deduping multiple fct rows per
-team-season). Not unique across teams in the same league-season: qualifiers and tournaments
-reuse rank numbers across parallel groups or phases, and the API may repeat the same
-group_description label for different groups.
-{% enddocs %}
-
 
 {% docs losses %}
 Losses (all).
@@ -306,6 +299,31 @@ Shots by this team that missed the target, from its cleaned statistics line.
 {% docs shots_blocked %}
 Shots by this team that were blocked before reaching the goal, from its cleaned statistics line.
 It counts the team's OWN attempts that an opponent blocked - not blocks this team made.
+{% enddocs %}
+
+
+{% docs shots_on_goal__team_match %}
+Shots on target by this team, from its cleaned statistics line.
+{% enddocs %}
+
+
+{% docs shots_total__team_match %}
+Shots this team took, from its cleaned statistics line.
+{% enddocs %}
+
+
+{% docs offsides__team_match %}
+Times this team was caught offside, from its cleaned statistics line.
+{% enddocs %}
+
+
+{% docs passes_total__team_match %}
+Passes this team attempted, from its cleaned statistics line.
+{% enddocs %}
+
+
+{% docs passes_accurate__team_match %}
+This team's passes that reached a teammate, from its cleaned statistics line.
 {% enddocs %}
 
 
@@ -460,12 +478,6 @@ Matches the team has lost this season, counted from the match result. Totalled o
 never NULL.
 {% enddocs %}
 
-{% docs goals_for_sum_season %}
-Goals scored by the team, read from the authoritative match scoreline (the score after extra
-time where a match went to it) rather than summed from player or event records. Totalled over
-the season.
-{% enddocs %}
-
 {% docs total_shots_sum_season %}
 Shots the team took, from its cleaned statistics line, summed over its played matches this
 season.
@@ -494,21 +506,6 @@ played matches this season.
 {% docs passes_total_sum_season %}
 Passes the team attempted, from its cleaned statistics line, summed over its played matches this
 season.
-{% enddocs %}
-
-{% docs corner_kicks_sum_season %}
-Corner kicks the team won, from its cleaned statistics line, summed over its played matches this
-season.
-{% enddocs %}
-
-{% docs goalkeeper_saves_sum_season %}
-Shots on target the team's goalkeepers saved, from its cleaned statistics line, summed over its
-played matches this season.
-{% enddocs %}
-
-{% docs shots_inside_box_sum_season %}
-Shots the team took from inside the penalty area, from its cleaned statistics line, summed over
-its played matches this season.
 {% enddocs %}
 
 {% docs season_matchdays_used %}

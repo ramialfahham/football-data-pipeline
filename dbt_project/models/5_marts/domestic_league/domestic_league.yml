@@ -130,7 +130,7 @@ models:
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
-        description: "{{ doc('latest_rank') }}"
+        description: "{{ doc('league_rank') }} Here, the latest, from its standings row; parallel groups or phases reuse the same positions."
       - name: latest_form
         description: "{{ doc('latest_form') }}"
       - name: standings_group_description
@@ -149,7 +149,7 @@ models:
       - name: points_won_sum_season
         description: "{{ doc('points_won_sum_season__team') }}"
       - name: goals_for_sum_season
-        description: "{{ doc('goals_for_sum_season') }}"
+        description: "{{ doc('goals') }} Here, totalled over the season."
       - name: goals_against_sum_season
         description: "{{ doc('goals_against_sum_season__team') }}"
       - name: total_shots_sum_season
@@ -157,19 +157,19 @@ models:
       - name: opponent_total_shots_sum_season
         description: "{{ doc('opponent_total_shots_sum_season') }}"
       - name: shots_inside_box_sum_season
-        description: "{{ doc('shots_inside_box_sum_season') }}"
+        description: "{{ doc('shots_inside_box_sum_season__team') }}"
       - name: shots_on_goal_sum_season
         description: "{{ doc('shots_on_goal_sum_season') }}"
       - name: corner_kicks_sum_season
-        description: "{{ doc('corner_kicks_sum_season') }}"
+        description: "{{ doc('corners') }} Here, totalled over the season."
       - name: opponent_corner_kicks_sum_season
-        description: "{{ doc('opponent_corner_kicks_sum_season') }}"
+        description: "{{ doc('corners') }} Here, the opponents', totalled over the season."
       - name: passes_accurate_sum_season
         description: "{{ doc('passes_accurate_sum_season') }}"
       - name: passes_total_sum_season
         description: "{{ doc('passes_total_sum_season') }}"
       - name: goalkeeper_saves_sum_season
-        description: "{{ doc('goalkeeper_saves_sum_season') }}"
+        description: "{{ doc('saves') }} Here, totalled over the season."
       - name: points_capture_pct
         description: "{{ doc('points_capture_pct') }}"
       - name: goals_per_match
@@ -322,9 +322,9 @@ models:
       - name: league_name
         description: "Human-readable league name from dim_league."
       - name: home_league_rank
-        description: "Home team's rank in its own competition+season table (mart_standings). Null for knockout rounds and for overlapping-table leagues (team in >1 section that season), or before standings exist."
+        description: "{{ doc('league_rank') }} Here, the home side's."
       - name: away_league_rank
-        description: "Away team's rank in its own competition+season table (mart_standings). Null for knockout rounds and for overlapping-table leagues (team in >1 section that season), or before standings exist."
+        description: "{{ doc('league_rank') }} Here, the away side's."
       - name: home_form_games_played
         description: "Home: finished matches in the W1 form window (= games_in_window; last-5 normally, cumulative for tournament fixtures). 0 when none; never null."
         tests: [not_null]

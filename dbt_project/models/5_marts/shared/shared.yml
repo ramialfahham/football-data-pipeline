@@ -347,7 +347,7 @@ models:
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_on
-        description: "This player's shots on target summed across the side's form-window legs (last_5 by default, or the tournament window on a tournament fixture) over the legs the player appeared in."
+        description: "{{ doc('shots_on_goal_player') }} Here, summed over the side's form-window matches the player appeared in."
       - name: passes_key_player
         description: "{{ doc('passes_key_player') }}"
       - name: passes_accurate_player
@@ -536,11 +536,11 @@ models:
       - name: team_logo_url
         description: "{{ doc('team_logo_url') }}"
       - name: shots_on_goal
-        description: "{{ doc('shots_on_goal_player') }}"
+        description: "{{ doc('shots_on_goal__team_match') }}"
       - name: shots_off_goal
         description: "{{ doc('shots_off_goal') }}"
       - name: shots_total
-        description: "{{ doc('shots_player') }}"
+        description: "{{ doc('shots_total__team_match') }}"
       - name: shots_blocked
         description: "{{ doc('shots_blocked') }}"
       - name: shots_inside_box
@@ -552,19 +552,19 @@ models:
       - name: corner_kicks
         description: "{{ doc('corners') }}"
       - name: offsides
-        description: "{{ doc('offsides_player') }}"
+        description: "{{ doc('offsides__team_match') }}"
       - name: ball_possession_percent
         description: "{{ doc('ball_possession_percent') }}"
       - name: yellow_cards
-        description: "{{ doc('yellow_cards') }}"
+        description: "{{ doc('cards_yellow') }}"
       - name: red_cards
-        description: "{{ doc('red_cards') }}"
+        description: "{{ doc('cards_red') }}"
       - name: goalkeeper_saves
         description: "{{ doc('saves') }}"
       - name: passes_total
-        description: "{{ doc('passes_player') }}"
+        description: "{{ doc('passes_total__team_match') }}"
       - name: passes_accurate
-        description: "{{ doc('passes_accurate_player') }}"
+        description: "{{ doc('passes_accurate__team_match') }}"
       - name: passes_accuracy_percent
         description: "{{ doc('passes_accuracy_percent') }}"
       - name: goals_for
@@ -641,13 +641,13 @@ models:
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on
-        description: "{{ doc('shots_on__leg') }}"
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: goals_total
-        description: "{{ doc('goals_total__leg') }}"
+        description: "{{ doc('goals_player') }}"
       - name: goals_against
         description: "{{ doc('goals_against_player') }}"
       - name: goals_assists
-        description: "{{ doc('goals_assists__leg') }}"
+        description: "{{ doc('assists_player') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
       - name: passes_total
@@ -685,7 +685,7 @@ models:
       - name: penalty_committed
         description: "{{ doc('penalty_committed_player') }}"
       - name: penalty_scored
-        description: "{{ doc('penalty_scored') }}"
+        description: "{{ doc('goals_penalty_player') }}"
       - name: penalty_missed
         description: "{{ doc('penalty_missed') }}"
       - name: penalty_saved
@@ -947,7 +947,7 @@ models:
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
       - name: latest_rank
-        description: "{{ doc('latest_rank') }}"
+        description: "{{ doc('league_rank') }} Here, the latest, from its standings row; parallel groups or phases reuse the same positions."
       - name: latest_form
         description: "{{ doc('latest_form') }}"
       - name: season_games_played
@@ -1362,7 +1362,7 @@ models:
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_on
-        description: "This player's cumulative shots on target in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance, summed over the player's season legs."
+        description: "{{ doc('shots_on_goal_player') }} Here, cumulative in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance."
       - name: passes_key_player
         description: "{{ doc('passes_key_player') }}"
       - name: passes_accurate_player
@@ -1492,7 +1492,7 @@ models:
       - name: team_logo_url
         description: "{{ doc('team_logo_url') }}"
       - name: standing_rank
-        description: "Table position within the section (1 = top)."
+        description: "{{ doc('league_rank') }} Here, within its standings section."
         tests: [not_null]
       - name: points
         description: "Accumulated points in the section."
@@ -1599,8 +1599,14 @@ models:
       - name: clean_sheets
         description: "{{ doc('clean_sheets') }}"
         tests: [not_null]
+      - name: goals_penalty
+        description: "{{ doc('goals_penalty') }}"
+      - name: goals_own
+        description: "{{ doc('goals_own') }}"
+      - name: goals_open_play
+        description: "{{ doc('goals_open_play') }}"
       - name: latest_rank
-        description: "{{ doc('latest_rank') }}"
+        description: "{{ doc('league_rank') }} Here, the latest, from its standings row; parallel groups or phases reuse the same positions."
       - name: latest_form
         description: "{{ doc('latest_form') }}"
       - name: standings_group_description
@@ -1747,6 +1753,10 @@ models:
         description: "{{ doc('minutes__season_to_date') }}"
       - name: goals_player
         description: "{{ doc('goals_player') }}"
+      - name: goals_penalty_player
+        description: "{{ doc('goals_penalty_player') }}"
+      - name: goals_open_play_player
+        description: "{{ doc('goals_open_play_player') }}"
       - name: assists_player
         description: "{{ doc('assists_player') }}"
       - name: shots_on_goal_player
@@ -1928,15 +1938,15 @@ models:
       - name: is_substitute
         description: "{{ doc('is_substitute') }}"
       - name: goals_total
-        description: "{{ doc('goals_total__leg') }}"
+        description: "{{ doc('goals_player') }}"
       - name: goals_assists
-        description: "{{ doc('goals_assists__leg') }}"
+        description: "{{ doc('assists_player') }}"
       - name: saves
         description: "{{ doc('saves_player') }}"
       - name: shots_total
         description: "{{ doc('shots_player') }}"
       - name: shots_on
-        description: "{{ doc('shots_on__leg') }}"
+        description: "{{ doc('shots_on_goal_player') }}"
       - name: passes_total
         description: "{{ doc('passes_player') }}"
       - name: passes_key
@@ -2764,9 +2774,9 @@ models:
               values: [true, false]
               quote: false
       - name: goals_home
-        description: "Final-time goals scored by the home team; null until the fixture is played."
+        description: "{{ doc('goals') }} Here, the home side's, once the fixture is played."
       - name: goals_away
-        description: "Final-time goals scored by the away team; null until the fixture is played."
+        description: "{{ doc('goals') }} Here, the away side's, once the fixture is played."
       - name: home_team_sk
         description: "{{ doc('home_team_sk') }}"
         tests:

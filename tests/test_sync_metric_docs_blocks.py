@@ -70,11 +70,17 @@ def _point_at_tmp(monkeypatch, tmp_path):
     `MODELS` and `MIN_DERIVED` are pointed the same way and for the same reason:
     the generator's second input is the project's own column names, and a test
     that left it pointed at the real `models/` tree would be asserting against
-    500-odd real columns instead of the two it declares."""
+    500-odd real columns instead of the two it declares.
+
+    The metric map is the script's second output and has its own tests in test_metric_map.py;
+    here it renders as a bare header, so these tests see the blocks alone."""
     monkeypatch.setattr(gen, "MIN_METRICS", 1)
     monkeypatch.setattr(gen, "MIN_DERIVED", 0)
     monkeypatch.setattr(gen, "MODELS", _models(tmp_path, []))
     monkeypatch.setattr(gen, "OUT", tmp_path / "out" / "metric_columns.md")
+    monkeypatch.setattr(gen, "MAP_OUT", tmp_path / "out" / "metric_map.csv")
+    monkeypatch.setattr(gen, "_render_map",
+                        lambda rows, names: (",".join(gen.MAP_FIELDS) + "\n").encode("utf-8"))
 
 
 def _run(monkeypatch, *args):

@@ -1,4 +1,8 @@
-"""Generate the metric docs blocks from `metric_catalogue.csv`, and check they match.
+"""Generate the metric docs blocks and the metric map from `metric_catalogue.csv`, and check they match.
+
+The map, `seeds/metric_map.csv`, says where each catalogue metric can be read: one row per mart
+column that references a metric's block, and one per metric a long-format mart holds in
+`metric_key`. Every catalogue metric must have a row.
 
 #82 step 4. The catalogue is this project's only source of what a metric MEANS
 (`dbt_project/seeds/schema.yml`: "The single source of truth for every metric we
@@ -68,6 +72,35 @@ MODELS = REPO_ROOT / "dbt_project" / "models"
 # into the warehouse column. `check_description_hygiene.py` restricts its own
 # discovery the same way so the gate and dbt cannot disagree.
 OUT = REPO_ROOT / "dbt_project" / "models" / "docs" / "metric_columns.md"
+
+MAP_OUT = REPO_ROOT / "dbt_project" / "seeds" / "metric_map.csv"
+MARTS_DIR = "5_marts"
+MAP_FIELDS = ("table_name", "column_name", "metric_id", "variant", "window_column",
+              "metric_key_column")
+WINDOW_COLUMN = "window_type"
+METRIC_KEY_COLUMN = "metric_key"
+LONG_VALUE_COLUMNS = ("metric_value", "sort_value")
+DOC_REF = re.compile(r"doc\(\s*['\"](\w+)['\"]\s*\)")
+
+# A column name says which part of a metric it holds: a side, a period, or both.
+VARIANT_SIDES = (
+    ("prefix", "home_", "home"),
+    ("prefix", "away_", "away"),
+    ("suffix", "_home", "home"),
+    ("suffix", "_away", "away"),
+    ("prefix", "opponent_", "opponent"),
+    ("prefix", "last_meeting_", "last_meeting"),
+    ("prefix", "recent_meetings.", "recent_meetings"),
+)
+VARIANT_PERIODS = (
+    ("suffix", "_prev_season_full", "prev_season_full"),
+    ("suffix", "_prev_season", "prev_season"),
+    ("suffix", "_this_season", "this_season"),
+    ("suffix", "_delta_yoy", "delta_yoy"),
+    ("suffix", "_sum_season", "sum_season"),
+    ("suffix", "_sum_form", "form"),
+    ("suffix", "_recent", "form"),
+)
 
 # Floor under the read, enforced here and not only in the tests. A renamed column,
 # a moved seed or a parser change could leave this matching nothing, and a
@@ -307,24 +340,30 @@ def _column_names() -> list[str]:
         rel = _rel(path)
         if "/target/" in f"/{rel}" or "/dbt_packages/" in f"/{rel}":
             continue
-        try:
-            doc = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
-            # LOUD. A file that will not parse means the name set is incomplete,
-            # and an incomplete set silently drops blocks for the columns in it.
-            raise Abort(rel + " will not parse (" + exc.__class__.__name__
-                        + "), so the column-name set is incomplete and any block "
-                        "missing from the output would be missing for that reason "
-                        "rather than because the column does not exist.") from exc
-        if not isinstance(doc, dict) or not isinstance(doc.get("models"), list):
-            continue
-        for model in doc["models"]:
-            if not isinstance(model, dict):
-                continue
-            for col in model.get("columns") or []:
-                if isinstance(col, dict) and isinstance(col.get("name"), str):
-                    names.add(col["name"])
+        for _, columns in _models_in(path):
+            names.update(col["name"] for col in columns)
     return sorted(names)
+
+
+def _models_in(path: pathlib.Path) -> list[tuple[str, list[dict]]]:
+    """(model name, its named columns) for every model a yml declares."""
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError, OSError) as exc:
+        # LOUD. A file that will not parse means the name set is incomplete,
+        # and an incomplete set silently drops blocks for the columns in it.
+        raise Abort(_rel(path) + " will not parse (" + exc.__class__.__name__
+                    + "), so the column-name set is incomplete and any block "
+                    "missing from the output would be missing for that reason "
+                    "rather than because the column does not exist.") from exc
+    if not isinstance(doc, dict) or not isinstance(doc.get("models"), list):
+        return []
+    return [
+        (model["name"], [col for col in model.get("columns") or []
+                         if isinstance(col, dict) and isinstance(col.get("name"), str)])
+        for model in doc["models"]
+        if isinstance(model, dict) and isinstance(model.get("name"), str)
+    ]
 
 
 def _decompose(name: str, metrics: set[str]) -> tuple[str, str] | None:
@@ -509,6 +548,75 @@ def _render(rows: list[dict], names: list[str],
     return out.getvalue().encode("utf-8")
 
 
+def _variant(column: str) -> str:
+    """Which part of its metric a column holds, from its name; empty for the metric over the row."""
+    def first(affixes: tuple[tuple[str, str, str], ...]) -> str:
+        return next((token for kind, affix, token in affixes
+                     if (column.startswith(affix) if kind == "prefix" else column.endswith(affix))),
+                    "")
+    return "_".join(part for part in (first(VARIANT_SIDES), first(VARIANT_PERIODS)) if part)
+
+
+def _metric_of(block: str, metrics: set[str]) -> str:
+    stem = block if block in metrics else block.rpartition("__")[0]
+    if stem in metrics:
+        return stem
+    hit = _decompose(stem, metrics)
+    if not hit:
+        raise Abort("the block " + block + " names no catalogue metric")
+    return hit[0]
+
+
+def _long_rows(model: str, column: dict, names: set[str], window: str,
+               metrics: set[str]) -> set[tuple[str, ...]]:
+    """One row per metric a long-format mart holds, read from its metric_key's accepted_values."""
+    values = next((t["accepted_values"].get("values") for t in column.get("tests") or []
+                   if isinstance(t, dict) and isinstance(t.get("accepted_values"), dict)), None)
+    if not values:
+        raise Abort(model + "." + METRIC_KEY_COLUMN + " pins no accepted_values, so the "
+                    "metrics it holds cannot be read")
+    value_column = next((c for c in LONG_VALUE_COLUMNS if c in names), None)
+    if value_column is None:
+        raise Abort(model + " has a " + METRIC_KEY_COLUMN + " but none of "
+                    + ", ".join(LONG_VALUE_COLUMNS) + " to hold its value")
+    unknown = sorted(set(values) - metrics)
+    if unknown:
+        raise Abort(model + "." + METRIC_KEY_COLUMN + " holds values the catalogue does not "
+                    "define: " + ", ".join(unknown))
+    return {(model, value_column, value, "", window, METRIC_KEY_COLUMN) for value in values}
+
+
+def _map_rows(rows: list[dict], names: list[str]) -> list[tuple[str, ...]]:
+    metrics = {r["metric_id"].strip() for r in rows}
+    blocks = set(_blocks(rows)) | set(_derived_blocks(rows, names))
+    out: set[tuple[str, ...]] = set()
+    for path in sorted((MODELS / MARTS_DIR).rglob("*.yml")):
+        for model, columns in _models_in(path):
+            here = {col["name"] for col in columns}
+            window = WINDOW_COLUMN if WINDOW_COLUMN in here else ""
+            for col in columns:
+                for ref in DOC_REF.findall(str(col.get("description") or "")):
+                    if ref in blocks:
+                        out.add((model, col["name"], _metric_of(ref, metrics),
+                                 _variant(col["name"]), window, ""))
+                if col["name"] == METRIC_KEY_COLUMN:
+                    out |= _long_rows(model, col, here, window, metrics)
+    return sorted(out)
+
+
+def _render_map(rows: list[dict], names: list[str]) -> bytes:
+    map_rows = _map_rows(rows, names)
+    missing = sorted({r["metric_id"].strip() for r in rows} - {row[2] for row in map_rows})
+    if missing:
+        raise Abort("these catalogue metrics have no mart column, so the map cannot say where "
+                    "to read them: " + ", ".join(missing))
+    out = io.StringIO()
+    writer = csv.writer(out, lineterminator="\n")
+    writer.writerow(MAP_FIELDS)
+    writer.writerows(map_rows)
+    return out.getvalue().encode("utf-8")
+
+
 def _same(a: bytes, b: bytes) -> bool:
     """Byte equality that ignores line endings, because the checkout decides them."""
     return a.replace(b"\r\n", b"\n") == b.replace(b"\r\n", b"\n")
@@ -532,7 +640,7 @@ def main() -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Verify the file matches the seed and the model YAML. Writes nothing; "
+        help="Verify the files match the seed and the model YAML. Writes nothing; "
              "exits 1 on drift.",
     )
     args = parser.parse_args()
@@ -540,7 +648,9 @@ def main() -> int:
     refused: list[str] = []
     try:
         rows = _read_rows()
-        expected = _render(rows, _column_names(), refused)
+        names = _column_names()
+        expected = _render(rows, names, refused)
+        expected_map = _render_map(rows, names)
     except Abort as exc:
         print("sync_metric_docs_blocks: " + str(exc), file=sys.stderr)
         return 1
@@ -556,36 +666,51 @@ def main() -> int:
         print()
 
     count = expected.count(b"{% docs ")
-    current = OUT.read_bytes() if OUT.exists() else None
+    map_count = expected_map.count(b"\n") - 1
+    targets = (
+        (OUT, expected, _describe_drift, str(count) + " blocks"),
+        (MAP_OUT, expected_map, _describe_map_drift, str(map_count) + " map rows"),
+    )
 
     if args.check:
-        if current is None:
-            print("FAIL: " + _rel(OUT) + " does not exist. Run "
-                  "`python scripts/sync_metric_docs_blocks.py` to create it.")
-            return 1
-        if not _same(current, expected):
-            print("FAIL: " + _rel(OUT) + " has drifted from "
-                  + _rel(SEED) + " or from the model YAML.\n")
-            for line in _describe_drift(current, expected):
-                print("  - " + line)
+        failed = False
+        for path, want, describe, _ in targets:
+            current = path.read_bytes() if path.exists() else None
+            if current is None:
+                print("FAIL: " + _rel(path) + " does not exist. Run "
+                      "`python scripts/sync_metric_docs_blocks.py` to create it.")
+                failed = True
+            elif not _same(current, want):
+                print("FAIL: " + _rel(path) + " has drifted from "
+                      + _rel(SEED) + " or from the model YAML.\n")
+                for line in describe(current, want):
+                    print("  - " + line)
+                failed = True
+        if failed:
             print("\nThe seed and the model YAML are the sources. Do not edit the "
-                  "generated file: run\n  python scripts/sync_metric_docs_blocks.py")
+                  "generated files: run\n  python scripts/sync_metric_docs_blocks.py")
             return 1
-        print("OK: " + str(count) + " metric docs blocks match " + _rel(SEED)
-              + " and the model YAML.")
+        print("OK: " + str(count) + " metric docs blocks and " + str(map_count)
+              + " metric map rows match " + _rel(SEED) + " and the model YAML.")
         return 0
 
-    if current is not None and _same(current, expected):
+    written = 0
+    for path, want, _, what in targets:
+        current = path.read_bytes() if path.exists() else None
+        if current is not None and _same(current, want):
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(_to_disk(want, current))
+        print("WROTE " + _rel(path) + ": " + what + " from " + _rel(SEED) + ".")
+        written += 1
+    if not written:
         # Loud, not silently green - the `declare_missing_columns.py` precedent. A
         # generator that reports success while doing nothing is how a broken read
         # passes for a working one.
         print("sync_metric_docs_blocks: already up to date (" + str(count)
-              + " blocks). Nothing written.", file=sys.stderr)
+              + " blocks, " + str(map_count) + " map rows). Nothing written.",
+              file=sys.stderr)
         return 1
-
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_bytes(_to_disk(expected, current))
-    print("WROTE " + _rel(OUT) + ": " + str(count) + " blocks from " + _rel(SEED) + ".")
     return 0
 
 
@@ -622,6 +747,19 @@ def _describe_drift(current: bytes, expected: bytes) -> list[str]:
             "line endings differ. Regenerate rather than hand-fixing."
         )
     return lines
+
+
+def _describe_map_drift(current: bytes, expected: bytes) -> list[str]:
+    """Name the map rows that differ."""
+    def parse(blob: bytes) -> set[tuple[str, ...]]:
+        text = blob.decode("utf-8", errors="replace").replace("\r\n", "\n")
+        return {tuple(row) for row in csv.reader(io.StringIO(text))}
+
+    now, want = parse(current), parse(expected)
+    lines = ["missing row: " + ",".join(row) for row in sorted(want - now)]
+    lines += ["row no longer generated: " + ",".join(row) for row in sorted(now - want)]
+    return lines or ["the rows all match but the bytes do not: ordering or quoting differ. "
+                     "Regenerate rather than hand-fixing."]
 
 
 if __name__ == "__main__":

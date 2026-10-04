@@ -140,6 +140,8 @@ select
     a.minutes,
     -- catalogue count metrics
     a.goals_player,
+    a.goals_penalty_player,
+    a.goals_open_play_player,
     a.assists_player,
     a.shots_on_goal_player,
     a.passes_player,
