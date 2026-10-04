@@ -1411,7 +1411,8 @@ models:
       season_api_year, group_name, team_sk).
 
       Rank, points, form, W/D/L, goals scored and conceded, goal difference: every value is the
-      provider's official standings row as published, nothing computed from fixtures. The
+      league's official standings row, the provider's except where corrected to the league's
+      figures (standings_corrections), nothing computed from fixtures. The
       provider's zone annotation ("Promotion - Champions League", "Relegation") is carried
       verbatim in group_description but never interpreted, so there is no derived qualification
       or relegation field.
@@ -1497,9 +1498,9 @@ models:
       - name: points
         description: "Accumulated points in the section."
       - name: goals_scored
-        description: "Goals scored in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
+        description: "Goals scored in the section, as the official standings row reports them; null only where the provider row lacks the field."
       - name: goals_conceded
-        description: "Goals conceded in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
+        description: "Goals conceded in the section, as the official standings row reports them; null only where the provider row lacks the field."
       - name: form
         description: "Recent results string from the API (e.g. WWDLW)."
       - name: group_description
@@ -1509,7 +1510,7 @@ models:
       - name: goals_diff
         description: "{{ doc('goals_diff') }}"
       - name: played
-        description: "Matches played in this standings section, as the provider's own standings row reports it — not counted from fixtures. NULL only where the provider's row lacks the field."
+        description: "Matches played in this standings section, as the official standings row reports it — not counted from fixtures. NULL only where the provider's row lacks the field."
       - name: wins
         description: "{{ doc('wins') }}"
       - name: draws

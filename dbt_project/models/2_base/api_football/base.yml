@@ -127,7 +127,9 @@ models:
   - name: base_apif__fixtures_next
     description: >
       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
-      fixture_id. Grain: fixture_id.
+      fixture_id. Where the provider's result differs from the league's official decision, the
+      score and status are the official ones from the fixture_result_corrections seed, and the
+      provider's stay on the row. Grain: fixture_id.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -140,6 +142,16 @@ models:
       - name: league_code
         description: "{{ doc('league_code') }}"
         tests: [not_null]
+      - name: awarded_to_team_id
+        description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
+      - name: provider_goals_home
+        description: "The provider's home goals; differs from goals_home only where the official result was corrected."
+      - name: provider_goals_away
+        description: "The provider's away goals; differs from goals_away only where the official result was corrected."
+      - name: provider_status_short
+        description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
+      - name: result_correction_source
+        description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
 
   - name: base_apif__standings
     description: >
@@ -149,6 +161,10 @@ models:
       group_name is the provider's section or table name and is the true table identity — a league
       name for a single table, a group name for a group stage. group_description is a zone or
       stage annotation and is never an identity.
+
+      Where the provider's row differs from the league's official table, its figures are the
+      official ones from the standings_corrections seed, and the provider's stay on the row as
+      provider_*.
     config:
       tags: ["base", "api_football", "standings_context"]
     tests:
@@ -165,12 +181,32 @@ models:
         description: "{{ doc('team_api_id') }}"
         tests: [not_null]
       - name: standing_rank
-        description: "The team's position in this standings table (1 = leader), from the provider's standings row ($.rank)."
+        description: "The team's position in this standings table (1 = leader), from the official standings row ($.rank)."
         tests: [not_null]
       - name: goals_for_all
-        description: Goals scored across all matches of the section, from the provider's standings row.
+        description: Goals scored across all matches of the section, from the official standings row.
       - name: goals_against_all
-        description: Goals conceded across all matches of the section, from the provider's standings row.
+        description: Goals conceded across all matches of the section, from the official standings row.
+      - name: provider_standing_rank
+        description: "The provider's rank; differs from standing_rank only on a corrected row."
+      - name: provider_points
+        description: "The provider's points; differs from points only on a corrected row."
+      - name: provider_goals_diff
+        description: "The provider's goal difference; differs from goals_diff only on a corrected row."
+      - name: provider_played_all
+        description: "The provider's matches played; differs from played_all only on a corrected row."
+      - name: provider_wins_all
+        description: "The provider's wins; differs from wins_all only on a corrected row."
+      - name: provider_draws_all
+        description: "The provider's draws; differs from draws_all only on a corrected row."
+      - name: provider_losses_all
+        description: "The provider's losses; differs from losses_all only on a corrected row."
+      - name: provider_goals_for_all
+        description: "The provider's goals scored; differs from goals_for_all only on a corrected row."
+      - name: provider_goals_against_all
+        description: "The provider's goals conceded; differs from goals_against_all only on a corrected row."
+      - name: result_correction_source
+        description: "Where the row was corrected, the source of the official figures: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
 
   - name: base_apif__fixture_statistics
     description: >

@@ -1,629 +1,960 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d567be30..2ac20f99 100644
+index 2ac20f99..5309fba7 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,38 +1,32 @@
--# Task contract — the metric map: where each catalogue metric can be read in the marts
-+# Task contract — a player's row and his match events under one team: the squad list decides
+@@ -1,32 +1,43 @@
+-# Task contract — a player's row and his match events under one team: the squad list decides
++# Task contract — a result that differs from the league's official decision is corrected to it, with its source
  
  objective: >
--  How step 4 of the issue "Metric layer: every rule in one place, plain descriptions, a map an AI
--  can read" (#190). scripts/sync_metric_docs_blocks.py generates a seed, metric_map, with one row
--  per mart column that holds a catalogue metric: the table, the column, the metric, its variant
--  (read from the column name) and, where the window or the metric varies by row, the column that
--  says which. Every catalogue metric has a row, so the five season metrics no mart carried become
--  columns of mart_team_season and mart_player_profile. A pytest checks 20 fan questions against
--  the map. Mart columns that hold a catalogue metric but were described by hand point at the
--  metric's block, so the map finds them; five team columns that showed a player's definition
--  point at a team description instead.
-+  The issue "A player's row and his match events in different teams: move the side the squad list
-+  contradicts" (#189). Where a player's statistics row and his match events place him in different
-+  teams of the match, the squad list (base_apif__player_team_season) decides, and his other
-+  matches decide where it names both teams or neither; the side it contradicts moves to the team
-+  it names: the events in base_apif__fixture_events or the row in base_apif__fixture_players. A
-+  test fails when a cleaned player row and that player's events in the match sit under different
-+  teams. fct_fixture_event re-merges each match whose stored events name a different team than
-+  base, so moved events reach its history without a full rebuild.
+-  The issue "A player's row and his match events in different teams: move the side the squad list
+-  contradicts" (#189). Where a player's statistics row and his match events place him in different
+-  teams of the match, the squad list (base_apif__player_team_season) decides, and his other
+-  matches decide where it names both teams or neither; the side it contradicts moves to the team
+-  it names: the events in base_apif__fixture_events or the row in base_apif__fixture_players. A
+-  test fails when a cleaned player row and that player's events in the match sit under different
+-  teams. fct_fixture_event re-merges each match whose stored events name a different team than
+-  base, so moved events reach its history without a full rebuild.
++  The issue "A result that differs from the league's official decision is corrected to it, with
++  its source" (#194). Eight match results the provider files wrongly are corrected to the league's
++  official decision, and the provider's league-table rows that the research finds wrong are
++  corrected the same way: two seeds of hand corrections, each row naming its source, applied once
++  in base_apif__fixtures_next and base_apif__standings with the provider's values kept on the row.
++  A test fails when a correction is not applied, has no valid source, or no longer changes
++  anything. The cleaning_rules doc block states the rule.
  
  refs: >
--  #190, its checklist lines and How step 4 as edited on 2026-10-04 with the CPO's answers in chat
--  that day. #190 steps 1 to 3 are merged (!243, !245, !246).
-+  #189, rewritten and approved by the CPO on 2026-10-03; its How step 3 edited on 2026-10-04 with
-+  the CPO's answer in chat that day.
+-  #189, rewritten and approved by the CPO on 2026-10-03; its How step 3 edited on 2026-10-04 with
+-  the CPO's answer in chat that day.
++  #194, approved by the CPO on 2026-10-04; its research items edited into it the same day.
  
  acceptance_criteria:
--  # The issue's checklist lines this MR delivers, verbatim.
--  - "A generated table in the warehouse, `metric_map`, maps every mart column that holds a catalogue metric (table, column) to its metric, its variant (this season, last season, change, home side, form) and, where the window varies by row, the column that says which. A long-format mart enters with one row per metric it holds: its value column, and `metric_key` as the column that says which metric. 20 fan questions, each with the table and column that answers it, are checked against it."
--  - "Every catalogue metric has at least one mart column in the map: `goals_penalty`, `goals_own` and `goals_open_play` become columns of `mart_team_season`, and `goals_penalty_player` and `goals_open_play_player` of `mart_player_profile`."
-+  # The issue's checklist lines, verbatim.
-+  - "Where a player's row and his match events place him in different teams of the match, the squad list decides, and his other matches decide where it names both teams or neither: the side it contradicts, the row in `base_apif__fixture_players` or the events in `base_apif__fixture_events`, moves to the team it names."
-+  - "A test fails when a cleaned player row and that player's events in the match sit under different teams."
+   # The issue's checklist lines, verbatim.
+-  - "Where a player's row and his match events place him in different teams of the match, the squad list decides, and his other matches decide where it names both teams or neither: the side it contradicts, the row in `base_apif__fixture_players` or the events in `base_apif__fixture_events`, moves to the team it names."
+-  - "A test fails when a cleaned player row and that player's events in the match sit under different teams."
++  - "These 8 matches carry the official result in every table and on the site; the provider's value stays next to ours in the cleaned table: Union Berlin-Bochum, BL1 14 Dec 2024: 1-1 -> 0-2 awarded; Bastia-Lyon, L1 16 Apr 2017: 0-0 -> 0-0 awarded to Lyon (the LFP set no score: Lyon gets the win, no goals); Sassuolo-Pescara, SA 28 Aug 2016: 0-3 as played -> 0-3 awarded; Al Orubah-Al Nassr, SPL 28 Feb 2025: 2-1 -> 0-3 awarded; Istanbulspor-Trabzonspor, TSL 19 Dec 2023: 1-2 -> 0-3 awarded; Galatasaray-Adana Demirspor, TSL 9 Feb 2025: 1-0 -> 3-0 awarded; Antwerp-Beerschot, BPL 29 Sep 2024: 4-0 -> 5-0 awarded; Seongnam-Ulsan, KL1 4 Sep 2022: 3-0 -> 2-0"
++  - "Every provider league-table row the research finds wrong shows the league's figures (at least Sassuolo 46 and Pescara 18, Serie A 2016-17; the ranks of Sampdoria and Cagliari follow)."
++  - "An awarded match counts like every forfeit (R3): in points, goals and goals against, in no other metric."
++  - "Each correction names its source: the league's or federation's decision, or two independent match reports."
++  - "A check fails when a correction no longer changes anything."
++  - "`cleaning_rules` says: a result is corrected only to the league's official decision, with its source; match stats never correct a result."
  
  scope_paths:
--  - scripts/sync_metric_docs_blocks.py
--  - tests/test_sync_metric_docs_blocks.py
--  - tests/test_metric_map.py
--  - dbt_project/seeds/metric_map.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/models/docs/metric_columns.md
--  - dbt_project/models/docs/shared_columns.md
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
--  - dbt_project/models/5_marts/shared/mart_team_season.sql
--  - dbt_project/models/5_marts/shared/mart_player_profile.sql
--  - docs/metric_layer.md
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/models/3_core/fct_fixture_event.sql
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/docs/cleaning_rules.md
-+  - dbt_project/tests/assert_player_row_and_events_same_team.sql
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/seeds/fixture_result_corrections.csv
++  - dbt_project/seeds/standings_corrections.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++  - dbt_project/models/2_base/api_football/base_apif__standings.sql
+   - dbt_project/models/2_base/api_football/base.yml
+-  - dbt_project/models/3_core/fct_fixture_event.sql
++  - dbt_project/models/3_core/fct_fixture.sql
+   - dbt_project/models/3_core/core.yml
++  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+   - dbt_project/models/docs/cleaning_rules.md
+-  - dbt_project/tests/assert_player_row_and_events_same_team.sql
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/tests/assert_result_corrections_applied.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/docs/layering.md
++  - docs/content_architecture.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -42,76 +36,80 @@ scope_paths:
+@@ -36,13 +47,15 @@ scope_paths:
    - docs/tracker/**
  
  impact_map: >
--  writers: mart_team_season and mart_player_profile are each written only by their own model;
--  metric_map is a new seed, written by dbt seed from the generated CSV.
--  downstream, `dbt ls --project-dir dbt_project --select mart_team_season+ mart_player_profile+
--  --resource-type model`: mart_player_profile, mart_team_profile, mart_team_season,
--  mart_team_season_insights. mart_team_profile and mart_team_season_insights select named columns
--  from mart_team_season (ts.played ... ts.latest_form), so the three new columns do not reach
--  them. Consumption: scripts/export_site_data.py reads mart_player_profile with select * and copies
--  each season row into the player payload, so the two new player columns reach the player page
--  data; no file under site_v2/src names them. metric_map has no reader.
--  layer_rules: the two marts read the season intermediates they already read
--  (int_team_season__metrics, int_player_season__metrics); no new ref, no partition_by or
--  cluster_by; check_layer_contract.py unchanged.
--  deploy_order: additive. Prod gains the columns and the seed on the first build after the merge
--  (the post-merge data:build:main, else the 04:00 nightly); nothing reads them before.
--  blast_radius: no existing value changes; the two marts gain five columns. The description of
--  29 mart columns changes in BigQuery (persist_docs): 24 point at their metric's block, 5 at a
--  team description. Measured offline: 346 mart columns reference a metric block today, 65 metric
--  rows come from the four long-format marts, and 5 catalogue metrics reach no mart.
-+  writers: base_apif__fixture_events and base_apif__fixture_players are each written only by their
-+  own model, rebuilt in full every night; fct_fixture_event is the incremental fact merged from
-+  base_apif__fixture_events on event_sk.
-+  downstream, `dbt ls --project-dir dbt_project --select base_apif__fixture_events+
-+  base_apif__fixture_players+ --resource-type model` (54 models, 24 marts):
-+  base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
-+  base_apif__players dim_player fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats
-+  int_legs__player_match int_legs__team_from_players int_legs__team_match
-+  int_player_club_season__metrics int_player_competition_benchmarks int_player_momentum__metrics
-+  int_player_profile__contribution int_player_profile__yoy int_player_season__metrics
-+  int_player_season__team int_player_season_position__metrics int_player_season_record
-+  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
-+  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
-+  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
-+  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
-+  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
-+  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
-+  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
-+  mart_player_season_record mart_roster mart_team_competition_benchmarks mart_team_fixture_stats
-+  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
-+  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record.
-+  fct_fixture_event has no model reader (`dbt ls --select fct_fixture_event+1` lists only itself);
-+  four tests read it.
-+  layer_rules: base reads stg_apif__fixture_players and base_apif__player_team_season (base may
-+  read staging and base); no core, intermediate or mart ref; no model sets its materialisation;
-+  fct_fixture_event stays the one incremental core fact; check_layer_contract.py applies.
-+  deploy_order: the base tables are rebuilt in full by the first build after the merge, so the
-+  moves reach every downstream model in that build; fct_fixture_event re-merges the affected
-+  matches in the same build. Nothing to sequence by hand.
-+  blast_radius: measured read-only on prod on 2026-10-04, the two new models run over prod's
-+  inputs (0.48 GB): the new test fails on 995 events in 985 player-matches today and on none
-+  after; 949 events move in 195 matches (801 substitutions, 49 cards, 1 goal) and 45 player rows
-+  in 7 matches; both tables keep their row counts (1,900,644 player rows, 868,841 events). The
-+  issue's table of 2026-10-03 counted 665 cases on a narrower definition (no event under the
-+  row's team). Player and team values change in those matches and the seasons and windows that
-+  hold them (cards, penalties and goals credited by team, team totals summed from players, a
-+  player's club in those matches); fct_fixture_event changes the team of the moved events and
-+  keeps the 29 events only it holds.
+-  writers: base_apif__fixture_events and base_apif__fixture_players are each written only by their
+-  own model, rebuilt in full every night; fct_fixture_event is the incremental fact merged from
+-  base_apif__fixture_events on event_sk.
+-  downstream, `dbt ls --project-dir dbt_project --select base_apif__fixture_events+
+-  base_apif__fixture_players+ --resource-type model` (54 models, 24 marts):
+-  base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
+-  base_apif__players dim_player fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats
++  writers: base_apif__fixtures_next and base_apif__standings are each written only by their own
++  model, rebuilt in full every night; fct_fixture and int_legs__team_match likewise. The two new
++  seeds are loaded by dbt seed / dbt build and read only by the two base models and the new test.
++  downstream, `dbt ls --project-dir dbt_project --select base_apif__fixtures_next+
++  base_apif__standings+ --resource-type model` (69 models, 29 marts): base_apif__fixture_events
++  base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
++  base_apif__players base_apif__standings base_apif__teams base_apif__teams_global dim_player
++  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
++  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats fct_standings
+   int_legs__player_match int_legs__team_from_players int_legs__team_match
+   int_player_club_season__metrics int_player_competition_benchmarks int_player_momentum__metrics
+   int_player_profile__contribution int_player_profile__yoy int_player_season__metrics
+@@ -50,66 +63,92 @@ impact_map: >
+   int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
+   int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
+   int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
+-  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
+-  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
+-  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
++  int_team_season__metrics_cumulative int_team_season__standings_primary int_team_season_record
++  mart_competition_fixtures mart_competition_index mart_competition_season_summary
++  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
++  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
+   mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
+-  mart_player_season_record mart_roster mart_team_competition_benchmarks mart_team_fixture_stats
+-  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
+-  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record.
+-  fct_fixture_event has no model reader (`dbt ls --select fct_fixture_event+1` lists only itself);
+-  four tests read it.
+-  layer_rules: base reads stg_apif__fixture_players and base_apif__player_team_season (base may
+-  read staging and base); no core, intermediate or mart ref; no model sets its materialisation;
+-  fct_fixture_event stays the one incremental core fact; check_layer_contract.py applies.
+-  deploy_order: the base tables are rebuilt in full by the first build after the merge, so the
+-  moves reach every downstream model in that build; fct_fixture_event re-merges the affected
+-  matches in the same build. Nothing to sequence by hand.
+-  blast_radius: measured read-only on prod on 2026-10-04, the two new models run over prod's
+-  inputs (0.48 GB): the new test fails on 995 events in 985 player-matches today and on none
+-  after; 949 events move in 195 matches (801 substitutions, 49 cards, 1 goal) and 45 player rows
+-  in 7 matches; both tables keep their row counts (1,900,644 player rows, 868,841 events). The
+-  issue's table of 2026-10-03 counted 665 cases on a narrower definition (no event under the
+-  row's team). Player and team values change in those matches and the seasons and windows that
+-  hold them (cards, penalties and goals credited by team, team totals summed from players, a
+-  player's club in those matches); fct_fixture_event changes the team of the moved events and
+-  keeps the 29 events only it holds.
++  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
++  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
++  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record. base_apif__standings+ alone is 13 of them
++  (fct_standings, int_team_season__standings_primary, int_team_season__deserved_vs_actual and the
++  marts reading the table). fct_fixture_event reads base_apif__fixtures_next for team ids only.
++  layer_rules: the corrections are applied in base, which may read staging and seeds; core and
++  intermediate only carry the corrected columns; no model sets its materialisation and no new
++  model is added; check_layer_contract.py applies. The win/draw/loss stays decided once, in
++  int_legs__team_match.
++  deploy_order: dbt build loads the seeds before the models that read them, so the first build
++  after the merge applies every correction in one pass; every changed model is rebuilt in full.
++  fct_fixture_event is incremental and reads no changed column. Nothing to sequence by hand.
++  blast_radius: measured read-only on prod on 2026-10-04 (0.14 GB). 8 fixtures change: the score in
++  6 (Union Berlin-Bochum, Al Orubah-Al Nassr, Istanbulspor-Trabzonspor, Galatasaray-Adana
++  Demirspor, Antwerp-Beerschot, Seongnam-Ulsan), the status to AWD in 7 (all but Seongnam-Ulsan),
++  the winner in 1 (Bastia-Lyon). 16 team-seasons change W/D/L, goals, goals against or points;
++  after the change all 16 equal the provider's table on W, D, L and goals except Sassuolo and
++  Pescara, whose table rows are the ones corrected, and points differ only by the table's
++  deductions (Istanbulspor, Adana Demirspor). 4 table rows change, Serie A 2016-17: Sassuolo and
++  Pescara (the provider kept the 2-1) and the ranks of Sampdoria and Cagliari. The 232 player rows
++  of the 6 awarded matches with player data leave every player surface (they read FT/AET/PEN
++  only); the team stat lines of the awarded matches leave every team metric (is_awarded_result)
++  and stay on the match page unchanged. Seongnam's goal events list the 37' goal twice, so with
++  the score at 2-0 they no longer add up and its penalty and own goals in that match, and its KL1
++  2022 goal split, go blank under the Results rule. Downstream: points, goals, goals against,
++  W/D/L counts, form, streaks, head-to-head, season summaries, standings and rank on the pages
++  of those teams and seasons.
  
  decisions_taken: >
--  The CPO's answers in chat on 2026-10-04, to the five questions of #190 step 4: the table name
--  "metric_map (Recommended)"; the scope "Marts only (Recommended)"; the long-format marts "One row
--  per metric (Recommended)"; the five metrics no mart carries "Add them to marts (Recommended)";
--  the 20 fan questions "Approve as listed (Recommended)". #190 records them.
-+  #189 as approved on 2026-10-03, and the CPO's answer in chat on 2026-10-04 to the rebuild
-+  question: "Self-heal, keep the 29 (Recommended)", recorded in the issue's How step 3.
+-  #189 as approved on 2026-10-03, and the CPO's answer in chat on 2026-10-04 to the rebuild
+-  question: "Self-heal, keep the 29 (Recommended)", recorded in the issue's How step 3.
++  #194 as approved on 2026-10-04, under the rule cleaning_rules already states: results are exact.
  
-   Readings, under the CPO's delegation in chat on 2026-10-02 ("Readings of approved rules are
-   yours; apply the most plausible one and state it in one line"):
--  - The map is a seed CSV the script writes beside metric_columns.md, as sync_dbt_vars.py writes
--    competition_registry.csv; --check, already in validate:governance, fails on drift, on a
--    catalogue metric with no mart row and on a long-format mart it cannot read.
--  - The map holds placement only: table_name, column_name, metric_id, variant, window_column,
--    metric_key_column. The entity is the catalogue's, joined by metric_id, which is unique.
--  - The variant is read from the column name's affixes: empty for the metric over the table's
--    row; this_season, prev_season, prev_season_full, delta_yoy, sum_season; home, away, opponent,
--    last_meeting, recent_meetings; form for a form-window column; a side and a period join with
--    an underscore (home_form).
--  - window_column names window_type where the table has it. mart_matchday_insights keeps only a
--    qualifiers flag, so its form columns carry the variant home_form or away_form and no window
--    column.
--  - A mart column holds a catalogue metric when its value is that metric's formula, or for
--    league_rank its source, over the table's row, a window, a side, the opponent or a season
--    total. Such a column points at the metric's block; one that holds none points at none. A
--    count the catalogue does not define (a team's shots, passes, offsides), a value scaled to a
--    whole percentage, a provider's table points or goals, and a count of results are not metric
--    columns.
--  - A hand-written block left with no reference is deleted.
--  - The 20 questions are a pytest's cases, read against the committed CSV, not a warehouse table.
-+  - The rule is decided once, in base_apif__fixture_events, which the player model already reads;
-+    the events carry the decided team in resolved_player_team_id, and the player model moves its
-+    row from that column.
-+  - A player's row team is read from the provider's player rows with the same team-id overrides
-+    base_apif__fixture_players applies.
-+  - A case is a player with a row under one team of the match and at least one event under the
-+    other; own goals are neither evidence nor moved, as the issue's Not in scope says.
-+  - Where his events sit under both teams, the decided team takes all his events and his row: the
-+    contradicted side moves.
-+  - The squad list is read for the match's season in any competition; the other matches are the
-+    player's rows in every other match. Where neither decides, nothing moves and the test fails.
-+  - A moved event takes the name the match's events give its new team.
+-  Readings, under the CPO's delegation in chat on 2026-10-02 ("Readings of approved rules are
+-  yours; apply the most plausible one and state it in one line"):
+-  - The rule is decided once, in base_apif__fixture_events, which the player model already reads;
+-    the events carry the decided team in resolved_player_team_id, and the player model moves its
+-    row from that column.
+-  - A player's row team is read from the provider's player rows with the same team-id overrides
+-    base_apif__fixture_players applies.
+-  - A case is a player with a row under one team of the match and at least one event under the
+-    other; own goals are neither evidence nor moved, as the issue's Not in scope says.
+-  - Where his events sit under both teams, the decided team takes all his events and his row: the
+-    contradicted side moves.
+-  - The squad list is read for the match's season in any competition; the other matches are the
+-    player's rows in every other match. Where neither decides, nothing moves and the test fails.
+-  - A moved event takes the name the match's events give its new team.
++  The research items of its step 2, settled by research and edited into the issue: Bastia-Lyon
++  was lost by Bastia with no score set (the LFP imposed none; both tables count the match with no
++  goals), recorded 0-0 with the win to Lyon; Antwerp's two table rows already count the 5-0
++  (regular season 47 = 46 + 1; Championship Round 57 = 47 + 10 play-off goals) and Beerschot's
++  Relegation Round row counts it too, so none of them is corrected.
  
--  Threshold declarations. NEW MECHANISM: none; a generated seed with a drift check is the
--  competition_registry.csv pattern, and the new checks run inside the existing script and its CI
--  step. RECURRING COST: the seed loads with the nightly seed run and carries five tests (not_null
--  on its three key columns, their uniqueness, and metric_id's relationship to the catalogue) on
--  tables under 1 MB, each billed at BigQuery's 10 MB minimum, about 50 MB a night; the two marts
--  gain five integer columns.
-+  Threshold declarations. NEW MECHANISM: none; the re-merge is the third clause of the self-heal
-+  fct_fixture_event already has, and the handover column is an ordinary base column. RECURRING
-+  COST, measured by dry run: base_apif__fixture_events reads the player rows and the squad lists,
-+  about 0.065 GB a night, and fct_fixture_event's nightly read grows from 0.118 GB to 0.132 GB.
+-  Threshold declarations. NEW MECHANISM: none; the re-merge is the third clause of the self-heal
+-  fct_fixture_event already has, and the handover column is an ordinary base column. RECURRING
+-  COST, measured by dry run: base_apif__fixture_events reads the player rows and the squad lists,
+-  about 0.065 GB a night, and fct_fixture_event's nightly read grows from 0.118 GB to 0.132 GB.
++  Readings, under the CPO's delegation of 2026-10-02 ("Readings of approved rules are yours"):
++  - A match the league awarded without setting a score carries its winner in the seed
++    (awarded_to_team_id), passed from base through fct_fixture to int_legs__team_match, which
++    decides every win, draw and loss; elsewhere the score decides, as today.
++  - An awarded correction sets status_short to AWD and status_long to 'Technical loss', the
++    provider's own pair for an awarded match, so every rule keyed on an awarded result applies;
++    Seongnam-Ulsan was played and keeps FT.
++  - The provider's goals and status stay on every row of base_apif__fixtures_next
++    (provider_goals_home, provider_goals_away, provider_status_short); result_correction_source
++    names the source on a corrected row and is NULL elsewhere.
++  - A table row is corrected in full (rank, played, W, D, L, goals for and against, points); its
++    goal difference follows from the corrected goals; the provider's figures stay on the row as
++    provider_*; result_correction_source names the source. The rank is a figure of the row, so
++    Sampdoria's and Cagliari's rows, ranked below the provider's 49 for Sassuolo, are corrected.
++  - Sourced: source_kind official (the league's or federation's decision, record or table) needs
++    at least one https URL; match_reports needs at least two on different hosts.
++  - Still needed: a match correction changes the provider's goals or status or sets a winner the
++    score does not show; a table correction changes at least one of the provider's figures.
++  - The stat lines of the awarded matches are cleaned as every awarded match's is today; measured,
++    no shown team stat changes. R3's text stays as it is.
++
++  Threshold declarations. NEW MECHANISM: none; a seed of hand corrections applied in base is the
++  pattern of fixture_team_id_overrides, and the new columns are ordinary columns. RECURRING COST:
++  two seeds of a few rows, two joins in base and one test, measured by dry run before the commit.
  
  decisions_reserved:
--  - Metric ids, names, labels, formulas and the catalogue's rows are unchanged (#177, #94).
--  - The same player definitions on team stat columns in fct_fixture_team_stats and
--    int_legs__team_match are outside marts-only scope; they go to their own issue.
--  - No existing value changes.
-+  - Own goals stay under the team they count for.
-+  - No catalogue, metric formula or window changes.
-+  - A case nothing decides is not guessed: it stays, and the test fails on it.
+-  - Own goals stay under the team they count for.
+-  - No catalogue, metric formula or window changes.
+-  - A case nothing decides is not guessed: it stays, and the test fails on it.
++  - How the site marks an awarded match does not change: it shows the score and the result, as
++    for every awarded match today.
++  - No catalogue row, metric formula or window changes.
++  - Match stats and events are not corrected (the issue's Not in scope).
  
  done_when:
--  - python scripts/sync_metric_docs_blocks.py --check passes on the real repo, and the map has a
--    row for every catalogue metric.
--  - pytest on tests/test_sync_metric_docs_blocks.py and tests/test_metric_map.py passes; each new
--    check is shown red on a deliberate break.
--  - check_description_hygiene.py, check_relationships_coverage.py, dbt parse, sqlfluff on the two
--    changed SQL files and ruff pass.
-+  - The test, run against today's prod rows, fails on the cases; run against the new models
-+    inlined over prod, passes (bytes to the CPO first).
-+  - dbt parse, sqlfluff on the changed SQL, the offline gates and pytest pass.
+-  - The test, run against today's prod rows, fails on the cases; run against the new models
++  - The test, run against today's prod rows, fails on every correction; run against the new models
+     inlined over prod, passes (bytes to the CPO first).
+   - dbt parse, sqlfluff on the changed SQL, the offline gates and pytest pass.
    - The review cycle passes with every routed reviewer, review.md bound to --staged-hash.
--  - data:build:mr is green; its build of the two marts is compared with prod (bytes to the CPO
--    first): existing columns equal, the new columns equal the season intermediates.
-+  - data:build:mr is green; every changed value is compared with prod before the merge (bytes to
-+    the CPO first).
+   - data:build:mr is green; every changed value is compared with prod before the merge (bytes to
+     the CPO first).
  
- amendments: (none)
+-amendments: (none)
++amendments:
++  - 2026-10-04: + dbt_project/models/5_marts/shared/shared.yml, mart_standings.sql,
++    dbt_project/docs/layering.md, docs/content_architecture.md — authority: the CPO's go to build
++    #194 as its own MR (2026-10-04); content: the texts that call every standings value the
++    provider's row as published now say the provider's row, corrected to the league's official
++    figures where they differ; the base, core and mart column texts the same. No product, metric
++    or display change.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index ebbea25f..0c59a671 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -314,7 +314,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
+ | `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+ | `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
+-| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The provider's official standings row as published (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
++| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
+ | `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
+ | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
+ | `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 900e076e..f81b0af9 100644
+index f81b0af9..6d5c70c7 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -246,7 +246,7 @@ models:
-         description: "{{ doc('fixture_api_id') }}"
-         tests: [not_null]
-       - name: team_id
--        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
-+        description: "The provider's numeric team id for this player's side, after applying the known-defect corrections in the fixture_team_id_overrides seed: an unconditional alias swap for a duplicate id, or a reattribution when the correct id is a fixture participant and the wrong id is not; and the team the player's-team rule above decides, where his events name the other team of the match. Corrected before this model's own (league_code, fixture_id, team_id, player_id) dedup."
-         tests: [not_null]
-       - name: player_id
-         description: "{{ doc('player_api_id') }}"
-@@ -308,7 +308,9 @@ models:
- 
-       team_id is then resolved. A null one is recovered from the same team's other events in that
-       fixture, matched by name, and known provider team-id defects are corrected from the
--      fixture_team_id_overrides seed.
-+      fixture_team_id_overrides seed. Where a player's events and his statistics row name different
-+      teams of the match, the player's-team rule of the cleaning rules on base_apif__fixture_players
-+      decides, and his events move when they are the side it contradicts.
+@@ -127,7 +127,9 @@ models:
+   - name: base_apif__fixtures_next
+     description: >
+       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
+-      fixture_id. Grain: fixture_id.
++      fixture_id. Where the provider's result differs from the league's official decision, the
++      score and status are the official ones from the fixture_result_corrections seed, and the
++      provider's stay on the row. Grain: fixture_id.
      config:
        tags: ["base", "api_football", "fixture_context"]
      tests:
-@@ -324,6 +326,11 @@ models:
+@@ -140,6 +142,16 @@ models:
        - name: league_code
          description: "{{ doc('league_code') }}"
          tests: [not_null]
-+      - name: resolved_player_team_id
-+        description: >
-+          On the events of a player whose statistics row names the other team of the match, the team
-+          the player's-team rule decides for him, which his events and his row then both carry. NULL
-+          on every other event, on an own goal, and where nothing decides.
++      - name: awarded_to_team_id
++        description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
++      - name: provider_goals_home
++        description: "The provider's home goals; differs from goals_home only where the official result was corrected."
++      - name: provider_goals_away
++        description: "The provider's away goals; differs from goals_away only where the official result was corrected."
++      - name: provider_status_short
++        description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
++      - name: result_correction_source
++        description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
  
-   - name: base_apif__player_team_season
+   - name: base_apif__standings
      description: >
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-index 4b27a4cf..7c77822a 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-@@ -67,6 +67,7 @@ recovered as (
- fixture_participants as (
-     select
-         fixture_id,
-+        season,
-         cast(home_team_id as int64) as home_team_id,
-         cast(away_team_id as int64) as away_team_id
-     from {{ ref('base_apif__fixtures_next') }}
-@@ -86,41 +87,221 @@ overrides as (
-         cast(correct_team_api_id as int64) as correct_team_api_id,
-         mode
-     from {{ ref('fixture_team_id_overrides') }}
+@@ -149,6 +161,10 @@ models:
+       group_name is the provider's section or table name and is the true table identity — a league
+       name for a single table, a group name for a group stage. group_description is a zone or
+       stage annotation and is never an identity.
++
++      Where the provider's row differs from the league's official table, its figures are the
++      official ones from the standings_corrections seed, and the provider's stay on the row as
++      provider_*.
+     config:
+       tags: ["base", "api_football", "standings_context"]
+     tests:
+@@ -165,12 +181,32 @@ models:
+         description: "{{ doc('team_api_id') }}"
+         tests: [not_null]
+       - name: standing_rank
+-        description: "The team's position in this standings table (1 = leader), from the provider's standings row ($.rank)."
++        description: "The team's position in this standings table (1 = leader), from the official standings row ($.rank)."
+         tests: [not_null]
+       - name: goals_for_all
+-        description: Goals scored across all matches of the section, from the provider's standings row.
++        description: Goals scored across all matches of the section, from the official standings row.
+       - name: goals_against_all
+-        description: Goals conceded across all matches of the section, from the provider's standings row.
++        description: Goals conceded across all matches of the section, from the official standings row.
++      - name: provider_standing_rank
++        description: "The provider's rank; differs from standing_rank only on a corrected row."
++      - name: provider_points
++        description: "The provider's points; differs from points only on a corrected row."
++      - name: provider_goals_diff
++        description: "The provider's goal difference; differs from goals_diff only on a corrected row."
++      - name: provider_played_all
++        description: "The provider's matches played; differs from played_all only on a corrected row."
++      - name: provider_wins_all
++        description: "The provider's wins; differs from wins_all only on a corrected row."
++      - name: provider_draws_all
++        description: "The provider's draws; differs from draws_all only on a corrected row."
++      - name: provider_losses_all
++        description: "The provider's losses; differs from losses_all only on a corrected row."
++      - name: provider_goals_for_all
++        description: "The provider's goals scored; differs from goals_for_all only on a corrected row."
++      - name: provider_goals_against_all
++        description: "The provider's goals conceded; differs from goals_against_all only on a corrected row."
++      - name: result_correction_source
++        description: "Where the row was corrected, the source of the official figures: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
+ 
+   - name: base_apif__fixture_statistics
+     description: >
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+index 0dba5a50..330188cc 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+@@ -2,30 +2,47 @@ with src as (
+     select *
+     from {{ ref('stg_apif__fixtures_next') }}
+     where fixture_id is not null
 +),
 +
-+attributed as (
-+    select
-+        recovered.league_code,
-+        recovered.fixture_id,
-+        recovered.event_index,
-+        recovered.minute_elapsed,
-+        recovered.minute_extra,
-+        recovered.team_name,
-+        recovered.player_id,
-+        recovered.player_name,
-+        recovered.assist_player_name,
-+        recovered.event_type,
-+        recovered.event_detail,
-+        recovered.event_comments,
-+        recovered.raw_ingested_at,
-+        recovered.event_type = 'Goal' and recovered.event_detail = 'Own Goal' as is_own_goal,
-+        coalesce(
-+            alias_override.correct_team_api_id,
-+            reattribute_override.correct_team_api_id,
-+            recovered.team_id
-+        ) as team_id
-+    from recovered
-+    left join overrides as alias_override
-+        on
-+            recovered.team_id = alias_override.wrong_team_api_id
-+            and alias_override.mode = 'alias'
-+    left join fixture_participants
-+        on recovered.fixture_id = fixture_participants.fixture_id
-+    left join overrides as reattribute_override
-+        on
-+            recovered.team_id = reattribute_override.wrong_team_api_id
-+            and reattribute_override.mode = 'reattribute_if_cohabiting'
-+            and reattribute_override.correct_team_api_id in (
-+                fixture_participants.home_team_id, fixture_participants.away_team_id
-+            )
-+            and reattribute_override.wrong_team_api_id not in (
-+                fixture_participants.home_team_id, fixture_participants.away_team_id
-+            )
++latest as (
++    select *
++    from src
++    qualify row_number() over (
++        partition by fixture_id
++        order by raw_ingested_at desc
++    ) = 1
 +),
 +
-+-- The player's team, the cleaning_rules doc block's rule, decided here once: base_apif__fixture_players
-+-- reads this model, so this is the one place both feeds can be seen. Each player's row team is
-+-- corrected exactly as base_apif__fixture_players corrects it.
-+player_rows as (
-+    select distinct
-+        player_row.fixture_id,
-+        player_row.player_id,
-+        coalesce(
-+            alias_override.correct_team_api_id,
-+            reattribute_override.correct_team_api_id,
-+            player_row.team_id
-+        ) as team_id
-+    from {{ ref('stg_apif__fixture_players') }} as player_row
-+    left join overrides as alias_override
-+        on
-+            player_row.team_id = alias_override.wrong_team_api_id
-+            and alias_override.mode = 'alias'
-+    left join fixture_participants
-+        on player_row.fixture_id = fixture_participants.fixture_id
-+    left join overrides as reattribute_override
-+        on
-+            player_row.team_id = reattribute_override.wrong_team_api_id
-+            and reattribute_override.mode = 'reattribute_if_cohabiting'
-+            and reattribute_override.correct_team_api_id in (
-+                fixture_participants.home_team_id, fixture_participants.away_team_id
-+            )
-+            and reattribute_override.wrong_team_api_id not in (
-+                fixture_participants.home_team_id, fixture_participants.away_team_id
-+            )
-+    where
-+        player_row.fixture_id is not null
-+        and player_row.team_id is not null
-+        and player_row.player_id is not null
-+        and player_row.player_id != 0
-+),
-+
-+row_teams as (
-+    select
-+        fixture_id,
-+        player_id,
-+        any_value(team_id) as team_id
-+    from player_rows
-+    group by fixture_id, player_id
-+    having count(*) = 1
-+),
-+
-+event_teams as (
-+    select
-+        fixture_id,
-+        player_id,
-+        array_agg(distinct team_id) as team_ids
-+    from attributed
-+    where
-+        player_id is not null
-+        and team_id is not null
-+        and not is_own_goal
-+    group by fixture_id, player_id
-+),
-+
-+disputes as (
-+    select
-+        row_teams.fixture_id,
-+        row_teams.player_id,
-+        fixture_participants.season,
-+        row_teams.team_id as row_team_id,
-+        if(
-+            row_teams.team_id = fixture_participants.home_team_id,
-+            fixture_participants.away_team_id,
-+            fixture_participants.home_team_id
-+        ) as other_team_id
-+    from row_teams
-+    inner join event_teams
-+        on
-+            row_teams.fixture_id = event_teams.fixture_id
-+            and row_teams.player_id = event_teams.player_id
-+    inner join fixture_participants
-+        on row_teams.fixture_id = fixture_participants.fixture_id
-+    where
-+        row_teams.team_id in (fixture_participants.home_team_id, fixture_participants.away_team_id)
-+        and if(
-+            row_teams.team_id = fixture_participants.home_team_id,
-+            fixture_participants.away_team_id,
-+            fixture_participants.home_team_id
-+        ) in unnest(event_teams.team_ids)
-+),
-+
-+squad_listing as (
-+    select
-+        disputes.fixture_id,
-+        disputes.player_id,
-+        coalesce(logical_or(squad.team_id = disputes.row_team_id), false) as lists_row_team,
-+        coalesce(logical_or(squad.team_id = disputes.other_team_id), false) as lists_other_team
-+    from disputes
-+    left join {{ ref('base_apif__player_team_season') }} as squad
-+        on
-+            disputes.player_id = squad.player_id
-+            and disputes.season = squad.season_year
-+    group by disputes.fixture_id, disputes.player_id
-+),
-+
-+other_matches as (
-+    select
-+        disputes.fixture_id,
-+        disputes.player_id,
-+        countif(player_rows.team_id = disputes.row_team_id) as at_row_team,
-+        countif(player_rows.team_id = disputes.other_team_id) as at_other_team
-+    from disputes
-+    left join player_rows
-+        on
-+            disputes.player_id = player_rows.player_id
-+            and disputes.fixture_id != player_rows.fixture_id
-+    group by disputes.fixture_id, disputes.player_id
-+),
-+
-+decisions as (
-+    select
-+        disputes.fixture_id,
-+        disputes.player_id,
-+        case
-+            when squad_listing.lists_row_team and not squad_listing.lists_other_team
-+                then disputes.row_team_id
-+            when squad_listing.lists_other_team and not squad_listing.lists_row_team
-+                then disputes.other_team_id
-+            when other_matches.at_row_team > other_matches.at_other_team then disputes.row_team_id
-+            when other_matches.at_other_team > other_matches.at_row_team then disputes.other_team_id
-+        end as resolved_player_team_id
-+    from disputes
-+    inner join squad_listing
-+        on
-+            disputes.fixture_id = squad_listing.fixture_id
-+            and disputes.player_id = squad_listing.player_id
-+    inner join other_matches
-+        on
-+            disputes.fixture_id = other_matches.fixture_id
-+            and disputes.player_id = other_matches.player_id
-+),
-+
-+team_names as (
-+    select
-+        fixture_id,
-+        team_id,
-+        max(team_name) as team_name
-+    from attributed
-+    group by fixture_id, team_id
++-- The league's official result where the provider's differs, from seeds/fixture_result_corrections.csv.
++result_corrections as (
++    select * from {{ ref('fixture_result_corrections') }}
  )
  
  select
--    recovered.league_code,
--    recovered.fixture_id,
--    recovered.event_index,
--    recovered.minute_elapsed,
--    recovered.minute_extra,
--    recovered.team_name,
--    recovered.player_id,
--    recovered.player_name,
--    recovered.assist_player_name,
--    recovered.event_type,
--    recovered.event_detail,
--    recovered.event_comments,
--    recovered.raw_ingested_at,
--    coalesce(
--        alias_override.correct_team_api_id,
--        reattribute_override.correct_team_api_id,
--        recovered.team_id
--    ) as team_id
--from recovered
--left join overrides as alias_override
-+    attributed.league_code,
-+    attributed.fixture_id,
-+    attributed.event_index,
-+    attributed.minute_elapsed,
-+    attributed.minute_extra,
-+    attributed.player_id,
-+    attributed.player_name,
-+    attributed.assist_player_name,
-+    attributed.event_type,
-+    attributed.event_detail,
-+    attributed.event_comments,
-+    attributed.raw_ingested_at,
-+    decisions.resolved_player_team_id,
-+    coalesce(decisions.resolved_player_team_id, attributed.team_id) as team_id,
-+    if(
-+        decisions.resolved_player_team_id != attributed.team_id,
-+        team_names.team_name,
-+        attributed.team_name
-+    ) as team_name
-+from attributed
-+left join decisions
-     on
--        recovered.team_id = alias_override.wrong_team_api_id
--        and alias_override.mode = 'alias'
--left join fixture_participants
--    on recovered.fixture_id = fixture_participants.fixture_id
--left join overrides as reattribute_override
-+        attributed.fixture_id = decisions.fixture_id
-+        and attributed.player_id = decisions.player_id
-+        and not attributed.is_own_goal
-+left join team_names
-     on
--        recovered.team_id = reattribute_override.wrong_team_api_id
--        and reattribute_override.mode = 'reattribute_if_cohabiting'
--        and reattribute_override.correct_team_api_id in (
--            fixture_participants.home_team_id, fixture_participants.away_team_id
--        )
--        and reattribute_override.wrong_team_api_id not in (
--            fixture_participants.home_team_id, fixture_participants.away_team_id
--        )
-+        attributed.fixture_id = team_names.fixture_id
-+        and decisions.resolved_player_team_id = team_names.team_id
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index c77a2d13..602f0be7 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -91,6 +91,17 @@ overrides as (
-     from {{ ref('fixture_team_id_overrides') }}
- ),
- 
-+-- The player's team where his row and his events disagree, decided in base_apif__fixture_events.
-+resolved_teams as (
-+    select
-+        fixture_id,
-+        player_id,
-+        any_value(resolved_player_team_id) as team_id
-+    from {{ ref('base_apif__fixture_events') }}
-+    where resolved_player_team_id is not null
-+    group by fixture_id, player_id
+-    league_code,
+-    fixture_id,
+-    league_api_id,
+-    season,
+-    fixture_date,
+-    kickoff_datetime,
+-    kickoff_timezone,
+-    status_short,
+-    status_long,
+-    status_elapsed,
+-    round_name,
+-    home_team_id,
+-    away_team_id,
+-    goals_home,
+-    goals_away,
+-    venue_id,
+-    venue_name,
+-    venue_city,
+-    raw_ingested_at
+-from src
+-qualify row_number() over (
+-    partition by fixture_id
+-    order by raw_ingested_at desc
+-) = 1
++    f.league_code,
++    f.fixture_id,
++    f.league_api_id,
++    f.season,
++    f.fixture_date,
++    f.kickoff_datetime,
++    f.kickoff_timezone,
++    f.status_elapsed,
++    f.round_name,
++    f.home_team_id,
++    f.away_team_id,
++    c.awarded_to_team_id,
++    f.goals_home as provider_goals_home,
++    f.goals_away as provider_goals_away,
++    f.status_short as provider_status_short,
++    c.source as result_correction_source,
++    f.venue_id,
++    f.venue_name,
++    f.venue_city,
++    f.raw_ingested_at,
++    if(c.awarded, 'AWD', f.status_short) as status_short,
++    if(c.awarded, 'Technical loss', f.status_long) as status_long,
++    coalesce(c.goals_home, f.goals_home) as goals_home,
++    coalesce(c.goals_away, f.goals_away) as goals_away
++from latest as f
++left join result_corrections as c
++    on f.fixture_id = c.fixture_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__standings.sql b/dbt_project/models/2_base/api_football/base_apif__standings.sql
+index b480afc8..ba81a3a8 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__standings.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__standings.sql
+@@ -35,26 +35,48 @@ deduped_standings as (
+         partition by league_code, season, team_id, group_name
+         order by raw_ingested_at desc
+     ) = 1
 +),
 +
- -- Corrected BEFORE the qualify below, not after, because both of its window functions partition on
- -- team_id: the dedup key, which the model's uniqueness test covers, and the cross-team collision
- -- guard. The guard now sees corrected ids, which is the intended direction -- a player appearing
-@@ -100,6 +111,7 @@ corrected as (
-     select
-         src.* except (team_id),
-         coalesce(
-+            resolved_teams.team_id,
-             alias_override.correct_team_api_id,
-             reattribute_override.correct_team_api_id,
-             src.team_id
-@@ -132,6 +144,10 @@ corrected as (
-             and reattribute_override.wrong_team_api_id not in (
-                 fixture_participants.home_team_id, fixture_participants.away_team_id
-             )
-+    left join resolved_teams
-+        on
-+            src.fixture_id = resolved_teams.fixture_id
-+            and src.player_id = resolved_teams.player_id
- ),
- 
- -- The provider's values under our names, one row per player per fixture: the latest fetch. A player
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 3d9342d6..9cc68a8c 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -819,7 +819,7 @@ models:
-         description: "{{ doc('raw_ingested_at') }}"
- 
-   - name: fct_fixture_event
--    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs."
-+    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Each build adds new fixtures and merges again any fixture whose stored events base_apif__fixture_events now attributes differently, so a team correction reaches the history while the events raw no longer holds stay."
-     meta:
-       owner: "data-platform"
-       domain: "football"
-diff --git a/dbt_project/models/3_core/fct_fixture_event.sql b/dbt_project/models/3_core/fct_fixture_event.sql
-index 8a3f65c6..453ac72b 100644
---- a/dbt_project/models/3_core/fct_fixture_event.sql
-+++ b/dbt_project/models/3_core/fct_fixture_event.sql
-@@ -62,6 +62,19 @@ src as (
-                     cast(fx.home_team_id as int64), cast(fx.away_team_id as int64)
-                 )
-         )
-+        -- Self-heal: also re-process any fixture whose committed events name a different team than
-+        -- base now does, so a team base moves reaches rows already committed without a full
-+        -- rebuild, which would drop the events raw no longer holds. Self-limiting: once merged,
-+        -- the two agree.
-+        or base.fixture_id in (
-+            select committed.fixture_api_id
-+            from {{ this }} as committed
-+            inner join base as current_event
-+                on
-+                    committed.fixture_api_id = current_event.fixture_id
-+                    and committed.event_index = current_event.event_index
-+            where committed.team_api_id is distinct from current_event.team_id
-+        )
-     {% endif %}
++-- The league's official figures where the provider's row differs, from
++-- seeds/standings_corrections.csv.
++table_corrections as (
++    select * from {{ ref('standings_corrections') }}
  )
  
+ select
+-    league_code,
+-    league_api_id,
+-    league_name,
+-    season,
+-    team_id,
+-    team_name,
+-    standing_rank,
+-    points,
+-    goals_diff,
+-    form,
+-    group_name,
+-    group_description,
+-    played_all,
+-    wins_all,
+-    draws_all,
+-    losses_all,
+-    goals_for_all,
+-    goals_against_all,
+-    raw_ingested_at
+-from deduped_standings
++    s.league_code,
++    s.league_api_id,
++    s.league_name,
++    s.season,
++    s.team_id,
++    s.team_name,
++    s.form,
++    s.group_name,
++    s.group_description,
++    s.standing_rank as provider_standing_rank,
++    s.points as provider_points,
++    s.goals_diff as provider_goals_diff,
++    s.played_all as provider_played_all,
++    s.wins_all as provider_wins_all,
++    s.draws_all as provider_draws_all,
++    s.losses_all as provider_losses_all,
++    s.goals_for_all as provider_goals_for_all,
++    s.goals_against_all as provider_goals_against_all,
++    c.source as result_correction_source,
++    s.raw_ingested_at,
++    coalesce(c.standing_rank, s.standing_rank) as standing_rank,
++    coalesce(c.points, s.points) as points,
++    if(c.team_id is null, s.goals_diff, c.goals_for - c.goals_against) as goals_diff,
++    coalesce(c.played, s.played_all) as played_all,
++    coalesce(c.wins, s.wins_all) as wins_all,
++    coalesce(c.draws, s.draws_all) as draws_all,
++    coalesce(c.losses, s.losses_all) as losses_all,
++    coalesce(c.goals_for, s.goals_for_all) as goals_for_all,
++    coalesce(c.goals_against, s.goals_against_all) as goals_against_all
++from deduped_standings as s
++left join table_corrections as c
++    on
++        s.league_code = c.league_code
++        and s.season = c.season
++        and s.team_id = c.team_id
++        and s.group_name = c.group_name
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 9cc68a8c..9a8d04d4 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -540,6 +540,12 @@ models:
+         description: "Final-time goals scored by home team."
+       - name: goals_away
+         description: "Final-time goals scored by away team."
++      - name: awarded_to_team_sk
++        description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: venue_api_id
+         description: "API-Football venue id."
+       - name: venue_name_snapshot
+@@ -609,9 +615,9 @@ models:
+       - name: losses
+         description: "{{ doc('losses') }}"
+       - name: goals_scored
+-        description: "Goals scored in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
++        description: "Goals scored in the section, as the official standings row reports them. A published fact of the official table, not a metric computed from fixtures."
+       - name: goals_conceded
+-        description: "Goals conceded in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
++        description: "Goals conceded in the section, as the official standings row reports them. A published fact of the official table, not a metric computed from fixtures."
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
+index 180116cd..0ecb8c9f 100644
+--- a/dbt_project/models/3_core/fct_fixture.sql
++++ b/dbt_project/models/3_core/fct_fixture.sql
+@@ -23,6 +23,7 @@ select
+     round_name,
+     goals_home,
+     goals_away,
++    cast(awarded_to_team_id as int64) as awarded_to_team_sk,
+     venue_id as venue_api_id,
+     venue_name as venue_name_snapshot,
+     venue_city as venue_city_snapshot,
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+index 9344c499..6235747e 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+@@ -47,6 +47,7 @@ legs as (
+         f.goals_home as goals,
+         f.goals_away as goals_against,
+         case
++            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.home_team_sk, 'W', 'L')
+             when f.goals_home > f.goals_away then 'W'
+             when f.goals_home < f.goals_away then 'L'
+             else 'D'
+@@ -77,6 +78,7 @@ legs as (
+         f.goals_away as goals,
+         f.goals_home as goals_against,
+         case
++            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.away_team_sk, 'W', 'L')
+             when f.goals_away > f.goals_home then 'W'
+             when f.goals_away < f.goals_home then 'L'
+             else 'D'
+diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
+index c2070c46..8aaf77c0 100644
+--- a/dbt_project/models/5_marts/shared/mart_standings.sql
++++ b/dbt_project/models/5_marts/shared/mart_standings.sql
+@@ -9,7 +9,8 @@
+        competition_type = 'domestic_league' for one row per (club, season) = its
+        home-league position.
+ 
+-  Every value is the provider's official standings row as published — rank, points, W/D/L,
++  Every value is the league's official standings row (the provider's, except where corrected in
++  base to the league's figures) — rank, points, W/D/L,
+   goals scored and conceded, goal difference, form. Nothing here is computed from fixtures: the
+   official table carries deductions and tie-break orders a recomputation cannot reproduce, so it
+   is a fact from the source, like a match score. NO zones — the provider's zone annotation is
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index f4078651..55623480 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -1411,7 +1411,8 @@ models:
+       season_api_year, group_name, team_sk).
+ 
+       Rank, points, form, W/D/L, goals scored and conceded, goal difference: every value is the
+-      provider's official standings row as published, nothing computed from fixtures. The
++      league's official standings row, the provider's except where corrected to the league's
++      figures (standings_corrections), nothing computed from fixtures. The
+       provider's zone annotation ("Promotion - Champions League", "Relegation") is carried
+       verbatim in group_description but never interpreted, so there is no derived qualification
+       or relegation field.
+@@ -1497,9 +1498,9 @@ models:
+       - name: points
+         description: "Accumulated points in the section."
+       - name: goals_scored
+-        description: "Goals scored in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
++        description: "Goals scored in the section, as the official standings row reports them; null only where the provider row lacks the field."
+       - name: goals_conceded
+-        description: "Goals conceded in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
++        description: "Goals conceded in the section, as the official standings row reports them; null only where the provider row lacks the field."
+       - name: form
+         description: "Recent results string from the API (e.g. WWDLW)."
+       - name: group_description
+@@ -1509,7 +1510,7 @@ models:
+       - name: goals_diff
+         description: "{{ doc('goals_diff') }}"
+       - name: played
+-        description: "Matches played in this standings section, as the provider's own standings row reports it — not counted from fixtures. NULL only where the provider's row lacks the field."
++        description: "Matches played in this standings section, as the official standings row reports it — not counted from fixtures. NULL only where the provider's row lacks the field."
+       - name: wins
+         description: "{{ doc('wins') }}"
+       - name: draws
 diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
-index 0c4f6fde..a2b2e968 100644
+index a2b2e968..5929aea7 100644
 --- a/dbt_project/models/docs/cleaning_rules.md
 +++ b/dbt_project/models/docs/cleaning_rules.md
-@@ -17,6 +17,10 @@ match stats are good enough.
- - Results. A team's goals are the score. Its penalty and own goals come from its goal events where
-   those add up to its score, penalty shoot-outs left out. A player's goals come from the per-player
-   count or the goal events, whichever adds up to the score.
-+- A player's team. Where his statistics row and his match events, own goals aside, name different
-+  teams of the match, the squad list for the season decides, and his other matches decide where it
-+  names both teams or neither; the side it contradicts, his row or his events, moves to the team
-+  it names. Where nothing decides, both stay where the provider put them.
- - Accurate passes are a count in every match. Where a match's values add up to more than its
+@@ -25,8 +25,8 @@ match stats are good enough.
    passes, the provider sent a percentage, and it is converted once.
  - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
-diff --git a/dbt_project/tests/assert_player_row_and_events_same_team.sql b/dbt_project/tests/assert_player_row_and_events_same_team.sql
+   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
+-  left blank when the gap is larger or when neither side passes its check. Results are never
+-  corrected.
++  left blank when the gap is larger or when neither side passes its check. A result is corrected
++  only to the league's official decision, with its source; match stats never correct a result.
+ - Every correction is listed on its row in stat_corrections, under one of these rules:
+   goals_from_events (a player's goals taken from the goal events);
+   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 8eec17ed..7608c459 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -572,7 +572,7 @@ defect rather than a value.
+ 
+ {% docs result %}
+ The match outcome from this row's team's perspective: W (win), D (draw), or L (loss), compared
+-from the match's own final scoreline.
++from the match's own final scoreline, or the team the league awarded it to where it set no score.
+ {% enddocs %}
+ 
+ {% docs market_value_eur %}
+diff --git a/dbt_project/seeds/fixture_result_corrections.csv b/dbt_project/seeds/fixture_result_corrections.csv
 new file mode 100644
-index 00000000..6f9a8360
+index 00000000..4d1d9caa
 --- /dev/null
-+++ b/dbt_project/tests/assert_player_row_and_events_same_team.sql
-@@ -0,0 +1,22 @@
-+{{ config(severity = 'error', store_failures = true) }}
++++ b/dbt_project/seeds/fixture_result_corrections.csv
+@@ -0,0 +1,9 @@
++fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,source_kind,source,note
++1224099,0,2,true,,official,https://www.dfb.de/news/dfb-bundesgericht-weist-berufung-von-union-berlin-zurueck,"Union Berlin-Bochum, BL1 14 Dec 2024: played 1-1, awarded 0-2"
++93198,0,0,true,80,match_reports,https://www.corsenetinfos.corsica/Commission-de-discipline-de-la-LFP-Match-perdu-pour-le-Sporting-face-a-Lyon-et-trois-matches-a-huis-clos-sur-terrain_a27164.html https://www.espn.com/soccer/story/_/id/37521073/bastia-forfeit-abandoned-lyon-game-lfp-commission-says,"Bastia-Lyon, L1 16 Apr 2017: abandoned at half-time, lost by Bastia with no score set"
++21650,0,3,true,,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/,"Sassuolo-Pescara, SA 28 Aug 2016: played 2-1, awarded 0-3"
++1252618,0,3,true,,match_reports,https://worldsoccertalk.com/news/cristiano-ronaldo-gets-major-boost-from-spl-as-al-nassrs-afc-champions-league-hopes-reignite/ https://www.besoccer.com/new/ronaldo-s-al-nassr-reap-rewards-from-ineligible-player-scandal-1360303,"Al Orubah-Al Nassr, SPL 28 Feb 2025: played 2-1, awarded 0-3"
++1074761,0,3,true,,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=43023,"Istanbulspor-Trabzonspor, TSL 19 Dec 2023: abandoned at 1-2, awarded 0-3"
++1238054,3,0,true,,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=46746,"Galatasaray-Adana Demirspor, TSL 9 Feb 2025: abandoned at 1-0, awarded 3-0"
++1213268,5,0,true,,official,https://www.proleague.be/fr/informations/le-derby-anversois-se-termine-sur-un-score-de-5-0-le-beerschot-est-condamne-a-une-amende-de-50-000-euro-et-les-statistiques-sont-retenues,"Antwerp-Beerschot, BPL 29 Sep 2024: abandoned at 4-0, awarded 5-0"
++828366,2,0,false,,official,https://www.kleague.com/match.do?year=2022&leagueId=1&gameId=174&meetSeq=1&startTabNum=3,"Seongnam-Ulsan, KL1 4 Sep 2022: played 2-0"
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index eea15698..c5aa52fe 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -550,6 +550,126 @@ seeds:
+         tests:
+           - not_null
+ 
++  - name: fixture_result_corrections
++    description: >
++      The league's official result for each match whose provider result differs from it, one row
++      per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
++      provider's score and status next to it. assert_result_corrections_applied fails when a row
++      is not applied, its source is not valid, or it no longer changes anything.
++    config:
++      column_types:
++        fixture_id: int64
++        goals_home: int64
++        goals_away: int64
++        awarded: bool
++        awarded_to_team_id: int64
++        source_kind: string
++        source: string
++        note: string
++    columns:
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null, unique]
++      - name: goals_home
++        description: "The official home goals."
++        tests: [not_null]
++      - name: goals_away
++        description: "The official away goals."
++        tests: [not_null]
++      - name: awarded
++        description: "TRUE where the league decided the result off the pitch; the match then counts as awarded (status AWD)."
++        tests: [not_null]
++      - name: awarded_to_team_id
++        description: "The team the league awarded the match to where it set no score; NULL where the score shows the winner."
++      - name: source_kind
++        description: "official = the league's or federation's decision or match record; match_reports = two independent match reports."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["official", "match_reports"]
++      - name: source
++        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
++        tests: [not_null]
++      - name: note
++        description: "The match and the official decision, in words."
++        tests: [not_null]
 +
-+-- A cleaned player row and that player's events in the same match under different teams. The
-+-- player's-team rule of the cleaning rules moves the side the squad list contradicts, so a row here
-+-- is a match the rule could not decide. Own goals are left out: the provider files them under the
-+-- team they count for.
++  - name: standings_corrections
++    description: >
++      The league's official figures for each provider league-table row that differs from them,
++      one row per table row, each naming its source. Applied in base_apif__standings, which keeps
++      the provider's figures next to them. assert_result_corrections_applied fails when a row is
++      not applied, its source is not valid, or it no longer changes anything.
++    config:
++      column_types:
++        league_code: string
++        season: int64
++        team_id: int64
++        group_name: string
++        standing_rank: int64
++        played: int64
++        wins: int64
++        draws: int64
++        losses: int64
++        goals_for: int64
++        goals_against: int64
++        points: int64
++        source_kind: string
++        source: string
++        note: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season, team_id, group_name]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "{{ doc('team_api_id') }}"
++        tests: [not_null]
++      - name: group_name
++        description: "The provider's table name the row belongs to, as in base_apif__standings."
++        tests: [not_null]
++      - name: standing_rank
++        description: "The official rank."
++        tests: [not_null]
++      - name: played
++        description: "The official matches played."
++        tests: [not_null]
++      - name: wins
++        description: "The official wins."
++        tests: [not_null]
++      - name: draws
++        description: "The official draws."
++        tests: [not_null]
++      - name: losses
++        description: "The official losses."
++        tests: [not_null]
++      - name: goals_for
++        description: "The official goals scored."
++        tests: [not_null]
++      - name: goals_against
++        description: "The official goals conceded."
++        tests: [not_null]
++      - name: points
++        description: "The official points."
++        tests: [not_null]
++      - name: source_kind
++        description: "official = the league's or federation's decision or table; match_reports = two independent match reports."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["official", "match_reports"]
++      - name: source
++        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
++        tests: [not_null]
++      - name: note
++        description: "The team, the season and why the row differs, in words."
++        tests: [not_null]
++
+   - name: player_match_cleaning_answer_key
+     description: >
+       Hand-worked answers for the player-match cleaning in base_apif__fixture_players: real player
+diff --git a/dbt_project/seeds/standings_corrections.csv b/dbt_project/seeds/standings_corrections.csv
+new file mode 100644
+index 00000000..25cd5386
+--- /dev/null
++++ b/dbt_project/seeds/standings_corrections.csv
+@@ -0,0 +1,5 @@
++league_code,season,team_id,group_name,standing_rank,played,wins,draws,losses,goals_for,goals_against,points,source_kind,source,note
++SA,2016,498,Serie A,10,38,12,12,14,49,55,48,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Sampdoria, Serie A 2016-17: 10th once Sassuolo-Pescara counts as awarded 0-3"
++SA,2016,490,Serie A,11,38,14,5,19,55,76,47,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Cagliari, Serie A 2016-17: 11th once Sassuolo-Pescara counts as awarded 0-3"
++SA,2016,488,Serie A,12,38,13,7,18,58,63,46,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Sassuolo, Serie A 2016-17: Sassuolo-Pescara counted as awarded 0-3, not the 2-1 played"
++SA,2016,525,Serie A,20,38,3,9,26,37,81,18,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Pescara, Serie A 2016-17: Sassuolo-Pescara counted as awarded 0-3, not the 2-1 played"
+diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
+new file mode 100644
+index 00000000..05dc06d8
+--- /dev/null
++++ b/dbt_project/tests/assert_result_corrections_applied.sql
+@@ -0,0 +1,160 @@
++-- Every hand correction of a result, from the two correction seeds, is applied, sourced and still
++-- needed. One row per broken correction:
++--   - not_applied: base has no such match or table row, or does not carry the official figures.
++--   - winner_not_valid: a winner is set where the score already decides, or names a team not in
++--     the match.
++--   - not_sourced: a source that is not https URLs separated by a space, an official one with
++--     none, or match reports with fewer than two sites.
++--   - no_longer_needed: the provider now carries the official result itself.
++
++{{ config(store_failures = true) }}
++
++with fixture_corrections as (
++    select * from {{ ref('fixture_result_corrections') }}
++),
++
++fixtures as (
++    select * from {{ ref('base_apif__fixtures_next') }}
++),
++
++table_corrections as (
++    select * from {{ ref('standings_corrections') }}
++),
++
++standings as (
++    select * from {{ ref('base_apif__standings') }}
++),
++
++fixture_checks as (
++    select
++        'fixture_result_corrections' as seed,
++        cast(c.fixture_id as string) as correction,
++        case
++            when f.fixture_id is null then 'not_applied'
++            when
++                f.goals_home is distinct from c.goals_home
++                or f.goals_away is distinct from c.goals_away
++                or f.status_short is distinct from if(c.awarded, 'AWD', f.provider_status_short)
++                or f.awarded_to_team_id is distinct from c.awarded_to_team_id
++                then 'not_applied'
++            when
++                c.awarded_to_team_id is not null
++                and (
++                    not c.awarded
++                    or c.goals_home != c.goals_away
++                    or c.awarded_to_team_id not in (f.home_team_id, f.away_team_id)
++                )
++                then 'winner_not_valid'
++            when
++                f.provider_goals_home = c.goals_home
++                and f.provider_goals_away = c.goals_away
++                and (not c.awarded or f.provider_status_short in ('AWD', 'WO'))
++                and c.awarded_to_team_id is null
++                then 'no_longer_needed'
++        end as problem
++    from fixture_corrections as c
++    left join fixtures as f
++        on c.fixture_id = f.fixture_id
++),
++
++table_checks as (
++    select
++        'standings_corrections' as seed,
++        concat(c.league_code, ' ', cast(c.season as string), ' ', cast(c.team_id as string), ' ', c.group_name)
++            as correction,
++        case
++            when s.team_id is null then 'not_applied'
++            when
++                s.standing_rank is distinct from c.standing_rank
++                or s.points is distinct from c.points
++                or s.played_all is distinct from c.played
++                or s.wins_all is distinct from c.wins
++                or s.draws_all is distinct from c.draws
++                or s.losses_all is distinct from c.losses
++                or s.goals_for_all is distinct from c.goals_for
++                or s.goals_against_all is distinct from c.goals_against
++                or s.goals_diff is distinct from c.goals_for - c.goals_against
++                then 'not_applied'
++            when
++                s.provider_standing_rank = c.standing_rank
++                and s.provider_points = c.points
++                and s.provider_played_all = c.played
++                and s.provider_wins_all = c.wins
++                and s.provider_draws_all = c.draws
++                and s.provider_losses_all = c.losses
++                and s.provider_goals_for_all = c.goals_for
++                and s.provider_goals_against_all = c.goals_against
++                then 'no_longer_needed'
++        end as problem
++    from table_corrections as c
++    left join standings as s
++        on
++            c.league_code = s.league_code
++            and c.season = s.season
++            and c.team_id = s.team_id
++            and c.group_name = s.group_name
++),
++
++sources as (
++    select
++        'fixture_result_corrections' as seed,
++        cast(fixture_id as string) as correction,
++        source_kind,
++        source
++    from fixture_corrections
++    union all
++    select
++        'standings_corrections' as seed,
++        concat(league_code, ' ', cast(season as string), ' ', cast(team_id as string), ' ', group_name)
++            as correction,
++        source_kind,
++        source
++    from table_corrections
++),
++
++source_urls as (
++    select
++        s.seed,
++        s.correction,
++        s.source_kind,
++        countif(u != '' and not regexp_contains(u, r'^https://[^/\s]+/\S*$')) as not_urls,
++        count(distinct regexp_extract(u, r'^https://([^/\s]+)')) as sites
++    from sources as s
++    left join unnest(split(trim(coalesce(s.source, '')), ' ')) as u
++        on true
++    group by s.seed, s.correction, s.source_kind
++),
++
++source_checks as (
++    select
++        seed,
++        correction,
++        'not_sourced' as problem
++    from source_urls
++    where
++        not_urls > 0
++        or sites = 0
++        or (source_kind = 'match_reports' and sites < 2)
++        or source_kind is null
++        or source_kind not in ('official', 'match_reports')
++)
++
 +select
-+    player_row.league_code,
-+    player_row.fixture_id,
-+    player_row.player_id,
-+    player_row.team_id as row_team_id,
-+    player_event.team_id as event_team_id,
-+    player_event.event_index,
-+    player_event.event_type
-+from {{ ref('base_apif__fixture_players') }} as player_row
-+inner join {{ ref('base_apif__fixture_events') }} as player_event
-+    on
-+        player_row.fixture_id = player_event.fixture_id
-+        and player_row.player_id = player_event.player_id
-+where
-+    player_event.team_id != player_row.team_id
-+    and not (player_event.event_type = 'Goal' and player_event.event_detail = 'Own Goal')
++    seed,
++    correction,
++    problem
++from fixture_checks
++where problem is not null
++union all
++select
++    seed,
++    correction,
++    problem
++from table_checks
++where problem is not null
++union all
++select
++    seed,
++    correction,
++    problem
++from source_checks
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+index 3045f44d..56f4d3d3 100644
+--- a/docs/content_architecture.md
++++ b/docs/content_architecture.md
+@@ -75,7 +75,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
+ | | Season-over-season | team, player | YoY model | ✓ team · ✓ player (#638 + #648, via `mart_player_profile`) |
+ | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_{team,player}_competition_benchmarks` | ✓ player wired (#627; screen 12 #625) · ✓ team wired (GAP-23; rank-based screen 14 #664) |
+ | | Single fixture | team, player | `mart_team_fixture_stats`/`mart_player_fixture_stats` | ✓ |
+-| **Standings / rank** | League / group table | team | `mart_standings` — the provider's row as published, with `table_kind` | ✓ built on the competition page (#149): one table per section, ranking tables dropped |
++| **Standings / rank** | League / group table | team | `mart_standings` — the league's official row (the provider's, except where corrected), with `table_kind` | ✓ built on the competition page (#149): one table per section, ranking tables dropped |
+ | | Standing-as-context | team | standings mart | ✓ |
+ | | Deserved points (better / worse than the table says) | team | `mart_team_profile` | ✓ built on the competition page (#149) |
+ | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   docs/tracker/gitlab_snapshot.md | 294 ++++++++++++++++++++++++++++++----------
+#    1 file changed, 223 insertions(+), 71 deletions(-)
+# ============================================================================
