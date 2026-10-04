@@ -23,6 +23,7 @@ select
     round_name,
     goals_home,
     goals_away,
+    cast(awarded_to_team_id as int64) as awarded_to_team_sk,
     venue_id as venue_api_id,
     venue_name as venue_name_snapshot,
     venue_city as venue_city_snapshot,

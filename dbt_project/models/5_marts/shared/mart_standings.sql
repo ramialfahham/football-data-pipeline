@@ -9,7 +9,8 @@
        competition_type = 'domestic_league' for one row per (club, season) = its
        home-league position.
 
-  Every value is the provider's official standings row as published — rank, points, W/D/L,
+  Every value is the league's official standings row (the provider's, except where corrected in
+  base to the league's figures) — rank, points, W/D/L,
   goals scored and conceded, goal difference, form. Nothing here is computed from fixtures: the
   official table carries deductions and tie-break orders a recomputation cannot reproduce, so it
   is a fact from the source, like a match score. NO zones — the provider's zone annotation is

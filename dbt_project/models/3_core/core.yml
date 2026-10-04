@@ -540,6 +540,12 @@ models:
         description: "Final-time goals scored by home team."
       - name: goals_away
         description: "Final-time goals scored by away team."
+      - name: awarded_to_team_sk
+        description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: venue_api_id
         description: "API-Football venue id."
       - name: venue_name_snapshot
@@ -609,9 +615,9 @@ models:
       - name: losses
         description: "{{ doc('losses') }}"
       - name: goals_scored
-        description: "Goals scored in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
+        description: "Goals scored in the section, as the official standings row reports them. A published fact of the official table, not a metric computed from fixtures."
       - name: goals_conceded
-        description: "Goals conceded in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
+        description: "Goals conceded in the section, as the official standings row reports them. A published fact of the official table, not a metric computed from fixtures."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

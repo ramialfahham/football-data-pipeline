@@ -572,7 +572,7 @@ defect rather than a value.
 
 {% docs result %}
 The match outcome from this row's team's perspective: W (win), D (draw), or L (loss), compared
-from the match's own final scoreline.
+from the match's own final scoreline, or the team the league awarded it to where it set no score.
 {% enddocs %}
 
 {% docs market_value_eur %}

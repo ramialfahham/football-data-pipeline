@@ -550,6 +550,126 @@ seeds:
         tests:
           - not_null
 
+  - name: fixture_result_corrections
+    description: >
+      The league's official result for each match whose provider result differs from it, one row
+      per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
+      provider's score and status next to it. assert_result_corrections_applied fails when a row
+      is not applied, its source is not valid, or it no longer changes anything.
+    config:
+      column_types:
+        fixture_id: int64
+        goals_home: int64
+        goals_away: int64
+        awarded: bool
+        awarded_to_team_id: int64
+        source_kind: string
+        source: string
+        note: string
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null, unique]
+      - name: goals_home
+        description: "The official home goals."
+        tests: [not_null]
+      - name: goals_away
+        description: "The official away goals."
+        tests: [not_null]
+      - name: awarded
+        description: "TRUE where the league decided the result off the pitch; the match then counts as awarded (status AWD)."
+        tests: [not_null]
+      - name: awarded_to_team_id
+        description: "The team the league awarded the match to where it set no score; NULL where the score shows the winner."
+      - name: source_kind
+        description: "official = the league's or federation's decision or match record; match_reports = two independent match reports."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["official", "match_reports"]
+      - name: source
+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
+        tests: [not_null]
+      - name: note
+        description: "The match and the official decision, in words."
+        tests: [not_null]
+
+  - name: standings_corrections
+    description: >
+      The league's official figures for each provider league-table row that differs from them,
+      one row per table row, each naming its source. Applied in base_apif__standings, which keeps
+      the provider's figures next to them. assert_result_corrections_applied fails when a row is
+      not applied, its source is not valid, or it no longer changes anything.
+    config:
+      column_types:
+        league_code: string
+        season: int64
+        team_id: int64
+        group_name: string
+        standing_rank: int64
+        played: int64
+        wins: int64
+        draws: int64
+        losses: int64
+        goals_for: int64
+        goals_against: int64
+        points: int64
+        source_kind: string
+        source: string
+        note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, group_name]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: group_name
+        description: "The provider's table name the row belongs to, as in base_apif__standings."
+        tests: [not_null]
+      - name: standing_rank
+        description: "The official rank."
+        tests: [not_null]
+      - name: played
+        description: "The official matches played."
+        tests: [not_null]
+      - name: wins
+        description: "The official wins."
+        tests: [not_null]
+      - name: draws
+        description: "The official draws."
+        tests: [not_null]
+      - name: losses
+        description: "The official losses."
+        tests: [not_null]
+      - name: goals_for
+        description: "The official goals scored."
+        tests: [not_null]
+      - name: goals_against
+        description: "The official goals conceded."
+        tests: [not_null]
+      - name: points
+        description: "The official points."
+        tests: [not_null]
+      - name: source_kind
+        description: "official = the league's or federation's decision or table; match_reports = two independent match reports."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["official", "match_reports"]
+      - name: source
+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
+        tests: [not_null]
+      - name: note
+        description: "The team, the season and why the row differs, in words."
+        tests: [not_null]
+
   - name: player_match_cleaning_answer_key
     description: >
       Hand-worked answers for the player-match cleaning in base_apif__fixture_players: real player

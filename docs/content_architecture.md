@@ -75,7 +75,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
 | | Season-over-season | team, player | YoY model | ✓ team · ✓ player (#638 + #648, via `mart_player_profile`) |
 | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_{team,player}_competition_benchmarks` | ✓ player wired (#627; screen 12 #625) · ✓ team wired (GAP-23; rank-based screen 14 #664) |
 | | Single fixture | team, player | `mart_team_fixture_stats`/`mart_player_fixture_stats` | ✓ |
-| **Standings / rank** | League / group table | team | `mart_standings` — the provider's row as published, with `table_kind` | ✓ built on the competition page (#149): one table per section, ranking tables dropped |
+| **Standings / rank** | League / group table | team | `mart_standings` — the league's official row (the provider's, except where corrected), with `table_kind` | ✓ built on the competition page (#149): one table per section, ranking tables dropped |
 | | Standing-as-context | team | standings mart | ✓ |
 | | Deserved points (better / worse than the table says) | team | `mart_team_profile` | ✓ built on the competition page (#149) |
 | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |

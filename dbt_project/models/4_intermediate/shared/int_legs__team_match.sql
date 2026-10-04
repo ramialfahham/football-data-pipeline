@@ -47,6 +47,7 @@ legs as (
         f.goals_home as goals,
         f.goals_away as goals_against,
         case
+            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.home_team_sk, 'W', 'L')
             when f.goals_home > f.goals_away then 'W'
             when f.goals_home < f.goals_away then 'L'
             else 'D'
@@ -77,6 +78,7 @@ legs as (
         f.goals_away as goals,
         f.goals_home as goals_against,
         case
+            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.away_team_sk, 'W', 'L')
             when f.goals_away > f.goals_home then 'W'
             when f.goals_away < f.goals_home then 'L'
             else 'D'
