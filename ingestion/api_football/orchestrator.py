@@ -206,7 +206,7 @@ def _load_api_football(request):
         # Phase 2: batch fixture sub-data fetch across all competitions, idle ones included.
         # Calls GET /fixtures?ids=ID1-...-ID20 (up to 20 per call) to retrieve
         # events, lineups, statistics, and players for finished fixtures.
-        # Results land in RAW_APIF_{LC}_FIXTURE_DETAILS per competition.
+        # Results land in RAW_APIF_FIXTURE_DETAILS.
         if results or idle_results:
             run_batch_fixture_fanout_and_persist(ctx, results + idle_results, phase1_covered)
 

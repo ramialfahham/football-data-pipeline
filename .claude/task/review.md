@@ -1,25 +1,26 @@
-# Review — fix/bl1-soft-completeness-gate — the Bundesliga's completeness gate is soft like every other competition
+# Review — fix/186-doc-corrections — the wrong or duplicated lines the #186 change left in docs and comments
 
-diff_sha256: 7de647d56a60532c3e3ba5b9d9149db7d72877c251e8f1be7a235dce6c638112
+diff_sha256: a9335a383854791966b586edd2bdd0bbbc96ef620309648a3fe2d1c9b25f3089
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: the registry, the contract and excluded task and tracker files only, all in scope_paths; no amendment.
-- The one added line sets BL1's gate to soft; all 48 registry entries are now soft, none hard, matching the contract's count.
-- Section 10: an application of the CPO's quoted words of 2026-10-05; no metric, name, URL, mechanism or cost; the code default is reserved and untouched.
-- No impact map needed (no structural path); no secret, workflow or escalations.log change; no other document describes the gate.
+- Scope: every changed file is in scope_paths; the one amendment (batch_fixtures.py) cites the approved step 1 and decides nothing new.
+- Section 10: doc and comment corrections only; no metric, label, URL, naming, number, mechanism or cost change; code diffs are comment and docstring lines only.
+- Factual claims checked against the code: read_coverage is called in orchestrator.py and completeness.py, so "the one/single read" was false; second_fetch_due exists; RAW_APIF_FIXTURE_DETAILS is the unified table.
+- operations_guide.md now links data_contract.md "Fixture details" instead of restating the rule.
+- No secret, workflow or escalations.log change.
 
 ## data-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Registry: 48 entries, 48 gate lines, none hard; BL1's value in the same unquoted format; no other key changed (provider ids, history_seasons, ingest_active untouched).
-- registry.py accepts soft; only an active entry without the key defaults to hard, and none is left.
-- The gate is not projected into dbt_project.yml or the seed; sync_dbt_vars has nothing to write.
-- completeness.py treats soft as report-only: a BL1 gap is still reported and no longer fails the run.
-- The only test naming a BL1 hard gate reads a synthetic league block, not the registry; no registry test pins BL1's gate.
+- Comment-only: the coverage.py, orchestrator.py and batch_fixtures.py hunks change only comment and docstring words; no parser, write, cadence or knob token.
+- The orchestrator comment matches batch_fixtures writing raw_table("FIXTURE_DETAILS").
+- The data_contract.md second-fetch wording matches second_fetch_due and read_coverage: not covered only while due; it clears after the second fetch.
+- operations_guide.md keeps the coverage exception as a link; the rule stays in data_contract.md.
+- Round 2: the two batch_fixtures.py docstrings that called read_coverage "the run's single" read now say it is read before this step; ingest_plan.py's similar line is #196.
 
 ## escalations
 (none)

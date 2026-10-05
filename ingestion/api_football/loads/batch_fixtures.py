@@ -23,7 +23,7 @@ The delete that used to run here destroyed 29 real events across 5 fixtures beca
 retry chasing late statistics returned fewer events, and one row bundles lineups, events,
 statistics and player stats together.
 
-Coverage is the run's single `coverage.read_coverage` result, read before this step for
+Coverage is the `coverage.read_coverage` result the orchestrator reads before this step, for
 every league: a fixture is done once ANY stored row for it carries non-empty statistics
 and its player stats' second fetch is not due. That LOGICAL_OR aggregation is what makes
 the multi-row state safe to read.
@@ -232,7 +232,7 @@ def run_batch_fixture_fanout_and_persist(
     """Fetch full sub-data for all finished fixtures across all competitions, idle ones included.
 
     Two-step process per competition:
-      1. Look the league up in `all_covered`, the run's single `read_coverage()` result, to
+      1. Look the league up in `all_covered`, the `read_coverage()` result read before this step, to
          determine which finished fixtures are done. Fixtures missing entirely, due their
          player stats' second fetch, or with empty stats within the 3-day retry window are
          queued for fetching.
