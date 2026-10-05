@@ -1,1190 +1,184 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 72c64985..6d015ab1 100644
+index 6d015ab1..a87f6c64 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,24 +1,37 @@
--# Task contract — a league table's points below its results are explained by a declared adjustment
-+# Task contract — player stats fetched too early are fetched a second time once complete
+@@ -1,37 +1,20 @@
+-# Task contract — player stats fetched too early are fetched a second time once complete
++# Task contract — the Bundesliga's completeness gate is soft like every other competition
  
  objective: >
--  #147 as rewritten and approved on 2026-10-05. The league-table check accepts a table whose points
--  are below 3 x its wins + draws without a reason. Every such row is declared in a new seed with the
--  points the league took, the rule (deduction, halving) and its official source, and the check fails
--  when a table row's points are not 3 x wins + draws less the declared points taken.
-+  #186 as approved on 2026-10-05, How step 3 as rewritten and approved the same day. The provider
-+  completes some player stats days after a match and the nightly fetches a finished match once, so
-+  goals conceded, dribbled past and penalties won stay blank for good in a large share of recent
-+  matches. Every finished match whose latest fetch came under 3 days after kickoff is fetched once
-+  more when it is 3 days old, in every competition, idle ones included; the fixture-details step
-+  reads what is already fetched once for all competitions instead of once per competition.
+-  #186 as approved on 2026-10-05, How step 3 as rewritten and approved the same day. The provider
+-  completes some player stats days after a match and the nightly fetches a finished match once, so
+-  goals conceded, dribbled past and penalties won stay blank for good in a large share of recent
+-  matches. Every finished match whose latest fetch came under 3 days after kickoff is fetched once
+-  more when it is 3 days old, in every competition, idle ones included; the fixture-details step
+-  reads what is already fetched once for all competitions instead of once per competition.
++  #195. The Bundesliga is the only competition whose missing match details stop the nightly before
++  dbt runs: its registry entry has no `ingest_completeness_gate`, and `ingestion/api_football/registry.py`
++  makes an active entry without one `hard`. The other 47 entries set `soft`. BL1 gets the same `soft`.
  
  refs: >
--  #147, its rewritten text approved by the CPO on 2026-10-05 ("keep #147, then #186").
-+  #186 (approved 2026-10-05: cost, and How step 3 "in every competition, idle ones included ... reads
-+  what is already fetched once for all competitions, with each match's latest fetch time, instead of
-+  once per competition").
+-  #186 (approved 2026-10-05: cost, and How step 3 "in every competition, idle ones included ... reads
+-  what is already fetched once for all competitions, with each match's latest fetch time, instead of
+-  once per competition").
++  #195, from the CPO's words on 2026-10-05: "There is no reason to treat Bundesliga differently from
++  other competitions".
  
  acceptance_criteria:
-   # The issue's checklist lines, verbatim.
--  - "Every league-table row whose points are below 3 x its wins + draws, where it counts the same games as our results, is explained by a declared adjustment in a seed: the team-season, the points taken, the rule (deduction, halving) and its official source."
--  - "`assert_team_season_equals_league_table` fails, at severity error, on a lower table with no declared adjustment, or a declared one that no longer matches."
--  - "The 52 rows lower today are declared, each with its source (Belgian Pro League halving, the Turkish deductions, ...)."
-+  - "Every finished match's player stats are fetched a second time once the provider has completed them, unless the first fetch was already made that late."
-+  - "The matches already fetched too early are fetched again once."
-+  - "Afterwards, for recent matches, the share where goals conceded or dribbled past is blank for every player in the match equals the share for matches fetched a week or more after kickoff (today, within the same competition-seasons: 36.0% and 39.1% against 0.0% and 0.1%)."
-+  - "The values from the second fetch reach the warehouse tables the metrics read."
-+  - "Before anything is built, the extra API calls per day and the one-off calls for the matches already fetched are measured against the daily quota and put to the CPO."
+-  # The issue's checklist lines, verbatim.
+-  - "Every finished match's player stats are fetched a second time once the provider has completed them, unless the first fetch was already made that late."
+-  - "The matches already fetched too early are fetched again once."
+-  - "Afterwards, for recent matches, the share where goals conceded or dribbled past is blank for every player in the match equals the share for matches fetched a week or more after kickoff (today, within the same competition-seasons: 36.0% and 39.1% against 0.0% and 0.1%)."
+-  - "The values from the second fetch reach the warehouse tables the metrics read."
+-  - "Before anything is built, the extra API calls per day and the one-off calls for the matches already fetched are measured against the daily quota and put to the CPO."
++  # The issue's checklist line, verbatim.
++  - "A gap in the Bundesliga's match details is reported and the nightly carries on, as for every other competition."
  
  scope_paths:
--  - dbt_project/seeds/standings_points_adjustments.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/tests/assert_team_season_equals_league_table.sql
-+  - ingestion/api_football/coverage.py
-+  - ingestion/api_football/loads/batch_fixtures.py
-+  - ingestion/api_football/loads/competition_runner.py
-+  - ingestion/api_football/loads/context.py
-+  - ingestion/api_football/orchestrator.py
-+  - tests/test_batch_fixtures.py
-+  - tests/test_coverage.py
-+  - tests/test_incomplete_fetch_no_supersede.py
-+  - docs/data_contract.md
-+  - docs/operations_guide.md
+-  - ingestion/api_football/coverage.py
+-  - ingestion/api_football/loads/batch_fixtures.py
+-  - ingestion/api_football/loads/competition_runner.py
+-  - ingestion/api_football/loads/context.py
+-  - ingestion/api_football/orchestrator.py
+-  - tests/test_batch_fixtures.py
+-  - tests/test_coverage.py
+-  - tests/test_incomplete_fetch_no_supersede.py
+-  - docs/data_contract.md
+-  - docs/operations_guide.md
++  - docs/competition_registry.yml
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -27,34 +40,105 @@ scope_paths:
+@@ -40,105 +23,23 @@ scope_paths:
    - .claude/task/audit_reviewer_outputs.md
    - docs/tracker/**
  
-+impact_map: >
-+  writers: RAW_APIF_FIXTURE_DETAILS (append-only, one row per fetch) is written only by
-+  `loads/batch_fixtures._insert_fixture_rows` (`grep -rn FIXTURE_DETAILS ingestion/` finds no other
-+  writer). Its two coverage readers today: `coverage.read_coverage` (all leagues, one query; read by
-+  the orchestrator's Phase 1 for the poll gate, and again by `completeness.run_ingest_completeness_checks`
-+  after Phase 2) and `batch_fixtures._read_fetched_coverage` (one query per full-mode league; 31 queries,
-+  1.107 GB billed on the 5 Oct nightly, measured in INFORMATION_SCHEMA.JOBS_BY_PROJECT). After this
-+  change the second reader is gone; Phase 2 is handed Phase 1's read, which is current because nothing
-+  writes the table before Phase 2.
-+  downstream: `.venv/Scripts/dbt.exe ls --project-dir dbt_project --resource-type model --select
-+  "source:api_football.raw_apif_fixture_details+"` → 66 models. staging: stg_apif__fixture_events,
-+  stg_apif__fixture_players, stg_apif__fixture_statistics, stg_apif__lineups. base:
-+  base_apif__fixture_events, base_apif__fixture_players, base_apif__fixture_statistics,
-+  base_apif__players, base_apif__teams, base_apif__teams_global. core: dim_player,
-+  dim_player_team_season_mapping, dim_team, fct_fixture_event, fct_fixture_player_stats,
-+  fct_fixture_team_stats. intermediate: int_legs__player_match, int_legs__team_from_players,
-+  int_legs__team_match, int_player_club_season__metrics, int_player_competition_benchmark_metrics_long,
-+  int_player_competition_benchmarks, int_player_momentum__metrics, int_player_profile__contribution,
-+  int_player_profile__yoy, int_player_season__metrics, int_player_season__team,
-+  int_player_season_position__metrics, int_player_season_record,
-+  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
-+  int_team_momentum__metrics, int_team_momentum_window, int_team_profile__streaks,
-+  int_team_profile__yoy, int_team_season__deserved_vs_actual, int_team_season__metrics,
-+  int_team_season__metrics_cumulative, int_team_season_record. marts: mart_competition_fixtures,
-+  mart_competition_season_summary, mart_fixture_standing_context, mart_head_to_head, mart_leaderboards,
-+  mart_match_days, mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
-+  mart_player_fixture_stats, mart_player_match_log, mart_player_momentum, mart_player_profile,
-+  mart_player_season_record, mart_roster, mart_standings, mart_team_competition_benchmarks,
-+  mart_team_fixture_stats, mart_team_fixtures, mart_team_leaderboards, mart_team_market_value,
-+  mart_team_momentum, mart_team_momentum_window, mart_team_profile, mart_team_season,
-+  mart_team_season_insights, mart_team_season_record. No model changes; a second fetch is one more
-+  raw row, resolved by base newest-per-entity as for today's retries.
-+  layer_rules: no dbt file changes; check_layer_contract and the no-new-model rule are untouched; raw
-+  stays append-only ("raw keeps both versions", docs/data_contract.md).
-+  deploy_order: ingestion ships in the nightly image built by the merge pipeline (build:nightly-image,
-+  deploy:nightly-image). The first 04:00 UTC nightly after the merge makes the one-off: 2,595 finished
-+  matches whose latest fetch came under 72 h after kickoff (measured on RAW 2026-10-05, 34 leagues,
-+  4 of them idle: WC 104, FAC 238, CCCU 1, UESC 1), about 143 calls in batches of 20. The same night's
-+  prod dbt build reads the new rows: fct_fixture_player_stats, fct_fixture_team_stats are tables
-+  rebuilt from base; fct_fixture_event is incremental on raw_ingested_at, so the newer rows merge on
-+  event_sk.
-+  blast_radius: player stats of about 2,595 matches move from blank to the provider's completed values
-+  (goals conceded blank for every player in 44.8% of fetches under 1 day after kickoff, 0.0% from 3
-+  days), so every player metric reading them (save %, dribbled past, penalties won and their benchmarks,
-+  leaderboards, momentum) changes for those matches, as intended. Base also takes the newer payload per
-+  entity for team statistics and events: of the 376 matches already fetched twice, team statistics
-+  differed in 35; events were identical in 315, differed at the same count in 50, were fewer in 6 and
-+  more in 5 (measured on RAW 2026-10-05). Scores and league tables do not read this table. The
-+  completeness report counts a match's player stats as missing while its second fetch is due and not
-+  made; BL1 has no explicit gate in the registry and is therefore hard-gated, so a BL1 second fetch the
-+  run fails to make fails the run, as a failed BL1 first fetch does today. BigQuery: about 1.1 GB a
-+  night less (the 31 per-league reads go; the one shared read adds the fetch time and kickoff of rows it
-+  already scans).
-+
- decisions_taken: >
--  #147 as rewritten and approved on 2026-10-05.
-+  #186 as approved on 2026-10-05, How step 3 as approved on 2026-10-05: "Add the second player-stats
-+  fetch to the ingestion's fixture selection, for matches whose first fetch came before that delay, in
-+  every competition, idle ones included. The fixture-details step reads what is already fetched once for
-+  all competitions, with each match's latest fetch time, instead of once per competition. Cost: no API
-+  calls beyond the due matches (about 143 once, about 2 a day); BigQuery about 1.1 GB a night less."
- 
-   Readings, under the CPO's delegation of 2026-10-02 ("Readings of approved rules are yours"):
--  - One seed row per table row (league_code, season, team_id, group_name), as standings_corrections
--    is keyed; points_taken is the positive number of points the league took; rule is deduction or
--    halving; source_kind and source are described as in the two correction seeds.
--  - The check is one changed condition in the existing test: the table's points equal 3 x wins +
--    draws less the declared points taken (0 where none is declared), on every compared table row. A
--    renamed or vanished table row needs no check of its own: its lower replacement is undeclared and
--    fails.
--  - The Belgian halving rows: points taken = half the regular-season points rounded down (the
--    league halves them rounded up), checked on prod for all 38 rows against the provider's own
--    regular-season table rows; each row cites the Pro League's rule.
+-impact_map: >
+-  writers: RAW_APIF_FIXTURE_DETAILS (append-only, one row per fetch) is written only by
+-  `loads/batch_fixtures._insert_fixture_rows` (`grep -rn FIXTURE_DETAILS ingestion/` finds no other
+-  writer). Its two coverage readers today: `coverage.read_coverage` (all leagues, one query; read by
+-  the orchestrator's Phase 1 for the poll gate, and again by `completeness.run_ingest_completeness_checks`
+-  after Phase 2) and `batch_fixtures._read_fetched_coverage` (one query per full-mode league; 31 queries,
+-  1.107 GB billed on the 5 Oct nightly, measured in INFORMATION_SCHEMA.JOBS_BY_PROJECT). After this
+-  change the second reader is gone; Phase 2 is handed Phase 1's read, which is current because nothing
+-  writes the table before Phase 2.
+-  downstream: `.venv/Scripts/dbt.exe ls --project-dir dbt_project --resource-type model --select
+-  "source:api_football.raw_apif_fixture_details+"` → 66 models. staging: stg_apif__fixture_events,
+-  stg_apif__fixture_players, stg_apif__fixture_statistics, stg_apif__lineups. base:
+-  base_apif__fixture_events, base_apif__fixture_players, base_apif__fixture_statistics,
+-  base_apif__players, base_apif__teams, base_apif__teams_global. core: dim_player,
+-  dim_player_team_season_mapping, dim_team, fct_fixture_event, fct_fixture_player_stats,
+-  fct_fixture_team_stats. intermediate: int_legs__player_match, int_legs__team_from_players,
+-  int_legs__team_match, int_player_club_season__metrics, int_player_competition_benchmark_metrics_long,
+-  int_player_competition_benchmarks, int_player_momentum__metrics, int_player_profile__contribution,
+-  int_player_profile__yoy, int_player_season__metrics, int_player_season__team,
+-  int_player_season_position__metrics, int_player_season_record,
+-  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
+-  int_team_momentum__metrics, int_team_momentum_window, int_team_profile__streaks,
+-  int_team_profile__yoy, int_team_season__deserved_vs_actual, int_team_season__metrics,
+-  int_team_season__metrics_cumulative, int_team_season_record. marts: mart_competition_fixtures,
+-  mart_competition_season_summary, mart_fixture_standing_context, mart_head_to_head, mart_leaderboards,
+-  mart_match_days, mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
+-  mart_player_fixture_stats, mart_player_match_log, mart_player_momentum, mart_player_profile,
+-  mart_player_season_record, mart_roster, mart_standings, mart_team_competition_benchmarks,
+-  mart_team_fixture_stats, mart_team_fixtures, mart_team_leaderboards, mart_team_market_value,
+-  mart_team_momentum, mart_team_momentum_window, mart_team_profile, mart_team_season,
+-  mart_team_season_insights, mart_team_season_record. No model changes; a second fetch is one more
+-  raw row, resolved by base newest-per-entity as for today's retries.
+-  layer_rules: no dbt file changes; check_layer_contract and the no-new-model rule are untouched; raw
+-  stays append-only ("raw keeps both versions", docs/data_contract.md).
+-  deploy_order: ingestion ships in the nightly image built by the merge pipeline (build:nightly-image,
+-  deploy:nightly-image). The first 04:00 UTC nightly after the merge makes the one-off: 2,595 finished
+-  matches whose latest fetch came under 72 h after kickoff (measured on RAW 2026-10-05, 34 leagues,
+-  4 of them idle: WC 104, FAC 238, CCCU 1, UESC 1), about 143 calls in batches of 20. The same night's
+-  prod dbt build reads the new rows: fct_fixture_player_stats, fct_fixture_team_stats are tables
+-  rebuilt from base; fct_fixture_event is incremental on raw_ingested_at, so the newer rows merge on
+-  event_sk.
+-  blast_radius: player stats of about 2,595 matches move from blank to the provider's completed values
+-  (goals conceded blank for every player in 44.8% of fetches under 1 day after kickoff, 0.0% from 3
+-  days), so every player metric reading them (save %, dribbled past, penalties won and their benchmarks,
+-  leaderboards, momentum) changes for those matches, as intended. Base also takes the newer payload per
+-  entity for team statistics and events: of the 376 matches already fetched twice, team statistics
+-  differed in 35; events were identical in 315, differed at the same count in 50, were fewer in 6 and
+-  more in 5 (measured on RAW 2026-10-05). Scores and league tables do not read this table. The
+-  completeness report counts a match's player stats as missing while its second fetch is due and not
+-  made; BL1 has no explicit gate in the registry and is therefore hard-gated, so a BL1 second fetch the
+-  run fails to make fails the run, as a failed BL1 first fetch does today. BigQuery: about 1.1 GB a
+-  night less (the 31 per-league reads go; the one shared read adds the fetch time and kickoff of rows it
+-  already scans).
 -
--  Threshold declarations. NEW MECHANISM: none; a seed of declared official decisions with sources
--  is the pattern of standings_corrections. RECURRING COST: one seed of 52 rows and a join in an
--  existing test; measured by dry run.
-+  - "3 days after kickoff" is 72 hours from the kickoff time, not 3 calendar days: by date, an evening
-+    match would be fetched about 2.3 days after kickoff, where 7.7% are still blank.
-+  - A finished match is due when its latest fetch came under 72 h after kickoff and 72 h have passed.
-+    Its second fetch makes the latest fetch late, so it is never due again. Kickoff is the stored
-+    payload's fixture.date, the same rows the read already scans.
-+  - "Every finished match" is every finished match, with or without player rows; that is the measured
-+    2,595 behind the approved 143 calls.
-+  - Due is player-stats coverage: `read_coverage` marks FIXTURE_PLAYERS not covered while the second
-+    fetch is due. The details step fetches it; the completeness report counts it missing until it is
-+    made; the poll gate keeps skipping a not-covered FIXTURE_PLAYERS, so an idle competition is not
-+    switched to full mode by a due match (the approved alternative to a full night).
-+  - Idle competitions: `run_poll_phases` returns the same `CompetitionRunResult` as `run_cheap_phases`,
-+    and the orchestrator hands the details step the active and idle competitions; only the active ones
-+    go on to the squad, transfer and per-team phases, as today.
-+  - How step 4 (the one-off fetch) is the first nightly after the merge; no separate script.
-+  - docs/data_contract.md owns the fetch rule and is edited in this MR.
-+
-+  Threshold declarations. NEW MECHANISM: none; the existing details step and the existing coverage
-+  read. RECURRING COST: about 2 API calls a day and about 1.1 GB a night less BigQuery, both in the
-+  approved text; the one-off about 143 calls, approved.
+ decisions_taken: >
+-  #186 as approved on 2026-10-05, How step 3 as approved on 2026-10-05: "Add the second player-stats
+-  fetch to the ingestion's fixture selection, for matches whose first fetch came before that delay, in
+-  every competition, idle ones included. The fixture-details step reads what is already fetched once for
+-  all competitions, with each match's latest fetch time, instead of once per competition. Cost: no API
+-  calls beyond the due matches (about 143 once, about 2 a day); BigQuery about 1.1 GB a night less."
+-
+-  Readings, under the CPO's delegation of 2026-10-02 ("Readings of approved rules are yours"):
+-  - "3 days after kickoff" is 72 hours from the kickoff time, not 3 calendar days: by date, an evening
+-    match would be fetched about 2.3 days after kickoff, where 7.7% are still blank.
+-  - A finished match is due when its latest fetch came under 72 h after kickoff and 72 h have passed.
+-    Its second fetch makes the latest fetch late, so it is never due again. Kickoff is the stored
+-    payload's fixture.date, the same rows the read already scans.
+-  - "Every finished match" is every finished match, with or without player rows; that is the measured
+-    2,595 behind the approved 143 calls.
+-  - Due is player-stats coverage: `read_coverage` marks FIXTURE_PLAYERS not covered while the second
+-    fetch is due. The details step fetches it; the completeness report counts it missing until it is
+-    made; the poll gate keeps skipping a not-covered FIXTURE_PLAYERS, so an idle competition is not
+-    switched to full mode by a due match (the approved alternative to a full night).
+-  - Idle competitions: `run_poll_phases` returns the same `CompetitionRunResult` as `run_cheap_phases`,
+-    and the orchestrator hands the details step the active and idle competitions; only the active ones
+-    go on to the squad, transfer and per-team phases, as today.
+-  - How step 4 (the one-off fetch) is the first nightly after the merge; no separate script.
+-  - docs/data_contract.md owns the fetch rule and is edited in this MR.
++  #195 as written from the CPO's words of 2026-10-05 (quoted in refs). One line in the registry:
++  `ingest_completeness_gate: soft` on BL1, the value and key the other 47 entries carry. The gate is
++  read only by the ingestion (`registry.py` → `completeness.py`); it is not synced into
++  `dbt_project.yml` or the registry seed, so `scripts/sync_dbt_vars.py` has nothing to write.
++  Effect: a BL1 gap is reported in the completeness report and summary and no longer stops the run;
++  with no hard-gated competition left, a run still fails on the stagnation signals (statistics,
++  dropped calls, per-team gaps) as before.
+ 
+-  Threshold declarations. NEW MECHANISM: none; the existing details step and the existing coverage
+-  read. RECURRING COST: about 2 API calls a day and about 1.1 GB a night less BigQuery, both in the
+-  approved text; the one-off about 143 calls, approved.
++  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
  
  decisions_reserved:
--  - No table value, result or metric changes; the site does not show an adjustment (#147's Not in
--    scope).
-+  - Base merges a match's events per array position, so when a later fetch lists fewer events the
-+    older trailing ones survive (6 of 376 matches fetched twice). Unchanged here; not a #186 line.
+-  - Base merges a match's events per array position, so when a later fetch lists fewer events the
+-    older trailing ones survive (6 of 376 matches fetched twice). Unchanged here; not a #186 line.
++  - The code's default for an entry without the key (hard when active) is unchanged; #195's Not in scope.
  
  done_when:
--  - Over prod (bytes to the CPO first) the test returns no row with the seed; without it, the 52 rows;
--    it fails on a deliberate break (a declared value changed, a row removed) and stays green on an
--    identical rewrite.
--  - dbt parse, description hygiene and the offline gates pass.
-+  - pytest (tests/test_batch_fixtures.py, tests/test_coverage.py, then the whole suite), ruff with
-+    .ruff-ci.toml and the offline gates pass.
+-  - pytest (tests/test_batch_fixtures.py, tests/test_coverage.py, then the whole suite), ruff with
+-    .ruff-ci.toml and the offline gates pass.
++  - check_registry_var_sync and the offline gates pass; pytest passes.
++  - `registry.py` loads BL1 with gate `soft` and no entry with `hard`.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-+  - After the first nightly with it (bytes to the CPO before every query): its log shows about 2,600
-+    fixtures to fetch; the 31 per-league coverage queries are gone from INFORMATION_SCHEMA.JOBS; the
-+    blank share of recent matches before and after; fct_fixture_player_stats carries the new values.
+-  - After the first nightly with it (bytes to the CPO before every query): its log shows about 2,600
+-    fixtures to fetch; the 31 per-league coverage queries are gone from INFORMATION_SCHEMA.JOBS; the
+-    blank share of recent matches before and after; fct_fixture_player_stats carries the new values.
+ 
+-amendments:
+-  - 2026-10-05: + docs/operations_guide.md — authority: #186 How step 3 (approved 2026-10-05)
+-    changes what FIXTURE_PLAYERS coverage means, and the operations guide's completeness paragraph
+-    states that meaning; content: that one sentence (data-engineer-reviewer, round 1).
+-  - 2026-10-05: tests/test_batch_fixtures.py also pins that idle competitions reach the
+-    fixture-details step: run_poll_phases returns their fixtures, and the orchestrator hands them
+-    and the run's coverage read to the step (platform-reviewer, round 1).
++amendments: (none)
+diff --git a/docs/competition_registry.yml b/docs/competition_registry.yml
+index 53d07a58..ee1fa171 100644
+--- a/docs/competition_registry.yml
++++ b/docs/competition_registry.yml
+@@ -85,6 +85,7 @@ competitions:
+     history_seasons: 10             # backfill window: last N season start years
+     status: "active"
+     ingest_active: true
++    ingest_completeness_gate: soft
+     notes: >
+       First competition onboarded. Reference implementation for all future leagues.
  
--amendments: (none)
-+amendments:
-+  - 2026-10-05: + docs/operations_guide.md — authority: #186 How step 3 (approved 2026-10-05)
-+    changes what FIXTURE_PLAYERS coverage means, and the operations guide's completeness paragraph
-+    states that meaning; content: that one sentence (data-engineer-reviewer, round 1).
-+  - 2026-10-05: tests/test_batch_fixtures.py also pins that idle competitions reach the
-+    fixture-details step: run_poll_phases returns their fixtures, and the orchestrator hands them
-+    and the run's coverage read to the step (platform-reviewer, round 1).
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index fa867a10..869b59c8 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -131,11 +131,13 @@ quota is still discarded whole and retried next run, in `batch_fixtures`, `coach
- 
- `RAW_APIF_FIXTURE_DETAILS` appends. Each run fetches only the fixtures that are missing data (not the full history) and appends one row per fixture returned. A fixture that is retried — empty statistics within the 3-day window from kickoff — gains a **second row**; nothing is removed.
- 
-+**Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). Its player stats count as not covered until then.
-+
- **Both versions are kept deliberately, and base picks per entity.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_events` dedups newest-per-`(league_code, fixture_id, event_index)`, `base_apif__fixture_players` per `(…, team_id, player_id)`, `base_apif__fixture_statistics` per `(…, team_id)` — so an entity present only in the older payload survives, and one present in both takes the newer. On fixture 1564795 that yields 27 events: indices 0-16 from the retry, 17-26 from the payload it would have replaced.
- 
- Two consequences worth stating rather than discovering:
- 
--- `fixture_id` is **not** a uniqueness key on this table. Any reader that assumes one row per fixture must aggregate — `coverage.read_coverage` and `batch_fixtures._read_fetched_coverage` both use `LOGICAL_OR ... GROUP BY fixture_id` for exactly this reason.
-+- `fixture_id` is **not** a uniqueness key on this table. Any reader that assumes one row per fixture must aggregate — `coverage.read_coverage`, the one coverage read per run, uses `LOGICAL_OR ... GROUP BY fixture_id` for exactly this reason.
- - `stg_apif__lineups` has **no consumer**, so nothing downstream resolves its versions today.
- 
- The per-fixture bundle stored in `payload` covers: lineups, events, fixture statistics, and fixture player stats — all sub-keyed within the JSON envelope.
-@@ -162,7 +164,7 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
- 
- **Invariant — every per-entity endpoint must skip what it already holds.** Storage-side merge/dedup bounds the *table*; it does **not** bound the *API cost*. A loader that keeps one row per key but still calls the endpoint for every key every run re-pays the full quota nightly. This reached production once: the `/players` squad phase re-fetched every team × every history season each run (~50% of the daily quota) because it had the merge but not the skip.
- 
--So any per-entity pull (per-fixture, per-team, per-team-season, per-player) MUST, before fetching, read the keys already ingested from the target raw table and fetch only the delta. The single deliberate exception is the **live/current season**, whose per-season stats keep accumulating — it is re-fetched every run; every finished season/fixture is immutable and fetched once. Mirror the canonical implementations, do not reinvent:
-+So any per-entity pull (per-fixture, per-team, per-team-season, per-player) MUST, before fetching, read the keys already ingested from the target raw table and fetch only the delta. The single deliberate exception is the **live/current season**, whose per-season stats keep accumulating — it is re-fetched every run; every finished season/fixture is immutable and fetched once, except a fixture's second fetch (see "Fixture details"). Mirror the canonical implementations, do not reinvent:
- 
- | Endpoint axis | Coverage reader | Fetch planner |
- |---------------|-----------------|---------------|
-diff --git a/docs/operations_guide.md b/docs/operations_guide.md
-index d9bfec76..0068f30f 100644
---- a/docs/operations_guide.md
-+++ b/docs/operations_guide.md
-@@ -156,7 +156,7 @@ Three signals together tell you what happened.
- 
- 1. **Fanout selection (start of per-fixture phase).** The log line `[api-football] fanout_selection league={league_code} target=… already_complete=… missing_any_endpoint=…` reports the number of in-scope fixtures, how many are already covered for all four per-match endpoints (lineups, events, statistics, players), and how many still miss at least one endpoint.
- 
--2. **Completeness check (end of run).** The loader compares **finished** fixture ids in the latest `RAW_APIF_FIXTURES_NEXT` snapshot (`status.short` in `FT`, `AET`, `PEN`) against fanout coverage for each per-match endpoint (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`) and emits `[api-football] ingest_completeness_json={...}`. **Coverage is derived directly from `RAW_APIF_FIXTURE_DETAILS`** — the append-only fanout table that holds one row (one payload) per fetched fixture — so it can never drift out of sync with the actual data. A fixture counts as covered for statistics only when its `statistics` array is non-empty (empty stats are retried within a grace window); the other three endpoints count as covered once the fixture has been fetched. There is no separate coverage tracking table. API predictions are not ingested (we build our own), so there is no predictions endpoint. Unplayed fixtures (upcoming, in-play, cancelled, postponed, abandoned) are reported separately as `fixture_unplayed_count` and do not fail the check. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
-+2. **Completeness check (end of run).** The loader compares **finished** fixture ids in the latest `RAW_APIF_FIXTURES_NEXT` snapshot (`status.short` in `FT`, `AET`, `PEN`) against fanout coverage for each per-match endpoint (`LINEUPS`, `FIXTURE_EVENTS`, `FIXTURE_STATISTICS`, `FIXTURE_PLAYERS`) and emits `[api-football] ingest_completeness_json={...}`. **Coverage is derived directly from `RAW_APIF_FIXTURE_DETAILS`** — the append-only fanout table that holds one row (one payload) per fetched fixture — so it can never drift out of sync with the actual data. A fixture counts as covered for statistics only when its `statistics` array is non-empty (empty stats are retried within a grace window); lineups and events count as covered once the fixture has been fetched; player stats count as covered once fetched, except while the fixture's second fetch is due (its latest fetch came under 3 days after kickoff and 3 days have passed; see [`data_contract.md`](data_contract.md) "Fixture details"). There is no separate coverage tracking table. API predictions are not ingested (we build our own), so there is no predictions endpoint. Unplayed fixtures (upcoming, in-play, cancelled, postponed, abandoned) are reported separately as `fixture_unplayed_count` and do not fail the check. The field `match_level_tables_cover_all_fixtures` (legacy `all_fanout_complete`) is the overall boolean. This is one slice of "complete" — squad freshness and the other raw tables are covered by source freshness, the ingestion spread model, and running dbt after ingest (see [`data_contract.md`](data_contract.md)).
- 
-    When `match_level_tables_cover_all_fixtures` is `false` during a multi-day backfill, the process exits `3` under the default `API_FOOTBALL_FAIL_ON_INCOMPLETE=1`. Set that env var to `0` until coverage catches up, or skip the check entirely with `API_FOOTBALL_SKIP_COMPLETENESS_CHECK=1` (not recommended long-term).
- 
-diff --git a/ingestion/api_football/coverage.py b/ingestion/api_football/coverage.py
-index 117a627b..e3925a4b 100644
---- a/ingestion/api_football/coverage.py
-+++ b/ingestion/api_football/coverage.py
-@@ -17,10 +17,15 @@ pipeline never updated.)
- 
- COVERAGE SEMANTICS (per endpoint)
- ---------------------------------
--    LINEUPS / FIXTURE_EVENTS / FIXTURE_PLAYERS
-+    LINEUPS / FIXTURE_EVENTS
-         Covered once the fixture has been fetched at all (its row exists). The
-         API does not always return these arrays, and an empty array is not a
-         gap we can close by re-fetching, so presence of the fixture row counts.
-+    FIXTURE_PLAYERS
-+        Covered once the fixture has been fetched, except while its second fetch
-+        is due: the provider completes some player stats days after the match, so
-+        a fixture whose latest fetch came under SECOND_FETCH_DELAY after kickoff
-+        is fetched once more when it is that old (see second_fetch_due).
-     FIXTURE_STATISTICS
-         Covered only when the statistics array is non-empty. Empty statistics on
-         a finished fixture is usually a delivery delay, so it is retried within
-@@ -38,7 +43,7 @@ USAGE
- 
- from __future__ import annotations
- 
--from datetime import date, datetime, timezone
-+from datetime import date, datetime, timedelta, timezone
- from collections import defaultdict
- 
- from google.cloud import bigquery
-@@ -51,6 +56,10 @@ from .settings import GCP_PROJECT_ID, DATASET_ID, raw_table
- # response is treated as permanent (stats are not coming from the API).
- STATS_GRACE_DAYS = 7
- 
-+# Measured on RAW: player stats blank for a whole match fall from 44.8% of fetches under one day
-+# after kickoff to 7.7% at two to three days and 0.0% from three days.
-+SECOND_FETCH_DELAY = timedelta(days=3)
-+
- # The four fanout endpoints bundled in each RAW_APIF_FIXTURE_DETAILS payload.
- # The value is the payload array whose non-emptiness must be checked, or None
- # when the fixture being fetched at all is sufficient to count as covered.
-@@ -80,6 +89,19 @@ def _fixture_details_table_id() -> str:
-     return f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('FIXTURE_DETAILS')}"
- 
- 
-+def second_fetch_due(
-+    latest_fetch: datetime | None,
-+    kickoff: datetime | None,
-+    now: datetime,
-+) -> bool:
-+    """True when the fixture's latest fetch came under SECOND_FETCH_DELAY after kickoff and that
-+    much time has now passed. The second fetch itself comes later than that, so it is due once."""
-+    if latest_fetch is None or kickoff is None:
-+        return False
-+    complete_from = kickoff + SECOND_FETCH_DELAY
-+    return latest_fetch < complete_from <= now
-+
-+
- def read_coverage(
-     client: bigquery.Client,
- ) -> dict[str, dict[str, dict[int, bool]]]:
-@@ -91,7 +113,8 @@ def read_coverage(
- 
-     has_data is True when the endpoint's data is present (see COVERAGE SEMANTICS
-     in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
--    statistics array; the other three endpoints are True for every fetched fixture.
-+    statistics array; FIXTURE_PLAYERS is False while the fixture's second fetch is
-+    due; LINEUPS and FIXTURE_EVENTS are True for every fetched fixture.
- 
-     Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
-     fixture legitimately has more than one row: the table is append-only and a
-@@ -111,20 +134,23 @@ def read_coverage(
-     except NotFound:
-         return {}
- 
--    # One row per fixture: did this fixture's statistics array ever arrive non-empty?
--    # The other three endpoints count as covered whenever the fixture row exists.
-+    # One row per fixture: did this fixture's statistics array ever arrive non-empty,
-+    # and when was it last fetched relative to its kickoff?
-     q = f"""
-         SELECT
-             league_code,
-             CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
-             LOGICAL_OR(ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0)
--                AS has_statistics
-+                AS has_statistics,
-+            MAX(ingested_at) AS latest_fetch,
-+            MAX(SAFE_CAST(JSON_VALUE(payload, '$.fixture.date') AS TIMESTAMP)) AS kickoff
-         FROM `{table_id}`
-         WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
-         GROUP BY league_code, fixture_id
-     """
-     rows = list(client.query(q).result())
- 
-+    now = datetime.now(timezone.utc)
-     covered: dict[str, dict[str, dict[int, bool]]] = defaultdict(lambda: defaultdict(dict))
-     for row in rows:
-         lc = row.league_code
-@@ -132,6 +158,8 @@ def read_coverage(
-         has_stats = bool(row.has_statistics)
-         for endpoint, requires_nonempty in ENDPOINT_REQUIRES_NONEMPTY.items():
-             covered[lc][endpoint][fid] = has_stats if requires_nonempty else True
-+        if second_fetch_due(row.latest_fetch, row.kickoff, now):
-+            covered[lc]["FIXTURE_PLAYERS"][fid] = False
- 
-     # Convert defaultdicts to plain dicts so downstream code cannot rely on
-     # auto-create behaviour (a missing key should raise KeyError).
-@@ -158,7 +186,10 @@ def covered_for_league(
-       - The fixture's kickoff date is known and within STATS_GRACE_DAYS of today
- 
-     For all other cases — has_data=True, non-statistics endpoints, or missing
--    kickoff date — the fixture is conservatively added to the skip set.
-+    kickoff date — the fixture is conservatively added to the skip set. A
-+    FIXTURE_PLAYERS second fetch that is due is skipped here too: the fixture-details
-+    step makes it in every competition, so it never switches an idle competition to
-+    full mode.
- 
-     kickoff_by_id maps fixture_id → kickoff date (UTC calendar day). When omitted,
-     the grace-period logic is skipped and all coverage entries are treated as final.
-diff --git a/ingestion/api_football/loads/batch_fixtures.py b/ingestion/api_football/loads/batch_fixtures.py
-index b3a19bd0..a518b08d 100644
---- a/ingestion/api_football/loads/batch_fixtures.py
-+++ b/ingestion/api_football/loads/batch_fixtures.py
-@@ -11,8 +11,9 @@ Storage model: one row per fixture PER FETCH in RAW_APIF_FIXTURE_DETAILS (unifie
-   ingested_at TIMESTAMP — when this row was written (UTC)
- 
- APPEND ONLY. On the first fetch of a fixture a row is inserted. On retry (empty stats
--within STATS_RETRY_DAYS of kickoff) another row is inserted and NOTHING is removed, so
--a retried fixture holds one row per attempt. Staging models read payload directly and
-+within STATS_RETRY_DAYS of kickoff, or the player stats' second fetch) another row is
-+inserted and NOTHING is removed, so a retried fixture holds one row per attempt.
-+Staging models read payload directly and
- faithfully — no $.response unnesting, no dedup — and base resolves the versions by
- entity key with latest-ingest-wins.
- 
-@@ -22,9 +23,10 @@ The delete that used to run here destroyed 29 real events across 5 fixtures beca
- retry chasing late statistics returned fewer events, and one row bundles lineups, events,
- statistics and player stats together.
- 
--Coverage is derived by querying RAW_APIF_FIXTURE_DETAILS directly, filtered by
--league_code: a fixture is done once ANY stored row for it carries non-empty
--statistics. That LOGICAL_OR aggregation is what makes the multi-row state safe to read.
-+Coverage is the run's single `coverage.read_coverage` result, read before this step for
-+every league: a fixture is done once ANY stored row for it carries non-empty statistics
-+and its player stats' second fetch is not due. That LOGICAL_OR aggregation is what makes
-+the multi-row state safe to read.
- 
- Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping
- API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between calls gives ~4 calls/sec.
-@@ -40,7 +42,6 @@ import time
- from datetime import date, datetime, timedelta, timezone
- 
- from google.cloud import bigquery
--from google.cloud.exceptions import NotFound
- 
- from .. import quota as errors_quota
- from ..bigquery import ensure_unified_raw_table
-@@ -57,77 +58,30 @@ _BATCH_SIZE = 20
- _STATS_RETRY_DAYS = 3
- 
- 
--def _fixture_details_table_id() -> str:
--    return f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('FIXTURE_DETAILS')}"
--
--
--def _read_fetched_coverage(
--    client: bigquery.Client,
--    league_code: str,
--) -> dict[int, bool]:
--    """Return {fixture_id: has_statistics} for all fixtures in RAW_APIF_FIXTURE_DETAILS for this league.
--
--    has_statistics is True when the fixture's statistics array is non-empty.
--    Returns an empty dict when the table does not exist (first run).
--
--    AGGREGATED PER FIXTURE, and under append-only raw that is load-bearing rather than defensive:
--    the table is append-only, so a retried fixture holds one row per attempt as a matter of
--    course. Reading row-by-row into a dict would make the answer depend on which row happened to
--    land last, and BigQuery does not promise an order — an older empty-statistics row could mask
--    a complete one, and the fixture would be re-fetched every run until its window closed,
--    burning quota to no effect. LOGICAL_OR answers the question actually being asked, "do we hold
--    statistics for this fixture anywhere", and is order-independent.
--
--    ⚠ This aggregation shipped for a narrower reason and turned out to be the precondition the
--    append-only rule needed. Do not "simplify" it back to a per-row read.
--    """
--    table_id = _fixture_details_table_id()
--    try:
--        client.get_table(table_id)
--    except NotFound:
--        return {}
--
--    q = f"""
--        SELECT
--          CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
--          LOGICAL_OR(
--            ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0
--          ) AS has_statistics
--        FROM `{table_id}`
--        WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
--          AND league_code = '{league_code}'
--        GROUP BY fixture_id
--    """
--    try:
--        rows = list(client.query(q).result())
--    except Exception:
--        return {}
--
--    return {
--        int(row.fixture_id): bool(row.has_statistics)
--        for row in rows
--        if row.fixture_id is not None
--    }
--
--
- def _needs_fetch(
-     fixture_id: int,
--    fetched: dict[int, bool],
-+    covered: dict[str, dict[int, bool]],
-     kickoff_by_id: dict[int, date],
-     retry_cutoff: date,
- ) -> bool:
-     """Return True if this finished fixture needs a (re-)fetch.
- 
-+    `covered` is this league's entry of `coverage.read_coverage`.
-+
-     Decision table:
-       Never fetched                            → fetch
-+      Player stats' second fetch due           → fetch (once; coverage.second_fetch_due)
-       Fetched, statistics non-empty            → skip (done permanently)
-       Fetched, statistics empty, within window → retry (delivery delay expected)
-       Fetched, statistics empty, past window   → skip (accept empty permanently)
-       Fetched, statistics empty, no kickoff    → skip (can't determine window)
-     """
--    if fixture_id not in fetched:
-+    has_statistics = covered.get("FIXTURE_STATISTICS", {})
-+    if fixture_id not in has_statistics:
-+        return True
-+    if not covered.get("FIXTURE_PLAYERS", {}).get(fixture_id, True):
-         return True
--    if fetched[fixture_id]:
-+    if has_statistics[fixture_id]:
-         return False  # statistics present — done
-     # Empty statistics — retry only within the 3-day window from kickoff.
-     kickoff = kickoff_by_id.get(fixture_id)
-@@ -273,16 +227,18 @@ def _fetch_and_persist_batch(
- def run_batch_fixture_fanout_and_persist(
-     ctx: PipelineContext,
-     results: list[CompetitionRunResult],
-+    all_covered: dict[str, dict[str, dict[int, bool]]],
- ) -> None:
--    """Fetch full sub-data for all finished fixtures across all competitions.
-+    """Fetch full sub-data for all finished fixtures across all competitions, idle ones included.
- 
-     Two-step process per competition:
--      1. Read RAW_APIF_FIXTURE_DETAILS (filtered by league_code) to determine which
--         finished fixtures already have good statistics. Fixtures missing entirely or
--         with empty stats within the 3-day retry window are queued for fetching.
-+      1. Look the league up in `all_covered`, the run's single `read_coverage()` result, to
-+         determine which finished fixtures are done. Fixtures missing entirely, due their
-+         player stats' second fetch, or with empty stats within the 3-day retry window are
-+         queued for fetching.
-       2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
-          Each fixture in the response is appended as one row in FIXTURE_DETAILS.
--         Retried fixtures (previously empty stats) keep their earlier row as well.
-+         Re-fetched fixtures keep their earlier row as well.
- 
-     All competitions are planned before any HTTP calls are made.
-     """
-@@ -301,15 +257,15 @@ def run_batch_fixture_fanout_and_persist(
-         response = result.fixtures_merged.get("response", [])
-         finished = _finished_fixture_ids(response)
-         kickoff_by_id = _fixture_kickoff_by_id(response)
--        fetched = _read_fetched_coverage(ctx.client, result.league_code)
-+        covered = all_covered.get(result.league_code, {})
- 
-         to_fetch = sorted(
-             fid for fid in finished
--            if _needs_fetch(fid, fetched, kickoff_by_id, retry_cutoff)
-+            if _needs_fetch(fid, covered, kickoff_by_id, retry_cutoff)
-         )
-         retry_ids = {
-             fid for fid in to_fetch
--            if fid in fetched and not fetched[fid]
-+            if fid in covered.get("FIXTURE_STATISTICS", {})
-         }
- 
-         n_done = len(finished) - len(to_fetch)
-diff --git a/ingestion/api_football/loads/competition_runner.py b/ingestion/api_football/loads/competition_runner.py
-index b939a8a5..420f02d5 100644
---- a/ingestion/api_football/loads/competition_runner.py
-+++ b/ingestion/api_football/loads/competition_runner.py
-@@ -53,16 +53,17 @@ def run_poll_phases(
-     current_season: int | None = None,
-     history_seasons: int | None = None,
-     season_type: str = "split_year",
--) -> tuple[set[int], int | None] | None:
-+) -> CompetitionRunResult | None:
-     """Idle competition: catalog + latest-season fixtures only (detect new season / matches).
- 
--    Returns ``(team_ids, last_recorded_season)`` so the orchestrator can run the squad catch-up
--    for finished competitions (the squad phases are otherwise full-mode only). None on
--    unrecoverable error.
-+    Returns the competition's result so the orchestrator can hand its fixtures to the
-+    fixture-details step (which fetches only what is due) and run the squad catch-up for
-+    finished competitions from its team_ids and latest season (the squad phases are otherwise
-+    full-mode only). None on unrecoverable error.
-     """
-     try:
-         _ingestion_phase(league_code, "poll catalog (leagues + latest season plan)")
--        seasons_list, _reference_season, _cov = fetch_catalog_persist_and_plan(
-+        seasons_list, _reference_season, cov = fetch_catalog_persist_and_plan(
-             ctx,
-             league_code,
-             league_id,
-@@ -72,11 +73,17 @@ def run_poll_phases(
-             poll_mode=True,
-         )
-         _ingestion_phase(league_code, "poll fixtures (latest season only)")
--        _fixtures_merged, team_ids, _fixture_ids = fetch_merge_and_persist_fixtures(
-+        fixtures_merged, team_ids, fixture_ids = fetch_merge_and_persist_fixtures(
-             ctx, league_code, league_id, seasons_list
-         )
--        last_season = max(seasons_list) if seasons_list else None
--        return team_ids, last_season
-+        return CompetitionRunResult(
-+            league_code=league_code,
-+            seasons_list=seasons_list,
-+            fixtures_merged=fixtures_merged,
-+            fixture_ids=fixture_ids,
-+            team_ids=team_ids,
-+            cov=cov,
-+        )
-     except Exception as e:
-         ctx.errors.append(f"league {league_code} poll phases: {e}")
-         return None
-diff --git a/ingestion/api_football/loads/context.py b/ingestion/api_football/loads/context.py
-index 1bd569d3..d63dc4ba 100644
---- a/ingestion/api_football/loads/context.py
-+++ b/ingestion/api_football/loads/context.py
-@@ -33,7 +33,8 @@ class PipelineContext:
- 
- @dataclass
- class CompetitionRunResult:
--    """Output of run_cheap_phases() — carries all state needed for the global fanout and squads."""
-+    """Output of run_cheap_phases() and run_poll_phases() — carries all state needed for the
-+    global fanout and squads."""
- 
-     league_code: str
-     seasons_list: list[int]
-diff --git a/ingestion/api_football/orchestrator.py b/ingestion/api_football/orchestrator.py
-index 9b1e63c8..50b794ec 100644
---- a/ingestion/api_football/orchestrator.py
-+++ b/ingestion/api_football/orchestrator.py
-@@ -151,6 +151,7 @@ def _load_api_football(request):
-         # the completeness check below MUST see those writes — that is what it checks. It
-         # therefore keeps its own, separate read. Hoisting further (one read for the whole
-         # run) would make every run report fanout gaps that the same run had just filled.
-+        # Phase 2 itself reuses this read: nothing writes FIXTURE_DETAILS before Phase 2.
-         phase1_covered = read_coverage(ctx.client)
-         # #33 item 14 — the re-fetch cadence for coaches and transfers, read ONCE for every
-         # league and passed into the loops below. Same reason as read_coverage above: reading
-@@ -163,6 +164,8 @@ def _load_api_football(request):
-         coaches_last_ingest = latest_ingest_per_league(ctx.client, raw_table("COACHES"))
-         transfers_last_ingest = latest_ingest_per_league(ctx.client, raw_table("TRANSFERS"))
-         results = []
-+        # Poll-mode comps: their fixtures go to Phase 2 only, never to the per-team phases.
-+        idle_results = []
-         # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
-         finished_comps: list[tuple[str, int, set[int]]] = []
-         for comp in selected:
-@@ -182,7 +185,9 @@ def _load_api_football(request):
-                     season_type=comp.season_type,
-                 )
-                 if poll_result is not None:
--                    poll_team_ids, poll_season = poll_result
-+                    idle_results.append(poll_result)
-+                    poll_team_ids = poll_result.team_ids
-+                    poll_season = max(poll_result.seasons_list) if poll_result.seasons_list else None
-                     if poll_team_ids and poll_season is not None:
-                         finished_comps.append((comp.league_code, poll_season, poll_team_ids))
-                 continue
-@@ -198,12 +203,12 @@ def _load_api_football(request):
-             if result is not None:
-                 results.append(result)
- 
--        # Phase 2: batch fixture sub-data fetch across all competitions.
-+        # Phase 2: batch fixture sub-data fetch across all competitions, idle ones included.
-         # Calls GET /fixtures?ids=ID1-...-ID20 (up to 20 per call) to retrieve
-         # events, lineups, statistics, and players for finished fixtures.
-         # Results land in RAW_APIF_{LC}_FIXTURE_DETAILS per competition.
--        if results:
--            run_batch_fixture_fanout_and_persist(ctx, results)
-+        if results or idle_results:
-+            run_batch_fixture_fanout_and_persist(ctx, results + idle_results, phase1_covered)
- 
-         # Phase 3: squad /players batch per competition.
-         #
-diff --git a/tests/test_batch_fixtures.py b/tests/test_batch_fixtures.py
-index 2649ff84..92164180 100644
---- a/tests/test_batch_fixtures.py
-+++ b/tests/test_batch_fixtures.py
-@@ -8,16 +8,22 @@ from __future__ import annotations
- from datetime import date, timedelta
- from unittest.mock import MagicMock, patch
- 
--from google.cloud.exceptions import NotFound
--
- from ingestion.api_football.loads.batch_fixtures import (
-     _BATCH_SIZE,
-     _STATS_RETRY_DAYS,
-     _finished_fixture_ids,
-     _needs_fetch,
--    _read_fetched_coverage,
-     run_batch_fixture_fanout_and_persist,
- )
-+from ingestion.api_football.loads.context import CompetitionRunResult
-+
-+
-+def _covered(has_statistics: dict[int, bool], players: dict[int, bool] | None = None) -> dict:
-+    """One league's `read_coverage` entry: players covered unless its second fetch is due."""
-+    return {
-+        "FIXTURE_STATISTICS": has_statistics,
-+        "FIXTURE_PLAYERS": players if players is not None else dict.fromkeys(has_statistics, True),
-+    }
- 
- 
- # ---------------------------------------------------------------------------
-@@ -79,89 +85,38 @@ class TestNeedsFetch:
-         assert _needs_fetch(1, {}, {}, self.CUTOFF) is True
- 
-     def test_fetched_with_statistics_is_done(self):
--        assert _needs_fetch(1, {1: True}, {1: self.TODAY}, self.CUTOFF) is False
-+        assert _needs_fetch(1, _covered({1: True}), {1: self.TODAY}, self.CUTOFF) is False
-+
-+    def test_second_fetch_due_with_statistics_fetches(self):
-+        covered = _covered({1: True}, players={1: False})
-+        assert _needs_fetch(1, covered, {1: self.TODAY}, self.CUTOFF) is True
-+
-+    def test_second_fetch_due_with_empty_stats_past_window_fetches(self):
-+        kickoff = self.CUTOFF - timedelta(days=1)
-+        covered = _covered({1: False}, players={1: False})
-+        assert _needs_fetch(1, covered, {1: kickoff}, self.CUTOFF) is True
-+
-+    def test_second_fetch_due_without_kickoff_in_fixtures_fetches(self):
-+        """Due is decided by the coverage read; the fixtures payload's kickoff is not needed."""
-+        covered = _covered({1: True}, players={1: False})
-+        assert _needs_fetch(1, covered, {}, self.CUTOFF) is True
- 
-     def test_empty_stats_kickoff_exactly_at_cutoff_retries(self):
-         """Kickoff on the cutoff day is still within the retry window (>= cutoff)."""
--        assert _needs_fetch(1, {1: False}, {1: self.CUTOFF}, self.CUTOFF) is True
-+        assert _needs_fetch(1, _covered({1: False}), {1: self.CUTOFF}, self.CUTOFF) is True
- 
-     def test_empty_stats_kickoff_one_day_before_cutoff_skips(self):
-         """Kickoff one day before the cutoff is past the retry window."""
-         kickoff = self.CUTOFF - timedelta(days=1)
--        assert _needs_fetch(1, {1: False}, {1: kickoff}, self.CUTOFF) is False
-+        assert _needs_fetch(1, _covered({1: False}), {1: kickoff}, self.CUTOFF) is False
- 
-     def test_empty_stats_kickoff_after_cutoff_retries(self):
-         kickoff = self.TODAY  # recent match
--        assert _needs_fetch(1, {1: False}, {1: kickoff}, self.CUTOFF) is True
-+        assert _needs_fetch(1, _covered({1: False}), {1: kickoff}, self.CUTOFF) is True
- 
-     def test_empty_stats_no_kickoff_skips(self):
-         """If kickoff is unknown, can't determine window — skip to be safe."""
--        assert _needs_fetch(1, {1: False}, {}, self.CUTOFF) is False
--
--
--# ---------------------------------------------------------------------------
--# _read_fetched_coverage
--# ---------------------------------------------------------------------------
--
--
--class TestReadFetchedCoverage:
--    def _make_row(self, fixture_id, has_statistics: bool):
--        row = MagicMock()
--        row.fixture_id = fixture_id
--        row.has_statistics = has_statistics
--        return row
--
--    def test_returns_empty_dict_when_table_not_found(self):
--        client = MagicMock()
--        client.get_table.side_effect = NotFound("table missing")
--        result = _read_fetched_coverage(client, "BL1")
--        assert result == {}
--        client.query.assert_not_called()
--
--    def test_returns_empty_dict_when_query_raises(self):
--        client = MagicMock()
--        client.get_table.return_value = MagicMock()
--        client.query.side_effect = Exception("BQ error")
--        result = _read_fetched_coverage(client, "BL1")
--        assert result == {}
--
--    def test_maps_fixture_id_to_has_statistics(self):
--        client = MagicMock()
--        client.get_table.return_value = MagicMock()
--        client.query.return_value.result.return_value = [
--            self._make_row(100, True),
--            self._make_row(200, False),
--        ]
--        result = _read_fetched_coverage(client, "BL1")
--        assert result[100] is True
--        assert result[200] is False
--
--    def test_fixture_ids_are_cast_to_int(self):
--        client = MagicMock()
--        client.get_table.return_value = MagicMock()
--        client.query.return_value.result.return_value = [
--            self._make_row("12345", True),
--        ]
--        result = _read_fetched_coverage(client, "BL1")
--        assert 12345 in result
--        assert isinstance(list(result.keys())[0], int)
--
--    def test_empty_table_returns_empty_dict(self):
--        client = MagicMock()
--        client.get_table.return_value = MagicMock()
--        client.query.return_value.result.return_value = []
--        result = _read_fetched_coverage(client, "BL1")
--        assert result == {}
--
--    def test_query_contains_correct_table_id(self):
--        """The BQ query must target the unified FIXTURE_DETAILS table, filtered by league_code."""
--        client = MagicMock()
--        client.get_table.return_value = MagicMock()
--        client.query.return_value.result.return_value = []
--        _read_fetched_coverage(client, "WC")
--        query_sql = client.query.call_args[0][0]
--        assert "RAW_APIF_FIXTURE_DETAILS" in query_sql
--        assert "league_code = 'WC'" in query_sql
-+        assert _needs_fetch(1, _covered({1: False}), {}, self.CUTOFF) is False
- 
- 
- # ---------------------------------------------------------------------------
-@@ -200,41 +155,60 @@ class TestRunBatchFixtureFanoutAndPersist:
-         return ctx
- 
-     def test_no_api_calls_when_all_fixtures_done(self):
--        """All finished fixtures already have statistics → no HTTP calls."""
-+        """All finished fixtures already have statistics → no HTTP calls, and no read of its own."""
-         client = MagicMock()
--        client.get_table.return_value = MagicMock()
--        done_row = MagicMock()
--        done_row.fixture_id = 100
--        done_row.has_statistics = True
--        client.query.return_value.result.return_value = [done_row]
-+        covered = {"BL1": _covered({100: True})}
- 
-         ctx = self._make_ctx(client)
-         result = self._make_result("BL1", [self._make_fixture_row(100, "FT")])
- 
-         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
--                run_batch_fixture_fanout_and_persist(ctx, [result])
-+                run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         mock_fetch.assert_not_called()
-+        client.query.assert_not_called()
-+
-+    def test_fetches_fixture_due_its_second_fetch(self):
-+        """A fixture with statistics whose player stats' second fetch is due is fetched again."""
-+        client = MagicMock()
-+        covered = {"WC": _covered({100: True, 101: True}, players={100: False, 101: True})}
-+
-+        ctx = self._make_ctx(client)
-+        result = self._make_result(
-+            "WC", [self._make_fixture_row(100, "FT"), self._make_fixture_row(101, "FT")]
-+        )
-+
-+        fetch_resp = {"response": [], "errors": [], "results": 0}
-+        with patch(
-+            "ingestion.api_football.loads.batch_fixtures.fetch_json",
-+            return_value=fetch_resp,
-+        ) as mock_fetch:
-+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-+                with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
-+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
-+
-+        mock_fetch.assert_called_once()
-+        assert mock_fetch.call_args[1]["params"]["ids"] == "100"
- 
-     def test_no_api_calls_when_no_finished_fixtures(self):
-         """Only upcoming fixtures → nothing to fetch."""
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         result = self._make_result("BL1", [self._make_fixture_row(1, "NS")])
- 
-         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
--                run_batch_fixture_fanout_and_persist(ctx, [result])
-+                run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         mock_fetch.assert_not_called()
- 
-     def test_fetches_all_unfetched_finished_fixtures(self):
-         """All fixture IDs from a competition with no prior data are fetched in one batch."""
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         rows = [self._make_fixture_row(i, "FT") for i in range(1, 4)]
-@@ -247,7 +221,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-         ) as mock_fetch:
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
--                    run_batch_fixture_fanout_and_persist(ctx, [result])
-+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         assert mock_fetch.call_count == 1
-         params = mock_fetch.call_args[1]["params"]
-@@ -257,7 +231,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-     def test_splits_into_multiple_batches_above_batch_size(self):
-         """More than _BATCH_SIZE fixtures trigger multiple API calls."""
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         # BATCH_SIZE + 5 fixtures → 2 calls (BATCH_SIZE + 5)
-@@ -272,7 +246,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-         ) as mock_fetch:
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
--                    run_batch_fixture_fanout_and_persist(ctx, [result])
-+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         assert mock_fetch.call_count == 2
-         # First batch: exactly BATCH_SIZE ids
-@@ -285,7 +259,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-     def test_sleeps_between_calls_not_before_first(self):
-         """Sleep is called once between two calls, not before the first."""
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         n = _BATCH_SIZE + 1  # exactly 2 batches
-@@ -304,7 +278,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-                     with patch.dict(
-                         "os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "250"}
-                     ):
--                        run_batch_fixture_fanout_and_persist(ctx, [result])
-+                        run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         assert mock_sleep.call_count == 1
-         mock_sleep.assert_called_once_with(0.25)
-@@ -312,7 +286,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-     def test_no_sleep_when_only_one_batch(self):
-         """No sleep is needed when there is only one API call."""
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         rows = [self._make_fixture_row(1, "FT")]
-@@ -330,7 +304,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-                     with patch.dict(
-                         "os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "250"}
-                     ):
--                        run_batch_fixture_fanout_and_persist(ctx, [result])
-+                        run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         mock_sleep.assert_not_called()
- 
-@@ -339,7 +313,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-         import ingestion.api_football.quota as quota_mod
- 
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         n = _BATCH_SIZE + 5  # would be 2 batches without early exit
-@@ -362,7 +336,7 @@ class TestRunBatchFixtureFanoutAndPersist:
-             ):
-                 with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                     with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
--                        run_batch_fixture_fanout_and_persist(ctx, [result])
-+                        run_batch_fixture_fanout_and_persist(ctx, [result], covered)
-         finally:
-             quota_mod._http_quota_exhausted = prev
- 
-@@ -371,13 +345,9 @@ class TestRunBatchFixtureFanoutAndPersist:
-     def test_skips_empty_stats_fixtures_past_retry_window(self):
-         """Fixtures fetched with empty stats more than STATS_RETRY_DAYS ago are not retried."""
-         client = MagicMock()
--        client.get_table.return_value = MagicMock()
-         old_kickoff = date.today() - timedelta(days=_STATS_RETRY_DAYS + 2)
- 
--        stale_row = MagicMock()
--        stale_row.fixture_id = 100
--        stale_row.has_statistics = False  # empty stats, but old
--        client.query.return_value.result.return_value = [stale_row]
-+        covered = {"BL1": _covered({100: False})}  # empty stats, but old
- 
-         ctx = self._make_ctx(client)
-         # Kickoff is old — past the retry window
-@@ -386,20 +356,16 @@ class TestRunBatchFixtureFanoutAndPersist:
- 
-         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
--                run_batch_fixture_fanout_and_persist(ctx, [result])
-+                run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         mock_fetch.assert_not_called()
- 
-     def test_retries_empty_stats_fixtures_within_retry_window(self):
-         """Fixtures with empty stats within the retry window are re-fetched."""
-         client = MagicMock()
--        client.get_table.return_value = MagicMock()
-         recent_kickoff = date.today() - timedelta(days=1)  # 1 day ago, within 3-day window
- 
--        recent_row = MagicMock()
--        recent_row.fixture_id = 100
--        recent_row.has_statistics = False
--        client.query.return_value.result.return_value = [recent_row]
-+        covered = {"BL1": _covered({100: False})}
- 
-         ctx = self._make_ctx(client)
-         kickoff_str = recent_kickoff.isoformat() + "T18:00:00+00:00"
-@@ -412,14 +378,14 @@ class TestRunBatchFixtureFanoutAndPersist:
-         ) as mock_fetch:
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
--                    run_batch_fixture_fanout_and_persist(ctx, [result])
-+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         mock_fetch.assert_called_once()
- 
-     def test_exception_in_batch_appended_to_errors(self):
-         """An exception during a batch fetch is caught and added to errors."""
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         result = self._make_result("BL1", [self._make_fixture_row(1, "FT")])
-@@ -430,14 +396,14 @@ class TestRunBatchFixtureFanoutAndPersist:
-         ):
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
--                    run_batch_fixture_fanout_and_persist(ctx, [result])
-+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
- 
-         assert any("batch_fixtures" in e and "BL1" in e for e in ctx.errors)
- 
-     def test_multiple_competitions_planned_before_fetching(self):
-         """Results from multiple competitions are all planned before any HTTP call."""
-         client = MagicMock()
--        client.get_table.side_effect = NotFound("no table")
-+        covered: dict = {}
- 
-         ctx = self._make_ctx(client)
-         result_bl1 = self._make_result("BL1", [self._make_fixture_row(1, "FT")])
-@@ -456,8 +422,60 @@ class TestRunBatchFixtureFanoutAndPersist:
-         ):
-             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
--                    run_batch_fixture_fanout_and_persist(ctx, [result_bl1, result_pl])
-+                    run_batch_fixture_fanout_and_persist(ctx, [result_bl1, result_pl], covered)
- 
-         assert len(fetched_calls) == 2
-         all_ids = {int(fid) for call in fetched_calls for fid in call.split("-")}
-         assert all_ids == {1, 2}
-+
-+
-+# ---------------------------------------------------------------------------
-+# Idle (poll-mode) competitions reach the fixture-details step
-+# ---------------------------------------------------------------------------
-+
-+
-+class TestIdleCompetitionsReachTheDetailsStep:
-+    def test_run_poll_phases_returns_the_competitions_fixtures(self):
-+        from ingestion.api_football.loads import competition_runner as cr
-+
-+        fixtures = {"response": [{"fixture": {"id": 7, "status": {"short": "FT"}}}]}
-+        with patch.object(
-+            cr, "fetch_catalog_persist_and_plan", return_value=([2026], 2026, {"players": True})
-+        ), patch.object(
-+            cr, "fetch_merge_and_persist_fixtures", return_value=(fixtures, {1, 2}, {7})
-+        ):
-+            result = cr.run_poll_phases(MagicMock(), "WC", 1, current_season=2026)
-+
-+        assert isinstance(result, CompetitionRunResult)
-+        assert result.league_code == "WC"
-+        assert result.fixtures_merged is fixtures
-+        assert result.team_ids == {1, 2}
-+        assert result.seasons_list == [2026]
-+
-+    def test_orchestrator_hands_idle_competitions_and_the_coverage_read_to_the_step(self):
-+        """Structural, as in test_ingestion_read_hoisting.py: driving `_load_api_football` end to
-+        end means mocking every collaborator."""
-+        import ast
-+        import inspect
-+        import textwrap
-+
-+        from ingestion.api_football import orchestrator
-+
-+        tree = ast.parse(textwrap.dedent(inspect.getsource(orchestrator._load_api_football)))
-+        calls = [
-+            n for n in ast.walk(tree)
-+            if isinstance(n, ast.Call)
-+            and getattr(n.func, "id", None) == "run_batch_fixture_fanout_and_persist"
-+        ]
-+        assert len(calls) == 1
-+        args = [ast.unparse(a) for a in calls[0].args]
-+        assert "idle_results" in args[1]
-+        assert args[2] == "phase1_covered"
-+        idle_appends = {
-+            ast.unparse(n) for n in ast.walk(tree)
-+            if isinstance(n, ast.Call)
-+            and isinstance(n.func, ast.Attribute)
-+            and n.func.attr == "append"
-+            and ast.unparse(n.func.value) == "idle_results"
-+        }
-+        assert idle_appends == {"idle_results.append(poll_result)"}
-diff --git a/tests/test_coverage.py b/tests/test_coverage.py
-index 09941477..654daa23 100644
---- a/tests/test_coverage.py
-+++ b/tests/test_coverage.py
-@@ -8,7 +8,7 @@ is derived from the fanout data itself, so there is no write path to test.
- 
- from __future__ import annotations
- 
--from datetime import date, timedelta
-+from datetime import date, datetime, timedelta, timezone
- from unittest.mock import MagicMock
- 
- import pytest
-@@ -17,10 +17,12 @@ from google.cloud.exceptions import NotFound
- from ingestion.api_football.coverage import (
-     ENDPOINT_TO_SHELL_KEY,
-     FANOUT_ENDPOINTS,
-+    SECOND_FETCH_DELAY,
-     SHELL_KEY_TO_ENDPOINT,
-     STATS_GRACE_DAYS,
-     covered_for_league,
-     read_coverage,
-+    second_fetch_due,
- )
- 
- 
-@@ -169,9 +171,10 @@ class TestCoveredForLeague:
-     def test_non_stats_empty_response_skipped_conservatively(self):
-         """has_data=False on LINEUPS/EVENTS/PLAYERS → always skip.
- 
--        In practice the derive marks these True whenever the fixture was fetched,
--        so False is unusual; the conservative skip ensures an unexpected False
--        never causes infinite re-fetching.
-+        The derive marks LINEUPS and EVENTS True whenever the fixture was fetched;
-+        PLAYERS is False only while its second fetch is due, which the fixture-details
-+        step makes in every competition, so it must not switch an idle competition to
-+        full mode.
-         """
-         today = _today()
-         recent = today - timedelta(days=1)
-@@ -218,13 +221,51 @@ class TestCoveredForLeague:
- 
- 
- class TestReadCoverage:
--    def _row(self, league_code: str, fixture_id, has_statistics: bool):
-+    def _row(
-+        self,
-+        league_code: str,
-+        fixture_id,
-+        has_statistics: bool,
-+        latest_fetch: datetime | None = None,
-+        kickoff: datetime | None = None,
-+    ):
-         row = MagicMock()
-         row.league_code = league_code
-         row.fixture_id = fixture_id
-         row.has_statistics = has_statistics
-+        row.latest_fetch = latest_fetch
-+        row.kickoff = kickoff
-         return row
- 
-+    def _read(self, *rows):
-+        client = MagicMock()
-+        client.get_table.return_value = MagicMock()
-+        client.query.return_value.result.return_value = list(rows)
-+        return read_coverage(client)
-+
-+    def test_players_not_covered_while_second_fetch_is_due(self):
-+        kickoff = datetime.now(timezone.utc) - timedelta(days=10)
-+        result = self._read(
-+            self._row("WC", 1, True, latest_fetch=kickoff + timedelta(hours=8), kickoff=kickoff),
-+        )
-+        assert result["WC"]["FIXTURE_PLAYERS"][1] is False
-+        assert result["WC"]["FIXTURE_STATISTICS"][1] is True
-+        assert result["WC"]["LINEUPS"][1] is True
-+
-+    def test_players_covered_once_fetched_late_enough(self):
-+        kickoff = datetime.now(timezone.utc) - timedelta(days=10)
-+        result = self._read(
-+            self._row("WC", 1, True, latest_fetch=kickoff + SECOND_FETCH_DELAY, kickoff=kickoff),
-+        )
-+        assert result["WC"]["FIXTURE_PLAYERS"][1] is True
-+
-+    def test_players_covered_before_the_delay_has_passed(self):
-+        kickoff = datetime.now(timezone.utc) - timedelta(days=1)
-+        result = self._read(
-+            self._row("WC", 1, True, latest_fetch=kickoff + timedelta(hours=8), kickoff=kickoff),
-+        )
-+        assert result["WC"]["FIXTURE_PLAYERS"][1] is True
-+
-     def test_returns_empty_dict_when_table_not_found(self):
-         client = MagicMock()
-         client.get_table.side_effect = NotFound("fixture details table not found")
-@@ -309,3 +350,36 @@ class TestReadCoverage:
-             _ = result["NONEXISTENT_LEAGUE"]
-         with pytest.raises(KeyError):
-             _ = result["BL1"]["NONEXISTENT_ENDPOINT"]
-+
-+
-+# ---------------------------------------------------------------------------
-+# second_fetch_due — the player stats' second fetch, decided on 72 hours from kickoff
-+# ---------------------------------------------------------------------------
-+
-+
-+class TestSecondFetchDue:
-+    KICKOFF = datetime(2026, 10, 1, 19, 0, tzinfo=timezone.utc)
-+    COMPLETE_FROM = KICKOFF + SECOND_FETCH_DELAY
-+
-+    def test_early_fetch_is_due_once_the_delay_has_passed(self):
-+        early = self.KICKOFF + timedelta(hours=9)
-+        assert second_fetch_due(early, self.KICKOFF, self.COMPLETE_FROM) is True
-+
-+    def test_early_fetch_is_not_due_before_the_delay(self):
-+        early = self.KICKOFF + timedelta(hours=9)
-+        now = self.COMPLETE_FROM - timedelta(minutes=1)
-+        assert second_fetch_due(early, self.KICKOFF, now) is False
-+
-+    def test_evening_match_is_not_due_on_the_third_calendar_day(self):
-+        """Three calendar days after a 19:00 kickoff, the 04:00 run is only 57 hours later."""
-+        early = self.KICKOFF + timedelta(hours=9)
-+        third_day_run = datetime(2026, 10, 4, 4, 0, tzinfo=timezone.utc)
-+        assert second_fetch_due(early, self.KICKOFF, third_day_run) is False
-+
-+    def test_fetch_made_at_the_delay_is_never_due(self):
-+        later = self.COMPLETE_FROM + timedelta(days=30)
-+        assert second_fetch_due(self.COMPLETE_FROM, self.KICKOFF, later) is False
-+
-+    def test_unknown_kickoff_or_fetch_is_never_due(self):
-+        assert second_fetch_due(None, self.KICKOFF, self.COMPLETE_FROM) is False
-+        assert second_fetch_due(self.KICKOFF, None, self.COMPLETE_FROM) is False
-diff --git a/tests/test_incomplete_fetch_no_supersede.py b/tests/test_incomplete_fetch_no_supersede.py
-index 1068b30f..fb6fd39b 100644
---- a/tests/test_incomplete_fetch_no_supersede.py
-+++ b/tests/test_incomplete_fetch_no_supersede.py
-@@ -299,7 +299,6 @@ def _wire_batch(monkeypatch, data: dict) -> dict:
-     monkeypatch.setattr(bf.errors_quota, "_http_quota_exhausted", False)
-     monkeypatch.setattr(bf, "fetch_json", lambda *a, **k: data)
-     monkeypatch.setattr(bf, "ensure_unified_raw_table", lambda *a, **k: None)
--    monkeypatch.setattr(bf, "_fixture_details_table_id", lambda: "p.raw.FIXTURE_DETAILS")
-     monkeypatch.setattr(
-         bf,
-         "_insert_fixture_rows",
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1198,6 +192,6 @@ index 1068b30f..fb6fd39b 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   docs/tracker/gitlab_snapshot.md | 81 ++++++++++++++++++++++-------------------
-#    1 file changed, 44 insertions(+), 37 deletions(-)
+#   docs/tracker/gitlab_snapshot.md | 155 +++++++++++++++++++++-------------------
+#    1 file changed, 82 insertions(+), 73 deletions(-)
 # ============================================================================

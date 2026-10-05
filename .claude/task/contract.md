@@ -1,37 +1,20 @@
-# Task contract — player stats fetched too early are fetched a second time once complete
+# Task contract — the Bundesliga's completeness gate is soft like every other competition
 
 objective: >
-  #186 as approved on 2026-10-05, How step 3 as rewritten and approved the same day. The provider
-  completes some player stats days after a match and the nightly fetches a finished match once, so
-  goals conceded, dribbled past and penalties won stay blank for good in a large share of recent
-  matches. Every finished match whose latest fetch came under 3 days after kickoff is fetched once
-  more when it is 3 days old, in every competition, idle ones included; the fixture-details step
-  reads what is already fetched once for all competitions instead of once per competition.
+  #195. The Bundesliga is the only competition whose missing match details stop the nightly before
+  dbt runs: its registry entry has no `ingest_completeness_gate`, and `ingestion/api_football/registry.py`
+  makes an active entry without one `hard`. The other 47 entries set `soft`. BL1 gets the same `soft`.
 
 refs: >
-  #186 (approved 2026-10-05: cost, and How step 3 "in every competition, idle ones included ... reads
-  what is already fetched once for all competitions, with each match's latest fetch time, instead of
-  once per competition").
+  #195, from the CPO's words on 2026-10-05: "There is no reason to treat Bundesliga differently from
+  other competitions".
 
 acceptance_criteria:
-  # The issue's checklist lines, verbatim.
-  - "Every finished match's player stats are fetched a second time once the provider has completed them, unless the first fetch was already made that late."
-  - "The matches already fetched too early are fetched again once."
-  - "Afterwards, for recent matches, the share where goals conceded or dribbled past is blank for every player in the match equals the share for matches fetched a week or more after kickoff (today, within the same competition-seasons: 36.0% and 39.1% against 0.0% and 0.1%)."
-  - "The values from the second fetch reach the warehouse tables the metrics read."
-  - "Before anything is built, the extra API calls per day and the one-off calls for the matches already fetched are measured against the daily quota and put to the CPO."
+  # The issue's checklist line, verbatim.
+  - "A gap in the Bundesliga's match details is reported and the nightly carries on, as for every other competition."
 
 scope_paths:
-  - ingestion/api_football/coverage.py
-  - ingestion/api_football/loads/batch_fixtures.py
-  - ingestion/api_football/loads/competition_runner.py
-  - ingestion/api_football/loads/context.py
-  - ingestion/api_football/orchestrator.py
-  - tests/test_batch_fixtures.py
-  - tests/test_coverage.py
-  - tests/test_incomplete_fetch_no_supersede.py
-  - docs/data_contract.md
-  - docs/operations_guide.md
+  - docs/competition_registry.yml
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -40,105 +23,23 @@ scope_paths:
   - .claude/task/audit_reviewer_outputs.md
   - docs/tracker/**
 
-impact_map: >
-  writers: RAW_APIF_FIXTURE_DETAILS (append-only, one row per fetch) is written only by
-  `loads/batch_fixtures._insert_fixture_rows` (`grep -rn FIXTURE_DETAILS ingestion/` finds no other
-  writer). Its two coverage readers today: `coverage.read_coverage` (all leagues, one query; read by
-  the orchestrator's Phase 1 for the poll gate, and again by `completeness.run_ingest_completeness_checks`
-  after Phase 2) and `batch_fixtures._read_fetched_coverage` (one query per full-mode league; 31 queries,
-  1.107 GB billed on the 5 Oct nightly, measured in INFORMATION_SCHEMA.JOBS_BY_PROJECT). After this
-  change the second reader is gone; Phase 2 is handed Phase 1's read, which is current because nothing
-  writes the table before Phase 2.
-  downstream: `.venv/Scripts/dbt.exe ls --project-dir dbt_project --resource-type model --select
-  "source:api_football.raw_apif_fixture_details+"` → 66 models. staging: stg_apif__fixture_events,
-  stg_apif__fixture_players, stg_apif__fixture_statistics, stg_apif__lineups. base:
-  base_apif__fixture_events, base_apif__fixture_players, base_apif__fixture_statistics,
-  base_apif__players, base_apif__teams, base_apif__teams_global. core: dim_player,
-  dim_player_team_season_mapping, dim_team, fct_fixture_event, fct_fixture_player_stats,
-  fct_fixture_team_stats. intermediate: int_legs__player_match, int_legs__team_from_players,
-  int_legs__team_match, int_player_club_season__metrics, int_player_competition_benchmark_metrics_long,
-  int_player_competition_benchmarks, int_player_momentum__metrics, int_player_profile__contribution,
-  int_player_profile__yoy, int_player_season__metrics, int_player_season__team,
-  int_player_season_position__metrics, int_player_season_record,
-  int_team_competition_benchmark_metrics_long, int_team_competition_benchmarks,
-  int_team_momentum__metrics, int_team_momentum_window, int_team_profile__streaks,
-  int_team_profile__yoy, int_team_season__deserved_vs_actual, int_team_season__metrics,
-  int_team_season__metrics_cumulative, int_team_season_record. marts: mart_competition_fixtures,
-  mart_competition_season_summary, mart_fixture_standing_context, mart_head_to_head, mart_leaderboards,
-  mart_match_days, mart_matchday_insights, mart_player_career, mart_player_competition_benchmarks,
-  mart_player_fixture_stats, mart_player_match_log, mart_player_momentum, mart_player_profile,
-  mart_player_season_record, mart_roster, mart_standings, mart_team_competition_benchmarks,
-  mart_team_fixture_stats, mart_team_fixtures, mart_team_leaderboards, mart_team_market_value,
-  mart_team_momentum, mart_team_momentum_window, mart_team_profile, mart_team_season,
-  mart_team_season_insights, mart_team_season_record. No model changes; a second fetch is one more
-  raw row, resolved by base newest-per-entity as for today's retries.
-  layer_rules: no dbt file changes; check_layer_contract and the no-new-model rule are untouched; raw
-  stays append-only ("raw keeps both versions", docs/data_contract.md).
-  deploy_order: ingestion ships in the nightly image built by the merge pipeline (build:nightly-image,
-  deploy:nightly-image). The first 04:00 UTC nightly after the merge makes the one-off: 2,595 finished
-  matches whose latest fetch came under 72 h after kickoff (measured on RAW 2026-10-05, 34 leagues,
-  4 of them idle: WC 104, FAC 238, CCCU 1, UESC 1), about 143 calls in batches of 20. The same night's
-  prod dbt build reads the new rows: fct_fixture_player_stats, fct_fixture_team_stats are tables
-  rebuilt from base; fct_fixture_event is incremental on raw_ingested_at, so the newer rows merge on
-  event_sk.
-  blast_radius: player stats of about 2,595 matches move from blank to the provider's completed values
-  (goals conceded blank for every player in 44.8% of fetches under 1 day after kickoff, 0.0% from 3
-  days), so every player metric reading them (save %, dribbled past, penalties won and their benchmarks,
-  leaderboards, momentum) changes for those matches, as intended. Base also takes the newer payload per
-  entity for team statistics and events: of the 376 matches already fetched twice, team statistics
-  differed in 35; events were identical in 315, differed at the same count in 50, were fewer in 6 and
-  more in 5 (measured on RAW 2026-10-05). Scores and league tables do not read this table. The
-  completeness report counts a match's player stats as missing while its second fetch is due and not
-  made; BL1 has no explicit gate in the registry and is therefore hard-gated, so a BL1 second fetch the
-  run fails to make fails the run, as a failed BL1 first fetch does today. BigQuery: about 1.1 GB a
-  night less (the 31 per-league reads go; the one shared read adds the fetch time and kickoff of rows it
-  already scans).
-
 decisions_taken: >
-  #186 as approved on 2026-10-05, How step 3 as approved on 2026-10-05: "Add the second player-stats
-  fetch to the ingestion's fixture selection, for matches whose first fetch came before that delay, in
-  every competition, idle ones included. The fixture-details step reads what is already fetched once for
-  all competitions, with each match's latest fetch time, instead of once per competition. Cost: no API
-  calls beyond the due matches (about 143 once, about 2 a day); BigQuery about 1.1 GB a night less."
+  #195 as written from the CPO's words of 2026-10-05 (quoted in refs). One line in the registry:
+  `ingest_completeness_gate: soft` on BL1, the value and key the other 47 entries carry. The gate is
+  read only by the ingestion (`registry.py` → `completeness.py`); it is not synced into
+  `dbt_project.yml` or the registry seed, so `scripts/sync_dbt_vars.py` has nothing to write.
+  Effect: a BL1 gap is reported in the completeness report and summary and no longer stops the run;
+  with no hard-gated competition left, a run still fails on the stagnation signals (statistics,
+  dropped calls, per-team gaps) as before.
 
-  Readings, under the CPO's delegation of 2026-10-02 ("Readings of approved rules are yours"):
-  - "3 days after kickoff" is 72 hours from the kickoff time, not 3 calendar days: by date, an evening
-    match would be fetched about 2.3 days after kickoff, where 7.7% are still blank.
-  - A finished match is due when its latest fetch came under 72 h after kickoff and 72 h have passed.
-    Its second fetch makes the latest fetch late, so it is never due again. Kickoff is the stored
-    payload's fixture.date, the same rows the read already scans.
-  - "Every finished match" is every finished match, with or without player rows; that is the measured
-    2,595 behind the approved 143 calls.
-  - Due is player-stats coverage: `read_coverage` marks FIXTURE_PLAYERS not covered while the second
-    fetch is due. The details step fetches it; the completeness report counts it missing until it is
-    made; the poll gate keeps skipping a not-covered FIXTURE_PLAYERS, so an idle competition is not
-    switched to full mode by a due match (the approved alternative to a full night).
-  - Idle competitions: `run_poll_phases` returns the same `CompetitionRunResult` as `run_cheap_phases`,
-    and the orchestrator hands the details step the active and idle competitions; only the active ones
-    go on to the squad, transfer and per-team phases, as today.
-  - How step 4 (the one-off fetch) is the first nightly after the merge; no separate script.
-  - docs/data_contract.md owns the fetch rule and is edited in this MR.
-
-  Threshold declarations. NEW MECHANISM: none; the existing details step and the existing coverage
-  read. RECURRING COST: about 2 API calls a day and about 1.1 GB a night less BigQuery, both in the
-  approved text; the one-off about 143 calls, approved.
+  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
 
 decisions_reserved:
-  - Base merges a match's events per array position, so when a later fetch lists fewer events the
-    older trailing ones survive (6 of 376 matches fetched twice). Unchanged here; not a #186 line.
+  - The code's default for an entry without the key (hard when active) is unchanged; #195's Not in scope.
 
 done_when:
-  - pytest (tests/test_batch_fixtures.py, tests/test_coverage.py, then the whole suite), ruff with
-    .ruff-ci.toml and the offline gates pass.
+  - check_registry_var_sync and the offline gates pass; pytest passes.
+  - `registry.py` loads BL1 with gate `soft` and no entry with `hard`.
   - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-  - After the first nightly with it (bytes to the CPO before every query): its log shows about 2,600
-    fixtures to fetch; the 31 per-league coverage queries are gone from INFORMATION_SCHEMA.JOBS; the
-    blank share of recent matches before and after; fct_fixture_player_stats carries the new values.
 
-amendments:
-  - 2026-10-05: + docs/operations_guide.md — authority: #186 How step 3 (approved 2026-10-05)
-    changes what FIXTURE_PLAYERS coverage means, and the operations guide's completeness paragraph
-    states that meaning; content: that one sentence (data-engineer-reviewer, round 1).
-  - 2026-10-05: tests/test_batch_fixtures.py also pins that idle competitions reach the
-    fixture-details step: run_poll_phases returns their fixtures, and the orchestrator hands them
-    and the run's coverage read to the step (platform-reviewer, round 1).
+amendments: (none)
