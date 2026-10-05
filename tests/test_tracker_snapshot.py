@@ -3,7 +3,7 @@
 `docs/tracker/gitlab_snapshot.md` is written only by `scripts/snapshot_tracker.py`. Half one is
 `.claude/hooks/tracker_snapshot_gate.py`, which denies an `Edit`, `Write` or `MultiEdit` under
 `docs/tracker/`. Half two is the checksum pin below: the header's sha256 must equal the body's,
-so any change that did not also rewrite the header fails CI. That is self-consistency, not
+so any change that did not also rewrite the header fails this test. That is self-consistency, not
 provenance — a deliberate shell write that recomputes the header passes, and is forbidden by
 rule. The routing entries keep a refresh out of the review patch and the review hash, so the
 file is never a reviewed diff — which is exactly why nothing else may touch it.
@@ -31,6 +31,8 @@ import snapshot_tracker  # noqa: E402
 HOOK = os.path.join(HOOKS, "tracker_snapshot_gate.py")
 SNAPSHOT = os.path.join(REPO, "docs", "tracker", "gitlab_snapshot.md")
 HEADER_RE = re.compile(r"<!-- snapshot: (\d{4}-\d\d-\d\d \d\d:\d\d UTC) · sha256\(body\): ([0-9a-f]{64}) -->")
+NEEDS_SNAPSHOT = pytest.mark.skipif(not os.path.isfile(SNAPSHOT),
+                                    reason="the backup is gitignored and stays on the machine that writes it")
 
 
 def _split(text: str) -> tuple[str, str]:
@@ -40,7 +42,8 @@ def _split(text: str) -> tuple[str, str]:
 
 # ---------------------------------------------------------------- the checksum pin
 
-def test_the_committed_snapshot_is_exactly_what_the_script_wrote():
+@NEEDS_SNAPSHOT
+def test_the_snapshot_is_exactly_what_the_script_wrote():
     with open(SNAPSHOT, encoding="utf-8") as f:
         text = f.read()
     head, body = _split(text)
@@ -51,6 +54,7 @@ def test_the_committed_snapshot_is_exactly_what_the_script_wrote():
         "the body was changed without rewriting the header — regenerate with scripts/snapshot_tracker.py")
 
 
+@NEEDS_SNAPSHOT
 def test_a_single_character_change_breaks_the_checksum(tmp_path):
     with open(SNAPSHOT, encoding="utf-8") as f:
         text = f.read()
