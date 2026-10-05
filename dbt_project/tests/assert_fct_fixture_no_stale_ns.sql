@@ -3,7 +3,7 @@
 -- Fail if any fixture still shows NS long after scheduled kickoff, beyond the ingest SLA.
 --
 -- Uses a longer wall-clock window than live API freshness: this project typically runs
--- once-daily ingest (see docs/match_preview_pages_refinement.md / operations guide).
+-- once-daily ingest (see deploy/nightly/README.md).
 -- A 3h threshold fails CI whenever the warehouse has not refreshed since kickoff—even
 -- when the pipeline is behaving on its daily cadence. ~30h allows one schedule cycle
 -- plus slack; persistent NS past that indicates a missed ingest or stuck raw payload.

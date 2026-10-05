@@ -18,7 +18,7 @@ hardcore fans must find depth on demand.
 - v2 replaces a card-based mobile MVP; it is a full responsive website with
   programmatic pages for every competition, fixture, team and player.
 
-## 2. Design principles (locked — Thread 3 + north star)
+## 2. Design principles (locked — north star)
 
 1. **Every page has one thing that makes you stop scrolling.**
 2. **Data shown, not described** — charts over tables wherever possible.

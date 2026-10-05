@@ -226,7 +226,14 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
 | Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
 | Player profiles | `/players/profiles` per player (bio) | `RAW_APIF_PLAYER_PROFILES` |
 | Player teams | `/players/teams` per player (career team×seasons) | `RAW_APIF_PLAYER_TEAMS` |
-| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fetch of a fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
+| Per-fixture bundle | `/fixtures?ids=` (up to 20 finished fixtures a call; lineups, events, team and player statistics inline) | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture per fetch; the sections stored as JSON sub-keys within `payload`) |
+
+### Provider behaviour (API-Football v3)
+
+- **Two calls for fixtures.** `/fixtures?league=&season=` returns a season's whole schedule in one response; `/fixtures?ids=` returns the lineups, events, team statistics and player statistics of up to 20 fixtures in one call.
+- **Statistics arrive late.** A fixture's `statistics` is an empty array, never null, while the provider has none; outside live-score leagues it can arrive up to 48 hours after the match. The retry and the second fetch are in [Fixture details](#fixture-details-append-only-one-row-per-fetch).
+- **Rounds and groups.** `league.round` is always a string (`Regular Season - 5`, `Group Stage - 1`, `Round of 16`, `Qualifying Round - 1`). `/fixtures` has no group field; a team's group comes from `/standings`.
+- **Limits.** The plan allows 450 calls a minute and 75,000 a day; every response states both (`x-ratelimit-limit`, `x-ratelimit-requests-limit`). The per-minute limit is the one that binds. Calls are made one at a time (`requests`, no concurrency), which the provider's terms require; `API_FOOTBALL_REQUEST_PAUSE_MS` sets the pause after each call ([operations guide](operations_guide.md)).
 
 **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
 
@@ -246,7 +253,7 @@ The keyed player endpoints `/players/squads?team=`, `/players/profiles?player=`,
 
 ### Coverage flags
 
-`/leagues` exposes `coverage` flags per season. When a flag says the API does not provide a resource for that season (standings, per-fixture events, etc.), ingestion skips the corresponding calls instead of spending quota on guaranteed-empty responses. See the beginner's guide for envelope and flag behaviour.
+`/leagues` exposes `coverage` flags per season. They are hints, not gates: a flag can be false for the reference season while earlier seasons have the data, so ingestion fetches regardless (a standings call against a false flag is noted in the run's errors). Their one effect is that an idle competition is not switched to full mode for an endpoint its flag marks unsupported; finished fixtures' statistics count either way.
 
 ---
 

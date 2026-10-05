@@ -34,9 +34,9 @@ def _restore_environ():
     os.environ.clear()
     os.environ.update(saved)
 
-# Blueprint §4: 4 calls/sec caps the request rate at 240/min, against a measured 450/min ceiling.
-BLUEPRINT_PAUSE_MS = "250"
-BLUEPRINT_PAUSE_SECONDS = 0.25
+# 4 calls/sec caps the request rate at 240/min, under the provider's 450/min (docs/data_contract.md).
+FULL_PAUSE_MS = "250"
+FULL_PAUSE_SECONDS = 0.25
 
 # quota.py's free-tier fallback when the variable is unset (~9 calls/min under a 10/min limit).
 ECONOMY_FALLBACK_SECONDS = 6.6
@@ -56,28 +56,28 @@ class TestFullProfilePacing:
         # the fix this pause was 0.0 and the nightly burst-limited itself.
         _clear_pacing_env(monkeypatch)
         _apply_ingest_profile_defaults()
-        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
+        assert _request_pause_seconds() == FULL_PAUSE_SECONDS
         assert _request_pause_seconds() > 0, "production must never run unpaced (#897)"
 
-    def test_explicit_full_profile_gets_the_blueprint_pause(self, monkeypatch):
+    def test_explicit_full_profile_gets_the_full_pause(self, monkeypatch):
         _clear_pacing_env(monkeypatch)
         monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
         _apply_ingest_profile_defaults()
-        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
+        assert _request_pause_seconds() == FULL_PAUSE_SECONDS
 
-    def test_profile_aliases_get_the_blueprint_pause(self, monkeypatch):
+    def test_profile_aliases_get_the_full_pause(self, monkeypatch):
         # "paid" and "complete" are accepted aliases of the full profile; they must not diverge.
         for alias in ("paid", "complete"):
             _clear_pacing_env(monkeypatch)
             monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", alias)
             _apply_ingest_profile_defaults()
-            assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS, alias
+            assert _request_pause_seconds() == FULL_PAUSE_SECONDS, alias
 
     def test_sets_the_documented_millisecond_value(self, monkeypatch):
         # Pins the stored value too, so docs quoting "250" cannot silently drift from the code.
         _clear_pacing_env(monkeypatch)
         _apply_ingest_profile_defaults()
-        assert os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == BLUEPRINT_PAUSE_MS
+        assert os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == FULL_PAUSE_MS
 
 
 class TestExplicitOverrideStillWins:

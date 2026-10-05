@@ -573,8 +573,7 @@ def _types_table():
     members = {}
     for c in REGISTRY_ALL:
         members.setdefault(c["competition_type"], []).append(c)
-    # the five types with no registry competition take their example from the doc that defined
-    # the taxonomy — docs/product_direction_threads.md — never from memory
+    # the five types with no registry competition have no example in the data, so they carry one
     DOC_EXAMPLE = {
         "domestic_super_cup": "DFL-Supercup \u00b7 FA Community Shield",
         "club_qualifying": "Champions League qualifying rounds",

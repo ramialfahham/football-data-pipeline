@@ -18,6 +18,6 @@ alwaysApply: true
 - Agent behaviour rules: [docs/working_agreement.md](../../docs/working_agreement.md) — these Cursor rules mirror that document; if they conflict, the working agreement wins.
 - Data contract (raw landing, merge model, endpoint map, completeness semantics): [docs/data_contract.md](../../docs/data_contract.md).
 - Operations (env vars, ingest lock, runbooks, IAM): [docs/operations_guide.md](../../docs/operations_guide.md).
-- Development workflow (local validation, secret safety): [docs/development_workflow.md](../../docs/development_workflow.md).
+- Local setup and secret safety: [README.md](../../README.md) ("Getting started", "Secrets").
 - dbt layering rules, dim/fact qualification: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
 - dbt engineering standards (naming, testing policy, performance, promotion): [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).

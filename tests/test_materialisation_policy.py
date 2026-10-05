@@ -2,8 +2,7 @@
 
 WHY THIS EXISTS
 ---------------
-A cost fix landed and Thread 1 of docs/product_direction_threads.md was closed with
-"architecture signed off". Two days later an unrelated refactor rewrote the same models and
+A cost fix landed and was signed off. Two days later an unrelated refactor rewrote the same models and
 the optimisation went with them. Nothing failed, because all ~865 dbt tests ask whether
 a NUMBER is correct and none asks whether something became expensive. The regression was invisible
 until the bill arrived, and it stayed invisible for two months.
@@ -326,8 +325,7 @@ def _is_bookkeeping(rel: str) -> bool:
 
     `.claude/task/**` is the review's own paperwork: `review_input.patch` is a generated diff and
     therefore contains the before-text by construction, and `escalations.log` is the durable record
-    of what changed and must stay writable. `product_direction_threads.md` records Thread 1 as it
-    was closed in May, which is history, not a live claim. This file constructs the tokens it hunts.
+    of what changed and must stay writable. This file constructs the tokens it hunts.
     """
     return (
         rel.startswith(".claude/task/")
@@ -343,7 +341,6 @@ def _is_bookkeeping(rel: str) -> bool:
         # from here, and the staleness is reported to the owning stream rather than swallowed.
         # If that file ever becomes editable from this worktree, delete this line and fix it.
         or rel == ".claude/active_work.md"
-        or rel == "docs/product_direction_threads.md"
         # The generated backup of the GitLab tracker quotes every issue body verbatim, old ones
         # included — history, not a live claim, the same class as the line above. It has one
         # writer (`scripts/snapshot_tracker.py`) and a hook that refuses hand edits, so nothing

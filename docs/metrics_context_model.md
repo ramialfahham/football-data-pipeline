@@ -75,8 +75,8 @@ for a team whose run was a single match.
 
 ## 4. The window matrix (per competition type)
 
-The 12 types from the taxonomy (`docs/product_direction_threads.md`). 7 are active; 5
-are taxonomy-only / not yet ingested.
+The types are the rows of `dbt_project/seeds/competition_types.csv`; a type with no competition in
+the registry is not ingested yet.
 
 **Window meanings:** each window is described once, on the column that names it: the form
 window's `window_type` (the `window_type__form` doc block) and the season record's
@@ -192,7 +192,7 @@ offs naturally (each side brings its own recent form), so the separate relegatio
 and the BL1/BL2/L1 round-name vars are **deleted**. A "Relegation play-off" label is kept
 but derived **generically from the round name**, not per-league hardcoded lists.
 
-### Folder organisation (refines product thread 2)
+### Folder organisation
 
 > **Shared by default; a type-specific folder only where the output shape truly differs.**
 
@@ -213,7 +213,7 @@ group-tables.
 
 **Parallel-run + validate** (data quality is non-negotiable): build the new marts
 alongside the old, confirm the numbers match for BL1 and WC, then cut over and delete the
-old models, the relegation variant, the BL1/BL2/L1 vars, and update product thread 2.
+old models, the relegation variant and the BL1/BL2/L1 vars.
 
 ---
 
