@@ -1,7 +1,5 @@
--- An empty fanout fact silently blanks every downstream surface. fct_fixture_event loads only
--- rows newer than max(raw_ingested_at) of the target, which on an EMPTY target is NULL, so it
--- coalesces that max to the epoch to self-heal; the two stat facts are rebuilt in full from base.
--- This test fails loudly if any fanout fact is empty regardless.
+-- An empty fanout fact silently blanks every downstream surface; all three are rebuilt in full
+-- from base every night. This test fails loudly if any of them is empty.
 {{ config(severity = 'error', store_failures = true) }}
 
 with counts as (

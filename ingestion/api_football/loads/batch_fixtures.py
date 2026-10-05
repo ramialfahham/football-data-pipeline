@@ -114,11 +114,8 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
 # stored, 17 returned by the retry, an entire penalty shootout destroyed and unrecoverable
 # because the provider no longer returns it.
 #
-# The rule, verbatim: "raw keeps both versions." It applies to every raw table. Both payloads
-# now land and BASE decides: `base_apif__fixture_events` dedups
-# `partition by (league_code, fixture_id, event_index) order by raw_ingested_at desc`, which on
-# that fixture yields 27 — indices 0-16 from the new payload, 17-26 surviving from the old.
-# Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
+# Raw keeps both versions, for every raw table: both payloads land and base decides
+# (docs/data_contract.md, "Fixture details"). Do NOT restore the delete as a regression fix.
 
 
 def _insert_fixture_rows(

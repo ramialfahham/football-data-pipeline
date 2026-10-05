@@ -1,22 +1,35 @@
-# Review — chore/tracker-backup-local — the tracker backup stays on this machine
+# Review — fix/events-latest-fetch — match events come only from each match's latest fetch
 
-diff_sha256: 7cf7259f1eb49cf89064a234002a22b90624ad87f85a8d024c064c5f1b2c00b3
+diff_sha256: 17f54814280b424beef69684c18c441fff77258e22d79378e309c805e134352a
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed file in scope_paths; the approval is named, not quoted.
-- CLAUDE.md and agent_guardrails.md carry the approved text; the only other edits correct statements the change makes false ("public issue", "fails CI").
-- No new mechanism or cost; decisions_reserved empty.
+- Every changed file in scope_paths; approvals named, not quoted; every reading declared.
+- Shipped numbers change for the 8 matches the approved plan names; recurring cost declared and measured by dry run.
+- impact_map evidenced (pasted lineage, measured blast radius); no new mechanism.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- QUALIFY: league_code in both partitions; other fetches removed before the per-position dedup; ties as before.
+- The fact is a 1:1 table from base; 0 fact events of matches missing from raw, so only the 32 stale events leave.
+- The new test is not vacuous and covers base and the fact; deleting the event-loss test is justified.
+- Round 1 FAIL: five statements made false elsewhere (data_contract.md, staging description, a loader comment, a test docstring, a test header). Fixed in round 2.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Only the two checksum tests skip when the file is absent; render, hook and routing tests still run in CI.
-- tracker_snapshot_gate.py checks the path, not git tracking, so it still guards the local folder; routing entries are inert.
-- `/docs/tracker/` is root-anchored and hides only that folder; nothing reads the file's content.
+- No CI job, script or test references the deleted test or var; the MR slim build and the nightly build the fact as a table.
+- Comment-history pin 780/193 matches the removed markers; docstring and header edits change no assertion.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- batch_fixtures.py: comment only; raw stays append-only; the pointer resolves to the data contract.
+- data_contract.md text matches the players, statistics and events models; nothing in ingestion reads base events.
 
 ## escalations
 (none)

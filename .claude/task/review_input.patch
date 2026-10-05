@@ -1,177 +1,532 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4ad162b9..81e64a9b 100644
+index 81e64a9b..e621843c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,26 +1,30 @@
--# Task contract — delete the escalations log
-+# Task contract — the tracker backup stays on this machine
+@@ -1,37 +1,102 @@
+-# Task contract — the tracker backup stays on this machine
++# Task contract — match events come only from each match's latest fetch
  
  objective: >
--  Delete `.claude/task/escalations.log`: it carries the CPO's chat words in a public repository.
-+  `docs/tracker/gitlab_snapshot.md` copies every GitLab issue's text into the public repository,
-+  while issues are now visible to project members only. Untrack it and gitignore `docs/tracker/`;
-+  the backup stays on this machine.
+-  `docs/tracker/gitlab_snapshot.md` copies every GitLab issue's text into the public repository,
+-  while issues are now visible to project members only. Untrack it and gitignore `docs/tracker/`;
+-  the backup stays on this machine.
++  A match's events are those of its latest fetch that has events. Base keeps only that fetch's
++  rows; fct_fixture_event is rebuilt in full every night from base, so 32 stale events in 8
++  matches (25 of them goals) leave the fact; a singular test fails on any event beyond the latest
++  fetch.
  
  refs: >
--  #199 (how-we-work documents carry no decision history).
-+  #199 (how-we-work documents).
+-  #199 (how-we-work documents).
++  #201. Plan approved by the CPO in chat, 2026-10-05.
++
++acceptance_criteria:
++  - Every match's events are the events of its latest fetch that has events; no event from an older, longer fetch remains (today: 32 stale events in 8 matches, 25 of them goals)
++  - Numbers built on match events change only for those 8 matches
++  - A test fails when a match holds an event its latest fetch does not have
  
  scope_paths:
--  - .claude/task/escalations.log
-+  - docs/tracker/**
-+  - .gitignore
-+  - tests/test_tracker_snapshot.py
-+  - scripts/snapshot_tracker.py
-+  - CLAUDE.md
-+  - docs/agent_guardrails.md
+-  - docs/tracker/**
+-  - .gitignore
+-  - tests/test_tracker_snapshot.py
+-  - scripts/snapshot_tracker.py
+-  - CLAUDE.md
+-  - docs/agent_guardrails.md
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture_event.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
++  - dbt_project/tests/assert_no_event_loss_since_cutoff.sql
++  - dbt_project/dbt_project.yml
++  - dbt_project/docs/layering.md
++  - tests/test_no_decision_history_in_code.py
++  - docs/data_contract.md
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - ingestion/api_football/loads/batch_fixtures.py
++  - tests/test_incomplete_fetch_no_supersede.py
++  - dbt_project/tests/assert_fanout_facts_not_empty.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--  - docs/tracker/**
++  - docs/tracker/**
++
++impact_map: >
++  writers: stg_apif__fixture_events (all fetches, from RAW_APIF_FIXTURE_DETAILS, append-only) →
++  base_apif__fixture_events (the only writer of base events) → fct_fixture_event (only reader of base
++  events in core).
++  downstream (`dbt ls --select base_apif__fixture_events+ --resource-type model`, pasted):
++  base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
++  base_apif__players dim_player fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats
++  int_legs__player_match int_legs__team_from_players int_legs__team_match
++  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
++  int_player_profile__yoy int_player_season__metrics int_player_season__team
++  int_player_season_position__metrics int_player_season_record
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
++  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
++  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
++  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
++  mart_player_season_record mart_roster mart_team_competition_benchmarks mart_team_fixture_stats
++  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
++  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record
++  layer_rules: base dedups (layering §2_base); a 3_core fact sets no materialisation of its own once
++  it is not incremental (check_layer_contract.py); no partition_by or cluster_by.
++  deploy_order: on merge the 04:00 nightly rebuilds base and builds fct_fixture_event as a table in
++  place of the incremental one; nothing runs between merge and the nightly. The MR build writes
++  only ci_mr datasets.
++  blast_radius: measured on prod (two queries, 40.5 MB and 47.4 MB): 56,286 matches, 116 fetched
++  more than once; base holds 15 stale events in 6 matches, the fact 32 in 8 (17 no longer in base);
++  fact events of matches missing from raw: 0. Numbers built on events change for those 8 matches
++  only: phantom goals in 4 (they contradict the official score), last-minute cards in 3, and the
++  kicks of 2 shoot-outs that every reader excludes.
  
  decisions_taken: >
--  Approved by the CPO in chat, 2026-10-05: delete the file, one file per MR. Readings, under the
--  delegation of 2026-10-02:
--  - The other files that point to it keep their pointer until each is cleaned in its own MR.
--    Nothing reads its content: scripts/report_process_health.py skips a missing file, and the tests
--    that name it build their own copy in a temporary repository.
--  - The regenerated review patch is not committed: it would carry the deleted file's every line
--    as removed lines and publish it again. The reviewer reads it from the working tree.
-+  Approved by the CPO in chat, 2026-10-05: the backup local-only, with the CLAUDE.md and
-+  agent_guardrails.md text shown to him. Readings, under the delegation of 2026-10-02:
-+  - The two checksum tests skip when the file is absent: CI never has it.
-+  - scripts/snapshot_tracker.py: its docstring's lines on CI and on riding the next commit are
-+    corrected to the gitignored file.
+-  Approved by the CPO in chat, 2026-10-05: the backup local-only, with the CLAUDE.md and
+-  agent_guardrails.md text shown to him. Readings, under the delegation of 2026-10-02:
+-  - The two checksum tests skip when the file is absent: CI never has it.
+-  - scripts/snapshot_tracker.py: its docstring's lines on CI and on riding the next commit are
+-    corrected to the gitignored file.
++  The plan in #201, approved by the CPO in chat, 2026-10-05. Readings, under the delegation of
++  2026-10-02:
++  - "Latest fetch that has events": staging holds rows only for fetches with events, so the
++    latest staging fetch of a match is that fetch; a later empty fetch keeps the earlier list.
++  - The descriptions of base and the fact (persisted to BigQuery) and layering.md §Materialisation
++    are corrected to the new behaviour; the full-rebuild list there gains fct_fixture_event.
++  - Checked before building, approved by the CPO in chat, 2026-10-05: in the four matches whose
++    older fetch holds extra goals, the latest fetch's goals equal the official score and the
++    extra goals do not. Two penalty shoot-outs (23 kick events) exist only in older fetches and
++    leave the fact; both readers of shoot-out kicks only exclude them, and the result stays in
++    fct_fixture.
++  - assert_no_event_loss_since_cutoff and its event_loss_detector_from var are deleted: with the
++    fact rebuilt from base, the fact can no longer hold an event base lacks, so the test cannot fail.
++  - The deleted comments carried three issue numbers, so the comment-history pin in
++    tests/test_no_decision_history_in_code.py is lowered to the measured count.
++  - Every other place that states the old per-position rule or the incremental load is corrected:
++    docs/data_contract.md "Fixture details" (the owner of "raw keeps both versions, base
++    decides"), the staging description (persisted), the comment in batch_fixtures.py (comment only;
++    it also loses a quoted phrase and a pointer to the deleted escalations log), a test docstring,
++    and the header of assert_fanout_facts_not_empty.sql.
  
-   Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
+-  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
++  Threshold declarations. NEW MECHANISM: none. RECURRING COST: the new test and the fact's full
++  rebuild, measured by dry run below the incremental load they replace; numbers in the MR head.
  
-@@ -28,5 +32,6 @@ decisions_reserved:
+ decisions_reserved:
    - None.
  
  done_when:
--  - The file is gone; pytest (whole suite), ruff and the offline gates pass.
-+  - `git ls-files docs/tracker` is empty and the local file stays; pytest (whole suite), ruff and
-+    the offline gates pass.
+-  - `git ls-files docs/tracker` is empty and the local file stays; pytest (whole suite), ruff and
+-    the offline gates pass.
++  - The MR data build passes, including the new test; measured on the MR build's datasets: no
++    event beyond the latest fetch, and only the 8 matches differ from prod.
++  - pytest (whole suite), ruff, SQLFluff and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/.gitignore b/.gitignore
-index 1a374156..435555e1 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -463,3 +463,4 @@ site_v2/src/data/competitions/**/*.json
- # ROOT-ANCHORED on purpose. A bare `*.pdf` would silently hide a PDF anywhere in the tree, including
- # one a future task legitimately wants tracked.
- /*.pdf
-+/docs/tracker/
-diff --git a/CLAUDE.md b/CLAUDE.md
-index 03c27d0a..505db03e 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -42,7 +42,7 @@ found nowhere in it is not a fact.
- | **What is required, and what is next?** | the **GitLab issue** (`glab issue list`; the `Task` template: What exactly / Why / How) |
- | **Where are we right now?** | the **handover issue**, kept closed so it never shows as work: injected at every session start by `.claude/hooks/handover_in.py` (its number is `HANDOVER_ISSUE` there, and in the injected header), which falls back to the copy it saved in `.claude/handover.cache.md` when GitLab is down. Current state only, never history or requirements. It rides no branch |
- | **How do we work?** | [docs/working_agreement.md](docs/working_agreement.md), then this file |
--| *(backup only)* the tracker's last state, when GitLab is unreachable | [docs/tracker/gitlab_snapshot.md](docs/tracker/gitlab_snapshot.md) — generated by `scripts/snapshot_tracker.py`, never edited by hand (a hook refuses every tool edit; a test fails any change that did not also rewrite the header checksum — a deliberate shell write that forges the header is forbidden by rule, like `--no-verify`, not prevented), never cited while GitLab is up; refreshed at the end of every session |
-+| *(backup only)* the tracker's last state, when GitLab is unreachable | `docs/tracker/gitlab_snapshot.md`, local and gitignored — generated by `scripts/snapshot_tracker.py`, never edited by hand (a hook refuses every tool edit; a test fails any change that did not also rewrite the header checksum — a deliberate shell write that forges the header is forbidden by rule, like `--no-verify`, not prevented), never cited while GitLab is up; refreshed at the end of every session |
+diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
+index 04eae076..619a9004 100644
+--- a/dbt_project/dbt_project.yml
++++ b/dbt_project/dbt_project.yml
+@@ -23,14 +23,6 @@ vars:
+   'dbt_utils:dispatch_list': ['bigquery']
+   # BigQuery dataset id for 1:1 ingestion (must match Python `API_FOOTBALL_BIGQUERY_DATASET` default).
+   raw_schema: raw
+-  # Cutoff for tests/assert_no_event_loss_since_cutoff.sql (GitLab #75): only fixtures KICKING OFF
+-  # on or after this date are asserted. It excludes the 5-fixture, 29-event backlog that the
+-  # provider can no longer return (kickoffs 2026-08-08 and 2026-08-15). A kickoff date never moves,
+-  # which is why the scope is taken from the fixture rather than from an ingest timestamp — see
+-  # that test's header.
+-  # ⚠ RAISING this silences new loss, which is the defect the test exists to catch. Lower it once
+-  # the backlog is resolved; never raise it to make a build green.
+-  event_loss_detector_from: '2026-08-19'
+   # Who enters a ranking or a benchmark: the ranking_rules doc block in
+   # models/docs/metric_rules.md says these in words, and tests/test_ranking_floors.py holds the two
+   # equal and fails on a floor written into a model as a number.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 8844f207..eebee3e6 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -85,9 +85,9 @@ exception below; `scripts/check_layer_contract.py` enforces this on every layer.
+   for many times a night and a table once. A view that ranks also ranks again on every read, so
+   two readers of the same build can see different orders.
+ - **The one exception: `incremental` on a `3_core` fact whose source delivers only a per-run
+-  delta** (the latest fixtures), because a full rebuild from that source would lose the history:
+-  `fct_fixture_event`, with a documented `unique_key`. A fact whose source holds the full history
+-  stays a table rebuilt in full every night: `fct_fixture`, `fct_standings`,
++  delta** (the latest fixtures), because a full rebuild from that source would lose the history. A
++  fact whose source holds the full history stays a table rebuilt in full every night:
++  `fct_fixture`, `fct_fixture_event`, `fct_standings`,
+   `fct_team_market_value_snapshot`, and `fct_fixture_player_stats` and `fct_fixture_team_stats`,
+   whose base keeps every match's latest line, so a change to the cleaning reaches every match.
+ - No ephemeral models.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index b31687ed..99d3d856 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -135,7 +135,7 @@ models:
+       append-only table holding one row per FETCH of a fixture, so a retried fixture contributes
+       several versions (see layering.md §1_staging). Staging reads ALL rows faithfully — no
+       latest-snapshot qualify, the grain is sub-league; choosing between versions is
+-      base_apif__fixture_events' job, newest per (league_code, fixture_id, event_index). Grain at
++      base_apif__fixture_events' job: it keeps each fixture's latest fetch that has events. Grain at
+       staging: (fixture_id, event_index, raw_ingested_at).
+     columns:
+       - name: league_code
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 6d5c70c7..c1017963 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -335,8 +335,8 @@ models:
  
- ⛔ **Memory answers none of these.** The memory files under `~/.claude/projects/…/memory/` are the
- agent's notes — compressed by the agent, reviewed by nobody. A product fact found only in memory is
-@@ -170,10 +170,9 @@ Base models read directly from the generic staging model. The `league_code` colu
-   the handover in the scratchpad and publish it with ONE command,
-   `python design-mocks/check_handover.py <draft> && glab issue update <handover issue> --description "$(cat <draft>)"`:
-   the check refuses a draft over 16,000 characters or carrying a public network address, which
--  no hook sees on its way to the public issue. Nothing is committed for it. Then run
--  `python scripts/snapshot_tracker.py`: the backup rides the next commit on any branch, outside the
--  review patch and hash (`docs/tracker/**` is artifact-only), and a rebase conflict on it is resolved
--  by running the script again. It is read only when GitLab is down, so a few days' lag is harmless.
-+  no hook sees on its way to the issue. Nothing is committed for it. Then run
-+  `python scripts/snapshot_tracker.py`; the backup stays on this machine, gitignored. It is read only
-+  when GitLab is down, so a few days' lag is harmless.
- - **The Stop hook runs the offline gates in `FAST_GATES`** (`.claude/hooks/stop_gate.py`, with the
-   repo's `.venv`) when the tree is dirty and in scope, and blocks the turn once if any fails. Do
-   not end a turn on a red gate silently.
-diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
-index b80dc091..d1743e3d 100644
---- a/docs/agent_guardrails.md
-+++ b/docs/agent_guardrails.md
-@@ -58,7 +58,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
- | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
- | `memory_budget_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `~/.claude/projects/<slug>/memory/*.md` | **Denies** a write to the agent's memory folder when the RESULTING file would exceed its surface's budget — the index `MEMORY.md`, or any other note — or when a new note would push the count past the cap: adding a note means removing one. Measures the file the tool call will produce (a `Write`'s content; an `Edit` or `MultiEdit` applied to the file on disk), in characters; a result no larger than the file on disk always passes, so an over-budget note can always be cut. The three budgets are pinned to what the folder MEASURED after the cut that introduced them (50 notes, a 7,669-character index, a 4,232-character largest note) and move down only — the same shape as the comment guard's pinned count. Memory is the one surface no other gate looks at (`task_contract_gate.py` deliberately ignores paths outside the repo), and it is where two 2026-09 sessions took a product fact the repo contradicted; a budget is what makes the cut hold. `--report` prints the three measurements; `tests/test_memory_budget_gate.py` drives every deny and pass on a temp folder. A shell write into the folder bypasses it, as it bypasses the comment gate; the repo's rule already forbids shell writes for files. |
- | `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on any path inside the repo | **Denies** a write whose text puts a public network address — an IPv4 outside the loopback, private, link-local, multicast and reserved ranges, or a global-unicast IPv6 — into any file inside the repo, `.claude/task/**` included. That is where it slipped: a CI runner's address went into a doc (caught by review), then into `review.md` as the grep pattern a reviewer had used to prove it was gone (not caught — the copy sat inside the review's own record), and was pushed to the public repo before anyone noticed. The deny names the file and line and never echoes the value; it also names what no pattern can catch — a host's size, city and open ports — so the moment of writing is the moment of the reminder. Reads only the written text; paths outside the repo pass; fails open. `tests/test_no_host_fingerprint_in_tree.py` imports the same patterns and pins the tracked tree at zero (measured: zero public, the mocks README's loopback preview address passes). Accepted false positive: a bare four-part version string; a `v` prefix is enough to pass. A shell write bypasses it like every edit-time gate; the pin catches that at CI. |
--| `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `docs/tracker/**` | **Denies** every edit under `docs/tracker/`, which holds `gitlab_snapshot.md` — the generated backup of every GitLab milestone and issue, written only by `scripts/snapshot_tracker.py` through the existing `glab` login. GitHub's suspension kept the repository and lost every issue; this file is what the tracker would be restored from. A backup that can be edited becomes a second roadmap, so it has one writer: the hook closes the tool door, and `tests/test_tracker_snapshot.py` recomputes the header's sha256 against the body, so any change that did not also rewrite the header fails CI. That is self-consistency, not provenance: a deliberate shell write that recomputes the header passes, and only CI re-reading GitLab (a token, the CPO's decision) would close it — the residual is the `--no-verify` class, forbidden by rule, no wider than the handover's. `docs/tracker/**` is in `hash_exclude_paths`, `review_exclude_paths` and `artifact_only`, so a refresh never moves a review binding and is never a reviewed diff — which is the reason nothing else may touch it. Read only when GitLab is unreachable (`CLAUDE.md`, the source table); refreshed at the end of every session. Fails open. |
-+| `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `docs/tracker/**` | **Denies** every edit under `docs/tracker/`, which holds `gitlab_snapshot.md` — the generated backup of every GitLab milestone and issue, written only by `scripts/snapshot_tracker.py` through the existing `glab` login. It is gitignored and stays on this machine. GitHub's suspension kept the repository and lost every issue; this file is what the tracker would be restored from. A backup that can be edited becomes a second roadmap, so it has one writer: the hook closes the tool door, and `tests/test_tracker_snapshot.py` recomputes the header's sha256 against the body, so any change that did not also rewrite the header fails that test. That is self-consistency, not provenance: a deliberate shell write that recomputes the header passes, and only CI re-reading GitLab (a token, the CPO's decision) would close it — the residual is the `--no-verify` class, forbidden by rule, no wider than the handover's. `docs/tracker/**` is in `hash_exclude_paths`, `review_exclude_paths` and `artifact_only`, so a refresh never moves a review binding and is never a reviewed diff — which is the reason nothing else may touch it. Read only when GitLab is unreachable (`CLAUDE.md`, the source table); refreshed at the end of every session. Fails open. |
+   - name: base_apif__fixture_events
+     description: >
+-      One row per event in a fixture, from stg_apif__fixture_events, keeping the most recent
+-      ingest. Grain: (league_code, fixture_id, event_index).
++      One row per event in a fixture, from stg_apif__fixture_events, keeping the events of the
++      match's latest fetch that has events. Grain: (league_code, fixture_id, event_index).
  
- ### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
+       event_index is the 0-based position in the provider's events array and is the stable
+       identity of an event. Deduplication is on POSITION, not content: the provider sometimes
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index 7c77822a..9fba4a22 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -19,13 +19,17 @@ with src as (
+         fixture_id is not null
+ ),
  
-diff --git a/scripts/snapshot_tracker.py b/scripts/snapshot_tracker.py
-index 5f68d208..5105b41e 100644
---- a/scripts/snapshot_tracker.py
-+++ b/scripts/snapshot_tracker.py
-@@ -4,10 +4,10 @@ Writes `docs/tracker/gitlab_snapshot.md`: every milestone and every issue, open
- with its body, grouped by milestone in a deterministic order, fetched through the `glab` login
- already on this machine (no token of its own). The header carries the UTC time and a sha256 of
- the body; `tests/test_tracker_snapshot.py` recomputes it, so any change the script did not
--make fails CI, and `.claude/hooks/tracker_snapshot_gate.py` refuses an Edit or Write to the
-+make fails that test, and `.claude/hooks/tracker_snapshot_gate.py` refuses an Edit or Write to the
- folder, so no session can change the file by hand. The file is read only when GitLab is
- unreachable — `CLAUDE.md` "Which source answers which question" — and is regenerated at the
--end of every session, riding the next commit on any branch outside the review patch and hash.
-+end of every session. It is gitignored and stays on this machine.
- It carries closed issues too, so the handover (issue #157, kept closed) is in the backup.
++-- A match's events are its latest fetch's list, so a later, shorter list drops the trailing
++-- positions an older fetch still holds.
+ deduped as (
+     select *
+     from src
+-    qualify row_number() over (
+-        partition by league_code, fixture_id, event_index
+-        order by raw_ingested_at desc
+-    ) = 1
++    qualify
++        raw_ingested_at = max(raw_ingested_at) over (partition by league_code, fixture_id)
++        and row_number() over (
++            partition by league_code, fixture_id, event_index
++            order by raw_ingested_at desc
++        ) = 1
+ ),
  
- Usage: python scripts/snapshot_tracker.py [--project 85168767] [--out docs/tracker/gitlab_snapshot.md]
-diff --git a/tests/test_tracker_snapshot.py b/tests/test_tracker_snapshot.py
-index b106a740..8a92a508 100644
---- a/tests/test_tracker_snapshot.py
-+++ b/tests/test_tracker_snapshot.py
-@@ -3,7 +3,7 @@
- `docs/tracker/gitlab_snapshot.md` is written only by `scripts/snapshot_tracker.py`. Half one is
- `.claude/hooks/tracker_snapshot_gate.py`, which denies an `Edit`, `Write` or `MultiEdit` under
- `docs/tracker/`. Half two is the checksum pin below: the header's sha256 must equal the body's,
--so any change that did not also rewrite the header fails CI. That is self-consistency, not
-+so any change that did not also rewrite the header fails this test. That is self-consistency, not
- provenance — a deliberate shell write that recomputes the header passes, and is forbidden by
- rule. The routing entries keep a refresh out of the review patch and the review hash, so the
- file is never a reviewed diff — which is exactly why nothing else may touch it.
-@@ -31,6 +31,8 @@ import snapshot_tracker  # noqa: E402
- HOOK = os.path.join(HOOKS, "tracker_snapshot_gate.py")
- SNAPSHOT = os.path.join(REPO, "docs", "tracker", "gitlab_snapshot.md")
- HEADER_RE = re.compile(r"<!-- snapshot: (\d{4}-\d\d-\d\d \d\d:\d\d UTC) · sha256\(body\): ([0-9a-f]{64}) -->")
-+NEEDS_SNAPSHOT = pytest.mark.skipif(not os.path.isfile(SNAPSHOT),
-+                                    reason="the backup is gitignored and stays on the machine that writes it")
+ recovered as (
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 861c44a8..3e6e0047 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -825,7 +825,7 @@ models:
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+   - name: fct_fixture_event
+-    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Each build adds new fixtures and merges again any fixture whose stored events base_apif__fixture_events now attributes differently, so a team correction reaches the history while the events raw no longer holds stay."
++    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch."
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -841,10 +841,9 @@ models:
+         tests: [not_null]
+       - name: fixture_sk
+         description: >
+-          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. This
+-          fact is incremental and accumulates historical seasons, and fct_fixture carries the same
+-          history forward on full refresh, so the foreign key holds for active and idle
+-          competitions alike.
++          {{ doc('fixture_sk') }} Every fixture with rows here must have a fixture header. Both
++          this fact and fct_fixture are rebuilt from raw, which holds every season, so the foreign
++          key holds for active and idle competitions alike.
+         tests:
+           - not_null
+           - relationships:
+diff --git a/dbt_project/models/3_core/fct_fixture_event.sql b/dbt_project/models/3_core/fct_fixture_event.sql
+index 453ac72b..ada2672a 100644
+--- a/dbt_project/models/3_core/fct_fixture_event.sql
++++ b/dbt_project/models/3_core/fct_fixture_event.sql
+@@ -1,81 +1,14 @@
+-{{
+-    config(
+-        materialized='incremental',
+-        unique_key='event_sk',
+-        on_schema_change='sync_all_columns'
+-    )
+-}}
+-
+--- depends_on: {{ ref('base_apif__fixtures_next') }}
+-
+ {#
+     One row per match event (goals, cards, substitutions, VAR decisions) across all
+     onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
+     is the zero-based array position from the API-Football /fixtures/events response.
+     API-Football does not emit event IDs; array position is the only stable unique
+-    identifier within a fixture's event list. Once a fixture is FINISHED its event list
+-    does not change, so an incremental load on raw_ingested_at safely captures only new
+-    fixtures each run. Assist player arrives as a name only (no id in source), so it
+-    stays as a degenerate attribute.
++    identifier within a fixture's event list. Assist player arrives as a name only (no id
++    in source), so it stays as a degenerate attribute.
+ #}
+ 
+-with base as (
++with src as (
+     select * from {{ ref('base_apif__fixture_events') }}
+-),
+-
+-src as (
+-    select *
+-    from base
+-    {% if is_incremental() %}
+-    -- NULL-safe high-water mark: an empty target makes max() NULL and `x > NULL` is
+-    -- never true, which would trap the table empty forever (see fact-not-empty test).
+-    -- Coalescing to the epoch lets an empty/zeroed table self-heal on the next run.
+-    where
+-        base.raw_ingested_at > (
+-            select coalesce(max(tgt.raw_ingested_at), timestamp('1970-01-01'))
+-            from {{ this }} as tgt
+-        )
+-        -- Self-heal: also re-process any fixture that currently has a null team_sk, so the
+-        -- base-layer team_id recovery reaches rows already committed before the fix (no
+-        -- --full-refresh needed). Self-limiting — once recovered they no longer match; the
+-        -- unique_key=event_sk merge updates the healed rows in place.
+-        or base.fixture_id in (
+-            select tgt.fixture_api_id
+-            from {{ this }} as tgt
+-            where tgt.team_sk is null
+-        )
+-        -- Self-heal (#526): also re-process any fixture whose committed events violate the
+-        -- team-in-participants rule, so seed-driven team-id corrections
+-        -- (fixture_team_id_overrides) reach rows committed before the fix (no --full-refresh).
+-        -- Self-limiting: once the attribution is corrected the violation is gone and the fixture
+-        -- no longer matches.
+-        or base.fixture_id in (
+-            select committed.fixture_api_id
+-            from {{ this }} as committed
+-            inner join {{ ref('base_apif__fixtures_next') }} as fx
+-                on committed.fixture_api_id = fx.fixture_id
+-            where
+-                committed.team_sk is not null
+-                and fx.home_team_id is not null
+-                and fx.away_team_id is not null
+-                and committed.team_sk not in (
+-                    cast(fx.home_team_id as int64), cast(fx.away_team_id as int64)
+-                )
+-        )
+-        -- Self-heal: also re-process any fixture whose committed events name a different team than
+-        -- base now does, so a team base moves reaches rows already committed without a full
+-        -- rebuild, which would drop the events raw no longer holds. Self-limiting: once merged,
+-        -- the two agree.
+-        or base.fixture_id in (
+-            select committed.fixture_api_id
+-            from {{ this }} as committed
+-            inner join base as current_event
+-                on
+-                    committed.fixture_api_id = current_event.fixture_id
+-                    and committed.event_index = current_event.event_index
+-            where committed.team_api_id is distinct from current_event.team_id
+-        )
+-    {% endif %}
+ )
+ 
+ select
+diff --git a/dbt_project/tests/assert_fanout_facts_not_empty.sql b/dbt_project/tests/assert_fanout_facts_not_empty.sql
+index 7eb8571f..befe51d1 100644
+--- a/dbt_project/tests/assert_fanout_facts_not_empty.sql
++++ b/dbt_project/tests/assert_fanout_facts_not_empty.sql
+@@ -1,7 +1,5 @@
+--- An empty fanout fact silently blanks every downstream surface. fct_fixture_event loads only
+--- rows newer than max(raw_ingested_at) of the target, which on an EMPTY target is NULL, so it
+--- coalesces that max to the epoch to self-heal; the two stat facts are rebuilt in full from base.
+--- This test fails loudly if any fanout fact is empty regardless.
++-- An empty fanout fact silently blanks every downstream surface; all three are rebuilt in full
++-- from base every night. This test fails loudly if any of them is empty.
+ {{ config(severity = 'error', store_failures = true) }}
+ 
+ with counts as (
+diff --git a/dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql b/dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
+new file mode 100644
+index 00000000..1d4c6fa1
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
+@@ -0,0 +1,54 @@
++{#
++  A match's events are those of its latest fetch that has events. Returns one row per event in
++  base_apif__fixture_events or fct_fixture_event at a position that fetch does not have.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with fetches as (
++    select
++        league_code,
++        fixture_id,
++        raw_ingested_at,
++        max(event_index) + 1 as event_count
++    from {{ ref('stg_apif__fixture_events') }}
++    where fixture_id is not null
++    group by league_code, fixture_id, raw_ingested_at
++),
++
++latest_fetch as (
++    select
++        league_code,
++        fixture_id,
++        array_agg(event_count order by raw_ingested_at desc limit 1)[offset(0)] as event_count
++    from fetches
++    group by league_code, fixture_id
++),
++
++held as (
++    select
++        'base_apif__fixture_events' as model_name,
++        league_code,
++        fixture_id,
++        event_index
++    from {{ ref('base_apif__fixture_events') }}
++    union all
++    select
++        'fct_fixture_event' as model_name,
++        league_code,
++        fixture_api_id as fixture_id,
++        event_index
++    from {{ ref('fct_fixture_event') }}
++)
++
++select
++    held.model_name,
++    held.league_code,
++    held.fixture_id,
++    held.event_index,
++    latest_fetch.event_count as latest_fetch_event_count
++from held
++inner join latest_fetch
++    on
++        held.league_code = latest_fetch.league_code
++        and held.fixture_id = latest_fetch.fixture_id
++where held.event_index >= latest_fetch.event_count
+diff --git a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql b/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
+deleted file mode 100644
+index 994da27b..00000000
+--- a/dbt_project/tests/assert_no_event_loss_since_cutoff.sql
++++ /dev/null
+@@ -1,60 +0,0 @@
+-{{ config(severity = 'error', store_failures = true) }}
+-
+--- EVENT-LOSS DETECTOR (GitLab #75). Fails when `fct_fixture_event` holds an event that
+--- `base_apif__fixture_events` no longer has.
+---
+--- WHY THIS CLASS WAS INVISIBLE. The fact is INCREMENTAL and accumulates; base is a TABLE rebuilt
+--- from whatever raw currently holds. So when a fixture's raw payload loses events, the fact keeps
+--- them and base quietly drops them, and the two disagree with nothing to say so. Every existing
+--- test passed while 29 real events — including a full penalty shootout — were destroyed. It
+--- surfaced days later only as an unrelated `fct_fixture_event.player_sk -> dim_player` orphan,
+--- which is why it first looked like a player problem rather than data loss.
+---
+--- DIRECTION MATTERS, and only one direction is a defect:
+---   fact > base  -> LOSS. Raw no longer carries an event the warehouse already recorded. FAIL.
+---   fact < base  -> LAG. The incremental model has not picked the fixture up yet. Not a defect,
+---                   and deliberately not flagged, or every fresh ingest would go red. The query is
+---                   driven FROM the fact, so that direction cannot fail here.
+---
+--- ⚠ SCOPE IS TAKEN FROM THE FIXTURE, NOT FROM BASE — do not "simplify" it back. An earlier draft
+--- scoped by `max(raw_ingested_at)` grouped over `base_apif__fixture_events` itself. That has a
+--- blind spot exactly where it matters most: if a fixture loses ALL of its events, base holds zero
+--- rows for it, the grouped CTE produces no row, and an inner join silently drops every one of that
+--- fixture's events from the result — the TOTAL-loss case, undetectable at any cutoff, forever.
+--- The known incident was partial for all 5 fixtures, so measuring against it could not reveal
+--- the gap; it shows only in the join. Scoping on `fct_fixture`
+--- (one row per fixture, always present) removes the dependency on base having survivors.
+---
+--- ⚠ SCOPED BY KICKOFF DATE, and the reason is not tidiness. The known backlog (5 fixtures, 29
+--- events, both kickoffs before the cutoff) is UNREPAIRABLE — verified live against the
+--- provider, which no longer returns those events — so asserting over it would block every build on
+--- damage nobody can fix. The cutoff excludes it permanently and unambiguously, because a kickoff
+--- date never moves (unlike an ingest timestamp, which those fixtures kept refreshing while their
+--- 3-day retry window stayed open).
+--- ⚠ Consequence stated rather than hidden: this is INERT for fixtures before the cutoff. Its logic
+--- is PROVEN — 0 rows at the shipped cutoff and exactly the 29 known rows with the cutoff moved
+--- before the backlog, both RUN against prod — but a green run over a window with no fixtures in
+--- it is not evidence.
+--- ⚠ Do NOT raise the cutoff to silence a future failure. A new failure means new loss, which is
+--- the thing this exists to catch. Lower it once the backlog is resolved, and record why.
+-
+-with in_scope as (
+-    select fixture_sk
+-    from {{ ref('fct_fixture') }}
+-    where fixture_date >= date('{{ var("event_loss_detector_from") }}')
+-)
+-
+-select
+-    fact.fixture_sk,
+-    fact.event_index,
+-    fact.league_code,
+-    fact.event_type,
+-    fact.player_name_snapshot
+-from {{ ref('fct_fixture_event') }} as fact
+-inner join in_scope
+-    on fact.fixture_sk = in_scope.fixture_sk
+-left join {{ ref('base_apif__fixture_events') }} as still_present
+-    on
+-        fact.fixture_sk = still_present.fixture_id
+-        and fact.event_index = still_present.event_index
+-where still_present.fixture_id is null
+diff --git a/docs/data_contract.md b/docs/data_contract.md
+index cfa9a102..2ecac85b 100644
+--- a/docs/data_contract.md
++++ b/docs/data_contract.md
+@@ -133,7 +133,7 @@ quota is still discarded whole and retried next run, in `batch_fixtures`, `coach
+ 
+ **Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). From the moment that fetch is due until it is made, the fixture's player stats count as not covered.
+ 
+-**Both versions are kept deliberately, and base picks per entity.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_events` dedups newest-per-`(league_code, fixture_id, event_index)`, `base_apif__fixture_players` per `(…, team_id, player_id)`, `base_apif__fixture_statistics` per `(…, team_id)` — so an entity present only in the older payload survives, and one present in both takes the newer. On fixture 1564795 that yields 27 events: indices 0-16 from the retry, 17-26 from the payload it would have replaced.
++**Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_players` dedups newest per `(…, team_id, player_id)` and `base_apif__fixture_statistics` per `(…, team_id)`, so an entity present only in the older payload survives and one present in both takes the newer. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept.
+ 
+ Two consequences worth stating rather than discovering:
+ 
+diff --git a/ingestion/api_football/loads/batch_fixtures.py b/ingestion/api_football/loads/batch_fixtures.py
+index e52fc875..3427d404 100644
+--- a/ingestion/api_football/loads/batch_fixtures.py
++++ b/ingestion/api_football/loads/batch_fixtures.py
+@@ -114,11 +114,8 @@ def _finished_fixture_ids(fixtures_response: list[dict]) -> set[int]:
+ # stored, 17 returned by the retry, an entire penalty shootout destroyed and unrecoverable
+ # because the provider no longer returns it.
+ #
+-# The rule, verbatim: "raw keeps both versions." It applies to every raw table. Both payloads
+-# now land and BASE decides: `base_apif__fixture_events` dedups
+-# `partition by (league_code, fixture_id, event_index) order by raw_ingested_at desc`, which on
+-# that fixture yields 27 — indices 0-16 from the new payload, 17-26 surviving from the old.
+-# Do NOT restore this as a regression fix; see `.claude/task/escalations.log`.
++# Raw keeps both versions, for every raw table: both payloads land and base decides
++# (docs/data_contract.md, "Fixture details"). Do NOT restore the delete as a regression fix.
  
  
- def _split(text: str) -> tuple[str, str]:
-@@ -40,7 +42,8 @@ def _split(text: str) -> tuple[str, str]:
+ def _insert_fixture_rows(
+diff --git a/tests/test_incomplete_fetch_no_supersede.py b/tests/test_incomplete_fetch_no_supersede.py
+index fb6fd39b..96b33770 100644
+--- a/tests/test_incomplete_fetch_no_supersede.py
++++ b/tests/test_incomplete_fetch_no_supersede.py
+@@ -317,8 +317,7 @@ class TestFixtureDetailsRetryKeepsBothVersions:
+     and poorer in another. The delete made the poorer answer the only surviving one: fixture
+     1564795 went 27 events to 17, an entire penalty shootout, unrecoverable.
  
- # ---------------------------------------------------------------- the checksum pin
+-    The rule: "raw keeps both versions." Base decides, using the rule it already has
+-    (`base_apif__fixture_events`, newest per (league_code, fixture_id, event_index)).
++    Raw keeps both versions; base decides (docs/data_contract.md, "Fixture details").
+     """
  
--def test_the_committed_snapshot_is_exactly_what_the_script_wrote():
-+@NEEDS_SNAPSHOT
-+def test_the_snapshot_is_exactly_what_the_script_wrote():
-     with open(SNAPSHOT, encoding="utf-8") as f:
-         text = f.read()
-     head, body = _split(text)
-@@ -51,6 +54,7 @@ def test_the_committed_snapshot_is_exactly_what_the_script_wrote():
-         "the body was changed without rewriting the header — regenerate with scripts/snapshot_tracker.py")
+     def test_a_retried_fixture_is_appended_and_nothing_is_deleted(self, monkeypatch):
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index ade6e2d7..54bdd3b8 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
  
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 783
+-PINNED_FILES = 195
++PINNED_LINES = 780
++PINNED_FILES = 193
  
-+@NEEDS_SNAPSHOT
- def test_a_single_character_change_breaks_the_checksum(tmp_path):
-     with open(SNAPSHOT, encoding="utf-8") as f:
-         text = f.read()
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   docs/tracker/gitlab_snapshot.md | 11346 --------------------------------------
-#    1 file changed, 11346 deletions(-)
-# ============================================================================
+ HASH = chr(35)
+ 
