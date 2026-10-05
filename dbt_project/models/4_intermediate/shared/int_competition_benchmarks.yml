@@ -90,12 +90,80 @@ models:
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
 
+  - name: int_player_competition_benchmark_metrics_long
+    description: >
+      The 18 player competition-benchmark metrics in long form, per player-season and position: one
+      row per (player_sk, season_sk, position_group, metric_key) where the player enters the
+      benchmark, with the value and, for the 5 ratio metrics, its numerator and denominator. The
+      single source of the benchmark metric set and of the positions each metric is benchmarked for
+      — int_player_competition_benchmarks aggregates it to the positional distribution and
+      mart_player_competition_benchmarks ranks each player against it, so the two cannot drift.
+      Grain: (player_sk, season_sk, position_group, metric_key).
+
+      {{ doc('ranking_rules') }}
+    config:
+      tags: ["intermediate", "football", "benchmark"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [player_sk, season_sk, position_group, metric_key]
+    columns:
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_sk
+        description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: position_group
+        description: "The peer pool the player is benchmarked in: GK, DEF, MID or ATT."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["GK", "DEF", "MID", "ATT"]
+      - name: minutes
+        description: "The player's minutes in this position this competition-season, carried so the sample is visible."
+        tests: [not_null]
+      - name: appearances
+        description: "The player's appearances in this position this competition-season."
+      - name: metric_key
+        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
+      - name: metric_value
+        description: "The player's in-position value for this metric. Rows without a value are left out, so this is never null."
+        tests: [not_null]
+      - name: metric_numerator
+        description: "The numerator behind a ratio metric's value (e.g. saves for save %). NULL for a per-90 metric, which has none."
+      - name: metric_denominator
+        description: "The denominator behind a ratio metric's value (e.g. shots on target faced for save %). NULL for a per-90 metric, which has none."
+
   - name: int_player_competition_benchmarks
     description: >
       Competition benchmark engine (player): per (league_code, season_api_year, position_group, metric_key)
       the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric.
-      Median-led. mart_player_competition_benchmarks ranks each player against this. Metric x position
-      eligibility is the player_benchmark_metrics() macro.
+      Median-led. mart_player_competition_benchmarks ranks each player against this. The metric set,
+      position eligibility and who enters are int_player_competition_benchmark_metrics_long.
       Grain: (league_code, season_api_year, position_group, metric_key).
 
       {{ doc('ranking_rules') }}

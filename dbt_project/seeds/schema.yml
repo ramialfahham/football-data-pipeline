@@ -747,6 +747,89 @@ seeds:
         description: "The hand working: the raw values the answer rests on and the step from them to the expected value."
         tests: [not_null]
 
+  - name: team_season_answer_key
+    description: >
+      Hand-worked season values for real team-seasons across competitions, a World Cup included:
+      for each team metric of the catalogue that int_team_season__metrics carries, the numerator and
+      denominator worked out by hand from the provider's raw match data (RAW_APIF_FIXTURE_DETAILS
+      and the league's official results in fixture_result_corrections), by the catalogue formula
+      and the cleaning rules, never from a model. assert_team_season_answer_key fails when the model
+      returns anything other than the numerator over the denominator. A blank numerator means the
+      value must be blank.
+    config:
+      column_types:
+        league_code: string
+        season: int64
+        team_id: int64
+        metric_id: string
+        numerator: int64
+        denominator: int64
+        working: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, team_id, metric_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }}"
+        tests: [not_null]
+      - name: metric_id
+        description: "The metric_catalogue team metric the case checks."
+        tests: [not_null]
+      - name: numerator
+        description: "The metric's numerator worked out by hand. Blank where the metric must be blank."
+      - name: denominator
+        description: "The metric's denominator worked out by hand. Blank for a metric with no denominator."
+      - name: working
+        description: "The hand working: the team-season, the matches counted, each sum, and every cleaning rule that changed an input."
+        tests: [not_null]
+
+  - name: player_season_answer_key
+    description: >
+      Hand-worked season values for real player-seasons across competitions, a World Cup included:
+      for each player metric of the catalogue that int_player_season__metrics carries, the
+      numerator and denominator worked out by hand from the provider's raw match data
+      (RAW_APIF_FIXTURE_DETAILS), by the catalogue formula and the cleaning rules, never from a
+      model. assert_player_season_answer_key fails when the model returns anything other than the
+      numerator over the denominator. A blank numerator means the value must be blank.
+    config:
+      column_types:
+        league_code: string
+        season: int64
+        player_id: int64
+        metric_id: string
+        numerator: int64
+        denominator: int64
+        working: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, season, player_id, metric_id]
+    columns:
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season
+        description: "{{ doc('season_api_year') }}"
+        tests: [not_null]
+      - name: player_id
+        description: "{{ doc('player_api_id') }}"
+        tests: [not_null]
+      - name: metric_id
+        description: "The metric_catalogue player metric the case checks."
+        tests: [not_null]
+      - name: numerator
+        description: "The metric's numerator worked out by hand. Blank where the metric must be blank."
+      - name: denominator
+        description: "The metric's denominator worked out by hand. Blank for a metric with no denominator."
+      - name: working
+        description: "The hand working: the player-season, the matches counted, each sum, and every cleaning rule that changed an input."
+        tests: [not_null]
+
   - name: team_name_overrides
     description: >
       Corrections to a team's DISPLAY NAME: one row per team whose provider name is not the name

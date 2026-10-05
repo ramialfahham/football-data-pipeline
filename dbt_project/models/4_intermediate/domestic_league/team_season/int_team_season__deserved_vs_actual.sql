@@ -38,8 +38,8 @@
   handling lives upstream / here, never in the catalogue formula (formula-vs-availability ruling).
 
   Full-table coverage gate: deserved_points is computed only for league-seasons where EVERY team has
-  a computable shots_on_goal_difference_per_match (full SoT coverage) AND an actual league rank AND at least 3
-  finished games (the same >= 3 threshold int_team_competition_benchmark_metrics_long uses; below it
+  a computable shots_on_goal_difference_per_match (full SoT coverage) AND an actual league rank AND at least
+  the var team_min_matches finished games (the threshold int_team_competition_benchmark_metrics_long uses; below it
   the fit is small-sample noise and can predict impossible point totals). Otherwise NULL for every
   team in that league-season. deserved_points is additionally NULL when the signal has no spread
   across the league-season, since the slope is then undefined rather than flat.
@@ -149,7 +149,7 @@ gated as (
         (
             c.teams_missing_sot = 0
             and c.teams_missing_rank = 0
-            and c.min_games_played >= 3
+            and c.min_games_played >= {{ var('team_min_matches') }}
             and c.distinct_actual_ranks = c.teams
         ) as league_season_fittable,
         -- Some DOMESTIC leagues do not run one table either: MLS ranks within Eastern/Western

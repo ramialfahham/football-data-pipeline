@@ -36,11 +36,12 @@
     'saves_player',
 ] %}
 
-{# RATE boards (#506): qualify on minutes >= 270 + a position scope (+ a SoT floor for finishing). #}
+{# RATE boards (#506): qualify on the minutes floor + a position scope (+ a SoT floor for finishing). #}
 {% set outfield = "player_position is not null and player_position != 'Goalkeeper'" %}
 {% set rate_boards = [
     {'key': 'passes_accuracy_player_pct', 'qualify': outfield},
-    {'key': 'finishing_efficiency_player_pct', 'qualify': outfield ~ ' and shots_on_goal_player >= 10'},
+    {'key': 'finishing_efficiency_player_pct',
+     'qualify': outfield ~ ' and shots_on_goal_player >= ' ~ var('player_min_shots_on_target')},
 ] %}
 
 {# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
@@ -50,7 +51,8 @@
 {% do boards.append({'key': key, 'where': key ~ ' > 0'}) %}
 {% endfor %}
 {% for board in rate_boards %}
-{% set rate_where = 'minutes >= 270 and ' ~ board.qualify ~ ' and ' ~ board.key ~ ' > 0' %}
+{% set rate_where = 'minutes >= ' ~ var('player_min_minutes')
+    ~ ' and ' ~ board.qualify ~ ' and ' ~ board.key ~ ' > 0' %}
 {% do boards.append({'key': board.key, 'where': rate_where}) %}
 {% endfor %}
 

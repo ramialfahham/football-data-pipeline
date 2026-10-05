@@ -96,6 +96,8 @@ Not a rulebook — a calibrated default. This project's habit has been reaching 
 
 **The trap we keep hitting — a shared list or formula held in a macro.** Build it once as a model (usually an `int_*`) and let the others read or aggregate it instead — the COMPOSE pattern (see §5). Same single source, no generated SQL.
 
+**A number several models apply — a ranking or benchmark floor — is a dbt var** in `dbt_project.yml`, read with `var()` by every model that applies it, never written into a model as a literal. The `ranking_rules` doc block states the floors in words; `tests/test_ranking_floors.py` holds those words equal to the vars and fails on a floor written into a model as a number.
+
 **Where a macro genuinely earns it:**
 
 - a dbt **override hook** (e.g. `generate_schema_name`, whose default would name datasets wrong);

@@ -5,37 +5,15 @@
   the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
   and percentile display. The player analog of int_team_competition_benchmarks.
 
-  Who enters the distribution is the ranking_rules doc block in models/docs/metric_rules.md. Metric x
-  position eligibility comes from player_benchmark_metrics(): a metric ineligible for a position (e.g.
-  saves_player for an outfielder) yields a null value and is not counted.
+  Who enters the distribution, and which metrics each position is benchmarked on, is
+  int_player_competition_benchmark_metrics_long.
 
   Grain: (league_code, season_api_year, position_group, metric_key). All competitions, each season on its own
   data (no league scoping, no prev-season fallback — D5/D6).
 #}
 
-with season as (
-    select * from {{ ref('int_player_season_position__metrics') }}
-    where minutes >= 270
-),
-
-unpivoted as (
-    {% for m in player_benchmark_metrics() %}
-    select
-        league_code,
-        season_api_year,
-        position_group,
-        '{{ m.key }}' as metric_key,
-        case
-            when
-                position_group in ('{{ m.pos | join("', '") }}')
-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
-                then {{ m.col }}
-        end as metric_value
-    from season
-    {% if not loop.last %}
-    union all
-    {% endif %}
-    {% endfor %}
+with metrics as (
+    select * from {{ ref('int_player_competition_benchmark_metrics_long') }}
 )
 
 select
@@ -48,6 +26,5 @@ select
     approx_quantiles(metric_value, 4)[offset(1)] as peer_p25,
     approx_quantiles(metric_value, 4)[offset(2)] as peer_median,
     approx_quantiles(metric_value, 4)[offset(3)] as peer_p75
-from unpivoted
-where metric_value is not null
+from metrics
 group by league_code, season_api_year, position_group, metric_key
