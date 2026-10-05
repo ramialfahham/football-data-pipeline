@@ -86,17 +86,17 @@ models:
       - name: goals_against
         description: "{{ doc('goals_against') }}"
       - name: shots_on_target
-        description: "{{ doc('shots_on_goal_player') }}"
+        description: "{{ doc('shots_on_goal__team_match') }}"
       - name: shots
-        description: "{{ doc('shots_player') }}"
+        description: "{{ doc('shots_total__team_match') }}"
       - name: shots_inside_box
         description: "{{ doc('shots_inside_box') }}"
       - name: corners
         description: "{{ doc('corners') }}"
       - name: passes
-        description: "{{ doc('passes_player') }}"
+        description: "{{ doc('passes_total__team_match') }}"
       - name: passes_accurate
-        description: "{{ doc('passes_accurate_player') }}"
+        description: "{{ doc('passes_accurate__team_match') }}"
       - name: saves
         description: "{{ doc('saves') }}"
       - name: cards_yellow
@@ -305,13 +305,13 @@ models:
       - name: interceptions
         description: "Interceptions by this team's players in the match, summed from the player legs found for it (players_with_stats is the sample)."
       - name: duels
-        description: "{{ doc('duels_player') }}"
+        description: "{{ doc('duels__team_from_players') }}"
       - name: duels_won
-        description: "{{ doc('duels_won_player') }}"
+        description: "{{ doc('duels_won__team_from_players') }}"
       - name: dribbles
-        description: "{{ doc('dribbles_attempts_player') }}"
+        description: "{{ doc('dribbles__team_from_players') }}"
       - name: dribbles_success
-        description: "{{ doc('dribbles_success_player') }}"
+        description: "{{ doc('dribbles_success__team_from_players') }}"
       - name: fouls
         description: "{{ doc('fouls_committed') }}"
       - name: fouls_against

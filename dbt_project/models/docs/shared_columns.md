@@ -327,6 +327,28 @@ This team's passes that reached a teammate, from its cleaned statistics line.
 {% enddocs %}
 
 
+{% docs duels__team_from_players %}
+One-on-one challenges for the ball, on the ground or in the air, that this team's players contested
+in the match, summed over its players.
+{% enddocs %}
+
+
+{% docs duels_won__team_from_players %}
+One-on-one challenges for the ball, on the ground or in the air, that this team's players won in the
+match, summed over its players.
+{% enddocs %}
+
+
+{% docs dribbles__team_from_players %}
+Times this team's players tried to dribble past an opponent in the match, summed over its players.
+{% enddocs %}
+
+
+{% docs dribbles_success__team_from_players %}
+Dribbles in which this team's players got past an opponent in the match, summed over its players.
+{% enddocs %}
+
+
 {% docs shirt_number %}
 The number this player wore in this match, from the provider's per-player statistics. It is
 recorded per match rather than as a squad registration, so it can differ between matches in

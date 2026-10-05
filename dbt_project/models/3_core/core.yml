@@ -666,11 +666,11 @@ models:
         description: "{{ doc('has_stat_line') }}"
         tests: [not_null]
       - name: shots_on_target
-        description: "{{ doc('shots_on_goal_player') }}"
+        description: "{{ doc('shots_on_goal__team_match') }}"
       - name: shots_off_target
         description: "{{ doc('shots_off_goal') }}"
       - name: shots
-        description: "{{ doc('shots_player') }}"
+        description: "{{ doc('shots_total__team_match') }}"
       - name: shots_blocked
         description: "{{ doc('shots_blocked') }}"
       - name: shots_inside_box
@@ -682,7 +682,7 @@ models:
       - name: corners
         description: "{{ doc('corners') }}"
       - name: offsides
-        description: "{{ doc('offsides_player') }}"
+        description: "{{ doc('offsides__team_match') }}"
       - name: possession_pct
         description: "{{ doc('ball_possession_percent') }}"
       - name: cards_yellow
@@ -692,9 +692,9 @@ models:
       - name: saves
         description: "{{ doc('saves') }}"
       - name: passes
-        description: "{{ doc('passes_player') }}"
+        description: "{{ doc('passes_total__team_match') }}"
       - name: passes_accurate
-        description: "{{ doc('passes_accurate_player') }}"
+        description: "{{ doc('passes_accurate__team_match') }}"
       - name: goals_penalty
         description: "{{ doc('goals_penalty') }}"
       - name: goals_own
