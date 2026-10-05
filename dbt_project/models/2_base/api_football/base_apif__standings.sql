@@ -37,7 +37,7 @@ deduped_standings as (
     ) = 1
 ),
 
--- The league's official figures where the provider's row differs, from
+-- The league's official figures and team where the provider's row differs, from
 -- seeds/standings_corrections.csv.
 table_corrections as (
     select * from {{ ref('standings_corrections') }}
@@ -48,7 +48,7 @@ select
     s.league_api_id,
     s.league_name,
     s.season,
-    s.team_id,
+    s.team_id as provider_team_id,
     s.team_name,
     s.form,
     s.group_name,
@@ -64,6 +64,7 @@ select
     s.goals_against_all as provider_goals_against_all,
     c.source as result_correction_source,
     s.raw_ingested_at,
+    coalesce(c.official_team_id, s.team_id) as team_id,
     coalesce(c.standing_rank, s.standing_rank) as standing_rank,
     coalesce(c.points, s.points) as points,
     if(c.team_id is null, s.goals_diff, c.goals_for - c.goals_against) as goals_diff,

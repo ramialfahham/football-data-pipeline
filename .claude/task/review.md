@@ -1,35 +1,30 @@
-# Review — fix/events-latest-fetch — match events come only from each match's latest fetch
+# Review — fix/standings-games-test — no team-season counts fewer games than its standings
 
-diff_sha256: 17f54814280b424beef69684c18c441fff77258e22d79378e309c805e134352a
+diff_sha256: fc32b24951b123bbcb4e6728d6a7ffda9bb7bb90a9ba666267a61b5b2bd678cc
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed file in scope_paths; approvals named, not quoted; every reading declared.
-- Shipped numbers change for the 8 matches the approved plan names; recurring cost declared and measured by dry run.
-- impact_map evidenced (pasted lineage, measured blast radius); no new mechanism.
+- Every changed file in scope_paths; approvals named, not quoted; the seed column is the approved mechanism and nothing else is new.
+- Each correction row cites https sources; the readings are declared; the pin drop matches the removed issue-number line.
+- Round 2: one stale comment sentence removed; no logic change.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- QUALIFY: league_code in both partitions; other fetches removed before the per-position dedup; ties as before.
-- The fact is a 1:1 table from base; 0 fact events of matches missing from raw, so only the 32 stale events leave.
-- The new test is not vacuous and covers base and the fact; deleting the event-loss test is justified.
-- Round 1 FAIL: five statements made false elsewhere (data_contract.md, staging description, a loader comment, a test docstring, a test header). Fixed in round 2.
+- The re-key joins on the provider's team and outputs the official one; the base grain test and the fct_standings team relationship catch a collision or a mistyped id.
+- assert_result_corrections_applied: the four existing rows behave as before; a team-only correction is never "no longer needed".
+- The awarded fixture is set to AWD, which the team match legs count, so both Süper Lig teams reach 36; the league-table test now compares them and the MR build proves it.
+- Round 2: the test header's stale "same 3 rows today" sentence removed.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- No CI job, script or test references the deleted test or var; the MR slim build and the nightly build the fact as a table.
-- Comment-history pin 780/193 matches the removed markers; docstring and header edits change no assertion.
-
-## data-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- batch_fixtures.py: comment only; raw stays append-only; the pointer resolves to the data contract.
-- data_contract.md text matches the players, statistics and events models; nothing in ingestion reads base events.
+- No CI job, selector or script treats warn and error tests differently; the test fails closed like the other error singular tests.
+- The seed's new column needs no full refresh: dbt-bigquery recreates a seed table on every load.
+- Pin 779/192 matches the removed line.
 
 ## escalations
 (none)

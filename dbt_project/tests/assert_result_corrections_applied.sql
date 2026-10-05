@@ -1,6 +1,7 @@
 -- Every hand correction of a result, from the two correction seeds, is applied, sourced and still
 -- needed. One row per broken correction:
---   - not_applied: base has no such match or table row, or does not carry the official figures.
+--   - not_applied: base has no such match or table row, or does not carry the official figures
+--     and team.
 --   - winner_not_valid: a winner is set where the score already decides, or names a team not in
 --     the match.
 --   - not_sourced: a source that is not https URLs separated by a space, an official one with
@@ -65,7 +66,8 @@ table_checks as (
         case
             when s.team_id is null then 'not_applied'
             when
-                s.standing_rank is distinct from c.standing_rank
+                s.team_id != coalesce(c.official_team_id, c.team_id)
+                or s.standing_rank is distinct from c.standing_rank
                 or s.points is distinct from c.points
                 or s.played_all is distinct from c.played
                 or s.wins_all is distinct from c.wins
@@ -84,6 +86,7 @@ table_checks as (
                 and s.provider_losses_all = c.losses
                 and s.provider_goals_for_all = c.goals_for
                 and s.provider_goals_against_all = c.goals_against
+                and s.team_id = s.provider_team_id
                 then 'no_longer_needed'
         end as problem
     from table_corrections as c
@@ -91,7 +94,7 @@ table_checks as (
         on
             c.league_code = s.league_code
             and c.season = s.season
-            and c.team_id = s.team_id
+            and c.team_id = s.provider_team_id
             and c.group_name = s.group_name
 ),
 
