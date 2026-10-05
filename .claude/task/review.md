@@ -1,24 +1,25 @@
-# Review — docs/team-column-descriptions — team stat columns in core and intermediate describe themselves as team columns
+# Review — test/table-points-adjustments — a league table's points below its results are explained by a declared adjustment
 
-diff_sha256: 65a44638f04fdb6e050b5f2f3794fde2e9e1bf0c413ad8e4b95f22b86b4fc0d0
+diff_sha256: 6f96815fffc7fc868ac171c1fde12e49fc7afad03235922d5c29a5be6ca4ce4e
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: every diff file is in scope_paths; no amendment needed.
-- Doc references: the five __team_match blocks pointed at exist in shared_columns.md and the four new __team_from_players blocks are added in the same file; no doc() reference dangles.
-- Section 10 and Appendix A: no metric, label, format or number; the extension from the issue's 19 columns to 23 is recorded as a reading of the checklist rule "no team model outside the marts", applied to the table the issue's totals come from.
-- Impact map: descriptions only, no .sql change, the five affected tables named; no threshold crossed; no secret, workflow or escalations.log change.
+- Scope: the seed, schema.yml and the test are in scope_paths; no amendment; no impact map required (seeds and tests only).
+- The test condition is tightened, not narrowed: a blank table total and an undeclared lower total both fail; the join, the played filter and severity error are unchanged.
+- Section 10 and Appendix A: no metric, label or display change; the seed follows the standings_corrections pattern; readings under the 2026-10-02 delegation.
+- Thresholds: no new mechanism, no new run or cadence; the 52 rows match the acceptance criteria; every row has an https source and match_reports rows two sites; no secret or workflow change.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The 17 statistics-line columns: each of the five models' SQL passes the team's own cleaned line through at one row per team-match, so the __team_match blocks are true; no window sum is hidden.
-- The four new __team_from_players blocks and the duels repoints: int_legs__team_from_players sums them over player legs per team-match and int_team_season_record joins them; "this team's players ... summed over its players" is accurate, dribbles being attempts.
-- Sweep completeness: every remaining player doc reference in core and intermediate sits on a player-grained model; 23 repointed, matching the contract.
-- Catalogue governance: no catalogue row or generated block touched; the new suffix does not collide with the __team / __player entity suffixes; each block well under the 1,024-character limit.
+- Layer placement and competition-agnostic SQL: a seed and one singular test over core and intermediate; no league identifier in SQL.
+- Seed arithmetic: 38 Belgian rows plus 14 deductions; points_taken equals half the regular-season points rounded down in all 38 halving rows.
+- Test condition: null-safe, catches an undeclared lower table, a fixed table whose declaration no longer matches and a blank total; the same-window join unchanged.
+- Round 1 FAIL, two findings: the source description stated a format rule no test enforced, and nothing stopped a zero or negative points_taken from letting a table above 3 x wins + draws pass.
+- Round 2: the description no longer claims the format rule; a seed-level expression_is_true holds points_taken at least 1. Both resolved.
 
 ## escalations
 (none)

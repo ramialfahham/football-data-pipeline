@@ -1,385 +1,299 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f59d2d4f..678be293 100644
+index 678be293..72c64985 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,52 +1,24 @@
--# Task contract — the metric answer key, the two reconciliations and the ranking floors as vars
-+# Task contract — team stat columns in core and intermediate describe themselves as team columns
+@@ -1,24 +1,24 @@
+-# Task contract — team stat columns in core and intermediate describe themselves as team columns
++# Task contract — a league table's points below its results are explained by a declared adjustment
  
  objective: >
--  #185 How step 5, which closes #185 and #192. Two reconciliation tests at severity error: a
--  team-season equals the provider's league table (wins, draws, losses, goals, goals against; our
--  points equal the table's 3 x wins + draws), and a team-season's goals, less its forfeit goals,
--  equal its players' goals plus its own goals. An answer key: real team-seasons and player-seasons,
--  each catalogue metric's numerator and denominator worked out by hand from the provider's raw
--  match data, committed as two seeds, and two tests that the season surfaces return exactly them.
--  The player benchmark metric set moves from the player_benchmark_metrics() macro into a model, as
--  the team side's is, and each ranking floor becomes a dbt var read by every model that applies it,
--  held equal to the ranking_rules words by a pytest.
-+  #193. Team columns in core and intermediate that BigQuery describes with a player metric's
-+  sentence (for example "Shots on target the player had." on fct_fixture_team_stats) point at a
-+  team description instead: the __team_match blocks for the statistics-line columns, and new
-+  __team_from_players blocks for the totals summed from players. Docs only.
+-  #193. Team columns in core and intermediate that BigQuery describes with a player metric's
+-  sentence (for example "Shots on target the player had." on fct_fixture_team_stats) point at a
+-  team description instead: the __team_match blocks for the statistics-line columns, and new
+-  __team_from_players blocks for the totals summed from players. Docs only.
++  #147 as rewritten and approved on 2026-10-05. The league-table check accepts a table whose points
++  are below 3 x its wins + draws without a reason. Every such row is declared in a new seed with the
++  points the league took, the rule (deduction, halving) and its official source, and the check fails
++  when a table row's points are not 3 x wins + draws less the declared points taken.
  
  refs: >
--  #185 (How step 5 and its checklist), #192, approved by the CPO; the step 5 line carries his
--  answer of 2026-10-04 on the floors and the nightly cost. The CPO's go to build it as its own MR,
--  2026-10-05.
-+  #193, approved by the CPO; his go to build the next handover item, 2026-10-05.
+-  #193, approved by the CPO; his go to build the next handover item, 2026-10-05.
++  #147, its rewritten text approved by the CPO on 2026-10-05 ("keep #147, then #186").
  
  acceptance_criteria:
--  # #185's checklist lines this step closes, and #192's What exactly, verbatim.
--  - "For a sample of real team-seasons and players across leagues, including a World Cup window, the expected value is worked out by hand from the raw provider data, committed as a seed, and a test asserts the pipeline returns exactly it."
--  - "Independent reconciliations fail the build on disagreement: a team's goals equal the sum of its players' goals; goals for, goals against and points equal the provider's league table."
--  - "Each new test is shown to fail when a model expression or an expected value is deliberately changed, and to stay green on an algebraically identical rewrite."
--  - "The nightly warehouse cost is measured before and after and put to the CPO."
--  - "A test that fails when a team's points in the provider's league table (`fct_standings` / `mart_standings`, `points`) differ from `points_won` summed over the team's finished matches in the same competition-season and table section."
-+  # The issue's checklist line, verbatim.
-+  - "No team model outside the marts describes a column with a player metric's definition: the 19 columns below point at a team description."
+-  # The issue's checklist line, verbatim.
+-  - "No team model outside the marts describes a column with a player metric's definition: the 19 columns below point at a team description."
++  # The issue's checklist lines, verbatim.
++  - "Every league-table row whose points are below 3 x its wins + draws, where it counts the same games as our results, is explained by a declared adjustment in a seed: the team-season, the points taken, the rule (deduction, halving) and its official source."
++  - "`assert_team_season_equals_league_table` fails, at severity error, on a lower table with no declared adjustment, or a declared one that no longer matches."
++  - "The 52 rows lower today are declared, each with its source (Belgian Pro League halving, the Turkish deductions, ...)."
  
  scope_paths:
--  - dbt_project/dbt_project.yml
--  - dbt_project/macros/player_benchmark_metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
--  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
--  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
--  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
--  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
--  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
--  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
--  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/seeds/team_season_answer_key.csv
--  - dbt_project/seeds/player_season_answer_key.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/tests/assert_team_season_equals_league_table.sql
--  - dbt_project/tests/assert_team_goals_equal_players_goals.sql
--  - dbt_project/tests/assert_team_season_answer_key.sql
--  - dbt_project/tests/assert_player_season_answer_key.sql
--  - dbt_project/docs/engineering_standards.md
--  - dbt_project/docs/layering.md
--  - docs/wireframes/12_player_stats.md
--  - tests/test_ranking_floors.py
-+  - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/4_intermediate/shared/int_legs.yml
-+  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-+  - dbt_project/models/docs/shared_columns.md
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/4_intermediate/shared/int_legs.yml
+-  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+-  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/seeds/standings_points_adjustments.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/tests/assert_team_season_equals_league_table.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -56,97 +28,38 @@ scope_paths:
+@@ -27,39 +27,34 @@ scope_paths:
+   - .claude/task/audit_reviewer_outputs.md
    - docs/tracker/**
  
- impact_map: >
--  writers: every changed model is written only by itself and rebuilt in full each night (no
--  incremental model is touched). The new int_player_competition_benchmark_metrics_long is written
--  only by itself. The two new seeds are loaded by dbt seed / dbt build and read only by the two
--  answer-key tests. The four new tests read int_team_season__metrics, int_player_season__metrics,
--  int_player_club_season__metrics, int_legs__team_match, int_legs__player_match, fct_standings and
--  the two seeds, and write only their store_failures tables.
--  downstream, `dbt ls --project-dir dbt_project --resource-type model --select
--  int_player_competition_benchmarks+ mart_player_competition_benchmarks+
--  int_team_competition_benchmark_metrics_long+ int_team_season__deserved_vs_actual+
--  mart_leaderboards+` (8 models): int_player_competition_benchmarks
--  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
--  int_team_season__deserved_vs_actual mart_leaderboards mart_player_competition_benchmarks
--  mart_team_competition_benchmarks mart_team_profile. The new model sits between
--  int_player_season_position__metrics and those two player benchmark models. The macro has no
--  other reader (`git grep player_benchmark_metrics`: the two models, three descriptions and the
--  wireframe 12_player_stats.md:146 that names it as the set's home).
--  layer_rules: the metric set and eligibility move into an intermediate model (layering.md:
--  feature engineering that does not belong in a consumption model); no model sets its own
--  materialisation; check_layer_contract.py applies. A var is read with var(), as
--  active_competition_league_codes and event_loss_detector_from are.
--  deploy_order: dbt build orders the new model before its two readers and loads the seeds before
--  the tests that read them; the first build after the merge rebuilds the 8 models in one pass.
--  Nothing to sequence by hand.
--  blast_radius: none intended. The vars carry today's numbers (270, 10, 3) and the new model holds
--  today's metric set, eligibility and floors, so every value of the 8 models stays the same; shown
--  by comparing the MR's CI build with prod, table by table on its grain, before the merge. The
--  tests change no model. Measured read-only on prod on 2026-10-05: the league-table check returns
--  0 rows over 2,724 table rows with the same games played; the goals reconciliation 0 rows over
--  5,116 comparable team-seasons; the answer key agrees on all 180 team and 230 player values.
-+  Descriptions only (short form): no .sql file, seed, macro or catalogue row is in scope, so no model
-+  is rebuilt differently and no value changes. writers: the four yml files and shared_columns.md are
-+  read only by dbt parse and docs generate. downstream: +persist_docs pushes each description to its
-+  BigQuery column on the next build of fct_fixture_team_stats, int_legs__team_match,
-+  int_legs__team_from_players, int_team_momentum_window and int_team_season_record, nothing else;
-+  check_description_hygiene.py holds every rendered description under the 1,024-character limit.
-+  layer_rules: none apply to a description. deploy_order: none. blast_radius: the column
-+  descriptions of those five tables in BigQuery and the dbt docs; no number, page or export changes.
- 
+-impact_map: >
+-  Descriptions only (short form): no .sql file, seed, macro or catalogue row is in scope, so no model
+-  is rebuilt differently and no value changes. writers: the four yml files and shared_columns.md are
+-  read only by dbt parse and docs generate. downstream: +persist_docs pushes each description to its
+-  BigQuery column on the next build of fct_fixture_team_stats, int_legs__team_match,
+-  int_legs__team_from_players, int_team_momentum_window and int_team_season_record, nothing else;
+-  check_description_hygiene.py holds every rendered description under the 1,024-character limit.
+-  layer_rules: none apply to a description. deploy_order: none. blast_radius: the column
+-  descriptions of those five tables in BigQuery and the dbt docs; no number, page or export changes.
+-
  decisions_taken: >
--  #185 step 5 as written, and its step 5 line's answer of 2026-10-04: each floor is a dbt var in
--  dbt_project.yml, read by every model that applies it, with a section 1.3 paragraph and a pytest
--  holding the ranking_rules words equal to the vars; the nightly cost is accepted.
-+  #193 as written.
+-  #193 as written.
++  #147 as rewritten and approved on 2026-10-05.
  
    Readings, under the CPO's delegation of 2026-10-02 ("Readings of approved rules are yours"):
--  - League table: compared only where the table's played equals our season_games_played, on every
--    table section of the team-season; points as 3 x the table's wins + draws, since a deduction or a
--    halving is the table's own adjustment (#192's How), and the table's points never above that or
--    blank, the one direction no deduction explains (measured 0 rows on 2026-10-05). Antwerp BPL 2024 (41 matches with the
--    Conference League play-off final, the table 40) is not compared by that rule. No exception list.
--  - Goals: compared where both sides are known (players' goals known for every club-season row of
--    the team, the team's own goals known). A team-season holding a team-match whose players' goals
--    plus own goals miss the score is the issue's known exception, left out;
--    assert_base_player_stats_cleaned (goals_do_not_add_up) already fails any such match where
--    either source adds up, so every exception is one where neither does.
--  - Answer key: one seed for team-seasons and one for player-seasons, a row per (entity,
--    competition-season, catalogue metric on the surface) with the numerator and denominator as
--    integers and the hand working; the test compares safe_divide of them with the model value
--    exactly, a blank numerator meaning the value must be blank. Asserted on int_team_season__metrics
--    and int_player_season__metrics. Worked out from RAW_APIF_FIXTURE_DETAILS and the
--    fixture_result_corrections seed only, by the catalogue formulas and the cleaning rules, never
--    from a model. The sample: World Cup 2026 Spain and Argentina, EURO 2024 Spain, Bundesliga
--    2024-25 Union Berlin (an awarded match), Premier League 2024-25 Liverpool (six saves corrected);
--    players World Cup 2026 Mbappe and E. Martinez (keeper), EURO 2024 Dani Olmo, Premier League
--    2024-25 Salah, Bundesliga 2024-25 Kane.
--  - Floors: the three numbers the issue names are vars: player_min_minutes 270,
--    player_min_shots_on_target 10, team_min_matches 3. The team ranking's "from its first finished
--    match" is a team having a season row, not a floor.
--  - The player benchmark model mirrors the team one: int_player_competition_benchmark_metrics_long,
--    one row per (player_sk, season_sk, position_group, metric_key) with value, numerator and
--    denominator, eligibility and floors applied; the engine aggregates it and the mart ranks it.
--  - The wireframe line that names the macro as the set's home names the model instead; what the
--    screen shows does not change.
-+  - The checklist line's rule is "no team model outside the marts describes a column with a player
-+    metric's definition". A sweep of every team model's yml outside the marts finds the issue's 19
-+    columns and 4 more on int_legs__team_from_players (duels, duels_won, dribbles,
-+    dribbles_success), the table the issue's team totals come from; all 23 are fixed.
-+  - Every one of the five models has one row per team-match, so no column sums a window and no
-+    "Here, ..." sentence is needed. The statistics-line columns take the existing __team_match
-+    blocks; the totals summed from players take four new __team_from_players blocks in
-+    shared_columns.md, worded from the player block with "this team's players ... summed over its
-+    players".
- 
--  Threshold declarations. NEW MECHANISM: none; dbt vars, seeds of hand-worked answers, singular
--  tests and an intermediate model are all existing patterns, and the vars were approved in the step
--  5 line. RECURRING COST: four tests and one small model in the nightly build, measured by dry run
--  and put to the CPO with the MR.
-+  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none; descriptions are pushed by the
-+  build that already runs.
+-  - The checklist line's rule is "no team model outside the marts describes a column with a player
+-    metric's definition". A sweep of every team model's yml outside the marts finds the issue's 19
+-    columns and 4 more on int_legs__team_from_players (duels, duels_won, dribbles,
+-    dribbles_success), the table the issue's team totals come from; all 23 are fixed.
+-  - Every one of the five models has one row per team-match, so no column sums a window and no
+-    "Here, ..." sentence is needed. The statistics-line columns take the existing __team_match
+-    blocks; the totals summed from players take four new __team_from_players blocks in
+-    shared_columns.md, worded from the player block with "this team's players ... summed over its
+-    players".
+-
+-  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none; descriptions are pushed by the
+-  build that already runs.
++  - One seed row per table row (league_code, season, team_id, group_name), as standings_corrections
++    is keyed; points_taken is the positive number of points the league took; rule is deduction or
++    halving; source_kind and source are described as in the two correction seeds.
++  - The check is one changed condition in the existing test: the table's points equal 3 x wins +
++    draws less the declared points taken (0 where none is declared), on every compared table row. A
++    renamed or vanished table row needs no check of its own: its lower replacement is undeclared and
++    fails.
++  - The Belgian halving rows: points taken = half the regular-season points rounded down (the
++    league halves them rounded up), checked on prod for all 38 rows against the provider's own
++    regular-season table rows; each row cites the Pro League's rule.
++
++  Threshold declarations. NEW MECHANISM: none; a seed of declared official decisions with sources
++  is the pattern of standings_corrections. RECURRING COST: one seed of 52 rows and a join in an
++  existing test; measured by dry run.
  
  decisions_reserved:
--  - No catalogue row, formula, window or display changes.
--  - No result or table value is changed; a red row in the league-table check would be researched
--    and corrected in the correction seeds under cleaning_rules, a separate change.
--  - docs/metric_layer.md, engineering_standards.md sections 2 and 3 and the catalogue's rule text in
--    seeds/schema.yml stay #190's; this change adds only the two new seeds' descriptions.
-+  - The marts are not in scope (fixed with the metric map). No catalogue description changes.
+-  - The marts are not in scope (fixed with the metric map). No catalogue description changes.
++  - No table value, result or metric changes; the site does not show an adjustment (#147's Not in
++    scope).
  
  done_when:
--  - Each new dbt test, compiled and run over prod (bytes to the CPO first), returns no row today;
--    each fails on a deliberate break of a model expression or of an expected value, and stays green
--    on an algebraically identical rewrite.
--  - The pytest fails when a var and the ranking_rules words disagree, or a floor is written as a
--    literal in a model.
--  - dbt parse, sqlfluff on the changed SQL, the offline gates and pytest pass.
--  - The review cycle passes with every routed reviewer, review.md bound to --staged-hash.
--  - data:build:mr is green; the 8 changed models of the CI build equal prod on their grain (bytes
--    to the CPO first); the nightly cost added is measured.
-+  - The sweep finds no team model outside the marts with a player description.
-+  - dbt parse, check_description_hygiene.py, sync_metric_docs_blocks.py --check and pytest pass.
-+  - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
+-  - The sweep finds no team model outside the marts with a player description.
+-  - dbt parse, check_description_hygiene.py, sync_metric_docs_blocks.py --check and pytest pass.
++  - Over prod (bytes to the CPO first) the test returns no row with the seed; without it, the 52 rows;
++    it fails on a deliberate break (a declared value changed, a row removed) and stays green on an
++    identical rewrite.
++  - dbt parse, description hygiene and the offline gates pass.
+   - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
  
--amendments:
--  - 2026-10-05: + dbt_project/docs/layering.md — authority: the CPO's go to build #185 step 5 as its
--    own MR (2026-10-05); content: the mart_player_competition_benchmarks row names the new long model
--    it composes and drops its copy of the minutes floor, which the var and ranking_rules now hold.
--    The league-table check also fails on table points above 3 x wins + draws or blank (#192's How:
--    the direction comes from the measurement). No product, metric or display change.
-+amendments: (none)
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 9a8d04d4..861c44a8 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -666,11 +666,11 @@ models:
-         description: "{{ doc('has_stat_line') }}"
+ amendments: (none)
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index b2f06e05..2b8f106d 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -670,6 +670,64 @@ seeds:
+         description: "The team, the season and why the row differs, in words."
          tests: [not_null]
-       - name: shots_on_target
--        description: "{{ doc('shots_on_goal_player') }}"
-+        description: "{{ doc('shots_on_goal__team_match') }}"
-       - name: shots_off_target
-         description: "{{ doc('shots_off_goal') }}"
-       - name: shots
--        description: "{{ doc('shots_player') }}"
-+        description: "{{ doc('shots_total__team_match') }}"
-       - name: shots_blocked
-         description: "{{ doc('shots_blocked') }}"
-       - name: shots_inside_box
-@@ -682,7 +682,7 @@ models:
-       - name: corners
-         description: "{{ doc('corners') }}"
-       - name: offsides
--        description: "{{ doc('offsides_player') }}"
-+        description: "{{ doc('offsides__team_match') }}"
-       - name: possession_pct
-         description: "{{ doc('ball_possession_percent') }}"
-       - name: cards_yellow
-@@ -692,9 +692,9 @@ models:
-       - name: saves
-         description: "{{ doc('saves') }}"
-       - name: passes
--        description: "{{ doc('passes_player') }}"
-+        description: "{{ doc('passes_total__team_match') }}"
-       - name: passes_accurate
--        description: "{{ doc('passes_accurate_player') }}"
-+        description: "{{ doc('passes_accurate__team_match') }}"
-       - name: goals_penalty
-         description: "{{ doc('goals_penalty') }}"
-       - name: goals_own
-diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
-index b0728705..bf10a7e1 100644
---- a/dbt_project/models/4_intermediate/shared/int_legs.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
-@@ -86,17 +86,17 @@ models:
-       - name: goals_against
-         description: "{{ doc('goals_against') }}"
-       - name: shots_on_target
--        description: "{{ doc('shots_on_goal_player') }}"
-+        description: "{{ doc('shots_on_goal__team_match') }}"
-       - name: shots
--        description: "{{ doc('shots_player') }}"
-+        description: "{{ doc('shots_total__team_match') }}"
-       - name: shots_inside_box
-         description: "{{ doc('shots_inside_box') }}"
-       - name: corners
-         description: "{{ doc('corners') }}"
-       - name: passes
--        description: "{{ doc('passes_player') }}"
-+        description: "{{ doc('passes_total__team_match') }}"
-       - name: passes_accurate
--        description: "{{ doc('passes_accurate_player') }}"
-+        description: "{{ doc('passes_accurate__team_match') }}"
-       - name: saves
-         description: "{{ doc('saves') }}"
-       - name: cards_yellow
-@@ -305,13 +305,13 @@ models:
-       - name: interceptions
-         description: "Interceptions by this team's players in the match, summed from the player legs found for it (players_with_stats is the sample)."
-       - name: duels
--        description: "{{ doc('duels_player') }}"
-+        description: "{{ doc('duels__team_from_players') }}"
-       - name: duels_won
--        description: "{{ doc('duels_won_player') }}"
-+        description: "{{ doc('duels_won__team_from_players') }}"
-       - name: dribbles
--        description: "{{ doc('dribbles_attempts_player') }}"
-+        description: "{{ doc('dribbles__team_from_players') }}"
-       - name: dribbles_success
--        description: "{{ doc('dribbles_success_player') }}"
-+        description: "{{ doc('dribbles_success__team_from_players') }}"
-       - name: fouls
-         description: "{{ doc('fouls_committed') }}"
-       - name: fouls_against
-diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-index e649c10a..8b7a4ce9 100644
---- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
-@@ -93,15 +93,15 @@ models:
-       - name: goals_own_against
-         description: "Own goals this team conceded in the window match: part of goals_against, but not a shot on target the keeper faced."
-       - name: shots
--        description: "{{ doc('shots_player') }}"
-+        description: "{{ doc('shots_total__team_match') }}"
-       - name: shots_on_target
--        description: "{{ doc('shots_on_goal_player') }}"
-+        description: "{{ doc('shots_on_goal__team_match') }}"
-       - name: shots_inside_box
-         description: "{{ doc('shots_inside_box') }}"
-       - name: passes
--        description: "{{ doc('passes_player') }}"
-+        description: "{{ doc('passes_total__team_match') }}"
-       - name: passes_accurate
--        description: "{{ doc('passes_accurate_player') }}"
-+        description: "{{ doc('passes_accurate__team_match') }}"
-       - name: corners
-         description: "{{ doc('corners') }}"
-       - name: corners_against
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-index 2e29c41c..d1d85165 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-@@ -83,15 +83,15 @@ models:
-       - name: goals_own_against
-         description: "The own goals the team conceded in this match."
-       - name: shots
--        description: "{{ doc('shots_player') }}"
-+        description: "{{ doc('shots_total__team_match') }}"
-       - name: shots_on_target
--        description: "{{ doc('shots_on_goal_player') }}"
-+        description: "{{ doc('shots_on_goal__team_match') }}"
-       - name: shots_inside_box
-         description: "{{ doc('shots_inside_box') }}"
-       - name: passes
--        description: "{{ doc('passes_player') }}"
-+        description: "{{ doc('passes_total__team_match') }}"
-       - name: passes_accurate
--        description: "{{ doc('passes_accurate_player') }}"
-+        description: "{{ doc('passes_accurate__team_match') }}"
-       - name: corners
-         description: "{{ doc('corners') }}"
-       - name: corners_against
-@@ -118,9 +118,9 @@ models:
-       - name: blocks
-         description: "Blocks by this team's players in this match (int_legs__team_from_players)."
-       - name: duels
--        description: "{{ doc('duels_player') }}"
-+        description: "{{ doc('duels__team_from_players') }}"
-       - name: duels_won
--        description: "{{ doc('duels_won_player') }}"
-+        description: "{{ doc('duels_won__team_from_players') }}"
  
-   - name: int_player_season_record
++  - name: standings_points_adjustments
++    description: >
++      The points a league took from a team in its official table, one row per table row whose
++      points are below 3 x its wins + draws: a deduction, or the halving some leagues apply before
++      their play-offs, each naming its official source. assert_team_season_equals_league_table
++      fails when a table row's points are not 3 x wins + draws less the points taken declared here.
++    config:
++      column_types:
++        league_code: string
++        season: int64
++        team_id: int64
++        group_name: string
++        points_taken: int64
++        rule: string
++        source_kind: string
++        source: string
++        note: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season, team_id, group_name]
++      - dbt_utils.expression_is_true:
++          expression: "points_taken >= 1"
++          name: standings_points_adjustments_take_points
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "{{ doc('team_api_id') }}"
++        tests: [not_null]
++      - name: group_name
++        description: "The provider's table name the row belongs to, as in base_apif__standings."
++        tests: [not_null]
++      - name: points_taken
++        description: "The points the league took from the team in this table, at least 1: 3 x wins + draws less the table's points."
++        tests: [not_null]
++      - name: rule
++        description: "deduction = points taken as a sanction; halving = the league's halving of the regular-season points before its play-offs."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["deduction", "halving"]
++      - name: source_kind
++        description: "official = the league's, federation's or court's decision or rule; match_reports = two independent reports."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["official", "match_reports"]
++      - name: source
++        description: "The URLs of the official decision or rule, or of the two reports, separated by a space."
++        tests: [not_null]
++      - name: note
++        description: "The team, the season and the decision, in words."
++        tests: [not_null]
++
+   - name: player_match_cleaning_answer_key
      description: >
-diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
-index 7608c459..57161ba2 100644
---- a/dbt_project/models/docs/shared_columns.md
-+++ b/dbt_project/models/docs/shared_columns.md
-@@ -327,6 +327,28 @@ This team's passes that reached a teammate, from its cleaned statistics line.
- {% enddocs %}
+       Hand-worked answers for the player-match cleaning in base_apif__fixture_players: real player
+diff --git a/dbt_project/seeds/standings_points_adjustments.csv b/dbt_project/seeds/standings_points_adjustments.csv
+new file mode 100644
+index 00000000..40dee4b0
+--- /dev/null
++++ b/dbt_project/seeds/standings_points_adjustments.csv
+@@ -0,0 +1,53 @@
++league_code,season,team_id,group_name,points_taken,rule,source_kind,source,note
++BPL,2022,740,First Division A: Championship Round,36,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"Antwerp, Pro League 2022-23: 72 regular-season points halved to 36 (rounded up) for the Championship Round."
++BPL,2022,742,First Division A: Championship Round,37,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"Genk, Pro League 2022-23: 75 regular-season points halved to 38 (rounded up) for the Championship Round."
++BPL,2022,1393,First Division A: Championship Round,37,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"Union St. Gilloise, Pro League 2022-23: 75 regular-season points halved to 38 (rounded up) for the Championship Round."
++BPL,2022,569,First Division A: Championship Round,29,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"Club Brugge KV, Pro League 2022-23: 59 regular-season points halved to 30 (rounded up) for the Championship Round."
++BPL,2022,631,First Division A: Conference League Play-off Group,28,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"Gent, Pro League 2022-23: 56 regular-season points halved to 28 (rounded up) for the Conference League Play-off Group."
++BPL,2022,741,First Division A: Conference League Play-off Group,25,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"Cercle Brugge, Pro League 2022-23: 50 regular-season points halved to 25 (rounded up) for the Conference League Play-off Group."
++BPL,2022,733,First Division A: Conference League Play-off Group,27,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"Standard Liege, Pro League 2022-23: 55 regular-season points halved to 28 (rounded up) for the Conference League Play-off Group."
++BPL,2022,261,First Division A: Conference League Play-off Group,25,halving,match_reports,https://sporza.be/nl/2023/04/22/gent-vergooit-plek-4-en-zulte-waregem-degradeert-dit-zijn-de-play-off-poules-na-halvering-van-punten~1682189717780/ https://www.bruzz.be/sport/union-komt-op-gelijke-hoogte-met-antwerp-2023-05-21,"KVC Westerlo, Pro League 2022-23: 51 regular-season points halved to 26 (rounded up) for the Conference League Play-off Group."
++BPL,2023,569,First Division A: Championship Round,25,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"Club Brugge KV, Pro League 2023-24: 51 regular-season points halved to 26 (rounded up) for the Championship Round."
++BPL,2023,1393,First Division A: Championship Round,35,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"Union St. Gilloise, Pro League 2023-24: 70 regular-season points halved to 35 (rounded up) for the Championship Round."
++BPL,2023,554,First Division A: Championship Round,31,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"Anderlecht, Pro League 2023-24: 63 regular-season points halved to 32 (rounded up) for the Championship Round."
++BPL,2023,741,First Division A: Championship Round,23,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"Cercle Brugge, Pro League 2023-24: 47 regular-season points halved to 24 (rounded up) for the Championship Round."
++BPL,2023,740,First Division A: Championship Round,26,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"Antwerp, Pro League 2023-24: 52 regular-season points halved to 26 (rounded up) for the Championship Round."
++BPL,2023,266,First Division A: Conference League Play-off Group,22,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"KV Mechelen, Pro League 2023-24: 45 regular-season points halved to 23 (rounded up) for the Conference League Play-off Group."
++BPL,2023,735,First Division A: Conference League Play-off Group,20,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"St. Truiden, Pro League 2023-24: 40 regular-season points halved to 20 (rounded up) for the Conference League Play-off Group."
++BPL,2023,260,First Division A: Conference League Play-off Group,14,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"OH Leuven, Pro League 2023-24: 29 regular-season points halved to 15 (rounded up) for the Conference League Play-off Group."
++BPL,2023,261,First Division A: Conference League Play-off Group,15,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"KVC Westerlo, Pro League 2023-24: 30 regular-season points halved to 15 (rounded up) for the Conference League Play-off Group."
++BPL,2023,733,First Division A: Conference League Play-off Group,17,halving,official,https://www.proleague.be/fr/informations/de-nouvelles-bases-pour-le-football-professionnel-belge https://sporza.be/nl/2024/03/17/overzicht-wat-is-de-bonus-van-union-op-anderlecht-en-hoe-zien-de-andere-play-offs-er-nu-uit~1710680352411/,"Standard Liege, Pro League 2023-24: 34 regular-season points halved to 17 (rounded up) for the Conference League Play-off Group."
++BPL,2024,1393,Championship Round,27,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"Union St. Gilloise, Pro League 2024-25: 55 regular-season points halved to 28 (rounded up) for the Championship Round."
++BPL,2024,569,Championship Round,29,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"Club Brugge KV, Pro League 2024-25: 59 regular-season points halved to 30 (rounded up) for the Championship Round."
++BPL,2024,742,Championship Round,34,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"Genk, Pro League 2024-25: 68 regular-season points halved to 34 (rounded up) for the Championship Round."
++BPL,2024,554,Championship Round,25,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"Anderlecht, Pro League 2024-25: 51 regular-season points halved to 26 (rounded up) for the Championship Round."
++BPL,2024,631,Championship Round,22,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"Gent, Pro League 2024-25: 45 regular-season points halved to 23 (rounded up) for the Championship Round."
++BPL,2024,261,Qualifying Round,18,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"KVC Westerlo, Pro League 2024-25: 37 regular-season points halved to 19 (rounded up) for the Qualifying Round."
++BPL,2024,266,Qualifying Round,19,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"KV Mechelen, Pro League 2024-25: 38 regular-season points halved to 19 (rounded up) for the Qualifying Round."
++BPL,2024,6215,Qualifying Round,16,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"Dender, Pro League 2024-25: 32 regular-season points halved to 16 (rounded up) for the Qualifying Round."
++BPL,2024,733,Qualifying Round,19,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"Standard Liege, Pro League 2024-25: 39 regular-season points halved to 20 (rounded up) for the Qualifying Round."
++BPL,2024,260,Qualifying Round,18,halving,official,https://www.proleague.be/nieuws/hoe-verlopen-de-play-offs-in-het-seizoen-2024-25,"OH Leuven, Pro League 2024-25: 37 regular-season points halved to 19 (rounded up) for the Qualifying Round."
++BPL,2025,569,"Pro League , Championship Round",31,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"Club Brugge KV, Pro League 2025-26: 63 regular-season points halved to 32 (rounded up) for the Championship Round."
++BPL,2025,1393,"Pro League , Championship Round",33,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"Union St. Gilloise, Pro League 2025-26: 66 regular-season points halved to 33 (rounded up) for the Championship Round."
++BPL,2025,735,"Pro League , Championship Round",28,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"St. Truiden, Pro League 2025-26: 57 regular-season points halved to 29 (rounded up) for the Championship Round."
++BPL,2025,554,"Pro League , Championship Round",22,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"Anderlecht, Pro League 2025-26: 44 regular-season points halved to 22 (rounded up) for the Championship Round."
++BPL,2025,266,"Pro League , Championship Round",22,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"KV Mechelen, Pro League 2025-26: 45 regular-season points halved to 23 (rounded up) for the Championship Round."
++BPL,2025,733,"Pro League , Qualifying Round",20,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"Standard Liege, Pro League 2025-26: 40 regular-season points halved to 20 (rounded up) for the Qualifying Round."
++BPL,2025,736,"Pro League , Qualifying Round",17,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"Charleroi, Pro League 2025-26: 34 regular-season points halved to 17 (rounded up) for the Qualifying Round."
++BPL,2025,261,"Pro League , Qualifying Round",19,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"KVC Westerlo, Pro League 2025-26: 39 regular-season points halved to 20 (rounded up) for the Qualifying Round."
++BPL,2025,740,"Pro League , Qualifying Round",17,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"Antwerp, Pro League 2025-26: 35 regular-season points halved to 18 (rounded up) for the Qualifying Round."
++BPL,2025,260,"Pro League , Qualifying Round",17,halving,official,https://www.proleague.be/nieuws/algemene-vergadering-huidig-competitieformat-blijft-behouden https://www.proleague.be/nieuws/union-stvv-en-club-brugge-rsc-anderlecht-op-speeldag-1-in-de-champions-play-offs,"OH Leuven, Pro League 2025-26: 34 regular-season points halved to 17 (rounded up) for the Qualifying Round."
++ED,2023,200,Eredivisie,18,deduction,official,https://www.knvb.nl/nieuws/betaald-voetbal/licentiezaken/69055/licentiecommisie-18-wedstrijdpunten-mindering-voor https://eredivisie.nl/nieuws/vitesse-krijgt-18-punten-in-mindering-en-degradeert-na-35-jaar-uit-de-eredivisie/,"Vitesse, Eredivisie 2023-24: 18 points deducted by the KNVB licensing commission (19 Apr 2024)."
++EKS,2025,343,Ekstraklasa,5,deduction,official,https://pzpn.pl/federacja/aktualnosci/2025-05-16/komunikat-komisji-odwolawczej-ds-licencji-klubowych-pzpn-w-sprawie-odwolania-lechii-gdansk,"Lechia Gdansk, Ekstraklasa 2025-26: 5 points deducted by the PZPN licensing appeals committee (16 May 2025)."
++L1,2021,84,Ligue 1,1,deduction,official,https://www.lfp.fr/Articles/DISCIPLINE/2021/09/08/commission-de-discipline-les-decisions-du-8-septembre,"OGC Nice, Ligue 1 2021-22: 2 points by the LFP disciplinary commission, 1 of them suspended, after the Nice-Marseille incidents (8 Sep 2021)."
++L1,2021,80,Ligue 1,1,deduction,official,https://www.lfp.fr/article/commission-de-discipline-les-decisions-du-8-decembre-2021,"Olympique Lyonnais, Ligue 1 2021-22: 1 point deducted by the LFP disciplinary commission after the abandoned Lyon-Marseille match (8 Dec 2021)."
++L1,2023,82,Ligue 1,1,deduction,official,https://www.lfp.fr/article/commission-de-discipline-les-decisions-du-25-octobre-2023,"Montpellier, Ligue 1 2023-24: 2 points by the LFP disciplinary commission, 1 of them suspended, after the Montpellier-Clermont firecracker (25 Oct 2023)."
++PL,2023,45,Premier League,8,deduction,official,https://www.premierleague.com/en/news/3788486 https://www.premierleague.com/en/news/3912574 https://www.premierleague.com/en/news/3960088,"Everton, Premier League 2023-24: 10 points deducted (17 Nov 2023), reduced to 6 on appeal (26 Feb 2024), then 2 more (8 Apr 2024): 8 in all."
++PL,2023,65,Premier League,4,deduction,official,https://www.premierleague.com/en/news/3936397 https://www.premierleague.com/en/news/3999776,"Nottingham Forest, Premier League 2023-24: 4 points deducted (18 Mar 2024), upheld on appeal (7 May 2024)."
++SA,2018,491,Serie A,3,deduction,official,https://www.figc.it/it/federazione/news/tfn-3-punti-di-penalizzazione-al-chievo-verona-tre-mesi-di-inibizione-a-luca-campedelli/,"Chievo, Serie A 2018-19: 3 points deducted by the FIGC national tribunal (13 Sep 2018)."
++SA,2022,496,Serie A,10,deduction,official,https://www.figc.it/it/federazione/news/caso-plusvalenze-dieci-punti-di-penalizzazione-per-la-juventus-da-scontare-nella-corrente-stagione-sportiva-nkac3p2i,"Juventus, Serie A 2022-23: 10 points deducted by the FIGC federal court of appeal (22 May 2023)."
++TSL,2022,1001,Süper Lig,3,deduction,official,https://www.tff.org/Default.aspx?pageId=200&ftxtId=39321,"Kayserispor, Super Lig 2022-23: 3 points deducted by the TFF club licensing board (23 Dec 2022)."
++TSL,2023,1001,Süper Lig,3,deduction,match_reports,https://www.aspor.com.tr/futbol/2023/11/30/tffden-7-kulube-3-puan-silme-cezasi https://beinsports.com.tr/haber/tff-kulup-lisans-kurulu-acikladi-7-kulube-puan-silme-cezasi,"Kayserispor, Super Lig 2023-24: 3 points deducted by the TFF club licensing board (30 Nov 2023)."
++TSL,2023,3578,Süper Lig,3,deduction,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=43023,"Istanbulspor, Super Lig 2023-24: 3 points deducted by the TFF disciplinary board after walking off against Trabzonspor (23 Dec 2023)."
++TSL,2024,3563,Süper Lig,12,deduction,official,https://www.tff.org/default.aspx?pageID=687&ftxtID=46718 https://www.tff.org/default.aspx?pageID=246&ftxtID=46746 https://www.tff.org/default.aspx?pageID=687&ftxtID=46876,"Adana Demirspor, Super Lig 2024-25: 3 points (TFF licensing, 5 Dec 2024), 3 (TFF disciplinary, 13 Feb 2025) and 6 (FIFA, 25 Feb 2025): 12 in all."
++WCQSA,2026,2382,WC Qualification South America,3,deduction,official,https://www.tas-cas.org/generated/assets/lists/feb900ba-1137-4b78-a9ff-d68af7869087/CAS_9175-9176.pdf,"Ecuador, World Cup 2026 South American qualifiers: 3 points deducted by the Court of Arbitration for Sport (Byron Castillo case, 8 Nov 2022)."
+diff --git a/dbt_project/tests/assert_team_season_equals_league_table.sql b/dbt_project/tests/assert_team_season_equals_league_table.sql
+index 32438653..5083d2d6 100644
+--- a/dbt_project/tests/assert_team_season_equals_league_table.sql
++++ b/dbt_project/tests/assert_team_season_equals_league_table.sql
+@@ -2,10 +2,10 @@
+   A team-season equals the provider's league table wherever the table counts the same games: every
+   table section of the team-season whose played equals our season_games_played must carry our wins,
+   draws, losses, goals and goals against, and our points must equal 3 x the table's wins plus its
+-  draws. The table's own points can be lower than that by a deduction or a halving, which is the
+-  league's adjustment, and never higher or blank. A table row with a different played count (a snapshot older than our last
+-  match, a section that counts other games) is not compared. A red row is a result to research and
+-  correct in the correction seeds, never an exception.
++  draws. The table's own points equal that less the points the league took, declared with its
++  source in seeds/standings_points_adjustments.csv. A table row with a different played count (a
++  snapshot older than our last match, a section that counts other games) is not compared. A red row
++  is a result or an adjustment to research and declare in the seeds, never an exception.
  
+   Returns one row per disagreeing table row, with both sides.
+ #}
+@@ -31,6 +31,9 @@ league_table as (
+     select
+         team_sk,
+         season_sk,
++        league_code,
++        season_api_year,
++        team_api_id,
+         group_name,
+         played,
+         wins,
+@@ -40,6 +43,10 @@ league_table as (
+         goals_conceded,
+         points
+     from {{ ref('fct_standings') }}
++),
++
++adjustments as (
++    select * from {{ ref('standings_points_adjustments') }}
+ )
  
-+{% docs duels__team_from_players %}
-+One-on-one challenges for the ball, on the ground or in the air, that this team's players contested
-+in the match, summed over its players.
-+{% enddocs %}
-+
-+
-+{% docs duels_won__team_from_players %}
-+One-on-one challenges for the ball, on the ground or in the air, that this team's players won in the
-+match, summed over its players.
-+{% enddocs %}
-+
-+
-+{% docs dribbles__team_from_players %}
-+Times this team's players tried to dribble past an opponent in the match, summed over its players.
-+{% enddocs %}
-+
-+
-+{% docs dribbles_success__team_from_players %}
-+Dribbles in which this team's players got past an opponent in the match, summed over its players.
-+{% enddocs %}
-+
-+
- {% docs shirt_number %}
- The number this player wore in this match, from the provider's per-player statistics. It is
- recorded per match rather than as a squad registration, so it can differ between matches in
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   docs/tracker/gitlab_snapshot.md | 70 ++++++++++++++---------------------------
-#    1 file changed, 23 insertions(+), 47 deletions(-)
-# ============================================================================
+ select
+@@ -60,6 +67,7 @@ select
+     t.goals_conceded as table_goals_against,
+     o.points_won,
+     3 * t.wins + t.draws as table_points_from_results,
++    a.points_taken,
+     t.points as table_points
+ from ours as o
+ inner join league_table as t
+@@ -67,6 +75,12 @@ inner join league_table as t
+         o.team_sk = t.team_sk
+         and o.season_sk = t.season_sk
+         and o.season_games_played = t.played
++left join adjustments as a
++    on
++        t.league_code = a.league_code
++        and t.season_api_year = a.season
++        and t.team_api_id = a.team_id
++        and trim(t.group_name) = trim(a.group_name)
+ where
+     o.wins is distinct from t.wins
+     or o.draws is distinct from t.draws
+@@ -74,5 +88,4 @@ where
+     or o.goals is distinct from t.goals_scored
+     or o.goals_against is distinct from t.goals_conceded
+     or o.points_won is distinct from 3 * t.wins + t.draws
+-    or t.points is null
+-    or t.points > 3 * t.wins + t.draws
++    or t.points is distinct from 3 * t.wins + t.draws - coalesce(a.points_taken, 0)
