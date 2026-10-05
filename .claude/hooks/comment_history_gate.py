@@ -3,7 +3,8 @@
 
 Denies an `Edit`, `Write` or `MultiEdit` whose written text adds, to a code file, a comment line
 carrying decision history: a calendar date, the product owner's title, the word for a review
-role, a numbered review round or a merge-request number (the exact patterns are MARKERS below).
+role, a numbered review round, an issue or merge-request number or a story phrase (the exact
+patterns are MARKERS below).
 That history has a home that survives the task without living next to
 the line — the commit message, the merge request and the issue — and `git blame` reaches all three
 from any line (dbt_project/docs/engineering_standards.md, section 1.2, has the recipe).
@@ -16,16 +17,16 @@ A marker inside a quoted span of the line is a literal (a token, a usage example
 count; a marker inside a code string literal that happens to follow whitespace does match —
 accepted, rare, and the deny names the line.
 
-The check reads only the text being written, not the whole file. So an edit that re-includes an
-existing flagged line is denied until the marker is removed — every ordinary edit helps the sweep.
+Only lines the edit ADDS are refused: a flagged line already in the text it replaces (for a
+`Write`, the file on disk) is kept, so history already in a file never blocks editing it.
 
 Markdown documents are checked too (`is_doc_path`; `.claude/task/`, `docs/tracker/` and `site/`
-are exempt), with narrower markers (`DOC_MARKERS`) and one difference: only lines the edit ADDS
-are refused, so history already in a document never blocks editing it.
+are exempt), with narrower markers (`DOC_MARKERS`).
 `tests/test_no_decision_history_in_docs.py` pins each document's count so it can only go down.
 
 `tests/test_no_decision_history_in_code.py` imports the definitions below and pins the count of
-flagged lines already in the tree, so the CI count and this deny cannot drift apart. Fails OPEN on
+flagged lines already in the tree, so the CI count and this deny cannot drift apart; that count
+only goes down. Fails OPEN on
 any unexpected error, like every hook in this directory.
 """
 
@@ -80,6 +81,17 @@ _DOCSTRING_OPEN = re.compile(r"^\s*(\"\"\"|''')")
 _ROLES = "cto|platform|analytics-engineer|bi-analyst|data-engineer|seo-expert|football-analytics-expert"
 _FOUND = ("caught|found|flagged|spotted|noticed|pointed out|showed|produced|rejected|failed|asked|"
           "insisted|objected|raised|noted|reported")
+# An ordinal ("rule #1") is no issue number; an anchor or an HTML entity follows a word or "&".
+_ISSUE_NUMBER = re.compile(r"(?<![\w&])(?<!rule )(?<!step )(?<!item )(?<!check )#\d{1,4}\b", re.IGNORECASE)
+# "X used to do" tells what code once did; "is used to", ", used to" and "had used to" say what it
+# is for. "the earlier version" of a data row is data, so only a version of a text counts.
+_STORY = re.compile(
+    r"(?:\b(?!(?:is|are|was|were|be|been|being|get|gets|got|has|have|had|only|also|just|and|or)\b)"
+    r"(?!\w+ly\b)(?!\w+'s\b)[\w']+|`)\s+used to\b"
+    r"|\ban earlier (?:version|draft|revision)\b|\bearlier drafts?\b"
+    r"|\bearlier (?:versions?|revisions?) of (?:this|it)\b"
+    r"|\bcaught (?:in|by|during) (?:a |the )?review\b",
+    re.IGNORECASE)
 MARKERS = {
     "date": re.compile(r"\b20\d\d-\d\d-\d\d\b"),
     "product owner": re.compile(r"\bCPO\b"),
@@ -90,6 +102,8 @@ MARKERS = {
         re.IGNORECASE),
     "review round": re.compile(r"\bround \d", re.IGNORECASE),
     "merge request": re.compile(r"(?<![\w!])!\d{1,4}\b"),
+    "issue number": _ISSUE_NUMBER,
+    "story": _STORY,
 }
 
 _SKIP_SEGMENTS = frozenset({"node_modules", "__pycache__", "target", ".venv"})
@@ -114,11 +128,20 @@ def is_code_path(rel: str) -> bool:
 # measured over the tree, two in three backticked markers were credits, not identifiers.
 _TRIPLE = re.compile(r"\"\"\"|'''")
 _LITERAL = re.compile(r"(?<!\w)\"[^\"\n]*\"(?!\w)|(?<!\w)'[^'\n]*'(?!\w)")
+# The hex colour in a colour-taking CSS declaration is no issue number; only that token is blanked.
+_CSS_COLOUR_DECL = re.compile(
+    r"(?:\b(?:color|background(?:-color|-image)?|border(?:-[a-z]+)*|outline(?:-color)?|fill|stroke"
+    r"|box-shadow|text-shadow|mask-image|caret-color|accent-color)|--[\w-]+)\s*:[^;:{}\n]*[;}]")
+_HEX = re.compile(r"#[0-9a-fA-F]{3,8}\b")
+
+
+def _blank_colours(line: str) -> str:
+    return _CSS_COLOUR_DECL.sub(lambda m: _HEX.sub(" ", m.group(0)), line)
 
 
 def marker_kind(line: str) -> str | None:
     """The marker kind a line carries outside its literal spans, or None."""
-    prose = _LITERAL.sub(" ", _TRIPLE.sub(" ", line))
+    prose = _LITERAL.sub(" ", _TRIPLE.sub(" ", _blank_colours(line)))
     for kind, rx in MARKERS.items():
         if rx.search(prose):
             return kind
@@ -250,7 +273,6 @@ def count_tree(root: str) -> tuple[int, int]:
 # Their markers are narrower than code's: a document's rules legitimately name a review role, the
 # product owner's title and a football round, so only history-shaped text is a marker.
 DOC_EXEMPT = (".claude/task/", "docs/tracker/", "site/")
-ISSUE_FREE_DOCS = frozenset({"CLAUDE.md"})
 DOC_MARKERS = {
     "date": MARKERS["date"],
     "reviewer credit": re.compile(
@@ -258,10 +280,14 @@ DOC_MARKERS = {
         rf"|\b(?:{_FOUND})\s+by\s+(?:a|the|one|another|every|each|both|two|three|all)?\s*"
         rf"(?:(?:{_ROLES})-reviewer|scope-auditor|reviewers?)\b",
         re.IGNORECASE),
-    "review round": re.compile(r"\breview rounds? \d", re.IGNORECASE),
+    # A numbered round on a line that also speaks of review; a football round stays prose.
+    "review round": re.compile(
+        r"^(?=.*\brounds? \d)(?=.*\b(?:review(?:ed|s)?|caught|flagged|branch|opus|(?-i:FAIL\w*))\b)",
+        re.IGNORECASE),
     "merge request": MARKERS["merge request"],
+    "issue number": _ISSUE_NUMBER,
+    "story": _STORY,
 }
-_ISSUE = re.compile(r"(?<![\w&/])#\d{1,4}\b")
 _CODE_SPAN = re.compile(r"`[^`\n]*`")
 _FENCE = re.compile(r"^\s*(```|~~~)")
 
@@ -278,12 +304,10 @@ def is_doc_path(rel: str) -> bool:
 
 def doc_marker_kind(line: str, rel: str) -> str | None:
     """The marker kind a document line carries outside its code spans and quoted spans, or None."""
-    prose = _LITERAL.sub(" ", _CODE_SPAN.sub(" ", line))
+    prose = _LITERAL.sub(" ", _CODE_SPAN.sub(" ", _blank_colours(line)))
     for kind, rx in DOC_MARKERS.items():
         if rx.search(prose):
             return kind
-    if rel.replace("\\", "/") in ISSUE_FREE_DOCS and _ISSUE.search(prose):
-        return "issue number"
     return None
 
 
@@ -304,9 +328,14 @@ def doc_flagged_lines(text: str, rel: str) -> list[tuple[int, str, str]]:
 
 
 def doc_added_hits(tool_input: dict, rel: str, on_disk: str) -> list[tuple[int, str, str]]:
+    """Flagged document lines the write ADDS."""
+    return added_hits(tool_input, on_disk, lambda text: doc_flagged_lines(text, rel))
+
+
+def added_hits(tool_input: dict, on_disk: str, flag) -> list[tuple[int, str, str]]:
     """Flagged lines the write ADDS: present in the new text, absent from the text it replaces.
 
-    Existing history in a document never blocks an edit to it; only new history does.
+    Existing history in a file never blocks an edit to it; only new history does.
     """
     pairs = []
     if isinstance(tool_input.get("content"), str):
@@ -318,8 +347,8 @@ def doc_added_hits(tool_input: dict, rel: str, on_disk: str) -> list[tuple[int, 
             pairs.append((edit.get("old_string") or "", edit["new_string"]))
     hits = []
     for before, after in pairs:
-        existing = {line for _n, _k, line in doc_flagged_lines(before, rel)}
-        hits.extend(h for h in doc_flagged_lines(after, rel) if h[2] not in existing)
+        existing = {line for _n, _k, line in flag(before)}
+        hits.extend(h for h in flag(after) if h[2] not in existing)
     return hits
 
 
@@ -339,16 +368,12 @@ def count_docs(root: str, paths: list[str]) -> dict[str, int]:
     return counts
 
 
-def _written_texts(tool_input: dict) -> list[str]:
-    texts = []
-    if isinstance(tool_input.get("new_string"), str):
-        texts.append(tool_input["new_string"])
-    if isinstance(tool_input.get("content"), str):
-        texts.append(tool_input["content"])
-    for edit in tool_input.get("edits") or []:
-        if isinstance(edit, dict) and isinstance(edit.get("new_string"), str):
-            texts.append(edit["new_string"])
-    return texts
+def _on_disk(root: str, rel: str) -> str:
+    try:
+        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return ""
 
 
 def _repo_root() -> str:
@@ -373,12 +398,7 @@ def main() -> int:
         if rel.startswith(".."):
             return 0
         if is_doc_path(rel):
-            try:
-                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
-                    on_disk = fh.read()
-            except OSError:
-                on_disk = ""
-            hits = doc_added_hits(tool_input, rel, on_disk)
+            hits = doc_added_hits(tool_input, rel, _on_disk(root, rel))
             if hits:
                 shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])
                 emit_deny(
@@ -392,9 +412,7 @@ def main() -> int:
         if not is_code_path(rel):
             return 0
         ext = os.path.splitext(rel)[1]
-        hits = []
-        for text in _written_texts(tool_input):
-            hits.extend(flagged_lines(text, ext))
+        hits = added_hits(tool_input, _on_disk(root, rel), lambda text: flagged_lines(text, ext))
         if not hits:
             return 0
         shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])

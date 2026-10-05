@@ -17,13 +17,13 @@ scope_paths:
 # (.claude/hooks/, .claude/agents/, .claude/commands/, .claude/settings.json,
 # .claude/review_routing.json, .mcp.json, .cursor/mcp.json, .github/workflows/,
 # .gitlab-ci.yml).
-# Quote the approval — his words, the date, where he said it. It is the builder's
-# word either way; what makes it his is the MR head declaring the locked file and
-# his merge (working_agreement §11, 2026-09-11). Never point at escalations.log —
-# it is frozen. A protected path ALSO requires an impact_map below (2026-07-22):
-# the override answers "may you", the map answers "do you know what breaks".
+# Name the approval — where and when; never quote his words. What makes it his is
+# the MR head declaring the locked file and his merge (working_agreement §11).
+# Never point at escalations.log — it is frozen. A protected path ALSO requires an
+# impact_map below: the override answers "may you", the map answers "do you know
+# what breaks".
 # protected_override: >
-#   <the CPO's approval, quoted, with date>
+#   <where and when the CPO approved it>
 
 # REQUIRED when scope_paths touches the STRUCTURAL SURFACE — a raw writer
 # (ingestion/**), a dbt model (dbt_project/models/**), consumption
@@ -72,7 +72,7 @@ scope_paths:
 #   - <testable statement — what must be TRUE on the built page, and how you will show it>
 
 decisions_taken: >
-  <what this contract pre-approves, quoting the CPO ruling it rests on>
+  <what this contract pre-approves, naming the CPO ruling it rests on>
 
   # THIS AND `amendments:` ARE WHAT THE REVIEWERS READ. Argue with a reviewer here —
   # never in a code comment next to the line. A comment says WHY in one line; who

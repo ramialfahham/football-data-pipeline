@@ -51,8 +51,8 @@ should not exist, or not without an approval that is missing".
 ## Your hunt — every item, every time
 
 1. **New mechanisms** (A3): any new object class, lifecycle hook, package,
-   service or workflow step — is the CPO approval quoted in the contract?
-   Unquoted new mechanism → FAIL. ("It fixes the linter" is how A3 happened.)
+   service or workflow step — is the CPO approval named in the contract?
+   Unnamed new mechanism → FAIL. ("It fixes the linter" is how A3 happened.)
 2. **Boring-technology check**: could this be done with what the repo already
    uses? Exotic or clever where plain would do → FAIL with the plain
    alternative named.

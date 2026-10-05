@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
 import comment_history_gate as gate  # noqa: E402
 
 # The pin. A sweep MR lowers these two numbers and nothing else may move them.
-PINNED_LINES = 0
-PINNED_FILES = 0
+PINNED_LINES = 783
+PINNED_FILES = 195
 
 HASH = chr(35)
 
@@ -48,11 +48,13 @@ SAMPLE_MARKERS = {
     "reviewer": "the " + "platform-" + "reviewer" + " asked for it",
     "review round": "found in " + "round " + "3",
     "merge request": "see " + "!" + "132",
+    "issue number": "see " + HASH + "4" + "2",
+    "story": "this guard " + "used" + " to read the whole file",
 }
 
 
-def run_hook(event: dict) -> str:
-    env = dict(os.environ, CLAUDE_PROJECT_DIR=REPO)
+def run_hook(event: dict, root: str = REPO) -> str:
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=root)
     proc = subprocess.run(
         [sys.executable, os.path.join(HOOKS, "comment_history_gate.py")],
         input=json.dumps(event), capture_output=True, text=True, env=env, timeout=60, check=False,
@@ -132,9 +134,8 @@ def test_block_comment_continuation_lines_are_comment_lines():
 
 
 def test_a_line_that_closes_one_block_and_opens_another_keeps_the_state():
-    """The state machine used to clear the block on any line containing a closer, so a line
-    reading `*/ .b{} /* reopens` dropped the second block and hid its continuation lines from
-    both the deny and the pin. Every opener is matched to its closer in order, on the line."""
+    """A line reading `*/ .b{} /* reopens` leaves the second block open, so its continuation lines
+    reach both the deny and the pin: every opener is matched to its closer in order, on the line."""
     slash, star = chr(47), chr(42)
     opener, closer = slash + star, star + slash
     css = "\n".join([".a { color: red; }",
@@ -212,6 +213,26 @@ def test_every_marker_kind_is_flagged_and_a_why_is_not():
         assert gate.is_history_comment(history_line(credit)) == "reviewer", credit
 
 
+def test_a_purpose_an_ordinal_a_gap_id_and_a_colour_are_not_history():
+    for why in ("the column is " + "used" + " to join the two tables",
+                "fixture ids, " + "used" + " to evaluate the rule",
+                "the probe had " + "used" + " to prove it",
+                "qualification rule " + HASH + "1, step " + HASH + "2, item " + HASH + "3 and check " + HASH + "4",
+                "the entity &" + HASH + "123; is a character",
+                "GAP-" + "03 owns this gap",
+                "the earlier " + "version" + " of the row stays in raw",
+                "background: " + HASH + "d29922; color: " + HASH + "111;",
+                "mask-image: linear-gradient(to right, transparent 0, " + HASH + "000 28px);"):
+        assert gate.is_history_comment(history_line(why)) is None, why
+    for line, kind in (("overflow-wrap (" + HASH + "370): names are long", "issue number"),
+                       ("note: see " + HASH + "415;", "issue number"),
+                       ("color: " + HASH + "111; the " + "CPO" + " ruled it", "product owner"),
+                       ("note: " + SAMPLE_MARKERS["date"] + " in " + HASH + "415;", "date")):
+        assert gate.is_history_comment(history_line(line)) == kind, line
+    for story in ("an earlier " + "draft" + " returned nothing", "caught " + "in review"):
+        assert gate.is_history_comment(history_line(story)) == "story", story
+
+
 def test_a_quoted_span_is_a_literal_and_the_rest_of_the_line_is_prose():
     dq, sq = chr(34), chr(39)
     token = dq + "CPO" + " ANSWER:" + dq
@@ -264,6 +285,22 @@ def test_hook_checks_write_content_and_multiedit_edits():
                             "edits": [{"old_string": "a", "new_string": "b"},
                                       {"old_string": "c", "new_string": history_line(SAMPLE_MARKERS["merge request"])}]}}
     assert denied(run_hook(multi))
+
+
+def test_hook_refuses_only_the_lines_an_edit_adds(tmp_path):
+    kept = history_line(SAMPLE_MARKERS["story"])
+    on_disk = "import os\n" + kept + "\n"
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "a.py").write_text(on_disk, encoding="utf-8")
+    path = str(tmp_path / "scripts" / "a.py")
+    edit = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
+            "tool_input": {"file_path": path, "old_string": kept + "\nx = 1", "new_string": kept + "\nx = 2"}}
+    assert run_hook(edit, root=str(tmp_path)).strip() == "", "a flagged line the edit keeps is not refused"
+    write = {"hook_event_name": "PreToolUse", "tool_name": "Write",
+             "tool_input": {"file_path": path, "content": on_disk}}
+    assert run_hook(write, root=str(tmp_path)).strip() == "", "rewriting the file as it is adds nothing"
+    write["tool_input"]["content"] = on_disk + history_line(SAMPLE_MARKERS["issue number"]) + "\n"
+    assert denied(run_hook(write, root=str(tmp_path)))
 
 
 def test_hook_ignores_paths_outside_the_repo_and_fails_open_on_garbage():

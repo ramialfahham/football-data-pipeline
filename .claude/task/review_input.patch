@@ -1,341 +1,739 @@
+diff --git a/.claude/agents/bi-analyst-reviewer.md b/.claude/agents/bi-analyst-reviewer.md
+index af82ac91..c147ef06 100644
+--- a/.claude/agents/bi-analyst-reviewer.md
++++ b/.claude/agents/bi-analyst-reviewer.md
+@@ -87,7 +87,7 @@ the CTO.
+ 5. **Wording/labels**: any new or changed user-visible string, metric label
+    or format — is the catalogue/i18n source quoted in the contract? New
+    wording is CPO-class (§10).
+-6. **Metric creep**: any metric ADDED to a display surface — quoted ruling,
++6. **Metric creep**: any metric ADDED to a display surface — named ruling,
+    and what was removed or why the set still holds?
+ 
+ ## Verdict rules (no free passes)
+diff --git a/.claude/agents/cto-reviewer.md b/.claude/agents/cto-reviewer.md
+index 3aea0d26..476486c8 100644
+--- a/.claude/agents/cto-reviewer.md
++++ b/.claude/agents/cto-reviewer.md
+@@ -51,8 +51,8 @@ should not exist, or not without an approval that is missing".
+ ## Your hunt — every item, every time
+ 
+ 1. **New mechanisms** (A3): any new object class, lifecycle hook, package,
+-   service or workflow step — is the CPO approval quoted in the contract?
+-   Unquoted new mechanism → FAIL. ("It fixes the linter" is how A3 happened.)
++   service or workflow step — is the CPO approval named in the contract?
++   Unnamed new mechanism → FAIL. ("It fixes the linter" is how A3 happened.)
+ 2. **Boring-technology check**: could this be done with what the repo already
+    uses? Exotic or clever where plain would do → FAIL with the plain
+    alternative named.
+diff --git a/.claude/agents/data-engineer-reviewer.md b/.claude/agents/data-engineer-reviewer.md
+index 503cdf7c..9ce6fa00 100644
+--- a/.claude/agents/data-engineer-reviewer.md
++++ b/.claude/agents/data-engineer-reviewer.md
+@@ -34,12 +34,12 @@ diff here as the next incident until proven otherwise.
+    exist yet, the finding is "fixtures task must precede this change" — that
+    sequencing is the rule working as designed.
+ 2. **Idempotency**: merge-on-write preserved? Could a re-run duplicate or
+-   truncate? Any WRITE_TRUNCATE introduced → FAIL unless the contract quotes
++   truncate? Any WRITE_TRUNCATE introduced → FAIL unless the contract names
+    CPO approval.
+ 3. **Completeness honesty**: partial results must be visible (no silent
+    gaps); errors fail loudly.
+ 4. **Cost/scope knobs**: history window, ingest profile, fanout caps, run
+-   cadence — any change is CPO-class (§10); unquoted → FAIL.
++   cadence — any change is CPO-class (§10); unnamed → FAIL.
+ 5. **Raw schema contract**: `RAW_{source}_{entity}` naming and column
+    contracts unchanged, or `docs/data_contract.md` updated in the same
+    branch.
+@@ -59,7 +59,7 @@ diff here as the next incident until proven otherwise.
+    incident — `scripts/discover_competition.py` output referenced in the
+    contract or PR). Unevidenced ID → FAIL.
+ 2. **Cost fields explicit**: `ingest_active` and `history_seasons` set
+-   explicitly; any `history_seasons` increase requires quoted CPO approval
++   explicitly; any `history_seasons` increase requires named CPO approval
+    (CLAUDE.md cost rule).
+ 3. **Sync**: `scripts/sync_dbt_vars.py` run (registry seed + vars in the same
+    diff)?
+diff --git a/.claude/agents/football-analytics-expert-reviewer.md b/.claude/agents/football-analytics-expert-reviewer.md
+index 2060e583..ae3c2e17 100644
+--- a/.claude/agents/football-analytics-expert-reviewer.md
++++ b/.claude/agents/football-analytics-expert-reviewer.md
+@@ -14,7 +14,7 @@ Your single trigger: changes to `dbt_project/seeds/metric_catalogue.csv`.
+ ## Inputs
+ 
+ 1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
+-2. `.claude/task/contract.md` (the quoted CPO approval for any new/changed row).
++2. `.claude/task/contract.md` (the named CPO approval for any new/changed row).
+ 3. `dbt_project/models/docs/metric_rules.md` (how a metric is computed and when it is blank),
+    `dbt_project/seeds/schema.yml` (what each catalogue column holds; the direction rule),
+    `dbt_project/docs/engineering_standards.md` section 2 (how a description is written),
+@@ -34,7 +34,7 @@ Your single trigger: changes to `dbt_project/seeds/metric_catalogue.csv`.
+ 4. **Direction**: does a changed `direction` follow the rule in `schema.yml`, football-correct?
+ 5. **No composites**: any score/index without a transparent formula → FAIL (A1). No fabricated
+    probabilities.
+-6. **CPO approval quoted** in the contract for every new/redefined row — the catalogue rule is
++6. **CPO approval named** in the contract for every new/redefined row — the catalogue rule is
+    absolute.
+ 
+ A defect you see in a column the diff does not change is a note for the issue that owns that
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index 4b62cfc8..5a45a249 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -83,13 +83,13 @@ pass. Do not convert an absence of findings into a finding.
+ - **You review the code diff and `contract.md`, never the review's own
+   paperwork.** The task NOTES in `.claude/task/` are excluded from the patch you
+   are handed, so the phrasing of the evidence artifacts is not yours to audit.
+-  `contract.md` IS in the patch — it carries the scope and the quoted approval a
+-  `protected_override` rests on. That quote is the builder's word; you cannot verify
++  `contract.md` IS in the patch — it carries the scope and the named approval a
++  `protected_override` rests on (where and when, never his words). That approval is
++  the builder's word; you cannot verify
+   it, and no file lets you (`escalations.log` is frozen since 2026-09-11 — a NEW
+   entry in it is a defect; a citation of an old one is checkable). What you check
+-  instead: the approval is quoted with a date, and the contract says the MR
+-  head's `Locked files` line repeats that same quote — the CPO, who merges, reads
+-  the two copies side by side. A §10 decision with no quote at all is still FAIL.
++  instead: the approval is named with its date, and the MR head's `Locked files`
++  line names the same approval. A §10 decision with no named approval is still FAIL.
+ - You can never approve a §10 decision — finding one means FAIL (if taken
+   silently) or ESCALATE (if genuinely ambiguous).
+ - Uncertain whether a written rule covers a case? The classification itself is
+diff --git a/.claude/hooks/comment_history_gate.py b/.claude/hooks/comment_history_gate.py
+index fcd201ff..d90ae70b 100644
+--- a/.claude/hooks/comment_history_gate.py
++++ b/.claude/hooks/comment_history_gate.py
+@@ -3,7 +3,8 @@
+ 
+ Denies an `Edit`, `Write` or `MultiEdit` whose written text adds, to a code file, a comment line
+ carrying decision history: a calendar date, the product owner's title, the word for a review
+-role, a numbered review round or a merge-request number (the exact patterns are MARKERS below).
++role, a numbered review round, an issue or merge-request number or a story phrase (the exact
++patterns are MARKERS below).
+ That history has a home that survives the task without living next to
+ the line — the commit message, the merge request and the issue — and `git blame` reaches all three
+ from any line (dbt_project/docs/engineering_standards.md, section 1.2, has the recipe).
+@@ -16,16 +17,16 @@ A marker inside a quoted span of the line is a literal (a token, a usage example
+ count; a marker inside a code string literal that happens to follow whitespace does match —
+ accepted, rare, and the deny names the line.
+ 
+-The check reads only the text being written, not the whole file. So an edit that re-includes an
+-existing flagged line is denied until the marker is removed — every ordinary edit helps the sweep.
++Only lines the edit ADDS are refused: a flagged line already in the text it replaces (for a
++`Write`, the file on disk) is kept, so history already in a file never blocks editing it.
+ 
+ Markdown documents are checked too (`is_doc_path`; `.claude/task/`, `docs/tracker/` and `site/`
+-are exempt), with narrower markers (`DOC_MARKERS`) and one difference: only lines the edit ADDS
+-are refused, so history already in a document never blocks editing it.
++are exempt), with narrower markers (`DOC_MARKERS`).
+ `tests/test_no_decision_history_in_docs.py` pins each document's count so it can only go down.
+ 
+ `tests/test_no_decision_history_in_code.py` imports the definitions below and pins the count of
+-flagged lines already in the tree, so the CI count and this deny cannot drift apart. Fails OPEN on
++flagged lines already in the tree, so the CI count and this deny cannot drift apart; that count
++only goes down. Fails OPEN on
+ any unexpected error, like every hook in this directory.
+ """
+ 
+@@ -80,6 +81,17 @@ _DOCSTRING_OPEN = re.compile(r"^\s*(\"\"\"|''')")
+ _ROLES = "cto|platform|analytics-engineer|bi-analyst|data-engineer|seo-expert|football-analytics-expert"
+ _FOUND = ("caught|found|flagged|spotted|noticed|pointed out|showed|produced|rejected|failed|asked|"
+           "insisted|objected|raised|noted|reported")
++# An ordinal ("rule #1") is no issue number; an anchor or an HTML entity follows a word or "&".
++_ISSUE_NUMBER = re.compile(r"(?<![\w&])(?<!rule )(?<!step )(?<!item )(?<!check )#\d{1,4}\b", re.IGNORECASE)
++# "X used to do" tells what code once did; "is used to", ", used to" and "had used to" say what it
++# is for. "the earlier version" of a data row is data, so only a version of a text counts.
++_STORY = re.compile(
++    r"(?:\b(?!(?:is|are|was|were|be|been|being|get|gets|got|has|have|had|only|also|just|and|or)\b)"
++    r"(?!\w+ly\b)(?!\w+'s\b)[\w']+|`)\s+used to\b"
++    r"|\ban earlier (?:version|draft|revision)\b|\bearlier drafts?\b"
++    r"|\bearlier (?:versions?|revisions?) of (?:this|it)\b"
++    r"|\bcaught (?:in|by|during) (?:a |the )?review\b",
++    re.IGNORECASE)
+ MARKERS = {
+     "date": re.compile(r"\b20\d\d-\d\d-\d\d\b"),
+     "product owner": re.compile(r"\bCPO\b"),
+@@ -90,6 +102,8 @@ MARKERS = {
+         re.IGNORECASE),
+     "review round": re.compile(r"\bround \d", re.IGNORECASE),
+     "merge request": re.compile(r"(?<![\w!])!\d{1,4}\b"),
++    "issue number": _ISSUE_NUMBER,
++    "story": _STORY,
+ }
+ 
+ _SKIP_SEGMENTS = frozenset({"node_modules", "__pycache__", "target", ".venv"})
+@@ -114,11 +128,20 @@ def is_code_path(rel: str) -> bool:
+ # measured over the tree, two in three backticked markers were credits, not identifiers.
+ _TRIPLE = re.compile(r"\"\"\"|'''")
+ _LITERAL = re.compile(r"(?<!\w)\"[^\"\n]*\"(?!\w)|(?<!\w)'[^'\n]*'(?!\w)")
++# The hex colour in a colour-taking CSS declaration is no issue number; only that token is blanked.
++_CSS_COLOUR_DECL = re.compile(
++    r"(?:\b(?:color|background(?:-color|-image)?|border(?:-[a-z]+)*|outline(?:-color)?|fill|stroke"
++    r"|box-shadow|text-shadow|mask-image|caret-color|accent-color)|--[\w-]+)\s*:[^;:{}\n]*[;}]")
++_HEX = re.compile(r"#[0-9a-fA-F]{3,8}\b")
++
++
++def _blank_colours(line: str) -> str:
++    return _CSS_COLOUR_DECL.sub(lambda m: _HEX.sub(" ", m.group(0)), line)
+ 
+ 
+ def marker_kind(line: str) -> str | None:
+     """The marker kind a line carries outside its literal spans, or None."""
+-    prose = _LITERAL.sub(" ", _TRIPLE.sub(" ", line))
++    prose = _LITERAL.sub(" ", _TRIPLE.sub(" ", _blank_colours(line)))
+     for kind, rx in MARKERS.items():
+         if rx.search(prose):
+             return kind
+@@ -250,7 +273,6 @@ def count_tree(root: str) -> tuple[int, int]:
+ # Their markers are narrower than code's: a document's rules legitimately name a review role, the
+ # product owner's title and a football round, so only history-shaped text is a marker.
+ DOC_EXEMPT = (".claude/task/", "docs/tracker/", "site/")
+-ISSUE_FREE_DOCS = frozenset({"CLAUDE.md"})
+ DOC_MARKERS = {
+     "date": MARKERS["date"],
+     "reviewer credit": re.compile(
+@@ -258,10 +280,14 @@ DOC_MARKERS = {
+         rf"|\b(?:{_FOUND})\s+by\s+(?:a|the|one|another|every|each|both|two|three|all)?\s*"
+         rf"(?:(?:{_ROLES})-reviewer|scope-auditor|reviewers?)\b",
+         re.IGNORECASE),
+-    "review round": re.compile(r"\breview rounds? \d", re.IGNORECASE),
++    # A numbered round on a line that also speaks of review; a football round stays prose.
++    "review round": re.compile(
++        r"^(?=.*\brounds? \d)(?=.*\b(?:review(?:ed|s)?|caught|flagged|branch|opus|(?-i:FAIL\w*))\b)",
++        re.IGNORECASE),
+     "merge request": MARKERS["merge request"],
++    "issue number": _ISSUE_NUMBER,
++    "story": _STORY,
+ }
+-_ISSUE = re.compile(r"(?<![\w&/])#\d{1,4}\b")
+ _CODE_SPAN = re.compile(r"`[^`\n]*`")
+ _FENCE = re.compile(r"^\s*(```|~~~)")
+ 
+@@ -278,12 +304,10 @@ def is_doc_path(rel: str) -> bool:
+ 
+ def doc_marker_kind(line: str, rel: str) -> str | None:
+     """The marker kind a document line carries outside its code spans and quoted spans, or None."""
+-    prose = _LITERAL.sub(" ", _CODE_SPAN.sub(" ", line))
++    prose = _LITERAL.sub(" ", _CODE_SPAN.sub(" ", _blank_colours(line)))
+     for kind, rx in DOC_MARKERS.items():
+         if rx.search(prose):
+             return kind
+-    if rel.replace("\\", "/") in ISSUE_FREE_DOCS and _ISSUE.search(prose):
+-        return "issue number"
+     return None
+ 
+ 
+@@ -304,9 +328,14 @@ def doc_flagged_lines(text: str, rel: str) -> list[tuple[int, str, str]]:
+ 
+ 
+ def doc_added_hits(tool_input: dict, rel: str, on_disk: str) -> list[tuple[int, str, str]]:
++    """Flagged document lines the write ADDS."""
++    return added_hits(tool_input, on_disk, lambda text: doc_flagged_lines(text, rel))
++
++
++def added_hits(tool_input: dict, on_disk: str, flag) -> list[tuple[int, str, str]]:
+     """Flagged lines the write ADDS: present in the new text, absent from the text it replaces.
+ 
+-    Existing history in a document never blocks an edit to it; only new history does.
++    Existing history in a file never blocks an edit to it; only new history does.
+     """
+     pairs = []
+     if isinstance(tool_input.get("content"), str):
+@@ -318,8 +347,8 @@ def doc_added_hits(tool_input: dict, rel: str, on_disk: str) -> list[tuple[int,
+             pairs.append((edit.get("old_string") or "", edit["new_string"]))
+     hits = []
+     for before, after in pairs:
+-        existing = {line for _n, _k, line in doc_flagged_lines(before, rel)}
+-        hits.extend(h for h in doc_flagged_lines(after, rel) if h[2] not in existing)
++        existing = {line for _n, _k, line in flag(before)}
++        hits.extend(h for h in flag(after) if h[2] not in existing)
+     return hits
+ 
+ 
+@@ -339,16 +368,12 @@ def count_docs(root: str, paths: list[str]) -> dict[str, int]:
+     return counts
+ 
+ 
+-def _written_texts(tool_input: dict) -> list[str]:
+-    texts = []
+-    if isinstance(tool_input.get("new_string"), str):
+-        texts.append(tool_input["new_string"])
+-    if isinstance(tool_input.get("content"), str):
+-        texts.append(tool_input["content"])
+-    for edit in tool_input.get("edits") or []:
+-        if isinstance(edit, dict) and isinstance(edit.get("new_string"), str):
+-            texts.append(edit["new_string"])
+-    return texts
++def _on_disk(root: str, rel: str) -> str:
++    try:
++        with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
++            return fh.read()
++    except OSError:
++        return ""
+ 
+ 
+ def _repo_root() -> str:
+@@ -373,12 +398,7 @@ def main() -> int:
+         if rel.startswith(".."):
+             return 0
+         if is_doc_path(rel):
+-            try:
+-                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+-                    on_disk = fh.read()
+-            except OSError:
+-                on_disk = ""
+-            hits = doc_added_hits(tool_input, rel, on_disk)
++            hits = doc_added_hits(tool_input, rel, _on_disk(root, rel))
+             if hits:
+                 shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])
+                 emit_deny(
+@@ -392,9 +412,7 @@ def main() -> int:
+         if not is_code_path(rel):
+             return 0
+         ext = os.path.splitext(rel)[1]
+-        hits = []
+-        for text in _written_texts(tool_input):
+-            hits.extend(flagged_lines(text, ext))
++        hits = added_hits(tool_input, _on_disk(root, rel), lambda text: flagged_lines(text, ext))
+         if not hits:
+             return 0
+         shown = "; ".join(f"line {n} ({kind}): `{line[:120]}`" for n, kind, line in hits[:3])
+diff --git a/.claude/hooks/task_contract_gate.py b/.claude/hooks/task_contract_gate.py
+index 45204d80..23b1a208 100644
+--- a/.claude/hooks/task_contract_gate.py
++++ b/.claude/hooks/task_contract_gate.py
+@@ -8,7 +8,7 @@ Drift is made mechanically impossible: every unit of work declares a contract
+     - any repo-file edit when no contract exists
+     - any edit outside the contract's scope_paths
+     - edits to PROTECTED paths (the guards themselves) unless the contract
+-      carries an explicit `protected_override` quoting the product owner's approval
++      carries an explicit `protected_override` naming the product owner's approval
+     - edits to the contract itself while the tree is dirty (clean-tree rule:
+       amendments are discrete events, never mixed into code changes)
+     - any edit on the STRUCTURAL SURFACE (raw writers `ingestion/**`, dbt models
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4c45107c..59d041f9 100644
+index 59d041f9..531ee512 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,101 +1,34 @@
--# Task contract — shrink docs/: delete the obsolete documents, merge two, remove every link
-+# Task contract — README states only what is true today
+@@ -1,34 +1,84 @@
+-# Task contract — README states only what is true today
++# Task contract — the comment-history gate refuses issue numbers and story phrases
  
  objective: >
--  MR 1 of the documentation cleanup the CPO approved on 2026-10-05: delete 13 obsolete documents, merge
--  the still-true provider facts of the ingestion blueprint into the data contract and the secret rules
--  of the development workflow into the README, delete both sources, and remove every link to the 15
--  removed files. The area cleanups (#199, #196, #197, #198) then work on the documents left.
-+  README.md: every line checked against the code; wrong and stale lines fixed or deleted; copies of
-+  rules another document owns replaced by a link.
+-  README.md: every line checked against the code; wrong and stale lines fixed or deleted; copies of
+-  rules another document owns replaced by a link.
++  `.claude/hooks/comment_history_gate.py` also refuses, in code comments and Markdown documents, a
++  new issue number and a new story phrase ("used to", "an earlier version", "caught in review",
++  a review "round N"). Lines already in the tree are counted by the two pin tests; the counts only
++  fall.
  
  refs: >
--  The CPO's choice of 2026-10-05, verbatim: "MR 1 (before the area MRs): delete: board_request_sync,
--  chat_driven_workflow, ci_failure_watchdog, cursor_dispatch_workflow, pr_autopilot,
--  project_status_sync, feedback_collection, match_preview_pages_refinement,
--  player_stats_ui_data_modeling_concept, playoff_window_policy, product_direction_threads,
--  competitions/wc26.md, audits/2026-06_alignment_audit.md; merge: api_football_ingestion_blueprint ->
--  data_contract (true provider facts only); development_workflow -> README (local setup); remove every
--  link to them; update CLAUDE.md's document table". Findings behind it: #196-#199.
-+  #199 (how-we-work documents), its README findings. The CPO's go, 2026-10-05: "the README MR (branch
-+  docs/readme-current): one file, every line checked against the code, nothing left stale."
+-  #199 (how-we-work documents), its README findings. The CPO's go, 2026-10-05: "the README MR (branch
+-  docs/readme-current): one file, every line checked against the code, nothing left stale."
++  #199 (how-we-work documents carry no decision history). Handover step 2.
  
  scope_paths:
--  - docs/board_request_sync.md
--  - docs/chat_driven_workflow.md
--  - docs/ci_failure_watchdog.md
--  - docs/cursor_dispatch_workflow.md
--  - docs/pr_autopilot.md
--  - docs/project_status_sync.md
--  - docs/feedback_collection.md
--  - docs/match_preview_pages_refinement.md
--  - docs/player_stats_ui_data_modeling_concept.md
--  - docs/playoff_window_policy.md
--  - docs/product_direction_threads.md
--  - docs/competitions/wc26.md
--  - docs/audits/2026-06_alignment_audit.md
--  - docs/api_football_ingestion_blueprint.md
--  - docs/development_workflow.md
--  - docs/data_contract.md
--  - docs/operations_guide.md
--  - docs/metrics_context_model.md
--  - docs/ui_design_brief.md
-   - README.md
--  - CLAUDE.md
--  - .cursor/rules/project-context.mdc
--  - dbt_project/docs/engineering_standards.md
--  - dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
--  - ingestion/api_football/loads/batch_fixtures.py
--  - ingestion/api_football/settings.py
--  - scripts/check_registry_var_sync.py
--  - design-mocks/gen_competitions.py
--  - tests/test_no_decision_history_in_docs.py
--  - tests/test_materialisation_policy.py
--  - tests/test_governance_doc_parity.py
--  - tests/test_ingest_profile_pacing.py
+-  - README.md
++  - .claude/hooks/comment_history_gate.py
++  - tests/test_no_decision_history_in_code.py
++  - tests/test_no_decision_history_in_docs.py
++  - dbt_project/docs/engineering_standards.md
++  - docs/agent_guardrails.md
++  - docs/working_agreement.md
++  - .claude/task/TEMPLATE.md
++  - .claude/task/REVIEW_TEMPLATE.md
++  - .gitlab/merge_request_templates/Default.md
++  - .claude/agents/scope-auditor.md
++  - .claude/agents/cto-reviewer.md
++  - .claude/agents/data-engineer-reviewer.md
++  - .claude/agents/football-analytics-expert-reviewer.md
++  - .claude/agents/bi-analyst-reviewer.md
++  - .claude/hooks/task_contract_gate.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--  - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
--  - .claude/task/audit_reviewer_outputs.md
    - docs/tracker/**
  
--impact_map: >
--  Documents and comments only. In ingestion/**: a docstring in loads/batch_fixtures.py (its pointer to the
--  deleted blueprint and its rate-limit sentence) and a docstring in settings.py (the same pointer); no
--  code token changes (checked with `git diff --word-diff`). No dbt model changes; one comment line in
--  dbt_project/tests/assert_fct_fixture_no_stale_ns.sql. No table, model or mart is written or read
--  differently; blast radius none. Links: `git grep` over the tree for every removed file name finds only
--  the files in scope_paths, plus .claude/task/audit_reviewer_outputs.md (paperwork, left as it is) and
--  .github/workflows/pages-match-preview.yml (protected and disabled; listed in #200).
--
++protected_override: >
++  Approved by the CPO in chat, 2026-10-05: the hook change, with the go for this MR; and an approval
++  is named (where and when), never quoted, in the five reviewer briefs and the docstring of
++  task_contract_gate.py, with the exact edits shown to him.
++
++impact_map: >
++  fires: PreToolUse on Edit|Write|MultiEdit|NotebookEdit (`.claude/settings.json`), every edit inside
++  the repo; code files under its TREES and Markdown outside `.claude/task/`, `docs/tracker/`, `site/`.
++  imported by: tests/test_no_decision_history_in_code.py and tests/test_no_decision_history_in_docs.py
++  only (`git grep comment_history_gate`); nothing else reads it.
++  stops being enforced if wrong: a pattern too narrow lets history in (the pins still count what it
++  matches); a pattern too wide refuses ordinary edits. Measured over the tree before building: every
++  issue-number hit read; known false positives excluded and pinned by tests (the hex token of a
++  colour-taking CSS declaration such as "color: #111;", "rule/step/item/check #1", an HTML entity,
++  ", used to" / "is used to" / "had used to", "the earlier version stays").
++  on failure: fails open (any exception → allow), unchanged.
++  baseline: code 784 flagged lines in 196 files (pin today 0); documents 704 lines in 46 (pin today
++  383 in 41); measured with the new markers on the branch base. The code pin is 783 in 195: this
++  branch rewords the one history line in tests/test_no_decision_history_in_code.py.
++  blast radius: agent edits only; no pipeline, model, CI or site code changes.
++  The five reviewer briefs are prompts: each FAIL condition on a missing quote becomes one on a
++  missing named approval; read at spawn time, nothing imports them. task_contract_gate.py: one
++  docstring line; no gate parses the approval's wording (`grep protected_override` in the hooks and
++  scripts/check_task_artifacts.py: only presence is checked).
++
  decisions_taken: >
--  The CPO's choice quoted in refs. Readings, under the delegation of 2026-10-02:
--  - "True provider facts only": the two-step fixture fetch, empty statistics as `[]` with up to 48 hours'
--    delay, `league.round` formats and no group field on `/fixtures`, the measured plan limits (450 a
--    minute, 75,000 a day, read from the response headers), synchronous calls and the pause setting.
--    Each is checked against the code (`batch_fixtures.py`, `http_client.py`, `quota.py`, `settings.py`).
--    The blueprint's key-path list (owned by the staging SQL), its finished refactor plan (§7-9) and its
--    false "20–50 calls a run" are not carried. The data contract's endpoint row for per-fixture data and
--    its coverage-flag paragraph are corrected to the code in the same edit, because the merged text
--    would otherwise sit next to their false versions.
--  - "Local setup" for the README: the README already holds setup and pre-commit; what moves is the
--    secret-safety rule, with the CI scan named as GitLab's `validate:secrets` (gitleaks). The workflow's
--    `dbt build` steps are not carried (CLAUDE.md forbids them).
--  - "Remove every link": a link inside a section that exists only for a removed document's subject goes
--    with its section — the operations guide's GitHub Pages match-preview and play-off-window
--    subsections, and engineering_standards.md §11 (GitHub Pages export contract). Every other link is
--    replaced by the document that now owns the fact, or removed.
--  - tests/test_no_decision_history_in_docs.py loses the rows of deleted documents (its own rule: "remove a
--    row at zero"); the two other tests drop their exemptions for removed paths.
-+  Readings, under the delegation of 2026-10-02:
-+  - Deleted as copies of their owners, with a link left: the guardrail mechanics
-+    (docs/agent_guardrails.md), the BigQuery layout and the layer contract (layering.md), the
-+    profile-location reasons (profiles.example.yml).
-+  - Deleted as stale with nothing to link: the competition list and the layer inventory, the "Data
-+    Quality" workflow (`dbt build`, `dbt snapshot`; CLAUDE.md forbids the first, no snapshot exists).
-+  - Highlights that repeat a design decision or the status line are removed.
+   Readings, under the delegation of 2026-10-02:
+-  - Deleted as copies of their owners, with a link left: the guardrail mechanics
+-    (docs/agent_guardrails.md), the BigQuery layout and the layer contract (layering.md), the
+-    profile-location reasons (profiles.example.yml).
+-  - Deleted as stale with nothing to link: the competition list and the layer inventory, the "Data
+-    Quality" workflow (`dbt build`, `dbt snapshot`; CLAUDE.md forbids the first, no snapshot exists).
+-  - Highlights that repeat a design decision or the status line are removed.
++  - Code comments, like documents, refuse only lines an edit ADDS. With hundreds of existing lines
++    counted, refusing every re-included line would block ordinary edits, and the task is to refuse
++    new history. For the markers already in force the tree holds zero lines, so nothing changes for
++    them.
++  - Issue numbers are refused in every document (today only in CLAUDE.md).
++  - In documents a "round N" is a review round only when its line also says review, caught,
++    flagged, FAIL, branch or opus: a football round stays allowed.
++  - engineering_standards.md section 1.2: the clauses that describe the gate are corrected to it
++    (the CLAUDE.md-only issue rule, the marker list).
++  - docs/working_agreement.md section 11, the locked-file row: the CPO's approved text, approved in
++    chat, 2026-10-05. Its other sentences that say "quoted" or "quoting" for an approval say
++    "named" or "naming", as do the two task templates and the MR template.
  
-   Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
+-  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
++  Threshold declarations. NEW MECHANISM: none (an existing hook gains patterns). RECURRING COST: none.
  
  decisions_reserved:
--  - Everything else the audits found in the documents that stay is #196-#200, not this MR.
-+  - None: no product, metric, naming or rule change.
+-  - None: no product, metric, naming or rule change.
++  - docs/agent_guardrails.md is a core document: its row for this hook changes only with the CPO's
++    approved text. Approved in chat, 2026-10-05: the row now in the file; engineering_standards.md
++    then points to the hook's docstring.
  
  done_when:
--  - `git grep` finds no reference to a removed file outside .claude/task/ and the protected, disabled
--    .github/workflows/pages-match-preview.yml.
--  - pytest (whole suite), ruff with .ruff-ci.toml and the offline gates pass.
-+  - Every line of README.md checked against the code; pytest, ruff and the offline gates pass.
-   - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
--
--amendments:
--  - 2026-10-05: + tests/test_ingest_profile_pacing.py — authority: "remove every link to them"; content:
--    its "Blueprint §4" comment and BLUEPRINT names.
-diff --git a/README.md b/README.md
-index edf1fef5..d5902a3d 100644
---- a/README.md
-+++ b/README.md
-@@ -8,7 +8,7 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
- [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
- [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+-  - Every line of README.md checked against the code; pytest, ruff and the offline gates pass.
+-  - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
++  - The two pin tests carry the measured baselines and pass; pytest (whole suite), ruff and the
++    offline gates pass.
++  - The review cycle passes (scope-auditor; cto-reviewer and platform-reviewer at opus;
++    analytics-engineer-reviewer), review.md bound to --staged-hash; the MR pipeline is green.
+diff --git a/.gitlab/merge_request_templates/Default.md b/.gitlab/merge_request_templates/Default.md
+index 4bd105d4..a53b99ef 100644
+--- a/.gitlab/merge_request_templates/Default.md
++++ b/.gitlab/merge_request_templates/Default.md
+@@ -8,8 +8,7 @@ Closes #
+ - [x]  — 
  
--**Status.** The pipeline runs daily behind automated data-quality and CI checks. The first fan-facing web app was a prototype and is now retired; its successor (**Matchday Pilot**) is in development with a new information architecture.
-+**Status.** The pipeline runs daily. The web app, Matchday Pilot (`site_v2/`), is in development.
+ **Locked files:** none
+-<!-- or, per locked file: `path` — approved: "<the CPO's words>" (<where>, <date>) — the same
+-     quote the contract's protected_override carries, so the two copies sit side by side. -->
++<!-- or, per locked file: `path` — approved in <where>, <date>; never quote his words. -->
  
- ## Getting started
  
-@@ -17,13 +17,13 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
- | Tool | Version | Needed for |
- |---|---|---|
- | Python | 3.11 | everything (pinned in `.python-version`) |
--| Node.js | 24 | the site (pinned in `.nvmrc` and `site_v2/package.json`) |
-+| Node.js | 24 | setup and the site (pinned in `.nvmrc` and `site_v2/package.json`) |
- | git | any recent | everything |
- | [uv](https://docs.astral.sh/uv/) | any recent | only the dbt tool inside Claude Code (`.mcp.json`) |
- | [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) | any recent | only the credentialed level below |
+ <details>
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index efa2412a..074fb014 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -77,17 +77,17 @@ which reviewers read and which the MR carries; it is the review's record, not th
  
- **Windows: clone into a short folder**, for example `C:\src\football-data-pipeline`. Some installed
--files sit 150 characters below the repo folder, and Windows refuses paths longer than 260 characters
-+files sit 150 characters below the repo folder, and Windows refuses paths over 259 characters
- unless long paths are turned on. Setup stops with this explanation if the folder is too deep. To turn
- long paths on instead (once per machine, PowerShell as administrator):
- `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`
-@@ -40,8 +40,8 @@ On Windows, if `python` is not 3.11: `py -3.11 scripts/bootstrap.py`.
+ **The same holds for documents.** A Markdown document says what and why; dates, issue and MR
+ numbers, review rounds and who found or decided what live in git. The same hook refuses a document
+-line that adds one (in `CLAUDE.md` also an issue number), and
++line that adds one, and
+ `tests/test_no_decision_history_in_docs.py` pins each document's count so it only goes down.
  
- It creates `.venv` with every `requirements*.txt`, installs the git hooks (pre-commit), the site's
- packages, the dbt packages and Playwright's Chromium, creates `.env` and `profiles.yml` from their
--examples, and names the GitLab remote `gitlab`. Every step skips itself when already done, and no
--existing local file is overwritten, so it is safe to run again.
-+examples, and names the GitLab remote `gitlab`. It is safe to run again: no existing local file is
-+overwritten.
+ Why this section exists: the rule above it was ignored. On 2026-09-11 the code held **429**
+ comment lines carrying a date, "CPO", "reviewer" or "round N" by a first grep, 850 by the hook
+ that replaced it. **The measure is the hook**, `.claude/hooks/comment_history_gate.py`: its
+ `MARKERS` define what counts (a date, "CPO", a review credit — a named role or what an unnamed
+-reviewer did — a numbered round, an MR number), its `comment_lines` defines a comment line per
++reviewer did — a numbered round, an issue or MR number, a story phrase), its `comment_lines` defines a comment line per
+ language, and `tests/test_no_decision_history_in_code.py` pins the count in both directions so it
+ moves only in the open. A marker inside a quoted span is a literal, not prose; the bare word
+-"reviewer" is the review gate's own vocabulary, not a credit. `docs/agent_guardrails.md` carries
++"reviewer" is the review gate's own vocabulary, not a credit. The hook's docstring carries
+ the full definition.
  
- ### Prove it works
+ ## 1.3) Macros
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index 9b538eda..b80dc091 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -52,7 +52,7 @@ Project-specific wording (cite this repo's docs). Travel with the repo.
+ | `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open MR; not done until the MR URL exists. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
+-| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit whose written text adds, to a code file, a comment line carrying decision history — a date, "CPO", a review credit (a named role — `platform-reviewer`, `scope-auditor` — or what an unnamed reviewer did: "a reviewer caught it", "two reviewers failed it", "found by a reviewer"; the bare word alone is the review gate's own vocabulary and is not a marker), "round N" or an MR number — and says where that belongs: the commit message, the MR and the issue, reached from any line by `git blame` (`engineering_standards.md` §1.2). A comment line is one with a marker (`#`, `--`, `//`, `/*`, `*`, `<!--`, `{#`) at its start or after whitespace, any line inside a block comment of the file's language (`/* … */`, `<!-- … -->`, `{# … #}`), and any line of a Python docstring (`ast` on a whole file; a line opening with a triple quote in an edit fragment). A quoted span on the line (`"CPO ANSWER:"`, a `'2026-05-07 17:55:00'` usage example) is a literal and is blanked before matching; an apostrophe inside a word opens no span, a triple quote is a docstring delimiter, and backticks are NOT literals — measured over the tree, two in three backticked markers were credits. Checks only the text being written, so an edit that re-includes an existing flagged line is denied until the marker goes — every ordinary edit helps the sweep. **Markdown documents** (outside `.claude/task/`, `docs/tracker/` and `site/`) are checked with narrower markers — a date, a reviewer credit, a review round, an MR number, and in `CLAUDE.md` an issue number; code spans and fenced blocks are examples, not prose — and only lines the edit ADDS are denied, so history already in a document never blocks editing it; `tests/test_no_decision_history_in_docs.py` pins each document's count so it only goes down. Unlisted code trees are never checked. Its twin in CI, `tests/test_no_decision_history_in_code.py`, imports the hook's own pattern and tree list and pins the count of flagged lines already in the tree in BOTH directions, so a sweep must lower the pin and the number never moves silently. Fails open. |
++| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit that adds decision history — a date, an issue or MR number, a review credit or round, a story phrase such as "used to" — to a code comment or a Markdown document; the hook's docstring defines each marker and what counts as a comment. `tests/test_no_decision_history_in_code.py` and `tests/test_no_decision_history_in_docs.py` pin the lines already in the tree; the counts only go down. Fails open. |
+ | `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
+ | `handover_in.py` | SessionStart | Injects the handover, GitLab issue #157, into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it. Reads it through `glab`, saves the copy to the gitignored `.claude/handover.cache.md`, injects that copy with its time when GitLab is down, and says so plainly when neither exists. Announces truncation rather than cutting in silence. Until 2026-09-23 it read `.claude/active_work.md` from the working tree, so the handover rode whichever branch was checked out. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
+ | `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
+diff --git a/docs/working_agreement.md b/docs/working_agreement.md
+index 1ad12bf5..d37c6c0a 100644
+--- a/docs/working_agreement.md
++++ b/docs/working_agreement.md
+@@ -62,7 +62,7 @@ committed with the branch so it is PR-visible:
+ - **objective + refs** — what and why, tied to the issue/gap/plan
+ - **scope_paths** — the surgical file allowlist; the contract gate
+   (`.claude/hooks/task_contract_gate.py`) DENIES any edit outside it
+-- **decisions_taken** — what the contract pre-approves, quoting the CPO ruling
++- **decisions_taken** — what the contract pre-approves, naming the CPO ruling
+ - **decisions_reserved** — known CPO-class questions (§10); each is escalated
+   blinded (§11), never decided
+ - **acceptance_criteria** — REQUIRED when the diff touches `site_v2/src/`, the
+@@ -185,7 +185,7 @@ serialized four steps; the commit gate enforces them mechanically:
+      `.claude/task/` are excluded from `review_input.patch`
+      (`review_exclude_paths`), which is generated by
+      `git_discipline.py --review-patch`, never by hand. **Two files there are NOT
+-     excluded**: `contract.md` (scope, acceptance criteria and the quoted
++     excluded**: `contract.md` (scope, acceptance criteria and the named
+      approval a `protected_override` rests on) and `escalations.log` (frozen
+      since 2026-09-11 — still in the patch so a citation of a past entry can be
+      checked; a new entry in it is a defect). The patch is CUMULATIVE from the base
+@@ -361,10 +361,10 @@ The escalation itself presents **at least two distinct, conflicting paths**. For
+ | **code** | the MR. The CPO merges it → approved. |
+ | **a rule** — how we work, what a screen shows, what a metric means | the document that owns that rule, **edited in the same MR** — never appended, so a changed mind replaces the old text |
+ | **a requirement** for work not yet built | that work's GitLab issue, edited in place |
+-| **a locked file** (a protected path) | the contract's `protected_override` quotes the approval with its date, and the MR head's `Locked files` line **repeats the same quote** — two copies, side by side, for the one reader who knows whether they are his words; the merge is the approval |
++| **a locked file** (a protected path) | the contract's `protected_override` and the MR head's `Locked files` line name the approval — where and when — and never quote it; the merge is the approval |
+ | nothing durable | not a decision. Not written anywhere. |
  
-@@ -52,8 +52,12 @@ python scripts/bootstrap.py --verify
- Runs the tests, every pre-commit check on every file, and the site build from the committed sample
- data. Preview the site with `npm run dev --prefix site_v2` (http://localhost:4321).
+-**The MR head is the CPO's check.** The commit message body carries `Closes #N` and the `Locked files:` line (with the quoted approval) — the post-commit hook opens the MR with `glab mr create --fill`, so those two lines reach the MR description on their own and sit in `git log` for good. Right after, the builder sets the description to the full `Default` MR template shape (`glab mr update <n> --description …`): the issue's checklist ticked with one link per tick, the same `Locked files:` line, everything else below a fold. **The merge is the one act the builder cannot perform, so the merge is the approval** — nothing is "recorded" until he clicks, and no quote of him exists anywhere. That asks one thing of him: read the head before merging, and refuse a long one.
++**The MR head is the CPO's check.** The commit message body carries `Closes #N` and the `Locked files:` line (naming the approval) — the post-commit hook opens the MR with `glab mr create --fill`, so those two lines reach the MR description on their own and sit in `git log` for good. Right after, the builder sets the description to the full `Default` MR template shape (`glab mr update <n> --description …`): the issue's checklist ticked with one link per tick, the same `Locked files:` line, everything else below a fold. **The merge is the one act the builder cannot perform, so the merge is the approval** — nothing is "recorded" until he clicks, and no quote of him exists anywhere. That asks one thing of him: read the head before merging, and refuse a long one.
  
--Every commit then runs the pre-commit checks, pushes the branch to `gitlab` and opens a merge
--request (`.githooks/post-commit`).
-+Every commit then runs the pre-commit checks (ruff with CI's rules in `.ruff-ci.toml`, file hygiene,
-+the secret scan), pushes the branch to `gitlab` and opens a merge request if it has none (`.githooks/post-commit`).
-+CI's `lint:python` job runs the same checks on every file. SQL lint runs in CI's data jobs, not in
-+pre-commit; without credentials, lint a model from the repo root with
-+`python -m sqlfluff lint <model file> --templater jinja` (models that call `dbt_utils` report false
-+errors).
+ `.claude/task/escalations.log` is **frozen** as of 2026-09-11 — history only, no new entries. It was written by the party it authorised, in the branch it authorised; 3 of 4 review rounds on `!173` went to misattributed quotes in it, and the CPO's own words on it: *"you write down even irrelevant content, some tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them which again lets you drift."* A citation of a past entry stays valid; a new entry is a defect.
  
- ### With credentials (dbt against BigQuery, ingestion)
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 511f0606..ade6e2d7 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
  
-@@ -74,141 +78,39 @@ flowchart LR
-     A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
-     B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
-     E --> F[intermediate<br/>metrics + form] --> G[marts]
--    G -->|JSON export| H[web app<br/>prototype]
-+    G -->|JSON export| H[Matchday Pilot<br/>site_v2]
- ```
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 0
+-PINNED_FILES = 0
++PINNED_LINES = 783
++PINNED_FILES = 195
  
- ## Highlights
+ HASH = chr(35)
  
--- **Zero-file league onboarding** — a new competition is a single registry entry; a CI-enforced contract prevents any SQL or Python change.
--- **Automated data-quality tests** gate every build.
--- **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
-+- **Cost-controlled** — one nightly build at 04:00 UTC and an hourly data-age check; each competition's
-+  ingest switch and history depth are set explicitly in the [registry](docs/competition_registry.yml).
- - **Multilingual** (DE / EN / FI), multi-competition by design.
--- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, validation, data build and security scanning on every merge request; the nightly build runs from Cloud Scheduler. The repository is developed on [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only mirror of `main`.
--- **v2 web app** with new information architecture and richer insights in active development.
-+- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, tests, governance checks and a secret scan on every
-+  merge request, and a dbt build against BigQuery when it changes the dbt project, ingestion or the
-+  registry; the nightly build runs from Cloud Scheduler. The repository is developed on
-+  [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only
-+  mirror of `main`.
+@@ -48,11 +48,13 @@ SAMPLE_MARKERS = {
+     "reviewer": "the " + "platform-" + "reviewer" + " asked for it",
+     "review round": "found in " + "round " + "3",
+     "merge request": "see " + "!" + "132",
++    "issue number": "see " + HASH + "4" + "2",
++    "story": "this guard " + "used" + " to read the whole file",
+ }
  
- ## Design decisions
  
- This is a personal project, and its central constraint is scaling across many competitions without the maintenance cost growing with each one. A few decisions follow from that:
+-def run_hook(event: dict) -> str:
+-    env = dict(os.environ, CLAUDE_PROJECT_DIR=REPO)
++def run_hook(event: dict, root: str = REPO) -> str:
++    env = dict(os.environ, CLAUDE_PROJECT_DIR=root)
+     proc = subprocess.run(
+         [sys.executable, os.path.join(HOOKS, "comment_history_gate.py")],
+         input=json.dumps(event), capture_output=True, text=True, env=env, timeout=60, check=False,
+@@ -132,9 +134,8 @@ def test_block_comment_continuation_lines_are_comment_lines():
  
--- **One set of raw tables, discriminated by `league_code`.** Rather than per-competition tables (which multiply the model count with every league), all competitions share unified raw tables keyed by a `league_code` column that flows through every layer. Adding a competition is a single [registry entry](docs/competition_registry.yml) — no new SQL or Python — and a [CI check](scripts/check_layer_contract.py) fails the build if anyone reintroduces per-competition models.
-+- **One set of raw tables, discriminated by `league_code`.** Rather than per-competition tables (which multiply the model count with every league), all competitions share unified raw tables carrying a `league_code` column that flows through every layer. Adding a competition is a [registry entry](docs/competition_registry.yml) plus the two files `scripts/sync_dbt_vars.py` generates from it — no new SQL or Python — and a [CI check](scripts/check_layer_contract.py) fails on a per-competition staging directory.
  
- - **A strict layer contract.** Each medallion layer has one job (staging = cleanup, core = system of record, marts = consumption), enforced so the boundaries don't erode: a bug has an obvious layer to live in, a new requirement an obvious home. See [layering.md](dbt_project/docs/layering.md).
+ def test_a_line_that_closes_one_block_and_opens_another_keeps_the_state():
+-    """The state machine used to clear the block on any line containing a closer, so a line
+-    reading `*/ .b{} /* reopens` dropped the second block and hid its continuation lines from
+-    both the deny and the pin. Every opener is matched to its closer in order, on the line."""
++    """A line reading `*/ .b{} /* reopens` leaves the second block open, so its continuation lines
++    reach both the deny and the pin: every opener is matched to its closer in order, on the line."""
+     slash, star = chr(47), chr(42)
+     opener, closer = slash + star, star + slash
+     css = "\n".join([".a { color: red; }",
+@@ -212,6 +213,26 @@ def test_every_marker_kind_is_flagged_and_a_why_is_not():
+         assert gate.is_history_comment(history_line(credit)) == "reviewer", credit
  
--- **Data quality is a build gate, not a review step.** The numbers are shown directly to fans, who can't verify them — so correctness is enforced by automated tests on every build (keys, referential integrity, grain). A model that breaks its contract fails the pipeline rather than shipping a wrong number. See [engineering_standards.md](dbt_project/docs/engineering_standards.md).
-+- **Data quality is a build gate, not a review step.** The numbers are shown directly to fans, who can't verify them — so correctness is enforced by automated tests on every build (keys, referential integrity, grain). A failing error-level test stops every model built on it, so a wrong number does not reach a mart. See [engineering_standards.md](dbt_project/docs/engineering_standards.md).
  
--- **Metrics are defined once.** Every metric lives in a machine-readable catalogue and is consumed from there, never re-derived inside a mart — so the same metric stays consistent everywhere, and the definitions stay tool-readable (a foundation for a future semantic layer).
-+- **Metrics are defined once.** Each metric's meaning and formula is one row of the [metric catalogue](dbt_project/seeds/metric_catalogue.csv); the SQL for most of them is generated from those rows, and a test fails when the two differ. See [metric_layer.md](docs/metric_layer.md).
++def test_a_purpose_an_ordinal_a_gap_id_and_a_colour_are_not_history():
++    for why in ("the column is " + "used" + " to join the two tables",
++                "fixture ids, " + "used" + " to evaluate the rule",
++                "the probe had " + "used" + " to prove it",
++                "qualification rule " + HASH + "1, step " + HASH + "2, item " + HASH + "3 and check " + HASH + "4",
++                "the entity &" + HASH + "123; is a character",
++                "GAP-" + "03 owns this gap",
++                "the earlier " + "version" + " of the row stays in raw",
++                "background: " + HASH + "d29922; color: " + HASH + "111;",
++                "mask-image: linear-gradient(to right, transparent 0, " + HASH + "000 28px);"):
++        assert gate.is_history_comment(history_line(why)) is None, why
++    for line, kind in (("overflow-wrap (" + HASH + "370): names are long", "issue number"),
++                       ("note: see " + HASH + "415;", "issue number"),
++                       ("color: " + HASH + "111; the " + "CPO" + " ruled it", "product owner"),
++                       ("note: " + SAMPLE_MARKERS["date"] + " in " + HASH + "415;", "date")):
++        assert gate.is_history_comment(history_line(line)) == kind, line
++    for story in ("an earlier " + "draft" + " returned nothing", "caught " + "in review"):
++        assert gate.is_history_comment(history_line(story)) == "story", story
++
++
+ def test_a_quoted_span_is_a_literal_and_the_rest_of_the_line_is_prose():
+     dq, sq = chr(34), chr(39)
+     token = dq + "CPO" + " ANSWER:" + dq
+@@ -266,6 +287,22 @@ def test_hook_checks_write_content_and_multiedit_edits():
+     assert denied(run_hook(multi))
  
- - **Identity is modelled separately from affiliation.** Players and teams change clubs and seasons, so the stable entity is kept distinct from its affiliations over time, and facts reference the entity. It costs a join and buys correct answers to historical questions.
  
- ## Development guardrails (AI-assisted)
++def test_hook_refuses_only_the_lines_an_edit_adds(tmp_path):
++    kept = history_line(SAMPLE_MARKERS["story"])
++    on_disk = "import os\n" + kept + "\n"
++    (tmp_path / "scripts").mkdir()
++    (tmp_path / "scripts" / "a.py").write_text(on_disk, encoding="utf-8")
++    path = str(tmp_path / "scripts" / "a.py")
++    edit = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
++            "tool_input": {"file_path": path, "old_string": kept + "\nx = 1", "new_string": kept + "\nx = 2"}}
++    assert run_hook(edit, root=str(tmp_path)).strip() == "", "a flagged line the edit keeps is not refused"
++    write = {"hook_event_name": "PreToolUse", "tool_name": "Write",
++             "tool_input": {"file_path": path, "content": on_disk}}
++    assert run_hook(write, root=str(tmp_path)).strip() == "", "rewriting the file as it is adds nothing"
++    write["tool_input"]["content"] = on_disk + history_line(SAMPLE_MARKERS["issue number"]) + "\n"
++    assert denied(run_hook(write, root=str(tmp_path)))
++
++
+ def test_hook_ignores_paths_outside_the_repo_and_fails_open_on_garbage():
+     outside = {"hook_event_name": "PreToolUse", "tool_name": "Edit",
+                "tool_input": {"file_path": os.path.join(os.path.dirname(REPO), "elsewhere", "a.py"),
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index 549b20a2..5cdf5ba8 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -2,7 +2,7 @@
  
--This project is built largely with an AI coding agent, under a guardrail system that treats agent changes like an untrusted contributor rather than trusting them by default.
--
--- **Contract-gated edits.** Before touching models, ingestion, or the guards themselves, the agent writes a task contract declaring its scope and an end-to-end blast-radius map. A pre-commit hook denies any edit outside that declared scope.
--- **Blinded adversarial review.** Each change is judged by role-specific reviewer agents — scope, analytics engineering, platform, football domain — spawned cold with no builder context and defaulting to reject.
--- **A review bound to its diff.** The commit is refused unless a review file carries the SHA-256 of the exact staged diff, and CI recomputes the same hash from the branch, so an approval cannot drift from the code it approved.
--- **Fail-open hooks, fail-closed CI.** A hook bug can never wedge the workflow, while a CI backstop enforces the same rules at the pull-request boundary.
--
--The design, and its honest trade-offs, are in [docs/agent_guardrails.md](docs/agent_guardrails.md) and [docs/working_agreement.md](docs/working_agreement.md).
--
--## BigQuery layout (datasets)
--
--BigQuery uses **datasets** as the unit that other databases often call **schemas**. This repo uses **one dataset per medallion layer** in the same GCP project:
--
--| Dataset | Role |
--|---------|------|
--| **`raw`** | 1:1 loads from Python (`RAW_*` tables). Default; override with `API_FOOTBALL_BIGQUERY_DATASET` (ingestion) and dbt **`raw_schema`** var (must match). |
--| **`staging`** | dbt `1_staging` — light cleanup on top of `raw`. |
--| **`base`** → **`marts`** | dbt `2_base` … `5_marts` per `dbt_project.yml`. |
--
--dbt uses [`macros/generate_schema_name.sql`](dbt_project/macros/generate_schema_name.sql) so layer names map **directly** to dataset ids (not `dbt_scratch_staging`). The profile’s default **`dataset`** (`dbt_scratch` in `profiles.example.yml`) is only a fallback for nodes without `+schema`.
--
--Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_project/docs/layering.md).
--
--**Competition scope:** active competitions are **BL1** (German Bundesliga), **WC** (FIFA World Cup 2026), and the six confederation qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC). The competition registry lives in `docs/competition_registry.yml`; adding a new competition requires only a YAML entry and a set of staging models — no changes to the ingestion package.
--
--**Layer population (current state):**
--
--| Layer | Status | What is there |
--|-------|--------|---------------|
--| `1_staging` | populated | 27 models — 13 `stg_apif__bl1_*` (Bundesliga) + 14 `stg_apif__wc_*` (World Cup + qualifiers). |
--| `2_base` | populated | 12 models — `base_apif__bl1_*` and `base_apif__wc_*` (UNION ALL + dedup). |
--| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 5 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`). |
--| `4_intermediate` | 6 models | `int_pipeline__raw_ingestion_spread` (ingestion-spread audit); `int_team_season__standings_primary` (deduped standings for marts); `int_matchday__fixture_denormalized`, `int_matchday__finished_fixture_team_leg`, `int_matchday__upcoming_round_fixtures`, `int_matchday__team_form_metrics` (matchday spine + form). |
--| `5_marts` | populated | Matchday/team-season insights (`mart_matchday_insights` all domestic leagues, `mart_matchday_insights_wc`, `mart_matchday_insights_bl1_relegation`, `mart_team_season_insights`), plus `mart_team_season`, rankings/scorers, debug. Slice by `league_code` at export/UI. |
--
--## dbt (local setup)
--
--The dbt project lives in `dbt_project/`. [Getting started](#getting-started) sets it up: `.venv` at
--the root, and the profile as **`profiles.yml` in the repo root** (gitignored), copied from
--`dbt_project/profiles.example.yml`.
--
--- Not `~/.dbt/profiles.yml`: that file is one per machine and shared by every dbt project on it, so
--  another project can overwrite it. dbt reads the working directory before `~/.dbt`.
--- `--project-dir` does not move the profile lookup: run dbt from the repo root, not from inside
--  `dbt_project/`.
--
--### Pre-commit hooks (local quality gate)
--
--`.pre-commit-config.yaml` runs ruff (Python lint, CI's ruleset in `.ruff-ci.toml`), basic file
--hygiene checks and the secret scan, on every `git commit`; a failing hook blocks the commit. CI's
--`lint:python` job runs the same hooks on every file, so a commit that passes locally passes there.
--SQL lint needs BigQuery credentials, so it runs in CI's data jobs, not here. To run every hook on
--every file:
--
--```powershell
--.\.venv\Scripts\python -m pre_commit run --all-files
--```
--
--Run dbt from the repo root with **`.venv`** activated:
--
--```powershell
--dbt --version
--dbt deps --project-dir .\dbt_project
--dbt debug --project-dir .\dbt_project
--dbt parse --project-dir .\dbt_project
--```
--
--## Data Quality (tests)
--
--Recommended local workflow:
--
--```powershell
--# Staging-only checks (fast, catches raw load issues early)
--dbt build --project-dir .\dbt_project --selector staging
--
--# Snapshot history tables first (standings), then all downstream (core + intermediate)
--dbt snapshot --project-dir .\dbt_project
--dbt build   --project-dir .\dbt_project --selector downstream
--
--# Full suite (staging + downstream + tests)
--dbt build --project-dir .\dbt_project
--
--# Selector "base" and "marts" are defined but currently match no models.
--# dbt build --project-dir .\dbt_project --selector base
--# dbt build --project-dir .\dbt_project --selector marts
--
--# Optional: point dbt at a non-default raw dataset (must match ingestion target)
--# dbt build --project-dir .\dbt_project --vars "{ raw_schema: raw_dev }"
--```
--
--For expectations by layer (grain, `not_null`, `unique`, avoiding duplicate tests downstream), see [engineering_standards.md §3 (Testing policy)](dbt_project/docs/engineering_standards.md).
--
--## dbt Layer Contract
--
--This project follows a strict layer contract so transformations stay predictable and testable.
--
--- `1_staging`: raw cleanup only (renaming, typing, light normalization). No cross-source unions/joins (details in [layering.md §1_staging](dbt_project/docs/layering.md#1_staging)).
--- `2_base`: preparation for **core**—entity resolution, shared identifiers, and first logical standardization across sources (unions/alignment where the same real-world entity appears in more than one staging place). Structural tests on grains and keys you define here—not the authoritative dimension/fact system of record (that is `3_core`).
--- `3_core`: reusable business entities and clean relationship logic.
--- `4_intermediate`: heavier transformations and feature engineering.
--- `5_marts`: app/BI-ready outputs for consumption.
--
--Further reading:
--
--- Detailed layering rules: [dbt_project/docs/layering.md](dbt_project/docs/layering.md)
--- Engineering standards: [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md)
--- API-Football data contract: [docs/data_contract.md](docs/data_contract.md)
-+This project is built largely with an AI coding agent, under guardrails that treat its changes like an
-+untrusted contributor's: [docs/agent_guardrails.md](docs/agent_guardrails.md) and
-+[docs/working_agreement.md](docs/working_agreement.md).
+ Half one is the edit-time hook `.claude/hooks/comment_history_gate.py`: for a Markdown document it
+ refuses an `Edit`, `Write` or `MultiEdit` that ADDS a line carrying history (a date, a reviewer
+-credit, a review round, an MR number; and in CLAUDE.md an issue number). Half two is the pin below:
++credit, a review round, an issue or MR number, a story phrase). Half two is the pin below:
+ each document's count of such lines, which may only move down, in the open.
  
- ## Secrets
+ Everything imports the hook's definitions, so the CI count and the edit-time refusal cannot drift
+@@ -24,47 +24,52 @@ import comment_history_gate as gate  # noqa: E402
  
-@@ -220,4 +122,5 @@ the provider first, then replace the value with a placeholder and commit.
- ## Maintenance & operations
+ # The pin: flagged lines per document. A cleanup lowers a number or removes a row; nothing adds one.
+ PINNED = {
+-    ".claude/agents/analytics-engineer-reviewer.md": 2,
+-    ".claude/agents/bi-analyst-reviewer.md": 5,
+-    ".claude/agents/cto-reviewer.md": 8,
+-    ".claude/agents/data-engineer-reviewer.md": 3,
+-    ".claude/agents/football-analytics-expert-reviewer.md": 2,
+-    ".claude/agents/platform-reviewer.md": 2,
+-    ".claude/agents/scope-auditor.md": 5,
+-    ".claude/agents/seo-expert-reviewer.md": 2,
+-    ".claude/skills/onboard-competition/SKILL.md": 2,
+-    ".github/workflows/README.md": 6,
++    ".claude/agents/analytics-engineer-reviewer.md": 4,
++    ".claude/agents/bi-analyst-reviewer.md": 9,
++    ".claude/agents/cto-reviewer.md": 12,
++    ".claude/agents/data-engineer-reviewer.md": 5,
++    ".claude/agents/football-analytics-expert-reviewer.md": 3,
++    ".claude/agents/platform-reviewer.md": 4,
++    ".claude/agents/scope-auditor.md": 8,
++    ".claude/agents/seo-expert-reviewer.md": 4,
++    ".claude/commands/status.md": 1,
++    ".claude/skills/onboard-competition/SKILL.md": 10,
++    ".claude/skills/validate-local/SKILL.md": 1,
++    ".claude/skills/verify-competition-ingest/SKILL.md": 5,
++    ".github/workflows/README.md": 7,
+     "AGENTS.md": 1,
+-    "dbt_project/docs/engineering_standards.md": 4,
+-    "dbt_project/docs/layering.md": 9,
+-    "deploy/nightly/README.md": 1,
+-    "design-mocks/README.md": 6,
+-    "docs/agent_guardrails.md": 15,
+-    "docs/content_architecture.md": 8,
+-    "docs/data_contract.md": 12,
+-    "docs/metrics_context_model.md": 8,
+-    "docs/north_star.md": 7,
+-    "docs/operations_guide.md": 1,
++    "dbt_project/docs/engineering_standards.md": 5,
++    "dbt_project/docs/layering.md": 13,
++    "deploy/nightly/README.md": 10,
++    "design-mocks/README.md": 22,
++    "docs/agent_guardrails.md": 19,
++    "docs/content_architecture.md": 29,
++    "docs/data_contract.md": 19,
++    "docs/metrics_context_model.md": 20,
++    "docs/north_star.md": 9,
++    "docs/operations_guide.md": 2,
+     "docs/roles/cto.md": 1,
+     "docs/roles/data_engineer.md": 1,
+     "docs/roles/platform_reliability.md": 2,
+-    "docs/roles/seo_expert.md": 1,
+-    "docs/site_architecture.md": 21,
+-    "docs/ui_design_brief.md": 7,
+-    "docs/wireframes/00_overview.md": 7,
+-    "docs/wireframes/01_fixture_page.md": 4,
+-    "docs/wireframes/02_team_profile.md": 1,
+-    "docs/wireframes/03_player_profile.md": 1,
+-    "docs/wireframes/08_browse.md": 6,
+-    "docs/wireframes/10_home.md": 115,
+-    "docs/wireframes/11_team_squad.md": 6,
+-    "docs/wireframes/12_player_stats.md": 2,
+-    "docs/wireframes/14_team_stats.md": 3,
+-    "docs/wireframes/99_gaps_register.md": 28,
+-    "docs/wireframes/block_standard.md": 6,
+-    "docs/wireframes/metrics_display.md": 34,
+-    "docs/working_agreement.md": 16,
+-    "site_v2/src/data/README.md": 12,
++    "docs/roles/seo_expert.md": 3,
++    "docs/site_architecture.md": 44,
++    "docs/ui_design_brief.md": 9,
++    "docs/wireframes/00_overview.md": 21,
++    "docs/wireframes/01_fixture_page.md": 6,
++    "docs/wireframes/02_team_profile.md": 2,
++    "docs/wireframes/03_player_profile.md": 4,
++    "docs/wireframes/08_browse.md": 27,
++    "docs/wireframes/09_chrome.md": 4,
++    "docs/wireframes/10_home.md": 141,
++    "docs/wireframes/11_team_squad.md": 12,
++    "docs/wireframes/12_player_stats.md": 14,
++    "docs/wireframes/13_player_career.md": 11,
++    "docs/wireframes/14_team_stats.md": 9,
++    "docs/wireframes/99_gaps_register.md": 30,
++    "docs/wireframes/block_standard.md": 51,
++    "docs/wireframes/metrics_display.md": 50,
++    "docs/working_agreement.md": 21,
++    "site_v2/src/data/README.md": 19,
+ }
  
- - **Runbook and troubleshooting** (environment variables, ingest lock, completeness checks, backfill vs daily update): [`docs/operations_guide.md`](docs/operations_guide.md).
--- **Cursor / AI governance:** three focused rule files in [`.cursor/rules/`](.cursor/rules/) — [`agent-behavior.mdc`](.cursor/rules/agent-behavior.mdc) and [`project-context.mdc`](.cursor/rules/project-context.mdc) always apply; [`dbt.mdc`](.cursor/rules/dbt.mdc) and [`ingestion.mdc`](.cursor/rules/ingestion.mdc) load only when the agent is editing files in the matching directory. Rules encode evergreen intent and point at the authoritative docs rather than duplicating them.
-+- **API-Football data contract:** [`docs/data_contract.md`](docs/data_contract.md).
-+- **Cursor rules:** [`.cursor/rules/`](.cursor/rules/).
+ DATE = "-".join(["20" + "31", "01", "02"])
+@@ -174,11 +179,30 @@ def test_hook_refuses_a_reviewer_credit_and_an_mr_number():
+                             "new_string": mr}))
+ 
+ 
+-def test_issue_numbers_are_refused_in_claude_md_only():
++def test_issue_numbers_are_refused_in_every_document():
+     line = f"See {ISSUE} for the plan."
+-    assert denied(run_hook({"file_path": doc("CLAUDE.md"), "old_string": "x", "new_string": line}))
+-    assert run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
+-                     "new_string": line}).strip() == ""
++    for rel in ("CLAUDE.md", "docs/site_architecture.md"):
++        assert denied(run_hook({"file_path": doc(rel), "old_string": "x", "new_string": line})), rel
++    assert denied(run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
++                            "new_string": f"Moved here: on {DATE}, see {ISSUE}; nothing else."})), \
++        "a colon and a semicolon around a marker are no colour declaration"
++    for fine in ("Qualification rule " + "#" + "1, step " + "#" + "2, item " + "#" + "3, check " + "#" + "4.",
++                 "See [the rule](layering.md" + "#" + "1_staging).", "The entity &" + "#" + "123; is a character.",
++                 "The ring is drawn in color: " + "#" + "111;", "GAP-" + "03 owns it."):
++        assert run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
++                         "new_string": fine}).strip() == "", fine
++
++
++def test_story_phrases_and_review_rounds_are_refused_and_their_lookalikes_are_not():
++    for story in ("This rule " + "used" + " to say the opposite.", "An earlier " + "version" + " of this table was wrong.",
++                  "Caught " + "in review.", "It failed in round " + "3 of the review."):
++        assert denied(run_hook({"file_path": doc("docs/north_star.md"), "old_string": "x",
++                                "new_string": story})), story
++    for fine in ("The key is " + "used" + " to join the tables.", "The probe had " + "used" + " to prove it.",
++                 "The earlier " + "version" + " of the row stays in raw.",
++                 "Round " + "3 of the group stage is played on one day."):
++        assert run_hook({"file_path": doc("docs/north_star.md"), "old_string": "x",
++                         "new_string": fine}).strip() == "", fine
+ 
+ 
+ def test_write_compares_against_the_file_on_disk(tmp_path):
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -349,6 +747,9 @@ index edf1fef5..d5902a3d 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   docs/tracker/gitlab_snapshot.md | 603 ++++++++++++++++++++++++++++------------
-#    1 file changed, 421 insertions(+), 182 deletions(-)
+#   .claude/task/REVIEW_TEMPLATE.md |   2 +-
+#    .claude/task/TEMPLATE.md        |  14 +-
+#    .claude/task/review.md          |  35 +-
+#    .claude/task/review_input.patch | 871 ++++++++++++++++++++++++----------------
+#    4 files changed, 572 insertions(+), 350 deletions(-)
 # ============================================================================

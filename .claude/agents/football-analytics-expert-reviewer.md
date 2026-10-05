@@ -14,7 +14,7 @@ Your single trigger: changes to `dbt_project/seeds/metric_catalogue.csv`.
 ## Inputs
 
 1. `.claude/task/review_input.patch` (cumulative branch diff vs main).
-2. `.claude/task/contract.md` (the quoted CPO approval for any new/changed row).
+2. `.claude/task/contract.md` (the named CPO approval for any new/changed row).
 3. `dbt_project/models/docs/metric_rules.md` (how a metric is computed and when it is blank),
    `dbt_project/seeds/schema.yml` (what each catalogue column holds; the direction rule),
    `dbt_project/docs/engineering_standards.md` section 2 (how a description is written),
@@ -34,7 +34,7 @@ Your single trigger: changes to `dbt_project/seeds/metric_catalogue.csv`.
 4. **Direction**: does a changed `direction` follow the rule in `schema.yml`, football-correct?
 5. **No composites**: any score/index without a transparent formula → FAIL (A1). No fabricated
    probabilities.
-6. **CPO approval quoted** in the contract for every new/redefined row — the catalogue rule is
+6. **CPO approval named** in the contract for every new/redefined row — the catalogue rule is
    absolute.
 
 A defect you see in a column the diff does not change is a note for the issue that owns that

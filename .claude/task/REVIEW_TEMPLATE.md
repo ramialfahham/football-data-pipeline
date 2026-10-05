@@ -36,5 +36,5 @@ risks_checked:
 (none)
 <!-- or, per escalated question:
 - question: <the blinded question as put to the CPO>
-  CPO ANSWER: <the CPO's recorded answer, verbatim or referenced>
+  CPO ANSWER: <where and when the CPO answered; never his words>
 -->
