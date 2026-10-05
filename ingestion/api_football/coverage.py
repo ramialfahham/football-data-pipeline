@@ -56,8 +56,7 @@ from .settings import GCP_PROJECT_ID, DATASET_ID, raw_table
 # response is treated as permanent (stats are not coming from the API).
 STATS_GRACE_DAYS = 7
 
-# Measured on RAW: player stats blank for a whole match fall from 44.8% of fetches under one day
-# after kickoff to 7.7% at two to three days and 0.0% from three days.
+# The provider completes a match's player stats within three days of kickoff.
 SECOND_FETCH_DELAY = timedelta(days=3)
 
 # The four fanout endpoints bundled in each RAW_APIF_FIXTURE_DETAILS payload.
