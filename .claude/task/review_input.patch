@@ -994,7 +994,7 @@ index b6979f70..00000000
 -
 -If you later want true zero-touch execution, add an executor integration that can start coding agents directly from GitHub workflow events.
 diff --git a/docs/data_contract.md b/docs/data_contract.md
-index 343e0faa..150b9a28 100644
+index 343e0faa..cfa9a102 100644
 --- a/docs/data_contract.md
 +++ b/docs/data_contract.md
 @@ -226,7 +226,14 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
@@ -1019,6 +1019,15 @@ index 343e0faa..150b9a28 100644
  
 -`/leagues` exposes `coverage` flags per season. When a flag says the API does not provide a resource for that season (standings, per-fixture events, etc.), ingestion skips the corresponding calls instead of spending quota on guaranteed-empty responses. See the beginner's guide for envelope and flag behaviour.
 +`/leagues` exposes `coverage` flags per season. They are hints, not gates: a flag can be false for the reference season while earlier seasons have the data, so ingestion fetches regardless (a standings call against a false flag is noted in the run's errors). Their one effect is that an idle competition is not switched to full mode for an endpoint its flag marks unsupported; finished fixtures' statistics count either way.
+ 
+ ---
+ 
+@@ -280,7 +287,7 @@ Mapping from a typical API-Football subscription list to what this repository in
+ 
+ Published-style **national-team squad market value** estimates (whole EUR) are not provided by API-Football. They are loaded from the dbt seed `wc_team_market_value_snapshot` (columns: `team_sk`, `as_of_date`, `market_value_eur`, `source_code`, `prompt_version`), typically updated twice monthly after external research. `team_sk` is the API-Football national team id (same as `dim_team.team_sk` for `league_code = 'WC'`).
+ 
+-Downstream: `fct_team_market_value_snapshot` → `int_team__market_value_latest` → `mart_team_market_value` (metric `market_value_eur`). Fixture-level export columns on `mart_matchday_insights_wc` are joined in a separate change. Automated ingest (e.g. LLM-assisted) may replace the seed later; raw table naming will follow `RAW_{source}_{entity}` when added.
++Downstream: `fct_team_market_value_snapshot` → `int_team__market_value_latest` → `mart_team_market_value` (metric `market_value_eur`). Automated ingest (e.g. LLM-assisted) may replace the seed later; raw table naming will follow `RAW_{source}_{entity}` when added.
  
  ---
  
@@ -2218,3 +2227,20 @@ index 90da25ab..549b20a2 100644
      "docs/roles/cto.md": 1,
      "docs/roles/data_engineer.md": 1,
      "docs/roles/platform_reliability.md": 2,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          |   32 +-
+#    .claude/task/review_input.patch | 2295 ++++++++++++++++++++++++++++++++++++---
+#    2 files changed, 2193 insertions(+), 134 deletions(-)
+# ============================================================================
