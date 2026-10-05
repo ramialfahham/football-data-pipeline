@@ -1,2232 +1,341 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4b89a6c0..4c45107c 100644
+index 4c45107c..59d041f9 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,23 +1,53 @@
--# Task contract — the five wrong or duplicated lines the #186 change left in docs and comments
-+# Task contract — shrink docs/: delete the obsolete documents, merge two, remove every link
+@@ -1,101 +1,34 @@
+-# Task contract — shrink docs/: delete the obsolete documents, merge two, remove every link
++# Task contract — README states only what is true today
  
  objective: >
--  Step 1 of the cleanup the CPO approved on 2026-10-05: correct what the #186 change (player stats
--  fetched a second time) wrote wrongly. Two false sentences in docs/data_contract.md, the second-fetch
--  rule written out again in docs/operations_guide.md, measured figures in a coverage.py comment, and the
--  stale table name in the orchestrator comment next to the line #186 changed.
-+  MR 1 of the documentation cleanup the CPO approved on 2026-10-05: delete 13 obsolete documents, merge
-+  the still-true provider facts of the ingestion blueprint into the data contract and the secret rules
-+  of the development workflow into the README, delete both sources, and remove every link to the 15
-+  removed files. The area cleanups (#199, #196, #197, #198) then work on the documents left.
+-  MR 1 of the documentation cleanup the CPO approved on 2026-10-05: delete 13 obsolete documents, merge
+-  the still-true provider facts of the ingestion blueprint into the data contract and the secret rules
+-  of the development workflow into the README, delete both sources, and remove every link to the 15
+-  removed files. The area cleanups (#199, #196, #197, #198) then work on the documents left.
++  README.md: every line checked against the code; wrong and stale lines fixed or deleted; copies of
++  rules another document owns replaced by a link.
  
  refs: >
--  #186 (closed); the cleanup plan approved 2026-10-05, step 1: "MR: fix my 6 errors from #186
--  (data_contract.md x2, operations_guide.md, coverage.py, orchestrator.py:209, #186 How step 1)".
--  The sixth (#186 How step 1) was an issue edit, already made. #196 holds the rest of the ingestion
--  findings.
-+  The CPO's choice of 2026-10-05, verbatim: "MR 1 (before the area MRs): delete: board_request_sync,
-+  chat_driven_workflow, ci_failure_watchdog, cursor_dispatch_workflow, pr_autopilot,
-+  project_status_sync, feedback_collection, match_preview_pages_refinement,
-+  player_stats_ui_data_modeling_concept, playoff_window_policy, product_direction_threads,
-+  competitions/wc26.md, audits/2026-06_alignment_audit.md; merge: api_football_ingestion_blueprint ->
-+  data_contract (true provider facts only); development_workflow -> README (local setup); remove every
-+  link to them; update CLAUDE.md's document table". Findings behind it: #196-#199.
+-  The CPO's choice of 2026-10-05, verbatim: "MR 1 (before the area MRs): delete: board_request_sync,
+-  chat_driven_workflow, ci_failure_watchdog, cursor_dispatch_workflow, pr_autopilot,
+-  project_status_sync, feedback_collection, match_preview_pages_refinement,
+-  player_stats_ui_data_modeling_concept, playoff_window_policy, product_direction_threads,
+-  competitions/wc26.md, audits/2026-06_alignment_audit.md; merge: api_football_ingestion_blueprint ->
+-  data_contract (true provider facts only); development_workflow -> README (local setup); remove every
+-  link to them; update CLAUDE.md's document table". Findings behind it: #196-#199.
++  #199 (how-we-work documents), its README findings. The CPO's go, 2026-10-05: "the README MR (branch
++  docs/readme-current): one file, every line checked against the code, nothing left stale."
  
  scope_paths:
-+  - docs/board_request_sync.md
-+  - docs/chat_driven_workflow.md
-+  - docs/ci_failure_watchdog.md
-+  - docs/cursor_dispatch_workflow.md
-+  - docs/pr_autopilot.md
-+  - docs/project_status_sync.md
-+  - docs/feedback_collection.md
-+  - docs/match_preview_pages_refinement.md
-+  - docs/player_stats_ui_data_modeling_concept.md
-+  - docs/playoff_window_policy.md
-+  - docs/product_direction_threads.md
-+  - docs/competitions/wc26.md
-+  - docs/audits/2026-06_alignment_audit.md
-+  - docs/api_football_ingestion_blueprint.md
-+  - docs/development_workflow.md
-   - docs/data_contract.md
-   - docs/operations_guide.md
--  - ingestion/api_football/coverage.py
--  - ingestion/api_football/orchestrator.py
-+  - docs/metrics_context_model.md
-+  - docs/ui_design_brief.md
-+  - README.md
-+  - CLAUDE.md
-+  - .cursor/rules/project-context.mdc
-+  - dbt_project/docs/engineering_standards.md
-+  - dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
-   - ingestion/api_football/loads/batch_fixtures.py
-+  - ingestion/api_football/settings.py
-+  - scripts/check_registry_var_sync.py
-+  - design-mocks/gen_competitions.py
-+  - tests/test_no_decision_history_in_docs.py
-+  - tests/test_materialisation_policy.py
-+  - tests/test_governance_doc_parity.py
-+  - tests/test_ingest_profile_pacing.py
+-  - docs/board_request_sync.md
+-  - docs/chat_driven_workflow.md
+-  - docs/ci_failure_watchdog.md
+-  - docs/cursor_dispatch_workflow.md
+-  - docs/pr_autopilot.md
+-  - docs/project_status_sync.md
+-  - docs/feedback_collection.md
+-  - docs/match_preview_pages_refinement.md
+-  - docs/player_stats_ui_data_modeling_concept.md
+-  - docs/playoff_window_policy.md
+-  - docs/product_direction_threads.md
+-  - docs/competitions/wc26.md
+-  - docs/audits/2026-06_alignment_audit.md
+-  - docs/api_football_ingestion_blueprint.md
+-  - docs/development_workflow.md
+-  - docs/data_contract.md
+-  - docs/operations_guide.md
+-  - docs/metrics_context_model.md
+-  - docs/ui_design_brief.md
+   - README.md
+-  - CLAUDE.md
+-  - .cursor/rules/project-context.mdc
+-  - dbt_project/docs/engineering_standards.md
+-  - dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
+-  - ingestion/api_football/loads/batch_fixtures.py
+-  - ingestion/api_football/settings.py
+-  - scripts/check_registry_var_sync.py
+-  - design-mocks/gen_competitions.py
+-  - tests/test_no_decision_history_in_docs.py
+-  - tests/test_materialisation_policy.py
+-  - tests/test_governance_doc_parity.py
+-  - tests/test_ingest_profile_pacing.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -27,35 +57,45 @@ scope_paths:
+-  - .claude/task/acceptance_evidence.md
+-  - .claude/task/rendered_page_evidence.md
+-  - .claude/task/audit_reviewer_outputs.md
    - docs/tracker/**
  
- impact_map: >
--  Comment-only change in ingestion/**: one comment line in coverage.py above SECOND_FETCH_DELAY and one in
--  orchestrator.py above the Phase 2 call; no code token changes (`git diff --word-diff` shows only `#`
--  lines). No table, model or mart is written or read differently; no dbt file changes; blast radius none.
-+  Documents and comments only. In ingestion/**: a docstring in loads/batch_fixtures.py (its pointer to the
-+  deleted blueprint and its rate-limit sentence) and a docstring in settings.py (the same pointer); no
-+  code token changes (checked with `git diff --word-diff`). No dbt model changes; one comment line in
-+  dbt_project/tests/assert_fct_fixture_no_stale_ns.sql. No table, model or mart is written or read
-+  differently; blast radius none. Links: `git grep` over the tree for every removed file name finds only
-+  the files in scope_paths, plus .claude/task/audit_reviewer_outputs.md (paperwork, left as it is) and
-+  .github/workflows/pages-match-preview.yml (protected and disabled; listed in #200).
- 
+-impact_map: >
+-  Documents and comments only. In ingestion/**: a docstring in loads/batch_fixtures.py (its pointer to the
+-  deleted blueprint and its rate-limit sentence) and a docstring in settings.py (the same pointer); no
+-  code token changes (checked with `git diff --word-diff`). No dbt model changes; one comment line in
+-  dbt_project/tests/assert_fct_fixture_no_stale_ns.sql. No table, model or mart is written or read
+-  differently; blast radius none. Links: `git grep` over the tree for every removed file name finds only
+-  the files in scope_paths, plus .claude/task/audit_reviewer_outputs.md (paperwork, left as it is) and
+-  .github/workflows/pages-match-preview.yml (protected and disabled; listed in #200).
+-
  decisions_taken: >
--  The approved step 1, quoted in refs. Corrections, each checked against the code:
--  - data_contract.md "fixture_id is not a uniqueness key": `read_coverage` is not "the one coverage read per
--    run" — the orchestrator reads it before Phase 2 and completeness reads it again after (orchestrator.py,
--    completeness.py); the clause goes.
--  - data_contract.md "Second fetch": player stats are not covered only from the moment the second fetch is
--    due until it is made (`second_fetch_due`), not from the first fetch.
--  - operations_guide.md: the rule is owned by data_contract.md "Fixture details"; the guide keeps the
--    coverage exception as a link, without restating the timing.
--  - coverage.py: the measured percentages belong in #186; the comment keeps the reason in one line.
--  - orchestrator.py: the details table is the unified RAW_APIF_FIXTURE_DETAILS (batch_fixtures writes
--    `raw_table("FIXTURE_DETAILS")`).
-+  The CPO's choice quoted in refs. Readings, under the delegation of 2026-10-02:
-+  - "True provider facts only": the two-step fixture fetch, empty statistics as `[]` with up to 48 hours'
-+    delay, `league.round` formats and no group field on `/fixtures`, the measured plan limits (450 a
-+    minute, 75,000 a day, read from the response headers), synchronous calls and the pause setting.
-+    Each is checked against the code (`batch_fixtures.py`, `http_client.py`, `quota.py`, `settings.py`).
-+    The blueprint's key-path list (owned by the staging SQL), its finished refactor plan (§7-9) and its
-+    false "20–50 calls a run" are not carried. The data contract's endpoint row for per-fixture data and
-+    its coverage-flag paragraph are corrected to the code in the same edit, because the merged text
-+    would otherwise sit next to their false versions.
-+  - "Local setup" for the README: the README already holds setup and pre-commit; what moves is the
-+    secret-safety rule, with the CI scan named as GitLab's `validate:secrets` (gitleaks). The workflow's
-+    `dbt build` steps are not carried (CLAUDE.md forbids them).
-+  - "Remove every link": a link inside a section that exists only for a removed document's subject goes
-+    with its section — the operations guide's GitHub Pages match-preview and play-off-window
-+    subsections, and engineering_standards.md §11 (GitHub Pages export contract). Every other link is
-+    replaced by the document that now owns the fact, or removed.
-+  - tests/test_no_decision_history_in_docs.py loses the rows of deleted documents (its own rule: "remove a
-+    row at zero"); the two other tests drop their exemptions for removed paths.
+-  The CPO's choice quoted in refs. Readings, under the delegation of 2026-10-02:
+-  - "True provider facts only": the two-step fixture fetch, empty statistics as `[]` with up to 48 hours'
+-    delay, `league.round` formats and no group field on `/fixtures`, the measured plan limits (450 a
+-    minute, 75,000 a day, read from the response headers), synchronous calls and the pause setting.
+-    Each is checked against the code (`batch_fixtures.py`, `http_client.py`, `quota.py`, `settings.py`).
+-    The blueprint's key-path list (owned by the staging SQL), its finished refactor plan (§7-9) and its
+-    false "20–50 calls a run" are not carried. The data contract's endpoint row for per-fixture data and
+-    its coverage-flag paragraph are corrected to the code in the same edit, because the merged text
+-    would otherwise sit next to their false versions.
+-  - "Local setup" for the README: the README already holds setup and pre-commit; what moves is the
+-    secret-safety rule, with the CI scan named as GitLab's `validate:secrets` (gitleaks). The workflow's
+-    `dbt build` steps are not carried (CLAUDE.md forbids them).
+-  - "Remove every link": a link inside a section that exists only for a removed document's subject goes
+-    with its section — the operations guide's GitHub Pages match-preview and play-off-window
+-    subsections, and engineering_standards.md §11 (GitHub Pages export contract). Every other link is
+-    replaced by the document that now owns the fact, or removed.
+-  - tests/test_no_decision_history_in_docs.py loses the rows of deleted documents (its own rule: "remove a
+-    row at zero"); the two other tests drop their exemptions for removed paths.
++  Readings, under the delegation of 2026-10-02:
++  - Deleted as copies of their owners, with a link left: the guardrail mechanics
++    (docs/agent_guardrails.md), the BigQuery layout and the layer contract (layering.md), the
++    profile-location reasons (profiles.example.yml).
++  - Deleted as stale with nothing to link: the competition list and the layer inventory, the "Data
++    Quality" workflow (`dbt build`, `dbt snapshot`; CLAUDE.md forbids the first, no snapshot exists).
++  - Highlights that repeat a design decision or the status line are removed.
  
    Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
  
  decisions_reserved:
--  - none: every correction restores agreement with the code; the wider ingestion findings are #196.
-+  - Everything else the audits found in the documents that stay is #196-#200, not this MR.
+-  - Everything else the audits found in the documents that stay is #196-#200, not this MR.
++  - None: no product, metric, naming or rule change.
  
  done_when:
--  - pytest tests/test_coverage.py tests/test_batch_fixtures.py, ruff with .ruff-ci.toml and the offline
--    gates pass; tests/test_no_decision_history_in_docs.py passes.
-+  - `git grep` finds no reference to a removed file outside .claude/task/ and the protected, disabled
-+    .github/workflows/pages-match-preview.yml.
-+  - pytest (whole suite), ruff with .ruff-ci.toml and the offline gates pass.
+-  - `git grep` finds no reference to a removed file outside .claude/task/ and the protected, disabled
+-    .github/workflows/pages-match-preview.yml.
+-  - pytest (whole suite), ruff with .ruff-ci.toml and the offline gates pass.
++  - Every line of README.md checked against the code; pytest, ruff and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
- 
- amendments:
--  - 2026-10-05: + ingestion/api_football/loads/batch_fixtures.py — authority: the approved step 1 (the
--    #186 change's own wrong lines); content: the module docstring and the step's docstring call
--    `read_coverage` "the run's single" read, the same false claim as data_contract.md; both docstrings
--    lines only, no code token.
-+  - 2026-10-05: + tests/test_ingest_profile_pacing.py — authority: "remove every link to them"; content:
-+    its "Blueprint §4" comment and BLUEPRINT names.
-diff --git a/.cursor/rules/project-context.mdc b/.cursor/rules/project-context.mdc
-index 020020f4..c365affa 100644
---- a/.cursor/rules/project-context.mdc
-+++ b/.cursor/rules/project-context.mdc
-@@ -18,6 +18,6 @@ alwaysApply: true
- - Agent behaviour rules: [docs/working_agreement.md](../../docs/working_agreement.md) — these Cursor rules mirror that document; if they conflict, the working agreement wins.
- - Data contract (raw landing, merge model, endpoint map, completeness semantics): [docs/data_contract.md](../../docs/data_contract.md).
- - Operations (env vars, ingest lock, runbooks, IAM): [docs/operations_guide.md](../../docs/operations_guide.md).
--- Development workflow (local validation, secret safety): [docs/development_workflow.md](../../docs/development_workflow.md).
-+- Local setup and secret safety: [README.md](../../README.md) ("Getting started", "Secrets").
- - dbt layering rules, dim/fact qualification: [dbt_project/docs/layering.md](../../dbt_project/docs/layering.md).
- - dbt engineering standards (naming, testing policy, performance, promotion): [dbt_project/docs/engineering_standards.md](../../dbt_project/docs/engineering_standards.md).
-diff --git a/CLAUDE.md b/CLAUDE.md
-index c4c92e8b..03c27d0a 100644
---- a/CLAUDE.md
-+++ b/CLAUDE.md
-@@ -60,7 +60,7 @@ pointers; when it disagrees with a row above, it loses and gets corrected.
- | Metric layer — where each thing about a metric lives: its meaning, its rules, its cleaning, its windows | [docs/metric_layer.md](docs/metric_layer.md) |
- | Engineering standards (naming, testing policy) | [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md) |
- | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
--| Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
-+| Local setup and secrets | [README.md](README.md) ("Getting started", "Secrets"); local validation: the `validate-local` skill |
- | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
- | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
- | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
+-
+-amendments:
+-  - 2026-10-05: + tests/test_ingest_profile_pacing.py — authority: "remove every link to them"; content:
+-    its "Blueprint §4" comment and BLUEPRINT names.
 diff --git a/README.md b/README.md
-index 08a90bb4..edf1fef5 100644
+index edf1fef5..d5902a3d 100644
 --- a/README.md
 +++ b/README.md
-@@ -209,7 +209,13 @@ Further reading:
- - Detailed layering rules: [dbt_project/docs/layering.md](dbt_project/docs/layering.md)
- - Engineering standards: [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md)
- - API-Football data contract: [docs/data_contract.md](docs/data_contract.md)
--- Development workflow: [docs/development_workflow.md](docs/development_workflow.md)
-+
-+## Secrets
-+
-+The repository is public. Never commit `.env`, API keys or tokens, service-account JSON files or
-+`dbt_project/.user.yml`. The pre-commit secret scan blocks the obvious ones before a commit, and CI's
-+`validate:secrets` job runs gitleaks on every pipeline. If a secret was ever committed: revoke it at
-+the provider first, then replace the value with a placeholder and commit.
+@@ -8,7 +8,7 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
+ [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
+ [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
  
- ## Maintenance & operations
+-**Status.** The pipeline runs daily behind automated data-quality and CI checks. The first fan-facing web app was a prototype and is now retired; its successor (**Matchday Pilot**) is in development with a new information architecture.
++**Status.** The pipeline runs daily. The web app, Matchday Pilot (`site_v2/`), is in development.
  
-diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
-index d8e2d76f..efa2412a 100644
---- a/dbt_project/docs/engineering_standards.md
-+++ b/dbt_project/docs/engineering_standards.md
-@@ -407,12 +407,3 @@ Before release to prod:
- - Never commit API keys, service account files, or secret env values.
- - Use environment variables for external API authentication.
- - Keep service roles least-privileged where possible.
--
--## 11) GitHub Pages export contract
--
--- **Source of league list:** `vars.active_competition_league_codes` in `dbt_project.yml`, domestic subset only (exclude `WC` and `WCQ*`).
--- **Warehouse:** One `mart_matchday_insights` for all domestic leagues (`league_code` on every row); `mart_matchday_insights_bl1_relegation` only for BL1 play-offs; `mart_matchday_insights_wc` for WC fixture previews; one `mart_team_season_insights` table for all leagues. Do not add per-league filter views or codegen copies in `5_marts`.
--- **Play-off windows:** Exclude play-off `round_name` values from the unified mart via dbt vars (`bl1_relegation_round_names`, `bl2_playoff_round_names`, `l1_relegation_round_names`). BL1 relegation legs use the dedicated mart + export fallback; BL2 promotion legs appear on the BL1 relegation path only. Policy and CPO checklist: [`docs/playoff_window_policy.md`](../../docs/playoff_window_policy.md).
--- **Exporter:** `scripts/export_pages_data.py` queries unified marts with `WHERE league_code = @code`, writes `artifacts/data/{league_lower}/…`, and `artifacts/pages_export_manifest.json`. BL1 matchday falls back to the relegation mart when the domestic slice is empty. Each domestic entry includes `matchday_row_count`, `team_season_row_count`, and `matchday_source_mart` (warehouse table name used for matchday JSON).
--- **UI routing vs labeling:** Landing phase is derived from manifest row counts (`matchday_row_count > 0` → fixture-list; else recap). `matchday_source_mart` drives relegation copy only (e.g. suffix when the source mart name contains `relegation`). Never hardcode per-league phase overrides in the UI for play-offs.
--- **Site layout:** `_site/data/{league}/` plus manifest at `_site/pages_export_manifest.json`; `match-preview/matchday_insights.json` is optional BL1 compat copy until the UI reads the manifest.
-diff --git a/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql b/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
-index de100b1f..198936e5 100644
---- a/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
-+++ b/dbt_project/tests/assert_fct_fixture_no_stale_ns.sql
-@@ -3,7 +3,7 @@
- -- Fail if any fixture still shows NS long after scheduled kickoff, beyond the ingest SLA.
- --
- -- Uses a longer wall-clock window than live API freshness: this project typically runs
---- once-daily ingest (see docs/match_preview_pages_refinement.md / operations guide).
-+-- once-daily ingest (see deploy/nightly/README.md).
- -- A 3h threshold fails CI whenever the warehouse has not refreshed since kickoff—even
- -- when the pipeline is behaving on its daily cadence. ~30h allows one schedule cycle
- -- plus slack; persistent NS past that indicates a missed ingest or stuck raw payload.
-diff --git a/design-mocks/gen_competitions.py b/design-mocks/gen_competitions.py
-index f73a53ab..c257c36d 100644
---- a/design-mocks/gen_competitions.py
-+++ b/design-mocks/gen_competitions.py
-@@ -573,8 +573,7 @@ def _types_table():
-     members = {}
-     for c in REGISTRY_ALL:
-         members.setdefault(c["competition_type"], []).append(c)
--    # the five types with no registry competition take their example from the doc that defined
--    # the taxonomy — docs/product_direction_threads.md — never from memory
-+    # the five types with no registry competition have no example in the data, so they carry one
-     DOC_EXAMPLE = {
-         "domestic_super_cup": "DFL-Supercup \u00b7 FA Community Shield",
-         "club_qualifying": "Champions League qualifying rounds",
-diff --git a/docs/api_football_ingestion_blueprint.md b/docs/api_football_ingestion_blueprint.md
-deleted file mode 100644
-index d393a938..00000000
---- a/docs/api_football_ingestion_blueprint.md
-+++ /dev/null
-@@ -1,215 +0,0 @@
--# API-Football v3 Ingestion Blueprint
--
--Source: Condensed from the official API-Football v3 documentation (130 pages).
--Purpose: Authoritative reference for the ingestion layer. All design decisions
--in `ingestion/api_football/` must be consistent with this document.
--
-----
--
--## 1. Two-Step Ingestion Pattern
--
--The API documentation describes a canonical two-step flow for fixture data:
--
--```
--Step 1 — Schedule (one call per competition per season)
--  GET /fixtures?league={id}&season={YYYY}
--  → Returns metadata only: fixture IDs, kickoff times, venue, status, round
--  → No pagination — all fixtures returned in one response
--  → Call once daily to detect new fixtures and status changes
--
--Step 2 — Batch sub-data (one call per 20 finished fixtures)
--  GET /fixtures?ids=ID1-ID2-...-ID20
--  → Returns full embedded sub-data for up to 20 fixture IDs in one call
--  → Embedded data: events, lineups, statistics, players, predictions (all inline)
--  → Structurally identical to calling each sub-endpoint individually
--  → Replaces: /fixtures/lineups, /fixtures/events, /fixtures/statistics,
--               /fixtures/players, /predictions
--```
--
--This means: **5 separate sub-endpoint calls per fixture → 1 batch call per 20 fixtures** (100× reduction).
--
-----
--
--## 2. Batch Response JSON Structure
--
--The `/fixtures?ids=...` response embeds all sub-data inline. Key paths:
--
--```
--response[i]
--  .fixture.id                      # int — fixture ID
--  .fixture.date                    # ISO 8601 string — kickoff UTC
--  .fixture.status.short            # str — e.g. "FT", "NS", "1H"
--  .fixture.status.elapsed          # int | null — minutes played
--  .league.id                       # int — API-Football league ID
--  .league.name                     # str
--  .league.season                   # int — season year (YYYY)
--  .league.round                    # str — e.g. "Regular Season - 5",
--                                   #        "Group Stage - 1", "Quarter-Finals"
--  .teams.home.id / .away.id        # int
--  .teams.home.name / .away.name    # str
--  .goals.home / .goals.away        # int | null
--  .score.halftime.home / .away     # int | null
--  .score.fulltime.home / .away     # int | null
--  .score.extratime.home / .away    # int | null
--  .score.penalty.home / .away      # int | null
--  .events[j]                       # array — match events (goals, cards, subs)
--    .time.elapsed                  # int
--    .team.id                       # int
--    .player.id / .player.name      # int / str
--    .assist.id / .assist.name      # int | null / str | null
--    .type                          # str — "Goal", "Card", "subst", etc.
--    .detail                        # str — "Normal Goal", "Yellow Card", etc.
--  .lineups[j]                      # array — one entry per team
--    .team.id                       # int
--    .formation                     # str — e.g. "4-3-3"
--    .startXI[k].player.id          # int
--    .startXI[k].player.name        # str
--    .startXI[k].player.number      # int
--    .startXI[k].player.pos         # str — "G", "D", "M", "F"
--    .substitutes[k].player.id      # int
--  .statistics[j]                   # array — one entry per team; [] if unavailable
--    .team.id                       # int
--    .statistics[k].type            # str — e.g. "Shots on Goal"
--    .statistics[k].value           # int | str | null
--  .players[j]                      # array — one entry per team
--    .team.id                       # int
--    .players[k].player.id          # int
--    .players[k].player.name        # str
--    .players[k].statistics[0]      # object — per-player stats (shots, passes, etc.)
--```
--
--**No `group` field exists in the `/fixtures` response.** Group assignment for
--knockout/group-stage competitions requires the `/standings` endpoint separately.
--
-----
--
--## 3. Missing Statistics Behaviour
--
--- Statistics are returned as `response[i].statistics = []` (empty array) when unavailable.
--- They are **never** `null` or absent from the response structure.
--- Non-livescore leagues have a documented **up to 48-hour delay** before statistics
--  are available after a match ends.
--- Design implication: a fixture with status `FT` and empty statistics is not
--  permanently uncovered — retry within a **3-day sliding window** from kickoff.
--  After 3 days, treat as permanently uncovered (statistics not coming).
--
-----
--
--## 4. Rate Limits and Burst Management
--
--| Plan                     | Daily quota | Per-minute burst |
--|--------------------------|-------------|------------------|
--| Free                     | 100         | 10/min           |
--| Starter                  | 7,500       | 30/min           |
--| Pro                      | 75,000      | 300/min          |
--| **Ultra (our plan)**     | **75,000**  | **450/min**      |
--
--Our own row is measured, not quoted from pricing copy: the provider returns
--`x-ratelimit-limit: 450` and `x-ratelimit-requests-limit: 75000` on every response. Read them from
--any response header rather than re-deriving them. Before #897 this table had no row for the plan we
--are actually on, and the pacing rule below was written against Pro's 300/min.
--
--**Implementation rules (non-negotiable):**
--
--- Use `time.sleep(0.25)` between calls: 4 calls/sec caps the rate at 240/min, i.e. 53% of our
--  measured 450/min ceiling. Set by `API_FOOTBALL_REQUEST_PAUSE_MS`, which defaults to 250 under the
--  `full` profile (`settings.py`) so no workflow can inherit zero pacing by omission.
--- **Synchronous HTTP only** — async/threading triggers a permanent IP ban per the ToS.
--- The daily quota is not the binding constraint on our plan; per-minute burst is.
--- With the two-step batch pattern, a full daily run over all competitions is
--  approximately 20–50 API calls total — well within any plan tier.
--
-----
--
--## 5. Coverage Flag Lifecycle
--
--Coverage flags (returned by `/leagues`) declare which endpoints a competition
--supports (e.g., `fixtures.lineups`, `fixtures.statistics`).
--
--- Flags are **dynamic**: they may be `false` before a season starts and flip to
--  `true` once the first match data is available.
--- Flags are not 100% reliable — a flag may be `false` for the reference season
--  while data exists for prior seasons.
--- **Design implication**: treat coverage flags as a recommendation, not a hard
--  constraint. Always attempt a statistics fetch for finished fixtures within the
--  3-day window regardless of the flag value.
--
-----
--
--## 6. Round and Group Stage Fields
--
--- **`league.round`** is always present at `response[i].league.round` as a string.
--- Format examples:
--  - Domestic leagues: `"Regular Season - 5"`
--  - World Cup group stage: `"Group Stage - 1"`, `"Group Stage - 2"`, `"Group Stage - 3"`
--  - Knockout rounds: `"Round of 16"`, `"Quarter-Finals"`, `"Semi-Finals"`, `"Final"`
--  - Qualifiers: `"Qualifying Round - 1"`, etc.
--- **There is no `group` field** in the `/fixtures` response. To determine which
--  group a team belongs to (e.g., Group A, Group B), use the `/standings` endpoint.
--
-----
--
--## 7. Implications for the Raw Layer
--
--The batch pattern collapses all sub-endpoint raw tables into one:
--
--| Current (5 tables per competition) | Target (1 table per competition) |
--|------------------------------------|----------------------------------|
--| `RAW_APIF_{LC}_LINEUPS`           | `RAW_APIF_{LC}_FIXTURES`        |
--| `RAW_APIF_{LC}_FIXTURE_EVENTS`    |                                  |
--| `RAW_APIF_{LC}_FIXTURE_STATISTICS`|                                  |
--| `RAW_APIF_{LC}_FIXTURE_PLAYERS`   |                                  |
--| `RAW_APIF_{LC}_PREDICTIONS`       |                                  |
--
--Each row in `RAW_APIF_{LC}_FIXTURES` is the full batch response for one run's
--set of fixtures — the same structure as `/fixtures?ids=...` returns directly.
--
-----
--
--## 8. Implications for the Ingestion Layer
--
--Files affected by the refactor:
--
--| File | Action |
--|------|--------|
--| `ingestion/api_football/loads/fanout.py` | Replace with simple batch loop |
--| `ingestion/api_football/fixture_scheduling.py` | Delete (budget management not needed) |
--| `ingestion/api_football/coverage.py` | Simplify or delete |
--| `scripts/populate_coverage_table.py` | Delete (coverage table eliminated) |
--
--The new ingestion loop for finished fixtures:
--
--```python
--# Pseudocode — the canonical ingestion pattern
--finished_ids = [fid for fid in all_fixture_ids if status[fid] in {"FT", "AET", "PEN"}]
--# Retry window: finished within last 3 days OR statistics not yet fetched
--to_fetch = [fid for fid in finished_ids if needs_fetch(fid)]
--
--for chunk in batches(to_fetch, size=20):
--    ids_param = "-".join(str(fid) for fid in chunk)
--    data = get(f"/fixtures?ids={ids_param}")
--    store(data)  # one append row per chunk
--    time.sleep(0.25)
--```
--
-----
--
--## 9. Staging Layer Consequences
--
--Staging models currently read from 5 separate raw tables with flat JSON keys
--(e.g., `response[i].fixture_id` was injected by the old pipeline). After the
--refactor, all staging models read from `RAW_APIF_{LC}_FIXTURES` and use the
--native API paths documented in Section 2.
--
--Key path changes:
--
--| Old (injected key) | New (native API path) |
--|--------------------|-----------------------|
--| `response[i].fixture_id` | `response[i].fixture.id` |
--| `response[i].lineups[j]` | `response[i].lineups[j]` (same) |
--| `response[i].events[j]` | `response[i].events[j]` (same) |
--| `response[i].statistics[j]` | `response[i].statistics[j]` (same) |
--| `response[i].players[j]` | `response[i].players[j]` (same) |
--
--Staging is a 1:1 mapping of raw — no deduplication, no business logic.
--Deduplication belongs at the base layer (QUALIFY + ROW_NUMBER).
-diff --git a/docs/audits/2026-06_alignment_audit.md b/docs/audits/2026-06_alignment_audit.md
-deleted file mode 100644
-index e6e513ff..00000000
---- a/docs/audits/2026-06_alignment_audit.md
-+++ /dev/null
-@@ -1,196 +0,0 @@
--# Retroactive alignment audit — 2026-06
--
--> Governance program G4 (plan `fuzzy-launching-meadow.md` §5). A current-state audit
--> of the codebase against its locked contracts. **Findings only.** Every disposition
--> for a `violation` / `unapproved-decision` is a CPO ruling; the **CPO ruling** column
--> is blank until ruled. Findings become GitHub issues **only after** the CPO rules.
--
--## Scope (CPO kickoff rulings, 2026-06-12)
--
--- **Depth:** current-state + per-finding provenance (the commit that introduced a
--  finding is attached where "was this ever approved?" is the crux). No full
--  commit-history walk.
--- **Surfaces (7 passes):** dbt models · export scripts (consumption contract) ·
--  seeds/macros · docs-vs-reality · metric values · **ingestion code** · **CI
--  workflows**. The live MVP site is **excluded** (frozen / record-only; GAP-17).
--- **Finding source:** four blinded read-only reviewer subagents generated the
--  findings per domain; the builder compiled them verbatim and attached provenance.
--  The builder did not re-judge its own past work.
--
--## Method & caveats
--
--- **Reviewers (cold, no conversation history, tools = Read/Grep/Glob only):**
--  `analytics-engineer-reviewer` (sonnet) → dbt + seeds/macros + export consumption;
--  `cto-reviewer` (sonnet) → scripts/tooling + CI workflows;
--  `data-engineer-reviewer` (sonnet) → ingestion + registry;
--  `scope-auditor` (haiku) → decisions/provenance + doc-vs-reality.
--- **Provenance was attached by the builder** (reviewers have no git access). Provenance
--  is a mechanical `git log -S` / add-commit lookup, not a judgement.
--- **scope-auditor ran on its pinned `haiku`** (governance economy, CPO ruling
--  2026-06-12). The depth of the decisions/provenance pass is bounded by that pin —
--  see **F39** (a haiku false-finding caught by builder fact-check). Re-running that
--  pass on a stronger model is a cheap CPO follow-up if the findings below look thin.
--- **Classes:** `violation` (breaks a written contract) · `unapproved-decision` (a §10
--  CPO-class choice with no recorded approval) · `stale-doc` (a contract doc that no
--  longer matches reality) · `ok` (a place specifically checked and found aligned).
--- Findings the two reviewers raised independently are merged and attributed to both.
--  Genuine judgement-splits between reviewers are recorded as such (F3, F38).
--
-----
--
--## A. Warehouse / dbt + consumption layer
--
--| # | class | evidence (file:line) | provenance | finding | proposed disposition | CPO ruling |
--|---|-------|----------------------|------------|---------|----------------------|------------|
--| F1 | violation | `dbt_project/models/2_base/api_football/base_apif__transfers.sql:3` | `7002643` 2026-05-29 (a *"purge dead bl1/d1 naming"* refactor that left the filter) | `where league_code = 'BL1'` in a `2_base` model — a hardcoded competition identifier above staging. Any new league's transfers silently produce zero rows, breaking downstream player-identity resolution. | File issue: replace with a data-presence guard, or escalate if BL1-only is intentional | |
--| F2 | violation | `dbt_project/models/2_base/api_football/base_apif__players.sql:25` | (consequence of F1) | Comment *"BL1 only for now; extend this CTE…"* — an acknowledged scope restriction wired into a competition-agnostic layer; non-BL1 transfer-sourced player identities are omitted. | File issue: fix F1 first, then remove the BL1 reference | |
--| F3 | violation→**escalate** | `dbt_project/models/5_marts/shared/mart_team_market_value.sql:14`; test `shared.yml:881` | `f421f93` 2026-05-26 (folder reorg) | `where league_code = 'WC'` hardcoded in a mart (and the `accepted_values: ["WC"]` test). May be an accepted WC-only scope rather than a defect. | Escalate to CPO: intended WC-only forever (document the exception + use a var) or make generic? | |
--| F4 | violation | `scripts/export_site_data.py:191-209` (`shape_top_players`) | `ab46d5a` 2026-06-11 (#365) | Ranks players by goals/assists/key-passes in Python (A5). Leaderboard rank is a warehouse fact (`mart_top_scorers.scorer_rank` is the pattern). | File issue: add a mart/int rank column; delete the Python ranking. **(within GAP-19)** | |
--| F5 | violation | `scripts/export_site_data.py:80-93,96-105,161` (`slugify`/`fixture_slug`) | `13c3b7c` 2026-06-10 (#365) | Generates URL slugs in Python via NFKD + ASCII-ignore. Slugs are published URL identity → must come from the warehouse. **Also** the transliteration choice (NFKD/ASCII-strip vs unidecode) is itself a §10 permanent-once-published decision — and is one of the two **parked slug rulings** (active_work.md). Raised by both analytics-engineer and scope-auditor. | File issue **(GAP-19)** for warehouse slug column; escalate the spelling/transliteration choice as the parked pilot ruling | |
--| F6 | violation | `scripts/export_site_data.py:61-74` (`_GROUP_OF_TYPE`) | `ab46d5a` 2026-06-11 (#365) | A Python dict maps `competition_type` → nav group. Taxonomy mappings belong in seeds/registry; adding a competition_type needs a code edit. | File issue: add `nav_group` to `competition_types.csv`; read it in `build_nav()`. **(within GAP-19)** | |
--| F7 | **escalate** | `scripts/export_site_data.py:373-463` (`fetch_fixture_payloads`) | `ab46d5a` 2026-06-11 (#365) | Assembles a per-fixture-side payload by joining 4 marts in Python (momentum, season-to-date, standing-context, h2h). Individual reads are select/filter, but the composition determines "what a fixture page shows" — the A4 borderline. | Escalate to CPO: are multi-mart payload joins in Python an accepted v2 pattern, or do they need a fixture-payload mart? | |
--| F8 | violation | `dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__full_season_metrics.sql:125-128` | — | `save_ratio_season` = saves / (saves + goals_against). Numerator is stat-covered-games only; denominator sums all finished games — a same-window violation the W1/W2 marts avoid via `goals_against_in_save_games`. **Not** covered by the GAP-17 note. | File issue: coverage-restrict the denominator; add a `[0,1]` range test | |
--| F9 | violation | `…/int_team_season__full_season_metrics.sql:116-120` | — | `finishing_efficiency_season` numerator (`goals_for`, all games) vs denominator (`shots_on_goal`, covered games) — same-window mismatch; W1/W2 use `goals_for_in_shot_games`. | File issue (GAP-17 sub-item or new): apply the coverage-restricted pattern; add range test | |
--
--**Coverage (analytics-engineer):** read layering.md + engineering_standards.md (full),
--working_agreement Appendix A, all 19 marts, 14 intermediates, 7 base, 6 core, 9 staging,
--all mart/intermediate YAML, metric_catalogue.csv, 10 macros, 6 export/gen scripts.
--**`ok` rows verified:** staging purity (no refs/group-by above staging); core has no
--`stg_` refs; intermediates never ref marts; W1/W2 window marts respect same-window with
--ratio bound tests; mart metrics trace to catalogue rows; legacy `export_pages_data.py`
--does no metric math.
--
-----
--
--## B. Platform / scripts / CI workflows
--
--| # | class | evidence (file:line) | provenance | finding | proposed disposition | CPO ruling |
--|---|-------|----------------------|------------|---------|----------------------|------------|
--| F10 | violation | `scripts/check_task_artifacts.py:79`; `.claude/review_routing.json:40-43` | `85340aa` 2026-06-12 (G3) | The `artifact_only` allowlist (`​.claude/task/**`) exempts `contract.md` — the document that authorizes all code edits — from review. A contract-only commit gets zero adversarial review. (Demonstrated live: PR #407 merged contract-only with no review.) | Escalate to CPO (guard-integrity change, protected path): narrow `artifact_only` to exclude `contract.md`, or add a contract-amendment CI validation | |
--| F11 | violation | `scripts/check_task_artifacts.py:6-8` (design) | `85340aa` 2026-06-12 (G3) | CI cannot recompute a STAGED hash, so `review.md`'s `diff_sha256` is checked for well-formedness only — not bound to the PR diff. A code-commit-then-artifact-commit ordering false-greens on the prior task's review. **This is hardening candidate (c).** | Escalate to CPO: fix via branch-diff hash at review time, or require the artifact commit be the sole post-code commit. **(c) — scheduled as its own gate-lifted task)** | |
--| F12 | violation | `scripts/check_task_artifacts.py:97-98` | `85340aa` 2026-06-12 (G3) | Global `count(ESCALATE) > count(CPO ANSWER)` check is redundant with — and weaker than — the per-section pairing below it; cross-section answers can mask an unanswered escalate at the global check (the per-section loop still catches it). | File issue: demote to a commented secondary backstop; document the dependency on the per-section loop | |
--| F13 | violation | `.github/workflows/pages-match-preview.yml:17-22` | — | `push` path triggers list per-competition staging dirs (`…/pl/**`, `pd/**`, `bl2/**`, …) that the **zero-file rule forbids** and that don't exist. Dead triggers that also signal a forbidden architecture. | File issue: remove the per-competition path triggers | |
--| F14 | violation | `scripts/scaffold_domestic_league_staging.py:1-34` | `64d7006` 2026-05-18 (pre-unified-raw onboarding) | Generates per-competition staging subdirs by copying BL1 files — its entire purpose is a CI-failing zero-file-rule violation; also hardcodes BL1. Obsolete relic with no deprecation guard. | File issue: delete the script; escalate only if a use is believed still-needed | |
--| F15 | violation | `scripts/add_footer_i18n_keys.py:53-69` | `4ee6428` 2026-05-24 | One-time i18n migration left at module level — no `__main__` guard, not atomic (partial run truncates JSON), silently overwrites i18n values on re-run. | File issue: retire it (migration complete), or add a guard + dry-run | |
--| F16 | unapproved-decision | `scripts/slack_bridge/*.py`; `.github/workflows/_paused/slack-executor-bridge.yml` | `5ec95aa` 2026-05-20 (automation wave) | A Slack-intake + executor-forwarding bridge **service** (new mechanism, A3) with no recorded CPO approval. Paused, but the scripts are committed and the workflow references live bridge secrets. | Escalate to CPO: produce the approval record or retire. Paused ≠ approved | |
--| F17 | unapproved-decision | `scripts/squad_watch.py:1-45` | `3ee10a7` 2026-05-21 (#163) | A 390-line tool calling live `/players/squads` + `/players` for 48 WC teams — a new external-API-call-volume mechanism (§10 cost) with no documented budget approval. | Escalate to CPO: document approved API budget + use context | |
--| F18 | unapproved-decision | `.github/workflows/board-request-sync.yml` | `8ca3da1` 2026-05-20 | A workflow making GitHub GraphQL **mutations** via a PAT on every PR/issue event (new mechanism + CI minutes on every PR + PAT of unstated scope). No approval cited. | Escalate to CPO: approve or retire; document PAT scope | |
--| F19 | unapproved-decision | `.github/workflows/ci-failure-watchdog.yml:1,17-18` | `d746e71` 2026-05-20 | Auto-reruns failed CI jobs and opens/comments issues; holds `actions: write` + `issues: write` — the broadest permission widening in the active set. New lifecycle mechanism, no approval; watches `ci-ui` by display-name (renames silently drop the watch). | Escalate to CPO (security-class permission widening): approve or retire | |
--| F20 | unapproved-decision | `requirements.txt:1-4` | — | `requests`, `functions-framework`, `beautifulsoup4`, `pandas` unpinned → supply-chain/reproducibility drift. `beautifulsoup4` appears unused; `functions-framework` likely belongs in `ingestion/…/requirements.txt`. | File issue: pin all; audit whether bs4/functions-framework belong at root | |
--
--**Coverage (cto):** read cto.md, agent_guardrails.md, working_agreement §4/§10/Appendix A;
--all 10 active + 4 paused workflows; both requirements.txt; all in-scope scripts (check_*,
--sync, diagnostics, drop_*, slack_bridge, security); all 5 hooks; settings.json + routing.
--**`ok` rows verified:** all 5 CI check scripts fail **closed**; all 5 project hooks fail
--**open**; `restore_from_time_travel.py` defaults to dry-run and is re-run safe.
--
-----
--
--## C. Ingestion + registry
--
--| # | class | evidence (file:line) | provenance | finding | proposed disposition | CPO ruling |
--|---|-------|----------------------|------------|---------|----------------------|------------|
--| F21 | violation | `tests/fixtures/apif/` (absent); `tests/test_batch_fixtures.py` etc. (mocks only) | — | The directory of committed sample payloads **does not exist**. Parser/merge logic in `batch_fixtures.py`, `coverage.py`, `completeness.py`, all loads has no fixture-backed offline tests — direct violation of the CPO rule (2026-06-12). | File issue: create `tests/fixtures/apif/` + rewrite parse/merge tests; must precede further parser changes | |
--| F22 | violation | `ingestion/api_football/registry.py:133` | — | The `supporting_leagues` guard checks `competition_type == "international_tournament"`, a value **no** registry competition uses. Result: WC's 7-league supporting block parses to `()`, and COAM/AFCON/ACN/GCUP/UNL/EURO/CNL declare `form_source: supporting_leagues` with **no validation error** → form data silently missing at runtime. | File issue: fix the guard to the real `competition_type` values; add a WC supporting-leagues test. CPO to confirm whether form for those comps is intentionally deferred | |
--| F23 | violation | `docs/competition_registry.yml:974-986` (AFCCL) | `aab550c` 2026-05-27 | `provider_league_id: 17` is `ingest_active: true` while the note itself says *"17 is the legacy ID — spot-check first ingest"* — the exact four-wrong-IDs failure pattern; an `api_coverage_verified` date is not discovery evidence. | File issue: set `ingest_active: false` until `discover_competition.py` confirms ID 17; add the evidence | |
--| F24 | violation | `ingestion/api_football/loads/coaches.py:64`; `injuries.py:74`; `docs/data_contract.md` (absent) | — | `RAW_APIF_COACHES` and `RAW_APIF_INJURIES` are written every run but absent from the data contract's unified-raw-tables section — no contractual anchor for downstream consumers. | File issue: add both tables (write mode, partition, cluster, schema) to data_contract.md | |
--| F25 | unapproved-decision | `docs/competition_registry.yml:57` (BL1 `history_seasons: 10`); `settings.py:38` | `6ee89b3` 2026-05-06 | BL1 carries `history_seasons: 10` (the max window) with no quoted CPO approval in its note; all other in-progress comps use `5` with approval quoted. CLAUDE.md requires explicit CPO approval for `history_seasons`. | Escalate to CPO: confirm + record approval for BL1=10, or treat as a cost finding | |
--| F26 | unapproved-decision | `ingestion/api_football/registry.py:198-199` | — | `ingest_active` defaults to **`True`** when the field is absent. If the CI presence check ever regresses, a new comp ingests without cost approval. Fail-safe default should be `False`. | Escalate to CPO (onboarding cost behaviour): default to `False` or raise on absence | |
--
--**Coverage (data-engineer):** read data_contract.md, operations_guide.md,
--data_engineer.md, working_agreement, CLAUDE.md, competition_registry.yml + seed +
--dbt_project.yml vars, dbt-scheduled.yml; all 27 `ingestion/api_football/**` files;
--confirmed `tests/fixtures/apif/` absent. **`ok` rows verified:** FIXTURE_DETAILS
--merge-on-write is idempotent (delete-before-reinsert); no WRITE_TRUNCATE on any data
--table (only single-state operational tables); registry↔seed↔vars sync holds across all
--45 comps; no API-predictions endpoint in live code paths.
--
-----
--
--## D. Decisions, provenance & stale docs
--
--| # | class | evidence (file:line) | provenance | finding | proposed disposition | CPO ruling |
--|---|-------|----------------------|------------|---------|----------------------|------------|
--| F27 | stale-doc | `dbt_project/docs/layering.md:239-247` | — | Mart inventory lists **5** marts; **19** exist (14 undocumented: standings, market_value, form_window, momentum×2, season_to_date×2, fixture_stats×2, head_to_head, player_match_log, player_profile, team_profile, fixture_standing_context). Raised by analytics-engineer **and** scope-auditor. | Escalate to CPO: should the inventory be exhaustive? If yes, update with all 19 (grain/material/notes) | |
--| F28 | stale-doc | `dbt_project/docs/layering.md:175-185` | — | Fact inventory lists **6**; **7** exist — `fct_team_market_value_snapshot` (seed-driven) is undocumented. | Escalate to CPO: first-class fact (add to inventory) or utility table (document the pattern)? | |
--| F29 | stale-doc | `dbt_project/models/4_intermediate/domestic_league/team_season/int_player_season__metrics.sql:9` | — | Docstring lists a consumer (`int_matchday__fixture_player_insights`) retired in #321; no live model refs this intermediate — possibly orphaned. | File issue: identify the live consumer + fix docstring, or remove if orphaned | |
--| F30 | stale-doc | `…/int_team_season.yml:68` | — | Same retired-consumer reference in the model description. | File issue: update to actual consumers | |
--| F31 | stale-doc | `docs/operations_guide.md:223`; `dbt-scheduled.yml:5` | — | Doc says scheduler runs *"twice daily (04:00, 16:00 UTC)"*; the workflow has a single `0 4 * * *`. Doc overstates cadence 2× and conflicts with the cost rule. | File issue: correct to once-daily 04:00 UTC | |
--| F32 | stale-doc | `ingestion/api_football/loads/catalog.py:32-34` | — | Comment claims `WRITE_TRUNCATE`; the call (line 37) passes `append=True` → WRITE_APPEND. Misleading about data safety. | File issue: correct the comment | |
--| F33 | stale-doc | `ingestion/api_football/fixture_scheduling.py:388` | — | Docstring estimates 5 calls/fixture "incl. predictions"; predictions aren't ingested (project rule); function is dead code. | File issue: fix to 4 + drop "predictions"; consider deleting the dead fanout functions | |
--| F34 | stale-doc | `docs/competition_registry.yml:924-925` | — | Section header reads `PLANNED — Continental club showpieces`; all 5 entries are `in_progress` + `ingest_active: true`. | File issue: update header to `IN PROGRESS` | |
--| F35 | stale-doc | `docs/agent_guardrails.md:88-100` | — | Lists 5 global hooks "canonical copies in `docs/portable_guardrails/`"; if that dir is absent/out-of-sync the "version-controlled" claim is false (repo-only scope can't verify global hooks). | File issue: verify `docs/portable_guardrails/` exists + current; else fix the doc | |
--| F36 | stale-doc | `docs/agent_guardrails.md:66-69` | — | Describes `cto-reviewer` as "dormant"; routing actively routes scripts/CI/etc. to it — it is active. | File issue: update to "active" | |
--| F37 | stale-doc | `docs/working_agreement.md` §2 (lines 33-34) | — | §2's protected-paths list omits `.claude/agents/**` (now protected per the 2026-06-12 ruling, documented only in agent_guardrails.md) — a split that could mislead a §2-only reader. | Escalate to CPO: add `.claude/agents/**` to §2, or accept the documented split | |
--| F38 | unapproved-decision | `dbt_project/models/4_intermediate/shared/int_team_profile__streaks.sql:1-83`; `mart_team_profile.sql:117-123` | — | Five streak metrics (unbeaten/win/winless/clean-sheet/scoring run) are modeled + surfaced on team profile but are **not** in the catalogue and have no wireframe/CPO product sign-off. **Judgement-split:** scope-auditor flagged this as an unapproved product feature; analytics-engineer classified the adjacent `performance_vs_results_gap` as `ok` (context signal, not a published metric). | Escalate to CPO: are streaks confirmed product features (→ catalogue) or modeled ahead of #391 wireframe sign-off? | |
--| F39 | **reviewer error (no action)** | `docs/wireframes/metrics_display.md` | builder check: **PRESENT** | scope-auditor (haiku) reported this file **missing** and raised a critical stale-doc finding on it. Builder fact-check: the file **exists**. The finding is **false** — recorded to (a) not propagate it and (b) calibrate the haiku-pinned provenance pass depth. | No action. Calibration note re: scope-auditor model pin | |
--| F40 | ok (assumption corrected) | `docs/roles/analytics_engineer.md` | — | The handover/plan assumed this role brief was **stale** (pre-refactor). scope-auditor checked: it correctly describes unified-raw + zero-file + league_code and is aligned with CLAUDE.md and layering.md. **The stale assumption, not the doc, was wrong** (G3 evidently refreshed it). | No action; correct the handover assumption | |
--
--**Coverage (scope-auditor):** read working_agreement (§10/§11/Appendix A), layering.md,
--site_architecture.md, north_star.md, wireframes 01-03 + 99_gaps_register, roles/
--analytics_engineer.md, metric_catalogue.csv, export_site_data.py, escalations.log,
--routing, active_work.md. Searched dbt/macros for UDFs / on-run-start / custom
--materializations / per-competition dirs → **none found** (no new warehouse mechanisms).
--
-----
--
--## Cross-reference: already-logged gaps (do not double-file)
--
--From `docs/wireframes/99_gaps_register.md`: **GAP-09/10/11** (metric display, approved
--2026-06-11); **GAP-17** (season rollup denominator alignment — *pending*, shipped MVP
--numbers **frozen**; F8/F9 are adjacent but reviewer states they are **not** covered by
--the GAP-17 note); **GAP-18** (tournament form windows, before WC 2026); **GAP-19**
--(consumption-layer audit — F4/F5/F6 are its line-item inventory, incl. the slug ruling).
--
--## Known governance-hardening candidates surfaced here
--
--- **(c)** F11 — CI cannot bind `review.md` to the PR diff (memory
--  `governance_artifact_commit_ordering.md`). Scheduled as its own gate-lifted task this
--  G4 phase.
--- **(a-adjacent)** F10 — the `artifact_only` lane exempts the authorization contract
--  from review (demonstrated by PR #407). New observation; belongs with the (a)/(c)
--  hardening discussion.
--
--## CPO rulings — 2026-06-12
--
--All 40 findings were ruled by the CPO in session on 2026-06-12. Issues were filed
--**only** for approved actions; parked/folded items carry no new issue. This table is
--the consolidated `CPO ruling` record (per-finding).
--
--| finding | CPO ruling | tracked as |
--|---|---|---|
--| F1/F2 | fix — competition-agnostic violation | #420 |
--| F3 | defer — generalize team market value beyond WC when in scope | #418 |
--| F4 | fold into GAP-19 (consumption-layer audit) | GAP-19 |
--| F5 | slug *migration* → GAP-19; slug *spelling* (transliteration) parked for the Pilot | GAP-19 / Pilot |
--| F6 | fold into GAP-19 | GAP-19 |
--| F7 | park with #391 / Pilot test case (the Python-vs-mart consumption boundary) | #391 / Pilot |
--| F8 | attach to the GAP-17 season-rollup family (frozen — do not act) | GAP-17 |
--| F9 | attach to the GAP-17 season-rollup family (frozen — do not act) | GAP-17 |
--| F10/F11 | file — bundled gate-integrity task, deferred (mechanism reserved to CPO) | #409 |
--| F12 | file — do together with #409 | #421 |
--| F13 | file — remove dead per-competition triggers | #422 |
--| F14 | file — delete obsolete scaffold script | #423 |
--| F15 | file — retire footer migration script | #424 |
--| F16 | RETIRE | #410 |
--| F17 | RETIRE (WC-hardcoded relic; general monitoring is a separate future decision) | #411 |
--| F18 | KEEP (approved — board in active PM use) + PAT-scope audit follow-up | #413 |
--| F19 | declaw — keep CI-failure notification, drop auto-rerun + `actions: write` | #412 |
--| F20 | file — pin requirements | #425 |
--| F21 | file — create apif fixtures + parser tests | #415 |
--| F22 | file — **PRIORITY** DQ bug (silent missing form) | #414 |
--| F23 | file — **PRIORITY** verify/disable AFCCL provider id | #426 |
--| F24 | file — add RAW_APIF_COACHES/INJURIES to the data contract | #427 |
--| F25 | set BL1 `history_seasons` → 5 (config only; existing data NOT purged) | #416 |
--| F26 | file — fail-safe `ingest_active` (raise on absence) | #417 |
--| F27–F37 | file as one doc-sync cleanup batch (inventories made exhaustive) | #419 |
--| F38 | park with #391 (streak features decided at wireframe sign-off) | #391 |
--| F39 | no action — reviewer false-positive (file is present) | — |
--| F40 | no action — stale assumption corrected (doc is current) | — |
--
--**Pre-ruling class counts (for reference):** 17 violation · 8 unapproved-decision ·
--5 escalate · 8 stale-doc · 1 reviewer-error · 1 assumption-corrected.
--
--**Status:** rulings complete; approved findings filed as issues #409–#427. The frozen
--GAP-17 items (F8/F9) and the parked #391/Pilot items (F5-spelling, F7, F38) await their
--respective decision points and were intentionally NOT acted on.
-diff --git a/docs/board_request_sync.md b/docs/board_request_sync.md
-deleted file mode 100644
-index 0f8adc93..00000000
---- a/docs/board_request_sync.md
-+++ /dev/null
-@@ -1,99 +0,0 @@
--# Board Request Sync
--
--## Purpose
--
--Keep founder requests visible across chats by auto-populating and updating the existing GitHub Project board from execution activity.
--
--Workflow:
--- `.github/workflows/board-request-sync.yml`
--
--Target project title:
--- `Matchday Pilot - Project Board`
--
--## What it does
--
--- On PR open/update/close:
--  - ensures the PR is present on the project board
--  - updates `Status` based on PR state
--- On issue open/close:
--  - ensures the issue is present on the project board
--  - updates `Status` based on issue state
--- On manual run (`workflow_dispatch`):
--  - syncs all open PRs and open issues
--
--## Status mapping
--
--PRs:
--- open draft -> `In Progress` (fallback `Todo`)
--- open ready -> `In Progress` (fallback `Review`, then `Todo`)
--- closed merged -> `Live` (fallback `Done`)
--- closed unmerged -> `Blocked` (fallback `Done`)
--
--Issues:
--- open -> `Todo` (fallback `In Progress`)
--- closed -> `Done` (fallback `Live`)
--
--## Required secret
--
--Repository secret:
--- `PROJECT_AUTOMATION_TOKEN`
--
--### Least-privilege scope (audit F18 / #413)
--
--The token authenticates **every** API call this workflow makes — the `github-token:`
--input replaces the default `GITHUB_TOKEN` for the whole step, so the workflow's own
--`permissions:` block (`contents/pull-requests/issues: read`) governs nothing here; the
--PAT's own scope is what matters.
--
--What the workflow actually does with it:
--
--| Operation | API | Access needed |
--|-----------|-----|---------------|
--| List the user's ProjectsV2 + Status field/options | GraphQL `user.projectsV2` (org path is a NOT_FOUND fallback) | Projects: **read** |
--| Read whether a PR/issue is already a board item | GraphQL `projectItems` sub-field of `repository.pullRequest` / `repository.issue` | Projects: **read** |
--| Add a PR/issue to the board | GraphQL `addProjectV2ItemById` | Projects: **write** |
--| Set the board item's Status | GraphQL `updateProjectV2ItemFieldValue` | Projects: **write** |
--| Read a PR's state/draft/merged | GraphQL `repository.pullRequest`; REST `pulls.list` | Pull requests: **read** |
--| Read an issue's state | GraphQL `repository.issue`; REST `issues.listForRepo` | Issues: **read** |
--
--It never reads file contents and never writes to issues, PRs, or contents. Note that the
--`projectItems` sub-field embedded in the PR/issue queries is governed by the **Projects**
--permission, not by Issues / Pull requests — so Projects: read is required for the
--existence check as well as for the writes.
--
--**Use a fine-grained PAT** (the board is a **user-owned** ProjectV2 on `ramialfahham`,
--and this is a **public** repo):
--
--- **Resource owner:** `ramialfahham`
--- **Repository access:** Only select repositories → `ramialfahham/football-data-pipeline`
--- **Repository permissions:** Issues → **Read-only**; Pull requests → **Read-only**;
--  Metadata → **Read-only** (mandatory baseline, auto-selected)
--- **Account permissions:** Projects → **Read and write**
--- Nothing else — no Contents, no Administration, no Workflows, no org permissions.
--
--Note the split: the Issues / Pull requests / Metadata permissions above are
--**repository** permissions and are limited to the one selected repo; **Projects** is an
--**account** permission and applies to all ProjectsV2 the owner has — GitHub does not let
--it be narrowed to a single project. That is unavoidable for either token type (see the
--classic note below) and is the one permission that is account-wide by design.
--
--A **classic** PAT works but is broader than needed and is **not recommended**: the only
--classic scope that allows ProjectsV2 writes is `project`, which grants access to **all**
--projects across the account (not just this board), and there is no narrower classic
--project-write scope. If a classic token must be used, pair `project` with at most
--`public_repo` (this repo is public) — **not** full `repo`. The older
--`docs/project_status_sync.md` setup note that prescribes `repo, project` is superseded by
--this section.
--
--### Rotation
--
--Setting/regenerating the token is a repo-admin action in GitHub settings
--(`Settings → Secrets and variables → Actions → PROJECT_AUTOMATION_TOKEN`) — done by the
--CPO, not by automation. This document specifies the scope to apply; it does not and
--cannot change the live secret.
--
--## Notes
--
--- This replaces label-driven board state updates for daily execution memory.
--- Dispatch queue and label-routing workflows remain paused.
--- CI watchdog issues created by `ci-failure-watchdog` are also auto-added and status-synced.
-diff --git a/docs/chat_driven_workflow.md b/docs/chat_driven_workflow.md
-deleted file mode 100644
-index 11512537..00000000
---- a/docs/chat_driven_workflow.md
-+++ /dev/null
-@@ -1,61 +0,0 @@
--# Chat-Driven Product Workflow
--
--## Active mode
--
--Effective date: `2026-05-20`.
--
--This repository is operating in chat-driven mode until proven:
--
--1. Founder posts a brief in chat.
--2. Assistant implements the brief directly in the repo.
--3. Assistant opens a PR.
--4. `pr-autopilot` enables auto-merge when mergeable.
--5. Merge to `main` triggers deploy workflow(s).
--6. Assistant confirms live status in chat.
--
--## Hard rules in this mode
--
--- No ticket dispatch machinery.
--- No heartbeat automation.
--- No idea-intake form routing.
--- No automation that reacts to issue labels.
--
--## Board execution memory (active)
--
--To keep requests visible across chats, board sync is active via:
--
--- `.github/workflows/board-request-sync.yml`
--
--Behavior:
--- Auto-add open PRs and open issues to `Matchday Pilot - Project Board`
--- Auto-update `Status` from item state (for example `In Progress`, `Done`, `Live`)
--- No label requirements
--
--## CI failure detection (active)
--
--To avoid founder-only monitoring, CI watchdog is active:
--
--- `.github/workflows/ci-failure-watchdog.yml`
--
--Behavior:
--- Detects failed CI runs for core workflows
--- Creates/updates a `[CI Failure] ...` issue with run link and next actions
--
--It does not rerun jobs automatically — reruns are a manual decision so transient
--(flaky) failures stay visible rather than being silently retried.
--
--## What remains active
--
--- `.github/workflows/pr-autopilot.yml`
--- `.github/workflows/pages-match-preview.yml`
--- `.github/workflows/board-request-sync.yml`
--- `.github/workflows/ci-failure-watchdog.yml`
--- `AGENTS.md` and role docs as assistant context
--
--## What is paused
--
--- `.github/workflows/_paused/cursor-dispatch.yml`
--- `.github/workflows/_paused/project-status-sync.yml`
--- `.github/ISSUE_TEMPLATE/_paused/idea_intake.yml`
--
--These assets are retained for recovery, but excluded from active automation.
-diff --git a/docs/ci_failure_watchdog.md b/docs/ci_failure_watchdog.md
-deleted file mode 100644
-index d4440c21..00000000
---- a/docs/ci_failure_watchdog.md
-+++ /dev/null
-@@ -1,35 +0,0 @@
--# CI Failure Watchdog
--
--## Purpose
--
--Detect CI failures automatically and create a persistent triage record without requiring founder monitoring.
--
--Workflow:
--- `.github/workflows/ci-failure-watchdog.yml`
--
--## Tracked workflows
--
--- `ci-validate`
--- `ci-data-build`
--- `ci-ui`
--- `python-ci`
--- `security-secrets`
--- `board-request-sync`
--
--## Behavior
--
--When a tracked workflow run completes with `failure`:
--
--1. It creates or updates a dedicated issue:
--   - Title: `[CI Failure] <workflow> on <branch>`
--   - Includes failed run URL, attempt, and trigger actor.
--2. The issue is then visible to board sync automation for prioritization/execution.
--
--The watchdog does not rerun jobs. Reruns are a manual decision so transient (flaky)
--failures stay visible rather than being silently retried. It holds only `issues: write`
--(plus `contents: read`); it does not carry `actions: write`.
--
--## Notes
--
--- This does not attempt speculative code edits.
--- It guarantees every CI failure is surfaced as an executable item; recovery (rerun or fix) is a manual decision.
-diff --git a/docs/competitions/wc26.md b/docs/competitions/wc26.md
-deleted file mode 100644
-index 6e46cf2d..00000000
---- a/docs/competitions/wc26.md
-+++ /dev/null
-@@ -1,41 +0,0 @@
--# WC 2026 — Competition brief
--
--This document records WC-specific product/data behavior for the current pipeline implementation.
--
--## Registry and identifiers
--
--- Internal league code: `WC` (not `WC26`)
--- API league id: `1`
--- WC qualifiers (WCQ* league codes) are first-class competitions linked to WC via `parent_competition: "WC"` in `docs/competition_registry.yml`, now synced into the `competition_registry` seed. Team form follows the tournament window (GAP-18, `int_team_momentum_window`): qualifier matches before the team's first WC match, then cumulative WC matches once the tournament is under way — not last-5. The old `wc_supporting_league_codes` seed was retired and replaced by the registry parent link, which the window model reads directly (no separate Core dim).
--
--## Match preview flow
--
--WC follows the same app flow as domestic competitions:
--
--`landing -> fixture-list -> match-preview`
--
--There is no separate pre-tournament page in the Pages app.
--
--## WC form window rules
--
--Implemented generically by competition_type in `int_team_momentum_window` (GAP-18) and surfaced
--on the shared momentum marts (the per-type `mart_matchday_insights_wc` was retired in #321):
--
--1. Group Stage Matchday 1 fixtures use qualifier form (`window_type = 'qualifiers'`):
--   - all finished matches for each team across its WC qualifier competitions
--     (registry `parent_competition = 'WC'`)
--2. Group Stage Matchday 2 onward (including knockout) use tournament form
--   (`window_type = 'tournament_to_date'`):
--   - all finished `league_code = 'WC'` matches this edition before the fixture kickoff
--   - cumulative (no five-game cap)
--
--If a metric is missing in source stats, numeric outputs remain `null` and UI renders `"-"`.
--
--## Fixture eligibility for WC previews
--
--Only confirmed upcoming WC fixtures are exported/rendered for previews:
--
--- `status_short = 'NS'`
--- both teams resolved (`home_team_sk` and `away_team_sk` present)
--
--TBD/unresolved pairings are excluded from preview exports until teams are known.
-diff --git a/docs/cursor_dispatch_workflow.md b/docs/cursor_dispatch_workflow.md
-deleted file mode 100644
-index b6979f70..00000000
---- a/docs/cursor_dispatch_workflow.md
-+++ /dev/null
-@@ -1,82 +0,0 @@
--# Cursor Dispatch Workflow (Low-Touch Mode)
--
--> PAUSED 2026-05-20 — control-plane dispatch is disabled in favor of chat-driven delivery.
--> Archived workflow location: `.github/workflows/_paused/cursor-dispatch.yml`.
--
--## Goal
--
--Reduce founder operator time to one short daily check while keeping strict decision control.
--
-----
--
--## What is automated now
--
--The workflow `.github/workflows/cursor-dispatch.yml` runs hourly (and on manual trigger) and:
--
--1. Ensures routing labels exist: `ready-for-agent`, `agent-running`, `decision-needed`, `blocked`.
--2. Selects open issues that are:
--   - labeled `ready-for-agent`
--   - not labeled `decision-needed`
--   - not labeled `agent-running`
--   - not labeled `blocked`
--3. Marks selected issues with `agent-running`.
--4. Adds a dispatch comment on each selected issue with run link and timestamp.
--5. Publishes live counts in the Actions run summary (`Picked`, `Running`, `Ready backlog`, `Decision-needed`, `Blocked`).
--
-----
--
--## Who creates issues?
--
--Not only you.
--
--- `CPO (you)` creates strategic idea issues and decision calls.
--- Agents can create execution follow-up issues (implementation slices, bugs, or technical subtasks) when needed.
--
--Rule: keep strategic intent in parent issues, allow agents to create execution children when it improves delivery clarity.
--
-----
--
--## Minimal daily routine
--
--1. Open the Project board (`HQ Today`).
--2. Confirm `Decision Needed` items are handled first.
--3. Open the latest successful `cursor-dispatch` run in GitHub Actions summary.
--4. Launch one batch Cursor run from the issues picked in that run.
--5. Review PRs from that batch only.
--
--This keeps execution continuous while your focus stays on roadmap and decisions.
--
-----
--
--## Label semantics
--
--- `ready-for-agent`: ticket is clear and ready for implementation.
--- `agent-running`: ticket already dispatched/active.
--- `decision-needed`: founder decision required before implementation.
--- `blocked`: cannot proceed due dependency or unresolved question.
--
-----
--
--## How to know if progress is happening
--
--Use two sources:
--
--1. **Board columns** (`Todo` / `In Progress` / `Blocked` / `Done`) via `project-status-sync`.
--2. **Latest `cursor-dispatch` run summary** in Actions.
--
--Signals:
--
--- `In Progress` cards mean the issue has `agent-running`.
--- `Picked this run` > 0 means dispatch moved new tickets forward.
--- `Ready backlog` shows how many ready tickets are still waiting.
--- `Decision-needed` and `Blocked` show why some tickets are not moving.
--
--Board columns are synchronized by `project-status-sync` (see `docs/project_status_sync.md`).
--
-----
--
--## Important limitation
--
--This setup automates issue routing and queue generation. Cursor coding sessions still need a kickoff action from a human operator today.
--
--If you later want true zero-touch execution, add an executor integration that can start coding agents directly from GitHub workflow events.
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index 343e0faa..cfa9a102 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -226,7 +226,14 @@ Each row is one HTTP area and the BigQuery raw table where its payload lives. Da
- | Player squads | `/players/squads` per team (current squad + shirt number); captured for in-season comps every run **and** for finished comps via a team-keyed catch-up — club + national (see [Squad capture](#squad-capture-in-season--finished-comp-catch-up)) | `RAW_APIF_SQUADS` |
- | Player profiles | `/players/profiles` per player (bio) | `RAW_APIF_PLAYER_PROFILES` |
- | Player teams | `/players/teams` per player (career team×seasons) | `RAW_APIF_PLAYER_TEAMS` |
--| Per-fixture bundle | `/fixtures/lineups`, `/fixtures/events`, `/fixtures/statistics`, `/fixtures/players` | `RAW_APIF_FIXTURE_DETAILS` (one row per fetch of a fixture; sub-endpoints stored as JSON sub-keys within `payload`) |
-+| Per-fixture bundle | `/fixtures?ids=` (up to 20 finished fixtures a call; lineups, events, team and player statistics inline) | `RAW_APIF_FIXTURE_DETAILS` (one row per fixture per fetch; the sections stored as JSON sub-keys within `payload`) |
-+
-+### Provider behaviour (API-Football v3)
-+
-+- **Two calls for fixtures.** `/fixtures?league=&season=` returns a season's whole schedule in one response; `/fixtures?ids=` returns the lineups, events, team statistics and player statistics of up to 20 fixtures in one call.
-+- **Statistics arrive late.** A fixture's `statistics` is an empty array, never null, while the provider has none; outside live-score leagues it can arrive up to 48 hours after the match. The retry and the second fetch are in [Fixture details](#fixture-details-append-only-one-row-per-fetch).
-+- **Rounds and groups.** `league.round` is always a string (`Regular Season - 5`, `Group Stage - 1`, `Round of 16`, `Qualifying Round - 1`). `/fixtures` has no group field; a team's group comes from `/standings`.
-+- **Limits.** The plan allows 450 calls a minute and 75,000 a day; every response states both (`x-ratelimit-limit`, `x-ratelimit-requests-limit`). The per-minute limit is the one that binds. Calls are made one at a time (`requests`, no concurrency), which the provider's terms require; `API_FOOTBALL_REQUEST_PAUSE_MS` sets the pause after each call ([operations guide](operations_guide.md)).
+ ## Getting started
  
- **Retired:** `/fixtures/rounds` → `RAW_APIF_ROUNDS` is no longer ingested. Nothing consumed the rounds endpoint — every `round_name` in the warehouse comes from the `$.league.round` field on `/fixtures`. The daily call was removed to save quota; any historical `RAW_APIF_ROUNDS` table is dormant (not written, not read). Reintroduce only if a canonical `dim_round` consumer appears.
+@@ -17,13 +17,13 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
+ | Tool | Version | Needed for |
+ |---|---|---|
+ | Python | 3.11 | everything (pinned in `.python-version`) |
+-| Node.js | 24 | the site (pinned in `.nvmrc` and `site_v2/package.json`) |
++| Node.js | 24 | setup and the site (pinned in `.nvmrc` and `site_v2/package.json`) |
+ | git | any recent | everything |
+ | [uv](https://docs.astral.sh/uv/) | any recent | only the dbt tool inside Claude Code (`.mcp.json`) |
+ | [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) | any recent | only the credentialed level below |
  
-@@ -246,7 +253,7 @@ The keyed player endpoints `/players/squads?team=`, `/players/profiles?player=`,
+ **Windows: clone into a short folder**, for example `C:\src\football-data-pipeline`. Some installed
+-files sit 150 characters below the repo folder, and Windows refuses paths longer than 260 characters
++files sit 150 characters below the repo folder, and Windows refuses paths over 259 characters
+ unless long paths are turned on. Setup stops with this explanation if the folder is too deep. To turn
+ long paths on instead (once per machine, PowerShell as administrator):
+ `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`
+@@ -40,8 +40,8 @@ On Windows, if `python` is not 3.11: `py -3.11 scripts/bootstrap.py`.
  
- ### Coverage flags
+ It creates `.venv` with every `requirements*.txt`, installs the git hooks (pre-commit), the site's
+ packages, the dbt packages and Playwright's Chromium, creates `.env` and `profiles.yml` from their
+-examples, and names the GitLab remote `gitlab`. Every step skips itself when already done, and no
+-existing local file is overwritten, so it is safe to run again.
++examples, and names the GitLab remote `gitlab`. It is safe to run again: no existing local file is
++overwritten.
  
--`/leagues` exposes `coverage` flags per season. When a flag says the API does not provide a resource for that season (standings, per-fixture events, etc.), ingestion skips the corresponding calls instead of spending quota on guaranteed-empty responses. See the beginner's guide for envelope and flag behaviour.
-+`/leagues` exposes `coverage` flags per season. They are hints, not gates: a flag can be false for the reference season while earlier seasons have the data, so ingestion fetches regardless (a standings call against a false flag is noted in the run's errors). Their one effect is that an idle competition is not switched to full mode for an endpoint its flag marks unsupported; finished fixtures' statistics count either way.
+ ### Prove it works
  
- ---
+@@ -52,8 +52,12 @@ python scripts/bootstrap.py --verify
+ Runs the tests, every pre-commit check on every file, and the site build from the committed sample
+ data. Preview the site with `npm run dev --prefix site_v2` (http://localhost:4321).
  
-@@ -280,7 +287,7 @@ Mapping from a typical API-Football subscription list to what this repository in
+-Every commit then runs the pre-commit checks, pushes the branch to `gitlab` and opens a merge
+-request (`.githooks/post-commit`).
++Every commit then runs the pre-commit checks (ruff with CI's rules in `.ruff-ci.toml`, file hygiene,
++the secret scan), pushes the branch to `gitlab` and opens a merge request if it has none (`.githooks/post-commit`).
++CI's `lint:python` job runs the same checks on every file. SQL lint runs in CI's data jobs, not in
++pre-commit; without credentials, lint a model from the repo root with
++`python -m sqlfluff lint <model file> --templater jinja` (models that call `dbt_utils` report false
++errors).
  
- Published-style **national-team squad market value** estimates (whole EUR) are not provided by API-Football. They are loaded from the dbt seed `wc_team_market_value_snapshot` (columns: `team_sk`, `as_of_date`, `market_value_eur`, `source_code`, `prompt_version`), typically updated twice monthly after external research. `team_sk` is the API-Football national team id (same as `dim_team.team_sk` for `league_code = 'WC'`).
+ ### With credentials (dbt against BigQuery, ingestion)
  
--Downstream: `fct_team_market_value_snapshot` → `int_team__market_value_latest` → `mart_team_market_value` (metric `market_value_eur`). Fixture-level export columns on `mart_matchday_insights_wc` are joined in a separate change. Automated ingest (e.g. LLM-assisted) may replace the seed later; raw table naming will follow `RAW_{source}_{entity}` when added.
-+Downstream: `fct_team_market_value_snapshot` → `int_team__market_value_latest` → `mart_team_market_value` (metric `market_value_eur`). Automated ingest (e.g. LLM-assisted) may replace the seed later; raw table naming will follow `RAW_{source}_{entity}` when added.
+@@ -74,141 +78,39 @@ flowchart LR
+     A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
+     B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
+     E --> F[intermediate<br/>metrics + form] --> G[marts]
+-    G -->|JSON export| H[web app<br/>prototype]
++    G -->|JSON export| H[Matchday Pilot<br/>site_v2]
+ ```
  
- ---
+ ## Highlights
  
-diff --git a/docs/development_workflow.md b/docs/development_workflow.md
-deleted file mode 100644
-index 3c8ec929..00000000
---- a/docs/development_workflow.md
-+++ /dev/null
-@@ -1,81 +0,0 @@
--# Development workflow
+-- **Zero-file league onboarding** — a new competition is a single registry entry; a CI-enforced contract prevents any SQL or Python change.
+-- **Automated data-quality tests** gate every build.
+-- **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
++- **Cost-controlled** — one nightly build at 04:00 UTC and an hourly data-age check; each competition's
++  ingest switch and history depth are set explicitly in the [registry](docs/competition_registry.yml).
+ - **Multilingual** (DE / EN / FI), multi-competition by design.
+-- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, validation, data build and security scanning on every merge request; the nightly build runs from Cloud Scheduler. The repository is developed on [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only mirror of `main`.
+-- **v2 web app** with new information architecture and richer insights in active development.
++- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, tests, governance checks and a secret scan on every
++  merge request, and a dbt build against BigQuery when it changes the dbt project, ingestion or the
++  registry; the nightly build runs from Cloud Scheduler. The repository is developed on
++  [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only
++  mirror of `main`.
+ 
+ ## Design decisions
+ 
+ This is a personal project, and its central constraint is scaling across many competitions without the maintenance cost growing with each one. A few decisions follow from that:
+ 
+-- **One set of raw tables, discriminated by `league_code`.** Rather than per-competition tables (which multiply the model count with every league), all competitions share unified raw tables keyed by a `league_code` column that flows through every layer. Adding a competition is a single [registry entry](docs/competition_registry.yml) — no new SQL or Python — and a [CI check](scripts/check_layer_contract.py) fails the build if anyone reintroduces per-competition models.
++- **One set of raw tables, discriminated by `league_code`.** Rather than per-competition tables (which multiply the model count with every league), all competitions share unified raw tables carrying a `league_code` column that flows through every layer. Adding a competition is a [registry entry](docs/competition_registry.yml) plus the two files `scripts/sync_dbt_vars.py` generates from it — no new SQL or Python — and a [CI check](scripts/check_layer_contract.py) fails on a per-competition staging directory.
+ 
+ - **A strict layer contract.** Each medallion layer has one job (staging = cleanup, core = system of record, marts = consumption), enforced so the boundaries don't erode: a bug has an obvious layer to live in, a new requirement an obvious home. See [layering.md](dbt_project/docs/layering.md).
+ 
+-- **Data quality is a build gate, not a review step.** The numbers are shown directly to fans, who can't verify them — so correctness is enforced by automated tests on every build (keys, referential integrity, grain). A model that breaks its contract fails the pipeline rather than shipping a wrong number. See [engineering_standards.md](dbt_project/docs/engineering_standards.md).
++- **Data quality is a build gate, not a review step.** The numbers are shown directly to fans, who can't verify them — so correctness is enforced by automated tests on every build (keys, referential integrity, grain). A failing error-level test stops every model built on it, so a wrong number does not reach a mart. See [engineering_standards.md](dbt_project/docs/engineering_standards.md).
+ 
+-- **Metrics are defined once.** Every metric lives in a machine-readable catalogue and is consumed from there, never re-derived inside a mart — so the same metric stays consistent everywhere, and the definitions stay tool-readable (a foundation for a future semantic layer).
++- **Metrics are defined once.** Each metric's meaning and formula is one row of the [metric catalogue](dbt_project/seeds/metric_catalogue.csv); the SQL for most of them is generated from those rows, and a test fails when the two differ. See [metric_layer.md](docs/metric_layer.md).
+ 
+ - **Identity is modelled separately from affiliation.** Players and teams change clubs and seasons, so the stable entity is kept distinct from its affiliations over time, and facts reference the entity. It costs a join and buys correct answers to historical questions.
+ 
+ ## Development guardrails (AI-assisted)
+ 
+-This project is built largely with an AI coding agent, under a guardrail system that treats agent changes like an untrusted contributor rather than trusting them by default.
 -
--## Local validation
+-- **Contract-gated edits.** Before touching models, ingestion, or the guards themselves, the agent writes a task contract declaring its scope and an end-to-end blast-radius map. A pre-commit hook denies any edit outside that declared scope.
+-- **Blinded adversarial review.** Each change is judged by role-specific reviewer agents — scope, analytics engineering, platform, football domain — spawned cold with no builder context and defaulting to reject.
+-- **A review bound to its diff.** The commit is refused unless a review file carries the SHA-256 of the exact staged diff, and CI recomputes the same hash from the branch, so an approval cannot drift from the code it approved.
+-- **Fail-open hooks, fail-closed CI.** A hook bug can never wedge the workflow, while a CI backstop enforces the same rules at the pull-request boundary.
 -
--Run from the repo root with the `.venv` from `README.md` activated.
+-The design, and its honest trade-offs, are in [docs/agent_guardrails.md](docs/agent_guardrails.md) and [docs/working_agreement.md](docs/working_agreement.md).
+-
+-## BigQuery layout (datasets)
+-
+-BigQuery uses **datasets** as the unit that other databases often call **schemas**. This repo uses **one dataset per medallion layer** in the same GCP project:
+-
+-| Dataset | Role |
+-|---------|------|
+-| **`raw`** | 1:1 loads from Python (`RAW_*` tables). Default; override with `API_FOOTBALL_BIGQUERY_DATASET` (ingestion) and dbt **`raw_schema`** var (must match). |
+-| **`staging`** | dbt `1_staging` — light cleanup on top of `raw`. |
+-| **`base`** → **`marts`** | dbt `2_base` … `5_marts` per `dbt_project.yml`. |
+-
+-dbt uses [`macros/generate_schema_name.sql`](dbt_project/macros/generate_schema_name.sql) so layer names map **directly** to dataset ids (not `dbt_scratch_staging`). The profile’s default **`dataset`** (`dbt_scratch` in `profiles.example.yml`) is only a fallback for nodes without `+schema`.
+-
+-Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_project/docs/layering.md).
+-
+-**Competition scope:** active competitions are **BL1** (German Bundesliga), **WC** (FIFA World Cup 2026), and the six confederation qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC). The competition registry lives in `docs/competition_registry.yml`; adding a new competition requires only a YAML entry and a set of staging models — no changes to the ingestion package.
+-
+-**Layer population (current state):**
+-
+-| Layer | Status | What is there |
+-|-------|--------|---------------|
+-| `1_staging` | populated | 27 models — 13 `stg_apif__bl1_*` (Bundesliga) + 14 `stg_apif__wc_*` (World Cup + qualifiers). |
+-| `2_base` | populated | 12 models — `base_apif__bl1_*` and `base_apif__wc_*` (UNION ALL + dedup). |
+-| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 5 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`). |
+-| `4_intermediate` | 6 models | `int_pipeline__raw_ingestion_spread` (ingestion-spread audit); `int_team_season__standings_primary` (deduped standings for marts); `int_matchday__fixture_denormalized`, `int_matchday__finished_fixture_team_leg`, `int_matchday__upcoming_round_fixtures`, `int_matchday__team_form_metrics` (matchday spine + form). |
+-| `5_marts` | populated | Matchday/team-season insights (`mart_matchday_insights` all domestic leagues, `mart_matchday_insights_wc`, `mart_matchday_insights_bl1_relegation`, `mart_team_season_insights`), plus `mart_team_season`, rankings/scorers, debug. Slice by `league_code` at export/UI. |
+-
+-## dbt (local setup)
+-
+-The dbt project lives in `dbt_project/`. [Getting started](#getting-started) sets it up: `.venv` at
+-the root, and the profile as **`profiles.yml` in the repo root** (gitignored), copied from
+-`dbt_project/profiles.example.yml`.
+-
+-- Not `~/.dbt/profiles.yml`: that file is one per machine and shared by every dbt project on it, so
+-  another project can overwrite it. dbt reads the working directory before `~/.dbt`.
+-- `--project-dir` does not move the profile lookup: run dbt from the repo root, not from inside
+-  `dbt_project/`.
+-
+-### Pre-commit hooks (local quality gate)
+-
+-`.pre-commit-config.yaml` runs ruff (Python lint, CI's ruleset in `.ruff-ci.toml`), basic file
+-hygiene checks and the secret scan, on every `git commit`; a failing hook blocks the commit. CI's
+-`lint:python` job runs the same hooks on every file, so a commit that passes locally passes there.
+-SQL lint needs BigQuery credentials, so it runs in CI's data jobs, not here. To run every hook on
+-every file:
 -
 -```powershell
+-.\.venv\Scripts\python -m pre_commit run --all-files
+-```
+-
+-Run dbt from the repo root with **`.venv`** activated:
+-
+-```powershell
+-dbt --version
 -dbt deps --project-dir .\dbt_project
--```
--
--Install the dbt packages declared in `packages.yml`.
--
--```powershell
+-dbt debug --project-dir .\dbt_project
 -dbt parse --project-dir .\dbt_project
 -```
 -
--Syntax-check every model; does not touch BigQuery.
+-## Data Quality (tests)
+-
+-Recommended local workflow:
 -
 -```powershell
+-# Staging-only checks (fast, catches raw load issues early)
 -dbt build --project-dir .\dbt_project --selector staging
--dbt build --project-dir .\dbt_project --selector base
+-
+-# Snapshot history tables first (standings), then all downstream (core + intermediate)
+-dbt snapshot --project-dir .\dbt_project
+-dbt build   --project-dir .\dbt_project --selector downstream
+-
+-# Full suite (staging + downstream + tests)
+-dbt build --project-dir .\dbt_project
+-
+-# Selector "base" and "marts" are defined but currently match no models.
+-# dbt build --project-dir .\dbt_project --selector base
+-# dbt build --project-dir .\dbt_project --selector marts
+-
+-# Optional: point dbt at a non-default raw dataset (must match ingestion target)
+-# dbt build --project-dir .\dbt_project --vars "{ raw_schema: raw_dev }"
 -```
 -
--Build and test staging models, then base models, against BigQuery.
+-For expectations by layer (grain, `not_null`, `unique`, avoiding duplicate tests downstream), see [engineering_standards.md §3 (Testing policy)](dbt_project/docs/engineering_standards.md).
 -
--`dbt_project/dbt_project.yml` defines `vars.active_competition_league_codes` (must match `docs/competition_registry.yml` active + in_progress; enforced by `python scripts/check_registry_var_sync.py`). Passing ad-hoc `--vars` that shrinks that list weakens the singular coverage tests — avoid unless you know why.
+-## dbt Layer Contract
 -
--If ingestion Python changed, also compile-check it:
+-This project follows a strict layer contract so transformations stay predictable and testable.
 -
--```powershell
--Get-ChildItem ingestion\api_football\ -Recurse -Filter *.py | ForEach-Object { python -m py_compile $_.FullName }
--```
+-- `1_staging`: raw cleanup only (renaming, typing, light normalization). No cross-source unions/joins (details in [layering.md §1_staging](dbt_project/docs/layering.md#1_staging)).
+-- `2_base`: preparation for **core**—entity resolution, shared identifiers, and first logical standardization across sources (unions/alignment where the same real-world entity appears in more than one staging place). Structural tests on grains and keys you define here—not the authoritative dimension/fact system of record (that is `3_core`).
+-- `3_core`: reusable business entities and clean relationship logic.
+-- `4_intermediate`: heavier transformations and feature engineering.
+-- `5_marts`: app/BI-ready outputs for consumption.
 -
--Run the ingestion loader smoke test to catch import/wiring errors (for example missing merge-helper imports) before a pipeline run:
+-Further reading:
 -
--```powershell
--python -m unittest tests.test_ingestion_loads_smoke
--```
--
--If `dbt` is not on PATH after `pip install -r requirements.txt`, invoke it from the Python Scripts directory (Windows example: `%LocalAppData%\Programs\Python\Python311\Scripts\dbt.exe`; `python -c "import sysconfig; print(sysconfig.get_path('scripts'))"` prints the folder).
--
--## Secret safety (public repo)
--
--Never commit:
--
--- `.env` files
--- API keys or tokens
--- service account JSONs
--- local-only files like `dbt_project/.user.yml`
--
--`git status --short` lists every added, modified, or untracked path. Review it before every commit.
--
--```powershell
--git status --short
--```
--
--### Enforced guardrails
--
--This repo uses two automated secret checks:
--
--1. **Local pre-commit hook** (`.pre-commit-config.yaml`) blocks obvious secrets before commit.
--2. **CI secret scan** (`.github/workflows/security-secrets.yml`) runs `gitleaks` on push/PR.
--
--Set up local guardrails once:
--
--```powershell
--pip install pre-commit
--pre-commit install
--```
--
--Run checks manually anytime:
--
--```powershell
--pre-commit run --all-files
--```
--
--If a real token/key was ever committed:
--
--1. Rotate/revoke it immediately at the provider.
--2. Replace file value with placeholder.
--3. Commit the cleanup.
-diff --git a/docs/feedback_collection.md b/docs/feedback_collection.md
-deleted file mode 100644
-index ad30b117..00000000
---- a/docs/feedback_collection.md
-+++ /dev/null
-@@ -1,95 +0,0 @@
--# In-App Anonymous Feedback Setup
--
--This prototype collects app-level feedback inside the UI (no redirect) with exactly three questions:
--
--1. Ease of use (1-5)
--2. Clarity of insights (1-5)
--3. One thing to improve first (free text)
--
--The flow stores only anonymous product feedback (no name/email/user account).
--
--## Exact steps to collect feedback (GitHub Pages)
--
--1. **Google Sheet:** Create a spreadsheet. Add a worksheet tab named exactly **`feedback`**. Row 1 can be headers (`ingested_at`, `ease_score`, …) or empty — the script appends rows.
--2. **Apps Script:** Go to [script.google.com](https://script.google.com) → New project → paste the full contents of **`scripts/feedback_webapp.gs`**.
--3. In that script, set **`SHEET_ID`** to your Sheet’s ID (from the Sheet URL: `docs.google.com/spreadsheets/d/<THIS_PART>/edit`). Leave **`FEEDBACK_TOKEN`** empty unless you want a shared secret (if you set it, set the same string in the HTML `FEEDBACK_TOKEN` constant and in CI you’d need a second secret — optional).
--4. **Deploy:** Deploy → New deployment → Type **Web app** → Execute as **Me** → Who has access **Anyone** → Deploy. Copy the **Web app URL** (must end with **`/exec`**).
--5. **GitHub:** In the repo → **Settings → Secrets and variables → Actions** → **New repository secret** → Name **`FEEDBACK_APPS_SCRIPT_URL`** → Value = that **`/exec`** URL (full string).
--6. **Publish:** Run the workflow **Deploy match preview (GitHub Pages)** on `main` (or push a change that triggers it). The build injects the URL into the page; the **Feedback** button appears and POSTs to your script.
--7. **Verify:** Submit feedback from the live site → confirm a new row appears on the **`feedback`** tab.
--
--**Local mirror of the live app:** skip steps 5–6; keep `site/match-preview/index.html` as-is, run `scripts/export_matchday_insights.ps1` (Windows) or `python scripts/export_pages_data.py` + `python scripts/export_metric_definitions_json.py` + `bash scripts/build_match_preview_site.sh` (Linux/macOS), then serve `_site/` and open `/`.
--
--## Does it work end-to-end?
--
--**Yes**, once all of the following are true:
--
--1. Google Sheet exists with tab name **`feedback`** (columns as below).
--2. **`scripts/feedback_webapp.gs`** is deployed as a Web App with **`SHEET_ID`** set, **Execute as: Me**, **Who has access: Anyone** (required so anonymous visitors can POST).
--3. The deployed **`…/exec`** URL is available to the browser:
--   - **GitHub Pages:** add repository secret **`FEEDBACK_APPS_SCRIPT_URL`** with that full URL. The Pages workflow runs `scripts/inject_feedback_endpoint.py` before upload so the built page contains your **`/exec`** URL and **Senden** reaches your script.
--   - **Local `_site/` mirror:** run `python scripts/inject_feedback_endpoint.py site/match-preview/index.html "<your_exec_url>"` on a local copy before `scripts/build_match_preview_site.sh` / `scripts/build_match_preview_site.ps1`, then serve `_site/`.
--
--The **Feedback** button is always shown. If the URL is still the placeholder, **Senden** shows a short hint instead of calling Google.
--
--Optional: set **`FEEDBACK_TOKEN`** in both the Apps Script and the HTML constant if you want a shared secret gate; leave both empty to skip.
--
--## 1) Configure frontend placeholders
--
--For **local** `_site/` previews only, edit constants in `site/match-preview/index.html` (or run `scripts/inject_feedback_endpoint.py` before building `_site/`):
--
--- `FEEDBACK_ENDPOINT`: your deployed Web App **`…/exec`** URL
--- `FEEDBACK_TOKEN`: optional; must match the script if you enabled the check there
--
--## 2) Create Google Sheet
--
--Create a Google Sheet with tab name `feedback`.
--
--Suggested column order:
--
--1. `ingested_at`
--2. `ease_score`
--3. `clarity_score`
--4. `improvement_text`
--5. `language`
--6. `fixture_id`
--7. `app_version`
--8. `submitted_at`
--
--## 3) Deploy Google Apps Script endpoint
--
--Use `scripts/feedback_webapp.gs` in Apps Script:
--
--- Replace `SHEET_ID`
--- Set `FEEDBACK_TOKEN` only if you want token-based gatekeeping
--- Deploy as Web App (execute as you, access: anyone)
--
--**If the browser shows a CORS / network error when sending:** the match preview page POSTs JSON with `Content-Type: text/plain` on purpose. `application/json` triggers a preflight `OPTIONS` request; Google Apps Script web apps often do not handle that, so the request never reaches `doPost`. Do not change the client back to `application/json` unless you add a proxy that handles CORS.
--
--## 4) Security baseline
--
--- Never commit real tokens, sheet IDs, or deployment URLs if you consider them sensitive.
--- Keep `FEEDBACK_TOKEN` private and rotate immediately if exposed.
--- Collect only anonymous fields listed above.
--- Keep strict numeric bounds for scores (1..5).
--- Sanitize comment text and cap length.
--- Review unusual spikes weekly and rotate token if abused.
--
--## 5) Review cadence
--
--At least once per week:
--
--- Avg ease score
--- Avg clarity score
--- Top 3 repeated qualitative themes
--- 3 sample comments
--
--Share this digest in chat for improvement planning.
--
--## Incident note (if a token was pushed already)
--
--If a token was ever committed in git history:
--
--1. Rotate token in deployed Apps Script immediately.
--2. Update local app config with the new token.
--3. Treat old token as compromised permanently.
-diff --git a/docs/match_preview_pages_refinement.md b/docs/match_preview_pages_refinement.md
-deleted file mode 100644
-index 1570c4d6..00000000
---- a/docs/match_preview_pages_refinement.md
-+++ /dev/null
-@@ -1,209 +0,0 @@
--# Match Preview (GitHub Pages) — refinement guide
--
--This doc explains each decision, the options, and a **recommended default** (trust-first, low noise, good for sharing).  
--**Clickable choices:** use the **Refinement** form the assistant sends in chat (Cursor AskQuestion). Your selections can then be copied into the implementation plan.
--
-----
--
--## A. Hosting and URL
--
--### A1. How is the site published?
--
--| Option | What it means |
--|--------|----------------|
--| **GitHub Actions → Pages artifact** | Workflow builds a small folder (`index.html` + JSON), uploads it as a Pages deployment. **No** need to commit `matchday_insights.json` on every refresh. |
--| **Files under `docs/` on `main`** | You commit HTML + JSON each update. Pages serves from `/docs`. Simpler mentally, but **noisy git history** and mixes with your existing Markdown in `docs/`. |
--
--**Recommendation:** **Actions artifact** — cleaner repo, same public URL.
--
--### A2. URL path
--
--| Option | What it means |
--|--------|----------------|
--| **Site root (`/`)** | `https://<user>.github.io/<repo>/` is only this app. |
--| **Subpath (`/match-preview/`)** | App at `.../repo/match-preview/`. Leaves room for a future homepage at `/`. |
--
--**Recommendation:** **`/match-preview/`** — fewer future migrations.
--
--### A3. Repo / Pages visibility
--
--| Option | What it means |
--|--------|----------------|
--| **Public repo + public Pages** | Anyone with the link can see data (expected for this prototype). |
--| **Private / access-controlled** | Needs different hosting or GitHub plan features. |
--
--**Recommendation:** **Public** for v1 unless you have a compliance constraint.
--
--### A4. Custom domain
--
--| Option | What it means |
--|--------|----------------|
--| **Later** | Use `*.github.io` first. |
--| **Now** | DNS CNAME to GitHub Pages; extra setup step. |
--
--**Recommendation:** **Later** until the app is stable.
--
-----
--
--## B. Automation and data
--
--### B1. How often should the public site refresh?
--
--| Option | What it means |
--|--------|----------------|
--| **Twice daily** | Closer to your `dbt-scheduled` idea; more BQ + Actions minutes. |
--| **Once daily** | Usually enough for pre-match cards. |
--| **Manual only** | `workflow_dispatch` until you trust the pipeline. |
--
--**Recommendation:** **Once daily** + **manual** trigger — good balance of freshness vs. cost.
--
--### B2. What does the Pages workflow build in BigQuery?
--
--| Option | What it means |
--|--------|----------------|
--| **Mart only** | `dbt build --select mart_matchday_insights` — fast, assumes upstream tables are already fresh from your main scheduled job. |
--| **Broader build** | Refreshes more of the DAG before export — slower, costlier, fewer “stale upstream” surprises. |
--
--**Recommendation:** **Mart only**, with a **comment in the workflow** that the main schedule keeps facts/marts fresh.
--
--### B3. If the workflow fails (dbt or JSON extract)
--
--| Option | What it means |
--|--------|----------------|
--| **Keep last successful deploy** | Visitors still see yesterday’s data instead of a broken site. |
--| **Deploy “unavailable” page** | Clear signal of failure; wipes good data from view. |
--
--**Recommendation:** **Keep last successful deploy**.
--
--### B4. `dbt show` row limit (CLI cap)
--
--`dbt show` only previews a capped number of rows; it is **not** a business “window” (that lives in the mart SQL). The cap should match **how many rows this mart can return for one export**: `mart_matchday_insights` is one row per upcoming fixture on the selected matchday, so for **Bundesliga** (internal `league_code` **D1**) that is **at most nine**.
--
--**Recommendation:** **`--limit 9`** for Bundesliga-only exports. If you later export a league with more fixtures per round, raise the cap to match that round’s maximum (or switch to a warehouse query without a CLI row cap).
--
-----
--
--## C. Visual design (mock)
--
--### C1. Background / atmosphere
--
--| Option | What it means |
--|--------|----------------|
--| **Full mock** | Green→black gradient, subtle texture/noise, corner “spotlights” (CSS). |
--| **Simplified** | Dark green / near-black, minimal effects — faster build, easier contrast tuning. |
--
--**Recommendation:** **Full mock** for share impact; simplify if QA finds contrast issues.
--
--### C2. “VS” styling
--
--| Option | What it means |
--|--------|----------------|
--| **Metallic look (CSS)** | Gradient text / highlights to echo the draft. |
--| **Flat bold white** | Easier, still strong. |
--
--**Recommendation:** **Flat bold first**; upgrade to metallic if time allows.
--
--### C3. Chevrons and pagination dots
--
--| Option | What it means |
--|--------|----------------|
--| **Always visible** | Obvious navigation for casual viewers. |
--| **Chevrons subtle until hover/tap** | Cleaner look; slightly less discoverable. |
--
--**Recommendation:** **Always visible** on mobile.
--
--### C4. Sparkle / info control (bottom-right in mock)
--
--| Option | What it means |
--|--------|----------------|
--| **Info icon → modal** | Short read-only text: what the 5-Spieltage window is, data source, no “AI”. |
--| **Omit v1** | Ship faster. |
--
--**Recommendation:** **Info modal** — builds trust without inventing metrics.
--
--### C5. Number font
--
--| Option | What it means |
--|--------|----------------|
--| **Tabular monospace** | Aligned columns, “data” feel. |
--| **Proportional bold (mock-like)** | Softer, more “poster”. |
--
--**Recommendation:** **Tabular monospace** for alignment.
--
-----
--
--## D. Hero row (draft had “win probability”)
--
--We **do not** ship fabricated win probability.
--
--| Option | What it means |
--|--------|----------------|
--| **No extra row** | Only the **10** backed metric rows. Clearest story. |
--| **Schussanteil bar** | One horizontal split bar built only from `home_shot_share_recent` / away share. |
--| **Punkte bar** | Only if we define an honest split from **existing** fields (more design work). |
--
--**Recommendation:** **No extra row** for v1; add Schussanteil bar in v2 if you want the mock punch.
--
-----
--
--## E. Copy and numbers (DE)
--
--| Topic | Options | Recommendation |
--|--------|---------|----------------|
--| Language | DE only vs DE+EN later | **DE only** v1 |
--| Decimals | Comma vs dot | **Comma** (DE) |
--| Percents | 1 decimal vs integer | **One decimal** |
--| Formula lines | 2-line clamp vs free wrap | **`line-clamp: 2`** |
--| Global footnote | Yes vs no (“Fenster = …”) | **Yes** under metric block |
--| Bar labels (if bar later) | DE only vs DE+small EN | **DE only** |
--
-----
--
--## F. League rank on the card
--
--| Option | What it means |
--|--------|----------------|
--| **Under each team name** | “Platz 3” style under home / away. |
--| **One combined line** | “Platz 3 vs Platz 7” in one line. |
--| **Hide when both null** | No empty chrome if standings missing. |
--
--**Recommendation:** **Under each name**, **hide the line when that side’s rank is null**.
--
--### Rank data source
--
--Use **`mart_team_season.latest_rank`** (from standings snapshot join; can be null if snapshot missing).
--Derived calculated rank (points/goal diff) will be part of the domestic_league standings mart when built.
--
-----
--
--## G. Winner coloring (green / slate)
--
--| Topic | Options | Recommendation |
--|--------|---------|----------------|
--| Tie | Exact only vs epsilon band | **Exact tie** = neutral both sides |
--| No games in window | Grey both vs dashes | **`—`** values, **neutral** colors |
--| Points row (which number to compare) | Raw sums vs `points_capture_recent` vs no color | **`points_capture_recent`** for fair comparison |
--| WCAG on green | Strict AA vs best effort | **Best effort** v1, fix obvious fails in QA |
--
-----
--
--## H. Privacy and extras
--
--| Topic | Recommendation |
--|--------|----------------|
--| Analytics on public site | **None** v1 |
--| Feedback (Apps Script) on public site | **None** v1 (secrets + scope) |
--| JSON shape | **Flat `show[]`** — matches current export script |
--| Logos | **Add URLs to mart** — single source of truth |
--| HTML in repo | **`site/match-preview/`** |
--| Mock PNG in repo | **Commit** to `docs/design/` when available |
--
-----
--
--## Where the full technical plan lives
--
--Cursor plan file (implementation outline, DAG, file paths):
--
--`c:\Users\Rami\.cursor\plans\gh_pages_match_preview_bce3ad94.plan.md`
--
--This Markdown file is the **human-readable refinement + recommendations** companion; use the **in-chat AskQuestion** block for **clickable** answers.
-diff --git a/docs/metrics_context_model.md b/docs/metrics_context_model.md
-index e81f3d4f..960817f7 100644
---- a/docs/metrics_context_model.md
-+++ b/docs/metrics_context_model.md
-@@ -75,8 +75,8 @@ for a team whose run was a single match.
+-- Detailed layering rules: [dbt_project/docs/layering.md](dbt_project/docs/layering.md)
+-- Engineering standards: [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md)
+-- API-Football data contract: [docs/data_contract.md](docs/data_contract.md)
++This project is built largely with an AI coding agent, under guardrails that treat its changes like an
++untrusted contributor's: [docs/agent_guardrails.md](docs/agent_guardrails.md) and
++[docs/working_agreement.md](docs/working_agreement.md).
  
- ## 4. The window matrix (per competition type)
+ ## Secrets
  
--The 12 types from the taxonomy (`docs/product_direction_threads.md`). 7 are active; 5
--are taxonomy-only / not yet ingested.
-+The types are the rows of `dbt_project/seeds/competition_types.csv`; a type with no competition in
-+the registry is not ingested yet.
+@@ -220,4 +122,5 @@ the provider first, then replace the value with a placeholder and commit.
+ ## Maintenance & operations
  
- **Window meanings:** each window is described once, on the column that names it: the form
- window's `window_type` (the `window_type__form` doc block) and the season record's
-@@ -192,7 +192,7 @@ offs naturally (each side brings its own recent form), so the separate relegatio
- and the BL1/BL2/L1 round-name vars are **deleted**. A "Relegation play-off" label is kept
- but derived **generically from the round name**, not per-league hardcoded lists.
- 
--### Folder organisation (refines product thread 2)
-+### Folder organisation
- 
- > **Shared by default; a type-specific folder only where the output shape truly differs.**
- 
-@@ -213,7 +213,7 @@ group-tables.
- 
- **Parallel-run + validate** (data quality is non-negotiable): build the new marts
- alongside the old, confirm the numbers match for BL1 and WC, then cut over and delete the
--old models, the relegation variant, the BL1/BL2/L1 vars, and update product thread 2.
-+old models, the relegation variant and the BL1/BL2/L1 vars.
- 
- ---
- 
-diff --git a/docs/operations_guide.md b/docs/operations_guide.md
-index ad7cfc3c..2fc44385 100644
---- a/docs/operations_guide.md
-+++ b/docs/operations_guide.md
-@@ -113,7 +113,7 @@ Days ahead of UTC today that count as "fresh" for `upcoming` priority. Default `
- 
- #### `API_FOOTBALL_REQUEST_PAUSE_MS` (optional)
- 
--Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing (6600 ms) under the economy profile and `250` under `full`, which is the blueprint §4 rate-limit rule. Set explicitly to enforce a specific rate; an explicit value always wins over the profile default.
-+Milliseconds to sleep after each successful HTTP call. Unset gives free-tier-friendly pacing (6600 ms) under the economy profile and `250` under `full` (the provider's limits: [`data_contract.md`](data_contract.md) "Provider behaviour"). Set explicitly to enforce a specific rate; an explicit value always wins over the profile default.
- 
- #### `API_FOOTBALL_SKIP_INGEST_LOCK` (optional)
- 
-@@ -224,28 +224,6 @@ GitHub Actions workflows are split by change type so UI-only PRs do not run live
- - **Required:** `validate` (from `ci-validate`), `python-ci` / `test`, `secret-scan`
- - **Optional / path-gated:** `data-build`, `ui-checks` — do not require globally; they only run when relevant paths change (skipped jobs do not block merge)
- 
--### Shareable Bundesliga match preview (GitHub Pages)
--
--1. In the GitHub repository, go to **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions** (not “Deploy from a branch”) the first time you enable Pages.
--2. Run **Actions → Deploy match preview (GitHub Pages) → Run workflow** on `main`, or wait for the daily schedule after merging the workflow.
--3. After a successful run, open **`https://<owner>.github.io/<repository>/`** (landing page). The match preview detail page remains available at `…/<repository>/match-preview/` and is reached via landing → fixture list → preview. The workflow uses the same WIF secrets as other dbt workflows (`GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`).
--4. **Optional — in-app feedback on Pages:** add Actions secret **`FEEDBACK_APPS_SCRIPT_URL`** with your Google Apps Script Web App **`…/exec`** URL (see [`docs/feedback_collection.md`](feedback_collection.md)). If unset, the Feedback button still renders, but submission shows a local "not configured" hint and does not POST.
--
--Local preview of the same HTML and JSON layout: run `scripts/export_matchday_insights.ps1` (Windows; includes `_site` assembly) or `python scripts/export_pages_data.py` + `python scripts/export_metric_definitions_json.py` + `bash scripts/build_match_preview_site.sh` (Linux/macOS), then serve the `_site` folder with a static file server (open `/`).
--
--### Play-off / promotion windows (BL1, BL2, L1)
--
--When a domestic league enters a play-off window, API-Football may still return NS fixtures with `round_name` labels such as `Final`. The landing card phase follows **`pages_export_manifest.json` row counts**, not calendar assumptions.
--
--| Step | Action |
--|------|--------|
--| Investigate | Query `int_matchday__upcoming_round_fixtures` and `mart_matchday_insights` for distinct `round_name` by `league_code`. Document in [`playoff_window_policy.md`](playoff_window_policy.md). |
--| Configure | Add or update dbt vars (`bl2_playoff_round_names`, `l1_relegation_round_names`, etc.) and extend `mart_matchday_insights` exclusions. BL1 keeps `mart_matchday_insights_bl1_relegation` + export fallback. |
--| Verify | `dbt test --select assert_mart_matchday_insights_excludes_playoff_rounds`; re-run `export_pages_data.py`; confirm manifest `matchday_row_count` and UI phase on staging Pages. |
--| CPO | Sign off in `playoff_window_policy.md` before enabling a new exclusion list or a dedicated L1 relegation mart. |
--
--Do not patch `_site` JSON by hand to force recap/matchday — change the mart or exporter.
--
- Required repository secrets for Workload Identity Federation:
- 
- - `GCP_WORKLOAD_IDENTITY_PROVIDER`
-diff --git a/docs/player_stats_ui_data_modeling_concept.md b/docs/player_stats_ui_data_modeling_concept.md
-deleted file mode 100644
-index 9be9f74a..00000000
---- a/docs/player_stats_ui_data_modeling_concept.md
-+++ /dev/null
-@@ -1,217 +0,0 @@
--# Player Stats in Match Preview — UI + Data Modeling Concept
--
--## Purpose
--
--Define how player statistics integrate into the existing Matchday IQ flow and what must change in the data model to support it cleanly, testably, and competition-agnostically.
--
--## Scope (this concept)
--
--- In scope: UX concept, metric concept, dbt modeling impact, role ownership, subticket/PR split.
--- Out of scope: implementing production SQL/HTML/JS in this document.
--
--## Current state (baseline)
--
--- Navigation is `landing -> fixture-list -> match-preview` with mobile-first swipe cards.
--- `site/match-preview/index.html` renders team-vs-team metric rows only.
--- `mart_player_season` exists, but fixture-level player stats in `fct_fixture_player_stats` currently read from `base_apif__bl1_fixture_players` only.
--- WC-first player stats in match preview therefore require core model expansion before any UI wiring.
--
--## Product concept (UI)
--
--### Flow
--
--`landing -> fixture-list -> fixture-detail`
--
--No new top-level pages. Player stats are added inside fixture detail to keep the current fast navigation.
--
--### Fixture detail information architecture
--
--1. Match header (teams, logos, kickoff, round) — unchanged.
--2. Segment control under header:
--   - `Team insights` (default)
--   - `Player insights` (new)
--3. `Player insights` content block (per fixture card):
--   - `Top players - home` (top 3)
--   - `Top players - away` (top 3)
--   - `Why these players` explainer line (one-line plain-language summary).
--
--### Player card concept (inside `Player insights`)
--
--Each player row shows:
--
--- player name
--- role badge (`ATT`, `MID`, `DEF`, `GK` when available)
--- 3 smart metrics (not raw-only counts), e.g.:
--  - `Threat` = goals + assists + shots_on_target contribution rate
--  - `Creation` = key passes + pass accuracy context
--  - `Reliability` = minutes-weighted availability + card risk signal
--
--Null/optional metrics show `Not provided` (never fake `0`).
--
--### Low-fi wireframe
--
--```text
--[Team A] vs [Team B]
--[Team insights] [Player insights]
--
--Player insights
--Home top players            Away top players
--1) Musiala   Threat 0.62    1) Mbappe    Threat 0.71
--   Creation 0.55               Creation 0.49
--   Reliability 0.81            Reliability 0.76
--2) ...
--3) ...
--
--Why these players:
--"Highest recent attacking contribution and chance creation in this fixture context."
--```
--
--## Data modeling implications
--
--## Metric policy (before SQL)
--
--Football Analytics Expert + BI Analyst must approve:
--
--- final metric list (max 3 per player card for v1),
--- formulas,
--- windows,
--- nullability semantics,
--- copy labels.
--
--No metric reaches UI without this sign-off.
--
--## Proposed dbt contract by layer
--
--### `1_staging` (raw cleanup only)
--
--- Ensure fixture-player staging exists and is consistent for active competitions (including WC surfaces): `stg_apif__{league}_fixture_players`.
--- No business logic in staging.
--
--### `2_base` (union + dedup)
--
--- Add unified `base_apif__fixture_players` that `UNION ALL`s all active competition stagings.
--- Keep dedup key at `(fixture_id, team_id, player_id)` with latest ingestion priority.
--
--### `3_core` (system of record)
--
--- Refactor `fct_fixture_player_stats` to read from unified `base_apif__fixture_players` (remove BL1-only dependency).
--- Keep grain one row per `(fixture_sk, team_sk, player_sk)`.
--- Maintain `league_code` partitioning and relationships to `fct_fixture`, `dim_team`, `dim_player`.
--
--### `4_intermediate` (feature logic)
--
--Add fixture-context player feature models:
--
--- `int_matchday__player_form_window`  
--  Applies the same competition form rules as match preview:
--  - domestic: up to last 5 current-season finished matches (previous-season fallback before season start),
--  - WC: qualifiers through Group Stage MD1, then cumulative finished WC tournament matches.
--
--- `int_matchday__fixture_player_insights`  
--  Computes derived smart metrics and ranks top players per fixture/team.
--
--### `5_marts` (UI-ready)
--
--Add `mart_matchday_player_insights`:
--
--- grain: `(fixture_sk, team_sk, player_sk)`
--- required keys: `league_code`, `fixture_sk`, `team_sk`, `player_sk`
--- includes:
--  - player identity columns
--  - approved smart metric columns
--  - `player_rank_for_fixture_side`
--  - `selection_reason_code` (for deterministic copy mapping in UI)
--
--UI export shape (new file per league):
--
--- `data/<league>/matchday_player_insights.json`
--- optional payload shape:
--  - `fixtures[]`
--    - fixture identity
--    - `home_players[]` (top 3)
--    - `away_players[]` (top 3)
--
--## Data quality requirements (hard gate)
--
--- Grain tests:
--  - unique combination on `(fixture_sk, team_sk, player_sk)` for mart.
--- Relationship tests:
--  - player/team/fixture foreign key integrity.
--- Formula consistency tests:
--  - derived metric equals its numerator/denominator formula within tolerance.
--- Range tests:
--  - ratio metrics in `[0,1]` when non-null.
--- Completeness tests:
--  - if a fixture is shown in `matchday_insights`, player insight rows for both sides must exist unless explicitly flagged `Not provided`.
--
--## UX requirements (hard gate)
--
--- Mobile-first remains primary; no horizontal overflow in player blocks.
--- Desktop/tablet parity: no swipe-only dead-ends (mouse/keyboard navigation must work).
--- Clear copy; no internal data jargon in user-facing labels.
--
--## Acceptance checks (for implementation PRs)
--
--- Phone:
--  - user can switch `Team insights <-> Player insights` in one tap,
--  - top players visible without horizontal scrolling.
--- Tablet:
--  - two-column player layout remains readable.
--- Desktop:
--  - user can navigate fixtures and switch segments without touch gestures.
--- Data honesty:
--  - any missing optional stat renders `Not provided`, not `0`.
--
--## Role-by-role delivery plan
--
--1. Football Analytics Expert: shortlist meaningful player metrics + caveats.
--2. BI Analyst: finalize metric catalogue, labels, ordering, and fallback copy.
--3. Analytics Engineer: implement dbt models/tests and data contract.
--4. Data Engineer: ensure fixture-player ingestion/completeness for target competition(s).
--5. UI Expert: implement segment UI and player cards against approved contract.
--6. Growth Expert: define share-surface for player cards (phase 2, not v1 blocker).
--7. Product Analyst + Legal Counsel: tracking + GDPR/licensing review before player-level tracking events.
--8. QA: cross-device and data-integrity validation.
--
--## Suggested subtickets and separate PRs
--
--1. **Metric spec ticket** (no code)  
--   Owner: Football Analytics Expert + BI Analyst  
--   Output: approved metric table in `docs/metrics_catalogue.md`.
--
--2. **Core fixture-player unification**  
--   Owner: Analytics Engineer  
--   PR scope: `2_base` + `3_core` for competition-agnostic `fct_fixture_player_stats`.
--
--3. **Intermediate player insight features + tests**  
--   Owner: Analytics Engineer  
--   PR scope: `4_intermediate` models + singular/schema tests.
--
--4. **Player insights mart + export wiring**  
--   Owner: Analytics Engineer  
--   PR scope: `5_marts`, exporter script, JSON contract tests.
--
--5. **UI integration in fixture detail**  
--   Owner: UI Expert  
--   PR scope: `site/match-preview/` segment control + player cards + i18n strings.
--
--6. **Cross-device QA and regression**  
--   Owner: QA  
--   PR scope: test evidence artifacts + bugfixes only.
--
--## Suggested branch naming (example)
--
--- `cursor/player-metric-spec-deef`
--- `cursor/core-fixture-player-union-deef`
--- `cursor/int-player-insights-features-deef`
--- `cursor/mart-player-insights-export-deef`
--- `cursor/ui-player-insights-tab-deef`
--- `cursor/qa-player-insights-regression-deef`
--
--## Easy access to this concept / mock-up draft
--
--- Repo path: `docs/player_stats_ui_data_modeling_concept.md`
--- After merge: direct GitHub URL  
--  `https://github.com/ramialfahham/football-data-pipeline/blob/main/docs/player_stats_ui_data_modeling_concept.md`
--
--For visual iteration, keep this doc as the canonical product/data contract and link a Figma file from this same section in a follow-up PR.
-diff --git a/docs/playoff_window_policy.md b/docs/playoff_window_policy.md
-deleted file mode 100644
-index 84026806..00000000
---- a/docs/playoff_window_policy.md
-+++ /dev/null
-@@ -1,76 +0,0 @@
--# Playoff window policy (BL1, BL2, L1)
--
--Evidence for CPO decisions on landing phase and matchday export. Row counts in `pages_export_manifest.json` drive UI routing; `matchday_source_mart` drives relegation labeling (see PR #102 UI).
--
--**Investigation date:** 2026-05-19 (BigQuery, production marts).
--
-----
--
--## Observed data (2025/26 season)
--
--### Upcoming fixtures (`int_matchday__upcoming_round_fixtures`)
--
--| league_code | round_name | status_short | fixture_count |
--|-------------|------------|--------------|---------------|
--| BL2 | Final | NS | 2 |
--| L1 | Final | NS | 2 |
--
--Both leagues expose only **`Final`** play-off legs in the upcoming-round pipeline. No other playoff `round_name` values appear in the unified mart slice today.
--
--### Unified mart (`mart_matchday_insights`)
--
--| league_code | round_name | rows | form notes |
--|-------------|------------|------|------------|
--| BL2 | Final | 2 | One side often has `home_form_games_played = 0` or `away_form_games_played = 0`; at least one row with null recent metrics |
--| L1 | Final | 2 | Mixed form depth (1 vs 5 games on home/away sides) |
--
--### BL1 relegation (reference pattern)
--
--- **Excluded from unified mart:** `round_name` in var `bl1_relegation_round_names` (`Final`, `Relegation Round`).
--- **Dedicated surface:** `mart_matchday_insights_bl1_relegation` + export fallback in `scripts/export_pages_data.py`.
--- **BL2 promotion tie:** Same fixtures may appear on BL1 relegation path; BL2 unified slice should not duplicate them for landing.
--
-----
--
--## Expert default (recommended)
--
--| League | Window | Recommendation | UI effect after data PR |
--|--------|--------|----------------|-------------------------|
--| **BL1** | Relegation play-off | Keep current split mart + export fallback | Matchday card + relegation label via `matchday_source_mart` |
--| **BL2** | Promotion play-off (`Final`) | **(b)** Exclude `Final` from unified mart; show promotion legs on BL1 relegation path only | BL2 landing → season recap (no JS hack) |
--| **L1** | Relegation play-off (`Final`) | **(b)** Exclude `Final` from unified mart first | L1 landing → season recap |
--| **L1** | Optional later **(a)** | Add `mart_matchday_insights_l1_relegation` + export fallback (mirror BL1) | Matchday card + relegation label when dedicated mart has rows |
--
--**Out of scope until 3. Liga ingested:** BL2 relegation vs 3. Liga (`round_name` TBD).
--
-----
--
--## CPO sign-off (fill before Phase 3 merge)
--
--- [ ] BL2: exclude `Final` from unified mart — **yes / no**
--- [ ] L1: exclude `Final` from unified mart — **yes / no**
--- [ ] L1: build dedicated relegation mart **(a)** — **yes / no / defer**
--
-----
--
--## Implementation mapping (Phase 3)
--
--| Var | Values (current API labels) | Macro |
--|-----|------------------------------|--------|
--| `bl2_playoff_round_names` | `Final` | `bl2_playoff_round_names_in_clause()` |
--| `l1_relegation_round_names` | `Final` | `l1_relegation_round_names_in_clause()` |
--
--Extend `mart_matchday_insights.sql` `WHERE` with league-scoped exclusions (same structure as BL1).
--
-----
--
--## SQL references (ad-hoc, not committed)
--
--Re-run in BigQuery when seasons change:
--
--```sql
--SELECT league_code, round_name, status_short, COUNT(*) AS n
--FROM `football-data-pipeline-gcp.intermediate.int_matchday__upcoming_round_fixtures`
--WHERE league_code IN ('BL2', 'L1')
--GROUP BY 1, 2, 3;
--```
-diff --git a/docs/pr_autopilot.md b/docs/pr_autopilot.md
-deleted file mode 100644
-index fb2bd75a..00000000
---- a/docs/pr_autopilot.md
-+++ /dev/null
-@@ -1,30 +0,0 @@
--# PR Autopilot (Controlled Merge Automation)
--
--## What this automates
--
--Workflow: `.github/workflows/pr-autopilot.yml`
--
--- Runs on PR events, hourly schedule, and manual trigger.
--- Auto-updates PR branches from `main` when they are behind and updateable.
--- Detects merge conflicts and leaves a bot comment marker on the PR.
--- Enables GitHub auto-merge (squash) when:
--  - PR is not draft
--  - PR is not conflicting
--
--Auto-merge then waits for required checks/branch protections and merges automatically when they pass.
--
-----
--
--## Founder workflow (plain language)
--
--1. Team/agents open PRs as usual.
--2. Autopilot handles branch update, conflict signaling, and auto-merge enablement.
--3. If there is a conflict, autopilot posts a bot comment with next steps.
--
--You stay focused on briefs and outcomes, not merge mechanics.
--
-----
--
--## What is not automated
--
--- Complex conflict resolution still requires an agent/human.
-diff --git a/docs/product_direction_threads.md b/docs/product_direction_threads.md
-deleted file mode 100644
-index 013c4087..00000000
---- a/docs/product_direction_threads.md
-+++ /dev/null
-@@ -1,116 +0,0 @@
--# Product direction — open threads
--
--Three topics surfaced in session 2026-05-24 that need dedicated discussion before any implementation starts.
--Tackle one by one. Do not close a thread without explicit sign-off from Rami.
--
-----
--
--## Thread 1 — Cost at scale (CLOSED 2026-05-25)
--
--**Resolution:**
--- Raw tables partitioned by `DATE(ingested_at)` — PR #224 (249 tables migrated).
--- Reference table staging reads latest partition only — `apif_latest_source_partition` macro, PR #222.
--- Fanout facts (`fct_fixture_event`, `fct_fixture_team_stats`, `fct_fixture_player_stats`) converted to incremental — PR #232.
--- Intermediate matchday models are correctly full-refresh: they read from stored fact tables (not raw), whose scan cost is proportional to fixture count, not raw table size. Making them incremental would not help — form metrics require full history by design.
--- Daily costs acceptable at any realistic competition count. Architecture signed off.
--
-----
--
--## Thread 2 — Competition taxonomy (COMPLETE)
--
--**Context:**
--"One mart fits all" won't scale as the competition registry grows. Different competition types have fundamentally different data shapes. We need an explicit taxonomy in the registry to drive mart routing — otherwise every new competition type requires ad hoc logic scattered across models.
--
-----
--
--### Agreed taxonomy (session 2026-05-25)
--
--12 types in two groups. Enum values are final — do not change without explicit sign-off.
--
--#### Club competitions
--
--| `competition_type` | Description | Examples |
--|--------------------|-------------|---------|
--| `domestic_league` | Standings, form, promotion/relegation zones | BL1, BL2, PL, PD, SA, L1, VL, LMX, LP, MLS, SPL, ED |
--| `domestic_cup` | Knockout bracket, multiple rounds, no standings | DFB-Pokal, FA Cup, Copa del Rey |
--| `domestic_super_cup` | One-off match(es) between domestic titleholders | DFL-Supercup, FA Community Shield, Supercoppa Italiana, Supercopa de España |
--| `club_qualifying` | Qualifying rounds feeding into a continental club competition | UCL qualifying, UEL qualifying |
--| `continental_cup` | Group stage + knockout, multi-nation club squads | UCL, UEL, UECL |
--| `continental_super_cup` | One-off match between continental titleholders | UEFA Super Cup |
--| `club_world_cup` | Global club tournament — not continental | FIFA Club World Cup |
--| `intercontinental_super_cup` | One-off match between continental titleholders from different confederations | FIFA Intercontinental Cup |
--| `club_friendly_domestic` | Pre-season or mid-season friendly between club sides (domestic context) | — taxonomy only, not ingesting |
--| `club_friendly_international` | Pre-season or mid-season friendly between club sides (cross-border) | — taxonomy only, not ingesting |
--
--#### National team competitions
--
--| `competition_type` | Description | Examples |
--|--------------------|-------------|---------|
--| `qualifying` | Qualification campaign for a major tournament | WCQ (all confederations), ECQ |
--| `continental_championship` | Confederation tournament — groups + knockout; includes Nations League | Euros, Copa América, AFCON, Nations League |
--| `world_championship` | Global confederation tournament | FIFA World Cup |
--| `national_team_friendly` | International friendly between national teams | — taxonomy only, not ingesting |
--
--#### Design decisions recorded
--
--- **Play-offs are a phase attribute, not a type.** A play-off is a stage within a parent competition (e.g. WCQ intercontinental play-off round). It inherits the parent's `competition_type`. `WCQIP` is `qualifying`, not a separate type.
--- **Gender is a competition attribute, not a mart split.** The 12 types apply equally to men's and women's competitions. Add a `gender` field to the registry (`men` / `women` / `mixed`) when the first women's competition is onboarded. Do not pre-empt this.
--- **Supercups split at domestic/continental boundary.** The mart shape is identical but the competitive context differs (domestic: league champ vs cup winner; continental: UCL winner vs UEL winner). Separate types allow clean routing without conditional logic.
--- **No national team supercup type.** The FIFA Confederations Cup (the closest equivalent) was sunset after 2017. No live competition exists. Add if needed when one appears.
--- **Friendlies are in the taxonomy even though not currently ingested.** They will need separate mart treatment when onboarded (no meaningful standings, form context is weak). Domestic and international club friendlies are distinct types.
--
--#### Registry state as of 2026-05-25
--
--The registry already carries `competition_type` on most entries but the values **do not yet match this taxonomy**. Entries that need updating:
--
--| `league_code` | Current value | Correct value |
--|---------------|--------------|---------------|
--| `WC` | `international_tournament` | `world_championship` |
--| `WCQEU`, `WCQAF`, `WCQCA`, `WCQSA`, `WCQAS`, `WCQIP`, `WCQOC` | `wc_qualifier` | `qualifying` |
--
--All `domestic_league` entries (BL1, PL, PD, BL2, SA, L1, VL, LMX, LP, MLS, SPL, ED) and `UCL` (`continental_club`) are already correct.
--
-----
--
--### Decisions
--
--1. ✅ **Enum values agreed** — 12 types, final. See taxonomy table above.
--2. ✅ **`competition_registry.yml` patched** — WC → `world_championship`; all 7 WCQ entries → `qualifying`. All other active entries already correct (2026-05-26).
--3. ✅ **dbt folder organization by `competition_type`** — revised 2026-05-27 (Path B impact):
--   - `1_staging`: **flat** — Path B replaces per-competition staging files with ~10 generic models (one per endpoint). Generic models are cross-type; type subfolders are obsolete here. Staging type subfolders from PR #237 are removed in issue #253.
--   - `2_base`: flat — base models collapse the league dimension; type folders would fragment that (unchanged).
--   - `3_core`: flat — core facts are type-agnostic; `league_code` column carries type through (unchanged).
--   - `4_intermediate`: **type subfolders** — multiple intermediate models per type are expected (form windows, standings logic, bracket tracking, relegation zones all differ by type). Folder = what kind of football this model is about.
--   - `5_marts`: **type subfolders** — multiple mart files per type are expected; types have genuinely different consumer shapes (standings + relegation for domestic leagues, cumulative form for tournaments, bracket progression for knockouts).
--
--   **Architectural boundary:** staging and base are the generic infrastructure layer (flat). Intermediate and marts are the type-aware business logic layer (type subfolders). A new engineer can internalize this in one sentence: *below intermediate, type is a data column; at intermediate and above, type drives file organisation.*
--
--4. ✅ **`competition_type` drives mart file organisation via type subfolders** — agreed 2026-05-27. Multiple mart files per type are expected as the competition catalog grows. `competition_type` is not metadata-only — it drives folder structure and file ownership at the intermediate and mart layers. Individual mart files are named by consumer purpose within their type folder (e.g. `5_marts/domestic_league/mart_matchday_insights.sql`, `5_marts/continental_club/mart_group_stage_standings.sql`). No per-type suffix in the file name itself — the folder provides the type context.
--
--**Status:** All 4 questions resolved. Thread 2 COMPLETE.
--
-----
--
--## Thread 3 — Visual identity and UX (ACTIVE)
--
--**Context:**
--The site is evolving from a mobile MVP into a professional multi-device website. The card/color scheme is no longer the right direction. The product should be fun, visual, and low-click.
--
--**Principles agreed:**
--- Every page should have one thing that makes you stop scrolling
--- Data shown, not described — charts over tables where possible
--- Max 2 clicks from home to anything interesting
--
--**Open questions:**
--- Visual style: data-dense (heatmaps, radar charts) vs narrative (big numbers, sparklines, callout stats)?
--- Tech stack: stay with static GitHub Pages + vanilla JS, or move to a framework that supports proper routing and SEO?
--
--**Status:** Open — needs discussion before any new page is built.
--
-----
--
--## Related open items (not threads, but linked)
--
--- Data Scientist role brief: [`roles/data_scientist.md`](roles/data_scientist.md) owns prediction work
--- Prediction mart: waits until the Data Scientist specifies the training data; the product decisions and open questions live in the predictions GitLab issue
--- `mart_league_standings`, `mart_team_season_stats`, `mart_team_squad`, `mart_player_season_stats` — scoped but not ticketed yet; wait until threads 2–3 are resolved
-diff --git a/docs/project_status_sync.md b/docs/project_status_sync.md
-deleted file mode 100644
-index c2919fcd..00000000
---- a/docs/project_status_sync.md
-+++ /dev/null
-@@ -1,64 +0,0 @@
--# Project Status Sync Setup
--
--> PAUSED 2026-05-20 — board-status automation is disabled in favor of chat-driven delivery.
--> Archived workflow location: `.github/workflows/_paused/project-status-sync.yml`.
--> Active replacement for execution memory: `docs/board_request_sync.md`.
--
--## Purpose
--
--Automatically move Project board status columns from issue state and labels:
--
--- `agent-running` -> `In Progress`
--- `decision-needed` or `blocked` -> `Blocked`
--- closed issue -> `Done`
--- default open issue -> `Todo`
--
--Workflow: `.github/workflows/project-status-sync.yml`
--
-----
--
--## One-time secret setup
--
--Add this repository secret:
--
--- Name: `PROJECT_AUTOMATION_TOKEN`
--- Value: GitHub personal access token
--
--> **Scope superseded (audit F18 / #413).** The `repo`, `project` classic scopes once
--> prescribed here are over-broad. The token is shared with the active
--> `board-request-sync` workflow; use the least-privilege scope documented in
--> [`docs/board_request_sync.md`](board_request_sync.md#least-privilege-scope-audit-f18--413)
--> (a fine-grained PAT: Projects read+write, Issues read, Pull requests read, Metadata
--> read — this repo only).
--
--Settings path:
--
--- `https://github.com/ramialfahham/football-data-pipeline/settings/secrets/actions`
--
-----
--
--## Board title requirement
--
--The workflow targets the Project titled:
--
--- `Matchday Pilot - Project Board`
--
--If you rename the project, update `PROJECT_BOARD_TITLE` in the workflow file.
--
-----
--
--## Triggers
--
--Runs automatically on:
--
--- issue opened/reopened/edited/labeled/unlabeled/closed
--- hourly schedule
--- manual `workflow_dispatch`
--
-----
--
--## Founder usage
--
--You do not manually move cards between `Todo`, `In Progress`, `Blocked`, and `Done` anymore.
--
--The automation does it based on ticket labels and state.
-diff --git a/docs/ui_design_brief.md b/docs/ui_design_brief.md
-index e3fa793a..32d4e441 100644
---- a/docs/ui_design_brief.md
-+++ b/docs/ui_design_brief.md
-@@ -18,7 +18,7 @@ hardcore fans must find depth on demand.
- - v2 replaces a card-based mobile MVP; it is a full responsive website with
-   programmatic pages for every competition, fixture, team and player.
- 
--## 2. Design principles (locked — Thread 3 + north star)
-+## 2. Design principles (locked — north star)
- 
- 1. **Every page has one thing that makes you stop scrolling.**
- 2. **Data shown, not described** — charts over tables wherever possible.
-diff --git a/ingestion/api_football/loads/batch_fixtures.py b/ingestion/api_football/loads/batch_fixtures.py
-index a127dcbe..e52fc875 100644
---- a/ingestion/api_football/loads/batch_fixtures.py
-+++ b/ingestion/api_football/loads/batch_fixtures.py
-@@ -28,10 +28,9 @@ every league: a fixture is done once ANY stored row for it carries non-empty sta
- and its player stats' second fetch is not due. That LOGICAL_OR aggregation is what makes
- the multi-row state safe to read.
- 
--Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping
--API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between calls gives ~4 calls/sec.
--
--See docs/api_football_ingestion_blueprint.md for the full API specification.
-+Rate limiting: on top of the pause after every call (API_FOOTBALL_REQUEST_PAUSE_MS), this loop
-+sleeps API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between batches. The provider's limits are in
-+docs/data_contract.md "Provider behaviour".
- """
- 
- from __future__ import annotations
-diff --git a/ingestion/api_football/settings.py b/ingestion/api_football/settings.py
-index 82016b29..eb0e01f3 100644
---- a/ingestion/api_football/settings.py
-+++ b/ingestion/api_football/settings.py
-@@ -123,10 +123,9 @@ def _apply_ingest_profile_defaults() -> None:
-     default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
-     history_seasons widens it, a 250 ms pause between requests, and high pagination caps.
- 
--    The pause is the blueprint's §4 rule (``time.sleep(0.25)``), and the constraint it protects is
--    the **per-minute** burst limit, not the daily quota. It defaults here rather than in a workflow
--    so nothing can inherit zero pacing by omission: this default used to be ``0``, no workflow set
--    the variable, and production therefore ran unpaced until #897.
-+    The pause protects the provider's **per-minute** limit, not the daily quota (docs/data_contract.md
-+    "Provider behaviour"). It defaults here rather than in a workflow so nothing can inherit zero
-+    pacing by omission.
-     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
- 
-     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled
-diff --git a/scripts/check_registry_var_sync.py b/scripts/check_registry_var_sync.py
-index 268cd098..28c31451 100644
---- a/scripts/check_registry_var_sync.py
-+++ b/scripts/check_registry_var_sync.py
-@@ -10,7 +10,7 @@ Checks two things against docs/competition_registry.yml:
- 
- Both are written by scripts/sync_dbt_vars.py; this script fails CI if either drifts.
- Singular tests under dbt_project/tests/ prove var ⊆ base rows. See
--docs/competition_registry.yml header and docs/development_workflow.md.
-+docs/competition_registry.yml header and CLAUDE.md "How to add a new league".
- 
- Usage (from repo root or dbt_project/):
-     python scripts/check_registry_var_sync.py
-diff --git a/tests/test_governance_doc_parity.py b/tests/test_governance_doc_parity.py
-index 74052f6a..bacee4d6 100644
---- a/tests/test_governance_doc_parity.py
-+++ b/tests/test_governance_doc_parity.py
-@@ -129,12 +129,11 @@ COVERED_FILES = (
- #                       frozen escalations.log of past rulings
- #   .claude/active_work.md  the handover, rewritten every session (routing files it
- #                       under `artifact_only` for the same reason)
--#   docs/audits/        dated snapshots of what was true on the day
- #   docs/tracker/       the generated backup of the GitLab tracker: every issue body quoted
- #                       verbatim, old ones included, one writer (the script), a hook against
- #                       hand edits — read only when GitLab is unreachable, never a rule
- #   tests/              this file, which quotes every claim shape it checks
--SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/audits/", "docs/tracker/", "tests/")
-+SWEEP_EXEMPT = (".claude/task/", ".claude/active_work.md", "docs/tracker/", "tests/")
- 
- 
- def normalise(rel: str) -> str:
-diff --git a/tests/test_ingest_profile_pacing.py b/tests/test_ingest_profile_pacing.py
-index 8604d6f5..c7f68599 100644
---- a/tests/test_ingest_profile_pacing.py
-+++ b/tests/test_ingest_profile_pacing.py
-@@ -34,9 +34,9 @@ def _restore_environ():
-     os.environ.clear()
-     os.environ.update(saved)
- 
--# Blueprint §4: 4 calls/sec caps the request rate at 240/min, against a measured 450/min ceiling.
--BLUEPRINT_PAUSE_MS = "250"
--BLUEPRINT_PAUSE_SECONDS = 0.25
-+# 4 calls/sec caps the request rate at 240/min, under the provider's 450/min (docs/data_contract.md).
-+FULL_PAUSE_MS = "250"
-+FULL_PAUSE_SECONDS = 0.25
- 
- # quota.py's free-tier fallback when the variable is unset (~9 calls/min under a 10/min limit).
- ECONOMY_FALLBACK_SECONDS = 6.6
-@@ -56,28 +56,28 @@ class TestFullProfilePacing:
-         # the fix this pause was 0.0 and the nightly burst-limited itself.
-         _clear_pacing_env(monkeypatch)
-         _apply_ingest_profile_defaults()
--        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
-+        assert _request_pause_seconds() == FULL_PAUSE_SECONDS
-         assert _request_pause_seconds() > 0, "production must never run unpaced (#897)"
- 
--    def test_explicit_full_profile_gets_the_blueprint_pause(self, monkeypatch):
-+    def test_explicit_full_profile_gets_the_full_pause(self, monkeypatch):
-         _clear_pacing_env(monkeypatch)
-         monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", "full")
-         _apply_ingest_profile_defaults()
--        assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS
-+        assert _request_pause_seconds() == FULL_PAUSE_SECONDS
- 
--    def test_profile_aliases_get_the_blueprint_pause(self, monkeypatch):
-+    def test_profile_aliases_get_the_full_pause(self, monkeypatch):
-         # "paid" and "complete" are accepted aliases of the full profile; they must not diverge.
-         for alias in ("paid", "complete"):
-             _clear_pacing_env(monkeypatch)
-             monkeypatch.setenv("API_FOOTBALL_INGEST_PROFILE", alias)
-             _apply_ingest_profile_defaults()
--            assert _request_pause_seconds() == BLUEPRINT_PAUSE_SECONDS, alias
-+            assert _request_pause_seconds() == FULL_PAUSE_SECONDS, alias
- 
-     def test_sets_the_documented_millisecond_value(self, monkeypatch):
-         # Pins the stored value too, so docs quoting "250" cannot silently drift from the code.
-         _clear_pacing_env(monkeypatch)
-         _apply_ingest_profile_defaults()
--        assert os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == BLUEPRINT_PAUSE_MS
-+        assert os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == FULL_PAUSE_MS
- 
- 
- class TestExplicitOverrideStillWins:
-diff --git a/tests/test_materialisation_policy.py b/tests/test_materialisation_policy.py
-index 0bfa7739..4ab8b2cb 100644
---- a/tests/test_materialisation_policy.py
-+++ b/tests/test_materialisation_policy.py
-@@ -2,8 +2,7 @@
- 
- WHY THIS EXISTS
- ---------------
--A cost fix landed and Thread 1 of docs/product_direction_threads.md was closed with
--"architecture signed off". Two days later an unrelated refactor rewrote the same models and
-+A cost fix landed and was signed off. Two days later an unrelated refactor rewrote the same models and
- the optimisation went with them. Nothing failed, because all ~865 dbt tests ask whether
- a NUMBER is correct and none asks whether something became expensive. The regression was invisible
- until the bill arrived, and it stayed invisible for two months.
-@@ -326,8 +325,7 @@ def _is_bookkeeping(rel: str) -> bool:
- 
-     `.claude/task/**` is the review's own paperwork: `review_input.patch` is a generated diff and
-     therefore contains the before-text by construction, and `escalations.log` is the durable record
--    of what changed and must stay writable. `product_direction_threads.md` records Thread 1 as it
--    was closed in May, which is history, not a live claim. This file constructs the tokens it hunts.
-+    of what changed and must stay writable. This file constructs the tokens it hunts.
-     """
-     return (
-         rel.startswith(".claude/task/")
-@@ -343,7 +341,6 @@ def _is_bookkeeping(rel: str) -> bool:
-         # from here, and the staleness is reported to the owning stream rather than swallowed.
-         # If that file ever becomes editable from this worktree, delete this line and fix it.
-         or rel == ".claude/active_work.md"
--        or rel == "docs/product_direction_threads.md"
-         # The generated backup of the GitLab tracker quotes every issue body verbatim, old ones
-         # included — history, not a live claim, the same class as the line above. It has one
-         # writer (`scripts/snapshot_tracker.py`) and a hook that refuses hand edits, so nothing
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index 90da25ab..549b20a2 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -40,16 +40,11 @@ PINNED = {
-     "deploy/nightly/README.md": 1,
-     "design-mocks/README.md": 6,
-     "docs/agent_guardrails.md": 15,
--    "docs/audits/2026-06_alignment_audit.md": 26,
-     "docs/content_architecture.md": 8,
--    "docs/cursor_dispatch_workflow.md": 1,
-     "docs/data_contract.md": 12,
-     "docs/metrics_context_model.md": 8,
-     "docs/north_star.md": 7,
-     "docs/operations_guide.md": 1,
--    "docs/playoff_window_policy.md": 1,
--    "docs/product_direction_threads.md": 7,
--    "docs/project_status_sync.md": 1,
-     "docs/roles/cto.md": 1,
-     "docs/roles/data_engineer.md": 1,
-     "docs/roles/platform_reliability.md": 2,
+ - **Runbook and troubleshooting** (environment variables, ingest lock, completeness checks, backfill vs daily update): [`docs/operations_guide.md`](docs/operations_guide.md).
+-- **Cursor / AI governance:** three focused rule files in [`.cursor/rules/`](.cursor/rules/) — [`agent-behavior.mdc`](.cursor/rules/agent-behavior.mdc) and [`project-context.mdc`](.cursor/rules/project-context.mdc) always apply; [`dbt.mdc`](.cursor/rules/dbt.mdc) and [`ingestion.mdc`](.cursor/rules/ingestion.mdc) load only when the agent is editing files in the matching directory. Rules encode evergreen intent and point at the authoritative docs rather than duplicating them.
++- **API-Football data contract:** [`docs/data_contract.md`](docs/data_contract.md).
++- **Cursor rules:** [`.cursor/rules/`](.cursor/rules/).
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -2240,7 +349,6 @@ index 90da25ab..549b20a2 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |   32 +-
-#    .claude/task/review_input.patch | 2295 ++++++++++++++++++++++++++++++++++++---
-#    2 files changed, 2193 insertions(+), 134 deletions(-)
+#   docs/tracker/gitlab_snapshot.md | 603 ++++++++++++++++++++++++++++------------
+#    1 file changed, 421 insertions(+), 182 deletions(-)
 # ============================================================================

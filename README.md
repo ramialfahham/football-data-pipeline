@@ -8,7 +8,7 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
 [![BigQuery](https://img.shields.io/badge/BigQuery-4285F4?logo=googlecloud&logoColor=white)](https://cloud.google.com/bigquery)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-**Status.** The pipeline runs daily behind automated data-quality and CI checks. The first fan-facing web app was a prototype and is now retired; its successor (**Matchday Pilot**) is in development with a new information architecture.
+**Status.** The pipeline runs daily. The web app, Matchday Pilot (`site_v2/`), is in development.
 
 ## Getting started
 
@@ -17,13 +17,13 @@ An ELT pipeline for football data: daily ingestion from API-Football into BigQue
 | Tool | Version | Needed for |
 |---|---|---|
 | Python | 3.11 | everything (pinned in `.python-version`) |
-| Node.js | 24 | the site (pinned in `.nvmrc` and `site_v2/package.json`) |
+| Node.js | 24 | setup and the site (pinned in `.nvmrc` and `site_v2/package.json`) |
 | git | any recent | everything |
 | [uv](https://docs.astral.sh/uv/) | any recent | only the dbt tool inside Claude Code (`.mcp.json`) |
 | [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) | any recent | only the credentialed level below |
 
 **Windows: clone into a short folder**, for example `C:\src\football-data-pipeline`. Some installed
-files sit 150 characters below the repo folder, and Windows refuses paths longer than 260 characters
+files sit 150 characters below the repo folder, and Windows refuses paths over 259 characters
 unless long paths are turned on. Setup stops with this explanation if the folder is too deep. To turn
 long paths on instead (once per machine, PowerShell as administrator):
 `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`
@@ -40,8 +40,8 @@ On Windows, if `python` is not 3.11: `py -3.11 scripts/bootstrap.py`.
 
 It creates `.venv` with every `requirements*.txt`, installs the git hooks (pre-commit), the site's
 packages, the dbt packages and Playwright's Chromium, creates `.env` and `profiles.yml` from their
-examples, and names the GitLab remote `gitlab`. Every step skips itself when already done, and no
-existing local file is overwritten, so it is safe to run again.
+examples, and names the GitLab remote `gitlab`. It is safe to run again: no existing local file is
+overwritten.
 
 ### Prove it works
 
@@ -52,8 +52,12 @@ python scripts/bootstrap.py --verify
 Runs the tests, every pre-commit check on every file, and the site build from the committed sample
 data. Preview the site with `npm run dev --prefix site_v2` (http://localhost:4321).
 
-Every commit then runs the pre-commit checks, pushes the branch to `gitlab` and opens a merge
-request (`.githooks/post-commit`).
+Every commit then runs the pre-commit checks (ruff with CI's rules in `.ruff-ci.toml`, file hygiene,
+the secret scan), pushes the branch to `gitlab` and opens a merge request if it has none (`.githooks/post-commit`).
+CI's `lint:python` job runs the same checks on every file. SQL lint runs in CI's data jobs, not in
+pre-commit; without credentials, lint a model from the repo root with
+`python -m sqlfluff lint <model file> --templater jinja` (models that call `dbt_utils` report false
+errors).
 
 ### With credentials (dbt against BigQuery, ingestion)
 
@@ -74,141 +78,39 @@ flowchart LR
     A[API-Football] -->|Python ingestion| B[(BigQuery raw)]
     B --> C[staging] --> D[base] --> E[core<br/>dims + facts]
     E --> F[intermediate<br/>metrics + form] --> G[marts]
-    G -->|JSON export| H[web app<br/>prototype]
+    G -->|JSON export| H[Matchday Pilot<br/>site_v2]
 ```
 
 ## Highlights
 
-- **Zero-file league onboarding** — a new competition is a single registry entry; a CI-enforced contract prevents any SQL or Python change.
-- **Automated data-quality tests** gate every build.
-- **Cost-controlled** — one scheduled run per day; ingest budget is explicit per competition.
+- **Cost-controlled** — one nightly build at 04:00 UTC and an hourly data-age check; each competition's
+  ingest switch and history depth are set explicitly in the [registry](docs/competition_registry.yml).
 - **Multilingual** (DE / EN / FI), multi-competition by design.
-- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, validation, data build and security scanning on every merge request; the nightly build runs from Cloud Scheduler. The repository is developed on [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only mirror of `main`.
-- **v2 web app** with new information architecture and richer insights in active development.
+- **CI/CD on GitLab** (`.gitlab-ci.yml`) — lint, tests, governance checks and a secret scan on every
+  merge request, and a dbt build against BigQuery when it changes the dbt project, ingestion or the
+  registry; the nightly build runs from Cloud Scheduler. The repository is developed on
+  [GitLab](https://gitlab.com/rami.al-fahham/football-data-pipeline); GitHub carries a read-only
+  mirror of `main`.
 
 ## Design decisions
 
 This is a personal project, and its central constraint is scaling across many competitions without the maintenance cost growing with each one. A few decisions follow from that:
 
-- **One set of raw tables, discriminated by `league_code`.** Rather than per-competition tables (which multiply the model count with every league), all competitions share unified raw tables keyed by a `league_code` column that flows through every layer. Adding a competition is a single [registry entry](docs/competition_registry.yml) — no new SQL or Python — and a [CI check](scripts/check_layer_contract.py) fails the build if anyone reintroduces per-competition models.
+- **One set of raw tables, discriminated by `league_code`.** Rather than per-competition tables (which multiply the model count with every league), all competitions share unified raw tables carrying a `league_code` column that flows through every layer. Adding a competition is a [registry entry](docs/competition_registry.yml) plus the two files `scripts/sync_dbt_vars.py` generates from it — no new SQL or Python — and a [CI check](scripts/check_layer_contract.py) fails on a per-competition staging directory.
 
 - **A strict layer contract.** Each medallion layer has one job (staging = cleanup, core = system of record, marts = consumption), enforced so the boundaries don't erode: a bug has an obvious layer to live in, a new requirement an obvious home. See [layering.md](dbt_project/docs/layering.md).
 
-- **Data quality is a build gate, not a review step.** The numbers are shown directly to fans, who can't verify them — so correctness is enforced by automated tests on every build (keys, referential integrity, grain). A model that breaks its contract fails the pipeline rather than shipping a wrong number. See [engineering_standards.md](dbt_project/docs/engineering_standards.md).
+- **Data quality is a build gate, not a review step.** The numbers are shown directly to fans, who can't verify them — so correctness is enforced by automated tests on every build (keys, referential integrity, grain). A failing error-level test stops every model built on it, so a wrong number does not reach a mart. See [engineering_standards.md](dbt_project/docs/engineering_standards.md).
 
-- **Metrics are defined once.** Every metric lives in a machine-readable catalogue and is consumed from there, never re-derived inside a mart — so the same metric stays consistent everywhere, and the definitions stay tool-readable (a foundation for a future semantic layer).
+- **Metrics are defined once.** Each metric's meaning and formula is one row of the [metric catalogue](dbt_project/seeds/metric_catalogue.csv); the SQL for most of them is generated from those rows, and a test fails when the two differ. See [metric_layer.md](docs/metric_layer.md).
 
 - **Identity is modelled separately from affiliation.** Players and teams change clubs and seasons, so the stable entity is kept distinct from its affiliations over time, and facts reference the entity. It costs a join and buys correct answers to historical questions.
 
 ## Development guardrails (AI-assisted)
 
-This project is built largely with an AI coding agent, under a guardrail system that treats agent changes like an untrusted contributor rather than trusting them by default.
-
-- **Contract-gated edits.** Before touching models, ingestion, or the guards themselves, the agent writes a task contract declaring its scope and an end-to-end blast-radius map. A pre-commit hook denies any edit outside that declared scope.
-- **Blinded adversarial review.** Each change is judged by role-specific reviewer agents — scope, analytics engineering, platform, football domain — spawned cold with no builder context and defaulting to reject.
-- **A review bound to its diff.** The commit is refused unless a review file carries the SHA-256 of the exact staged diff, and CI recomputes the same hash from the branch, so an approval cannot drift from the code it approved.
-- **Fail-open hooks, fail-closed CI.** A hook bug can never wedge the workflow, while a CI backstop enforces the same rules at the pull-request boundary.
-
-The design, and its honest trade-offs, are in [docs/agent_guardrails.md](docs/agent_guardrails.md) and [docs/working_agreement.md](docs/working_agreement.md).
-
-## BigQuery layout (datasets)
-
-BigQuery uses **datasets** as the unit that other databases often call **schemas**. This repo uses **one dataset per medallion layer** in the same GCP project:
-
-| Dataset | Role |
-|---------|------|
-| **`raw`** | 1:1 loads from Python (`RAW_*` tables). Default; override with `API_FOOTBALL_BIGQUERY_DATASET` (ingestion) and dbt **`raw_schema`** var (must match). |
-| **`staging`** | dbt `1_staging` — light cleanup on top of `raw`. |
-| **`base`** → **`marts`** | dbt `2_base` … `5_marts` per `dbt_project.yml`. |
-
-dbt uses [`macros/generate_schema_name.sql`](dbt_project/macros/generate_schema_name.sql) so layer names map **directly** to dataset ids (not `dbt_scratch_staging`). The profile’s default **`dataset`** (`dbt_scratch` in `profiles.example.yml`) is only a fallback for nodes without `+schema`.
-
-Details and multi-source conventions: [`dbt_project/docs/layering.md`](dbt_project/docs/layering.md).
-
-**Competition scope:** active competitions are **BL1** (German Bundesliga), **WC** (FIFA World Cup 2026), and the six confederation qualifier leagues (WCQEU, WCQAF, WCQCA, WCQSA, WCQAS, WCQIP, WCQOC). The competition registry lives in `docs/competition_registry.yml`; adding a new competition requires only a YAML entry and a set of staging models — no changes to the ingestion package.
-
-**Layer population (current state):**
-
-| Layer | Status | What is there |
-|-------|--------|---------------|
-| `1_staging` | populated | 27 models — 13 `stg_apif__bl1_*` (Bundesliga) + 14 `stg_apif__wc_*` (World Cup + qualifiers). |
-| `2_base` | populated | 12 models — `base_apif__bl1_*` and `base_apif__wc_*` (UNION ALL + dedup). |
-| `3_core` | populated | 6 dims (`dim_date`, `dim_league`, `dim_competition_season`, `dim_team`, `dim_player`), 5 facts (`fct_fixture`, `fct_standings`, `fct_fixture_team_stats`, `fct_fixture_player_stats`, `fct_fixture_event`). |
-| `4_intermediate` | 6 models | `int_pipeline__raw_ingestion_spread` (ingestion-spread audit); `int_team_season__standings_primary` (deduped standings for marts); `int_matchday__fixture_denormalized`, `int_matchday__finished_fixture_team_leg`, `int_matchday__upcoming_round_fixtures`, `int_matchday__team_form_metrics` (matchday spine + form). |
-| `5_marts` | populated | Matchday/team-season insights (`mart_matchday_insights` all domestic leagues, `mart_matchday_insights_wc`, `mart_matchday_insights_bl1_relegation`, `mart_team_season_insights`), plus `mart_team_season`, rankings/scorers, debug. Slice by `league_code` at export/UI. |
-
-## dbt (local setup)
-
-The dbt project lives in `dbt_project/`. [Getting started](#getting-started) sets it up: `.venv` at
-the root, and the profile as **`profiles.yml` in the repo root** (gitignored), copied from
-`dbt_project/profiles.example.yml`.
-
-- Not `~/.dbt/profiles.yml`: that file is one per machine and shared by every dbt project on it, so
-  another project can overwrite it. dbt reads the working directory before `~/.dbt`.
-- `--project-dir` does not move the profile lookup: run dbt from the repo root, not from inside
-  `dbt_project/`.
-
-### Pre-commit hooks (local quality gate)
-
-`.pre-commit-config.yaml` runs ruff (Python lint, CI's ruleset in `.ruff-ci.toml`), basic file
-hygiene checks and the secret scan, on every `git commit`; a failing hook blocks the commit. CI's
-`lint:python` job runs the same hooks on every file, so a commit that passes locally passes there.
-SQL lint needs BigQuery credentials, so it runs in CI's data jobs, not here. To run every hook on
-every file:
-
-```powershell
-.\.venv\Scripts\python -m pre_commit run --all-files
-```
-
-Run dbt from the repo root with **`.venv`** activated:
-
-```powershell
-dbt --version
-dbt deps --project-dir .\dbt_project
-dbt debug --project-dir .\dbt_project
-dbt parse --project-dir .\dbt_project
-```
-
-## Data Quality (tests)
-
-Recommended local workflow:
-
-```powershell
-# Staging-only checks (fast, catches raw load issues early)
-dbt build --project-dir .\dbt_project --selector staging
-
-# Snapshot history tables first (standings), then all downstream (core + intermediate)
-dbt snapshot --project-dir .\dbt_project
-dbt build   --project-dir .\dbt_project --selector downstream
-
-# Full suite (staging + downstream + tests)
-dbt build --project-dir .\dbt_project
-
-# Selector "base" and "marts" are defined but currently match no models.
-# dbt build --project-dir .\dbt_project --selector base
-# dbt build --project-dir .\dbt_project --selector marts
-
-# Optional: point dbt at a non-default raw dataset (must match ingestion target)
-# dbt build --project-dir .\dbt_project --vars "{ raw_schema: raw_dev }"
-```
-
-For expectations by layer (grain, `not_null`, `unique`, avoiding duplicate tests downstream), see [engineering_standards.md §3 (Testing policy)](dbt_project/docs/engineering_standards.md).
-
-## dbt Layer Contract
-
-This project follows a strict layer contract so transformations stay predictable and testable.
-
-- `1_staging`: raw cleanup only (renaming, typing, light normalization). No cross-source unions/joins (details in [layering.md §1_staging](dbt_project/docs/layering.md#1_staging)).
-- `2_base`: preparation for **core**—entity resolution, shared identifiers, and first logical standardization across sources (unions/alignment where the same real-world entity appears in more than one staging place). Structural tests on grains and keys you define here—not the authoritative dimension/fact system of record (that is `3_core`).
-- `3_core`: reusable business entities and clean relationship logic.
-- `4_intermediate`: heavier transformations and feature engineering.
-- `5_marts`: app/BI-ready outputs for consumption.
-
-Further reading:
-
-- Detailed layering rules: [dbt_project/docs/layering.md](dbt_project/docs/layering.md)
-- Engineering standards: [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md)
-- API-Football data contract: [docs/data_contract.md](docs/data_contract.md)
+This project is built largely with an AI coding agent, under guardrails that treat its changes like an
+untrusted contributor's: [docs/agent_guardrails.md](docs/agent_guardrails.md) and
+[docs/working_agreement.md](docs/working_agreement.md).
 
 ## Secrets
 
@@ -220,4 +122,5 @@ the provider first, then replace the value with a placeholder and commit.
 ## Maintenance & operations
 
 - **Runbook and troubleshooting** (environment variables, ingest lock, completeness checks, backfill vs daily update): [`docs/operations_guide.md`](docs/operations_guide.md).
-- **Cursor / AI governance:** three focused rule files in [`.cursor/rules/`](.cursor/rules/) — [`agent-behavior.mdc`](.cursor/rules/agent-behavior.mdc) and [`project-context.mdc`](.cursor/rules/project-context.mdc) always apply; [`dbt.mdc`](.cursor/rules/dbt.mdc) and [`ingestion.mdc`](.cursor/rules/ingestion.mdc) load only when the agent is editing files in the matching directory. Rules encode evergreen intent and point at the authoritative docs rather than duplicating them.
+- **API-Football data contract:** [`docs/data_contract.md`](docs/data_contract.md).
+- **Cursor rules:** [`.cursor/rules/`](.cursor/rules/).
