@@ -8,7 +8,7 @@ is derived from the fanout data itself, so there is no write path to test.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -17,10 +17,12 @@ from google.cloud.exceptions import NotFound
 from ingestion.api_football.coverage import (
     ENDPOINT_TO_SHELL_KEY,
     FANOUT_ENDPOINTS,
+    SECOND_FETCH_DELAY,
     SHELL_KEY_TO_ENDPOINT,
     STATS_GRACE_DAYS,
     covered_for_league,
     read_coverage,
+    second_fetch_due,
 )
 
 
@@ -169,9 +171,10 @@ class TestCoveredForLeague:
     def test_non_stats_empty_response_skipped_conservatively(self):
         """has_data=False on LINEUPS/EVENTS/PLAYERS → always skip.
 
-        In practice the derive marks these True whenever the fixture was fetched,
-        so False is unusual; the conservative skip ensures an unexpected False
-        never causes infinite re-fetching.
+        The derive marks LINEUPS and EVENTS True whenever the fixture was fetched;
+        PLAYERS is False only while its second fetch is due, which the fixture-details
+        step makes in every competition, so it must not switch an idle competition to
+        full mode.
         """
         today = _today()
         recent = today - timedelta(days=1)
@@ -218,12 +221,50 @@ class TestCoveredForLeague:
 
 
 class TestReadCoverage:
-    def _row(self, league_code: str, fixture_id, has_statistics: bool):
+    def _row(
+        self,
+        league_code: str,
+        fixture_id,
+        has_statistics: bool,
+        latest_fetch: datetime | None = None,
+        kickoff: datetime | None = None,
+    ):
         row = MagicMock()
         row.league_code = league_code
         row.fixture_id = fixture_id
         row.has_statistics = has_statistics
+        row.latest_fetch = latest_fetch
+        row.kickoff = kickoff
         return row
+
+    def _read(self, *rows):
+        client = MagicMock()
+        client.get_table.return_value = MagicMock()
+        client.query.return_value.result.return_value = list(rows)
+        return read_coverage(client)
+
+    def test_players_not_covered_while_second_fetch_is_due(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=10)
+        result = self._read(
+            self._row("WC", 1, True, latest_fetch=kickoff + timedelta(hours=8), kickoff=kickoff),
+        )
+        assert result["WC"]["FIXTURE_PLAYERS"][1] is False
+        assert result["WC"]["FIXTURE_STATISTICS"][1] is True
+        assert result["WC"]["LINEUPS"][1] is True
+
+    def test_players_covered_once_fetched_late_enough(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=10)
+        result = self._read(
+            self._row("WC", 1, True, latest_fetch=kickoff + SECOND_FETCH_DELAY, kickoff=kickoff),
+        )
+        assert result["WC"]["FIXTURE_PLAYERS"][1] is True
+
+    def test_players_covered_before_the_delay_has_passed(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=1)
+        result = self._read(
+            self._row("WC", 1, True, latest_fetch=kickoff + timedelta(hours=8), kickoff=kickoff),
+        )
+        assert result["WC"]["FIXTURE_PLAYERS"][1] is True
 
     def test_returns_empty_dict_when_table_not_found(self):
         client = MagicMock()
@@ -309,3 +350,36 @@ class TestReadCoverage:
             _ = result["NONEXISTENT_LEAGUE"]
         with pytest.raises(KeyError):
             _ = result["BL1"]["NONEXISTENT_ENDPOINT"]
+
+
+# ---------------------------------------------------------------------------
+# second_fetch_due — the player stats' second fetch, decided on 72 hours from kickoff
+# ---------------------------------------------------------------------------
+
+
+class TestSecondFetchDue:
+    KICKOFF = datetime(2026, 10, 1, 19, 0, tzinfo=timezone.utc)
+    COMPLETE_FROM = KICKOFF + SECOND_FETCH_DELAY
+
+    def test_early_fetch_is_due_once_the_delay_has_passed(self):
+        early = self.KICKOFF + timedelta(hours=9)
+        assert second_fetch_due(early, self.KICKOFF, self.COMPLETE_FROM) is True
+
+    def test_early_fetch_is_not_due_before_the_delay(self):
+        early = self.KICKOFF + timedelta(hours=9)
+        now = self.COMPLETE_FROM - timedelta(minutes=1)
+        assert second_fetch_due(early, self.KICKOFF, now) is False
+
+    def test_evening_match_is_not_due_on_the_third_calendar_day(self):
+        """Three calendar days after a 19:00 kickoff, the 04:00 run is only 57 hours later."""
+        early = self.KICKOFF + timedelta(hours=9)
+        third_day_run = datetime(2026, 10, 4, 4, 0, tzinfo=timezone.utc)
+        assert second_fetch_due(early, self.KICKOFF, third_day_run) is False
+
+    def test_fetch_made_at_the_delay_is_never_due(self):
+        later = self.COMPLETE_FROM + timedelta(days=30)
+        assert second_fetch_due(self.COMPLETE_FROM, self.KICKOFF, later) is False
+
+    def test_unknown_kickoff_or_fetch_is_never_due(self):
+        assert second_fetch_due(None, self.KICKOFF, self.COMPLETE_FROM) is False
+        assert second_fetch_due(self.KICKOFF, None, self.COMPLETE_FROM) is False

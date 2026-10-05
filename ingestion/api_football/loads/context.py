@@ -33,7 +33,8 @@ class PipelineContext:
 
 @dataclass
 class CompetitionRunResult:
-    """Output of run_cheap_phases() — carries all state needed for the global fanout and squads."""
+    """Output of run_cheap_phases() and run_poll_phases() — carries all state needed for the
+    global fanout and squads."""
 
     league_code: str
     seasons_list: list[int]

@@ -299,7 +299,6 @@ def _wire_batch(monkeypatch, data: dict) -> dict:
     monkeypatch.setattr(bf.errors_quota, "_http_quota_exhausted", False)
     monkeypatch.setattr(bf, "fetch_json", lambda *a, **k: data)
     monkeypatch.setattr(bf, "ensure_unified_raw_table", lambda *a, **k: None)
-    monkeypatch.setattr(bf, "_fixture_details_table_id", lambda: "p.raw.FIXTURE_DETAILS")
     monkeypatch.setattr(
         bf,
         "_insert_fixture_rows",

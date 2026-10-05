@@ -151,6 +151,7 @@ def _load_api_football(request):
         # the completeness check below MUST see those writes — that is what it checks. It
         # therefore keeps its own, separate read. Hoisting further (one read for the whole
         # run) would make every run report fanout gaps that the same run had just filled.
+        # Phase 2 itself reuses this read: nothing writes FIXTURE_DETAILS before Phase 2.
         phase1_covered = read_coverage(ctx.client)
         # #33 item 14 — the re-fetch cadence for coaches and transfers, read ONCE for every
         # league and passed into the loops below. Same reason as read_coverage above: reading
@@ -163,6 +164,8 @@ def _load_api_football(request):
         coaches_last_ingest = latest_ingest_per_league(ctx.client, raw_table("COACHES"))
         transfers_last_ingest = latest_ingest_per_league(ctx.client, raw_table("TRANSFERS"))
         results = []
+        # Poll-mode comps: their fixtures go to Phase 2 only, never to the per-team phases.
+        idle_results = []
         # Finished (poll-mode) comps + their teams, for the squad catch-up (Phase 3c).
         finished_comps: list[tuple[str, int, set[int]]] = []
         for comp in selected:
@@ -182,7 +185,9 @@ def _load_api_football(request):
                     season_type=comp.season_type,
                 )
                 if poll_result is not None:
-                    poll_team_ids, poll_season = poll_result
+                    idle_results.append(poll_result)
+                    poll_team_ids = poll_result.team_ids
+                    poll_season = max(poll_result.seasons_list) if poll_result.seasons_list else None
                     if poll_team_ids and poll_season is not None:
                         finished_comps.append((comp.league_code, poll_season, poll_team_ids))
                 continue
@@ -198,12 +203,12 @@ def _load_api_football(request):
             if result is not None:
                 results.append(result)
 
-        # Phase 2: batch fixture sub-data fetch across all competitions.
+        # Phase 2: batch fixture sub-data fetch across all competitions, idle ones included.
         # Calls GET /fixtures?ids=ID1-...-ID20 (up to 20 per call) to retrieve
         # events, lineups, statistics, and players for finished fixtures.
         # Results land in RAW_APIF_{LC}_FIXTURE_DETAILS per competition.
-        if results:
-            run_batch_fixture_fanout_and_persist(ctx, results)
+        if results or idle_results:
+            run_batch_fixture_fanout_and_persist(ctx, results + idle_results, phase1_covered)
 
         # Phase 3: squad /players batch per competition.
         #

@@ -11,8 +11,9 @@ Storage model: one row per fixture PER FETCH in RAW_APIF_FIXTURE_DETAILS (unifie
   ingested_at TIMESTAMP — when this row was written (UTC)
 
 APPEND ONLY. On the first fetch of a fixture a row is inserted. On retry (empty stats
-within STATS_RETRY_DAYS of kickoff) another row is inserted and NOTHING is removed, so
-a retried fixture holds one row per attempt. Staging models read payload directly and
+within STATS_RETRY_DAYS of kickoff, or the player stats' second fetch) another row is
+inserted and NOTHING is removed, so a retried fixture holds one row per attempt.
+Staging models read payload directly and
 faithfully — no $.response unnesting, no dedup — and base resolves the versions by
 entity key with latest-ingest-wins.
 
@@ -22,9 +23,10 @@ The delete that used to run here destroyed 29 real events across 5 fixtures beca
 retry chasing late statistics returned fewer events, and one row bundles lineups, events,
 statistics and player stats together.
 
-Coverage is derived by querying RAW_APIF_FIXTURE_DETAILS directly, filtered by
-league_code: a fixture is done once ANY stored row for it carries non-empty
-statistics. That LOGICAL_OR aggregation is what makes the multi-row state safe to read.
+Coverage is the run's single `coverage.read_coverage` result, read before this step for
+every league: a fixture is done once ANY stored row for it carries non-empty statistics
+and its player stats' second fetch is not due. That LOGICAL_OR aggregation is what makes
+the multi-row state safe to read.
 
 Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping
 API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between calls gives ~4 calls/sec.
@@ -40,7 +42,6 @@ import time
 from datetime import date, datetime, timedelta, timezone
 
 from google.cloud import bigquery
-from google.cloud.exceptions import NotFound
 
 from .. import quota as errors_quota
 from ..bigquery import ensure_unified_raw_table
@@ -57,77 +58,30 @@ _BATCH_SIZE = 20
 _STATS_RETRY_DAYS = 3
 
 
-def _fixture_details_table_id() -> str:
-    return f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('FIXTURE_DETAILS')}"
-
-
-def _read_fetched_coverage(
-    client: bigquery.Client,
-    league_code: str,
-) -> dict[int, bool]:
-    """Return {fixture_id: has_statistics} for all fixtures in RAW_APIF_FIXTURE_DETAILS for this league.
-
-    has_statistics is True when the fixture's statistics array is non-empty.
-    Returns an empty dict when the table does not exist (first run).
-
-    AGGREGATED PER FIXTURE, and under append-only raw that is load-bearing rather than defensive:
-    the table is append-only, so a retried fixture holds one row per attempt as a matter of
-    course. Reading row-by-row into a dict would make the answer depend on which row happened to
-    land last, and BigQuery does not promise an order — an older empty-statistics row could mask
-    a complete one, and the fixture would be re-fetched every run until its window closed,
-    burning quota to no effect. LOGICAL_OR answers the question actually being asked, "do we hold
-    statistics for this fixture anywhere", and is order-independent.
-
-    ⚠ This aggregation shipped for a narrower reason and turned out to be the precondition the
-    append-only rule needed. Do not "simplify" it back to a per-row read.
-    """
-    table_id = _fixture_details_table_id()
-    try:
-        client.get_table(table_id)
-    except NotFound:
-        return {}
-
-    q = f"""
-        SELECT
-          CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
-          LOGICAL_OR(
-            ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0
-          ) AS has_statistics
-        FROM `{table_id}`
-        WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
-          AND league_code = '{league_code}'
-        GROUP BY fixture_id
-    """
-    try:
-        rows = list(client.query(q).result())
-    except Exception:
-        return {}
-
-    return {
-        int(row.fixture_id): bool(row.has_statistics)
-        for row in rows
-        if row.fixture_id is not None
-    }
-
-
 def _needs_fetch(
     fixture_id: int,
-    fetched: dict[int, bool],
+    covered: dict[str, dict[int, bool]],
     kickoff_by_id: dict[int, date],
     retry_cutoff: date,
 ) -> bool:
     """Return True if this finished fixture needs a (re-)fetch.
 
+    `covered` is this league's entry of `coverage.read_coverage`.
+
     Decision table:
       Never fetched                            → fetch
+      Player stats' second fetch due           → fetch (once; coverage.second_fetch_due)
       Fetched, statistics non-empty            → skip (done permanently)
       Fetched, statistics empty, within window → retry (delivery delay expected)
       Fetched, statistics empty, past window   → skip (accept empty permanently)
       Fetched, statistics empty, no kickoff    → skip (can't determine window)
     """
-    if fixture_id not in fetched:
+    has_statistics = covered.get("FIXTURE_STATISTICS", {})
+    if fixture_id not in has_statistics:
         return True
-    if fetched[fixture_id]:
+    if not covered.get("FIXTURE_PLAYERS", {}).get(fixture_id, True):
+        return True
+    if has_statistics[fixture_id]:
         return False  # statistics present — done
     # Empty statistics — retry only within the 3-day window from kickoff.
     kickoff = kickoff_by_id.get(fixture_id)
@@ -273,16 +227,18 @@ def _fetch_and_persist_batch(
 def run_batch_fixture_fanout_and_persist(
     ctx: PipelineContext,
     results: list[CompetitionRunResult],
+    all_covered: dict[str, dict[str, dict[int, bool]]],
 ) -> None:
-    """Fetch full sub-data for all finished fixtures across all competitions.
+    """Fetch full sub-data for all finished fixtures across all competitions, idle ones included.
 
     Two-step process per competition:
-      1. Read RAW_APIF_FIXTURE_DETAILS (filtered by league_code) to determine which
-         finished fixtures already have good statistics. Fixtures missing entirely or
-         with empty stats within the 3-day retry window are queued for fetching.
+      1. Look the league up in `all_covered`, the run's single `read_coverage()` result, to
+         determine which finished fixtures are done. Fixtures missing entirely, due their
+         player stats' second fetch, or with empty stats within the 3-day retry window are
+         queued for fetching.
       2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
          Each fixture in the response is appended as one row in FIXTURE_DETAILS.
-         Retried fixtures (previously empty stats) keep their earlier row as well.
+         Re-fetched fixtures keep their earlier row as well.
 
     All competitions are planned before any HTTP calls are made.
     """
@@ -301,15 +257,15 @@ def run_batch_fixture_fanout_and_persist(
         response = result.fixtures_merged.get("response", [])
         finished = _finished_fixture_ids(response)
         kickoff_by_id = _fixture_kickoff_by_id(response)
-        fetched = _read_fetched_coverage(ctx.client, result.league_code)
+        covered = all_covered.get(result.league_code, {})
 
         to_fetch = sorted(
             fid for fid in finished
-            if _needs_fetch(fid, fetched, kickoff_by_id, retry_cutoff)
+            if _needs_fetch(fid, covered, kickoff_by_id, retry_cutoff)
         )
         retry_ids = {
             fid for fid in to_fetch
-            if fid in fetched and not fetched[fid]
+            if fid in covered.get("FIXTURE_STATISTICS", {})
         }
 
         n_done = len(finished) - len(to_fetch)
