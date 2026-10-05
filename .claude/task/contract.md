@@ -1,26 +1,30 @@
-# Task contract — delete the escalations log
+# Task contract — the tracker backup stays on this machine
 
 objective: >
-  Delete `.claude/task/escalations.log`: it carries the CPO's chat words in a public repository.
+  `docs/tracker/gitlab_snapshot.md` copies every GitLab issue's text into the public repository,
+  while issues are now visible to project members only. Untrack it and gitignore `docs/tracker/`;
+  the backup stays on this machine.
 
 refs: >
-  #199 (how-we-work documents carry no decision history).
+  #199 (how-we-work documents).
 
 scope_paths:
-  - .claude/task/escalations.log
+  - docs/tracker/**
+  - .gitignore
+  - tests/test_tracker_snapshot.py
+  - scripts/snapshot_tracker.py
+  - CLAUDE.md
+  - docs/agent_guardrails.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
-  - docs/tracker/**
 
 decisions_taken: >
-  Approved by the CPO in chat, 2026-10-05: delete the file, one file per MR. Readings, under the
-  delegation of 2026-10-02:
-  - The other files that point to it keep their pointer until each is cleaned in its own MR.
-    Nothing reads its content: scripts/report_process_health.py skips a missing file, and the tests
-    that name it build their own copy in a temporary repository.
-  - The regenerated review patch is not committed: it would carry the deleted file's every line
-    as removed lines and publish it again. The reviewer reads it from the working tree.
+  Approved by the CPO in chat, 2026-10-05: the backup local-only, with the CLAUDE.md and
+  agent_guardrails.md text shown to him. Readings, under the delegation of 2026-10-02:
+  - The two checksum tests skip when the file is absent: CI never has it.
+  - scripts/snapshot_tracker.py: its docstring's lines on CI and on riding the next commit are
+    corrected to the gitignored file.
 
   Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
 
@@ -28,5 +32,6 @@ decisions_reserved:
   - None.
 
 done_when:
-  - The file is gone; pytest (whole suite), ruff and the offline gates pass.
+  - `git ls-files docs/tracker` is empty and the local file stays; pytest (whole suite), ruff and
+    the offline gates pass.
   - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
