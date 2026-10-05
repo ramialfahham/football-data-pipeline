@@ -1,704 +1,1054 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 2ac20f99..5309fba7 100644
+index 5309fba7..f59d2d4f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,32 +1,43 @@
--# Task contract — a player's row and his match events under one team: the squad list decides
-+# Task contract — a result that differs from the league's official decision is corrected to it, with its source
+@@ -1,43 +1,52 @@
+-# Task contract — a result that differs from the league's official decision is corrected to it, with its source
++# Task contract — the metric answer key, the two reconciliations and the ranking floors as vars
  
  objective: >
--  The issue "A player's row and his match events in different teams: move the side the squad list
--  contradicts" (#189). Where a player's statistics row and his match events place him in different
--  teams of the match, the squad list (base_apif__player_team_season) decides, and his other
--  matches decide where it names both teams or neither; the side it contradicts moves to the team
--  it names: the events in base_apif__fixture_events or the row in base_apif__fixture_players. A
--  test fails when a cleaned player row and that player's events in the match sit under different
--  teams. fct_fixture_event re-merges each match whose stored events name a different team than
--  base, so moved events reach its history without a full rebuild.
-+  The issue "A result that differs from the league's official decision is corrected to it, with
-+  its source" (#194). Eight match results the provider files wrongly are corrected to the league's
-+  official decision, and the provider's league-table rows that the research finds wrong are
-+  corrected the same way: two seeds of hand corrections, each row naming its source, applied once
-+  in base_apif__fixtures_next and base_apif__standings with the provider's values kept on the row.
-+  A test fails when a correction is not applied, has no valid source, or no longer changes
-+  anything. The cleaning_rules doc block states the rule.
+-  The issue "A result that differs from the league's official decision is corrected to it, with
+-  its source" (#194). Eight match results the provider files wrongly are corrected to the league's
+-  official decision, and the provider's league-table rows that the research finds wrong are
+-  corrected the same way: two seeds of hand corrections, each row naming its source, applied once
+-  in base_apif__fixtures_next and base_apif__standings with the provider's values kept on the row.
+-  A test fails when a correction is not applied, has no valid source, or no longer changes
+-  anything. The cleaning_rules doc block states the rule.
++  #185 How step 5, which closes #185 and #192. Two reconciliation tests at severity error: a
++  team-season equals the provider's league table (wins, draws, losses, goals, goals against; our
++  points equal the table's 3 x wins + draws), and a team-season's goals, less its forfeit goals,
++  equal its players' goals plus its own goals. An answer key: real team-seasons and player-seasons,
++  each catalogue metric's numerator and denominator worked out by hand from the provider's raw
++  match data, committed as two seeds, and two tests that the season surfaces return exactly them.
++  The player benchmark metric set moves from the player_benchmark_metrics() macro into a model, as
++  the team side's is, and each ranking floor becomes a dbt var read by every model that applies it,
++  held equal to the ranking_rules words by a pytest.
  
  refs: >
--  #189, rewritten and approved by the CPO on 2026-10-03; its How step 3 edited on 2026-10-04 with
--  the CPO's answer in chat that day.
-+  #194, approved by the CPO on 2026-10-04; its research items edited into it the same day.
+-  #194, approved by the CPO on 2026-10-04; its research items edited into it the same day.
++  #185 (How step 5 and its checklist), #192, approved by the CPO; the step 5 line carries his
++  answer of 2026-10-04 on the floors and the nightly cost. The CPO's go to build it as its own MR,
++  2026-10-05.
  
  acceptance_criteria:
-   # The issue's checklist lines, verbatim.
--  - "Where a player's row and his match events place him in different teams of the match, the squad list decides, and his other matches decide where it names both teams or neither: the side it contradicts, the row in `base_apif__fixture_players` or the events in `base_apif__fixture_events`, moves to the team it names."
--  - "A test fails when a cleaned player row and that player's events in the match sit under different teams."
-+  - "These 8 matches carry the official result in every table and on the site; the provider's value stays next to ours in the cleaned table: Union Berlin-Bochum, BL1 14 Dec 2024: 1-1 -> 0-2 awarded; Bastia-Lyon, L1 16 Apr 2017: 0-0 -> 0-0 awarded to Lyon (the LFP set no score: Lyon gets the win, no goals); Sassuolo-Pescara, SA 28 Aug 2016: 0-3 as played -> 0-3 awarded; Al Orubah-Al Nassr, SPL 28 Feb 2025: 2-1 -> 0-3 awarded; Istanbulspor-Trabzonspor, TSL 19 Dec 2023: 1-2 -> 0-3 awarded; Galatasaray-Adana Demirspor, TSL 9 Feb 2025: 1-0 -> 3-0 awarded; Antwerp-Beerschot, BPL 29 Sep 2024: 4-0 -> 5-0 awarded; Seongnam-Ulsan, KL1 4 Sep 2022: 3-0 -> 2-0"
-+  - "Every provider league-table row the research finds wrong shows the league's figures (at least Sassuolo 46 and Pescara 18, Serie A 2016-17; the ranks of Sampdoria and Cagliari follow)."
-+  - "An awarded match counts like every forfeit (R3): in points, goals and goals against, in no other metric."
-+  - "Each correction names its source: the league's or federation's decision, or two independent match reports."
-+  - "A check fails when a correction no longer changes anything."
-+  - "`cleaning_rules` says: a result is corrected only to the league's official decision, with its source; match stats never correct a result."
+-  # The issue's checklist lines, verbatim.
+-  - "These 8 matches carry the official result in every table and on the site; the provider's value stays next to ours in the cleaned table: Union Berlin-Bochum, BL1 14 Dec 2024: 1-1 -> 0-2 awarded; Bastia-Lyon, L1 16 Apr 2017: 0-0 -> 0-0 awarded to Lyon (the LFP set no score: Lyon gets the win, no goals); Sassuolo-Pescara, SA 28 Aug 2016: 0-3 as played -> 0-3 awarded; Al Orubah-Al Nassr, SPL 28 Feb 2025: 2-1 -> 0-3 awarded; Istanbulspor-Trabzonspor, TSL 19 Dec 2023: 1-2 -> 0-3 awarded; Galatasaray-Adana Demirspor, TSL 9 Feb 2025: 1-0 -> 3-0 awarded; Antwerp-Beerschot, BPL 29 Sep 2024: 4-0 -> 5-0 awarded; Seongnam-Ulsan, KL1 4 Sep 2022: 3-0 -> 2-0"
+-  - "Every provider league-table row the research finds wrong shows the league's figures (at least Sassuolo 46 and Pescara 18, Serie A 2016-17; the ranks of Sampdoria and Cagliari follow)."
+-  - "An awarded match counts like every forfeit (R3): in points, goals and goals against, in no other metric."
+-  - "Each correction names its source: the league's or federation's decision, or two independent match reports."
+-  - "A check fails when a correction no longer changes anything."
+-  - "`cleaning_rules` says: a result is corrected only to the league's official decision, with its source; match stats never correct a result."
++  # #185's checklist lines this step closes, and #192's What exactly, verbatim.
++  - "For a sample of real team-seasons and players across leagues, including a World Cup window, the expected value is worked out by hand from the raw provider data, committed as a seed, and a test asserts the pipeline returns exactly it."
++  - "Independent reconciliations fail the build on disagreement: a team's goals equal the sum of its players' goals; goals for, goals against and points equal the provider's league table."
++  - "Each new test is shown to fail when a model expression or an expected value is deliberately changed, and to stay green on an algebraically identical rewrite."
++  - "The nightly warehouse cost is measured before and after and put to the CPO."
++  - "A test that fails when a team's points in the provider's league table (`fct_standings` / `mart_standings`, `points`) differ from `points_won` summed over the team's finished matches in the same competition-season and table section."
  
  scope_paths:
--  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
--  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+  - dbt_project/seeds/fixture_result_corrections.csv
-+  - dbt_project/seeds/standings_corrections.csv
+-  - dbt_project/seeds/fixture_result_corrections.csv
+-  - dbt_project/seeds/standings_corrections.csv
+-  - dbt_project/seeds/schema.yml
+-  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+-  - dbt_project/models/2_base/api_football/base_apif__standings.sql
+-  - dbt_project/models/2_base/api_football/base.yml
+-  - dbt_project/models/3_core/fct_fixture.sql
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+-  - dbt_project/models/docs/cleaning_rules.md
+-  - dbt_project/models/docs/shared_columns.md
+-  - dbt_project/tests/assert_result_corrections_applied.sql
++  - dbt_project/dbt_project.yml
++  - dbt_project/macros/player_benchmark_metrics.sql
++  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++  - dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++  - dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++  - dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
++  - dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+   - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/5_marts/shared/mart_standings.sql
++  - dbt_project/seeds/team_season_answer_key.csv
++  - dbt_project/seeds/player_season_answer_key.csv
 +  - dbt_project/seeds/schema.yml
-+  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-+  - dbt_project/models/2_base/api_football/base_apif__standings.sql
-   - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/models/3_core/fct_fixture_event.sql
-+  - dbt_project/models/3_core/fct_fixture.sql
-   - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-   - dbt_project/models/docs/cleaning_rules.md
--  - dbt_project/tests/assert_player_row_and_events_same_team.sql
-+  - dbt_project/models/docs/shared_columns.md
-+  - dbt_project/tests/assert_result_corrections_applied.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/models/5_marts/shared/mart_standings.sql
-+  - dbt_project/docs/layering.md
-+  - docs/content_architecture.md
++  - dbt_project/tests/assert_team_season_equals_league_table.sql
++  - dbt_project/tests/assert_team_goals_equal_players_goals.sql
++  - dbt_project/tests/assert_team_season_answer_key.sql
++  - dbt_project/tests/assert_player_season_answer_key.sql
++  - dbt_project/docs/engineering_standards.md
+   - dbt_project/docs/layering.md
+-  - docs/content_architecture.md
++  - docs/wireframes/12_player_stats.md
++  - tests/test_ranking_floors.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -36,13 +47,15 @@ scope_paths:
+@@ -47,108 +56,97 @@ scope_paths:
    - docs/tracker/**
  
  impact_map: >
--  writers: base_apif__fixture_events and base_apif__fixture_players are each written only by their
--  own model, rebuilt in full every night; fct_fixture_event is the incremental fact merged from
--  base_apif__fixture_events on event_sk.
--  downstream, `dbt ls --project-dir dbt_project --select base_apif__fixture_events+
--  base_apif__fixture_players+ --resource-type model` (54 models, 24 marts):
--  base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
--  base_apif__players dim_player fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats
-+  writers: base_apif__fixtures_next and base_apif__standings are each written only by their own
-+  model, rebuilt in full every night; fct_fixture and int_legs__team_match likewise. The two new
-+  seeds are loaded by dbt seed / dbt build and read only by the two base models and the new test.
-+  downstream, `dbt ls --project-dir dbt_project --select base_apif__fixtures_next+
-+  base_apif__standings+ --resource-type model` (69 models, 29 marts): base_apif__fixture_events
-+  base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
-+  base_apif__players base_apif__standings base_apif__teams base_apif__teams_global dim_player
-+  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
-+  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats fct_standings
-   int_legs__player_match int_legs__team_from_players int_legs__team_match
-   int_player_club_season__metrics int_player_competition_benchmarks int_player_momentum__metrics
-   int_player_profile__contribution int_player_profile__yoy int_player_season__metrics
-@@ -50,66 +63,92 @@ impact_map: >
+-  writers: base_apif__fixtures_next and base_apif__standings are each written only by their own
+-  model, rebuilt in full every night; fct_fixture and int_legs__team_match likewise. The two new
+-  seeds are loaded by dbt seed / dbt build and read only by the two base models and the new test.
+-  downstream, `dbt ls --project-dir dbt_project --select base_apif__fixtures_next+
+-  base_apif__standings+ --resource-type model` (69 models, 29 marts): base_apif__fixture_events
+-  base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
+-  base_apif__players base_apif__standings base_apif__teams base_apif__teams_global dim_player
+-  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
+-  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats fct_standings
+-  int_legs__player_match int_legs__team_from_players int_legs__team_match
+-  int_player_club_season__metrics int_player_competition_benchmarks int_player_momentum__metrics
+-  int_player_profile__contribution int_player_profile__yoy int_player_season__metrics
+-  int_player_season__team int_player_season_position__metrics int_player_season_record
++  writers: every changed model is written only by itself and rebuilt in full each night (no
++  incremental model is touched). The new int_player_competition_benchmark_metrics_long is written
++  only by itself. The two new seeds are loaded by dbt seed / dbt build and read only by the two
++  answer-key tests. The four new tests read int_team_season__metrics, int_player_season__metrics,
++  int_player_club_season__metrics, int_legs__team_match, int_legs__player_match, fct_standings and
++  the two seeds, and write only their store_failures tables.
++  downstream, `dbt ls --project-dir dbt_project --resource-type model --select
++  int_player_competition_benchmarks+ mart_player_competition_benchmarks+
++  int_team_competition_benchmark_metrics_long+ int_team_season__deserved_vs_actual+
++  mart_leaderboards+` (8 models): int_player_competition_benchmarks
    int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
-   int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
-   int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
--  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
--  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
--  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
-+  int_team_season__metrics_cumulative int_team_season__standings_primary int_team_season_record
-+  mart_competition_fixtures mart_competition_index mart_competition_season_summary
-+  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
-+  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
-   mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
--  mart_player_season_record mart_roster mart_team_competition_benchmarks mart_team_fixture_stats
--  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
--  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record.
--  fct_fixture_event has no model reader (`dbt ls --select fct_fixture_event+1` lists only itself);
--  four tests read it.
--  layer_rules: base reads stg_apif__fixture_players and base_apif__player_team_season (base may
--  read staging and base); no core, intermediate or mart ref; no model sets its materialisation;
--  fct_fixture_event stays the one incremental core fact; check_layer_contract.py applies.
--  deploy_order: the base tables are rebuilt in full by the first build after the merge, so the
--  moves reach every downstream model in that build; fct_fixture_event re-merges the affected
--  matches in the same build. Nothing to sequence by hand.
--  blast_radius: measured read-only on prod on 2026-10-04, the two new models run over prod's
--  inputs (0.48 GB): the new test fails on 995 events in 985 player-matches today and on none
--  after; 949 events move in 195 matches (801 substitutions, 49 cards, 1 goal) and 45 player rows
--  in 7 matches; both tables keep their row counts (1,900,644 player rows, 868,841 events). The
--  issue's table of 2026-10-03 counted 665 cases on a narrower definition (no event under the
--  row's team). Player and team values change in those matches and the seasons and windows that
--  hold them (cards, penalties and goals credited by team, team totals summed from players, a
--  player's club in those matches); fct_fixture_event changes the team of the moved events and
--  keeps the 29 events only it holds.
-+  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
-+  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
-+  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
-+  mart_team_season_insights mart_team_season_record. base_apif__standings+ alone is 13 of them
-+  (fct_standings, int_team_season__standings_primary, int_team_season__deserved_vs_actual and the
-+  marts reading the table). fct_fixture_event reads base_apif__fixtures_next for team ids only.
-+  layer_rules: the corrections are applied in base, which may read staging and seeds; core and
-+  intermediate only carry the corrected columns; no model sets its materialisation and no new
-+  model is added; check_layer_contract.py applies. The win/draw/loss stays decided once, in
-+  int_legs__team_match.
-+  deploy_order: dbt build loads the seeds before the models that read them, so the first build
-+  after the merge applies every correction in one pass; every changed model is rebuilt in full.
-+  fct_fixture_event is incremental and reads no changed column. Nothing to sequence by hand.
-+  blast_radius: measured read-only on prod on 2026-10-04 (0.14 GB). 8 fixtures change: the score in
-+  6 (Union Berlin-Bochum, Al Orubah-Al Nassr, Istanbulspor-Trabzonspor, Galatasaray-Adana
-+  Demirspor, Antwerp-Beerschot, Seongnam-Ulsan), the status to AWD in 7 (all but Seongnam-Ulsan),
-+  the winner in 1 (Bastia-Lyon). 16 team-seasons change W/D/L, goals, goals against or points;
-+  after the change all 16 equal the provider's table on W, D, L and goals except Sassuolo and
-+  Pescara, whose table rows are the ones corrected, and points differ only by the table's
-+  deductions (Istanbulspor, Adana Demirspor). 4 table rows change, Serie A 2016-17: Sassuolo and
-+  Pescara (the provider kept the 2-1) and the ranks of Sampdoria and Cagliari. The 232 player rows
-+  of the 6 awarded matches with player data leave every player surface (they read FT/AET/PEN
-+  only); the team stat lines of the awarded matches leave every team metric (is_awarded_result)
-+  and stay on the match page unchanged. Seongnam's goal events list the 37' goal twice, so with
-+  the score at 2-0 they no longer add up and its penalty and own goals in that match, and its KL1
-+  2022 goal split, go blank under the Results rule. Downstream: points, goals, goals against,
-+  W/D/L counts, form, streaks, head-to-head, season summaries, standings and rank on the pages
-+  of those teams and seasons.
+-  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
+-  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
+-  int_team_season__metrics_cumulative int_team_season__standings_primary int_team_season_record
+-  mart_competition_fixtures mart_competition_index mart_competition_season_summary
+-  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
+-  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
+-  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
+-  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
+-  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
+-  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
+-  mart_team_season_insights mart_team_season_record. base_apif__standings+ alone is 13 of them
+-  (fct_standings, int_team_season__standings_primary, int_team_season__deserved_vs_actual and the
+-  marts reading the table). fct_fixture_event reads base_apif__fixtures_next for team ids only.
+-  layer_rules: the corrections are applied in base, which may read staging and seeds; core and
+-  intermediate only carry the corrected columns; no model sets its materialisation and no new
+-  model is added; check_layer_contract.py applies. The win/draw/loss stays decided once, in
+-  int_legs__team_match.
+-  deploy_order: dbt build loads the seeds before the models that read them, so the first build
+-  after the merge applies every correction in one pass; every changed model is rebuilt in full.
+-  fct_fixture_event is incremental and reads no changed column. Nothing to sequence by hand.
+-  blast_radius: measured read-only on prod on 2026-10-04 (0.14 GB). 8 fixtures change: the score in
+-  6 (Union Berlin-Bochum, Al Orubah-Al Nassr, Istanbulspor-Trabzonspor, Galatasaray-Adana
+-  Demirspor, Antwerp-Beerschot, Seongnam-Ulsan), the status to AWD in 7 (all but Seongnam-Ulsan),
+-  the winner in 1 (Bastia-Lyon). 16 team-seasons change W/D/L, goals, goals against or points;
+-  after the change all 16 equal the provider's table on W, D, L and goals except Sassuolo and
+-  Pescara, whose table rows are the ones corrected, and points differ only by the table's
+-  deductions (Istanbulspor, Adana Demirspor). 4 table rows change, Serie A 2016-17: Sassuolo and
+-  Pescara (the provider kept the 2-1) and the ranks of Sampdoria and Cagliari. The 232 player rows
+-  of the 6 awarded matches with player data leave every player surface (they read FT/AET/PEN
+-  only); the team stat lines of the awarded matches leave every team metric (is_awarded_result)
+-  and stay on the match page unchanged. Seongnam's goal events list the 37' goal twice, so with
+-  the score at 2-0 they no longer add up and its penalty and own goals in that match, and its KL1
+-  2022 goal split, go blank under the Results rule. Downstream: points, goals, goals against,
+-  W/D/L counts, form, streaks, head-to-head, season summaries, standings and rank on the pages
+-  of those teams and seasons.
++  int_team_season__deserved_vs_actual mart_leaderboards mart_player_competition_benchmarks
++  mart_team_competition_benchmarks mart_team_profile. The new model sits between
++  int_player_season_position__metrics and those two player benchmark models. The macro has no
++  other reader (`git grep player_benchmark_metrics`: the two models, three descriptions and the
++  wireframe 12_player_stats.md:146 that names it as the set's home).
++  layer_rules: the metric set and eligibility move into an intermediate model (layering.md:
++  feature engineering that does not belong in a consumption model); no model sets its own
++  materialisation; check_layer_contract.py applies. A var is read with var(), as
++  active_competition_league_codes and event_loss_detector_from are.
++  deploy_order: dbt build orders the new model before its two readers and loads the seeds before
++  the tests that read them; the first build after the merge rebuilds the 8 models in one pass.
++  Nothing to sequence by hand.
++  blast_radius: none intended. The vars carry today's numbers (270, 10, 3) and the new model holds
++  today's metric set, eligibility and floors, so every value of the 8 models stays the same; shown
++  by comparing the MR's CI build with prod, table by table on its grain, before the merge. The
++  tests change no model. Measured read-only on prod on 2026-10-05: the league-table check returns
++  0 rows over 2,724 table rows with the same games played; the goals reconciliation 0 rows over
++  5,116 comparable team-seasons; the answer key agrees on all 180 team and 230 player values.
  
  decisions_taken: >
--  #189 as approved on 2026-10-03, and the CPO's answer in chat on 2026-10-04 to the rebuild
--  question: "Self-heal, keep the 29 (Recommended)", recorded in the issue's How step 3.
-+  #194 as approved on 2026-10-04, under the rule cleaning_rules already states: results are exact.
+-  #194 as approved on 2026-10-04, under the rule cleaning_rules already states: results are exact.
+-
+-  The research items of its step 2, settled by research and edited into the issue: Bastia-Lyon
+-  was lost by Bastia with no score set (the LFP imposed none; both tables count the match with no
+-  goals), recorded 0-0 with the win to Lyon; Antwerp's two table rows already count the 5-0
+-  (regular season 47 = 46 + 1; Championship Round 57 = 47 + 10 play-off goals) and Beerschot's
+-  Relegation Round row counts it too, so none of them is corrected.
++  #185 step 5 as written, and its step 5 line's answer of 2026-10-04: each floor is a dbt var in
++  dbt_project.yml, read by every model that applies it, with a section 1.3 paragraph and a pytest
++  holding the ranking_rules words equal to the vars; the nightly cost is accepted.
  
--  Readings, under the CPO's delegation in chat on 2026-10-02 ("Readings of approved rules are
--  yours; apply the most plausible one and state it in one line"):
--  - The rule is decided once, in base_apif__fixture_events, which the player model already reads;
--    the events carry the decided team in resolved_player_team_id, and the player model moves its
--    row from that column.
--  - A player's row team is read from the provider's player rows with the same team-id overrides
--    base_apif__fixture_players applies.
--  - A case is a player with a row under one team of the match and at least one event under the
--    other; own goals are neither evidence nor moved, as the issue's Not in scope says.
--  - Where his events sit under both teams, the decided team takes all his events and his row: the
--    contradicted side moves.
--  - The squad list is read for the match's season in any competition; the other matches are the
--    player's rows in every other match. Where neither decides, nothing moves and the test fails.
--  - A moved event takes the name the match's events give its new team.
-+  The research items of its step 2, settled by research and edited into the issue: Bastia-Lyon
-+  was lost by Bastia with no score set (the LFP imposed none; both tables count the match with no
-+  goals), recorded 0-0 with the win to Lyon; Antwerp's two table rows already count the 5-0
-+  (regular season 47 = 46 + 1; Championship Round 57 = 47 + 10 play-off goals) and Beerschot's
-+  Relegation Round row counts it too, so none of them is corrected.
+   Readings, under the CPO's delegation of 2026-10-02 ("Readings of approved rules are yours"):
+-  - A match the league awarded without setting a score carries its winner in the seed
+-    (awarded_to_team_id), passed from base through fct_fixture to int_legs__team_match, which
+-    decides every win, draw and loss; elsewhere the score decides, as today.
+-  - An awarded correction sets status_short to AWD and status_long to 'Technical loss', the
+-    provider's own pair for an awarded match, so every rule keyed on an awarded result applies;
+-    Seongnam-Ulsan was played and keeps FT.
+-  - The provider's goals and status stay on every row of base_apif__fixtures_next
+-    (provider_goals_home, provider_goals_away, provider_status_short); result_correction_source
+-    names the source on a corrected row and is NULL elsewhere.
+-  - A table row is corrected in full (rank, played, W, D, L, goals for and against, points); its
+-    goal difference follows from the corrected goals; the provider's figures stay on the row as
+-    provider_*; result_correction_source names the source. The rank is a figure of the row, so
+-    Sampdoria's and Cagliari's rows, ranked below the provider's 49 for Sassuolo, are corrected.
+-  - Sourced: source_kind official (the league's or federation's decision, record or table) needs
+-    at least one https URL; match_reports needs at least two on different hosts.
+-  - Still needed: a match correction changes the provider's goals or status or sets a winner the
+-    score does not show; a table correction changes at least one of the provider's figures.
+-  - The stat lines of the awarded matches are cleaned as every awarded match's is today; measured,
+-    no shown team stat changes. R3's text stays as it is.
++  - League table: compared only where the table's played equals our season_games_played, on every
++    table section of the team-season; points as 3 x the table's wins + draws, since a deduction or a
++    halving is the table's own adjustment (#192's How), and the table's points never above that or
++    blank, the one direction no deduction explains (measured 0 rows on 2026-10-05). Antwerp BPL 2024 (41 matches with the
++    Conference League play-off final, the table 40) is not compared by that rule. No exception list.
++  - Goals: compared where both sides are known (players' goals known for every club-season row of
++    the team, the team's own goals known). A team-season holding a team-match whose players' goals
++    plus own goals miss the score is the issue's known exception, left out;
++    assert_base_player_stats_cleaned (goals_do_not_add_up) already fails any such match where
++    either source adds up, so every exception is one where neither does.
++  - Answer key: one seed for team-seasons and one for player-seasons, a row per (entity,
++    competition-season, catalogue metric on the surface) with the numerator and denominator as
++    integers and the hand working; the test compares safe_divide of them with the model value
++    exactly, a blank numerator meaning the value must be blank. Asserted on int_team_season__metrics
++    and int_player_season__metrics. Worked out from RAW_APIF_FIXTURE_DETAILS and the
++    fixture_result_corrections seed only, by the catalogue formulas and the cleaning rules, never
++    from a model. The sample: World Cup 2026 Spain and Argentina, EURO 2024 Spain, Bundesliga
++    2024-25 Union Berlin (an awarded match), Premier League 2024-25 Liverpool (six saves corrected);
++    players World Cup 2026 Mbappe and E. Martinez (keeper), EURO 2024 Dani Olmo, Premier League
++    2024-25 Salah, Bundesliga 2024-25 Kane.
++  - Floors: the three numbers the issue names are vars: player_min_minutes 270,
++    player_min_shots_on_target 10, team_min_matches 3. The team ranking's "from its first finished
++    match" is a team having a season row, not a floor.
++  - The player benchmark model mirrors the team one: int_player_competition_benchmark_metrics_long,
++    one row per (player_sk, season_sk, position_group, metric_key) with value, numerator and
++    denominator, eligibility and floors applied; the engine aggregates it and the mart ranks it.
++  - The wireframe line that names the macro as the set's home names the model instead; what the
++    screen shows does not change.
  
--  Threshold declarations. NEW MECHANISM: none; the re-merge is the third clause of the self-heal
--  fct_fixture_event already has, and the handover column is an ordinary base column. RECURRING
--  COST, measured by dry run: base_apif__fixture_events reads the player rows and the squad lists,
--  about 0.065 GB a night, and fct_fixture_event's nightly read grows from 0.118 GB to 0.132 GB.
-+  Readings, under the CPO's delegation of 2026-10-02 ("Readings of approved rules are yours"):
-+  - A match the league awarded without setting a score carries its winner in the seed
-+    (awarded_to_team_id), passed from base through fct_fixture to int_legs__team_match, which
-+    decides every win, draw and loss; elsewhere the score decides, as today.
-+  - An awarded correction sets status_short to AWD and status_long to 'Technical loss', the
-+    provider's own pair for an awarded match, so every rule keyed on an awarded result applies;
-+    Seongnam-Ulsan was played and keeps FT.
-+  - The provider's goals and status stay on every row of base_apif__fixtures_next
-+    (provider_goals_home, provider_goals_away, provider_status_short); result_correction_source
-+    names the source on a corrected row and is NULL elsewhere.
-+  - A table row is corrected in full (rank, played, W, D, L, goals for and against, points); its
-+    goal difference follows from the corrected goals; the provider's figures stay on the row as
-+    provider_*; result_correction_source names the source. The rank is a figure of the row, so
-+    Sampdoria's and Cagliari's rows, ranked below the provider's 49 for Sassuolo, are corrected.
-+  - Sourced: source_kind official (the league's or federation's decision, record or table) needs
-+    at least one https URL; match_reports needs at least two on different hosts.
-+  - Still needed: a match correction changes the provider's goals or status or sets a winner the
-+    score does not show; a table correction changes at least one of the provider's figures.
-+  - The stat lines of the awarded matches are cleaned as every awarded match's is today; measured,
-+    no shown team stat changes. R3's text stays as it is.
-+
-+  Threshold declarations. NEW MECHANISM: none; a seed of hand corrections applied in base is the
-+  pattern of fixture_team_id_overrides, and the new columns are ordinary columns. RECURRING COST:
-+  two seeds of a few rows, two joins in base and one test, measured by dry run before the commit.
+-  Threshold declarations. NEW MECHANISM: none; a seed of hand corrections applied in base is the
+-  pattern of fixture_team_id_overrides, and the new columns are ordinary columns. RECURRING COST:
+-  two seeds of a few rows, two joins in base and one test, measured by dry run before the commit.
++  Threshold declarations. NEW MECHANISM: none; dbt vars, seeds of hand-worked answers, singular
++  tests and an intermediate model are all existing patterns, and the vars were approved in the step
++  5 line. RECURRING COST: four tests and one small model in the nightly build, measured by dry run
++  and put to the CPO with the MR.
  
  decisions_reserved:
--  - Own goals stay under the team they count for.
--  - No catalogue, metric formula or window changes.
--  - A case nothing decides is not guessed: it stays, and the test fails on it.
-+  - How the site marks an awarded match does not change: it shows the score and the result, as
-+    for every awarded match today.
-+  - No catalogue row, metric formula or window changes.
-+  - Match stats and events are not corrected (the issue's Not in scope).
+-  - How the site marks an awarded match does not change: it shows the score and the result, as
+-    for every awarded match today.
+-  - No catalogue row, metric formula or window changes.
+-  - Match stats and events are not corrected (the issue's Not in scope).
++  - No catalogue row, formula, window or display changes.
++  - No result or table value is changed; a red row in the league-table check would be researched
++    and corrected in the correction seeds under cleaning_rules, a separate change.
++  - docs/metric_layer.md, engineering_standards.md sections 2 and 3 and the catalogue's rule text in
++    seeds/schema.yml stay #190's; this change adds only the two new seeds' descriptions.
  
  done_when:
--  - The test, run against today's prod rows, fails on the cases; run against the new models
-+  - The test, run against today's prod rows, fails on every correction; run against the new models
-     inlined over prod, passes (bytes to the CPO first).
+-  - The test, run against today's prod rows, fails on every correction; run against the new models
+-    inlined over prod, passes (bytes to the CPO first).
++  - Each new dbt test, compiled and run over prod (bytes to the CPO first), returns no row today;
++    each fails on a deliberate break of a model expression or of an expected value, and stays green
++    on an algebraically identical rewrite.
++  - The pytest fails when a var and the ranking_rules words disagree, or a floor is written as a
++    literal in a model.
    - dbt parse, sqlfluff on the changed SQL, the offline gates and pytest pass.
    - The review cycle passes with every routed reviewer, review.md bound to --staged-hash.
-   - data:build:mr is green; every changed value is compared with prod before the merge (bytes to
-     the CPO first).
+-  - data:build:mr is green; every changed value is compared with prod before the merge (bytes to
+-    the CPO first).
++  - data:build:mr is green; the 8 changed models of the CI build equal prod on their grain (bytes
++    to the CPO first); the nightly cost added is measured.
  
--amendments: (none)
-+amendments:
-+  - 2026-10-04: + dbt_project/models/5_marts/shared/shared.yml, mart_standings.sql,
-+    dbt_project/docs/layering.md, docs/content_architecture.md — authority: the CPO's go to build
-+    #194 as its own MR (2026-10-04); content: the texts that call every standings value the
-+    provider's row as published now say the provider's row, corrected to the league's official
-+    figures where they differ; the base, core and mart column texts the same. No product, metric
-+    or display change.
+ amendments:
+-  - 2026-10-04: + dbt_project/models/5_marts/shared/shared.yml, mart_standings.sql,
+-    dbt_project/docs/layering.md, docs/content_architecture.md — authority: the CPO's go to build
+-    #194 as its own MR (2026-10-04); content: the texts that call every standings value the
+-    provider's row as published now say the provider's row, corrected to the league's official
+-    figures where they differ; the base, core and mart column texts the same. No product, metric
+-    or display change.
++  - 2026-10-05: + dbt_project/docs/layering.md — authority: the CPO's go to build #185 step 5 as its
++    own MR (2026-10-05); content: the mart_player_competition_benchmarks row names the new long model
++    it composes and drops its copy of the minutes floor, which the var and ranking_rules now hold.
++    The league-table check also fails on table points above 3 x wins + draws or blank (#192's How:
++    the direction comes from the measurement). No product, metric or display change.
+diff --git a/dbt_project/dbt_project.yml b/dbt_project/dbt_project.yml
+index 053dc971..04eae076 100644
+--- a/dbt_project/dbt_project.yml
++++ b/dbt_project/dbt_project.yml
+@@ -31,6 +31,12 @@ vars:
+   # ⚠ RAISING this silences new loss, which is the defect the test exists to catch. Lower it once
+   # the backlog is resolved; never raise it to make a build green.
+   event_loss_detector_from: '2026-08-19'
++  # Who enters a ranking or a benchmark: the ranking_rules doc block in
++  # models/docs/metric_rules.md says these in words, and tests/test_ranking_floors.py holds the two
++  # equal and fails on a floor written into a model as a number.
++  player_min_minutes: 270
++  player_min_shots_on_target: 10
++  team_min_matches: 3
+   # Derived from docs/competition_registry.yml (status active or in_progress).
+   # DO NOT edit by hand — run scripts/sync_dbt_vars.py after updating the registry.
+   # scripts/check_registry_var_sync.py (CI) enforces sorted-set equality with the registry.
+diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
+index be111c9a..d8e2d76f 100644
+--- a/dbt_project/docs/engineering_standards.md
++++ b/dbt_project/docs/engineering_standards.md
+@@ -96,6 +96,8 @@ Not a rulebook — a calibrated default. This project's habit has been reaching
+ 
+ **The trap we keep hitting — a shared list or formula held in a macro.** Build it once as a model (usually an `int_*`) and let the others read or aggregate it instead — the COMPOSE pattern (see §5). Same single source, no generated SQL.
+ 
++**A number several models apply — a ranking or benchmark floor — is a dbt var** in `dbt_project.yml`, read with `var()` by every model that applies it, never written into a model as a literal. The `ranking_rules` doc block states the floors in words; `tests/test_ranking_floors.py` holds those words equal to the vars and fails on a floor written into a model as a number.
++
+ **Where a macro genuinely earns it:**
+ 
+ - a dbt **override hook** (e.g. `generate_schema_name`, whose default would name datasets wrong);
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index ebbea25f..0c59a671 100644
+index 0c59a671..8844f207 100644
 --- a/dbt_project/docs/layering.md
 +++ b/dbt_project/docs/layering.md
-@@ -314,7 +314,7 @@ Canonical mart inventory (exhaustive) for this project:
- | `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
- | `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
- | `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
--| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The provider's official standings row as published (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
-+| `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
- | `mart_competition_season_summary` | (league_code, season_api_year) | The season's headline tallies over finished matches: matches, goals, goals per match, home/away/draw split, the biggest-margin and most-goals fixtures, the longest unbeaten and winless runs with their holders. Composes `int_legs__team_match`; results tallied at competition grain, not catalogue metrics. |
- | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
- | `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index f81b0af9..6d5c70c7 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -127,7 +127,9 @@ models:
-   - name: base_apif__fixtures_next
-     description: >
-       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
--      fixture_id. Grain: fixture_id.
-+      fixture_id. Where the provider's result differs from the league's official decision, the
-+      score and status are the official ones from the fixture_result_corrections seed, and the
-+      provider's stay on the row. Grain: fixture_id.
-     config:
-       tags: ["base", "api_football", "fixture_context"]
-     tests:
-@@ -140,6 +142,16 @@ models:
-       - name: league_code
-         description: "{{ doc('league_code') }}"
-         tests: [not_null]
-+      - name: awarded_to_team_id
-+        description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
-+      - name: provider_goals_home
-+        description: "The provider's home goals; differs from goals_home only where the official result was corrected."
-+      - name: provider_goals_away
-+        description: "The provider's away goals; differs from goals_away only where the official result was corrected."
-+      - name: provider_status_short
-+        description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
-+      - name: result_correction_source
-+        description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
+@@ -331,7 +331,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
+ | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
+ | `mart_team_competition_benchmarks` | (team_sk, season_sk, metric_key) | LONG team-vs-league benchmark over the 22 team season metrics; value · league median/mean/p25/p75 · rank (k of N) · vs-median. Composes `int_team_competition_benchmark_metrics_long` (shared per-team long form) + `int_team_competition_benchmarks` (the league distribution). Direction-agnostic (positional). |
+-| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmarks`. Floor: minutes ≥ 270 in position. Direction-agnostic (positional). |
++| `mart_player_competition_benchmarks` | (player_sk, season_sk, position_group, metric_key) | LONG player-vs-positional-peers benchmark; in-position per-90/rate value · peer median/mean/p25/p75 · rank (k of N) + percentile · vs-median. Composes `int_player_competition_benchmark_metrics_long` (shared per-player long form: the metric set, position eligibility and who enters) + `int_player_competition_benchmarks` (the positional distribution). Direction-agnostic (positional). |
+ | `mart_player_career` | (player_sk, team_sk, season_sk) | Player Career log: one row per player × club × competition-season (appearances/goals/assists) + player/club identity + `entity_type`. Composes `int_player_club_season__metrics` (the per-club atoms base, #480 §8.3); a mid-season transfer = two rows; national-entity rows = national appearances in covered competitions (NOT true caps); `national_appearances_total` denormalised per player. |
  
-   - name: base_apif__standings
-     description: >
-@@ -149,6 +161,10 @@ models:
-       group_name is the provider's section or table name and is the true table identity — a league
-       name for a single table, a group name for a group stage. group_description is a zone or
-       stage annotation and is never an identity.
-+
-+      Where the provider's row differs from the league's official table, its figures are the
-+      official ones from the standings_corrections seed, and the provider's stay on the row as
-+      provider_*.
-     config:
-       tags: ["base", "api_football", "standings_context"]
-     tests:
-@@ -165,12 +181,32 @@ models:
-         description: "{{ doc('team_api_id') }}"
-         tests: [not_null]
-       - name: standing_rank
--        description: "The team's position in this standings table (1 = leader), from the provider's standings row ($.rank)."
-+        description: "The team's position in this standings table (1 = leader), from the official standings row ($.rank)."
-         tests: [not_null]
-       - name: goals_for_all
--        description: Goals scored across all matches of the section, from the provider's standings row.
-+        description: Goals scored across all matches of the section, from the official standings row.
-       - name: goals_against_all
--        description: Goals conceded across all matches of the section, from the provider's standings row.
-+        description: Goals conceded across all matches of the section, from the official standings row.
-+      - name: provider_standing_rank
-+        description: "The provider's rank; differs from standing_rank only on a corrected row."
-+      - name: provider_points
-+        description: "The provider's points; differs from points only on a corrected row."
-+      - name: provider_goals_diff
-+        description: "The provider's goal difference; differs from goals_diff only on a corrected row."
-+      - name: provider_played_all
-+        description: "The provider's matches played; differs from played_all only on a corrected row."
-+      - name: provider_wins_all
-+        description: "The provider's wins; differs from wins_all only on a corrected row."
-+      - name: provider_draws_all
-+        description: "The provider's draws; differs from draws_all only on a corrected row."
-+      - name: provider_losses_all
-+        description: "The provider's losses; differs from losses_all only on a corrected row."
-+      - name: provider_goals_for_all
-+        description: "The provider's goals scored; differs from goals_for_all only on a corrected row."
-+      - name: provider_goals_against_all
-+        description: "The provider's goals conceded; differs from goals_against_all only on a corrected row."
-+      - name: result_correction_source
-+        description: "Where the row was corrected, the source of the official figures: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
+ ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
+diff --git a/dbt_project/macros/player_benchmark_metrics.sql b/dbt_project/macros/player_benchmark_metrics.sql
+deleted file mode 100644
+index f788d065..00000000
+--- a/dbt_project/macros/player_benchmark_metrics.sql
++++ /dev/null
+@@ -1,43 +0,0 @@
+-{% macro player_benchmark_metrics() %}
+-{#
+-  The 18 player season metrics the competition benchmark covers, with per-metric POSITION ELIGIBILITY.
+-  Single source so the benchmark intermediate (the per-position distribution) and the mart (per-player
+-  value + rank + percentile) cannot drift apart — the player analog of team_benchmark_metrics().
+-
+-  Each entry: key = the metric_catalogue metric_id; col = the column in int_player_season_position__metrics;
+-  pos = the position groups this metric is benchmarked for (eligibility); floor
+-  (optional) = an extra per-row qualifier on top of the global minutes floor (both in the ranking_rules
+-  doc block); num/den (optional, the 5 RATIO metrics only) = numerator/denominator
+-  expressions over the same int_player_season_position__metrics atoms, so the mart can carry the volume
+-  behind each % for the no-naked-% triple {num} of {den} · {pct}% on the Stats screen (GAP-21, #391). Only
+-  the MART reads num/den; the engine (int_player_competition_benchmarks) ignores them.
+-
+-  Eligibility rule: benchmark a metric for a position only when non-degenerate for that group.
+-  Because the peer pool is already position-specific, the only dead boards are at the GK<->outfield
+-  boundary, so eligibility is essentially binary: GK = the 4 keeper metrics (shot-stopping + distribution);
+-  DEF = MID = ATT = the other 16. No finer outfield split — a CB's goals_per90 is ranked only vs other CBs.
+-#}
+-    {% set outfield = ['DEF', 'MID', 'ATT'] %}
+-    {% set all_pos = ['GK', 'DEF', 'MID', 'ATT'] %}
+-    {% set metrics = [
+-        {'key': 'saves_per90', 'col': 'saves_per90', 'pos': ['GK']},
+-        {'key': 'saves_player_pct', 'col': 'saves_player_pct', 'pos': ['GK'], 'num': 'saves_player', 'den': 'saves_player + goals_against_player'},
+-        {'key': 'passes_per90', 'col': 'passes_per90', 'pos': all_pos},
+-        {'key': 'passes_accuracy_player_pct', 'col': 'passes_accuracy_player_pct', 'pos': all_pos, 'num': 'passes_accurate_player', 'den': 'passes_player'},
+-        {'key': 'goals_per90', 'col': 'goals_per90', 'pos': outfield},
+-        {'key': 'assists_per90', 'col': 'assists_per90', 'pos': outfield},
+-        {'key': 'scorer_points_per90', 'col': 'scorer_points_per90', 'pos': outfield},
+-        {'key': 'shots_on_goal_per90', 'col': 'shots_on_goal_per90', 'pos': outfield},
+-        {'key': 'passes_key_per90', 'col': 'passes_key_per90', 'pos': outfield},
+-        {'key': 'finishing_efficiency_player_pct', 'col': 'finishing_efficiency_player_pct', 'pos': outfield, 'floor': 'shots_on_goal_player >= 10', 'num': 'goals_player - goals_penalty_player', 'den': 'shots_on_goal_player'},
+-        {'key': 'dribbles_success_per90', 'col': 'dribbles_success_per90', 'pos': outfield},
+-        {'key': 'dribbles_success_player_pct', 'col': 'dribbles_success_player_pct', 'pos': outfield, 'num': 'dribbles_success_player', 'den': 'dribbles_attempts_player'},
+-        {'key': 'duels_won_per90', 'col': 'duels_won_per90', 'pos': outfield},
+-        {'key': 'duels_won_player_pct', 'col': 'duels_won_player_pct', 'pos': outfield, 'num': 'duels_won_player', 'den': 'duels_player'},
+-        {'key': 'defensive_actions_per90', 'col': 'defensive_actions_per90', 'pos': outfield},
+-        {'key': 'tackles_per90', 'col': 'tackles_per90', 'pos': outfield},
+-        {'key': 'interceptions_per90', 'col': 'interceptions_per90', 'pos': outfield},
+-        {'key': 'blocks_per90', 'col': 'blocks_per90', 'pos': outfield}
+-    ] %}
+-    {{ return(metrics) }}
+-{% endmacro %}
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+index 2d9d1f55..09aca653 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__deserved_vs_actual.sql
+@@ -38,8 +38,8 @@
+   handling lives upstream / here, never in the catalogue formula (formula-vs-availability ruling).
  
-   - name: base_apif__fixture_statistics
-     description: >
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-index 0dba5a50..330188cc 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
-@@ -2,30 +2,47 @@ with src as (
-     select *
-     from {{ ref('stg_apif__fixtures_next') }}
-     where fixture_id is not null
-+),
-+
-+latest as (
-+    select *
-+    from src
-+    qualify row_number() over (
-+        partition by fixture_id
-+        order by raw_ingested_at desc
-+    ) = 1
-+),
-+
-+-- The league's official result where the provider's differs, from seeds/fixture_result_corrections.csv.
-+result_corrections as (
-+    select * from {{ ref('fixture_result_corrections') }}
- )
+   Full-table coverage gate: deserved_points is computed only for league-seasons where EVERY team has
+-  a computable shots_on_goal_difference_per_match (full SoT coverage) AND an actual league rank AND at least 3
+-  finished games (the same >= 3 threshold int_team_competition_benchmark_metrics_long uses; below it
++  a computable shots_on_goal_difference_per_match (full SoT coverage) AND an actual league rank AND at least
++  the var team_min_matches finished games (the threshold int_team_competition_benchmark_metrics_long uses; below it
+   the fit is small-sample noise and can predict impossible point totals). Otherwise NULL for every
+   team in that league-season. deserved_points is additionally NULL when the signal has no spread
+   across the league-season, since the slope is then undefined rather than flat.
+@@ -149,7 +149,7 @@ gated as (
+         (
+             c.teams_missing_sot = 0
+             and c.teams_missing_rank = 0
+-            and c.min_games_played >= 3
++            and c.min_games_played >= {{ var('team_min_matches') }}
+             and c.distinct_actual_ranks = c.teams
+         ) as league_season_fittable,
+         -- Some DOMESTIC leagues do not run one table either: MLS ranks within Eastern/Western
+diff --git a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+index 29a18485..6ffeae37 100644
+--- a/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
++++ b/dbt_project/models/4_intermediate/shared/int_competition_benchmarks.yml
+@@ -90,12 +90,80 @@ models:
+       - name: season_api_year
+         description: "{{ doc('season_api_year') }}"
  
- select
--    league_code,
--    fixture_id,
--    league_api_id,
--    season,
--    fixture_date,
--    kickoff_datetime,
--    kickoff_timezone,
--    status_short,
--    status_long,
--    status_elapsed,
--    round_name,
--    home_team_id,
--    away_team_id,
--    goals_home,
--    goals_away,
--    venue_id,
--    venue_name,
--    venue_city,
--    raw_ingested_at
--from src
--qualify row_number() over (
--    partition by fixture_id
--    order by raw_ingested_at desc
--) = 1
-+    f.league_code,
-+    f.fixture_id,
-+    f.league_api_id,
-+    f.season,
-+    f.fixture_date,
-+    f.kickoff_datetime,
-+    f.kickoff_timezone,
-+    f.status_elapsed,
-+    f.round_name,
-+    f.home_team_id,
-+    f.away_team_id,
-+    c.awarded_to_team_id,
-+    f.goals_home as provider_goals_home,
-+    f.goals_away as provider_goals_away,
-+    f.status_short as provider_status_short,
-+    c.source as result_correction_source,
-+    f.venue_id,
-+    f.venue_name,
-+    f.venue_city,
-+    f.raw_ingested_at,
-+    if(c.awarded, 'AWD', f.status_short) as status_short,
-+    if(c.awarded, 'Technical loss', f.status_long) as status_long,
-+    coalesce(c.goals_home, f.goals_home) as goals_home,
-+    coalesce(c.goals_away, f.goals_away) as goals_away
-+from latest as f
-+left join result_corrections as c
-+    on f.fixture_id = c.fixture_id
-diff --git a/dbt_project/models/2_base/api_football/base_apif__standings.sql b/dbt_project/models/2_base/api_football/base_apif__standings.sql
-index b480afc8..ba81a3a8 100644
---- a/dbt_project/models/2_base/api_football/base_apif__standings.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__standings.sql
-@@ -35,26 +35,48 @@ deduped_standings as (
-         partition by league_code, season, team_id, group_name
-         order by raw_ingested_at desc
-     ) = 1
-+),
++  - name: int_player_competition_benchmark_metrics_long
++    description: >
++      The 18 player competition-benchmark metrics in long form, per player-season and position: one
++      row per (player_sk, season_sk, position_group, metric_key) where the player enters the
++      benchmark, with the value and, for the 5 ratio metrics, its numerator and denominator. The
++      single source of the benchmark metric set and of the positions each metric is benchmarked for
++      — int_player_competition_benchmarks aggregates it to the positional distribution and
++      mart_player_competition_benchmarks ranks each player against it, so the two cannot drift.
++      Grain: (player_sk, season_sk, position_group, metric_key).
 +
-+-- The league's official figures where the provider's row differs, from
-+-- seeds/standings_corrections.csv.
-+table_corrections as (
-+    select * from {{ ref('standings_corrections') }}
- )
- 
- select
--    league_code,
--    league_api_id,
--    league_name,
--    season,
--    team_id,
--    team_name,
--    standing_rank,
--    points,
--    goals_diff,
--    form,
--    group_name,
--    group_description,
--    played_all,
--    wins_all,
--    draws_all,
--    losses_all,
--    goals_for_all,
--    goals_against_all,
--    raw_ingested_at
--from deduped_standings
-+    s.league_code,
-+    s.league_api_id,
-+    s.league_name,
-+    s.season,
-+    s.team_id,
-+    s.team_name,
-+    s.form,
-+    s.group_name,
-+    s.group_description,
-+    s.standing_rank as provider_standing_rank,
-+    s.points as provider_points,
-+    s.goals_diff as provider_goals_diff,
-+    s.played_all as provider_played_all,
-+    s.wins_all as provider_wins_all,
-+    s.draws_all as provider_draws_all,
-+    s.losses_all as provider_losses_all,
-+    s.goals_for_all as provider_goals_for_all,
-+    s.goals_against_all as provider_goals_against_all,
-+    c.source as result_correction_source,
-+    s.raw_ingested_at,
-+    coalesce(c.standing_rank, s.standing_rank) as standing_rank,
-+    coalesce(c.points, s.points) as points,
-+    if(c.team_id is null, s.goals_diff, c.goals_for - c.goals_against) as goals_diff,
-+    coalesce(c.played, s.played_all) as played_all,
-+    coalesce(c.wins, s.wins_all) as wins_all,
-+    coalesce(c.draws, s.draws_all) as draws_all,
-+    coalesce(c.losses, s.losses_all) as losses_all,
-+    coalesce(c.goals_for, s.goals_for_all) as goals_for_all,
-+    coalesce(c.goals_against, s.goals_against_all) as goals_against_all
-+from deduped_standings as s
-+left join table_corrections as c
-+    on
-+        s.league_code = c.league_code
-+        and s.season = c.season
-+        and s.team_id = c.team_id
-+        and s.group_name = c.group_name
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index 9cc68a8c..9a8d04d4 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -540,6 +540,12 @@ models:
-         description: "Final-time goals scored by home team."
-       - name: goals_away
-         description: "Final-time goals scored by away team."
-+      - name: awarded_to_team_sk
-+        description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
++      {{ doc('ranking_rules') }}
++    config:
++      tags: ["intermediate", "football", "benchmark"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [player_sk, season_sk, position_group, metric_key]
++    columns:
++      - name: player_sk
++        description: "{{ doc('player_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++      - name: season_sk
++        description: "{{ doc('season_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_competition_season')
++              field: season_sk
++      - name: league_sk
++        description: "{{ doc('league_sk') }}"
 +        tests:
 +          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-       - name: venue_api_id
-         description: "API-Football venue id."
-       - name: venue_name_snapshot
-@@ -609,9 +615,9 @@ models:
-       - name: losses
-         description: "{{ doc('losses') }}"
-       - name: goals_scored
--        description: "Goals scored in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
-+        description: "Goals scored in the section, as the official standings row reports them. A published fact of the official table, not a metric computed from fixtures."
-       - name: goals_conceded
--        description: "Goals conceded in the section, as the provider's standings row reports them. A published fact of the official table, not a metric computed from fixtures."
-+        description: "Goals conceded in the section, as the official standings row reports them. A published fact of the official table, not a metric computed from fixtures."
-       - name: raw_ingested_at
-         description: "{{ doc('raw_ingested_at') }}"
- 
-diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
-index 180116cd..0ecb8c9f 100644
---- a/dbt_project/models/3_core/fct_fixture.sql
-+++ b/dbt_project/models/3_core/fct_fixture.sql
-@@ -23,6 +23,7 @@ select
-     round_name,
-     goals_home,
-     goals_away,
-+    cast(awarded_to_team_id as int64) as awarded_to_team_sk,
-     venue_id as venue_api_id,
-     venue_name as venue_name_snapshot,
-     venue_city as venue_city_snapshot,
-diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-index 9344c499..6235747e 100644
---- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
-@@ -47,6 +47,7 @@ legs as (
-         f.goals_home as goals,
-         f.goals_away as goals_against,
-         case
-+            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.home_team_sk, 'W', 'L')
-             when f.goals_home > f.goals_away then 'W'
-             when f.goals_home < f.goals_away then 'L'
-             else 'D'
-@@ -77,6 +78,7 @@ legs as (
-         f.goals_away as goals,
-         f.goals_home as goals_against,
-         case
-+            when f.awarded_to_team_sk is not null then if(f.awarded_to_team_sk = f.away_team_sk, 'W', 'L')
-             when f.goals_away > f.goals_home then 'W'
-             when f.goals_away < f.goals_home then 'L'
-             else 'D'
-diff --git a/dbt_project/models/5_marts/shared/mart_standings.sql b/dbt_project/models/5_marts/shared/mart_standings.sql
-index c2070c46..8aaf77c0 100644
---- a/dbt_project/models/5_marts/shared/mart_standings.sql
-+++ b/dbt_project/models/5_marts/shared/mart_standings.sql
-@@ -9,7 +9,8 @@
-        competition_type = 'domestic_league' for one row per (club, season) = its
-        home-league position.
- 
--  Every value is the provider's official standings row as published — rank, points, W/D/L,
-+  Every value is the league's official standings row (the provider's, except where corrected in
-+  base to the league's figures) — rank, points, W/D/L,
-   goals scored and conceded, goal difference, form. Nothing here is computed from fixtures: the
-   official table carries deductions and tie-break orders a recomputation cannot reproduce, so it
-   is a fact from the source, like a match score. NO zones — the provider's zone annotation is
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index f4078651..55623480 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -1411,7 +1411,8 @@ models:
-       season_api_year, group_name, team_sk).
- 
-       Rank, points, form, W/D/L, goals scored and conceded, goal difference: every value is the
--      provider's official standings row as published, nothing computed from fixtures. The
-+      league's official standings row, the provider's except where corrected to the league's
-+      figures (standings_corrections), nothing computed from fixtures. The
-       provider's zone annotation ("Promotion - Champions League", "Relegation") is carried
-       verbatim in group_description but never interpreted, so there is no derived qualification
-       or relegation field.
-@@ -1497,9 +1498,9 @@ models:
-       - name: points
-         description: "Accumulated points in the section."
-       - name: goals_scored
--        description: "Goals scored in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
-+        description: "Goals scored in the section, as the official standings row reports them; null only where the provider row lacks the field."
-       - name: goals_conceded
--        description: "Goals conceded in the section, as the provider's standings row reports them; null only where the provider row lacks the field."
-+        description: "Goals conceded in the section, as the official standings row reports them; null only where the provider row lacks the field."
-       - name: form
-         description: "Recent results string from the API (e.g. WWDLW)."
-       - name: group_description
-@@ -1509,7 +1510,7 @@ models:
-       - name: goals_diff
-         description: "{{ doc('goals_diff') }}"
-       - name: played
--        description: "Matches played in this standings section, as the provider's own standings row reports it — not counted from fixtures. NULL only where the provider's row lacks the field."
-+        description: "Matches played in this standings section, as the official standings row reports it — not counted from fixtures. NULL only where the provider's row lacks the field."
-       - name: wins
-         description: "{{ doc('wins') }}"
-       - name: draws
-diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
-index a2b2e968..5929aea7 100644
---- a/dbt_project/models/docs/cleaning_rules.md
-+++ b/dbt_project/models/docs/cleaning_rules.md
-@@ -25,8 +25,8 @@ match stats are good enough.
-   passes, the provider sent a percentage, and it is converted once.
- - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
-   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
--  left blank when the gap is larger or when neither side passes its check. Results are never
--  corrected.
-+  left blank when the gap is larger or when neither side passes its check. A result is corrected
-+  only to the league's official decision, with its source; match stats never correct a result.
- - Every correction is listed on its row in stat_corrections, under one of these rules:
-   goals_from_events (a player's goals taken from the goal events);
-   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;
-diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
-index 8eec17ed..7608c459 100644
---- a/dbt_project/models/docs/shared_columns.md
-+++ b/dbt_project/models/docs/shared_columns.md
-@@ -572,7 +572,7 @@ defect rather than a value.
- 
- {% docs result %}
- The match outcome from this row's team's perspective: W (win), D (draw), or L (loss), compared
--from the match's own final scoreline.
-+from the match's own final scoreline, or the team the league awarded it to where it set no score.
- {% enddocs %}
- 
- {% docs market_value_eur %}
-diff --git a/dbt_project/seeds/fixture_result_corrections.csv b/dbt_project/seeds/fixture_result_corrections.csv
-new file mode 100644
-index 00000000..4d1d9caa
---- /dev/null
-+++ b/dbt_project/seeds/fixture_result_corrections.csv
-@@ -0,0 +1,9 @@
-+fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,source_kind,source,note
-+1224099,0,2,true,,official,https://www.dfb.de/news/dfb-bundesgericht-weist-berufung-von-union-berlin-zurueck,"Union Berlin-Bochum, BL1 14 Dec 2024: played 1-1, awarded 0-2"
-+93198,0,0,true,80,match_reports,https://www.corsenetinfos.corsica/Commission-de-discipline-de-la-LFP-Match-perdu-pour-le-Sporting-face-a-Lyon-et-trois-matches-a-huis-clos-sur-terrain_a27164.html https://www.espn.com/soccer/story/_/id/37521073/bastia-forfeit-abandoned-lyon-game-lfp-commission-says,"Bastia-Lyon, L1 16 Apr 2017: abandoned at half-time, lost by Bastia with no score set"
-+21650,0,3,true,,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/,"Sassuolo-Pescara, SA 28 Aug 2016: played 2-1, awarded 0-3"
-+1252618,0,3,true,,match_reports,https://worldsoccertalk.com/news/cristiano-ronaldo-gets-major-boost-from-spl-as-al-nassrs-afc-champions-league-hopes-reignite/ https://www.besoccer.com/new/ronaldo-s-al-nassr-reap-rewards-from-ineligible-player-scandal-1360303,"Al Orubah-Al Nassr, SPL 28 Feb 2025: played 2-1, awarded 0-3"
-+1074761,0,3,true,,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=43023,"Istanbulspor-Trabzonspor, TSL 19 Dec 2023: abandoned at 1-2, awarded 0-3"
-+1238054,3,0,true,,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=46746,"Galatasaray-Adana Demirspor, TSL 9 Feb 2025: abandoned at 1-0, awarded 3-0"
-+1213268,5,0,true,,official,https://www.proleague.be/fr/informations/le-derby-anversois-se-termine-sur-un-score-de-5-0-le-beerschot-est-condamne-a-une-amende-de-50-000-euro-et-les-statistiques-sont-retenues,"Antwerp-Beerschot, BPL 29 Sep 2024: abandoned at 4-0, awarded 5-0"
-+828366,2,0,false,,official,https://www.kleague.com/match.do?year=2022&leagueId=1&gameId=174&meetSeq=1&startTabNum=3,"Seongnam-Ulsan, KL1 4 Sep 2022: played 2-0"
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index eea15698..c5aa52fe 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -550,6 +550,126 @@ seeds:
-         tests:
-           - not_null
- 
-+  - name: fixture_result_corrections
-+    description: >
-+      The league's official result for each match whose provider result differs from it, one row
-+      per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
-+      provider's score and status next to it. assert_result_corrections_applied fails when a row
-+      is not applied, its source is not valid, or it no longer changes anything.
-+    config:
-+      column_types:
-+        fixture_id: int64
-+        goals_home: int64
-+        goals_away: int64
-+        awarded: bool
-+        awarded_to_team_id: int64
-+        source_kind: string
-+        source: string
-+        note: string
-+    columns:
-+      - name: fixture_id
-+        description: "{{ doc('fixture_api_id') }}"
-+        tests: [not_null, unique]
-+      - name: goals_home
-+        description: "The official home goals."
++              to: ref('dim_league')
++              field: league_sk
++      - name: league_code
++        description: "{{ doc('league_code') }}"
 +        tests: [not_null]
-+      - name: goals_away
-+        description: "The official away goals."
++      - name: season_api_year
++        description: "{{ doc('season_api_year') }}"
 +        tests: [not_null]
-+      - name: awarded
-+        description: "TRUE where the league decided the result off the pitch; the match then counts as awarded (status AWD)."
-+        tests: [not_null]
-+      - name: awarded_to_team_id
-+        description: "The team the league awarded the match to where it set no score; NULL where the score shows the winner."
-+      - name: source_kind
-+        description: "official = the league's or federation's decision or match record; match_reports = two independent match reports."
++      - name: position_group
++        description: "The peer pool the player is benchmarked in: GK, DEF, MID or ATT."
 +        tests:
 +          - not_null
 +          - accepted_values:
-+              values: ["official", "match_reports"]
-+      - name: source
-+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
++              values: ["GK", "DEF", "MID", "ATT"]
++      - name: minutes
++        description: "The player's minutes in this position this competition-season, carried so the sample is visible."
 +        tests: [not_null]
-+      - name: note
-+        description: "The match and the official decision, in words."
++      - name: appearances
++        description: "The player's appearances in this position this competition-season."
++      - name: metric_key
++        description: "The benchmarked metric — a metric_catalogue player metric_id (the 18-metric set)."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["goals_per90", "assists_per90", "scorer_points_per90", "shots_on_goal_per90", "passes_key_per90", "dribbles_success_per90", "passes_per90", "tackles_per90", "interceptions_per90", "blocks_per90", "defensive_actions_per90", "duels_won_per90", "saves_per90", "passes_accuracy_player_pct", "duels_won_player_pct", "dribbles_success_player_pct", "finishing_efficiency_player_pct", "saves_player_pct"]
++      - name: metric_value
++        description: "The player's in-position value for this metric. Rows without a value are left out, so this is never null."
 +        tests: [not_null]
++      - name: metric_numerator
++        description: "The numerator behind a ratio metric's value (e.g. saves for save %). NULL for a per-90 metric, which has none."
++      - name: metric_denominator
++        description: "The denominator behind a ratio metric's value (e.g. shots on target faced for save %). NULL for a per-90 metric, which has none."
 +
-+  - name: standings_corrections
+   - name: int_player_competition_benchmarks
+     description: >
+       Competition benchmark engine (player): per (league_code, season_api_year, position_group, metric_key)
+       the positional-peer distribution (median / mean / p25 / p75 / player_count) of each benchmarked metric.
+-      Median-led. mart_player_competition_benchmarks ranks each player against this. Metric x position
+-      eligibility is the player_benchmark_metrics() macro.
++      Median-led. mart_player_competition_benchmarks ranks each player against this. The metric set,
++      position eligibility and who enters are int_player_competition_benchmark_metrics_long.
+       Grain: (league_code, season_api_year, position_group, metric_key).
+ 
+       {{ doc('ranking_rules') }}
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
+new file mode 100644
+index 00000000..40ca8c84
+--- /dev/null
++++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmark_metrics_long.sql
+@@ -0,0 +1,80 @@
++{#
++  The 18 player competition-benchmark metrics in LONG form, per player-season and position: one row
++  per (player_sk, season_sk, position_group, metric_key) where the player enters the benchmark, with
++  the value and, for the 5 ratio metrics, the numerator and denominator behind it. The single source
++  of the benchmark metric set and of the positions each metric is benchmarked for:
++  int_player_competition_benchmarks aggregates it to the positional distribution and
++  mart_player_competition_benchmarks ranks each player against it, so the two cannot drift apart.
++  Who enters is the ranking_rules doc block in models/docs/metric_rules.md; its floors are the vars
++  player_min_minutes and player_min_shots_on_target. A metric is benchmarked for goalkeepers on
++  saves and passing and for outfield players on every metric but saves.
++  Grain: (player_sk, season_sk, position_group, metric_key).
++#}
++
++with season as (
++    select * from {{ ref('int_player_season_position__metrics') }}
++    where minutes >= {{ var('player_min_minutes') }}
++)
++
++select
++    s.player_sk,
++    s.season_sk,
++    s.league_sk,
++    s.league_code,
++    s.season_api_year,
++    s.position_group,
++    s.minutes,
++    s.appearances,
++    m.metric_key,
++    m.metric_value,
++    m.metric_numerator,
++    m.metric_denominator
++from season as s,
++    unnest([
++        struct(
++            'saves_per90' as metric_key,
++            ['GK'] as position_groups,
++            true as is_qualified,
++            s.saves_per90 as metric_value,
++            cast(null as int64) as metric_numerator,
++            cast(null as int64) as metric_denominator
++        ),
++        (
++            'saves_player_pct', ['GK'], true, s.saves_player_pct,
++            s.saves_player, s.saves_player + s.goals_against_player
++        ),
++        ('passes_per90', ['GK', 'DEF', 'MID', 'ATT'], true, s.passes_per90, null, null),
++        (
++            'passes_accuracy_player_pct', ['GK', 'DEF', 'MID', 'ATT'], true, s.passes_accuracy_player_pct,
++            s.passes_accurate_player, s.passes_player
++        ),
++        ('goals_per90', ['DEF', 'MID', 'ATT'], true, s.goals_per90, null, null),
++        ('assists_per90', ['DEF', 'MID', 'ATT'], true, s.assists_per90, null, null),
++        ('scorer_points_per90', ['DEF', 'MID', 'ATT'], true, s.scorer_points_per90, null, null),
++        ('shots_on_goal_per90', ['DEF', 'MID', 'ATT'], true, s.shots_on_goal_per90, null, null),
++        ('passes_key_per90', ['DEF', 'MID', 'ATT'], true, s.passes_key_per90, null, null),
++        (
++            'finishing_efficiency_player_pct', ['DEF', 'MID', 'ATT'],
++            s.shots_on_goal_player >= {{ var('player_min_shots_on_target') }},
++            s.finishing_efficiency_player_pct,
++            s.goals_player - s.goals_penalty_player, s.shots_on_goal_player
++        ),
++        ('dribbles_success_per90', ['DEF', 'MID', 'ATT'], true, s.dribbles_success_per90, null, null),
++        (
++            'dribbles_success_player_pct', ['DEF', 'MID', 'ATT'], true, s.dribbles_success_player_pct,
++            s.dribbles_success_player, s.dribbles_attempts_player
++        ),
++        ('duels_won_per90', ['DEF', 'MID', 'ATT'], true, s.duels_won_per90, null, null),
++        (
++            'duels_won_player_pct', ['DEF', 'MID', 'ATT'], true, s.duels_won_player_pct,
++            s.duels_won_player, s.duels_player
++        ),
++        ('defensive_actions_per90', ['DEF', 'MID', 'ATT'], true, s.defensive_actions_per90, null, null),
++        ('tackles_per90', ['DEF', 'MID', 'ATT'], true, s.tackles_per90, null, null),
++        ('interceptions_per90', ['DEF', 'MID', 'ATT'], true, s.interceptions_per90, null, null),
++        ('blocks_per90', ['DEF', 'MID', 'ATT'], true, s.blocks_per90, null, null)
++    ]) as m
++where
++    s.position_group in unnest(m.position_groups)
++    and m.is_qualified
++    and m.metric_value is not null
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+index f7fe9f3f..c853c7f3 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_competition_benchmarks.sql
+@@ -5,37 +5,15 @@
+   the mean is carried for the "vs average" read but is skew-sensitive. player_count is N for the rank-of-N
+   and percentile display. The player analog of int_team_competition_benchmarks.
+ 
+-  Who enters the distribution is the ranking_rules doc block in models/docs/metric_rules.md. Metric x
+-  position eligibility comes from player_benchmark_metrics(): a metric ineligible for a position (e.g.
+-  saves_player for an outfielder) yields a null value and is not counted.
++  Who enters the distribution, and which metrics each position is benchmarked on, is
++  int_player_competition_benchmark_metrics_long.
+ 
+   Grain: (league_code, season_api_year, position_group, metric_key). All competitions, each season on its own
+   data (no league scoping, no prev-season fallback — D5/D6).
+ #}
+ 
+-with season as (
+-    select * from {{ ref('int_player_season_position__metrics') }}
+-    where minutes >= 270
+-),
+-
+-unpivoted as (
+-    {% for m in player_benchmark_metrics() %}
+-    select
+-        league_code,
+-        season_api_year,
+-        position_group,
+-        '{{ m.key }}' as metric_key,
+-        case
+-            when
+-                position_group in ('{{ m.pos | join("', '") }}')
+-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
+-                then {{ m.col }}
+-        end as metric_value
+-    from season
+-    {% if not loop.last %}
+-    union all
+-    {% endif %}
+-    {% endfor %}
++with metrics as (
++    select * from {{ ref('int_player_competition_benchmark_metrics_long') }}
+ )
+ 
+ select
+@@ -48,6 +26,5 @@ select
+     approx_quantiles(metric_value, 4)[offset(1)] as peer_p25,
+     approx_quantiles(metric_value, 4)[offset(2)] as peer_median,
+     approx_quantiles(metric_value, 4)[offset(3)] as peer_p75
+-from unpivoted
+-where metric_value is not null
++from metrics
+ group by league_code, season_api_year, position_group, metric_key
+diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+index d8575836..d0902067 100644
+--- a/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_player_season_position__metrics.sql
+@@ -12,9 +12,8 @@
+   written by scripts/generate_metric_sql.py, so a single-position player's per-90 here equals his
+   whole-season per-90 there.
+ 
+-  Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart apply the
+-  minutes floor. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
+-  macro (shared with int_player_competition_benchmarks + mart_player_competition_benchmarks).
++  Grain: (player_sk, season_sk, position_group). No floor here — int_player_competition_benchmark_metrics_long
++  applies the floors and lists the 18 benchmark metrics (per-90 + rates).
+ #}
+ 
+ with legs as (
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+index 47ac313d..e289690b 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_competition_benchmark_metrics_long.sql
+@@ -1,7 +1,7 @@
+ {#
+   The 22 team competition-benchmark metrics in LONG form, per team-season: one row per
+   (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (season-to-date, teams with
+-  >= 3 finished games). This is the single source of the benchmark metric set — both
++  at least the var team_min_matches finished games). This is the single source of the benchmark metric set — both
+   int_team_competition_benchmarks (which aggregates it to the league distribution) and
+   mart_team_competition_benchmarks (which ranks each team against that distribution) read from here, so
+   the two cannot drift apart. Replaces the team_benchmark_metrics() macro (engineering_standards.md §1.3:
+@@ -13,7 +13,7 @@
+ 
+ with season as (
+     select * from {{ ref('int_team_season__metrics') }}
+-    where season_games_played >= 3
++    where season_games_played >= {{ var('team_min_matches') }}
+ )
+ 
+ select
+diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+index c6e01989..55ee097e 100644
+--- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
++++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
+@@ -36,11 +36,12 @@
+     'saves_player',
+ ] %}
+ 
+-{# RATE boards (#506): qualify on minutes >= 270 + a position scope (+ a SoT floor for finishing). #}
++{# RATE boards (#506): qualify on the minutes floor + a position scope (+ a SoT floor for finishing). #}
+ {% set outfield = "player_position is not null and player_position != 'Goalkeeper'" %}
+ {% set rate_boards = [
+     {'key': 'passes_accuracy_player_pct', 'qualify': outfield},
+-    {'key': 'finishing_efficiency_player_pct', 'qualify': outfield ~ ' and shots_on_goal_player >= 10'},
++    {'key': 'finishing_efficiency_player_pct',
++     'qualify': outfield ~ ' and shots_on_goal_player >= ' ~ var('player_min_shots_on_target')},
+ ] %}
+ 
+ {# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
+@@ -50,7 +51,8 @@
+ {% do boards.append({'key': key, 'where': key ~ ' > 0'}) %}
+ {% endfor %}
+ {% for board in rate_boards %}
+-{% set rate_where = 'minutes >= 270 and ' ~ board.qualify ~ ' and ' ~ board.key ~ ' > 0' %}
++{% set rate_where = 'minutes >= ' ~ var('player_min_minutes')
++    ~ ' and ' ~ board.qualify ~ ' and ' ~ board.key ~ ' > 0' %}
+ {% do boards.append({'key': board.key, 'where': rate_where}) %}
+ {% endfor %}
+ 
+diff --git a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+index 9d36f20c..9f1fb4d4 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_competition_benchmarks.sql
+@@ -8,17 +8,15 @@
+ 
+   DIRECTION-AGNOSTIC by design (D7): rank is by value DESC and percentile by value within (league_code,
+   season_api_year, position_group, metric_key); the good/bad reading is supplied at display from the
+-  catalogue's `direction`. Composes int_player_season_position__metrics + the int_player_competition_benchmarks
+-  engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
+-  identical). Who enters is the ranking_rules doc block in models/docs/metric_rules.md. Multi-position
+-  players appear once per qualifying position, each on their in-role value.
++  catalogue's `direction`. Composes int_player_competition_benchmark_metrics_long (the metric set, position
++  eligibility and who enters, shared with the engine) + the int_player_competition_benchmarks engine.
++  Multi-position players appear once per qualifying position, each on their in-role value.
+ 
+   Grain: (player_sk, season_sk, position_group, metric_key).
+ #}
+ 
+-with season as (
+-    select * from {{ ref('int_player_season_position__metrics') }}
+-    where minutes >= 270
++with metrics as (
++    select * from {{ ref('int_player_competition_benchmark_metrics_long') }}
+ ),
+ 
+ players as (
+@@ -34,46 +32,6 @@ benchmarks as (
+     select * from {{ ref('int_player_competition_benchmarks') }}
+ ),
+ 
+-unpivoted as (
+-    {% for m in player_benchmark_metrics() %}
+-    select
+-        player_sk,
+-        season_sk,
+-        league_sk,
+-        league_code,
+-        season_api_year,
+-        position_group,
+-        minutes,
+-        appearances,
+-        '{{ m.key }}' as metric_key,
+-        case
+-            when
+-                position_group in ('{{ m.pos | join("', '") }}')
+-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
+-                then {{ m.col }}
+-        end as metric_value,
+-        -- GAP-21: the volume behind each ratio %, gated by the SAME eligibility+floor as
+-        -- metric_value; null when the metric defines no num/den (the 13 per-90 metrics).
+-        -- Feeds the {num} of {den} · {pct}% triple on the Stats screen.
+-        case
+-            when
+-                position_group in ('{{ m.pos | join("', '") }}')
+-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
+-                then {% if m.num is defined %}{{ m.num }}{% else %}cast(null as int64){% endif %}
+-        end as metric_numerator,
+-        case
+-            when
+-                position_group in ('{{ m.pos | join("', '") }}')
+-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
+-                then {% if m.den is defined %}{{ m.den }}{% else %}cast(null as int64){% endif %}
+-        end as metric_denominator
+-    from season
+-    {% if not loop.last %}
+-    union all
+-    {% endif %}
+-    {% endfor %}
+-),
+-
+ ranked as (
+     select
+         u.player_sk,
+@@ -98,8 +56,7 @@ ranked as (
+                 u.league_code, u.season_api_year, u.position_group, u.metric_key
+             order by u.metric_value asc
+         ) as percentile
+-    from unpivoted as u
+-    where u.metric_value is not null
++    from metrics as u
+ )
+ 
+ select
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index 55623480..14094ea1 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -3130,8 +3130,8 @@ models:
+       DIRECTION-AGNOSTIC: rank is by value descending and percentile by value, so neither says
+       whether high is good — that comes from the metric's catalogue direction.
+ 
+-      A player qualifying in two positions appears once per position; the
+-      player_benchmark_metrics() macro decides which metrics apply.
++      A player qualifying in two positions appears once per position;
++      int_player_competition_benchmark_metrics_long decides which metrics apply.
+ 
+       {{ doc('ranking_rules') }}
+     meta:
+diff --git a/dbt_project/seeds/player_season_answer_key.csv b/dbt_project/seeds/player_season_answer_key.csv
+new file mode 100644
+index 00000000..eb418de5
+--- /dev/null
++++ b/dbt_project/seeds/player_season_answer_key.csv
+@@ -0,0 +1,231 @@
++league_code,season,player_id,metric_id,numerator,denominator,working
++WC,2026,278,assists_per90,360,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) * 90 = 360; sum(minutes) = 709; assists blank in 1 match, 0 by the blank rule."
++WC,2026,278,assists_player,4,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) = 4; assists blank in 1 match, 0 by the blank rule."
++WC,2026,278,blocks_per90,0,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 709; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,278,blocks_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) = 0; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,278,cards_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(cards_yellow + cards_red) = 1."
++WC,2026,278,cards_red_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(cards_red) = 0."
++WC,2026,278,cards_yellow_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(cards_yellow) = 1."
++WC,2026,278,defensive_actions_per90,90,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) * 90 = 90; sum(minutes) = 709; tackles blank in 7 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,278,defensive_actions_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 1; tackles blank in 7 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,278,dribbles_attempts_player,36,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles) = 36."
++WC,2026,278,dribbles_past_player,4,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_against) = 4; dribbled past blank in 5 matches, 0 by the blank rule."
++WC,2026,278,dribbles_success_per90,1170,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_success) * 90 = 1170; sum(minutes) = 709."
++WC,2026,278,dribbles_success_player,13,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_success) = 13."
++WC,2026,278,dribbles_success_player_pct,13,36,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_success) = 13; sum(dribbles) = 36."
++WC,2026,278,duels_player,70,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels) = 70."
++WC,2026,278,duels_won_per90,2070,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels_won) * 90 = 2070; sum(minutes) = 709."
++WC,2026,278,duels_won_player,23,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels_won) = 23."
++WC,2026,278,duels_won_player_pct,23,70,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels_won) = 23; sum(duels) = 70."
++WC,2026,278,finishing_efficiency_player_pct,9,23,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 9; sum(shots_on_target) = 23; goals blank in 2 matches, 0 by the blank rule; shots on target blank in 1 match, 0 by the blank rule."
++WC,2026,278,goals_against_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals_against) = 0."
++WC,2026,278,goals_open_play_player,9,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 9; goals blank in 2 matches, 0 by the blank rule."
++WC,2026,278,goals_penalty_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals_penalty) = 1."
++WC,2026,278,goals_per90,900,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals) * 90 = 900; sum(minutes) = 709; goals blank in 2 matches, 0 by the blank rule."
++WC,2026,278,goals_player,10,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals) = 10; goals blank in 2 matches, 0 by the blank rule."
++WC,2026,278,interceptions_per90,0,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(interceptions) * 90 = 0; sum(minutes) = 709; interceptions blank in 8 matches, 0 by the blank rule."
++WC,2026,278,interceptions_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(interceptions) = 0; interceptions blank in 8 matches, 0 by the blank rule."
++WC,2026,278,offsides_player,,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(offsides) = blank; offsides blank in 2 matches, 0 by the blank rule; offsides blank and counted by nobody in fixture 1569870, 1578539, so the season value is blank."
++WC,2026,278,passes_accuracy_player_pct,201,235,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_accurate) = 201; sum(passes) = 235."
++WC,2026,278,passes_accurate_player,201,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_accurate) = 201."
++WC,2026,278,passes_key_per90,1620,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_key) * 90 = 1620; sum(minutes) = 709; key passes blank in 2 matches, 0 by the blank rule."
++WC,2026,278,passes_key_player,18,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_key) = 18; key passes blank in 2 matches, 0 by the blank rule."
++WC,2026,278,passes_per90,21150,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes) * 90 = 21150; sum(minutes) = 709."
++WC,2026,278,passes_player,235,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes) = 235."
++WC,2026,278,penalty_committed_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(penalties_committed) = 0; penalties committed blank in 8 matches, 0 by the blank rule."
++WC,2026,278,penalty_won_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(penalties_won) = 1; penalties won blank in 7 matches, 0 by the blank rule."
++WC,2026,278,saves_per90,0,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves) * 90 = 0; sum(minutes) = 709; saves blank in 8 matches, 0 by the blank rule."
++WC,2026,278,saves_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves) = 0; saves blank in 8 matches, 0 by the blank rule."
++WC,2026,278,saves_player_pct,0,0,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves) = 0; sum(saves + goals_against) = 0; saves blank in 8 matches, 0 by the blank rule."
++WC,2026,278,scorer_points_per90,1260,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals + assists) * 90 = 1260; sum(minutes) = 709; goals blank in 2 matches, 0 by the blank rule; assists blank in 1 match, 0 by the blank rule."
++WC,2026,278,scorer_points_player,14,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals + assists) = 14; goals blank in 2 matches, 0 by the blank rule; assists blank in 1 match, 0 by the blank rule."
++WC,2026,278,shots_on_goal_against_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves + goals_against) = 0; saves blank in 8 matches, 0 by the blank rule."
++WC,2026,278,shots_on_goal_per90,2070,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots_on_target) * 90 = 2070; sum(minutes) = 709; shots on target blank in 1 match, 0 by the blank rule."
++WC,2026,278,shots_on_goal_player,23,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots_on_target) = 23; shots on target blank in 1 match, 0 by the blank rule."
++WC,2026,278,shots_player,36,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots) = 36."
++WC,2026,278,tackles_per90,90,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles) * 90 = 90; sum(minutes) = 709; tackles blank in 7 matches, 0 by the blank rule."
++WC,2026,278,tackles_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles) = 1; tackles blank in 7 matches, 0 by the blank rule."
++WC,2026,19599,assists_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) * 90 = 0; sum(minutes) = 830; assists blank in 2 matches, 0 by the blank rule."
++WC,2026,19599,assists_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) = 0; assists blank in 2 matches, 0 by the blank rule."
++WC,2026,19599,blocks_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 830; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,blocks_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) = 0; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,cards_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(cards_yellow + cards_red) = 0."
++WC,2026,19599,cards_red_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(cards_red) = 0."
++WC,2026,19599,cards_yellow_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(cards_yellow) = 0."
++WC,2026,19599,defensive_actions_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) * 90 = 0; sum(minutes) = 830; tackles blank in 8 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,defensive_actions_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 0; tackles blank in 8 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,dribbles_attempts_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles) = 0; dribbles blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,dribbles_past_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_against) = 0; dribbled past blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,dribbles_success_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_success) * 90 = 0; sum(minutes) = 830; dribbles completed blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,dribbles_success_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_success) = 0; dribbles completed blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,dribbles_success_player_pct,0,0,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_success) = 0; sum(dribbles) = 0; dribbles completed blank in 8 matches, 0 by the blank rule; dribbles blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,duels_player,2,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels) = 2; duels blank in 7 matches, 0 by the blank rule."
++WC,2026,19599,duels_won_per90,180,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels_won) * 90 = 180; sum(minutes) = 830; duels won blank in 7 matches, 0 by the blank rule."
++WC,2026,19599,duels_won_player,2,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels_won) = 2; duels won blank in 7 matches, 0 by the blank rule."
++WC,2026,19599,duels_won_player_pct,2,2,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels_won) = 2; sum(duels) = 2; duels won blank in 7 matches, 0 by the blank rule; duels blank in 7 matches, 0 by the blank rule."
++WC,2026,19599,finishing_efficiency_player_pct,0,0,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 0; sum(shots_on_target) = 0; goals blank in 8 matches, 0 by the blank rule; shots on target blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,goals_against_player,8,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals_against) = 8."
++WC,2026,19599,goals_open_play_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 0; goals blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,goals_penalty_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals_penalty) = 0."
++WC,2026,19599,goals_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals) * 90 = 0; sum(minutes) = 830; goals blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,goals_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals) = 0; goals blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,interceptions_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(interceptions) * 90 = 0; sum(minutes) = 830; interceptions blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,interceptions_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(interceptions) = 0; interceptions blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,offsides_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(offsides) = 0; offsides blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,passes_accuracy_player_pct,175,246,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_accurate) = 175; sum(passes) = 246."
++WC,2026,19599,passes_accurate_player,175,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_accurate) = 175."
++WC,2026,19599,passes_key_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_key) * 90 = 0; sum(minutes) = 830; key passes blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,passes_key_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_key) = 0; key passes blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,passes_per90,22140,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes) * 90 = 22140; sum(minutes) = 830."
++WC,2026,19599,passes_player,246,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes) = 246."
++WC,2026,19599,penalty_committed_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(penalties_committed) = 0; penalties committed blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,penalty_won_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(penalties_won) = 0; penalties won blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,saves_per90,1800,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves) * 90 = 1800; sum(minutes) = 830; saves blank in 3 matches, 0 by the blank rule."
++WC,2026,19599,saves_player,20,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves) = 20; saves blank in 3 matches, 0 by the blank rule."
++WC,2026,19599,saves_player_pct,20,28,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves) = 20; sum(saves + goals_against) = 28; saves blank in 3 matches, 0 by the blank rule."
++WC,2026,19599,scorer_points_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals + assists) * 90 = 0; sum(minutes) = 830; goals blank in 8 matches, 0 by the blank rule; assists blank in 2 matches, 0 by the blank rule."
++WC,2026,19599,scorer_points_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals + assists) = 0; goals blank in 8 matches, 0 by the blank rule; assists blank in 2 matches, 0 by the blank rule."
++WC,2026,19599,shots_on_goal_against_player,28,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves + goals_against) = 28; saves blank in 3 matches, 0 by the blank rule."
++WC,2026,19599,shots_on_goal_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots_on_target) * 90 = 0; sum(minutes) = 830; shots on target blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,shots_on_goal_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots_on_target) = 0; shots on target blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,shots_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots) = 0; shots blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,tackles_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles) * 90 = 0; sum(minutes) = 830; tackles blank in 8 matches, 0 by the blank rule."
++WC,2026,19599,tackles_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles) = 0; tackles blank in 8 matches, 0 by the blank rule."
++EURO,2024,1323,assists_per90,180,431,"Dani Olmo, EURO 2024: 7 matches. sum(assists) * 90 = 180; sum(minutes) = 431; assists blank in 1 match, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,assists_player,2,,"Dani Olmo, EURO 2024: 7 matches. sum(assists) = 2; assists blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,blocks_per90,90,431,"Dani Olmo, EURO 2024: 7 matches. sum(blocks) * 90 = 90; sum(minutes) = 431; blocks blank in 6 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,blocks_player,1,,"Dani Olmo, EURO 2024: 7 matches. sum(blocks) = 1; blocks blank in 6 matches, 0 by the blank rule."
++EURO,2024,1323,cards_player,1,,"Dani Olmo, EURO 2024: 7 matches. sum(cards_yellow + cards_red) = 1."
++EURO,2024,1323,cards_red_player,0,,"Dani Olmo, EURO 2024: 7 matches. sum(cards_red) = 0."
++EURO,2024,1323,cards_yellow_player,1,,"Dani Olmo, EURO 2024: 7 matches. sum(cards_yellow) = 1."
++EURO,2024,1323,defensive_actions_per90,630,431,"Dani Olmo, EURO 2024: 7 matches. sum(tackles + interceptions + blocks) * 90 = 630; sum(minutes) = 431; tackles blank in 3 matches, 0 by the blank rule; interceptions blank in 5 matches, 0 by the blank rule; blocks blank in 6 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,defensive_actions_player,7,,"Dani Olmo, EURO 2024: 7 matches. sum(tackles + interceptions + blocks) = 7; tackles blank in 3 matches, 0 by the blank rule; interceptions blank in 5 matches, 0 by the blank rule; blocks blank in 6 matches, 0 by the blank rule."
++EURO,2024,1323,dribbles_attempts_player,19,,"Dani Olmo, EURO 2024: 7 matches. sum(dribbles) = 19; dribbles blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,dribbles_past_player,3,,"Dani Olmo, EURO 2024: 7 matches. sum(dribbles_against) = 3; dribbled past blank in 4 matches, 0 by the blank rule."
++EURO,2024,1323,dribbles_success_per90,1260,431,"Dani Olmo, EURO 2024: 7 matches. sum(dribbles_success) * 90 = 1260; sum(minutes) = 431; dribbles completed blank in 2 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,dribbles_success_player,14,,"Dani Olmo, EURO 2024: 7 matches. sum(dribbles_success) = 14; dribbles completed blank in 2 matches, 0 by the blank rule."
++EURO,2024,1323,dribbles_success_player_pct,14,19,"Dani Olmo, EURO 2024: 7 matches. sum(dribbles_success) = 14; sum(dribbles) = 19; dribbles completed blank in 2 matches, 0 by the blank rule; dribbles blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,duels_player,44,,"Dani Olmo, EURO 2024: 7 matches. sum(duels) = 44; duels blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,duels_won_per90,2430,431,"Dani Olmo, EURO 2024: 7 matches. sum(duels_won) * 90 = 2430; sum(minutes) = 431; duels won blank in 1 match, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,duels_won_player,27,,"Dani Olmo, EURO 2024: 7 matches. sum(duels_won) = 27; duels won blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,duels_won_player_pct,27,44,"Dani Olmo, EURO 2024: 7 matches. sum(duels_won) = 27; sum(duels) = 44; duels won blank in 1 match, 0 by the blank rule; duels blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,finishing_efficiency_player_pct,3,6,"Dani Olmo, EURO 2024: 7 matches. sum(goals - goals_penalty) = 3; sum(shots_on_target) = 6; goals blank in 3 matches, 0 by the blank rule; goals taken from the goal events in fixture 1145521; shots on target blank in 4 matches, 0 by the blank rule."
++EURO,2024,1323,goals_against_player,0,,"Dani Olmo, EURO 2024: 7 matches. sum(goals_against) = 0."
++EURO,2024,1323,goals_open_play_player,3,,"Dani Olmo, EURO 2024: 7 matches. sum(goals - goals_penalty) = 3; goals blank in 3 matches, 0 by the blank rule; goals taken from the goal events in fixture 1145521."
++EURO,2024,1323,goals_penalty_player,0,,"Dani Olmo, EURO 2024: 7 matches. sum(goals_penalty) = 0."
++EURO,2024,1323,goals_per90,270,431,"Dani Olmo, EURO 2024: 7 matches. sum(goals) * 90 = 270; sum(minutes) = 431; goals blank in 3 matches, 0 by the blank rule; goals taken from the goal events in fixture 1145521; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,goals_player,3,,"Dani Olmo, EURO 2024: 7 matches. sum(goals) = 3; goals blank in 3 matches, 0 by the blank rule; goals taken from the goal events in fixture 1145521."
++EURO,2024,1323,interceptions_per90,180,431,"Dani Olmo, EURO 2024: 7 matches. sum(interceptions) * 90 = 180; sum(minutes) = 431; interceptions blank in 5 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,interceptions_player,2,,"Dani Olmo, EURO 2024: 7 matches. sum(interceptions) = 2; interceptions blank in 5 matches, 0 by the blank rule."
++EURO,2024,1323,offsides_player,,,"Dani Olmo, EURO 2024: 7 matches. sum(offsides) = blank; offsides blank in 5 matches, 0 by the blank rule; offsides blank and counted by nobody in fixture 1145521, 1225853, so the season value is blank."
++EURO,2024,1323,passes_accuracy_player_pct,149,179,"Dani Olmo, EURO 2024: 7 matches. sum(passes_accurate) = 149; sum(passes) = 179; accurate passes blank in 1 match, 0 by the blank rule; passes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,passes_accurate_player,149,,"Dani Olmo, EURO 2024: 7 matches. sum(passes_accurate) = 149; accurate passes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,passes_key_per90,990,431,"Dani Olmo, EURO 2024: 7 matches. sum(passes_key) * 90 = 990; sum(minutes) = 431; key passes blank in 3 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,passes_key_player,11,,"Dani Olmo, EURO 2024: 7 matches. sum(passes_key) = 11; key passes blank in 3 matches, 0 by the blank rule."
++EURO,2024,1323,passes_per90,16110,431,"Dani Olmo, EURO 2024: 7 matches. sum(passes) * 90 = 16110; sum(minutes) = 431; passes blank in 1 match, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,passes_player,179,,"Dani Olmo, EURO 2024: 7 matches. sum(passes) = 179; passes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,penalty_committed_player,0,,"Dani Olmo, EURO 2024: 7 matches. sum(penalties_committed) = 0; penalties committed blank in 7 matches, 0 by the blank rule."
++EURO,2024,1323,penalty_won_player,0,,"Dani Olmo, EURO 2024: 7 matches. sum(penalties_won) = 0; penalties won blank in 7 matches, 0 by the blank rule."
++EURO,2024,1323,saves_per90,0,431,"Dani Olmo, EURO 2024: 7 matches. sum(saves) * 90 = 0; sum(minutes) = 431; saves blank in 7 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,saves_player,0,,"Dani Olmo, EURO 2024: 7 matches. sum(saves) = 0; saves blank in 7 matches, 0 by the blank rule."
++EURO,2024,1323,saves_player_pct,0,0,"Dani Olmo, EURO 2024: 7 matches. sum(saves) = 0; sum(saves + goals_against) = 0; saves blank in 7 matches, 0 by the blank rule."
++EURO,2024,1323,scorer_points_per90,450,431,"Dani Olmo, EURO 2024: 7 matches. sum(goals + assists) * 90 = 450; sum(minutes) = 431; goals blank in 3 matches, 0 by the blank rule; goals taken from the goal events in fixture 1145521; assists blank in 1 match, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,scorer_points_player,5,,"Dani Olmo, EURO 2024: 7 matches. sum(goals + assists) = 5; goals blank in 3 matches, 0 by the blank rule; goals taken from the goal events in fixture 1145521; assists blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,shots_on_goal_against_player,0,,"Dani Olmo, EURO 2024: 7 matches. sum(saves + goals_against) = 0; saves blank in 7 matches, 0 by the blank rule."
++EURO,2024,1323,shots_on_goal_per90,540,431,"Dani Olmo, EURO 2024: 7 matches. sum(shots_on_target) * 90 = 540; sum(minutes) = 431; shots on target blank in 4 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,shots_on_goal_player,6,,"Dani Olmo, EURO 2024: 7 matches. sum(shots_on_target) = 6; shots on target blank in 4 matches, 0 by the blank rule."
++EURO,2024,1323,shots_player,10,,"Dani Olmo, EURO 2024: 7 matches. sum(shots) = 10; shots blank in 2 matches, 0 by the blank rule."
++EURO,2024,1323,tackles_per90,360,431,"Dani Olmo, EURO 2024: 7 matches. sum(tackles) * 90 = 360; sum(minutes) = 431; tackles blank in 3 matches, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
++EURO,2024,1323,tackles_player,4,,"Dani Olmo, EURO 2024: 7 matches. sum(tackles) = 4; tackles blank in 3 matches, 0 by the blank rule."
++PL,2024,306,assists_per90,1620,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(assists) * 90 = 1620; sum(minutes) = 3377."
++PL,2024,306,assists_player,18,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(assists) = 18."
++PL,2024,306,blocks_per90,0,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(blocks) * 90 = 0; sum(minutes) = 3377; blocks blank in 38 matches, 0 by the blank rule."
++PL,2024,306,blocks_player,0,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(blocks) = 0; blocks blank in 38 matches, 0 by the blank rule."
++PL,2024,306,cards_player,1,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(cards_yellow + cards_red) = 1."
++PL,2024,306,cards_red_player,0,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(cards_red) = 0."
++PL,2024,306,cards_yellow_player,1,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(cards_yellow) = 1."
++PL,2024,306,defensive_actions_per90,2790,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(tackles + interceptions + blocks) * 90 = 2790; sum(minutes) = 3377; tackles blank in 23 matches, 0 by the blank rule; interceptions blank in 30 matches, 0 by the blank rule; blocks blank in 38 matches, 0 by the blank rule."
++PL,2024,306,defensive_actions_player,31,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(tackles + interceptions + blocks) = 31; tackles blank in 23 matches, 0 by the blank rule; interceptions blank in 30 matches, 0 by the blank rule; blocks blank in 38 matches, 0 by the blank rule."
++PL,2024,306,dribbles_attempts_player,130,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(dribbles) = 130; dribbles blank in 1 match, 0 by the blank rule."
++PL,2024,306,dribbles_past_player,9,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(dribbles_against) = 9; dribbled past blank in 31 matches, 0 by the blank rule."
++PL,2024,306,dribbles_success_per90,5130,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(dribbles_success) * 90 = 5130; sum(minutes) = 3377; dribbles completed blank in 9 matches, 0 by the blank rule."
++PL,2024,306,dribbles_success_player,57,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(dribbles_success) = 57; dribbles completed blank in 9 matches, 0 by the blank rule."
++PL,2024,306,dribbles_success_player_pct,57,130,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(dribbles_success) = 57; sum(dribbles) = 130; dribbles completed blank in 9 matches, 0 by the blank rule; dribbles blank in 1 match, 0 by the blank rule."
++PL,2024,306,duels_player,313,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(duels) = 313."
++PL,2024,306,duels_won_per90,11430,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(duels_won) * 90 = 11430; sum(minutes) = 3377."
++PL,2024,306,duels_won_player,127,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(duels_won) = 127."
++PL,2024,306,duels_won_player_pct,127,313,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(duels_won) = 127; sum(duels) = 313."
++PL,2024,306,finishing_efficiency_player_pct,20,61,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals - goals_penalty) = 20; sum(shots_on_target) = 61; goals blank in 14 matches, 0 by the blank rule; shots on target blank in 5 matches, 0 by the blank rule."
++PL,2024,306,goals_against_player,0,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals_against) = 0."
++PL,2024,306,goals_open_play_player,20,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals - goals_penalty) = 20; goals blank in 14 matches, 0 by the blank rule."
++PL,2024,306,goals_penalty_player,9,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals_penalty) = 9."
++PL,2024,306,goals_per90,2610,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals) * 90 = 2610; sum(minutes) = 3377; goals blank in 14 matches, 0 by the blank rule."
++PL,2024,306,goals_player,29,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals) = 29; goals blank in 14 matches, 0 by the blank rule."
++PL,2024,306,interceptions_per90,810,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(interceptions) * 90 = 810; sum(minutes) = 3377; interceptions blank in 30 matches, 0 by the blank rule."
++PL,2024,306,interceptions_player,9,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(interceptions) = 9; interceptions blank in 30 matches, 0 by the blank rule."
++PL,2024,306,offsides_player,18,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(offsides) = 18; offsides blank in 24 matches, 0 by the blank rule."
++PL,2024,306,passes_accuracy_player_pct,852,1153,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes_accurate) = 852; sum(passes) = 1153."
++PL,2024,306,passes_accurate_player,852,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes_accurate) = 852."
++PL,2024,306,passes_key_per90,8190,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes_key) * 90 = 8190; sum(minutes) = 3377; key passes blank in 4 matches, 0 by the blank rule."
++PL,2024,306,passes_key_player,91,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes_key) = 91; key passes blank in 4 matches, 0 by the blank rule."
++PL,2024,306,passes_per90,103770,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes) * 90 = 103770; sum(minutes) = 3377."
++PL,2024,306,passes_player,1153,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(passes) = 1153."
++PL,2024,306,penalty_committed_player,0,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(penalties_committed) = 0; penalties committed blank in 38 matches, 0 by the blank rule."
++PL,2024,306,penalty_won_player,,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(penalties_won) = blank; penalties won blank in 37 matches, 0 by the blank rule; penalties won blank and counted by nobody in fixture 1208218, so the season value is blank."
++PL,2024,306,saves_per90,0,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(saves) * 90 = 0; sum(minutes) = 3377; saves blank in 38 matches, 0 by the blank rule."
++PL,2024,306,saves_player,0,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(saves) = 0; saves blank in 38 matches, 0 by the blank rule."
++PL,2024,306,saves_player_pct,0,0,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(saves) = 0; sum(saves + goals_against) = 0; saves blank in 38 matches, 0 by the blank rule."
++PL,2024,306,scorer_points_per90,4230,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals + assists) * 90 = 4230; sum(minutes) = 3377; goals blank in 14 matches, 0 by the blank rule."
++PL,2024,306,scorer_points_player,47,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(goals + assists) = 47; goals blank in 14 matches, 0 by the blank rule."
++PL,2024,306,shots_on_goal_against_player,0,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(saves + goals_against) = 0; saves blank in 38 matches, 0 by the blank rule."
++PL,2024,306,shots_on_goal_per90,5490,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(shots_on_target) * 90 = 5490; sum(minutes) = 3377; shots on target blank in 5 matches, 0 by the blank rule."
++PL,2024,306,shots_on_goal_player,61,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(shots_on_target) = 61; shots on target blank in 5 matches, 0 by the blank rule."
++PL,2024,306,shots_player,104,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(shots) = 104; shots blank in 1 match, 0 by the blank rule."
++PL,2024,306,tackles_per90,1980,3377,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(tackles) * 90 = 1980; sum(minutes) = 3377; tackles blank in 23 matches, 0 by the blank rule."
++PL,2024,306,tackles_player,22,,"Mohamed Salah, Premier League 2024-25: 38 matches. sum(tackles) = 22; tackles blank in 23 matches, 0 by the blank rule."
++BL1,2024,184,assists_per90,720,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(assists) * 90 = 720; sum(minutes) = 2389."
++BL1,2024,184,assists_player,8,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(assists) = 8."
++BL1,2024,184,blocks_per90,180,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(blocks) * 90 = 180; sum(minutes) = 2389; blocks blank in 29 matches, 0 by the blank rule."
++BL1,2024,184,blocks_player,2,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(blocks) = 2; blocks blank in 29 matches, 0 by the blank rule."
++BL1,2024,184,cards_player,5,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(cards_yellow + cards_red) = 5."
++BL1,2024,184,cards_red_player,0,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(cards_red) = 0."
++BL1,2024,184,cards_yellow_player,5,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(cards_yellow) = 5."
++BL1,2024,184,defensive_actions_per90,1710,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(tackles + interceptions + blocks) * 90 = 1710; sum(minutes) = 2389; tackles blank in 21 matches, 0 by the blank rule; interceptions blank in 28 matches, 0 by the blank rule; blocks blank in 29 matches, 0 by the blank rule."
++BL1,2024,184,defensive_actions_player,19,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(tackles + interceptions + blocks) = 19; tackles blank in 21 matches, 0 by the blank rule; interceptions blank in 28 matches, 0 by the blank rule; blocks blank in 29 matches, 0 by the blank rule."
++BL1,2024,184,dribbles_attempts_player,49,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(dribbles) = 49; dribbles blank in 10 matches, 0 by the blank rule."
++BL1,2024,184,dribbles_past_player,4,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(dribbles_against) = 4; dribbled past blank in 27 matches, 0 by the blank rule."
++BL1,2024,184,dribbles_success_per90,1890,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(dribbles_success) * 90 = 1890; sum(minutes) = 2389; dribbles completed blank in 18 matches, 0 by the blank rule."
++BL1,2024,184,dribbles_success_player,21,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(dribbles_success) = 21; dribbles completed blank in 18 matches, 0 by the blank rule."
++BL1,2024,184,dribbles_success_player_pct,21,49,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(dribbles_success) = 21; sum(dribbles) = 49; dribbles completed blank in 18 matches, 0 by the blank rule; dribbles blank in 10 matches, 0 by the blank rule."
++BL1,2024,184,duels_player,164,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(duels) = 164."
++BL1,2024,184,duels_won_per90,7560,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(duels_won) * 90 = 7560; sum(minutes) = 2389; duels won blank in 4 matches, 0 by the blank rule."
++BL1,2024,184,duels_won_player,84,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(duels_won) = 84; duels won blank in 4 matches, 0 by the blank rule."
++BL1,2024,184,duels_won_player_pct,84,164,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(duels_won) = 84; sum(duels) = 164; duels won blank in 4 matches, 0 by the blank rule."
++BL1,2024,184,finishing_efficiency_player_pct,17,54,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals - goals_penalty) = 17; sum(shots_on_target) = 54; goals blank in 14 matches, 0 by the blank rule; shots on target blank in 6 matches, 0 by the blank rule."
++BL1,2024,184,goals_against_player,0,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals_against) = 0."
++BL1,2024,184,goals_open_play_player,17,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals - goals_penalty) = 17; goals blank in 14 matches, 0 by the blank rule."
++BL1,2024,184,goals_penalty_player,9,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals_penalty) = 9."
++BL1,2024,184,goals_per90,2340,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals) * 90 = 2340; sum(minutes) = 2389; goals blank in 14 matches, 0 by the blank rule."
++BL1,2024,184,goals_player,26,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals) = 26; goals blank in 14 matches, 0 by the blank rule."
++BL1,2024,184,interceptions_per90,270,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(interceptions) * 90 = 270; sum(minutes) = 2389; interceptions blank in 28 matches, 0 by the blank rule."
++BL1,2024,184,interceptions_player,3,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(interceptions) = 3; interceptions blank in 28 matches, 0 by the blank rule."
++BL1,2024,184,offsides_player,,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(offsides) = blank; offsides blank in 15 matches, 0 by the blank rule; offsides blank and counted by nobody in fixture 1224001, 1224011, 1224130, so the season value is blank."
++BL1,2024,184,passes_accuracy_player_pct,499,617,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes_accurate) = 499; sum(passes) = 617."
++BL1,2024,184,passes_accurate_player,499,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes_accurate) = 499."
++BL1,2024,184,passes_key_per90,3150,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes_key) * 90 = 3150; sum(minutes) = 2389; key passes blank in 12 matches, 0 by the blank rule."
++BL1,2024,184,passes_key_player,35,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes_key) = 35; key passes blank in 12 matches, 0 by the blank rule."
++BL1,2024,184,passes_per90,55530,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes) * 90 = 55530; sum(minutes) = 2389."
++BL1,2024,184,passes_player,617,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(passes) = 617."
++BL1,2024,184,penalty_committed_player,0,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(penalties_committed) = 0; penalties committed blank in 31 matches, 0 by the blank rule."
++BL1,2024,184,penalty_won_player,,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(penalties_won) = blank; penalties won blank in 27 matches, 0 by the blank rule; penalties won blank and counted by nobody in fixture 1223986, 1224121, so the season value is blank."
++BL1,2024,184,saves_per90,0,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(saves) * 90 = 0; sum(minutes) = 2389; saves blank in 31 matches, 0 by the blank rule."
++BL1,2024,184,saves_player,0,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(saves) = 0; saves blank in 31 matches, 0 by the blank rule."
++BL1,2024,184,saves_player_pct,0,0,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(saves) = 0; sum(saves + goals_against) = 0; saves blank in 31 matches, 0 by the blank rule."
++BL1,2024,184,scorer_points_per90,3060,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals + assists) * 90 = 3060; sum(minutes) = 2389; goals blank in 14 matches, 0 by the blank rule."
++BL1,2024,184,scorer_points_player,34,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(goals + assists) = 34; goals blank in 14 matches, 0 by the blank rule."
++BL1,2024,184,shots_on_goal_against_player,0,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(saves + goals_against) = 0; saves blank in 31 matches, 0 by the blank rule."
++BL1,2024,184,shots_on_goal_per90,4860,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(shots_on_target) * 90 = 4860; sum(minutes) = 2389; shots on target blank in 6 matches, 0 by the blank rule."
++BL1,2024,184,shots_on_goal_player,54,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(shots_on_target) = 54; shots on target blank in 6 matches, 0 by the blank rule."
++BL1,2024,184,shots_player,90,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(shots) = 90; shots blank in 4 matches, 0 by the blank rule."
++BL1,2024,184,tackles_per90,1260,2389,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(tackles) * 90 = 1260; sum(minutes) = 2389; tackles blank in 21 matches, 0 by the blank rule."
++BL1,2024,184,tackles_player,14,,"Harry Kane, Bundesliga 2024-25: 31 matches. sum(tackles) = 14; tackles blank in 21 matches, 0 by the blank rule."
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index c5aa52fe..b2f06e05 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -747,6 +747,89 @@ seeds:
+         description: "The hand working: the raw values the answer rests on and the step from them to the expected value."
+         tests: [not_null]
+ 
++  - name: team_season_answer_key
 +    description: >
-+      The league's official figures for each provider league-table row that differs from them,
-+      one row per table row, each naming its source. Applied in base_apif__standings, which keeps
-+      the provider's figures next to them. assert_result_corrections_applied fails when a row is
-+      not applied, its source is not valid, or it no longer changes anything.
++      Hand-worked season values for real team-seasons across competitions, a World Cup included:
++      for each team metric of the catalogue that int_team_season__metrics carries, the numerator and
++      denominator worked out by hand from the provider's raw match data (RAW_APIF_FIXTURE_DETAILS
++      and the league's official results in fixture_result_corrections), by the catalogue formula
++      and the cleaning rules, never from a model. assert_team_season_answer_key fails when the model
++      returns anything other than the numerator over the denominator. A blank numerator means the
++      value must be blank.
 +    config:
 +      column_types:
 +        league_code: string
 +        season: int64
 +        team_id: int64
-+        group_name: string
-+        standing_rank: int64
-+        played: int64
-+        wins: int64
-+        draws: int64
-+        losses: int64
-+        goals_for: int64
-+        goals_against: int64
-+        points: int64
-+        source_kind: string
-+        source: string
-+        note: string
++        metric_id: string
++        numerator: int64
++        denominator: int64
++        working: string
 +    tests:
 +      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [league_code, season, team_id, group_name]
++          combination_of_columns: [league_code, season, team_id, metric_id]
 +    columns:
 +      - name: league_code
 +        description: "{{ doc('league_code') }}"
@@ -709,239 +1059,649 @@ index eea15698..c5aa52fe 100644
 +      - name: team_id
 +        description: "{{ doc('team_api_id') }}"
 +        tests: [not_null]
-+      - name: group_name
-+        description: "The provider's table name the row belongs to, as in base_apif__standings."
++      - name: metric_id
++        description: "The metric_catalogue team metric the case checks."
 +        tests: [not_null]
-+      - name: standing_rank
-+        description: "The official rank."
-+        tests: [not_null]
-+      - name: played
-+        description: "The official matches played."
-+        tests: [not_null]
-+      - name: wins
-+        description: "The official wins."
-+        tests: [not_null]
-+      - name: draws
-+        description: "The official draws."
-+        tests: [not_null]
-+      - name: losses
-+        description: "The official losses."
-+        tests: [not_null]
-+      - name: goals_for
-+        description: "The official goals scored."
-+        tests: [not_null]
-+      - name: goals_against
-+        description: "The official goals conceded."
-+        tests: [not_null]
-+      - name: points
-+        description: "The official points."
-+        tests: [not_null]
-+      - name: source_kind
-+        description: "official = the league's or federation's decision or table; match_reports = two independent match reports."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: ["official", "match_reports"]
-+      - name: source
-+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
-+        tests: [not_null]
-+      - name: note
-+        description: "The team, the season and why the row differs, in words."
++      - name: numerator
++        description: "The metric's numerator worked out by hand. Blank where the metric must be blank."
++      - name: denominator
++        description: "The metric's denominator worked out by hand. Blank for a metric with no denominator."
++      - name: working
++        description: "The hand working: the team-season, the matches counted, each sum, and every cleaning rule that changed an input."
 +        tests: [not_null]
 +
-   - name: player_match_cleaning_answer_key
++  - name: player_season_answer_key
++    description: >
++      Hand-worked season values for real player-seasons across competitions, a World Cup included:
++      for each player metric of the catalogue that int_player_season__metrics carries, the
++      numerator and denominator worked out by hand from the provider's raw match data
++      (RAW_APIF_FIXTURE_DETAILS), by the catalogue formula and the cleaning rules, never from a
++      model. assert_player_season_answer_key fails when the model returns anything other than the
++      numerator over the denominator. A blank numerator means the value must be blank.
++    config:
++      column_types:
++        league_code: string
++        season: int64
++        player_id: int64
++        metric_id: string
++        numerator: int64
++        denominator: int64
++        working: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, season, player_id, metric_id]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: season
++        description: "{{ doc('season_api_year') }}"
++        tests: [not_null]
++      - name: player_id
++        description: "{{ doc('player_api_id') }}"
++        tests: [not_null]
++      - name: metric_id
++        description: "The metric_catalogue player metric the case checks."
++        tests: [not_null]
++      - name: numerator
++        description: "The metric's numerator worked out by hand. Blank where the metric must be blank."
++      - name: denominator
++        description: "The metric's denominator worked out by hand. Blank for a metric with no denominator."
++      - name: working
++        description: "The hand working: the player-season, the matches counted, each sum, and every cleaning rule that changed an input."
++        tests: [not_null]
++
+   - name: team_name_overrides
      description: >
-       Hand-worked answers for the player-match cleaning in base_apif__fixture_players: real player
-diff --git a/dbt_project/seeds/standings_corrections.csv b/dbt_project/seeds/standings_corrections.csv
+       Corrections to a team's DISPLAY NAME: one row per team whose provider name is not the name
+diff --git a/dbt_project/seeds/team_season_answer_key.csv b/dbt_project/seeds/team_season_answer_key.csv
 new file mode 100644
-index 00000000..25cd5386
+index 00000000..b8c03f38
 --- /dev/null
-+++ b/dbt_project/seeds/standings_corrections.csv
-@@ -0,0 +1,5 @@
-+league_code,season,team_id,group_name,standing_rank,played,wins,draws,losses,goals_for,goals_against,points,source_kind,source,note
-+SA,2016,498,Serie A,10,38,12,12,14,49,55,48,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Sampdoria, Serie A 2016-17: 10th once Sassuolo-Pescara counts as awarded 0-3"
-+SA,2016,490,Serie A,11,38,14,5,19,55,76,47,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Cagliari, Serie A 2016-17: 11th once Sassuolo-Pescara counts as awarded 0-3"
-+SA,2016,488,Serie A,12,38,13,7,18,58,63,46,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Sassuolo, Serie A 2016-17: Sassuolo-Pescara counted as awarded 0-3, not the 2-1 played"
-+SA,2016,525,Serie A,20,38,3,9,26,37,81,18,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/ https://www.espn.com/soccer/standings/_/league/ita.1/season/2016,"Pescara, Serie A 2016-17: Sassuolo-Pescara counted as awarded 0-3, not the 2-1 played"
-diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
++++ b/dbt_project/seeds/team_season_answer_key.csv
+@@ -0,0 +1,181 @@
++league_code,season,team_id,metric_id,numerator,denominator,working
++WC,2026,9,blocks_per_match,13,8,"Spain, World Cup 2026: 8 matches. sum(blocks) = 13; matches = 8."
++WC,2026,9,cards_red,0,,"Spain, World Cup 2026: 8 matches. sum(cards_red) = 0; red cards blank in 6 matches, 0 by the blank rule."
++WC,2026,9,cards_yellow,6,,"Spain, World Cup 2026: 8 matches. sum(cards_yellow) = 6."
++WC,2026,9,clean_sheets,7,,"Spain, World Cup 2026: 8 matches. countif(goals_against = 0) = 7."
++WC,2026,9,clean_sheets_pct,7,8,"Spain, World Cup 2026: 8 matches. countif(goals_against = 0) = 7; matches = 8."
++WC,2026,9,corners,54,,"Spain, World Cup 2026: 8 matches. sum(corners) = 54."
++WC,2026,9,corners_against_per_match,18,8,"Spain, World Cup 2026: 8 matches. sum(corners_against) = 18; matches = 8."
++WC,2026,9,corners_per_match,54,8,"Spain, World Cup 2026: 8 matches. sum(corners) = 54; matches = 8."
++WC,2026,9,defensive_actions_per_match,201,8,"Spain, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 201; matches = 8."
++WC,2026,9,duels_per_match,706,8,"Spain, World Cup 2026: 8 matches. sum(duels) = 706; matches = 8."
++WC,2026,9,duels_won_pct,366,706,"Spain, World Cup 2026: 8 matches. sum(duels_won) = 366; sum(duels) = 706."
++WC,2026,9,finishing_efficiency_pct,12,54,"Spain, World Cup 2026: 8 matches. sum(goals - goals_penalty - goals_own) = 12; sum(shots_on_target) = 54."
++WC,2026,9,goals,14,,"Spain, World Cup 2026: 8 matches. sum(goals) = 14."
++WC,2026,9,goals_against,1,,"Spain, World Cup 2026: 8 matches. sum(goals_against) = 1."
++WC,2026,9,goals_against_per_match,1,8,"Spain, World Cup 2026: 8 matches. sum(goals_against) = 1; matches = 8."
++WC,2026,9,goals_open_play,12,,"Spain, World Cup 2026: 8 matches. sum(goals - goals_penalty - goals_own) = 12."
++WC,2026,9,goals_own,1,,"Spain, World Cup 2026: 8 matches. sum(goals_own) = 1."
++WC,2026,9,goals_penalty,1,,"Spain, World Cup 2026: 8 matches. sum(goals_penalty) = 1."
++WC,2026,9,goals_per_match,14,8,"Spain, World Cup 2026: 8 matches. sum(goals) = 14; matches = 8."
++WC,2026,9,interceptions_per_match,60,8,"Spain, World Cup 2026: 8 matches. sum(interceptions) = 60; matches = 8."
++WC,2026,9,passes_accuracy_pct,4780,5327,"Spain, World Cup 2026: 8 matches. sum(passes_accurate) = 4780; sum(passes) = 5327."
++WC,2026,9,passes_key_per_match,106,8,"Spain, World Cup 2026: 8 matches. sum(passes_key) = 106; matches = 8."
++WC,2026,9,passes_per_match,5327,8,"Spain, World Cup 2026: 8 matches. sum(passes) = 5327; matches = 8."
++WC,2026,9,points_capture_pct,22,24,"Spain, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 22; 3 * matches = 24."
++WC,2026,9,points_won,22,,"Spain, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 22."
++WC,2026,9,saves,9,,"Spain, World Cup 2026: 8 matches. sum(saves) = 9; saves lowered by 1 to the opponent's shots on target in fixture 1489417."
++WC,2026,9,saves_pct,9,10,"Spain, World Cup 2026: 8 matches. sum(saves) = 9; sum(saves + goals_against - goals_own_against) = 10; saves lowered by 1 to the opponent's shots on target in fixture 1489417."
++WC,2026,9,shots_inside_box,81,,"Spain, World Cup 2026: 8 matches. sum(shots_inside_box) = 81."
++WC,2026,9,shots_inside_box_pct,81,140,"Spain, World Cup 2026: 8 matches. sum(shots_inside_box) = 81; sum(shots) = 140."
++WC,2026,9,shots_on_goal_against_per_match,10,8,"Spain, World Cup 2026: 8 matches. sum(shots_on_target_against) = 10; matches = 8."
++WC,2026,9,shots_on_goal_difference_per_match,44,8,"Spain, World Cup 2026: 8 matches. sum(shots_on_target - shots_on_target_against) = 44; matches = 8."
++WC,2026,9,shots_on_goal_pct,54,140,"Spain, World Cup 2026: 8 matches. sum(shots_on_target) = 54; sum(shots) = 140."
++WC,2026,9,shots_on_goal_per_match,54,8,"Spain, World Cup 2026: 8 matches. sum(shots_on_target) = 54; matches = 8."
++WC,2026,9,shots_per_match,140,8,"Spain, World Cup 2026: 8 matches. sum(shots) = 140; matches = 8."
++WC,2026,9,shots_share_pct,140,186,"Spain, World Cup 2026: 8 matches. sum(shots) = 140; sum(shots + shots_against) = 186."
++WC,2026,9,tackles_per_match,128,8,"Spain, World Cup 2026: 8 matches. sum(tackles) = 128; matches = 8."
++WC,2026,26,blocks_per_match,19,8,"Argentina, World Cup 2026: 8 matches. sum(blocks) = 19; matches = 8."
++WC,2026,26,cards_red,1,,"Argentina, World Cup 2026: 8 matches. sum(cards_red) = 1; red cards blank in 6 matches, 0 by the blank rule."
++WC,2026,26,cards_yellow,15,,"Argentina, World Cup 2026: 8 matches. sum(cards_yellow) = 15; yellow cards blank in 1 match, 0 by the blank rule."
++WC,2026,26,clean_sheets,2,,"Argentina, World Cup 2026: 8 matches. countif(goals_against = 0) = 2."
++WC,2026,26,clean_sheets_pct,2,8,"Argentina, World Cup 2026: 8 matches. countif(goals_against = 0) = 2; matches = 8."
++WC,2026,26,corners,41,,"Argentina, World Cup 2026: 8 matches. sum(corners) = 41."
++WC,2026,26,corners_against_per_match,28,8,"Argentina, World Cup 2026: 8 matches. sum(corners_against) = 28; matches = 8."
++WC,2026,26,corners_per_match,41,8,"Argentina, World Cup 2026: 8 matches. sum(corners) = 41; matches = 8."
++WC,2026,26,defensive_actions_per_match,258,8,"Argentina, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 258; matches = 8."
++WC,2026,26,duels_per_match,764,8,"Argentina, World Cup 2026: 8 matches. sum(duels) = 764; matches = 8."
++WC,2026,26,duels_won_pct,392,764,"Argentina, World Cup 2026: 8 matches. sum(duels_won) = 392; sum(duels) = 764."
++WC,2026,26,finishing_efficiency_pct,17,44,"Argentina, World Cup 2026: 8 matches. sum(goals - goals_penalty - goals_own) = 17; sum(shots_on_target) = 44."
++WC,2026,26,goals,19,,"Argentina, World Cup 2026: 8 matches. sum(goals) = 19."
++WC,2026,26,goals_against,8,,"Argentina, World Cup 2026: 8 matches. sum(goals_against) = 8."
++WC,2026,26,goals_against_per_match,8,8,"Argentina, World Cup 2026: 8 matches. sum(goals_against) = 8; matches = 8."
++WC,2026,26,goals_open_play,17,,"Argentina, World Cup 2026: 8 matches. sum(goals - goals_penalty - goals_own) = 17."
++WC,2026,26,goals_own,1,,"Argentina, World Cup 2026: 8 matches. sum(goals_own) = 1."
++WC,2026,26,goals_penalty,1,,"Argentina, World Cup 2026: 8 matches. sum(goals_penalty) = 1."
++WC,2026,26,goals_per_match,19,8,"Argentina, World Cup 2026: 8 matches. sum(goals) = 19; matches = 8."
++WC,2026,26,interceptions_per_match,83,8,"Argentina, World Cup 2026: 8 matches. sum(interceptions) = 83; matches = 8."
++WC,2026,26,passes_accuracy_pct,4559,5109,"Argentina, World Cup 2026: 8 matches. sum(passes_accurate) = 4559; sum(passes) = 5109."
++WC,2026,26,passes_key_per_match,78,8,"Argentina, World Cup 2026: 8 matches. sum(passes_key) = 78; matches = 8."
++WC,2026,26,passes_per_match,5109,8,"Argentina, World Cup 2026: 8 matches. sum(passes) = 5109; matches = 8."
++WC,2026,26,points_capture_pct,21,24,"Argentina, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 21; 3 * matches = 24."
++WC,2026,26,points_won,21,,"Argentina, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 21."
++WC,2026,26,saves,20,,"Argentina, World Cup 2026: 8 matches. sum(saves) = 20."
++WC,2026,26,saves_pct,20,28,"Argentina, World Cup 2026: 8 matches. sum(saves) = 20; sum(saves + goals_against - goals_own_against) = 28."
++WC,2026,26,shots_inside_box,66,,"Argentina, World Cup 2026: 8 matches. sum(shots_inside_box) = 66."
++WC,2026,26,shots_inside_box_pct,66,114,"Argentina, World Cup 2026: 8 matches. sum(shots_inside_box) = 66; sum(shots) = 114."
++WC,2026,26,shots_on_goal_against_per_match,28,8,"Argentina, World Cup 2026: 8 matches. sum(shots_on_target_against) = 28; matches = 8."
++WC,2026,26,shots_on_goal_difference_per_match,16,8,"Argentina, World Cup 2026: 8 matches. sum(shots_on_target - shots_on_target_against) = 16; matches = 8."
++WC,2026,26,shots_on_goal_pct,44,114,"Argentina, World Cup 2026: 8 matches. sum(shots_on_target) = 44; sum(shots) = 114."
++WC,2026,26,shots_on_goal_per_match,44,8,"Argentina, World Cup 2026: 8 matches. sum(shots_on_target) = 44; matches = 8."
++WC,2026,26,shots_per_match,114,8,"Argentina, World Cup 2026: 8 matches. sum(shots) = 114; matches = 8."
++WC,2026,26,shots_share_pct,114,189,"Argentina, World Cup 2026: 8 matches. sum(shots) = 114; sum(shots + shots_against) = 189."
++WC,2026,26,tackles_per_match,156,8,"Argentina, World Cup 2026: 8 matches. sum(tackles) = 156; matches = 8."
++EURO,2024,9,blocks_per_match,21,7,"Spain, EURO 2024: 7 matches. sum(blocks) = 21; matches = 7."
++EURO,2024,9,cards_red,1,,"Spain, EURO 2024: 7 matches. sum(cards_red) = 1; red cards blank in 6 matches, 0 by the blank rule."
++EURO,2024,9,cards_yellow,16,,"Spain, EURO 2024: 7 matches. sum(cards_yellow) = 16."
++EURO,2024,9,clean_sheets,3,,"Spain, EURO 2024: 7 matches. countif(goals_against = 0) = 3."
++EURO,2024,9,clean_sheets_pct,3,7,"Spain, EURO 2024: 7 matches. countif(goals_against = 0) = 3; matches = 7."
++EURO,2024,9,corners,44,,"Spain, EURO 2024: 7 matches. sum(corners) = 44."
++EURO,2024,9,corners_against_per_match,20,7,"Spain, EURO 2024: 7 matches. sum(corners_against) = 20; matches = 7."
++EURO,2024,9,corners_per_match,44,7,"Spain, EURO 2024: 7 matches. sum(corners) = 44; matches = 7."
++EURO,2024,9,defensive_actions_per_match,168,7,"Spain, EURO 2024: 7 matches. sum(tackles + interceptions + blocks) = 168; matches = 7."
++EURO,2024,9,duels_per_match,686,7,"Spain, EURO 2024: 7 matches. sum(duels) = 686; matches = 7."
++EURO,2024,9,duels_won_pct,334,686,"Spain, EURO 2024: 7 matches. sum(duels_won) = 334; sum(duels) = 686."
++EURO,2024,9,finishing_efficiency_pct,14,44,"Spain, EURO 2024: 7 matches. sum(goals - goals_penalty - goals_own) = 14; sum(shots_on_target) = 44."
++EURO,2024,9,goals,15,,"Spain, EURO 2024: 7 matches. sum(goals) = 15."
++EURO,2024,9,goals_against,4,,"Spain, EURO 2024: 7 matches. sum(goals_against) = 4."
++EURO,2024,9,goals_against_per_match,4,7,"Spain, EURO 2024: 7 matches. sum(goals_against) = 4; matches = 7."
++EURO,2024,9,goals_open_play,14,,"Spain, EURO 2024: 7 matches. sum(goals - goals_penalty - goals_own) = 14."
++EURO,2024,9,goals_own,1,,"Spain, EURO 2024: 7 matches. sum(goals_own) = 1."
++EURO,2024,9,goals_penalty,0,,"Spain, EURO 2024: 7 matches. sum(goals_penalty) = 0."
++EURO,2024,9,goals_per_match,15,7,"Spain, EURO 2024: 7 matches. sum(goals) = 15; matches = 7."
++EURO,2024,9,interceptions_per_match,41,7,"Spain, EURO 2024: 7 matches. sum(interceptions) = 41; matches = 7."
++EURO,2024,9,passes_accuracy_pct,3613,4037,"Spain, EURO 2024: 7 matches. sum(passes_accurate) = 3613; sum(passes) = 4037."
++EURO,2024,9,passes_key_per_match,110,7,"Spain, EURO 2024: 7 matches. sum(passes_key) = 110; matches = 7."
++EURO,2024,9,passes_per_match,4037,7,"Spain, EURO 2024: 7 matches. sum(passes) = 4037; matches = 7."
++EURO,2024,9,points_capture_pct,21,21,"Spain, EURO 2024: 7 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 21; 3 * matches = 21."
++EURO,2024,9,points_won,21,,"Spain, EURO 2024: 7 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 21."
++EURO,2024,9,saves,19,,"Spain, EURO 2024: 7 matches. sum(saves) = 19."
++EURO,2024,9,saves_pct,19,22,"Spain, EURO 2024: 7 matches. sum(saves) = 19; sum(saves + goals_against - goals_own_against) = 22."
++EURO,2024,9,shots_inside_box,71,,"Spain, EURO 2024: 7 matches. sum(shots_inside_box) = 71."
++EURO,2024,9,shots_inside_box_pct,71,122,"Spain, EURO 2024: 7 matches. sum(shots_inside_box) = 71; sum(shots) = 122."
++EURO,2024,9,shots_on_goal_against_per_match,22,7,"Spain, EURO 2024: 7 matches. sum(shots_on_target_against) = 22; matches = 7."
++EURO,2024,9,shots_on_goal_difference_per_match,22,7,"Spain, EURO 2024: 7 matches. sum(shots_on_target - shots_on_target_against) = 22; matches = 7."
++EURO,2024,9,shots_on_goal_pct,44,122,"Spain, EURO 2024: 7 matches. sum(shots_on_target) = 44; sum(shots) = 122."
++EURO,2024,9,shots_on_goal_per_match,44,7,"Spain, EURO 2024: 7 matches. sum(shots_on_target) = 44; matches = 7."
++EURO,2024,9,shots_per_match,122,7,"Spain, EURO 2024: 7 matches. sum(shots) = 122; matches = 7."
++EURO,2024,9,shots_share_pct,122,197,"Spain, EURO 2024: 7 matches. sum(shots) = 122; sum(shots + shots_against) = 197."
++EURO,2024,9,tackles_per_match,106,7,"Spain, EURO 2024: 7 matches. sum(tackles) = 106; matches = 7."
++BL1,2024,182,blocks_per_match,104,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(blocks) = 104; matches = 33."
++BL1,2024,182,cards_red,1,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(cards_red) = 1; red cards blank in 31 matches, 0 by the blank rule."
++BL1,2024,182,cards_yellow,70,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(cards_yellow) = 70; yellow cards blank in 1 match, 0 by the blank rule."
++BL1,2024,182,clean_sheets,8,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. countif(goals_against = 0) = 8."
++BL1,2024,182,clean_sheets_pct,8,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. countif(goals_against = 0) = 8; matches = 33."
++BL1,2024,182,corners,145,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(corners) = 145."
++BL1,2024,182,corners_against_per_match,161,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(corners_against) = 161; matches = 33."
++BL1,2024,182,corners_per_match,145,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(corners) = 145; matches = 33."
++BL1,2024,182,defensive_actions_per_match,931,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(tackles + interceptions + blocks) = 931; matches = 33."
++BL1,2024,182,duels_per_match,3381,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(duels) = 3381; matches = 33."
++BL1,2024,182,duels_won_pct,1623,3381,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(duels_won) = 1623; sum(duels) = 3381."
++BL1,2024,182,finishing_efficiency_pct,32,120,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(goals - goals_penalty - goals_own) = 32; sum(shots_on_target) = 120."
++BL1,2024,182,goals,35,,"Union Berlin, Bundesliga 2024-25: 34 matches, the awarded one counted. sum(goals) = 35."
++BL1,2024,182,goals_against,51,,"Union Berlin, Bundesliga 2024-25: 34 matches, the awarded one counted. sum(goals_against) = 51."
++BL1,2024,182,goals_against_per_match,49,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(goals_against) = 49; matches = 33."
++BL1,2024,182,goals_open_play,32,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(goals - goals_penalty - goals_own) = 32."
++BL1,2024,182,goals_own,0,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(goals_own) = 0."
++BL1,2024,182,goals_penalty,3,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(goals_penalty) = 3."
++BL1,2024,182,goals_per_match,35,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(goals) = 35; matches = 33."
++BL1,2024,182,interceptions_per_match,298,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(interceptions) = 298; matches = 33."
++BL1,2024,182,passes_accuracy_pct,8729,11667,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(passes_accurate) = 8729; sum(passes) = 11667."
++BL1,2024,182,passes_key_per_match,279,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(passes_key) = 279; matches = 33."
++BL1,2024,182,passes_per_match,11667,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(passes) = 11667; matches = 33."
++BL1,2024,182,points_capture_pct,40,99,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 40; 3 * matches = 99."
++BL1,2024,182,points_won,40,,"Union Berlin, Bundesliga 2024-25: 34 matches, the awarded one counted. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 40."
++BL1,2024,182,saves,89,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(saves) = 89."
++BL1,2024,182,saves_pct,89,137,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(saves) = 89; sum(saves + goals_against - goals_own_against) = 137."
++BL1,2024,182,shots_inside_box,264,,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots_inside_box) = 264."
++BL1,2024,182,shots_inside_box_pct,264,395,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots_inside_box) = 264; sum(shots) = 395."
++BL1,2024,182,shots_on_goal_against_per_match,137,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots_on_target_against) = 137; matches = 33."
++BL1,2024,182,shots_on_goal_difference_per_match,-17,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots_on_target - shots_on_target_against) = -17; matches = 33."
++BL1,2024,182,shots_on_goal_pct,120,395,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots_on_target) = 120; sum(shots) = 395."
++BL1,2024,182,shots_on_goal_per_match,120,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots_on_target) = 120; matches = 33."
++BL1,2024,182,shots_per_match,395,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots) = 395; matches = 33."
++BL1,2024,182,shots_share_pct,395,797,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(shots) = 395; sum(shots + shots_against) = 797."
++BL1,2024,182,tackles_per_match,529,33,"Union Berlin, Bundesliga 2024-25: 33 of 34 matches, the awarded one left out. sum(tackles) = 529; matches = 33."
++PL,2024,40,blocks_per_match,97,38,"Liverpool, Premier League 2024-25: 38 matches. sum(blocks) = 97; matches = 38."
++PL,2024,40,cards_red,3,,"Liverpool, Premier League 2024-25: 38 matches. sum(cards_red) = 3; red cards blank in 34 matches, 0 by the blank rule."
++PL,2024,40,cards_yellow,67,,"Liverpool, Premier League 2024-25: 38 matches. sum(cards_yellow) = 67; yellow cards blank in 2 matches, 0 by the blank rule."
++PL,2024,40,clean_sheets,14,,"Liverpool, Premier League 2024-25: 38 matches. countif(goals_against = 0) = 14."
++PL,2024,40,clean_sheets_pct,14,38,"Liverpool, Premier League 2024-25: 38 matches. countif(goals_against = 0) = 14; matches = 38."
++PL,2024,40,corners,251,,"Liverpool, Premier League 2024-25: 38 matches. sum(corners) = 251."
++PL,2024,40,corners_against_per_match,139,38,"Liverpool, Premier League 2024-25: 38 matches. sum(corners_against) = 139; matches = 38."
++PL,2024,40,corners_per_match,251,38,"Liverpool, Premier League 2024-25: 38 matches. sum(corners) = 251; matches = 38."
++PL,2024,40,defensive_actions_per_match,1042,38,"Liverpool, Premier League 2024-25: 38 matches. sum(tackles + interceptions + blocks) = 1042; matches = 38."
++PL,2024,40,duels_per_match,3474,38,"Liverpool, Premier League 2024-25: 38 matches. sum(duels) = 3474; matches = 38."
++PL,2024,40,duels_won_pct,1711,3474,"Liverpool, Premier League 2024-25: 38 matches. sum(duels_won) = 1711; sum(duels) = 3474."
++PL,2024,40,finishing_efficiency_pct,76,231,"Liverpool, Premier League 2024-25: 38 matches. sum(goals - goals_penalty - goals_own) = 76; sum(shots_on_target) = 231."
++PL,2024,40,goals,86,,"Liverpool, Premier League 2024-25: 38 matches. sum(goals) = 86."
++PL,2024,40,goals_against,41,,"Liverpool, Premier League 2024-25: 38 matches. sum(goals_against) = 41."
++PL,2024,40,goals_against_per_match,41,38,"Liverpool, Premier League 2024-25: 38 matches. sum(goals_against) = 41; matches = 38."
++PL,2024,40,goals_open_play,76,,"Liverpool, Premier League 2024-25: 38 matches. sum(goals - goals_penalty - goals_own) = 76."
++PL,2024,40,goals_own,1,,"Liverpool, Premier League 2024-25: 38 matches. sum(goals_own) = 1."
++PL,2024,40,goals_penalty,9,,"Liverpool, Premier League 2024-25: 38 matches. sum(goals_penalty) = 9."
++PL,2024,40,goals_per_match,86,38,"Liverpool, Premier League 2024-25: 38 matches. sum(goals) = 86; matches = 38."
++PL,2024,40,interceptions_per_match,297,38,"Liverpool, Premier League 2024-25: 38 matches. sum(interceptions) = 297; matches = 38."
++PL,2024,40,passes_accuracy_pct,17341,20098,"Liverpool, Premier League 2024-25: 38 matches. sum(passes_accurate) = 17341; sum(passes) = 20098."
++PL,2024,40,passes_key_per_match,518,38,"Liverpool, Premier League 2024-25: 38 matches. sum(passes_key) = 518; matches = 38."
++PL,2024,40,passes_per_match,20098,38,"Liverpool, Premier League 2024-25: 38 matches. sum(passes) = 20098; matches = 38."
++PL,2024,40,points_capture_pct,84,114,"Liverpool, Premier League 2024-25: 38 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 84; 3 * matches = 114."
++PL,2024,40,points_won,84,,"Liverpool, Premier League 2024-25: 38 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 84."
++PL,2024,40,saves,100,,"Liverpool, Premier League 2024-25: 38 matches. sum(saves) = 100; saves lowered by 1 to the opponent's shots on target in fixture 1208066, 1208147, 1208212, 1208234, 1208253, 1208291."
++PL,2024,40,saves_pct,100,139,"Liverpool, Premier League 2024-25: 38 matches. sum(saves) = 100; sum(saves + goals_against - goals_own_against) = 139; saves lowered by 1 to the opponent's shots on target in fixture 1208066, 1208147, 1208212, 1208234, 1208253, 1208291."
++PL,2024,40,shots_inside_box,480,,"Liverpool, Premier League 2024-25: 38 matches. sum(shots_inside_box) = 480."
++PL,2024,40,shots_inside_box_pct,480,648,"Liverpool, Premier League 2024-25: 38 matches. sum(shots_inside_box) = 480; sum(shots) = 648."
++PL,2024,40,shots_on_goal_against_per_match,141,38,"Liverpool, Premier League 2024-25: 38 matches. sum(shots_on_target_against) = 141; matches = 38."
++PL,2024,40,shots_on_goal_difference_per_match,90,38,"Liverpool, Premier League 2024-25: 38 matches. sum(shots_on_target - shots_on_target_against) = 90; matches = 38."
++PL,2024,40,shots_on_goal_pct,231,648,"Liverpool, Premier League 2024-25: 38 matches. sum(shots_on_target) = 231; sum(shots) = 648."
++PL,2024,40,shots_on_goal_per_match,231,38,"Liverpool, Premier League 2024-25: 38 matches. sum(shots_on_target) = 231; matches = 38."
++PL,2024,40,shots_per_match,648,38,"Liverpool, Premier League 2024-25: 38 matches. sum(shots) = 648; matches = 38."
++PL,2024,40,shots_share_pct,648,1035,"Liverpool, Premier League 2024-25: 38 matches. sum(shots) = 648; sum(shots + shots_against) = 1035."
++PL,2024,40,tackles_per_match,648,38,"Liverpool, Premier League 2024-25: 38 matches. sum(tackles) = 648; matches = 38."
+diff --git a/dbt_project/tests/assert_player_season_answer_key.sql b/dbt_project/tests/assert_player_season_answer_key.sql
 new file mode 100644
-index 00000000..05dc06d8
+index 00000000..a3183305
 --- /dev/null
-+++ b/dbt_project/tests/assert_result_corrections_applied.sql
-@@ -0,0 +1,160 @@
-+-- Every hand correction of a result, from the two correction seeds, is applied, sourced and still
-+-- needed. One row per broken correction:
-+--   - not_applied: base has no such match or table row, or does not carry the official figures.
-+--   - winner_not_valid: a winner is set where the score already decides, or names a team not in
-+--     the match.
-+--   - not_sourced: a source that is not https URLs separated by a space, an official one with
-+--     none, or match reports with fewer than two sites.
-+--   - no_longer_needed: the provider now carries the official result itself.
++++ b/dbt_project/tests/assert_player_season_answer_key.sql
+@@ -0,0 +1,74 @@
++{#
++  Hand-worked season values (seeds/player_season_answer_key.csv): real player-seasons, each
++  catalogue metric's numerator and denominator worked out by hand from the provider's raw match
++  data, by the catalogue formula and the cleaning rules. int_player_season__metrics must return
++  exactly safe_divide(numerator, denominator), or the numerator for a metric with no denominator; a
++  blank numerator means the value must be blank. Returns each case whose value differs, whose metric
++  is not a player metric of the catalogue or not a column of the model, and whose player-season is
++  missing.
++#}
++{{ config(store_failures = true, severity = 'error') }}
 +
-+{{ config(store_failures = true) }}
++{% set columns = [] %}
++{% if execute %}
++    {% for c in adapter.get_columns_in_relation(ref('int_player_season__metrics')) %}
++        {% if c.dtype | upper in ('INT64', 'FLOAT64') %}
++            {% do columns.append(c.name | lower) %}
++        {% endif %}
++    {% endfor %}
++    {% if columns | length == 0 %}
++        {{ exceptions.raise_compiler_error("int_player_season__metrics has no numeric column: the answer key would compare nothing") }}
++    {% endif %}
++{% endif %}
 +
-+with fixture_corrections as (
-+    select * from {{ ref('fixture_result_corrections') }}
++with answer_key as (
++    select * from {{ ref('player_season_answer_key') }}
 +),
 +
-+fixtures as (
-+    select * from {{ ref('base_apif__fixtures_next') }}
-+),
-+
-+table_corrections as (
-+    select * from {{ ref('standings_corrections') }}
-+),
-+
-+standings as (
-+    select * from {{ ref('base_apif__standings') }}
-+),
-+
-+fixture_checks as (
++catalogue as (
 +    select
-+        'fixture_result_corrections' as seed,
-+        cast(c.fixture_id as string) as correction,
++        metric_id,
++        denominator_expr
++    from {{ ref('metric_catalogue') }}
++    where entity = 'player'
++),
++
++model as (
++    select * from {{ ref('int_player_season__metrics') }}
++),
++
++compared as (
++    select
++        k.league_code,
++        k.season,
++        k.player_id,
++        k.metric_id,
++        k.numerator,
++        k.denominator,
++        c.metric_id is not null as in_catalogue,
++        k.metric_id in ('{{ columns | join("', '") }}') as on_model,
++        m.player_sk is not null as row_found,
 +        case
-+            when f.fixture_id is null then 'not_applied'
-+            when
-+                f.goals_home is distinct from c.goals_home
-+                or f.goals_away is distinct from c.goals_away
-+                or f.status_short is distinct from if(c.awarded, 'AWD', f.provider_status_short)
-+                or f.awarded_to_team_id is distinct from c.awarded_to_team_id
-+                then 'not_applied'
-+            when
-+                c.awarded_to_team_id is not null
-+                and (
-+                    not c.awarded
-+                    or c.goals_home != c.goals_away
-+                    or c.awarded_to_team_id not in (f.home_team_id, f.away_team_id)
-+                )
-+                then 'winner_not_valid'
-+            when
-+                f.provider_goals_home = c.goals_home
-+                and f.provider_goals_away = c.goals_away
-+                and (not c.awarded or f.provider_status_short in ('AWD', 'WO'))
-+                and c.awarded_to_team_id is null
-+                then 'no_longer_needed'
-+        end as problem
-+    from fixture_corrections as c
-+    left join fixtures as f
-+        on c.fixture_id = f.fixture_id
++            when k.numerator is null then null
++            when c.denominator_expr is not null then safe_divide(k.numerator, k.denominator)
++            else cast(k.numerator as float64)
++        end as expected_value,
++        case k.metric_id
++            {% for col in columns %}
++            when '{{ col }}' then cast(m.{{ col }} as float64)
++            {% endfor %}
++        end as actual_value
++    from answer_key as k
++    left join catalogue as c
++        on k.metric_id = c.metric_id
++    left join model as m
++        on k.league_code = m.league_code and k.season = m.season_api_year and k.player_id = m.player_sk
++)
++
++select *
++from compared
++where
++    not in_catalogue
++    or not on_model
++    or not row_found
++    or expected_value is distinct from actual_value
+diff --git a/dbt_project/tests/assert_team_goals_equal_players_goals.sql b/dbt_project/tests/assert_team_goals_equal_players_goals.sql
+new file mode 100644
+index 00000000..770e4fab
+--- /dev/null
++++ b/dbt_project/tests/assert_team_goals_equal_players_goals.sql
+@@ -0,0 +1,65 @@
++{#
++  A team-season's goals, less the goals of its awarded matches (which no player scored), equal its
++  players' goals at the club plus the own goals it was credited. Compared where both sides are
++  known: every club-season row of the team has its players' goals, and the team's own goals are
++  known. A team-season holding a match whose players' goals plus own goals miss the score is left
++  out: assert_base_player_stats_cleaned (goals_do_not_add_up) fails any such match where either the
++  per-player count or the goal events add up, so every match left out is one where neither does,
++  the known exception of the results rule.
++
++  Returns one row per disagreeing team-season, with both sides.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with players_by_match as (
++    select
++        fixture_sk,
++        team_sk,
++        if(logical_and(goals is not null), sum(goals), null) as players_goals
++    from {{ ref('int_legs__player_match') }}
++    group by fixture_sk, team_sk
 +),
 +
-+table_checks as (
++team_seasons as (
 +    select
-+        'standings_corrections' as seed,
-+        concat(c.league_code, ' ', cast(c.season as string), ' ', cast(c.team_id as string), ' ', c.group_name)
-+            as correction,
-+        case
-+            when s.team_id is null then 'not_applied'
-+            when
-+                s.standing_rank is distinct from c.standing_rank
-+                or s.points is distinct from c.points
-+                or s.played_all is distinct from c.played
-+                or s.wins_all is distinct from c.wins
-+                or s.draws_all is distinct from c.draws
-+                or s.losses_all is distinct from c.losses
-+                or s.goals_for_all is distinct from c.goals_for
-+                or s.goals_against_all is distinct from c.goals_against
-+                or s.goals_diff is distinct from c.goals_for - c.goals_against
-+                then 'not_applied'
-+            when
-+                s.provider_standing_rank = c.standing_rank
-+                and s.provider_points = c.points
-+                and s.provider_played_all = c.played
-+                and s.provider_wins_all = c.wins
-+                and s.provider_draws_all = c.draws
-+                and s.provider_losses_all = c.losses
-+                and s.provider_goals_for_all = c.goals_for
-+                and s.provider_goals_against_all = c.goals_against
-+                then 'no_longer_needed'
-+        end as problem
-+    from table_corrections as c
-+    left join standings as s
-+        on
-+            c.league_code = s.league_code
-+            and c.season = s.season
-+            and c.team_id = s.team_id
-+            and c.group_name = s.group_name
++        t.team_sk,
++        t.season_sk,
++        sum(if(t.is_awarded_result, t.goals, 0)) as awarded_goals,
++        countif(
++            not t.is_awarded_result
++            and p.players_goals + t.goals_own != t.goals
++        ) as matches_not_adding_up
++    from {{ ref('int_legs__team_match') }} as t
++    left join players_by_match as p
++        on t.fixture_sk = p.fixture_sk and t.team_sk = p.team_sk
++    group by t.team_sk, t.season_sk
 +),
 +
-+sources as (
++club_seasons as (
 +    select
-+        'fixture_result_corrections' as seed,
-+        cast(fixture_id as string) as correction,
-+        source_kind,
-+        source
-+    from fixture_corrections
-+    union all
-+    select
-+        'standings_corrections' as seed,
-+        concat(league_code, ' ', cast(season as string), ' ', cast(team_id as string), ' ', group_name)
-+            as correction,
-+        source_kind,
-+        source
-+    from table_corrections
-+),
-+
-+source_urls as (
-+    select
-+        s.seed,
-+        s.correction,
-+        s.source_kind,
-+        countif(u != '' and not regexp_contains(u, r'^https://[^/\s]+/\S*$')) as not_urls,
-+        count(distinct regexp_extract(u, r'^https://([^/\s]+)')) as sites
-+    from sources as s
-+    left join unnest(split(trim(coalesce(s.source, '')), ' ')) as u
-+        on true
-+    group by s.seed, s.correction, s.source_kind
-+),
-+
-+source_checks as (
-+    select
-+        seed,
-+        correction,
-+        'not_sourced' as problem
-+    from source_urls
-+    where
-+        not_urls > 0
-+        or sites = 0
-+        or (source_kind = 'match_reports' and sites < 2)
-+        or source_kind is null
-+        or source_kind not in ('official', 'match_reports')
++        team_sk,
++        season_sk,
++        if(logical_and(goals_player is not null), sum(goals_player), null) as players_goals
++    from {{ ref('int_player_club_season__metrics') }}
++    group by team_sk, season_sk
 +)
 +
 +select
-+    seed,
-+    correction,
-+    problem
-+from fixture_checks
-+where problem is not null
-+union all
++    m.league_code,
++    m.season_api_year,
++    m.team_sk,
++    m.goals,
++    ts.awarded_goals,
++    c.players_goals,
++    m.goals_own,
++    (m.goals - ts.awarded_goals) - (c.players_goals + m.goals_own) as goals_difference
++from {{ ref('int_team_season__metrics') }} as m
++inner join team_seasons as ts
++    on m.team_sk = ts.team_sk and m.season_sk = ts.season_sk
++inner join club_seasons as c
++    on m.team_sk = c.team_sk and m.season_sk = c.season_sk
++where
++    c.players_goals is not null
++    and m.goals_own is not null
++    and ts.matches_not_adding_up = 0
++    and m.goals - ts.awarded_goals != c.players_goals + m.goals_own
+diff --git a/dbt_project/tests/assert_team_season_answer_key.sql b/dbt_project/tests/assert_team_season_answer_key.sql
+new file mode 100644
+index 00000000..2e6aab9d
+--- /dev/null
++++ b/dbt_project/tests/assert_team_season_answer_key.sql
+@@ -0,0 +1,73 @@
++{#
++  Hand-worked season values (seeds/team_season_answer_key.csv): real team-seasons, each catalogue
++  metric's numerator and denominator worked out by hand from the provider's raw match data, by the
++  catalogue formula and the cleaning rules. int_team_season__metrics must return exactly
++  safe_divide(numerator, denominator), or the numerator for a metric with no denominator; a blank
++  numerator means the value must be blank. Returns each case whose value differs, whose metric is
++  not a team metric of the catalogue or not a column of the model, and whose team-season is missing.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++{% set columns = [] %}
++{% if execute %}
++    {% for c in adapter.get_columns_in_relation(ref('int_team_season__metrics')) %}
++        {% if c.dtype | upper in ('INT64', 'FLOAT64') %}
++            {% do columns.append(c.name | lower) %}
++        {% endif %}
++    {% endfor %}
++    {% if columns | length == 0 %}
++        {{ exceptions.raise_compiler_error("int_team_season__metrics has no numeric column: the answer key would compare nothing") }}
++    {% endif %}
++{% endif %}
++
++with answer_key as (
++    select * from {{ ref('team_season_answer_key') }}
++),
++
++catalogue as (
++    select
++        metric_id,
++        denominator_expr
++    from {{ ref('metric_catalogue') }}
++    where entity = 'team'
++),
++
++model as (
++    select * from {{ ref('int_team_season__metrics') }}
++),
++
++compared as (
++    select
++        k.league_code,
++        k.season,
++        k.team_id,
++        k.metric_id,
++        k.numerator,
++        k.denominator,
++        c.metric_id is not null as in_catalogue,
++        k.metric_id in ('{{ columns | join("', '") }}') as on_model,
++        m.team_sk is not null as row_found,
++        case
++            when k.numerator is null then null
++            when c.denominator_expr is not null then safe_divide(k.numerator, k.denominator)
++            else cast(k.numerator as float64)
++        end as expected_value,
++        case k.metric_id
++            {% for col in columns %}
++            when '{{ col }}' then cast(m.{{ col }} as float64)
++            {% endfor %}
++        end as actual_value
++    from answer_key as k
++    left join catalogue as c
++        on k.metric_id = c.metric_id
++    left join model as m
++        on k.league_code = m.league_code and k.season = m.season_api_year and k.team_id = m.team_sk
++)
++
++select *
++from compared
++where
++    not in_catalogue
++    or not on_model
++    or not row_found
++    or expected_value is distinct from actual_value
+diff --git a/dbt_project/tests/assert_team_season_equals_league_table.sql b/dbt_project/tests/assert_team_season_equals_league_table.sql
+new file mode 100644
+index 00000000..32438653
+--- /dev/null
++++ b/dbt_project/tests/assert_team_season_equals_league_table.sql
+@@ -0,0 +1,78 @@
++{#
++  A team-season equals the provider's league table wherever the table counts the same games: every
++  table section of the team-season whose played equals our season_games_played must carry our wins,
++  draws, losses, goals and goals against, and our points must equal 3 x the table's wins plus its
++  draws. The table's own points can be lower than that by a deduction or a halving, which is the
++  league's adjustment, and never higher or blank. A table row with a different played count (a snapshot older than our last
++  match, a section that counts other games) is not compared. A red row is a result to research and
++  correct in the correction seeds, never an exception.
++
++  Returns one row per disagreeing table row, with both sides.
++#}
++{{ config(store_failures = true, severity = 'error') }}
++
++with ours as (
++    select
++        team_sk,
++        season_sk,
++        league_code,
++        season_api_year,
++        season_games_played,
++        wins_sum_season as wins,
++        draws_sum_season as draws,
++        losses_sum_season as losses,
++        goals,
++        goals_against,
++        points_won
++    from {{ ref('int_team_season__metrics') }}
++),
++
++league_table as (
++    select
++        team_sk,
++        season_sk,
++        group_name,
++        played,
++        wins,
++        draws,
++        losses,
++        goals_scored,
++        goals_conceded,
++        points
++    from {{ ref('fct_standings') }}
++)
++
 +select
-+    seed,
-+    correction,
-+    problem
-+from table_checks
-+where problem is not null
-+union all
-+select
-+    seed,
-+    correction,
-+    problem
-+from source_checks
-diff --git a/docs/content_architecture.md b/docs/content_architecture.md
-index 3045f44d..56f4d3d3 100644
---- a/docs/content_architecture.md
-+++ b/docs/content_architecture.md
-@@ -75,7 +75,7 @@ indexable pages. Each is one template fed by `league_code`-keyed marts.
- | | Season-over-season | team, player | YoY model | ✓ team · ✓ player (#638 + #648, via `mart_player_profile`) |
- | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_{team,player}_competition_benchmarks` | ✓ player wired (#627; screen 12 #625) · ✓ team wired (GAP-23; rank-based screen 14 #664) |
- | | Single fixture | team, player | `mart_team_fixture_stats`/`mart_player_fixture_stats` | ✓ |
--| **Standings / rank** | League / group table | team | `mart_standings` — the provider's row as published, with `table_kind` | ✓ built on the competition page (#149): one table per section, ranking tables dropped |
-+| **Standings / rank** | League / group table | team | `mart_standings` — the league's official row (the provider's, except where corrected), with `table_kind` | ✓ built on the competition page (#149): one table per section, ranking tables dropped |
- | | Standing-as-context | team | standings mart | ✓ |
- | | Deserved points (better / worse than the table says) | team | `mart_team_profile` | ✓ built on the competition page (#149) |
- | | Leaderboards (scorers + the metric set) | player | `mart_leaderboards` | ✓ (built + wired) |
++    o.league_code,
++    o.season_api_year,
++    o.team_sk,
++    t.group_name,
++    o.season_games_played as played,
++    o.wins,
++    t.wins as table_wins,
++    o.draws,
++    t.draws as table_draws,
++    o.losses,
++    t.losses as table_losses,
++    o.goals,
++    t.goals_scored as table_goals,
++    o.goals_against,
++    t.goals_conceded as table_goals_against,
++    o.points_won,
++    3 * t.wins + t.draws as table_points_from_results,
++    t.points as table_points
++from ours as o
++inner join league_table as t
++    on
++        o.team_sk = t.team_sk
++        and o.season_sk = t.season_sk
++        and o.season_games_played = t.played
++where
++    o.wins is distinct from t.wins
++    or o.draws is distinct from t.draws
++    or o.losses is distinct from t.losses
++    or o.goals is distinct from t.goals_scored
++    or o.goals_against is distinct from t.goals_conceded
++    or o.points_won is distinct from 3 * t.wins + t.draws
++    or t.points is null
++    or t.points > 3 * t.wins + t.draws
+diff --git a/docs/wireframes/12_player_stats.md b/docs/wireframes/12_player_stats.md
+index 281818af..f8683005 100644
+--- a/docs/wireframes/12_player_stats.md
++++ b/docs/wireframes/12_player_stats.md
+@@ -143,7 +143,7 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
+ | `dribbles_success_player_pct` | `dribbles_success_player` | `dribbles_attempts_player` |
+ | `duels_won_player_pct` | `duels_won_player` | `duels_player` |
+ 
+-The benchmarked set is the **18 metrics** of `player_benchmark_metrics()`, each ranked **within its own
++The benchmarked set is the **18 metrics** of `int_player_competition_benchmark_metrics_long`, each ranked **within its own
+ position group**: **GK** = saves_player, save %, passes, pass accuracy; **DEF / MID / ATT** = passes, pass accuracy,
+ goals, assists, scorer points, shots on target, key passes, finishing, dribbles (count + %), duels won
+ (count + %), defensive actions, tackles, interceptions, blocks. `finishing_efficiency_player_pct` and `duels_won_player_pct`
+diff --git a/tests/test_ranking_floors.py b/tests/test_ranking_floors.py
+new file mode 100644
+index 00000000..3d7dfa42
+--- /dev/null
++++ b/tests/test_ranking_floors.py
+@@ -0,0 +1,68 @@
++"""The ranking and benchmark floors are dbt vars, and the ranking_rules doc block says the same numbers.
++
++The doc block is what a reader sees in BigQuery and in the dbt docs; the vars are what the models
++apply. Nothing else ties the two, so a floor changed in one place and not the other would publish a
++rule the numbers do not follow. Values are read from parsed YAML and from the doc block's text.
++"""
++
++import re
++from pathlib import Path
++
++import yaml
++
++REPO = Path(__file__).resolve().parents[1]
++DBT = REPO / "dbt_project"
++FLOORS = {
++    "player_min_minutes": r"\bminutes",
++    "player_min_shots_on_target": r"\bshots_on_goal_player",
++    "team_min_matches": r"games_played",
++}
++
++
++def _vars():
++    return yaml.safe_load((DBT / "dbt_project.yml").read_text(encoding="utf-8"))["vars"]
++
++
++def _ranking_rules():
++    text = (DBT / "models" / "docs" / "metric_rules.md").read_text(encoding="utf-8")
++    match = re.search(r"{% docs ranking_rules %}(.*?){% enddocs %}", text, re.S)
++    assert match, "the ranking_rules doc block is missing from models/docs/metric_rules.md"
++    return " ".join(match.group(1).split())
++
++
++def _ranking_models():
++    for layer in ("4_intermediate", "5_marts"):
++        yield from (DBT / "models" / layer).rglob("*.sql")
++
++
++def test_every_floor_is_a_whole_number_var():
++    v = _vars()
++    for name in FLOORS:
++        assert isinstance(v.get(name), int) and v[name] > 0, f"dbt_project.yml var {name} is not a positive integer"
++
++
++def test_ranking_rules_words_state_the_vars():
++    v = _vars()
++    words = _ranking_rules()
++    assert words.count(f"from {v['player_min_minutes']} minutes") == 2, words
++    assert words.count(f"{v['player_min_shots_on_target']} shots on target") == 2, words
++    assert f"from {v['team_min_matches']} finished matches" in words, words
++    numbers = {int(n) for n in re.findall(r"\b\d+\b", words)}
++    assert numbers == {v[name] for name in FLOORS}, f"ranking_rules states numbers {numbers} that are not the floor vars"
++
++
++def test_every_floor_var_is_read_by_a_model():
++    sql = "\n".join(p.read_text(encoding="utf-8") for p in _ranking_models())
++    for name in FLOORS:
++        assert re.search(rf"var\(\s*['\"]{name}['\"]\s*\)", sql), f"no model reads var('{name}')"
++
++
++def test_no_model_writes_a_floor_as_a_number():
++    found = []
++    for path in _ranking_models():
++        text = path.read_text(encoding="utf-8")
++        for name, column in FLOORS.items():
++            for m in re.finditer(rf"{column}\w*\s*>=\s*(\d+)", text):
++                if int(m.group(1)) > 1:
++                    found.append(f"{path.relative_to(REPO)}: {m.group(0)} (use var('{name}'))")
++    assert not found, "\n".join(found)
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -955,6 +1715,6 @@ index 3045f44d..56f4d3d3 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   docs/tracker/gitlab_snapshot.md | 294 ++++++++++++++++++++++++++++++----------
-#    1 file changed, 223 insertions(+), 71 deletions(-)
+#   docs/tracker/gitlab_snapshot.md | 80 +++++++++++++++++++++--------------------
+#    1 file changed, 41 insertions(+), 39 deletions(-)
 # ============================================================================

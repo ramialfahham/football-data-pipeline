@@ -143,7 +143,7 @@ added back here it renders uncoloured, exactly as the team rule already prescrib
 | `dribbles_success_player_pct` | `dribbles_success_player` | `dribbles_attempts_player` |
 | `duels_won_player_pct` | `duels_won_player` | `duels_player` |
 
-The benchmarked set is the **18 metrics** of `player_benchmark_metrics()`, each ranked **within its own
+The benchmarked set is the **18 metrics** of `int_player_competition_benchmark_metrics_long`, each ranked **within its own
 position group**: **GK** = saves_player, save %, passes, pass accuracy; **DEF / MID / ATT** = passes, pass accuracy,
 goals, assists, scorer points, shots on target, key passes, finishing, dribbles (count + %), duels won
 (count + %), defensive actions, tackles, interceptions, blocks. `finishing_efficiency_player_pct` and `duels_won_player_pct`

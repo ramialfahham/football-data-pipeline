@@ -3130,8 +3130,8 @@ models:
       DIRECTION-AGNOSTIC: rank is by value descending and percentile by value, so neither says
       whether high is good — that comes from the metric's catalogue direction.
 
-      A player qualifying in two positions appears once per position; the
-      player_benchmark_metrics() macro decides which metrics apply.
+      A player qualifying in two positions appears once per position;
+      int_player_competition_benchmark_metrics_long decides which metrics apply.
 
       {{ doc('ranking_rules') }}
     meta:

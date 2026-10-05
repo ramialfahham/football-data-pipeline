@@ -8,17 +8,15 @@
 
   DIRECTION-AGNOSTIC by design (D7): rank is by value DESC and percentile by value within (league_code,
   season_api_year, position_group, metric_key); the good/bad reading is supplied at display from the
-  catalogue's `direction`. Composes int_player_season_position__metrics + the int_player_competition_benchmarks
-  engine (the shared player_benchmark_metrics() macro keeps the metric set + position eligibility
-  identical). Who enters is the ranking_rules doc block in models/docs/metric_rules.md. Multi-position
-  players appear once per qualifying position, each on their in-role value.
+  catalogue's `direction`. Composes int_player_competition_benchmark_metrics_long (the metric set, position
+  eligibility and who enters, shared with the engine) + the int_player_competition_benchmarks engine.
+  Multi-position players appear once per qualifying position, each on their in-role value.
 
   Grain: (player_sk, season_sk, position_group, metric_key).
 #}
 
-with season as (
-    select * from {{ ref('int_player_season_position__metrics') }}
-    where minutes >= 270
+with metrics as (
+    select * from {{ ref('int_player_competition_benchmark_metrics_long') }}
 ),
 
 players as (
@@ -32,46 +30,6 @@ players as (
 
 benchmarks as (
     select * from {{ ref('int_player_competition_benchmarks') }}
-),
-
-unpivoted as (
-    {% for m in player_benchmark_metrics() %}
-    select
-        player_sk,
-        season_sk,
-        league_sk,
-        league_code,
-        season_api_year,
-        position_group,
-        minutes,
-        appearances,
-        '{{ m.key }}' as metric_key,
-        case
-            when
-                position_group in ('{{ m.pos | join("', '") }}')
-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
-                then {{ m.col }}
-        end as metric_value,
-        -- GAP-21: the volume behind each ratio %, gated by the SAME eligibility+floor as
-        -- metric_value; null when the metric defines no num/den (the 13 per-90 metrics).
-        -- Feeds the {num} of {den} · {pct}% triple on the Stats screen.
-        case
-            when
-                position_group in ('{{ m.pos | join("', '") }}')
-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
-                then {% if m.num is defined %}{{ m.num }}{% else %}cast(null as int64){% endif %}
-        end as metric_numerator,
-        case
-            when
-                position_group in ('{{ m.pos | join("', '") }}')
-                {%- if m.floor is defined %} and {{ m.floor }}{% endif %}
-                then {% if m.den is defined %}{{ m.den }}{% else %}cast(null as int64){% endif %}
-        end as metric_denominator
-    from season
-    {% if not loop.last %}
-    union all
-    {% endif %}
-    {% endfor %}
 ),
 
 ranked as (
@@ -98,8 +56,7 @@ ranked as (
                 u.league_code, u.season_api_year, u.position_group, u.metric_key
             order by u.metric_value asc
         ) as percentile
-    from unpivoted as u
-    where u.metric_value is not null
+    from metrics as u
 )
 
 select

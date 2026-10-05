@@ -12,9 +12,8 @@
   written by scripts/generate_metric_sql.py, so a single-position player's per-90 here equals his
   whole-season per-90 there.
 
-  Grain: (player_sk, season_sk, position_group). No floor here — the benchmark engine/mart apply the
-  minutes floor. The 18 benchmark metrics (per-90 + rates) are listed in the player_benchmark_metrics()
-  macro (shared with int_player_competition_benchmarks + mart_player_competition_benchmarks).
+  Grain: (player_sk, season_sk, position_group). No floor here — int_player_competition_benchmark_metrics_long
+  applies the floors and lists the 18 benchmark metrics (per-90 + rates).
 #}
 
 with legs as (

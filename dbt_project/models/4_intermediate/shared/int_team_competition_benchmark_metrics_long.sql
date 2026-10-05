@@ -1,7 +1,7 @@
 {#
   The 22 team competition-benchmark metrics in LONG form, per team-season: one row per
   (team_sk, season_sk, metric_key) unpivoted from int_team_season__metrics (season-to-date, teams with
-  >= 3 finished games). This is the single source of the benchmark metric set — both
+  at least the var team_min_matches finished games). This is the single source of the benchmark metric set — both
   int_team_competition_benchmarks (which aggregates it to the league distribution) and
   mart_team_competition_benchmarks (which ranks each team against that distribution) read from here, so
   the two cannot drift apart. Replaces the team_benchmark_metrics() macro (engineering_standards.md §1.3:
@@ -13,7 +13,7 @@
 
 with season as (
     select * from {{ ref('int_team_season__metrics') }}
-    where season_games_played >= 3
+    where season_games_played >= {{ var('team_min_matches') }}
 )
 
 select
