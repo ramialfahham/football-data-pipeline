@@ -93,15 +93,15 @@ models:
       - name: goals_own_against
         description: "Own goals this team conceded in the window match: part of goals_against, but not a shot on target the keeper faced."
       - name: shots
-        description: "{{ doc('shots_player') }}"
+        description: "{{ doc('shots_total__team_match') }}"
       - name: shots_on_target
-        description: "{{ doc('shots_on_goal_player') }}"
+        description: "{{ doc('shots_on_goal__team_match') }}"
       - name: shots_inside_box
         description: "{{ doc('shots_inside_box') }}"
       - name: passes
-        description: "{{ doc('passes_player') }}"
+        description: "{{ doc('passes_total__team_match') }}"
       - name: passes_accurate
-        description: "{{ doc('passes_accurate_player') }}"
+        description: "{{ doc('passes_accurate__team_match') }}"
       - name: corners
         description: "{{ doc('corners') }}"
       - name: corners_against
