@@ -85,6 +85,7 @@ competitions:
     history_seasons: 10             # backfill window: last N season start years
     status: "active"
     ingest_active: true
+    ingest_completeness_gate: soft
     notes: >
       First competition onboarded. Reference implementation for all future leagues.
 
