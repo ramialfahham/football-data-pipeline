@@ -53,16 +53,17 @@ def run_poll_phases(
     current_season: int | None = None,
     history_seasons: int | None = None,
     season_type: str = "split_year",
-) -> tuple[set[int], int | None] | None:
+) -> CompetitionRunResult | None:
     """Idle competition: catalog + latest-season fixtures only (detect new season / matches).
 
-    Returns ``(team_ids, last_recorded_season)`` so the orchestrator can run the squad catch-up
-    for finished competitions (the squad phases are otherwise full-mode only). None on
-    unrecoverable error.
+    Returns the competition's result so the orchestrator can hand its fixtures to the
+    fixture-details step (which fetches only what is due) and run the squad catch-up for
+    finished competitions from its team_ids and latest season (the squad phases are otherwise
+    full-mode only). None on unrecoverable error.
     """
     try:
         _ingestion_phase(league_code, "poll catalog (leagues + latest season plan)")
-        seasons_list, _reference_season, _cov = fetch_catalog_persist_and_plan(
+        seasons_list, _reference_season, cov = fetch_catalog_persist_and_plan(
             ctx,
             league_code,
             league_id,
@@ -72,11 +73,17 @@ def run_poll_phases(
             poll_mode=True,
         )
         _ingestion_phase(league_code, "poll fixtures (latest season only)")
-        _fixtures_merged, team_ids, _fixture_ids = fetch_merge_and_persist_fixtures(
+        fixtures_merged, team_ids, fixture_ids = fetch_merge_and_persist_fixtures(
             ctx, league_code, league_id, seasons_list
         )
-        last_season = max(seasons_list) if seasons_list else None
-        return team_ids, last_season
+        return CompetitionRunResult(
+            league_code=league_code,
+            seasons_list=seasons_list,
+            fixtures_merged=fixtures_merged,
+            fixture_ids=fixture_ids,
+            team_ids=team_ids,
+            cov=cov,
+        )
     except Exception as e:
         ctx.errors.append(f"league {league_code} poll phases: {e}")
         return None

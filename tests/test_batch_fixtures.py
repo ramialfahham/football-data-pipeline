@@ -8,16 +8,22 @@ from __future__ import annotations
 from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
-from google.cloud.exceptions import NotFound
-
 from ingestion.api_football.loads.batch_fixtures import (
     _BATCH_SIZE,
     _STATS_RETRY_DAYS,
     _finished_fixture_ids,
     _needs_fetch,
-    _read_fetched_coverage,
     run_batch_fixture_fanout_and_persist,
 )
+from ingestion.api_football.loads.context import CompetitionRunResult
+
+
+def _covered(has_statistics: dict[int, bool], players: dict[int, bool] | None = None) -> dict:
+    """One league's `read_coverage` entry: players covered unless its second fetch is due."""
+    return {
+        "FIXTURE_STATISTICS": has_statistics,
+        "FIXTURE_PLAYERS": players if players is not None else dict.fromkeys(has_statistics, True),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -79,89 +85,38 @@ class TestNeedsFetch:
         assert _needs_fetch(1, {}, {}, self.CUTOFF) is True
 
     def test_fetched_with_statistics_is_done(self):
-        assert _needs_fetch(1, {1: True}, {1: self.TODAY}, self.CUTOFF) is False
+        assert _needs_fetch(1, _covered({1: True}), {1: self.TODAY}, self.CUTOFF) is False
+
+    def test_second_fetch_due_with_statistics_fetches(self):
+        covered = _covered({1: True}, players={1: False})
+        assert _needs_fetch(1, covered, {1: self.TODAY}, self.CUTOFF) is True
+
+    def test_second_fetch_due_with_empty_stats_past_window_fetches(self):
+        kickoff = self.CUTOFF - timedelta(days=1)
+        covered = _covered({1: False}, players={1: False})
+        assert _needs_fetch(1, covered, {1: kickoff}, self.CUTOFF) is True
+
+    def test_second_fetch_due_without_kickoff_in_fixtures_fetches(self):
+        """Due is decided by the coverage read; the fixtures payload's kickoff is not needed."""
+        covered = _covered({1: True}, players={1: False})
+        assert _needs_fetch(1, covered, {}, self.CUTOFF) is True
 
     def test_empty_stats_kickoff_exactly_at_cutoff_retries(self):
         """Kickoff on the cutoff day is still within the retry window (>= cutoff)."""
-        assert _needs_fetch(1, {1: False}, {1: self.CUTOFF}, self.CUTOFF) is True
+        assert _needs_fetch(1, _covered({1: False}), {1: self.CUTOFF}, self.CUTOFF) is True
 
     def test_empty_stats_kickoff_one_day_before_cutoff_skips(self):
         """Kickoff one day before the cutoff is past the retry window."""
         kickoff = self.CUTOFF - timedelta(days=1)
-        assert _needs_fetch(1, {1: False}, {1: kickoff}, self.CUTOFF) is False
+        assert _needs_fetch(1, _covered({1: False}), {1: kickoff}, self.CUTOFF) is False
 
     def test_empty_stats_kickoff_after_cutoff_retries(self):
         kickoff = self.TODAY  # recent match
-        assert _needs_fetch(1, {1: False}, {1: kickoff}, self.CUTOFF) is True
+        assert _needs_fetch(1, _covered({1: False}), {1: kickoff}, self.CUTOFF) is True
 
     def test_empty_stats_no_kickoff_skips(self):
         """If kickoff is unknown, can't determine window — skip to be safe."""
-        assert _needs_fetch(1, {1: False}, {}, self.CUTOFF) is False
-
-
-# ---------------------------------------------------------------------------
-# _read_fetched_coverage
-# ---------------------------------------------------------------------------
-
-
-class TestReadFetchedCoverage:
-    def _make_row(self, fixture_id, has_statistics: bool):
-        row = MagicMock()
-        row.fixture_id = fixture_id
-        row.has_statistics = has_statistics
-        return row
-
-    def test_returns_empty_dict_when_table_not_found(self):
-        client = MagicMock()
-        client.get_table.side_effect = NotFound("table missing")
-        result = _read_fetched_coverage(client, "BL1")
-        assert result == {}
-        client.query.assert_not_called()
-
-    def test_returns_empty_dict_when_query_raises(self):
-        client = MagicMock()
-        client.get_table.return_value = MagicMock()
-        client.query.side_effect = Exception("BQ error")
-        result = _read_fetched_coverage(client, "BL1")
-        assert result == {}
-
-    def test_maps_fixture_id_to_has_statistics(self):
-        client = MagicMock()
-        client.get_table.return_value = MagicMock()
-        client.query.return_value.result.return_value = [
-            self._make_row(100, True),
-            self._make_row(200, False),
-        ]
-        result = _read_fetched_coverage(client, "BL1")
-        assert result[100] is True
-        assert result[200] is False
-
-    def test_fixture_ids_are_cast_to_int(self):
-        client = MagicMock()
-        client.get_table.return_value = MagicMock()
-        client.query.return_value.result.return_value = [
-            self._make_row("12345", True),
-        ]
-        result = _read_fetched_coverage(client, "BL1")
-        assert 12345 in result
-        assert isinstance(list(result.keys())[0], int)
-
-    def test_empty_table_returns_empty_dict(self):
-        client = MagicMock()
-        client.get_table.return_value = MagicMock()
-        client.query.return_value.result.return_value = []
-        result = _read_fetched_coverage(client, "BL1")
-        assert result == {}
-
-    def test_query_contains_correct_table_id(self):
-        """The BQ query must target the unified FIXTURE_DETAILS table, filtered by league_code."""
-        client = MagicMock()
-        client.get_table.return_value = MagicMock()
-        client.query.return_value.result.return_value = []
-        _read_fetched_coverage(client, "WC")
-        query_sql = client.query.call_args[0][0]
-        assert "RAW_APIF_FIXTURE_DETAILS" in query_sql
-        assert "league_code = 'WC'" in query_sql
+        assert _needs_fetch(1, _covered({1: False}), {}, self.CUTOFF) is False
 
 
 # ---------------------------------------------------------------------------
@@ -200,41 +155,60 @@ class TestRunBatchFixtureFanoutAndPersist:
         return ctx
 
     def test_no_api_calls_when_all_fixtures_done(self):
-        """All finished fixtures already have statistics → no HTTP calls."""
+        """All finished fixtures already have statistics → no HTTP calls, and no read of its own."""
         client = MagicMock()
-        client.get_table.return_value = MagicMock()
-        done_row = MagicMock()
-        done_row.fixture_id = 100
-        done_row.has_statistics = True
-        client.query.return_value.result.return_value = [done_row]
+        covered = {"BL1": _covered({100: True})}
 
         ctx = self._make_ctx(client)
         result = self._make_result("BL1", [self._make_fixture_row(100, "FT")])
 
         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                run_batch_fixture_fanout_and_persist(ctx, [result])
+                run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         mock_fetch.assert_not_called()
+        client.query.assert_not_called()
+
+    def test_fetches_fixture_due_its_second_fetch(self):
+        """A fixture with statistics whose player stats' second fetch is due is fetched again."""
+        client = MagicMock()
+        covered = {"WC": _covered({100: True, 101: True}, players={100: False, 101: True})}
+
+        ctx = self._make_ctx(client)
+        result = self._make_result(
+            "WC", [self._make_fixture_row(100, "FT"), self._make_fixture_row(101, "FT")]
+        )
+
+        fetch_resp = {"response": [], "errors": [], "results": 0}
+        with patch(
+            "ingestion.api_football.loads.batch_fixtures.fetch_json",
+            return_value=fetch_resp,
+        ) as mock_fetch:
+            with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
+                with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
+
+        mock_fetch.assert_called_once()
+        assert mock_fetch.call_args[1]["params"]["ids"] == "100"
 
     def test_no_api_calls_when_no_finished_fixtures(self):
         """Only upcoming fixtures → nothing to fetch."""
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         result = self._make_result("BL1", [self._make_fixture_row(1, "NS")])
 
         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                run_batch_fixture_fanout_and_persist(ctx, [result])
+                run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         mock_fetch.assert_not_called()
 
     def test_fetches_all_unfetched_finished_fixtures(self):
         """All fixture IDs from a competition with no prior data are fetched in one batch."""
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         rows = [self._make_fixture_row(i, "FT") for i in range(1, 4)]
@@ -247,7 +221,7 @@ class TestRunBatchFixtureFanoutAndPersist:
         ) as mock_fetch:
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
-                    run_batch_fixture_fanout_and_persist(ctx, [result])
+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         assert mock_fetch.call_count == 1
         params = mock_fetch.call_args[1]["params"]
@@ -257,7 +231,7 @@ class TestRunBatchFixtureFanoutAndPersist:
     def test_splits_into_multiple_batches_above_batch_size(self):
         """More than _BATCH_SIZE fixtures trigger multiple API calls."""
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         # BATCH_SIZE + 5 fixtures → 2 calls (BATCH_SIZE + 5)
@@ -272,7 +246,7 @@ class TestRunBatchFixtureFanoutAndPersist:
         ) as mock_fetch:
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
-                    run_batch_fixture_fanout_and_persist(ctx, [result])
+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         assert mock_fetch.call_count == 2
         # First batch: exactly BATCH_SIZE ids
@@ -285,7 +259,7 @@ class TestRunBatchFixtureFanoutAndPersist:
     def test_sleeps_between_calls_not_before_first(self):
         """Sleep is called once between two calls, not before the first."""
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         n = _BATCH_SIZE + 1  # exactly 2 batches
@@ -304,7 +278,7 @@ class TestRunBatchFixtureFanoutAndPersist:
                     with patch.dict(
                         "os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "250"}
                     ):
-                        run_batch_fixture_fanout_and_persist(ctx, [result])
+                        run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         assert mock_sleep.call_count == 1
         mock_sleep.assert_called_once_with(0.25)
@@ -312,7 +286,7 @@ class TestRunBatchFixtureFanoutAndPersist:
     def test_no_sleep_when_only_one_batch(self):
         """No sleep is needed when there is only one API call."""
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         rows = [self._make_fixture_row(1, "FT")]
@@ -330,7 +304,7 @@ class TestRunBatchFixtureFanoutAndPersist:
                     with patch.dict(
                         "os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "250"}
                     ):
-                        run_batch_fixture_fanout_and_persist(ctx, [result])
+                        run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         mock_sleep.assert_not_called()
 
@@ -339,7 +313,7 @@ class TestRunBatchFixtureFanoutAndPersist:
         import ingestion.api_football.quota as quota_mod
 
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         n = _BATCH_SIZE + 5  # would be 2 batches without early exit
@@ -362,7 +336,7 @@ class TestRunBatchFixtureFanoutAndPersist:
             ):
                 with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                     with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
-                        run_batch_fixture_fanout_and_persist(ctx, [result])
+                        run_batch_fixture_fanout_and_persist(ctx, [result], covered)
         finally:
             quota_mod._http_quota_exhausted = prev
 
@@ -371,13 +345,9 @@ class TestRunBatchFixtureFanoutAndPersist:
     def test_skips_empty_stats_fixtures_past_retry_window(self):
         """Fixtures fetched with empty stats more than STATS_RETRY_DAYS ago are not retried."""
         client = MagicMock()
-        client.get_table.return_value = MagicMock()
         old_kickoff = date.today() - timedelta(days=_STATS_RETRY_DAYS + 2)
 
-        stale_row = MagicMock()
-        stale_row.fixture_id = 100
-        stale_row.has_statistics = False  # empty stats, but old
-        client.query.return_value.result.return_value = [stale_row]
+        covered = {"BL1": _covered({100: False})}  # empty stats, but old
 
         ctx = self._make_ctx(client)
         # Kickoff is old — past the retry window
@@ -386,20 +356,16 @@ class TestRunBatchFixtureFanoutAndPersist:
 
         with patch("ingestion.api_football.loads.batch_fixtures.fetch_json") as mock_fetch:
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
-                run_batch_fixture_fanout_and_persist(ctx, [result])
+                run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         mock_fetch.assert_not_called()
 
     def test_retries_empty_stats_fixtures_within_retry_window(self):
         """Fixtures with empty stats within the retry window are re-fetched."""
         client = MagicMock()
-        client.get_table.return_value = MagicMock()
         recent_kickoff = date.today() - timedelta(days=1)  # 1 day ago, within 3-day window
 
-        recent_row = MagicMock()
-        recent_row.fixture_id = 100
-        recent_row.has_statistics = False
-        client.query.return_value.result.return_value = [recent_row]
+        covered = {"BL1": _covered({100: False})}
 
         ctx = self._make_ctx(client)
         kickoff_str = recent_kickoff.isoformat() + "T18:00:00+00:00"
@@ -412,14 +378,14 @@ class TestRunBatchFixtureFanoutAndPersist:
         ) as mock_fetch:
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
-                    run_batch_fixture_fanout_and_persist(ctx, [result])
+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         mock_fetch.assert_called_once()
 
     def test_exception_in_batch_appended_to_errors(self):
         """An exception during a batch fetch is caught and added to errors."""
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         result = self._make_result("BL1", [self._make_fixture_row(1, "FT")])
@@ -430,14 +396,14 @@ class TestRunBatchFixtureFanoutAndPersist:
         ):
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
-                    run_batch_fixture_fanout_and_persist(ctx, [result])
+                    run_batch_fixture_fanout_and_persist(ctx, [result], covered)
 
         assert any("batch_fixtures" in e and "BL1" in e for e in ctx.errors)
 
     def test_multiple_competitions_planned_before_fetching(self):
         """Results from multiple competitions are all planned before any HTTP call."""
         client = MagicMock()
-        client.get_table.side_effect = NotFound("no table")
+        covered: dict = {}
 
         ctx = self._make_ctx(client)
         result_bl1 = self._make_result("BL1", [self._make_fixture_row(1, "FT")])
@@ -456,8 +422,60 @@ class TestRunBatchFixtureFanoutAndPersist:
         ):
             with patch("ingestion.api_football.loads.batch_fixtures._insert_fixture_rows"):
                 with patch.dict("os.environ", {"API_FOOTBALL_BATCH_SLEEP_MS": "0"}):
-                    run_batch_fixture_fanout_and_persist(ctx, [result_bl1, result_pl])
+                    run_batch_fixture_fanout_and_persist(ctx, [result_bl1, result_pl], covered)
 
         assert len(fetched_calls) == 2
         all_ids = {int(fid) for call in fetched_calls for fid in call.split("-")}
         assert all_ids == {1, 2}
+
+
+# ---------------------------------------------------------------------------
+# Idle (poll-mode) competitions reach the fixture-details step
+# ---------------------------------------------------------------------------
+
+
+class TestIdleCompetitionsReachTheDetailsStep:
+    def test_run_poll_phases_returns_the_competitions_fixtures(self):
+        from ingestion.api_football.loads import competition_runner as cr
+
+        fixtures = {"response": [{"fixture": {"id": 7, "status": {"short": "FT"}}}]}
+        with patch.object(
+            cr, "fetch_catalog_persist_and_plan", return_value=([2026], 2026, {"players": True})
+        ), patch.object(
+            cr, "fetch_merge_and_persist_fixtures", return_value=(fixtures, {1, 2}, {7})
+        ):
+            result = cr.run_poll_phases(MagicMock(), "WC", 1, current_season=2026)
+
+        assert isinstance(result, CompetitionRunResult)
+        assert result.league_code == "WC"
+        assert result.fixtures_merged is fixtures
+        assert result.team_ids == {1, 2}
+        assert result.seasons_list == [2026]
+
+    def test_orchestrator_hands_idle_competitions_and_the_coverage_read_to_the_step(self):
+        """Structural, as in test_ingestion_read_hoisting.py: driving `_load_api_football` end to
+        end means mocking every collaborator."""
+        import ast
+        import inspect
+        import textwrap
+
+        from ingestion.api_football import orchestrator
+
+        tree = ast.parse(textwrap.dedent(inspect.getsource(orchestrator._load_api_football)))
+        calls = [
+            n for n in ast.walk(tree)
+            if isinstance(n, ast.Call)
+            and getattr(n.func, "id", None) == "run_batch_fixture_fanout_and_persist"
+        ]
+        assert len(calls) == 1
+        args = [ast.unparse(a) for a in calls[0].args]
+        assert "idle_results" in args[1]
+        assert args[2] == "phase1_covered"
+        idle_appends = {
+            ast.unparse(n) for n in ast.walk(tree)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "append"
+            and ast.unparse(n.func.value) == "idle_results"
+        }
+        assert idle_appends == {"idle_results.append(poll_result)"}

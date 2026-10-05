@@ -17,10 +17,15 @@ pipeline never updated.)
 
 COVERAGE SEMANTICS (per endpoint)
 ---------------------------------
-    LINEUPS / FIXTURE_EVENTS / FIXTURE_PLAYERS
+    LINEUPS / FIXTURE_EVENTS
         Covered once the fixture has been fetched at all (its row exists). The
         API does not always return these arrays, and an empty array is not a
         gap we can close by re-fetching, so presence of the fixture row counts.
+    FIXTURE_PLAYERS
+        Covered once the fixture has been fetched, except while its second fetch
+        is due: the provider completes some player stats days after the match, so
+        a fixture whose latest fetch came under SECOND_FETCH_DELAY after kickoff
+        is fetched once more when it is that old (see second_fetch_due).
     FIXTURE_STATISTICS
         Covered only when the statistics array is non-empty. Empty statistics on
         a finished fixture is usually a delivery delay, so it is retried within
@@ -38,7 +43,7 @@ USAGE
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from collections import defaultdict
 
 from google.cloud import bigquery
@@ -50,6 +55,10 @@ from .settings import GCP_PROJECT_ID, DATASET_ID, raw_table
 # this many days after their kickoff date. After the grace period, an empty
 # response is treated as permanent (stats are not coming from the API).
 STATS_GRACE_DAYS = 7
+
+# Measured on RAW: player stats blank for a whole match fall from 44.8% of fetches under one day
+# after kickoff to 7.7% at two to three days and 0.0% from three days.
+SECOND_FETCH_DELAY = timedelta(days=3)
 
 # The four fanout endpoints bundled in each RAW_APIF_FIXTURE_DETAILS payload.
 # The value is the payload array whose non-emptiness must be checked, or None
@@ -80,6 +89,19 @@ def _fixture_details_table_id() -> str:
     return f"{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table('FIXTURE_DETAILS')}"
 
 
+def second_fetch_due(
+    latest_fetch: datetime | None,
+    kickoff: datetime | None,
+    now: datetime,
+) -> bool:
+    """True when the fixture's latest fetch came under SECOND_FETCH_DELAY after kickoff and that
+    much time has now passed. The second fetch itself comes later than that, so it is due once."""
+    if latest_fetch is None or kickoff is None:
+        return False
+    complete_from = kickoff + SECOND_FETCH_DELAY
+    return latest_fetch < complete_from <= now
+
+
 def read_coverage(
     client: bigquery.Client,
 ) -> dict[str, dict[str, dict[int, bool]]]:
@@ -91,7 +113,8 @@ def read_coverage(
 
     has_data is True when the endpoint's data is present (see COVERAGE SEMANTICS
     in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
-    statistics array; the other three endpoints are True for every fetched fixture.
+    statistics array; FIXTURE_PLAYERS is False while the fixture's second fetch is
+    due; LINEUPS and FIXTURE_EVENTS are True for every fetched fixture.
 
     Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
     fixture legitimately has more than one row: the table is append-only and a
@@ -111,20 +134,23 @@ def read_coverage(
     except NotFound:
         return {}
 
-    # One row per fixture: did this fixture's statistics array ever arrive non-empty?
-    # The other three endpoints count as covered whenever the fixture row exists.
+    # One row per fixture: did this fixture's statistics array ever arrive non-empty,
+    # and when was it last fetched relative to its kickoff?
     q = f"""
         SELECT
             league_code,
             CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
             LOGICAL_OR(ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0)
-                AS has_statistics
+                AS has_statistics,
+            MAX(ingested_at) AS latest_fetch,
+            MAX(SAFE_CAST(JSON_VALUE(payload, '$.fixture.date') AS TIMESTAMP)) AS kickoff
         FROM `{table_id}`
         WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
         GROUP BY league_code, fixture_id
     """
     rows = list(client.query(q).result())
 
+    now = datetime.now(timezone.utc)
     covered: dict[str, dict[str, dict[int, bool]]] = defaultdict(lambda: defaultdict(dict))
     for row in rows:
         lc = row.league_code
@@ -132,6 +158,8 @@ def read_coverage(
         has_stats = bool(row.has_statistics)
         for endpoint, requires_nonempty in ENDPOINT_REQUIRES_NONEMPTY.items():
             covered[lc][endpoint][fid] = has_stats if requires_nonempty else True
+        if second_fetch_due(row.latest_fetch, row.kickoff, now):
+            covered[lc]["FIXTURE_PLAYERS"][fid] = False
 
     # Convert defaultdicts to plain dicts so downstream code cannot rely on
     # auto-create behaviour (a missing key should raise KeyError).
@@ -158,7 +186,10 @@ def covered_for_league(
       - The fixture's kickoff date is known and within STATS_GRACE_DAYS of today
 
     For all other cases — has_data=True, non-statistics endpoints, or missing
-    kickoff date — the fixture is conservatively added to the skip set.
+    kickoff date — the fixture is conservatively added to the skip set. A
+    FIXTURE_PLAYERS second fetch that is due is skipped here too: the fixture-details
+    step makes it in every competition, so it never switches an idle competition to
+    full mode.
 
     kickoff_by_id maps fixture_id → kickoff date (UTC calendar day). When omitted,
     the grace-period logic is skipped and all coverage entries are treated as final.

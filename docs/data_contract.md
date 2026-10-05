@@ -131,11 +131,13 @@ quota is still discarded whole and retried next run, in `batch_fixtures`, `coach
 
 `RAW_APIF_FIXTURE_DETAILS` appends. Each run fetches only the fixtures that are missing data (not the full history) and appends one row per fixture returned. A fixture that is retried — empty statistics within the 3-day window from kickoff — gains a **second row**; nothing is removed.
 
+**Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). Its player stats count as not covered until then.
+
 **Both versions are kept deliberately, and base picks per entity.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_events` dedups newest-per-`(league_code, fixture_id, event_index)`, `base_apif__fixture_players` per `(…, team_id, player_id)`, `base_apif__fixture_statistics` per `(…, team_id)` — so an entity present only in the older payload survives, and one present in both takes the newer. On fixture 1564795 that yields 27 events: indices 0-16 from the retry, 17-26 from the payload it would have replaced.
 
 Two consequences worth stating rather than discovering:
 
-- `fixture_id` is **not** a uniqueness key on this table. Any reader that assumes one row per fixture must aggregate — `coverage.read_coverage` and `batch_fixtures._read_fetched_coverage` both use `LOGICAL_OR ... GROUP BY fixture_id` for exactly this reason.
+- `fixture_id` is **not** a uniqueness key on this table. Any reader that assumes one row per fixture must aggregate — `coverage.read_coverage`, the one coverage read per run, uses `LOGICAL_OR ... GROUP BY fixture_id` for exactly this reason.
 - `stg_apif__lineups` has **no consumer**, so nothing downstream resolves its versions today.
 
 The per-fixture bundle stored in `payload` covers: lineups, events, fixture statistics, and fixture player stats — all sub-keyed within the JSON envelope.
@@ -162,7 +164,7 @@ Coverage advances monotonically across runs under any ordering (`upcoming`, `cur
 
 **Invariant — every per-entity endpoint must skip what it already holds.** Storage-side merge/dedup bounds the *table*; it does **not** bound the *API cost*. A loader that keeps one row per key but still calls the endpoint for every key every run re-pays the full quota nightly. This reached production once: the `/players` squad phase re-fetched every team × every history season each run (~50% of the daily quota) because it had the merge but not the skip.
 
-So any per-entity pull (per-fixture, per-team, per-team-season, per-player) MUST, before fetching, read the keys already ingested from the target raw table and fetch only the delta. The single deliberate exception is the **live/current season**, whose per-season stats keep accumulating — it is re-fetched every run; every finished season/fixture is immutable and fetched once. Mirror the canonical implementations, do not reinvent:
+So any per-entity pull (per-fixture, per-team, per-team-season, per-player) MUST, before fetching, read the keys already ingested from the target raw table and fetch only the delta. The single deliberate exception is the **live/current season**, whose per-season stats keep accumulating — it is re-fetched every run; every finished season/fixture is immutable and fetched once, except a fixture's second fetch (see "Fixture details"). Mirror the canonical implementations, do not reinvent:
 
 | Endpoint axis | Coverage reader | Fetch planner |
 |---------------|-----------------|---------------|
