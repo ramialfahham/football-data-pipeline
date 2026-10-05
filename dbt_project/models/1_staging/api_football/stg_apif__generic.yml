@@ -135,7 +135,7 @@ models:
       append-only table holding one row per FETCH of a fixture, so a retried fixture contributes
       several versions (see layering.md §1_staging). Staging reads ALL rows faithfully — no
       latest-snapshot qualify, the grain is sub-league; choosing between versions is
-      base_apif__fixture_events' job, newest per (league_code, fixture_id, event_index). Grain at
+      base_apif__fixture_events' job: it keeps each fixture's latest fetch that has events. Grain at
       staging: (fixture_id, event_index, raw_ingested_at).
     columns:
       - name: league_code

@@ -317,8 +317,7 @@ class TestFixtureDetailsRetryKeepsBothVersions:
     and poorer in another. The delete made the poorer answer the only surviving one: fixture
     1564795 went 27 events to 17, an entire penalty shootout, unrecoverable.
 
-    The rule: "raw keeps both versions." Base decides, using the rule it already has
-    (`base_apif__fixture_events`, newest per (league_code, fixture_id, event_index)).
+    Raw keeps both versions; base decides (docs/data_contract.md, "Fixture details").
     """
 
     def test_a_retried_fixture_is_appended_and_nothing_is_deleted(self, monkeypatch):

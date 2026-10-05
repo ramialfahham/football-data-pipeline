@@ -335,8 +335,8 @@ models:
 
   - name: base_apif__fixture_events
     description: >
-      One row per event in a fixture, from stg_apif__fixture_events, keeping the most recent
-      ingest. Grain: (league_code, fixture_id, event_index).
+      One row per event in a fixture, from stg_apif__fixture_events, keeping the events of the
+      match's latest fetch that has events. Grain: (league_code, fixture_id, event_index).
 
       event_index is the 0-based position in the provider's events array and is the stable
       identity of an event. Deduplication is on POSITION, not content: the provider sometimes

@@ -19,13 +19,17 @@ with src as (
         fixture_id is not null
 ),
 
+-- A match's events are its latest fetch's list, so a later, shorter list drops the trailing
+-- positions an older fetch still holds.
 deduped as (
     select *
     from src
-    qualify row_number() over (
-        partition by league_code, fixture_id, event_index
-        order by raw_ingested_at desc
-    ) = 1
+    qualify
+        raw_ingested_at = max(raw_ingested_at) over (partition by league_code, fixture_id)
+        and row_number() over (
+            partition by league_code, fixture_id, event_index
+            order by raw_ingested_at desc
+        ) = 1
 ),
 
 recovered as (
