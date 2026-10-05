@@ -209,7 +209,13 @@ Further reading:
 - Detailed layering rules: [dbt_project/docs/layering.md](dbt_project/docs/layering.md)
 - Engineering standards: [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md)
 - API-Football data contract: [docs/data_contract.md](docs/data_contract.md)
-- Development workflow: [docs/development_workflow.md](docs/development_workflow.md)
+
+## Secrets
+
+The repository is public. Never commit `.env`, API keys or tokens, service-account JSON files or
+`dbt_project/.user.yml`. The pre-commit secret scan blocks the obvious ones before a commit, and CI's
+`validate:secrets` job runs gitleaks on every pipeline. If a secret was ever committed: revoke it at
+the provider first, then replace the value with a placeholder and commit.
 
 ## Maintenance & operations
 

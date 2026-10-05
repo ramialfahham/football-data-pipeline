@@ -10,7 +10,7 @@ Checks two things against docs/competition_registry.yml:
 
 Both are written by scripts/sync_dbt_vars.py; this script fails CI if either drifts.
 Singular tests under dbt_project/tests/ prove var ⊆ base rows. See
-docs/competition_registry.yml header and docs/development_workflow.md.
+docs/competition_registry.yml header and CLAUDE.md "How to add a new league".
 
 Usage (from repo root or dbt_project/):
     python scripts/check_registry_var_sync.py

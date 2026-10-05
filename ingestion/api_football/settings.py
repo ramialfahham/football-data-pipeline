@@ -123,10 +123,9 @@ def _apply_ingest_profile_defaults() -> None:
     default season window (``DEFAULT_SEASON_WINDOW_YEARS``) unless a competition's
     history_seasons widens it, a 250 ms pause between requests, and high pagination caps.
 
-    The pause is the blueprint's §4 rule (``time.sleep(0.25)``), and the constraint it protects is
-    the **per-minute** burst limit, not the daily quota. It defaults here rather than in a workflow
-    so nothing can inherit zero pacing by omission: this default used to be ``0``, no workflow set
-    the variable, and production therefore ran unpaced until #897.
+    The pause protects the provider's **per-minute** limit, not the daily quota (docs/data_contract.md
+    "Provider behaviour"). It defaults here rather than in a workflow so nothing can inherit zero
+    pacing by omission.
     Only uses ``os.environ.setdefault`` so anything you export explicitly still wins.
 
     **Economy** profile (``INGEST_PROFILE=default`` / ``economy`` / ``free``): no bundled

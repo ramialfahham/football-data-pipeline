@@ -28,10 +28,9 @@ every league: a fixture is done once ANY stored row for it carries non-empty sta
 and its player stats' second fetch is not due. That LOGICAL_OR aggregation is what makes
 the multi-row state safe to read.
 
-Rate limiting: the Pro plan allows 300 calls/min burst. Sleeping
-API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between calls gives ~4 calls/sec.
-
-See docs/api_football_ingestion_blueprint.md for the full API specification.
+Rate limiting: on top of the pause after every call (API_FOOTBALL_REQUEST_PAUSE_MS), this loop
+sleeps API_FOOTBALL_BATCH_SLEEP_MS (default 250 ms) between batches. The provider's limits are in
+docs/data_contract.md "Provider behaviour".
 """
 
 from __future__ import annotations

@@ -60,7 +60,7 @@ pointers; when it disagrees with a row above, it loses and gets corrected.
 | Metric layer — where each thing about a metric lives: its meaning, its rules, its cleaning, its windows | [docs/metric_layer.md](docs/metric_layer.md) |
 | Engineering standards (naming, testing policy) | [dbt_project/docs/engineering_standards.md](dbt_project/docs/engineering_standards.md) |
 | Operations runbook (env vars, ingest lock, backfill) | [docs/operations_guide.md](docs/operations_guide.md) |
-| Development workflow (local validation, secrets) | [docs/development_workflow.md](docs/development_workflow.md) |
+| Local setup and secrets | [README.md](README.md) ("Getting started", "Secrets"); local validation: the `validate-local` skill |
 | Agent guardrails (hooks & skills — what fires, why, how to carry to a new project) | [docs/agent_guardrails.md](docs/agent_guardrails.md) |
 | v2 site IA (URL scheme, tabs, block↔mart map) | [docs/site_architecture.md](docs/site_architecture.md) + [docs/content_architecture.md](docs/content_architecture.md) |
 | **What a SCREEN shows — and which document wins when two disagree** | [docs/wireframes/00_overview.md](docs/wireframes/00_overview.md) owns the reading order. The chain: [ui_design_brief.md](docs/ui_design_brief.md) · site/content architecture · the per-screen wireframes · [metrics_display.md](docs/wireframes/metrics_display.md) (LOCKED) · the surface's **GitLab issue**, rendered by [design-mocks/](design-mocks/README.md). Read before designing or building any page. |
