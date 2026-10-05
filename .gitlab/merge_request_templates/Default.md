@@ -8,8 +8,7 @@ Closes #
 - [x]  — 
 
 **Locked files:** none
-<!-- or, per locked file: `path` — approved: "<the CPO's words>" (<where>, <date>) — the same
-     quote the contract's protected_override carries, so the two copies sit side by side. -->
+<!-- or, per locked file: `path` — approved in <where>, <date>; never quote his words. -->
 
 
 <details>

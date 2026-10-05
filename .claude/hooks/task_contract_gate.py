@@ -8,7 +8,7 @@ Drift is made mechanically impossible: every unit of work declares a contract
     - any repo-file edit when no contract exists
     - any edit outside the contract's scope_paths
     - edits to PROTECTED paths (the guards themselves) unless the contract
-      carries an explicit `protected_override` quoting the product owner's approval
+      carries an explicit `protected_override` naming the product owner's approval
     - edits to the contract itself while the tree is dirty (clean-tree rule:
       amendments are discrete events, never mixed into code changes)
     - any edit on the STRUCTURAL SURFACE (raw writers `ingestion/**`, dbt models

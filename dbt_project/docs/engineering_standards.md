@@ -77,17 +77,17 @@ which reviewers read and which the MR carries; it is the review's record, not th
 
 **The same holds for documents.** A Markdown document says what and why; dates, issue and MR
 numbers, review rounds and who found or decided what live in git. The same hook refuses a document
-line that adds one (in `CLAUDE.md` also an issue number), and
+line that adds one, and
 `tests/test_no_decision_history_in_docs.py` pins each document's count so it only goes down.
 
 Why this section exists: the rule above it was ignored. On 2026-09-11 the code held **429**
 comment lines carrying a date, "CPO", "reviewer" or "round N" by a first grep, 850 by the hook
 that replaced it. **The measure is the hook**, `.claude/hooks/comment_history_gate.py`: its
 `MARKERS` define what counts (a date, "CPO", a review credit — a named role or what an unnamed
-reviewer did — a numbered round, an MR number), its `comment_lines` defines a comment line per
+reviewer did — a numbered round, an issue or MR number, a story phrase), its `comment_lines` defines a comment line per
 language, and `tests/test_no_decision_history_in_code.py` pins the count in both directions so it
 moves only in the open. A marker inside a quoted span is a literal, not prose; the bare word
-"reviewer" is the review gate's own vocabulary, not a credit. `docs/agent_guardrails.md` carries
+"reviewer" is the review gate's own vocabulary, not a credit. The hook's docstring carries
 the full definition.
 
 ## 1.3) Macros

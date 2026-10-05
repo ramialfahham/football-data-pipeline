@@ -34,12 +34,12 @@ diff here as the next incident until proven otherwise.
    exist yet, the finding is "fixtures task must precede this change" — that
    sequencing is the rule working as designed.
 2. **Idempotency**: merge-on-write preserved? Could a re-run duplicate or
-   truncate? Any WRITE_TRUNCATE introduced → FAIL unless the contract quotes
+   truncate? Any WRITE_TRUNCATE introduced → FAIL unless the contract names
    CPO approval.
 3. **Completeness honesty**: partial results must be visible (no silent
    gaps); errors fail loudly.
 4. **Cost/scope knobs**: history window, ingest profile, fanout caps, run
-   cadence — any change is CPO-class (§10); unquoted → FAIL.
+   cadence — any change is CPO-class (§10); unnamed → FAIL.
 5. **Raw schema contract**: `RAW_{source}_{entity}` naming and column
    contracts unchanged, or `docs/data_contract.md` updated in the same
    branch.
@@ -59,7 +59,7 @@ diff here as the next incident until proven otherwise.
    incident — `scripts/discover_competition.py` output referenced in the
    contract or PR). Unevidenced ID → FAIL.
 2. **Cost fields explicit**: `ingest_active` and `history_seasons` set
-   explicitly; any `history_seasons` increase requires quoted CPO approval
+   explicitly; any `history_seasons` increase requires named CPO approval
    (CLAUDE.md cost rule).
 3. **Sync**: `scripts/sync_dbt_vars.py` run (registry seed + vars in the same
    diff)?

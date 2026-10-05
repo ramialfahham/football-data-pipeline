@@ -1,17 +1,37 @@
-# Review — docs/readme-current — README states only what is true today
+# Review — fix/comment-history-gate — the gate refuses issue numbers and story phrases
 
-diff_sha256: d715502a7f3911db77fb014c75c6c62933b9729bd0760a15ec6f8b5955c6d0bd
+diff_sha256: 5fcaa82a39091c71f887b325b91330b6e585d83e2733971eddca3dcd3ebd8c74
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only README.md and task artifacts change, all in scope_paths; no product, metric, naming or rule change.
-- Anchors cited elsewhere ("Getting started", "Secrets", the long-paths text) still exist.
-- No file cites a removed README section; every removed copy is still owned by layering.md, profiles.example.yml or agent_guardrails.md.
-- Setup, pre-commit, CI, cost and design-decision claims checked against bootstrap.py, .pre-commit-config.yaml, post-commit, .gitlab-ci.yml, check_layer_contract.py, generate_metric_sql.py, 3_core.
-- Round 2: "generated from that row" narrowed to "most of them" (83 of 89 catalogue metrics are generated).
+- Every changed file in scope_paths; protected_override names the approvals with their date.
+- Round 3 FAIL: the contract named instead of quoting while working_agreement §11 required a quote. Cleared: §11 now says name, never quote, in the CPO-approved text.
+- agent_guardrails.md row equals the CPO-approved text; the readings are declared; pins raised only to measured baselines.
+- Brief edits are quoted-to-named swaps only; no new rule, mechanism or cost.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- protected_override and impact_map adequate; no gate parses the approval wording, only its presence.
+- Added-lines-only for code is neutral for the old markers; CI pins still fail closed; still fails open.
+- Five reviewer briefs: every FAIL condition kept, "quoted" becomes "named"; catalogue and i18n "quoted" uses left as they are.
+- No new mechanism, cost, dependency or permission change.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL: the colour pre-pass blanked whole spans; four exclusions untested. Fixed in round 2 and pinned by tests.
+- added_hits checked for Edit, Write and MultiEdit; pins equal count_tree / count_docs; guard files hold no flagged line.
+- Round 3: task_contract_gate.py change is docstring-only; nothing parses that wording.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- engineering_standards.md section 1.2: each edited sentence is true of the hook.
+- No rule's meaning changed; later rounds do not touch this file.
 
 ## escalations
 (none)

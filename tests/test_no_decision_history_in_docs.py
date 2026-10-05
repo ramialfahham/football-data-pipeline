@@ -2,7 +2,7 @@
 
 Half one is the edit-time hook `.claude/hooks/comment_history_gate.py`: for a Markdown document it
 refuses an `Edit`, `Write` or `MultiEdit` that ADDS a line carrying history (a date, a reviewer
-credit, a review round, an MR number; and in CLAUDE.md an issue number). Half two is the pin below:
+credit, a review round, an issue or MR number, a story phrase). Half two is the pin below:
 each document's count of such lines, which may only move down, in the open.
 
 Everything imports the hook's definitions, so the CI count and the edit-time refusal cannot drift
@@ -24,47 +24,52 @@ import comment_history_gate as gate  # noqa: E402
 
 # The pin: flagged lines per document. A cleanup lowers a number or removes a row; nothing adds one.
 PINNED = {
-    ".claude/agents/analytics-engineer-reviewer.md": 2,
-    ".claude/agents/bi-analyst-reviewer.md": 5,
-    ".claude/agents/cto-reviewer.md": 8,
-    ".claude/agents/data-engineer-reviewer.md": 3,
-    ".claude/agents/football-analytics-expert-reviewer.md": 2,
-    ".claude/agents/platform-reviewer.md": 2,
-    ".claude/agents/scope-auditor.md": 5,
-    ".claude/agents/seo-expert-reviewer.md": 2,
-    ".claude/skills/onboard-competition/SKILL.md": 2,
-    ".github/workflows/README.md": 6,
+    ".claude/agents/analytics-engineer-reviewer.md": 4,
+    ".claude/agents/bi-analyst-reviewer.md": 9,
+    ".claude/agents/cto-reviewer.md": 12,
+    ".claude/agents/data-engineer-reviewer.md": 5,
+    ".claude/agents/football-analytics-expert-reviewer.md": 3,
+    ".claude/agents/platform-reviewer.md": 4,
+    ".claude/agents/scope-auditor.md": 8,
+    ".claude/agents/seo-expert-reviewer.md": 4,
+    ".claude/commands/status.md": 1,
+    ".claude/skills/onboard-competition/SKILL.md": 10,
+    ".claude/skills/validate-local/SKILL.md": 1,
+    ".claude/skills/verify-competition-ingest/SKILL.md": 5,
+    ".github/workflows/README.md": 7,
     "AGENTS.md": 1,
-    "dbt_project/docs/engineering_standards.md": 4,
-    "dbt_project/docs/layering.md": 9,
-    "deploy/nightly/README.md": 1,
-    "design-mocks/README.md": 6,
-    "docs/agent_guardrails.md": 15,
-    "docs/content_architecture.md": 8,
-    "docs/data_contract.md": 12,
-    "docs/metrics_context_model.md": 8,
-    "docs/north_star.md": 7,
-    "docs/operations_guide.md": 1,
+    "dbt_project/docs/engineering_standards.md": 5,
+    "dbt_project/docs/layering.md": 13,
+    "deploy/nightly/README.md": 10,
+    "design-mocks/README.md": 22,
+    "docs/agent_guardrails.md": 19,
+    "docs/content_architecture.md": 29,
+    "docs/data_contract.md": 19,
+    "docs/metrics_context_model.md": 20,
+    "docs/north_star.md": 9,
+    "docs/operations_guide.md": 2,
     "docs/roles/cto.md": 1,
     "docs/roles/data_engineer.md": 1,
     "docs/roles/platform_reliability.md": 2,
-    "docs/roles/seo_expert.md": 1,
-    "docs/site_architecture.md": 21,
-    "docs/ui_design_brief.md": 7,
-    "docs/wireframes/00_overview.md": 7,
-    "docs/wireframes/01_fixture_page.md": 4,
-    "docs/wireframes/02_team_profile.md": 1,
-    "docs/wireframes/03_player_profile.md": 1,
-    "docs/wireframes/08_browse.md": 6,
-    "docs/wireframes/10_home.md": 115,
-    "docs/wireframes/11_team_squad.md": 6,
-    "docs/wireframes/12_player_stats.md": 2,
-    "docs/wireframes/14_team_stats.md": 3,
-    "docs/wireframes/99_gaps_register.md": 28,
-    "docs/wireframes/block_standard.md": 6,
-    "docs/wireframes/metrics_display.md": 34,
-    "docs/working_agreement.md": 16,
-    "site_v2/src/data/README.md": 12,
+    "docs/roles/seo_expert.md": 3,
+    "docs/site_architecture.md": 44,
+    "docs/ui_design_brief.md": 9,
+    "docs/wireframes/00_overview.md": 21,
+    "docs/wireframes/01_fixture_page.md": 6,
+    "docs/wireframes/02_team_profile.md": 2,
+    "docs/wireframes/03_player_profile.md": 4,
+    "docs/wireframes/08_browse.md": 27,
+    "docs/wireframes/09_chrome.md": 4,
+    "docs/wireframes/10_home.md": 141,
+    "docs/wireframes/11_team_squad.md": 12,
+    "docs/wireframes/12_player_stats.md": 14,
+    "docs/wireframes/13_player_career.md": 11,
+    "docs/wireframes/14_team_stats.md": 9,
+    "docs/wireframes/99_gaps_register.md": 30,
+    "docs/wireframes/block_standard.md": 51,
+    "docs/wireframes/metrics_display.md": 50,
+    "docs/working_agreement.md": 21,
+    "site_v2/src/data/README.md": 19,
 }
 
 DATE = "-".join(["20" + "31", "01", "02"])
@@ -174,11 +179,30 @@ def test_hook_refuses_a_reviewer_credit_and_an_mr_number():
                             "new_string": mr}))
 
 
-def test_issue_numbers_are_refused_in_claude_md_only():
+def test_issue_numbers_are_refused_in_every_document():
     line = f"See {ISSUE} for the plan."
-    assert denied(run_hook({"file_path": doc("CLAUDE.md"), "old_string": "x", "new_string": line}))
-    assert run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
-                     "new_string": line}).strip() == ""
+    for rel in ("CLAUDE.md", "docs/site_architecture.md"):
+        assert denied(run_hook({"file_path": doc(rel), "old_string": "x", "new_string": line})), rel
+    assert denied(run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
+                            "new_string": f"Moved here: on {DATE}, see {ISSUE}; nothing else."})), \
+        "a colon and a semicolon around a marker are no colour declaration"
+    for fine in ("Qualification rule " + "#" + "1, step " + "#" + "2, item " + "#" + "3, check " + "#" + "4.",
+                 "See [the rule](layering.md" + "#" + "1_staging).", "The entity &" + "#" + "123; is a character.",
+                 "The ring is drawn in color: " + "#" + "111;", "GAP-" + "03 owns it."):
+        assert run_hook({"file_path": doc("docs/site_architecture.md"), "old_string": "x",
+                         "new_string": fine}).strip() == "", fine
+
+
+def test_story_phrases_and_review_rounds_are_refused_and_their_lookalikes_are_not():
+    for story in ("This rule " + "used" + " to say the opposite.", "An earlier " + "version" + " of this table was wrong.",
+                  "Caught " + "in review.", "It failed in round " + "3 of the review."):
+        assert denied(run_hook({"file_path": doc("docs/north_star.md"), "old_string": "x",
+                                "new_string": story})), story
+    for fine in ("The key is " + "used" + " to join the tables.", "The probe had " + "used" + " to prove it.",
+                 "The earlier " + "version" + " of the row stays in raw.",
+                 "Round " + "3 of the group stage is played on one day."):
+        assert run_hook({"file_path": doc("docs/north_star.md"), "old_string": "x",
+                         "new_string": fine}).strip() == "", fine
 
 
 def test_write_compares_against_the_file_on_disk(tmp_path):

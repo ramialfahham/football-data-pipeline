@@ -87,7 +87,7 @@ the CTO.
 5. **Wording/labels**: any new or changed user-visible string, metric label
    or format — is the catalogue/i18n source quoted in the contract? New
    wording is CPO-class (§10).
-6. **Metric creep**: any metric ADDED to a display surface — quoted ruling,
+6. **Metric creep**: any metric ADDED to a display surface — named ruling,
    and what was removed or why the set still holds?
 
 ## Verdict rules (no free passes)
