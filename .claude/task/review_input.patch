@@ -1,80 +1,116 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 898bfe2d..a3b7b4ee 100644
+index a3b7b4ee..86424ff6 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,35 +1,31 @@
--# Task contract — answer keys re-worked from the provider's latest fetch
-+# Task contract — a real case for each cleaning rule left without one
+@@ -1,38 +1,55 @@
+-# Task contract — a real case for each cleaning rule left without one
++# Task contract — validate:ui takes Node from Playwright, not apt
  
  objective: >
--  The 6 Oct nightly failed four answer-key tests (39 rows): the second player-stats fetch replaced
--  the provider data the keys were worked from. Re-work each failing value by hand from the latest
--  fetch and update the four seeds. Step 1 of #203; the cases for rules left without one are step 2.
-+  The second player-stats fetch took the only answer-key case of three team rules and three player
-+  rules. Add, for each, a real match where the rule fires on the latest fetch, worked by hand from
-+  the provider's raw values. Step 2 of #203.
+-  The second player-stats fetch took the only answer-key case of three team rules and three player
+-  rules. Add, for each, a real match where the rule fires on the latest fetch, worked by hand from
+-  the provider's raw values. Step 2 of #203.
++  On the CI runner, apt in the validate:ui container rejects every Ubuntu mirror's signature, so
++  nodejs never installs and the job's JavaScript syntax check fails on every UI MR. The same mirror
++  index verifies from the dev machine, so the fault is on the box. The job already installs
++  Playwright 1.63.0, which bundles a Node binary; put that on PATH instead of installing nodejs.
  
  refs: >
-   #203.
+-  #203.
++  The red validate:ui on the merge request that strips the CPO's quotes from the non-core files.
  
  acceptance_criteria:
--  - The four answer-key tests pass on prod: every failing value re-worked by hand from the provider's latest fetch
-+  - Every cleaning rule keeps at least one real case in its answer key (the second fetch took the only case of three team rules and three player rules)
+-  - Every cleaning rule keeps at least one real case in its answer key (the second fetch took the only case of three team rules and three player rules)
++  - validate:ui passes on the CI runner without apt
  
  scope_paths:
--  - dbt_project/seeds/player_season_answer_key.csv
--  - dbt_project/seeds/team_season_answer_key.csv
-   - dbt_project/seeds/player_match_cleaning_answer_key.csv
-   - dbt_project/seeds/team_match_cleaning_answer_key.csv
+-  - dbt_project/seeds/player_match_cleaning_answer_key.csv
+-  - dbt_project/seeds/team_match_cleaning_answer_key.csv
++  - .gitlab-ci.yml
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
--  - docs/tracker/**
  
++protected_override: >
++  Approved by the CPO in chat, 2026-10-06: validate:ui drops its apt-get line and puts the Node
++  that Playwright already bundles on PATH, with the exact edit shown to him. Reading: the job's
++  header comment, which says where its Node comes from, is corrected with it, so the file states
++  the current setup.
++
++impact_map: >
++  writers: none; this is one before_script line of one CI job, validate:ui.
++  readers: the job's own steps. Only the `node --check` loop calls node; Playwright and the design
++  inventory run their own bundled driver either way (`grep -n "node" .gitlab-ci.yml` in the job).
++  Nothing else in .gitlab-ci.yml, the hooks or the tests names the apt line
++  (`git grep -n "apt-get install -y -qq nodejs"` returns only this line).
++  when it runs: merge-request and main pipelines that change a UI path, and web pipelines;
++  .gitlab-ci.yml is itself a UI path, so this MR's pipeline runs the job.
++  what changes: the Node that checks syntax, from the apt nodejs package to Playwright's bundled
++  Node (v24.21.0 on the dev machine; the same wheel version in CI). `node --check` only parses.
++  deploy_order: none; no warehouse, data job or deployment is touched.
++  blast_radius: validate:ui alone. If the path were wrong, `node` is not found and the job fails
++  exactly as it fails today; no other job, dataset or page is affected.
++
  decisions_taken: >
    Readings, under the delegation of 2026-10-02:
--  - The keys' own definition is "worked out by hand from the provider's raw match data", and base
--    keeps the newest fetch, so a key follows the latest fetch. Each value is worked from the raw
--    payloads (first and latest fetch compared), never from a model; every one equals the model.
--  - A player's rows that use a changed total (his minutes or passes) are updated even where the
--    value happens not to change (a zero numerator), so no working names a stale total.
--  - Where a cleaning case's rule no longer fires on the latest fetch, its rule column is blank and
--    its working says why; replacing the lost cases is step 2 of #203.
-+  - Each case is a match with one fetch, in the format that carries goals conceded, so a later
-+    fetch or the fix of #205 cannot move it. Each value is worked from the raw payload, never from
-+    a model, and equals the model.
-+  - Team opponent_shots_on_target_unverified fires on no match in prod, so it has no real case to
-+    add; the MR head says so.
-+  - Both keys go in one MR, as the four keys did in step 1.
+-  - Each case is a match with one fetch, in the format that carries goals conceded, so a later
+-    fetch or the fix of #205 cannot move it. Each value is worked from the raw payload, never from
+-    a model, and equals the model.
+-  - Team opponent_shots_on_target_unverified fires on no match in prod, so it has no real case to
+-    add; the MR head says so.
+-  - Both keys go in one MR, as the four keys did in step 1.
++  - The PATH export sits in before_script, which runs in the same shell as script, so the
++    syntax loop finds node without any other change.
  
-   Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
+-  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
++  Threshold declarations. NEW MECHANISM: none; the job keeps its steps and loses one network
++  dependency. RECURRING COST: none.
  
-@@ -37,6 +33,6 @@ decisions_reserved:
+ decisions_reserved:
    - None.
  
  done_when:
--  - The MR data build runs the four answer-key tests and they pass.
-+  - The MR data build runs both cleaning answer-key tests and they pass.
+-  - The MR data build runs both cleaning answer-key tests and they pass.
++  - validate:ui passes on this MR's pipeline on ci-runner-01.
    - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/dbt_project/seeds/player_match_cleaning_answer_key.csv b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-index 530f29bb..f538d11b 100644
---- a/dbt_project/seeds/player_match_cleaning_answer_key.csv
-+++ b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-@@ -36,3 +36,6 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1575175,167,279905,passes_accurate,27,,"The match's pass values sum below its passes (0.80), so they are counts: 27 stays."
- 1575175,167,163066,penalties_won,0,,"Nobody in the match has a penalties-won value; the match events (substitutions and cards delivered) show no penalty for his team, which proves 0."
- 1318812,116,360114,assists,0,limited_to_team_goals,"Lens 1-1 PSG, Coupe de France. The events credit him with Lens's only goal (the per-player count left his goals blank) and the provider gives him that goal's assist. He cannot assist his own goal: his assists are at most 1 team goal minus his 1, so the provider's 1 becomes 0."
-+1451034,169,25926,shots_on_target,2,raised_to_open_play_goals,"Eintracht Frankfurt 5-1 Galatasaray. The per-player count (3 goals) and the own goal credited to the team make 4, not 5; the events (four goals, every scorer with a row, and the own goal) make 5 and give him 2 goals, neither a penalty. 1 shot on target against 2 open-play goals, a gap of 1: raised to 2."
-+1451034,169,25926,shots,2,raised_to_shots_on_target,"Same player: 1 shot against his 2 shots on target, a gap of 1: raised to 2."
-+1180382,119,50077,saves,,opponent_shots_on_target_unverified,"Athletico Paranaense 1-0 Internacional. His 2 saves against the other team's 0 shots on target and no missed penalty, a ceiling of 0; that figure fails its own check (below the other team's 1 open-play goal), so it cannot cap the saves: blank."
-diff --git a/dbt_project/seeds/team_match_cleaning_answer_key.csv b/dbt_project/seeds/team_match_cleaning_answer_key.csv
-index 693964b9..d80d6524 100644
---- a/dbt_project/seeds/team_match_cleaning_answer_key.csv
-+++ b/dbt_project/seeds/team_match_cleaning_answer_key.csv
-@@ -34,3 +34,5 @@ fixture_id,team_id,stat,expected_value,rule,working
- 1223728,502,cards_yellow,,,"Same team: a yellow-card event and no line, and the events never give a card count: blank."
- 1223728,502,goals_penalty,0,,"Same team: three open-play goal events, its score: 0 penalties."
- 1223728,505,cards_yellow,0,,"Same match, the other team: no card event of its own in a match whose events were delivered: 0 yellow cards."
-+1311456,5277,shots_on_target,2,raised_to_open_play_goals,"Copa del Rey 2024, 2-1. Its goal events are two open-play goals, 2, its score; 1 shot on target against 2 open-play goals, a gap of 1: raised to 2."
-+1311456,5277,shots,2,raised_to_shots_on_target,"Same line: 1 shot against its 2 shots on target, a gap of 1: raised to 2."
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 4f38fc4e..45fdcccf 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -460,8 +460,8 @@ validate:secrets:
+ # Microsoft's Playwright image carries the browsers, so nothing is downloaded per job; the
+ # `playwright` package in `requirements-ui.txt` must match the image tag (pinned by
+ # `tests/test_design_inventory.py`). `PIP_BREAK_SYSTEM_PACKAGES`: noble's system Python refuses
+-# `pip install` without it. Node from apt (18 on noble) is only for `node --check`; jammy's 12
+-# cannot parse the `??` the match-preview page uses.
++# `pip install` without it. `node --check` runs the Node bundled with the pinned `playwright`
++# package, so the job installs nothing from apt.
+ validate:ui:
+   stage: build
+   image: mcr.microsoft.com/playwright/python:v1.63.0-noble
+@@ -477,7 +477,7 @@ validate:ui:
+   before_script:
+     - python -m pip install --upgrade pip
+     - pip install -r requirements-ui.txt
+-    - apt-get update -qq && apt-get install -y -qq nodejs
++    - export PATH="$(python -c 'import playwright, pathlib; print(pathlib.Path(playwright.__file__).parent / "driver")'):$PATH"
+   script:
+     - python -m json.tool site/i18n/en.json > /dev/null
+     - python -m json.tool site/i18n/de.json > /dev/null
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review_input.patch | 119 +++++++++++++++++++++-------------------
+#    1 file changed, 63 insertions(+), 56 deletions(-)
+# ============================================================================

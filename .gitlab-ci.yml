@@ -460,8 +460,8 @@ validate:secrets:
 # Microsoft's Playwright image carries the browsers, so nothing is downloaded per job; the
 # `playwright` package in `requirements-ui.txt` must match the image tag (pinned by
 # `tests/test_design_inventory.py`). `PIP_BREAK_SYSTEM_PACKAGES`: noble's system Python refuses
-# `pip install` without it. Node from apt (18 on noble) is only for `node --check`; jammy's 12
-# cannot parse the `??` the match-preview page uses.
+# `pip install` without it. `node --check` runs the Node bundled with the pinned `playwright`
+# package, so the job installs nothing from apt.
 validate:ui:
   stage: build
   image: mcr.microsoft.com/playwright/python:v1.63.0-noble
@@ -477,7 +477,7 @@ validate:ui:
   before_script:
     - python -m pip install --upgrade pip
     - pip install -r requirements-ui.txt
-    - apt-get update -qq && apt-get install -y -qq nodejs
+    - export PATH="$(python -c 'import playwright, pathlib; print(pathlib.Path(playwright.__file__).parent / "driver")'):$PATH"
   script:
     - python -m json.tool site/i18n/en.json > /dev/null
     - python -m json.tool site/i18n/de.json > /dev/null
