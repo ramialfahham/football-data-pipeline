@@ -1,44 +1,42 @@
 # Site architecture — Matchday Pilot (programmatic content site)
 
-> The contract for epic #361. Every v2 workstream — templates (#368), export (#365),
-> SEO (#369), i18n (#370), design (#366), go-live (#377) — builds against this
-> document. Change it only with CPO sign-off; downstream issues inherit changes.
+> This document defines the v2 site's URLs, locales, slugs, navigation rule, template data contract
+> and SEO surface. Every v2 page builds against it.
 >
-> **Content model:** the reusable blocks → tabs → navigation structure these templates render is
-> specified in [`content_architecture.md`](content_architecture.md) — blocks (= marts), tab
-> compositions, the navigation graph, the flagship reads, and the new marts to build.
+> [`content_architecture.md`](content_architecture.md) defines the blocks, tab compositions and
+> navigation graph that the templates render. An edit to this document follows
+> `working_agreement.md` §10.
 
 ## 1. What v2 is
 
-A professional, responsive, multilingual football-analytics website for fans
-(kicker / whoscored / fbref / onefootball class), built as a **programmatic content
-platform**: a small set of page templates rendered from the dbt marts into tens of
-thousands of SEO-relevant pages. No hand-authored content — new fixtures, teams and
-players flow through the pipeline and new pages appear automatically.
+Matchday Pilot (v2) is a responsive, multilingual football-analytics website for fans. It is a
+programmatic content site: a small set of page templates renders the dbt marts into one page per
+entity. Nobody writes page content by hand. New fixtures, teams and players flow through the
+pipeline, and the next build adds their pages.
 
 ```
-dbt marts → per-entity export (Python) → data/{entity}/{id}.json
-  → Astro build (one template × N entities) → static pages + sitemaps + structured data
-  → Firebase Hosting (CDN) → indexed, multilingual
+dbt marts → scripts/export_site_data.py → site_v2/src/data/{entity}/{id}.json
+  → Astro build (one template × N entities) → static pages + sitemap + structured data
+  → Firebase Hosting (CDN)
 ```
 
 ## 2. Hard constraints (locked)
 
-| Constraint | Source |
+| Constraint | Rule |
 |---|---|
-| **The Matchday IQ MVP (`site/`) is RETIRED — offline, Pages deleted, frozen.** v2 (Matchday Pilot) lives in `site_v2/` and is the only surface being built. There is **no parity requirement, no cutover and no restore**; #377 is now the go-live of v2 itself, not a switch away from the MVP. Legal pages become a v2 build requirement (#799). | CPO, 2026-07-21, superseding CPO 2026-06-10 |
-| **Tech stack: Astro**, static output only, deployed to Firebase Hosting (vendor chosen by CPO 2026-07-24, superseding the original GitHub Pages plan). Interactivity via islands (charts, search) — no SSR, no backend. | Epic #361 |
-| **Competition IA**: the competitions index page (`/{locale}/competitions/`, built 2026-08-18) groups by `competition_type` from `mart_competition_index`; country hubs remain unbuilt. Zero-file rule holds. ⚠ The original "hybrid" pairing of a group axis AND a country axis on the home page was **dropped 2026-08-19** with the browse block. | Epic #361; CPO 2026-08-19 |
-| **Metric governance: catalogue-only.** Pages render `metric_catalogue` metrics by their catalogue formula; labels come from catalogue i18n keys. New metrics require a CPO-approved catalogue extension first. | #327 / governance memory |
-| **Data honesty**: nulls render as "-", never fabricated zeros; no unmodelled KPIs, no fabricated probabilities. Pages with insufficient data are not generated (no thin pages). | north_star.md |
-| `league_code` is the partition key everywhere; no competition hardcoded in templates or export logic. | CLAUDE.md |
+| Surface | `site_v2/` (Matchday Pilot) is the only site. The retired MVP in `site/` is offline and frozen. v2 needs no parity with it, no cutover and no restore. Legal pages are a v2 build requirement. |
+| Tech stack | **Astro**, static output only, deployed to Firebase Hosting. Interactivity uses islands (charts, search). There is no server-side rendering and no backend. |
+| Competition IA | The competitions index page (`/{locale}/competitions/`) groups competitions by `competition_type`, from `mart_competition_index`. Country hubs are not built. Adding a competition adds no template or model file (CLAUDE.md, "No-new-model rule"). |
+| Metric governance | **Catalogue-only.** Pages render `metric_catalogue` metrics by their catalogue formula. Labels come from the catalogue's i18n keys. A new metric needs a catalogue extension first (`working_agreement.md` §10). |
+| Data honesty | Nulls render as `–`, never as fabricated zeros. No unmodelled KPIs and no fabricated probabilities. Pages with insufficient data are not generated (no thin pages). |
+| Competition discriminator | `league_code` discriminates the competition everywhere. No template or export logic hardcodes a competition. |
 
 ## 3. URL scheme
 
-All pages live under a locale prefix. Trailing slashes; lowercase kebab-case.
+All pages live under a locale prefix. Addresses use trailing slashes and lowercase kebab-case.
 
-An address has three kinds of segment: the **locale**, **words** that say what kind of page it is,
-and **names** that say which competition, season, club, player or match. Words are in the reader's
+An address has three kinds of segment. The **locale** comes first. **Words** say what kind of page
+it is. **Names** say which competition, season, club, player or match. Words are in the reader's
 language and come from the word table below; names keep one spelling in every language (§ Slugs).
 The scheme is written here with the English words.
 
@@ -48,28 +46,31 @@ The scheme is written here with the English words.
 /{locale}/football/{country-slug}/                           country hub (e.g. /football/germany/)
 /{locale}/{competition-slug}/                                competition page, Overview tab (latest season)
 /{locale}/{competition-slug}/{season-slug}/                  competition season archive
-/{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition (#129)
+/{locale}/{competition-slug}/matches/                        competition page, Matchdays tab (every round, results and fixtures; "Rounds" for a cup), the same word for every kind of competition
 /{locale}/{competition-slug}/matches/{date}-{home}-vs-{away}/   fixture page (preview → report), under its competition's Matchdays tab
 /{locale}/{competition-slug}/stats/                          competition page, Rankings tab (the top five of every team and player board under the catalogue's groups); the tab's on-screen name stays Rankings
 /{locale}/teams/{team-slug}/                                 team profile, a club or a national team
 /{locale}/players/{player-slug}/                             player profile
-/{locale}/matches/                                           Matches menu page: the day it opens on (the build day, else the next day with a match), every competition playing it (#130)
-/{locale}/matches/{yyyy-mm-dd}/                              every other day in reach, from each competition's last matchday to the end of its next (#131)
+/{locale}/matches/                                           Matches menu page: the day it opens on (the build day, else the next day with a match), every competition playing it
+/{locale}/matches/{yyyy-mm-dd}/                              every other day in reach, from each competition's last matchday to the end of its next
 ```
+
+Every address in the block above has a built page, except the country hub and the season archive.
+The player page is a stub.
 
 Planned, not designed yet; each address is provisional until its page's review (§ Address words):
 
 ```
-/{locale}/teams/                                             Teams menu page (#133)
-/{locale}/players/                                           Players menu page (#135)
-/{locale}/standings/                                         Standings menu page (#137)
-/{locale}/stats/                                             Statistics menu page (#139)
+/{locale}/teams/                                             Teams menu page
+/{locale}/players/                                           Players menu page
+/{locale}/standings/                                         Standings menu page
+/{locale}/stats/                                             Statistics menu page
 /{locale}/stats/{metric-slug}/                               one statistic across competitions; whether it also holds the metric's definition, in place of a separate glossary, is the Statistics review's
-/{locale}/{competition-slug}/stats/{metric-slug}/            one statistic's full list in one competition (#140)
+/{locale}/{competition-slug}/stats/{metric-slug}/            one statistic's full list in one competition
 /{locale}/h2h/{teamA}-vs-{teamB}/                            head-to-head
 ```
 
-Reserved (structural only, render nothing until built — #376):
+Reserved: structural only, renders nothing until built.
 
 ```
 /{locale}/{competition-slug}/matches/{...}/prediction        prediction slot
@@ -77,42 +78,34 @@ Reserved (structural only, render nothing until built — #376):
 
 ### Address words: in the reader's language
 
-The CPO decided on 2026-09-23 that the words of an address follow the reader's language, asked
-with the cost of each side: about two days of build work now and every word named once per
-language. Nothing is public yet, which made it the cheapest moment to decide. The words below come
-from an independent search assessment he accepted the same day: Google's own guidance (words in
-the audience's language), the addresses of German, Finnish and English football sites, and what
-fans type into Google in each market. Google weighs address words very lightly; a page's title,
-headings and content decide far more, so the words are chosen to be clear and stable, and each
-page's title is where its search phrase must appear.
-
-The site reads the words from `site_v2/src/i18n/address_words.json`, the one list rule 4 names; it
-holds the words of the pages built today, and a page adds its word there when it is built.
+The site reads the words from `site_v2/src/i18n/address_words.json`, the one list rule 4 names. It
+holds the words of the pages built today. A page adds its word there when the page is built.
+Search engines weigh address words lightly. Each word is clear and stable; each page's title
+carries its search phrase.
 
 1. **Words are in the reader's language; names are not.** Competition, season, club, player and
    match names keep one spelling in every language (§ Slugs).
-2. **A word is the menu word in that language, lower case**, and one word serves a list and the
-   pages it lists: `/de/mannschaften/` lists the teams, `/de/mannschaften/bayern-munchen/` is one
-   of them. English uses `stats`, which fans type far more than "statistics". A competition's tab
-   takes the word of what it lists, so the Matchdays tab is `/de/bundesliga/spiele/` and each match
-   sits under it. A tab or menu item may be named on screen differently from its address word: the
-   Rankings tab lives at `stats`.
-3. **Words avoid umlauts.** Names fold them to the base letter (§ Spelling: `ä` → `a`, `ü` → `u`,
-   `ß` → `ss`), which is fine for a name and reads as a misspelling in a word; none of the words
-   below has one.
-4. **One list holds every word in every language**, and every link and the language switch read
-   from it; nothing else spells a word. The language switch translates each word through the list,
-   so it can never assume two languages share a path after the prefix.
-5. **A word never equals a competition's name** (its registry `slug`), in any language: both sit
-   directly after the locale, so a clash makes two pages claim one address. The switch adds the
-   check that fails the build on one. None clashes today: every word below was checked against
-   all 48 registry slugs.
-6. **Once a page is public, its words never change**, the same promise names carry (#852). A new
-   language ships only with every word in the table named.
+2. **A word is the menu word in that language, lower case**. One word serves a list and the pages
+   it lists: `/de/mannschaften/` lists the teams, `/de/mannschaften/bayern-munchen/` is one of
+   them. English uses `stats`, not `statistics`. A competition's tab takes the word of what it
+   lists. So the Matchdays tab is `/de/bundesliga/spiele/`, and each match sits under it. A tab or
+   menu item may have an on-screen name that differs from its address word. The Rankings tab lives
+   at `stats`.
+3. **Words avoid umlauts**. Names fold them to the base letter (§ Spelling: `ä` → `a`, `ü` → `u`,
+   `ß` → `ss`). A folded letter is fine in a name and reads as a misspelling in a word. No word in
+   the table has an umlaut.
+4. **One list holds every word in every language.** Every link and the language switch read from
+   it. Nothing else spells a word. The language switch translates each word through the list. It
+   never assumes that two languages share a path after the prefix.
+5. **A word never equals a competition's name** (its registry `slug`), in any language. Both sit
+   directly after the locale, so a clash makes two pages claim one address. The site build and
+   `tests/test_address_words.py` fail on a clash.
+6. **Once a page is public, its words never change.** Names carry the same promise (§ Slug
+   stability). A new language ships only with every word in the table named.
 7. **A date in an address is `yyyy-mm-dd`** in every language.
 8. **A page not designed yet has a provisional word**, the one this rule gives it. Its own review
-   confirms it, changes it, or drops it if the page is not built. A tab a future design adds is
-   named at that review by the same rule, as an address under its page
+   confirms it, changes it, or removes it if the page is not built. A tab that a future design adds
+   is named at that review by the same rule. Its address sits under its page
    (`/de/mannschaften/bayern-munchen/kader/`), so adding a tab never moves its page.
 
 | Word | `en` | `de` | `fi` | Settled: pages built today | Provisional: pages not designed yet |
@@ -125,98 +118,86 @@ holds the words of the pages built today, and a page adds its word there when it
 | standings | `standings` | `tabelle` | `sarjataulukko` | | the Standings menu page |
 | h2h | `h2h` | `h2h` | `h2h` | | head-to-head |
 
-The name of each statistic in an address (`/de/bundesliga/statistiken/tore/`) is a word too, named
-at the Statistics review by the same rule.
+The name of each statistic in an address (`/de/bundesliga/statistiken/tore/`) is a word too. The
+Statistics review names it by the same rule.
 
-So `/de/bundesliga/spiele/`, `/de/bundesliga/statistiken/`, `/fi/joukkueet/hjk/` and
-`/de/bundesliga/spiele/2026-09-26-bayern-munchen-vs-borussia-dortmund/`. A word the scheme shows
-and this table does not (`football`, `prediction`) is named with its page's own design, before
+Examples: `/de/bundesliga/spiele/`, `/de/bundesliga/statistiken/`, `/fi/joukkueet/hjk/` and
+`/de/bundesliga/spiele/{yyyy-mm-dd}-bayern-munchen-vs-borussia-dortmund/`. A word that the scheme
+shows and the table does not (`football`, `prediction`) is named with its page's own design, before
 that page is built.
 
-⚠ **Open, not decided here:** a match's address carries its kick-off date, which moves when a league
-fixes its schedule, and is the UTC date rather than the local one. Whether the address keeps the
-date (fixed once, the old one forwarded, #852) or drops it is a separate decision for the CPO.
+A match address carries the UTC date of the kick-off. That date moves when a league fixes its
+schedule. Whether the address keeps the date is an open question.
 
 ### Locale routing
-- **Every locale is prefixed** (`/de/…`, `/en/…`, …) — no unprefixed default. This keeps
-  hreflang symmetric and lets every locale rank in its market.
-- Root `/` performs a client-side browser-language redirect with **`en` as fallback**
-  (global ambition; overridable by CPO) and renders a language chooser for no-JS/bots.
-- Locale set (phased, #370): `de en fi` live → `es fr it nl pt` → `ar` (RTL, needs
-  design-system support first).
-- **`hreflang="x-default"` points at the `en` URL, NOT at `/`** (#844). This paragraph did not say
-  which, and the answer was about to be settled implicitly by a checker — recorded here instead,
-  because a machine-enforced rule that exists only in code is not a documented decision.
-  Reasoning: `/` is a CLIENT-SIDE language redirect, and a crawler resolving `x-default` cannot run
-  it, so pointing there hands the fallback to a page that renders nothing for the audience
-  `x-default` exists to serve. The `en` URL is a real page. `/` keeps the job this paragraph gives
-  it (a human arriving with no locale match); it simply is not the hreflang fallback.
-  If the CPO overrides the `en` fallback above, `x-default` follows it — the two are one decision.
+
+- **Every locale is prefixed** (`/de/…`, `/en/…`, …). No locale is unprefixed.
+- Root `/` runs a client-side redirect to the browser's language, with **`en` as fallback**. It
+  renders a language chooser for clients without JavaScript and for crawlers.
+- Live locales: `de`, `en`, `fi`. Next: `es`, `fr`, `it`, `nl`, `pt`. Then `ar`, which is
+  right-to-left and needs design-system support first.
+- **`hreflang="x-default"` points at the `en` URL, not at `/`.** `/` is a client-side redirect,
+  and a crawler cannot run it. `x-default` follows the fallback locale.
 
 ### Slugs (locale-independent)
-- **Competition**: `slug` field in the registry (#364), e.g. `bundesliga`,
-  `premier-league`, `world-cup`. Never derived from display names at build time.
-- **Season**: from `season_api_year` + registry `season_type`: split-year → `2025-26`,
-  calendar-year → `2026`.
-- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id**. Derived in
-  `base_apif__teams_global` from the CORRECTED name (#850) and published on `dim_team`,
-  because assigning an identifier is derivation and the export is the consumption layer
-  (#846). Collisions resolve by a **symmetric, closed ladder**: an uncontested name takes
-  its own slug; a contested one is given to *nobody* and every contender takes
-  `{name}-{country}`; if that is still not free anywhere, or the country is missing, or
-  the name folds to nothing, the provider id is appended. That last branch is the **only**
-  place an id appears in any URL, and today it fires for exactly two rows — one club the
-  provider stores twice (#850's open alias decision).
-- **Player**: `{kebab-name}-{player_api_id}`, e.g. `jamal-musiala-1090`. Still carries the
-  id: 18.5% of provider player names collide (1.6% on the full name), so the team scheme
-  does not transfer unchanged. Moving player slugs to the warehouse is its own work.
-- **Fixture**: `{yyyy-mm-dd}-{home-team-slug-name}-vs-{away-team-slug-name}` under the
-  competition's `/matches/`; the export carries `fixture_api_id` for the data join. Built in
-  the export from team NAMES, so it does not yet share the team slug's transliteration —
-  tracked with the player move.
-- **H2H pair**: lower `team_api_id` first → one canonical URL per pair; the reversed
-  order is generated as a redirect/canonical alias.
+
+- **Competition**: the registry's `slug` field, e.g. `bundesliga`, `premier-league`, `world-cup`.
+  The build never derives it from a display name.
+- **Season**: from `season_api_year` and the registry's `season_type`. A split-year season is
+  `2025-26`; a calendar-year season is `2026`.
+- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`, with **no provider id**.
+  `base_apif__teams_global` derives it from the corrected team name, and `dim_team` publishes it as
+  `team_slug`. Collisions resolve by a **symmetric, closed ladder**:
+
+  1. An uncontested name takes its own slug.
+  2. A contested name goes to nobody. Every contender takes `{name}-{country}`, with the
+     provider's country.
+  3. Otherwise the slug ends in the provider id. This happens when that slug is taken, the country
+     is missing, or the name folds to nothing.
+
+  Step 3 is the only place a provider id appears in any URL.
+- **Player**: `{kebab-name}-{player_api_id}`, e.g. `jamal-musiala-1090`. The export builds it
+  (`player_slug_with_id`). It keeps the id because player names collide too often for the team
+  scheme.
+- **Fixture**: `{yyyy-mm-dd}-{home-team-slug}-vs-{away-team-slug}`, under the competition's
+  `/matches/`. `mart_competition_fixtures` builds it as `fixture_slug` from the two published team
+  slugs. The fixture payload carries `fixture_id` for the data join.
+- **H2H pair**: lower `team_api_id` first, so each pair has one canonical URL. The reversed order
+  is a redirect or canonical alias.
 - **Metric**: `metric_id` from `metric_catalogue`, kebab-cased.
 
 #### Spelling: fold to the base letter, expand only where there is none
-CPO ruling on escalation E3, 2026-07-27. A character that decomposes to a base letter takes
-that letter; a character with no base letter takes its conventional digraph:
+
+A character that decomposes to a base letter takes that letter. A character with no base letter
+takes its conventional digraph.
 
 | | |
 |---|---|
 | `Bayern München` → `bayern-munchen` | `ü` HAS a base letter |
 | `Rot-Weiß Essen` → `rot-weiss-essen` | `ß` has NONE |
 
-Those are **one rule, not an inconsistency** — the same rule `unidecode` and `iconv
-//TRANSLIT` implement, and what Transfermarkt ships. Do not "fix" the apparent mismatch by
-expanding umlauts to `ue`/`oe`/`ae`: it would change 17 German clubs' URLs for nothing.
-The map lives in `macros/team_name_normalization.sql`; `assert_team_name_slug_alphabet`
-fails the build on a letter it does not cover. Add targets from an external source of
-record, never from the glyph's shape — two were wrong that way on the first attempt.
+The two rows follow **one rule**. Umlauts never expand to `ue`, `oe` or `ae`.
+`translit_latin` in `dbt_project/macros/team_name_normalization.sql` holds the map.
+`assert_team_name_slug_alphabet` fails the build on a team-name letter that the map does not cover.
+A new target comes from an external source of record, never from the shape of the glyph.
 
-#### ⚠ Slugs are NOT yet stable across renames
-The slug is **derived on every build**, so a rename or a newly ingested same-named team can
-change a URL. Nothing is published yet — no public site, every page `noindex` — so no link
-equity is at risk today, and the CPO deliberately deferred persistence rather than making
-the warehouse non-reproducible before launch.
+The rule applies to team slugs, and so to fixture slugs. Player slugs drop a character that has no
+base letter.
 
-**Before this site goes public, #852 must land**: the slug assigned once and stored, plus the
-alias/301 mechanism, so the promise below holds. Until then, treat it as an intent:
+#### Slug stability
 
-- Slug map (entity → slug → id) is produced by the export (#365) and is the single
-  source for routing and internal links. **Target state (#852, not yet true):** slugs never
-  change once published; a rename produces a new alias, not a new canonical.
+Every build derives the slugs again. A rename, or a new team with the same name, can change a URL.
+No slug is stored, and no alias or redirect exists.
+
+Before the site goes public, each slug must be assigned once and stored. Once published, a slug
+never changes. A rename gets a new alias, not a new canonical; the alias redirects (301) to the canonical.
+
+The export writes `slug_map.json`: each slug with its entity type and id. No page reads it. Each
+page takes its slugs from the payloads it reads.
 
 ### Navigation — what is clickable, and where it goes
 
-> ⚠ **PROVISIONAL.** A working standard, not a locked constraint —
-> §2 is where locked things live. What IS confirmed is the **header + row** rule, applied to the
-> Next matches block.
-
-§6 asks for an internal-linking graph but never said which ELEMENT carries a link. The result was
-nine clickable element types across four surfaces with six different hover treatments, and the
-affordance pointing at the wrong thing — the whole match row was the link while hover underlined
-a *club name*, of which a row has two.
+Status: provisional. The **header + row** rule is confirmed, and the Next matches block applies it.
 
 **Three families of clickable thing. Only two navigate.**
 
@@ -241,95 +222,77 @@ The four content-link shapes:
 Applied: a match row → the match. A Top players row → the player. A Top teams row → the team. A
 standings row → the team. A squad row → the player.
 
-Three consequences, written down because they are costs, not free wins:
+The rule has three consequences:
 
-- **A match row cannot also reach its two clubs.** You reach them from the match page, where the
-  teams are headings. One extra click — but the path is visible at rest rather than hidden in a
-  hover state.
-- **Controls must never look like links**, or a reader cannot learn which one leaves the page.
-  Tabs use underline + colour; heading links use a chevron. Keep that separation deliberate.
-- **Clickability is visible at rest; hover only confirms it.** An affordance that exists only on
-  hover does not exist on a phone, which is most readers.
+- **A match row cannot also reach its two clubs.** The reader reaches them from the match page,
+  where the teams are headings. That costs one extra click, and the path is visible at rest.
+- **Controls never look like links**, or a reader cannot learn which one leaves the page. Tabs use
+  underline and colour; heading links use a chevron.
+- **Clickability is visible at rest; hover only confirms it.** A hover-only affordance does not
+  exist on a phone.
 
-Two rules this restates rather than invents, both already in the interaction standard (#52):
-**never nest a link inside a link** (browsers do not parse it reliably and the reader cannot tell
-what they hit), and **one element, one destination**.
+The interaction standard (`design-mocks/interaction.py`) also holds two rules: **never nest a link
+inside a link**, and **one element, one destination**.
 
-⚠ Colour: rest, hover and active all move along the neutral ramp (`--muted` → `--ink-2` → `--ink`,
-`--page` → `--surface` → `--sunk`), because `--accent` is reserved for "better value" and `--loss`
-for a Loss pill by `system.css`'s colour contract. **The keyboard focus ring is the one exception**
-and is already `--accent` sitewide (`system.css` `.fx a:focus-visible`) — a focus ring is an
-accessibility signal, not a meaning signal, and it must stay distinguishable from every hover
-state. Do not "fix" it to the neutral ramp.
+Colour: rest, hover and active stay on the neutral ramp, e.g. `--muted` → `--ink-2` → `--ink` for
+text. `system.css` reserves `--accent` for "better value" and `--loss` for a Loss pill. **The
+keyboard focus ring is the one exception.** It uses `--accent` sitewide (`.fx a:focus-visible` in
+`system.css`). A focus ring is an accessibility signal, not a meaning signal. It stays distinct
+from every hover state, so it never moves to the neutral ramp.
 
 ## 4. Competition IA
 
-⚠ **This section described TWO axes reached from the home page's browse block. That block was
-dropped 2026-08-19, so neither axis has a page today.** `display_group` survives only as an input
-to `build_nav()`/`nav.json` (an export target with no frontend consumer — see §3's note and the
-seed's own column doc); country hubs were never built. The live route to a competition is the
-competitions index page, which groups by the finer `competition_type` instead — see the note
-below and `docs/wireframes/08_browse.md`. Both axes are kept documented because the registry
-fields still exist and country hubs are still intended.
+The competitions index page (`/{locale}/competitions/`) is the route to a competition. It groups
+competitions by `competition_type`. `docs/wireframes/08_browse.md` owns its grouping and order.
 
-The two registry-driven axes, as designed (#364 adds the fields):
+The home page is fixtures-first and has no browse block. `docs/wireframes/10_home.md` §0 owns its
+composition. The nav exposes `Competitions · Matches · Teams · Players · Standings · Statistics`.
 
-- **Competition groups** (`display_group`, defaultable from `competition_type`):
-  `leagues` (domestic_league) · `cups` (domestic_cup, domestic_super_cup) ·
-  `continental-club` (continental_cup, continental_super_cup, club_qualifying, club_world_cup,
-  intercontinental_super_cup) ·
-  `national-teams` (world_championship, continental_championship, qualifying).
-- **Country hubs** (`country` field): `/football/germany/` lists BL1, BL2, DFB-Pokal …
-  ordered by `tier` + `sort_order`. International competitions appear under their
-  confederation grouping on `/competitions/`, not under a country.
-  ⚠ `/competitions/` itself (#62 step 5, GitLab #54, built 2026-08-18) groups by the FINER
-  `competition_type` (8 categories) rather than the `display_group` rollup above, and by
-  `region_rank`/kickoff proximity rather than `tier`/`sort_order` (both retired for that page,
-  `escalations.log` 2026-08-16). `display_group` and `sort_order` still exist and still feed
-  `build_nav()`/`nav.json`, but NOT the home page any more: the home page's browse block was
-  DROPPED, so this section no longer describes it —
-  see `docs/wireframes/08_browse.md` for the still-live competitions-index page's actual
-  grouping/ordering rule instead. Country hubs themselves remain unbuilt.
+Two more axes feed `build_nav()` in `scripts/export_site_data.py`, which writes `nav.json`. No page
+reads `nav.json`, and neither axis has a page.
 
-⚠ **The landing page (#367) no longer surfaces this hybrid-browse axis** (dropped 2026-08-19,
-same ruling as above) — the sentence below is the ORIGINAL 2026-06-10 composition and is kept for
-history, not as a current description; item (2) is gone, and (3)/(4) were already separately
-superseded before today (`docs/wireframes/10_home.md` §0). The nav exposes
-`Competitions · Matches · Teams · Players · Standings · Statistics`.
+**Competition groups.** `display_group` in `dbt_project/seeds/competition_types.csv` maps each
+`competition_type` to a group. The groups, in order:
 
-**Home composition (agreed hybrid, CPO 2026-06-10).** The MVP's competition-card
-landing is obsolete for the website. The home is fixtures-first with stats/storylines
-below: (1) **fixtures hero** — upcoming matches across competitions, the product's core
-feature elevated (⚠ needs a cross-competition fixtures feed; the per-competition list +
-fixture page exist); (2) ~~**hybrid browse** (groups + country hubs, registry-driven)~~ —
-DROPPED 2026-08-19, see the warning above; (3) **storylines/trending** from `mart_team_profile`
-(⚠ needs the data-to-text narrative generator); (4) **stats** — leaderboard teasers + mini
-standings. Full module spec + data status: `docs/ui_design_brief.md` §6.3.
+| Group | Competition types |
+|---|---|
+| `leagues` | `domestic_league` |
+| `cups` | `domestic_cup`, `domestic_super_cup` |
+| `continental-club` | `continental_cup`, `continental_super_cup`, `club_qualifying`, `club_world_cup`, `intercontinental_super_cup` |
+| `national-teams` | `world_championship`, `continental_championship`, `qualifying` |
+
+**Country hubs.** Each domestic competition belongs to the hub of its registry `country`.
+`/football/germany/` lists BL1, BL2, DFB-Pokal …, ordered by `tier`, then `sort_order`.
+International competitions belong to no country hub.
 
 ## 5. Templates → data contract
 
-One template per entity type; each consumes exactly the export files listed.
-Adding a competition/team/player adds pages with **zero template changes**.
+One template per entity type; each consumes exactly the export files listed. Adding a competition,
+team or player adds pages with **zero template changes**. `scripts/export_site_data.py` writes
+every file. The `fetch_*` function for a file holds its live list of marts.
 
-| Template | Export file(s) (`data/…`) | Upstream marts |
+| Template | Export file(s) | Upstream marts |
 |---|---|---|
-| Landing | `landing.json` | `mart_next_matchday` (every competition's next round, read whole) + `core.dim_team` (the next-matchday hero), plus `mart_competition_index` for `region_rank` — read `fetch_landing_payload` in `scripts/export_site_data.py` for the live list, which is the authority. ⚠ NOT `mart_team_profile`: the trending block it fed was cut 2026-08-08, as the browse block was dropped 2026-08-19. Top players / Top teams will add marts here when built |
-| Competitions index / country hub | `competition_index.json` (#62 step 4) | `mart_competition_index` |
-| Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank) — read `fetch_match_day_payloads` |
-| Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | `mart_competition_index` (header), `mart_standings` (the table, with `table_kind`), `mart_team_profile` (the deserved points table), `mart_competition_season_summary` (the season in numbers), `mart_competition_fixtures` (the Matchdays tab, the header's round and the match-that-matters flag), `mart_team_leaderboards` and `mart_leaderboards` (the Rankings tab's boards, the top five per board) — read `fetch_competition_payloads` for the live list |
-| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H); drill-down (follow-up): `mart_player_momentum`, `mart_team_momentum_window`, `mart_team_fixture_stats`/`mart_player_fixture_stats`. **NOT** `mart_matchday_insights` — that is the MVP's presentation pivot of the same momentum mart; v2 reads the source marts directly to avoid coupling + duplication. |
-| Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_season`, `mart_standings`, fixtures list |
-| Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_match_log` |
-| Standings | within competition JSON | `mart_standings` (league + group tables, incl. WC group letters) |
-| Leaderboards | `leaderboards/{league_code}/{metric_id}.json` | `mart_leaderboards`, player catalogue metrics |
-| Head-to-head | `h2h/{pair_key}.json` | `mart_head_to_head` (**#375 — the one missing mart**) |
+| Landing | `landing.json` | The next-matchday hero: `mart_next_matchday` (every competition's next round, read whole), `mart_competition_fixtures` and `core.dim_team`. Names and `region_rank`: `mart_competition_index`. Top players: `mart_leaderboards`. Top teams: `mart_team_leaderboards`. Read `fetch_landing_payload` for the live list. |
+| Competitions index / country hub | `competition_index.json` | `mart_competition_index` |
+| Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank). Read `fetch_match_day_payloads`. |
+| Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
+| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_momentum` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. The played-match drill-down has no page; its export is `matchstats/{fixture_api_id}.json`, from `mart_team_fixture_stats` and `mart_player_fixture_stats`. |
+| Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
+| Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_match_log`, `mart_player_competition_benchmarks`, `mart_player_career`. Read `fetch_player_payloads`. The page is a stub and does not read `players/`. It takes its players from `landing.json` and the competition files. |
+| Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
+| Leaderboards | `leaderboards/{league_code}/{season}.json` | `mart_leaderboards`, player catalogue metrics |
+| Head-to-head | `h2h/{pair_key}.json` (not exported) | `mart_head_to_head` |
 | Metric glossary | `metrics.json` | `metric_catalogue` seed (descriptions, formulas, labels) |
 
-Export data is **locale-independent**; all display strings resolve at build time from
-the locale files + catalogue i18n keys. Numbers/dates format with the locale's
-`Intl` conventions (port `fmtNum`/`fmtPct`/`"-"`-for-null behavior from `site/i18n.js`).
+`competitions.json` maps each `league_code` to its competition name and slug. The fixture and team
+pages read it.
 
-## 6. SEO surface (built by #369)
+Export data is **locale-independent**. Display strings resolve at build time from the locale files
+and the catalogue's i18n keys. `site_v2/src/lib/format.ts` formats numbers and dates with each
+locale's `Intl` conventions and renders a null as `–`.
+
+## 6. SEO surface
 
 | Page | schema.org type | Notes |
 |---|---|---|
@@ -338,48 +301,36 @@ the locale files + catalogue i18n keys. Numbers/dates format with the locale's
 | Player | `Person` (athlete) | photo, nationality |
 | All | `BreadcrumbList` | mirrors the URL hierarchy |
 
-- Templated `<title>` / meta description / canonical per entity per locale.
-- `hreflang` across all locales + `x-default`; per-locale `sitemap.xml` under a sitemap
-  index; `robots.txt`.
-- OpenGraph/Twitter cards on every page (shareability is a north-star pillar).
-- **Data-to-text narratives**: short, metric-backed sentences generated at build time
-  per page (anti-thin-content). Honest only — generated from real mart values, skipped
-  when data is insufficient. Generator lives in the export layer.
-- Internal-linking graph: fixture ↔ teams ↔ players ↔ competition ↔ h2h on every page.
+Each page's spec (`site_v2/src/specs/**/*.spec.json`, field `seo.schema_org`) names its type.
+
+- Templated `<title>`, meta description and canonical per entity per locale.
+- `hreflang` across all locales plus `x-default`; a sitemap index (`sitemap-index.xml`);
+  `robots.txt`.
+- OpenGraph and Twitter cards on every page.
+- **Data-to-text narratives**: short, metric-backed sentences generated at build time per page
+  (anti-thin-content). They come only from real mart values and are skipped when data is
+  insufficient. The generator belongs in the export layer; none exists yet.
+- Internal links follow the navigation graph in [`content_architecture.md`](content_architecture.md)
+  §5.
 
 ## 7. Repository & build layout
 
 ```
-site_v2/                    Astro project (#362) — isolated from site/
-  src/pages/[locale]/…      file-based + programmatic routes per §3
-  src/components/           design-system components (#366)
-  src/i18n/                 locale chrome strings (#370)
-scripts/export_site_data.py per-entity export (#365) — the ONLY live export
-                            export_pages_data.py (legacy) is DEAD, kept for reference
-data/ (build artifact)      per-entity JSON, slug map, export manifest — not committed
-.github/workflows/          v2 build/deploy workflow, path-filtered to site_v2/**;
-                            pages-match-preview.yml is DISABLED (`disabled_manually`)
+site_v2/                      Astro project
+  src/pages/[lang]/…          routes per §3
+  src/components/             design-system components
+  src/i18n/                   chrome strings (strings.ts) and address words (address_words.json)
+  src/data/                   the export's JSON, read at build time (see its README.md)
+scripts/export_site_data.py   per-entity export; the only export the v2 site reads
+.gitlab-ci.yml                build:site-v2, deploy:export, deploy:site-v2
 ```
 
-- v2 deploys to **Firebase Hosting** (`.web.app`, unlisted, `noindex`). **There is no live MVP for it
-  to serve behind** — `site/` went offline 2026-07-21 and its Pages deployment was deleted, so v2 has
-  its own go-live on `matchdaypilot.com`. **No parity check, no switch, and no redirects from old
-  URLs** (the old URLs are gone and were never indexed under the new domain). The road to that
-  go-live is the GitLab milestones, in the site's menu order, one review issue per page:
-  https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones — go-live items follow the
-  last page there, not a sequence written here.
-- Monetization hooks: templates keep a named slot (header/in-content) rendering nothing —
-  placeholders only, no implementation.
-
-## 8. Decisions log
-
-| Decision | Status |
-|---|---|
-| Astro, static-only, Firebase Hosting (was GitHub Pages) | locked (CPO, 2026-06-10; vendor updated 2026-07-24) |
-| ~~Hybrid IA (groups + country hubs), registry-driven~~ | **PARTLY SUPERSEDED** (CPO, 2026-08-19): the home page's browse block that rendered both axes is dropped. The registry fields remain, country hubs remain intended but unbuilt, and the live route to a competition is the competitions index page (grouped by `competition_type`) — see §4 |
-| ~~Current MVP stays live until parity cutover~~ | **SUPERSEDED** (CPO, 2026-07-21): the MVP is retired, so there is no parity gate and no cutover — see §2 |
-| All locales URL-prefixed; root redirects by browser language, `en` fallback | proposed default — CPO may override fallback locale |
-| Slug formats per §3 | proposed default — review in #363 PR |
-| Address words in the reader's language, names one spelling (§3 "Address words") | decided; built for the pages that exist, the words in `site_v2/src/i18n/address_words.json` |
-| Island framework for charts (svelte vs preact) | open — decide in #362 |
-| Analytics tool (Plausible / Umami / GA4) | open — decide in #372 with Legal (#374) |
+- `deploy:export` runs the export into `site_v2/src/data/`. `deploy:site-v2` builds the site and
+  deploys it to Firebase Hosting. Both run only on a manual web dispatch.
+- The site serves at its Firebase `.web.app` address, unlisted. `INDEXABLE` in
+  `site_v2/src/config/indexability.mjs` keeps every page `noindex`.
+- v2 goes live on `matchdaypilot.com`. No redirect maps a URL of the retired MVP to v2.
+- The GitLab milestones hold the road to go-live:
+  https://gitlab.com/rami.al-fahham/football-data-pipeline/-/milestones
+- Monetization hooks are placeholders only: a named slot (header, in-content) that renders
+  nothing. No template has one yet.

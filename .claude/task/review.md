@@ -1,32 +1,24 @@
-# Review — governance/sentence-length-gate
+# Review — docs/clean-core-docs
 
-diff_sha256: 49e25cbd6a4b75f2df2d1d343a27fb82e7a2e66702ee400bdf051a75de560ccf
+diff_sha256: 95469fd2692e587bab509727f93374cf479cfe5fd76609b5a2abeb996031d073
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All paths in scope; the settings.json change is one hook entry and widens no permission; protected_override names the approval and its scope.
-- The hook is a new mechanism declared with its approval; no recurring cost; the guardrails row lands in the same branch.
-- No reserved decision taken; the hook covers the documents comment_history_gate covers and only adds denies; no credential or host address.
-- Round 2 delta: two read-only tests added; no mechanism, cost or decision.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Authority: protected_override and a real impact_map cover the hook, its wiring, the pin test and scope-auditor item 9; routing for the three guard paths checked.
-- Fail-open on the hook side, fail-closed in CI through the pin in test:python; the change only adds deny paths and removes or re-scopes nothing.
-- The limits match working_agreement.md section 9; standard library only; no dependency, credential or recurring cost.
-- Round 2 delta: the wiring test now fails CI if the hook entry is removed or moved, which strengthens the guard.
+- All files in scope_paths; no new mechanism, recurring cost, URL, slug, metric or label decision; the two pin tables lose exactly the six rewritten documents.
+- Claims spot-checked against the repo: dim_coach, club_qualifying, fixture_slug, is_next_round, team_slug, slug_map, translit_latin, the copy gate in CI and the Stop hook, artifact_only and hash_exclude_paths.
+- Section numbers and the parity anchors of working_agreement.md hold; decisions_reserved is not contradicted.
+- Round 1 FAIL closed: the UI design brief now states the missing-value glyph as the en dash in all three places, matching format.ts and the other documents.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL on the unpinned settings.json wiring is closed: a test asserts the hook sits in one PreToolUse group whose matcher covers Edit, Write and MultiEdit.
-- Round 1 FAIL on the untested skip outside the repo is closed: removing the check makes the new test fail.
-- Hook fails open on bad input, a missing match and an import failure; the pin test fails closed in CI; hook and pin share one definition.
-- Parsing traced: unit limits, code spans as one word, anchored patterns; the hook is stateless and re-run safe.
+- Pin rows removed in both tables match the tree: zero history markers and no sentence over its limit in the six documents.
+- tests/test_governance_doc_parity.py: the three working_agreement anchors and the north_star anchor match once; the nine-path list and the three shared paths stay complete runs.
+- Section anchors cited by hooks and agents still exist; no dependency, credential, workflow, build or hook change.
+- Round 2 delta: two glyphs in the UI design brief; no word count, sentence boundary or history marker moves.
 
 ## escalations
 (none)

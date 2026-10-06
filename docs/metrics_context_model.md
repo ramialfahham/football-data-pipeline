@@ -1,111 +1,108 @@
 # Metrics Context & Window Model
 
-> **Metric definitions live in the `metric_catalogue.csv` seed (the SSoT); this doc governs the
-> window / context model only.** See `docs/metric_layer.md` for the map of where each thing lives.
+For an upcoming fixture, this document states which past matches form each team and player figure.
+It also states how each figure names its window.
 
-How the platform decides, for a given upcoming fixture, **which past matches form a
-team's or player's performance window, and how to label it**. This is the shared
-foundation every performance-style mart consumes — today the matchday momentum marts,
-later standings, per-fixture stats, and team/player profiles (each its own mart and
-its own design discussion).
+- What a metric means, and its formula: the `metric_catalogue.csv` seed.
+- Where every other metric rule lives: `docs/metric_layer.md`.
+- How a figure is shown: `docs/wireframes/metrics_display.md`.
 
-`league_code` remains the partition key everywhere; nothing here hardcodes a
-competition. The rules are driven by two declared properties — **competition type**
-and **temporal phase** — plus the **club/national** split.
+Nothing here hardcodes a competition. Three declared properties drive the rules: the **competition
+type**, the **phase** and the **club or national** split. `league_code` is the competition
+discriminator on every model.
 
 ---
 
-## 1. Two kinds of number
+## 1. Two kinds of figure
 
-Every performance figure in the product is one of two kinds, and they use different
-windows:
+Every performance figure is one of two kinds. Each kind has its own window. An entity is a team or
+a player.
 
 | Kind | Answers | Scope |
 |------|---------|-------|
-| **Live form (momentum)** | "How are they playing *right now*?" | **Cross-competition** — the entity's last 5 matches across all its competitions |
-| **Season record** | "What have they done *in this competition*?" | **Within that one competition** (cumulative season-to-date; powers year-over-year) |
+| **Live form** | "How are they playing *at the moment*?" | **Cross-competition**: the entity's last 5 matches across all its competitions |
+| **Season record** | "What have they done *in this competition*?" | **Within that one competition**: cumulative season to date, the basis of year-over-year |
 
-Cross-competition applies **only** to the live form window. The season record is always
-within one competition.
-
----
-
-## 2. Club vs national — a property of the competition *type*
-
-Club-vs-national is **declared once per competition type**, not stamped on every
-competition. It lives in a dbt seed (`competition_types`), one row per type, with a
-CI check that every `competition_type` used in the registry has a row.
-
-- **Rule:** no competition type may be both club and national.
-- `qualifying` means *national-team* qualifying (WC/EC qualifiers). Club qualifying
-  rounds, if ever onboarded, get their own clearly-club type.
-- Downstream models derive club/national by looking up the type — never hardcoded in SQL.
-
-A club's form only ever includes club matches; a national team's only national matches.
+Only live form crosses competitions. The season record always stays within one competition. The
+models name live form "momentum".
 
 ---
 
-## 3. Temporal phases (and how we detect them)
+## 2. Club or national: a property of the competition type
 
-Three phases, detected **generically by fixture counts** in the current edition (no
-per-league logic, no maintained date tables).
+The `competition_types` seed declares, once per competition type, whether clubs or national teams
+play it. It holds one row per type. `scripts/check_competition_type_seed.py` fails CI when a
+`competition_type` in `docs/competition_registry.yml` has no row in the seed.
 
-⚠ **The counts are the TEAM's own fixtures in that competition edition, not the competition's**
-(clarified by the CPO 2026-08-12). For a league the two are the same — everyone plays to the final
-matchday. For a **knockout** they are not: a club dumped out of the cup in round one has ≥1
-finished and 0 upcoming from that moment, so it is in "after it's finished" while the cup itself
-runs on for months. That is the intended reading, and it is what makes "their full cup run" honest
-for a team whose run was a single match.
+- No competition type is both club and national.
+- `qualifying` is national-team qualifying, such as World Cup or European Championship qualifiers.
+  Club qualifying rounds take the club type `club_qualifying`.
+- Models resolve club or national by looking up the type. SQL never hardcodes it.
+
+A club's form holds club matches only. A national team's form holds national-team matches only.
+
+---
+
+## 3. Temporal phases
+
+There are three phases. Fixture counts in the current edition detect each phase. No rule is per
+league, and no rule reads a table of dates. An edition is one season of one competition: one
+`league_code` and one `season_api_year`.
+
+The counts are the **team's own fixtures** in that edition, not the competition's. For a league the
+two are the same, because every team plays to the final matchday. For a knockout they differ. A
+club knocked out in the first round has at least 1 finished fixture and 0 upcoming. That club is in
+"After it's finished", and the cup continues for other teams.
 
 | Phase | Detection | Meaning |
 |-------|-----------|---------|
-| **Before it starts** | 0 finished, ≥1 upcoming | first fixture of the edition — no live form yet |
-| **While it's running** | ≥1 finished, ≥1 upcoming | edition underway |
-| **After it's finished** | ≥1 finished, 0 upcoming | edition complete |
+| **Before it starts** | 0 finished, ≥1 upcoming | the first fixture of the edition; no live form yet |
+| **While it's running** | ≥1 finished, ≥1 upcoming | the edition is under way |
+| **After it's finished** | ≥1 finished, 0 upcoming | the edition is complete |
 
-- "Before it starts" is **literal** — exactly zero finished matches. From the first
-  finished match we are "while it's running," showing *up to* the last 5. We **never mix
-  seasons** to pad an early-season sample.
-- The off-season handles itself: a competition stays "after it's finished" until the
-  next edition's fixtures appear, which flips it to "before it starts."
-- Play-off rounds are a **stage within** the parent competition (see §6), so a league is
-  not "finished" until its play-offs are also played.
+- "Before it starts" is literal: exactly zero finished matches.
+- From the first finished match, the phase is "While it's running", and the window shows *up to*
+  the last 5.
+- A window never mixes seasons to pad an early-season sample.
+- The off-season needs no rule. A competition stays "After it's finished" until the next edition's
+  fixtures appear. Those fixtures move it to "Before it starts".
+- A play-off round is a stage within its parent competition (section 6). A league is therefore not
+  finished until its play-offs are also played.
 
 ---
 
 ## 4. The window matrix (per competition type)
 
-The types are the rows of `dbt_project/seeds/competition_types.csv`; a type with no competition in
-the registry is not ingested yet.
+The rows are the types of `dbt_project/seeds/competition_types.csv`.
 
-**Window meanings:** each window is described once, on the column that names it: the form
-window's `window_type` (the `window_type__form` doc block) and the season record's
-`window_type` (the `window_type__season_record` doc block), both shown in BigQuery. A **full
-completed edition** is the just-completed season or tournament record.
+**Window meanings.** One doc block describes each window, on the column that names it. The form
+window's `window_type` carries the `window_type__form` doc block. The season record's `window_type`
+carries the `window_type__season_record` doc block. BigQuery shows both.
+
+**Full completed.** A full completed season, edition, campaign or tournament holds all of that
+team's matches in that edition. It does not depend on how far the team went.
+
+**Type status.** This column is not the registry's `status` field.
+
+| Type status | Meaning |
+|---|---|
+| `active` | The registry holds at least one competition of this type. |
+| `taxonomy` | The registry holds no competition of this type. |
+| `not ingesting` | A friendly type. The registry holds no competition of it, and form windows defer it. |
 
 ### Club competitions
 
-**The two types added 2026-08-12 (#57) each inherit an existing row** — CPO ruling, same date:
-`club_world_cup` follows **`continental_cup`**, `intercontinental_super_cup` follows
-**`continental_super_cup`**.
+- `club_world_cup` takes the `continental_cup` windows.
+- `intercontinental_super_cup` takes the `continental_super_cup` windows.
+- A club competition has an "After it's finished" figure only when every entrant plays a group or
+  league phase. Only then are there enough matches to aggregate.
+- `domestic_league`, `continental_cup` and `club_world_cup` meet that condition.
+- A pure knockout does not: `domestic_cup`, `club_qualifying` and the super cups show nothing after
+  they finish.
+- The tournament exception is national-only. A club competition never takes it, however
+  tournament-shaped it is, so `club_world_cup` uses the last 5.
 
-**When a competition gets an "after it's finished" figure at all** (CPO 2026-08-12): only when
-every entrant plays a group or league phase, so there are **enough matches to be worth
-aggregating**. `domestic_league`, `continental_cup` and `club_world_cup` qualify — the Champions
-League and the Club World Cup both have a group phase, so a club eliminated in the knockout still
-has a full group campaign behind it. A **pure knockout does not**: `domestic_cup`,
-`club_qualifying` and the super cups show nothing, because a team's run there can be a single
-match and phase is per team (§3).
-
-⚠ Read "full completed season / edition" as **all of that team's matches in that competition
-edition** — not "only if they reached the final". That distinction is the whole reason the
-knockout rows are empty.
-
-So the cumulative-within-tournament exception stays **national-only**: a club competition never
-gets it, however tournament-shaped it looks. That is also why `CWC`'s window is unchanged by the
-re-type — it resolved to last-5 as `continental_club` and still does.
-
-| competition_type | status | Before it starts | While it's running | After it's finished |
+| competition_type | type status | Before it starts | While it's running | After it's finished |
 |---|---|---|---|---|
 | domestic_league | active | Previous season of this league | Last 5 across all the club's competitions | Full completed season |
 | domestic_cup | active | Last 5 across all the club's competitions | Last 5 across all the club's competitions | — |
@@ -120,251 +117,218 @@ re-type — it resolved to last-5 as `continental_club` and still does.
 
 ### National-team competitions
 
-| competition_type | status | Before it starts | While it's running | After it's finished |
+| competition_type | type status | Before it starts | While it's running | After it's finished |
 |---|---|---|---|---|
 | qualifying | active | Last 5 across the national team's matches | All matches so far in this qualifying campaign | Full completed campaign |
 | continental_championship | active | The team's qualifier matches | All matches so far in this tournament | Full completed tournament |
 | world_championship | active | Qualifier matches (until group-stage MD1) | All matches so far in this tournament (from group-stage MD2) | Full completed tournament |
 | national_team_friendly | not ingesting | Defer (low signal) | — | — |
 
-**The principle:** live form is cross-competition for every ongoing competition. The
-deliberate exception is **tournaments**, which use cumulative-within-the-tournament —
-that is the football-correct framing (judge a team within this tournament's field), not
-a compromise.
+**The tournament exception.** Live form is cross-competition for every running competition.
+Tournaments are the deliberate exception: `world_championship` and `continental_championship` use
+every match so far within the tournament. That window is cumulative and is never capped at 5. Its
+`window_type` values are `tournament_to_date` and `qualifiers` (section 8.4). MD1 and MD2 are the
+team's first and second group-stage matches.
 
-### Football-analyst notes
+### Football rules for every window
 
-- **No opponent exclusion.** Every match stays in the form window; we never silently
-  filter (e.g. a cup tie vs lower-division opposition). Instead we **show context**
-  (standings, opponent league/level) so the fan reads the number correctly.
-- **Opponent-adjusted form is the named next metric** — the proper fix for mixing
-  opponent quality across competitions. Until then, cross-competition raw rates are
-  accepted with honest labelling.
-- **Sample size is always available** (`games_in_window`), even when not always shown.
+- **No opponent exclusion.** Every match stays in the form window. No filter removes a match, such
+  as a cup tie against lower-division opposition.
+- Context, such as the standings and the opponent's league or level, lets the fan read the number
+  correctly.
+- Cross-competition rates are raw: they do not adjust for opponent quality. The window meta line
+  names the window, so the fan reads the rate correctly.
+- The team form window always carries its sample size, `games_in_window`, even where a surface does
+  not show it.
 
 ---
 
 ## 5. Model architecture
 
-Separate **which matches** (selection) from **the metric math** (aggregation). All in
-the **intermediate** layer.
+Selection decides which matches a window holds. Aggregation applies the metric formulas to those
+matches. The two are separate, and both live in the **intermediate** layer.
 
-```
-core facts (fct_fixture, fct_fixture_team_stats, fct_fixture_player_stats)
-   └─ building-block "match leg" tables  (one row per team / player per finished match)
-        ├─ last-5 momentum builder      (cross-competition, as of the upcoming fixture)
-        └─ season-record builder         (within-competition, cumulative through matchday)
-              └─ marts
-```
+| Step | Team | Player |
+|---|---|---|
+| Match rows: one row per entity per finished match | `int_legs__team_match` | `int_legs__player_match` |
+| Form window | `int_team_momentum_window` selects; `int_team_momentum__metrics` aggregates | `int_player_momentum__metrics` aggregates over the team's selection |
+| Season record | `int_team_season_record` selects; `int_team_season__metrics_cumulative` aggregates | `int_player_season_record` selects and aggregates |
 
-- **Building-block leg** — one row per (team, finished match) with raw stats + opponent
-  aggregates (generalised from `int_matchday__finished_fixture_team_leg`, now carrying
-  `competition_type` and `entity_type`). A parallel player-leg comes off
-  `fct_fixture_player_stats`. Every window is a *filter + aggregate* over these rows.
-- **Last-5 momentum builder** — the entity's last 5 legs across all its competitions, as
-  of the upcoming fixture. Computed **only for the upcoming fixture** — it is momentum,
-  obsolete once the match is played. Grain: (upcoming fixture, team/player).
-- **Season-record builder** — cumulative within one competition through each matchday (season-to-date).
-  Grain: (team, league_code, season, matchday). Yields current-to-date, full-season, and
-  year-over-year from one model. *How best to surface full-season analysis is its own
-  discussion.*
+- **Match rows.** A team match row carries the team's cleaned stats, the opponent's stats,
+  `competition_type` and `entity_type`. Every window is a filter and an aggregate over these rows.
+- **Form window.** It holds the entity's last 5 matches across all its competitions, as of the
+  upcoming fixture. It exists only for an upcoming fixture, because a played match makes it
+  obsolete.
+- **Season record.** It is cumulative within one competition through each match of the season. One
+  model gives the record to date, the full season and year-over-year.
 
-Each window carries a descriptor for the UI's "form window: …" line: `window_type`,
+Each form window carries a descriptor for the UI's window meta line: `window_type`,
 `games_in_window`, `contributing_competitions`, `phase`.
 
 ---
 
-## 6. Marts and de-hardcoding
+## 6. Marts
 
-### Momentum marts (this surface)
+### Momentum marts
 
-- **Two cross-type marts:** team momentum and player momentum. One row per upcoming-
-  fixture side; the app slices by `league_code`. Wide shape (each metric a column) plus
-  the descriptor columns.
-- These **replace** the hardcoded `mart_matchday_insights` (BL1/BL2/L1 round exclusions),
-  `mart_matchday_insights_bl1_relegation`, and `mart_matchday_insights_wc`.
+- `mart_team_momentum` and `mart_player_momentum` each serve every competition type. A reader
+  filters them by `league_code`.
+- Each metric is a column, beside the descriptor columns.
+- `mart_team_momentum_window` lists the matches of each team form window.
+- The mart inventory in `dbt_project/docs/layering.md` states each grain.
 
 ### Play-offs
 
-A relegation/promotion play-off is a **stage within its parent competition**, inheriting
-that competition's type — never a standalone type. Cross-competition form handles play-
-offs naturally (each side brings its own recent form), so the separate relegation mart
-and the BL1/BL2/L1 round-name vars are **deleted**. A "Relegation play-off" label is kept
-but derived **generically from the round name**, not per-league hardcoded lists.
+A relegation or promotion play-off is a **stage within its parent competition**. It takes that
+competition's type and is never a type of its own. Cross-competition form covers a play-off with no
+special rule: each side brings its own recent form. No model reads a per-league list of play-off
+rounds. A "Relegation play-off" label derives **generically from the round name**.
 
 ### Folder organisation
 
 > **Shared by default; a type-specific folder only where the output shape truly differs.**
 
-Cross-type concerns (form/momentum, the building blocks, the window selection) live in a
-**shared** folder. Genuinely type-specific surfaces keep type folders:
+Cross-type concerns live in a **shared** folder: form, the match rows and window selection.
+Genuinely type-specific surfaces keep type folders.
 
 | Type-specific | Shared (cross-type) |
 |---|---|
 | Standings + relegation/promotion zones (leagues) | Form / momentum |
-| Bracket / knockout progression (cups) | Building-block legs |
+| Bracket / knockout progression (cups) | Building-block match rows |
 | Group-stage tables (continental / tournaments) | Window selection |
 
-This refines the earlier "type subfolders at intermediate and marts" decision, which
-over-applied type folders to *form*. The instinct still holds for standings/brackets/
-group-tables.
+---
 
-### Migration approach
+## 7. Out of scope
 
-**Parallel-run + validate** (data quality is non-negotiable): build the new marts
-alongside the old, confirm the numbers match for BL1 and WC, then cut over and delete the
-old models, the relegation variant and the BL1/BL2/L1 vars.
+- **Opponent-adjusted form.**
+- **Other surfaces**: standings, per-fixture stats, team profile and player profile. Each has its own
+  mart and wireframe.
+- **Friendlies**: taxonomy only. Form windows exclude them once they are ingested.
+- **Year-over-year**: rule R6 in `dbt_project/models/docs/metric_rules.md` states where it applies.
 
 ---
 
-## 7. Deferred / out of scope here
+## 8. Player performance surface
 
-- **Full-season analysis surface** (the season-to-date mart + year-over-year-by-matchday
-  comparison) — its own design discussion. **The player half is now resolved in §8** (CPO,
-  2026-06-17); the team season surface is already built and stays its own discussion.
-- **Opponent-adjusted form** — the named next metric.
-- **Other surfaces** — standings, per-fixture stats, team profile, player profile — each
-  its own mart and discussion.
-- **Friendlies** — taxonomy only; excluded from form windows when eventually ingested.
-- **Year-over-year-by-matchday** applies to **league formats**; cups/tournaments have a
-  cumulative number but not matchday-aligned year-over-year.
+> [`content_architecture.md`](content_architecture.md) specifies the site-wide content model that
+> reads this surface: blocks, tabs, navigation and the marts.
 
----
-
-## 8. Player performance surface (resolves the §7 deferral for players)
-
-> The site-wide content model that consumes this surface (blocks → tabs → navigation, the flagship
-> reads, and the new marts) is specified in [`content_architecture.md`](content_architecture.md).
-
-Ruled by the CPO, 2026-06-17. This is the player half of the deferred full-season surface.
-It fixes the one real gap: the player season rollup exists three ways today with divergent
-numbers (e.g. pass accuracy computed as an average of match percentages in one model, weighted
-in another) because each re-implements its own aggregation. Definitions stay in the
-`metric_catalogue.csv` seed; the locked display rows stay in
-`docs/wireframes/metrics_display.md`. Build status: **#480** (consolidate to one
-player-season model) shipped (#630); the player national / tournament context (§8.4) is
-served without a separate build — see §8.7.
+This section states the player windows and the one aggregation rule. Metric definitions stay in
+the `metric_catalogue.csv` seed. The locked display rows stay in
+`docs/wireframes/metrics_display.md`.
 
 ### 8.1 One aggregation, two windows (the core rule)
 
-There is **one** aggregation logic; the window is the only variable. The per-match player leg
-(one row per player per finished match, raw stats) is the shared building block. **Form** and
-**season** are the same aggregation over a *different set of legs* — the aggregation never forks.
+There is **one** aggregation logic, and the window is the only variable. The per-match player row
+(`int_legs__player_match`) is the shared building block. **Form** and **season** apply the same
+aggregation to a *different set of matches*. The aggregation never forks.
 
-- **How each value is computed** over the window's legs, and when it is blank, is rules R1 to
-  R7 of the catalogue table's description (`dbt_project/models/docs/metric_rules.md`); it is not
-  restated here.
-- **Zero denominator** → render `—`, the counts still shown (`0 of 0 · —`).
-- **Display** is **totals + the four weighted %s** (per the locked rows), **not** per-match.
-  The single deliberate average is "avg minutes per appearance" in the context block (§8.2),
-  normalised by appearances.
+- Rules R1 to R7 of the catalogue table's description state how each value is computed over the
+  window's matches, and when it is blank. They live in `dbt_project/models/docs/metric_rules.md`.
+- `scripts/generate_metric_sql.py` writes the aggregation of every window from the catalogue
+  formulas.
+- `docs/wireframes/metrics_display.md` states how a zero denominator renders.
+- The display shows **totals and the four weighted percentages** of the locked rows, **not**
+  per-match rates.
+- The single deliberate average is "average minutes per appearance" in the context block (section
+  8.2). Appearances normalise it.
 
-This is why the three models diverged — they each re-implemented the math. The build collapses
-them onto one shared aggregation step that both the form mart and the season mart call.
-
-**Selection is separate from aggregation** and may take several shapes — club last-5,
-within-competition season-to-date, and the national-team context window (§8.4) — but each feeds
-the *same* aggregation. Every selector lives in the **intermediate** layer (`layering.md`); a new
-window shape means a new intermediate selector, never selection logic pushed into a mart.
+**Selection is separate from aggregation.** Selection takes several shapes: club last 5, season to
+date within one competition, and the national-team context window (section 8.4). Each shape feeds
+the *same* aggregation. Every selector lives in the **intermediate** layer
+(`dbt_project/docs/layering.md`). A new window shape needs a new intermediate selector. A mart never
+holds selection logic.
 
 ### 8.2 What we show
 
-The nine CPO-locked player rows (`docs/wireframes/metrics_display.md`, 2026-06-11) — referenced,
-not restated — **plus** an appearance / playing-time **context block** (a proposed addition to
-that locked display contract; recorded here, to be formally amended there — bi-analyst-owned):
+The surface shows the nine locked player rows of `docs/wireframes/metrics_display.md`. It adds an
+appearance and playing-time **context block**. The context block is a proposed addition to that
+locked display contract.
 
 | Row | Form (last 5) | Season | Aggregation |
 |-----|---------------|--------|-------------|
 | **Appearances** (apps · starts · subs) | `4 of 5 · 3 starts` | `26 · 22 starts · 4 sub` | count |
 | **Playing time** (total · avg per app) | `310 min · Ø 78` | `2,040 min · Ø 78` | sum; avg = total ÷ apps |
 
-Plus, in the **window meta-line**, the **last appearance with the year** (e.g.
-`18 May 2026 vs Dortmund`). The block is the sample-size / availability context that makes the
-season totals interpretable.
+The **window meta line** also shows the **last appearance with the year**, such as
+`18 May 2026 vs Dortmund`. The block gives the sample size and availability that make the season
+totals readable.
 
-All of these are **mart columns** — appearances, starts, subs, total minutes, avg-minutes-per-app,
-and `last_appearance_date` + `last_appearance_opponent` (the `max(kickoff)` pick and the opponent
-join happen **in the model**). The export and UI only **format** them; no derivation, ranking, or
-"latest" selection in the consumption layer (`layering.md`).
+All of these are **mart columns**: appearances, starts, subs, total minutes,
+avg-minutes-per-app, `last_appearance_date` and `last_appearance_opponent`. The model picks the
+`max(kickoff)` and joins the opponent. The export and the UI only **format** these values. They
+derive, rank and select nothing (`dbt_project/docs/layering.md`, consumption layer).
 
-### 8.3 Season model (what #480 builds)
+### 8.3 Season model
 
-**One** player-season model, replacing the three divergent rollups.
+**One** player-season model holds a player's season.
 
-- **Grain:** per player **per club** per competition per season — a mid-season transfer yields a
-  **separate per-club line** (not pooled).
-- **Within one competition** always — never cross-competition (cumulative is the within-comp W2).
-- Carries **this season + previous season side-by-side** (a persistent comparison, not a
-  pre-season-only fallback) — as **parallel columns on the same per-club-season row** (wide; e.g. a
-  `_prev_season` set), **not** a second row, so the grain and key below are unchanged.
-- **Surrogate key covers the full grain** — `(player_sk, team_sk, league_code, season_sk)`. The
-  current rollups key on only `(player_sk, season_sk)`, which is **non-unique** under per-club grain
-  (a mid-season transfer collides). #480 replaces it with a full-grain key — mirroring the team
-  mapping's `team_competition_season_sk` — under a `unique` test on the grain. The key's name is set
-  in #480 (a naming call), but its **columns are fixed by the grain above**.
+- **Grain:** one row per player **per club** per competition per season. A mid-season transfer
+  gives a **separate per-club row**; the rows are not pooled.
+- **Within one competition** always, never across competitions.
+- The row carries **this season and the previous season side by side**. This is a persistent
+  comparison, not only a pre-season fallback.
+- The previous season is a set of **parallel columns on the same per-club-season row**, such as a
+  `_prev_season` set. It is **not** a second row, so the grain and the key stay as stated.
+- **The surrogate key covers the full grain.** The model is `int_player_club_season__metrics`, and
+  its key is `player_club_season_sk`.
+- The key hashes `player_sk`, `team_sk` and `season_sk`. `season_sk` identifies one competition in
+  one season.
+- A `unique` test holds the grain. The key mirrors the team mapping's
+  `team_competition_season_sk`.
 
-### 8.4 Window matrix — which legs form each window
+### 8.4 Window matrix: which matches form each window
 
-**Club competitions — see §4. There is no player divergence, so there is no second table.**
+**Club competitions:** the club rows of section 4 apply to players unchanged. A player's club form
+is his club's form window, so there is no second table.
 
-A player's club form *is* his relevant form, which this section has always said. It used to restate
-§4's club rules in a condensed two-row form, and that copy drifted: it still named
-`continental club` after the type was renamed to `continental_cup`, it never gained
-`club_world_cup` or `intercontinental_super_cup`, and its single "Full edition / cup run" cell
-covered five competition types that no longer share an "after" rule — domestic cups, club
-qualifying and the super cups have none (CPO 2026-08-12). **Struck rather than re-synced**: two
-tables that must agree are one table too many, and this one was already wrong on three counts.
-
-**National-team competitions** — reframed as **context, not form** (strict club/national
-separation: the national view never borrows club data):
+**National-team competitions** are **context, not form**. Club and national figures stay strictly
+separate: the national view never borrows club data.
 
 | State | What we show |
 |---|---|
-| Any NT match outside a big tournament (qualifiers, friendlies, warm-ups) **and** before a big tournament | Last **≤5 national-team appearances**, pooled across **all** NT competition types (friendlies included once ingested), by recency, **no season cap** |
-| **Big tournament** (world / continental championship) — **during & after** | **Cumulative** tournament figures **only** |
-| *(Future — when NT history is ingested)* | Career national-team record, **grouped by NT competition type** (WC · Euro · qualifiers · friendlies) |
+| Any national-team match outside a big tournament (qualifiers, friendlies, warm-ups) **and** before a big tournament | Last **≤5 national-team appearances**, pooled across **all** national-team competition types (friendlies included once ingested), by recency, **no season cap** |
+| **Big tournament** (world / continental championship): **during and after** | **Cumulative** tournament figures **only** |
+| *(Once national-team history is ingested)* | Career national-team record, **grouped by national-team competition type** (WC · Euro · qualifiers · friendlies) |
 
-Symmetry: club fixture → last 5 across club comps; national fixture → last 5 across national
-comps. Big national tournaments are the cumulative exception (same shape as the team rule, §4).
+Symmetry: a club fixture takes the last 5 across club competitions. A national fixture takes the
+last 5 across national-team competitions. Big national tournaments are the cumulative exception,
+the same shape as the team rule in section 4.
 
-The distinct **window kinds** this matrix produces are: domestic previous-season · club last-5 ·
-domestic/club full-season · national-team context (≤5 NT appearances pooled) · big-tournament
-cumulative. The **set is fixed by this matrix.** These kinds are realized as the models' `window_type`
-values — `last_5` / `tournament_to_date` / `qualifiers` in the momentum path, `season_to_date` /
-`prev_season` in the season-record path — each guarded by an `accepted_values` test. A catalogue
-`form_window_kind` enum column was once envisaged but never added; the `window_type` columns are the SSoT.
+This matrix produces a **fixed set** of window kinds:
 
-### 8.5 Override of the legacy form-window dispatch
+- domestic previous season;
+- club last 5;
+- domestic or club full season;
+- national-team context: up to 5 national-team appearances, pooled;
+- big-tournament cumulative.
 
-This **supersedes** the legacy "Form-window dispatch" rule (player WC form drawn from the
-**domestic club**, qualifiers excluded). That rule treated
-national data as predictive **form** and rejected stale qualifiers in favour of the domestic
-club. Reframing the national surface as **context** (not a prediction of tournament form)
-dissolves its three objections (roster turnover, stale dates, weaker opposition — all
-form-prediction arguments), restores strict club/national separation, and removes the
-domestic-league-coverage "Not provided" exposure. **CPO override, 2026-06-17;** football-analytics
-confirms the football-correctness.
+The models' `window_type` values carry these kinds. Each column has an `accepted_values` test. The
+`window_type` columns are the single source for window kinds.
+
+| Path | `window_type` values |
+|---|---|
+| Form window (momentum) | `last_5`, `tournament_to_date`, `qualifiers` |
+| Season record | `season_to_date`, `prev_season` |
+
+### 8.5 National figures are context
+
+A player's national-team figures are context, not a prediction of tournament form. They never draw
+on club matches. A player's World Cup figures therefore never come from his domestic club.
 
 ### 8.6 Framing
 
-**No separate "context vs form" UI mechanism.** The existing locked **window meta-line** already
-declares scope per state and carries the distinction through its copy (club → "form";
-national → "appearances / record"). Final wording is set at i18n.
+**No separate "context against form" UI mechanism exists.** The **window meta line** declares the
+scope for each state. Its copy carries the difference: club "form", national "appearances /
+record". The i18n layer sets the final wording. `docs/wireframes/metrics_display.md` owns the window
+meta line.
 
-### 8.7 Build status
+### 8.7 Where each player window is served
 
-- **#480** — SHIPPED (#630): the three player-season rollups were consolidated onto the per-club
-  foundation `int_player_club_season__metrics` (§8.3) using the one shared aggregation (§8.1);
-  `int_player_season__metrics` re-expresses it byte-identically.
-- **National / tournament context (§8.4)** — served WITHOUT a separate standing selector. On a
-  national **fixture preview**, the momentum path supplies the recent NT context (last-5 pooled /
-  `tournament_to_date` / `qualifiers`, #653), framed as "appearances / record" via the §8.6 meta-line;
-  the national momentum window is already cross-competition with no season cap, so it IS the §8.4 shape
-  (no third selector needed). On the **player profile**, the Career screen's national section
-  (`mart_player_career` national rows + `national_appearances_total`, #634) carries the career national
-  record. A standing NT-context block on the profile was evaluated (#654) and **CLOSED — no consumer**:
-  the fixture strip + Career section already cover it, so a standing block had no display-first
-  justification. #484 (the original momentum-parity gap) shipped as #653.
-- **Cost-gated data** — friendlies ingest (for the NT pool); national-team history (≈ #477, for a
-  grouped-by-competition-type career view). PARKED: the rules are defined; the data lights up only when
-  ingest is CPO-approved.
+- **A national fixture preview:** the momentum path serves the national-team context, framed by the
+  section 8.6 meta line.
+- That path is `mart_player_momentum` over the team's window from `int_team_momentum_window`. The
+  national window is cross-competition with no season cap, which is the section 8.4 shape.
+- **The player profile:** the national rows of `mart_player_career` and its
+  `national_appearances_total` column carry the career national-team record.
