@@ -833,14 +833,16 @@ data:build:mr:
 
 # main-push / manual full builds keep the FULL build — prod must stay complete
 # and serve as the always-compilable baseline for MR state comparisons. Joins the
-# repo-wide prod-warehouse-write group it shares with data:nightly, so the two prod
-# writers never MERGE the bare prod tables concurrently (#667).
+# repo-wide prod-warehouse-write group it shares with the GitLab data:nightly job. The
+# nightly that runs is the Cloud Run job fdp-nightly, outside that group, so before its
+# first prod write this job waits while one of its runs is in progress.
 data:build:main:
   <<: *data_build_base
   resource_group: prod-warehouse-write
   script:
     - *dbt_profile
     - *gcp_auth
+    - python scripts/wait_for_nightly.py
     - cd dbt_project && dbt deps
     - sqlfluff lint models
     - dbt seed --target prod
