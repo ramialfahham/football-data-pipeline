@@ -130,7 +130,7 @@ full wireframe specs in `docs/wireframes/` already describe in prose — not a r
 
 ## 5. Navigation graph (what makes it a site)
 
-Every entity links to its neighbours — the "always one click to the related thing" feel.
+Every entity links to its neighbours.
 
 | From | Links to |
 |---|---|
@@ -166,7 +166,6 @@ small set of *smart reads* the raw-number sites don't synthesise.
    Bayern's goals"*). Cheap, narrative, bridges team↔player pages.
 
 The triad is a clean axis set: **vs your own play** · **vs your own past** · **vs your opponents**.
-"A few signature things done well," powered by the benchmark + backfill infrastructure.
 
 ---
 
