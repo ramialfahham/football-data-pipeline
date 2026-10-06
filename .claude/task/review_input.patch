@@ -1,132 +1,76 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index ec7d411f..3b117f96 100644
+index 3b117f96..485011bb 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,63 +1,32 @@
--# Task contract — the main prod build waits while the nightly runs
-+# Task contract — the site architecture no longer quotes the CPO
+@@ -1,14 +1,14 @@
+-# Task contract — the site architecture no longer quotes the CPO
++# Task contract — the UI design brief no longer quotes the CPO
  
  objective: >
--  The Cloud Run nightly and data:build:main both write prod and are not serialised; 4 of 98 main
--  builds overlapped a nightly in 57 nights, each one a main build that started while the nightly
--  ran. A first step of data:build:main waits while an fdp-nightly execution is in progress.
-+  Delete the CPO's chat words from docs/site_architecture.md, strip only, with the text approved
-+  in chat, 2026-10-06.
+-  Delete the CPO's chat words from docs/site_architecture.md, strip only, with the text approved
+-  in chat, 2026-10-06.
++  Delete the CPO's chat words from docs/ui_design_brief.md, strip only, with the text approved in
++  chat, 2026-10-06.
  
  refs: >
--  #204.
--
--acceptance_criteria:
--  - The nightly and the main-branch prod build never write prod at the same time
-+  The cleanup of quoted chat words, approved in chat, 2026-10-06.
+   The cleanup of quoted chat words, approved in chat, 2026-10-06.
  
  scope_paths:
--  - .gitlab-ci.yml
--  - scripts/wait_for_nightly.py
--  - tests/test_wait_for_nightly.py
-+  - docs/site_architecture.md
-+  - tests/test_no_decision_history_in_docs.py
+-  - docs/site_architecture.md
++  - docs/ui_design_brief.md
+   - tests/test_no_decision_history_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
-   - .claude/task/review_input.patch
+@@ -16,10 +16,12 @@ scope_paths:
  
--protected_override: >
--  Approved by the CPO in chat, 2026-10-06: a first step of data:build:main waits while an
--  fdp-nightly execution is running, polling the Cloud Run API every minute up to the job's
--  timeout, with the CI account's existing run.developer grant on the job. Reading: the comment
--  above the job, which says how the prod writers are kept apart, is corrected with it.
--
--impact_map: >
--  writers: none; one new step in data:build:main, before any prod write (dbt seed is the first),
--  and the comment above the job.
--  readers: the step reads the Cloud Run Admin API list of fdp-nightly executions with the CI
--  account (github-actions-dbt), which holds roles/run.developer on the job
--  (`gcloud run jobs get-iam-policy fdp-nightly`). Executions come back newest first and every
--  finished one, failed ones included, carries completionTime (checked on the API); one without it
--  is in progress.
--  when it runs: wherever data:build:main runs (main pushes and web pipelines, its rules unchanged).
--  fails closed: an API error stops the job before it writes prod.
--  deploy_order: none; the nightly, its image and the GitLab data:nightly job are unchanged.
--  blast_radius: data:build:main starts later by the running nightly's remaining time (nightly runs
--  measured 47 to 180 minutes, 77 on average). The wait stops after 90 minutes and fails the job
--  before any prod write, so the build keeps 30 minutes of the job's 2-hour timeout (it takes about
--  13); a nightly still running then means a retry once it ends. No dataset, model or page changes. The opposite order, a nightly starting while a main build runs,
--  did not occur in the 57 nights measured and is not covered.
--
  decisions_taken: >
--  Readings, under the delegation of 2026-10-02:
--  - The wait is a small script with its own unit tests rather than inline shell, so its rule (an
--    execution without completionTime is in progress) is tested offline.
--  - The first page of executions (newest first) is enough: a run in progress is the newest.
--  - "Up to the job's timeout" is read as a 90-minute deadline inside it, so a timeout can never
--    land during the build's prod writes; a CI test pins the step after authentication and before
--    the first prod write.
-+  The edit is the approved text, nothing else:
-+  - Five quotes are deleted (the team slug, the navigation note's three, the browse block).
-+  - A line the edit touches also loses its CPO name, date and issue number; the history gate
-+    refuses a changed line that keeps them. No word is added or reworded.
-+  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 44 to 40.
+   The edit is the approved text, nothing else:
+-  - Five quotes are deleted (the team slug, the navigation note's three, the browse block).
+-  - A line the edit touches also loses its CPO name, date and issue number; the history gate
+-    refuses a changed line that keeps them. No word is added or reworded.
+-  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 44 to 40.
++  - One quote is deleted (the browse block).
++  - The line the edit touches also loses its CPO name and date; the history gate refuses a changed
++    line that keeps them. No word is added or reworded.
++  - Kept, as not chat words: the "CPO note" line, which quotes nothing, and the brief's own labels
++    and mood names.
++  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 9 to 8.
  
--  Threshold declarations. NEW MECHANISM: the wait step, approved in chat, 2026-10-06. RECURRING
--  COST: none in BigQuery; CI runner time while waiting.
-+  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
+   Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
  
- decisions_reserved:
+@@ -27,6 +29,6 @@ decisions_reserved:
    - None.
  
  done_when:
--  - The script's unit tests pass; the API call it makes is checked once against the live job.
--  - pytest (whole suite), the offline gates and the CI lint pass.
-+  - grep finds no chat quote left in docs/site_architecture.md.
-+  - pytest (whole suite) and the offline gates pass.
+-  - grep finds no chat quote left in docs/site_architecture.md.
++  - grep finds no chat quote left in docs/ui_design_brief.md.
+   - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index aaca5f2f..86440d61 100644
---- a/docs/site_architecture.md
-+++ b/docs/site_architecture.md
-@@ -158,8 +158,7 @@ date (fixed once, the old one forwarded, #852) or drops it is a separate decisio
-   `premier-league`, `world-cup`. Never derived from display names at build time.
- - **Season**: from `season_api_year` + registry `season_type`: split-year → `2025-26`,
-   calendar-year → `2026`.
--- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id** — CPO
--  ruling 2026-07-27, *"there is no aston-villa-66"*. Derived in
-+- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id**. Derived in
-   `base_apif__teams_global` from the CORRECTED name (#850) and published on `dim_team`,
-   because assigning an identifier is derivation and the export is the consumption layer
-   (#846). Collisions resolve by a **symmetric, closed ladder**: an uncontested name takes
-@@ -210,11 +209,9 @@ alias/301 mechanism, so the promise below holds. Until then, treat it as an inte
- 
- ### Navigation — what is clickable, and where it goes
- 
--> ⚠ **PROVISIONAL.** CPO, 2026-09-04: *"the rules might be subject to change. We have not built
--> every page yet, so actually we don't know yet."* A working standard, not a locked constraint —
-+> ⚠ **PROVISIONAL.** A working standard, not a locked constraint —
- > §2 is where locked things live. What IS confirmed is the **header + row** rule, applied to the
--> Next matches block and *"we would apply this again if we have a header-row content structure."*
--> This answers **#52** (*"which elements redirect where"*), open since 2026-08-10.
-+> Next matches block.
- 
- §6 asks for an internal-linking graph but never said which ELEMENT carries a link. The result was
- nine clickable element types across four surfaces with six different hover treatments, and the
-@@ -290,7 +287,7 @@ The two registry-driven axes, as designed (#364 adds the fields):
-   `region_rank`/kickoff proximity rather than `tier`/`sort_order` (both retired for that page,
-   `escalations.log` 2026-08-16). `display_group` and `sort_order` still exist and still feed
-   `build_nav()`/`nav.json`, but NOT the home page any more: the home page's browse block was
--  DROPPED 2026-08-19 (CPO: "drop the browse section"), so this section no longer describes it —
-+  DROPPED, so this section no longer describes it —
-   see `docs/wireframes/08_browse.md` for the still-live competitions-index page's actual
-   grouping/ordering rule instead. Country hubs themselves remain unbuilt.
- 
+diff --git a/docs/ui_design_brief.md b/docs/ui_design_brief.md
+index 32d4e441..7ac68247 100644
+--- a/docs/ui_design_brief.md
++++ b/docs/ui_design_brief.md
+@@ -153,8 +153,8 @@ The MVP's competition-card landing is **obsolete** for a website. Module order
+    by competition, each row carrying its form hook and linking to the fixture page.
+    *Status:* the per-competition list + fixture page exist; ⚠ the cross-competition
+    home aggregation is a feed to build.
+-2. ~~**Hybrid browse:** competition groups + country hubs.~~ **DROPPED 2026-08-19** (CPO: "drop
+-   the browse section"). Built, then removed: its only real value was reachability into the
++2. ~~**Hybrid browse:** competition groups + country hubs.~~ **DROPPED**.
++   Built, then removed: its only real value was reachability into the
+    long-tail team/player pages, both blocked on name data quality, and the competitions index
+    page already covers the competitions pool.
+ 3. ~~**Storylines — "Trending"**~~ and 4. ~~**Stats** teasers~~ — both **CUT 2026-08-08**; the
 diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index fbdb4289..5fc1db7d 100644
+index 5fc1db7d..525d5abc 100644
 --- a/tests/test_no_decision_history_in_docs.py
 +++ b/tests/test_no_decision_history_in_docs.py
-@@ -52,7 +52,7 @@ PINNED = {
-     "docs/roles/data_engineer.md": 1,
+@@ -53,7 +53,7 @@ PINNED = {
      "docs/roles/platform_reliability.md": 2,
      "docs/roles/seo_expert.md": 3,
--    "docs/site_architecture.md": 44,
-+    "docs/site_architecture.md": 40,
-     "docs/ui_design_brief.md": 9,
+     "docs/site_architecture.md": 40,
+-    "docs/ui_design_brief.md": 9,
++    "docs/ui_design_brief.md": 8,
      "docs/wireframes/00_overview.md": 21,
      "docs/wireframes/01_fixture_page.md": 6,
+     "docs/wireframes/02_team_profile.md": 2,

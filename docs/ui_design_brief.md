@@ -153,8 +153,8 @@ The MVP's competition-card landing is **obsolete** for a website. Module order
    by competition, each row carrying its form hook and linking to the fixture page.
    *Status:* the per-competition list + fixture page exist; ⚠ the cross-competition
    home aggregation is a feed to build.
-2. ~~**Hybrid browse:** competition groups + country hubs.~~ **DROPPED 2026-08-19** (CPO: "drop
-   the browse section"). Built, then removed: its only real value was reachability into the
+2. ~~**Hybrid browse:** competition groups + country hubs.~~ **DROPPED**.
+   Built, then removed: its only real value was reachability into the
    long-tail team/player pages, both blocked on name data quality, and the competitions index
    page already covers the competitions pool.
 3. ~~**Storylines — "Trending"**~~ and 4. ~~**Stats** teasers~~ — both **CUT 2026-08-08**; the
