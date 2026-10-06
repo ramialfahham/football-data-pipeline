@@ -1,78 +1,68 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 4456139d..6c7c1cd8 100644
+index 6c7c1cd8..8b871224 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,36 +1,32 @@
--# Task contract — the working agreement no longer quotes the CPO; core documents change only with approved text
-+# Task contract — the north star no longer quotes the CPO
+@@ -1,25 +1,25 @@
+-# Task contract — the north star no longer quotes the CPO
++# Task contract — the content architecture no longer quotes the CPO
  
  objective: >
--  Delete the CPO's chat words from docs/working_agreement.md, strip only, and add the rule that the
--  core documents change only with text the CPO approved, with the text approved in chat,
--  2026-10-06.
-+  Delete the CPO's chat words from docs/north_star.md and its repeat in
-+  docs/roles/growth_expert.md, strip only, with the text approved in chat, 2026-10-06.
+-  Delete the CPO's chat words from docs/north_star.md and its repeat in
+-  docs/roles/growth_expert.md, strip only, with the text approved in chat, 2026-10-06.
++  Delete the CPO's chat words from docs/content_architecture.md, strip only, with the text
++  approved in chat, 2026-10-06.
  
  refs: >
    The cleanup of quoted chat words, approved in chat, 2026-10-06.
  
  scope_paths:
--  - docs/working_agreement.md
--  - tests/test_no_decision_history_in_docs.py
-+  - docs/north_star.md
-+  - docs/roles/growth_expert.md
+-  - docs/north_star.md
+-  - docs/roles/growth_expert.md
++  - docs/content_architecture.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
  
  decisions_taken: >
    The edit is the approved text, nothing else:
--  - Two quotes are deleted (the issue carve-out, the frozen log). A line the edit touches also
--    loses its CPO name, date and MR number, and the review-round story that carried the MR number.
--    No word is added or reworded; "the exceptions" starts its sentence with a capital.
--  - One row is added to the section 10 table: core document text, every edit to the seven core
--    documents, the exact text approved before the edit.
--  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 21 to 20.
-+  - The milestone line in the CPO's first person is deleted from docs/north_star.md, with its
-+    blank line; the line after it stays.
-+  - Its repeat in docs/roles/growth_expert.md is deleted from the Quality over growth bullet.
-+  - No word is added or reworded. Neither file's history-line count changes, so no pin moves.
+-  - The milestone line in the CPO's first person is deleted from docs/north_star.md, with its
+-    blank line; the line after it stays.
+-  - Its repeat in docs/roles/growth_expert.md is deleted from the Quality over growth bullet.
+-  - No word is added or reworded. Neither file's history-line count changes, so no pin moves.
++  - Two phrases from the design conversation the header names are deleted: the navigation feel
++    and the signature-things line, the latter as a whole line.
++  - Kept, as not chat words: the example reads in section 6, the quote of metrics_display.md and
++    term names.
++  - No word is added or reworded. The file's history-line count does not change, so no pin moves.
  
--  Threshold declarations. NEW MECHANISM: none; the row is a rule, no gate enforces it. RECURRING
--  COST: none.
-+  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
+   Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
  
- decisions_reserved:
+@@ -27,6 +27,6 @@ decisions_reserved:
    - None.
  
  done_when:
--  - grep finds no chat quote left in docs/working_agreement.md.
-+  - grep finds the quote in neither file.
+-  - grep finds the quote in neither file.
++  - grep finds neither phrase in docs/content_architecture.md.
    - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/docs/north_star.md b/docs/north_star.md
-index bcb1f190..997ee670 100644
---- a/docs/north_star.md
-+++ b/docs/north_star.md
-@@ -107,8 +107,6 @@ Multiple revenue streams, built in layers:
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+index 56f4d3d3..f06c4a20 100644
+--- a/docs/content_architecture.md
++++ b/docs/content_architecture.md
+@@ -130,7 +130,7 @@ full wireframe specs in `docs/wireframes/` already describe in prose — not a r
  
- ## Next milestone
+ ## 5. Navigation graph (what makes it a site)
  
--**Make it so good I'm proud to show anyone.**
--
- Quality bar first. Growth comes after the product deserves it.
+-Every entity links to its neighbours — the "always one click to the related thing" feel.
++Every entity links to its neighbours.
  
- The roadmap itself is not written here. It is the GitLab milestones, in the site's menu order —
-diff --git a/docs/roles/growth_expert.md b/docs/roles/growth_expert.md
-index f5c24497..4dadd5a8 100644
---- a/docs/roles/growth_expert.md
-+++ b/docs/roles/growth_expert.md
-@@ -17,7 +17,7 @@ Make Matchday Pilot a product people come back to and tell others about. Own sti
+ | From | Links to |
+ |---|---|
+@@ -166,7 +166,6 @@ small set of *smart reads* the raw-number sites don't synthesise.
+    Bayern's goals"*). Cheap, narrative, bridges team↔player pages.
  
- ## What this role never compromises
+ The triad is a clean axis set: **vs your own play** · **vs your own past** · **vs your opponents**.
+-"A few signature things done well," powered by the benchmark + backfill infrastructure.
  
--- **Quality over growth**: growth built on a mediocre product churns immediately. The milestone is "make it so good I'm proud to show anyone" — growth tactics come after that bar is met
-+- **Quality over growth**: growth built on a mediocre product churns immediately.
- - **No dark patterns**: no manipulative notifications, no fake urgency, no artificial scarcity
- - **Respect for the fan**: fans are smart. Treat them as the primary audience, not a metric to optimise
+ ---
  
