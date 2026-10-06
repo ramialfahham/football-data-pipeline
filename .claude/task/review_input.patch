@@ -1,83 +1,557 @@
+diff --git a/.claude/agents/scope-auditor.md b/.claude/agents/scope-auditor.md
+index 5a45a249..b25e31ff 100644
+--- a/.claude/agents/scope-auditor.md
++++ b/.claude/agents/scope-auditor.md
+@@ -70,6 +70,12 @@ pass. Do not convert an absence of findings into a finding.
+    obviously fine" or "it follows from the last ruling": a threshold is crossed
+    or it is not. Know that no gate parses that field, so this item is the whole
+    enforcement (CPO ruling 2026-07-31, #868).
++9. **Writing standards** (`working_agreement.md` §9), on any Markdown document in the diff.
++   Does each added term, table row or rule state what the thing is and stand alone?
++   Does it leave out rationale, history and procedure (ISO/IEC 11179-4)?
++   Does each added sentence carry one topic, in active voice, with one word for one meaning (ASD-STE100)?
++   A breach is a FAIL that names the line and the clause it breaks.
++   Sentence length is the gate's job, not yours.
+ 
+ ## Verdict rules (no free passes)
+ 
+diff --git a/.claude/hooks/sentence_length_gate.py b/.claude/hooks/sentence_length_gate.py
+new file mode 100644
+index 00000000..e795a0ab
+--- /dev/null
++++ b/.claude/hooks/sentence_length_gate.py
+@@ -0,0 +1,176 @@
++#!/usr/bin/env python
++"""Sentence-length gate — a document sentence stays within the ASD-STE100 limit.
++
++Denies an `Edit`, `Write` or `MultiEdit` whose resulting Markdown document holds a sentence over
++the limit that the document on disk did not hold. The limit is 20 words for a sentence inside a
++numbered list item (a procedure step) and 25 words for every other sentence (a description),
++as `docs/working_agreement.md` section 9 states.
++
++What counts: paragraphs, list items, blockquotes and table cells are prose; headings, fenced code
++blocks, HTML comments and front matter are not. An inline code span counts as one word and a link
++counts its visible text. A sentence ends at a full stop, an exclamation or question mark, or a
++semicolon, followed by whitespace.
++
++A long sentence already in the document never blocks an edit to it; a changed one must meet the
++limit. The documents covered are the ones `comment_history_gate.is_doc_path` covers.
++`tests/test_sentence_length_in_docs.py` imports `count_docs` and pins each document's count of
++long sentences, so the CI count and this deny cannot drift apart; the counts only go down.
++Fails OPEN on any unexpected error, like every hook in this directory.
++"""
++
++from __future__ import annotations
++
++import os
++import re
++import sys
++
++sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
++from _command_utils import emit_deny, read_event  # noqa: E402
++from comment_history_gate import is_doc_path  # noqa: E402
++from memory_budget_gate import resulting_text  # noqa: E402
++
++PROCEDURE_LIMIT = 20
++DESCRIPTION_LIMIT = 25
++
++_FENCE = re.compile(r"^\s*(```|~~~)")
++_HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
++_HEADING = re.compile(r"^#{1,6}(\s|$)")
++_BREAK = re.compile(r"^([-*_]\s*){3,}$")
++_BLOCKQUOTE = re.compile(r"^(>\s?)+")
++_NUMBERED = re.compile(r"^\d+[.)]\s+")
++_BULLET = re.compile(r"^[-*+]\s+")
++_TABLE_RULE = re.compile(r"^\|?[\s:|-]+\|?$")
++_CODE_SPAN = re.compile(r"`[^`\n]+`")
++_LINK = re.compile(r"!?\[([^\]]*)\]\([^)]*\)")
++_SENTENCE_END = re.compile(r"(?<=[.!?;])\s+")
++_JOIN = "\x01"
++
++
++def _prose_units(text: str) -> list[tuple[int, str]]:
++    """(limit, prose) for every paragraph, list item and table cell of a Markdown text."""
++    text = _HTML_COMMENT.sub(" ", text.replace("\r\n", "\n"))
++    lines = text.split("\n")
++    if lines and lines[0].strip() == "---":
++        for end in range(1, len(lines)):
++            if lines[end].strip() == "---":
++                lines = lines[end + 1:]
++                break
++    units: list[tuple[int, str]] = []
++    buf: list[str] = []
++    limit = DESCRIPTION_LIMIT
++    in_fence = False
++
++    def flush() -> None:
++        if buf:
++            units.append((limit, " ".join(buf)))
++            buf.clear()
++
++    for line in lines:
++        if _FENCE.match(line):
++            flush()
++            in_fence = not in_fence
++            continue
++        if in_fence:
++            continue
++        s = _BLOCKQUOTE.sub("", line.strip()).strip()
++        if not s or _HEADING.match(s) or _BREAK.match(s):
++            flush()
++            continue
++        if s.startswith("|"):
++            flush()
++            if not _TABLE_RULE.match(s):
++                units.extend((DESCRIPTION_LIMIT, cell) for cell in s.strip("|").split("|"))
++            continue
++        numbered, bullet = _NUMBERED.match(s), _BULLET.match(s)
++        if numbered or bullet:
++            flush()
++            limit = PROCEDURE_LIMIT if numbered else DESCRIPTION_LIMIT
++            s = s[(numbered or bullet).end():]
++        elif not buf:
++            limit = DESCRIPTION_LIMIT
++        buf.append(s)
++    flush()
++    return units
++
++
++def long_sentences(text: str) -> list[tuple[int, int, str]]:
++    """(limit, words, sentence) for every sentence of a Markdown text that is over its limit."""
++    hits = []
++    for limit, prose in _prose_units(text):
++        prose = _LINK.sub(r"\1", prose)
++        prose = _CODE_SPAN.sub(lambda m: re.sub(r"\s", _JOIN, m.group(0)), prose)
++        for sentence in _SENTENCE_END.split(prose):
++            words = sentence.split()
++            if len(words) > limit:
++                hits.append((limit, len(words), " ".join(words).replace(_JOIN, " ")))
++    return hits
++
++
++def added_long_sentences(before: str, after: str) -> list[tuple[int, int, str]]:
++    """Long sentences in `after` that `before` did not hold."""
++    existing = {s for _limit, _n, s in long_sentences(before)}
++    return [hit for hit in long_sentences(after) if hit[2] not in existing]
++
++
++def count_docs(root: str, paths: list[str]) -> dict[str, int]:
++    """{document: long-sentence count} for the given repo-relative paths the gate covers."""
++    counts = {}
++    for rel in paths:
++        if not is_doc_path(rel):
++            continue
++        try:
++            with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
++                n = len(long_sentences(fh.read()))
++        except OSError:
++            continue
++        if n:
++            counts[rel.replace("\\", "/")] = n
++    return counts
++
++
++def _repo_root() -> str:
++    env = os.environ.get("CLAUDE_PROJECT_DIR")
++    if env:
++        return os.path.abspath(env)
++    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
++
++
++def main() -> int:
++    event = read_event()
++    try:
++        tool_input = event.get("tool_input") or {}
++        file_path = tool_input.get("file_path") or ""
++        if not file_path:
++            return 0
++        root = _repo_root()
++        try:
++            rel = os.path.relpath(os.path.abspath(file_path), root)
++        except ValueError:
++            return 0
++        if rel.startswith("..") or not is_doc_path(rel):
++            return 0
++        try:
++            with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
++                before = fh.read().replace("\r\n", "\n")
++        except OSError:
++            before = ""
++        after = resulting_text(tool_input, before)
++        if after is None:
++            return 0
++        hits = added_long_sentences(before, after)
++        if not hits:
++            return 0
++        shown = "; ".join(f"{n} words (limit {limit}): `{s[:100]}`" for limit, n, s in hits[:3])
++        emit_deny(
++            f"SENTENCE LENGTH GATE: this edit adds {len(hits)} sentence(s) over the limit to "
++            f"{rel.replace(os.sep, '/')} — {shown}. A description sentence has at most "
++            f"{DESCRIPTION_LIMIT} words and a numbered step at most {PROCEDURE_LIMIT} "
++            "(working_agreement.md section 9, ASD-STE100). Split each into sentences of one topic."
++        )
++    except Exception:
++        return 0
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/.claude/settings.json b/.claude/settings.json
+index ec9a150d..2c0913ff 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -70,6 +70,12 @@
+             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/comment_history_gate.py\"",
+             "statusMessage": "Checking comments for decision history..."
+           },
++          {
++            "type": "command",
++            "shell": "bash",
++            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/sentence_length_gate.py\"",
++            "statusMessage": "Checking sentence length in documents..."
++          },
+           {
+             "type": "command",
+             "shell": "bash",
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 48e0be81..df0c66d1 100644
+index df0c66d1..5e46f985 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,34 +1,33 @@
--# Task contract — the agent guardrails document states the current state only
-+# Task contract — documents follow three writing standards
+@@ -1,33 +1,63 @@
+-# Task contract — documents follow three writing standards
++# Task contract — a gate holds documents to the sentence-length limit
  
  objective: >
--  Replace docs/agent_guardrails.md with the text approved in chat, 2026-10-06: what exists and
--  where it lives, every line true against the code, no history, rules pointed to their owner.
-+  Working agreement section 9 and its Cursor mirror say that documents follow ISO 24495-1, that
-+  every term, table row and rule in them follows ISO/IEC 11179-4, and that sentences follow
-+  ASD-STE100, with the text approved in chat, 2026-10-06.
+-  Working agreement section 9 and its Cursor mirror say that documents follow ISO 24495-1, that
+-  every term, table row and rule in them follows ISO/IEC 11179-4, and that sentences follow
+-  ASD-STE100, with the text approved in chat, 2026-10-06.
++  Enforce working_agreement.md section 9 for documents: a hook refuses an edit that adds a
++  Markdown sentence over 25 words, or over 20 in a numbered step; a per-document pin keeps the
++  long sentences left from growing; scope-auditor checks the parts no pattern catches.
  
  refs: >
--  The cleanup of the core documents, approved in chat, 2026-10-06.
-+  The writing standards for documents, approved in chat, 2026-10-06.
+-  The writing standards for documents, approved in chat, 2026-10-06.
++  The enforcement of the writing standards, approved in chat, 2026-10-06.
  
  scope_paths:
--  - docs/agent_guardrails.md
--  - tests/test_no_decision_history_in_docs.py
--  - tests/test_governance_doc_parity.py
-+  - docs/working_agreement.md
-+  - .cursor/rules/agent-behavior.mdc
+-  - docs/working_agreement.md
+-  - .cursor/rules/agent-behavior.mdc
++  - .claude/hooks/sentence_length_gate.py
++  - .claude/settings.json
++  - .claude/agents/scope-auditor.md
++  - docs/agent_guardrails.md
++  - tests/test_sentence_length_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
  
++protected_override: >
++  Approved by the CPO in chat, 2026-10-06: the sentence-length hook, its wiring in
++  .claude/settings.json, the per-document pin test, and item 9 of the scope-auditor brief, with
++  the brief item and the guardrails row in the exact text approved.
++
++impact_map: >
++  fires on: PreToolUse Edit, Write and MultiEdit (the existing Edit-family matcher in
++  .claude/settings.json); it acts only on a Markdown document as comment_history_gate.is_doc_path
++  defines it (every tracked .md except .claude/task/, docs/tracker/ and site/).
++  imports: is_doc_path from comment_history_gate.py and resulting_text from
++  memory_budget_gate.py, so the document scope and the edit arithmetic have one definition each.
++  what it blocks: an edit whose resulting document holds a long sentence the document on disk
++  did not hold. A long sentence left as it is never blocks; a changed one must meet the limit.
++  failure: fails open on any error, like every hook here; a shell write bypasses it, and
++  tests/test_sentence_length_in_docs.py catches that in CI with a per-document count that only
++  goes down.
++  what stops being enforced if it is wrong: nothing existing; it adds denies only. No other
++  hook, gate, test or CI job reads it.
++  blast_radius: every agent edit of a Markdown document from now on. No dataset, model, export
++  or page changes.
++
  decisions_taken: >
--  The document is the approved text, nothing else. Its two test companions follow from it:
--  - tests/test_no_decision_history_in_docs.py: the document has no history line left, so its
--    pin row is removed.
--  - tests/test_governance_doc_parity.py: the document no longer states the reviewer counts
--    (working_agreement.md section 2 owns them), so its three count anchors are removed, and a
--    prose-subset entry whose run no longer exists in the document is removed.
-+  The edit is the approved text, nothing else:
-+  - The ISO 24495-1 line in section 9 now covers documents, and two lines follow it: one for
-+    ISO/IEC 11179-4, one for ASD-STE100.
-+  - The Cursor rule file mirrors section 9, so its same line changes the same way.
-+  - The enforcement (a sentence-length gate, its pin and a reviewer item) is a separate MR.
+-  The edit is the approved text, nothing else:
+-  - The ISO 24495-1 line in section 9 now covers documents, and two lines follow it: one for
+-    ISO/IEC 11179-4, one for ASD-STE100.
+-  - The Cursor rule file mirrors section 9, so its same line changes the same way.
+-  - The enforcement (a sentence-length gate, its pin and a reviewer item) is a separate MR.
++  The design and texts approved in chat, 2026-10-06:
++  - A sentence in a numbered list item is a procedure step, at most 20 words; every other
++    sentence is a description, at most 25 words.
++  - An inline code span counts as one word; a link counts its visible text; headings, code
++    blocks, HTML comments and front matter are not prose; table cells are; a sentence ends at
++    a full stop, an exclamation or question mark, or a semicolon.
++  - scope-auditor gains item 9 and docs/agent_guardrails.md gains the hook's row, both in the
++    exact text approved.
++  Readings: the document on disk is read with its line endings normalised, so an Edit written
++  with plain newlines applies to a CRLF working tree.
  
--  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
-+  Threshold declarations. NEW MECHANISM: none in this MR. RECURRING COST: none.
+-  Threshold declarations. NEW MECHANISM: none in this MR. RECURRING COST: none.
++  Threshold declarations. NEW MECHANISM: the sentence-length hook, approved in chat, 2026-10-06.
++  RECURRING COST: none.
  
  decisions_reserved:
    - None.
  
  done_when:
--  - docs/agent_guardrails.md equals the approved text.
-+  - Both files carry the three approved lines.
+-  - Both files carry the three approved lines.
++  - The hook's own tests drive every deny and pass; the pin matches the tree in both directions.
    - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/.cursor/rules/agent-behavior.mdc b/.cursor/rules/agent-behavior.mdc
-index e6636f04..d9ff7635 100644
---- a/.cursor/rules/agent-behavior.mdc
-+++ b/.cursor/rules/agent-behavior.mdc
-@@ -52,7 +52,9 @@ The user cannot manually verify numbers. Every metric and pipeline output must b
- ## Communication style
- 
- - Plain language, technically accurate.
--- Explanations, issues and MR heads follow ISO 24495-1 (plain language): the reader finds, understands and can use what they need.
-+- Explanations, issues, MR heads and documents follow ISO 24495-1 (plain language): the reader finds, understands and can use what they need.
-+- Every term, table row and rule in a document follows ISO/IEC 11179-4. It states what the thing is, stands alone, and leaves out rationale, history and procedure.
-+- Sentences follow ASD-STE100: one word, one meaning; one topic per sentence; active voice; at most 20 words in a procedure and 25 in a description.
- - No filler, no analogies, no motivational text.
- - Use backticks for file, function, and column names.
- - When proposing a plan, keep it proportional to the request. Do not over-engineer simple tasks.
-diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index ca0a888d..41ce4ccd 100644
---- a/docs/working_agreement.md
-+++ b/docs/working_agreement.md
-@@ -317,7 +317,9 @@ The user cannot manually verify numbers. Every metric and pipeline output must b
- ## 9. Communication style
- 
- - Plain language, technically accurate.
--- Explanations, issues and MR heads follow ISO 24495-1 (plain language): the reader finds, understands and can use what they need.
-+- Explanations, issues, MR heads and documents follow ISO 24495-1 (plain language): the reader finds, understands and can use what they need.
-+- Every term, table row and rule in a document follows ISO/IEC 11179-4. It states what the thing is, stands alone, and leaves out rationale, history and procedure.
-+- Sentences follow ASD-STE100: one word, one meaning; one topic per sentence; active voice; at most 20 words in a procedure and 25 in a description.
- - No filler, no analogies, no motivational text, no emoji unless asked.
- - Use backticks for file, function, and column names.
- - Proposals proportional to the request — do not over-engineer simple tasks.
+diff --git a/docs/agent_guardrails.md b/docs/agent_guardrails.md
+index e3aede45..cc4c84ee 100644
+--- a/docs/agent_guardrails.md
++++ b/docs/agent_guardrails.md
+@@ -30,6 +30,7 @@ match, because a hook that cries wolf gets ignored.
+ | `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Denies an edit on a protected path without `protected_override`, or on the structural surface without an `impact_map`. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
+ | `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Injects the layer contract when a dbt model or a consumption file (`scripts/export_*.py`, `site/`, `site_v2/`) is edited. `scripts/check_layer_contract.py` enforces it in CI. |
+ | `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies an edit that adds history to a code comment or a Markdown document. History is a date, an issue or MR number, a review credit or round, or a story phrase. `tests/test_no_decision_history_in_code.py` and `tests/test_no_decision_history_in_docs.py` pin the lines left; the counts only go down. |
++| `sentence_length_gate.py` | PreToolUse Edit/Write/MultiEdit | Denies an edit that adds a sentence over 25 words to a Markdown document, or over 20 in a numbered step. `tests/test_sentence_length_in_docs.py` pins the long sentences left; the counts only go down. |
+ | `memory_budget_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies a write that takes the memory folder over its budget (`CLAUDE.md`, "Memory files"). `--report` shows where it stands. |
+ | `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies a public network address in any repo file. `tests/test_no_host_fingerprint_in_tree.py` keeps the tree at zero. |
+ | `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies every edit under `docs/tracker/`; only `scripts/snapshot_tracker.py` writes the tracker backup. |
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+new file mode 100644
+index 00000000..6c4b2069
+--- /dev/null
++++ b/tests/test_sentence_length_in_docs.py
+@@ -0,0 +1,241 @@
++"""A document sentence stays within the ASD-STE100 limit — the guard, both halves.
++
++Half one is the edit-time hook `.claude/hooks/sentence_length_gate.py`: it refuses an `Edit`,
++`Write` or `MultiEdit` that adds a Markdown sentence over 25 words, or over 20 in a numbered step.
++Half two is the pin below: each document's count of long sentences, which may only move down.
++
++Everything imports the hook's definitions, so the CI count and the edit-time refusal cannot drift.
++"""
++
++from __future__ import annotations
++
++import json
++import os
++import subprocess
++import sys
++
++REPO = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
++HOOKS = os.path.join(REPO, ".claude", "hooks")
++sys.path.insert(0, HOOKS)
++import sentence_length_gate as gate  # noqa: E402
++
++# The pin: long sentences per document. A cleanup lowers a number or removes a row; nothing adds one.
++PINNED = {
++    ".claude/agents/analytics-engineer-reviewer.md": 6,
++    ".claude/agents/bi-analyst-reviewer.md": 17,
++    ".claude/agents/cto-reviewer.md": 22,
++    ".claude/agents/data-engineer-reviewer.md": 8,
++    ".claude/agents/football-analytics-expert-reviewer.md": 6,
++    ".claude/agents/platform-reviewer.md": 11,
++    ".claude/agents/scope-auditor.md": 11,
++    ".claude/agents/seo-expert-reviewer.md": 15,
++    ".claude/skills/onboard-competition/SKILL.md": 10,
++    ".claude/skills/onboard-endpoint/SKILL.md": 9,
++    ".claude/skills/validate-local/SKILL.md": 7,
++    ".claude/skills/verify-competition-ingest/SKILL.md": 4,
++    ".github/workflows/README.md": 12,
++    "AGENTS.md": 2,
++    "CLAUDE.md": 27,
++    "README.md": 9,
++    "dbt_project/docs/engineering_standards.md": 34,
++    "dbt_project/docs/layering.md": 44,
++    "dbt_project/models/1_staging/api_football/README.md": 1,
++    "dbt_project/models/docs/cleaning_rules.md": 5,
++    "dbt_project/models/docs/metric_columns.md": 37,
++    "dbt_project/models/docs/metric_rules.md": 3,
++    "dbt_project/models/docs/shared_columns.md": 35,
++    "deploy/nightly/README.md": 19,
++    "design-mocks/README.md": 15,
++    "docs/content_architecture.md": 11,
++    "docs/data_contract.md": 31,
++    "docs/metrics_context_model.md": 17,
++    "docs/north_star.md": 8,
++    "docs/operations_guide.md": 19,
++    "docs/roles/analytics_engineer.md": 5,
++    "docs/roles/bi_analyst.md": 5,
++    "docs/roles/cfo.md": 3,
++    "docs/roles/cto.md": 4,
++    "docs/roles/data_engineer.md": 2,
++    "docs/roles/data_journalist.md": 5,
++    "docs/roles/football_analytics_expert.md": 1,
++    "docs/roles/legal_counsel.md": 5,
++    "docs/roles/platform_reliability.md": 9,
++    "docs/roles/product_analyst.md": 4,
++    "docs/roles/seo_expert.md": 11,
++    "docs/roles/ui_expert.md": 1,
++    "docs/site_architecture.md": 33,
++    "docs/ui_design_brief.md": 16,
++    "docs/wireframes/00_overview.md": 13,
++    "docs/wireframes/01_fixture_page.md": 5,
++    "docs/wireframes/02_team_profile.md": 4,
++    "docs/wireframes/03_player_profile.md": 3,
++    "docs/wireframes/08_browse.md": 11,
++    "docs/wireframes/09_chrome.md": 9,
++    "docs/wireframes/10_home.md": 128,
++    "docs/wireframes/11_team_squad.md": 7,
++    "docs/wireframes/12_player_stats.md": 16,
++    "docs/wireframes/13_player_career.md": 7,
++    "docs/wireframes/14_team_stats.md": 19,
++    "docs/wireframes/99_gaps_register.md": 66,
++    "docs/wireframes/block_standard.md": 11,
++    "docs/wireframes/metrics_display.md": 38,
++    "docs/working_agreement.md": 40,
++    "site_v2/src/data/README.md": 25,
++}
++
++
++def words(n: int) -> str:
++    return " ".join(["word"] * n) + "."
++
++
++def _tracked_docs() -> list[str]:
++    out = subprocess.run(["git", "ls-files", "-z", "*.md"], cwd=REPO, capture_output=True, check=True)
++    return [p for p in out.stdout.decode("utf-8").split("\0") if p]
++
++
++def run_hook(root: str, tool_input: dict, tool: str = "Edit") -> str:
++    event = {"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input}
++    env = dict(os.environ, CLAUDE_PROJECT_DIR=root)
++    proc = subprocess.run(
++        [sys.executable, os.path.join(HOOKS, "sentence_length_gate.py")],
++        input=json.dumps(event), capture_output=True, text=True, env=env, timeout=60, check=False,
++    )
++    return proc.stdout
++
++
++def denied(out: str) -> bool:
++    return '"permissionDecision": "deny"' in out
++
++
++def doc_in(tmp_path, rel: str, text: str, newline: str = "\n") -> str:
++    path = tmp_path / rel
++    path.parent.mkdir(parents=True, exist_ok=True)
++    path.write_bytes(text.replace("\n", newline).encode("utf-8"))
++    return str(path)
++
++
++# --- the pin -----------------------------------------------------------------------------------
++
++def test_every_document_matches_the_pin_in_both_directions():
++    counts = gate.count_docs(REPO, _tracked_docs())
++    grown = {p: n for p, n in counts.items() if n > PINNED.get(p, 0)}
++    assert not grown, (
++        f"documents gained long sentences: {grown}. A description sentence has at most 25 words "
++        "and a numbered step at most 20 (working_agreement.md section 9). Split them."
++    )
++    shrunk = {p: (PINNED[p], counts.get(p, 0)) for p in PINNED if counts.get(p, 0) < PINNED[p]}
++    assert not shrunk, (
++        f"documents lost long sentences (pinned, now): {shrunk}. Lower their numbers in PINNED "
++        "(remove a row at zero) so the cleanup is recorded; the pin only moves down"
++    )
++
++
++# --- what counts --------------------------------------------------------------------------------
++
++def test_the_limits_are_25_for_a_description_and_20_for_a_numbered_step():
++    assert gate.long_sentences(words(25)) == []
++    assert [n for _l, n, _s in gate.long_sentences(words(26))] == [26]
++    assert gate.long_sentences("1. " + words(20)) == []
++    assert [(lim, n) for lim, n, _s in gate.long_sentences("1. " + words(21))] == [(20, 21)]
++    assert gate.long_sentences("- " + words(25)) == []
++
++
++def test_a_paragraph_after_a_numbered_step_is_a_description_again():
++    assert gate.long_sentences("1. " + words(5) + "\n\n" + words(24)) == []
++
++
++def test_sentences_end_at_a_full_stop_a_question_mark_or_a_semicolon():
++    assert gate.long_sentences(words(15) + " " + words(15)) == []
++    assert gate.long_sentences(" ".join(["word"] * 15) + "; " + words(15)) == []
++    assert gate.long_sentences(" ".join(["word"] * 15) + "? " + words(15)) == []
++
++
++def test_a_code_span_is_one_word_and_a_link_counts_its_text():
++    span = "`" + " ".join(["x"] * 40) + "`"
++    assert gate.long_sentences(span + " " + words(24)) == []
++    link = "[two words](https://example.org/" + "a/" * 30 + ")"
++    assert gate.long_sentences(link + " " + words(23)) == []
++
++
++def test_headings_code_blocks_comments_and_front_matter_are_not_prose():
++    long = " ".join(["word"] * 40)
++    text = f"---\ntitle: {long}\n---\n# {long}\n```\n{long}\n```\n<!-- {long} -->\n"
++    assert gate.long_sentences(text) == []
++
++
++def test_a_table_cell_is_prose_and_the_rule_row_is_not():
++    table = "| a | b |\n|---|---|\n| " + words(26) + " | short |\n"
++    assert [n for _l, n, _s in gate.long_sentences(table)] == [26]
++
++
++# --- the hook -----------------------------------------------------------------------------------
++
++def test_hook_refuses_an_added_long_sentence(tmp_path):
++    path = doc_in(tmp_path, "docs/a.md", "Intro.\n")
++    out = run_hook(str(tmp_path), {"file_path": path, "old_string": "Intro.", "new_string": words(26)})
++    assert denied(out)
++    assert "26 words" in out
++
++
++def test_hook_allows_a_short_sentence_and_keeps_an_existing_long_one(tmp_path):
++    path = doc_in(tmp_path, "docs/a.md", words(30) + "\n\nIntro.\n")
++    out = run_hook(str(tmp_path), {"file_path": path, "old_string": "Intro.", "new_string": words(10)})
++    assert out.strip() == ""
++
++
++def test_hook_refuses_a_changed_long_sentence(tmp_path):
++    path = doc_in(tmp_path, "docs/a.md", words(30) + "\n")
++    out = run_hook(str(tmp_path), {"file_path": path, "old_string": "word.", "new_string": "words."})
++    assert denied(out)
++
++
++def test_hook_applies_an_edit_to_a_crlf_document(tmp_path):
++    path = doc_in(tmp_path, "docs/a.md", "Intro.\nMore.\n", newline="\r\n")
++    out = run_hook(str(tmp_path), {"file_path": path, "old_string": "Intro.\nMore.", "new_string": words(26)})
++    assert denied(out)
++
++
++def test_hook_refuses_a_write_of_a_new_document_with_a_long_sentence(tmp_path):
++    path = str(tmp_path / "docs" / "new.md")
++    out = run_hook(str(tmp_path), {"file_path": path, "content": words(26) + "\n"}, tool="Write")
++    assert denied(out)
++
++
++def test_hook_checks_every_edit_of_a_multiedit(tmp_path):
++    path = doc_in(tmp_path, "docs/a.md", "One.\nTwo.\n")
++    edits = [{"old_string": "One.", "new_string": "Uno."}, {"old_string": "Two.", "new_string": words(26)}]
++    out = run_hook(str(tmp_path), {"file_path": path, "edits": edits}, tool="MultiEdit")
++    assert denied(out)
++
++
++def test_hook_ignores_code_files_and_exempt_documents(tmp_path):
++    for rel in ("scripts/a.py", ".claude/task/contract.md", "docs/tracker/snapshot.md"):
++        path = doc_in(tmp_path, rel, "Intro.\n")
++        out = run_hook(str(tmp_path), {"file_path": path, "old_string": "Intro.", "new_string": words(30)})
++        assert out.strip() == "", rel
++
++
++def test_hook_ignores_a_document_outside_the_repo(tmp_path):
++    root = tmp_path / "repo"
++    root.mkdir()
++    path = doc_in(tmp_path, "memory/note.md", "Intro.\n")
++    out = run_hook(str(root), {"file_path": path, "old_string": "Intro.", "new_string": words(30)})
++    assert out.strip() == ""
++
++
++def test_the_hook_is_wired_beside_the_other_edit_time_gates():
++    with open(os.path.join(REPO, ".claude", "settings.json"), encoding="utf-8") as f:
++        settings = json.load(f)
++    groups = [g for g in settings["hooks"]["PreToolUse"]
++              if any("sentence_length_gate.py" in h["command"] for h in g["hooks"])]
++    assert len(groups) == 1
++    assert set(groups[0]["matcher"].split("|")) >= {"Edit", "Write", "MultiEdit"}
++
++
++def test_hook_fails_open_on_an_unreadable_event():
++    proc = subprocess.run(
++        [sys.executable, os.path.join(HOOKS, "sentence_length_gate.py")],
++        input="not json", capture_output=True, text=True, timeout=60, check=False,
++    )
++    assert proc.returncode == 0
++    assert proc.stdout.strip() == ""

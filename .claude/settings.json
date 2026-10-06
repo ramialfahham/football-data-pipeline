@@ -73,6 +73,12 @@
           {
             "type": "command",
             "shell": "bash",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/sentence_length_gate.py\"",
+            "statusMessage": "Checking sentence length in documents..."
+          },
+          {
+            "type": "command",
+            "shell": "bash",
             "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/memory_budget_gate.py\"",
             "statusMessage": "Checking the memory budget..."
           },

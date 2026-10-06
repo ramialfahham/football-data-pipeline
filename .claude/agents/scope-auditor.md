@@ -70,6 +70,12 @@ pass. Do not convert an absence of findings into a finding.
    obviously fine" or "it follows from the last ruling": a threshold is crossed
    or it is not. Know that no gate parses that field, so this item is the whole
    enforcement (CPO ruling 2026-07-31, #868).
+9. **Writing standards** (`working_agreement.md` §9), on any Markdown document in the diff.
+   Does each added term, table row or rule state what the thing is and stand alone?
+   Does it leave out rationale, history and procedure (ISO/IEC 11179-4)?
+   Does each added sentence carry one topic, in active voice, with one word for one meaning (ASD-STE100)?
+   A breach is a FAIL that names the line and the clause it breaks.
+   Sentence length is the gate's job, not yours.
 
 ## Verdict rules (no free passes)
 
