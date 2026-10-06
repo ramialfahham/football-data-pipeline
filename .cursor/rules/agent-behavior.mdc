@@ -52,7 +52,9 @@ The user cannot manually verify numbers. Every metric and pipeline output must b
 ## Communication style
 
 - Plain language, technically accurate.
-- Explanations, issues and MR heads follow ISO 24495-1 (plain language): the reader finds, understands and can use what they need.
+- Explanations, issues, MR heads and documents follow ISO 24495-1 (plain language): the reader finds, understands and can use what they need.
+- Every term, table row and rule in a document follows ISO/IEC 11179-4. It states what the thing is, stands alone, and leaves out rationale, history and procedure.
+- Sentences follow ASD-STE100: one word, one meaning; one topic per sentence; active voice; at most 20 words in a procedure and 25 in a description.
 - No filler, no analogies, no motivational text.
 - Use backticks for file, function, and column names.
 - When proposing a plan, keep it proportional to the request. Do not over-engineer simple tasks.
