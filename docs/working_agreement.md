@@ -44,9 +44,7 @@ conversation; **the plan file shown for approval is the issue's text, not a seco
 document**; the CPO's approval is on those lines and nothing else. The task contract's
 `acceptance_criteria` copies the checklist verbatim (the blinded reviewers cannot read
 GitLab). A question the issue does not answer is asked, and the answer is **edited into the
-issue** — never appended to a log. The CPO's own carve-out: *"There are some small exceptions
-but I think we need an issue for every major task with clear requirements and documentation
-including a plan"* — the exceptions are a typo or a refactor with no requirement, whose MR head
+issue** — never appended to a log. The exceptions are a typo or a refactor with no requirement, whose MR head
 says "No behaviour change". Why: plans were ~1,400–5,600-word files outside the
 repo that the CPO approved without being able to scan, and decisions were quoted from chat
 into a builder-written log — 3 of 4 review rounds on `!173` were spent on that record.
@@ -341,6 +339,7 @@ The agent never decides the following. Each is a CPO decision, escalated per §1
 | Rule reinterpretation or extension | applying a written rule to a domain it did not explicitly cover |
 | Changing shipped numbers | anything the live MVP or published pages display |
 | Cost, schedule, scope | API budget, history depth, run cadence, widening a task |
+| Core document text | every edit to `north_star.md`, `site_architecture.md`, `content_architecture.md`, `ui_design_brief.md`, `working_agreement.md`, `agent_guardrails.md`, `metrics_context_model.md`: the exact text, approved before the edit |
 
 **Agent-executable:** implementation inside a written contract; mechanical work whose every judgment is already codified in a contract document (layering, engineering standards, metric catalogue, the task contract).
 
@@ -366,7 +365,7 @@ The escalation itself presents **at least two distinct, conflicting paths**. For
 
 **The MR head is the CPO's check.** The commit message body carries `Closes #N` and the `Locked files:` line (naming the approval) — the post-commit hook opens the MR with `glab mr create --fill`, so those two lines reach the MR description on their own and sit in `git log` for good. Right after, the builder sets the description to the full `Default` MR template shape (`glab mr update <n> --description …`): the issue's checklist ticked with one link per tick, the same `Locked files:` line, everything else below a fold. **The merge is the one act the builder cannot perform, so the merge is the approval** — nothing is "recorded" until he clicks, and no quote of him exists anywhere. That asks one thing of him: read the head before merging, and refuse a long one.
 
-`.claude/task/escalations.log` is **frozen** as of 2026-09-11 — history only, no new entries. It was written by the party it authorised, in the branch it authorised; 3 of 4 review rounds on `!173` went to misattributed quotes in it, and the CPO's own words on it: *"you write down even irrelevant content, some tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them which again lets you drift."* A citation of a past entry stays valid; a new entry is a defect.
+`.claude/task/escalations.log` is **frozen** — history only, no new entries. It was written by the party it authorised, in the branch it authorised. A citation of a past entry stays valid; a new entry is a defect.
 
 ---
 
