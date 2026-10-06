@@ -1,24 +1,15 @@
-# Review — docs/clean-agent-guardrails
+# Review — docs/writing-standards-for-documents
 
-diff_sha256: 3a8ecc547b8d118ec91dfaf01200f2c295eae08e71ddf73a54461cb452fe1a57
+diff_sha256: f18b504a542e5151858b35c0e9abacc93351d8275b4919554ebca5e5099227bf
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All paths in scope; the document is a trim to current state with no metric, naming, product or URL decision; the test edits only remove pins and anchors for text that no longer exists.
-- Every hook, reviewer agent, skill and the status command named in the document exists and is wired under the event it names.
-- No new mechanism, no recurring cost, no credential; working_agreement.md section 2 keeps the reviewer counts.
-- Round 2 delta: the three sentence splits keep the same deny conditions, markers and pointers; nothing new is decided.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- The document has no history line left, so removing its pin row passes both directions; the three removed count anchors would otherwise fail on text that no longer exists.
-- The one remaining protected-path run is the heading, which matches the kept prose-subset entry; the removed entry has no run left.
-- Hook wiring, events and matchers in the document match .claude/settings.json; the fail-open statement keeps the review-gate exception.
-- Round 2 delta: the splits add no history marker, no protected-path run and no count claim.
+- All paths in scope; the diff is the approved section 9 text, named with its approval and date; the enforcement is deferred to its own MR, so no mechanism lands here.
+- The Cursor mirror carries the same three lines; no other file quotes the changed line.
+- No metric, URL, naming or cost decision; no new mechanism, no recurring cost, no credential; no history written into the documents.
 
 ## escalations
 (none)
