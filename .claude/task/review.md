@@ -1,24 +1,31 @@
-# Review — fix/cleaning-key-cases
+# Review — ci/validate-ui-bundled-node
 
-diff_sha256: 4127b6c5a2d4b25a74e466cdab57b805157ebeaca0baeb9957f88b6391753410
+diff_sha256: 335cd76c1aa8f510d3f279bd1279c7326239f4e8779cc04553fec49de9c3fe7f
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Diff touches only contract.md and the two cleaning answer-key seeds, both in scope_paths; the step-1 paths dropped from scope are untouched.
-- §10: five data rows in existing seeds; no metric, label, URL, naming, mechanism or rule introduced or extended.
-- Team opponent_shots_on_target_unverified has no real case; the contract declares it and the MR head states it, so nothing is hidden.
-- No structural path, so no impact_map; no doc needs syncing; no secrets; NEW MECHANISM and RECURRING COST none, consistent with the diff.
+- Only .gitlab-ci.yml and contract.md change, both in scope; the protected edit rests on a named approval and a real impact map.
+- One before_script line and the job's header comment; no metric, URL, naming, mechanism, cadence or cost change.
+- Round 2 delta: the header comment now states the current setup; the contract sentence adds no scope or decision.
 
-## analytics-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- Team 1311456/5277: shots_on_target 1 raised to 2 open-play goals (gap 1, raised_to_open_play_goals) and shots 1 raised to 2 (raised_to_shots_on_target, open-play goals not above the cleaned shots on target), checked against base_apif__fixture_statistics.sql and the raw values.
-- Player 1451034/169/25926: count 3 plus 1 own goal is 4, not 5, so the events (4 plus the own goal, every scorer with a row) give him 2 goals; shots on target and shots 1 raised to 2 with the labels the model emits.
-- Player 1180382/119/50077: the opponent's provider shots on target (0, before team correction) fail the check against 1 open-play goal conceded, so the 2 saves go blank under opponent_shots_on_target_unverified.
-- Seed mechanics: column count, blank field, unique keys and populated workings checked; the tests compare expected_value only, so each rule label was checked against the model by hand.
+- Authority: protected_override names the approval; impact_map covers readers, triggers, deploy order and blast radius.
+- Fail-closed: a wrong path leaves node missing and the syntax loop exits 1; no allow_failure or skip added.
+- No new mechanism or dependency: same image and steps, the Node ships in the pinned playwright wheel; one network dependency removed.
+- Round 2 delta: correcting the comment that describes the approved line is part of that change; the reading is marked as a reading.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL on the stale header comment is closed: it now says node --check runs Playwright's bundled Node.
+- Full re-read in round 2: YAML plain scalar parses as one string; the substitution's quoting is valid; before_script and script share a shell, so PATH reaches line 501.
+- Playwright 1.63.0 resolves its driver to driver/node on Linux, which the job's own Chromium launch also needs; line 501 is the only node caller.
+- .gitlab-ci.yml is a UI path, so this MR's pipeline runs validate:ui on the runner.
 
 ## escalations
 (none)
