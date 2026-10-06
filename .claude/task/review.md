@@ -1,24 +1,36 @@
-# Review — fix/cleaning-key-cases
+# Review — docs/strip-chat-quotes
 
-diff_sha256: 4127b6c5a2d4b25a74e466cdab57b805157ebeaca0baeb9957f88b6391753410
+diff_sha256: 64d94763e4913ebc0d2454448b15c93861264d0ff9fbf268a04dd180d7b539cb
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Diff touches only contract.md and the two cleaning answer-key seeds, both in scope_paths; the step-1 paths dropped from scope are untouched.
-- §10: five data rows in existing seeds; no metric, label, URL, naming, mechanism or rule introduced or extended.
-- Team opponent_shots_on_target_unverified has no real case; the contract declares it and the MR head states it, so nothing is hidden.
-- No structural path, so no impact_map; no doc needs syncing; no secrets; NEW MECHANISM and RECURRING COST none, consistent with the diff.
+- Every staged path is in scope_paths; the core documents and the protected reviewer briefs are not in the diff, as the contract defers them.
+- §10: each replacement restates the rule the quote carried; no composition, label, metric or copy string changes; the strings.ts edit is a comment.
+- The consumption-layer and ordering rules in layering.md keep both halves; nothing narrowed or widened.
+- Renders change only a CSS comment; code files only comments and docstrings; pins move down only; no mechanism, cost or secret.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- strings.ts: one comment line; the Torvorlagen and Vorlagen values untouched.
+- 10_home.md: every rewritten passage old against new — browse dropped, pools retired, one per league, within-season comparison, stacking, the approved window phrase, the women's-competition caveat, the dropped count — same rule, no number, name or approved string changed.
+- Gaps register rows GAP-04, 27, 28, 29, 30, 31, 33: status and disposition unchanged; GAP-33 still not ruled.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Team 1311456/5277: shots_on_target 1 raised to 2 open-play goals (gap 1, raised_to_open_play_goals) and shots 1 raised to 2 (raised_to_shots_on_target, open-play goals not above the cleaned shots on target), checked against base_apif__fixture_statistics.sql and the raw values.
-- Player 1451034/169/25926: count 3 plus 1 own goal is 4, not 5, so the events (4 plus the own goal, every scorer with a row) give him 2 goals; shots on target and shots 1 raised to 2 with the labels the model emits.
-- Player 1180382/119/50077: the opponent's provider shots on target (0, before team correction) fail the check against 1 open-play goal conceded, so the 2 saves go blank under opponent_shots_on_target_unverified.
-- Seed mechanics: column count, blank field, unique keys and populated workings checked; the tests compare expected_value only, so each rule label was checked against the model by hand.
+- layering.md: the consumption-layer blockquote, the ordering bullet, the shipped-module passage, the country exception and the staging bullet each keep their rule; the never-allowed list is untouched.
+- export_site_data.py: exactly two hunks, a comment and a docstring line; no executable line, string value or payload changed.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Every changed code line is a comment, docstring or CSS-comment line; the docstring edit adds no character that could close the string.
+- Renders: one line inside an unchanged CSS comment; no selector, declaration or markup changed.
+- Pins recounted against the gate's markers: code 779 to 777, layering 13 to 11, home 141 to 127, each exact; the untouched pins hold.
 
 ## escalations
 (none)

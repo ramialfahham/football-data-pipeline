@@ -2,8 +2,8 @@
 
 > **Narrowed 2026-07-31 by the CTO split (#868).** This role owned `scripts/`, `tests/`,
 > `.claude/hooks/`, `.github/workflows/` and all of `site_v2/`, which made it a required reviewer on
-> 28% of commits and had it reviewing Astro markup on 48 files. The CPO's ruling: *"We have a CTO
-> role that is pulled in every review process. That's ridiculous."* The territory and the line review
+> 28% of commits and had it reviewing Astro markup on 48 files. The CPO ruled out a CTO role
+> pulled into every review. The territory and the line review
 > moved to [Platform and Reliability](platform_reliability.md). What stays here is authority.
 >
 > **This role is now activated by a PROPERTY of the change, not by a place in the tree.** Four

@@ -129,7 +129,7 @@ A staging model does exactly two things, in this order:
      (`RAW_APIF_PLAYERS`) — because the loader fetches per entity, skip-if-already-ingested. They
      hold **many keys per `league_code`** and, since 2026-08-17, **several versions per key**: the
      loader appends a retry alongside the payload it used to replace, so raw carries every version
-     the provider gave us (CPO ruling, "raw keeps both versions"). Like incremental-accumulation
+     the provider gave us. Like incremental-accumulation
      tables these read **all** rows (`select * from {{ source(...) }}` with no latest-snapshot
      qualify) — a `partition by league_code` qualify would keep one fixture or one team-season per
      league and drop every other. It is still a faithful flatten with no entity dedup. The staging
@@ -217,7 +217,7 @@ Patterns that look like dimensions but are not:
 - **Degenerate dimension.** A natural key with no independent attributes (e.g. a round name, an invoice number): keep the key on the fact; do not build a table.
 - **Closed enum.** A small, stable vocabulary (fixture status, event type, card colour): enforce with `accepted_values` on the fact; a dim adds maintenance without adding information.
 - **Attribute masquerading as entity.** Country, nationality, position, language: keep as attributes until a consumer needs rollups or hierarchies (e.g. continent, confederation, position group). Promote to a dim when the rollup logic appears, not before.
-  - ⚠ **COUNTRY IS AN EXPLICIT, RECORDED EXCEPTION TO THIS BULLET — not a case of it being satisfied.** `dim_country` and `dim_region` (#69, 2026-08-17) shipped with **no reader at all**. `dim_country` gained real ones the same day, once #69 step 5 landed — the four FK `relationships` tests in `core.yml` (`league_country`, `team_country`, `player_birth_country`, `coach_birth_country`, each `to: ref('dim_country')`). **`dim_region` still has none**: `mart_competition_index` (#62 step 3, MR !65) resolves its region sub-line from `confederations`, the seed `dim_region.sql` itself is published from — a sibling consumer, not a consumer of `dim_region` — so `grep -rn "ref('dim_region')" dbt_project/models/` returns zero hits and the exception below is still live for that dim alone. The rollup this bullet names as the trigger — confederation on the country — is STILL what `dim_country` leaves out either way: it carries no confederation column, because there is no source for one at the country grain (the registry gives a confederation per COMPETITION, not per country). The reason the exception was granted is a different problem from the one this bullet guards: country was free text in four dims, spelled up to three ways for the same country, with no list of what "valid" looked like, and that absence is what made a `single_country` boolean look like a solution. CPO 2026-08-16: *"You don't mix up countries and continents or regions in one column and add a flag 'single country'. That's really bad modeling."* The ruling is in `escalations.log` (2026-08-17, `feat/69-country-region-dims`). **The bullet still stands for everything else** — position, language and nationality are still attributes, and the next promotion still needs either the rollup or its own ruling.
+  - ⚠ **COUNTRY IS AN EXPLICIT, RECORDED EXCEPTION TO THIS BULLET — not a case of it being satisfied.** `dim_country` and `dim_region` (#69, 2026-08-17) shipped with **no reader at all**. `dim_country` gained real ones the same day, once #69 step 5 landed — the four FK `relationships` tests in `core.yml` (`league_country`, `team_country`, `player_birth_country`, `coach_birth_country`, each `to: ref('dim_country')`). **`dim_region` still has none**: `mart_competition_index` (#62 step 3, MR !65) resolves its region sub-line from `confederations`, the seed `dim_region.sql` itself is published from — a sibling consumer, not a consumer of `dim_region` — so `grep -rn "ref('dim_region')" dbt_project/models/` returns zero hits and the exception below is still live for that dim alone. The rollup this bullet names as the trigger — confederation on the country — is STILL what `dim_country` leaves out either way: it carries no confederation column, because there is no source for one at the country grain (the registry gives a confederation per COMPETITION, not per country). The reason the exception was granted is a different problem from the one this bullet guards: country was free text in four dims, spelled up to three ways for the same country, with no list of what "valid" looked like, and that absence is what made a `single_country` boolean look like a solution. The ruling: countries, continents and regions never share one column behind a single-country flag. The ruling is in `escalations.log` (2026-08-17, `feat/69-country-region-dims`). **The bullet still stands for everything else** — position, language and nationality are still attributes, and the next promotion still needs either the rollup or its own ruling.
 - **Entity requiring cross-source resolution.** If consolidating the entity requires reconciling identifiers across sources (e.g. venue from `/teams` vs `/fixtures`), that work lives in `2_base`; `3_core` receives the already-conformed version.
 
 **Relationship (mapping) dimensions.** A `dim_…_mapping` may also be a *conformed relationship table* resolving a many-to-many association between existing dimensions — e.g. `dim_player_team_season_mapping`, recording which players were rostered to which team in which season. This is the one sanctioned exception to qualification rule #1 (Entity) and to the degenerate-dimension exclusion: the "thing" it represents is the association itself, so it legitimately carries only the participating keys (plus lineage), with no independent descriptive attributes. It must still satisfy **Reuse** and **Conformance**, and — like every core table — have a single **tested, unique grain key** (its surrogate over the full grain). That uniquely-keyed grain is precisely what qualifies it as a system-of-record object; on that key it is a clean one-row-per-key lookup. The `_mapping` suffix marks its grain and role: each row is an *association across dimensions*, not a single entity, so joining on one participating key (e.g. `player_sk`) resolves a many-to-many relationship and returns many rows by design.
@@ -336,9 +336,8 @@ Canonical mart inventory (exhaustive) for this project:
 
 ## Consumption layer (export scripts, site builds) — NOT a dbt layer, bound by this contract
 
-> CPO ruling (2026-06-11): "All the logic and transformation is done in dbt. We could
-> consume from the metrics using any frontend tooling. Transformations, logic must
-> never happen in the frontend."
+> The rule: all logic and transformation is done in dbt, so any frontend tooling can consume
+> the metrics. Transformation and logic never happen in the frontend.
 
 Everything downstream of the marts — `scripts/export_site_data.py`, the legacy
 `export_pages_data.py`, `site/`, `site_v2/` — is **frontend**. The marts are the
@@ -353,8 +352,7 @@ Allowed in the frontend:
 **Never allowed in the frontend** (each of these has produced or nearly produced a
 drift bug):
 - Metric math, window selection, result/perspective computation.
-- **ALL ranking and ordering. The page renders the order it is served.** CPO ruling 2026-09-09
-  (`escalations.log`), in his words *"yes, that's the rule"* to that sentence. This is not new — it
+- **ALL ranking and ordering. The page renders the order it is served.** This is not new — it
   is the section's own test at the foot of this list ("would this value deserve a DQ test, or need
   to be byte-identical across two frontends?") applied without exception. It is spelled out because
   the wording it replaces — "ordering that encodes a business rule" — let every case be argued
@@ -367,8 +365,8 @@ drift bug):
   who is top.
   ⚠ **A SHIPPED FILE IS NOT A PRECEDENT FOR BREAKING THIS.** The rule was nearly weakened by citing
   `site_v2/src/lib/competitionOrder.mjs`, a frontend module that sorts on five keys, as evidence
-  that ordering belongs on the page. CPO: *"I don't even know what it is. Definitely no
-  authoritative document for business logic."* Under this rule that module is a violation awaiting
+  that ordering belongs on the page. A shipped module is no authoritative document for business
+  logic; under this rule that module is a violation awaiting
   its own task. Authority is this document, the working agreement, and `escalations.log` — never
   the existence of code, and never the justification an agent wrote in its own header.
 - Entity derivation (e.g. player→team affiliation) or identity generation (slugs are

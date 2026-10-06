@@ -21,8 +21,8 @@
 > ~~`mart_team_profile` / `mart_landing_trending`~~ — bound ONLY to the trending module, cut
 > 2026-08-08 for not being in the composition §0 records. `mart_landing_trending` was written for
 > this page and never shipped; it is deleted, not parked, and git holds it if trending returns.
-> ~~`build_nav`~~ — bound ONLY to the browse module, DROPPED 2026-08-19 (CPO: "drop the browse
-> section"). `build_nav`/`fetch_nav` are not deleted — they still produce `nav.json`
+> ~~`build_nav`~~ — bound ONLY to the browse module, which is dropped.
+> `build_nav`/`fetch_nav` are not deleted — they still produce `nav.json`
 > independently (`--entities nav`) — only `shape_landing_payload`'s use of them is gone.
 >
 > This screen is the exception to the binding rule's usual direction. Every other spec binds to a
@@ -46,8 +46,8 @@
 > Two dated layers, oldest first. Where they conflict the later one wins and the superseded line
 > says so on its own row, rather than leaving both readable as current.
 
-⛔⛔ **READ THIS FIRST — "POOL" APPEARS THROUGHOUT §0 AND IS RETIRED VOCABULARY (2026-09-02).** CPO:
-*"Drop the pools, let's rethink this properly."* They are replaced by **`competition_group`**, a
+⛔⛔ **READ THIS FIRST — "POOL" APPEARS THROUGHOUT §0 AND IS RETIRED VOCABULARY.** The pools are
+dropped. They are replaced by **`competition_group`**, a
 registry field shipped under GAP-28: `elite` (7) · `europe` (3) · `international` (2) ·
 `calendar` (6) · `secondary` (1) — **five groups, not four**. The word survives in passages written
 before that ruling which are otherwise still current, so two rules for reading them:
@@ -88,7 +88,7 @@ out of the index. Build the routes, let the links resolve, fill the pages in aft
 | | |
 |---|---|
 | **Next matches** | The next matchday — every match on the next day that has football (CPO 2026-08-18; the fixed list of 12 is retired). Date tabs and a "more matches" control are deferred to **#908**, which also records that four of the six nav items have no page to link to. |
-| ~~**Browse**~~ | ~~Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.)~~ **DROPPED 2026-08-19** (CPO: "drop the browse section") — superseded by a later ruling than this table records; see the composition note below. |
+| ~~**Browse**~~ | ~~Moves to the BOTTOM of the page, per convention on comparable sites. (§4's rail placement is superseded.)~~ **DROPPED** — superseded by a later ruling than this table records; see the composition note below. |
 | ~~**Trending**~~ | ~~Teams AND players, both as STREAKS. The wording must relate to "streak".~~ **SUPERSEDED 2026-08-08**: the composition recorded below has no trending block, so the block was cut rather than reworked to this row. See the note under the composition. |
 | ~~**Team streaks**~~ | ~~THREE types: longest **winning** run · longest **unbeaten** run · longest **clean-sheet** run. Winless and losing are both dropped.~~ Superseded with the block. |
 | ~~**Streak scope**~~ | ~~ALL competitions, and therefore across seasons too. Stated once on the block, never per row.~~ Superseded with the block. |
@@ -106,7 +106,7 @@ below is built.
 **Page composition after this session**: next matches → **Top players** → **Top teams** → browse.
 The two stats blocks replace the top-scorers-plus-table block.
 
-⛔ **SUPERSEDED 2026-08-19 — browse is dropped.** CPO, in chat: "drop the browse section". Current
+⛔ **SUPERSEDED — browse is dropped.** Current
 composition is **next matches → Top players → Top teams**, three blocks not four. Browse's only
 remaining value was reachability into the long-tail team/player pages (thousands of teams,
 ~154,767 players); both are already blocked on the team/player-name data-quality work (see
@@ -155,8 +155,8 @@ Two consequences worth stating, because both were ruled:
 - The name is a GOVERNED value, not new copy. It is the rank metric's `label_en` in
   `metric_catalogue.csv`, which is the same name that metric carries everywhere else on the site.
   A board heading can never drift from the metric it ranks, because it *is* the metric's name.
-- **No "ranked by" annotation is rendered.** The CPO: *"no explanation needed how it's ranked, the
-  user can see it"*. The name carries what the annotation was explaining.
+- **No "ranked by" annotation is rendered**: the user can see how a board is ranked. The name
+  carries what the annotation was explaining.
 
 ⛔ **SUPERSEDED 2026-08-10 — THE TABLE BELOW IS THE NINE-BOARD DESIGN AND IS NOT CURRENT.** The CPO
 reduced Top players to **FOUR single-metric boards, in his order: goals → assists → passes → key
@@ -203,7 +203,7 @@ someone looks, and until 2026-09-10 they existed only in a generator docstring.
 - **ONE metric per board, so there is NO column-header row and exactly ONE value column.** The
   board title is the only label the number needs; a header would just repeat it. ⚠ Recorded because
   a generator docstring contradicted itself on this and said "two value columns throughout" — the
-  CPO ruled it on 2026-09-10 ("fix it"), settled by the reviewed mock: 4 boards, 28 rows,
+  CPO ruled it, settled by the reviewed mock: 4 boards, 28 rows,
   **28 value cells**.
 - **The row image is the CLUB CREST — including on player rows.** Not a player photo. A player row
   carries the badge of the club they play for, the same image the team boards use.
@@ -213,8 +213,8 @@ someone looks, and until 2026-09-10 they existed only in a generator docstring.
   metric's catalogue `direction`. ⚠ Reintroducing a `lower_better` board therefore needs an
   explicit ruling — the generators keep a guard that fails rather than silently ranking one
   descending.
-- **A board stacks as a WHOLE, never row by row.** The CPO's words: *"they all stack together or
-  not"*. At a narrow viewport every row of a board changes layout together, so a board never shows
+- **A board stacks as a WHOLE, never row by row.**
+  At a narrow viewport every row of a board changes layout together, so a board never shows
   some rows stacked and others not.
 
 ⛔ These three were MISSED by the 2026-09-10 transcription and caught by `bi-analyst-reviewer`. The
@@ -297,7 +297,7 @@ That rules out MLS, LMX, APD and J1 permanently, which is four of the eight leag
 - Every row links out. That is the whole reason these blocks exist.
 
 **Scope.** Club league competitions only, within season. Club and national-team competitions are
-never mixed — CPO: *"if that is the case somewhere then it is a defect."* Verified 2026-08-08 that
+never mixed; where they are, it is a defect. Verified that
 no mixing exists today: `int_player_season__metrics` groups by `league_code` and `mart_leaderboards`
 ranks `partition by league_code, season_api_year`, so every competition is already its own ranking.
 The rule becomes live the moment pooling crosses `league_code`. ⚠ **Under the 2026-08-18 rulings
@@ -309,17 +309,17 @@ does not honour it, which is a mock defect, not a mart one).
 The rule stays dormant for both blocks, and returns for any future surface that genuinely ranks
 players or teams from different competitions against each other.
 
-A rolling window was proposed as a way to keep every pool current year-round, and REJECTED.
-CPO: *"no it must be within season, that's how you compare."*
+A rolling window was proposed as a way to keep every pool current year-round, and REJECTED:
+comparison stays within a season.
 
-⛔⛔ **SUPERSEDED 2026-09-02 — THE POOLS ARE RETIRED.** CPO: *"Drop the pools, let's rethink this
-properly."* Replaced by **`competition_group`**, a registry field shipped under GAP-28:
+⛔⛔ **SUPERSEDED — THE POOLS ARE RETIRED.**
+Replaced by **`competition_group`**, a registry field shipped under GAP-28:
 `elite` (7) · `europe` (3) · `international` (2) · `calendar` (6) · `secondary` (1).
 **FIVE groups, not four** — the table below has no bucket at all for the three leagues in `europe`.
 
 ⚠ **Two things it asserts that are FALSE, both load-bearing:**
-  · *"Belgium and Turkey belong in pool 1"* — **they do not.** CPO, this session: *"However, the 3
-    new clubs would be in pool 2."* Belgium, Turkey and Poland are `europe`, not `elite`.
+  · *"Belgium and Turkey belong in pool 1"* — **they do not.**
+    Belgium, Turkey and Poland are `europe`, not `elite`.
   · *"Veikkausliiga would gate-crash the star pool on any derived rule"* — **VL is excluded by
     `season_type`**, being calendar-year, so it lands in `calendar` and never reaches the European
     branch. The leagues that genuinely defeat derivation are BPL, EKS and TSL, which this passage
@@ -340,7 +340,7 @@ gate-crash the star pool on any derived rule. Belgium and Turkey belong in pool 
 they are ingested, with no restructuring.~~
 
 ⭐ **What SURVIVES the retirement.** "Authored, not derived" was right, and is exactly why
-`competition_group` is a hand-authored registry field — CPO: *"basically all of it is judgement."*
+`competition_group` is a hand-authored registry field: the grouping is judgement.
 The tier split also stays mechanical: `secondary` is `tier != 1`, so a new second tier lands there
 with no restructuring. The authoritative list of which league is in which group is
 `docs/competition_registry.yml`; it is never restated here.
@@ -357,9 +357,8 @@ one league IS that league's leaderboard, which the competition page owns, and th
 top of this section forbids the copy.
 
 ⚠ **SELECTION IS NOW AN OPEN QUESTION, NOT A DECIDED DESIGN** — it is written against the four
-retired pools, and the CPO reopened it: *"I would like to have a mechanism for showing the others
-as well, by rotation or randomly, no idea, especially when a league group is not active but another
-is -> file it."* Filed as its own issue and registered as **GAP-33**. What he has said since about
+retired pools, and the CPO reopened it: the other groups are shown too, by rotation or at random,
+above all when one group is out of season and another is in. Filed as its own issue and registered as **GAP-33**. What he has said since about
 the shape: the page uses `elite`, or `europe`+`international` **merged into one board**, or
 `calendar`.
 
@@ -372,8 +371,8 @@ are struck below:
     "summer" — the CPO's own correction earlier in this session was that Argentina starts in
     January, which is why the group is named for the calendar year and not the season.
 ⭐ **What genuinely survives, and is the input GAP-33 needs:** the **in-season gate** (3 games on the
-least-progressed league), the ruling behind it (*"no it must be within season, that's how you
-compare"*), and the **fallback principle** — if nothing qualifies, show the most recent completed
+least-progressed league), the ruling behind it (comparison stays within a season), and the
+**fallback principle** — if nothing qualifies, show the most recent completed
 season and LABEL it finished rather than dress it as current.
 
 **Selection.** ~~One pool at a time, the other two reachable.~~ A ~~pool~~ group is in season when
@@ -469,12 +468,12 @@ Closed since 2026-08-04:
 - ~~**Whether the league table stays** inside the stats block.~~ The block is replaced.
 - ~~**Top-scorer scope**, per competition or across all.~~ ~~Pooled across the leagues of one pool.~~
   **RULED 2026-08-18: ONE PLAYER PER LEAGUE.** Each pool league's rank-1 player on the metric,
-  collected and ordered by value — CPO: *"One per league -> yes, it's not a leaderboard in the
-  defined pool."* So a board is 7 rows from 7 leagues by construction, never two from one league.
+  collected and ordered by value; it is not a leaderboard across the pool.
+  So a board is 7 rows from 7 leagues by construction, never two from one league.
   ⚠ This is what `mart_leaderboards` ALREADY produces per league, so no pooled rank is needed
   (GAP-31 withdrawn).
-- **The same question, asked of Top teams, RULED 2026-08-18: ONE TEAM PER LEAGUE.** CPO: *"one
-  team per league, same as players."* Same mechanic — each pool league's rank-1 team on the
+- **The same question, asked of Top teams, RULED: ONE TEAM PER LEAGUE**, as for players.
+  Same mechanic — each pool league's rank-1 team on the
   metric, collected and ordered by value, never a rank crossing `league_code`. ⚠ **Unlike the
   players ruling, this is NOT free against the existing mock.** `top_teams_mock.html` was opened
   to check (per THE METHOD: check the mock's numbers, don't trust them): 3 of its 4 boards
@@ -505,9 +504,9 @@ Closed since 2026-08-04:
   says WHERE the pick comes from ("in the rankings"), which no draft did; and the DE/FI nouns moved
   from *beste Mannschaft* / *paras joukkue* to **Top-Mannschaft** / **kärkijoukkue**.
 
-  **The WINDOW phrase is APPROVED too** — "approved", 2026-09-10. He rejected "Season to date"
-  outright (*"It should be something that is valid during the season and after the season has
-  completed as well"*), asked me to propose a replacement, and confirmed it:
+  **The WINDOW phrase is APPROVED too.** He rejected "Season to date"
+  outright (the phrase must hold during the season and after it has completed),
+  asked me to propose a replacement, and confirmed it:
   **"Current season." / "Aktuelle Saison." / "Tämä kausi."** The reasoning, recorded so a rewrite is
   judged against the same bar: "Current season" is the same claim the QUERY makes, since the rows
   are selected by `is_current_season`, so the sentence cannot drift from what is shown in either
@@ -535,8 +534,8 @@ Closed since 2026-08-04:
   The superseded draft, kept only so the change is legible: *"Season to date. The top team from each
   league: …"* — proposed 2026-08-18, never approved, shipped in error, replaced above.
 - ~~**The Top players intro copy.**~~ **RE-RULED 2026-09-10, superseding the 2026-08-18 approval.**
-  The CPO opened it himself once the Top teams line was settled — *"now talk about the top players
-  copy as well. we have to change it"* — then approved the proposal. Both home blocks now read one
+  The CPO opened it himself once the Top teams line was settled and asked for the Top players copy
+  to change too, then approved the proposal. Both home blocks now read one
   shape:
 
   > EN — Current season. The top player from each league in the rankings: {leagues}.
@@ -553,8 +552,8 @@ Closed since 2026-08-04:
   board HEADINGS (#41), where the team headings say "per match" and the player headings are bare
   nouns, a bare noun being precisely what #41 says reads as a season total.
 
-  ⛔ **BLOCKS A WOMEN'S COMPETITION — ONE STRING, NOT "the German"** (CPO, 2026-09-10: *"If we ever
-  include women's football teams we have to change it properly (at least in German)"*).
+  ⛔ **BLOCKS A WOMEN'S COMPETITION — ONE STRING, NOT "the German"**: including women's teams means
+  changing it properly, at least in German.
   DE `Der Top-Spieler` is grammatically masculine and would need `Die Top-Spielerin`; a mixed set has
   no correct singular in this construction. `Die Top-Mannschaft` is NOT affected — *Mannschaft* is
   the standard German word for a women's team. EN and FI are unaffected (Finnish has no grammatical
@@ -628,8 +627,8 @@ does not reopen the order.~~
 ⛔ **SUPERSEDED.** Later rulings overturned that order, so "locked" is the wrong word for it now.
 Browse moved to the BOTTOM (CPO 2026-08-04); the stats module was removed and the composition
 restated as **next matches → Top players → Top teams → browse** (CPO 2026-08-08, §0). Trending is
-not in it and is cut. ⛔ **Browse itself was DROPPED 2026-08-19** (CPO: "drop the browse
-section") — current composition is **next matches → Top players → Top teams**, three blocks.
+not in it and is cut. ⛔ **Browse itself was DROPPED**; the current composition is
+**next matches → Top players → Top teams**, three blocks.
 
 ~~**This PR ships TWO of those four: next matches → browse.** The middle pair is specified in §0,
 unbuilt, and lands in its own PR. See §0 for why browse holds the bottom slot meanwhile.~~ That PR
@@ -654,7 +653,7 @@ shipped; browse then left the composition entirely — see §0.
 | Payload key | Upstream |
 |---|---|
 | `upcoming[]` | `mart_next_matchday` — every competition's next round, read whole (~~`core.fct_fixture` with the `status_short in ('NS','TBD')` filter~~ — that read moved into the mart under #143, GAP-32), joined to `core.dim_team` for names and crests |
-| ~~`browse`~~ | ⛔ **DROPPED 2026-08-19** (CPO: "drop the browse section"). Was `build_nav()` over `docs/competition_registry.yml` — the identical structure `nav.json` carries. `build_nav`/`fetch_nav` still produce `nav.json` independently; only this page's use of them is gone |
+| ~~`browse`~~ | ⛔ **DROPPED.** Was `build_nav()` over `docs/competition_registry.yml` — the identical structure `nav.json` carries. `build_nav`/`fetch_nav` still produce `nav.json` independently; only this page's use of them is gone |
 | ~~`trending[]`~~ | ⛔ **REMOVED 2026-08-08** with the trending block. `mart_landing_trending` was written for this key and is deleted; `mart_team_profile` is no longer read by this page |
 | ~~`stats`~~ | ⛔ **REMOVED 2026-08-08** with the stats-teasers module. `mart_leaderboards` and `mart_standings` are no longer read by this page at all |
 
@@ -672,8 +671,7 @@ build time.
 ⛔ **SUPERSEDED — the diagram below draws a page that no longer exists.** It shows four modules with
 browse second; the page ships ONE, next matches alone. Four rulings overturned it: browse moved to
 the bottom (CPO 2026-08-04), the stats teasers were removed and the composition was restated
-without trending (both CPO 2026-08-08), and browse itself was dropped (CPO 2026-08-19, "drop the
-browse section").
+without trending, and browse itself was dropped.
 
 ⛔ **SUPERSEDED 2026-08-19 — this table describes a page that no longer exists.** It measured the
 2-block build (next matches + browse); browse is dropped, so the page today is next matches alone.
@@ -793,8 +791,8 @@ every fixture on the earliest upcoming kickoff date.~~ The 2026-08-18 rule was o
 measured 2026-09-12 it rendered 94 uncapped rows on a Saturday, and #127 replaced it. The original
 resolution was "the next 12 fixtures by kickoff, not a calendar day"; the count is retired.
 
-⚠ **Why the count went** (CPO 2026-08-18: *"we will show what we have, more matches will come,
-because we ingest more competitions"*). Twelve was reasoned — see the measurement below — but it
+⚠ **Why the count went**: the page shows what there is, and more matches come as more
+competitions are ingested. Twelve was reasoned — see the measurement below — but it
 does not SCALE. As competitions are onboarded, twelve slots hold fewer and fewer of them, so the
 block narrows exactly as the site broadens. It also bled across days: the sample committed before
 this change held 12 fixtures spanning **two** dates, which is not a matchday and reads as an
@@ -838,7 +836,7 @@ competition onboarded.
 
 ### (2) Hybrid browse — `browse` ⛔ DROPPED 2026-08-19
 
-⛔ **THIS MODULE NO LONGER EXISTS.** CPO, in chat: "drop the browse section". Its only remaining
+⛔ **THIS MODULE NO LONGER EXISTS**: browse is dropped. Its only remaining
 justification — reachability into the long-tail team/player pages — applies to exactly the two
 entity types already blocked on the team/player-name data-quality work (`.claude/active_work.md`);
 the competitions pool it would otherwise serve alone (~15-20 rows) is already fully covered by the

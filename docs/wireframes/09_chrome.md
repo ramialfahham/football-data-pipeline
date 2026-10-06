@@ -6,7 +6,7 @@ The chrome that wraps every screen: brand, primary navigation, search, locale/th
 and the footer. Unlike the other screens in this folder, chrome has no "stop-scrolling moment" of
 its own — its job is to be the same, predictable frame on every page so a reader always knows
 where they are and how to get anywhere else. Built as the frontend-foundation task (#825), from
-the CPO-approved mock (artifact `87d14109`, "looks good for now").
+the CPO-approved mock (artifact `87d14109`).
 
 ## 2. URL
 

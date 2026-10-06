@@ -1,7 +1,7 @@
 """Prove the "Next matches" block is IDENTICAL on every surface that shows it.
 
-The rule: *"this is a repetitive content block ... it has to be consistent everywhere we
-show this type of content block"*. `rows.py` makes that true by construction; this file proves
+The rule: a repeated content block is the same everywhere it is shown.
+`rows.py` makes that true by construction; this file proves
 it of the RENDERED output, which is the only thing a reader ever sees.
 
 ⚠ THREE surfaces, not two. The home page was left out of the first version of this check and

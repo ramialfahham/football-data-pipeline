@@ -53,8 +53,8 @@ E = html.escape
 #
 # Group tuple: (slug, name, kind, matchday, [(home, away, time, zone)])
 #
-# ⚠ THE WINDOW IS NOT A DATE RANGE. The rule: *"every next match (in terms of next match
-# day) from the competitions we have in the data, but not the matches after that"* — the reason
+# ⚠ THE WINDOW IS NOT A DATE RANGE. The rule: every match of each competition's next matchday,
+# and none after it — the reason
 # being that a match beyond the next round has nothing meaningful to send a reader to.
 #
 # So the rule is PER COMPETITION, not per calendar: each competition contributes exactly ONE
