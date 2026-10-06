@@ -11,7 +11,8 @@ Storage model: one row per fixture PER FETCH in RAW_APIF_FIXTURE_DETAILS (unifie
   ingested_at TIMESTAMP — when this row was written (UTC)
 
 APPEND ONLY. On the first fetch of a fixture a row is inserted. On retry (empty stats
-within STATS_RETRY_DAYS of kickoff, or the player stats' second fetch) another row is
+within STATS_RETRY_DAYS of kickoff, the player stats' second fetch, or their newer-format
+refetch) another row is
 inserted and NOTHING is removed, so a retried fixture holds one row per attempt.
 Staging models read payload directly and
 faithfully — no $.response unnesting, no dedup — and base resolves the versions by
@@ -25,7 +26,7 @@ statistics and player stats together.
 
 Coverage is the `coverage.read_coverage` result the orchestrator reads before this step, for
 every league: a fixture is done once ANY stored row for it carries non-empty statistics
-and its player stats' second fetch is not due. That LOGICAL_OR aggregation is what makes
+and no refetch of its player stats is due. That LOGICAL_OR aggregation is what makes
 the multi-row state safe to read.
 
 Rate limiting: on top of the pause after every call (API_FOOTBALL_REQUEST_PAUSE_MS), this loop
@@ -70,6 +71,7 @@ def _needs_fetch(
     Decision table:
       Never fetched                            → fetch
       Player stats' second fetch due           → fetch (once; coverage.second_fetch_due)
+      Player stats' newer-format refetch due   → fetch (once; coverage.newer_format_refetch_due)
       Fetched, statistics non-empty            → skip (done permanently)
       Fetched, statistics empty, within window → retry (delivery delay expected)
       Fetched, statistics empty, past window   → skip (accept empty permanently)
@@ -230,7 +232,8 @@ def run_batch_fixture_fanout_and_persist(
     Two-step process per competition:
       1. Look the league up in `all_covered`, the `read_coverage()` result read before this step, to
          determine which finished fixtures are done. Fixtures missing entirely, due their
-         player stats' second fetch, or with empty stats within the 3-day retry window are
+         player stats' second fetch or newer-format refetch, or with empty stats within the
+         3-day retry window are
          queued for fetching.
       2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
          Each fixture in the response is appended as one row in FIXTURE_DETAILS.

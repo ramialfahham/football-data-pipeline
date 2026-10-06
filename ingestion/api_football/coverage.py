@@ -25,7 +25,10 @@ COVERAGE SEMANTICS (per endpoint)
         Covered once the fixture has been fetched, except while its second fetch
         is due: the provider completes some player stats days after the match, so
         a fixture whose latest fetch came under SECOND_FETCH_DELAY after kickoff
-        is fetched once more when it is that old (see second_fetch_due).
+        is fetched once more when it is that old (see second_fetch_due). A
+        fixture whose latest fetch is in the provider's newer player-stats
+        format is fetched once more NEWER_FORMAT_REFETCH_DELAY after kickoff
+        (see newer_format_refetch_due).
     FIXTURE_STATISTICS
         Covered only when the statistics array is non-empty. Empty statistics on
         a finished fixture is usually a delivery delay, so it is retried within
@@ -58,6 +61,10 @@ STATS_GRACE_DAYS = 7
 
 # The provider completes a match's player stats within three days of kickoff.
 SECOND_FETCH_DELAY = timedelta(days=3)
+
+# The provider's newer player-stats format never carries goals conceded or dribbled past, and the
+# provider replaces it with the complete format for many matches only later.
+NEWER_FORMAT_REFETCH_DELAY = timedelta(days=14)
 
 # The four fanout endpoints bundled in each RAW_APIF_FIXTURE_DETAILS payload.
 # The value is the payload array whose non-emptiness must be checked, or None
@@ -101,6 +108,21 @@ def second_fetch_due(
     return latest_fetch < complete_from <= now
 
 
+def newer_format_refetch_due(
+    latest_fetch: datetime | None,
+    kickoff: datetime | None,
+    latest_in_newer_format: bool,
+    now: datetime,
+) -> bool:
+    """True when the fixture's latest fetch is in the newer player-stats format, came under
+    NEWER_FORMAT_REFETCH_DELAY after kickoff, and that much time has now passed. The refetch itself
+    comes later than that, so it is due once."""
+    if not latest_in_newer_format or latest_fetch is None or kickoff is None:
+        return False
+    refetch_from = kickoff + NEWER_FORMAT_REFETCH_DELAY
+    return latest_fetch < refetch_from <= now
+
+
 def read_coverage(
     client: bigquery.Client,
 ) -> dict[str, dict[str, dict[int, bool]]]:
@@ -112,8 +134,9 @@ def read_coverage(
 
     has_data is True when the endpoint's data is present (see COVERAGE SEMANTICS
     in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
-    statistics array; FIXTURE_PLAYERS is False while the fixture's second fetch is
-    due; LINEUPS and FIXTURE_EVENTS are True for every fetched fixture.
+    statistics array; FIXTURE_PLAYERS is False while the fixture's second fetch or
+    its newer-format refetch is due; LINEUPS and FIXTURE_EVENTS are True for every
+    fetched fixture.
 
     Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
     fixture legitimately has more than one row: the table is append-only and a
@@ -134,17 +157,41 @@ def read_coverage(
         return {}
 
     # One row per fixture: did this fixture's statistics array ever arrive non-empty,
-    # and when was it last fetched relative to its kickoff?
+    # when was it last fetched relative to its kickoff, and is that latest fetch in the
+    # newer player-stats format (players listed, none with goals conceded)?
     q = f"""
+        WITH fetches AS (
+            SELECT
+                league_code,
+                CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
+                ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0 AS has_statistics,
+                ingested_at,
+                SAFE_CAST(JSON_VALUE(payload, '$.fixture.date') AS TIMESTAMP) AS kickoff,
+                EXISTS(
+                    SELECT 1
+                    FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
+                        UNNEST(JSON_QUERY_ARRAY(team_block, '$.players')) AS player
+                )
+                AND NOT EXISTS(
+                    SELECT 1
+                    FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
+                        UNNEST(JSON_QUERY_ARRAY(team_block, '$.players')) AS player,
+                        UNNEST(JSON_QUERY_ARRAY(player, '$.statistics')) AS stats
+                    WHERE JSON_VALUE(stats, '$.goals.conceded') IS NOT NULL
+                ) AS in_newer_format
+            FROM `{table_id}`
+            WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
+        )
+
         SELECT
             league_code,
-            CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
-            LOGICAL_OR(ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0)
-                AS has_statistics,
+            fixture_id,
+            LOGICAL_OR(has_statistics) AS has_statistics,
             MAX(ingested_at) AS latest_fetch,
-            MAX(SAFE_CAST(JSON_VALUE(payload, '$.fixture.date') AS TIMESTAMP)) AS kickoff
-        FROM `{table_id}`
-        WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
+            MAX(kickoff) AS kickoff,
+            ARRAY_AGG(in_newer_format ORDER BY ingested_at DESC LIMIT 1)[OFFSET(0)]
+                AS latest_in_newer_format
+        FROM fetches
         GROUP BY league_code, fixture_id
     """
     rows = list(client.query(q).result())
@@ -157,7 +204,9 @@ def read_coverage(
         has_stats = bool(row.has_statistics)
         for endpoint, requires_nonempty in ENDPOINT_REQUIRES_NONEMPTY.items():
             covered[lc][endpoint][fid] = has_stats if requires_nonempty else True
-        if second_fetch_due(row.latest_fetch, row.kickoff, now):
+        if second_fetch_due(row.latest_fetch, row.kickoff, now) or newer_format_refetch_due(
+            row.latest_fetch, row.kickoff, bool(row.latest_in_newer_format), now
+        ):
             covered[lc]["FIXTURE_PLAYERS"][fid] = False
 
     # Convert defaultdicts to plain dicts so downstream code cannot rely on

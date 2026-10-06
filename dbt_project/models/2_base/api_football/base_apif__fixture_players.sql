@@ -126,7 +126,9 @@ corrected as (
                 src.fouls_drawn, src.fouls_committed, src.cards_yellow, src.cards_red, src.penalty_won,
                 src.penalty_committed, src.penalty_scored, src.penalty_missed, src.penalty_saved
             ]) as stat
-        ) as delivered_values
+        ) as delivered_values,
+        logical_or(src.goals_against is not null)
+            over (partition by src.league_code, src.fixture_id, src.raw_ingested_at) as fetch_is_complete
     from src
     left join overrides as alias_override
         on
@@ -150,9 +152,22 @@ corrected as (
             and src.player_id = resolved_teams.player_id
 ),
 
--- The provider's values under our names, one row per player per fixture: the latest fetch. A player
--- the provider lists twice in one fetch keeps the row with more values, and the rows' own values
--- break a tie, so every build keeps the same row.
+-- A match's rows come from one fetch: its newest fetch in the provider's complete format, else its
+-- newest fetch. The newer format leaves goals conceded and dribbled past blank for every player, so
+-- a fetch counts as complete when any player in it has goals conceded.
+chosen_fetch as (
+    select *
+    from corrected
+    qualify
+        raw_ingested_at = coalesce(
+            max(if(fetch_is_complete, raw_ingested_at, null)) over (partition by league_code, fixture_id),
+            max(raw_ingested_at) over (partition by league_code, fixture_id)
+        )
+),
+
+-- The provider's values under our names, one row per player per fixture, from the chosen fetch. A
+-- player the provider lists twice in one fetch keeps the row with more values, and the rows' own
+-- values break a tie, so every build keeps the same row.
 delivered as (
     select
         league_code,
@@ -192,11 +207,11 @@ delivered as (
         penalty_scored as penalties_scored,
         penalty_missed as penalties_missed,
         penalty_saved as penalties_saved
-    from corrected
+    from chosen_fetch
     qualify
         row_number() over (
             partition by league_code, fixture_id, team_id, player_id
-            order by raw_ingested_at desc, delivered_values desc, to_json_string(corrected) asc
+            order by raw_ingested_at desc, delivered_values desc, to_json_string(chosen_fetch) asc
         ) = 1
         -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
         -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
