@@ -1,240 +1,104 @@
 # Agent guardrails — hooks & skills
 
-This repo encodes its working agreement not just as prose an agent *might* read,
-but as **hooks** (deterministic, fire automatically at decision points) and
-**skills** (procedures the agent runs on demand). This document explains what
-exists, why, where it lives, and how to carry the portable parts to a new
-project.
-
-It exists because a commit-history audit (588 commits) showed **76 `fix`
-commits vs 63 `feat` commits** — more time spent fixing than building — plus 12
-reverts. The reverts clustered into: a layer violation (deduplication placed in
-staging, across 73 models, later reverted), empty-payload-overwrites-warehouse
-data bugs, metric-windowing errors, and a direct-push-to-main. The knowledge to
-avoid all of these already existed in `docs/working_agreement.md` and the
-memory `feedback_*` files. The failure was never *not knowing the rule* — it was
-*not applying it at the moment of the decision*. **That gap — right rule, wrong
-moment — is what hooks close.**
+The working agreement is enforced, not only written: **hooks** fire automatically at decision
+points, **skills** are procedures the agent runs on demand. This document lists what exists and
+where it lives. The rules the hooks enforce are [`working_agreement.md`](working_agreement.md);
+each hook's docstring has its exact behaviour.
 
 ---
 
-## When to use a hook vs a skill vs CI vs memory
+## Hook, skill, CI or docs
 
 | Mechanism | Fires | Best for | Limitation |
 |---|---|---|---|
-| **Hook** | Automatically, at a tool-call / plan / commit trigger | *Drift* — the agent knows the rule but doesn't apply it in the moment. Process gates. | Must be cheap and precise, or it becomes noise the agent tunes out. |
-| **Skill** | When the agent chooses to invoke it (or is told) | A correct multi-step *sequence* (onboard, verify, validate-local). | Relies on the agent recognising the trigger. |
-| **CI check** | At PR time, in CI | Authoritative invariants that must never merge broken. | Late — the wasted work already happened. |
-| **Memory / docs** | Read by the agent | The knowledge itself. | Not enforcement — knowing ≠ doing. |
+| **Hook** | Automatically, at a tool call, plan or commit | *Drift*: the agent knows the rule but does not apply it in the moment | Must be cheap and precise, or it becomes noise the agent tunes out |
+| **Skill** | When the agent invokes it | A correct multi-step sequence | Relies on the agent recognising the trigger |
+| **CI check** | On every MR pipeline | Invariants that must never merge broken | Late: the wasted work already happened |
+| **Docs / memory** | When the agent reads them | The knowledge itself | Not enforcement |
 
-Rule of thumb: **prevention belongs in a hook** (catch before the work),
-**a guarantee belongs in CI** (catch before the merge), **a procedure belongs in
-a skill**, and **the reasoning belongs in docs/memory**. The strongest setup uses
-several together — e.g. the dbt layer contract is a hook (edit-time prevention)
-*and* a CI check (`scripts/check_layer_contract.py`, merge-time guarantee).
-
-A hook that cries wolf is worse than no hook: the agent learns to ignore it.
-Every Bash hook here is **self-gating** — it inspects the *actual* command and
-only fires on a genuine match — precisely because the previous `if: Bash(...)`
-matchers fired on unrelated read-only commands (`git log --grep=merge`, `cat`).
+Every Bash hook is **self-gating**: it inspects the actual command and fires only on a genuine
+match, because a hook that cries wolf gets ignored.
 
 ---
 
-## What's installed
+## Project hooks — `.claude/settings.json` → `.claude/hooks/` (protected)
 
-### Project hooks — `.claude/settings.json` → `.claude/hooks/*.py` (committed)
-
-Project-specific wording (cite this repo's docs). Travel with the repo.
-
-| Hook | Event / trigger | Does |
+| Hook | Fires on | Does |
 |---|---|---|
-| `git_discipline.py` | PreToolUse Bash | **Blocks** a real `glab mr merge` (the agent never merges); **blocks** `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing (append-only, hook-verified history — governance G2); **nudges** the branch-consolidation questions on real branch creation. |
-| `git_workflow.py` | PostToolUse Bash | After a real `git commit`, reminds: push with explicit refspec → open MR; not done until the MR URL exists. |
-| `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit | When a `dbt_project/models/<layer>/*.sql` file is edited, injects that layer's contract *before* the wrong logic is written. Edit-time twin of `check_layer_contract.py`. Also covers the **consumption layer**: editing `scripts/export_*.py`, `site/` or `site_v2/` injects the frontend contract (no logic/transformation outside dbt — layering.md §Consumption layer). |
-| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit + **Artifact** + Bash; PostToolUse Bash | The governance scope gate (working_agreement §2): **denies** repo edits with no task contract, edits outside `scope_paths`, edits to protected paths (`.claude/hooks/`, `.claude/agents/`, `.claude/commands/`, `.claude/settings.json`, `.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`, `.github/workflows/`, `.gitlab-ci.yml`) without `protected_override`, contract amendments on a dirty tree, edits on the **structural surface** when the contract carries no non-placeholder `impact_map` (§2 / Appendix A6 — trace before code), and shell write-operators (`>`, `>>`, `tee`, `sed -i`, script heredocs) targeting out-of-scope repo files. After every Bash call it re-checks `git status` and injects a prescriptive reversion when out-of-scope changes appear. Paths outside the repo (memory, plans) are not governed. Fails open. **Two additions 2026-07-22:** (a) the **protected paths are now part of the structural surface**, so a guard edit needs `protected_override` *and* an `impact_map` — authority and understanding are different questions, and a guard's blast radius is every future task in the repo. This is enforced on the Edit path *and* the shell path. (b) an **`Artifact` publish is denied when no contract exists**. Design was the only surface with no gate at all — a mock is written outside the repo, so every path-keyed check returned before reaching it — and it is the surface that failed three times in one day. The gate cannot ask "is this path in scope"; it asks two questions it can answer honestly — does a contract exist, and does it carry a **real** `decisions_reserved` rather than the template's bare `- none`. The second is what gives the gate teeth: a contract is mandatory before any repo edit, so one exists in nearly every session, and contract-existence alone would make this fire almost never. "Nothing is open" remains a legitimate answer, stated as a checkable sentence. |
-| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit | **Denies** an edit that adds decision history — a date, an issue or MR number, a review credit or round, a story phrase such as "used to" — to a code comment or a Markdown document; the hook's docstring defines each marker and what counts as a comment. `tests/test_no_decision_history_in_code.py` and `tests/test_no_decision_history_in_docs.py` pin the lines already in the tree; the counts only go down. Fails open. |
-| `stop_gate.py` | Stop | Turn-end net: if the tree does not match the contract, blocks the stop ONCE with revert instructions (`stop_hook_active` prevents loops). Guarantees nothing undeclared survives a turn even when the best-effort shell gates miss. |
-| `handover_in.py` | SessionStart | Injects the handover, GitLab issue #157, into every new chat so a fresh agent continues from the documented state instead of re-deriving (or silently re-scoping) it. Reads it through `glab`, saves the copy to the gitignored `.claude/handover.cache.md`, injects that copy with its time when GitLab is down, and says so plainly when neither exists. Announces truncation rather than cutting in silence. Until 2026-09-23 it read `.claude/active_work.md` from the working tree, so the handover rode whichever branch was checked out. **Was a *global* hook and was therefore never actually running** — no `SessionStart` key existed in `.claude/settings.json`, `.claude/settings.local.json`, or the user-level settings, while the handover claimed it did. Moved into the project's protected hooks directory and wired here on 2026-07-22, because a script that auto-executes every session is guard-class and must not sit on an unprotected, unrouted path (the `.claude/commands/` and `.mcp.json` rulings). |
-| `git_discipline.py` (review gate, G3) | PreToolUse Bash on `git commit` | **Denies** the commit unless `.claude/task/review.md` exists, its `diff_sha256` equals the live hash — computed over code **+** `contract.md` but EXCLUDING the `hash_exclude_paths` bookkeeping artifacts, so CI can recompute it and bind the review to the PR's code (F11/#409). ⚠ Since **#63** the hashed bytes are `git diff --raw` (mode, blob SHAs, status, path) taken CUMULATIVELY FROM THE BASE, not the rendered patch of a bare `--staged`: a rendered patch is a presentation format whose bytes vary with git version, platform and diff settings, so the local gate and the CI recompute disagreed about identical commits and `validate:governance` could not pass at all. Blob SHAs are content hashes, so the two halves now agree everywhere and on a branch of any length. Nothing is weakened — the rendered patch is DERIVED from those blobs and cannot differ unless one does. ⚠ If the base cannot be resolved the hash is not computed at all, and BOTH halves say so instead of inventing a value: `--staged-hash` exits non-zero with a stderr reason, and the gate denies with its own message. An earlier draft of #63 returned `b""` here and called that fail-closed — it was the opposite, and two opus reviewers found it independently: `--staged-hash` printed `sha256(b"")` with exit 0, that value went into `review.md`, the gate recomputed the same empty value from the same broken call, the two AGREED, and the commit passed bound to ZERO bytes. Reproduced, then fixed, then pinned by `test_staged_hash_refuses_to_emit_a_hash_it_could_not_compute` and `test_commit_gate_denies_when_the_hash_cannot_be_computed`. ⚠ This is a deliberate DEPARTURE from the file's fail-open house rule, and the narrow case where it is right: an unresolvable base is not a hook bug, it is the guard being unable to do its job, and the deny message is actionable (fetch the base branch, or set `GOVERNANCE_BASE`) — every reviewer required by `.claude/review_routing.json` for the staged paths has a verdict, no FAIL exists, every ESCALATE carries a `CPO ANSWER:` in its own section, every PASS names ≥2 checked risks, and a `rounds:` line is present, a positive integer, and within the cap of 3 (past the cap needs `rounds_cap_override:` — the loop is bounded, review-economics 2026-07-22). Commit flags are **allowlisted** (`-m`/`--message`, `-F`/`--file`, `-q`, `-v`, `-S`/`--gpg-sign`, `-s`/`--signoff`): any other flag or positional pathspec is form-denied, because self-staging forms (`-a`/`-am`, `--include`, `--only`, `-p`, bundled `-qam`, abbreviated `--inc`) stage content after the hash was computed; git global options between `git` and `commit` (`git -p commit`, `git --git-dir x commit`) are denied outright — detection is token-loose, the allowed spelling is exactly `git commit`; the commit must be the SOLE command in its shell call (no `git add x && git commit` restaging after the hash check); the flag walk tokenizes the RAW command with shlex so a QUOTED pathspec cannot hide (unparseable quoting is denied); staged paths are enumerated NUL-split (`-z`) so quotePath-escaped names cannot drop a required reviewer; an ESCALATE before the first `##` header pairs in the `_preamble` pseudo-section. Artifact-only commits (`.claude/task/**`, `.claude/active_work.md`) exempt — EXCEPT any commit touching `contract.md` (`artifact_only_never`), which authorizes scope and is never review-exempt (F10/#409). `--staged-hash` CLI mode prints the live hash. The CI backstop `scripts/check_task_artifacts.py` recomputes the same hash from the branch diff and applies the same artifact/contract rules. **Acceptance gate (CPO ruling 2026-07-31, #868):** on a diff touching `site_v2/src/` — and ONLY there, so it cannot cry wolf on warehouse or tooling work — the commit is also denied unless `contract.md` declares `acceptance_criteria:` and `.claude/task/acceptance_evidence.md` demonstrates every one of them under a `criteria_demonstrated:` marker, read from BUILT output. Evidence lines must be substantive and distinct: a count alone is satisfied by two bullets both reading "checked". This is the QA function, and it is an artifact plus a gate rather than a reviewer agent because the check needs proof, not judgement. |
-| `memory_budget_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `~/.claude/projects/<slug>/memory/*.md` | **Denies** a write to the agent's memory folder when the RESULTING file would exceed its surface's budget — the index `MEMORY.md`, or any other note — or when a new note would push the count past the cap: adding a note means removing one. Measures the file the tool call will produce (a `Write`'s content; an `Edit` or `MultiEdit` applied to the file on disk), in characters; a result no larger than the file on disk always passes, so an over-budget note can always be cut. The three budgets are pinned to what the folder MEASURED after the cut that introduced them (50 notes, a 7,669-character index, a 4,232-character largest note) and move down only — the same shape as the comment guard's pinned count. Memory is the one surface no other gate looks at (`task_contract_gate.py` deliberately ignores paths outside the repo), and it is where two 2026-09 sessions took a product fact the repo contradicted; a budget is what makes the cut hold. `--report` prints the three measurements; `tests/test_memory_budget_gate.py` drives every deny and pass on a temp folder. A shell write into the folder bypasses it, as it bypasses the comment gate; the repo's rule already forbids shell writes for files. |
-| `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on any path inside the repo | **Denies** a write whose text puts a public network address — an IPv4 outside the loopback, private, link-local, multicast and reserved ranges, or a global-unicast IPv6 — into any file inside the repo, `.claude/task/**` included. That is where it slipped: a CI runner's address went into a doc (caught by review), then into `review.md` as the grep pattern a reviewer had used to prove it was gone (not caught — the copy sat inside the review's own record), and was pushed to the public repo before anyone noticed. The deny names the file and line and never echoes the value; it also names what no pattern can catch — a host's size, city and open ports — so the moment of writing is the moment of the reminder. Reads only the written text; paths outside the repo pass; fails open. `tests/test_no_host_fingerprint_in_tree.py` imports the same patterns and pins the tracked tree at zero (measured: zero public, the mocks README's loopback preview address passes). Accepted false positive: a bare four-part version string; a `v` prefix is enough to pass. A shell write bypasses it like every edit-time gate; the pin catches that at CI. |
-| `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit on `docs/tracker/**` | **Denies** every edit under `docs/tracker/`, which holds `gitlab_snapshot.md` — the generated backup of every GitLab milestone and issue, written only by `scripts/snapshot_tracker.py` through the existing `glab` login. It is gitignored and stays on this machine. GitHub's suspension kept the repository and lost every issue; this file is what the tracker would be restored from. A backup that can be edited becomes a second roadmap, so it has one writer: the hook closes the tool door, and `tests/test_tracker_snapshot.py` recomputes the header's sha256 against the body, so any change that did not also rewrite the header fails that test. That is self-consistency, not provenance: a deliberate shell write that recomputes the header passes, and only CI re-reading GitLab (a token, the CPO's decision) would close it — the residual is the `--no-verify` class, forbidden by rule, no wider than the handover's. `docs/tracker/**` is in `hash_exclude_paths`, `review_exclude_paths` and `artifact_only`, so a refresh never moves a review binding and is never a reviewed diff — which is the reason nothing else may touch it. Read only when GitLab is unreachable (`CLAUDE.md`, the source table); refreshed at the end of every session. Fails open. |
+| `git_discipline.py` | PreToolUse Bash | Blocks `glab mr merge`, `git commit --amend`/`--no-verify`/`-n` and `core.hooksPath` repointing; asks the branch-consolidation questions on branch creation. On `git commit` it is the **review gate**: denies the commit unless the review cycle passed and `.claude/task/review.md` is bound to the staged diff (`working_agreement.md` §2). On a diff touching `site_v2/src/` it also requires the contract's `acceptance_criteria:`, each demonstrated in `.claude/task/acceptance_evidence.md`. `scripts/check_task_artifacts.py` repeats the check in CI. |
+| `git_workflow.py` | PostToolUse Bash | After a commit, reminds: push the feature branch, open the MR. |
+| `task_contract_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit, Bash, Artifact; PostToolUse Bash | Denies an edit with no task contract or outside `scope_paths`. Denies an edit on a protected path without `protected_override`, or on the structural surface without an `impact_map`. Denies a shell write to an out-of-scope file, and an `Artifact` publish without a real `decisions_reserved`. After every Bash call, it names the out-of-scope changes to revert. The rules are `working_agreement.md` §2. |
+| `dbt_layer_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Injects the layer contract when a dbt model or a consumption file (`scripts/export_*.py`, `site/`, `site_v2/`) is edited. `scripts/check_layer_contract.py` enforces it in CI. |
+| `comment_history_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies an edit that adds history to a code comment or a Markdown document. History is a date, an issue or MR number, a review credit or round, or a story phrase. `tests/test_no_decision_history_in_code.py` and `tests/test_no_decision_history_in_docs.py` pin the lines left; the counts only go down. |
+| `memory_budget_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies a write that takes the memory folder over its budget (`CLAUDE.md`, "Memory files"). `--report` shows where it stands. |
+| `host_fingerprint_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies a public network address in any repo file. `tests/test_no_host_fingerprint_in_tree.py` keeps the tree at zero. |
+| `tracker_snapshot_gate.py` | PreToolUse Edit/Write/MultiEdit/NotebookEdit | Denies every edit under `docs/tracker/`; only `scripts/snapshot_tracker.py` writes the tracker backup. |
+| `stop_gate.py` | Stop | Blocks the end of a turn once when the tree does not match the contract or an offline gate in `FAST_GATES` fails. |
+| `handover_in.py` | SessionStart | Injects the handover issue into every session, from GitLab or, when GitLab is down, from `.claude/handover.cache.md`. Capped at 16,000 characters; says when it truncates. The handover is rewritten at the end of every session (`CLAUDE.md`). |
 
-### Reviewer subagents — `.claude/agents/` (committed, read-only tools)
+Hooks fail open: an error or an unreadable event lets the call through. The review gate is the
+exception: when it cannot resolve the base branch, it denies.
 
-The role briefs made executable (governance G3). Spawned cold in step 2 of the
-review cycle; they judge the cumulative branch diff (`.claude/task/review_input.patch`,
-generated by `git_discipline.py --review-patch`, which excludes the review's own
-paperwork — see `review_exclude_paths`) against the contracts. Adversarial by
-construction: start from the assumption there is a defect, praise banned, §10
-decisions are never approved — only escalated. **A FAIL must name a defect; a PASS
-must say what it examined and may find nothing** (CPO 2026-08-01, after the two-risk
-rule obliged reviewers to invent findings on correct code).
-Routing: `.claude/review_routing.json` (PROTECTED — changing who reviews what is a
-CPO governance event). The agent definitions themselves are likewise PROTECTED
-(CPO ruling, G3 escalation 2026-06-12) — the builder must not be able to weaken
-its own adversary inside an ordinary task. Cast: `scope-auditor` (always, small model) +
-`analytics-engineer-reviewer` (dbt/seeds/export cross-trigger) + the path-routed
-specialists `platform-reviewer` (the machinery: scripts, tests, hooks, CI, deps,
-site build + hosting), `data-engineer-reviewer`
-(ingestion/registry-onboarding), `bi-analyst-reviewer` (wireframe specs, the
-whole built frontend `site_v2/src/**` — CPO ruling 2026-07-22, because the
-binding rule is written in the spec and broken on the page — and `site/i18n/`;
-it READS the export to verify bindings but does not review it),
-`football-analytics-expert-reviewer` (catalogue formula edits) + `cto-reviewer`,
-which after the **CTO split (CPO ruling 2026-07-31, #868)** owns NO territory
-and is woken by a PROPERTY of the change: a new mechanism, a new dependency, a
-guard invariant, a recurring cost. Two of those four are path-detectable and
-routed; two can appear in any file and reach it only via the contract's
-`decisions_taken:`, with the always-on `scope-auditor` as the tripwire. Before
-the split the CTO was required on 28% of commits and 48 tracked files pulled in
-both it and the display reviewer, so a CTO reviewed Astro markup. Defined
-later, with their surfaces: ui-expert, data-journalist, legal-counsel (asset
-policy). `seo-expert-reviewer` exists but is STILL NOT ROUTED — approved in
-principle 2026-07-31, not commissioned; it fires on nothing.
-CFO/Growth/Product-Analyst are advisors (consulted at contract time),
-not reviewers. **Model tiering** (CPO ruling 2026-06-12, pinned in each agent's
-`model:` frontmatter): `scope-auditor` and the six specialists all on
-**sonnet**. The pin is a floor — on a guard path (`.claude/hooks/**`,
-`.claude/agents/**`, `.claude/commands/**`, `.claude/settings.json`,
-`.claude/review_routing.json`, `.mcp.json`, `.cursor/mcp.json`,
-`.github/workflows/**`, `.gitlab-ci.yml`) every **specialist** routing requires is spawned on **opus**
-(a procedural override, not hook-enforced), because guard bypasses are the costliest
-misses. `scope-auditor` is exempt from that OPUS PROMOTION — it sits in `always`, so
-"every reviewer" would promote it on every governance commit. It ran on **haiku**
-until 2026-08-06; the exemption withheld the most expensive tier and was being read
-as justifying the cheapest, on the reviewer that sees every diff. That means
-`cto-reviewer` on
-all nine, **plus `platform-reviewer` on exactly three**, `.claude/hooks/**`,
-`.github/workflows/**` and `.gitlab-ci.yml`: the CTO rules on authority, Platform on the implementation,
-and the G3 bypasses were fail-open and test-coverage findings, which are Platform's.
-Platform is absent from the other six by design — a brief is a prompt, not
-machinery, so its verdict there would be a rubber stamp. **Check this against the
-rows before restating it**: the split's own review caught it wrong twice, once as
-prose over-claiming and once as rows widened to match the prose at a cost nobody
-had approved.
+## Reviewer agents — `.claude/agents/` (protected)
 
-### Project skill — `.claude/skills/validate-local/` (committed)
+Read-only agents, spawned cold in step 2 of the review cycle (`working_agreement.md` §2). Each
+judges the cumulative branch diff in `.claude/task/review_input.patch` and starts from the
+assumption that there is a defect. Which agent reviews which path is
+`.claude/review_routing.json`; each agent's model is its `model:` line.
 
-`validate-local` runs the same gates CI runs, locally, before pushing — the
-direct antidote to fix-after-CI churn. Tier 1 (fast/offline), Tier 2 (needs
-BigQuery auth: dbt parse + sqlfluff), Tier 3 (full build/DQ — CI-only).
+| Agent | Reviews |
+|---|---|
+| `scope-auditor` | every commit: the diff against the contract, §10 classes, secrets, undeclared thresholds |
+| `analytics-engineer-reviewer` | dbt models and seeds, export data handling |
+| `platform-reviewer` | scripts, tests, hooks, CI, dependencies, the site build and hosting |
+| `data-engineer-reviewer` | ingestion, competition onboarding, the data contract |
+| `bi-analyst-reviewer` | wireframes, `site_v2/src/**`, `site/i18n/**` |
+| `football-analytics-expert-reviewer` | `metric_catalogue.csv` |
+| `cto-reviewer` | a new mechanism, a dependency, a guard invariant, a recurring cost |
+| `seo-expert-reviewer` | nothing: not routed |
 
-### Global hooks — `~/.claude/settings.json` → `~/.claude/hooks/*.py` (NOT in repo)
+## Project skills — `.claude/skills/`
 
-Project-agnostic. Apply to **every** project on this machine. Canonical copies
-live in `docs/portable_guardrails/` so they can be version-controlled and copied
-elsewhere.
+| Skill | Use |
+|---|---|
+| `validate-local` | the CI gates, run locally before a push |
+| `onboard-competition` | add a competition: registry entry, dbt vars sync, labels |
+| `onboard-endpoint` | evaluate and ingest a new provider endpoint, cost approved first |
+| `verify-competition-ingest` | check a competition's ingest health |
 
-> ⚠️ **NONE OF THESE IS INSTALLED. Every row below runs nowhere** (verified 2026-07-22:
-> `~/.claude/settings.json` has no `hooks` key at all, and there is no other user-level settings
-> file). This table described intent and was read as fact for months — the same failure that let
-> `handover_in.py` be documented as "unavoidable" while nothing invoked it. The scripts are real
-> and live in `docs/portable_guardrails/`; installing them is a manual step nobody has taken.
-> **Treat this table as a shopping list, not an inventory.** If a behaviour here matters, move
-> the hook into `.claude/hooks/` and wire it in `.claude/settings.json`, where it is protected,
-> reviewed and committed — which is what was done for `handover_in.py`.
+The `/status` command (`.claude/commands/status.md`, protected) shows the branch, the tree, open
+MRs and the handover.
 
-| Hook | Event / trigger | Would do (NOT RUNNING) |
+---
+
+## Portable hooks — `docs/portable_guardrails/`
+
+Five generic hooks for a user-level install in `~/.claude/hooks/`. None is installed on this
+machine.
+
+| Hook | Fires on | Would do |
 |---|---|---|
-| `plan_implement_gate.py` | PostToolUse ExitPlanMode | Right after a plan is approved: re-read the standards governing the files about to change; name the layer/module each change belongs in; hold to scope; plan to validate before pushing. |
-| `pre_push_gate.py` | PreToolUse Bash | Before a real `git push`: run local validation first (avoid the CI round trip); confirm the push targets a feature branch, not main/master. |
-| ~~`handover_in.py`~~ | SessionStart | **Moved into the project set (2026-07-22) — see above.** It was listed here as a global hook and was running nowhere: the user-level settings carry no `hooks` key at all. The copy that runs here is `.claude/hooks/handover_in.py`, on a protected path. ⚠️ The copy still in `docs/portable_guardrails/hooks/` is the **PRE-fix** one: it carries the characters-versus-bytes truncation bug and has no truncation warning at all. Port the project copy before reusing it elsewhere. |
-| `handover_plan_gate.py` | PreToolUse Edit/Write/MultiEdit | On the first code edit of a session where a handover exists, requires restating the locked spec and getting user approval before writing code. Fires once per session; skips edits to the handover file. The safety net that puts the user back in the loop before divergence becomes work. |
-| `handover_out.py` | PreToolUse Bash | On a real `git push`, reminds to update `.claude/active_work.md` to reflect the new status. Keeps the handover current for the next session. (Reminder, not a hard block — a crying-wolf push block would get ignored.) |
+| `plan_implement_gate.py` | PostToolUse ExitPlanMode | After a plan is approved, inject a checklist against scope drift |
+| `pre_push_gate.py` | PreToolUse Bash | Before `git push`, remind to validate locally first |
+| `handover_plan_gate.py` | PreToolUse Edit/Write/MultiEdit | On a session's first code edit, require the handover's spec restated and approved |
+| `handover_out.py` | PreToolUse Bash | On `git push`, remind to update the handover |
+| `handover_in.py` | SessionStart | An older copy of the project hook; use `.claude/hooks/handover_in.py` |
 
-⚠️ **`handover_in.py` NOW OVERLAPS, and following the install procedure below would double-fire
-it.** `docs/portable_guardrails/settings.snippet.json` still registers `handover_in.py` under
-`SessionStart`, and the install steps below say to copy every portable hook into `~/.claude/hooks/`
-and merge that snippet. Do that on this machine and every session start injects the handover
-TWICE, roughly 26 KB, one copy being the pre-fix one with the character-versus-byte truncation bug.
-**When installing the portable set here, drop the `SessionStart` entry from the snippet.** The
-other four have no project twin and cannot collide. (The snippet is not edited here: it belongs to
-the portable archive, which this task deliberately leaves alone. Fixing it is a separate unit.)
+The three handover hooks read a `.claude/active_work.md` file, which this project does not use.
 
-### The enforced handover — GitLab issue #157
+To install them:
 
-Continuity across chats is enforced, not hoped for. The project keeps a single handover — a
-short, authoritative note: current task, the locked spec (or link), status (done / in-progress /
-next concrete action), and an explicit **do-NOT** list. It is the *only* thing a fresh chat is
-guaranteed to read (injected by `handover_in.py`). It lives in **GitLab issue #157**, kept closed
-so it never shows up as work, and is rewritten at the end of every session with
-`glab issue update 157`. It used to be `.claude/active_work.md`, a tracked file: every branch
-carried its own copy, a session saw whichever branch it started on, and a handover committed on a
-feature branch went stale when a sibling merged. The loop:
+1. `cp docs/portable_guardrails/hooks/*.py "$HOME/.claude/hooks/"`
+2. Merge the `hooks` block of `docs/portable_guardrails/settings.snippet.json` into
+   `~/.claude/settings.json`. In a project with its own `handover_in.py`, like this one, drop the
+   `SessionStart` entry, or the handover is injected twice.
+3. `python -m json.tool ~/.claude/settings.json`
 
-- **Read-in (hard):** `.claude/hooks/handover_in.py` injects it at SessionStart, from GitLab, or
-  from the copy it saved in `.claude/handover.cache.md` when GitLab is down. *"Unavoidable"
-  was wrong for months*: nothing was wired to SessionStart anywhere, so the injection never
-  happened and this document said otherwise. Wired in the project settings on 2026-07-22.
-- **Size is a hard constraint, not a style note.** The injection is capped at 16,000 **characters**
-  (the unit matters: the hook once read characters and decided truncation from the file's size in
-  bytes, so a handover under one cap and over the other was injected whole and labelled cut). The
-  handover reached 112,233 and would have been delivered 14% deep and cut off in silence. It is
-  now under the cap, the hook announces truncation when it happens, and
-  `design-mocks/check_handover.py <draft>` refuses a draft over the cap, or carrying a public
-  network address (with `host_fingerprint_gate.py`'s own patterns), before it is written to the
-  issue: no hook sees that write, so the check is chained in front of it in the one documented
-  command (`CLAUDE.md`, the session-end bullet).
-  Keep it current state only; history belongs in git and in the issue's own edit history.
-- ⚠️ **Plan-back and write-out DO NOT RUN.** `handover_plan_gate.py` (restate-and-approve before
-  the first code edit) and `handover_out.py` (a push reminder to update the handover) are both in
-  the not-installed global set above. So the loop has ONE enforced leg, the read-in, and two that
-  exist only as intentions. The plan-back's job is covered in practice by plan mode plus the
-  contract gate; the write-out's is not covered by anything, which is why the handover goes stale
-  unless someone remembers.
-
-This exists because a fresh chat once re-scoped a fully-specified task (it read the
-issue title + memory and built the wrong thing). Auto-loaded memory was not enough —
-the handover must be a single focused note, pushed in, with the user as the gate.
-
----
-
-## Carrying the portable set to a new project
-
-The **portable** hooks are generic. There are five of them and, as of 2026-07-22, **none is
-installed on this machine** — see the warning on the global table above. To set them up on a
-machine or for a new project (dropping `SessionStart` from the snippet if the project already
-ships its own `handover_in.py`, as this one now does):
-
-1. Copy the hook scripts into your global hooks dir:
-   ```bash
-   mkdir -p "$HOME/.claude/hooks"
-   cp docs/portable_guardrails/hooks/*.py "$HOME/.claude/hooks/"
-   ```
-2. Merge the `hooks` block from `docs/portable_guardrails/settings.snippet.json`
-   into `~/.claude/settings.json` (keep any existing `theme`, `enabledPlugins`,
-   `permissions`, etc.). Validate: `python -m json.tool ~/.claude/settings.json`.
-3. Done — they fire in every project automatically.
-
-To give a **new project its own project-specific hooks**, copy the pattern in
-`.claude/hooks/` here:
-- Keep `_command_utils.py` (the self-gating helpers) — it's project-agnostic.
-- Adapt `git_discipline.py` / `git_workflow.py` wording to that repo's docs (or
-  drop them if the global set is enough).
-- Replace `dbt_layer_gate.py` with whatever that project's structural contract is
-  (e.g. a different layer/module layout), keying off the edited file's path.
-- Register them in that project's `.claude/settings.json` (same shape as here).
-
-### Requirements
-
-- `python` must be on PATH in the hook shell (`shell: bash`). On Windows the
-  bundled git-bash is used; `python` resolves there.
-- Hooks **fail open**: any error or unparseable event exits 0 with no output, so
-  a hook bug can never block your workflow.
-- Changing `settings.json` may require approving the new hooks (a Claude Code
-  safety prompt) or restarting the session before they take effect.
-
----
+Hooks run with `python` on PATH in a bash shell (git-bash on Windows). A changed `settings.json`
+may need the hooks approved or the session restarted.
 
 ## Maintenance
 
-- If a CI workflow adds/changes a gate, update `validate-local`'s gate list so it
-  stays a faithful mirror.
-- If a hook starts firing when it shouldn't, the fix is in the script's matcher
-  (`.claude/hooks/_command_utils.py` `simple_commands` + the per-hook regex), not
-  in a fragile `if:` glob.
-- Keep `docs/portable_guardrails/hooks/*.py` in sync with `~/.claude/hooks/*.py`
-  (the repo copy is canonical) — **except `handover_in.py`, which is no longer portable.** It was
-  promoted into `.claude/hooks/` on 2026-07-22 and fixed there; the archive copy is deliberately
-  the older one and is NOT kept in sync. Port from the project copy, not the archive.
+- A gate added to or changed in `.gitlab-ci.yml` is added to or changed in `validate-local`.
+- A hook that fires when it should not is fixed in its matcher: `.claude/hooks/_command_utils.py`
+  and the hook's own pattern. An `if:` glob in `settings.json` is never the fix.

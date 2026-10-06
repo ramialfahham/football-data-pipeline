@@ -263,13 +263,6 @@ COUNT_SITES = (
     ("docs/working_agreement.md",
      r"deliberately absent from the other (\w+),", [_cto_alone]),
 
-    ("docs/agent_guardrails.md",
-     r"That means `cto-reviewer` on all (\w+),", [_guard_total]),
-    ("docs/agent_guardrails.md",
-     r"plus `platform-reviewer` on exactly (\w+)\*\*", [_shared]),
-    ("docs/agent_guardrails.md",
-     r"Platform is absent from the other (\w+) by design", [_cto_alone]),
-
     ("docs/roles/platform_reliability.md",
      r"On exactly (\w+) of the (\w+) guard paths", [_shared, _guard_total]),
     ("docs/roles/platform_reliability.md",
@@ -374,8 +367,6 @@ PROSE_SUBSETS = {
             "the config trio, on why an mcpServers block is command-class",
     },
     "docs/agent_guardrails.md": {
-        frozenset({".claude/commands/**", ".mcp.json"}):
-            "two CPO rulings cited by the paths they were about",
         frozenset({".claude/hooks/**", ".claude/settings.json"}):
             "where a project hook lives and where it is wired",
     },

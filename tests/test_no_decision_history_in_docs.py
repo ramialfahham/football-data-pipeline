@@ -42,7 +42,6 @@ PINNED = {
     "dbt_project/docs/layering.md": 11,
     "deploy/nightly/README.md": 10,
     "design-mocks/README.md": 22,
-    "docs/agent_guardrails.md": 19,
     "docs/content_architecture.md": 29,
     "docs/data_contract.md": 19,
     "docs/metrics_context_model.md": 20,
