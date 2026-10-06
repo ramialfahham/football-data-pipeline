@@ -1,585 +1,348 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 96ea20bc..c8a37b8c 100644
+index c8a37b8c..ec7d411f 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,68 +1,92 @@
--# Task contract — the non-core files no longer quote the CPO
-+# Task contract — player stats from a complete-format fetch; a newer-format match fetched again
+@@ -1,92 +1,63 @@
+-# Task contract — player stats from a complete-format fetch; a newer-format match fetched again
++# Task contract — the main prod build waits while the nightly runs
  
  objective: >
--  Remove the CPO's chat words from the non-core files that still carry them, keeping each rule
--  in plain words. The core documents follow in their own strip MRs; the protected reviewer briefs
--  belong to the protected-files cleanup.
-+  The provider sends a match's player stats in one of two formats, and the newer one never carries
-+  goals conceded or dribbled past. Base keeps the newest fetch, so a later fetch in the newer
-+  format replaced complete stats (63 matches), and a match first fetched in it stays blank unless
-+  fetched again. Base takes a match's player rows from its newest complete-format fetch, else its
-+  newest fetch; ingestion fetches a match once more 14 days after kickoff while its latest fetch is
-+  in the newer format; a dbt test pins the result.
+-  The provider sends a match's player stats in one of two formats, and the newer one never carries
+-  goals conceded or dribbled past. Base keeps the newest fetch, so a later fetch in the newer
+-  format replaced complete stats (63 matches), and a match first fetched in it stays blank unless
+-  fetched again. Base takes a match's player rows from its newest complete-format fetch, else its
+-  newest fetch; ingestion fetches a match once more 14 days after kickoff while its latest fetch is
+-  in the newer format; a dbt test pins the result.
++  The Cloud Run nightly and data:build:main both write prod and are not serialised; 4 of 98 main
++  builds overlapped a nightly in 57 nights, each one a main build that started while the nightly
++  ran. A first step of data:build:main waits while an fdp-nightly execution is in progress.
  
  refs: >
--  The cleanup of quoted chat words, approved in chat, 2026-10-06.
-+  #205.
+-  #205.
++  #204.
  
  acceptance_criteria:
--  - No non-core, non-protected tracked file quotes the CPO's chat words
-+  - A match's player stats come from its newest fetch in the provider's complete format; a fetch in the newer format is used only while no complete one exists.
-+  - A match whose latest fetch is still in the newer format 14 days after kickoff is fetched once more.
-+  - No match with a complete-format fetch is blank for every player in goals conceded or dribbled past (a dbt test).
+-  - A match's player stats come from its newest fetch in the provider's complete format; a fetch in the newer format is used only while no complete one exists.
+-  - A match whose latest fetch is still in the newer format 14 days after kickoff is fetched once more.
+-  - No match with a complete-format fetch is blank for every player in goals conceded or dribbled past (a dbt test).
++  - The nightly and the main-branch prod build never write prod at the same time
  
  scope_paths:
--  - docs/wireframes/10_home.md
--  - docs/wireframes/99_gaps_register.md
--  - docs/wireframes/09_chrome.md
--  - dbt_project/docs/layering.md
--  - docs/roles/cto.md
--  - design-mocks/gen_competitions.py
--  - design-mocks/rows.py
--  - design-mocks/check_row_consistency.py
--  - design-mocks/gen_matches.py
--  - design-mocks/interaction.py
--  - design-mocks/renders/competition-hub-groups_2026-09-17_01.html
--  - design-mocks/renders/competition-hub-groups_2026-09-17_02.html
--  - design-mocks/renders/competition-matchdays_2026-09-16_01.html
--  - design-mocks/renders/competition-overview_2026-09-16_01.html
--  - design-mocks/renders/competition-overview_2026-09-17_02.html
--  - design-mocks/renders/competition-rankings_2026-09-16_01.html
--  - design-mocks/renders/competition-rankings_2026-09-17_02.html
--  - design-mocks/renders/home_2026-09-16_01.html
--  - design-mocks/renders/home_2026-09-17_02.html
--  - scripts/export_site_data.py
--  - site_v2/src/i18n/strings.ts
--  - tests/test_no_decision_history_in_code.py
--  - tests/test_no_decision_history_in_docs.py
-+  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+  - dbt_project/models/2_base/api_football/base.yml
-+  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-+  - dbt_project/tests/assert_fixture_players_from_a_complete_fetch.sql
-+  - ingestion/api_football/coverage.py
-+  - ingestion/api_football/loads/batch_fixtures.py
-+  - tests/test_coverage.py
-+  - docs/data_contract.md
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+-  - dbt_project/models/2_base/api_football/base.yml
+-  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+-  - dbt_project/tests/assert_fixture_players_from_a_complete_fetch.sql
+-  - ingestion/api_football/coverage.py
+-  - ingestion/api_football/loads/batch_fixtures.py
+-  - tests/test_coverage.py
+-  - docs/data_contract.md
++  - .gitlab-ci.yml
++  - scripts/wait_for_nightly.py
++  - tests/test_wait_for_nightly.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
  
++protected_override: >
++  Approved by the CPO in chat, 2026-10-06: a first step of data:build:main waits while an
++  fdp-nightly execution is running, polling the Cloud Run API every minute up to the job's
++  timeout, with the CI account's existing run.developer grant on the job. Reading: the comment
++  above the job, which says how the prod writers are kept apart, is corrected with it.
++
  impact_map: >
--  Short form: comment, docstring and prose lines only. In scripts/export_site_data.py and
--  site_v2/src/i18n/strings.ts every changed line is a comment or a docstring line; no executable
--  line, string value, model, mart or export payload changes, so no number on any page moves. In
--  the nine renders only a CSS comment changes, so each page renders as reviewed.
-+  writers: RAW_APIF_FIXTURE_DETAILS is written only by ingestion/api_football/loads/batch_fixtures.py;
-+  coverage.read_coverage decides which finished fixtures it fetches. base_apif__fixture_players is
-+  the only model that picks a fetch for player stats; base_apif__fixture_events, base_apif__players
-+  and base_apif__teams read stg_apif__fixture_players for other purposes and are unchanged.
-+  downstream: `dbt ls --select base_apif__fixture_players+ --resource-type model` (repo root,
-+  --project-dir dbt_project): base_apif__fixture_players fct_fixture_player_stats
-+  int_legs__player_match int_legs__team_from_players int_player_club_season__metrics
-+  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
-+  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
-+  int_player_season__metrics int_player_season__team int_player_season_position__metrics
-+  int_player_season_record int_team_competition_benchmark_metrics_long
-+  int_team_competition_benchmarks int_team_momentum__metrics int_team_profile__yoy
-+  int_team_season__deserved_vs_actual int_team_season__metrics int_team_season__metrics_cumulative
-+  int_team_season_record mart_leaderboards mart_matchday_insights mart_player_career
-+  mart_player_competition_benchmarks mart_player_fixture_stats mart_player_match_log
-+  mart_player_momentum mart_player_profile mart_player_season_record
-+  mart_team_competition_benchmarks mart_team_leaderboards mart_team_momentum
-+  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
-+  mart_team_season_record.
-+  layer_rules: base keeps first logic and picks among fetches (layering.md, 2_base); every model is
-+  a table set per layer (check_layer_contract.py); no league_code is hardcoded.
-+  deploy_order: all models are tables rebuilt in full by the nightly and the main build, so the new
-+  choice reaches every downstream table on the first build after merge; the ingestion change takes
-+  effect at the next 04:00 nightly through the redeployed image.
-+  blast_radius: measured on prod staging before building. 63 matches switch to an earlier
-+  complete-format fetch (2,654 player rows), regaining goals conceded and dribbled past. 964 rows
-+  in 565 matches leave base because their player is absent from the chosen fetch; 498 of them have
-+  minutes, and 411 of those are the same player (same team and shirt) under a second provider id
-+  in the chosen fetch, which base counts twice today. Answer keys: of the key matches, only Serie A
-+  1550091 is touched, by dropped rows; its key player 37137 is in the chosen fetch with the same 2
-+  saves, so no key value moves. API: 1 to 5 calls a night, about 3 on average, measured on prod
-+  over the next 12 nights (matches reaching 14 days in the newer format, batched per competition
-+  at 20 a call); none of the 406 matches whose latest fetch is in the newer format is due today,
-+  so there is no one-off batch. BigQuery: the coverage query now reads the players block of every
-+  fetch, measured 640 MB billed against 10 MB before, and it runs twice a night (orchestrator.py
-+  planning and completeness.py), about 1.3 GB more a night. Both approved in chat, 2026-10-06.
+-  writers: RAW_APIF_FIXTURE_DETAILS is written only by ingestion/api_football/loads/batch_fixtures.py;
+-  coverage.read_coverage decides which finished fixtures it fetches. base_apif__fixture_players is
+-  the only model that picks a fetch for player stats; base_apif__fixture_events, base_apif__players
+-  and base_apif__teams read stg_apif__fixture_players for other purposes and are unchanged.
+-  downstream: `dbt ls --select base_apif__fixture_players+ --resource-type model` (repo root,
+-  --project-dir dbt_project): base_apif__fixture_players fct_fixture_player_stats
+-  int_legs__player_match int_legs__team_from_players int_player_club_season__metrics
+-  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
+-  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
+-  int_player_season__metrics int_player_season__team int_player_season_position__metrics
+-  int_player_season_record int_team_competition_benchmark_metrics_long
+-  int_team_competition_benchmarks int_team_momentum__metrics int_team_profile__yoy
+-  int_team_season__deserved_vs_actual int_team_season__metrics int_team_season__metrics_cumulative
+-  int_team_season_record mart_leaderboards mart_matchday_insights mart_player_career
+-  mart_player_competition_benchmarks mart_player_fixture_stats mart_player_match_log
+-  mart_player_momentum mart_player_profile mart_player_season_record
+-  mart_team_competition_benchmarks mart_team_leaderboards mart_team_momentum
+-  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
+-  mart_team_season_record.
+-  layer_rules: base keeps first logic and picks among fetches (layering.md, 2_base); every model is
+-  a table set per layer (check_layer_contract.py); no league_code is hardcoded.
+-  deploy_order: all models are tables rebuilt in full by the nightly and the main build, so the new
+-  choice reaches every downstream table on the first build after merge; the ingestion change takes
+-  effect at the next 04:00 nightly through the redeployed image.
+-  blast_radius: measured on prod staging before building. 63 matches switch to an earlier
+-  complete-format fetch (2,654 player rows), regaining goals conceded and dribbled past. 964 rows
+-  in 565 matches leave base because their player is absent from the chosen fetch; 498 of them have
+-  minutes, and 411 of those are the same player (same team and shirt) under a second provider id
+-  in the chosen fetch, which base counts twice today. Answer keys: of the key matches, only Serie A
+-  1550091 is touched, by dropped rows; its key player 37137 is in the chosen fetch with the same 2
+-  saves, so no key value moves. API: 1 to 5 calls a night, about 3 on average, measured on prod
+-  over the next 12 nights (matches reaching 14 days in the newer format, batched per competition
+-  at 20 a call); none of the 406 matches whose latest fetch is in the newer format is due today,
+-  so there is no one-off batch. BigQuery: the coverage query now reads the players block of every
+-  fetch, measured 640 MB billed against 10 MB before, and it runs twice a night (orchestrator.py
+-  planning and completeness.py), about 1.3 GB more a night. Both approved in chat, 2026-10-06.
++  writers: none; one new step in data:build:main, before any prod write (dbt seed is the first),
++  and the comment above the job.
++  readers: the step reads the Cloud Run Admin API list of fdp-nightly executions with the CI
++  account (github-actions-dbt), which holds roles/run.developer on the job
++  (`gcloud run jobs get-iam-policy fdp-nightly`). Executions come back newest first and every
++  finished one, failed ones included, carries completionTime (checked on the API); one without it
++  is in progress.
++  when it runs: wherever data:build:main runs (main pushes and web pipelines, its rules unchanged).
++  fails closed: an API error stops the job before it writes prod.
++  deploy_order: none; the nightly, its image and the GitLab data:nightly job are unchanged.
++  blast_radius: data:build:main starts later by the running nightly's remaining time (nightly runs
++  measured 47 to 180 minutes, 77 on average). The wait stops after 90 minutes and fails the job
++  before any prod write, so the build keeps 30 minutes of the job's 2-hour timeout (it takes about
++  13); a nightly still running then means a retry once it ends. No dataset, model or page changes. The opposite order, a nightly starting while a main build runs,
++  did not occur in the 57 nights measured and is not covered.
  
  decisions_taken: >
    Readings, under the delegation of 2026-10-02:
--  - A quote is the CPO's chat words. Quotes of a document's own earlier text, of a file header,
--    of supplied copy or of an option's name are not his chat words and stay.
--  - Each quote is replaced by the rule it carried, in plain words; where the sentence already
--    states the rule, the quote is only removed.
--  - The words that replace a quote carry no date, issue or MR number or review story; where a
--    whole line is rewritten, the line drops the ones it carried. Other history in these files is
--    left for their own cleanup. The history-line pins move down by what the rewrites removed.
--  - A render of record is not overwritten by a CSS-comment change: the page renders as reviewed.
-+  - "A match's player stats come from its newest fetch in the complete format" is a choice per
-+    match, not per player: every row of a match comes from that one fetch, as a match's events come
-+    from one fetch.
-+  - A fetch is in the complete format when any player in it has goals conceded, and in the newer
-+    format when it lists players and none has goals conceded; a payload with no players is neither,
-+    so a match the provider gives no player stats is not fetched again.
-+  - The refetch is due once: when the latest fetch is in the newer format and came under 14 days
-+    after kickoff, and 14 days have passed, the same shape as the 3-day second fetch.
+-  - "A match's player stats come from its newest fetch in the complete format" is a choice per
+-    match, not per player: every row of a match comes from that one fetch, as a match's events come
+-    from one fetch.
+-  - A fetch is in the complete format when any player in it has goals conceded, and in the newer
+-    format when it lists players and none has goals conceded; a payload with no players is neither,
+-    so a match the provider gives no player stats is not fetched again.
+-  - The refetch is due once: when the latest fetch is in the newer format and came under 14 days
+-    after kickoff, and 14 days have passed, the same shape as the 3-day second fetch.
++  - The wait is a small script with its own unit tests rather than inline shell, so its rule (an
++    execution without completionTime is in progress) is tested offline.
++  - The first page of executions (newest first) is enough: a run in progress is the newest.
++  - "Up to the job's timeout" is read as a 90-minute deadline inside it, so a timeout can never
++    land during the build's prod writes; a CI test pins the step after authentication and before
++    the first prod write.
  
--  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
-+  Threshold declarations. NEW MECHANISM: none; one more due condition in the existing coverage
-+  check and one dbt test. RECURRING COST: 1 to 5 API calls a night and about 1.3 GB billed a
-+  night for the two coverage reads, approved in chat, 2026-10-06.
+-  Threshold declarations. NEW MECHANISM: none; one more due condition in the existing coverage
+-  check and one dbt test. RECURRING COST: 1 to 5 API calls a night and about 1.3 GB billed a
+-  night for the two coverage reads, approved in chat, 2026-10-06.
++  Threshold declarations. NEW MECHANISM: the wait step, approved in chat, 2026-10-06. RECURRING
++  COST: none in BigQuery; CI runner time while waiting.
  
  decisions_reserved:
    - None.
  
  done_when:
--  - A sweep of the tree finds no quote of the CPO's chat words outside the core documents and the
--    protected reviewer briefs.
--  - pytest (whole suite) and the offline gates pass.
-+  - The new dbt test returns rows on prod before the change and none in the MR build.
-+  - The MR data build passes, answer keys included.
-+  - pytest (whole suite) and the offline gates pass; the coverage query's billed bytes are measured.
+-  - The new dbt test returns rows on prod before the change and none in the MR build.
+-  - The MR data build passes, answer keys included.
+-  - pytest (whole suite) and the offline gates pass; the coverage query's billed bytes are measured.
++  - The script's unit tests pass; the API call it makes is checked once against the live job.
++  - pytest (whole suite), the offline gates and the CI lint pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-index 99d3d856..6e630d75 100644
---- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-+++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-@@ -156,7 +156,7 @@ models:
-       One row per player per team per fixture from $.players in raw_apif_fixture_details — an
-       append-only table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully
-       (no latest-snapshot qualify — sub-league grain); current-per-entity is assembled in
--      base_apif__fixture_players, newest per (league_code, fixture_id, team_id, player_id). Grain
-+      base_apif__fixture_players, which takes all of a match's rows from one fetch. Grain
-       at staging: (fixture_id, team_id, player_id, raw_ingested_at).
-     columns:
-       - name: league_code
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 9daaa2ed..5c64f1a6 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -259,8 +259,10 @@ models:
-   - name: base_apif__fixture_players
-     description: >
-       One row per player per fixture with that player's match statistics, from the generic
--      stg_apif__fixture_players model, deduplicated on the grain (the latest fetch; a player the
--      provider lists twice in one fetch keeps the row with more values), cleaned once and named in
-+      stg_apif__fixture_players model, deduplicated on the grain (all of a match's rows come from
-+      one fetch: its newest in the provider's complete format, where any player has goals
-+      conceded, else its newest; a player the provider lists twice in one fetch keeps the row with
-+      more values), cleaned once and named in
-       our own words. Grain: (league_code, fixture_id, team_id, player_id).
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 45fdcccf..aebe7751 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -833,14 +833,16 @@ data:build:mr:
  
-       {{ doc('cleaning_rules') }}
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index 602f0be7..88793c7e 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -126,7 +126,9 @@ corrected as (
-                 src.fouls_drawn, src.fouls_committed, src.cards_yellow, src.cards_red, src.penalty_won,
-                 src.penalty_committed, src.penalty_scored, src.penalty_missed, src.penalty_saved
-             ]) as stat
--        ) as delivered_values
-+        ) as delivered_values,
-+        logical_or(src.goals_against is not null)
-+            over (partition by src.league_code, src.fixture_id, src.raw_ingested_at) as fetch_is_complete
-     from src
-     left join overrides as alias_override
-         on
-@@ -150,9 +152,22 @@ corrected as (
-             and src.player_id = resolved_teams.player_id
- ),
- 
---- The provider's values under our names, one row per player per fixture: the latest fetch. A player
---- the provider lists twice in one fetch keeps the row with more values, and the rows' own values
---- break a tie, so every build keeps the same row.
-+-- A match's rows come from one fetch: its newest fetch in the provider's complete format, else its
-+-- newest fetch. The newer format leaves goals conceded and dribbled past blank for every player, so
-+-- a fetch counts as complete when any player in it has goals conceded.
-+chosen_fetch as (
-+    select *
-+    from corrected
-+    qualify
-+        raw_ingested_at = coalesce(
-+            max(if(fetch_is_complete, raw_ingested_at, null)) over (partition by league_code, fixture_id),
-+            max(raw_ingested_at) over (partition by league_code, fixture_id)
-+        )
-+),
-+
-+-- The provider's values under our names, one row per player per fixture, from the chosen fetch. A
-+-- player the provider lists twice in one fetch keeps the row with more values, and the rows' own
-+-- values break a tie, so every build keeps the same row.
- delivered as (
-     select
-         league_code,
-@@ -192,11 +207,11 @@ delivered as (
-         penalty_scored as penalties_scored,
-         penalty_missed as penalties_missed,
-         penalty_saved as penalties_saved
--    from corrected
-+    from chosen_fetch
-     qualify
-         row_number() over (
-             partition by league_code, fixture_id, team_id, player_id
--            order by raw_ingested_at desc, delivered_values desc, to_json_string(corrected) asc
-+            order by raw_ingested_at desc, delivered_values desc, to_json_string(chosen_fetch) asc
-         ) = 1
-         -- Drop cross-team id-collisions: the provider sometimes reuses one player_id for two
-         -- different players in a fixture (one per team, e.g. AFCCL 2016 id 44061), so the id is
-diff --git a/dbt_project/tests/assert_fixture_players_from_a_complete_fetch.sql b/dbt_project/tests/assert_fixture_players_from_a_complete_fetch.sql
+ # main-push / manual full builds keep the FULL build — prod must stay complete
+ # and serve as the always-compilable baseline for MR state comparisons. Joins the
+-# repo-wide prod-warehouse-write group it shares with data:nightly, so the two prod
+-# writers never MERGE the bare prod tables concurrently (#667).
++# repo-wide prod-warehouse-write group it shares with the GitLab data:nightly job. The
++# nightly that runs is the Cloud Run job fdp-nightly, outside that group, so before its
++# first prod write this job waits while one of its runs is in progress.
+ data:build:main:
+   <<: *data_build_base
+   resource_group: prod-warehouse-write
+   script:
+     - *dbt_profile
+     - *gcp_auth
++    - python scripts/wait_for_nightly.py
+     - cd dbt_project && dbt deps
+     - sqlfluff lint models
+     - dbt seed --target prod
+diff --git a/scripts/wait_for_nightly.py b/scripts/wait_for_nightly.py
 new file mode 100644
-index 00000000..13cab6d6
+index 00000000..49d8d43c
 --- /dev/null
-+++ b/dbt_project/tests/assert_fixture_players_from_a_complete_fetch.sql
-@@ -0,0 +1,79 @@
-+{#
-+  A match with a fetch in the provider's complete format takes its player stats from such a fetch,
-+  so a stat its newest complete fetch delivers is not blank for every player who played. Returns one
-+  row per model, match and stat (goals conceded, dribbled past) blank for every player with minutes
-+  in base_apif__fixture_players or fct_fixture_player_stats while that fetch has it for one of them.
-+#}
-+{{ config(store_failures = true, severity = 'error') }}
++++ b/scripts/wait_for_nightly.py
+@@ -0,0 +1,63 @@
++"""Wait while a run of the nightly is in progress, so the main prod build never writes prod with it.
 +
-+with fetches as (
-+    select
-+        league_code,
-+        fixture_id,
-+        raw_ingested_at,
-+        logical_or(goals_against is not null) as is_complete,
-+        logical_or(minutes_played > 0 and goals_against is not null) as has_goals_against,
-+        logical_or(minutes_played > 0 and dribbles_past is not null) as has_dribbles_against
-+    from {{ ref('stg_apif__fixture_players') }}
-+    where fixture_id is not null
-+    group by league_code, fixture_id, raw_ingested_at
-+),
++The nightly is the Cloud Run job fdp-nightly (deploy/nightly/README.md); data:build:main runs this
++before its first prod write. A run in progress is an execution without completionTime: the API
++lists executions newest first, and every finished one, a failed one too, carries completionTime.
 +
-+newest_complete as (
-+    select
-+        league_code,
-+        fixture_id,
-+        array_agg(
-+            struct(has_goals_against, has_dribbles_against) order by raw_ingested_at desc limit 1
-+        )[offset(0)] as newest
-+    from fetches
-+    where is_complete
-+    group by league_code, fixture_id
-+),
++Usage (from repo root, with GCP credentials active):
++    python scripts/wait_for_nightly.py
 +
-+held as (
-+    select
-+        'base_apif__fixture_players' as model_name,
-+        league_code,
-+        fixture_id,
-+        logical_or(goals_against is not null) as has_goals_against,
-+        logical_or(dribbles_against is not null) as has_dribbles_against
-+    from {{ ref('base_apif__fixture_players') }}
-+    where minutes > 0
-+    group by league_code, fixture_id
-+    union all
-+    select
-+        'fct_fixture_player_stats' as model_name,
-+        league_code,
-+        fixture_api_id as fixture_id,
-+        logical_or(goals_against is not null) as has_goals_against,
-+        logical_or(dribbles_against is not null) as has_dribbles_against
-+    from {{ ref('fct_fixture_player_stats') }}
-+    where minutes > 0
-+    group by league_code, fixture_api_id
++Exits 0 once no run is in progress. An API error raises, and a run still in progress after
++MAX_WAIT_SECONDS exits 1: either way the job fails before it writes prod. The deadline sits inside
++the job's 2-hour timeout so that the timeout can never land during the build's prod writes.
++"""
++
++from __future__ import annotations
++
++import sys
++import time
++
++import google.auth
++from google.auth.transport.requests import AuthorizedSession
++
++GCP_PROJECT_ID = "football-data-pipeline-gcp"
++REGION = "europe-west1"
++JOB = "fdp-nightly"
++EXECUTIONS_URL = (
++    f"https://run.googleapis.com/v2/projects/{GCP_PROJECT_ID}/locations/{REGION}/jobs/{JOB}/executions"
 +)
-+
-+select
-+    held.model_name,
-+    held.league_code,
-+    held.fixture_id,
-+    stat.stat_name as stat
-+from held
-+inner join newest_complete
-+    on
-+        held.league_code = newest_complete.league_code
-+        and held.fixture_id = newest_complete.fixture_id
-+cross join
-+    unnest([
-+        struct(
-+            'goals_against' as stat_name,
-+            newest_complete.newest.has_goals_against as in_fetch,
-+            held.has_goals_against as in_model
-+        ),
-+        struct(
-+            'dribbles_against' as stat_name,
-+            newest_complete.newest.has_dribbles_against as in_fetch,
-+            held.has_dribbles_against as in_model
-+        )
-+    ]) as stat
-+where stat.in_fetch and not stat.in_model
-diff --git a/docs/data_contract.md b/docs/data_contract.md
-index 2ecac85b..1e20273e 100644
---- a/docs/data_contract.md
-+++ b/docs/data_contract.md
-@@ -131,9 +131,9 @@ quota is still discarded whole and retried next run, in `batch_fixtures`, `coach
- 
- `RAW_APIF_FIXTURE_DETAILS` appends. Each run fetches only the fixtures that are missing data (not the full history) and appends one row per fixture returned. A fixture that is retried — empty statistics within the 3-day window from kickoff — gains a **second row**; nothing is removed.
- 
--**Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). From the moment that fetch is due until it is made, the fixture's player stats count as not covered.
-+**Second fetch.** The provider completes some player stats days after the match, so a finished fixture whose latest fetch came under 3 days (72 hours) after kickoff is fetched once more when it is 3 days old, in every competition, idle ones included (`coverage.second_fetch_due`). From the moment that fetch is due until it is made, the fixture's player stats count as not covered. A fixture whose latest fetch is in the provider's newer player-stats format (players listed, none with goals conceded) and came under 14 days after kickoff is fetched once more when it is 14 days old (`coverage.newer_format_refetch_due`): that format never carries goals conceded or dribbled past, and the provider replaces it with the complete one for many matches later.
- 
--**Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_players` dedups newest per `(…, team_id, player_id)` and `base_apif__fixture_statistics` per `(…, team_id)`, so an entity present only in the older payload survives and one present in both takes the newer. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept.
-+**Both versions are kept deliberately, and base picks.** The bundle carries lineups, events, statistics and player stats *together*, so a retry chasing late statistics can come back richer in one section and poorer in another. `base_apif__fixture_statistics` dedups newest per `(…, team_id)`, so a team line present only in the older payload survives and one present in both takes the newer. `base_apif__fixture_players` takes all of a match's player rows from one fetch: its newest fetch in the complete format (any player with goals conceded), else its newest fetch. `base_apif__fixture_events` keeps the event list of the fixture's latest fetch that has events: positions past the end of a shorter later list are not kept.
- 
- Two consequences worth stating rather than discovering:
- 
-diff --git a/ingestion/api_football/coverage.py b/ingestion/api_football/coverage.py
-index c07d56d5..c2ea222f 100644
---- a/ingestion/api_football/coverage.py
-+++ b/ingestion/api_football/coverage.py
-@@ -25,7 +25,10 @@ COVERAGE SEMANTICS (per endpoint)
-         Covered once the fixture has been fetched, except while its second fetch
-         is due: the provider completes some player stats days after the match, so
-         a fixture whose latest fetch came under SECOND_FETCH_DELAY after kickoff
--        is fetched once more when it is that old (see second_fetch_due).
-+        is fetched once more when it is that old (see second_fetch_due). A
-+        fixture whose latest fetch is in the provider's newer player-stats
-+        format is fetched once more NEWER_FORMAT_REFETCH_DELAY after kickoff
-+        (see newer_format_refetch_due).
-     FIXTURE_STATISTICS
-         Covered only when the statistics array is non-empty. Empty statistics on
-         a finished fixture is usually a delivery delay, so it is retried within
-@@ -59,6 +62,10 @@ STATS_GRACE_DAYS = 7
- # The provider completes a match's player stats within three days of kickoff.
- SECOND_FETCH_DELAY = timedelta(days=3)
- 
-+# The provider's newer player-stats format never carries goals conceded or dribbled past, and the
-+# provider replaces it with the complete format for many matches only later.
-+NEWER_FORMAT_REFETCH_DELAY = timedelta(days=14)
-+
- # The four fanout endpoints bundled in each RAW_APIF_FIXTURE_DETAILS payload.
- # The value is the payload array whose non-emptiness must be checked, or None
- # when the fixture being fetched at all is sufficient to count as covered.
-@@ -101,6 +108,21 @@ def second_fetch_due(
-     return latest_fetch < complete_from <= now
- 
- 
-+def newer_format_refetch_due(
-+    latest_fetch: datetime | None,
-+    kickoff: datetime | None,
-+    latest_in_newer_format: bool,
-+    now: datetime,
-+) -> bool:
-+    """True when the fixture's latest fetch is in the newer player-stats format, came under
-+    NEWER_FORMAT_REFETCH_DELAY after kickoff, and that much time has now passed. The refetch itself
-+    comes later than that, so it is due once."""
-+    if not latest_in_newer_format or latest_fetch is None or kickoff is None:
-+        return False
-+    refetch_from = kickoff + NEWER_FORMAT_REFETCH_DELAY
-+    return latest_fetch < refetch_from <= now
++POLL_SECONDS = 60
++MAX_WAIT_SECONDS = 90 * 60
++REQUEST_TIMEOUT_SECONDS = 30
 +
 +
- def read_coverage(
-     client: bigquery.Client,
- ) -> dict[str, dict[str, dict[int, bool]]]:
-@@ -112,8 +134,9 @@ def read_coverage(
- 
-     has_data is True when the endpoint's data is present (see COVERAGE SEMANTICS
-     in the module docstring). FIXTURE_STATISTICS is True only for a non-empty
--    statistics array; FIXTURE_PLAYERS is False while the fixture's second fetch is
--    due; LINEUPS and FIXTURE_EVENTS are True for every fetched fixture.
-+    statistics array; FIXTURE_PLAYERS is False while the fixture's second fetch or
-+    its newer-format refetch is due; LINEUPS and FIXTURE_EVENTS are True for every
-+    fetched fixture.
- 
-     Rows are aggregated by (league_code, fixture_id) with LOGICAL_OR because a
-     fixture legitimately has more than one row: the table is append-only and a
-@@ -134,17 +157,41 @@ def read_coverage(
-         return {}
- 
-     # One row per fixture: did this fixture's statistics array ever arrive non-empty,
--    # and when was it last fetched relative to its kickoff?
-+    # when was it last fetched relative to its kickoff, and is that latest fetch in the
-+    # newer player-stats format (players listed, none with goals conceded)?
-     q = f"""
-+        WITH fetches AS (
-+            SELECT
-+                league_code,
-+                CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
-+                ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0 AS has_statistics,
-+                ingested_at,
-+                SAFE_CAST(JSON_VALUE(payload, '$.fixture.date') AS TIMESTAMP) AS kickoff,
-+                EXISTS(
-+                    SELECT 1
-+                    FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
-+                        UNNEST(JSON_QUERY_ARRAY(team_block, '$.players')) AS player
-+                )
-+                AND NOT EXISTS(
-+                    SELECT 1
-+                    FROM UNNEST(JSON_QUERY_ARRAY(payload, '$.players')) AS team_block,
-+                        UNNEST(JSON_QUERY_ARRAY(team_block, '$.players')) AS player,
-+                        UNNEST(JSON_QUERY_ARRAY(player, '$.statistics')) AS stats
-+                    WHERE JSON_VALUE(stats, '$.goals.conceded') IS NOT NULL
-+                ) AS in_newer_format
-+            FROM `{table_id}`
-+            WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
-+        )
-+
-         SELECT
-             league_code,
--            CAST(JSON_VALUE(payload, '$.fixture.id') AS INT64) AS fixture_id,
--            LOGICAL_OR(ARRAY_LENGTH(JSON_QUERY_ARRAY(payload, '$.statistics')) > 0)
--                AS has_statistics,
-+            fixture_id,
-+            LOGICAL_OR(has_statistics) AS has_statistics,
-             MAX(ingested_at) AS latest_fetch,
--            MAX(SAFE_CAST(JSON_VALUE(payload, '$.fixture.date') AS TIMESTAMP)) AS kickoff
--        FROM `{table_id}`
--        WHERE JSON_VALUE(payload, '$.fixture.id') IS NOT NULL
-+            MAX(kickoff) AS kickoff,
-+            ARRAY_AGG(in_newer_format ORDER BY ingested_at DESC LIMIT 1)[OFFSET(0)]
-+                AS latest_in_newer_format
-+        FROM fetches
-         GROUP BY league_code, fixture_id
-     """
-     rows = list(client.query(q).result())
-@@ -157,7 +204,9 @@ def read_coverage(
-         has_stats = bool(row.has_statistics)
-         for endpoint, requires_nonempty in ENDPOINT_REQUIRES_NONEMPTY.items():
-             covered[lc][endpoint][fid] = has_stats if requires_nonempty else True
--        if second_fetch_due(row.latest_fetch, row.kickoff, now):
-+        if second_fetch_due(row.latest_fetch, row.kickoff, now) or newer_format_refetch_due(
-+            row.latest_fetch, row.kickoff, bool(row.latest_in_newer_format), now
-+        ):
-             covered[lc]["FIXTURE_PLAYERS"][fid] = False
- 
-     # Convert defaultdicts to plain dicts so downstream code cannot rely on
-diff --git a/ingestion/api_football/loads/batch_fixtures.py b/ingestion/api_football/loads/batch_fixtures.py
-index 3427d404..a7eff319 100644
---- a/ingestion/api_football/loads/batch_fixtures.py
-+++ b/ingestion/api_football/loads/batch_fixtures.py
-@@ -11,7 +11,8 @@ Storage model: one row per fixture PER FETCH in RAW_APIF_FIXTURE_DETAILS (unifie
-   ingested_at TIMESTAMP — when this row was written (UTC)
- 
- APPEND ONLY. On the first fetch of a fixture a row is inserted. On retry (empty stats
--within STATS_RETRY_DAYS of kickoff, or the player stats' second fetch) another row is
-+within STATS_RETRY_DAYS of kickoff, the player stats' second fetch, or their newer-format
-+refetch) another row is
- inserted and NOTHING is removed, so a retried fixture holds one row per attempt.
- Staging models read payload directly and
- faithfully — no $.response unnesting, no dedup — and base resolves the versions by
-@@ -25,7 +26,7 @@ statistics and player stats together.
- 
- Coverage is the `coverage.read_coverage` result the orchestrator reads before this step, for
- every league: a fixture is done once ANY stored row for it carries non-empty statistics
--and its player stats' second fetch is not due. That LOGICAL_OR aggregation is what makes
-+and no refetch of its player stats is due. That LOGICAL_OR aggregation is what makes
- the multi-row state safe to read.
- 
- Rate limiting: on top of the pause after every call (API_FOOTBALL_REQUEST_PAUSE_MS), this loop
-@@ -70,6 +71,7 @@ def _needs_fetch(
-     Decision table:
-       Never fetched                            → fetch
-       Player stats' second fetch due           → fetch (once; coverage.second_fetch_due)
-+      Player stats' newer-format refetch due   → fetch (once; coverage.newer_format_refetch_due)
-       Fetched, statistics non-empty            → skip (done permanently)
-       Fetched, statistics empty, within window → retry (delivery delay expected)
-       Fetched, statistics empty, past window   → skip (accept empty permanently)
-@@ -230,7 +232,8 @@ def run_batch_fixture_fanout_and_persist(
-     Two-step process per competition:
-       1. Look the league up in `all_covered`, the `read_coverage()` result read before this step, to
-          determine which finished fixtures are done. Fixtures missing entirely, due their
--         player stats' second fetch, or with empty stats within the 3-day retry window are
-+         player stats' second fetch or newer-format refetch, or with empty stats within the
-+         3-day retry window are
-          queued for fetching.
-       2. Batch-fetch 20 fixture IDs at a time via GET /fixtures?ids=ID1-...-ID20.
-          Each fixture in the response is appended as one row in FIXTURE_DETAILS.
-diff --git a/tests/test_coverage.py b/tests/test_coverage.py
-index 654daa23..f11afd3d 100644
---- a/tests/test_coverage.py
-+++ b/tests/test_coverage.py
-@@ -17,10 +17,12 @@ from google.cloud.exceptions import NotFound
- from ingestion.api_football.coverage import (
-     ENDPOINT_TO_SHELL_KEY,
-     FANOUT_ENDPOINTS,
-+    NEWER_FORMAT_REFETCH_DELAY,
-     SECOND_FETCH_DELAY,
-     SHELL_KEY_TO_ENDPOINT,
-     STATS_GRACE_DAYS,
-     covered_for_league,
-+    newer_format_refetch_due,
-     read_coverage,
-     second_fetch_due,
- )
-@@ -228,6 +230,7 @@ class TestReadCoverage:
-         has_statistics: bool,
-         latest_fetch: datetime | None = None,
-         kickoff: datetime | None = None,
-+        latest_in_newer_format: bool = False,
-     ):
-         row = MagicMock()
-         row.league_code = league_code
-@@ -235,6 +238,7 @@ class TestReadCoverage:
-         row.has_statistics = has_statistics
-         row.latest_fetch = latest_fetch
-         row.kickoff = kickoff
-+        row.latest_in_newer_format = latest_in_newer_format
-         return row
- 
-     def _read(self, *rows):
-@@ -259,6 +263,24 @@ class TestReadCoverage:
-         )
-         assert result["WC"]["FIXTURE_PLAYERS"][1] is True
- 
-+    def test_players_not_covered_while_newer_format_refetch_is_due(self):
-+        kickoff = datetime.now(timezone.utc) - timedelta(days=20)
-+        result = self._read(
-+            self._row(
-+                "WC", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff,
-+                latest_in_newer_format=True,
-+            ),
-+        )
-+        assert result["WC"]["FIXTURE_PLAYERS"][1] is False
-+        assert result["WC"]["FIXTURE_STATISTICS"][1] is True
-+
-+    def test_players_covered_when_latest_fetch_is_complete(self):
-+        kickoff = datetime.now(timezone.utc) - timedelta(days=20)
-+        result = self._read(
-+            self._row("WC", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff),
-+        )
-+        assert result["WC"]["FIXTURE_PLAYERS"][1] is True
-+
-     def test_players_covered_before_the_delay_has_passed(self):
-         kickoff = datetime.now(timezone.utc) - timedelta(days=1)
-         result = self._read(
-@@ -383,3 +405,33 @@ class TestSecondFetchDue:
-     def test_unknown_kickoff_or_fetch_is_never_due(self):
-         assert second_fetch_due(None, self.KICKOFF, self.COMPLETE_FROM) is False
-         assert second_fetch_due(self.KICKOFF, None, self.COMPLETE_FROM) is False
++def runs_in_progress(executions: list[dict]) -> list[str]:
++    """Return the short names of the executions that have not completed."""
++    return [e["name"].rsplit("/", 1)[-1] for e in executions if not e.get("completionTime")]
 +
 +
-+# ---------------------------------------------------------------------------
-+# newer_format_refetch_due — a latest fetch in the newer format, fetched again 14 days from kickoff
-+# ---------------------------------------------------------------------------
++def main() -> int:
++    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
++    session = AuthorizedSession(credentials)
++    waited = 0
++    while True:
++        response = session.get(EXECUTIONS_URL, params={"pageSize": 5}, timeout=REQUEST_TIMEOUT_SECONDS)
++        response.raise_for_status()
++        in_progress = runs_in_progress(response.json().get("executions", []))
++        if not in_progress:
++            print("No nightly run in progress.")
++            return 0
++        if waited >= MAX_WAIT_SECONDS:
++            print(
++                f"Nightly run still in progress after {waited // 60} min ({', '.join(in_progress)}); "
++                "stopping before any prod write. Retry this job once the nightly has finished.",
++                file=sys.stderr,
++            )
++            return 1
++        print(f"Nightly run in progress ({', '.join(in_progress)}); checking again in {POLL_SECONDS} s.", flush=True)
++        time.sleep(POLL_SECONDS)
++        waited += POLL_SECONDS
 +
 +
-+class TestNewerFormatRefetchDue:
-+    KICKOFF = datetime(2026, 10, 1, 19, 0, tzinfo=timezone.utc)
-+    REFETCH_FROM = KICKOFF + NEWER_FORMAT_REFETCH_DELAY
-+    THIRD_DAY_FETCH = KICKOFF + SECOND_FETCH_DELAY
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/test_wait_for_nightly.py b/tests/test_wait_for_nightly.py
+new file mode 100644
+index 00000000..835872aa
+--- /dev/null
++++ b/tests/test_wait_for_nightly.py
+@@ -0,0 +1,110 @@
++"""scripts/wait_for_nightly.py — the main prod build waits while a nightly run is in progress."""
 +
-+    def test_newer_format_fetch_is_due_once_the_delay_has_passed(self):
-+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.REFETCH_FROM) is True
++from __future__ import annotations
 +
-+    def test_newer_format_fetch_is_not_due_before_the_delay(self):
-+        now = self.REFETCH_FROM - timedelta(minutes=1)
-+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, now) is False
++import importlib.util
++import re
++from pathlib import Path
++from unittest.mock import MagicMock
 +
-+    def test_complete_format_fetch_is_never_due(self):
-+        later = self.REFETCH_FROM + timedelta(days=30)
-+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, False, later) is False
++import yaml
 +
-+    def test_fetch_made_at_the_delay_is_never_due_again(self):
-+        later = self.REFETCH_FROM + timedelta(days=30)
-+        assert newer_format_refetch_due(self.REFETCH_FROM, self.KICKOFF, True, later) is False
++REPO_ROOT = Path(__file__).resolve().parents[1]
++_spec = importlib.util.spec_from_file_location("wait_for_nightly", REPO_ROOT / "scripts" / "wait_for_nightly.py")
++wait_for_nightly = importlib.util.module_from_spec(_spec)
++_spec.loader.exec_module(wait_for_nightly)
 +
-+    def test_unknown_kickoff_or_fetch_is_never_due(self):
-+        assert newer_format_refetch_due(None, self.KICKOFF, True, self.REFETCH_FROM) is False
-+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, None, True, self.REFETCH_FROM) is False
++PREFIX = "projects/football-data-pipeline-gcp/locations/europe-west1/jobs/fdp-nightly/executions/"
++
++
++def _execution(name: str, completed: bool) -> dict:
++    e = {"name": PREFIX + name, "createTime": "2026-10-07T04:00:31Z"}
++    if completed:
++        e["completionTime"] = "2026-10-07T05:20:00Z"
++    return e
++
++
++def test_an_execution_without_completion_time_is_in_progress():
++    executions = [_execution("fdp-nightly-new", False), _execution("fdp-nightly-old", True)]
++    assert wait_for_nightly.runs_in_progress(executions) == ["fdp-nightly-new"]
++
++
++def test_finished_executions_failed_ones_included_are_not_in_progress():
++    executions = [_execution("fdp-nightly-failed", True), _execution("fdp-nightly-ok", True)]
++    assert wait_for_nightly.runs_in_progress(executions) == []
++
++
++def test_no_executions_means_nothing_in_progress():
++    assert wait_for_nightly.runs_in_progress([]) == []
++
++
++def _session(*payloads):
++    session = MagicMock()
++    responses = []
++    for payload in payloads:
++        response = MagicMock()
++        response.json.return_value = payload
++        responses.append(response)
++    session.get.side_effect = responses
++    return session
++
++
++def test_main_waits_until_the_run_completes(monkeypatch):
++    session = _session(
++        {"executions": [_execution("fdp-nightly-new", False)]},
++        {"executions": [_execution("fdp-nightly-new", True)]},
++    )
++    sleeps = []
++    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
++    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
++    monkeypatch.setattr(wait_for_nightly.time, "sleep", sleeps.append)
++    assert wait_for_nightly.main() == 0
++    assert session.get.call_count == 2
++    assert sleeps == [wait_for_nightly.POLL_SECONDS]
++
++
++def test_main_returns_at_once_when_nothing_runs(monkeypatch):
++    session = _session({"executions": [_execution("fdp-nightly-old", True)]})
++    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
++    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
++    monkeypatch.setattr(wait_for_nightly.time, "sleep", lambda s: (_ for _ in ()).throw(AssertionError("slept")))
++    assert wait_for_nightly.main() == 0
++
++
++def test_a_run_outlasting_the_deadline_fails_before_any_write(monkeypatch):
++    session = MagicMock()
++    session.get.return_value.json.return_value = {"executions": [_execution("fdp-nightly-long", False)]}
++    sleeps = []
++    monkeypatch.setattr(wait_for_nightly, "MAX_WAIT_SECONDS", 3 * wait_for_nightly.POLL_SECONDS)
++    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
++    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
++    monkeypatch.setattr(wait_for_nightly.time, "sleep", sleeps.append)
++    assert wait_for_nightly.main() == 1
++    assert len(sleeps) == 3
++
++
++def _seconds(timeout: str) -> int:
++    units = {"h": 3600, "m": 60}
++    return sum(int(n) * units[u] for n, u in re.findall(r"(\d+)\s*([hm])", timeout))
++
++
++def test_the_main_build_waits_after_auth_and_before_its_first_prod_write():
++    job = yaml.safe_load((REPO_ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))["data:build:main"]
++    script = job["script"]
++    auth = next(i for i, step in enumerate(script) if "GOOGLE_APPLICATION_CREDENTIALS" in step)
++    wait = script.index("python scripts/wait_for_nightly.py")
++    first_prod_write = next(i for i, step in enumerate(script) if "--target prod" in step)
++    assert auth < wait < first_prod_write
++    assert wait_for_nightly.MAX_WAIT_SECONDS <= _seconds(job["timeout"]) - 30 * 60
++
++
++def test_an_api_error_fails_instead_of_continuing(monkeypatch):
++    session = MagicMock()
++    session.get.return_value.raise_for_status.side_effect = RuntimeError("403")
++    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
++    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
++    try:
++        wait_for_nightly.main()
++    except RuntimeError:
++        return
++    raise AssertionError("an API error must fail the job")
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -593,6 +356,6 @@ index 654daa23..f11afd3d 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review_input.patch | 1376 ++++++++++++++++-----------------------
-#    1 file changed, 556 insertions(+), 820 deletions(-)
+#   .claude/task/review_input.patch | 834 +++++++++++++---------------------------
+#    1 file changed, 267 insertions(+), 567 deletions(-)
 # ============================================================================
