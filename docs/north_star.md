@@ -107,8 +107,6 @@ Multiple revenue streams, built in layers:
 
 ## Next milestone
 
-**Make it so good I'm proud to show anyone.**
-
 Quality bar first. Growth comes after the product deserves it.
 
 The roadmap itself is not written here. It is the GitLab milestones, in the site's menu order —

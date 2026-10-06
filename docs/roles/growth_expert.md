@@ -17,7 +17,7 @@ Make Matchday Pilot a product people come back to and tell others about. Own sti
 
 ## What this role never compromises
 
-- **Quality over growth**: growth built on a mediocre product churns immediately. The milestone is "make it so good I'm proud to show anyone" — growth tactics come after that bar is met
+- **Quality over growth**: growth built on a mediocre product churns immediately.
 - **No dark patterns**: no manipulative notifications, no fake urgency, no artificial scarcity
 - **Respect for the fan**: fans are smart. Treat them as the primary audience, not a metric to optimise
 
