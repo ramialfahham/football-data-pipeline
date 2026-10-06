@@ -17,10 +17,12 @@ from google.cloud.exceptions import NotFound
 from ingestion.api_football.coverage import (
     ENDPOINT_TO_SHELL_KEY,
     FANOUT_ENDPOINTS,
+    NEWER_FORMAT_REFETCH_DELAY,
     SECOND_FETCH_DELAY,
     SHELL_KEY_TO_ENDPOINT,
     STATS_GRACE_DAYS,
     covered_for_league,
+    newer_format_refetch_due,
     read_coverage,
     second_fetch_due,
 )
@@ -228,6 +230,7 @@ class TestReadCoverage:
         has_statistics: bool,
         latest_fetch: datetime | None = None,
         kickoff: datetime | None = None,
+        latest_in_newer_format: bool = False,
     ):
         row = MagicMock()
         row.league_code = league_code
@@ -235,6 +238,7 @@ class TestReadCoverage:
         row.has_statistics = has_statistics
         row.latest_fetch = latest_fetch
         row.kickoff = kickoff
+        row.latest_in_newer_format = latest_in_newer_format
         return row
 
     def _read(self, *rows):
@@ -256,6 +260,24 @@ class TestReadCoverage:
         kickoff = datetime.now(timezone.utc) - timedelta(days=10)
         result = self._read(
             self._row("WC", 1, True, latest_fetch=kickoff + SECOND_FETCH_DELAY, kickoff=kickoff),
+        )
+        assert result["WC"]["FIXTURE_PLAYERS"][1] is True
+
+    def test_players_not_covered_while_newer_format_refetch_is_due(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=20)
+        result = self._read(
+            self._row(
+                "WC", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff,
+                latest_in_newer_format=True,
+            ),
+        )
+        assert result["WC"]["FIXTURE_PLAYERS"][1] is False
+        assert result["WC"]["FIXTURE_STATISTICS"][1] is True
+
+    def test_players_covered_when_latest_fetch_is_complete(self):
+        kickoff = datetime.now(timezone.utc) - timedelta(days=20)
+        result = self._read(
+            self._row("WC", 1, True, latest_fetch=kickoff + timedelta(days=4), kickoff=kickoff),
         )
         assert result["WC"]["FIXTURE_PLAYERS"][1] is True
 
@@ -383,3 +405,33 @@ class TestSecondFetchDue:
     def test_unknown_kickoff_or_fetch_is_never_due(self):
         assert second_fetch_due(None, self.KICKOFF, self.COMPLETE_FROM) is False
         assert second_fetch_due(self.KICKOFF, None, self.COMPLETE_FROM) is False
+
+
+# ---------------------------------------------------------------------------
+# newer_format_refetch_due — a latest fetch in the newer format, fetched again 14 days from kickoff
+# ---------------------------------------------------------------------------
+
+
+class TestNewerFormatRefetchDue:
+    KICKOFF = datetime(2026, 10, 1, 19, 0, tzinfo=timezone.utc)
+    REFETCH_FROM = KICKOFF + NEWER_FORMAT_REFETCH_DELAY
+    THIRD_DAY_FETCH = KICKOFF + SECOND_FETCH_DELAY
+
+    def test_newer_format_fetch_is_due_once_the_delay_has_passed(self):
+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, self.REFETCH_FROM) is True
+
+    def test_newer_format_fetch_is_not_due_before_the_delay(self):
+        now = self.REFETCH_FROM - timedelta(minutes=1)
+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, True, now) is False
+
+    def test_complete_format_fetch_is_never_due(self):
+        later = self.REFETCH_FROM + timedelta(days=30)
+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, self.KICKOFF, False, later) is False
+
+    def test_fetch_made_at_the_delay_is_never_due_again(self):
+        later = self.REFETCH_FROM + timedelta(days=30)
+        assert newer_format_refetch_due(self.REFETCH_FROM, self.KICKOFF, True, later) is False
+
+    def test_unknown_kickoff_or_fetch_is_never_due(self):
+        assert newer_format_refetch_due(None, self.KICKOFF, True, self.REFETCH_FROM) is False
+        assert newer_format_refetch_due(self.THIRD_DAY_FETCH, None, True, self.REFETCH_FROM) is False

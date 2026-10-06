@@ -156,7 +156,7 @@ models:
       One row per player per team per fixture from $.players in raw_apif_fixture_details — an
       append-only table holding one row per FETCH of a fixture. Staging reads ALL rows faithfully
       (no latest-snapshot qualify — sub-league grain); current-per-entity is assembled in
-      base_apif__fixture_players, newest per (league_code, fixture_id, team_id, player_id). Grain
+      base_apif__fixture_players, which takes all of a match's rows from one fetch. Grain
       at staging: (fixture_id, team_id, player_id, raw_ingested_at).
     columns:
       - name: league_code

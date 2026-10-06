@@ -1,43 +1,39 @@
-# Review — docs/strip-chat-quotes
+# Review — fix/player-stats-complete-format
 
-diff_sha256: bb1896d483894040d82c77e7526bf1afd7f265c09e8f6795dffb4c14e5e29304
+diff_sha256: 7d221422641db706d2ff26430672fc9656eec15625d890b9d8f059ae798300ba
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every staged path is in scope_paths; the core documents and the protected reviewer briefs are not in the diff, as the contract defers them.
-- §10: each replacement restates the rule the quote carried; no composition, label, metric or copy string changes; the strings.ts edit is a comment.
-- The consumption-layer and ordering rules in layering.md keep both halves; nothing narrowed or widened.
-- Renders change only a CSS comment; code files only comments and docstrings; pins move down only; no mechanism, cost or secret.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- strings.ts: one comment line; the Torvorlagen and Vorlagen values untouched.
-- 10_home.md: every rewritten passage old against new — browse dropped, pools retired, one per league, within-season comparison, stacking, the approved window phrase, the women's-competition caveat, the dropped count — same rule, no number, name or approved string changed.
-- Gaps register rows GAP-04, 27, 28, 29, 30, 31, 33: status and disposition unchanged; GAP-33 still not ruled.
+- All files in scope_paths; the impact map pastes the dbt ls lineage and gives measured row, match, key and cost figures.
+- No coverage cut: the change widens refetching and adds a test; no metric, label, URL or frontend logic; the fetch pick stays in base.
+- Thresholds declared with authority and date; no new mechanism; docs updated in the same branch; no secret or hardcoded competition.
+- Round 2 delta: corrected cost figures (about 1.3 GB and 1 to 5 calls a night) replace the earlier ones everywhere; the data-contract qualifier matches the code.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- layering.md: the consumption-layer blockquote, the ordering bullet, the shipped-module passage, the country exception and the staging bullet each keep their rule; the never-allowed list is untouched.
-- export_site_data.py: exactly two hunks, a comment and a docstring line; no executable line, string value or payload changed.
+- The fetch choice sits in base and is per match: newest complete fetch, else newest, on (league_code, fixture_id); raw_ingested_at is not-null-tested, so the equality drops nothing silently.
+- Grain unchanged: the existing uniqueness test still holds, and the dedup and collision guard now run inside one fetch.
+- The cleaning's counted windows now see one fetch per match, the intended direction; existing base tests read the kept fetch.
+- The new test fires only when the newest complete fetch has the stat for a player with minutes and the model has it for none; the cleaning cannot blank both for a whole match.
+- Impact map: every direct reader of the changed models appears in the pasted lineage; the dropped rows and the second-id duplicates are disclosed.
+
+## data-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- The refetch is due once: latest_fetch < kickoff + 14 days <= now; a failed batch retries next night; an idle competition is not switched to full mode.
+- A payload without players is never the newer format; EXISTS and NOT EXISTS never yield null, so the ARRAY_AGG pick cannot fail.
+- Round 1 FAIL closed in round 2: the coverage query runs twice a night, so about 1.3 GB; the API rate is measured over 12 nights per competition batch, 1 to 5 calls; data_contract.md carries the under-14-days qualifier.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Every changed code line is a comment, docstring or CSS-comment line; the docstring edit adds no character that could close the string.
-- Renders: one line inside an unchanged CSS comment; no selector, declaration or markup changed.
-- Pins recounted against the gate's markers: code 779 to 777, layering 13 to 11, home 141 to 127, each exact; the untouched pins hold.
-- Round 2, the merge of main: its .gitlab-ci.yml change equals the validate:ui change already merged on main, line for line and blob for blob; the job reads as main's.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 2, the merge of main: the only guard path in it is .gitlab-ci.yml, byte-identical to main's file after the validate:ui change; this branch adds nothing to any guard path, so it needs no protected_override.
-- The incoming lines add no token, permission, mechanism, dependency or cost, and the check still fails closed.
+- The read_coverage test fails if the new branch is removed and its twin fails if the flag is ignored; FIXTURE_STATISTICS stays pinned.
+- The row helper sets latest_in_newer_format explicitly, so no auto-created mock attribute can flip a test.
+- The boundary tests pin <= on now and the strict < on the latest fetch; each guard has its own test.
 
 ## escalations
 (none)

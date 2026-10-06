@@ -259,8 +259,10 @@ models:
   - name: base_apif__fixture_players
     description: >
       One row per player per fixture with that player's match statistics, from the generic
-      stg_apif__fixture_players model, deduplicated on the grain (the latest fetch; a player the
-      provider lists twice in one fetch keeps the row with more values), cleaned once and named in
+      stg_apif__fixture_players model, deduplicated on the grain (all of a match's rows come from
+      one fetch: its newest in the provider's complete format, where any player has goals
+      conceded, else its newest; a player the provider lists twice in one fetch keeps the row with
+      more values), cleaned once and named in
       our own words. Grain: (league_code, fixture_id, team_id, player_id).
 
       {{ doc('cleaning_rules') }}
