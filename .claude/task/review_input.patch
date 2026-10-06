@@ -1,361 +1,132 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index c8a37b8c..ec7d411f 100644
+index ec7d411f..3b117f96 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,92 +1,63 @@
--# Task contract — player stats from a complete-format fetch; a newer-format match fetched again
-+# Task contract — the main prod build waits while the nightly runs
+@@ -1,63 +1,32 @@
+-# Task contract — the main prod build waits while the nightly runs
++# Task contract — the site architecture no longer quotes the CPO
  
  objective: >
--  The provider sends a match's player stats in one of two formats, and the newer one never carries
--  goals conceded or dribbled past. Base keeps the newest fetch, so a later fetch in the newer
--  format replaced complete stats (63 matches), and a match first fetched in it stays blank unless
--  fetched again. Base takes a match's player rows from its newest complete-format fetch, else its
--  newest fetch; ingestion fetches a match once more 14 days after kickoff while its latest fetch is
--  in the newer format; a dbt test pins the result.
-+  The Cloud Run nightly and data:build:main both write prod and are not serialised; 4 of 98 main
-+  builds overlapped a nightly in 57 nights, each one a main build that started while the nightly
-+  ran. A first step of data:build:main waits while an fdp-nightly execution is in progress.
+-  The Cloud Run nightly and data:build:main both write prod and are not serialised; 4 of 98 main
+-  builds overlapped a nightly in 57 nights, each one a main build that started while the nightly
+-  ran. A first step of data:build:main waits while an fdp-nightly execution is in progress.
++  Delete the CPO's chat words from docs/site_architecture.md, strip only, with the text approved
++  in chat, 2026-10-06.
  
  refs: >
--  #205.
-+  #204.
- 
- acceptance_criteria:
--  - A match's player stats come from its newest fetch in the provider's complete format; a fetch in the newer format is used only while no complete one exists.
--  - A match whose latest fetch is still in the newer format 14 days after kickoff is fetched once more.
--  - No match with a complete-format fetch is blank for every player in goals conceded or dribbled past (a dbt test).
-+  - The nightly and the main-branch prod build never write prod at the same time
+-  #204.
+-
+-acceptance_criteria:
+-  - The nightly and the main-branch prod build never write prod at the same time
++  The cleanup of quoted chat words, approved in chat, 2026-10-06.
  
  scope_paths:
--  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
--  - dbt_project/tests/assert_fixture_players_from_a_complete_fetch.sql
--  - ingestion/api_football/coverage.py
--  - ingestion/api_football/loads/batch_fixtures.py
--  - tests/test_coverage.py
--  - docs/data_contract.md
-+  - .gitlab-ci.yml
-+  - scripts/wait_for_nightly.py
-+  - tests/test_wait_for_nightly.py
+-  - .gitlab-ci.yml
+-  - scripts/wait_for_nightly.py
+-  - tests/test_wait_for_nightly.py
++  - docs/site_architecture.md
++  - tests/test_no_decision_history_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
  
-+protected_override: >
-+  Approved by the CPO in chat, 2026-10-06: a first step of data:build:main waits while an
-+  fdp-nightly execution is running, polling the Cloud Run API every minute up to the job's
-+  timeout, with the CI account's existing run.developer grant on the job. Reading: the comment
-+  above the job, which says how the prod writers are kept apart, is corrected with it.
-+
- impact_map: >
--  writers: RAW_APIF_FIXTURE_DETAILS is written only by ingestion/api_football/loads/batch_fixtures.py;
--  coverage.read_coverage decides which finished fixtures it fetches. base_apif__fixture_players is
--  the only model that picks a fetch for player stats; base_apif__fixture_events, base_apif__players
--  and base_apif__teams read stg_apif__fixture_players for other purposes and are unchanged.
--  downstream: `dbt ls --select base_apif__fixture_players+ --resource-type model` (repo root,
--  --project-dir dbt_project): base_apif__fixture_players fct_fixture_player_stats
--  int_legs__player_match int_legs__team_from_players int_player_club_season__metrics
--  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
--  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
--  int_player_season__metrics int_player_season__team int_player_season_position__metrics
--  int_player_season_record int_team_competition_benchmark_metrics_long
--  int_team_competition_benchmarks int_team_momentum__metrics int_team_profile__yoy
--  int_team_season__deserved_vs_actual int_team_season__metrics int_team_season__metrics_cumulative
--  int_team_season_record mart_leaderboards mart_matchday_insights mart_player_career
--  mart_player_competition_benchmarks mart_player_fixture_stats mart_player_match_log
--  mart_player_momentum mart_player_profile mart_player_season_record
--  mart_team_competition_benchmarks mart_team_leaderboards mart_team_momentum
--  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
--  mart_team_season_record.
--  layer_rules: base keeps first logic and picks among fetches (layering.md, 2_base); every model is
--  a table set per layer (check_layer_contract.py); no league_code is hardcoded.
--  deploy_order: all models are tables rebuilt in full by the nightly and the main build, so the new
--  choice reaches every downstream table on the first build after merge; the ingestion change takes
--  effect at the next 04:00 nightly through the redeployed image.
--  blast_radius: measured on prod staging before building. 63 matches switch to an earlier
--  complete-format fetch (2,654 player rows), regaining goals conceded and dribbled past. 964 rows
--  in 565 matches leave base because their player is absent from the chosen fetch; 498 of them have
--  minutes, and 411 of those are the same player (same team and shirt) under a second provider id
--  in the chosen fetch, which base counts twice today. Answer keys: of the key matches, only Serie A
--  1550091 is touched, by dropped rows; its key player 37137 is in the chosen fetch with the same 2
--  saves, so no key value moves. API: 1 to 5 calls a night, about 3 on average, measured on prod
--  over the next 12 nights (matches reaching 14 days in the newer format, batched per competition
--  at 20 a call); none of the 406 matches whose latest fetch is in the newer format is due today,
--  so there is no one-off batch. BigQuery: the coverage query now reads the players block of every
--  fetch, measured 640 MB billed against 10 MB before, and it runs twice a night (orchestrator.py
--  planning and completeness.py), about 1.3 GB more a night. Both approved in chat, 2026-10-06.
-+  writers: none; one new step in data:build:main, before any prod write (dbt seed is the first),
-+  and the comment above the job.
-+  readers: the step reads the Cloud Run Admin API list of fdp-nightly executions with the CI
-+  account (github-actions-dbt), which holds roles/run.developer on the job
-+  (`gcloud run jobs get-iam-policy fdp-nightly`). Executions come back newest first and every
-+  finished one, failed ones included, carries completionTime (checked on the API); one without it
-+  is in progress.
-+  when it runs: wherever data:build:main runs (main pushes and web pipelines, its rules unchanged).
-+  fails closed: an API error stops the job before it writes prod.
-+  deploy_order: none; the nightly, its image and the GitLab data:nightly job are unchanged.
-+  blast_radius: data:build:main starts later by the running nightly's remaining time (nightly runs
-+  measured 47 to 180 minutes, 77 on average). The wait stops after 90 minutes and fails the job
-+  before any prod write, so the build keeps 30 minutes of the job's 2-hour timeout (it takes about
-+  13); a nightly still running then means a retry once it ends. No dataset, model or page changes. The opposite order, a nightly starting while a main build runs,
-+  did not occur in the 57 nights measured and is not covered.
- 
+-protected_override: >
+-  Approved by the CPO in chat, 2026-10-06: a first step of data:build:main waits while an
+-  fdp-nightly execution is running, polling the Cloud Run API every minute up to the job's
+-  timeout, with the CI account's existing run.developer grant on the job. Reading: the comment
+-  above the job, which says how the prod writers are kept apart, is corrected with it.
+-
+-impact_map: >
+-  writers: none; one new step in data:build:main, before any prod write (dbt seed is the first),
+-  and the comment above the job.
+-  readers: the step reads the Cloud Run Admin API list of fdp-nightly executions with the CI
+-  account (github-actions-dbt), which holds roles/run.developer on the job
+-  (`gcloud run jobs get-iam-policy fdp-nightly`). Executions come back newest first and every
+-  finished one, failed ones included, carries completionTime (checked on the API); one without it
+-  is in progress.
+-  when it runs: wherever data:build:main runs (main pushes and web pipelines, its rules unchanged).
+-  fails closed: an API error stops the job before it writes prod.
+-  deploy_order: none; the nightly, its image and the GitLab data:nightly job are unchanged.
+-  blast_radius: data:build:main starts later by the running nightly's remaining time (nightly runs
+-  measured 47 to 180 minutes, 77 on average). The wait stops after 90 minutes and fails the job
+-  before any prod write, so the build keeps 30 minutes of the job's 2-hour timeout (it takes about
+-  13); a nightly still running then means a retry once it ends. No dataset, model or page changes. The opposite order, a nightly starting while a main build runs,
+-  did not occur in the 57 nights measured and is not covered.
+-
  decisions_taken: >
-   Readings, under the delegation of 2026-10-02:
--  - "A match's player stats come from its newest fetch in the complete format" is a choice per
--    match, not per player: every row of a match comes from that one fetch, as a match's events come
--    from one fetch.
--  - A fetch is in the complete format when any player in it has goals conceded, and in the newer
--    format when it lists players and none has goals conceded; a payload with no players is neither,
--    so a match the provider gives no player stats is not fetched again.
--  - The refetch is due once: when the latest fetch is in the newer format and came under 14 days
--    after kickoff, and 14 days have passed, the same shape as the 3-day second fetch.
-+  - The wait is a small script with its own unit tests rather than inline shell, so its rule (an
-+    execution without completionTime is in progress) is tested offline.
-+  - The first page of executions (newest first) is enough: a run in progress is the newest.
-+  - "Up to the job's timeout" is read as a 90-minute deadline inside it, so a timeout can never
-+    land during the build's prod writes; a CI test pins the step after authentication and before
-+    the first prod write.
+-  Readings, under the delegation of 2026-10-02:
+-  - The wait is a small script with its own unit tests rather than inline shell, so its rule (an
+-    execution without completionTime is in progress) is tested offline.
+-  - The first page of executions (newest first) is enough: a run in progress is the newest.
+-  - "Up to the job's timeout" is read as a 90-minute deadline inside it, so a timeout can never
+-    land during the build's prod writes; a CI test pins the step after authentication and before
+-    the first prod write.
++  The edit is the approved text, nothing else:
++  - Five quotes are deleted (the team slug, the navigation note's three, the browse block).
++  - A line the edit touches also loses its CPO name, date and issue number; the history gate
++    refuses a changed line that keeps them. No word is added or reworded.
++  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 44 to 40.
  
--  Threshold declarations. NEW MECHANISM: none; one more due condition in the existing coverage
--  check and one dbt test. RECURRING COST: 1 to 5 API calls a night and about 1.3 GB billed a
--  night for the two coverage reads, approved in chat, 2026-10-06.
-+  Threshold declarations. NEW MECHANISM: the wait step, approved in chat, 2026-10-06. RECURRING
-+  COST: none in BigQuery; CI runner time while waiting.
+-  Threshold declarations. NEW MECHANISM: the wait step, approved in chat, 2026-10-06. RECURRING
+-  COST: none in BigQuery; CI runner time while waiting.
++  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
  
  decisions_reserved:
    - None.
  
  done_when:
--  - The new dbt test returns rows on prod before the change and none in the MR build.
--  - The MR data build passes, answer keys included.
--  - pytest (whole suite) and the offline gates pass; the coverage query's billed bytes are measured.
-+  - The script's unit tests pass; the API call it makes is checked once against the live job.
-+  - pytest (whole suite), the offline gates and the CI lint pass.
+-  - The script's unit tests pass; the API call it makes is checked once against the live job.
+-  - pytest (whole suite), the offline gates and the CI lint pass.
++  - grep finds no chat quote left in docs/site_architecture.md.
++  - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index 45fdcccf..aebe7751 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -833,14 +833,16 @@ data:build:mr:
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index aaca5f2f..86440d61 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -158,8 +158,7 @@ date (fixed once, the old one forwarded, #852) or drops it is a separate decisio
+   `premier-league`, `world-cup`. Never derived from display names at build time.
+ - **Season**: from `season_api_year` + registry `season_type`: split-year → `2025-26`,
+   calendar-year → `2026`.
+-- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id** — CPO
+-  ruling 2026-07-27, *"there is no aston-villa-66"*. Derived in
++- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id**. Derived in
+   `base_apif__teams_global` from the CORRECTED name (#850) and published on `dim_team`,
+   because assigning an identifier is derivation and the export is the consumption layer
+   (#846). Collisions resolve by a **symmetric, closed ladder**: an uncontested name takes
+@@ -210,11 +209,9 @@ alias/301 mechanism, so the promise below holds. Until then, treat it as an inte
  
- # main-push / manual full builds keep the FULL build — prod must stay complete
- # and serve as the always-compilable baseline for MR state comparisons. Joins the
--# repo-wide prod-warehouse-write group it shares with data:nightly, so the two prod
--# writers never MERGE the bare prod tables concurrently (#667).
-+# repo-wide prod-warehouse-write group it shares with the GitLab data:nightly job. The
-+# nightly that runs is the Cloud Run job fdp-nightly, outside that group, so before its
-+# first prod write this job waits while one of its runs is in progress.
- data:build:main:
-   <<: *data_build_base
-   resource_group: prod-warehouse-write
-   script:
-     - *dbt_profile
-     - *gcp_auth
-+    - python scripts/wait_for_nightly.py
-     - cd dbt_project && dbt deps
-     - sqlfluff lint models
-     - dbt seed --target prod
-diff --git a/scripts/wait_for_nightly.py b/scripts/wait_for_nightly.py
-new file mode 100644
-index 00000000..49d8d43c
---- /dev/null
-+++ b/scripts/wait_for_nightly.py
-@@ -0,0 +1,63 @@
-+"""Wait while a run of the nightly is in progress, so the main prod build never writes prod with it.
-+
-+The nightly is the Cloud Run job fdp-nightly (deploy/nightly/README.md); data:build:main runs this
-+before its first prod write. A run in progress is an execution without completionTime: the API
-+lists executions newest first, and every finished one, a failed one too, carries completionTime.
-+
-+Usage (from repo root, with GCP credentials active):
-+    python scripts/wait_for_nightly.py
-+
-+Exits 0 once no run is in progress. An API error raises, and a run still in progress after
-+MAX_WAIT_SECONDS exits 1: either way the job fails before it writes prod. The deadline sits inside
-+the job's 2-hour timeout so that the timeout can never land during the build's prod writes.
-+"""
-+
-+from __future__ import annotations
-+
-+import sys
-+import time
-+
-+import google.auth
-+from google.auth.transport.requests import AuthorizedSession
-+
-+GCP_PROJECT_ID = "football-data-pipeline-gcp"
-+REGION = "europe-west1"
-+JOB = "fdp-nightly"
-+EXECUTIONS_URL = (
-+    f"https://run.googleapis.com/v2/projects/{GCP_PROJECT_ID}/locations/{REGION}/jobs/{JOB}/executions"
-+)
-+POLL_SECONDS = 60
-+MAX_WAIT_SECONDS = 90 * 60
-+REQUEST_TIMEOUT_SECONDS = 30
-+
-+
-+def runs_in_progress(executions: list[dict]) -> list[str]:
-+    """Return the short names of the executions that have not completed."""
-+    return [e["name"].rsplit("/", 1)[-1] for e in executions if not e.get("completionTime")]
-+
-+
-+def main() -> int:
-+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
-+    session = AuthorizedSession(credentials)
-+    waited = 0
-+    while True:
-+        response = session.get(EXECUTIONS_URL, params={"pageSize": 5}, timeout=REQUEST_TIMEOUT_SECONDS)
-+        response.raise_for_status()
-+        in_progress = runs_in_progress(response.json().get("executions", []))
-+        if not in_progress:
-+            print("No nightly run in progress.")
-+            return 0
-+        if waited >= MAX_WAIT_SECONDS:
-+            print(
-+                f"Nightly run still in progress after {waited // 60} min ({', '.join(in_progress)}); "
-+                "stopping before any prod write. Retry this job once the nightly has finished.",
-+                file=sys.stderr,
-+            )
-+            return 1
-+        print(f"Nightly run in progress ({', '.join(in_progress)}); checking again in {POLL_SECONDS} s.", flush=True)
-+        time.sleep(POLL_SECONDS)
-+        waited += POLL_SECONDS
-+
-+
-+if __name__ == "__main__":
-+    sys.exit(main())
-diff --git a/tests/test_wait_for_nightly.py b/tests/test_wait_for_nightly.py
-new file mode 100644
-index 00000000..835872aa
---- /dev/null
-+++ b/tests/test_wait_for_nightly.py
-@@ -0,0 +1,110 @@
-+"""scripts/wait_for_nightly.py — the main prod build waits while a nightly run is in progress."""
-+
-+from __future__ import annotations
-+
-+import importlib.util
-+import re
-+from pathlib import Path
-+from unittest.mock import MagicMock
-+
-+import yaml
-+
-+REPO_ROOT = Path(__file__).resolve().parents[1]
-+_spec = importlib.util.spec_from_file_location("wait_for_nightly", REPO_ROOT / "scripts" / "wait_for_nightly.py")
-+wait_for_nightly = importlib.util.module_from_spec(_spec)
-+_spec.loader.exec_module(wait_for_nightly)
-+
-+PREFIX = "projects/football-data-pipeline-gcp/locations/europe-west1/jobs/fdp-nightly/executions/"
-+
-+
-+def _execution(name: str, completed: bool) -> dict:
-+    e = {"name": PREFIX + name, "createTime": "2026-10-07T04:00:31Z"}
-+    if completed:
-+        e["completionTime"] = "2026-10-07T05:20:00Z"
-+    return e
-+
-+
-+def test_an_execution_without_completion_time_is_in_progress():
-+    executions = [_execution("fdp-nightly-new", False), _execution("fdp-nightly-old", True)]
-+    assert wait_for_nightly.runs_in_progress(executions) == ["fdp-nightly-new"]
-+
-+
-+def test_finished_executions_failed_ones_included_are_not_in_progress():
-+    executions = [_execution("fdp-nightly-failed", True), _execution("fdp-nightly-ok", True)]
-+    assert wait_for_nightly.runs_in_progress(executions) == []
-+
-+
-+def test_no_executions_means_nothing_in_progress():
-+    assert wait_for_nightly.runs_in_progress([]) == []
-+
-+
-+def _session(*payloads):
-+    session = MagicMock()
-+    responses = []
-+    for payload in payloads:
-+        response = MagicMock()
-+        response.json.return_value = payload
-+        responses.append(response)
-+    session.get.side_effect = responses
-+    return session
-+
-+
-+def test_main_waits_until_the_run_completes(monkeypatch):
-+    session = _session(
-+        {"executions": [_execution("fdp-nightly-new", False)]},
-+        {"executions": [_execution("fdp-nightly-new", True)]},
-+    )
-+    sleeps = []
-+    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
-+    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
-+    monkeypatch.setattr(wait_for_nightly.time, "sleep", sleeps.append)
-+    assert wait_for_nightly.main() == 0
-+    assert session.get.call_count == 2
-+    assert sleeps == [wait_for_nightly.POLL_SECONDS]
-+
-+
-+def test_main_returns_at_once_when_nothing_runs(monkeypatch):
-+    session = _session({"executions": [_execution("fdp-nightly-old", True)]})
-+    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
-+    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
-+    monkeypatch.setattr(wait_for_nightly.time, "sleep", lambda s: (_ for _ in ()).throw(AssertionError("slept")))
-+    assert wait_for_nightly.main() == 0
-+
-+
-+def test_a_run_outlasting_the_deadline_fails_before_any_write(monkeypatch):
-+    session = MagicMock()
-+    session.get.return_value.json.return_value = {"executions": [_execution("fdp-nightly-long", False)]}
-+    sleeps = []
-+    monkeypatch.setattr(wait_for_nightly, "MAX_WAIT_SECONDS", 3 * wait_for_nightly.POLL_SECONDS)
-+    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
-+    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
-+    monkeypatch.setattr(wait_for_nightly.time, "sleep", sleeps.append)
-+    assert wait_for_nightly.main() == 1
-+    assert len(sleeps) == 3
-+
-+
-+def _seconds(timeout: str) -> int:
-+    units = {"h": 3600, "m": 60}
-+    return sum(int(n) * units[u] for n, u in re.findall(r"(\d+)\s*([hm])", timeout))
-+
-+
-+def test_the_main_build_waits_after_auth_and_before_its_first_prod_write():
-+    job = yaml.safe_load((REPO_ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))["data:build:main"]
-+    script = job["script"]
-+    auth = next(i for i, step in enumerate(script) if "GOOGLE_APPLICATION_CREDENTIALS" in step)
-+    wait = script.index("python scripts/wait_for_nightly.py")
-+    first_prod_write = next(i for i, step in enumerate(script) if "--target prod" in step)
-+    assert auth < wait < first_prod_write
-+    assert wait_for_nightly.MAX_WAIT_SECONDS <= _seconds(job["timeout"]) - 30 * 60
-+
-+
-+def test_an_api_error_fails_instead_of_continuing(monkeypatch):
-+    session = MagicMock()
-+    session.get.return_value.raise_for_status.side_effect = RuntimeError("403")
-+    monkeypatch.setattr(wait_for_nightly.google.auth, "default", lambda scopes: (MagicMock(), "p"))
-+    monkeypatch.setattr(wait_for_nightly, "AuthorizedSession", lambda credentials: session)
-+    try:
-+        wait_for_nightly.main()
-+    except RuntimeError:
-+        return
-+    raise AssertionError("an API error must fail the job")
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/review_input.patch | 834 +++++++++++++---------------------------
-#    1 file changed, 267 insertions(+), 567 deletions(-)
-# ============================================================================
+ ### Navigation — what is clickable, and where it goes
+ 
+-> ⚠ **PROVISIONAL.** CPO, 2026-09-04: *"the rules might be subject to change. We have not built
+-> every page yet, so actually we don't know yet."* A working standard, not a locked constraint —
++> ⚠ **PROVISIONAL.** A working standard, not a locked constraint —
+ > §2 is where locked things live. What IS confirmed is the **header + row** rule, applied to the
+-> Next matches block and *"we would apply this again if we have a header-row content structure."*
+-> This answers **#52** (*"which elements redirect where"*), open since 2026-08-10.
++> Next matches block.
+ 
+ §6 asks for an internal-linking graph but never said which ELEMENT carries a link. The result was
+ nine clickable element types across four surfaces with six different hover treatments, and the
+@@ -290,7 +287,7 @@ The two registry-driven axes, as designed (#364 adds the fields):
+   `region_rank`/kickoff proximity rather than `tier`/`sort_order` (both retired for that page,
+   `escalations.log` 2026-08-16). `display_group` and `sort_order` still exist and still feed
+   `build_nav()`/`nav.json`, but NOT the home page any more: the home page's browse block was
+-  DROPPED 2026-08-19 (CPO: "drop the browse section"), so this section no longer describes it —
++  DROPPED, so this section no longer describes it —
+   see `docs/wireframes/08_browse.md` for the still-live competitions-index page's actual
+   grouping/ordering rule instead. Country hubs themselves remain unbuilt.
+ 
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index fbdb4289..5fc1db7d 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -52,7 +52,7 @@ PINNED = {
+     "docs/roles/data_engineer.md": 1,
+     "docs/roles/platform_reliability.md": 2,
+     "docs/roles/seo_expert.md": 3,
+-    "docs/site_architecture.md": 44,
++    "docs/site_architecture.md": 40,
+     "docs/ui_design_brief.md": 9,
+     "docs/wireframes/00_overview.md": 21,
+     "docs/wireframes/01_fixture_page.md": 6,

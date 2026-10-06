@@ -1,30 +1,22 @@
-# Review — ci/main-build-waits-for-nightly
+# Review — docs/strip-site-architecture-quotes
 
-diff_sha256: 63274e85810eee8baf7f642fbaa5234c73bff600c8132c6945bdc1190a5ed336
+diff_sha256: 76cb1a3c36955beaa61a22e7d334abe735984247c11ff22b1673c4a29255d15a
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- All paths in scope; the wait step is declared as the approved new mechanism, named with its date; no BigQuery cost.
-- No product, metric, naming or URL decision; no credential or widened grant; the job comment is corrected in the same diff.
-- Round 2 delta: the 90-minute deadline is a narrower reading of "up to the job's timeout", disclosed with its retry consequence; it fails closed.
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Authority: protected_override names the approval and matches what was built; the impact map is real.
-- Fail-closed: an API error or missing grant exits non-zero before dbt seed, the first prod write; the comment's false claim about the resource group is corrected, not weakened.
-- No new dependency (google-auth arrives with the pinned BigQuery client); no recurring spend; runner time only.
-- Round 2 delta: the deadline stands under the approval and makes the guard stronger; the request timeout fails closed.
+- All paths in scope; the doc hunks only delete text and rejoin fragments; no product, metric, URL or naming decision is added.
+- The name, date and issue-number deletions beyond the quoted words are the residue the contract names; the no-provider-id and header + row rules stay.
+- The pin moves down only; no new mechanism, no recurring cost, no credential.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL on the timeout landing during prod writes is closed: the wait exits 1 after 90 minutes, before any write, leaving 30 of the 120 minutes for a ~13-minute build; sleep-only counting drifts under 2 minutes.
-- Round 1 FAIL on the unpinned wiring is closed: a test asserts auth < wait < first --target prod in data:build:main and the deadline inside the job timeout.
-- Credentials from the gcp_auth file, imports from requirements.txt, the in-progress rule and the first page of executions checked; the script only reads, so re-runs are safe.
+- Pin arithmetic: four flagged lines removed, no edited line gains a marker, 44 to 40; the both-directions pin test fails on either half reverted.
+- No hook, workflow, CI file or dependency changes; the only executable change is an integer constant.
+- No remaining chat quote in the document.
 
 ## escalations
 (none)

@@ -52,7 +52,7 @@ PINNED = {
     "docs/roles/data_engineer.md": 1,
     "docs/roles/platform_reliability.md": 2,
     "docs/roles/seo_expert.md": 3,
-    "docs/site_architecture.md": 44,
+    "docs/site_architecture.md": 40,
     "docs/ui_design_brief.md": 9,
     "docs/wireframes/00_overview.md": 21,
     "docs/wireframes/01_fixture_page.md": 6,

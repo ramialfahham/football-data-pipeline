@@ -158,8 +158,7 @@ date (fixed once, the old one forwarded, #852) or drops it is a separate decisio
   `premier-league`, `world-cup`. Never derived from display names at build time.
 - **Season**: from `season_api_year` + registry `season_type`: split-year → `2025-26`,
   calendar-year → `2026`.
-- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id** — CPO
-  ruling 2026-07-27, *"there is no aston-villa-66"*. Derived in
+- **Team**: `{kebab-name}`, e.g. `bayern-munchen`, `aston-villa`. **No provider id**. Derived in
   `base_apif__teams_global` from the CORRECTED name (#850) and published on `dim_team`,
   because assigning an identifier is derivation and the export is the consumption layer
   (#846). Collisions resolve by a **symmetric, closed ladder**: an uncontested name takes
@@ -210,11 +209,9 @@ alias/301 mechanism, so the promise below holds. Until then, treat it as an inte
 
 ### Navigation — what is clickable, and where it goes
 
-> ⚠ **PROVISIONAL.** CPO, 2026-09-04: *"the rules might be subject to change. We have not built
-> every page yet, so actually we don't know yet."* A working standard, not a locked constraint —
+> ⚠ **PROVISIONAL.** A working standard, not a locked constraint —
 > §2 is where locked things live. What IS confirmed is the **header + row** rule, applied to the
-> Next matches block and *"we would apply this again if we have a header-row content structure."*
-> This answers **#52** (*"which elements redirect where"*), open since 2026-08-10.
+> Next matches block.
 
 §6 asks for an internal-linking graph but never said which ELEMENT carries a link. The result was
 nine clickable element types across four surfaces with six different hover treatments, and the
@@ -290,7 +287,7 @@ The two registry-driven axes, as designed (#364 adds the fields):
   `region_rank`/kickoff proximity rather than `tier`/`sort_order` (both retired for that page,
   `escalations.log` 2026-08-16). `display_group` and `sort_order` still exist and still feed
   `build_nav()`/`nav.json`, but NOT the home page any more: the home page's browse block was
-  DROPPED 2026-08-19 (CPO: "drop the browse section"), so this section no longer describes it —
+  DROPPED, so this section no longer describes it —
   see `docs/wireframes/08_browse.md` for the still-live competitions-index page's actual
   grouping/ordering rule instead. Country hubs themselves remain unbuilt.
 
