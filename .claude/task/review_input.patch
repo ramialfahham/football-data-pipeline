@@ -1,98 +1,78 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 485011bb..4456139d 100644
+index 4456139d..6c7c1cd8 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,14 +1,15 @@
--# Task contract — the UI design brief no longer quotes the CPO
-+# Task contract — the working agreement no longer quotes the CPO; core documents change only with approved text
+@@ -1,36 +1,32 @@
+-# Task contract — the working agreement no longer quotes the CPO; core documents change only with approved text
++# Task contract — the north star no longer quotes the CPO
  
  objective: >
--  Delete the CPO's chat words from docs/ui_design_brief.md, strip only, with the text approved in
--  chat, 2026-10-06.
-+  Delete the CPO's chat words from docs/working_agreement.md, strip only, and add the rule that the
-+  core documents change only with text the CPO approved, with the text approved in chat,
-+  2026-10-06.
+-  Delete the CPO's chat words from docs/working_agreement.md, strip only, and add the rule that the
+-  core documents change only with text the CPO approved, with the text approved in chat,
+-  2026-10-06.
++  Delete the CPO's chat words from docs/north_star.md and its repeat in
++  docs/roles/growth_expert.md, strip only, with the text approved in chat, 2026-10-06.
  
  refs: >
    The cleanup of quoted chat words, approved in chat, 2026-10-06.
  
  scope_paths:
--  - docs/ui_design_brief.md
-+  - docs/working_agreement.md
-   - tests/test_no_decision_history_in_docs.py
+-  - docs/working_agreement.md
+-  - tests/test_no_decision_history_in_docs.py
++  - docs/north_star.md
++  - docs/roles/growth_expert.md
    - .claude/task/contract.md
    - .claude/task/review.md
-@@ -16,19 +17,20 @@ scope_paths:
+   - .claude/task/review_input.patch
  
  decisions_taken: >
    The edit is the approved text, nothing else:
--  - One quote is deleted (the browse block).
--  - The line the edit touches also loses its CPO name and date; the history gate refuses a changed
--    line that keeps them. No word is added or reworded.
--  - Kept, as not chat words: the "CPO note" line, which quotes nothing, and the brief's own labels
--    and mood names.
--  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 9 to 8.
-+  - Two quotes are deleted (the issue carve-out, the frozen log). A line the edit touches also
-+    loses its CPO name, date and MR number, and the review-round story that carried the MR number.
-+    No word is added or reworded; "the exceptions" starts its sentence with a capital.
-+  - One row is added to the section 10 table: core document text, every edit to the seven core
-+    documents, the exact text approved before the edit.
-+  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 21 to 20.
+-  - Two quotes are deleted (the issue carve-out, the frozen log). A line the edit touches also
+-    loses its CPO name, date and MR number, and the review-round story that carried the MR number.
+-    No word is added or reworded; "the exceptions" starts its sentence with a capital.
+-  - One row is added to the section 10 table: core document text, every edit to the seven core
+-    documents, the exact text approved before the edit.
+-  - The file's pin in tests/test_no_decision_history_in_docs.py moves down from 21 to 20.
++  - The milestone line in the CPO's first person is deleted from docs/north_star.md, with its
++    blank line; the line after it stays.
++  - Its repeat in docs/roles/growth_expert.md is deleted from the Quality over growth bullet.
++  - No word is added or reworded. Neither file's history-line count changes, so no pin moves.
  
--  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
-+  Threshold declarations. NEW MECHANISM: none; the row is a rule, no gate enforces it. RECURRING
-+  COST: none.
+-  Threshold declarations. NEW MECHANISM: none; the row is a rule, no gate enforces it. RECURRING
+-  COST: none.
++  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
  
  decisions_reserved:
    - None.
  
  done_when:
--  - grep finds no chat quote left in docs/ui_design_brief.md.
-+  - grep finds no chat quote left in docs/working_agreement.md.
+-  - grep finds no chat quote left in docs/working_agreement.md.
++  - grep finds the quote in neither file.
    - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
-diff --git a/docs/working_agreement.md b/docs/working_agreement.md
-index d37c6c0a..ca0a888d 100644
---- a/docs/working_agreement.md
-+++ b/docs/working_agreement.md
-@@ -44,9 +44,7 @@ conversation; **the plan file shown for approval is the issue's text, not a seco
- document**; the CPO's approval is on those lines and nothing else. The task contract's
- `acceptance_criteria` copies the checklist verbatim (the blinded reviewers cannot read
- GitLab). A question the issue does not answer is asked, and the answer is **edited into the
--issue** — never appended to a log. The CPO's own carve-out: *"There are some small exceptions
--but I think we need an issue for every major task with clear requirements and documentation
--including a plan"* — the exceptions are a typo or a refactor with no requirement, whose MR head
-+issue** — never appended to a log. The exceptions are a typo or a refactor with no requirement, whose MR head
- says "No behaviour change". Why: plans were ~1,400–5,600-word files outside the
- repo that the CPO approved without being able to scan, and decisions were quoted from chat
- into a builder-written log — 3 of 4 review rounds on `!173` were spent on that record.
-@@ -341,6 +339,7 @@ The agent never decides the following. Each is a CPO decision, escalated per §1
- | Rule reinterpretation or extension | applying a written rule to a domain it did not explicitly cover |
- | Changing shipped numbers | anything the live MVP or published pages display |
- | Cost, schedule, scope | API budget, history depth, run cadence, widening a task |
-+| Core document text | every edit to `north_star.md`, `site_architecture.md`, `content_architecture.md`, `ui_design_brief.md`, `working_agreement.md`, `agent_guardrails.md`, `metrics_context_model.md`: the exact text, approved before the edit |
+diff --git a/docs/north_star.md b/docs/north_star.md
+index bcb1f190..997ee670 100644
+--- a/docs/north_star.md
++++ b/docs/north_star.md
+@@ -107,8 +107,6 @@ Multiple revenue streams, built in layers:
  
- **Agent-executable:** implementation inside a written contract; mechanical work whose every judgment is already codified in a contract document (layering, engineering standards, metric catalogue, the task contract).
+ ## Next milestone
  
-@@ -366,7 +365,7 @@ The escalation itself presents **at least two distinct, conflicting paths**. For
+-**Make it so good I'm proud to show anyone.**
+-
+ Quality bar first. Growth comes after the product deserves it.
  
- **The MR head is the CPO's check.** The commit message body carries `Closes #N` and the `Locked files:` line (naming the approval) — the post-commit hook opens the MR with `glab mr create --fill`, so those two lines reach the MR description on their own and sit in `git log` for good. Right after, the builder sets the description to the full `Default` MR template shape (`glab mr update <n> --description …`): the issue's checklist ticked with one link per tick, the same `Locked files:` line, everything else below a fold. **The merge is the one act the builder cannot perform, so the merge is the approval** — nothing is "recorded" until he clicks, and no quote of him exists anywhere. That asks one thing of him: read the head before merging, and refuse a long one.
+ The roadmap itself is not written here. It is the GitLab milestones, in the site's menu order —
+diff --git a/docs/roles/growth_expert.md b/docs/roles/growth_expert.md
+index f5c24497..4dadd5a8 100644
+--- a/docs/roles/growth_expert.md
++++ b/docs/roles/growth_expert.md
+@@ -17,7 +17,7 @@ Make Matchday Pilot a product people come back to and tell others about. Own sti
  
--`.claude/task/escalations.log` is **frozen** as of 2026-09-11 — history only, no new entries. It was written by the party it authorised, in the branch it authorised; 3 of 4 review rounds on `!173` went to misattributed quotes in it, and the CPO's own words on it: *"you write down even irrelevant content, some tiny arbitrary statements of mine as 'decisions'. And then you use them, maybe misinterpret them which again lets you drift."* A citation of a past entry stays valid; a new entry is a defect.
-+`.claude/task/escalations.log` is **frozen** — history only, no new entries. It was written by the party it authorised, in the branch it authorised. A citation of a past entry stays valid; a new entry is a defect.
+ ## What this role never compromises
  
- ---
- 
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index 525d5abc..1ea3dcd6 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -68,7 +68,7 @@ PINNED = {
-     "docs/wireframes/99_gaps_register.md": 30,
-     "docs/wireframes/block_standard.md": 51,
-     "docs/wireframes/metrics_display.md": 50,
--    "docs/working_agreement.md": 21,
-+    "docs/working_agreement.md": 20,
-     "site_v2/src/data/README.md": 19,
- }
+-- **Quality over growth**: growth built on a mediocre product churns immediately. The milestone is "make it so good I'm proud to show anyone" — growth tactics come after that bar is met
++- **Quality over growth**: growth built on a mediocre product churns immediately.
+ - **No dark patterns**: no manipulative notifications, no fake urgency, no artificial scarcity
+ - **Respect for the fan**: fans are smart. Treat them as the primary audience, not a metric to optimise
  
