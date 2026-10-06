@@ -956,7 +956,7 @@ const METRIC_LABELS_DE: MetricLabels = {
   "metrics.cards_yellow.label": "Gelbe Karten",
   "metrics.cards_red.label": "Rote Karten",
   // Top players' four boards (#40), confirmed copy. The assists label is "Torvorlagen" —
-  // *"more precise than just Vorlagen"* — the draft carried the bare "Vorlagen", and "Assists"
+  // more precise than the bare "Vorlagen" the draft carried, and "Assists"
   // (current in German football media) was not taken, consistent with every other metric name in
   // this file being a German word.
   // "Tore" and "Pässe" are additionally the stems of the validated legacy corpus in

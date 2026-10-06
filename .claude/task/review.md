@@ -1,31 +1,43 @@
-# Review — ci/validate-ui-bundled-node
+# Review — docs/strip-chat-quotes
 
-diff_sha256: 335cd76c1aa8f510d3f279bd1279c7326239f4e8779cc04553fec49de9c3fe7f
+diff_sha256: bb1896d483894040d82c77e7526bf1afd7f265c09e8f6795dffb4c14e5e29304
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only .gitlab-ci.yml and contract.md change, both in scope; the protected edit rests on a named approval and a real impact map.
-- One before_script line and the job's header comment; no metric, URL, naming, mechanism, cadence or cost change.
-- Round 2 delta: the header comment now states the current setup; the contract sentence adds no scope or decision.
+- Every staged path is in scope_paths; the core documents and the protected reviewer briefs are not in the diff, as the contract defers them.
+- §10: each replacement restates the rule the quote carried; no composition, label, metric or copy string changes; the strings.ts edit is a comment.
+- The consumption-layer and ordering rules in layering.md keep both halves; nothing narrowed or widened.
+- Renders change only a CSS comment; code files only comments and docstrings; pins move down only; no mechanism, cost or secret.
 
-## cto-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Authority: protected_override names the approval; impact_map covers readers, triggers, deploy order and blast radius.
-- Fail-closed: a wrong path leaves node missing and the syntax loop exits 1; no allow_failure or skip added.
-- No new mechanism or dependency: same image and steps, the Node ships in the pinned playwright wheel; one network dependency removed.
-- Round 2 delta: correcting the comment that describes the approved line is part of that change; the reading is marked as a reading.
+- strings.ts: one comment line; the Torvorlagen and Vorlagen values untouched.
+- 10_home.md: every rewritten passage old against new — browse dropped, pools retired, one per league, within-season comparison, stacking, the approved window phrase, the women's-competition caveat, the dropped count — same rule, no number, name or approved string changed.
+- Gaps register rows GAP-04, 27, 28, 29, 30, 31, 33: status and disposition unchanged; GAP-33 still not ruled.
+
+## analytics-engineer-reviewer
+VERDICT: PASS
+risks_checked:
+- layering.md: the consumption-layer blockquote, the ordering bullet, the shipped-module passage, the country exception and the staging bullet each keep their rule; the never-allowed list is untouched.
+- export_site_data.py: exactly two hunks, a comment and a docstring line; no executable line, string value or payload changed.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL on the stale header comment is closed: it now says node --check runs Playwright's bundled Node.
-- Full re-read in round 2: YAML plain scalar parses as one string; the substitution's quoting is valid; before_script and script share a shell, so PATH reaches line 501.
-- Playwright 1.63.0 resolves its driver to driver/node on Linux, which the job's own Chromium launch also needs; line 501 is the only node caller.
-- .gitlab-ci.yml is a UI path, so this MR's pipeline runs validate:ui on the runner.
+- Every changed code line is a comment, docstring or CSS-comment line; the docstring edit adds no character that could close the string.
+- Renders: one line inside an unchanged CSS comment; no selector, declaration or markup changed.
+- Pins recounted against the gate's markers: code 779 to 777, layering 13 to 11, home 141 to 127, each exact; the untouched pins hold.
+- Round 2, the merge of main: its .gitlab-ci.yml change equals the validate:ui change already merged on main, line for line and blob for blob; the job reads as main's.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 2, the merge of main: the only guard path in it is .gitlab-ci.yml, byte-identical to main's file after the validate:ui change; this branch adds nothing to any guard path, so it needs no protected_override.
+- The incoming lines add no token, permission, mechanism, dependency or cost, and the check still fails closed.
 
 ## escalations
 (none)

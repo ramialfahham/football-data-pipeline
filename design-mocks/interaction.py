@@ -1,8 +1,7 @@
 """THE INTERACTION STANDARD — what is clickable, where the click boundary is, how it signals.
 
-The direction: *"mouse-over hover and then underlined club names is so 90s ... we need a
-consistent approach: standardized where to click, which elements redirect where, standardizing
-the elements"*.
+The direction: one standard for where to click, which element leads where and how it signals,
+not names underlined on hover.
 
 Measured before designing (`scan_clickables.py`): NINE clickable element types across four
 surfaces, SIX different hover treatments, and the affordance pointing at the wrong element — the

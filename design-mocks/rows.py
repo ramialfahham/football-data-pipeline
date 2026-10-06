@@ -1,6 +1,6 @@
 """THE match row — one implementation, imported by every mock that shows a match.
 
-The direction: *"make sure that displaying of next matches is consistent on every page"*. It
+The direction: next matches display the same way on every page. It
 was not. Four treatments were in the tree or in these mocks:
 
     .fxrow    home hero (`home/HeroFixtures.astro`)        upcoming
@@ -95,8 +95,8 @@ def upcoming_row(kind, home, away, time, zone, href="#"):
     whichever nation is at home). Both variants then appeared on one screen, a group-level "CET"
     above one block and per-row "CET"/"EET" in the next.
 
-    The rule: *"this is a repetitive content block ... it has to be consistent everywhere
-    we show this type of content block"*. **A reusable block must not change shape according to
+    The rule: a repeated content block is the same everywhere it is shown.
+    **A reusable block must not change shape according to
     its context.** So the zone is part of the time, always — repeating "CET" down a Bundesliga
     list is the price, and it is the right price.
 
@@ -111,8 +111,7 @@ def upcoming_row(kind, home, away, time, zone, href="#"):
 
 
 def result_row(kind, home, hg, away, ag, href="#"):
-    """A played match. THE SAME ROW as `upcoming_row` (*"let's keep the design consistent
-    with the next matches block design"*) — same sides, same badges. The score goes
+    """A played match. THE SAME ROW as `upcoming_row` — same sides, same badges. The score goes
     inline at the end of each side, so home and away need no extra label, and the kick-off column
     is dropped: a finished match's start time is not information.
 
@@ -120,8 +119,8 @@ def result_row(kind, home, hg, away, ag, href="#"):
     and red for a Loss pill, so a draw leaves both sides muted, which is the honest reading.
 
     ⚠ ALWAYS A LINK. An earlier version rendered played rows inert because the match report page
-    does not exist (#861). The rule: *"we are creating the pages one by one. there will always
-    be some page that's not wired ... until we have created all of them"* — so an unbuilt target
+    does not exist. The rule: pages are built one by one, and some page stays unwired until all
+    exist — so an unbuilt target
     no longer blocks the design. Nothing is exposed meanwhile: the site is unpublished and every
     page is noindex.
 
@@ -145,8 +144,8 @@ def result_row(kind, home, hg, away, ag, href="#"):
 def date_head(label):
     """A DATE inside a competition group. The second and last level of grouping.
 
-    ⚠ This replaced the date-on-every-row version, which could not be scanned: *"now it's hard
-    to see when the games are"*. A round runs Friday to Sunday, so the date repeated down the
+    ⚠ This replaced the date-on-every-row version, which could not be scanned for when the games
+    are. A round runs Friday to Sunday, so the date repeated down the
     right-hand column as a value when it is really a heading. As a divider it is read once and
     the rows underneath carry only a kick-off.
 
@@ -159,13 +158,13 @@ def date_head(label):
 def group_head(slug, name):
     """THE GROUP: one competition. League logo + competition name. Nothing else.
 
-    ⚠ NO MATCHDAY (*"leave out the match day — you can see that on the details page
-    anyway"*). It also could not be shown honestly: the warehouse stores the provider's raw
+    ⚠ NO MATCHDAY: the details page shows it. It also could not be shown honestly: the
+    warehouse stores the provider's raw
     `"Regular Season - 25"`, which shipped untranslated to all three locales once already (#866),
     and turning it into a phase plus a number is taxonomy mapping the consumption layer forbids.
 
-    ⚠ THE COMPETITION MUST BE UNMISSABLE — *"you scroll down and barely notice that the
-    competition has changed"*. Hence the larger name, the wider space above the group and the
+    ⚠ THE COMPETITION MUST BE UNMISSABLE: a reader scrolling down notices when it changes.
+    Hence the larger name, the wider space above the group and the
     heavier rule in the stylesheet, rather than the 14px label this started as.
 
     The competition name is the link that makes a match list a HUB rather than a list: every

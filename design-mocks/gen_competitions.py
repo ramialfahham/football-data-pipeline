@@ -6,9 +6,8 @@ plural/singular confusion cost a review round; keep it in writing.
 
 ## THE PROVENANCE RULE (#58) IS THIS FILE'S CONTRACT
 
-The rule: *"we need to clarify where the data come from that populate the content. I want
-the content as much data-backed as possible without any hard-coding. Your mockups always follow
-some instinct without clarifying where the data come from."*
+The rule: every element on the page says where its data come from, as data-backed as possible,
+with nothing hard-coded.
 
 `PROVENANCE` below names the source of EVERY element on the page, and the mock RENDERS that table
 beneath itself — the design and its provenance are one artifact. Three rules follow, all enforced
@@ -52,9 +51,9 @@ E = html.escape
 # page used to group by; it is now DELETED from the seed entirely (see below), so it is not a
 # filter here either.
 #
-# ⚠ NO LABEL IS TYPED IN THIS FILE. The rule: *"the single source of truth for the displayed name is
-# this seed file, same idea as in the metric layer; the mapping to other languages happens in a
-# different file."* Both label columns mirror `metric_catalogue.csv`, and DE/FI live in
+# ⚠ NO LABEL IS TYPED IN THIS FILE. The rule: the seed is the single source of truth for the
+# displayed name, as in the metric layer, and the mapping to other languages happens in a
+# different file. Both label columns mirror `metric_catalogue.csv`, and DE/FI live in
 # `strings.ts` keyed by `label_i18n_key`, exactly as `METRIC_LABELS_DE` / `METRIC_LABELS_FI` do.
 TYPES_SEED = REPO / "dbt_project/seeds/competition_types.csv"
 TYPES_PROPOSED = Path(__file__).with_name("competition_types.proposed.csv")
@@ -81,7 +80,7 @@ CONFED_PROPOSED = Path(__file__).with_name("confederations.proposed.csv")
 # fails on any difference that is NOT. That is what keeps the guard real while the seed is being
 # reshaped: an accidental extra type, a silently dropped one, or a re-appearing column all fail.
 
-# The ruling: *"display_group doesn't seem to have a reasonable use case -> delete it"*.
+# The ruling: `display_group` has no reasonable use case, so it is deleted.
 # It grouped by FORMAT for club competitions (`leagues`, `cups`) and by GEOGRAPHY for the rest
 # (`continental-club`, `national-teams`), so one axis changed halfway through; it overloaded BLANK
 # to mean "not browsable"; and once `club_world_cup` existed none of its four values fitted. No
@@ -180,9 +179,8 @@ def loc(key):
 #   proposed  - a real source that does not exist yet, proposed by this design
 #   gap       - NO source; the value on the page is a stand-in and is marked as one
 #
-# \u26a0 REWRITTEN AS COLUMNS OF ONE MART, not as a list of files (**#62**). The rule: *"if we
-# allow this now some file here, warehouse there, some other file here etc. ... We need a
-# consistent approach on how the contents of the website of any page are populated."*
+# \u26a0 REWRITTEN AS COLUMNS OF ONE MART, not as a list of files. The rule: every page of the
+# website is populated the same way, not from a file here and the warehouse there.
 #
 # The earlier version of this table named FOUR sources for one page \u2014 the registry YAML, two seed
 # CSVs and `dim_league`. That is a story, not a contract, and it is what made it unreviewable.
@@ -491,8 +489,8 @@ body { margin: 0; background: #06070a; font: 400 15px/1.5 system-ui, -apple-syst
 .cgroup > .gh { padding-bottom: 10px; border-bottom: 2px solid var(--div);
                 font-size: 17px; font-weight: 700; color: var(--ink); }
 
-/* ⚠ ONE WIDTH FOR EVERY PAGE. The rule: *"i want consistent width for all pages of the
-   website. period."* `system.css`'s 680px stands and this page does not touch it. An earlier
+/* ⚠ ONE WIDTH FOR EVERY PAGE: every page of the website has the same width.
+   `system.css`'s 680px stands and this page does not touch it. An earlier
    version set `.inner { max-width: 1080px }` here, and a later one kept a toggle to compare a
    site-wide change — both struck. There is nothing to compare; the width is settled. */
 

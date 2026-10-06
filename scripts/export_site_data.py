@@ -124,8 +124,8 @@ _DOMESTIC_TYPES = {"domestic_league", "domestic_cup", "domestic_super_cup"}
 # ⚠ `_HERO_FIXTURE_LIMIT = 12` USED TO LIVE HERE and is GONE. It was reasoned — 10_home.md measured
 # that twelve filled the first screenful across two or three competitions on every day sampled —
 # but it does not SCALE: as competitions are onboarded, twelve slots hold fewer and fewer of them,
-# so the block narrows exactly as the site broadens. The ruling: "we will show what we have, more
-# matches will come, because we ingest more competitions."
+# so the block narrows exactly as the site broadens. The ruling: show what there is; more matches
+# come as more competitions are ingested.
 #
 # The replacement is the natural unit, not another number: every match on the NEXT DAY THAT HAS
 # FOOTBALL (`group_upcoming_fixtures`). That does not reopen what GAP-02 settled — "today's
@@ -1654,8 +1654,8 @@ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, s
     ties share rank 1. Fixing it in Python was ALSO wrong — the ruling is "All ranking and
     ordering lives in the warehouse. The page renders the order it is served."
 
-    A BOARD WITH NO ROWS IS OMITTED ENTIRELY (the ruling: *"if a board is missing, the user may
-    not even notice, so don't show"*) — no placeholder, no empty state — and the survivors keep
+    A BOARD WITH NO ROWS IS OMITTED ENTIRELY (the ruling: a missing board goes unnoticed, so it is
+    not shown) — no placeholder, no empty state — and the survivors keep
     their order. An empty result here means the block does not render at all.
     ⚠ That is invisible to the reader BY DESIGN, so it is invisible to us too:
     `assert_mart_leaderboards_every_home_board_has_a_leader` is what notices, not the page.
