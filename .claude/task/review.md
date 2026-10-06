@@ -1,23 +1,24 @@
-# Review — fix/answer-keys-latest-fetch — answer keys re-worked from the latest fetch
+# Review — fix/cleaning-key-cases
 
-diff_sha256: 749c67405fec3a6ebdfe7d357f0b079ae329cca8741831ff08125e71f1c295a5
+diff_sha256: 4127b6c5a2d4b25a74e466cdab57b805157ebeaca0baeb9957f88b6391753410
 
 rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only the four answer-key seeds and the contract change; no model, test, formula or rule changes.
-- The reading follows the keys' written definition; cleaning cases whose rule no longer fires carry a blank rule and say why.
-- The coverage loss is declared and owned by step 2 of the issue; no new mechanism or cost.
+- Diff touches only contract.md and the two cleaning answer-key seeds, both in scope_paths; the step-1 paths dropped from scope are untouched.
+- §10: five data rows in existing seeds; no metric, label, URL, naming, mechanism or rule introduced or extended.
+- Team opponent_shots_on_target_unverified has no real case; the contract declares it and the MR head states it, so nothing is hidden.
+- No structural path, so no impact_map; no doc needs syncing; no secrets; NEW MECHANISM and RECURRING COST none, consistent with the diff.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Re-derived from the latest payloads: Mbappé 698 minutes and 234 passes; Martínez 810 minutes; Spain 5324/4780 passes, Argentina 5109/4561; defensive actions consistent.
-- No stale 709, 830 or 235 left; all 28 per-90 and percentage rows of both players carry the new denominator.
-- Each cleaning case checked against the latest payloads; the 39 changed rows equal the 39 failing rows plus the declared zero-numerator updates.
-- The three rules left without a case in either key are declared for step 2.
+- Team 1311456/5277: shots_on_target 1 raised to 2 open-play goals (gap 1, raised_to_open_play_goals) and shots 1 raised to 2 (raised_to_shots_on_target, open-play goals not above the cleaned shots on target), checked against base_apif__fixture_statistics.sql and the raw values.
+- Player 1451034/169/25926: count 3 plus 1 own goal is 4, not 5, so the events (4 plus the own goal, every scorer with a row) give him 2 goals; shots on target and shots 1 raised to 2 with the labels the model emits.
+- Player 1180382/119/50077: the opponent's provider shots on target (0, before team correction) fail the check against 1 open-play goal conceded, so the 2 saves go blank under opponent_shots_on_target_unverified.
+- Seed mechanics: column count, blank field, unique keys and populated workings checked; the tests compare expected_value only, so each rule label was checked against the model by hand.
 
 ## escalations
 (none)

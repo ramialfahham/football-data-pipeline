@@ -1,354 +1,80 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index a15a29dc..898bfe2d 100644
+index 898bfe2d..a3b7b4ee 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,64 +1,42 @@
--# Task contract — no team-season counts fewer games than its competition's standings
-+# Task contract — answer keys re-worked from the provider's latest fetch
+@@ -1,35 +1,31 @@
+-# Task contract — answer keys re-worked from the provider's latest fetch
++# Task contract — a real case for each cleaning rule left without one
  
  objective: >
--  The standings games test is red on 3 team-seasons. Declare the Süper Lig match the TFF awarded
--  0–3, re-key the two 2021 AFC Champions League standings rows the provider files under the wrong
--  club, and make the test an error.
-+  The 6 Oct nightly failed four answer-key tests (39 rows): the second player-stats fetch replaced
-+  the provider data the keys were worked from. Re-work each failing value by hand from the latest
-+  fetch and update the four seeds. Step 1 of #203; the cases for rules left without one are step 2.
+-  The 6 Oct nightly failed four answer-key tests (39 rows): the second player-stats fetch replaced
+-  the provider data the keys were worked from. Re-work each failing value by hand from the latest
+-  fetch and update the four seeds. Step 1 of #203; the cases for rules left without one are step 2.
++  The second player-stats fetch took the only answer-key case of three team rules and three player
++  rules. Add, for each, a real match where the rule fires on the latest fetch, worked by hand from
++  the provider's raw values. Step 2 of #203.
  
  refs: >
--  #202. Plan approved by the CPO in chat, 2026-10-05.
-+  #203.
+   #203.
  
  acceptance_criteria:
--  - Gaziantep FK–Trabzonspor, Süper Lig 19 Mar 2023, counts as awarded 0–3 (TFF board decision, 12 Feb 2023)
--  - The 2021 AFC Champions League Group E 2nd place and the best-second-placed ranking belong to Al Wahda FC (UAE), not Al Wehda Club (Saudi Arabia)
--  - The standings games test is an error, not a warning, and passes
-+  - The four answer-key tests pass on prod: every failing value re-worked by hand from the provider's latest fetch
+-  - The four answer-key tests pass on prod: every failing value re-worked by hand from the provider's latest fetch
++  - Every cleaning rule keeps at least one real case in its answer key (the second fetch took the only case of three team rules and three player rules)
  
  scope_paths:
--  - dbt_project/seeds/fixture_result_corrections.csv
--  - dbt_project/seeds/standings_corrections.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/models/2_base/api_football/base_apif__standings.sql
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/tests/assert_result_corrections_applied.sql
--  - dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
--  - tests/test_no_decision_history_in_code.py
-+  - dbt_project/seeds/player_season_answer_key.csv
-+  - dbt_project/seeds/team_season_answer_key.csv
-+  - dbt_project/seeds/player_match_cleaning_answer_key.csv
-+  - dbt_project/seeds/team_match_cleaning_answer_key.csv
+-  - dbt_project/seeds/player_season_answer_key.csv
+-  - dbt_project/seeds/team_season_answer_key.csv
+   - dbt_project/seeds/player_match_cleaning_answer_key.csv
+   - dbt_project/seeds/team_match_cleaning_answer_key.csv
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - docs/tracker/**
+-  - docs/tracker/**
  
--impact_map: >
--  writers: fixture_result_corrections → base_apif__fixtures_next (status AWD and the official score
--  for a declared fixture); standings_corrections → base_apif__standings (the only writer of base
--  standings).
--  downstream of base_apif__standings (`dbt ls --select base_apif__standings+ --resource-type model`,
--  pasted): base_apif__standings fct_standings int_team_season__deserved_vs_actual
--  int_team_season__standings_primary mart_competition_fixtures mart_fixture_standing_context
--  mart_match_days mart_matchday_insights mart_next_matchday mart_standings mart_team_profile
--  mart_team_season mart_team_season_insights.
--  downstream of base_apif__fixtures_next: every fixture-grained model (fct_fixture, int_legs__*,
--  the team-season metrics, the marts), as for any existing fixture_result_corrections row.
--  layer_rules: corrections are seeds applied in base (layering §2_base); no materialisation change.
--  deploy_order: on merge the 04:00 nightly seeds and rebuilds; the MR build writes only ci_mr
--  datasets.
--  blast_radius: one fixture (884568, TSL 2022) becomes AWD 0–3, so Gaziantep FK and Trabzonspor
--  count 36 games each; two AFCCL 2021 standings rows move from team 2937 to 2875. No other row
--  changes.
--
  decisions_taken: >
--  The plan in #202, approved by the CPO in chat, 2026-10-05: standings_corrections gains an
--  optional official_team_id. Readings, under the delegation of 2026-10-02:
--  - A red league-table row is a result to research and declare: the Süper Lig match is declared
--    from the TFF board decision without a question.
--  - The Al Wahda rows keep the provider's figures (they are right); the correction is the team.
--  - The test's paragraph explaining why it was a warning goes with the warning.
-+  Readings, under the delegation of 2026-10-02:
-+  - The keys' own definition is "worked out by hand from the provider's raw match data", and base
-+    keeps the newest fetch, so a key follows the latest fetch. Each value is worked from the raw
-+    payloads (first and latest fetch compared), never from a model; every one equals the model.
-+  - A player's rows that use a changed total (his minutes or passes) are updated even where the
-+    value happens not to change (a zero numerator), so no working names a stale total.
-+  - Where a cleaning case's rule no longer fires on the latest fetch, its rule column is blank and
-+    its working says why; replacing the lost cases is step 2 of #203.
+   Readings, under the delegation of 2026-10-02:
+-  - The keys' own definition is "worked out by hand from the provider's raw match data", and base
+-    keeps the newest fetch, so a key follows the latest fetch. Each value is worked from the raw
+-    payloads (first and latest fetch compared), never from a model; every one equals the model.
+-  - A player's rows that use a changed total (his minutes or passes) are updated even where the
+-    value happens not to change (a zero numerator), so no working names a stale total.
+-  - Where a cleaning case's rule no longer fires on the latest fetch, its rule column is blank and
+-    its working says why; replacing the lost cases is step 2 of #203.
++  - Each case is a match with one fetch, in the format that carries goals conceded, so a later
++    fetch or the fix of #205 cannot move it. Each value is worked from the raw payload, never from
++    a model, and equals the model.
++  - Team opponent_shots_on_target_unverified fires on no match in prod, so it has no real case to
++    add; the MR head says so.
++  - Both keys go in one MR, as the four keys did in step 1.
  
--  Threshold declarations. NEW MECHANISM: none beyond the approved seed column. RECURRING COST: none.
-+  Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
+   Threshold declarations. NEW MECHANISM: none. RECURRING COST: none.
  
- decisions_reserved:
+@@ -37,6 +33,6 @@ decisions_reserved:
    - None.
  
  done_when:
--  - The MR data build passes with both tests at error and 0 rows from the standings games test.
--  - pytest (whole suite), ruff, SQLFluff and the offline gates pass.
-+  - The MR data build runs the four answer-key tests and they pass.
-+  - pytest (whole suite) and the offline gates pass.
+-  - The MR data build runs the four answer-key tests and they pass.
++  - The MR data build runs both cleaning answer-key tests and they pass.
+   - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
 diff --git a/dbt_project/seeds/player_match_cleaning_answer_key.csv b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-index 40ef7eab..530f29bb 100644
+index 530f29bb..f538d11b 100644
 --- a/dbt_project/seeds/player_match_cleaning_answer_key.csv
 +++ b/dbt_project/seeds/player_match_cleaning_answer_key.csv
-@@ -11,9 +11,9 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1387728,81,897,penalties_scored,1,penalties_scored_matched_to_penalty_goals,"The provider's per-player penalty count says 0; set to his penalty goals, 1."
- 1575173,1660,178194,saves,1,limited_to_opponent_shots_on_target,"The opponent had 1 shot on target and missed no penalty, and that figure passes its own check (0-0, at most its 13 shots); his 2 saves, a gap of 1, become 1."
- 1575173,1660,178194,goals_against,0,,"No keeper in the match has a goals-conceded value, so the provider did not count it; his team conceded none (0-0), which proves 0."
--1550091,495,37137,saves,,opponent_shots_on_target_unverified,"His 2 saves exceed the opponent's 1 shot on target, and that figure fails its own check: the opponent scored 2 open-play goals from it. Neither side can be trusted, so saves stay blank."
--1570347,540,2813,goals_against,1,,"He played 38 minutes, so he is not the keeper for the whole match; his 1 conceded is within his team's 2 and stays."
--1570347,540,2813,saves,3,,"The opponent had 5 shots on target and missed no penalty; 3 saves stay."
-+1550091,495,37137,saves,2,,"His 2 saves are within the opponent's 4 shots on target, which its 2 open-play goals do not exceed: 2 stays, no rule fires."
-+1570347,540,2813,goals_against,2,,"He played the whole match, 90 minutes; his 2 conceded are his team's 2 and stay."
-+1570347,540,2813,saves,6,,"The opponent had 8 shots on target and missed no penalty; 6 saves stay."
- 1387886,81,36827,goals_against,,matched_to_team_goals_conceded,"The only keeper with minutes, 90 of them; the provider says 0 conceded, the score says 5. A gap of 5 is over 2, so it stays blank."
- 1575153,163,38753,passes_key,1,limited_to_whole,"2 key passes from 1 delivered pass: a key pass is a pass, so key passes become 1 (a gap of 1)."
- 1174745,815,270487,passes_accurate,,limited_to_whole,"The match's pass values sum below its passes (0.72), so they are counts: 40 accurate of 12 passes is a gap of 28, over 2, so blank."
-@@ -22,10 +22,10 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
- 1391100,728,52,passes,2,raised_to_part,"Passes blank while 31 players in the match have a value, so the blank rule reads 0; but he made 2 key passes, so passes are raised to 2."
- 1391100,728,52,passes_key,2,,"His delivered 2 key passes stand."
- 1005915,130,9946,cards_red,1,limited_to_card_maximum,"2 red cards for one player: at most 1, a gap of 1."
--1570347,541,450497,goals,1,goals_from_events,"Team scored 2; the count gives 1 over one player, the events list 2 goals with both scorers present, one of them this substitute: 1."
--1570347,541,450497,shots_on_target,1,raised_to_open_play_goals,"Blank, counted by others, so 0; but he scored 1 open-play goal, so at least 1 on target."
--1570347,541,450497,shots,1,raised_to_shots_on_target,"Blank, counted by others, so 0; raised to his 1 shot on target."
--1570347,541,450497,minutes,,,"Blank while teammates have minutes, but he scored, so he played: minutes unknown, not 0."
-+1570347,541,450497,goals,1,,"Team scored 2; the players' lines count 2, this substitute's 1 among them: 1."
-+1570347,541,450497,shots_on_target,1,,"His line counts 1 on target, at least his 1 open-play goal: 1."
-+1570347,541,450497,shots,1,,"His line counts 1 shot, at least his 1 on target: 1."
-+1570347,541,450497,minutes,10,,"His line counts 10 minutes: 10."
- 1570346,797,126640,blocks,,,"Nobody in the match has a blocks value and no other source covers blocks: not counted, stays blank."
- 608668,487,1837,offsides,0,,"Nobody in the match has an offsides value; his team's own statistics line shows 0 offsides, which proves 0."
- 608668,487,1837,minutes,0,,"Blank while 31 players in the match have minutes, and he did nothing in it: an unused substitute, 0."
-diff --git a/dbt_project/seeds/player_season_answer_key.csv b/dbt_project/seeds/player_season_answer_key.csv
-index eb418de5..640a523f 100644
---- a/dbt_project/seeds/player_season_answer_key.csv
-+++ b/dbt_project/seeds/player_season_answer_key.csv
-@@ -1,95 +1,95 @@
- league_code,season,player_id,metric_id,numerator,denominator,working
--WC,2026,278,assists_per90,360,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) * 90 = 360; sum(minutes) = 709; assists blank in 1 match, 0 by the blank rule."
-+WC,2026,278,assists_per90,360,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) * 90 = 360; sum(minutes) = 698; assists blank in 1 match, 0 by the blank rule."
- WC,2026,278,assists_player,4,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(assists) = 4; assists blank in 1 match, 0 by the blank rule."
--WC,2026,278,blocks_per90,0,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 709; blocks blank in 8 matches, 0 by the blank rule."
-+WC,2026,278,blocks_per90,0,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 698; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,278,blocks_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(blocks) = 0; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,278,cards_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(cards_yellow + cards_red) = 1."
- WC,2026,278,cards_red_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(cards_red) = 0."
- WC,2026,278,cards_yellow_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(cards_yellow) = 1."
--WC,2026,278,defensive_actions_per90,90,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) * 90 = 90; sum(minutes) = 709; tackles blank in 7 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
-+WC,2026,278,defensive_actions_per90,90,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) * 90 = 90; sum(minutes) = 698; tackles blank in 7 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,278,defensive_actions_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 1; tackles blank in 7 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,278,dribbles_attempts_player,36,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles) = 36."
- WC,2026,278,dribbles_past_player,4,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_against) = 4; dribbled past blank in 5 matches, 0 by the blank rule."
--WC,2026,278,dribbles_success_per90,1170,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_success) * 90 = 1170; sum(minutes) = 709."
-+WC,2026,278,dribbles_success_per90,1170,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_success) * 90 = 1170; sum(minutes) = 698."
- WC,2026,278,dribbles_success_player,13,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_success) = 13."
- WC,2026,278,dribbles_success_player_pct,13,36,"Kylian Mbappé, World Cup 2026: 8 matches. sum(dribbles_success) = 13; sum(dribbles) = 36."
- WC,2026,278,duels_player,70,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels) = 70."
--WC,2026,278,duels_won_per90,2070,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels_won) * 90 = 2070; sum(minutes) = 709."
-+WC,2026,278,duels_won_per90,2070,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels_won) * 90 = 2070; sum(minutes) = 698."
- WC,2026,278,duels_won_player,23,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels_won) = 23."
- WC,2026,278,duels_won_player_pct,23,70,"Kylian Mbappé, World Cup 2026: 8 matches. sum(duels_won) = 23; sum(duels) = 70."
- WC,2026,278,finishing_efficiency_player_pct,9,23,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 9; sum(shots_on_target) = 23; goals blank in 2 matches, 0 by the blank rule; shots on target blank in 1 match, 0 by the blank rule."
- WC,2026,278,goals_against_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals_against) = 0."
- WC,2026,278,goals_open_play_player,9,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 9; goals blank in 2 matches, 0 by the blank rule."
- WC,2026,278,goals_penalty_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals_penalty) = 1."
--WC,2026,278,goals_per90,900,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals) * 90 = 900; sum(minutes) = 709; goals blank in 2 matches, 0 by the blank rule."
-+WC,2026,278,goals_per90,900,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals) * 90 = 900; sum(minutes) = 698; goals blank in 2 matches, 0 by the blank rule."
- WC,2026,278,goals_player,10,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals) = 10; goals blank in 2 matches, 0 by the blank rule."
--WC,2026,278,interceptions_per90,0,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(interceptions) * 90 = 0; sum(minutes) = 709; interceptions blank in 8 matches, 0 by the blank rule."
-+WC,2026,278,interceptions_per90,0,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(interceptions) * 90 = 0; sum(minutes) = 698; interceptions blank in 8 matches, 0 by the blank rule."
- WC,2026,278,interceptions_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(interceptions) = 0; interceptions blank in 8 matches, 0 by the blank rule."
- WC,2026,278,offsides_player,,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(offsides) = blank; offsides blank in 2 matches, 0 by the blank rule; offsides blank and counted by nobody in fixture 1569870, 1578539, so the season value is blank."
--WC,2026,278,passes_accuracy_player_pct,201,235,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_accurate) = 201; sum(passes) = 235."
-+WC,2026,278,passes_accuracy_player_pct,201,234,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_accurate) = 201; sum(passes) = 234."
- WC,2026,278,passes_accurate_player,201,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_accurate) = 201."
--WC,2026,278,passes_key_per90,1620,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_key) * 90 = 1620; sum(minutes) = 709; key passes blank in 2 matches, 0 by the blank rule."
-+WC,2026,278,passes_key_per90,1620,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_key) * 90 = 1620; sum(minutes) = 698; key passes blank in 2 matches, 0 by the blank rule."
- WC,2026,278,passes_key_player,18,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes_key) = 18; key passes blank in 2 matches, 0 by the blank rule."
--WC,2026,278,passes_per90,21150,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes) * 90 = 21150; sum(minutes) = 709."
--WC,2026,278,passes_player,235,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes) = 235."
-+WC,2026,278,passes_per90,21060,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes) * 90 = 21060; sum(minutes) = 698."
-+WC,2026,278,passes_player,234,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(passes) = 234."
- WC,2026,278,penalty_committed_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(penalties_committed) = 0; penalties committed blank in 8 matches, 0 by the blank rule."
- WC,2026,278,penalty_won_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(penalties_won) = 1; penalties won blank in 7 matches, 0 by the blank rule."
--WC,2026,278,saves_per90,0,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves) * 90 = 0; sum(minutes) = 709; saves blank in 8 matches, 0 by the blank rule."
-+WC,2026,278,saves_per90,0,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves) * 90 = 0; sum(minutes) = 698; saves blank in 8 matches, 0 by the blank rule."
- WC,2026,278,saves_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves) = 0; saves blank in 8 matches, 0 by the blank rule."
- WC,2026,278,saves_player_pct,0,0,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves) = 0; sum(saves + goals_against) = 0; saves blank in 8 matches, 0 by the blank rule."
--WC,2026,278,scorer_points_per90,1260,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals + assists) * 90 = 1260; sum(minutes) = 709; goals blank in 2 matches, 0 by the blank rule; assists blank in 1 match, 0 by the blank rule."
-+WC,2026,278,scorer_points_per90,1260,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals + assists) * 90 = 1260; sum(minutes) = 698; goals blank in 2 matches, 0 by the blank rule; assists blank in 1 match, 0 by the blank rule."
- WC,2026,278,scorer_points_player,14,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(goals + assists) = 14; goals blank in 2 matches, 0 by the blank rule; assists blank in 1 match, 0 by the blank rule."
- WC,2026,278,shots_on_goal_against_player,0,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(saves + goals_against) = 0; saves blank in 8 matches, 0 by the blank rule."
--WC,2026,278,shots_on_goal_per90,2070,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots_on_target) * 90 = 2070; sum(minutes) = 709; shots on target blank in 1 match, 0 by the blank rule."
-+WC,2026,278,shots_on_goal_per90,2070,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots_on_target) * 90 = 2070; sum(minutes) = 698; shots on target blank in 1 match, 0 by the blank rule."
- WC,2026,278,shots_on_goal_player,23,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots_on_target) = 23; shots on target blank in 1 match, 0 by the blank rule."
- WC,2026,278,shots_player,36,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(shots) = 36."
--WC,2026,278,tackles_per90,90,709,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles) * 90 = 90; sum(minutes) = 709; tackles blank in 7 matches, 0 by the blank rule."
-+WC,2026,278,tackles_per90,90,698,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles) * 90 = 90; sum(minutes) = 698; tackles blank in 7 matches, 0 by the blank rule."
- WC,2026,278,tackles_player,1,,"Kylian Mbappé, World Cup 2026: 8 matches. sum(tackles) = 1; tackles blank in 7 matches, 0 by the blank rule."
--WC,2026,19599,assists_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) * 90 = 0; sum(minutes) = 830; assists blank in 2 matches, 0 by the blank rule."
-+WC,2026,19599,assists_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) * 90 = 0; sum(minutes) = 810; assists blank in 2 matches, 0 by the blank rule."
- WC,2026,19599,assists_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(assists) = 0; assists blank in 2 matches, 0 by the blank rule."
--WC,2026,19599,blocks_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 830; blocks blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,blocks_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) * 90 = 0; sum(minutes) = 810; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,blocks_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(blocks) = 0; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,cards_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(cards_yellow + cards_red) = 0."
- WC,2026,19599,cards_red_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(cards_red) = 0."
- WC,2026,19599,cards_yellow_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(cards_yellow) = 0."
--WC,2026,19599,defensive_actions_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) * 90 = 0; sum(minutes) = 830; tackles blank in 8 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,defensive_actions_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) * 90 = 0; sum(minutes) = 810; tackles blank in 8 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,defensive_actions_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 0; tackles blank in 8 matches, 0 by the blank rule; interceptions blank in 8 matches, 0 by the blank rule; blocks blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,dribbles_attempts_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles) = 0; dribbles blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,dribbles_past_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_against) = 0; dribbled past blank in 8 matches, 0 by the blank rule."
--WC,2026,19599,dribbles_success_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_success) * 90 = 0; sum(minutes) = 830; dribbles completed blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,dribbles_success_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_success) * 90 = 0; sum(minutes) = 810; dribbles completed blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,dribbles_success_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_success) = 0; dribbles completed blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,dribbles_success_player_pct,0,0,"Emiliano Martínez, World Cup 2026: 8 matches. sum(dribbles_success) = 0; sum(dribbles) = 0; dribbles completed blank in 8 matches, 0 by the blank rule; dribbles blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,duels_player,2,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels) = 2; duels blank in 7 matches, 0 by the blank rule."
--WC,2026,19599,duels_won_per90,180,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels_won) * 90 = 180; sum(minutes) = 830; duels won blank in 7 matches, 0 by the blank rule."
-+WC,2026,19599,duels_won_per90,180,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels_won) * 90 = 180; sum(minutes) = 810; duels won blank in 7 matches, 0 by the blank rule."
- WC,2026,19599,duels_won_player,2,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels_won) = 2; duels won blank in 7 matches, 0 by the blank rule."
- WC,2026,19599,duels_won_player_pct,2,2,"Emiliano Martínez, World Cup 2026: 8 matches. sum(duels_won) = 2; sum(duels) = 2; duels won blank in 7 matches, 0 by the blank rule; duels blank in 7 matches, 0 by the blank rule."
- WC,2026,19599,finishing_efficiency_player_pct,0,0,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 0; sum(shots_on_target) = 0; goals blank in 8 matches, 0 by the blank rule; shots on target blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,goals_against_player,8,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals_against) = 8."
- WC,2026,19599,goals_open_play_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals - goals_penalty) = 0; goals blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,goals_penalty_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals_penalty) = 0."
--WC,2026,19599,goals_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals) * 90 = 0; sum(minutes) = 830; goals blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,goals_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals) * 90 = 0; sum(minutes) = 810; goals blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,goals_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals) = 0; goals blank in 8 matches, 0 by the blank rule."
--WC,2026,19599,interceptions_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(interceptions) * 90 = 0; sum(minutes) = 830; interceptions blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,interceptions_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(interceptions) * 90 = 0; sum(minutes) = 810; interceptions blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,interceptions_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(interceptions) = 0; interceptions blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,offsides_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(offsides) = 0; offsides blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,passes_accuracy_player_pct,175,246,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_accurate) = 175; sum(passes) = 246."
- WC,2026,19599,passes_accurate_player,175,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_accurate) = 175."
--WC,2026,19599,passes_key_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_key) * 90 = 0; sum(minutes) = 830; key passes blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,passes_key_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_key) * 90 = 0; sum(minutes) = 810; key passes blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,passes_key_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes_key) = 0; key passes blank in 8 matches, 0 by the blank rule."
--WC,2026,19599,passes_per90,22140,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes) * 90 = 22140; sum(minutes) = 830."
-+WC,2026,19599,passes_per90,22140,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes) * 90 = 22140; sum(minutes) = 810."
- WC,2026,19599,passes_player,246,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(passes) = 246."
- WC,2026,19599,penalty_committed_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(penalties_committed) = 0; penalties committed blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,penalty_won_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(penalties_won) = 0; penalties won blank in 8 matches, 0 by the blank rule."
--WC,2026,19599,saves_per90,1800,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves) * 90 = 1800; sum(minutes) = 830; saves blank in 3 matches, 0 by the blank rule."
-+WC,2026,19599,saves_per90,1800,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves) * 90 = 1800; sum(minutes) = 810; saves blank in 3 matches, 0 by the blank rule."
- WC,2026,19599,saves_player,20,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves) = 20; saves blank in 3 matches, 0 by the blank rule."
- WC,2026,19599,saves_player_pct,20,28,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves) = 20; sum(saves + goals_against) = 28; saves blank in 3 matches, 0 by the blank rule."
--WC,2026,19599,scorer_points_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals + assists) * 90 = 0; sum(minutes) = 830; goals blank in 8 matches, 0 by the blank rule; assists blank in 2 matches, 0 by the blank rule."
-+WC,2026,19599,scorer_points_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals + assists) * 90 = 0; sum(minutes) = 810; goals blank in 8 matches, 0 by the blank rule; assists blank in 2 matches, 0 by the blank rule."
- WC,2026,19599,scorer_points_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(goals + assists) = 0; goals blank in 8 matches, 0 by the blank rule; assists blank in 2 matches, 0 by the blank rule."
- WC,2026,19599,shots_on_goal_against_player,28,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(saves + goals_against) = 28; saves blank in 3 matches, 0 by the blank rule."
--WC,2026,19599,shots_on_goal_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots_on_target) * 90 = 0; sum(minutes) = 830; shots on target blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,shots_on_goal_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots_on_target) * 90 = 0; sum(minutes) = 810; shots on target blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,shots_on_goal_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots_on_target) = 0; shots on target blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,shots_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(shots) = 0; shots blank in 8 matches, 0 by the blank rule."
--WC,2026,19599,tackles_per90,0,830,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles) * 90 = 0; sum(minutes) = 830; tackles blank in 8 matches, 0 by the blank rule."
-+WC,2026,19599,tackles_per90,0,810,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles) * 90 = 0; sum(minutes) = 810; tackles blank in 8 matches, 0 by the blank rule."
- WC,2026,19599,tackles_player,0,,"Emiliano Martínez, World Cup 2026: 8 matches. sum(tackles) = 0; tackles blank in 8 matches, 0 by the blank rule."
- EURO,2024,1323,assists_per90,180,431,"Dani Olmo, EURO 2024: 7 matches. sum(assists) * 90 = 180; sum(minutes) = 431; assists blank in 1 match, 0 by the blank rule; minutes blank in 1 match, 0 by the blank rule."
- EURO,2024,1323,assists_player,2,,"Dani Olmo, EURO 2024: 7 matches. sum(assists) = 2; assists blank in 1 match, 0 by the blank rule."
+@@ -36,3 +36,6 @@ fixture_id,team_id,player_id,stat,expected_value,rule,working
+ 1575175,167,279905,passes_accurate,27,,"The match's pass values sum below its passes (0.80), so they are counts: 27 stays."
+ 1575175,167,163066,penalties_won,0,,"Nobody in the match has a penalties-won value; the match events (substitutions and cards delivered) show no penalty for his team, which proves 0."
+ 1318812,116,360114,assists,0,limited_to_team_goals,"Lens 1-1 PSG, Coupe de France. The events credit him with Lens's only goal (the per-player count left his goals blank) and the provider gives him that goal's assist. He cannot assist his own goal: his assists are at most 1 team goal minus his 1, so the provider's 1 becomes 0."
++1451034,169,25926,shots_on_target,2,raised_to_open_play_goals,"Eintracht Frankfurt 5-1 Galatasaray. The per-player count (3 goals) and the own goal credited to the team make 4, not 5; the events (four goals, every scorer with a row, and the own goal) make 5 and give him 2 goals, neither a penalty. 1 shot on target against 2 open-play goals, a gap of 1: raised to 2."
++1451034,169,25926,shots,2,raised_to_shots_on_target,"Same player: 1 shot against his 2 shots on target, a gap of 1: raised to 2."
++1180382,119,50077,saves,,opponent_shots_on_target_unverified,"Athletico Paranaense 1-0 Internacional. His 2 saves against the other team's 0 shots on target and no missed penalty, a ceiling of 0; that figure fails its own check (below the other team's 1 open-play goal), so it cannot cap the saves: blank."
 diff --git a/dbt_project/seeds/team_match_cleaning_answer_key.csv b/dbt_project/seeds/team_match_cleaning_answer_key.csv
-index 17c260d2..693964b9 100644
+index 693964b9..d80d6524 100644
 --- a/dbt_project/seeds/team_match_cleaning_answer_key.csv
 +++ b/dbt_project/seeds/team_match_cleaning_answer_key.csv
-@@ -16,8 +16,8 @@ fixture_id,team_id,stat,expected_value,rule,working
- 1388000,83,goals_penalty,0,,"Ligue 1 2025, 0-0, no events delivered. A team that scored none scored no penalty: 0."
- 996443,1166,saves,,limited_to_opponent_shots_on_target,"Jupiler Pro League 2023, 1-0. Saves 6 against the other team's 3 shots on target and no missed penalty, a ceiling of 3; that figure passes its own check (at least its 0 open-play goals, at most its 5 shots), but the gap is 3, over 2: blank."
- 1575173,1660,saves,1,limited_to_opponent_shots_on_target,"Bundesliga 2026, 0-0. Saves 2 against the other team's 1 shot on target and no missed penalty, a ceiling of 1; that figure passes its own check (at least its 0 goals, at most its 13 shots); gap 1: lowered to 1."
--1550091,495,saves,,opponent_shots_on_target_unverified,"Serie A 2026, 0-2. Saves 2 against the other team's 1 shot on target, a ceiling of 1; that 1 is below the other team's own 2 open-play goals, so it fails its check and cannot cap the saves: blank."
--1550091,492,shots_on_target,2,raised_to_open_play_goals,"Same match, the other team: 2 open-play goals (two goal events, no penalty or own goal) from 1 shot on target; gap 1: raised to 2."
-+1550091,495,saves,2,,"Serie A 2026, 0-2. Saves 2 against the other team's 4 shots on target, which its own 2 open-play goals do not exceed: 2 stays, no rule fires."
-+1550091,492,shots_on_target,4,,"Same match, the other team: 2 open-play goals (two goal events, no penalty or own goal) from 4 shots on target: no raise."
- 11112,165,shots_inside_box,11,limited_to_whole,"Bundesliga 2017, 4-4. 12 shots inside the box out of 11 shots; gap 1: lowered to 11, and with 0 outside the box the split then adds up to the 11 shots."
- 35887,85,shots_inside_box,10,own_goals_left_out,"Ligue 1 2017, 3-0. 11 inside the box plus 11 outside is 22 against 21 shots, which 8 on target, 7 off target and 6 blocked vouch for; the one-shot gap is the own goal credited to the team (its goal events: an own goal and two open-play goals, its score), counted as a shot: inside the box 10."
- 1388490,192,shots_inside_box,,split_does_not_add_up,"Bundesliga 2025, 1-2. 10 inside the box plus 1 outside is 11, not the 10 shots, and nothing tells which part is wrong: blank."
-@@ -25,11 +25,11 @@ fixture_id,team_id,stat,expected_value,rule,working
- 1388490,192,shots,10,,"Same line: the total stands; 3 on target, 4 off target and 3 blocked add up to it."
- 1570348,4665,shots_off_target,,split_does_not_add_up,"La Liga 2026, 0-1. 3 on target, 3 off target and 1 blocked is 7, not the 6 shots: off target and blocked are left blank."
- 1570348,4665,shots_on_target,3,,"Same line: shots on target stay at 3, between the team's 0 open-play goals and its 6 shots."
--1552736,80,shots_on_target,2,raised_to_open_play_goals,"Ligue 1 2026, 2-0. Two open-play goals (no penalty or own goal among its two goal events) from 1 shot on target; gap 1: raised to 2."
--1552736,80,shots_blocked,,split_does_not_add_up,"Same line: with shots on target at 2, 2 on target, 3 off target and 2 blocked is 7, not the 6 shots: off target and blocked are left blank."
--1550940,2288,shots,1,raised_to_shots_on_target,"Liga MX 2026, 1-3, a line of zeros. One open-play goal from 0 shots on target, gap 1: shots on target raised to 1; then 0 shots against 1 on target, gap 1: shots raised to 1."
--1550940,2295,shots_on_target,,raised_to_open_play_goals,"Same match, the other team: 3 open-play goals from 0 shots on target, gap 3: blank."
--1550940,2295,shots,,raised_to_open_play_goals,"Same team: 0 shots against 3 open-play goals, gap 3: blank."
-+1552736,80,shots_on_target,3,,"Ligue 1 2026, 2-0. Two open-play goals (no penalty or own goal among its two goal events) from 3 shots on target: no raise."
-+1552736,80,shots_blocked,3,,"Same line: 3 on target, 5 off target and 3 blocked is 11, the 11 shots: the split adds up and stays."
-+1550940,2288,shots,13,,"Liga MX 2026, 1-3. One open-play goal from 4 shots on target, and 13 shots: no raise."
-+1550940,2295,shots_on_target,8,,"Same match, the other team: 3 open-play goals from 8 shots on target: no raise."
-+1550940,2295,shots,22,,"Same team: 22 shots against 8 on target: no raise."
- 1223728,502,cards_red,0,,"Serie A 2024, 3-0, no statistics line for either team. The match's events were delivered and list one yellow card and no red card for this team: 0 red cards."
+@@ -34,3 +34,5 @@ fixture_id,team_id,stat,expected_value,rule,working
  1223728,502,cards_yellow,,,"Same team: a yellow-card event and no line, and the events never give a card count: blank."
  1223728,502,goals_penalty,0,,"Same team: three open-play goal events, its score: 0 penalties."
-diff --git a/dbt_project/seeds/team_season_answer_key.csv b/dbt_project/seeds/team_season_answer_key.csv
-index b8c03f38..4a95e8b8 100644
---- a/dbt_project/seeds/team_season_answer_key.csv
-+++ b/dbt_project/seeds/team_season_answer_key.csv
-@@ -8,8 +8,8 @@ WC,2026,9,corners,54,,"Spain, World Cup 2026: 8 matches. sum(corners) = 54."
- WC,2026,9,corners_against_per_match,18,8,"Spain, World Cup 2026: 8 matches. sum(corners_against) = 18; matches = 8."
- WC,2026,9,corners_per_match,54,8,"Spain, World Cup 2026: 8 matches. sum(corners) = 54; matches = 8."
- WC,2026,9,defensive_actions_per_match,201,8,"Spain, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 201; matches = 8."
--WC,2026,9,duels_per_match,706,8,"Spain, World Cup 2026: 8 matches. sum(duels) = 706; matches = 8."
--WC,2026,9,duels_won_pct,366,706,"Spain, World Cup 2026: 8 matches. sum(duels_won) = 366; sum(duels) = 706."
-+WC,2026,9,duels_per_match,712,8,"Spain, World Cup 2026: 8 matches. sum(duels) = 712; matches = 8."
-+WC,2026,9,duels_won_pct,367,712,"Spain, World Cup 2026: 8 matches. sum(duels_won) = 367; sum(duels) = 712."
- WC,2026,9,finishing_efficiency_pct,12,54,"Spain, World Cup 2026: 8 matches. sum(goals - goals_penalty - goals_own) = 12; sum(shots_on_target) = 54."
- WC,2026,9,goals,14,,"Spain, World Cup 2026: 8 matches. sum(goals) = 14."
- WC,2026,9,goals_against,1,,"Spain, World Cup 2026: 8 matches. sum(goals_against) = 1."
-@@ -18,10 +18,10 @@ WC,2026,9,goals_open_play,12,,"Spain, World Cup 2026: 8 matches. sum(goals - goa
- WC,2026,9,goals_own,1,,"Spain, World Cup 2026: 8 matches. sum(goals_own) = 1."
- WC,2026,9,goals_penalty,1,,"Spain, World Cup 2026: 8 matches. sum(goals_penalty) = 1."
- WC,2026,9,goals_per_match,14,8,"Spain, World Cup 2026: 8 matches. sum(goals) = 14; matches = 8."
--WC,2026,9,interceptions_per_match,60,8,"Spain, World Cup 2026: 8 matches. sum(interceptions) = 60; matches = 8."
--WC,2026,9,passes_accuracy_pct,4780,5327,"Spain, World Cup 2026: 8 matches. sum(passes_accurate) = 4780; sum(passes) = 5327."
--WC,2026,9,passes_key_per_match,106,8,"Spain, World Cup 2026: 8 matches. sum(passes_key) = 106; matches = 8."
--WC,2026,9,passes_per_match,5327,8,"Spain, World Cup 2026: 8 matches. sum(passes) = 5327; matches = 8."
-+WC,2026,9,interceptions_per_match,61,8,"Spain, World Cup 2026: 8 matches. sum(interceptions) = 61; matches = 8."
-+WC,2026,9,passes_accuracy_pct,4780,5324,"Spain, World Cup 2026: 8 matches. sum(passes_accurate) = 4780; sum(passes) = 5324."
-+WC,2026,9,passes_key_per_match,105,8,"Spain, World Cup 2026: 8 matches. sum(passes_key) = 105; matches = 8."
-+WC,2026,9,passes_per_match,5324,8,"Spain, World Cup 2026: 8 matches. sum(passes) = 5324; matches = 8."
- WC,2026,9,points_capture_pct,22,24,"Spain, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 22; 3 * matches = 24."
- WC,2026,9,points_won,22,,"Spain, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 22."
- WC,2026,9,saves,9,,"Spain, World Cup 2026: 8 matches. sum(saves) = 9; saves lowered by 1 to the opponent's shots on target in fixture 1489417."
-@@ -34,7 +34,7 @@ WC,2026,9,shots_on_goal_pct,54,140,"Spain, World Cup 2026: 8 matches. sum(shots_
- WC,2026,9,shots_on_goal_per_match,54,8,"Spain, World Cup 2026: 8 matches. sum(shots_on_target) = 54; matches = 8."
- WC,2026,9,shots_per_match,140,8,"Spain, World Cup 2026: 8 matches. sum(shots) = 140; matches = 8."
- WC,2026,9,shots_share_pct,140,186,"Spain, World Cup 2026: 8 matches. sum(shots) = 140; sum(shots + shots_against) = 186."
--WC,2026,9,tackles_per_match,128,8,"Spain, World Cup 2026: 8 matches. sum(tackles) = 128; matches = 8."
-+WC,2026,9,tackles_per_match,127,8,"Spain, World Cup 2026: 8 matches. sum(tackles) = 127; matches = 8."
- WC,2026,26,blocks_per_match,19,8,"Argentina, World Cup 2026: 8 matches. sum(blocks) = 19; matches = 8."
- WC,2026,26,cards_red,1,,"Argentina, World Cup 2026: 8 matches. sum(cards_red) = 1; red cards blank in 6 matches, 0 by the blank rule."
- WC,2026,26,cards_yellow,15,,"Argentina, World Cup 2026: 8 matches. sum(cards_yellow) = 15; yellow cards blank in 1 match, 0 by the blank rule."
-@@ -43,9 +43,9 @@ WC,2026,26,clean_sheets_pct,2,8,"Argentina, World Cup 2026: 8 matches. countif(g
- WC,2026,26,corners,41,,"Argentina, World Cup 2026: 8 matches. sum(corners) = 41."
- WC,2026,26,corners_against_per_match,28,8,"Argentina, World Cup 2026: 8 matches. sum(corners_against) = 28; matches = 8."
- WC,2026,26,corners_per_match,41,8,"Argentina, World Cup 2026: 8 matches. sum(corners) = 41; matches = 8."
--WC,2026,26,defensive_actions_per_match,258,8,"Argentina, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 258; matches = 8."
--WC,2026,26,duels_per_match,764,8,"Argentina, World Cup 2026: 8 matches. sum(duels) = 764; matches = 8."
--WC,2026,26,duels_won_pct,392,764,"Argentina, World Cup 2026: 8 matches. sum(duels_won) = 392; sum(duels) = 764."
-+WC,2026,26,defensive_actions_per_match,260,8,"Argentina, World Cup 2026: 8 matches. sum(tackles + interceptions + blocks) = 260; matches = 8."
-+WC,2026,26,duels_per_match,778,8,"Argentina, World Cup 2026: 8 matches. sum(duels) = 778; matches = 8."
-+WC,2026,26,duels_won_pct,401,778,"Argentina, World Cup 2026: 8 matches. sum(duels_won) = 401; sum(duels) = 778."
- WC,2026,26,finishing_efficiency_pct,17,44,"Argentina, World Cup 2026: 8 matches. sum(goals - goals_penalty - goals_own) = 17; sum(shots_on_target) = 44."
- WC,2026,26,goals,19,,"Argentina, World Cup 2026: 8 matches. sum(goals) = 19."
- WC,2026,26,goals_against,8,,"Argentina, World Cup 2026: 8 matches. sum(goals_against) = 8."
-@@ -54,8 +54,8 @@ WC,2026,26,goals_open_play,17,,"Argentina, World Cup 2026: 8 matches. sum(goals
- WC,2026,26,goals_own,1,,"Argentina, World Cup 2026: 8 matches. sum(goals_own) = 1."
- WC,2026,26,goals_penalty,1,,"Argentina, World Cup 2026: 8 matches. sum(goals_penalty) = 1."
- WC,2026,26,goals_per_match,19,8,"Argentina, World Cup 2026: 8 matches. sum(goals) = 19; matches = 8."
--WC,2026,26,interceptions_per_match,83,8,"Argentina, World Cup 2026: 8 matches. sum(interceptions) = 83; matches = 8."
--WC,2026,26,passes_accuracy_pct,4559,5109,"Argentina, World Cup 2026: 8 matches. sum(passes_accurate) = 4559; sum(passes) = 5109."
-+WC,2026,26,interceptions_per_match,82,8,"Argentina, World Cup 2026: 8 matches. sum(interceptions) = 82; matches = 8."
-+WC,2026,26,passes_accuracy_pct,4561,5109,"Argentina, World Cup 2026: 8 matches. sum(passes_accurate) = 4561; sum(passes) = 5109."
- WC,2026,26,passes_key_per_match,78,8,"Argentina, World Cup 2026: 8 matches. sum(passes_key) = 78; matches = 8."
- WC,2026,26,passes_per_match,5109,8,"Argentina, World Cup 2026: 8 matches. sum(passes) = 5109; matches = 8."
- WC,2026,26,points_capture_pct,21,24,"Argentina, World Cup 2026: 8 matches. sum(case result when 'W' then 3 when 'D' then 1 else 0 end) = 21; 3 * matches = 24."
-@@ -70,7 +70,7 @@ WC,2026,26,shots_on_goal_pct,44,114,"Argentina, World Cup 2026: 8 matches. sum(s
- WC,2026,26,shots_on_goal_per_match,44,8,"Argentina, World Cup 2026: 8 matches. sum(shots_on_target) = 44; matches = 8."
- WC,2026,26,shots_per_match,114,8,"Argentina, World Cup 2026: 8 matches. sum(shots) = 114; matches = 8."
- WC,2026,26,shots_share_pct,114,189,"Argentina, World Cup 2026: 8 matches. sum(shots) = 114; sum(shots + shots_against) = 189."
--WC,2026,26,tackles_per_match,156,8,"Argentina, World Cup 2026: 8 matches. sum(tackles) = 156; matches = 8."
-+WC,2026,26,tackles_per_match,159,8,"Argentina, World Cup 2026: 8 matches. sum(tackles) = 159; matches = 8."
- EURO,2024,9,blocks_per_match,21,7,"Spain, EURO 2024: 7 matches. sum(blocks) = 21; matches = 7."
- EURO,2024,9,cards_red,1,,"Spain, EURO 2024: 7 matches. sum(cards_red) = 1; red cards blank in 6 matches, 0 by the blank rule."
- EURO,2024,9,cards_yellow,16,,"Spain, EURO 2024: 7 matches. sum(cards_yellow) = 16."
+ 1223728,505,cards_yellow,0,,"Same match, the other team: no card event of its own in a match whose events were delivered: 0 yellow cards."
++1311456,5277,shots_on_target,2,raised_to_open_play_goals,"Copa del Rey 2024, 2-1. Its goal events are two open-play goals, 2, its score; 1 shot on target against 2 open-play goals, a gap of 1: raised to 2."
++1311456,5277,shots,2,raised_to_shots_on_target,"Same line: 1 shot against its 2 shots on target, a gap of 1: raised to 2."

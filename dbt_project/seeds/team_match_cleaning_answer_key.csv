@@ -34,3 +34,5 @@ fixture_id,team_id,stat,expected_value,rule,working
 1223728,502,cards_yellow,,,"Same team: a yellow-card event and no line, and the events never give a card count: blank."
 1223728,502,goals_penalty,0,,"Same team: three open-play goal events, its score: 0 penalties."
 1223728,505,cards_yellow,0,,"Same match, the other team: no card event of its own in a match whose events were delivered: 0 yellow cards."
+1311456,5277,shots_on_target,2,raised_to_open_play_goals,"Copa del Rey 2024, 2-1. Its goal events are two open-play goals, 2, its score; 1 shot on target against 2 open-play goals, a gap of 1: raised to 2."
+1311456,5277,shots,2,raised_to_shots_on_target,"Same line: 1 shot against its 2 shots on target, a gap of 1: raised to 2."
