@@ -1,8 +1,8 @@
 # Review — docs/strip-chat-quotes
 
-diff_sha256: 64d94763e4913ebc0d2454448b15c93861264d0ff9fbf268a04dd180d7b539cb
+diff_sha256: 827e0cc6e2630c794a85edf2018e4b71b545f9e3760f4690c432fd7ab50e6996
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
@@ -31,6 +31,13 @@ risks_checked:
 - Every changed code line is a comment, docstring or CSS-comment line; the docstring edit adds no character that could close the string.
 - Renders: one line inside an unchanged CSS comment; no selector, declaration or markup changed.
 - Pins recounted against the gate's markers: code 779 to 777, layering 13 to 11, home 141 to 127, each exact; the untouched pins hold.
+- Round 2, the merge of main: its .gitlab-ci.yml change equals the validate:ui change already merged on main, line for line and blob for blob; the job reads as main's.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 2, the merge of main: the only guard path in it is .gitlab-ci.yml, byte-identical to main's file after the validate:ui change; this branch adds nothing to any guard path, so it needs no protected_override.
+- The incoming lines add no token, permission, mechanism, dependency or cost, and the check still fails closed.
 
 ## escalations
 (none)

@@ -86,6 +86,30 @@ index a3b7b4ee..96ea20bc 100644
 +    protected reviewer briefs.
    - pytest (whole suite) and the offline gates pass.
    - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index 4f38fc4e..45fdcccf 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -460,8 +460,8 @@ validate:secrets:
+ # Microsoft's Playwright image carries the browsers, so nothing is downloaded per job; the
+ # `playwright` package in `requirements-ui.txt` must match the image tag (pinned by
+ # `tests/test_design_inventory.py`). `PIP_BREAK_SYSTEM_PACKAGES`: noble's system Python refuses
+-# `pip install` without it. Node from apt (18 on noble) is only for `node --check`; jammy's 12
+-# cannot parse the `??` the match-preview page uses.
++# `pip install` without it. `node --check` runs the Node bundled with the pinned `playwright`
++# package, so the job installs nothing from apt.
+ validate:ui:
+   stage: build
+   image: mcr.microsoft.com/playwright/python:v1.63.0-noble
+@@ -477,7 +477,7 @@ validate:ui:
+   before_script:
+     - python -m pip install --upgrade pip
+     - pip install -r requirements-ui.txt
+-    - apt-get update -qq && apt-get install -y -qq nodejs
++    - export PATH="$(python -c 'import playwright, pathlib; print(pathlib.Path(playwright.__file__).parent / "driver")'):$PATH"
+   script:
+     - python -m json.tool site/i18n/en.json > /dev/null
+     - python -m json.tool site/i18n/de.json > /dev/null
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
 index eebee3e6..408789a2 100644
 --- a/dbt_project/docs/layering.md
@@ -810,3 +834,20 @@ index 5cdf5ba8..fbdb4289 100644
      "docs/wireframes/11_team_squad.md": 12,
      "docs/wireframes/12_player_stats.md": 14,
      "docs/wireframes/13_player_career.md": 11,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          | 32 ++++++++++++++++++++++----------
+#    .claude/task/review_input.patch | Unmerged
+#    1 file changed, 22 insertions(+), 10 deletions(-)
+# ============================================================================
