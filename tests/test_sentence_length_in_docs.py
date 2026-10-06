@@ -46,10 +46,7 @@ PINNED = {
     "dbt_project/models/docs/shared_columns.md": 35,
     "deploy/nightly/README.md": 19,
     "design-mocks/README.md": 15,
-    "docs/content_architecture.md": 11,
     "docs/data_contract.md": 31,
-    "docs/metrics_context_model.md": 17,
-    "docs/north_star.md": 8,
     "docs/operations_guide.md": 19,
     "docs/roles/analytics_engineer.md": 5,
     "docs/roles/bi_analyst.md": 5,
@@ -63,8 +60,6 @@ PINNED = {
     "docs/roles/product_analyst.md": 4,
     "docs/roles/seo_expert.md": 11,
     "docs/roles/ui_expert.md": 1,
-    "docs/site_architecture.md": 33,
-    "docs/ui_design_brief.md": 16,
     "docs/wireframes/00_overview.md": 13,
     "docs/wireframes/01_fixture_page.md": 5,
     "docs/wireframes/02_team_profile.md": 4,
@@ -79,7 +74,6 @@ PINNED = {
     "docs/wireframes/99_gaps_register.md": 66,
     "docs/wireframes/block_standard.md": 11,
     "docs/wireframes/metrics_display.md": 38,
-    "docs/working_agreement.md": 40,
     "site_v2/src/data/README.md": 25,
 }
 

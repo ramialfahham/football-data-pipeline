@@ -40,7 +40,7 @@ The user cannot manually verify numbers. Every metric and pipeline output must b
 
 ## Competition-agnostic by default
 
-`league_code` is the partition key on everything. Never hardcode a competition identifier in business logic. Every model, metric, and UI component must work for any value of `league_code` without modification.
+`league_code` is the competition discriminator on everything. Never hardcode a competition identifier in business logic. Every model, metric, and UI component must work for any value of `league_code` without modification.
 
 ## Quality standards
 

@@ -1,206 +1,209 @@
 # UI design brief — Matchday Pilot v2
 
-> The data-grounded brief for the v2 visual design pass (#366, epic #361). Written to
-> be handed to a design tool (Claude Design) or a human UI/UX expert as a
-> self-contained package. **Everything a mockup shows must be backed by a field listed
-> in §6 — the single most important rule in this document.** Structure/IA/URLs are
-> fixed by `docs/site_architecture.md`; this brief governs the look, feel and layout.
+> This brief states how Matchday Pilot v2 pages look, feel and lay out, and which data fields each
+> page may show. A design tool or a user interface and user experience (UI/UX) designer can use it
+> as a self-contained package. **Everything a mockup shows comes from a field that §6 lists — the
+> single most important rule in this document**. Where §6 points to another document, that
+> document lists the fields.
+> `docs/site_architecture.md` fixes the structure, the information architecture (IA) and the URLs.
+> `docs/wireframes/00_overview.md` owns the reading order of the design documents.
 
 ## 1. Product context
 
-**Matchday Pilot** — a fun, sticky pre-match companion for football fans: the site you
-open in the sports bar before kickoff, share with your group chat, and argue over.
-Not a stats database, not a betting tool. Casual fans must feel smart in seconds;
-hardcore fans must find depth on demand.
+**Matchday Pilot** is a fun, sticky pre-match companion for football fans. It is the site you open
+in the sports bar before kickoff, share with your group chat, and argue over. It is not a stats
+database and not a betting tool. Casual fans must feel smart in seconds. Hardcore fans must find
+depth on demand.
 
-- Audience: casual + hardcore fans, mobile-first, multilingual (8+ languages).
-- Scale ambition: media-grade platform (kicker/onefootball class), millions of users.
-- v2 replaces a card-based mobile MVP; it is a full responsive website with
-  programmatic pages for every competition, fixture, team and player.
+| Aspect | Statement |
+|---|---|
+| Audience | Casual and hardcore fans |
+| Primary device | The phone (mobile-first) |
+| Languages | Multilingual; the product targets 8 or more languages |
+| Scale ambition | A media-grade platform (kicker or onefootball class) with millions of users |
+| Site | A full responsive website with programmatic pages for every competition, fixture, team and player |
 
 ## 2. Design principles (locked — north star)
 
 1. **Every page has one thing that makes you stop scrolling.**
-2. **Data shown, not described** — charts over tables wherever possible.
+2. **Data shown, not described**: charts over tables wherever possible.
 3. **Max 2 clicks from home to anything interesting.**
-4. **Data honesty**: a missing value renders as **"-"** — never a fabricated zero,
-   never an invented stat. Empty states are designed, not hidden
-   (e.g. "Player stats not available for this match" is a COMMON state, style it well).
-5. Simple surface, depth on demand (progressive disclosure, not walls of numbers).
+4. **Data honesty**: a missing value renders as **"–"**, never as a fabricated zero. A page never
+   shows an invented stat. Design empty states instead of hiding them. For example, "Player stats
+   not available for this match" is a COMMON state, so style it well.
+5. **Simple surface, depth on demand**: progressive disclosure, not walls of numbers.
 
-## 3. Reference sites (inspiration, not blueprint)
+## 3. Reference sites
 
-CPO note: none of these is to be copied; each contributes one thing.
+The reference sites are inspiration, not a blueprint. Do not copy any of them; each contributes one
+thing.
 
 | Site | Take | Avoid |
 |---|---|---|
-| last5games.com | The last-5-form-centric match preview — closest to our W1 momentum concept | Spartan look, no brand warmth |
-| whoscored.com | Depth: ratings, dense stat tables, profile structure | Cluttered, dated, ad-heavy density |
-| onefootball.com | Modern media UX: mobile-first cards, clean type, content hierarchy | News-first (we are data-first) |
-| flashscore.com | Speed, fixtures-first navigation, information density done fast | Utilitarian, zero storytelling |
+| last5games.com | The match preview built around last-5 form, closest to our W1 momentum concept | A spartan look with no brand warmth |
+| whoscored.com | Depth: ratings, dense stat tables, profile structure | Clutter, a dated look, ad-heavy density |
+| onefootball.com | Modern media UX: mobile-first cards, clean type, content hierarchy | News first (we are data first) |
+| flashscore.com | Speed, fixtures-first navigation, information density done fast | A utilitarian look with zero storytelling |
 
 ## 4. Hard design constraints
 
-- **Responsive, mobile-first** — phone is the primary device (sports-bar use case);
-  must scale to tablet/desktop multi-column gracefully.
-- **Light + dark theme** from day one (tokens, not afterthought).
-- **Multilingual**: text expands (DE ≈ +30% vs EN); layouts must tolerate it.
-  Arabic (RTL) comes later — avoid direction-baked compositions.
-- **Tabular numerals** for all stat columns (non-negotiable for a stats product).
-- **Color semantics**: Win/Draw/Loss needs a consistent encoding (color + letter,
-  never color alone); metrics have a "good direction" (the data carries
-  `direction`) — the system must express better/worse consistently.
-- **Accessibility WCAG AA**: contrast in both themes, touch targets, reduced motion.
-- **Static site, fast**: no heavy JS; charts are lightweight islands. Core Web
-  Vitals budget — design for instant first paint.
-- **Images**: team crests + player photos come from the provider CDN (small PNGs,
-  variable quality); design needs a graceful fallback (monogram/initials).
-- Labels/wording are i18n keys — design with realistic longest-language strings.
-- **Row links**: a row that leads somewhere is ONE link, the whole row, and it lights up on
-  hover (background on hover, sunk on press, the focus ring drawn inside). An underline is for a
-  word inside running text (a breadcrumb, a sentence), never for a name inside a row. One shared
-  rule in `system.css` carries it for every row link the site has.
-- **Nothing renders empty**: a block whose data is not served is absent — no heading over
-  nothing, no placeholder rows, no dashes standing in for a block. A single value that is
-  missing inside a rendered row shows "–".
-- **Names and labels hold together**: a team name, a "Matchday N", a date never break inside
-  themselves; a wrap falls between them.
+| Constraint | Rule |
+|---|---|
+| Responsive, mobile-first | The phone is the primary device, for the sports-bar use case. Layouts scale gracefully to tablet and desktop multi-column. |
+| Themes | The site has a light and a dark theme, both built from design tokens. |
+| Text expansion | Text expands in translation, for example German by about 30% against English. Layouts tolerate it. |
+| Writing direction | Arabic (right to left, RTL) comes later. Avoid compositions with a fixed writing direction. |
+| Numerals | Every stat column uses tabular numerals. |
+| Color semantics | Win, draw and loss (W/D/L) use one consistent encoding: color plus letter, never color alone. Each metric has a good direction, which the data carries in `direction`. The design expresses better and worse consistently. |
+| Accessibility | WCAG AA (Web Content Accessibility Guidelines, level AA): contrast in both themes, touch targets, reduced motion. |
+| Performance | The site is static and fast: no heavy JavaScript, and charts are lightweight islands. Design for instant first paint, within a Core Web Vitals budget. |
+| Images | Team crests and player photos come from the provider's content delivery network (CDN) as small PNGs of variable quality. The design needs a graceful fallback: a monogram or initials. |
+| Labels | Labels and wording are i18n (internationalisation) keys. Design with realistic strings from the longest language. |
+| Row links | A row that leads somewhere is ONE link: the whole row. Hover tints its background, a press sinks it, and the focus ring sits inside the row. An underline marks a word inside running text, such as a breadcrumb or a sentence. A name inside a row never has an underline. One shared rule in `system.css` carries this for every row link on the site. |
+| Nothing renders empty | A block with no served data is absent: no heading over nothing, no placeholder rows, no dashes in place of a block. A single missing value inside a rendered row shows "–". |
+| Names hold together | A team name, a "Matchday N" or a date never breaks inside itself; a wrap falls between them. |
 
-## 5. Navigation & page inventory (fixed by site_architecture.md)
+## 5. Navigation and page inventory
 
-Nav: `Competitions · Matches · Teams · Players · Standings · Statistics` + search + language.
-Competitions are reached from the competitions index page (`/{locale}/competitions/`, built
-2026-08-18), which groups them by competition type. ⚠ The home page's browse-by-group-and-country
-block that used to be a second route in was **dropped 2026-08-19**; country hubs remain unbuilt.
-Pages to design (priority order):
+`docs/site_architecture.md` owns the navigation, the URLs and the competitions index.
+
+Pages to design, in priority order:
 
 1. **Fixture page** ⭐ (the heart of the product)
 2. **Team profile** ⭐
-3. **Landing**
+3. **Landing** (home)
 4. **Player profile**
-5. Competition hub (incl. standings, fixtures, leaderboards tabs)
-6. Head-to-head, metric glossary (system pages — derive from the established language)
+5. Competition page, with its tabs (§6.5)
+6. Head-to-head and metric glossary: system pages that derive from the established design language
 
 ## 6. Per-screen data contract (what a mockup MAY show)
 
-Metric display names come from the metric catalogue (translated); listed here as
-plain-English meaning. **If a stat is not listed below, we do not have it — do not
-draw it** (no xG, no shot maps, no heat maps, no pass networks, no win probability).
+Metric display names come from the metric catalogue, `dbt_project/seeds/metric_catalogue.csv`, in
+translation. This section lists each metric by its plain-English meaning. **If a stat is not listed
+below, we do not have it — do not draw it**. So a mockup shows no xG (expected goals), no shot maps,
+no heat maps, no pass networks and no win probability.
 
 ### 6.1 Fixture page ⭐
-Header: both teams (name, crest), kickoff datetime, competition, round, venue name.
-Two complementary windows per team, always shown side by side:
-- **W1 — last-5 form (cross-competition)**: games in window (≤5), points won,
-  goals/match, goals against/match, shots/match, shot accuracy %, danger-zone ratio %
-  (share of shots from inside the box), finishing efficiency %, passes/match,
-  pass accuracy %, corners/match, corners conceded/match, save ratio %, key
-  passes/match, tackles/match, interceptions/match, blocks/match, duels won %,
-  dribbles success %, the list of contributing competitions, league rank (when a
-  single round-robin table applies — else absent).
-- **W2 — season to date (this competition)**: same metric set, cumulative; before a
-  season starts it falls back to the previous season (labelled).
-- **Form drill-down (per team)**: the actual last-5 matches — opponent (name, crest),
-  date, competition, home/away, score, W/D/L — each clickable when a stat line exists
-  (flags say whether team/player stats are available).
-- **Match detail (a clicked past match)**: full team stat lines both sides
-  (possession %, shots on/off/total/blocked/inside/outside box, fouls, corners,
-  offsides, cards, saves, passes total/accurate/%) + per-player stat lines both sides
-  (minutes, shirt, position, captain/sub, goals, assists, shots, passes, key
-  passes, tackles, interceptions, blocks, duels, dribbles, fouls, cards, penalties).
-- **Player insights (per team)**: top players over the form window — appearances,
-  minutes, goals, assists, shots on target, key passes, pass accuracy %, duels won %,
-  dribbles success %, cards; GK: saves, goals conceded, save %.
-- Standings context: each team's rank + mini table slice (league/group phases only).
-- Signature-moment candidates: the W1↔W2 contrast ("hot now vs season reality"),
-  the form drill-down interaction.
+
+- **Header**: both teams (name, crest), kickoff date and time, competition, round, venue name.
+- **Two windows per team**: W1 and W2 complement each other and always show side by side.
+- **W1 — form**: `docs/metrics_context_model.md` §4 names the matches in the window. For a club,
+  they are the last 5 matches across all its competitions. Fields:
+  - games in window, points won
+  - goals per match, goals against per match
+  - shots per match, shot accuracy %, danger-zone ratio % (share of shots from inside the box),
+    finishing efficiency %
+  - passes per match, pass accuracy %
+  - corners per match, corners conceded per match
+  - save ratio %, key passes per match
+  - tackles per match, interceptions per match, blocks per match
+  - duels won %, dribbles success %
+  - the list of contributing competitions
+  - league rank, only when a single round-robin table applies; otherwise absent
+- **W2 — season to date (this competition)**: the same metric set, cumulative. Before a season
+  starts, W2 falls back to the previous season, with a label that says so.
+- **Form drill-down (per team)**: the actual matches in the W1 window. Per match: opponent (name,
+  crest), date, competition, home or away, score, W/D/L. A match is clickable when a stat line
+  exists. Flags say whether team stats and player stats are available.
+- **Match detail (a clicked past match)**: full stat lines for both sides.
+  - Team stat line: possession %, shots (on target, off target, total, blocked, inside box,
+    outside box), fouls, corners, offsides, cards, saves, passes (total, accurate, %).
+  - Player stat line: minutes, shirt, position, captain or substitute, goals, assists, shots,
+    passes, key passes, tackles, interceptions, blocks, duels, dribbles, fouls, cards, penalties.
+- **Player insights (per team)**: the top players over the form window. Fields: appearances,
+  minutes, goals, assists, shots on target, key passes, pass accuracy %, duels won %, dribbles
+  success %, cards. Goalkeepers: saves, goals conceded, save %.
+- **Standings context**: each team's rank and a mini table slice, for league and group phases only.
+- **Head-to-head**: the past meetings of the two teams (`mart_head_to_head`).
+- **Signature-moment candidates**: the W1↔W2 contrast ("hot now vs season reality"), and the form
+  drill-down interaction.
 
 ### 6.2 Team profile ⭐
-Identity: name, crest, country, founded, venue (name, city, capacity).
-Per season (selector):
-- Record: played, W/D/L, goals for/against, goal difference, points, clean sheets,
-  rank, recent form string (e.g. WWDLW).
-- Season metric rates: the same metric family as §6.1 (per-match values + ratios).
-- **Deserved vs actual** (a differentiator): shot share % (share of all shots in the
-  team's matches), points capture % (points won / points available), and the labelled
-  gap between them — "dominates play more/less than results show". Two real numbers
-  + their difference; NOT a composite score gauge.
-- **Year-over-year** (domestic leagues): points / goals for / goals against through N
-  games this season vs the same N games last season, with deltas. NULL for cups and
-  where last season isn't ingested — design the absent state.
-- **Streaks**: current unbeaten / win / winless / clean-sheet / scoring runs.
-- Fixtures: next + recent matches list.
-- **Squad** (added 2026-07-24, built per approved mock f6348775): per player, for the
-  competition-season — appearances (matches played), minutes per appearance, goals, assists —
-  grouped by position (GK/DEF/MID/FWD), monogram avatars (no photos, standing CPO decision).
-  From `mart_player_career` joined onto the roster; members with >= 1 appearance listed, "N of M
-  shown" caption. (mins/app is a catalogue metric; appearances/goals/assists are dimensions.)
-- Signature-moment candidates: deserved-vs-actual visual; YoY trend comparison.
+
+**Identity**: name, crest, country, founded, venue (name, city, capacity).
+
+**Per season** (selector):
+
+- **Record**: played, W/D/L, goals for and against, goal difference, points, clean sheets, rank,
+  recent form string (for example WWDLW).
+- **Season metric rates**: the same metric family as §6.1, as per-match values and ratios.
+- **Deserved vs actual** (a differentiator): shot share %, points capture %, and the labelled gap
+  between them. Shot share % is the share of all shots in the team's matches. Points capture % is
+  points won / points available. The gap label reads "dominates play more/less than results show".
+  The block shows two real numbers and their difference, NOT a composite score gauge.
+- **Year-over-year (YoY)** (domestic leagues): points, goals for and goals against through N games
+  this season, against the same N games last season, with deltas. The values are NULL for cups and
+  where the warehouse holds no last season. Design the absent state.
+- **Streaks**: the current unbeaten, win, winless, clean-sheet and scoring runs.
+- **Fixtures**: a list of the next and recent matches.
+- **Squad**: per player, for the competition-season: appearances (matches played), minutes per
+  appearance, goals, assists. Players group by position (GK, DEF, MID, FWD), with monogram avatars
+  and no photos. The data is `mart_player_career` joined onto the roster. The list holds the members
+  with at least one appearance, under an "N of M shown" caption.
+- **Signature-moment candidates**: the deserved-vs-actual visual, and the YoY trend comparison.
 
 ### 6.3 Landing (home)
 
-⛔ **THIS SECTION IS SUPERSEDED — read `docs/wireframes/10_home.md` §0 instead, it is the
-authority.** The live composition is **next matches → Top players → Top teams** (the latter two
-specified, not built), so the home page today renders next matches ALONE. Everything below is the
-ORIGINAL 2026-06-10 model, kept struck so the design reasoning stays readable. Do not design
-against it.
-
-~~Agreed **hybrid** model (CPO, 2026-06-10): fixtures-first, with stats/storylines below.~~
-The MVP's competition-card landing is **obsolete** for a website. Module order
-(top → bottom), each tagged with its real data status at the time:
-
-1. **Fixtures hero — upcoming matches.** The product's core feature (the MVP's
-   fixture list), elevated to the home across competitions: date-navigable, grouped
-   by competition, each row carrying its form hook and linking to the fixture page.
-   *Status:* the per-competition list + fixture page exist; ⚠ the cross-competition
-   home aggregation is a feed to build.
-2. ~~**Hybrid browse:** competition groups + country hubs.~~ **DROPPED**.
-   Built, then removed: its only real value was reachability into the
-   long-tail team/player pages, both blocked on name data quality, and the competitions index
-   page already covers the competitions pool.
-3. ~~**Storylines — "Trending"**~~ and 4. ~~**Stats** teasers~~ — both **CUT 2026-08-08**; the
-   stats block was ruled useless and replaced, trending is absent from the composition.
-
-Persistent: search, language switcher.
-
-The fixture page reached from the hero shows the **side-by-side form comparison**
-(existing — the match preview) plus **past-meetings head-to-head**
-(`mart_head_to_head`, #375). Note: an earlier draft of this section listed a landing
-composition that had not been discussed; this is the reviewed, agreed version.
+The home page's GitLab issue and `docs/wireframes/10_home.md` §0 own this screen's fields.
 
 ### 6.4 Player profile
-Identity: name, photo, nationality, birth date, position badge (GK/DF/MF/FW), team.
-Per season (selector): appearances, starts, sub appearances, minutes; goals, assists,
-shots on target, passes (total, accurate, key), pass accuracy %, tackles,
-interceptions, blocks, duels (won/total, %), dribbles (success/attempts, %, dribbled
-past), offsides, cards (Y/R), penalties (won/committed); GK: saves, conceded, save %.
-**Match log**: per match — date, competition, opponent (crest), home/away, score,
-W/D/L, minutes, goals, assists, cards.
-Note: per-90 rates and "smart composite scores" are deliberately NOT available yet —
-do not draw them.
 
-### 6.5 Competition hub
-Standings table (rank, team+crest, P W D L GF GA GD Pts, form string; group tables
-for tournaments incl. group letters), fixtures by round, top-scorer leaderboard
-(rank, player, team, goals, assists, appearances), season selector.
+**Identity**: name, photo, nationality, birth date, position badge (GK/DF/MF/FW), team.
+
+**Per season** (selector):
+
+- appearances, starts, substitute appearances, minutes
+- goals, assists, shots on target
+- passes (total, accurate, key), pass accuracy %
+- tackles, interceptions, blocks
+- duels (won/total, %)
+- dribbles (success/attempts, %, dribbled past)
+- offsides, cards (yellow/red), penalties (won/committed)
+- goalkeepers: saves, conceded, save %
+
+**Match log**: per match: date, competition, opponent (crest), home or away, score, W/D/L, minutes,
+goals, assists, cards.
+
+Do not draw per-90 rates or "smart composite scores".
+
+### 6.5 Competition page
+
+The competition page's GitLab issue owns this screen's fields; `docs/wireframes/00_overview.md`
+names the issue.
 
 ## 7. Component inventory expected from the design
 
-Fixture row/card · stat row (label + value + direction) · metric comparison bar
-(team A vs B) · form string (W W D L W) · standings table (+compact variant) ·
-player row · profile header (team/player) · radar or bar set for metric families ·
-sparkline/trend (YoY, form over time) · big-number callout · tab/segment control ·
-empty/absent-data state · nav (mobile bottom-bar or burger + desktop header) ·
-search field · language switcher · footer (legal links).
+`docs/wireframes/block_standard.md` owns each built element's selector, rule and measurements.
+
+- Fixture row or card
+- Stat row (label, value, direction)
+- Metric comparison bar (team A vs team B)
+- Form string (W W D L W)
+- Standings table, with a compact variant
+- Player row
+- Profile header (team, player)
+- Radar or bar set for metric families
+- Sparkline or trend (YoY, form over time)
+- Big-number callout
+- Tab or segment control
+- Empty or absent-data state
+- Navigation: a mobile bottom bar or burger menu, and a desktop header
+- Search field
+- Language switcher
+- Footer with legal links
 
 ## 8. Deliverables requested from the design pass
 
-1. **2–3 distinct visual directions** (mood: e.g. "broadcast bold" vs "editorial
-   clean" vs "data-zen") shown on ONE screen — the fixture page.
-2. The chosen direction applied to: fixture page, team profile, landing (mobile +
-   desktop for each), incl. dark mode for at least one.
-3. Token sheet: color palette (incl. W/D/L + metric-direction semantics, both
-   themes), type scale, spacing.
-4. The empty/absent states styled (missing player stats; "-" values; no-YoY case).
+1. **2–3 distinct visual directions**, shown on ONE screen: the fixture page. Example moods:
+   "broadcast bold", "editorial clean", "data-zen".
+2. The chosen direction applied to the fixture page, team profile and landing, each for mobile and
+   desktop. At least one of them also in dark mode.
+3. A token sheet: color palette (with W/D/L and metric-direction semantics, both themes), type
+   scale, spacing.
+4. The empty and absent states, styled: missing player stats, "–" values, the no-YoY case.
 
-Out of scope for the design pass: predictions UI (slot reserved, nothing rendered),
-monetization slots (named placeholders), live-match states.
+Out of scope for the design pass:
+
+- the predictions UI (slot reserved, nothing rendered)
+- monetization slots (named placeholders)
+- live-match states
