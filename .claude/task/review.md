@@ -1,6 +1,6 @@
 # Review — docs/strip-chat-quotes
 
-diff_sha256: 827e0cc6e2630c794a85edf2018e4b71b545f9e3760f4690c432fd7ab50e6996
+diff_sha256: bb1896d483894040d82c77e7526bf1afd7f265c09e8f6795dffb4c14e5e29304
 
 rounds: 2
 
