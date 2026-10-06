@@ -187,6 +187,8 @@ models:
         description: Goals scored across all matches of the section, from the official standings row.
       - name: goals_against_all
         description: Goals conceded across all matches of the section, from the official standings row.
+      - name: provider_team_id
+        description: "The team the provider files the row under; differs from team_id only on a row corrected to its official team."
       - name: provider_standing_rank
         description: "The provider's rank; differs from standing_rank only on a corrected row."
       - name: provider_points

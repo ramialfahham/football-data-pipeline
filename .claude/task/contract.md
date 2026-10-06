@@ -1,102 +1,64 @@
-# Task contract — match events come only from each match's latest fetch
+# Task contract — no team-season counts fewer games than its competition's standings
 
 objective: >
-  A match's events are those of its latest fetch that has events. Base keeps only that fetch's
-  rows; fct_fixture_event is rebuilt in full every night from base, so 32 stale events in 8
-  matches (25 of them goals) leave the fact; a singular test fails on any event beyond the latest
-  fetch.
+  The standings games test is red on 3 team-seasons. Declare the Süper Lig match the TFF awarded
+  0–3, re-key the two 2021 AFC Champions League standings rows the provider files under the wrong
+  club, and make the test an error.
 
 refs: >
-  #201. Plan approved by the CPO in chat, 2026-10-05.
+  #202. Plan approved by the CPO in chat, 2026-10-05.
 
 acceptance_criteria:
-  - Every match's events are the events of its latest fetch that has events; no event from an older, longer fetch remains (today: 32 stale events in 8 matches, 25 of them goals)
-  - Numbers built on match events change only for those 8 matches
-  - A test fails when a match holds an event its latest fetch does not have
+  - Gaziantep FK–Trabzonspor, Süper Lig 19 Mar 2023, counts as awarded 0–3 (TFF board decision, 12 Feb 2023)
+  - The 2021 AFC Champions League Group E 2nd place and the best-second-placed ranking belong to Al Wahda FC (UAE), not Al Wehda Club (Saudi Arabia)
+  - The standings games test is an error, not a warning, and passes
 
 scope_paths:
-  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+  - dbt_project/seeds/fixture_result_corrections.csv
+  - dbt_project/seeds/standings_corrections.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/models/2_base/api_football/base_apif__standings.sql
   - dbt_project/models/2_base/api_football/base.yml
-  - dbt_project/models/3_core/fct_fixture_event.sql
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
-  - dbt_project/tests/assert_no_event_loss_since_cutoff.sql
-  - dbt_project/dbt_project.yml
-  - dbt_project/docs/layering.md
+  - dbt_project/tests/assert_result_corrections_applied.sql
+  - dbt_project/tests/assert_team_season_games_not_short_of_standings.sql
   - tests/test_no_decision_history_in_code.py
-  - docs/data_contract.md
-  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-  - ingestion/api_football/loads/batch_fixtures.py
-  - tests/test_incomplete_fetch_no_supersede.py
-  - dbt_project/tests/assert_fanout_facts_not_empty.sql
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - docs/tracker/**
 
 impact_map: >
-  writers: stg_apif__fixture_events (all fetches, from RAW_APIF_FIXTURE_DETAILS, append-only) →
-  base_apif__fixture_events (the only writer of base events) → fct_fixture_event (only reader of base
-  events in core).
-  downstream (`dbt ls --select base_apif__fixture_events+ --resource-type model`, pasted):
-  base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
-  base_apif__players dim_player fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats
-  int_legs__player_match int_legs__team_from_players int_legs__team_match
-  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
-  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
-  int_player_profile__yoy int_player_season__metrics int_player_season__team
-  int_player_season_position__metrics int_player_season_record
-  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
-  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
-  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
-  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
-  mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
-  mart_matchday_insights mart_player_career mart_player_competition_benchmarks
-  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
-  mart_player_season_record mart_roster mart_team_competition_benchmarks mart_team_fixture_stats
-  mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
-  mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record
-  layer_rules: base dedups (layering §2_base); a 3_core fact sets no materialisation of its own once
-  it is not incremental (check_layer_contract.py); no partition_by or cluster_by.
-  deploy_order: on merge the 04:00 nightly rebuilds base and builds fct_fixture_event as a table in
-  place of the incremental one; nothing runs between merge and the nightly. The MR build writes
-  only ci_mr datasets.
-  blast_radius: measured on prod (two queries, 40.5 MB and 47.4 MB): 56,286 matches, 116 fetched
-  more than once; base holds 15 stale events in 6 matches, the fact 32 in 8 (17 no longer in base);
-  fact events of matches missing from raw: 0. Numbers built on events change for those 8 matches
-  only: phantom goals in 4 (they contradict the official score), last-minute cards in 3, and the
-  kicks of 2 shoot-outs that every reader excludes.
+  writers: fixture_result_corrections → base_apif__fixtures_next (status AWD and the official score
+  for a declared fixture); standings_corrections → base_apif__standings (the only writer of base
+  standings).
+  downstream of base_apif__standings (`dbt ls --select base_apif__standings+ --resource-type model`,
+  pasted): base_apif__standings fct_standings int_team_season__deserved_vs_actual
+  int_team_season__standings_primary mart_competition_fixtures mart_fixture_standing_context
+  mart_match_days mart_matchday_insights mart_next_matchday mart_standings mart_team_profile
+  mart_team_season mart_team_season_insights.
+  downstream of base_apif__fixtures_next: every fixture-grained model (fct_fixture, int_legs__*,
+  the team-season metrics, the marts), as for any existing fixture_result_corrections row.
+  layer_rules: corrections are seeds applied in base (layering §2_base); no materialisation change.
+  deploy_order: on merge the 04:00 nightly seeds and rebuilds; the MR build writes only ci_mr
+  datasets.
+  blast_radius: one fixture (884568, TSL 2022) becomes AWD 0–3, so Gaziantep FK and Trabzonspor
+  count 36 games each; two AFCCL 2021 standings rows move from team 2937 to 2875. No other row
+  changes.
 
 decisions_taken: >
-  The plan in #201, approved by the CPO in chat, 2026-10-05. Readings, under the delegation of
-  2026-10-02:
-  - "Latest fetch that has events": staging holds rows only for fetches with events, so the
-    latest staging fetch of a match is that fetch; a later empty fetch keeps the earlier list.
-  - The descriptions of base and the fact (persisted to BigQuery) and layering.md §Materialisation
-    are corrected to the new behaviour; the full-rebuild list there gains fct_fixture_event.
-  - Checked before building, approved by the CPO in chat, 2026-10-05: in the four matches whose
-    older fetch holds extra goals, the latest fetch's goals equal the official score and the
-    extra goals do not. Two penalty shoot-outs (23 kick events) exist only in older fetches and
-    leave the fact; both readers of shoot-out kicks only exclude them, and the result stays in
-    fct_fixture.
-  - assert_no_event_loss_since_cutoff and its event_loss_detector_from var are deleted: with the
-    fact rebuilt from base, the fact can no longer hold an event base lacks, so the test cannot fail.
-  - The deleted comments carried three issue numbers, so the comment-history pin in
-    tests/test_no_decision_history_in_code.py is lowered to the measured count.
-  - Every other place that states the old per-position rule or the incremental load is corrected:
-    docs/data_contract.md "Fixture details" (the owner of "raw keeps both versions, base
-    decides"), the staging description (persisted), the comment in batch_fixtures.py (comment only;
-    it also loses a quoted phrase and a pointer to the deleted escalations log), a test docstring,
-    and the header of assert_fanout_facts_not_empty.sql.
+  The plan in #202, approved by the CPO in chat, 2026-10-05: standings_corrections gains an
+  optional official_team_id. Readings, under the delegation of 2026-10-02:
+  - A red league-table row is a result to research and declare: the Süper Lig match is declared
+    from the TFF board decision without a question.
+  - The Al Wahda rows keep the provider's figures (they are right); the correction is the team.
+  - The test's paragraph explaining why it was a warning goes with the warning.
 
-  Threshold declarations. NEW MECHANISM: none. RECURRING COST: the new test and the fact's full
-  rebuild, measured by dry run below the incremental load they replace; numbers in the MR head.
+  Threshold declarations. NEW MECHANISM: none beyond the approved seed column. RECURRING COST: none.
 
 decisions_reserved:
   - None.
 
 done_when:
-  - The MR data build passes, including the new test; measured on the MR build's datasets: no
-    event beyond the latest fetch, and only the 8 matches differ from prod.
+  - The MR data build passes with both tests at error and 0 rows from the standings games test.
   - pytest (whole suite), ruff, SQLFluff and the offline gates pass.
   - The review cycle passes, review.md bound to --staged-hash; the MR pipeline is green.

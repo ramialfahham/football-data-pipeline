@@ -1,6 +1,6 @@
 {{
     config(
-        severity = 'warn',
+        severity = 'error',
         tags=["dq", "core", "season_reconciliation"],
         store_failures = true
     )
@@ -24,10 +24,8 @@
 -- two-sided test would be red on 38% of all rows and would be deleted within a week. Only
 -- `ours < standings` means something is missing.
 --
--- ⚠ SEVERITY IS WARN, DELIBERATELY AND FOR NOW, because this test is
--- RED ON REAL DATA TODAY — 3 rows, at least two of them confirmed genuine. Their fix is GitLab
--- #110's open rule on awarded results filed under the wrong status. Error severity would stop the
--- whole warehouse over defects we have deliberately not decided how to correct yet.
+-- A red row is a match the league counts and we do not, or a standings row filed under the wrong
+-- team: research the official decision and declare it in the correction seeds.
 --
 -- ⛔ IT REPLACES assert_mart_team_season_insights_games_match_played, WHICH COULD NOT FAIL.
 -- That test compared mart_team_season_insights.season_games_played against .played — but
@@ -49,8 +47,7 @@
 -- those rows frequently share a raw_ingested_at, so the tiebreak is not even stable. For a numeric
 -- reconciliation that is unsound in both directions: it can invent a shortfall or hide one.
 -- MAX is deterministic and errs toward silence: if any authoritative table says the team played N,
--- we should hold at least N. It returns the same 3 rows as the arbitrary pick today, so this changes
--- no current result — it makes the test correct by construction rather than by luck.
+-- we should hold at least N.
 with standings_played as (
     select
         team_sk,

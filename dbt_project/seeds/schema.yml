@@ -597,9 +597,10 @@ seeds:
   - name: standings_corrections
     description: >
       The league's official figures for each provider league-table row that differs from them,
-      one row per table row, each naming its source. Applied in base_apif__standings, which keeps
-      the provider's figures next to them. assert_result_corrections_applied fails when a row is
-      not applied, its source is not valid, or it no longer changes anything.
+      and the official team where the provider files the row under the wrong one, one row per
+      table row, each naming its source. Applied in base_apif__standings, which keeps the
+      provider's figures and team next to them. assert_result_corrections_applied fails when a row
+      is not applied, its source is not valid, or it no longer changes anything.
     config:
       column_types:
         league_code: string
@@ -617,6 +618,7 @@ seeds:
         source_kind: string
         source: string
         note: string
+        official_team_id: int64
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [league_code, season, team_id, group_name]
@@ -669,6 +671,8 @@ seeds:
       - name: note
         description: "The team, the season and why the row differs, in words."
         tests: [not_null]
+      - name: official_team_id
+        description: "The provider's id of the team the row officially belongs to, when the provider files it under team_id by mistake; empty otherwise."
 
   - name: standings_points_adjustments
     description: >
