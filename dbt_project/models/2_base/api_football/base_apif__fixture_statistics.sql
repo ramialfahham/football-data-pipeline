@@ -41,6 +41,8 @@ pivoted as (
             as corners,
         max(case when stat_type = 'Offsides' then safe_cast(stat_value_raw as int64) end)
             as offsides,
+        max(case when stat_type = 'Free Kicks' then safe_cast(stat_value_raw as int64) end)
+            as free_kicks,
         max(case
             when stat_type = 'Ball Possession'
                 then safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64)
@@ -241,6 +243,7 @@ in_context as (
         o.fouls as opponent_fouls,
         o.corners as opponent_corners,
         o.offsides as opponent_offsides,
+        o.free_kicks as opponent_free_kicks,
         o.cards_yellow as opponent_cards_yellow,
         o.cards_red as opponent_cards_red,
         o.saves as opponent_saves,
@@ -299,6 +302,7 @@ filled as (
         coalesce(fouls, if(opponent_fouls is not null, 0, null)) as fouls_filled,
         coalesce(corners, if(opponent_corners is not null, 0, null)) as corners_filled,
         coalesce(offsides, if(opponent_offsides is not null, 0, null)) as offsides_filled,
+        coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
         coalesce(
             cards_yellow,
             if(opponent_cards_yellow is not null or (events_delivered and events_against_no_yellow = 0), 0, null)
@@ -452,6 +456,7 @@ select
     fouls_filled as fouls,
     corners_filled as corners,
     offsides_filled as offsides,
+    free_kicks_filled as free_kicks,
     possession_pct,
     cards_yellow_filled as cards_yellow,
     cards_red_filled as cards_red,

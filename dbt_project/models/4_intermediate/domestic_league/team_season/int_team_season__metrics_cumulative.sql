@@ -299,6 +299,142 @@ select
     ) as duels_won_pct,
     safe_divide(
         if(
+            logical_and(is_awarded_result or shots_on_target_against is not null) over w,
+            sum(if(is_awarded_result, null, shots_on_target_against)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as shots_on_goal_against_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or shots_off_target is not null) over w,
+            sum(if(is_awarded_result, null, shots_off_target)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as shots_off_target_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or shots_blocked is not null) over w,
+            sum(if(is_awarded_result, null, shots_blocked)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as shots_blocked_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or shots_inside_box is not null) over w,
+            sum(if(is_awarded_result, null, shots_inside_box)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as shots_inside_box_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or passes_accurate is not null) over w,
+            sum(if(is_awarded_result, null, passes_accurate)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as passes_accurate_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or passes is not null) over w,
+            sum(if(is_awarded_result, null, passes)) over w,
+            null
+        ),
+        if(
+            logical_and(is_awarded_result or (passes + passes_against) is not null) over w,
+            sum(if(is_awarded_result, null, passes + passes_against)) over w,
+            null
+        )
+    ) as passes_share_pct,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or dribbles is not null) over w,
+            sum(if(is_awarded_result, null, dribbles)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as dribbles_attempts_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or dribbles_success is not null) over w,
+            sum(if(is_awarded_result, null, dribbles_success)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as dribbles_success_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or dribbles_success is not null) over w,
+            sum(if(is_awarded_result, null, dribbles_success)) over w,
+            null
+        ),
+        if(
+            logical_and(is_awarded_result or dribbles is not null) over w,
+            sum(if(is_awarded_result, null, dribbles)) over w,
+            null
+        )
+    ) as dribbles_success_pct,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or duels_won is not null) over w,
+            sum(if(is_awarded_result, null, duels_won)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as duels_won_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or saves is not null) over w,
+            sum(if(is_awarded_result, null, saves)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as saves_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or free_kicks is not null) over w,
+            sum(if(is_awarded_result, null, free_kicks)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as free_kicks_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or fouls is not null) over w,
+            sum(if(is_awarded_result, null, fouls)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as fouls_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or offsides is not null) over w,
+            sum(if(is_awarded_result, null, offsides)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as offsides_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or cards_yellow is not null) over w,
+            sum(if(is_awarded_result, null, cards_yellow)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as cards_yellow_per_match,
+    safe_divide(
+        if(
+            logical_and(is_awarded_result or cards_red is not null) over w,
+            sum(if(is_awarded_result, null, cards_red)) over w,
+            null
+        ),
+        countif(not is_awarded_result) over w
+    ) as cards_red_per_match,
+    safe_divide(
+        if(
             logical_and(is_awarded_result or (goals_against = 0) is not null) over w,
             countif(not is_awarded_result and (goals_against = 0)) over w,
             null
@@ -327,14 +463,6 @@ select
             null
         )
     ) as shots_share_pct,
-    safe_divide(
-        if(
-            logical_and(is_awarded_result or shots_on_target_against is not null) over w,
-            sum(if(is_awarded_result, null, shots_on_target_against)) over w,
-            null
-        ),
-        countif(not is_awarded_result) over w
-    ) as shots_on_goal_against_per_match,
     safe_divide(
         if(
             logical_and(is_awarded_result or (shots_on_target - shots_on_target_against) is not null) over w,

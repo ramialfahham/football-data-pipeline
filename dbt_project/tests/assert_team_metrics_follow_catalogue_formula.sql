@@ -90,9 +90,7 @@ with legs as (
         tp.duels,
         tp.duels_won,
         tp.dribbles,
-        tp.dribbles_success,
-        tp.fouls,
-        tp.fouls_against
+        tp.dribbles_success
     from {{ ref('int_legs__team_match') }} as tm
     left join {{ ref('int_legs__team_from_players') }} as tp
         on tm.fixture_sk = tp.fixture_sk and tm.team_sk = tp.team_sk

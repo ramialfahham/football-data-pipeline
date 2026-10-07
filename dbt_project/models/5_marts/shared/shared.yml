@@ -123,6 +123,12 @@ models:
       - dbt_utils.expression_is_true:
           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
           name: momentum_team_duels_won_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "passes_share_pct is null or (passes_share_pct between 0 and 1)"
+          name: momentum_team_passes_share_pct_in_range
+      - dbt_utils.expression_is_true:
+          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
+          name: momentum_team_dribbles_success_pct_in_range
       # clean sheets are scoreline-based: always present, bounded by the window
       - dbt_utils.expression_is_true:
           expression: "clean_sheets between 0 and games_in_window"
@@ -257,6 +263,38 @@ models:
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
         description: "{{ doc('duels_won_pct') }}"
+      - name: shots_on_goal_against_per_match
+        description: "{{ doc('shots_on_goal_against_per_match') }}"
+      - name: shots_off_target_per_match
+        description: "{{ doc('shots_off_target_per_match') }}"
+      - name: shots_blocked_per_match
+        description: "{{ doc('shots_blocked_per_match') }}"
+      - name: shots_inside_box_per_match
+        description: "{{ doc('shots_inside_box_per_match') }}"
+      - name: passes_accurate_per_match
+        description: "{{ doc('passes_accurate_per_match') }}"
+      - name: passes_share_pct
+        description: "{{ doc('passes_share_pct') }}"
+      - name: dribbles_attempts_per_match
+        description: "{{ doc('dribbles_attempts_per_match') }}"
+      - name: dribbles_success_per_match
+        description: "{{ doc('dribbles_success_per_match') }}"
+      - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_per_match
+        description: "{{ doc('duels_won_per_match') }}"
+      - name: saves_per_match
+        description: "{{ doc('saves_per_match') }}"
+      - name: free_kicks_per_match
+        description: "{{ doc('free_kicks_per_match') }}"
+      - name: fouls_per_match
+        description: "{{ doc('fouls_per_match') }}"
+      - name: offsides_per_match
+        description: "{{ doc('offsides_per_match') }}"
+      - name: cards_yellow_per_match
+        description: "{{ doc('cards_yellow_per_match') }}"
+      - name: cards_red_per_match
+        description: "{{ doc('cards_red_per_match') }}"
 
   - name: mart_player_momentum
     description: >

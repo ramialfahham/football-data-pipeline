@@ -127,6 +127,14 @@ candidate_legs as (
         l.corners_against,
         l.saves,
         l.shots_on_target_against,
+        l.shots_off_target,
+        l.shots_blocked,
+        l.passes_against,
+        l.fouls,
+        l.offsides,
+        l.free_kicks,
+        l.cards_yellow,
+        l.cards_red,
         -- Tournament types (matrix §4) use a cumulative within-tournament window. The
         -- competition_type is the declared axis here (like entity_type), so we branch on it
         -- once — never on a hardcoded league_code. coalesce keeps it total: an unresolved
@@ -263,5 +271,13 @@ select
     corners_against,
     saves,
     shots_on_target_against,
+    shots_off_target,
+    shots_blocked,
+    passes_against,
+    fouls,
+    offsides,
+    free_kicks,
+    cards_yellow,
+    cards_red,
     recency_rank
 from combined
