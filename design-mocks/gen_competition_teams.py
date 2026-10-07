@@ -139,7 +139,7 @@ def board_html(key, boards):
     lab = label(key)
     title_en = board_title(key, lab, "en")
     fi_lab = FI.get(key, (lab, True))[0]
-    title_fi = board_title(key, fi_lab, "fi") if fi_lab.startswith("Ø ") == lab.startswith("Ø ") else fi_lab
+    title_fi = board_title(key, fi_lab, "fi")
     rows = []
     for rank, name, slug, value in boards[key]:
         rows.append('<a class="ctab-row" href="/en/teams/%s/"><span class="rk num">%d</span>%s'

@@ -12,7 +12,7 @@
 import Crest from "../ui/Crest.astro";
 import { formatValue } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { metricLabel, boardTitle } from "../../i18n/strings";
+import { boardTitle } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
 import type { CompetitionBoard } from "../../lib/types";
 
@@ -23,9 +23,9 @@ interface Props {
 }
 const { board, entity, lang } = Astro.props;
 
-// "Ø Goals" is a row label; as a board name the sigil is spelled out ("Goals per match"), and only
-// where the catalogue says the metric is per match — the export carries that fact.
-const title = board.per_match ? boardTitle(lang, board.label_i18n_key) : metricLabel(lang, board.label_i18n_key);
+// A per-match board says so in its title ("Goals per match"), only where the catalogue says the
+// metric is per match — the export carries that fact.
+const title = boardTitle(lang, board.label_i18n_key, board.per_match);
 
 function href(slug: string | null): string | undefined {
   if (!slug) return undefined;

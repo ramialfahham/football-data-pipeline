@@ -82,7 +82,7 @@ _LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
 # have changed independently (the home set was cut from nine boards to four while the leaderboards
 # set was not).
 # ⚠ These are the MART's keys. #40's own table lists the CATALOGUE ids (`goals`, `passes_total`);
-# the mart suffixes them `_player`. The board's NAME still comes from the catalogue's `label_en`.
+# the mart suffixes them `_player`. The board's NAME is its catalogue `label_i18n_key`'s entry in strings.ts.
 _HOME_PLAYER_BOARDS = ("goals_player", "assists_player", "passes_player", "passes_key_player")
 # The HOME page's Top teams boards (#41), four boards in display order, locked alongside the player
 # set. These are `mart_team_leaderboards`' own `metric_key` values and the catalogue's team
@@ -1654,14 +1654,15 @@ def _board_catalogue(
     # `metric_group` and `per_match` ride along for the competition boards: the group the page
     # files a board under, and whether the catalogue defines the metric per match (its
     # denominator is `count(*)`) — the fact a board TITLE turns into the words "per match". Both
-    # are read here rather than judged from the id's spelling, which is the trap
-    # `boardTitle()` in strings.ts records.
+    # are read here rather than judged from the id's spelling: an id's spelling is not a fact
+    # about the metric.
     return {
         k: {
             "label_i18n_key": by_id[k]["label_i18n_key"],
             "format": by_id[k]["format"],
             "metric_group": by_id[k].get("metric_group") or "",
-            "per_match": (by_id[k].get("denominator_expr") or "").strip() == "count(*)",
+            "per_match": (by_id[k].get("denominator_expr") or "").strip() == "count(*)"
+            and by_id[k].get("format") != "percent",
         }
         for k in boards
     }
@@ -1676,7 +1677,7 @@ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, s
 
     Design: GitLab #40, which `design-mocks/README.md` names as the authority. Four boards in a
     fixed order, ranked descending, top 7. The board is a `metric_key` in `mart_leaderboards`; the
-    board's NAME is the catalogue's `label_en` and is resolved by the frontend, not here.
+    board's NAME is its `label_i18n_key`'s entry in strings.ts, resolved by the frontend, not here.
 
     ONE PLAYER PER LEAGUE, not a pooled ranking (GAP-31 withdrawn). The warehouse decides which
     player that is, via `league_leader_order`; this function only groups the rows it

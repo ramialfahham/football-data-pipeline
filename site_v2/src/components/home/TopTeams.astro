@@ -21,11 +21,8 @@
 // contradicted the design outright — the fix was to commit the payloads the rows link to, the
 // procedure `site_v2/src/data/README.md` already sets out for a sample that is a SET.
 //
-// ⚠ THE BOARD TITLE SPELLS THE RATE OUT — `Ø Goals` renders as `Goals per match` — via
-// `boardTitle()`, which formats the SERVED label. #41 rules it in two steps: the sigil reads badly
-// as a heading, and a bare noun reads as a season total. This file does not build that string
-// itself, and neither function decides what kind of metric it has: every board in this block is a
-// per-match rate by the locked board set, asserted against the catalogue's own
+// ⚠ THE BOARD TITLE SPELLS THE RATE OUT — `Goals per match` — via `boardTitle()`. Every board in
+// this block is a per-match rate by the locked board set, asserted against the catalogue's own
 // `denominator_expr` in `test_the_team_board_set_is_all_per_match_rates`.
 //
 // A board with no data never arrives — the export omits it — so there is no empty state here, and
@@ -60,7 +57,7 @@ const leagueNames = [
   {boards.map((board) => (
     <div class="board">
       <div class="bhd">
-        <span class="bt">{boardTitle(lang, board.label_i18n_key)}</span>
+        <span class="bt">{boardTitle(lang, board.label_i18n_key, true)}</span>
       </div>
       <div class="bgrid">
         {board.rows.map((row, i) => (

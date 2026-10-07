@@ -58,7 +58,7 @@ season rates, deserved-vs-actual, YoY and streaks (identity stripped per row).
 ├────────────────────────────────────────────┤
 │  SEASON METRICS                            │  (8) metric list (locked
 │  GOALS                                     │      contract, single-value)
-│  Ø Goals            2.2                    │
+│  goals_per_match    2.2                    │
 │  …16 rows under group subheads…            │
 ├────────────────────────────────────────────┤
 │  FIXTURES                                  │  (9) next + recent (GAP-15)
@@ -128,24 +128,25 @@ signal (styled accordingly). All < 2 → module omitted.
 ### (8) Season metrics — the locked 16-row contract, single-value layout
 
 Label + one value per row (no comparison bars — single team), group subheads,
-same order/tiers as [`metrics_display.md`](metrics_display.md). Available today:
+same order/tiers as [`metrics_display.md`](metrics_display.md). Each row's name is its key's entry in
+`site_v2/src/i18n/strings.ts`. Available today:
 
-| Contract row | JSON key (season variant) |
-|---|---|
-| Ø Goals | `goals_per_match` |
-| Ø Goals against | `goals_against_per_match` |
-| Clean sheets (x/y) | derivable: `clean_sheets` of `played` |
-| Ø Shots | `shots_per_match` |
-| % Shots from box | `shots_inside_box_pct` |
-| % Goals per shot on goal | `finishing_efficiency_pct` |
-| Ø Passes | `passes_per_match` |
-| % Pass accuracy | `passes_accuracy_pct` |
-| Ø Corners | `corners_per_match` |
-| Ø Corners against | `corners_against_per_match` |
-| % Save percentage | `saves_pct` |
+| JSON key (season variant) |
+|---|
+| `goals_per_match` |
+| `goals_against_per_match` |
+| derivable: `clean_sheets` of `played` |
+| `shots_per_match` |
+| `shots_inside_box_pct` |
+| `finishing_efficiency_pct` |
+| `passes_per_match` |
+| `passes_accuracy_pct` |
+| `corners_per_match` |
+| `corners_against_per_match` |
+| `saves_pct` |
 
-**Missing season variants (GAP-13)**: Ø Shots on goal, Ø Duels, % Duels won,
-Ø Defensive actions, Ø Key passes — the full-season intermediate predates the
+**Missing season variants (GAP-13)**: `shots_on_goal_per_match`, `duels_per_match`, `duels_won_pct`,
+`defensive_actions_per_match`, `passes_key_per_match` — the full-season intermediate predates the
 player-stat-derived team metrics. Until GAP-13 ships these rows render only in
 the fixture comparison, not here. Coverage caption from
 `stat_coverage_season_games` vs `season_games_played` ("stats from N of M").

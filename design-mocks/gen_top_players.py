@@ -4,9 +4,8 @@ Same treatment as Top teams: ONE metric per board, top 7, all ranked descending,
 column-header row. Forked from gen_top_teams.py so the two blocks cannot drift apart.
 
 One thing differs from teams, and it comes from the catalogue rather than from choice:
-player board metrics are season TOTALS (`format: integer`), not per-match rates, so no
-label carries the "Ø" sigil, the per-match expansion never fires, and the board title is
-the `label_en` verbatim.
+player board metrics are season TOTALS (`format: integer`), not per-match rates, so the
+"per match" words never apply and the board title is the metric's English name verbatim.
 
 Every board is `higher_better` ranked descending, so no board disagrees with its metric's
 `direction`. The keeper board (`shots_on_goal_against`, lower_better, ranked most-first)
@@ -17,7 +16,8 @@ silently.
 Design-only. Reads nothing from BigQuery; the numbers are PLACEHOLDER.
 
 Two things are read from the repo so the mock cannot drift from the product:
-  1. every display name comes from `label_en` in dbt_project/seeds/metric_catalogue.csv,
+  1. every display name is the English entry in site_v2/src/i18n/strings.ts of the
+     `label_i18n_key` in dbt_project/seeds/metric_catalogue.csv,
      looked up by (metric_id, entity) -- the catalogue's real grain. Two of the ids used
      here carry BOTH a team and a player row, so keying on metric_id alone silently takes
      the wrong label; that is the exact bug export_metric_definitions_json.py once had.
@@ -30,6 +30,7 @@ toggles are :checked + sibling combinators.
 """
 import csv
 import html
+import re
 import sys
 from pathlib import Path
 
@@ -42,10 +43,13 @@ OUT = Path(__file__).with_name("top_players_mock.html")
 
 _ROWS = list(csv.DictReader(CATALOGUE.open(encoding="utf-8")))
 _BY_KEY = {(r["metric_id"], r["entity"]): r for r in _ROWS}
+_EN = dict(re.findall(r'"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"([^"]*)"', re.search(
+    r"const METRIC_LABELS_EN: MetricLabels = \{([\s\S]*?)\n\};",
+    (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")).group(1)))
 
 
 def label(metric_id, entity="player"):
-    """label_en for one metric. Hard-fails on an unknown id -- never invent a label."""
+    """The English name of one metric. Hard-fails on an unknown id -- never invent a label."""
     row = _BY_KEY.get((metric_id, entity))
     if row is None:
         known = sorted(m for (m, e) in _BY_KEY if e == entity)
@@ -54,9 +58,9 @@ def label(metric_id, entity="player"):
             "The board name and every column header are GOVERNED values.\n"
             "Known %s ids: %s" % (entity, metric_id, CATALOGUE.name, entity, ", ".join(known))
         )
-    lab = (row["label_en"] or "").strip()
+    lab = _EN.get(row["label_i18n_key"], "").strip()
     if not lab:
-        sys.exit("FATAL: metric '%s' (%s) has an empty label_en." % (metric_id, entity))
+        sys.exit("FATAL: metric '%s' (%s) has no English name in strings.ts." % (metric_id, entity))
     return lab
 
 
@@ -172,33 +176,12 @@ CREST = (
 )
 
 
-RATE_WINDOW = {"_per_match": {"en": " per match", "fi": " per ottelu"},
-        "_per90": {"en": " per 90", "fi": " per 90"}}
-
-
-def board_title(metric_id, lab, loc="en"):
-    """A board name SPELLS OUT the format sigil instead of carrying it.
-
-    "Ø Goals" reads badly as a heading, but plain "Goals" is WRONG -- these are per-match
-    rates, and a bare noun reads as a season total. So the sigil is expanded into the words
-    it stands for: "Ø Goals" -> "Goals per match". The column header underneath keeps the
-    compact "Ø Goals", where a sigil is fine and space is short.
-
-    Driven by the metric ID, not by the sigil, because "Ø" alone is ambiguous -- the
-    catalogue also carries per-90 labels ("Ø Successful dribbles per 90"), and appending
-    "per match" to one of those would produce nonsense. The suffix therefore comes from the
-    id, and the two are asserted to agree so a future metric cannot drift past this.
-
-    With ONE metric per board there is no column header, so this title is the ONLY label the
-    number carries -- which is exactly why it has to say "per match" rather than "Goals".
-    """
-    suffix = next((v for k, v in RATE_WINDOW.items() if metric_id.endswith(k)), None)
-    if lab.startswith("Ø "):
-        assert suffix, "%r is labelled Ø but its id names no rate window" % metric_id
-        stem = lab[len("Ø "):]
-        # a per-90 label already ends in its own window; do not double it
-        return stem if stem.endswith(suffix[loc].strip()) else stem + suffix[loc]
-    assert not suffix, "%r is a rate by id but its label %r carries no Ø" % (metric_id, lab)
+def board_title(metric_id, lab, loc="en", entity="player"):
+    """A board name, then "per match" for an average per match (denominator count(*), not a
+    share), as the site's boardTitle() builds it. The four player boards are season totals."""
+    row = _BY_KEY[(metric_id, entity)]
+    if row["denominator_expr"].strip() == "count(*)" and row["format"] != "percent":
+        return "%s %s" % (lab, {"en": "per match", "fi": "ottelua kohden"}[loc])
     return lab
 
 
@@ -351,7 +334,7 @@ def build():
 <div class="legend">
   <b>Layout mock, not a data preview.</b> The players are real people; every number beside them
   is <b>invented</b> and was never measured. Do not read a ranking off this page.
-  Each board name is <b>label_en</b> from <b>metric_catalogue.csv</b>, looked up by
+  Each board name is the English name in <b>strings.ts</b> of the <b>metric_catalogue.csv</b> key, looked up by
   (metric_id, entity=player); the generator exits on an unknown id, and it checks each board's
   sort against that metric's <b>direction</b>.
   ⚠ <b>Every Finnish string here is a probe</b> (dotted): METRIC_LABELS_FI currently holds only

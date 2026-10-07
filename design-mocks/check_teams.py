@@ -116,7 +116,7 @@ check("system.css inlined verbatim", "MATCHDAY IQ" in all_css and len(all_css) >
 titles = re.findall(r'<span class="bt"><span class="en">([^<]+)</span>', body)
 check("four boards, the 2026-08-10 cut", len(titles) == 4, " | ".join(titles))
 check("board titles spell the rate out",
-      titles == ["Goals per match", "Shots on goal per match", "Passes per match",
+      titles == ["Goals per match", "Shots on target per match", "Passes per match",
                  "Duels per match"], " | ".join(titles))
 check("no sigil left on any board title", not any(t.startswith(("Ø", "%")) for t in titles))
 check("no bare noun title (a total would read the same)", all(t.endswith(" per match") for t in titles))
@@ -134,7 +134,7 @@ for gone in ("Points captured", "Key passes", "Defensive actions", "Deserved poi
              "Points won", "difference", "Goals per shot", "Pass accuracy", "Duels won"):
     check("dropped: %s" % gone, gone not in body)
 
-# Every board leads with the metric that ranks it. The title is that metric's label_en
+# Every board leads with the metric that ranks it. The title is that metric's English name
 # minus its format sigil, so title + sigil must reconstruct the first column header exactly
 # -- which proves the title still derives from the catalogue and was not hand-written.
 for blk in body.split('<div class="board">')[1:]:

@@ -152,8 +152,8 @@ not 'Goals', because it ranks on `scorer_points_player`"* — but the 2026-08-10
 **Goals**. The example inverted when the boards changed; the rule is what produced both answers.
 Two consequences worth stating, because both were ruled:
 
-- The name is a GOVERNED value, not new copy. It is the rank metric's `label_en` in
-  `metric_catalogue.csv`, which is the same name that metric carries everywhere else on the site.
+- The name is a GOVERNED value, not new copy. It is the rank metric's name in `strings.ts`, keyed by
+  its `label_i18n_key`, which is the same name that metric carries everywhere else on the site.
   A board heading can never drift from the metric it ranks, because it *is* the metric's name.
 - **No "ranked by" annotation is rendered**: the user can see how a board is ranked. The name
   carries what the annotation was explaining.
@@ -460,8 +460,8 @@ block.
 - **All remaining copy**, in all three locales (§10). The two block names and all 80 metric names
   are now settled; the rest of this page's `strings.ts` entries are still placeholder drafts.
 - **German and Finnish for the 60 new metric names.** Needed before go-live, not before the block
-  is built (CPO). The label guard is therefore two-tier: `label_en` required on every catalogue row
-  now, DE and FI required only for metrics a page actually renders.
+  is built (CPO). The label guard requires a name in all three languages for every metric a page
+  renders.
 
 Closed since 2026-08-04:
 
@@ -590,7 +590,7 @@ Closed since 2026-08-04:
 - ~~**The player streak set** — the third signal, after the goalkeeper clean-sheet run was ruled
   redundant against the team clean-sheet row.~~ Moot: it blocked the player half of trending, and
   there is no trending block. Do NOT resurrect it as a Top players question — those boards rank on
-  a metric's `label_en`, not on streaks.
+  a metric, not on streaks.
 
 ### ~~Player streak facts established 2026-08-04, for whoever picks this up~~
 

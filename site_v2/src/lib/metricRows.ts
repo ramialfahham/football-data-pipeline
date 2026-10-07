@@ -45,6 +45,7 @@ export interface TeamBinding {
   field: string;              // key on the benchmark's `metric_key` / the `{field}_delta_yoy` column
   labelKey: string;
   format: SingleFormat;
+  perMatch: boolean;          // the value is an average per match: its second line says so
 }
 
 export interface MetricRowDef {
@@ -58,46 +59,40 @@ export interface MetricRowDef {
   tier: 1 | 2 | 3;            // visibility under constraint (never reorders — display doc)
   format: RowFormat;
   direction: Direction;       // drives the green "better" side (never `lower_is_better`)
-  sublabel?: string;          // small caption under the label (e.g. the T·I·B aggregate)
+  perMatch: boolean;          // the catalogue's denominator is count(*): the value is per match
   team?: TeamBinding;         // set only where the team surface measures something else
 }
 
 /** The binding the TEAM surface renders for a row. Without an override that is the row itself. */
 export function teamBinding(row: MetricRowDef): TeamBinding {
-  return row.team ?? { field: row.field, labelKey: row.labelKey, format: row.format };
+  return row.team ?? { field: row.field, labelKey: row.labelKey, format: row.format, perMatch: row.perMatch };
 }
 
 // Groups render in `GROUP_KEYS_IN_ORDER` with a subhead; rows in array order within each group.
 export const METRIC_ROWS: MetricRowDef[] = [
-  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "higher_better" },
-  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "lower_better" },
+  { field: "goals_per_match", labelKey: "metrics.goals_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "higher_better", perMatch: true },
+  { field: "goals_against_per_match", labelKey: "metrics.goals_against_per_match.label", group: "goals", tier: 1, format: "decimal_1", direction: "lower_better", perMatch: true },
   // ⚠ The ONE row whose two surfaces bind different catalogue metrics. The fixture windows serve
   //   `clean_sheets`, a count of shut-outs shown as a bare count. The team page ranks
   //   `clean_sheets_pct`, the proportion, because teams are compared across a league.
   //   Read the team side through `teamBinding()`; never assume `field` covers both.
-  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "goals", tier: 2, format: "integer", direction: "higher_better",
-    team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent" } },
-  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "shooting", tier: 2, format: "decimal_1", direction: "higher_better" },
-  { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "shooting", tier: 2, format: "percent", direction: "higher_better" },
+  { field: "clean_sheets", labelKey: "metrics.clean_sheets.label", group: "goals", tier: 2, format: "integer", direction: "higher_better", perMatch: false,
+    team: { field: "clean_sheets_pct", labelKey: "metrics.clean_sheets_pct.label", format: "percent", perMatch: false } },
+  { field: "shots_per_match", labelKey: "metrics.shots_per_match.label", group: "shooting", tier: 2, format: "decimal_1", direction: "higher_better", perMatch: true },
+  { field: "shots_inside_box_pct", labelKey: "metrics.shots_inside_box_pct.label", group: "shooting", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
   // ⚠ `field` and `labelKey` DISAGREE on this row on purpose. `metric_catalogue.csv` declares
   //   metric_id = shots_on_goal_per_match   →   label_i18n_key = metrics.shots_on_target_per_match.label
   // Do NOT "fix" this to `metrics.shots_on_goal_per_match.label` — the catalogue declares no such
   // key and the label would resolve to nothing.
-  // ⭐ The REASON changed in step 5, the INSTRUCTION did not. This used to be a genuine term split
-  // (internal id "on goal", user-facing label "on target"); RULING 2 closed it, so the label now
-  // reads "Ø Shots on goal" and both say "on goal". What is left is only a LEGACY KEY NAME, which
-  // is still the join key and still the only thing that resolves this label.
-  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "shooting", tier: 1, format: "decimal_1", direction: "higher_better" },
-  { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "shooting", tier: 1, format: "percent", direction: "higher_better" },
-  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "one_on_one", tier: 2, format: "decimal_0", direction: "higher_better" },
-  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "one_on_one", tier: 2, format: "percent", direction: "higher_better" },
-  // ⚠ `sublabel` is still an ENGLISH string rendered in all three locales. It is a caption, not a
-  // metric name, so it is outside this task's criteria — recorded in the contract as residual.
-  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "defending", tier: 2, format: "decimal_1", direction: "higher_better", sublabel: "tackles + interceptions + blocks" },
-  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "passing", tier: 3, format: "decimal_0", direction: "higher_better" },
-  { field: "passes_accuracy_pct", labelKey: "metrics.passes_accuracy_pct.label", group: "passing", tier: 2, format: "percent", direction: "higher_better" },
-  { field: "passes_key_per_match", labelKey: "metrics.passes_key_per_match.label", group: "passing", tier: 2, format: "decimal_1", direction: "higher_better" },
-  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "higher_better" },
-  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "lower_better" },
-  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "goalkeeping", tier: 2, format: "percent", direction: "higher_better" },
+  { field: "shots_on_goal_per_match", labelKey: "metrics.shots_on_target_per_match.label", group: "shooting", tier: 1, format: "decimal_1", direction: "higher_better", perMatch: true },
+  { field: "finishing_efficiency_pct", labelKey: "metrics.finishing_efficiency_pct.label", group: "shooting", tier: 1, format: "percent", direction: "higher_better", perMatch: false },
+  { field: "duels_per_match", labelKey: "metrics.duels_per_match.label", group: "one_on_one", tier: 2, format: "decimal_0", direction: "higher_better", perMatch: true },
+  { field: "duels_won_pct", labelKey: "metrics.duels_won_pct.label", group: "one_on_one", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
+  { field: "defensive_actions_per_match", labelKey: "metrics.defensive_actions_per_match.label", group: "defending", tier: 2, format: "decimal_1", direction: "higher_better", perMatch: true },
+  { field: "passes_per_match", labelKey: "metrics.passes_per_match.label", group: "passing", tier: 3, format: "decimal_0", direction: "higher_better", perMatch: true },
+  { field: "passes_accuracy_pct", labelKey: "metrics.passes_accuracy_pct.label", group: "passing", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
+  { field: "passes_key_per_match", labelKey: "metrics.passes_key_per_match.label", group: "passing", tier: 2, format: "decimal_1", direction: "higher_better", perMatch: true },
+  { field: "corners_per_match", labelKey: "metrics.corners_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "higher_better", perMatch: true },
+  { field: "corners_against_per_match", labelKey: "metrics.corners_against_per_match.label", group: "set_pieces", tier: 3, format: "decimal_1", direction: "lower_better", perMatch: true },
+  { field: "saves_pct", labelKey: "metrics.saves_pct.label", group: "goalkeeping", tier: 2, format: "percent", direction: "higher_better", perMatch: false },
 ];

@@ -37,15 +37,9 @@ const canPlot = dots.length >= 2 && self != null && s.deserved_points != null;
 
 // three shots-on-target boxes (served rates)
 const nums = [
-  // #370: names read from the catalogue's own i18n keys, not from three hand-written `heroSot*`
-  // strings. Each key is the metric whose value sits beside it, so the tile cannot drift from the
-  // number it labels.
-  // ⚠ The key for metric_id `shots_on_goal_per_match` really does read "on_target". Read it from the
-  // catalogue's `label_i18n_key` column; never infer it from the payload field name.
-  // ⭐ It is a LEGACY KEY NAME, not a term split. Step 5 (RULING 2) moved the English label to
-  // "Ø Shots on goal", so the id and the user-facing term now agree and only the KEY still says
-  // "on_target" — and the catalogue declares no `..._on_goal_...` variant, so inferring it from the
-  // id still resolves to nothing.
+  // Each key is the catalogue's `label_i18n_key` of the metric whose value sits beside it. The key
+  // for metric_id `shots_on_goal_per_match` reads "on_target"; never infer a key from an id.
+  // All three are per-match averages.
   { label: metricLabel(lang, "metrics.shots_on_target_per_match.label"), value: decimal1(s.shots_on_goal_per_match, lang) },
   { label: metricLabel(lang, "metrics.shots_on_goal_against_per_match.label"), value: decimal1(s.shots_on_goal_against_per_match, lang) },
   { label: metricLabel(lang, "metrics.shots_on_goal_difference_per_match.label"), value: signedDec1(s.shots_on_goal_difference_per_match) },
@@ -133,7 +127,7 @@ if (canPlot && self) {
       <p class="verdict">{verdict}</p>
       <div class="heronums">
         {nums.map((n) => (
-          <div class="hn"><span class="hl">{n.label}</span><span class="hv num">{n.value}</span></div>
+          <div class="hn"><span class="hl">{n.label}<span class="hs">{t(lang, "perMatch")}</span></span><span class="hv num">{n.value}</span></div>
         ))}
       </div>
       <svg class="sc" viewBox="0 0 340 210" role="img" aria-label={caption}>

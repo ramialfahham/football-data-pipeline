@@ -263,29 +263,13 @@ seeds:
               values: ["team", "player", "team and player"]
       - name: label_i18n_key
         description: >
-          The i18n key for this metric's TRANSLATED label. English does not resolve through it —
-          the English words are in label_en.
+          The key of the metric's displayed name. Where a page shows the metric, its name in every
+          language is the key's entry in site_v2/src/i18n/strings.ts.
 
-          Unique per ROW, and never shared between a metric's team and player rows. Two rows
-          sharing a key would share one German and one Finnish string while owning separate
-          English ones, so the three could drift apart with nothing noticing.
+          Unique per ROW, and never shared between a metric's team and player rows.
         tests:
           - not_null
           - unique
-      - name: label_en
-        description: >
-          The metric's English display name. This seed owns it; other languages resolve from
-          label_i18n_key in the i18n layer.
-
-          Naming rule: a bare noun is a count (`Goals`); `Ø` prefixes an average, per match for
-          teams and per 90 for players (`Ø Tackles per 90`); `%` prefixes a share or rate
-          (`% Duels won`). The prefix carries the unit, so a reader never has to guess whether 2.9
-          is a total or an average.
-
-          Unique per ENTITY, not globally: the same words may appear on a team row and a player
-          row, because `% Duels won` means the same thing for both.
-        tests:
-          - not_null
       - name: description
         description: >
           What the metric means: what it measures and how it is calculated from the cleaned
@@ -403,16 +387,6 @@ seeds:
 
           House style: what it captures, then a plain definition, then what a notable value
           signals, with any honest volume, style or role caveat last in parentheses.
-    tests:
-      # Display names are unique WITHIN an entity, not globally. The same words on
-      # a player row and a team row are allowed — `% Duels won` means the same thing for both and
-      # the surrounding block says which — so a plain `unique` on label_en would be the wrong test
-      # and would fail today on five legitimate pairs.
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - entity
-            - label_en
-          name: metric_catalogue_label_en_unique_within_entity
 
   - name: metric_map
     description: >

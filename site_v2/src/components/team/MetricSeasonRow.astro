@@ -8,7 +8,7 @@
 import { formatValue, signedDelta } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { beatsMedian } from "../../lib/bars";
-import { t, metricLabel } from "../../i18n/strings";
+import { t, metricLabel, metricSubline } from "../../i18n/strings";
 import { teamBinding } from "../../lib/metricRows";
 import type { MetricRowDef } from "../../lib/metricRows";
 import type { Benchmark } from "../../lib/types";
@@ -25,10 +25,11 @@ const bind = teamBinding(row);
 const fmt = bind.format;
 const chg = signedDelta(delta, fmt, lang);
 const green = beatsMedian(delta, row.direction);
+const line = metricSubline(lang, bind.labelKey, bind.perMatch);
 ---
 
 <div class="ss-row">
-  <span class="vs-name">{metricLabel(lang, bind.labelKey)}</span>
+  <span class="vs-name">{metricLabel(lang, bind.labelKey)}{line && <span class="sub">{line}</span>}</span>
   <span class="ss-rt">
     <span class="vs-val num">{formatValue(bench?.metric_value, fmt, lang)}</span>
     <span class:list={["ss-chg", "num", { up: green }]}>{chg.value}{chg.unit && <span class="u">{t(lang, "unitPp")}</span>}</span>
