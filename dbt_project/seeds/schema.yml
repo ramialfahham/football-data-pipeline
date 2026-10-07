@@ -244,6 +244,12 @@ seeds:
       column_types:
         importance_tier: int64
         metric_group_order: int64
+        metric_order: int64
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [entity, metric_group, metric_order]
+          config:
+            where: "metric_order is not null"
     columns:
       - name: metric_id
         description: >
@@ -351,6 +357,11 @@ seeds:
           it. A group's names per language are site copy keyed by `metric_group`.
         tests:
           - not_null
+      - name: metric_order
+        description: >
+          Where the metric sits inside its group on the match page's Form comparison: 1 first.
+          Blank for a metric that the Form comparison does not show. No two metrics of one entity
+          and group share a position.
       - name: importance_tier
         description: >
           Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier

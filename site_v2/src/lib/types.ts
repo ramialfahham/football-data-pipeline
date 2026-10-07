@@ -4,6 +4,18 @@
 // The catalogue's `format` values, reused rather than restated: a served format that did not match
 // what `formatValue` accepts would be a runtime surprise the compiler could have caught (#41).
 import type { SingleFormat } from "./format";
+import type { Direction } from "./bars";
+
+/** One Form comparison row as `src/data/metric_rows.json` serves it from the catalogue. */
+export interface ServedMetricRow {
+  metric_id: string;          // the key on w1 / w2
+  label_i18n_key: string;
+  metric_group: string;
+  metric_order: number;
+  direction: Direction;
+  format: SingleFormat;
+  per_match: boolean;
+}
 
 export interface WindowStats {
   window_type?: string | null;

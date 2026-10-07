@@ -2,11 +2,10 @@
 Every metric we compute, one row per metric and entity (a team or a player). A row holds what the
 metric means (description) and how it is computed (base_relation, numerator_expr, denominator_expr,
 computation_kind). It also holds the key of its name (label_i18n_key) and which way is better
-(direction, interpretation). How it is shown is format, metric_group, metric_group_order and
-importance_tier. Every
+(direction, interpretation). How it is shown is format, metric_group, metric_group_order,
+metric_order and importance_tier. Every
 model that computes a metric follows its row's formula. A row is window-free: which matches a
-metric counts, and when its value is blank, are the rules below, never part of a row. The order of
-metrics within a group is not here; it is docs/wireframes/metrics_display.md.
+metric counts, and when its value is blank, are the rules below, never part of a row.
 
 How every metric is computed:
 

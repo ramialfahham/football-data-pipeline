@@ -12,15 +12,11 @@
 
 > **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
 > The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
-> the seed. What this document still owns exclusively is **row order within a group**, which was
-> deliberately removed from the catalogue: where a metric sits on a page is a frontend decision
-> that changes with a design, so the seed holds what a metric IS, not where it appears. **Group
-> order moved into the catalogue with #152** (`metric_group_order`; see the note under the team
-> table below).
+> the seed. The order of the groups is the catalogue's `metric_group_order`. The order inside a
+> group is the catalogue's `metric_order` on the match page's Form comparison. On the team page it
+> is the team table below.
 
-1. **Tier never orders.** Display order is fixed once and is identical everywhere the list
-   renders: the block sequence by the catalogue's `metric_group_order`, the row position
-   within a block by this document.
+1. **Tier never orders.** Display order is fixed once. It is the order the note above names.
 2. **Tier = visibility under constraint.** Surfaces that cannot show the full list
    (home fixture hooks, teaser cards) show only tier-1 rows, in the same order.
    Full pages show all rows.
@@ -130,9 +126,9 @@ N" + vs-median, honest at N≈18) — never a percentile.
 Display order top to bottom. MVP rows keep their relative order; new blocks slot
 into the spine. **Block order is the catalogue's** `metric_group_order` (CPO, 2026-09-21, #152;
 `docs/metric_layer.md`, "A group is defined once"): Goals → Shooting → Passing → One-on-one →
-Defending → Discipline → Goalkeeping → Set pieces → Results → Playing time, on every surface. The
-group this table calls Duels is One-on-one. Row order WITHIN a block and the tiers are what this
-table locks.
+Defending → Goalkeeping → Set pieces → Discipline → Results → Playing time, on every surface. The
+group this table calls Duels is One-on-one. Row order WITHIN a block on the team page and the tiers
+are what this table locks.
 
 | # | metric_id | Group | Tier | Status |
 |---|---|---|---|---|
@@ -181,9 +177,8 @@ window is five matches, so the honest reading is the COUNT — `clean_sheets`, s
 whole league, where matches played differ between teams, so
 the honest reading is the PROPORTION — `clean_sheets_pct`, `21%`, named Clean sheets with "percentage"
 on its second line. They are two catalogue metrics with one
-formula between them, and the seed carries both. In `metricRows.ts` the row's own
-`field`/`labelKey`/`format` are the FIXTURE binding and the team surface reads `teamBinding(row)`;
-order, group and tier are shared and unchanged, so this table still locks sixteen rows.
+formula between them, and the seed carries both. The team page reads the row through
+`teamBinding(row)` in `metricRows.ts`.
 
 **German and Finnish are CPO-approved** (2026-07-31); ten are carried forward from the validated MVP
 corpus and are test-pinned to it so they cannot drift.

@@ -6,20 +6,19 @@ import { formatValue, DASH } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { barWidth, betterSide } from "../../lib/bars";
 import { asNumber } from "../../lib/types";
-import type { WindowStats } from "../../lib/types";
-import type { MetricRowDef } from "../../lib/metricRows";
+import type { ServedMetricRow, WindowStats } from "../../lib/types";
 import { metricLabel, metricSubline } from "../../i18n/strings";
 
 interface Props {
-  def: MetricRowDef;
+  def: ServedMetricRow;
   home?: WindowStats | null;
   away?: WindowStats | null;
   lang: Lang;
 }
 const { def, home, away, lang } = Astro.props;
 
-const hv = asNumber(home?.[def.field]);
-const av = asNumber(away?.[def.field]);
+const hv = asNumber(home?.[def.metric_id]);
+const av = asNumber(away?.[def.metric_id]);
 
 function display(v: number | null): string {
   return v == null ? DASH : formatValue(v, def.format, lang);
@@ -30,13 +29,13 @@ const aDisp = display(av);
 const better = betterSide(hv, av, def.direction);
 const hWidth = barWidth(hv, av);
 const aWidth = barWidth(av, hv);
-const sub = metricSubline(lang, def.labelKey, def.perMatch);
+const sub = metricSubline(lang, def.label_i18n_key, def.per_match);
 ---
 
 <div class="mrow">
   <div class:list={["mval", "home", { better: better === "home" }]}>{hDisp}</div>
   <div class="mmid">
-    <div class="mlabel">{metricLabel(lang, def.labelKey)}{sub && <small>{sub}</small>}</div>
+    <div class="mlabel">{metricLabel(lang, def.label_i18n_key)}{sub && <small>{sub}</small>}</div>
     <div class="mbar" aria-hidden="true">
       <div class="bside home">
         <span class:list={["fill", { better: better === "home" }]} style={`width:${hWidth}%`}></span>

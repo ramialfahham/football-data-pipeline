@@ -72,6 +72,10 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
   from `metric_catalogue.csv` (no BigQuery). `metricRows.ts` reads the groups from it; the names
   per language are copy in `strings.ts`. Pinned to the seed by `tests/test_metric_groups.py`, so a
   seed change means regenerating this file in the same commit.
+- `metric_rows.json` — the rows of the match page's Form comparison. Each is a team metric with a
+  `metric_order` in the catalogue: its key, name key, group, order, direction, format and per-match
+  flag. Produced verbatim by `python scripts/export_site_data.py --entities metric_rows` from
+  `metric_catalogue.csv` (no BigQuery). Pinned to the seed by `tests/test_metric_rows.py`.
 - `landing.json` — the home page's payload, produced verbatim by
   `python scripts/export_site_data.py --entities landing` (#367). ⚠ It is NOT hand-reduced, and this
   line used to say it was — `shape_landing_payload` returns only the keys the built blocks need, so
