@@ -29,8 +29,7 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
   day of the Matches page and the Bundesliga sample's Matchdays tab, because the build refuses a
   link to a page it did not emit. Refresh the second set together with `matches/*.json` and
   `competitions/BL1/2026.json`, from one export, and regenerate its `.gitignore` patterns.
-  ⭐ **A deliberately thin set, and the CPO ruled it acceptable** — "we're doing infrastructure work
-  and don't show anything now", so the sample is a BUILD INPUT, not a display. What matters is
+  ⭐ **A deliberately thin set**: the sample is a BUILD INPUT, not a display. What matters is
   whether it still exercises the components, which was MEASURED before committing to it, not hoped:
     · **both competition shapes** — 3 `domestic_cup` + 1 `domestic_league`, so the standings block
       renders on the league tie and the no-table path on the cups;

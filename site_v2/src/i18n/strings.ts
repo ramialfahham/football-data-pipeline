@@ -118,7 +118,7 @@ const EN: Dict = {
   // NO NUMBERS in these until #838 lands: `points` is a synthetic 3-1-0 tally computed regardless of
   // the competition's rules, so a templated "N points" would write a known-false figure into a
   // surface search engines cache independently of the page.
-  // Colon, not an em dash: the dash "looks terribly like AI generated", and it is a tell,
+  // Colon, not an em dash: the dash reads as AI-generated, and it is a tell,
   // especially as a clause separator. A colon is the conventional
   // entity-then-descriptor form in a page title, reads as edited rather than generated, and costs
   // two characters less against a budget these titles already overrun.
@@ -459,8 +459,8 @@ const DE: Dict = {
   seoHomeDesc: "Kommende Spiele aus allen Wettbewerben, die wir abdecken.",
   homeNext: "Nächste Spiele",
   homeTopPlayers: "Top-Spieler",
-  // ⚠ `Der Top-Spieler` is grammatically MASCULINE and blocks a women's competition ("If we
-  // ever include women's football teams we have to change it properly (at least in German)").
+  // ⚠ `Der Top-Spieler` is grammatically MASCULINE and blocks a women's competition: including
+  // women's teams means changing this string properly.
   // `Die Top-Mannschaft` below is NOT affected — Mannschaft is the standard German
   // word for a women's team too. EN and FI are unaffected; Finnish has no grammatical gender.
   homeTopPlayersIntro: "Aktuelle Saison. Der Top-Spieler jeder Liga in den Ranglisten: {leagues}.",
@@ -837,7 +837,7 @@ export function positionLabel(lang: Lang, code: string | null | undefined): stri
  *  reader in the copy gate.
  *
  *  ENGLISH WAS UNCHANGED BY #370, AND CHANGED ONCE SINCE, BY STEP 5 OF THE NAMING PROGRAMME.
- *  RULING 2 — "consistency between the metric name and what we show (in english)" — moved four EN
+ *  The rule that an English label matches its metric name moved four EN
  *  labels from "on target" to "on goal", so they now match ids that have said `shots_on_goal_*` all
  *  along. Those four are the ONLY EN strings here that have ever moved; every other one is still
  *  byte-identical to what shipped with #370.

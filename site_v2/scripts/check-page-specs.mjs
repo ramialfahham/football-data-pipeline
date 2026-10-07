@@ -114,8 +114,8 @@ export function collectMartNames() {
 // source for any future block. Read the paragraph above as the type's ORIGIN, not as a claim that
 // something currently declares it.
 //
-// ADDING A TYPE IS ONE ENTRY HERE. That is deliberate: the requirement is "a setup that is
-// flexible enough to integrate whatever additional content". Note the scope of that flexibility:
+// ADDING A TYPE IS ONE ENTRY HERE. That is deliberate: the setup must take any new kind of
+// content. Note the scope of that flexibility:
 // this is the VOCABULARY for naming a source, not the machinery for having one. A news or
 // editorial surface would still need ingestion, storage and a page.
 export const CORE_DIR = join(REPO_ROOT, "dbt_project", "models", "3_core");

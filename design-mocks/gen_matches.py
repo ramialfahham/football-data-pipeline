@@ -209,8 +209,8 @@ def tabbar(active):
 
 
 # ⚠ NO FILTER IS DRAWN. It was a season chip plus a row of competition chips, and it is gone:
-#   * the SEASON half is ruled out -- one season only, "to reduce complexity";
-#   * the COMPETITION half is UNDECIDED -- "don't know yet" -- and its chips linked AWAY to each
+#   * the SEASON half is ruled out -- one season only, to keep the page simple;
+#   * the COMPETITION half is UNDECIDED, and its chips linked AWAY to each
 #     competition's own results page rather than filtering this one, so it was not a filter at
 #     all. The competition heading already does that job.
 # Drawing a control before the decision is the fill-the-empty-slot failure this standard exists

@@ -6,7 +6,7 @@ The load-bearing test here is `test_shape_landing_payload_carries_only_the_built
 blocks were cut from this page — the stats teasers and trending — and BOTH had put business
 logic in the export: eligibility judgement and competition ranking in the first case, storyline
 ranking in the second (which is why `mart_landing_trending` was written at all). A third, browse,
-was dropped ("drop the browse section") — registry-driven, not a layering violation, but removed
+was dropped — registry-driven, not a layering violation, but removed
 for the same reason the key set is asserted exactly: the payload shape is the cheapest place to
 catch any of the three coming back.
 """
@@ -70,8 +70,8 @@ def test_group_upcoming_fixtures_groups_by_competition_in_kickoff_order():
 
 def test_group_upcoming_fixtures_caps_nothing():
     """⚠ INVERTED. This test asserted the opposite — that the helper capped at a `limit` —
-    and that cap is retired ("we will show what we have, more matches will come, because we
-    ingest more competitions"). The `limit` parameter is gone, so the old assertion
+    and that cap is retired: the page shows what there is, never a fixed count. The `limit`
+    parameter is gone, so the old assertion
     could not merely be relaxed; keeping the case and flipping its expectation is what pins the
     new behaviour at the same spot the old one guarded.
 
@@ -182,8 +182,8 @@ def test_the_hero_reads_the_next_matchday_mart_whole(monkeypatch):
 # They are deleted rather than migrated because none of the three blocks
 # survives. The stats teasers were ruled useless and are replaced by the
 # mart-backed Top players / Top teams; trending was cut alongside and was stale
-# against the last streak ruling anyway; browse was DROPPED ("drop the browse
-# section") once its only remaining justification — reachability into the
+# against the last streak ruling anyway; browse was DROPPED once its only
+# remaining justification — reachability into the
 # long-tail team/player pages — turned out to apply to exactly the two entity
 # types already blocked on data-quality work.
 #

@@ -19,7 +19,7 @@ faithfully — no $.response unnesting, no dedup — and base resolves the versi
 entity key with latest-ingest-wins.
 
 ⚠ Raw therefore holds every version the provider ever gave us, including versions that
-contradict each other. That is deliberate ("raw keeps both versions").
+contradict each other. That is deliberate.
 The delete that used to run here destroyed 29 real events across 5 fixtures because a
 retry chasing late statistics returned fewer events, and one row bundles lineups, events,
 statistics and player stats together.
@@ -183,7 +183,7 @@ def _fetch_and_persist_batch(
     """Call GET /fixtures?ids=... and append one row per fixture returned.
 
     Nothing is deleted. A retried fixture gains a second row and base resolves the two by
-    entity key ("raw keeps both versions" — see the note above `_insert_fixture_rows`).
+    entity key (see the note above `_insert_fixture_rows`).
 
     #896 still applies, and still returns before the write: a batch the provider did not answer
     cleanly is discarded whole and retried next run. It is no longer the thing standing between

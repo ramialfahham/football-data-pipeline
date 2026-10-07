@@ -1534,8 +1534,8 @@ def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict) -> li
     GROUPING ONLY — no ordering business rule lives here either. `fixtures` arrives kickoff-ordered
     from the caller, so the payload's group order is first-appearance order, which is a
     deterministic export diff and NOT the display order: the PAGE applies the site-wide ordering
-    key (`site_v2/src/lib/competitionOrder.mjs`), per the ruling "the mart carries facts, the spec
-    declares the ORDER BY".
+    key (`site_v2/src/lib/competitionOrder.mjs`); the mart carries facts and the page spec
+    declares the ORDER BY.
     """
     groups: dict = {}
     for f in fixtures:
@@ -1781,10 +1781,10 @@ def shape_landing_payload(
       then ranked competitions by registry sort_order — result judgement and business ranking in
       the export, which `layering.md` forbids outright.
     - Trending, which is not in the composition above. It was also stale against the last ruling
-      that touched it (three team streak types, winning/unbeaten/clean-sheet, with "winless and
-      losing are both dropped"), while the built mart still served five signals including
+      that touched it (three team streak types, winning/unbeaten/clean-sheet, with winless and
+      losing both dropped), while the built mart still served five signals including
       `winless`, no player streaks and no start dates.
-    - Browse, DROPPED (not deferred): "drop the browse section". Its only real
+    - Browse, DROPPED (not deferred). Its only real
       value was reachability into the long-tail team/player pages, and both are already blocked
       on the team/player-name data-quality work, so a competitions-only version had nothing left
       to solve — the competitions index page already covers that pool. `build_nav`/`fetch_nav`

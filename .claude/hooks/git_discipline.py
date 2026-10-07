@@ -538,8 +538,8 @@ def _rounds_gate(text: str) -> str | None:
     """Reason to deny on the review-round count, or None.
 
     An unbounded review loop re-runs every reviewer over the whole diff until
-    somebody stops it; a nine-round PR was the result once, and the process has
-    to be more economic than that. `review.md` must declare `rounds: N`, and past
+    somebody stops it; a nine-round PR was the result once, and that costs too
+    much. `review.md` must declare `rounds: N`, and past
     the cap the builder STOPS and brings the open findings to the product owner
     instead of grinding on. To proceed past the cap anyway the review must carry a
     `rounds_cap_override:` line recording the product owner's go-ahead and the reason
@@ -797,8 +797,8 @@ def _commit_gate(root: str) -> str | None:
             # looking hard enough — has the opposite effect: given a correct diff, a
             # reviewer REQUIRED to produce two findings produces two, and what it finds
             # is prose. One MR ran twelve rounds, of which the last seven found nothing a
-            # visitor would see. The reviewer needs to have the critical attitude, but it
-            # is allowed to approve and not invent some finding.
+            # visitor would see. A reviewer keeps a critical attitude and may approve
+            # without inventing a finding.
             #
             # The floor is 1, not 0, deliberately: 0 permits a bare `VERDICT: PASS` with
             # nothing behind it, which is the rubber stamp the original rule was written

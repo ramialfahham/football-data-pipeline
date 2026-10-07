@@ -1,8 +1,7 @@
 """The competition TAXONOMY as it exists in the data, and what each level produces as a page
 grouping. A decision aid, not a page.
 
-The question that reshaped this page: *"but we have a taxonomy of competitions, why don't use
-it here?"* — correct.
+The rule that shaped this page: group competitions by their taxonomy.
 The competitions page was grouped by `display_group`, which is the COARSEST of three levels and a
 deliberate rollup. Nothing was invented, but the richest thing in the data was not used either.
 

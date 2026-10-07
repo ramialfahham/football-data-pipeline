@@ -21,14 +21,14 @@ import sentence_length_gate as gate  # noqa: E402
 
 # The pin: long sentences per document. A cleanup lowers a number or removes a row; nothing adds one.
 PINNED = {
-    ".claude/agents/analytics-engineer-reviewer.md": 6,
-    ".claude/agents/bi-analyst-reviewer.md": 17,
-    ".claude/agents/cto-reviewer.md": 22,
-    ".claude/agents/data-engineer-reviewer.md": 8,
-    ".claude/agents/football-analytics-expert-reviewer.md": 6,
-    ".claude/agents/platform-reviewer.md": 11,
-    ".claude/agents/scope-auditor.md": 11,
-    ".claude/agents/seo-expert-reviewer.md": 15,
+    ".claude/agents/analytics-engineer-reviewer.md": 5,
+    ".claude/agents/bi-analyst-reviewer.md": 16,
+    ".claude/agents/cto-reviewer.md": 20,
+    ".claude/agents/data-engineer-reviewer.md": 7,
+    ".claude/agents/football-analytics-expert-reviewer.md": 5,
+    ".claude/agents/platform-reviewer.md": 10,
+    ".claude/agents/scope-auditor.md": 10,
+    ".claude/agents/seo-expert-reviewer.md": 14,
     ".claude/skills/onboard-competition/SKILL.md": 10,
     ".claude/skills/onboard-endpoint/SKILL.md": 9,
     ".claude/skills/validate-local/SKILL.md": 7,
@@ -74,7 +74,7 @@ PINNED = {
     "docs/wireframes/99_gaps_register.md": 66,
     "docs/wireframes/block_standard.md": 11,
     "docs/wireframes/metrics_display.md": 38,
-    "site_v2/src/data/README.md": 25,
+    "site_v2/src/data/README.md": 24,
 }
 
 

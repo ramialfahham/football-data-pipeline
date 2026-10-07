@@ -1,6 +1,5 @@
 // The ordering rule: mart_competition_index carries ordering FACTS only (next/last kickoff,
-// region_rank); this page applies the actual ORDER BY. An earlier draft wanted to pre-bake it in
-// the mart and was corrected — "I don't agree that sorting has to be decided in the mart."
+// region_rank); this page applies the actual ORDER BY.
 //
 // Sort key, in order: has an upcoming fixture > days to next kickoff BUCKETED BY CALENDAR DAY
 // (not the raw timestamp — a same-day tiebreak by clock time would rank a 10:15 kickoff above a
@@ -8,8 +7,8 @@
 // next kickoff time (deterministic same-day tiebreak) > league_code (full determinism).
 // Competitions with nothing upcoming sort last, most-recently-played first.
 //
-// The SAME key orders the category headings too ("apply the same key to the category headings,
-// ordered by each group's earliest next kickoff") — that is where national
+// The SAME key orders the category headings too, each by its group's earliest next kickoff —
+// that is where national
 // teams rank ahead of club leagues during an international break, with no special case.
 //
 // Plain JS, not TypeScript: this module is imported directly by `competitionOrder.test.mjs` under
