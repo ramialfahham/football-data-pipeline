@@ -2831,6 +2831,22 @@ models:
       - name: fixture_order
         description: "The reading order of the competition-season's fixtures, 1 first: rounds in their sequence, and within a round by kick-off. Consumers render rows in this order and sort nothing."
         tests: [not_null]
+      - name: venue_name
+        description: "The stadium the match is played in, as the provider names it; empty when the provider names none."
+      - name: is_home_team_next_match
+        description: "True when this is the home team's next match: its earliest match not yet started (status NS or TBD, kick-off after the build), in any competition. A team has at most one."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
+      - name: is_away_team_next_match
+        description: "True when this is the away team's next match: its earliest match not yet started (status NS or TBD, kick-off after the build), in any competition. A team has at most one."
+        tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+              quote: false
 
   - name: mart_match_days
     description: >

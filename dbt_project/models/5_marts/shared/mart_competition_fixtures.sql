@@ -24,6 +24,10 @@
   rows is_next_round; a postponed fixture is never flagged until it is played; a competition with no
   next matchday (a finished tournament) has no current season and no flag.
 
+  is_home_team_next_match and is_away_team_next_match mark each team's earliest match not yet
+  started (status NS or TBD, kick-off after the build), in any competition: a team's next match is
+  a filter of this table, so every page names the same one.
+
   fixture_slug is the match's permanent URL segment: the kick-off date, the home team's slug,
   "-vs-", the away team's slug — the two published team slugs, so a team is spelt the same in its
   own URL and in every match URL. A fixture whose team is unknown to dim_team gets no slug and
@@ -45,8 +49,31 @@ with fixtures as (
         goals_home,
         goals_away,
         home_team_sk,
-        away_team_sk
+        away_team_sk,
+        venue_name_snapshot
     from {{ ref('fct_fixture') }}
+),
+
+team_next as (
+    select
+        fixture_sk,
+        team_sk
+    from (
+        select
+            fixture_sk,
+            home_team_sk as team_sk,
+            kickoff_datetime
+        from fixtures
+        where status_short in ('NS', 'TBD') and kickoff_datetime > current_timestamp()
+        union all
+        select
+            fixture_sk,
+            away_team_sk as team_sk,
+            kickoff_datetime
+        from fixtures
+        where status_short in ('NS', 'TBD') and kickoff_datetime > current_timestamp()
+    )
+    qualify row_number() over (partition by team_sk order by kickoff_datetime asc, fixture_sk asc) = 1
 ),
 
 teams as (
@@ -130,6 +157,7 @@ select
     a.team_name as away_team_name,
     a.team_slug as away_team_slug,
     a.team_logo_url as away_team_logo_url,
+    f.venue_name_snapshot as venue_name,
     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
     p.fixture_sk is not null as is_played,
     case
@@ -141,6 +169,8 @@ select
     n.round_name is not null as is_next_round,
     l.league_code is not null and p.fixture_sk is not null as is_last_round,
     coalesce(m.is_match_that_matters, false) as is_match_that_matters,
+    nh.fixture_sk is not null as is_home_team_next_match,
+    na.fixture_sk is not null as is_away_team_next_match,
     row_number() over (
         partition by f.league_code, f.season_api_year
         order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
@@ -169,3 +199,11 @@ left join last_round as l
         f.league_code = l.league_code
         and f.season_api_year = l.season_api_year
         and r.round_sequence = l.round_sequence
+left join team_next as nh
+    on
+        f.fixture_sk = nh.fixture_sk
+        and f.home_team_sk = nh.team_sk
+left join team_next as na
+    on
+        f.fixture_sk = na.fixture_sk
+        and f.away_team_sk = na.team_sk
