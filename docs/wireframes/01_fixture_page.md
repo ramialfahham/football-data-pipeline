@@ -54,11 +54,11 @@ Mobile (primary). `▸` = link. Sections numbered for §5.
 │  5 games · 13/15 pts    5 games · 9/15 pts │  (3a) window header
 │  Form  W W W D W        W L W W D          │  (3b) W1 pills (W2: counts)
 │  GOALS                                     │  (3c) metric rows, grouped
-│  Ø Goals           2.6 ▐████▌▐██▌ 1.8      │       per metrics_display.md
-│  Ø Goals against   0.6 ▐█▌  ▐███▌ 1.4      │
-│  Clean sheets      3/5 ▐███▌ ▐█▌  1/5      │
+│  goals_per_match   2.6 ▐████▌▐██▌ 1.8      │       per metrics_display.md; each
+│  goals_against_…   0.6 ▐█▌  ▐███▌ 1.4      │       name is its key's entry in
+│  clean_sheets      3/5 ▐███▌ ▐█▌  1/5      │       site_v2/src/i18n/strings.ts
 │  SHOOTING                                  │
-│  Ø Shots          17.2 ▐████▌▐███▌ 14.1    │
+│  shots_per_match  17.2 ▐████▌▐███▌ 14.1    │
 ├──────────────— fold (~700px) —─────────────┤
 │   …12 more rows under group subheads…      │
 │  ⓘ incl. Champions League, DFB-Pokal       │  (3d) window caption

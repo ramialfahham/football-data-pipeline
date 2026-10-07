@@ -42,7 +42,7 @@ PINNED = {
     "dbt_project/models/1_staging/api_football/README.md": 1,
     "dbt_project/models/docs/cleaning_rules.md": 5,
     "dbt_project/models/docs/metric_columns.md": 37,
-    "dbt_project/models/docs/metric_rules.md": 3,
+    "dbt_project/models/docs/metric_rules.md": 2,
     "dbt_project/models/docs/shared_columns.md": 35,
     "deploy/nightly/README.md": 19,
     "design-mocks/README.md": 15,
@@ -62,7 +62,7 @@ PINNED = {
     "docs/roles/ui_expert.md": 1,
     "docs/wireframes/00_overview.md": 13,
     "docs/wireframes/01_fixture_page.md": 5,
-    "docs/wireframes/02_team_profile.md": 4,
+    "docs/wireframes/02_team_profile.md": 3,
     "docs/wireframes/03_player_profile.md": 3,
     "docs/wireframes/08_browse.md": 11,
     "docs/wireframes/09_chrome.md": 9,
@@ -73,7 +73,7 @@ PINNED = {
     "docs/wireframes/14_team_stats.md": 19,
     "docs/wireframes/99_gaps_register.md": 66,
     "docs/wireframes/block_standard.md": 11,
-    "docs/wireframes/metrics_display.md": 38,
+    "docs/wireframes/metrics_display.md": 32,
     "site_v2/src/data/README.md": 24,
 }
 

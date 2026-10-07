@@ -53,10 +53,10 @@ their own, and does not now.
 
 - **No naked percentage** — every % must have its volume visible nearby. Two
   mechanisms by surface: team comparisons use an **adjacent count row** in the
-  same block (Ø Duels before % Duels won); player bundles use the **inline full
+  same block (Duels before Duels won percentage); player bundles use the **inline full
   triple** `{num} of {den} · {pct}%`.
 - **Context pairs travel together**: a count that contextualizes a percentage
-  (Ø Duels before % Duels won) shares the percentage's tier — never separated.
+  (Duels before Duels won percentage) shares the percentage's tier — never separated.
 - **Aggregates with breakdown**: defensive actions render as one number with the
   atomic breakdown as sub-display — `26.4` + `15 T · 9 I · 3 B` (the player
   defensive-actions bundle pattern).
@@ -134,45 +134,33 @@ Defending → Discipline → Goalkeeping → Set pieces → Results → Playing 
 group this table calls Duels is One-on-one. Row order WITHIN a block and the tiers are what this
 table locks.
 
-| # | Display label | metric_id | Group | Tier | Status |
-|---|---|---|---|---|---|
-| 1 | Ø Goals | `goals_per_match` | Goals | 1 | live |
-| 2 | Ø Goals against | `goals_against_per_match` | Goals | 1 | live |
-| 3 | Clean sheets (a bare count) · % Clean sheets | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | live |
-| 4 | Ø Shots | `shots_per_match` | Shooting | 2 | live |
-| 5 | % Shots from box | `shots_inside_box_pct` | Shooting | 2 | live |
-| 6 | Ø Shots on goal | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
-| 7 | % Goals per shot on goal | `finishing_efficiency_pct` | Shooting | 1 | live — **relabeled** (was "% Conversion rate", GAP-11; "on target" → "on goal", step 5) |
-| 8 | Ø Duels | `duels_per_match` | One-on-one | 2 | **new** (GAP-11) |
-| 9 | % Duels won | `duels_won_pct` | One-on-one | 2 | live |
-| 10 | Ø Defensive actions (`T · I · B`) | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
-| 11 | Ø Passes | `passes_per_match` | Passing | 3 | live |
-| 12 | % Pass accuracy | `passes_accuracy_pct` | Passing | 2 | live |
-| 13 | Ø Key passes | `passes_key_per_match` | Passing | 2 | live |
-| 14 | Ø Corners | `corners_per_match` | Set pieces | 3 | live |
-| 15 | Ø Corners against | `corners_against_per_match` | Set pieces | 3 | live |
-| 16 | % Save percentage | `saves_pct` | Goalkeeping | 2 | live |
+| # | metric_id | Group | Tier | Status |
+|---|---|---|---|---|
+| 1 | `goals_per_match` | Goals | 1 | live |
+| 2 | `goals_against_per_match` | Goals | 1 | live |
+| 3 | `clean_sheets` (fixture windows) · `clean_sheets_pct` (team page) | Goals | 2 | live |
+| 4 | `shots_per_match` | Shooting | 2 | live |
+| 5 | `shots_inside_box_pct` | Shooting | 2 | live |
+| 6 | `shots_on_target_per_match` | Shooting | 1 | **new** (GAP-11) |
+| 7 | `finishing_efficiency_pct` | Shooting | 1 | live |
+| 8 | `duels_per_match` | One-on-one | 2 | **new** (GAP-11) |
+| 9 | `duels_won_pct` | One-on-one | 2 | live |
+| 10 | `defensive_actions_per_match` | Defending | 2 | **new aggregate** (GAP-11) |
+| 11 | `passes_per_match` | Passing | 3 | live |
+| 12 | `passes_accuracy_pct` | Passing | 2 | live |
+| 13 | `passes_key_per_match` | Passing | 2 | live |
+| 14 | `corners_per_match` | Set pieces | 3 | live |
+| 15 | `corners_against_per_match` | Set pieces | 3 | live |
+| 16 | `saves_pct` | Goalkeeping | 2 | live |
 
 Tier shape: 4 × tier 1 (rows 1, 2, 6, 7) · 9 × tier 2 · 3 × tier 3.
 
 ### Where these strings live, and what the `metric_id` column above really holds (#370, 2026-07-31)
 
-**The Display label column above is still the locked ENGLISH contract and is unchanged.** What moved
-is where the string is stored. Until #370 the English label was hard-coded in
-`site_v2/src/lib/metricRows.ts`, three more were hard-coded as `heroSot*` chrome strings, and the
-German and Finnish pages showed English because the catalogue's i18n keys resolved to nothing.
-
-Now every metric name lives once per locale in `METRIC_LABELS_{EN,DE,FI}` in
-`site_v2/src/i18n/strings.ts`, keyed by the catalogue's own `label_i18n_key`, and is rendered with
-`metricLabel(lang, row.labelKey)`. `metricRows.ts` keeps the order, group, tier, format and direction
-contract from this document and holds no metric NAME. One string does remain there: row 10's
-`sublabel`, `tackles + interceptions + blocks`, which is this table's own row-10 parenthetical. It is a
-caption rather than a name, it is still English in all three locales, and that is recorded in #370's
-`acceptance_evidence.md` residuals and in a comment beside the row itself. (This sentence said "in the
-task contract"; `contract.md` never mentioned `sublabel` at all. `scope-auditor` caught it.) Division
-of ownership:
-`dbt_project/seeds/metric_catalogue.csv` owns a metric's identity, direction and format; this document
-owns its order, grouping and tier; the i18n layer owns its display string per locale.
+A metric's displayed name, in every language, lives only in `METRIC_LABELS_{EN,DE,FI}` in
+`site_v2/src/i18n/strings.ts`, keyed by the catalogue's `label_i18n_key`. No name carries `Ø` or `%`.
+A value averaged over several matches shows "per match" on a small second line, and a single match's
+value shows none. A share without a football word of its own shows "percentage" there.
 
 ⚠ **The `metric_id` column in the table above is NOT the catalogue's `metric_id`.** It is the DISPLAY
 id, which for row 6 reads `shots_on_target_per_match` while the catalogue calls that metric
@@ -182,13 +170,8 @@ that row is `metrics.shots_on_target_per_match.label`. This mismatch caused a re
 nowhere. **Resolve a label by reading the `label_i18n_key` column; never infer it from an id or a
 payload field.**
 
-⭐ **The REASON for that mismatch changed in step 5; the INSTRUCTION did not.** It used to be a real
-term split — the internal id said "on goal" while the user-facing label said "on target". RULING 2
-closed that: **both now say "on goal"**, and the label reads `Ø Shots on goal`. What survives is
-purely a LEGACY KEY NAME. `metrics.shots_on_target_per_match.label` is still the only key in the
-catalogue carrying "on_target", it is still what `strings.ts` and `metricRows.ts` join on, and the
-catalogue still declares no `metrics.shots_on_goal_per_match.label` — so inferring the key from the
-id still resolves the label to nothing. Renaming the key is a separate job with its own contract.
+The catalogue declares no `metrics.shots_on_goal_per_match.label`, so inferring the key from the id
+resolves the name to nothing.
 
 ⚠ **Row 3 carries TWO metric ids, and that is the contract, not a typo.** A row of this table is a
 display SLOT, and this slot measures different things on the two surfaces it appears on. A fixture
@@ -196,33 +179,26 @@ window is five matches, so the honest reading is the COUNT — `clean_sheets`, s
 `3` (the catalogue's format is `integer`; the `3/5` fraction it once carried was struck on #129, and
 `points_won` keeps its `13/15` as the one deliberate exception). A team season is ranked against a
 whole league, where matches played differ between teams, so
-the honest reading is the PROPORTION — `clean_sheets_pct`, `21%`, labelled `% Clean sheets` under
-the same `% ` prefix every other percent metric here carries. They are two catalogue metrics with one
+the honest reading is the PROPORTION — `clean_sheets_pct`, `21%`, named Clean sheets with "percentage"
+on its second line. They are two catalogue metrics with one
 formula between them, and the seed carries both. In `metricRows.ts` the row's own
 `field`/`labelKey`/`format` are the FIXTURE binding and the team surface reads `teamBinding(row)`;
 order, group and tier are shared and unchanged, so this table still locks sixteen rows.
-
-Row 7's "relabeled" note is also load-bearing: this document rules that v2 ships
-`% Goals per shot on goal` (step 5; it read `% Goals per shot on target` until then), while the
-retired MVP corpus (`site/i18n/*.json`) says `% Conversion rate`. #370 kept this document's version
-and left the divergence for the CPO, and step 5 does not settle it either — the frozen corpus is not
-touched, and `check-metric-labels.test.mjs` still skips this one row by name for that reason.
 
 **German and Finnish are CPO-approved** (2026-07-31); ten are carried forward from the validated MVP
 corpus and are test-pinned to it so they cannot drift.
 
 **Long compounds in those locales do not fit the layouts this document assumes, and the fix is part of
-the display contract.** `Ø Torschussdifferenz` needs 89.1px; the hero tile label box was 71px and the
-Performance row's is 77px, both measured at 375px.
+the display contract.** The hero tile label box is 71px and the Performance row's is 77px, both at
+375px.
 
 - `system.css` gives both `overflow-wrap: anywhere`, which stops the clipping (worst case was +53.3px).
 - That alone was NOT enough: it breaks a compound at an arbitrary letter with no hyphen, and it
-  rendered `Ø` / `Torschussdiffe` / `renz` plus all three Finnish hero tiles the same way. `hyphens:
+  broke the longest German name and all three Finnish hero tiles the same way. `hyphens:
   auto` is inert — the rendering engine carries no de/fi dictionary.
 - **The three hero tiles therefore STACK on phones** (CPO-approved 2026-08-01, shown the rendered line
   breaks), name left and value right. The tile becomes 301px wide and the label can take ~231px of it
-  (the rest is the value and the gap), against the 89.1px the longest German name needs — measured, not
-  assumed, after an earlier version of this line said "the full width" and meant the tile's.
+  (the rest is the value and the gap).
   0 mid-word breaks in all three
   locales, at a cost of 53px of block height. ⚠ He ruled "on phones"; **the 560px threshold is the
   builder's**, picked because it collides with no existing breakpoint. Disclosed here because this is
@@ -234,17 +210,16 @@ Performance row's is 77px, both measured at 375px.
 Any locale that compounds (Dutch is next) inherits all of this.
 
 **Defined but not displayed** (stay in catalogue/marts, render nowhere in the
-comparison): `shots_on_goal_pct` (% shots on goal — superseded by the Ø-shots vs
-Ø-on-target juxtaposition), `tackles_per_match` / `interceptions_per_match` /
+comparison): `shots_on_goal_pct` (superseded by the shots and shots on target rows side by
+side), `tackles_per_match` / `interceptions_per_match` /
 `blocks_per_match` (sub-display of row 10 only), `dribbles_success_player_pct`
 (dropped team-side; stays a player metric), `points_won` + `league_rank`
 (window header / standing chip, not metric rows).
 
 ### The shooting funnel (rationale, ruled with fix "a")
 
-Volume (Ø shots) → location quality (% from box) → on-target volume (Ø shots on
-goal) → finishing (% goals per shot on goal). The old label "% Conversion rate"
-was the misnomer and is replaced.
+Volume (shots) → location quality (shots inside box percentage) → on-target volume (shots on
+target) → finishing (goals per shot on target).
 
 What the finishing metric counts is its catalogue row; how it is computed and when it
 is blank are the catalogue table's rules.
@@ -273,7 +248,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | # | Row | Display string | Atomics | Group |
 |---|---|---|---|---|
 | 1 | Scorer points | `{goals} G · {assists} A` | goals_player, assists_player | Goals |
-| 2 | Shots on goal | `{shots_on}` | shots_on_target | Shooting |
+| 2 | Shots on target | `{shots_on}` | shots_on_target | Shooting |
 | 3 | Duels won | `{won} of {total} · {pct}%` | duels_won_player, duels_player, duels_won_player_pct | One-on-one |
 | 4 | Successful dribbles | `{success} of {attempts} · {pct}%` | dribbles_success_player, dribbles_attempts_player, dribbles_success_player_pct | One-on-one |
 | 5 | Tackles + Interceptions + Blocks | `{T} T · {I} I · {B} B` | tackles_player, interceptions_player, blocks_player | Defending |
@@ -325,7 +300,7 @@ mixes groups; (3) ratio displays standardized to the full triple
 | 2026-06-11 | No naked percentage: player ratio rows standardized to `{num} of {den} · {pct}%`; GK row gains the triple (`saves_player`, `shots_on_target_faced` atomics). Team comparisons keep single % values — adjacent count rows provide the volume. |
 | 2026-06-11 | W2's user-facing name = "through matchday N" (mart name stays internal); the W1/W2 toggle states carry explicit scope labels (cross-comp vs within-comp) per the context matrix. |
 | 2026-06-11 | Tournament window exception (cumulative + qualifier preview) confirmed as the matrix rule for display; found unimplemented in the new window marts → GAP-18, scheduled before WC 2026. |
-| 2026-08-10 | **A board HEADING expands the `Ø` sigil; a metric ROW keeps it** (CPO, GitLab #41). On a leaderboard board the label is a heading, and `Ø Goals` reads badly there while a bare `Goals` reads as a season total — so the heading spells the rate out: `Goals per match`, `Tore pro Spiel`, `Maalit ottelua kohden`, derived per locale from the localised label. Everywhere a metric renders as a ROW — the team table and player rows locked above, the fixture comparison, the profiles — the sigil stays, unchanged. |
+| 2026-08-10 | **A board HEADING spells the rate out** (CPO, GitLab #41). On a leaderboard board a bare `Goals` reads as a season total — so the heading spells the rate out: `Goals per match`, `Tore pro Spiel`, `Maalit ottelua kohden`, derived per locale from the localised label. A row carries no sigil either; its second line says "per match" or "percentage". |
 
 ### The heading rule, and why it is written here (added 2026-09-10)
 
@@ -346,4 +321,4 @@ label key `metrics.shots_on_target_per_match.label`, the same id/name disagreeme
 having caused a defect in #370. An id's spelling is not a fact about the metric.
 
 ⚠ A per-90 label needs no expansion in any case — it already states its window in words
-(`Ø Dribbles completed per 90`). Expanding one would read "per 90 per match".
+(`Dribbles completed per 90`). Expanding one would read "per 90 per match".

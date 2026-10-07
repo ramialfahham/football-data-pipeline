@@ -45,7 +45,7 @@ atomics + per-season `team`; `match_log[]` (all matches with a stat line, latest
 ├────────────────────────────────────────────┤
 │  SEASON STATS                              │  (5) the 9 bundled rows
 │  Scorer points        9 G · 6 A            │
-│  Shots on goal        21                   │
+│  shots_on_goal_player 21                   │
 ├──────────────— fold (~700px) —─────────────┤
 │  Duels won            96 of 178 · 54%      │
 │  Successful dribbles  38 of 61 · 62%       │
@@ -88,17 +88,19 @@ catalogue metrics; rendered as a one-line summary.
 
 ### (5) Season stats — the 9 locked bundles
 
+Each bundle's name is its rank metric's entry in `site_v2/src/i18n/strings.ts`.
+
 | Bundle (contract) | JSON keys (selected season row) |
 |---|---|
 | Scorer points | `goals_player`, `assists_player` |
-| Shots on goal | `shots_on_target` |
+| `shots_on_goal_player` | `shots_on_target` |
 | Duels won | `duels_won_player`, `duels_player`, `duels_won_player_pct` |
 | Successful dribbles | `dribbles_success_player`, `dribbles_attempts_player`, `dribbles_success_player_pct` |
 | Tackles + Interceptions + Blocks | `tackles_player`, `interceptions_player`, `blocks_player` |
 | Pass accuracy | `passes_accurate_player`, `passes_player`, `passes_accuracy_player_pct` |
 | Key passes | `passes_key_player` |
 | Cards | `cards_yellow_player`, `cards_red_player` |
-| Save percentage | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
+| `saves_player_pct` | `saves_player_pct` + **GAP-12** atomics (`saves_player`, `shots_on_target_faced`) — until they ship the row renders `{pct}%` only |
 
 Rendering rules per contract: group subheads optional (design call), order fixed,
 zero-denominator → `0 of 0 · —`, GK row only for `position = 'G'` (pull-up of the

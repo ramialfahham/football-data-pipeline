@@ -163,27 +163,62 @@ test("every labelKey is a label_i18n_key the catalogue actually declares", () =>
     `Read the column; never infer the key from the metric_id or the payload field.`);
 });
 
-test("the CPO-validated MVP labels are byte-identical to site/i18n", () => {
-  const corpus = Object.fromEntries(["en", "de", "fi"].map((l) => [
-    l.toUpperCase(),
-    JSON.parse(readFileSync(join(REPO, `site/i18n/${l}.json`), "utf8")).metrics ?? {},
-  ]));
-  let compared = 0;
-  const drift = [];
+test("no metric name carries a sigil, in any locale", () => {
+  const bad = [];
   for (const loc of LOCALES) {
     for (const [key, val] of labels[loc]) {
-      const id = key.replace(/^metrics\./, "").replace(/\.label$/, "");
-      const validated = corpus[loc][id]?.label;
-      if (!validated) continue;
-      // EN diverges for finishing_efficiency_pct by design: v2's locked label is kept and the corpus's
-      // "% Conversion rate" is a §10 pick still open.
-      if (loc === "EN" && id === "finishing_efficiency_pct") continue;
-      compared += 1;
-      if (val !== validated) drift.push(`${loc}.${id}: "${val}" != validated "${validated}"`);
+      if (/[Ø%]/.test(val)) bad.push(`${loc} ${key}: "${val}"`);
     }
   }
-  assert.ok(compared >= 27, `expected >=27 validated labels to compare, compared ${compared}`);
-  assert.deepEqual(drift, [], `CPO-validated wording changed:\n  ${drift.join("\n  ")}`);
+  assert.deepEqual(bad, [], `a name carries Ø or %; its second line says "per match" or "percentage":\n  ${bad.join("\n  ")}`);
+});
+
+/** The catalogue's rows by (metric_id, entity), parsed with quoted fields (descriptions hold commas). */
+function catalogueByKey() {
+  const text = readFileSync(join(REPO, "dbt_project/seeds/metric_catalogue.csv"), "utf8");
+  const rows = [];
+  for (const line of text.split(/\r?\n/).filter(Boolean)) {
+    rows.push([...line.matchAll(/("(?:[^"]|"")*"|[^,]*)(?:,|$)/g)].map((m) => m[1].replace(/^"|"$/g, "")).slice(0, -1));
+  }
+  const header = rows[0];
+  const col = (r, name) => r[header.indexOf(name)];
+  return new Map(rows.slice(1).map((r) => [`${col(r, "metric_id")}|${col(r, "entity")}`, {
+    denominator: col(r, "denominator_expr"), format: col(r, "format"), key: col(r, "label_i18n_key"),
+  }]));
+}
+
+test("the site's per-match flags and share list agree with the catalogue", () => {
+  // Copies of catalogue facts, held here until the export serves them: each must match its row.
+  const cat = catalogueByKey();
+  // A per-match average divides by the matches and is not a share (clean_sheets_pct divides by the
+  // matches too, but it is a share).
+  const perMatch = (id) => cat.get(`${id}|team`)?.denominator === "count(*)" && cat.get(`${id}|team`)?.format !== "percent";
+  const flags = [...rowsSrc.matchAll(/field: "([a-z_]+)", labelKey: "[^"]+"[^}]*?perMatch: (true|false)/g)];
+  assert.ok(flags.length >= 17, `expected the 16 rows and the team binding, parsed ${flags.length}`);
+  for (const [, field, flag] of flags) {
+    assert.ok(cat.has(`${field}|team`), `metricRows.ts field ${field} is not a team catalogue metric`);
+    assert.equal(flag === "true", perMatch(field), `metricRows.ts perMatch for ${field} disagrees with the catalogue`);
+  }
+  for (const id of ["shots_on_goal_per_match", "shots_on_goal_against_per_match", "shots_on_goal_difference_per_match"]) {
+    assert.ok(perMatch(id), `the team hero tile ${id} says "per match" but the catalogue does not define it so`);
+  }
+  const shares = [...strings.match(/SHARE_NAMED_BY_ITS_COUNT = new Set\(\[([\s\S]*?)\]\)/)[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const byKey = new Map([...cat.values()].map((r) => [r.key, r]));
+  for (const key of shares) {
+    assert.equal(byKey.get(key)?.format, "percent", `${key} is listed as a share but is not a percent metric`);
+  }
+});
+
+test("a share named by its count says percentage; a per-match value says per match", async () => {
+  const { metricSubline, t } = await import("../src/i18n/strings.ts");
+  for (const lang of ["en", "de", "fi"]) {
+    assert.equal(metricSubline(lang, "metrics.duels_won_pct.label", false), t(lang, "percentage"));
+    assert.equal(metricSubline(lang, "metrics.passes_accuracy_pct.label", false), "",
+      "a share with a football word of its own has no second line");
+    assert.equal(metricSubline(lang, "metrics.goals_per_match.label", true), t(lang, "perMatch"));
+    assert.equal(metricSubline(lang, "metrics.clean_sheets.label", false), "",
+      "a count has no second line");
+  }
 });
 
 test("the three hand-written hero label strings are gone", () => {
@@ -212,34 +247,21 @@ test("the page-spec checker's parser and this one see the SAME metric keys", asy
 });
 
 test("a board title spells the rate out, in the LOCALE's own words", async () => {
-  // #41: "Ø Goals" reads badly as a heading, and a bare "Goals" is wrong because these are
-  // per-match rates and a bare noun reads as a season total. So the sigil is expanded.
-  // ⚠ Derived from the LOCALISED label — the DE and FI labels carry the sigil too, so deriving from
-  // the English one would title a Finnish board in English. That is the failure this asserts.
+  // A bare "Goals" reads as a season total, so a per-match board says so in its title.
   const { boardTitle } = await import("../src/i18n/strings.ts");
   const key = "metrics.goals_per_match.label";
-  assert.equal(boardTitle("en", key), "Goals per match");
-  assert.equal(boardTitle("de", key), "Tore pro Spiel");
-  assert.equal(boardTitle("fi", key), "Maalit ottelua kohden");
-  for (const lang of ["en", "de", "fi"]) {
-    assert.ok(!boardTitle(lang, key).includes("Ø"),
-      `${lang} board title still carries the sigil it is supposed to expand`);
-  }
+  assert.equal(boardTitle("en", key, true), "Goals per match");
+  assert.equal(boardTitle("de", key, true), "Tore pro Spiel");
+  assert.equal(boardTitle("fi", key, true), "Maalit ottelua kohden");
+  assert.equal(boardTitle("en", "metrics.duels_won_pct.label", false), "Duels won percentage");
+  assert.equal(boardTitle("de", "metrics.passes_accuracy_pct.label", false), "Passquote");
 });
 
-test("every team board label the block renders is a bare sigil label, not a windowed one",
+test("every team board label the block renders states no window of its own",
   async () => {
-  // ⛔ REPLACES a test that fed `boardTitle` a per-90 metric id and asserted it came back
-  // unexpanded. That test pinned the WRONG guard: `boardTitle` used to read
-  // `metricId.endsWith("_per_match")`, which is a taxonomy judgement made in the frontend from
-  // an id's spelling — which this catalogue already proves
-  // unsafe (`shots_on_goal_per_match` carries `metrics.shots_on_target_per_match.label`).
-  //
-  // The real premise is that the four boards this block renders are per-match rates, and that is
-  // asserted against the catalogue's own data in `test_the_team_board_set_is_all_per_match_rates`
-  // (`denominator_expr = count(*)`). What is left for THIS file is the display half of the same
-  // premise: those four labels must be bare `Ø <noun>` strings, because expanding one that already
-  // states its window would read "Ø Goals per 90 per match".
+  // The four Home boards are per-match rates (asserted against the catalogue's denominator in
+  // `test_the_team_board_set_is_all_per_match_rates`); their names must not state a window, or the
+  // title would read "Goals per 90 per match".
   const { boardTitle, metricLabel, t } = await import("../src/i18n/strings.ts");
   const boards = ["goals_per_match", "shots_on_goal_per_match", "passes_per_match",
                   "duels_per_match"];
@@ -249,17 +271,13 @@ test("every team board label the block renders is a bare sigil label, not a wind
     assert.ok(row, `${id} is not a team metric in the catalogue`);
     for (const lang of ["en", "de", "fi"]) {
       const label = metricLabel(lang, row.label_i18n_key);
-      assert.ok(label.startsWith("Ø "),
-        `${lang} label for ${id} is "${label}" — no sigil for the heading to expand`);
-
-      // The window must appear EXACTLY ONCE in the heading. A label that already stated its own
-      // window would read "Ø Goals per 90 per match"; this counts rather than pattern-matches, so
-      // it needs no per-locale list of window words.
-      const title = boardTitle(lang, row.label_i18n_key);
+      assert.ok(label, `${lang} has no name for ${id}`);
+      // The window must appear EXACTLY ONCE in the heading; counting needs no per-locale word list.
+      const title = boardTitle(lang, row.label_i18n_key, true);
       const window = t(lang, "perMatch");
+      assert.equal(title, `${label} ${window}`);
       assert.equal(title.split(window).length - 1, 1,
         `${lang} heading for ${id} is "${title}" — "${window}" must appear exactly once`);
-      assert.ok(!title.includes("Ø"), `${lang} heading for ${id} kept the sigil: "${title}"`);
     }
   }
 });

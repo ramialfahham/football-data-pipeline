@@ -3,7 +3,8 @@
 Design-only. Reads nothing from BigQuery; the numbers are PLACEHOLDER.
 
 Two things are read from the repo so the mock cannot drift from the product:
-  1. every display name comes from `label_en` in dbt_project/seeds/metric_catalogue.csv,
+  1. every display name is the English entry in site_v2/src/i18n/strings.ts of the
+     `label_i18n_key` in dbt_project/seeds/metric_catalogue.csv,
      looked up by (metric_id, entity) -- the catalogue's real grain. Two of the ids used
      here carry BOTH a team and a player row, so keying on metric_id alone silently takes
      the wrong label; that is the exact bug export_metric_definitions_json.py once had.
@@ -16,6 +17,7 @@ toggles are :checked + sibling combinators.
 """
 import csv
 import html
+import re
 import sys
 from pathlib import Path
 
@@ -28,10 +30,13 @@ OUT = Path(__file__).with_name("top_teams_mock.html")
 
 _ROWS = list(csv.DictReader(CATALOGUE.open(encoding="utf-8")))
 _BY_KEY = {(r["metric_id"], r["entity"]): r for r in _ROWS}
+_EN = dict(re.findall(r'"([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+)":\s*"([^"]*)"', re.search(
+    r"const METRIC_LABELS_EN: MetricLabels = \{([\s\S]*?)\n\};",
+    (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")).group(1)))
 
 
 def label(metric_id, entity="team"):
-    """label_en for one metric. Hard-fails on an unknown id -- never invent a label."""
+    """The English name of one metric. Hard-fails on an unknown id -- never invent a label."""
     row = _BY_KEY.get((metric_id, entity))
     if row is None:
         known = sorted(m for (m, e) in _BY_KEY if e == entity)
@@ -40,9 +45,9 @@ def label(metric_id, entity="team"):
             "The board name and every column header are GOVERNED values.\n"
             "Known %s ids: %s" % (entity, metric_id, CATALOGUE.name, entity, ", ".join(known))
         )
-    lab = (row["label_en"] or "").strip()
+    lab = _EN.get(row["label_i18n_key"], "").strip()
     if not lab:
-        sys.exit("FATAL: metric '%s' (%s) has an empty label_en." % (metric_id, entity))
+        sys.exit("FATAL: metric '%s' (%s) has no English name in strings.ts." % (metric_id, entity))
     return lab
 
 
@@ -53,21 +58,21 @@ def label(metric_id, entity="team"):
 # needs do not exist yet. Those are marked PROBE and rendered with a dotted underline:
 # they are plausible worst-case strings for measuring width, NOT approved copy.
 FI = {
-    "points_capture": ("% Kerätyt pisteet", True),
+    "points_capture": ("Kerätyt pisteet", True),
     "points_won": ("Voitetut pisteet", True),
     "deserved_points": ("Ansaitut pisteet", True),
-    "goals_per_match": ("Ø Maalit", False),
-    "goals_against_per_match": ("Ø Päästetyt maalit", False),
-    "sot_difference_per_match": ("Ø Maalilaukauksien ero", False),
-    "shots_on_goal_per_match": ("Ø Maalilaukaukset", True),
-    "shots_on_goal_against_per_match": ("Ø Maalilaukaukset vastaan", False),
-    "finishing_efficiency": ("% Viimeistelytehokkuus", False),
-    "defensive_actions_per_match": ("Ø Puolustustoimet", False),
-    "passes_per_match": ("Ø Syötöt", False),
-    "pass_accuracy": ("% Syöttötarkkuus", False),
-    "key_passes_per_match": ("Ø Avainsyötöt", False),
-    "duels_per_match": ("Ø Kaksinkamppailut", False),
-    "duels_won_pct": ("% Voitetut kaksinkamppailut", False),
+    "goals_per_match": ("Maalit", False),
+    "goals_against_per_match": ("Päästetyt maalit", False),
+    "sot_difference_per_match": ("Maalilaukauksien ero", False),
+    "shots_on_goal_per_match": ("Maalilaukaukset", True),
+    "shots_on_goal_against_per_match": ("Maalilaukaukset vastaan", False),
+    "finishing_efficiency": ("Viimeistelytehokkuus", False),
+    "defensive_actions_per_match": ("Puolustustoimet", False),
+    "passes_per_match": ("Syötöt", False),
+    "pass_accuracy": ("Syöttötarkkuus", False),
+    "key_passes_per_match": ("Avainsyötöt", False),
+    "duels_per_match": ("Kaksinkamppailut", False),
+    "duels_won_pct": ("Voitetut kaksinkamppailut", False),
 }
 
 # --------------------------------------------------------------- sample data
@@ -164,33 +169,22 @@ CREST = (
 )
 
 
-RATE_WINDOW = {"_per_match": {"en": " per match", "fi": " per ottelu"},
-        "_per90": {"en": " per 90", "fi": " per 90"}}
+SUBLINE = {"per_match": {"en": "per match", "fi": "ottelua kohden"},
+           "percentage": {"en": "percentage", "fi": "prosentteina"}}
+_SHARES = set(re.findall(r'"([^"]+)"', re.search(
+    r"const SHARE_NAMED_BY_ITS_COUNT = new Set\(\[([\s\S]*?)\]\);",
+    (REPO / "site_v2/src/i18n/strings.ts").read_text(encoding="utf-8")).group(1)))
 
 
-def board_title(metric_id, lab, loc="en"):
-    """A board name SPELLS OUT the format sigil instead of carrying it.
-
-    "Ø Goals" reads badly as a heading, but plain "Goals" is WRONG -- these are per-match
-    rates, and a bare noun reads as a season total. So the sigil is expanded into the words
-    it stands for: "Ø Goals" -> "Goals per match". The column header underneath keeps the
-    compact "Ø Goals", where a sigil is fine and space is short.
-
-    Driven by the metric ID, not by the sigil, because "Ø" alone is ambiguous -- the
-    catalogue also carries per-90 labels ("Ø Successful dribbles per 90"), and appending
-    "per match" to one of those would produce nonsense. The suffix therefore comes from the
-    id, and the two are asserted to agree so a future metric cannot drift past this.
-
-    With ONE metric per board there is no column header, so this title is the ONLY label the
-    number carries -- which is exactly why it has to say "per match" rather than "Goals".
-    """
-    suffix = next((v for k, v in RATE_WINDOW.items() if metric_id.endswith(k)), None)
-    if lab.startswith("Ø "):
-        assert suffix, "%r is labelled Ø but its id names no rate window" % metric_id
-        stem = lab[len("Ø "):]
-        # a per-90 label already ends in its own window; do not double it
-        return stem if stem.endswith(suffix[loc].strip()) else stem + suffix[loc]
-    assert not suffix, "%r is a rate by id but its label %r carries no Ø" % (metric_id, lab)
+def board_title(metric_id, lab, loc="en", entity="team"):
+    """A board name, then the words of its second line, as the site's boardTitle() builds it:
+    "per match" for an average per match (denominator count(*), not a share), "percentage" for a
+    share named by its count. A bare "Goals" would read as a season total."""
+    row = _BY_KEY[(metric_id, entity)]
+    if row["denominator_expr"].strip() == "count(*)" and row["format"] != "percent":
+        return "%s %s" % (lab, SUBLINE["per_match"][loc])
+    if row["label_i18n_key"] in _SHARES:
+        return "%s %s" % (lab, SUBLINE["percentage"][loc])
     return lab
 
 
@@ -339,8 +333,8 @@ def build():
 <div class="legend">
   <b>Mock.</b> Numbers are placeholder, not measured &mdash; leagues are deliberately at
   different matchday counts so the points denominators differ, which a pooled board really does.
-  Every board name and column header is <b>label_en</b> from
-  <b>metric_catalogue.csv</b>, looked up by (metric_id, entity=team); the generator exits on an
+  Every board name and column header is the English name in <b>strings.ts</b> of the
+  <b>metric_catalogue.csv</b> key, looked up by (metric_id, entity=team); the generator exits on an
   unknown id. Finnish comes from <b>METRIC_LABELS_FI</b> in strings.ts except the
   <span class="probe" style="text-decoration: underline dotted">dotted</span> ones, which do not
   exist yet and are plausible worst-case strings for measuring width, not approved copy.
@@ -374,7 +368,7 @@ def check_guards():
             sys.exit("FATAL: the unknown-id guard did NOT fire for '%s'." % bad)
 
     # ...and a known id still resolves, so the guard is not just failing everything.
-    assert label("goals_per_match") == "Ø Goals", label("goals_per_match")
+    assert label("goals_per_match") == "Goals", label("goals_per_match")
     print("  known id still resolves -> %s" % label("goals_per_match"))
 
 

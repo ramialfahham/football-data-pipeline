@@ -116,7 +116,7 @@ titles = re.findall(r'<span class="bt"><span class="en">([^<]+)</span>', body)
 EXPECT = ["Goals", "Assists", "Passes", "Key passes"]
 check("four boards in the CPO order", titles == EXPECT, " | ".join(titles))
 check("no goalkeeper board", "faced" not in body and "conceded" not in body.lower())
-check("titles are label_en verbatim, no sigil, no per-match",
+check("titles are the English names verbatim, no sigil, no per-match",
       not any(t.startswith(("Ø", "%")) or "per match" in t for t in titles))
 check("28 rows (4 boards x top 7)", body.count('<a class="brow"') == 28, str(body.count('<a class="brow"')))
 per_board = [blk.count('<a class="brow"') for blk in body.split('<div class="board">')[1:]]
@@ -136,7 +136,7 @@ for gone in ("Goal contributions", "Pass accuracy", "Dribbles completed", "Succe
              "Duels won", "Shots saved", "% "):
     check("dropped: %s" % gone, gone not in body)
 
-# Every board leads with the metric that ranks it. The title is that metric's label_en
+# Every board leads with the metric that ranks it. The title is that metric's English name
 # minus its format sigil, so title + sigil must reconstruct the first column header exactly
 # -- which proves the title still derives from the catalogue and was not hand-written.
 for blk in body.split('<div class="board">')[1:]:

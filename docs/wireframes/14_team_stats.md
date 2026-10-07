@@ -56,18 +56,18 @@ next to the %), both being separate metrics already in the set.
 │  ranked within Bundesliga 2025/26                 │      each row shows its own "of N" (§5)
 ├───────────────────────────────────────────────────┤
 │  GOALS                                            │  (4) group subhead (metrics_display order)
-│  Ø Goals          2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
-│  Ø Goals against  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
-│  % Clean sheets   43%   2nd of 18   +6pp  ▐███▌   │      clean_sheets_pct; the fixture windows show the count
+│  goals_per_match  2.2   3rd of 18   +0.4  ▐███▌   │      value · rank · vs-median · spread bar
+│  goals_against_…  0.8   1st of 18   −0.5  ▐█▌     │      lower_better → rank mirrored (1st = fewest)
+│  clean_sheets_pct 43%   2nd of 18   +6pp  ▐███▌   │      the fixture windows show the count
 │  SHOOTING                                         │      order = the LOCKED shooting funnel
-│  Ø Shots         14.1   2nd of 18   +2.1  ▐███▌   │      volume →
-│  % Shots from box 38%   6th of 18   +2pp  ▐██▌    │      location (% — volume is Ø Shots above) →
-│  Ø Shots on goal   5.3  3rd of 18   +0.8  ▐███▌   │      on-goal volume →
-│  % Finishing      28%   5th of 18   +3pp  ▐██▌    │      finishing (shots_on_goal_pct mart-ranked but UNRENDERED — contract)
+│  shots_per_match 14.1   2nd of 18   +2.1  ▐███▌   │      volume →
+│  shots_inside_…   38%   6th of 18   +2pp  ▐██▌    │      location (the share; the volume is above) →
+│  shots_on_goal_…   5.3  3rd of 18   +0.8  ▐███▌   │      on-target volume →
+│  finishing_…      28%   5th of 18   +3pp  ▐██▌    │      finishing (shots_on_goal_pct mart-ranked but UNRENDERED — contract)
 ├────────────────── fold (~700px) ──────────────────┤
 │  DUELS                                            │
-│  Ø Duels          51    9th of 18   ±0    ▐███▌   │      higher_better, level with the median (±0) → plain ink
-│  % Duels won      54%   3rd of 18   +4pp  ▐████▌  │
+│  duels_per_match  51    9th of 18   ±0    ▐███▌   │      higher_better, level with the median (±0) → plain ink
+│  duels_won_pct    54%   3rd of 18   +4pp  ▐████▌  │
 │  …Defending → Passing → Set pieces → Goalkeeping…  │
 ├───────────────────────────────────────────────────┤
 │  ▸Overview ▸Table ▸Glossary                       │  (5) internal links
@@ -100,7 +100,7 @@ Shipped nesting (at wiring): `seasons[]` → `benchmarks[]` (one member per `met
 | Label | `metric_key` | `metric_key` | label + format from `metric_catalogue` (never invented) |
 | Value — per-match metric | `metric_value` | `metric_value` | the per-match rate, catalogue `format` (`decimal_0`/`decimal_1`) |
 | Value — ratio metric (%) | `metric_value` | `metric_value` | the `percent`; its **volume is the adjacent count row** in the same block (no naked %) |
-| Value — `clean_sheets_pct` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Labelled `% Clean sheets` |
+| Value — `clean_sheets_pct` | `metric_value` | `metric_value` | the clean-sheet **share** — `safe_divide(clean_sheet_games, games_played)`, its own catalogue metric and not the count wearing another name. This screen ranks a team against a league whose teams have played different numbers of matches, so the proportion is the comparable number; the fixture windows serve the count (`clean_sheets`, x/y) instead. Its name is its key's entry in `strings.ts` |
 | Rank | `rank` (+ `team_count`, `direction`) | `rank`, `team_count` | **"{rank} of {team_count}"** (e.g. "3rd of 18") — direction-mirrored (rule below) |
 | vs-median | `vs_median_delta` | `vs_median_delta` | signed, catalogue-formatted (`+0.4`, `+3pp` for percent) |
 | Spread bar | derived from `metric_value` vs `p25`/`median`/`p75` | `league_p25`, `league_median`, `league_p75` | the value's position on a p25–median–p75 track; dashed median reference |
@@ -135,9 +135,10 @@ remaining justification.)
 
 The mart **ranks all 20** metrics; the screen **renders the LOCKED 16** (the `metrics_display.md` team
 table). **Four** benchmark metrics are ranked in the mart but **NOT independently rendered**, per the
-locked "defined but not displayed" list: `shots_on_goal_pct` (superseded by the Ø-shots vs Ø-on-target
-juxtaposition) and `tackles_per_match` / `interceptions_per_match` / `blocks_per_match` (the **T · I · B
-sub-display of the single Ø Defensive actions row**, not separate ranked rows). `02_team_profile.md` §8
+locked "defined but not displayed" list: `shots_on_goal_pct` (superseded by the shots and shots on
+target rows side by side) and `tackles_per_match` / `interceptions_per_match` / `blocks_per_match` (the
+**T · I · B sub-display of the single `defensive_actions_per_match` row**, not separate ranked rows).
+Each row's name is its key's entry in `site_v2/src/i18n/strings.ts`. `02_team_profile.md` §8
 renders the same 16. Grouped and ordered per the metrics_display block order:
 
 | Block | Rendered metrics (metric_key) |
@@ -150,8 +151,9 @@ renders the same 16. Grouped and ordered per the metrics_display block order:
 | Set pieces | `corners_per_match` · `corners_against_per_match` (lower_better) |
 | Goalkeeping | `saves_pct` (%) |
 
-The six `percent` ratios sit next to their volume count in the same block (Ø Shots → % accuracy; Ø Duels
-→ % Duels won; Ø Passes → % accuracy). **`saves_pct` is the one `%` without a count peer in this set**
+The six `percent` ratios sit next to their volume count in the same block (`shots_per_match` →
+`shots_inside_box_pct`; `duels_per_match` → `duels_won_pct`; `passes_per_match` →
+`passes_accuracy_pct`). **`saves_pct` is the one `%` without a count peer in this set**
 (the Goalkeeping block is saves_pct alone) — it renders the `%` as the team profile 02 §8 already does;
 adding a saves/faced count is a catalogue matter (GAP-11 family), not this screen.
 
