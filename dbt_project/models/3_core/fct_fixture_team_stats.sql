@@ -20,6 +20,7 @@ select
     fouls,
     corners,
     offsides,
+    free_kicks,
     possession_pct,
     cards_yellow,
     cards_red,

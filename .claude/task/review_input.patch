@@ -1,462 +1,1174 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 88085129..cae1d263 100644
+index cae1d263..4ef04ab8 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,52 +1,77 @@
--# Task contract — the match page renders carry every recorded metric decision
-+# Task contract — #173, part 1: the match page's lists of matches read mart_competition_fixtures
+@@ -1,26 +1,38 @@
+-# Task contract — #173, part 1: the match page's lists of matches read mart_competition_fixtures
++# Task contract — #177, part 1: the form window serves every Form comparison metric
  
  objective: >
--  Bring the match page renders up to every recorded decision, as the final mockup for the build:
--  the Form comparison and Match stats show the same metrics, in the catalogue's order, less the
--  Goals group on a played match; the after-penalties render shows every block a played match shows.
--  New renders of record; no site change.
-+  The match page's readers of matches read mart_competition_fixtures and only filter it: the
-+  header (the match) and each team's next match, served for the future match page's Next matches. The mart gains venue_name, is_home_team_next_match and
-+  is_away_team_next_match.
+-  The match page's readers of matches read mart_competition_fixtures and only filter it: the
+-  header (the match) and each team's next match, served for the future match page's Next matches. The mart gains venue_name, is_home_team_next_match and
+-  is_away_team_next_match.
++  mart_team_momentum serves, per team over its form window, every metric the next match page's
++  Form comparison shows: 16 more, each a catalogue row with its formula and label_i18n_key, its
++  inputs carried from the team line and the player feed. No name, no translation, no site change.
  
  refs: >
--  #166 (the next match page build) "Form comparison rows" and #175 (the played match page) "Match
--  stats", both edited to the one metric list, approved in chat, 2026-10-07; #175 "A played match's
--  page shows" (the block list); the step order approved in chat, 2026-10-07.
-+  #173 (one source for every list of matches), its How step 2 order, approved in chat, 2026-10-07;
-+  the three column names and the acceptance criteria, approved in chat, 2026-10-07; #166 Next
-+  matches (the block that draws the next match).
-+
-+acceptance_criteria:
-+  - Every fixture file shows the same header and the same Recent matches before and after; the export's output is compared file by file.
-+  - Every fixture file carries each team's next match, other than this one, read from mart_competition_fixtures. A team whose next match is this one has none.
-+  - A dbt test fails when a team has more than one next match.
+-  #173 (one source for every list of matches), its How step 2 order, approved in chat, 2026-10-07;
+-  the three column names and the acceptance criteria, approved in chat, 2026-10-07; #166 Next
+-  matches (the block that draws the next match).
+-
+-acceptance_criteria:
+-  - Every fixture file shows the same header and the same Recent matches before and after; the export's output is compared file by file.
+-  - Every fixture file carries each team's next match, other than this one, read from mart_competition_fixtures. A team whose next match is this one has none.
+-  - A dbt test fails when a team has more than one next match.
++  #177 (the metric catalogue), its match-page part first, the order and the build approved in chat,
++  2026-10-07; #166 "Form comparison rows" (the 40-metric list, approved in chat, 2026-10-07).
  
  scope_paths:
--  - design-mocks/gen_match_page.py
--  - design-mocks/renders/*
-+  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/tests/assert_mart_competition_fixtures_one_next_match_per_team.sql
-+  - scripts/export_site_data.py
-+  - tests/test_export_site_data.py
+-  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/2_base/api_football/*.yml
++  - dbt_project/models/3_core/fct_fixture_team_stats.sql
++  - dbt_project/models/3_core/*.yml
++  - dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++  - dbt_project/models/4_intermediate/shared/*.yml
++  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++  - dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++  - dbt_project/models/4_intermediate/domestic_league/team_season/*.yml
+   - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/tests/assert_mart_competition_fixtures_one_next_match_per_team.sql
+-  - scripts/export_site_data.py
+-  - tests/test_export_site_data.py
++  - dbt_project/models/5_marts/domestic_league/*.yml
++  - dbt_project/models/docs/metric_columns.md
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/seeds/metric_map.csv
++  - dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
++  - dbt_project/tests/assert_base_team_stats_cleaned.sql
++  - dbt_project/tests/assert_stat_facts_equal_base.sql
++  - scripts/generate_metric_sql.py
++  - tests/test_generate_metric_sql.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/acceptance_evidence.md
--  - .claude/task/rendered_page_evidence.md
+@@ -28,50 +40,81 @@ scope_paths:
    - .claude/task/audit_reviewer_outputs.md
  
-+impact_map: >
-+  writers: mart_competition_fixtures is written only by its own model (dbt). The export reads it.
-+  downstream: `dbt ls --select mart_competition_fixtures+ --resource-type model` →
-+    football_data_pipeline.5_marts.shared.mart_competition_fixtures,
-+    football_data_pipeline.5_marts.shared.mart_match_days. mart_match_days selects named columns,
-+    so three added columns change nothing there. Export readers: fetch_fixture_payloads (changed
-+    here), fetch_match_day_payloads, fetch_landing_payload, fetch_competition_payloads (read named
-+    columns or group rows; an added column changes no payload they write).
-+  layer_rules: marts layer; league_code stays the discriminator, no competition is named in logic;
-+    check_layer_contract.py and the materialisation rule unchanged.
-+  deploy_order: the export reads the new columns, so it is run against prod only after the
-+    nightly after merge builds them; the committed site sample is not regenerated in this MR.
-+    data:build:mr builds the mart and mart_match_days into the MR's own datasets.
-+  blast_radius: mart_competition_fixtures gains three columns, existing columns unchanged. The
-+    fixture payload gains next_match per side; header and form_window values unchanged (the header
-+  read from the mart, form_window not touched), proven by
-+    a file-by-file comparison of the export before and after on the same data.
-+
- decisions_taken: >
--  The metric list and the Goals-group exception are the line on #166 and #175, approved in chat,
--  2026-10-07. The new values are stand-ins read once from the warehouse (staging team stat lines,
--  the player legs, staging line-ups, mart_player_fixture_stats, fct_fixture_event; 537 MB billed
--  once, approved in chat, 2026-10-07), the way the existing stand-ins were read. A window value is
--  the per-match mean over the window's matches that carry it, and a share is the ratio of the
--  window's sums; Bremen's dribbles-completed share follows that rule (49, not 47). A row neither
--  side has is left out, as #175 states.
-+  The column names and the three acceptance criteria are approved in chat, 2026-10-07. "Not yet
-+  started" is status NS or TBD with a kick-off after the build, the export's own test for an
-+  unplayed fixture page. Recent matches stay on mart_team_momentum_window in this MR: each row is
-+  one team's side of a match, which only dbt may derive; they move with the team page's played
-+  matches (#173 How step 2, approved in chat, 2026-10-07). The next match is the mart's row as it
-+  stands, both teams, no side derived. The team's country stays on dim_team, a team attribute, not a match. The committed site
-+  sample is not regenerated; the before/after comparison runs on scratch output, with the new
-+  mart's compiled SQL inlined against prod, read-only.
+ impact_map: >
+-  writers: mart_competition_fixtures is written only by its own model (dbt). The export reads it.
+-  downstream: `dbt ls --select mart_competition_fixtures+ --resource-type model` →
+-    football_data_pipeline.5_marts.shared.mart_competition_fixtures,
+-    football_data_pipeline.5_marts.shared.mart_match_days. mart_match_days selects named columns,
+-    so three added columns change nothing there. Export readers: fetch_fixture_payloads (changed
+-    here), fetch_match_day_payloads, fetch_landing_payload, fetch_competition_payloads (read named
+-    columns or group rows; an added column changes no payload they write).
+-  layer_rules: marts layer; league_code stays the discriminator, no competition is named in logic;
+-    check_layer_contract.py and the materialisation rule unchanged.
+-  deploy_order: the export reads the new columns, so it is run against prod only after the
+-    nightly after merge builds them; the committed site sample is not regenerated in this MR.
+-    data:build:mr builds the mart and mart_match_days into the MR's own datasets.
+-  blast_radius: mart_competition_fixtures gains three columns, existing columns unchanged. The
+-    fixture payload gains next_match per side; header and form_window values unchanged (the header
+-  read from the mart, form_window not touched), proven by
+-    a file-by-file comparison of the export before and after on the same data.
++  writers: each changed model is written only by itself (dbt); the catalogue seed by hand, the
++    generated metric block by scripts/generate_metric_sql.py, metric_columns.md and metric_map.csv
++    by scripts/sync_metric_docs_blocks.py.
++  downstream: `dbt ls --resource-type model --select base_apif__fixture_statistics+ --output name`
++    → base_apif__fixture_players base_apif__fixture_statistics fct_fixture_player_stats
++    fct_fixture_team_stats int_legs__player_match int_legs__team_from_players int_legs__team_match
++    int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++    int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
++    int_player_profile__yoy int_player_season__metrics int_player_season__team
++    int_player_season_position__metrics int_player_season_record
++    int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++    int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
++    int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
++    int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
++    mart_competition_season_summary mart_head_to_head mart_leaderboards mart_match_days
++    mart_matchday_insights mart_player_career mart_player_competition_benchmarks
++    mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
++    mart_player_season_record mart_team_competition_benchmarks mart_team_fixture_stats
++    mart_team_fixtures mart_team_leaderboards mart_team_momentum mart_team_momentum_window
++    mart_team_profile mart_team_season mart_team_season_insights mart_team_season_record (51).
++    Every change is an added column; no existing column's expression changes, so no existing value
++    moves (measured: mart_team_momentum 9,042 and int_team_season__metrics_cumulative 120,030
++    rows, 0 differing from prod). int_team_season__metrics gains the 15 season columns through
++    `select *`; mart_team_momentum_window and every other mart select named columns and gain
++    nothing.
++  layer_rules: base pivots and cleans (the existing blank rule applied to free kicks); core
++    carries; intermediate legs and window carry inputs; the metric math is generated from the
++    catalogue; the mart selects. league_code stays the discriminator; check_layer_contract.py and
++    the materialisation rule unchanged.
++  deploy_order: additive columns, built by the nightly after merge. The export copies every
++    column of mart_team_momentum into each side's w1 in the fixture files, so the next manual deploy
++    export writes the 16 new keys there (about 1.3 KB per file); the site reads none until the page
++    build.
++  blast_radius: mart_team_momentum gains 16 columns; int_legs__team_match and the form window gain
++    input columns; base and core gain free_kicks. Existing columns unchanged.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none (the existing design-mock generator). RECURRING
--  COST: none.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a mart column, a singular test, an export field).
-+  RECURRING COST: the mart's nightly read before and after, measured by dry run and put to the CPO
-+  before merge.
+ decisions_taken: >
+-  The column names and the three acceptance criteria are approved in chat, 2026-10-07. "Not yet
+-  started" is status NS or TBD with a kick-off after the build, the export's own test for an
+-  unplayed fixture page. Recent matches stay on mart_team_momentum_window in this MR: each row is
+-  one team's side of a match, which only dbt may derive; they move with the team page's played
+-  matches (#173 How step 2, approved in chat, 2026-10-07). The next match is the mart's row as it
+-  stands, both teams, no side derived. The team's country stays on dim_team, a team attribute, not a match. The committed site
+-  sample is not regenerated; the before/after comparison runs on scratch output, with the new
+-  mart's compiled SQL inlined against prod, read-only.
++  The 40-metric list and the build order are approved in chat, 2026-10-07. Metric ids follow the
++  ruled pattern, input then calculation (<input>_per_match, <input>_pct, <input>_share_pct for a
++  share of both teams' totals, as shots_share_pct): possession's id is passes_share_pct. The 15
++  new rows' label_en, description, interpretation, direction and tier, as committed, are approved
++  in chat, 2026-10-07, shown as exact text; label_en is the approved name with the catalogue's Ø or
++  % prefix, displayed nowhere, and is removed with the column by a later #177 MR. Fouls and offsides come
++  from the provider's team line, as cards and corners do. Possession is own passes over both
++  teams' passes, summed over the window (#177). Free kicks takes the blank rule every count takes;
++  it does not decide has_stat_line. A window metric is blank when any of its matches lacks the
++  input (rule R4): free kicks reaches 1,732 of 11,954 team lines this season, measured 2026-10-07,
++  so it is blank in most windows and the page leaves the row out where neither side has it.
+ 
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none (a mart column, a singular test, an export field).
+-  RECURRING COST: the mart's nightly read before and after, measured by dry run and put to the CPO
+-  before merge.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none (catalogue rows through the existing generator).
++  RECURRING COST: the nightly read before and after, measured by dry run and put to the CPO before
++  merge.
  
  decisions_reserved:
--  - German and Finnish names of the new metrics, and the German name of shots on target: #177, the
--    CPO's.
--  - Which played matches get a page: #174, the CPO's.
-+  - The other readers of #173 (Home, the Matches page, the Matchdays tab, the team page): their
-+    own MRs.
-+  - How Next matches looks on the future match page: #166.
+-  - The other readers of #173 (Home, the Matches page, the Matchdays tab, the team page): their
+-    own MRs.
+-  - How Next matches looks on the future match page: #166.
++  - The displayed names of the new metrics (strings.ts EN, DE, FI): put to the CPO with the page
++    build.
++  - The other surfaces of #177 (team page, Rankings, Home): their own MRs.
  
  done_when:
--  - python design-mocks/render.py gen_match_page.py match-page, future-match-page (MATCH_STATE
--    future, future-unmet) and played-match-page (MATCH_STATE played, played-pen) write renders of
--    record.
--  - The Form comparison of the new next match render and the Match stats of both new played renders
--    show the metrics of the approved line, in its order; the played renders less the Goals group.
--  - The new after-penalties render shows Goals, Match leaders, Match stats and Line-ups, as the
--    full-time render does.
--  - pytest tests/test_design_mock_renders.py passes; python scripts/check_page_css.py reports 0
--    findings.
-+  - dbt parse clean; SQLFluff clean on the mart and the new test.
-+  - The new singular test runs against prod with the compiled SQL inlined, red under a mutation
-+    that gives a team two next matches, then green.
-+  - pytest tests/test_export_site_data.py passes.
-+  - The fixture export run before and after on the same data: every file equal once next_match is
-+    set aside; every side's next_match checked against the mart filter.
-+  - The mart's nightly bytes before and after, measured by dry run, put to the CPO.
-+  - data:build:mr green.
+-  - dbt parse clean; SQLFluff clean on the mart and the new test.
+-  - The new singular test runs against prod with the compiled SQL inlined, red under a mutation
+-    that gives a team two next matches, then green.
+-  - pytest tests/test_export_site_data.py passes.
+-  - The fixture export run before and after on the same data: every file equal once next_match is
+-    set aside; every side's next_match checked against the mart filter.
+-  - The mart's nightly bytes before and after, measured by dry run, put to the CPO.
++  - python scripts/generate_metric_sql.py and python scripts/sync_metric_docs_blocks.py --check
++    clean; pytest tests/ passes.
++  - dbt parse clean; SQLFluff clean on every changed model.
++  - Compiled SQL inlined against prod, read-only: every existing mart_team_momentum column equal
++    before and after; the new columns equal the catalogue formula recomputed by hand for two teams.
++  - The nightly bytes before and after, measured by dry run, put to the CPO.
+   - data:build:mr green.
  
- amendments: (none)
-diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-index 40944521..133de52d 100644
---- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-+++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-@@ -24,6 +24,10 @@
-   rows is_next_round; a postponed fixture is never flagged until it is played; a competition with no
-   next matchday (a finished tournament) has no current season and no flag.
+-amendments: (none)
++amendments:
++  - 2026-10-07: + the season chain (int_team_season_record, which carries the season's inputs,
++    int_team_season__metrics_cumulative and the team-season and
++    domestic-league mart ymls) — authority: CPO in chat, 2026-10-07, after the rule that every team
++    metric is on the season surface (tests/test_generate_metric_sql.py) put the 16 metrics there;
++    content: the season tables gain the 16 columns, existing values unchanged, the extra nightly
++    bytes measured before merge.
++  - 2026-10-07: + dbt_project/tests/assert_base_team_stats_cleaned.sql and
++    dbt_project/tests/assert_stat_facts_equal_base.sql — authority: CPO in chat, 2026-10-07;
++    content: free_kicks joins each test's column list, so its blank rule and its carry into core
++    are tested like every other count.
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index b576a565..5d0000cc 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -41,6 +41,8 @@ pivoted as (
+             as corners,
+         max(case when stat_type = 'Offsides' then safe_cast(stat_value_raw as int64) end)
+             as offsides,
++        max(case when stat_type = 'Free Kicks' then safe_cast(stat_value_raw as int64) end)
++            as free_kicks,
+         max(case
+             when stat_type = 'Ball Possession'
+                 then safe_cast(regexp_replace(stat_value_raw, r'%', '') as int64)
+@@ -241,6 +243,7 @@ in_context as (
+         o.fouls as opponent_fouls,
+         o.corners as opponent_corners,
+         o.offsides as opponent_offsides,
++        o.free_kicks as opponent_free_kicks,
+         o.cards_yellow as opponent_cards_yellow,
+         o.cards_red as opponent_cards_red,
+         o.saves as opponent_saves,
+@@ -299,6 +302,7 @@ filled as (
+         coalesce(fouls, if(opponent_fouls is not null, 0, null)) as fouls_filled,
+         coalesce(corners, if(opponent_corners is not null, 0, null)) as corners_filled,
+         coalesce(offsides, if(opponent_offsides is not null, 0, null)) as offsides_filled,
++        coalesce(free_kicks, if(opponent_free_kicks is not null, 0, null)) as free_kicks_filled,
+         coalesce(
+             cards_yellow,
+             if(opponent_cards_yellow is not null or (events_delivered and events_against_no_yellow = 0), 0, null)
+@@ -452,6 +456,7 @@ select
+     fouls_filled as fouls,
+     corners_filled as corners,
+     offsides_filled as offsides,
++    free_kicks_filled as free_kicks,
+     possession_pct,
+     cards_yellow_filled as cards_yellow,
+     cards_red_filled as cards_red,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 3e6e0047..ddfd8c88 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -683,6 +683,8 @@ models:
+         description: "{{ doc('corners') }}"
+       - name: offsides
+         description: "{{ doc('offsides__team_match') }}"
++      - name: free_kicks
++        description: "Free kicks this team was awarded in the match, from its cleaned statistics line."
+       - name: possession_pct
+         description: "{{ doc('ball_possession_percent') }}"
+       - name: cards_yellow
+diff --git a/dbt_project/models/3_core/fct_fixture_team_stats.sql b/dbt_project/models/3_core/fct_fixture_team_stats.sql
+index 79703411..f51b0616 100644
+--- a/dbt_project/models/3_core/fct_fixture_team_stats.sql
++++ b/dbt_project/models/3_core/fct_fixture_team_stats.sql
+@@ -20,6 +20,7 @@ select
+     fouls,
+     corners,
+     offsides,
++    free_kicks,
+     possession_pct,
+     cards_yellow,
+     cards_red,
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+index 4a935a46..c0498d4e 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season.yml
+@@ -196,6 +196,36 @@ models:
+         description: "{{ doc('duels_per_match') }}"
+       - name: duels_won_pct
+         description: "{{ doc('duels_won_pct') }}"
++      - name: shots_off_target_per_match
++        description: "{{ doc('shots_off_target_per_match') }}"
++      - name: shots_blocked_per_match
++        description: "{{ doc('shots_blocked_per_match') }}"
++      - name: shots_inside_box_per_match
++        description: "{{ doc('shots_inside_box_per_match') }}"
++      - name: passes_accurate_per_match
++        description: "{{ doc('passes_accurate_per_match') }}"
++      - name: passes_share_pct
++        description: "{{ doc('passes_share_pct') }}"
++      - name: dribbles_attempts_per_match
++        description: "{{ doc('dribbles_attempts_per_match') }}"
++      - name: dribbles_success_per_match
++        description: "{{ doc('dribbles_success_per_match') }}"
++      - name: dribbles_success_pct
++        description: "{{ doc('dribbles_success_pct') }}"
++      - name: duels_won_per_match
++        description: "{{ doc('duels_won_per_match') }}"
++      - name: saves_per_match
++        description: "{{ doc('saves_per_match') }}"
++      - name: free_kicks_per_match
++        description: "{{ doc('free_kicks_per_match') }}"
++      - name: fouls_per_match
++        description: "{{ doc('fouls_per_match') }}"
++      - name: offsides_per_match
++        description: "{{ doc('offsides_per_match') }}"
++      - name: cards_yellow_per_match
++        description: "{{ doc('cards_yellow_per_match') }}"
++      - name: cards_red_per_match
++        description: "{{ doc('cards_red_per_match') }}"
+       - name: season_matchdays_used
+         description: "{{ doc('season_matchdays_used') }}"
  
-+  is_home_team_next_match and is_away_team_next_match mark each team's earliest match not yet
-+  started (status NS or TBD, kick-off after the build), in any competition: a team's next match is
-+  a filter of this table, so every page names the same one.
-+
-   fixture_slug is the match's permanent URL segment: the kick-off date, the home team's slug,
-   "-vs-", the away team's slug — the two published team slugs, so a team is spelt the same in its
-   own URL and in every match URL. A fixture whose team is unknown to dim_team gets no slug and
-@@ -45,10 +49,33 @@ with fixtures as (
-         goals_home,
-         goals_away,
-         home_team_sk,
--        away_team_sk
-+        away_team_sk,
-+        venue_name_snapshot
-     from {{ ref('fct_fixture') }}
- ),
+@@ -243,6 +273,12 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "(goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0)"
+           name: int_team_season_cumulative_per_match_rates_non_negative
++      - dbt_utils.expression_is_true:
++          expression: "(passes_share_pct is null or passes_share_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct >= 0)"
++          name: int_team_season_cumulative_new_ratios_in_range
++      - dbt_utils.expression_is_true:
++          expression: "least(coalesce(shots_off_target_per_match, 0), coalesce(shots_blocked_per_match, 0), coalesce(shots_inside_box_per_match, 0), coalesce(passes_accurate_per_match, 0), coalesce(dribbles_attempts_per_match, 0), coalesce(dribbles_success_per_match, 0), coalesce(duels_won_per_match, 0), coalesce(saves_per_match, 0), coalesce(free_kicks_per_match, 0), coalesce(fouls_per_match, 0), coalesce(offsides_per_match, 0), coalesce(cards_yellow_per_match, 0), coalesce(cards_red_per_match, 0)) >= 0"
++          name: int_team_season_cumulative_new_per_match_rates_non_negative
+     columns:
+       - name: team_sk
+         description: "{{ doc('team_sk') }}"
+@@ -375,6 +411,36 @@ models:
+         description: "{{ doc('duels_per_match') }}"
+       - name: duels_won_pct
+         description: "{{ doc('duels_won_pct') }}"
++      - name: shots_off_target_per_match
++        description: "{{ doc('shots_off_target_per_match') }}"
++      - name: shots_blocked_per_match
++        description: "{{ doc('shots_blocked_per_match') }}"
++      - name: shots_inside_box_per_match
++        description: "{{ doc('shots_inside_box_per_match') }}"
++      - name: passes_accurate_per_match
++        description: "{{ doc('passes_accurate_per_match') }}"
++      - name: passes_share_pct
++        description: "{{ doc('passes_share_pct') }}"
++      - name: dribbles_attempts_per_match
++        description: "{{ doc('dribbles_attempts_per_match') }}"
++      - name: dribbles_success_per_match
++        description: "{{ doc('dribbles_success_per_match') }}"
++      - name: dribbles_success_pct
++        description: "{{ doc('dribbles_success_pct') }}"
++      - name: duels_won_per_match
++        description: "{{ doc('duels_won_per_match') }}"
++      - name: saves_per_match
++        description: "{{ doc('saves_per_match') }}"
++      - name: free_kicks_per_match
++        description: "{{ doc('free_kicks_per_match') }}"
++      - name: fouls_per_match
++        description: "{{ doc('fouls_per_match') }}"
++      - name: offsides_per_match
++        description: "{{ doc('offsides_per_match') }}"
++      - name: cards_yellow_per_match
++        description: "{{ doc('cards_yellow_per_match') }}"
++      - name: cards_red_per_match
++        description: "{{ doc('cards_red_per_match') }}"
  
-+team_next as (
-+    select
-+        fixture_sk,
-+        team_sk
-+    from (
-+        select
-+            fixture_sk,
-+            home_team_sk as team_sk,
-+            kickoff_datetime
-+        from fixtures
-+        where status_short in ('NS', 'TBD') and kickoff_datetime > current_timestamp()
-+        union all
-+        select
-+            fixture_sk,
-+            away_team_sk as team_sk,
-+            kickoff_datetime
-+        from fixtures
-+        where status_short in ('NS', 'TBD') and kickoff_datetime > current_timestamp()
-+    )
-+    qualify row_number() over (partition by team_sk order by kickoff_datetime asc, fixture_sk asc) = 1
-+),
-+
- teams as (
-     select
-         team_sk,
-@@ -130,6 +157,7 @@ select
-     a.team_name as away_team_name,
-     a.team_slug as away_team_slug,
-     a.team_logo_url as away_team_logo_url,
-+    f.venue_name_snapshot as venue_name,
-     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
-     p.fixture_sk is not null as is_played,
-     case
-@@ -141,6 +169,8 @@ select
-     n.round_name is not null as is_next_round,
-     l.league_code is not null and p.fixture_sk is not null as is_last_round,
-     coalesce(m.is_match_that_matters, false) as is_match_that_matters,
-+    nh.fixture_sk is not null as is_home_team_next_match,
-+    na.fixture_sk is not null as is_away_team_next_match,
-     row_number() over (
-         partition by f.league_code, f.season_api_year
-         order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
-@@ -169,3 +199,11 @@ left join last_round as l
-         f.league_code = l.league_code
-         and f.season_api_year = l.season_api_year
-         and r.round_sequence = l.round_sequence
-+left join team_next as nh
-+    on
-+        f.fixture_sk = nh.fixture_sk
-+        and f.home_team_sk = nh.team_sk
-+left join team_next as na
-+    on
-+        f.fixture_sk = na.fixture_sk
-+        and f.away_team_sk = na.team_sk
+   - name: int_team_season__deserved_vs_actual
+     description: >
+diff --git a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+index 2ed02778..d7aa84f5 100644
+--- a/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
++++ b/dbt_project/models/4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql
+@@ -297,6 +297,142 @@ select
+             null
+         )
+     ) as duels_won_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target_against is not null) over w,
++            sum(if(is_awarded_result, null, shots_on_target_against)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as shots_on_goal_against_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_off_target is not null) over w,
++            sum(if(is_awarded_result, null, shots_off_target)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as shots_off_target_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_blocked is not null) over w,
++            sum(if(is_awarded_result, null, shots_blocked)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as shots_blocked_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_inside_box is not null) over w,
++            sum(if(is_awarded_result, null, shots_inside_box)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as shots_inside_box_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_accurate is not null) over w,
++            sum(if(is_awarded_result, null, passes_accurate)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as passes_accurate_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes is not null) over w,
++            sum(if(is_awarded_result, null, passes)) over w,
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (passes + passes_against) is not null) over w,
++            sum(if(is_awarded_result, null, passes + passes_against)) over w,
++            null
++        )
++    ) as passes_share_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles is not null) over w,
++            sum(if(is_awarded_result, null, dribbles)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as dribbles_attempts_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null) over w,
++            sum(if(is_awarded_result, null, dribbles_success)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as dribbles_success_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null) over w,
++            sum(if(is_awarded_result, null, dribbles_success)) over w,
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or dribbles is not null) over w,
++            sum(if(is_awarded_result, null, dribbles)) over w,
++            null
++        )
++    ) as dribbles_success_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or duels_won is not null) over w,
++            sum(if(is_awarded_result, null, duels_won)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as duels_won_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or saves is not null) over w,
++            sum(if(is_awarded_result, null, saves)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as saves_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or free_kicks is not null) over w,
++            sum(if(is_awarded_result, null, free_kicks)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as free_kicks_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or fouls is not null) over w,
++            sum(if(is_awarded_result, null, fouls)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as fouls_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or offsides is not null) over w,
++            sum(if(is_awarded_result, null, offsides)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as offsides_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or cards_yellow is not null) over w,
++            sum(if(is_awarded_result, null, cards_yellow)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as cards_yellow_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or cards_red is not null) over w,
++            sum(if(is_awarded_result, null, cards_red)) over w,
++            null
++        ),
++        countif(not is_awarded_result) over w
++    ) as cards_red_per_match,
+     safe_divide(
+         if(
+             logical_and(is_awarded_result or (goals_against = 0) is not null) over w,
+@@ -327,14 +463,6 @@ select
+             null
+         )
+     ) as shots_share_pct,
+-    safe_divide(
+-        if(
+-            logical_and(is_awarded_result or shots_on_target_against is not null) over w,
+-            sum(if(is_awarded_result, null, shots_on_target_against)) over w,
+-            null
+-        ),
+-        countif(not is_awarded_result) over w
+-    ) as shots_on_goal_against_per_match,
+     safe_divide(
+         if(
+             logical_and(is_awarded_result or (shots_on_target - shots_on_target_against) is not null) over w,
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs.yml b/dbt_project/models/4_intermediate/shared/int_legs.yml
+index bf10a7e1..81d41732 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs.yml
++++ b/dbt_project/models/4_intermediate/shared/int_legs.yml
+@@ -105,6 +105,18 @@ models:
+         description: "{{ doc('red_cards__leg') }}"
+       - name: shots_on_target_against
+         description: "{{ doc('opponent_shots_on_goal__leg') }}"
++      - name: shots_off_target
++        description: "{{ doc('shots_off_goal') }}"
++      - name: shots_blocked
++        description: "{{ doc('shots_blocked') }}"
++      - name: fouls
++        description: "{{ doc('fouls') }}"
++      - name: offsides
++        description: "{{ doc('offsides__team_match') }}"
++      - name: free_kicks
++        description: "Free kicks this team was awarded in the match, from its cleaned statistics line."
++      - name: passes_against
++        description: "Passes the opponent played in this match, from the opponent's cleaned statistics line."
+       - name: shots_against
+         description: "Total shots (on and off target) by the opponent in this match, from the opponent's cleaned statistics line."
+       - name: shots_inside_box_against
+diff --git a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+index 6235747e..de961ce5 100644
+--- a/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
++++ b/dbt_project/models/4_intermediate/shared/int_legs__team_match.sql
+@@ -119,6 +119,12 @@ with_stats as (
+         own.passes,
+         own.passes_accurate,
+         own.saves,
++        own.shots_off_target,
++        own.shots_blocked,
++        own.fouls,
++        own.offsides,
++        own.free_kicks,
++        opp.passes as passes_against,
+         opp.shots_on_target as shots_on_target_against,
+         opp.shots as shots_against,
+         opp.shots_inside_box as shots_inside_box_against,
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum.yml b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+index 8ad69f45..458c6e89 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum.yml
+@@ -97,6 +97,38 @@ models:
+         description: "{{ doc('duels_per_match') }}"
+       - name: duels_won_pct
+         description: "{{ doc('duels_won_pct') }}"
++      - name: shots_on_goal_against_per_match
++        description: "{{ doc('shots_on_goal_against_per_match') }}"
++      - name: shots_off_target_per_match
++        description: "{{ doc('shots_off_target_per_match') }}"
++      - name: shots_blocked_per_match
++        description: "{{ doc('shots_blocked_per_match') }}"
++      - name: shots_inside_box_per_match
++        description: "{{ doc('shots_inside_box_per_match') }}"
++      - name: passes_accurate_per_match
++        description: "{{ doc('passes_accurate_per_match') }}"
++      - name: passes_share_pct
++        description: "{{ doc('passes_share_pct') }}"
++      - name: dribbles_attempts_per_match
++        description: "{{ doc('dribbles_attempts_per_match') }}"
++      - name: dribbles_success_per_match
++        description: "{{ doc('dribbles_success_per_match') }}"
++      - name: dribbles_success_pct
++        description: "{{ doc('dribbles_success_pct') }}"
++      - name: duels_won_per_match
++        description: "{{ doc('duels_won_per_match') }}"
++      - name: saves_per_match
++        description: "{{ doc('saves_per_match') }}"
++      - name: free_kicks_per_match
++        description: "{{ doc('free_kicks_per_match') }}"
++      - name: fouls_per_match
++        description: "{{ doc('fouls_per_match') }}"
++      - name: offsides_per_match
++        description: "{{ doc('offsides_per_match') }}"
++      - name: cards_yellow_per_match
++        description: "{{ doc('cards_yellow_per_match') }}"
++      - name: cards_red_per_match
++        description: "{{ doc('cards_red_per_match') }}"
+ 
+   - name: int_player_momentum__metrics
+     description: >
+diff --git a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+index 8b7a4ce9..bb78eb19 100644
+--- a/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
++++ b/dbt_project/models/4_intermediate/shared/int_momentum_window.yml
+@@ -110,3 +110,19 @@ models:
+         description: "{{ doc('saves') }}"
+       - name: shots_on_target_against
+         description: "{{ doc('opponent_shots_on_goal__leg') }}"
++      - name: shots_off_target
++        description: "{{ doc('shots_off_goal') }}"
++      - name: shots_blocked
++        description: "{{ doc('shots_blocked') }}"
++      - name: passes_against
++        description: "Passes the opponent played in this match, from the opponent's cleaned statistics line."
++      - name: fouls
++        description: "{{ doc('fouls') }}"
++      - name: offsides
++        description: "{{ doc('offsides__team_match') }}"
++      - name: free_kicks
++        description: "Free kicks this team was awarded in the match, from its cleaned statistics line."
++      - name: cards_yellow
++        description: "{{ doc('yellow_cards__leg') }}"
++      - name: cards_red
++        description: "{{ doc('red_cards__leg') }}"
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+index 4467a538..e0202b37 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+@@ -32,6 +32,8 @@ window_rows as (
+         p.blocks,
+         p.duels,
+         p.duels_won,
++        p.dribbles,
++        p.dribbles_success,
+         p.fixture_sk is not null as has_player_stats
+     from window_legs as wl
+     left join {{ ref('int_legs__team_from_players') }} as p
+@@ -203,7 +205,119 @@ select
+     safe_divide(
+         if(logical_and(is_awarded_result or duels_won is not null), sum(if(is_awarded_result, null, duels_won)), null),
+         if(logical_and(is_awarded_result or duels is not null), sum(if(is_awarded_result, null, duels)), null)
+-    ) as duels_won_pct
++    ) as duels_won_pct,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_on_target_against is not null),
++            sum(if(is_awarded_result, null, shots_on_target_against)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_on_goal_against_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_off_target is not null),
++            sum(if(is_awarded_result, null, shots_off_target)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_off_target_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_blocked is not null),
++            sum(if(is_awarded_result, null, shots_blocked)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_blocked_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or shots_inside_box is not null),
++            sum(if(is_awarded_result, null, shots_inside_box)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as shots_inside_box_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes_accurate is not null),
++            sum(if(is_awarded_result, null, passes_accurate)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as passes_accurate_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or passes is not null),
++            sum(if(is_awarded_result, null, passes)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or (passes + passes_against) is not null),
++            sum(if(is_awarded_result, null, passes + passes_against)),
++            null
++        )
++    ) as passes_share_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or dribbles is not null), sum(if(is_awarded_result, null, dribbles)), null),
++        countif(not is_awarded_result)
++    ) as dribbles_attempts_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null),
++            sum(if(is_awarded_result, null, dribbles_success)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as dribbles_success_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or dribbles_success is not null),
++            sum(if(is_awarded_result, null, dribbles_success)),
++            null
++        ),
++        if(
++            logical_and(is_awarded_result or dribbles is not null),
++            sum(if(is_awarded_result, null, dribbles)),
++            null
++        )
++    ) as dribbles_success_pct,
++    safe_divide(
++        if(logical_and(is_awarded_result or duels_won is not null), sum(if(is_awarded_result, null, duels_won)), null),
++        countif(not is_awarded_result)
++    ) as duels_won_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or saves is not null), sum(if(is_awarded_result, null, saves)), null),
++        countif(not is_awarded_result)
++    ) as saves_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or free_kicks is not null),
++            sum(if(is_awarded_result, null, free_kicks)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as free_kicks_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or fouls is not null), sum(if(is_awarded_result, null, fouls)), null),
++        countif(not is_awarded_result)
++    ) as fouls_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or offsides is not null), sum(if(is_awarded_result, null, offsides)), null),
++        countif(not is_awarded_result)
++    ) as offsides_per_match,
++    safe_divide(
++        if(
++            logical_and(is_awarded_result or cards_yellow is not null),
++            sum(if(is_awarded_result, null, cards_yellow)),
++            null
++        ),
++        countif(not is_awarded_result)
++    ) as cards_yellow_per_match,
++    safe_divide(
++        if(logical_and(is_awarded_result or cards_red is not null), sum(if(is_awarded_result, null, cards_red)), null),
++        countif(not is_awarded_result)
++    ) as cards_red_per_match
+     -- end of generated metric sql
+ from window_rows
+ group by
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+index bf262b98..fd14adf7 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
+@@ -127,6 +127,14 @@ candidate_legs as (
+         l.corners_against,
+         l.saves,
+         l.shots_on_target_against,
++        l.shots_off_target,
++        l.shots_blocked,
++        l.passes_against,
++        l.fouls,
++        l.offsides,
++        l.free_kicks,
++        l.cards_yellow,
++        l.cards_red,
+         -- Tournament types (matrix §4) use a cumulative within-tournament window. The
+         -- competition_type is the declared axis here (like entity_type), so we branch on it
+         -- once — never on a hardcoded league_code. coalesce keeps it total: an unresolved
+@@ -263,5 +271,13 @@ select
+     corners_against,
+     saves,
+     shots_on_target_against,
++    shots_off_target,
++    shots_blocked,
++    passes_against,
++    fouls,
++    offsides,
++    free_kicks,
++    cards_yellow,
++    cards_red,
+     recency_rank
+ from combined
+diff --git a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+index 368d6eb4..019cd98f 100644
+--- a/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
++++ b/dbt_project/models/4_intermediate/shared/int_team_season_record.sql
+@@ -57,6 +57,14 @@ select
+     tl.saves,
+     tl.cards_yellow,
+     tl.cards_red,
++    tl.shots_off_target,
++    tl.shots_blocked,
++    tl.passes_against,
++    tl.fouls,
++    tl.offsides,
++    tl.free_kicks,
++    pl.dribbles,
++    pl.dribbles_success,
+     pl.passes_key,
+     pl.tackles,
+     pl.interceptions,
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum.sql b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+index 5913e458..7a45732b 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum.sql
+@@ -57,6 +57,22 @@ select
+     b.defensive_actions_per_match,
+     b.duels_per_match,
+     b.duels_won_pct,
++    b.shots_on_goal_against_per_match,
++    b.shots_off_target_per_match,
++    b.shots_blocked_per_match,
++    b.shots_inside_box_per_match,
++    b.passes_accurate_per_match,
++    b.passes_share_pct,
++    b.dribbles_attempts_per_match,
++    b.dribbles_success_per_match,
++    b.dribbles_success_pct,
++    b.duels_won_per_match,
++    b.saves_per_match,
++    b.free_kicks_per_match,
++    b.fouls_per_match,
++    b.offsides_per_match,
++    b.cards_yellow_per_match,
++    b.cards_red_per_match,
+     b.team_sk = f.home_team_sk as is_home
+ from builder as b
+ inner join fixtures as f
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 14094ea1..fd61f4d6 100644
+index fd61f4d6..4b0d6e42 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -2831,6 +2831,22 @@ models:
-       - name: fixture_order
-         description: "The reading order of the competition-season's fixtures, 1 first: rounds in their sequence, and within a round by kick-off. Consumers render rows in this order and sort nothing."
-         tests: [not_null]
-+      - name: venue_name
-+        description: "The stadium the match is played in, as the provider names it; empty when the provider names none."
-+      - name: is_home_team_next_match
-+        description: "True when this is the home team's next match: its earliest match not yet started (status NS or TBD, kick-off after the build), in any competition. A team has at most one."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: [true, false]
-+              quote: false
-+      - name: is_away_team_next_match
-+        description: "True when this is the away team's next match: its earliest match not yet started (status NS or TBD, kick-off after the build), in any competition. A team has at most one."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: [true, false]
-+              quote: false
+@@ -123,6 +123,12 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "duels_won_pct is null or (duels_won_pct between 0 and 1)"
+           name: momentum_team_duels_won_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "passes_share_pct is null or (passes_share_pct between 0 and 1)"
++          name: momentum_team_passes_share_pct_in_range
++      - dbt_utils.expression_is_true:
++          expression: "dribbles_success_pct is null or (dribbles_success_pct between 0 and 1)"
++          name: momentum_team_dribbles_success_pct_in_range
+       # clean sheets are scoreline-based: always present, bounded by the window
+       - dbt_utils.expression_is_true:
+           expression: "clean_sheets between 0 and games_in_window"
+@@ -257,6 +263,38 @@ models:
+         description: "{{ doc('duels_per_match') }}"
+       - name: duels_won_pct
+         description: "{{ doc('duels_won_pct') }}"
++      - name: shots_on_goal_against_per_match
++        description: "{{ doc('shots_on_goal_against_per_match') }}"
++      - name: shots_off_target_per_match
++        description: "{{ doc('shots_off_target_per_match') }}"
++      - name: shots_blocked_per_match
++        description: "{{ doc('shots_blocked_per_match') }}"
++      - name: shots_inside_box_per_match
++        description: "{{ doc('shots_inside_box_per_match') }}"
++      - name: passes_accurate_per_match
++        description: "{{ doc('passes_accurate_per_match') }}"
++      - name: passes_share_pct
++        description: "{{ doc('passes_share_pct') }}"
++      - name: dribbles_attempts_per_match
++        description: "{{ doc('dribbles_attempts_per_match') }}"
++      - name: dribbles_success_per_match
++        description: "{{ doc('dribbles_success_per_match') }}"
++      - name: dribbles_success_pct
++        description: "{{ doc('dribbles_success_pct') }}"
++      - name: duels_won_per_match
++        description: "{{ doc('duels_won_per_match') }}"
++      - name: saves_per_match
++        description: "{{ doc('saves_per_match') }}"
++      - name: free_kicks_per_match
++        description: "{{ doc('free_kicks_per_match') }}"
++      - name: fouls_per_match
++        description: "{{ doc('fouls_per_match') }}"
++      - name: offsides_per_match
++        description: "{{ doc('offsides_per_match') }}"
++      - name: cards_yellow_per_match
++        description: "{{ doc('cards_yellow_per_match') }}"
++      - name: cards_red_per_match
++        description: "{{ doc('cards_red_per_match') }}"
  
-   - name: mart_match_days
+   - name: mart_player_momentum
      description: >
-diff --git a/dbt_project/tests/assert_mart_competition_fixtures_one_next_match_per_team.sql b/dbt_project/tests/assert_mart_competition_fixtures_one_next_match_per_team.sql
-new file mode 100644
-index 00000000..c3f806c5
---- /dev/null
-+++ b/dbt_project/tests/assert_mart_competition_fixtures_one_next_match_per_team.sql
-@@ -0,0 +1,17 @@
-+-- A team has at most one next match: returns every team flagged on more than one fixture.
-+with flagged as (
-+    select home_team_sk as team_sk
-+    from {{ ref('mart_competition_fixtures') }}
-+    where is_home_team_next_match
-+    union all
-+    select away_team_sk as team_sk
-+    from {{ ref('mart_competition_fixtures') }}
-+    where is_away_team_next_match
-+)
-+
-+select
-+    team_sk,
-+    count(*) as next_matches
-+from flagged
-+group by team_sk
-+having count(*) > 1
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index 18f13f71..e0300628 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -588,10 +588,11 @@ def shape_player_payload(
- 
- def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
-                   w2: dict | None, ctx: dict | None,
--                  form_window: list | None = None, top_players: list | None = None) -> dict:
-+                  form_window: list | None = None, top_players: list | None = None,
-+                  next_match: dict | None = None) -> dict:
-     """One team's block on the fixture page: identity + W1 form + W2 season-to-date
--    + standings context + the form-window drill-down list + top players. Each
--    sub-block is None/[] when that mart has no row for the side (honest absence —
-+    + standings context + the form-window drill-down list + top players + its next match.
-+    Each sub-block is None/[] when that mart has no row for the side (honest absence —
-     the UI renders the empty state)."""
-     return {
-         "team_id": team_id,
-@@ -603,9 +604,25 @@ def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
-         "standing": _drop(ctx, _CTX_DROP) if ctx else None,
-         "form_window": form_window or [],
-         "top_players": top_players or [],
-+        "next_match": next_match,
-     }
+diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
+index 9647a367..59e59954 100644
+--- a/dbt_project/models/docs/metric_columns.md
++++ b/dbt_project/models/docs/metric_columns.md
+@@ -81,6 +81,11 @@ Red cards the team's players received.
+ {% enddocs %}
  
  
-+def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
-+    """A team's next match, its mart_competition_fixtures row as it stands; None when the team has
-+    none, or when it is the fixture whose page this is."""
-+    if not row or int(row["fixture_sk"]) == fixture_id:
-+        return None
-+
-+    def team(side):
-+        return {"team_id": int(row[f"{side}_team_sk"]), "name": row.get(f"{side}_team_name"),
-+                "slug": row.get(f"{side}_team_slug"), "crest": row.get(f"{side}_team_logo_url")}
-+
-+    return {"fixture_id": int(row["fixture_sk"]), "slug": row.get("fixture_slug"),
-+            "league_code": row.get("league_code"), "kickoff": row.get("kickoff_datetime"),
-+            "round": row.get("round_name"), "home": team("home"), "away": team("away")}
++{% docs cards_red_per_match %}
++Average number of red cards the team's players received per match.
++{% enddocs %}
 +
 +
- def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
-     """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
-     (goals_player -> assists_player -> key passes, computed in mart_player_momentum; the export
-@@ -1002,18 +1019,17 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
+ {% docs cards_red_player %}
+ Red cards the player received.
+ {% enddocs %}
+@@ -91,6 +96,11 @@ Yellow cards the team's players received.
+ {% enddocs %}
  
  
- def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
--    """One payload per unplayed fixture, every competition. The slug is joined from
--    mart_competition_fixtures, the one place a match's URL segment is built. When `source_counts`
--    is given it receives the number of unplayed fixtures the warehouse held before any sampling,
--    for the manifest."""
-+    """One payload per unplayed fixture, every competition. The match, the matches of each team's
-+    form window and each team's next match are rows of mart_competition_fixtures, the one source of
-+    every list of matches. When `source_counts` is given it receives the number of unplayed
-+    fixtures the warehouse held before any sampling, for the manifest."""
-     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
-     fixtures = _query(client, f"""
--        select f.fixture_sk, f.league_sk, f.league_code, f.season_api_year, f.kickoff_datetime,
--               f.round_name, f.status_short, f.venue_name_snapshot, f.home_team_sk, f.away_team_sk,
--               c.fixture_slug
--        from `{GCP_PROJECT}.core.fct_fixture` as f
--        inner join `{marts}.mart_competition_fixtures` as c on f.fixture_sk = c.fixture_sk
--        where f.status_short in ('NS', 'TBD') and f.fixture_date >= current_date()
-+        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, status_short,
-+               venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
-+               home_team_name, home_team_logo_url, away_team_name, away_team_logo_url
-+        from `{marts}.mart_competition_fixtures`
-+        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
-     """)
-     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
-     if source_counts is not None:
-@@ -1030,8 +1046,8 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
-                                 f"from `{GCP_PROJECT}.core.dim_team`")
-     }
-     leagues = {
--        int(r["league_sk"]): r.get("league_name")
--        for r in _query(client, f"select league_sk, league_name "
-+        r["league_code"]: r.get("league_name")
-+        for r in _query(client, f"select league_code, league_name "
-                                 f"from `{GCP_PROJECT}.core.dim_league`")
-     }
-     w1 = {
-@@ -1083,25 +1099,42 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
-                                 f"from `{GCP_PROJECT}.core.dim_player`")
-     }
- 
--    def _side(fid, team_id):
-+    team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
-+    next_matches: dict = {}
-+    for r in _query(client, f"""
-+        select fixture_sk, league_code, kickoff_datetime, round_name, fixture_slug,
-+               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
-+               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
-+               is_home_team_next_match, is_away_team_next_match
-+        from `{marts}.mart_competition_fixtures`
-+        where (is_home_team_next_match and home_team_sk in ({team_in}))
-+           or (is_away_team_next_match and away_team_sk in ({team_in}))
-+    """):
-+        if r["is_home_team_next_match"]:
-+            next_matches[int(r["home_team_sk"])] = r
-+        if r["is_away_team_next_match"]:
-+            next_matches[int(r["away_team_sk"])] = r
++{% docs cards_yellow_per_match %}
++Average number of yellow cards the team's players received per match.
++{% enddocs %}
 +
-+    def _side(f, side):
-+        fid, team_id = int(f["fixture_sk"]), int(f[f"{side}_team_sk"])
-+        identity = {"team_name": f.get(f"{side}_team_name"), "team_logo_url": f.get(f"{side}_team_logo_url"),
-+                    "team_country": (teams.get(team_id) or {}).get("team_country")}
-         return _fixture_side(
--            team_id, teams.get(team_id), w1.get((fid, team_id)), w2.get((fid, team_id)),
-+            team_id, identity, w1.get((fid, team_id)), w2.get((fid, team_id)),
-             ctx.get((fid, team_id)),
-             form_window=sorted(form_window.get((fid, team_id), []),
-                                key=lambda r: r.get("recency_rank") or 99),
-             top_players=shape_top_players(mom_players.get((fid, team_id), []), player_names),
-+            next_match=shape_next_match(next_matches.get(team_id), fid),
-         )
++
+ {% docs cards_yellow_player %}
+ Yellow cards the player received.
+ {% enddocs %}
+@@ -272,6 +282,11 @@ The team's position in its league when the teams are ordered by deserved points,
+ {% enddocs %}
  
-     payloads = []
-     for f in fixtures:
--        fid = int(f["fixture_sk"])
-         h, a = int(f["home_team_sk"]), int(f["away_team_sk"])
--        f["league_name"] = leagues.get(int(f["league_sk"])) if f.get("league_sk") is not None else None
--        f["home_team_name"] = (teams.get(h) or {}).get("team_name")
--        f["away_team_name"] = (teams.get(a) or {}).get("team_name")
-+        f["league_name"] = leagues.get(f.get("league_code"))
-         h2h_row = h2h.get((h, a))
-         payloads.append(
--            shape_fixture_payload(f, _side(fid, h), _side(fid, a),
-+            shape_fixture_payload(f, _side(f, "home"), _side(f, "away"),
-                                   _drop(h2h_row, _H2H_DROP) if h2h_row else None)
-         )
-     return payloads
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index beb3caa4..a525b823 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -22,6 +22,7 @@ from scripts.export_site_data import (
-     shape_competition_payload,
-     shape_season_summary,
-     shape_fixture_payload,
-+    shape_next_match,
-     shape_leaderboards,
-     shape_matchstats,
-     shape_player_payload,
-@@ -29,6 +30,7 @@ from scripts.export_site_data import (
-     shape_top_players,
-     player_slug_with_id,
+ 
++{% docs dribbles_attempts_per_match %}
++Average number of times the team's players tried to dribble past an opponent per match.
++{% enddocs %}
++
++
+ {% docs dribbles_attempts_player %}
+ Times the player tried to dribble past an opponent.
+ {% enddocs %}
+@@ -282,11 +297,21 @@ Times an opponent dribbled past the player.
+ {% enddocs %}
+ 
+ 
++{% docs dribbles_success_pct %}
++The team's dribbles that got past an opponent, as a share of those attempted.
++{% enddocs %}
++
++
+ {% docs dribbles_success_per90 %}
+ Dribbles in which the player got past an opponent, per 90 minutes played.
+ {% enddocs %}
+ 
+ 
++{% docs dribbles_success_per_match %}
++Average number of dribbles in which the team's players got past an opponent per match.
++{% enddocs %}
++
++
+ {% docs dribbles_success_player %}
+ Dribbles in which the player got past an opponent.
+ {% enddocs %}
+@@ -365,6 +390,11 @@ minutes played.
+ {% enddocs %}
+ 
+ 
++{% docs duels_won_per_match %}
++Average number of one-on-one challenges for the ball that the team's players won per match.
++{% enddocs %}
++
++
+ {% docs duels_won_player %}
+ One-on-one challenges for the ball, on the ground or in the air, that the player won.
+ {% enddocs %}
+@@ -408,6 +438,16 @@ Goals the player scored, not counting penalties, as a share of the player's shot
+ {% enddocs %}
+ 
+ 
++{% docs fouls_per_match %}
++Average number of fouls the team's players committed per match.
++{% enddocs %}
++
++
++{% docs free_kicks_per_match %}
++Average number of free kicks the team was awarded per match.
++{% enddocs %}
++
++
+ {% docs goals %}
+ Goals the team scored.
+ {% enddocs %}
+@@ -589,6 +629,11 @@ Average minutes the player was on the pitch per match in which the player played
+ {% enddocs %}
+ 
+ 
++{% docs offsides_per_match %}
++Average number of times the team's players were caught offside per match.
++{% enddocs %}
++
++
+ {% docs offsides_player %}
+ Times the player was caught offside.
+ {% enddocs %}
+@@ -624,6 +669,11 @@ The player's passes that reached a teammate, as a share of all the player's pass
+ {% enddocs %}
+ 
+ 
++{% docs passes_accurate_per_match %}
++Average number of the team's passes that reached a teammate per match.
++{% enddocs %}
++
++
+ {% docs passes_accurate_player %}
+ The player's passes that reached a teammate.
+ {% enddocs %}
+@@ -728,6 +778,11 @@ Passes the player attempted.
+ {% enddocs %}
+ 
+ 
++{% docs passes_share_pct %}
++The team's passes as a share of all passes both teams played.
++{% enddocs %}
++
++
+ {% docs penalty_committed_player %}
+ Penalties the player gave away.
+ {% enddocs %}
+@@ -789,6 +844,11 @@ Shots on target the player saved in goal per 90 minutes played.
+ {% enddocs %}
+ 
+ 
++{% docs saves_per_match %}
++Average number of shots on target the team's goalkeepers saved per match.
++{% enddocs %}
++
++
+ {% docs saves_player %}
+ Shots on target the player saved in goal.
+ {% enddocs %}
+@@ -810,6 +870,11 @@ The player's goals plus assists.
+ {% enddocs %}
+ 
+ 
++{% docs shots_blocked_per_match %}
++Average number of the team's shots an opponent blocked per match.
++{% enddocs %}
++
++
+ {% docs shots_inside_box %}
+ Shots the team took from inside the penalty area.
+ {% enddocs %}
+@@ -840,11 +905,21 @@ now in progress, accumulated through the matches played so far.
+ {% enddocs %}
+ 
+ 
++{% docs shots_inside_box_per_match %}
++Average number of shots the team took from inside the penalty area per match.
++{% enddocs %}
++
++
+ {% docs shots_inside_box_sum_season__team %}
+ Shots the team took from inside the penalty area. Totalled over the season.
+ {% enddocs %}
+ 
+ 
++{% docs shots_off_target_per_match %}
++Average number of shots the team sent wide or over per match.
++{% enddocs %}
++
++
+ {% docs shots_on_goal_against_per_match %}
+ Average number of shots on target the team's opponents had per match.
+ {% enddocs %}
+diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
+index e6c82e67..4ca2f5eb 100644
+--- a/dbt_project/seeds/metric_catalogue.csv
++++ b/dbt_project/seeds/metric_catalogue.csv
+@@ -88,3 +88,18 @@ shots_inside_box,team,metrics.shots_inside_box.label,Shots from box,Shots the te
+ clean_sheets,team,metrics.clean_sheets.label,Clean sheets,Matches in which the team conceded no goal.,int_legs__team_match,countif(goals_against = 0),,expression,integer,goals,2,higher_better,"Shut-outs kept - matches conceding zero; high = reliable at the back (a raw count, so it rises with matches played)",1
+ cards_yellow,team,metrics.cards_yellow.label,Yellow cards,Yellow cards the team's players received.,int_legs__team_match,sum(cards_yellow),,expression,integer,discipline,2,lower_better,"Cautions - yellow cards collected over the season; low = disciplined, high = a side that fouls to stop play (a raw count, so it rises with matches played)",6
+ cards_red,team,metrics.cards_red.label,Red cards,Red cards the team's players received.,int_legs__team_match,sum(cards_red),,expression,integer,discipline,2,lower_better,"Dismissals - red cards collected over the season; low = keeps eleven on the pitch (rare enough that a single card dominates the count; a raw count, so it rises with matches played)",6
++shots_off_target_per_match,team,metrics.shots_off_target_per_match.label,Ø Shots off target,Average number of shots the team sent wide or over per match.,int_legs__team_match,sum(shots_off_target),count(*),expression,decimal_1,shooting,3,higher_better,Shots missing the target - attempts wide or over per game; high = gets shots away (volume; shooting accuracy says how many of them were on target),2
++shots_blocked_per_match,team,metrics.shots_blocked_per_match.label,Ø Blocked shots,Average number of the team's shots an opponent blocked per match.,int_legs__team_match,sum(shots_blocked),count(*),expression,decimal_1,shooting,3,higher_better,Shots blocked - attempts stopped by a defender before reaching goal; high = gets shots away into crowded areas (volume),2
++shots_inside_box_per_match,team,metrics.shots_inside_box_per_match.label,Ø Shots from box,Average number of shots the team took from inside the penalty area per match.,int_legs__team_match,sum(shots_inside_box),count(*),expression,decimal_1,shooting,3,higher_better,Box shot volume - attempts from inside the area per game; high = gets into good positions often (volume; shots_inside_box_pct is the share),2
++passes_accurate_per_match,team,metrics.passes_accurate_per_match.label,Ø Accurate passes,Average number of the team's passes that reached a teammate per match.,int_legs__team_match,sum(passes_accurate),count(*),expression,decimal_0,passing,3,higher_better,Completed passing volume - passes that found a teammate per game; high = keeps and moves the ball (volume; pass accuracy is the share),3
++passes_share_pct,team,metrics.passes_share_pct.label,% Possession,"The team's passes as a share of all passes both teams played.",int_legs__team_match,sum(passes),sum(passes + passes_against),expression,percent,passing,2,higher_better,Ball possession - share of the match's passes; high = controls the ball (control is not the same as chances),3
++dribbles_attempts_per_match,team,metrics.dribbles_attempts_per_match.label,Ø Dribbles attempted,Average number of times the team's players tried to dribble past an opponent per match.,int_legs__team_from_players,sum(dribbles),count(*),expression,decimal_1,one_on_one,3,higher_better,Take-ons attempted - dribbles tried per game; high = attacks players directly (volume; the completion share says how often it works),4
++dribbles_success_per_match,team,metrics.dribbles_success_per_match.label,Ø Dribbles completed,Average number of dribbles in which the team's players got past an opponent per match.,int_legs__team_from_players,sum(dribbles_success),count(*),expression,decimal_1,one_on_one,3,higher_better,Take-ons completed - opponents beaten by dribbling per game; high = beats players often,4
++dribbles_success_pct,team,metrics.dribbles_success_pct.label,% Dribbles completed,"The team's dribbles that got past an opponent, as a share of those attempted.",int_legs__team_from_players,sum(dribbles_success),sum(dribbles),expression,percent,one_on_one,3,higher_better,Dribble success - share of take-ons completed; high = efficient at beating players,4
++duels_won_per_match,team,metrics.duels_won_per_match.label,Ø Duels won,Average number of one-on-one challenges for the ball that the team's players won per match.,int_legs__team_from_players,sum(duels_won),count(*),expression,decimal_0,one_on_one,3,higher_better,Duels won - physical contests won per game; high = comes out on top in physical battles (volume; the win share captures efficiency),4
++saves_per_match,team,metrics.saves_per_match.label,Ø Saves,Average number of shots on target the team's goalkeepers saved per match.,int_legs__team_match,sum(saves),count(*),expression,decimal_1,goalkeeping,3,higher_better,"Shot-stopping volume - saves per game; high = more shots kept out, which can reflect strong goalkeeping or a defence under sustained pressure",7
++free_kicks_per_match,team,metrics.free_kicks_per_match.label,Ø Free kicks,Average number of free kicks the team was awarded per match.,int_legs__team_match,sum(free_kicks),count(*),expression,decimal_1,set_pieces,3,higher_better,Free kicks won - set-piece chances earned per game; high = draws fouls and wins dead-ball situations,8
++fouls_per_match,team,metrics.fouls_per_match.label,Ø Fouls,Average number of fouls the team's players committed per match.,int_legs__team_match,sum(fouls),count(*),expression,decimal_1,discipline,3,lower_better,Fouls committed - free kicks given away per game; low = disciplined (high can also mean a side that breaks up play on purpose),6
++offsides_per_match,team,metrics.offsides_per_match.label,Ø Offsides,Average number of times the team's players were caught offside per match.,int_legs__team_match,sum(offsides),count(*),expression,decimal_1,discipline,3,lower_better,Offside calls - times caught beyond the last defender per game; low = better timed runs (high can reflect a side that plays on the shoulder),6
++cards_yellow_per_match,team,metrics.cards_yellow_per_match.label,Ø Yellow cards,Average number of yellow cards the team's players received per match.,int_legs__team_match,sum(cards_yellow),count(*),expression,decimal_1,discipline,3,lower_better,"Cautions - yellow cards per game; low = disciplined, high = a side that fouls to stop play",6
++cards_red_per_match,team,metrics.cards_red_per_match.label,Ø Red cards,Average number of red cards the team's players received per match.,int_legs__team_match,sum(cards_red),count(*),expression,decimal_1,discipline,3,lower_better,Dismissals - red cards per game; low = keeps eleven on the pitch (rare enough that a single card dominates a short window),6
+diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
+index 3e1ededa..2f60c6e1 100644
+--- a/dbt_project/seeds/metric_map.csv
++++ b/dbt_project/seeds/metric_map.csv
+@@ -272,22 +272,38 @@ mart_team_leaderboards,sort_value,shots_on_goal_against_per_match,,,metric_key
+ mart_team_leaderboards,sort_value,shots_on_goal_difference_per_match,,,metric_key
+ mart_team_leaderboards,sort_value,shots_on_goal_per_match,,,metric_key
+ mart_team_momentum,blocks_per_match,blocks_per_match,,window_type,
++mart_team_momentum,cards_red_per_match,cards_red_per_match,,window_type,
++mart_team_momentum,cards_yellow_per_match,cards_yellow_per_match,,window_type,
+ mart_team_momentum,clean_sheets,clean_sheets,,window_type,
+ mart_team_momentum,corners_against_per_match,corners_against_per_match,,window_type,
+ mart_team_momentum,corners_per_match,corners_per_match,,window_type,
+ mart_team_momentum,defensive_actions_per_match,defensive_actions_per_match,,window_type,
++mart_team_momentum,dribbles_attempts_per_match,dribbles_attempts_per_match,,window_type,
++mart_team_momentum,dribbles_success_pct,dribbles_success_pct,,window_type,
++mart_team_momentum,dribbles_success_per_match,dribbles_success_per_match,,window_type,
+ mart_team_momentum,duels_per_match,duels_per_match,,window_type,
+ mart_team_momentum,duels_won_pct,duels_won_pct,,window_type,
++mart_team_momentum,duels_won_per_match,duels_won_per_match,,window_type,
+ mart_team_momentum,finishing_efficiency_pct,finishing_efficiency_pct,,window_type,
++mart_team_momentum,fouls_per_match,fouls_per_match,,window_type,
++mart_team_momentum,free_kicks_per_match,free_kicks_per_match,,window_type,
+ mart_team_momentum,goals_against_per_match,goals_against_per_match,,window_type,
+ mart_team_momentum,goals_per_match,goals_per_match,,window_type,
+ mart_team_momentum,interceptions_per_match,interceptions_per_match,,window_type,
++mart_team_momentum,offsides_per_match,offsides_per_match,,window_type,
+ mart_team_momentum,passes_accuracy_pct,passes_accuracy_pct,,window_type,
++mart_team_momentum,passes_accurate_per_match,passes_accurate_per_match,,window_type,
+ mart_team_momentum,passes_key_per_match,passes_key_per_match,,window_type,
+ mart_team_momentum,passes_per_match,passes_per_match,,window_type,
++mart_team_momentum,passes_share_pct,passes_share_pct,,window_type,
+ mart_team_momentum,points_won,points_won,,window_type,
+ mart_team_momentum,saves_pct,saves_pct,,window_type,
++mart_team_momentum,saves_per_match,saves_per_match,,window_type,
++mart_team_momentum,shots_blocked_per_match,shots_blocked_per_match,,window_type,
+ mart_team_momentum,shots_inside_box_pct,shots_inside_box_pct,,window_type,
++mart_team_momentum,shots_inside_box_per_match,shots_inside_box_per_match,,window_type,
++mart_team_momentum,shots_off_target_per_match,shots_off_target_per_match,,window_type,
++mart_team_momentum,shots_on_goal_against_per_match,shots_on_goal_against_per_match,,window_type,
+ mart_team_momentum,shots_on_goal_pct,shots_on_goal_pct,,window_type,
+ mart_team_momentum,shots_on_goal_per_match,shots_on_goal_per_match,,window_type,
+ mart_team_momentum,shots_per_match,shots_per_match,,window_type,
+diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+index 9219f25d..77ef4240 100644
+--- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+@@ -25,7 +25,7 @@
+     'shots_on_target': 'Shots on Goal', 'shots_off_target': 'Shots off Goal', 'shots': 'Total Shots',
+     'shots_blocked': 'Blocked Shots', 'shots_inside_box': 'Shots insidebox',
+     'shots_outside_box': 'Shots outsidebox', 'fouls': 'Fouls', 'corners': 'Corner Kicks',
+-    'offsides': 'Offsides', 'possession_pct': 'Ball Possession', 'cards_yellow': 'Yellow Cards',
++    'offsides': 'Offsides', 'free_kicks': 'Free Kicks', 'possession_pct': 'Ball Possession', 'cards_yellow': 'Yellow Cards',
+     'cards_red': 'Red Cards', 'saves': 'Goalkeeper Saves', 'passes': 'Total passes',
+     'passes_accurate': 'Passes accurate'
+ } %}
+diff --git a/dbt_project/tests/assert_stat_facts_equal_base.sql b/dbt_project/tests/assert_stat_facts_equal_base.sql
+index a3c49943..00638914 100644
+--- a/dbt_project/tests/assert_stat_facts_equal_base.sql
++++ b/dbt_project/tests/assert_stat_facts_equal_base.sql
+@@ -19,7 +19,7 @@
+      'renamed': {'fixture_api_id': 'fixture_id', 'team_api_id': 'team_id'},
+      'columns': ['league_code', 'has_stat_line', 'shots_on_target', 'shots_off_target', 'shots',
+                  'shots_blocked', 'shots_inside_box', 'shots_outside_box', 'fouls', 'corners',
+-                 'offsides', 'possession_pct', 'cards_yellow', 'cards_red', 'saves', 'passes',
++                 'offsides', 'free_kicks', 'possession_pct', 'cards_yellow', 'cards_red', 'saves', 'passes',
+                  'passes_accurate', 'goals_penalty', 'goals_own', 'raw_ingested_at']},
+ ] %}
+ 
+diff --git a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+index 9cee36e0..e7a18774 100644
+--- a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
++++ b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+@@ -90,9 +90,7 @@ with legs as (
+         tp.duels,
+         tp.duels_won,
+         tp.dribbles,
+-        tp.dribbles_success,
+-        tp.fouls,
+-        tp.fouls_against
++        tp.dribbles_success
+     from {{ ref('int_legs__team_match') }} as tm
+     left join {{ ref('int_legs__team_from_players') }} as tp
+         on tm.fixture_sk = tp.fixture_sk and tm.team_sk = tp.team_sk
+diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
+index c353b78d..ccc1e739 100644
+--- a/scripts/generate_metric_sql.py
++++ b/scripts/generate_metric_sql.py
+@@ -62,10 +62,14 @@ TEAM_FORM = (
+     "passes_per_match", "passes_accuracy_pct", "corners_per_match", "corners_against_per_match", "saves_pct",
+     "passes_key_per_match", "tackles_per_match", "interceptions_per_match", "blocks_per_match",
+     "defensive_actions_per_match", "duels_per_match", "duels_won_pct",
++    "shots_on_goal_against_per_match", "shots_off_target_per_match", "shots_blocked_per_match",
++    "shots_inside_box_per_match", "passes_accurate_per_match", "passes_share_pct", "dribbles_attempts_per_match",
++    "dribbles_success_per_match", "dribbles_success_pct", "duels_won_per_match", "saves_per_match",
++    "free_kicks_per_match", "fouls_per_match", "offsides_per_match", "cards_yellow_per_match",
++    "cards_red_per_match",
  )
-+from scripts import export_site_data
- from scripts.export_site_data import _featured_season_row, group_upcoming_fixtures
+ TEAM_SEASON = TEAM_COUNTS + tuple(m for m in TEAM_FORM if m not in TEAM_COUNTS) + (
+-    "clean_sheets_pct", "points_capture_pct", "shots_share_pct", "shots_on_goal_against_per_match",
+-    "shots_on_goal_difference_per_match",
++    "clean_sheets_pct", "points_capture_pct", "shots_share_pct", "shots_on_goal_difference_per_match",
+ )
  
- 
-@@ -396,6 +398,61 @@ def test_shape_fixture_payload_composes_header_and_sides():
-     assert p["head_to_head"] == {"total_meetings": 3, "wins": 2}
- 
- 
-+def test_shape_next_match_is_the_mart_row_unless_it_is_this_match():
-+    row = {"fixture_sk": 11, "league_code": "DFBP", "kickoff_datetime": "2026-10-28T19:45:00",
-+           "round_name": "2nd Round", "fixture_slug": "2026-10-28-a-vs-b",
-+           "home_team_sk": 1, "home_team_name": "A", "home_team_slug": "a", "home_team_logo_url": "ua",
-+           "away_team_sk": 2, "away_team_name": "B", "away_team_slug": "b", "away_team_logo_url": "ub"}
-+    m = shape_next_match(row, 7)
-+    assert m["fixture_id"] == 11 and m["slug"] == "2026-10-28-a-vs-b" and m["league_code"] == "DFBP"
-+    assert m["home"] == {"team_id": 1, "name": "A", "slug": "a", "crest": "ua"}
-+    assert m["away"]["team_id"] == 2
-+    assert shape_next_match(row, 11) is None, "the page's own match is not its next match"
-+    assert shape_next_match(None, 7) is None
-+    side = _fixture_side(1, {"team_name": "A"}, None, None, None, next_match=m)
-+    assert side["next_match"] == m
-+
-+
-+def _match_row(fid, home, away, kickoff, home_next=False, away_next=False):
-+    return {"fixture_sk": fid, "league_code": "BL1", "season_api_year": 2026, "kickoff_datetime": kickoff,
-+            "round_name": "Regular Season - 5", "status_short": "NS", "venue_name_snapshot": "Arena %d" % fid,
-+            "fixture_slug": "slug-%d" % fid,
-+            "home_team_sk": home, "home_team_name": "T%d" % home, "home_team_slug": "t%d" % home,
-+            "home_team_logo_url": "c%d" % home,
-+            "away_team_sk": away, "away_team_name": "T%d" % away, "away_team_slug": "t%d" % away,
-+            "away_team_logo_url": "c%d" % away,
-+            "is_home_team_next_match": home_next, "is_away_team_next_match": away_next}
-+
-+
-+def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart(monkeypatch):
-+    """The header and each team's next match are rows of mart_competition_fixtures: the next match is
-+    the row the mart flags for that team, and none when it is the page's own match."""
-+    page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z", away_next=True)
-+    team1_next = _match_row(10, 3, 1, "2026-10-10T13:30:00Z", away_next=True)
-+    captured: list[str] = []
-+
-+    def fake_query(client, sql):
-+        captured.append(sql)
-+        if "mart_competition_fixtures" in sql and "status_short in" in sql:
-+            return [page]
-+        if "mart_competition_fixtures" in sql and "next_match" in sql:
-+            return [team1_next, page]
-+        if "core.dim_team" in sql:
-+            return [{"team_sk": 1, "team_country": "Germany"}, {"team_sk": 2, "team_country": "Germany"}]
-+        if "core.dim_league" in sql:
-+            return [{"league_code": "BL1", "league_name": "Bundesliga"}]
-+        return []
-+
-+    monkeypatch.setattr(export_site_data, "_query", fake_query)
-+    (p,) = export_site_data.fetch_fixture_payloads(object())
-+
-+    assert not any("core.fct_fixture" in s for s in captured), "the match is read from the mart"
-+    assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
-+    assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
-+    assert p["home"]["next_match"]["fixture_id"] == 10, "team 1's flagged row, though it plays away there"
-+    assert p["away"]["next_match"] is None, "team 2's next match is this page's own match"
-+
-+
- def test_player_slug_folds_accents_and_appends_id():
-     assert player_slug_with_id("Bayern München", 157) == "bayern-munchen-157"
- 
+ COUNTS = (
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -470,6 +1182,6 @@ index beb3caa4..a525b823 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md | 30 ++++++++++++++----------------
-#    1 file changed, 14 insertions(+), 16 deletions(-)
+#   .claude/task/acceptance_evidence.md | 29 +++++++++++++++--------------
+#    1 file changed, 15 insertions(+), 14 deletions(-)
 # ============================================================================

@@ -1,17 +1,18 @@
-# Acceptance evidence — #173 part 1: the match page's lists of matches read mart_competition_fixtures
+# Acceptance evidence — #177 part 1: the form window serves every Form comparison metric
 
-Read from two runs of the fixture export on the same prod data, 2026-10-07: main's code against prod, and this
-branch's code with the branch's mart_competition_fixtures compiled and inlined against prod, read-only.
+Read from the branch's changed models compiled and inlined against prod, read-only, 2026-10-07, against the prod
+tables built by that morning's nightly.
 
 criteria_demonstrated:
-  - SAME HEADER AND RECENT MATCHES. Both runs wrote the same 4,614 fixture files. With next_match set aside on both
-    sides, every file is equal to main's, value for value: the header (now read from mart_competition_fixtures) and
-    form_window (Recent matches) are unchanged.
-  - EACH TEAM'S NEXT MATCH. 8,517 sides carry next_match, read from mart_competition_fixtures by its
-    is_home_team_next_match / is_away_team_next_match flags; 711 carry none, each because its next match is the
-    page's own match. An independent check, the earliest kick-off still ahead per team among the exported
-    fixtures, agrees on every side: 0 disagreements. Example: Bayern München vs Borussia Dortmund, 31 Oct, names
-    FC Augsburg vs Bayern München (10 Oct) and Borussia Dortmund vs SV Werder Bremen (9 Oct).
-  - A TEST FAILS ON TWO NEXT MATCHES. assert_mart_competition_fixtures_one_next_match_per_team, compiled and run
-    against the inlined mart: with the mart mutated to flag a team's two earliest matches it returns 553 rows
-    (fails); as written it returns 0 rows (passes).
+  - EXISTING VALUES UNCHANGED. mart_team_momentum: 9,042 rows on both sides, 0 unmatched, 0 rows where any existing
+    column differs. int_team_season__metrics_cumulative: 120,030 rows on both sides, 0 unmatched, 0 rows differing.
+  - THE 16 NEW METRICS SERVED. For Borussia Dortmund and SV Werder Bremen before their 9 Oct match (5-match windows):
+    shots on target against 3.6 / 4.0, shots off target 6.2 / 5.6, blocked shots 5.8 / 3.4, shots inside box 14.0 /
+    11.6, accurate passes 416.2 / 459.0, possession 0.531 / 0.536, dribbles attempted 17.8 / 15.2, dribbles completed
+    7.8 / 7.4, dribble share 0.438 / 0.487, duels won 48.0 / 48.8, saves 3.0 / 2.2, fouls 10.8 / 11.8, offsides 2.2 /
+    2.2, yellow cards 1.8 / 1.2, red cards 0.0 / 0.0. Each equals the value worked by hand from the provider's team
+    lines and the player legs of the same ten matches.
+  - FREE KICKS FOLLOWS RULE R4. Both teams have a window match without a free-kick value, so free_kicks_per_match is
+    blank for both. 1,732 of 11,954 team lines this season carry one.
+  - GENERATED CODE IN STEP. generate_metric_sql.py --check: 11 surfaces match the catalogue.
+    sync_metric_docs_blocks.py --check: 179 blocks and 451 map rows match. pytest tests/: all pass.

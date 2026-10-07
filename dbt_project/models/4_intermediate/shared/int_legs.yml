@@ -105,6 +105,18 @@ models:
         description: "{{ doc('red_cards__leg') }}"
       - name: shots_on_target_against
         description: "{{ doc('opponent_shots_on_goal__leg') }}"
+      - name: shots_off_target
+        description: "{{ doc('shots_off_goal') }}"
+      - name: shots_blocked
+        description: "{{ doc('shots_blocked') }}"
+      - name: fouls
+        description: "{{ doc('fouls') }}"
+      - name: offsides
+        description: "{{ doc('offsides__team_match') }}"
+      - name: free_kicks
+        description: "Free kicks this team was awarded in the match, from its cleaned statistics line."
+      - name: passes_against
+        description: "Passes the opponent played in this match, from the opponent's cleaned statistics line."
       - name: shots_against
         description: "Total shots (on and off target) by the opponent in this match, from the opponent's cleaned statistics line."
       - name: shots_inside_box_against

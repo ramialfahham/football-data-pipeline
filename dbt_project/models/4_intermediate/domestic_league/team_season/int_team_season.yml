@@ -196,6 +196,36 @@ models:
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
         description: "{{ doc('duels_won_pct') }}"
+      - name: shots_off_target_per_match
+        description: "{{ doc('shots_off_target_per_match') }}"
+      - name: shots_blocked_per_match
+        description: "{{ doc('shots_blocked_per_match') }}"
+      - name: shots_inside_box_per_match
+        description: "{{ doc('shots_inside_box_per_match') }}"
+      - name: passes_accurate_per_match
+        description: "{{ doc('passes_accurate_per_match') }}"
+      - name: passes_share_pct
+        description: "{{ doc('passes_share_pct') }}"
+      - name: dribbles_attempts_per_match
+        description: "{{ doc('dribbles_attempts_per_match') }}"
+      - name: dribbles_success_per_match
+        description: "{{ doc('dribbles_success_per_match') }}"
+      - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_per_match
+        description: "{{ doc('duels_won_per_match') }}"
+      - name: saves_per_match
+        description: "{{ doc('saves_per_match') }}"
+      - name: free_kicks_per_match
+        description: "{{ doc('free_kicks_per_match') }}"
+      - name: fouls_per_match
+        description: "{{ doc('fouls_per_match') }}"
+      - name: offsides_per_match
+        description: "{{ doc('offsides_per_match') }}"
+      - name: cards_yellow_per_match
+        description: "{{ doc('cards_yellow_per_match') }}"
+      - name: cards_red_per_match
+        description: "{{ doc('cards_red_per_match') }}"
       - name: season_matchdays_used
         description: "{{ doc('season_matchdays_used') }}"
 
@@ -243,6 +273,12 @@ models:
       - dbt_utils.expression_is_true:
           expression: "(goals_per_match is null or goals_per_match >= 0) and (goals_against_per_match is null or goals_against_per_match >= 0) and (shots_per_match is null or shots_per_match >= 0) and (shots_on_goal_per_match is null or shots_on_goal_per_match >= 0) and (passes_per_match is null or passes_per_match >= 0) and (corners_per_match is null or corners_per_match >= 0) and (corners_against_per_match is null or corners_against_per_match >= 0) and (passes_key_per_match is null or passes_key_per_match >= 0) and (tackles_per_match is null or tackles_per_match >= 0) and (interceptions_per_match is null or interceptions_per_match >= 0) and (blocks_per_match is null or blocks_per_match >= 0) and (defensive_actions_per_match is null or defensive_actions_per_match >= 0) and (duels_per_match is null or duels_per_match >= 0)"
           name: int_team_season_cumulative_per_match_rates_non_negative
+      - dbt_utils.expression_is_true:
+          expression: "(passes_share_pct is null or passes_share_pct between 0 and 1) and (dribbles_success_pct is null or dribbles_success_pct >= 0)"
+          name: int_team_season_cumulative_new_ratios_in_range
+      - dbt_utils.expression_is_true:
+          expression: "least(coalesce(shots_off_target_per_match, 0), coalesce(shots_blocked_per_match, 0), coalesce(shots_inside_box_per_match, 0), coalesce(passes_accurate_per_match, 0), coalesce(dribbles_attempts_per_match, 0), coalesce(dribbles_success_per_match, 0), coalesce(duels_won_per_match, 0), coalesce(saves_per_match, 0), coalesce(free_kicks_per_match, 0), coalesce(fouls_per_match, 0), coalesce(offsides_per_match, 0), coalesce(cards_yellow_per_match, 0), coalesce(cards_red_per_match, 0)) >= 0"
+          name: int_team_season_cumulative_new_per_match_rates_non_negative
     columns:
       - name: team_sk
         description: "{{ doc('team_sk') }}"
@@ -375,6 +411,36 @@ models:
         description: "{{ doc('duels_per_match') }}"
       - name: duels_won_pct
         description: "{{ doc('duels_won_pct') }}"
+      - name: shots_off_target_per_match
+        description: "{{ doc('shots_off_target_per_match') }}"
+      - name: shots_blocked_per_match
+        description: "{{ doc('shots_blocked_per_match') }}"
+      - name: shots_inside_box_per_match
+        description: "{{ doc('shots_inside_box_per_match') }}"
+      - name: passes_accurate_per_match
+        description: "{{ doc('passes_accurate_per_match') }}"
+      - name: passes_share_pct
+        description: "{{ doc('passes_share_pct') }}"
+      - name: dribbles_attempts_per_match
+        description: "{{ doc('dribbles_attempts_per_match') }}"
+      - name: dribbles_success_per_match
+        description: "{{ doc('dribbles_success_per_match') }}"
+      - name: dribbles_success_pct
+        description: "{{ doc('dribbles_success_pct') }}"
+      - name: duels_won_per_match
+        description: "{{ doc('duels_won_per_match') }}"
+      - name: saves_per_match
+        description: "{{ doc('saves_per_match') }}"
+      - name: free_kicks_per_match
+        description: "{{ doc('free_kicks_per_match') }}"
+      - name: fouls_per_match
+        description: "{{ doc('fouls_per_match') }}"
+      - name: offsides_per_match
+        description: "{{ doc('offsides_per_match') }}"
+      - name: cards_yellow_per_match
+        description: "{{ doc('cards_yellow_per_match') }}"
+      - name: cards_red_per_match
+        description: "{{ doc('cards_red_per_match') }}"
 
   - name: int_team_season__deserved_vs_actual
     description: >

@@ -25,7 +25,7 @@
     'shots_on_target': 'Shots on Goal', 'shots_off_target': 'Shots off Goal', 'shots': 'Total Shots',
     'shots_blocked': 'Blocked Shots', 'shots_inside_box': 'Shots insidebox',
     'shots_outside_box': 'Shots outsidebox', 'fouls': 'Fouls', 'corners': 'Corner Kicks',
-    'offsides': 'Offsides', 'possession_pct': 'Ball Possession', 'cards_yellow': 'Yellow Cards',
+    'offsides': 'Offsides', 'free_kicks': 'Free Kicks', 'possession_pct': 'Ball Possession', 'cards_yellow': 'Yellow Cards',
     'cards_red': 'Red Cards', 'saves': 'Goalkeeper Saves', 'passes': 'Total passes',
     'passes_accurate': 'Passes accurate'
 } %}

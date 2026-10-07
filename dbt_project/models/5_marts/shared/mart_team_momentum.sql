@@ -57,6 +57,22 @@ select
     b.defensive_actions_per_match,
     b.duels_per_match,
     b.duels_won_pct,
+    b.shots_on_goal_against_per_match,
+    b.shots_off_target_per_match,
+    b.shots_blocked_per_match,
+    b.shots_inside_box_per_match,
+    b.passes_accurate_per_match,
+    b.passes_share_pct,
+    b.dribbles_attempts_per_match,
+    b.dribbles_success_per_match,
+    b.dribbles_success_pct,
+    b.duels_won_per_match,
+    b.saves_per_match,
+    b.free_kicks_per_match,
+    b.fouls_per_match,
+    b.offsides_per_match,
+    b.cards_yellow_per_match,
+    b.cards_red_per_match,
     b.team_sk = f.home_team_sk as is_home
 from builder as b
 inner join fixtures as f

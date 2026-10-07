@@ -81,6 +81,11 @@ Red cards the team's players received.
 {% enddocs %}
 
 
+{% docs cards_red_per_match %}
+Average number of red cards the team's players received per match.
+{% enddocs %}
+
+
 {% docs cards_red_player %}
 Red cards the player received.
 {% enddocs %}
@@ -88,6 +93,11 @@ Red cards the player received.
 
 {% docs cards_yellow %}
 Yellow cards the team's players received.
+{% enddocs %}
+
+
+{% docs cards_yellow_per_match %}
+Average number of yellow cards the team's players received per match.
 {% enddocs %}
 
 
@@ -272,6 +282,11 @@ The team's position in its league when the teams are ordered by deserved points,
 {% enddocs %}
 
 
+{% docs dribbles_attempts_per_match %}
+Average number of times the team's players tried to dribble past an opponent per match.
+{% enddocs %}
+
+
 {% docs dribbles_attempts_player %}
 Times the player tried to dribble past an opponent.
 {% enddocs %}
@@ -282,8 +297,18 @@ Times an opponent dribbled past the player.
 {% enddocs %}
 
 
+{% docs dribbles_success_pct %}
+The team's dribbles that got past an opponent, as a share of those attempted.
+{% enddocs %}
+
+
 {% docs dribbles_success_per90 %}
 Dribbles in which the player got past an opponent, per 90 minutes played.
+{% enddocs %}
+
+
+{% docs dribbles_success_per_match %}
+Average number of dribbles in which the team's players got past an opponent per match.
 {% enddocs %}
 
 
@@ -365,6 +390,11 @@ minutes played.
 {% enddocs %}
 
 
+{% docs duels_won_per_match %}
+Average number of one-on-one challenges for the ball that the team's players won per match.
+{% enddocs %}
+
+
 {% docs duels_won_player %}
 One-on-one challenges for the ball, on the ground or in the air, that the player won.
 {% enddocs %}
@@ -405,6 +435,16 @@ on target. Value for the season now in progress, accumulated through the matches
 
 {% docs finishing_efficiency_player_pct %}
 Goals the player scored, not counting penalties, as a share of the player's shots on target.
+{% enddocs %}
+
+
+{% docs fouls_per_match %}
+Average number of fouls the team's players committed per match.
+{% enddocs %}
+
+
+{% docs free_kicks_per_match %}
+Average number of free kicks the team was awarded per match.
 {% enddocs %}
 
 
@@ -589,6 +629,11 @@ Average minutes the player was on the pitch per match in which the player played
 {% enddocs %}
 
 
+{% docs offsides_per_match %}
+Average number of times the team's players were caught offside per match.
+{% enddocs %}
+
+
 {% docs offsides_player %}
 Times the player was caught offside.
 {% enddocs %}
@@ -621,6 +666,11 @@ now in progress, accumulated through the matches played so far.
 
 {% docs passes_accuracy_player_pct %}
 The player's passes that reached a teammate, as a share of all the player's passes.
+{% enddocs %}
+
+
+{% docs passes_accurate_per_match %}
+Average number of the team's passes that reached a teammate per match.
 {% enddocs %}
 
 
@@ -728,6 +778,11 @@ Passes the player attempted.
 {% enddocs %}
 
 
+{% docs passes_share_pct %}
+The team's passes as a share of all passes both teams played.
+{% enddocs %}
+
+
 {% docs penalty_committed_player %}
 Penalties the player gave away.
 {% enddocs %}
@@ -789,6 +844,11 @@ Shots on target the player saved in goal per 90 minutes played.
 {% enddocs %}
 
 
+{% docs saves_per_match %}
+Average number of shots on target the team's goalkeepers saved per match.
+{% enddocs %}
+
+
 {% docs saves_player %}
 Shots on target the player saved in goal.
 {% enddocs %}
@@ -807,6 +867,11 @@ The player's goals plus assists per 90 minutes played.
 
 {% docs scorer_points_player %}
 The player's goals plus assists.
+{% enddocs %}
+
+
+{% docs shots_blocked_per_match %}
+Average number of the team's shots an opponent blocked per match.
 {% enddocs %}
 
 
@@ -840,8 +905,18 @@ now in progress, accumulated through the matches played so far.
 {% enddocs %}
 
 
+{% docs shots_inside_box_per_match %}
+Average number of shots the team took from inside the penalty area per match.
+{% enddocs %}
+
+
 {% docs shots_inside_box_sum_season__team %}
 Shots the team took from inside the penalty area. Totalled over the season.
+{% enddocs %}
+
+
+{% docs shots_off_target_per_match %}
+Average number of shots the team sent wide or over per match.
 {% enddocs %}
 
 

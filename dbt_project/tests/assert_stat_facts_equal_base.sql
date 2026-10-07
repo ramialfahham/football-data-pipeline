@@ -19,7 +19,7 @@
      'renamed': {'fixture_api_id': 'fixture_id', 'team_api_id': 'team_id'},
      'columns': ['league_code', 'has_stat_line', 'shots_on_target', 'shots_off_target', 'shots',
                  'shots_blocked', 'shots_inside_box', 'shots_outside_box', 'fouls', 'corners',
-                 'offsides', 'possession_pct', 'cards_yellow', 'cards_red', 'saves', 'passes',
+                 'offsides', 'free_kicks', 'possession_pct', 'cards_yellow', 'cards_red', 'saves', 'passes',
                  'passes_accurate', 'goals_penalty', 'goals_own', 'raw_ingested_at']},
 ] %}
 

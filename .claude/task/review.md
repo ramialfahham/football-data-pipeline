@@ -1,37 +1,42 @@
-# Review — feature/173-match-page-readers — 2026-10-07
+# Review — feature/177-form-window-values — 2026-10-07
 
-diff_sha256: fca48853bf4e148bc10032823d44f2fa93e7e9431109b83240c866d678d9f11f
+diff_sha256: 2a59b0c3747f2e7af501258edd8fdfca380a1e6db4b2f25206863112960f1296
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: every code file in the diff is in scope_paths; no amendment.
-- Decision rights: the three column names and the acceptance criteria rest on approvals in chat, 2026-10-07; the "not yet started" rule is the export's existing test; no wording, URL or slug format added.
-- Thresholds: no new mechanism; the recurring cost (the mart's nightly read) is declared and measured before merge.
-- Impact map: evidenced lineage (mart_competition_fixtures, mart_match_days), export readers, deploy order and blast radius.
-- Reserved decisions: no other #173 reader touched; Recent matches stay on mart_team_momentum_window; the Next matches drawing stays with #166.
-- Consumption layer: shape_next_match passes the mart row through and drops only the page's own match; the flags are derived in dbt.
+- Scope: every file in the diff is in scope_paths; the season chain and the two test files each carry a dated amendment with the CPO's authority.
+- Decision rights: the 15 rows' text (label_en, description, interpretation, direction, tier) is recorded as approved in chat, 2026-10-07; the displayed names (strings.ts) stay reserved for the page build.
+- Impact map: the full 51-model dbt ls list is pasted; the measured zero difference on the two existing tables is recorded; the blast radius names the w1 payload growth.
+- Rename: passes_share_pct is consistent across seed, map, docs, ymls, generator and both generated blocks.
+- Thresholds: no new mechanism; the nightly-bytes measurement is owed before merge.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Layer placement: the next-match flags are computed in the mart from fct_fixture; the export only filters on them.
-- Join fan-out: team_next is one row per team (qualify row_number, fixture_sk tiebreak); joins on (fixture_sk, team_sk) keep the grain fixture_sk.
-- Tests: not_null and accepted_values on both flags; the singular test unions home and away flags, so a team flagged once as each is caught.
-- Header re-source: the same fixture set and the same dim_team values via the mart; dim_league keyed by league_code, one-to-one through the registry.
-- Competition-agnostic: no league identifier in the SQL or the export.
-- Residual, not a defect: the flags are frozen at build time, which the column descriptions state.
+- Formula test: the legs CTE no longer joins player-summed fouls, so fouls resolves to the team line.
+- Season chain: the 15 new columns are documented on both season models, with range and non-negative tests.
+- Cleaning: free_kicks is covered by the blank-rule test and the base-to-core equality test.
+- Generated SQL: each new expression matches its catalogue row, gated by rule R4, ratios sum over sum.
+- Layer placement and competition-agnostic: no defect.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- Possession: the pass share is passes_share_pct, so possession_pct keeps meaning the provider's time-based value in core.
+- Formulas: every numerator is part of its denominator; every count uses an existing leg column.
+- Descriptions and interpretations: plain, one sentence, matching the formulas.
+- Direction: follows the all-else-equal rule; blocked shots higher_better confirmed with the CPO.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 finding (no test over fetch_fixture_payloads) resolved: a fake-_query test pins the header read from the mart, the league lookup by league_code, the home/away flag wiring and the page's-own-match exclusion.
-- Re-run safety: the export is a pure read; the mart is rebuilt whole and deterministic.
-- Empty inputs: team_in is built after the empty-fixtures return, so no empty IN list reaches BigQuery.
-- Guards and CI: no hook, workflow, CI or dependency change; deploy:export stays manual and web-only, and fails closed if run before the nightly builds the columns.
-- Build health: one next_match object per side, about 3 to 4 MB over 4,614 files.
+- Formula test collision fixed; no other tm.* join collides.
+- free_kicks fill and core carry are pinned by tests; a revert fails CI.
+- Payload: form_window gains nothing; w1 gains 16 keys, about 1.3 KB per file, disclosed in the contract.
+- Generator: idempotent, no duplicate ids, drift test covers a revert.
 
 ## escalations
 (none)

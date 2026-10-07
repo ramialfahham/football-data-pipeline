@@ -683,6 +683,8 @@ models:
         description: "{{ doc('corners') }}"
       - name: offsides
         description: "{{ doc('offsides__team_match') }}"
+      - name: free_kicks
+        description: "Free kicks this team was awarded in the match, from its cleaned statistics line."
       - name: possession_pct
         description: "{{ doc('ball_possession_percent') }}"
       - name: cards_yellow
