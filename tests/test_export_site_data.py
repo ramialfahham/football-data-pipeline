@@ -22,6 +22,7 @@ from scripts.export_site_data import (
     shape_competition_payload,
     shape_season_summary,
     shape_fixture_payload,
+    shape_next_match,
     shape_leaderboards,
     shape_matchstats,
     shape_player_payload,
@@ -29,6 +30,7 @@ from scripts.export_site_data import (
     shape_top_players,
     player_slug_with_id,
 )
+from scripts import export_site_data
 from scripts.export_site_data import _featured_season_row, group_upcoming_fixtures
 
 
@@ -394,6 +396,61 @@ def test_shape_fixture_payload_composes_header_and_sides():
     assert p["league_name"] == "World Cup" and p["round"] == "Group Stage - 1"
     assert p["home"]["team_id"] == 1 and p["away"]["team_id"] == 2
     assert p["head_to_head"] == {"total_meetings": 3, "wins": 2}
+
+
+def test_shape_next_match_is_the_mart_row_unless_it_is_this_match():
+    row = {"fixture_sk": 11, "league_code": "DFBP", "kickoff_datetime": "2026-10-28T19:45:00",
+           "round_name": "2nd Round", "fixture_slug": "2026-10-28-a-vs-b",
+           "home_team_sk": 1, "home_team_name": "A", "home_team_slug": "a", "home_team_logo_url": "ua",
+           "away_team_sk": 2, "away_team_name": "B", "away_team_slug": "b", "away_team_logo_url": "ub"}
+    m = shape_next_match(row, 7)
+    assert m["fixture_id"] == 11 and m["slug"] == "2026-10-28-a-vs-b" and m["league_code"] == "DFBP"
+    assert m["home"] == {"team_id": 1, "name": "A", "slug": "a", "crest": "ua"}
+    assert m["away"]["team_id"] == 2
+    assert shape_next_match(row, 11) is None, "the page's own match is not its next match"
+    assert shape_next_match(None, 7) is None
+    side = _fixture_side(1, {"team_name": "A"}, None, None, None, next_match=m)
+    assert side["next_match"] == m
+
+
+def _match_row(fid, home, away, kickoff, home_next=False, away_next=False):
+    return {"fixture_sk": fid, "league_code": "BL1", "season_api_year": 2026, "kickoff_datetime": kickoff,
+            "round_name": "Regular Season - 5", "status_short": "NS", "venue_name_snapshot": "Arena %d" % fid,
+            "fixture_slug": "slug-%d" % fid,
+            "home_team_sk": home, "home_team_name": "T%d" % home, "home_team_slug": "t%d" % home,
+            "home_team_logo_url": "c%d" % home,
+            "away_team_sk": away, "away_team_name": "T%d" % away, "away_team_slug": "t%d" % away,
+            "away_team_logo_url": "c%d" % away,
+            "is_home_team_next_match": home_next, "is_away_team_next_match": away_next}
+
+
+def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart(monkeypatch):
+    """The header and each team's next match are rows of mart_competition_fixtures: the next match is
+    the row the mart flags for that team, and none when it is the page's own match."""
+    page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z", away_next=True)
+    team1_next = _match_row(10, 3, 1, "2026-10-10T13:30:00Z", away_next=True)
+    captured: list[str] = []
+
+    def fake_query(client, sql):
+        captured.append(sql)
+        if "mart_competition_fixtures" in sql and "status_short in" in sql:
+            return [page]
+        if "mart_competition_fixtures" in sql and "next_match" in sql:
+            return [team1_next, page]
+        if "core.dim_team" in sql:
+            return [{"team_sk": 1, "team_country": "Germany"}, {"team_sk": 2, "team_country": "Germany"}]
+        if "core.dim_league" in sql:
+            return [{"league_code": "BL1", "league_name": "Bundesliga"}]
+        return []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    (p,) = export_site_data.fetch_fixture_payloads(object())
+
+    assert not any("core.fct_fixture" in s for s in captured), "the match is read from the mart"
+    assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
+    assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
+    assert p["home"]["next_match"]["fixture_id"] == 10, "team 1's flagged row, though it plays away there"
+    assert p["away"]["next_match"] is None, "team 2's next match is this page's own match"
 
 
 def test_player_slug_folds_accents_and_appends_id():

@@ -588,10 +588,11 @@ def shape_player_payload(
 
 def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
                   w2: dict | None, ctx: dict | None,
-                  form_window: list | None = None, top_players: list | None = None) -> dict:
+                  form_window: list | None = None, top_players: list | None = None,
+                  next_match: dict | None = None) -> dict:
     """One team's block on the fixture page: identity + W1 form + W2 season-to-date
-    + standings context + the form-window drill-down list + top players. Each
-    sub-block is None/[] when that mart has no row for the side (honest absence —
+    + standings context + the form-window drill-down list + top players + its next match.
+    Each sub-block is None/[] when that mart has no row for the side (honest absence —
     the UI renders the empty state)."""
     return {
         "team_id": team_id,
@@ -603,7 +604,23 @@ def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
         "standing": _drop(ctx, _CTX_DROP) if ctx else None,
         "form_window": form_window or [],
         "top_players": top_players or [],
+        "next_match": next_match,
     }
+
+
+def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
+    """A team's next match, its mart_competition_fixtures row as it stands; None when the team has
+    none, or when it is the fixture whose page this is."""
+    if not row or int(row["fixture_sk"]) == fixture_id:
+        return None
+
+    def team(side):
+        return {"team_id": int(row[f"{side}_team_sk"]), "name": row.get(f"{side}_team_name"),
+                "slug": row.get(f"{side}_team_slug"), "crest": row.get(f"{side}_team_logo_url")}
+
+    return {"fixture_id": int(row["fixture_sk"]), "slug": row.get("fixture_slug"),
+            "league_code": row.get("league_code"), "kickoff": row.get("kickoff_datetime"),
+            "round": row.get("round_name"), "home": team("home"), "away": team("away")}
 
 
 def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
@@ -1002,18 +1019,17 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
 
 
 def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None) -> list[dict]:
-    """One payload per unplayed fixture, every competition. The slug is joined from
-    mart_competition_fixtures, the one place a match's URL segment is built. When `source_counts`
-    is given it receives the number of unplayed fixtures the warehouse held before any sampling,
-    for the manifest."""
+    """One payload per unplayed fixture, every competition. The match, the matches of each team's
+    form window and each team's next match are rows of mart_competition_fixtures, the one source of
+    every list of matches. When `source_counts` is given it receives the number of unplayed
+    fixtures the warehouse held before any sampling, for the manifest."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     fixtures = _query(client, f"""
-        select f.fixture_sk, f.league_sk, f.league_code, f.season_api_year, f.kickoff_datetime,
-               f.round_name, f.status_short, f.venue_name_snapshot, f.home_team_sk, f.away_team_sk,
-               c.fixture_slug
-        from `{GCP_PROJECT}.core.fct_fixture` as f
-        inner join `{marts}.mart_competition_fixtures` as c on f.fixture_sk = c.fixture_sk
-        where f.status_short in ('NS', 'TBD') and f.fixture_date >= current_date()
+        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, status_short,
+               venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
+               home_team_name, home_team_logo_url, away_team_name, away_team_logo_url
+        from `{marts}.mart_competition_fixtures`
+        where status_short in ('NS', 'TBD') and fixture_date >= current_date()
     """)
     fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
     if source_counts is not None:
@@ -1030,8 +1046,8 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
                                 f"from `{GCP_PROJECT}.core.dim_team`")
     }
     leagues = {
-        int(r["league_sk"]): r.get("league_name")
-        for r in _query(client, f"select league_sk, league_name "
+        r["league_code"]: r.get("league_name")
+        for r in _query(client, f"select league_code, league_name "
                                 f"from `{GCP_PROJECT}.core.dim_league`")
     }
     w1 = {
@@ -1083,25 +1099,42 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
                                 f"from `{GCP_PROJECT}.core.dim_player`")
     }
 
-    def _side(fid, team_id):
+    team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
+    next_matches: dict = {}
+    for r in _query(client, f"""
+        select fixture_sk, league_code, kickoff_datetime, round_name, fixture_slug,
+               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
+               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
+               is_home_team_next_match, is_away_team_next_match
+        from `{marts}.mart_competition_fixtures`
+        where (is_home_team_next_match and home_team_sk in ({team_in}))
+           or (is_away_team_next_match and away_team_sk in ({team_in}))
+    """):
+        if r["is_home_team_next_match"]:
+            next_matches[int(r["home_team_sk"])] = r
+        if r["is_away_team_next_match"]:
+            next_matches[int(r["away_team_sk"])] = r
+
+    def _side(f, side):
+        fid, team_id = int(f["fixture_sk"]), int(f[f"{side}_team_sk"])
+        identity = {"team_name": f.get(f"{side}_team_name"), "team_logo_url": f.get(f"{side}_team_logo_url"),
+                    "team_country": (teams.get(team_id) or {}).get("team_country")}
         return _fixture_side(
-            team_id, teams.get(team_id), w1.get((fid, team_id)), w2.get((fid, team_id)),
+            team_id, identity, w1.get((fid, team_id)), w2.get((fid, team_id)),
             ctx.get((fid, team_id)),
             form_window=sorted(form_window.get((fid, team_id), []),
                                key=lambda r: r.get("recency_rank") or 99),
             top_players=shape_top_players(mom_players.get((fid, team_id), []), player_names),
+            next_match=shape_next_match(next_matches.get(team_id), fid),
         )
 
     payloads = []
     for f in fixtures:
-        fid = int(f["fixture_sk"])
         h, a = int(f["home_team_sk"]), int(f["away_team_sk"])
-        f["league_name"] = leagues.get(int(f["league_sk"])) if f.get("league_sk") is not None else None
-        f["home_team_name"] = (teams.get(h) or {}).get("team_name")
-        f["away_team_name"] = (teams.get(a) or {}).get("team_name")
+        f["league_name"] = leagues.get(f.get("league_code"))
         h2h_row = h2h.get((h, a))
         payloads.append(
-            shape_fixture_payload(f, _side(fid, h), _side(fid, a),
+            shape_fixture_payload(f, _side(f, "home"), _side(f, "away"),
                                   _drop(h2h_row, _H2H_DROP) if h2h_row else None)
         )
     return payloads
