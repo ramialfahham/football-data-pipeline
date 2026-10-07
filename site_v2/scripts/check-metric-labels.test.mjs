@@ -63,8 +63,8 @@ function catalogueRows() {
  * the board list in the export and the catalogue's own `label_i18n_key`.
  *
  * ⚠ NOT read from `src/data/landing.json`, and that is deliberate. A board with no data is omitted
- * from the payload by design (#40: "if a board is missing, the user may not even notice, so don't
- * show"), so a payload-derived list would make a legitimately empty board turn this test red — a
+ * from the payload by design, so a payload-derived list would make a legitimately empty board
+ * turn this test red — a
  * build failure over something the DESIGN says is silent. `assert_mart_leaderboards_every_home_
  * board_has_a_leader` is what notices a vanished board. This list must not move with the data. */
 const exportSrc = readFileSync(join(REPO, "scripts/export_site_data.py"), "utf8");

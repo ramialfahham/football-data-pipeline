@@ -15,8 +15,8 @@
 // The block COMPOSES and derives nothing: every value is a served payload field, and the board's
 // name is resolved from the metric catalogue through metricLabel(), never hand-typed here.
 //
-// A board with no data never arrives — the export omits it (#40: "if a board is missing, the user
-// may not even notice, so don't show"). So there is no empty state in this file, deliberately.
+// A board with no data never arrives — the export omits it. So there is no empty state in this
+// file, deliberately.
 // The block itself is not rendered when no board survived; index.astro guards that.
 import Crest from "../ui/Crest.astro";
 import SectionHead from "../ui/SectionHead.astro";

@@ -812,8 +812,8 @@ length follow the football calendar, so it is variable by design:
 - **Too LONG** on a busy day (57 fixtures measured worst case). Named above.
 - **Too SHORT on a quiet day**, which is the direction the first build actually hit: the sample
   regenerated on 2026-08-18 held **4 fixtures across 2 competitions** — a thin front door, where the
-  retired count would have shown 12 by borrowing from the following day. That borrowing is exactly
-  what "we will show what we have" rejects, so this is the rule working, not failing. Whether a
+  retired count would have shown 12 by borrowing from the following day. The page shows what there
+  is and never borrows, so this is the rule working, not failing. Whether a
   4-match day is an acceptable home page is nonetheless a PRODUCT question and is **not decided**.
 
 Both belong to the same CPO call on the block; neither is a licence to reintroduce a count.
@@ -867,7 +867,7 @@ which is the zero-file rule applied to the home page.~~
 entry, seven tests and `mart_landing_trending` itself were all deleted in #367.
 
 It also never matched its own last ruling. The 2026-08-04 row in §0 called for THREE team signals —
-winning, unbeaten, clean-sheet — with **"winless and losing are both dropped"**, plus player
+winning, unbeaten, clean-sheet — with winless and losing both dropped, plus player
 streaks, plus a full start date on each row. What was built served five signals including `winless`,
 no player streaks and no dates. So there was no version of this block that could have shipped as
 specified, and reworking it was never the alternative to cutting it.

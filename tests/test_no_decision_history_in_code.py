@@ -30,7 +30,7 @@ sys.path.insert(0, HOOKS)
 import comment_history_gate as gate  # noqa: E402
 
 # The pin. A sweep MR lowers these two numbers and nothing else may move them.
-PINNED_LINES = 777
+PINNED_LINES = 774
 PINNED_FILES = 192
 
 HASH = chr(35)

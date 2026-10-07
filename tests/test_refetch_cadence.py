@@ -107,7 +107,7 @@ def test_every_league_actually_gets_the_ruled_cadence(code):
     The first implementation computed `due_after = interval - offset` on EVERY call, which
     permanently SHORTENED the interval: a league with offset 6 re-fetched every single day and
     only offset 0 ever got 7 days. It looked like a stagger and was a silent cadence cut, and
-    the rule is "every 7 days" — not "somewhere between 1 and 7 depending on a hash".
+    the rule is a 7-day interval — not "somewhere between 1 and 7 depending on a hash".
 
     This simulates a year of nightly runs and asserts the observed gap between re-fetches is
     exactly the ruled interval for EVERY league, not just the lucky ones. It fails on the old

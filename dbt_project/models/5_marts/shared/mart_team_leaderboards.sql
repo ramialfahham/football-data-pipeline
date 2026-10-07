@@ -16,8 +16,7 @@
 
   rank = DENSE_RANK over the board's metric in its rank_order within (league_code,
   season_api_year): ties share a rank, no ranks are skipped, and the top-10 cut is inclusive of
-  ties (the mart_leaderboards convention). The partition is per league — one team per league,
-  same as players — so a board
+  ties (the mart_leaderboards convention). The partition is per league, so a board
   is each league's rank-1 team collected and ordered, and the ranking never
   crosses league_code. That also satisfies the block's rule that club and national-team
   competitions are never mixed: every competition is already its own ranking.
@@ -158,7 +157,7 @@ ranked as (
         -- order it is served.
         -- ⛔ NO SPORTING TIE-BREAK EXISTS HERE, AND THAT IS DELIBERATE, NOT AN OVERSIGHT. The player
         -- mart breaks a tie on fewer MINUTES played, and teams have no minutes. `season_games_played`
-        -- is the obvious analogue and was rejected — it will not work most of the time — for
+        -- is the obvious analogue and does not work, for
         -- two reasons, the second being the real one: it barely discriminates (3.6 distinct game
         -- counts per league-season on average, and in 72 of 235 every team is level), and for a RATE
         -- fewer games is not better, it is LESS EVIDENCE for the same rate.

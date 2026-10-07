@@ -1,8 +1,8 @@
 -- Every Home board must have a rank-1 player in every elite league's current season.
 --
 -- ⛔ THE PAGE DELIBERATELY WILL NOT TELL US. #40 rules that a board with no data is not rendered —
--- no placeholder, no empty state — because *"if a board is missing, the user may not even notice,
--- so don't show."* That is right for the reader and blind for us: a board that silently stops
+-- no placeholder, no empty state — because a reader does not notice a board that is missing.
+-- That is right for the reader and blind for us: a board that silently stops
 -- being produced looks identical to a board that was never meant to appear. #40 names the
 -- consequence and asks for this test by name:
 --   "A silently omitted board is invisible to the visitor by design — and therefore invisible to

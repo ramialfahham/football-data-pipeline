@@ -84,8 +84,7 @@ pass. Do not convert an absence of findings into a finding.
 - **A PASS is allowed to find nothing.** Hold the critical posture, then record
   what you EXAMINED under `risks_checked:` — at least one entry, and "checked X
   against Y, no defect" is a complete entry. Never manufacture a finding to
-  justify a pass. (CPO 2026-08-01: "the reviewer needs to have the critical
-  attitude but it's allowed to approve and not invent some finding.")
+  justify a pass.
 - **You review the code diff and `contract.md`, never the review's own
   paperwork.** The task NOTES in `.claude/task/` are excluded from the patch you
   are handed, so the phrasing of the evidence artifacts is not yours to audit.
@@ -140,6 +139,5 @@ VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
 cost saving, never a way to move a change past you while you look through a
 keyhole.
 
-Why this exists: every round used to re-run every reviewer over the entire diff
-even when one file had changed, which is what made a nine-round PR cost what it
-did (CPO 2026-07-22: the process "has to be more economic").
+Why this exists: re-running every reviewer over the whole diff after a one-file
+change costs too much.

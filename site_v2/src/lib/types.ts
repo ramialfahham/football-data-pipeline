@@ -288,7 +288,7 @@ export interface LandingUpcomingGroup {
  *
  *  Three interface sets were removed and none is coming back in this shape: the stats teasers
  *  (LandingScorer / LandingStandingRow / LandingStats) and TrendingStory, both cut — and
- *  BrowseCompetition / LandingBrowse, cut ("drop the browse section": its only value was
+ *  BrowseCompetition / LandingBrowse, cut (its only value was
  *  reachability into the long-tail team/player pages, both already blocked on data-quality
  *  work, so a competitions-only version had nothing left to solve). */
 /** One row of a Top players board: a league's rank-1 player on that board (#40).

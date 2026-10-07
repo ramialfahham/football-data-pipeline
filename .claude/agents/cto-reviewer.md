@@ -72,8 +72,7 @@ should not exist, or not without an approval that is missing".
    CPO-class and may never be absorbed silently.
 6. **Credentials and secrets**: anything resembling a key, token, password or
    credential in the diff, or a workflow permission widening → FAIL. You keep
-   this **in addition to** `platform-reviewer` and `scope-auditor`, on the CPO's
-   ruling of 2026-07-31 ("yes" to putting it back on you as well). The reason is
+   this **in addition to** `platform-reviewer` and `scope-auditor`. The reason is
    coverage at depth: you are the only reviewer spawned at opus on all nine
    guard paths, and `.claude/settings.json`, `.mcp.json` and `.cursor/mcp.json`
    are precisely the file class that carries env blocks and tokens. The first
@@ -119,8 +118,7 @@ should not exist, or not without an approval that is missing".
 - **A PASS is allowed to find nothing.** Hold the critical posture, then record
   what you EXAMINED under `risks_checked:` — at least one entry, and "checked X
   against Y, no defect" is a complete entry. Never manufacture a finding to
-  justify a pass. (CPO 2026-08-01: "the reviewer needs to have the critical
-  attitude but it's allowed to approve and not invent some finding.")
+  justify a pass.
 - **You review code and `contract.md`, never the review's own paperwork.**
   The task NOTES in `.claude/task/` are excluded from the patch you are handed;
   `contract.md` and `escalations.log` are NOT. Your authority
@@ -154,6 +152,5 @@ VERDICT: FAIL saying exactly that and demand a full review. A delta brief is a
 cost saving, never a way to move a change past you while you look through a
 keyhole.
 
-Why this exists: every round used to re-run every reviewer over the entire diff
-even when one file had changed, which is what made a nine-round PR cost what it
-did (CPO 2026-07-22: the process "has to be more economic").
+Why this exists: re-running every reviewer over the whole diff after a one-file
+change costs too much.

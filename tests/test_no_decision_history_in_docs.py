@@ -24,14 +24,13 @@ import comment_history_gate as gate  # noqa: E402
 
 # The pin: flagged lines per document. A cleanup lowers a number or removes a row; nothing adds one.
 PINNED = {
-    ".claude/agents/analytics-engineer-reviewer.md": 4,
-    ".claude/agents/bi-analyst-reviewer.md": 9,
-    ".claude/agents/cto-reviewer.md": 12,
-    ".claude/agents/data-engineer-reviewer.md": 5,
-    ".claude/agents/football-analytics-expert-reviewer.md": 3,
-    ".claude/agents/platform-reviewer.md": 4,
-    ".claude/agents/scope-auditor.md": 8,
-    ".claude/agents/seo-expert-reviewer.md": 4,
+    ".claude/agents/analytics-engineer-reviewer.md": 1,
+    ".claude/agents/bi-analyst-reviewer.md": 6,
+    ".claude/agents/cto-reviewer.md": 8,
+    ".claude/agents/data-engineer-reviewer.md": 2,
+    ".claude/agents/platform-reviewer.md": 1,
+    ".claude/agents/scope-auditor.md": 5,
+    ".claude/agents/seo-expert-reviewer.md": 1,
     ".claude/commands/status.md": 1,
     ".claude/skills/onboard-competition/SKILL.md": 10,
     ".claude/skills/validate-local/SKILL.md": 1,

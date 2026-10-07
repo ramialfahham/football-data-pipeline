@@ -893,8 +893,8 @@ data:build:main:
     # declared in no .yml can be seen — GitLab #82 is built on exactly that file, which is why it
     # could not come before this job learned to produce it.
     #
-    # HERE AND NOWHERE ELSE, decided 2026-08-21. The CPO's reason, and it is the right one: the
-    # docs only change when a model or a description changes, and that is exactly when this fires.
+    # HERE AND NOWHERE ELSE, decided 2026-08-21. The docs change only when a model or a
+    # description changes, and that is exactly when this job runs.
     #   · NOT in data:nightly — a description's content comes from the repo, not from the data, so
     #     a nightly run would re-publish identical pages for recurring cost.
     #   · NOT in data:build:mr — that job builds state:modified+ into that merge request's own
