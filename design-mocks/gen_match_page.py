@@ -64,9 +64,14 @@ SEASON_PLAYERS = {
 # Possession and Fouls join the Form comparison (#132 state 3), and the window's cards are shown; nothing serves
 # them for the window yet, so the proposal reads a stand-in read once from the team stat lines of each team's five
 # window matches: (Dortmund, Bremen); possession is the team's share of the passes in them, a blank card is 0.
+# The rest of Match stats' metrics come from the same lines and the player legs: a count is the mean over the
+# matches that carry it, a share the ratio of the sums.
 FORM_STANDIN = {"possession": (53, 54), "fouls": (10.8, 11.8), "yellow_cards": (1.8, 1.2), "red_cards": (0.0, 0.0),
                 "sog_against": (3.6, 4.0), "sog_share": (35, 43), "box": (14.0, 11.6),
-                "dribbles": (17.8, 15.2), "dribbles_pct": (44, 47)}
+                "dribbles": (17.8, 15.2), "dribbles_pct": (44, 49),
+                "shots_off_goal": (6.2, 5.6), "shots_blocked": (5.8, 3.4), "passes_accurate": (416, 459),
+                "dribbles_completed": (7.8, 7.4), "duels_won": (48, 49), "saves": (3.0, 2.2),
+                "free_kicks": (9.5, 10.0), "offsides": (2.2, 2.2)}
 
 # mart_head_to_head does not serve which side was at home in a past meeting, so the proposed Head to
 # head reads it from a stand-in read once from core.fct_fixture: the meeting's day -> its home team.
@@ -938,7 +943,8 @@ def propose(inner, fx, comps, slugs):
         # Decided on the played match's page (#132 state 3): Fouls leads Discipline, and every average there reads
         # per match; the values are the window stand-in until the Form comparison's mart serves them.
         discipline = "".join(stat_row("%s<small>per match</small>" % label, *FORM_STANDIN[key], -1)
-                             for label, key in (("Fouls", "fouls"), ("Yellow cards", "yellow_cards"), ("Red cards", "red_cards")))
+                             for label, key in (("Fouls", "fouls"), ("Offsides", "offsides"), ("Yellow cards", "yellow_cards"),
+                                                ("Red cards", "red_cards")))
     else:
         discipline = card_row("Yellow cards") + card_row("Red cards")
     inner = (inner[:cmp_end] + '<div class="mk-p mk-chg"><div class="mgroup">Discipline</div>%s</div>'
@@ -964,7 +970,9 @@ def propose(inner, fx, comps, slugs):
         row_at = inner.rindex('<div class="mrow">', 0, label_at)
         at = block_end(inner, row_at)
         inner = (inner[:at] + '<div class="mk-p mk-chg">%s</div>'
-                 % stat_row("Shots on target against<small>per match</small>", *FORM_STANDIN["sog_against"], -1) + inner[at:])
+                 % (stat_row("Shots on target against<small>per match</small>", *FORM_STANDIN["sog_against"], -1)
+                    + stat_row("Shots off target<small>per match</small>", *FORM_STANDIN["shots_off_goal"], 1)
+                    + stat_row("Blocked shots<small>per match</small>", *FORM_STANDIN["shots_blocked"], 1)) + inner[at:])
         # Shooting reads its counts, then its two rates (#132 state 3): Shots from box moves behind the shots on goal.
         label_at = inner.index('<span class="mk-p">Shots from box</span>', inner.index('<div class="win win-w1">'))
         row_at = inner.rindex('<div class="mrow">', 0, label_at)
@@ -991,8 +999,25 @@ def propose(inner, fx, comps, slugs):
         label_at = inner.index('<span class="mk-p">Duels<small>per match</small></span>', inner.index('<div class="win win-w1">'))
         at = inner.rindex('<div class="mrow">', 0, label_at)
         dribbles = (stat_row("Dribbles attempted<small>per match</small>", *FORM_STANDIN["dribbles"], 1)
+                    + stat_row("Dribbles completed<small>per match</small>", *FORM_STANDIN["dribbles_completed"], 1)
                     + stat_row("Dribbles completed<small>percentage</small>", *FORM_STANDIN["dribbles_pct"], 1, "%"))
         inner = inner[:at] + '<div class="mk-p mk-chg">%s</div>' % dribbles + inner[at:]
+
+        # Match stats' counts beside their shares and groups, in its order.
+        def put(label, rows, after):
+            label_at = inner.index('<span class="mk-p">%s</span>' % label, inner.index('<div class="win win-w1">'))
+            row_at = inner.rindex('<div class="mrow">', 0, label_at)
+            at = block_end(inner, row_at) if after else row_at
+            return inner[:at] + '<div class="mk-p mk-chg">%s</div>' % rows + inner[at:]
+        windows = fx["home"]["w1"], fx["away"]["w1"]
+        inner = put("Pass accuracy", stat_row("Accurate passes<small>per match</small>", *FORM_STANDIN["passes_accurate"], 1), False)
+        inner = put("Duels won<small>percentage</small>", stat_row("Duels won<small>per match</small>", *FORM_STANDIN["duels_won"], 1), False)
+        inner = put("Defensive actions<small>per match</small>",
+                    "".join(stat_row("%s<small>per match</small>" % label, *(w[key] for w in windows), 1)
+                            for label, key in (("Tackles", "tackles_per_match"), ("Interceptions", "interceptions_per_match"),
+                                               ("Blocks", "blocks_per_match"))), True)
+        inner = put("Saves<small>percentage</small>", stat_row("Saves<small>per match</small>", *FORM_STANDIN["saves"], 1), False)
+        inner = put("Corners against<small>per match</small>", stat_row("Free kicks<small>per match</small>", *FORM_STANDIN["free_kicks"], 1), True)
     fs, fe = span_of(inner, '<section aria-label="Form comparison"', "</section>")
     hs, he = span_of(inner[fs:fe], '<div class="sechead">', "</div>")
     inner = inner[:fs + he] + intro + inner[fs + he:]
@@ -1208,10 +1233,32 @@ PLAYED_PEN = {
              "crest": "https://media.api-sports.io/football/teams/171.png"},
     "goals": [(56, None, 171, "Normal Goal", 511974, "Adam Markhiev"),
               (90, 6, 1620, "Normal Goal", 203070, "Pascal Fallmann")],
+    # The provider sends no free kicks for this match, so that row is left out.
     "team": {"shots": (21, 11), "shots_inside_box_pct": (62, 64), "shots_on_goal": (6, 5), "finishing_pct": (17, 20),
+             "shots_on_goal_against": (5, 6), "shots_off_goal": (10, 4), "shots_blocked": (5, 2),
+             "shots_inside_box": (13, 7), "shots_on_goal_pct": (29, 45),
              "passes": (544, 650), "passes_accuracy_pct": (80, 87), "key_passes": (14, 9), "duels": (115, 115),
+             "passes_accurate": (436, 566), "possession_pct": (46, 54),
+             "dribbles": (20, 22), "dribbles_completed": (8, 6), "dribbles_pct": (40, 27), "duels_won": (68, 47),
              "duels_won_pct": (59, 41), "defensive_actions": (45, 34), "saves_pct": (75, 80), "corners": (8, 7),
+             "tackles": (32, 15), "interceptions": (10, 13), "blocks": (3, 6), "saves": (3, 4),
+             "corners_against": (7, 8), "fouls": (15, 17), "offsides": (4, 0),
              "yellow_cards": (3, 2), "red_cards": (0, 0)},
+    # Read as the full-time match's are; the substitutes' minutes come from the substitution events.
+    "lineups": {1620: {"formation": "4-4-2", "xi": [203381, 203070, 128138, 380629, 90649, 535071, 90697, 442151, 202565, 728, 352265],
+                       "subs": [(273718, 46, 535071), (353670, 57, 352265), (272235, 74, 90697), (329472, 74, 202565),
+                                (548586, 87, 728)]},
+                171: {"formation": "4-2-3-1", "xi": [25651, 380969, 313222, 202942, 478854, 387361, 618443, 177661, 366021, 338355, 511974],
+                      "subs": [(26677, 67, 380969), (330603, 67, 338355), (26502, 78, 511974), (663755, 79, 366021),
+                               (620025, "90+4", 313222)]}},
+    # A tie the minutes leave standing at the cut goes by name.
+    "leaders": [("Shooting", [("Shots", [(1, 511974, 4), (2, 203070, 3), (3, 353670, 2)])]),
+                ("Passing", [("Passes", [(1, 202942, 102), (2, 387361, 83), (2, 128138, 83)]),
+                             ("Key passes", [(1, 272235, 3), (1, 366021, 3), (3, 548586, 2)])]),
+                ("One-on-one", [("Dribbles attempted", [(1, 535071, 7), (2, 177661, 6), (3, 387361, 5)]),
+                                ("Duels won", [(1, 203070, 10), (2, 535071, 8), (2, 128138, 8)])]),
+                ("Defending", [("Defensive actions", [(1, 387361, 7), (1, 128138, 7), (1, 380629, 7)])]),
+                ("Discipline", [("Fouls", [(1, 329472, 3), (1, 330603, 3), (1, 618443, 3)])])],
     "players": [(1620, 380629, "Tim Kloss", "D", 120, 0, 0), (1620, 90649, "K. Jakob", "D", 120, 0, 0),
                 (1620, 203070, "M. Sponsel", "D", 120, 1, 0), (1620, 203381, "A. Schulz", "G", 120, 0, 0),
                 (1620, 128138, "T. Eisenhuth", "D", 120, 0, 0), (1620, 442151, "Niklas Swider", "M", 120, 0, 0),
@@ -1233,11 +1280,10 @@ STATUS_WORDS = {"FT": "Full time", "AET": "After extra time", "PEN": "After pena
 # The Form comparison's groups and rows as approved, in their order, and the catalogue's new and not yet shown team
 # metrics beside what they belong with: possession before the passes, a count before its share, the whistle before
 # the card; Shooting reads the counts that make up the shots, then its two rates. Off in one match: the Goals group (the header's score
-# and the Goals block show it), and the rows that are another row seen from the other side (Shots on goal against,
-# Corners against). Duels stays although both sides share it: it is the base of Duels won, and every share shows its
-# base. (label without a sign, the match's total, +1 when more is better, -1 when fewer is, as the catalogue's
-# direction, the value's unit).
+# and the Goals block show it). (label without a sign, the match's total, +1 when more is better, -1 when fewer is,
+# as the catalogue's direction, the value's unit).
 PLAYED_STATS = (("Shooting", (("Shots", "shots", 1, ""), ("Shots on target", "shots_on_goal", 1, ""),
+                              ("Shots on target against", "shots_on_goal_against", -1, ""),
                               ("Shots off target", "shots_off_goal", 1, ""), ("Blocked shots", "shots_blocked", 1, ""),
                               ("Shots inside box", "shots_inside_box", 1, ""),
                               ("Shots inside box<small>percentage</small>", "shots_inside_box_pct", 1, "%"),
@@ -1253,7 +1299,8 @@ PLAYED_STATS = (("Shooting", (("Shots", "shots", 1, ""), ("Shots on target", "sh
                 ("Defending", (("Defensive actions", "defensive_actions", 1, ""), ("Tackles", "tackles", 1, ""),
                                ("Interceptions", "interceptions", 1, ""), ("Blocks", "blocks", 1, ""))),
                 ("Goalkeeping", (("Saves", "saves", 1, ""), ("Saves<small>percentage</small>", "saves_pct", 1, "%"))),
-                ("Set pieces", (("Corners", "corners", 1, ""), ("Free kicks", "free_kicks", 1, ""))),
+                ("Set pieces", (("Corners", "corners", 1, ""), ("Corners against", "corners_against", -1, ""),
+                                ("Free kicks", "free_kicks", 1, ""))),
                 ("Discipline", (("Fouls", "fouls", -1, ""), ("Offsides", "offsides", -1, ""),
                                 ("Yellow cards", "yellow_cards", -1, ""), ("Red cards", "red_cards", -1, ""))))
 # The render each element was approved on: the next match page (#132, state 1).
@@ -1557,7 +1604,7 @@ def played_sources(fx):
     goals[4] = ("56&rsquo; &middot; 90+6&rsquo;",) + goals[4][1:]
     goals[6] = ("Assist: Adam Markhiev",) + goals[6][1:]
     src["Goals"]["gaps"][2] = ("3. The assist is a name without an id (the provider sends none): it cannot link, and it is not even "
-                               "spelt as the player&rsquo;s own row: &ldquo;Adam Markhiev&rdquo; here, &ldquo;A. Marhiev&rdquo; in Players.")
+                               "spelt as the player&rsquo;s own row: &ldquo;Adam Markhiev&rdquo; here, &ldquo;A. Marhiev&rdquo; in Line-ups.")
     del src["Goals"]["gaps"][3]
     stats = src["Match stats"]
     stats["rows"][2] = ("21 &middot; 115 &middot; 45",) + stats["rows"][2][1:]
@@ -1657,9 +1704,9 @@ def lineups_block(fx):
     def col(team):
         line = fx["lineups"][team["team_id"]]
         off = {out: on for _, on, out in line["subs"]}
-        xi = "".join(row(pid, POSITION_LABELS[players[pid][3]] + (" &middot; off %d&rsquo;" % off[pid] if pid in off else ""))
+        xi = "".join(row(pid, POSITION_LABELS[players[pid][3]] + (" &middot; off %s&rsquo;" % off[pid] if pid in off else ""))
                      for pid in line["xi"])
-        subs = "".join(row(pid, "%s &middot; on %d&rsquo; for %s" % (POSITION_LABELS[players[pid][3]], on, E(players[out][2])))
+        subs = "".join(row(pid, "%s &middot; on %s&rsquo; for %s" % (POSITION_LABELS[players[pid][3]], on, E(players[out][2])))
                        for pid, on, out in line["subs"])
         return ('<div class="mk-rcol"><div class="colhead">%s &middot; %s</div>%s<div class="colhead">Substitutes</div>%s</div>'
                 % (E(team["name"]), line["formation"], xi, subs))
