@@ -1,32 +1,37 @@
-# Review — feature/166-match-page-marts
+# Review — feature/145-sentence-generator
 
-diff_sha256: 94edc88c32102f929d018623953466ec1dcd7d2837ad0d2d44e0fbf617dbef3f
+diff_sha256: 96b6a128a8e8f6e135f1dfb6b2d32e3eecc29f9f7dd947e842de05a9b5b5387a
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every non-task file in the diff is in scope_paths; no amendment lacks authority.
-- The §10 items (warehouse-first split, no new model, the §1/§4 window rules, the §1 enforcement test) are recorded in decisions_taken; nothing in decisions_reserved is touched.
-- scorer_points_player is an existing catalogue metric generated onto int_player_season_record, so no invented metric; no frontend file is touched.
-- The impact map's reader claims hold: int_player_profile__yoy names its columns, and dbt ls shows no downstream model of either mart.
+- Every changed file is in scope_paths; the generator is the new mechanism #145 specifies, declared with no recurring cost.
+- No number is derived: every placeholder is a served count or team name; the DE and FI wording is recorded as approved with its date.
+- The round-2 delta changes only tests/test_sentence.py and adds no wording or mechanism.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round-1 findings resolved: int_player_club_season__metrics is untouched; metrics_context_model.md and the window_type__season_record block are untouched and true; recent_meetings.home_away uses doc('home_away'); top_player_rank is NULL when goals plus assists is unknown.
-- The generated scorer_points_player matches the catalogue formula and the Surface order; the mart only selects and ranks; minutes_to_date applies the same completeness gate.
-- The side-level window choice keeps the (upcoming_fixture_sk, team_sk, player_sk) grain unique and follows the §4 fallback.
-- assert_season_record_within_one_competition reads columns both season-record marts carry; the formula recompute test already covers scorer_points_player on int_player_season_record.
+- The counts come from mart_head_to_head's directed row looked up as (home, away), so wins are the home side's and losses the away side's; club and won follow that perspective in every branch.
+- All four counts come from one recency window tested to sum to meetings_last5; every branch is reachable and fills every placeholder.
+- A missing row, count or team name gives no intro; the round-2 cases pin each branch, including the away-leader path.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- The wording choice matches design-mocks/gen_match_page.py h2h_sentence case by case, and the EN text matches the approved render.
+- Every input is a served field; no zero or partial intro is fabricated; DE and FI keep the same placeholders.
+- No markup, CSS or component changes; the build is byte-identical, so no rendered evidence is owed.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The generator change adds one metric to the int_player_season_record surface; the generated block's position and layout match; the drift test in test:python stays the arbiter.
-- Round-1 findings closed: the rank-order test fails on a flipped sort, a dropped key or a minutes order change; the mirror branch catches a missing mirror, a duplicated side and a wrong side taken in the mart.
-- The within-one-competition test's player bound counts every leg, so it never false-fails; the rank partition keeps non-null ranks contiguous.
-- No hook, workflow, CI, dependency, credential or site change.
+- The generator is pure and re-run safe; the relative strings path resolves in the export job and in test:python.
+- The strings.ts parser is identical to the copy gate's; a parser break fails the placeholder test.
+- Round-1 finding resolved: each of the eleven wordings is asserted in EN, DE and FI, and each breakage named in round 1 now fails a case.
+- Round 3: the lint rename of `l` to `lost` covers every use, `n in (w, lost)` is the same test, and the `{l}` placeholder key is unchanged.
 
 ## escalations
 (none)

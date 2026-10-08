@@ -1,634 +1,402 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b16c2c11..e43494a8 100644
+index e43494a8..e2a54537 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,45 +1,28 @@
--# Task contract — #177, part 3: the Form comparison takes its rows from the catalogue
-+# Task contract — #166, part 1: the marts the next match page still lacks
+@@ -1,28 +1,21 @@
+-# Task contract — #166, part 1: the marts the next match page still lacks
++# Task contract — #145, the sentence generator, first used by the match page's head-to-head intro
  
  objective: >
--  The match page's Form comparison shows the approved 36-metric list, grouped and ordered as the
--  catalogue says, from a file the export writes from the catalogue; no site file lists the rows.
--  The catalogue gains metric_order (the order within a group) and Discipline becomes the last group.
-+  The next match page's Players to watch and Head to head read what the approved design shows.
-+  mart_player_season_record ranks each side's players by goals plus assists, then goals, then
-+  fewer minutes, over the season record the window rules give the fixture. mart_head_to_head serves
-+  which side was at home in each recent meeting, describes its window truthfully, and tests the
-+  fields inside recent_meetings.
+-  The next match page's Players to watch and Head to head read what the approved design shows.
+-  mart_player_season_record ranks each side's players by goals plus assists, then goals, then
+-  fewer minutes, over the season record the window rules give the fixture. mart_head_to_head serves
+-  which side was at home in each recent meeting, describes its window truthfully, and tests the
+-  fields inside recent_meetings.
++  The export fills a page's sentence from that page's served numbers and names, in EN, DE and FI,
++  from templates in strings.ts, and writes nothing when an input is missing. Its first use is the
++  match page's head-to-head intro: which of the approved wordings applies follows from the served
++  split of the last meetings, and the fixture payload carries the intro per language.
  
  refs: >
--  #177 (the metric catalogue): the catalogue holds the order within a group, every surface only
--  filters, Discipline last everywhere; #166 "Form comparison rows" (the 36-metric list); the column
--  name metric_order and the acceptance criteria approved in chat, 2026-10-07; the names of the new
--  metrics approved in chat, 2026-10-07.
--
--acceptance_criteria:
--  - The Form comparison shows the rows of the approved 36-metric list that the match's data carries, grouped and ordered as the catalogue says; no site file lists them.
--  - Every surface that shows metric groups puts Discipline last.
--  - A test fails when the Form comparison, or anything it reads in site_v2/src, spells a metric's key, order, direction or format.
--  - The team page shows the same rows as today, in the new group order.
-+  #166 (match page, state 1): its "Warehouse" checklist line; render match-page_2026-10-07_75. The
-+  warehouse-first split, no new model, and the window rules of docs/metrics_context_model.md §1 and
-+  §4 deciding the players' window: approved in chat, 2026-10-08.
+-  #166 (match page, state 1): its "Warehouse" checklist line; render match-page_2026-10-07_75. The
+-  warehouse-first split, no new model, and the window rules of docs/metrics_context_model.md §1 and
+-  §4 deciding the players' window: approved in chat, 2026-10-08.
++  #145 (one data-backed sentence per page: the generator in the export); #166 (match page, state 1):
++  the head-to-head intro "generated in the export as #145 sets for sentences", eight wordings
++  covering every split; render match-page_2026-10-07_75 and design-mocks/gen_match_page.py
++  h2h_sentence. Part 1 of the page build in three MRs, and the order: approved in chat, 2026-10-08.
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/models/docs/metric_rules.md
--  - dbt_project/models/docs/metric_columns.md
-+  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
-+  - dbt_project/models/5_marts/shared/mart_player_season_record.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-+  - dbt_project/models/4_intermediate/shared/int_season_record.yml
-+  - dbt_project/tests/assert_head_to_head_recent_meetings_fields.sql
-+  - dbt_project/tests/assert_player_season_record_rank_order.sql
-+  - dbt_project/tests/assert_season_record_within_one_competition.sql
-   - dbt_project/seeds/metric_map.csv
--  - scripts/export_site_data.py
--  - tests/test_metric_groups.py
--  - tests/test_metric_rows.py
--  - tests/test_sentence_length_in_docs.py
--  - tests/test_no_decision_history_in_docs.py
--  - site_v2/src/data/metric_groups.json
--  - site_v2/src/data/metric_rows.json
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/lib/metricRows.ts
--  - site_v2/src/lib/types.ts
--  - site_v2/src/components/fixture/MetricComparison.astro
--  - site_v2/src/components/fixture/MetricRow.astro
--  - site_v2/scripts/check-metric-labels.test.mjs
--  - docs/metric_layer.md
--  - docs/wireframes/metrics_display.md
--  - docs/wireframes/01_fixture_page.md
--  - site_v2/src/data/README.md
-+  - scripts/generate_metric_sql.py
+-  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
+-  - dbt_project/models/5_marts/shared/mart_player_season_record.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/4_intermediate/shared/int_player_season_record.sql
+-  - dbt_project/models/4_intermediate/shared/int_season_record.yml
+-  - dbt_project/tests/assert_head_to_head_recent_meetings_fields.sql
+-  - dbt_project/tests/assert_player_season_record_rank_order.sql
+-  - dbt_project/tests/assert_season_record_within_one_competition.sql
+-  - dbt_project/seeds/metric_map.csv
+-  - scripts/generate_metric_sql.py
++  - scripts/export_site_data.py
++  - tests/test_sentence.py
++  - site_v2/src/i18n/strings.ts
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -48,39 +31,49 @@ scope_paths:
+@@ -31,49 +24,38 @@ scope_paths:
    - .claude/task/audit_reviewer_outputs.md
  
  impact_map: >
--  writers: metric_catalogue.csv by hand; metric_groups.json and metric_rows.json by the export from
--    the catalogue (no BigQuery read). No dbt model changes.
--  downstream: the seed gains one column and three groups change their metric_group_order
--    (goalkeeping 7→6, set_pieces 8→7, discipline 6→8). Readers of metric_group_order: the export's
--    metric_groups.json (every surface's group order: Form comparison, team page, Rankings) and the
--    singular test assert_metric_group_order_is_one_per_group; no model reads it (`grep -rn
--    metric_group_order dbt_project/models` → none). metric_order is new; its only reader is the
--    export's metric_rows.json, read by MetricComparison.astro.
--  layer_rules: the catalogue defines; the export selects and copies; the site renders served order.
--  deploy_order: the seed rebuilds with the nightly; the site changes on the next manual deploy.
--  blast_radius: the group order on every surface; the Form comparison's rows (the approved list the
--    payload carries). No number changes.
-+  writers: mart_head_to_head is written only by its own model, from int_legs__team_match (which
-+    already carries home_away). mart_player_season_record is written only by its own model, from
-+    int_player_season_record. int_player_season_record gains two columns: scorer_points_player
-+    (generated from the catalogue by generate_metric_sql.py) and minutes (its running total). No
-+    model, seed or macro is added.
-+  downstream: dbtRunner `ls --select mart_head_to_head+ mart_player_season_record+ --resource-type
-+    model` printed exactly football_data_pipeline.5_marts.shared.mart_head_to_head and
-+    football_data_pipeline.5_marts.shared.mart_player_season_record. int_player_season_record's other
-+    reader, int_player_profile__yoy, names its columns, so its output is unchanged. Outside dbt:
-+    scripts/export_site_data.py selects mart_head_to_head (`select *`, drops only team_sk,
-+    opponent_team_sk, pair_key, is_canonical), so the new struct field reaches the fixture payload;
-+    the site renders recent_meetings fields by name. Nothing outside shared.yml and metric_map.csv
-+    names mart_player_season_record. mart_competition_fixtures gains two not_null tests only (prod:
-+    0 null names in 64,818 rows). assert_player_metrics_follow_catalogue_formula already recomputes
-+    every catalogue column of int_player_season_record, so it covers scorer_points_player there.
-+  layer_rules: check_layer_contract.py; metric SQL generated from metric_catalogue.csv.
-+  deploy_order: the models rebuild in the 04:00 UTC nightly after merge; the export reads
-+    mart_player_momentum until part 2, so no reader needs the new columns before then.
-+  blast_radius: mart_player_season_record keeps its window; a side now takes one window (this season,
-+    else last season) instead of a choice per player, and gains three columns. mart_head_to_head
-+    gains one struct field; every existing value unchanged.
+-  writers: mart_head_to_head is written only by its own model, from int_legs__team_match (which
+-    already carries home_away). mart_player_season_record is written only by its own model, from
+-    int_player_season_record. int_player_season_record gains two columns: scorer_points_player
+-    (generated from the catalogue by generate_metric_sql.py) and minutes (its running total). No
+-    model, seed or macro is added.
+-  downstream: dbtRunner `ls --select mart_head_to_head+ mart_player_season_record+ --resource-type
+-    model` printed exactly football_data_pipeline.5_marts.shared.mart_head_to_head and
+-    football_data_pipeline.5_marts.shared.mart_player_season_record. int_player_season_record's other
+-    reader, int_player_profile__yoy, names its columns, so its output is unchanged. Outside dbt:
+-    scripts/export_site_data.py selects mart_head_to_head (`select *`, drops only team_sk,
+-    opponent_team_sk, pair_key, is_canonical), so the new struct field reaches the fixture payload;
+-    the site renders recent_meetings fields by name. Nothing outside shared.yml and metric_map.csv
+-    names mart_player_season_record. mart_competition_fixtures gains two not_null tests only (prod:
+-    0 null names in 64,818 rows). assert_player_metrics_follow_catalogue_formula already recomputes
+-    every catalogue column of int_player_season_record, so it covers scorer_points_player there.
+-  layer_rules: check_layer_contract.py; metric SQL generated from metric_catalogue.csv.
+-  deploy_order: the models rebuild in the 04:00 UTC nightly after merge; the export reads
+-    mart_player_momentum until part 2, so no reader needs the new columns before then.
+-  blast_radius: mart_player_season_record keeps its window; a side now takes one window (this season,
+-    else last season) instead of a choice per player, and gains three columns. mart_head_to_head
+-    gains one struct field; every existing value unchanged.
++  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/{fixture_id}.json; the only
++    payload change is head_to_head.intro ({en, de, fi} or null). strings.ts gains eleven keys.
++  downstream: the frontend reads head_to_head by named fields (HeadToHead.astro), so an added field
++    renders nothing until the match page uses it. No dbt model, seed or BigQuery read changes; the
++    generator reads strings.ts from disk. check_copy_gate.py and check-page-specs.mjs read strings.ts:
++    the new keys must exist in all three locales, carry no em dash, and differ from EN.
++  layer_rules: the consumption layer may not derive a number; the generator substitutes served values
++    only and picks the wording from the served split, as #145 places it in the export.
++  deploy_order: the nightly export writes the field after merge; nothing reads it until the page MR.
++  blast_radius: fixture payloads gain one field; no page output changes.
++
++acceptance_criteria:
++  - For every split of 1 to 5 meetings (55 splits), the export writes an intro in EN, DE and FI with every placeholder filled, shown by the test output.
++  - A head-to-head row with a missing count or a missing team name gets no intro, shown by the test output.
++  - Run over the 628 committed fixture payloads, every one with a head-to-head row gets an intro in all three languages, and one example per language is quoted.
++  - The built site is byte-identical before and after the change, shown by diff -rq of two builds.
  
  decisions_taken: >
--  The column name, the acceptance criteria and the metric names are approved in chat, 2026-10-07.
--  The group order follows #177 / #166 (Discipline last everywhere). The Form comparison shows the
--  team metrics with a metric_order; tests/test_metric_rows.py holds that set equal to the metrics
--  metric_map.csv places in mart_team_momentum, minus the Results group (points_won). Per match is
--  the catalogue's fact (denominator count(*) and not a share). The team page keeps metricRows.ts
--  until its own MR.
-+  The warehouse ships first and the export and page follow in their own MR; no new model; the
-+  players' window follows metrics_context_model.md §1 (a season record stays within one competition)
-+  and §4 (before a league starts, the previous season of this league): approved in chat, 2026-10-08.
-+  The §1 rule is enforced by a singular test: no season-record row, team or player, counts more
-+  matches than its entity played in that one competition and season (approved in chat, 2026-10-08).
-+  A side whose rank inputs are unknown has no rank. top_player_rank keeps the column name
-+  mart_player_momentum serves. The competition name and the form block's metric columns stay
-+  coverage-restricted (engineering_standards §3.1, rule R4), so they gain no not_null; the two
-+  team-name columns are never null and gain it.
+-  The warehouse ships first and the export and page follow in their own MR; no new model; the
+-  players' window follows metrics_context_model.md §1 (a season record stays within one competition)
+-  and §4 (before a league starts, the previous season of this league): approved in chat, 2026-10-08.
+-  The §1 rule is enforced by a singular test: no season-record row, team or player, counts more
+-  matches than its entity played in that one competition and season (approved in chat, 2026-10-08).
+-  A side whose rank inputs are unknown has no rank. top_player_rank keeps the column name
+-  mart_player_momentum serves. The competition name and the form block's metric columns stay
+-  coverage-restricted (engineering_standards §3.1, rule R4), so they gain no not_null; the two
+-  team-name columns are never null and gain it.
++  The generator follows #145's How: sentence(key, lang, values) in the export, templates as strings.ts
++  keys, None on a missing value. The head-to-head wordings are render 75's h2h_sentence; their DE and
++  FI text and the acceptance criteria: approved in chat, 2026-10-08. Choosing the wording from the
++  served split is the generator's job where #145 places it; no number is derived, every number shown is
++  a served count, and a missing team name gives no intro. "No meetings on record" is the
++  page's empty state and ships with the page MR.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none (an export file of the metric_groups.json kind).
--  RECURRING COST: none.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: measured on the compiled SQL before the
-+  MR and stated on it.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: measured on the compiled SQL before the
+-  MR and stated on it.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: the sentence generator, specified by #145. RECURRING COST:
++  none (no BigQuery read).
  
  decisions_reserved:
--  - The team page, Rankings and Home rows from the catalogue: their own #177 MRs.
-+  - The export, the match page, the breadcrumb markup and the footer: part 2, its own MR.
+-  - The export, the match page, the breadcrumb markup and the footer: part 2, its own MR.
++  - Every other page's sentence: #145, at each page's review.
++  - The match page's rendering of the intro: the page MR.
  
  done_when:
--  - pytest tests/ passes; npm test passes; check_copy_gate passes; dbt parse clean.
--  - astro build of the committed sample; the built match pages show the approved rows in the
--    catalogue's order, Discipline last; the team page shows its 16 rows in the new group order.
--
--amendments:
--  - Review round 1 adds docs/wireframes/01_fixture_page.md and site_v2/src/data/README.md to scope_paths. Both
--    describe what this change alters (the Form comparison's rows, the export-written data files), so the
--    doc-sync rule requires them in the same MR. No new decision.
-+  - dbt parse clean; sqlfluff clean on the changed SQL; generate_metric_sql.py --check and
-+    sync_metric_docs_blocks.py --check pass; check_layer_contract.py and check_description_hygiene.py
-+    pass; pytest tests/ passes.
-+  - The compiled models run as dry runs; their billed bytes before and after are on the MR.
-+  - Read once from prod with the compiled SQL: the catalogue recompute of int_player_season_record,
-+    the two new tests, and Dortmund's and Bremen's top five.
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-index 2144ddcc..92afe656 100644
---- a/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-+++ b/dbt_project/models/4_intermediate/shared/int_player_season_record.sql
-@@ -67,6 +67,8 @@ running as (
-         minutes,
-         any_value(position_code) over w as position_code,
-         countif(minutes > 0) over w as match_number,
-+        if(logical_and(window_is_complete and minutes is not null) over w, sum(minutes) over w, null)
-+            as minutes_to_date,
-         -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
-         if(logical_and(window_is_complete and goals is not null) over w, sum(goals) over w, null) as goals_player,
-         if(logical_and(window_is_complete and assists is not null) over w, sum(assists) over w, null) as assists_player,
-@@ -151,6 +153,11 @@ running as (
-             sum(tackles + interceptions + blocks) over w,
-             null
-         ) as defensive_actions_player,
-+        if(
-+            logical_and(window_is_complete and (goals + assists) is not null) over w,
-+            sum(goals + assists) over w,
-+            null
-+        ) as scorer_points_player,
-         safe_divide(
-             if(
-                 logical_and(window_is_complete and saves is not null) over w,
-@@ -201,7 +208,8 @@ running as (
- )
+-  - dbt parse clean; sqlfluff clean on the changed SQL; generate_metric_sql.py --check and
+-    sync_metric_docs_blocks.py --check pass; check_layer_contract.py and check_description_hygiene.py
+-    pass; pytest tests/ passes.
+-  - The compiled models run as dry runs; their billed bytes before and after are on the MR.
+-  - Read once from prod with the compiled SQL: the catalogue recompute of int_player_season_record,
+-    the two new tests, and Dortmund's and Bremen's top five.
++  - pytest tests/ passes; check_copy_gate.py passes; npm test passes.
++  - The acceptance criteria are shown in .claude/task/acceptance_evidence.md.
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index dd4c26af..dbe268aa 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -47,6 +47,8 @@ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+ COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
++STRINGS_PATH = "site_v2/src/i18n/strings.ts"
++SENTENCE_LANGS = ("en", "de", "fi")
  
- select
--    * except (minutes, match_number),
-+    * except (minutes, match_number, minutes_to_date),
-+    minutes_to_date as minutes,
-     'season_to_date' as window_type,
-     match_number,
-     match_number as games_played
-diff --git a/dbt_project/models/4_intermediate/shared/int_season_record.yml b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-index d1d85165..9f66b0b6 100644
---- a/dbt_project/models/4_intermediate/shared/int_season_record.yml
-+++ b/dbt_project/models/4_intermediate/shared/int_season_record.yml
-@@ -230,6 +230,10 @@ models:
-         description: "{{ doc('cards_red_player') }}"
-       - name: defensive_actions_player
-         description: "{{ doc('defensive_actions_player') }}"
-+      - name: scorer_points_player
-+        description: "{{ doc('scorer_points_player') }}"
-+      - name: minutes
-+        description: "Cumulative minutes the player played in this competition-season through this match. NULL when a match's minutes are unknown or a team match in the window has no player data."
-       - name: saves_player_pct
-         description: "{{ doc('saves_player_pct') }}"
-       - name: dribbles_success_player_pct
-diff --git a/dbt_project/models/5_marts/shared/mart_head_to_head.sql b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-index 0debbe2a..893fd847 100644
---- a/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-+++ b/dbt_project/models/5_marts/shared/mart_head_to_head.sql
-@@ -1,5 +1,5 @@
- {#
--  Head-to-head (#375). All-time past meetings between two teams, DIRECTED: one
-+  Head-to-head (#375). Past meetings between two teams, DIRECTED: one
-   row per (team_sk, opponent_team_sk) = that team's record against that opponent.
-   The fixture page looks up (home_team_sk, away_team_sk) directly to get the home
-   side's record; the mirror row carries the away side's.
-@@ -19,8 +19,9 @@
-   What stays out is a ratio invented for this mart alone
-   (see feedback_metric_catalogue_governance).
+ # The competition page's Rankings tab (GitLab #129, #151): the twelve team boards and the thirteen
+ # player boards, each tuple in the RULED order within its groups — the page groups them by the
+@@ -839,6 +841,54 @@ def shape_competition_boards(rows: list[dict], boards: tuple[str, ...], catalogu
+     return out
  
--  Scope: all finished meetings across ALL competitions between the pair (the
--  all-time H2H). Competition-scoped H2H is a later refinement. A pair that has
-+  Scope: every finished meeting of the pair the warehouse holds, across ALL
-+  competitions: each competition contributes the seasons of its registry history
-+  window. Competition-scoped H2H is a later refinement. A pair that has
-   never met produces no row (the fixture page shows "no previous meetings").
  
-   Grain: (team_sk, opponent_team_sk).
-@@ -33,6 +34,7 @@ with legs as (
-         fixture_sk,
-         league_code,
-         kickoff_datetime,
-+        home_away,
-         goals as goals_for,
-         goals_against,
-         result
-@@ -47,6 +49,7 @@ ranked as (
-         fixture_sk,
-         league_code,
-         kickoff_datetime,
-+        home_away,
-         goals_for,
-         goals_against,
-         result,
-@@ -88,6 +91,7 @@ agg as (
-             struct(
-                 kickoff_datetime,
-                 league_code,
-+                home_away,
-                 goals_for,
-                 goals_against,
-                 result
-diff --git a/dbt_project/models/5_marts/shared/mart_player_season_record.sql b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
-index 5f616ad3..76e62f9a 100644
---- a/dbt_project/models/5_marts/shared/mart_player_season_record.sql
-+++ b/dbt_project/models/5_marts/shared/mart_player_season_record.sql
-@@ -5,10 +5,11 @@
++_STRINGS_DICT = re.compile(r"^const\s+([A-Z]{2}):\s*Dict\s*=\s*\{(.*?)^\};", re.DOTALL | re.MULTILINE)
++_STRINGS_ENTRY = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.MULTILINE)
++_PLACEHOLDER = re.compile(r"\{(\w+)\}")
++_templates: dict[str, dict[str, str]] = {}
++
++
++def sentence_templates(path: str = STRINGS_PATH) -> dict[str, dict[str, str]]:
++    """lang -> key -> template, read from the site's strings.ts, where every displayed string lives."""
++    if path not in _templates:
++        text = pathlib.Path(path).read_text(encoding="utf-8")
++        _templates[path] = {m.group(1).lower(): {k: v.replace('\\"', '"') for k, v in _STRINGS_ENTRY.findall(m.group(2))}
++                            for m in _STRINGS_DICT.finditer(text)}
++    return _templates[path]
++
++
++def sentence(key: str, lang: str, values: dict, path: str = STRINGS_PATH) -> str | None:
++    """The template `key` in `lang` with its placeholders filled from `values`; None when any is missing."""
++    template = sentence_templates(path)[lang][key]
++    if any(values.get(name) is None for name in _PLACEHOLDER.findall(template)):
++        return None
++    return _PLACEHOLDER.sub(lambda m: str(values[m.group(1)]), template)
++
++
++def head_to_head_intro(h2h: dict | None, home_name: str | None, away_name: str | None,
++                       path: str = STRINGS_PATH) -> dict | None:
++    """The head-to-head block's intro per language, worded from the served split of the last meetings
++    (wins and losses from the home side); None when the row or any input is missing."""
++    if not h2h:
++        return None
++    n, w, d, lost = (h2h.get(k) for k in ("meetings_last5", "wins_last5", "draws_last5", "losses_last5"))
++    if None in (n, w, d, lost, home_name, away_name) or n < 1:
++        return None
++    club, won = (home_name, w) if w else (away_name, lost)
++    if n == 1:
++        key = "h2hLastDrawn" if d else "h2hLastWon"
++    elif d == n:
++        key = "h2hBothDrawn" if n == 2 else "h2hAllDrawn"
++    elif n in (w, lost):
++        key = "h2hWonBoth" if n == 2 else "h2hWonAll"
++    elif w and lost:
++        key = "h2hSplit" if d == 0 else "h2hSplitOneDrawn" if d == 1 else "h2hSplitDrawn"
++    else:
++        key = "h2hWonSomeOneDrawn" if d == 1 else "h2hWonSomeDrawn"
++    values = {"n": n, "w": w, "l": lost, "d": d, "won": won, "club": club, "home": home_name, "away": away_name}
++    intro = {lang: sentence(key, lang, values, path) for lang in SENTENCE_LANGS}
++    return intro if all(intro.values()) else None
++
++
+ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
+                           h2h: dict | None) -> dict:
+     """The fixture page payload: header + both teams' form/standing blocks + the
+@@ -1133,10 +1183,10 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+         h, a = int(f["home_team_sk"]), int(f["away_team_sk"])
+         f["league_name"] = leagues.get(f.get("league_code"))
+         h2h_row = h2h.get((h, a))
+-        payloads.append(
+-            shape_fixture_payload(f, _side(f, "home"), _side(f, "away"),
+-                                  _drop(h2h_row, _H2H_DROP) if h2h_row else None)
+-        )
++        h2h_block = _drop(h2h_row, _H2H_DROP) if h2h_row else None
++        if h2h_block is not None:
++            h2h_block["intro"] = head_to_head_intro(h2h_block, f.get("home_team_name"), f.get("away_team_name"))
++        payloads.append(shape_fixture_payload(f, _side(f, "home"), _side(f, "away"), h2h_block))
+     return payloads
  
-   Source: int_player_season_record, which computes every metric (counts and ratios) from its catalogue
-   formula. Each upcoming fixture side's team is joined to its players' latest season-to-date row for the
--  fixture's (league_code, season_api_year); before-phase fallback to the same competition's previous season
--  (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
-+  fixture's (league_code, season_api_year); a side with no row there yet takes the same competition's previous
-+  season (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
-   the site reads (goals_total, goals_assists, shots_on). saves_player_pct is only meaningful for
--  goalkeepers. Grain: (upcoming_fixture_sk, team_sk, player_sk).
-+  goalkeepers. top_player_rank orders a side by goals plus assists, then goals, then fewer minutes; NULL
-+  when the player's goals plus assists is unknown. Grain: (upcoming_fixture_sk, team_sk, player_sk).
- #}
  
- with upcoming as (
-@@ -89,6 +90,8 @@ matched as (
-         sf.dribbles_success_player_pct,
-         sf.passes_accuracy_player_pct,
-         sf.duels_won_player_pct,
-+        sf.scorer_points_player,
-+        sf.minutes,
-         1 as priority
-     from sides as s
-     inner join season_final as sf
-@@ -134,6 +137,8 @@ matched as (
-         sf.dribbles_success_player_pct,
-         sf.passes_accuracy_player_pct,
-         sf.duels_won_player_pct,
-+        sf.scorer_points_player,
-+        sf.minutes,
-         2 as priority
-     from sides as s
-     inner join season_final as sf
-@@ -146,10 +151,7 @@ matched as (
- chosen as (
-     select *
-     from matched
--    qualify row_number() over (
--        partition by upcoming_fixture_sk, team_sk, player_sk
--        order by priority asc
--    ) = 1
-+    qualify priority = min(priority) over (partition by upcoming_fixture_sk, team_sk)
- )
- 
- select
-@@ -162,10 +164,12 @@ select
-     window_type,
-     position_code,
-     games_played,
-+    minutes,
-     is_home,
-     -- cumulative counts
-     goals_player as goals_total,
-     assists_player as goals_assists,
-+    scorer_points_player,
-     saves_player,
-     shots_on_goal_player as shots_on,
-     passes_key_player,
-@@ -188,5 +192,13 @@ select
-     saves_player_pct,
-     dribbles_success_player_pct,
-     passes_accuracy_player_pct,
--    duels_won_player_pct
-+    duels_won_player_pct,
-+    if(
-+        scorer_points_player is null,
-+        null,
-+        row_number() over (
-+            partition by upcoming_fixture_sk, team_sk, scorer_points_player is null
-+            order by scorer_points_player desc, goals_player desc, minutes asc nulls last, player_sk asc
-+        )
-+    ) as top_player_rank
- from chosen
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 4b0d6e42..ec0251bc 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -1331,11 +1331,12 @@ models:
-       Each player on each side of an upcoming fixture with their cumulative record in that
-       fixture's own competition this season. Grain: (upcoming_fixture_sk, team_sk, player_sk).
- 
--      Before the team has played any of it, the row falls back to the previous season and
-+      Before the team has played any of it, the side falls back to the previous season and
-       window_type says so. Every metric, counts and ratios, passes through from
-       int_player_season_record, which computes each from its metric_catalogue formula. Goals,
-       assists and shots on target keep the keys the export reads (goals_total, goals_assists,
--      shots_on).
-+      shots_on). top_player_rank orders each side by goals plus assists, then goals, then fewer
-+      minutes.
-     tests:
-       - dbt_utils.unique_combination_of_columns:
-           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
-@@ -1393,10 +1394,16 @@ models:
-         description: "{{ doc('season_api_year') }}"
-       - name: games_played
-         description: "Cumulative matches this player has appeared in, in the fixture's own competition this season (or the previous season when window_type is prev_season), counted through the player's most recent appearance in that season."
-+      - name: minutes
-+        description: "Total minutes this player played in the fixture's own competition this season (or the previous season when window_type is prev_season). NULL when a match's minutes are unknown or a team match in that competition-season has no player data."
-       - name: goals_total
-         description: "{{ doc('goals_player') }} Here, cumulative in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance; goals_player under the key the export reads."
-       - name: goals_assists
-         description: "{{ doc('assists_player') }} Here, cumulative in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance; assists_player under the key the export reads."
-+      - name: scorer_points_player
-+        description: "{{ doc('scorer_points_player') }}"
-+      - name: top_player_rank
-+        description: "1 for the player picked first on this side for this fixture, then 2, 3 and so on, ordered by goals plus assists, then goals, then fewer minutes, unknown minutes last. It is a selection order, not a rating: ties are broken by player_sk so that no two players share a rank. NULL when the player's goals plus assists is unknown."
-       - name: saves_player
-         description: "{{ doc('saves_player') }}"
-       - name: shots_on
-@@ -2195,12 +2202,15 @@ models:
- 
-   - name: mart_head_to_head
-     description: >
--      One team's all-time record against one opponent, across every competition. Directed, so a
--      pair appears twice, once from each side. Grain: (team_sk, opponent_team_sk).
-+      One team's record against one opponent over every finished meeting the warehouse holds,
-+      across every competition. Each competition contributes the seasons its registry history
-+      window covers. Directed, so a pair appears twice, once from each side. Grain: (team_sk,
-+      opponent_team_sk).
- 
-       Built from int_legs__team_match. Raw record facts only, with no derived ratios — a
-       head-to-head record is a fact rather than a catalogue metric. recent_meetings holds up to
--      the ten most recent meetings, each with date, competition, score and result.
-+      the ten most recent meetings, each with date, competition, which side was at home, score and
-+      result.
- 
-       A pair that has never met has no row at all.
-     tests:
-@@ -2239,7 +2249,7 @@ models:
-               to: ref('dim_team')
-               field: team_sk
-       - name: total_meetings
--        description: "Count of finished meetings between this team and this opponent, across every competition, all time — the number of legs behind this row. Never NULL: a row exists only once the pair has met."
-+        description: "Count of finished meetings between this team and this opponent that the warehouse holds, across every competition — the number of legs behind this row. Each competition contributes the seasons its registry history window covers. Never NULL: a row exists only once the pair has met."
-         tests: [not_null]
-       - name: last_meeting_result
-         description: "The result of the most recent meeting between this team and this opponent, from this team's side: W, D or L."
-@@ -2273,7 +2283,9 @@ models:
-       - name: last_meeting_goals_against
-         description: "{{ doc('goals_against') }} Here it is the goals this team conceded in the most recent meeting between the two."
-       - name: recent_meetings
--        description: "The up to ten most recent meetings between this team and this opponent, most recent first, each carrying its kick-off, competition, score and result — enough to render a head-to-head strip without a further join. At least one element whenever the row exists, never more than ten."
-+        description: "The up to ten most recent meetings between this team and this opponent, most recent first, each carrying its kick-off, competition, which side was at home, score and result — enough to render a head-to-head strip without a further join. At least one element whenever the row exists, never more than ten."
-+      - name: recent_meetings.home_away
-+        description: "{{ doc('home_away') }} Here it is this team's side in that one past meeting, inside the recent_meetings array."
-       - name: recent_meetings.goals_against
-         description: "{{ doc('goals_against') }} Here it is the goals this team conceded in that one past meeting, inside the recent_meetings array."
-       - name: recent_meetings.goals_for
-@@ -2824,7 +2836,8 @@ models:
-               to: ref('dim_team')
-               field: team_sk
-       - name: home_team_name
--        description: "The home team's display name from dim_team."
-+        description: "The home team's display name from dim_team. Never NULL."
-+        tests: [not_null]
-       - name: home_team_slug
-         description: "The home team's permanent URL segment from dim_team."
-       - name: home_team_logo_url
-@@ -2837,7 +2850,8 @@ models:
-               to: ref('dim_team')
-               field: team_sk
-       - name: away_team_name
--        description: "The away team's display name from dim_team."
-+        description: "The away team's display name from dim_team. Never NULL."
-+        tests: [not_null]
-       - name: away_team_slug
-         description: "The away team's permanent URL segment from dim_team."
-       - name: away_team_logo_url
-diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
-index 2f60c6e1..3c159cbc 100644
---- a/dbt_project/seeds/metric_map.csv
-+++ b/dbt_project/seeds/metric_map.csv
-@@ -225,6 +225,7 @@ mart_player_season_record,penalty_committed_player,penalty_committed_player,,win
- mart_player_season_record,penalty_won_player,penalty_won_player,,window_type,
- mart_player_season_record,saves_player,saves_player,,window_type,
- mart_player_season_record,saves_player_pct,saves_player_pct,,window_type,
-+mart_player_season_record,scorer_points_player,scorer_points_player,,window_type,
- mart_player_season_record,shots_on,shots_on_goal_player,,window_type,
- mart_player_season_record,tackles_player,tackles_player,,window_type,
- mart_standings,standing_rank,league_rank,,,
-diff --git a/dbt_project/tests/assert_head_to_head_recent_meetings_fields.sql b/dbt_project/tests/assert_head_to_head_recent_meetings_fields.sql
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index 059607ba..582b98b6 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -47,6 +47,17 @@ const EN: Dict = {
+   goalsWord: "goals",
+   lastMeeting: "Last",
+   firstMeeting: "First-ever meeting",
++  h2hLastDrawn: "The last meeting was drawn.",
++  h2hLastWon: "{club} won the last meeting.",
++  h2hBothDrawn: "Both of the last 2 meetings were drawn.",
++  h2hAllDrawn: "All of the last {n} meetings were drawn.",
++  h2hWonBoth: "{club} won both of the last 2 meetings.",
++  h2hWonAll: "{club} won all of the last {n} meetings.",
++  h2hWonSomeOneDrawn: "{club} won {won} of the last {n} meetings, and 1 was drawn.",
++  h2hWonSomeDrawn: "{club} won {won} of the last {n} meetings, and {d} were drawn.",
++  h2hSplit: "{home} won {w} and {away} {l} of the last {n} meetings.",
++  h2hSplitOneDrawn: "{home} won {w} and {away} {l} of the last {n} meetings, and 1 was drawn.",
++  h2hSplitDrawn: "{home} won {w} and {away} {l} of the last {n} meetings, and {d} were drawn.",
+   noRecentForm: "No recent matches",
+   noMatchStats: "match stats not available",
+   timeTBD: "time TBD",
+@@ -343,6 +354,17 @@ const DE: Dict = {
+   goalsWord: "Tore",
+   lastMeeting: "Zuletzt",
+   firstMeeting: "Erstes Aufeinandertreffen",
++  h2hLastDrawn: "Das letzte Duell endete unentschieden.",
++  h2hLastWon: "{club} gewann das letzte Duell.",
++  h2hBothDrawn: "Die letzten beiden Duelle endeten unentschieden.",
++  h2hAllDrawn: "Die letzten {n} Duelle endeten alle unentschieden.",
++  h2hWonBoth: "{club} gewann die letzten beiden Duelle.",
++  h2hWonAll: "{club} gewann alle letzten {n} Duelle.",
++  h2hWonSomeOneDrawn: "{club} gewann {won} der letzten {n} Duelle, 1 endete unentschieden.",
++  h2hWonSomeDrawn: "{club} gewann {won} der letzten {n} Duelle, {d} endeten unentschieden.",
++  h2hSplit: "Von den letzten {n} Duellen gewann {home} {w} und {away} {l}.",
++  h2hSplitOneDrawn: "Von den letzten {n} Duellen gewann {home} {w} und {away} {l}, 1 endete unentschieden.",
++  h2hSplitDrawn: "Von den letzten {n} Duellen gewann {home} {w} und {away} {l}, {d} endeten unentschieden.",
+   noRecentForm: "Keine aktuellen Spiele",
+   noMatchStats: "Keine Spielstatistik",
+   timeTBD: "Uhrzeit offen",
+@@ -585,6 +607,17 @@ const FI: Dict = {
+   goalsWord: "maalia",
+   lastMeeting: "Viimeksi",
+   firstMeeting: "Ensimmäinen kohtaaminen",
++  h2hLastDrawn: "Edellinen kohtaaminen päättyi tasan.",
++  h2hLastWon: "{club} voitti edellisen kohtaamisen.",
++  h2hBothDrawn: "Kaksi edellistä kohtaamista päättyivät tasan.",
++  h2hAllDrawn: "Kaikki {n} edellistä kohtaamista päättyivät tasan.",
++  h2hWonBoth: "{club} voitti kaksi edellistä kohtaamista.",
++  h2hWonAll: "{club} voitti kaikki {n} edellistä kohtaamista.",
++  h2hWonSomeOneDrawn: "{club} voitti {n} edellisestä kohtaamisesta {won}, ja 1 päättyi tasan.",
++  h2hWonSomeDrawn: "{club} voitti {n} edellisestä kohtaamisesta {won}, ja {d} päättyi tasan.",
++  h2hSplit: "{n} edellisestä kohtaamisesta {home} voitti {w} ja {away} {l}.",
++  h2hSplitOneDrawn: "{n} edellisestä kohtaamisesta {home} voitti {w} ja {away} {l}, ja 1 päättyi tasan.",
++  h2hSplitDrawn: "{n} edellisestä kohtaamisesta {home} voitti {w} ja {away} {l}, ja {d} päättyi tasan.",
+   noRecentForm: "Ei viimeaikaisia otteluita",
+   noMatchStats: "Ei ottelutilastoja",
+   timeTBD: "Aika auki",
+diff --git a/tests/test_sentence.py b/tests/test_sentence.py
 new file mode 100644
-index 00000000..9a717620
+index 00000000..a99c2a66
 --- /dev/null
-+++ b/dbt_project/tests/assert_head_to_head_recent_meetings_fields.sql
-@@ -0,0 +1,58 @@
-+-- Fail any recent meeting with a blank field, a result other than W/D/L or a side other than home/away,
-+-- any row whose list does not hold its ten most recent meetings, and any meeting whose mirror row
-+-- (the opponent's side of the same pair) lacks it or gives the same home or away side.
-+{{ config(store_failures = true) }}
++++ b/tests/test_sentence.py
+@@ -0,0 +1,114 @@
++"""The sentence generator and the match page's head-to-head intro, read from the real strings.ts."""
++from __future__ import annotations
 +
-+with h2h as (
-+    select
-+        team_sk,
-+        opponent_team_sk,
-+        total_meetings,
-+        recent_meetings
-+    from {{ ref('mart_head_to_head') }}
-+)
++import re
 +
-+select
-+    h.team_sk,
-+    h.opponent_team_sk,
-+    'field' as failure
-+from h2h as h, unnest(h.recent_meetings) as m
-+where
-+    m.kickoff_datetime is null
-+    or m.league_code is null
-+    or m.goals_for is null
-+    or m.goals_against is null
-+    or m.result is null
-+    or m.result not in ('W', 'D', 'L')
-+    or m.home_away is null
-+    or m.home_away not in ('home', 'away')
++import pytest
 +
-+union all
++from scripts import export_site_data as ex
 +
-+select
-+    team_sk,
-+    opponent_team_sk,
-+    'length' as failure
-+from h2h
-+where coalesce(array_length(recent_meetings), 0) != least(total_meetings, 10)
++H2H_KEYS = ("h2hLastDrawn", "h2hLastWon", "h2hBothDrawn", "h2hAllDrawn", "h2hWonBoth", "h2hWonAll",
++            "h2hWonSomeOneDrawn", "h2hWonSomeDrawn", "h2hSplit", "h2hSplitOneDrawn", "h2hSplitDrawn")
++SERVED = {"n": "meetings_last5", "w": "wins_last5", "l": "losses_last5", "d": "draws_last5",
++          "won": "wins_last5 or losses_last5", "club": "a team name", "home": "home team name",
++          "away": "away team name"}
++HOME, AWAY = "Borussia Dortmund", "SV Werder Bremen"
 +
-+union all
 +
-+select
-+    h.team_sk,
-+    h.opponent_team_sk,
-+    'mirror' as failure
-+from h2h as h, unnest(h.recent_meetings) as m
-+left join (
-+    select
-+        o.team_sk,
-+        o.opponent_team_sk,
-+        om.kickoff_datetime,
-+        om.home_away
-+    from h2h as o, unnest(o.recent_meetings) as om
-+) as mirror
-+    on
-+        h.opponent_team_sk = mirror.team_sk
-+        and h.team_sk = mirror.opponent_team_sk
-+        and m.kickoff_datetime = mirror.kickoff_datetime
-+where mirror.team_sk is null or mirror.home_away = m.home_away
-diff --git a/dbt_project/tests/assert_player_season_record_rank_order.sql b/dbt_project/tests/assert_player_season_record_rank_order.sql
-new file mode 100644
-index 00000000..1dd9b7fb
---- /dev/null
-+++ b/dbt_project/tests/assert_player_season_record_rank_order.sql
-@@ -0,0 +1,62 @@
-+-- top_player_rank orders a side by goals plus assists, then goals, then fewer minutes (unknown minutes
-+-- last). Fail a rank present without its goals plus assists or missing with them, a gap in a side's
-+-- ranks, and any pair of neighbours out of that order.
-+{{ config(store_failures = true, severity = 'error') }}
++def _row(n, w, d, lost):
++    return {"meetings_last5": n, "wins_last5": w, "draws_last5": d, "losses_last5": lost}
 +
-+with ranked as (
-+    select
-+        upcoming_fixture_sk,
-+        team_sk,
-+        player_sk,
-+        top_player_rank,
-+        scorer_points_player,
-+        goals_total,
-+        minutes,
-+        row_number() over w as position,
-+        lead(scorer_points_player) over w as next_points,
-+        lead(goals_total) over w as next_goals,
-+        lead(minutes) over w as next_minutes,
-+        lead(player_sk) over w as next_player_sk
-+    from {{ ref('mart_player_season_record') }}
-+    where top_player_rank is not null
-+    window w as (partition by upcoming_fixture_sk, team_sk order by top_player_rank)
-+)
 +
-+select
-+    upcoming_fixture_sk,
-+    team_sk,
-+    player_sk,
-+    'rank without goals plus assists, or goals plus assists without rank' as failure
-+from {{ ref('mart_player_season_record') }}
-+where (top_player_rank is null) != (scorer_points_player is null)
++def _splits():
++    return [(n, w, d, n - w - d) for n in range(1, 6) for w in range(n + 1) for d in range(n - w + 1)]
 +
-+union all
 +
-+select
-+    upcoming_fixture_sk,
-+    team_sk,
-+    player_sk,
-+    'gap in the ranks' as failure
-+from ranked
-+where top_player_rank != position
++def test_every_split_of_one_to_five_meetings_gets_an_intro_in_every_language():
++    splits = _splits()
++    assert len(splits) == 55
++    for split in splits:
++        intro = ex.head_to_head_intro(_row(*split), HOME, AWAY)
++        assert intro is not None, split
++        assert set(intro) == set(ex.SENTENCE_LANGS)
++        for lang, text in intro.items():
++            assert "{" not in text and "None" not in text, (split, lang, text)
 +
-+union all
 +
-+select
-+    upcoming_fixture_sk,
-+    team_sk,
-+    player_sk,
-+    'out of order with the next rank' as failure
-+from ranked
-+where
-+    next_player_sk is not null
-+    and not coalesce(
-+        scorer_points_player > next_points
-+        or (scorer_points_player = next_points and goals_total > next_goals)
-+        or (
-+            scorer_points_player = next_points
-+            and goals_total = next_goals
-+            and (next_minutes is null or (minutes is not null and minutes <= next_minutes))
-+        ),
-+        false
-+    )
-diff --git a/dbt_project/tests/assert_season_record_within_one_competition.sql b/dbt_project/tests/assert_season_record_within_one_competition.sql
-new file mode 100644
-index 00000000..e87b266f
---- /dev/null
-+++ b/dbt_project/tests/assert_season_record_within_one_competition.sql
-@@ -0,0 +1,55 @@
-+-- A season record stays within one competition (docs/metrics_context_model.md section 1). Fail any
-+-- season-record row that counts more matches than its team or player played in that row's competition
-+-- and season; a window that crosses competitions does.
-+{{ config(store_failures = true, severity = 'error') }}
++def test_every_template_placeholder_has_a_served_source_in_every_language():
++    templates = ex.sentence_templates()
++    for key in H2H_KEYS:
++        en = set(re.findall(r"\{(\w+)\}", templates["en"][key]))
++        assert en <= set(SERVED), (key, en)
++        for lang in ex.SENTENCE_LANGS:
++            assert set(re.findall(r"\{(\w+)\}", templates[lang][key])) == en, (key, lang)
 +
-+with team_matches as (
-+    select
-+        team_sk,
-+        league_code,
-+        season_api_year,
-+        count(*) as matches
-+    from {{ ref('int_legs__team_match') }}
-+    group by team_sk, league_code, season_api_year
-+),
 +
-+player_matches as (
-+    select
-+        team_sk,
-+        player_sk,
-+        league_code,
-+        season_api_year,
-+        count(*) as matches
-+    from {{ ref('int_legs__player_match') }}
-+    group by team_sk, player_sk, league_code, season_api_year
-+)
++WORDINGS = [
++    ((1, 0, 1, 0), "The last meeting was drawn.",
++     "Das letzte Duell endete unentschieden.",
++     "Edellinen kohtaaminen päättyi tasan."),
++    ((1, 0, 0, 1), "SV Werder Bremen won the last meeting.",
++     "SV Werder Bremen gewann das letzte Duell.",
++     "SV Werder Bremen voitti edellisen kohtaamisen."),
++    ((2, 0, 2, 0), "Both of the last 2 meetings were drawn.",
++     "Die letzten beiden Duelle endeten unentschieden.",
++     "Kaksi edellistä kohtaamista päättyivät tasan."),
++    ((4, 0, 4, 0), "All of the last 4 meetings were drawn.",
++     "Die letzten 4 Duelle endeten alle unentschieden.",
++     "Kaikki 4 edellistä kohtaamista päättyivät tasan."),
++    ((2, 0, 0, 2), "SV Werder Bremen won both of the last 2 meetings.",
++     "SV Werder Bremen gewann die letzten beiden Duelle.",
++     "SV Werder Bremen voitti kaksi edellistä kohtaamista."),
++    ((3, 3, 0, 0), "Borussia Dortmund won all of the last 3 meetings.",
++     "Borussia Dortmund gewann alle letzten 3 Duelle.",
++     "Borussia Dortmund voitti kaikki 3 edellistä kohtaamista."),
++    ((3, 0, 1, 2), "SV Werder Bremen won 2 of the last 3 meetings, and 1 was drawn.",
++     "SV Werder Bremen gewann 2 der letzten 3 Duelle, 1 endete unentschieden.",
++     "SV Werder Bremen voitti 3 edellisestä kohtaamisesta 2, ja 1 päättyi tasan."),
++    ((5, 3, 2, 0), "Borussia Dortmund won 3 of the last 5 meetings, and 2 were drawn.",
++     "Borussia Dortmund gewann 3 der letzten 5 Duelle, 2 endeten unentschieden.",
++     "Borussia Dortmund voitti 5 edellisestä kohtaamisesta 3, ja 2 päättyi tasan."),
++    ((4, 3, 0, 1), "Borussia Dortmund won 3 and SV Werder Bremen 1 of the last 4 meetings.",
++     "Von den letzten 4 Duellen gewann Borussia Dortmund 3 und SV Werder Bremen 1.",
++     "4 edellisestä kohtaamisesta Borussia Dortmund voitti 3 ja SV Werder Bremen 1."),
++    ((5, 1, 1, 3), "Borussia Dortmund won 1 and SV Werder Bremen 3 of the last 5 meetings, and 1 was drawn.",
++     "Von den letzten 5 Duellen gewann Borussia Dortmund 1 und SV Werder Bremen 3, 1 endete unentschieden.",
++     "5 edellisestä kohtaamisesta Borussia Dortmund voitti 1 ja SV Werder Bremen 3, ja 1 päättyi tasan."),
++    ((5, 1, 2, 2), "Borussia Dortmund won 1 and SV Werder Bremen 2 of the last 5 meetings, and 2 were drawn.",
++     "Von den letzten 5 Duellen gewann Borussia Dortmund 1 und SV Werder Bremen 2, 2 endeten unentschieden.",
++     "5 edellisestä kohtaamisesta Borussia Dortmund voitti 1 ja SV Werder Bremen 2, ja 2 päättyi tasan."),
++]
 +
-+select
-+    'mart_team_season_record' as mart_name,
-+    r.upcoming_fixture_sk,
-+    r.team_sk,
-+    cast(null as int64) as player_sk,
-+    r.games_played,
-+    m.matches
-+from {{ ref('mart_team_season_record') }} as r
-+left join team_matches as m
-+    on r.team_sk = m.team_sk and r.league_code = m.league_code and r.season_api_year = m.season_api_year
-+where r.games_played > coalesce(m.matches, 0)
 +
-+union all
++@pytest.mark.parametrize(("split", "en", "de", "fi"), WORDINGS)
++def test_each_wording_is_chosen_for_its_split_in_every_language(split, en, de, fi):
++    assert ex.head_to_head_intro(_row(*split), HOME, AWAY) == {"en": en, "de": de, "fi": fi}
 +
-+select
-+    'mart_player_season_record' as mart_name,
-+    r.upcoming_fixture_sk,
-+    r.team_sk,
-+    r.player_sk,
-+    r.games_played,
-+    m.matches
-+from {{ ref('mart_player_season_record') }} as r
-+left join player_matches as m
-+    on
-+        r.team_sk = m.team_sk
-+        and r.player_sk = m.player_sk
-+        and r.league_code = m.league_code
-+        and r.season_api_year = m.season_api_year
-+where r.games_played > coalesce(m.matches, 0)
-diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
-index ccc1e739..21680fb0 100644
---- a/scripts/generate_metric_sql.py
-+++ b/scripts/generate_metric_sql.py
-@@ -130,7 +130,7 @@ SURFACES = (
-     Surface("4_intermediate/shared/int_player_momentum__metrics.sql",
-             WINDOW_COUNTS + WINDOW_RATIOS),
-     Surface("4_intermediate/shared/int_player_season_record.sql",
--            WINDOW_COUNTS + ("defensive_actions_player",) + WINDOW_RATIOS, windowed=True),
-+            WINDOW_COUNTS + ("defensive_actions_player", "scorer_points_player") + WINDOW_RATIOS, windowed=True),
-     Surface("4_intermediate/shared/int_player_profile__contribution.sql",
-             ("scorer_points_player",)),
-     Surface("5_marts/shared/mart_player_fixture_stats.sql",
++
++def test_the_cases_cover_every_wording():
++    templates = ex.sentence_templates()["en"]
++    texts = [en for _, en, _, _ in WORDINGS]
++    for key in H2H_KEYS:
++        stem = re.split(r"\{\w+\}", templates[key])
++        assert any(all(part in text for part in stem) for text in texts), key
++
++
++@pytest.mark.parametrize("row", [
++    _row(None, 3, 2, 0), _row(5, None, 2, 0), _row(5, 3, None, 0), _row(5, 3, 2, None), _row(0, 0, 0, 0),
++])
++def test_a_missing_count_gives_no_intro(row):
++    assert ex.head_to_head_intro(row, HOME, AWAY) is None
++
++
++@pytest.mark.parametrize("names", [(None, AWAY), (HOME, None)])
++def test_a_missing_team_name_gives_no_intro(names):
++    assert ex.head_to_head_intro(_row(2, 0, 2, 0), *names) is None
++
++
++def test_no_row_gives_no_intro():
++    assert ex.head_to_head_intro(None, HOME, AWAY) is None
++
++
++def test_sentence_returns_nothing_for_a_missing_value():
++    assert ex.sentence("h2hWonAll", "en", {"club": HOME, "n": None}) is None
++    assert ex.sentence("h2hWonAll", "en", {"club": HOME, "n": 4}) == "Borussia Dortmund won all of the last 4 meetings."
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md |  43 +-
+#    .claude/task/review.md              |  32 +-
+#    .claude/task/review_input.patch     | 976 ++++++++++++++----------------------
+#    3 files changed, 408 insertions(+), 643 deletions(-)
+# ============================================================================
