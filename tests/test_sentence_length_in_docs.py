@@ -61,7 +61,7 @@ PINNED = {
     "docs/roles/seo_expert.md": 11,
     "docs/roles/ui_expert.md": 1,
     "docs/wireframes/00_overview.md": 13,
-    "docs/wireframes/01_fixture_page.md": 5,
+    "docs/wireframes/01_fixture_page.md": 4,
     "docs/wireframes/02_team_profile.md": 3,
     "docs/wireframes/03_player_profile.md": 3,
     "docs/wireframes/08_browse.md": 11,
@@ -73,7 +73,7 @@ PINNED = {
     "docs/wireframes/14_team_stats.md": 19,
     "docs/wireframes/99_gaps_register.md": 66,
     "docs/wireframes/block_standard.md": 11,
-    "docs/wireframes/metrics_display.md": 32,
+    "docs/wireframes/metrics_display.md": 30,
     "site_v2/src/data/README.md": 24,
 }
 

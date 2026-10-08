@@ -42,7 +42,7 @@ MARTS_DATASET = "marts"
 SEEDS_DATASET = "dbt_analytics"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
-                "leaderboards", "matchstats", "glossary", "metric_groups", "landing",
+                "leaderboards", "matchstats", "glossary", "metric_groups", "metric_rows", "landing",
                 "competition_index", "matches")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
@@ -1610,6 +1610,11 @@ def _landing_side(team: dict | None) -> dict:
     }
 
 
+def _per_match(row: dict[str, str]) -> bool:
+    """A catalogue row is an average per match: its denominator is the matches and it is not a share."""
+    return (row.get("denominator_expr") or "").strip() == "count(*)" and row.get("format") != "percent"
+
+
 def _board_catalogue(
     boards: tuple[str, ...] = _HOME_PLAYER_BOARDS,
     entity: str = "player",
@@ -1661,8 +1666,7 @@ def _board_catalogue(
             "label_i18n_key": by_id[k]["label_i18n_key"],
             "format": by_id[k]["format"],
             "metric_group": by_id[k].get("metric_group") or "",
-            "per_match": (by_id[k].get("denominator_expr") or "").strip() == "count(*)"
-            and by_id[k].get("format") != "percent",
+            "per_match": _per_match(by_id[k]),
         }
         for k in boards
     }
@@ -2013,6 +2017,25 @@ def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
             "groups": [{"key": key, "order": order} for order, key in groups]}
 
 
+def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
+    """metric_rows.json — the rows of the match page's Form comparison: every team metric with a
+    `metric_order`, in group order and then that order. A selection from the seed, no BigQuery."""
+    import csv
+
+    with open(seed_path, encoding="utf-8") as f:
+        rows = [r for r in csv.DictReader(f) if r["entity"] == "team" and r["metric_order"]]
+    rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
+    return {"type": "metric_rows", "rows": [
+        {"metric_id": r["metric_id"],
+         "label_i18n_key": r["label_i18n_key"],
+         "metric_group": r["metric_group"],
+         "metric_order": int(r["metric_order"]),
+         "direction": r["direction"],
+         "format": r["format"],
+         "per_match": _per_match(r)}
+        for r in rows]}
+
+
 # --------------------------------------------------------------------------- #
 # Orchestration
 # --------------------------------------------------------------------------- #
@@ -2095,6 +2118,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
         sha = write_file(out_root, "metric_groups.json", fetch_metric_groups())
         entries.append({"type": "metric_groups", "id": "metric_groups", "slug": None,
                         "path": "metric_groups.json", "sha256": sha})
+    if "metric_rows" in entities:
+        sha = write_file(out_root, "metric_rows.json", fetch_metric_rows())
+        entries.append({"type": "metric_rows", "id": "metric_rows", "slug": None,
+                        "path": "metric_rows.json", "sha256": sha})
     if "landing" in entities:
         sha = write_file(out_root, "landing.json", fetch_landing_payload(client))
         entries.append({"type": "landing", "id": "landing", "slug": None,

@@ -1,28 +1,27 @@
-# Acceptance evidence — #177 part 2: metric names without sigils, from one place
+# Acceptance evidence — #177 part 3: the Form comparison takes its rows from the catalogue
 
-Read from `astro build` of the committed sample (2,538 pages; audit-seo and check-built-pages OK), scanned per label
-element: the Form comparison row label (`.mlabel`), the team page rows (`.vs-name`), the board titles (`.bt`) and the
-team hero tiles (`.hl`), in every built page of every locale.
+Read from `astro build` of the committed sample (2,538 pages; audit-seo and check-built-pages OK), compared with a
+build of main from the same sample, and from one build in which a sample match's last-5 rows carry two real prod
+rows of `mart_team_momentum` (one read, 3.2 MB processed, 10 MB billed; the sample file restored after the build).
 
 criteria_demonstrated:
-  - NO SIGIL IN ANY METRIC NAME. 0 label elements carry "Ø" or "%" across 2,539 built pages. The 12 "Ø" left in the
-    HTML are player names (M. Ødegaard, S. Ørjasæter), not metric names. check-metric-labels.test.mjs now fails on
-    any metric name with "Ø" or "%" in any locale.
-  - THE SECOND LINE. Form comparison rows, EN: per-match averages read "Goals | per match" and so on; shares named
-    by their count read "Duels won | percentage", "Shots inside box | percentage", "Saves | percentage"; shares with a
-    word of their own ("Pass accuracy", "Goals per shot on target") and the count "Clean sheets" have none. DE reads
-    "pro Spiel" / "in Prozent", FI "ottelua kohden" / "prosentteina", row for row. Team page: "Clean sheets |
-    percentage", "Defensive actions | per match · 10 T · 6 I · 5 B". Boards: "Goals per match", "Duels won
-    percentage", "Schüsse aufs Tor pro Spiel", "Maalit ottelua kohden"; count boards ("Goals", "Assists") plain. Hero
-    tiles: "Schüsse aufs Tor | pro Spiel". No page shows a single match's values today. Layout at 375, 700 and
-    1010px in German and Finnish: rendered_page_evidence.md.
-  - THE APPROVED NAMES, ONLY IN strings.ts. Every name above is the approved list's (e.g. DE "Passquote", "Gehaltene
-    Schüsse", "Schüsse aufs Tor"); no built page contains "Torschussdifferenz"; the German verdict reads "eine
-    Differenz der Schüsse aufs Tor von 0,0 pro Spiel". Names live only in METRIC_LABELS_{EN,DE,FI}; the Home
-    design-mock generators read them there and run (gen_top_teams, gen_top_players, gen_home, gen_home_with_rules,
-    gen_competition_teams), and check_teams and check_players report ALL PASS. The three wireframes name metrics
-    by key. A test fails when the site's per-match flags, its hero tiles or its share list disagree with the
-    catalogue (per match = denominator count(*) and not a share).
-  - NO label_en. The catalogue has 104 rows, every other field byte-identical to main (checked by parsing both);
-    its seed column docs and the unique test on it are removed. dbt parse clean; pytest tests/: 1,460 passed;
-    npm test: 112 passed; check_copy_gate: OK (132 metric labels).
+  - THE CATALOGUE'S ROWS, IN THE CATALOGUE'S ORDER. The export writes `metric_rows.json` from the catalogue: the 36
+    team metrics with a `metric_order`. A test holds that set equal to the metrics `metric_map.csv` places in
+    `mart_team_momentum`, minus Results, and each group's order to 1..N. Across the 628 sample match pages, 1,174
+    comparison blocks show 0 rows out of that order. With the prod rows, the Dortmund v Bremen page shows 35 rows in
+    every locale: Goals (3), Shooting (9), Passing (5), One-on-one (6), Defending (4), Goalkeeping (2), Set pieces
+    (3), Discipline (3). Offsides is blank on both sides in prod for that window, so the row is hidden. The other 35
+    names are the approved list's (e.g. "Possession" / "Ballbesitz" / "Pallonhallinta", "Abgefangene Pässe",
+    "Geblockte Bälle"). No site file lists the rows.
+  - DISCIPLINE LAST. `metric_groups.json` is goals, shooting, passing, one_on_one, defending, goalkeeping,
+    set_pieces, discipline, outcomes, playing_time. The Rankings page's player block goes from "... Defending >
+    Discipline > Goalkeeping" to "... Defending > Goalkeeping > Discipline"; its team block has no Goalkeeping
+    board, so Discipline was already last there. The Form comparison shows Discipline after Set pieces. The team
+    page has no Discipline row.
+  - A TEST FAILS WHEN THE COMPONENT SPELLS A METRIC. `check-metric-labels.test.mjs` follows MetricComparison.astro
+    through every .astro/.ts/.mjs file it imports and fails on any catalogue metric id spelled in code. It is
+    red on main's component, which imports metricRows.ts ("goals_per_match", "goals", ...), and green now.
+  - THE TEAM PAGE IS UNCHANGED. The 108 built team pages are byte-identical to main's build; each shows its 16 rows
+    (15 on 2 pages, as on main). Only the match pages and the three Rankings pages differ between the two builds.
+    pytest tests/: 1,465 passed; npm test: 0 failed; dbt parse clean; sync_metric_docs_blocks --check,
+    check_copy_gate and check_description_hygiene OK.

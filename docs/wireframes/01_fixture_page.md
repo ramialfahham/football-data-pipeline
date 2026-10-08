@@ -142,16 +142,13 @@ Form display (3b) — **window-correct, ruled 2026-06-11**:
   window. Needs `wins`/`draws`/`losses` in `mart_team_season_record` (GAP-10);
   until that ships W2 shows the window header only.
 
-Metric rows (3c) — **the LOCKED team table in
-[`metrics_display.md`](metrics_display.md) is the binding contract**: 16 rows in
-fixed order under group subheads (Goals → Shooting → Duels → Defending → Passing →
-Set pieces → Goalkeeping), identical set in W1 and W2. Tier semantics per that
-document (tier never reorders; tier 1 feeds compact surfaces). Four rows are
-GAP-11-pending (`clean_sheets`, `shots_on_target_per_match`, `duels_per_match`,
-`defensive_actions_per_match`) and render only once exported; `shots_on_goal_pct` is
-defined but not displayed. Formats and `direction` per catalogue row. Paired
-bars are normalized to the larger of the two values (a relative share, never a
-probability).
+Metric rows (3c) — the rows are the catalogue's team metrics with a `metric_order`,
+served as `src/data/metric_rows.json`. They render under group subheads in the
+catalogue's group order, and in `metric_order` inside a group. A row shows when
+the window carries a value for either team. W2 reads `mart_team_season_record`, so
+it shows only the rows that mart carries. Formats and `direction` per catalogue
+row. Paired bars are normalized to the larger of the two values (a relative
+share, never a probability).
 
 Segment + caption labels (3, 3d) — **the toggle changes BOTH window and
 competition scope; the labels must declare it** (window & scope display contract

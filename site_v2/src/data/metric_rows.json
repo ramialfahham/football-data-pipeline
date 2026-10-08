@@ -1,0 +1,329 @@
+{
+  "type": "metric_rows",
+  "rows": [
+    {
+      "metric_id": "goals_per_match",
+      "label_i18n_key": "metrics.goals_per_match.label",
+      "metric_group": "goals",
+      "metric_order": 1,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "goals_against_per_match",
+      "label_i18n_key": "metrics.goals_against_per_match.label",
+      "metric_group": "goals",
+      "metric_order": 2,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "clean_sheets",
+      "label_i18n_key": "metrics.clean_sheets.label",
+      "metric_group": "goals",
+      "metric_order": 3,
+      "direction": "higher_better",
+      "format": "integer",
+      "per_match": false
+    },
+    {
+      "metric_id": "shots_per_match",
+      "label_i18n_key": "metrics.shots_per_match.label",
+      "metric_group": "shooting",
+      "metric_order": 1,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "shots_on_goal_per_match",
+      "label_i18n_key": "metrics.shots_on_target_per_match.label",
+      "metric_group": "shooting",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "shots_on_goal_against_per_match",
+      "label_i18n_key": "metrics.shots_on_goal_against_per_match.label",
+      "metric_group": "shooting",
+      "metric_order": 3,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "shots_off_target_per_match",
+      "label_i18n_key": "metrics.shots_off_target_per_match.label",
+      "metric_group": "shooting",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "shots_blocked_per_match",
+      "label_i18n_key": "metrics.shots_blocked_per_match.label",
+      "metric_group": "shooting",
+      "metric_order": 5,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "shots_inside_box_per_match",
+      "label_i18n_key": "metrics.shots_inside_box_per_match.label",
+      "metric_group": "shooting",
+      "metric_order": 6,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "shots_inside_box_pct",
+      "label_i18n_key": "metrics.shots_inside_box_pct.label",
+      "metric_group": "shooting",
+      "metric_order": 7,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "shots_on_goal_pct",
+      "label_i18n_key": "metrics.shots_on_goal_pct.label",
+      "metric_group": "shooting",
+      "metric_order": 8,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "finishing_efficiency_pct",
+      "label_i18n_key": "metrics.finishing_efficiency_pct.label",
+      "metric_group": "shooting",
+      "metric_order": 9,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "passes_per_match",
+      "label_i18n_key": "metrics.passes_per_match.label",
+      "metric_group": "passing",
+      "metric_order": 1,
+      "direction": "higher_better",
+      "format": "decimal_0",
+      "per_match": true
+    },
+    {
+      "metric_id": "passes_accurate_per_match",
+      "label_i18n_key": "metrics.passes_accurate_per_match.label",
+      "metric_group": "passing",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_0",
+      "per_match": true
+    },
+    {
+      "metric_id": "passes_accuracy_pct",
+      "label_i18n_key": "metrics.passes_accuracy_pct.label",
+      "metric_group": "passing",
+      "metric_order": 3,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "passes_share_pct",
+      "label_i18n_key": "metrics.passes_share_pct.label",
+      "metric_group": "passing",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "passes_key_per_match",
+      "label_i18n_key": "metrics.passes_key_per_match.label",
+      "metric_group": "passing",
+      "metric_order": 5,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "dribbles_attempts_per_match",
+      "label_i18n_key": "metrics.dribbles_attempts_per_match.label",
+      "metric_group": "one_on_one",
+      "metric_order": 1,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "dribbles_success_per_match",
+      "label_i18n_key": "metrics.dribbles_success_per_match.label",
+      "metric_group": "one_on_one",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "dribbles_success_pct",
+      "label_i18n_key": "metrics.dribbles_success_pct.label",
+      "metric_group": "one_on_one",
+      "metric_order": 3,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "duels_per_match",
+      "label_i18n_key": "metrics.duels_per_match.label",
+      "metric_group": "one_on_one",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "decimal_0",
+      "per_match": true
+    },
+    {
+      "metric_id": "duels_won_per_match",
+      "label_i18n_key": "metrics.duels_won_per_match.label",
+      "metric_group": "one_on_one",
+      "metric_order": 5,
+      "direction": "higher_better",
+      "format": "decimal_0",
+      "per_match": true
+    },
+    {
+      "metric_id": "duels_won_pct",
+      "label_i18n_key": "metrics.duels_won_pct.label",
+      "metric_group": "one_on_one",
+      "metric_order": 6,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "defensive_actions_per_match",
+      "label_i18n_key": "metrics.defensive_actions_per_match.label",
+      "metric_group": "defending",
+      "metric_order": 1,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "tackles_per_match",
+      "label_i18n_key": "metrics.tackles_per_match.label",
+      "metric_group": "defending",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "interceptions_per_match",
+      "label_i18n_key": "metrics.interceptions_per_match.label",
+      "metric_group": "defending",
+      "metric_order": 3,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "blocks_per_match",
+      "label_i18n_key": "metrics.blocks_per_match.label",
+      "metric_group": "defending",
+      "metric_order": 4,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "saves_per_match",
+      "label_i18n_key": "metrics.saves_per_match.label",
+      "metric_group": "goalkeeping",
+      "metric_order": 1,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "saves_pct",
+      "label_i18n_key": "metrics.saves_pct.label",
+      "metric_group": "goalkeeping",
+      "metric_order": 2,
+      "direction": "higher_better",
+      "format": "percent",
+      "per_match": false
+    },
+    {
+      "metric_id": "corners_per_match",
+      "label_i18n_key": "metrics.corners_per_match.label",
+      "metric_group": "set_pieces",
+      "metric_order": 1,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "corners_against_per_match",
+      "label_i18n_key": "metrics.corners_against_per_match.label",
+      "metric_group": "set_pieces",
+      "metric_order": 2,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "free_kicks_per_match",
+      "label_i18n_key": "metrics.free_kicks_per_match.label",
+      "metric_group": "set_pieces",
+      "metric_order": 3,
+      "direction": "higher_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "fouls_per_match",
+      "label_i18n_key": "metrics.fouls_per_match.label",
+      "metric_group": "discipline",
+      "metric_order": 1,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "offsides_per_match",
+      "label_i18n_key": "metrics.offsides_per_match.label",
+      "metric_group": "discipline",
+      "metric_order": 2,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "cards_yellow_per_match",
+      "label_i18n_key": "metrics.cards_yellow_per_match.label",
+      "metric_group": "discipline",
+      "metric_order": 3,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true
+    },
+    {
+      "metric_id": "cards_red_per_match",
+      "label_i18n_key": "metrics.cards_red_per_match.label",
+      "metric_group": "discipline",
+      "metric_order": 4,
+      "direction": "lower_better",
+      "format": "decimal_1",
+      "per_match": true
+    }
+  ]
+}

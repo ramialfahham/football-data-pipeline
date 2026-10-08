@@ -1,47 +1,50 @@
-# Review — feature/177-metric-names — 2026-10-07
+# Review — feature/177-form-comparison-order — 2026-10-07
 
-diff_sha256: 864291028e9f939abaa87b5d53ef9f8b8c0ad1c25f8633dce26547bebb94a61f
+diff_sha256: 38b934f6e1a5a1eed741e7e84dad7b1572b46df25c122ffa86be09df70948073
 
-rounds: 3
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Scope: every file is in scope_paths; each addition (wireframes, mock generators, pin tests, prose) has a dated CPO amendment.
-- Impact map: the label_en readers listed file by file; the reviewer's own grep agrees.
-- Form comparison caption removal recorded with its authority (#166 "no Defending sub-label").
-- Old names left only in struck or superseded history rows of metrics_display.md and 10_home.md.
-- No secrets, no new mechanism, no recurring cost; order, direction and format untouched.
+- Every file is in scope_paths; the data README and the fixture wireframe join through a recorded doc-sync amendment.
+- No new mechanism or recurring cost; metric_rows.json is an export file of the metric_groups.json kind, no BigQuery read.
+- Reserved decisions untouched: team page, Rankings and Home rows; metricRows.ts changes only in a comment.
+- The Form comparison only filters and keeps served order; a test blocks metric ids in the code it reads.
+- Doc-sync: metric_rules.md, metric_layer.md, metrics_display.md, 01_fixture_page.md, the data README and the seed schema.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Rendered evidence is this task's: geometry at 375/700/1010px in DE and FI for hero tiles, Performance rows, board titles and Form comparison rows; 0 overflow, only the documented 375px Performance-row breaks.
-- Every wireframe line naming a metric now uses its key and a pointer to strings.ts.
-- Locked team rows, order and tiers unchanged; the percentage and per-match rules hold.
-- Every new or changed string traces to a contract amendment or decisions_taken.
+- All 36 served rows trace to catalogue rows and to mart_team_momentum columns; no field is fabricated.
+- The components spell no metric id, order, direction or format.
+- No naked percentage: every share has its count in the same group; dribbles_success_pct says "percentage".
+- Discipline last; tier never orders; the team page keeps its 16 rows.
+- 01_fixture_page.md §3c and metrics_display.md now describe the served rows.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The Home mock generators build titles as the site does and run; check_teams and check_players pass.
-- A test binds the site's per-match flags, hero tiles and share list to the catalogue; the export's per_match excludes shares by the same rule.
-- The catalogue loses only label_en; its schema entry and tests go with it; no model reads it.
-- No layer, competition or same-window issue.
+- The order lives in the seed; the export filters and copies; no model reads metric_order or metric_group_order.
+- metric_order is 1..N per group, 36 team rows; metric_group_order 1..10; uniqueness test on (entity, group, order).
+- The row set equals the mart_team_momentum metrics in metric_map.csv minus points_won.
+- The guard test scans every file in the comparison's import closure; copy lines are skipped only in strings.ts.
+- The per-match rule is one helper in the export.
 
 ## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Row by row, every catalogue field other than label_en is unchanged; no formula, description or direction moves.
-- No dangling reader of the catalogue's label_en.
-- label_i18n_key keeps not_null and unique.
+- No description, formula, format, tier or direction changes; only metric_order and three group orders.
+- Group order 1..10 with no gap or tie; Discipline last of the shown groups.
+- The order inside each group reads sensibly to an analyst.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- gen_top_teams and gen_top_players no longer depend on the sigil; the importing generators and check_teams follow.
-- The new site test fails on a wrong per-match flag or share entry.
-- No dependency, credential, workflow, hosting or build-size change.
+- The new export entity reads only the seed and runs in the default --entities set; CI's explicit entity lists skip it.
+- tests/test_metric_rows.py fails on regeneration drift, set drift, order gaps and a wrong per-match flag.
+- The guard self-checks cover the one-line and multi-line forms; the import follower fails closed.
+- Pin tests only move down.
 
 ## escalations
 (none)

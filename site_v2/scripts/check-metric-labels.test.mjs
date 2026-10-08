@@ -42,7 +42,11 @@ function labelBlock(loc) {
 }
 
 const labels = Object.fromEntries(LOCALES.map((l) => [l, labelBlock(l)]));
-const rowKeys = [...rowsSrc.matchAll(/labelKey:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]);
+const servedRows = JSON.parse(readFileSync(join(SITE, "src/data/metric_rows.json"), "utf8")).rows;
+const rowKeys = [
+  ...[...rowsSrc.matchAll(/labelKey:\s*"(metrics\.[A-Za-z0-9_]+\.label)"/g)].map((m) => m[1]),
+  ...servedRows.map((r) => r.label_i18n_key),
+];
 const heroKeys = [...readFileSync(join(SITE, "src/components/team/DeservedHero.astro"), "utf8")
   .matchAll(/metricLabel\(lang,\s*"(metrics\.[A-Za-z0-9_]+\.label)"\)/g)].map((m) => m[1]);
 
@@ -280,6 +284,51 @@ test("every team board label the block renders states no window of its own",
         `${lang} heading for ${id} is "${title}" — "${window}" must appear exactly once`);
     }
   }
+});
+
+/** The site code the Form comparison reads: its component, and every .astro/.ts/.mjs file it
+ *  imports, followed through their imports. Data files (.json) are the export's and are not code. */
+function formComparisonCode() {
+  const seen = new Map();
+  const visit = (file) => {
+    if (seen.has(file)) return;
+    const text = readFileSync(file, "utf8");
+    seen.set(file, text);
+    const specs = /(?:\bfrom\s+|\bimport\s*\(?\s*)["'](\.{1,2}\/[^"']+)["']/g;
+    for (const [, spec] of text.matchAll(specs)) {
+      if (/\.(astro|ts|mjs)$/.test(spec)) visit(join(dirname(file), spec));
+      else if (!/\.json$/.test(spec)) visit(join(dirname(file), `${spec}.ts`));
+    }
+  };
+  visit(join(SITE, "src/components/fixture/MetricComparison.astro"));
+  return seen;
+}
+
+/** The catalogue metric ids a text spells as a string literal in code. Comments are not code. In the
+ *  copy file a line such as `goals: "goals"` is a word for the reader, so it does not count there. */
+function spelledMetricIds(text, ids, isCopy = false) {
+  let code = text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  if (isCopy) code = code.replace(/^\s*[a-z][A-Za-z0-9]*:\s*"[^"]*",?\s*$/gm, "");
+  return [...code.matchAll(/["'`]([a-z0-9_]+)["'`]/g)].map((m) => m[1]).filter((s) => ids.has(s));
+}
+
+test("the Form comparison and the site code it reads spell no metric", () => {
+  const ids = new Set(catalogueRows().map((r) => r.metric_id));
+  assert.ok(ids.size >= 80, `parsed only ${ids.size} metric ids from the catalogue`);
+  assert.deepEqual(spelledMetricIds(`x = "goals_per_match"`, ids), ["goals_per_match"],
+    "the literal finder no longer finds a metric id");
+  assert.deepEqual(spelledMetricIds(`  { field: "goals_per_match", order: 1 },`, ids), ["goals_per_match"],
+    "the literal finder no longer finds a metric id in a row definition");
+  assert.deepEqual(spelledMetricIds(`const row = {\n  field: "goals_per_match",\n  order: 1,\n};`, ids), ["goals_per_match"],
+    "the literal finder no longer finds a metric id on a line of its own");
+  const copyFile = join(SITE, "src/i18n/strings.ts");
+  const code = formComparisonCode();
+  assert.ok(code.size >= 5, `followed only ${code.size} files from MetricComparison.astro`);
+  const bad = [...code].flatMap(([file, text]) =>
+    spelledMetricIds(text, ids, file === copyFile).map((id) => `${file.slice(SITE.length + 1)}: "${id}"`));
+  assert.deepEqual(bad, [],
+    `the Form comparison's rows, order, direction and format are served by src/data/metric_rows.json; ` +
+    `site code spells a metric:\n  ${bad.join("\n  ")}`);
 });
 
 test("metricRows.ts no longer carries an English label", () => {

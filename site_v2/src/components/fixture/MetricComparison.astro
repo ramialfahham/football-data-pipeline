@@ -1,14 +1,14 @@
 ---
-// The LOCKED 16-row team comparison for one window (W1 or W2). Renders the groups in the
-// catalogue's order with a subhead named in this locale, rows in the fixed order within each
-// group (metricRows.ts). A row whose value is missing on BOTH sides is hidden (avoid a wall of
-// dashes); a row missing on one side shows "-" there. No reordering by value.
+// The team comparison for one window (W1 or W2). Rows, groups and their order are served from the
+// catalogue (src/data/metric_rows.json, src/data/metric_groups.json). A row whose value is missing
+// on BOTH sides is hidden (avoid a wall of dashes); a row missing on one side shows "-" there.
+// No reordering by value.
 import MetricRow from "./MetricRow.astro";
-import { GROUP_KEYS_IN_ORDER, METRIC_ROWS } from "../../lib/metricRows";
-import type { MetricRowDef } from "../../lib/metricRows";
+import metricRows from "../../data/metric_rows.json";
+import metricGroups from "../../data/metric_groups.json";
 import { metricLabel } from "../../i18n/strings";
 import { asNumber } from "../../lib/types";
-import type { WindowStats } from "../../lib/types";
+import type { ServedMetricRow, WindowStats } from "../../lib/types";
 import type { Lang } from "../../lib/format";
 
 interface Props {
@@ -20,13 +20,17 @@ interface Props {
 }
 const { home, away, lang, homeName, awayName } = Astro.props;
 
-const hasData = (def: MetricRowDef): boolean =>
-  asNumber(home?.[def.field]) !== null || asNumber(away?.[def.field]) !== null;
+const served = metricRows.rows as ServedMetricRow[];
+const hasData = (def: ServedMetricRow): boolean =>
+  asNumber(home?.[def.metric_id]) !== null || asNumber(away?.[def.metric_id]) !== null;
 
-const groups = GROUP_KEYS_IN_ORDER.map((group) => ({
-  group: metricLabel(lang, `metricGroups.${group}.label`),
-  rows: METRIC_ROWS.filter((r) => r.group === group && hasData(r)),
-})).filter((g) => g.rows.length > 0);
+const groups = [...metricGroups.groups]
+  .sort((a, b) => a.order - b.order)
+  .map((g) => ({
+    group: metricLabel(lang, `metricGroups.${g.key}.label`),
+    rows: served.filter((r) => r.metric_group === g.key && hasData(r)),
+  }))
+  .filter((g) => g.rows.length > 0);
 ---
 
 <div class="cmp">
