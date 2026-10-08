@@ -47,6 +47,8 @@ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
+STRINGS_PATH = "site_v2/src/i18n/strings.ts"
+SENTENCE_LANGS = ("en", "de", "fi")
 
 # The competition page's Rankings tab (GitLab #129, #151): the twelve team boards and the thirteen
 # player boards, each tuple in the RULED order within its groups — the page groups them by the
@@ -839,6 +841,54 @@ def shape_competition_boards(rows: list[dict], boards: tuple[str, ...], catalogu
     return out
 
 
+_STRINGS_DICT = re.compile(r"^const\s+([A-Z]{2}):\s*Dict\s*=\s*\{(.*?)^\};", re.DOTALL | re.MULTILINE)
+_STRINGS_ENTRY = re.compile(r'^\s*([A-Za-z0-9_-]+):\s*"((?:[^"\\]|\\.)*)"', re.MULTILINE)
+_PLACEHOLDER = re.compile(r"\{(\w+)\}")
+_templates: dict[str, dict[str, str]] = {}
+
+
+def sentence_templates(path: str = STRINGS_PATH) -> dict[str, dict[str, str]]:
+    """lang -> key -> template, read from the site's strings.ts, where every displayed string lives."""
+    if path not in _templates:
+        text = pathlib.Path(path).read_text(encoding="utf-8")
+        _templates[path] = {m.group(1).lower(): {k: v.replace('\\"', '"') for k, v in _STRINGS_ENTRY.findall(m.group(2))}
+                            for m in _STRINGS_DICT.finditer(text)}
+    return _templates[path]
+
+
+def sentence(key: str, lang: str, values: dict, path: str = STRINGS_PATH) -> str | None:
+    """The template `key` in `lang` with its placeholders filled from `values`; None when any is missing."""
+    template = sentence_templates(path)[lang][key]
+    if any(values.get(name) is None for name in _PLACEHOLDER.findall(template)):
+        return None
+    return _PLACEHOLDER.sub(lambda m: str(values[m.group(1)]), template)
+
+
+def head_to_head_intro(h2h: dict | None, home_name: str | None, away_name: str | None,
+                       path: str = STRINGS_PATH) -> dict | None:
+    """The head-to-head block's intro per language, worded from the served split of the last meetings
+    (wins and losses from the home side); None when the row or any input is missing."""
+    if not h2h:
+        return None
+    n, w, d, lost = (h2h.get(k) for k in ("meetings_last5", "wins_last5", "draws_last5", "losses_last5"))
+    if None in (n, w, d, lost, home_name, away_name) or n < 1:
+        return None
+    club, won = (home_name, w) if w else (away_name, lost)
+    if n == 1:
+        key = "h2hLastDrawn" if d else "h2hLastWon"
+    elif d == n:
+        key = "h2hBothDrawn" if n == 2 else "h2hAllDrawn"
+    elif n in (w, lost):
+        key = "h2hWonBoth" if n == 2 else "h2hWonAll"
+    elif w and lost:
+        key = "h2hSplit" if d == 0 else "h2hSplitOneDrawn" if d == 1 else "h2hSplitDrawn"
+    else:
+        key = "h2hWonSomeOneDrawn" if d == 1 else "h2hWonSomeDrawn"
+    values = {"n": n, "w": w, "l": lost, "d": d, "won": won, "club": club, "home": home_name, "away": away_name}
+    intro = {lang: sentence(key, lang, values, path) for lang in SENTENCE_LANGS}
+    return intro if all(intro.values()) else None
+
+
 def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
                           h2h: dict | None) -> dict:
     """The fixture page payload: header + both teams' form/standing blocks + the
@@ -1133,10 +1183,10 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
         h, a = int(f["home_team_sk"]), int(f["away_team_sk"])
         f["league_name"] = leagues.get(f.get("league_code"))
         h2h_row = h2h.get((h, a))
-        payloads.append(
-            shape_fixture_payload(f, _side(f, "home"), _side(f, "away"),
-                                  _drop(h2h_row, _H2H_DROP) if h2h_row else None)
-        )
+        h2h_block = _drop(h2h_row, _H2H_DROP) if h2h_row else None
+        if h2h_block is not None:
+            h2h_block["intro"] = head_to_head_intro(h2h_block, f.get("home_team_name"), f.get("away_team_name"))
+        payloads.append(shape_fixture_payload(f, _side(f, "home"), _side(f, "away"), h2h_block))
     return payloads
 
 
