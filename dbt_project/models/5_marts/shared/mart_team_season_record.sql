@@ -8,7 +8,9 @@
   taken straight from it (renamed off the `_season` suffix); no formula lives here. For each
   upcoming fixture side we take the team's row for the fixture's (league_code, season_api_year);
   if the team has not played in that competition this season yet (before phase), we fall back to
-  the same competition's previous season (window_type = 'prev_season').
+  the same competition's previous season (window_type = 'prev_season'). is_form_window marks that
+  previous-season row of a domestic league: the window docs/metrics_context_model.md §4 shows there
+  before the team's first match.
 
   Grain: (upcoming_fixture_sk, team_sk).
 #}
@@ -107,6 +109,12 @@ chosen as (
         partition by upcoming_fixture_sk, team_sk
         order by priority asc
     ) = 1
+),
+
+domestic_leagues as (
+    select league_code
+    from {{ ref('competition_registry') }}
+    where competition_type = 'domestic_league'
 )
 
 select
@@ -143,5 +151,6 @@ select
     blocks_per_match,
     defensive_actions_per_match,
     duels_per_match,
-    duels_won_pct
+    duels_won_pct,
+    window_type = 'prev_season' and league_code in (select d.league_code from domestic_leagues as d) as is_form_window
 from chosen

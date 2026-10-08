@@ -7,6 +7,8 @@
   Grain: (upcoming_fixture_sk, team_sk).
 
   league_rank is not computed here — it comes from the standings surface (#322).
+  is_form_window is false only before the team's first match in a domestic league this season, when
+  docs/metrics_context_model.md §4 shows last season's record in that league instead.
 #}
 
 with builder as (
@@ -17,8 +19,23 @@ fixtures as (
     select
         fixture_sk,
         league_code,
+        season_api_year,
         home_team_sk
     from {{ ref('fct_fixture') }}
+),
+
+domestic_leagues as (
+    select league_code
+    from {{ ref('competition_registry') }}
+    where competition_type = 'domestic_league'
+),
+
+played_this_season as (
+    select distinct
+        team_sk,
+        league_code,
+        season_api_year
+    from {{ ref('int_team_season__metrics') }}
 )
 
 select
@@ -73,7 +90,10 @@ select
     b.offsides_per_match,
     b.cards_yellow_per_match,
     b.cards_red_per_match,
-    b.team_sk = f.home_team_sk as is_home
+    b.team_sk = f.home_team_sk as is_home,
+    p.team_sk is not null or f.league_code not in (select d.league_code from domestic_leagues as d) as is_form_window
 from builder as b
 inner join fixtures as f
     on b.upcoming_fixture_sk = f.fixture_sk
+left join played_this_season as p
+    on b.team_sk = p.team_sk and f.league_code = p.league_code and f.season_api_year = p.season_api_year

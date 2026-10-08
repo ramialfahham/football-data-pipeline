@@ -214,6 +214,9 @@ models:
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
         tests: [not_null]
+      - name: is_form_window
+        description: "True when this row is the form window the match page shows for this side: every side except, in a domestic league, a team that has no finished match in that league this season; that side shows its previous-season record from mart_team_season_record instead (docs/metrics_context_model.md section 4)."
+        tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
       - name: contributing_competitions
@@ -1274,6 +1277,9 @@ models:
         tests: [not_null]
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
+        tests: [not_null]
+      - name: is_form_window
+        description: "True when this row is the form window the match page shows for this side: a domestic league's previous-season record (window_type prev_season), shown before the team's first match in that league this season (docs/metrics_context_model.md section 4)."
         tests: [not_null]
       - name: games_with_team_stats
         description: "Cumulative matches in the season-to-date window with a team statistics line present — the coverage count that gates shots_per_match and the other team-stat rates on this row. The provider's stat line arrives in pieces, so this says nothing about passes, corners or shots inside the box on its own; those inputs carry their own counts upstream."
