@@ -1,5 +1,5 @@
 {#
-  Head-to-head (#375). All-time past meetings between two teams, DIRECTED: one
+  Head-to-head (#375). Past meetings between two teams, DIRECTED: one
   row per (team_sk, opponent_team_sk) = that team's record against that opponent.
   The fixture page looks up (home_team_sk, away_team_sk) directly to get the home
   side's record; the mirror row carries the away side's.
@@ -19,8 +19,9 @@
   What stays out is a ratio invented for this mart alone
   (see feedback_metric_catalogue_governance).
 
-  Scope: all finished meetings across ALL competitions between the pair (the
-  all-time H2H). Competition-scoped H2H is a later refinement. A pair that has
+  Scope: every finished meeting of the pair the warehouse holds, across ALL
+  competitions: each competition contributes the seasons of its registry history
+  window. Competition-scoped H2H is a later refinement. A pair that has
   never met produces no row (the fixture page shows "no previous meetings").
 
   Grain: (team_sk, opponent_team_sk).
@@ -33,6 +34,7 @@ with legs as (
         fixture_sk,
         league_code,
         kickoff_datetime,
+        home_away,
         goals as goals_for,
         goals_against,
         result
@@ -47,6 +49,7 @@ ranked as (
         fixture_sk,
         league_code,
         kickoff_datetime,
+        home_away,
         goals_for,
         goals_against,
         result,
@@ -88,6 +91,7 @@ agg as (
             struct(
                 kickoff_datetime,
                 league_code,
+                home_away,
                 goals_for,
                 goals_against,
                 result

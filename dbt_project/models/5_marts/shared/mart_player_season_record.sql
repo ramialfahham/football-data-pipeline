@@ -5,10 +5,11 @@
 
   Source: int_player_season_record, which computes every metric (counts and ratios) from its catalogue
   formula. Each upcoming fixture side's team is joined to its players' latest season-to-date row for the
-  fixture's (league_code, season_api_year); before-phase fallback to the same competition's previous season
-  (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
+  fixture's (league_code, season_api_year); a side with no row there yet takes the same competition's previous
+  season (window_type='prev_season'). Goals, assists and shots on target are handed to the export under the keys
   the site reads (goals_total, goals_assists, shots_on). saves_player_pct is only meaningful for
-  goalkeepers. Grain: (upcoming_fixture_sk, team_sk, player_sk).
+  goalkeepers. top_player_rank orders a side by goals plus assists, then goals, then fewer minutes; NULL
+  when the player's goals plus assists is unknown. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 #}
 
 with upcoming as (
@@ -89,6 +90,8 @@ matched as (
         sf.dribbles_success_player_pct,
         sf.passes_accuracy_player_pct,
         sf.duels_won_player_pct,
+        sf.scorer_points_player,
+        sf.minutes,
         1 as priority
     from sides as s
     inner join season_final as sf
@@ -134,6 +137,8 @@ matched as (
         sf.dribbles_success_player_pct,
         sf.passes_accuracy_player_pct,
         sf.duels_won_player_pct,
+        sf.scorer_points_player,
+        sf.minutes,
         2 as priority
     from sides as s
     inner join season_final as sf
@@ -146,10 +151,7 @@ matched as (
 chosen as (
     select *
     from matched
-    qualify row_number() over (
-        partition by upcoming_fixture_sk, team_sk, player_sk
-        order by priority asc
-    ) = 1
+    qualify priority = min(priority) over (partition by upcoming_fixture_sk, team_sk)
 )
 
 select
@@ -162,10 +164,12 @@ select
     window_type,
     position_code,
     games_played,
+    minutes,
     is_home,
     -- cumulative counts
     goals_player as goals_total,
     assists_player as goals_assists,
+    scorer_points_player,
     saves_player,
     shots_on_goal_player as shots_on,
     passes_key_player,
@@ -188,5 +192,13 @@ select
     saves_player_pct,
     dribbles_success_player_pct,
     passes_accuracy_player_pct,
-    duels_won_player_pct
+    duels_won_player_pct,
+    if(
+        scorer_points_player is null,
+        null,
+        row_number() over (
+            partition by upcoming_fixture_sk, team_sk, scorer_points_player is null
+            order by scorer_points_player desc, goals_player desc, minutes asc nulls last, player_sk asc
+        )
+    ) as top_player_rank
 from chosen

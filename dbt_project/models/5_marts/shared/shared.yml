@@ -1331,11 +1331,12 @@ models:
       Each player on each side of an upcoming fixture with their cumulative record in that
       fixture's own competition this season. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
-      Before the team has played any of it, the row falls back to the previous season and
+      Before the team has played any of it, the side falls back to the previous season and
       window_type says so. Every metric, counts and ratios, passes through from
       int_player_season_record, which computes each from its metric_catalogue formula. Goals,
       assists and shots on target keep the keys the export reads (goals_total, goals_assists,
-      shots_on).
+      shots_on). top_player_rank orders each side by goals plus assists, then goals, then fewer
+      minutes.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk, player_sk]
@@ -1393,10 +1394,16 @@ models:
         description: "{{ doc('season_api_year') }}"
       - name: games_played
         description: "Cumulative matches this player has appeared in, in the fixture's own competition this season (or the previous season when window_type is prev_season), counted through the player's most recent appearance in that season."
+      - name: minutes
+        description: "Total minutes this player played in the fixture's own competition this season (or the previous season when window_type is prev_season). NULL when a match's minutes are unknown or a team match in that competition-season has no player data."
       - name: goals_total
         description: "{{ doc('goals_player') }} Here, cumulative in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance; goals_player under the key the export reads."
       - name: goals_assists
         description: "{{ doc('assists_player') }} Here, cumulative in the fixture's own competition this season (or last season on the prev_season fallback), through the player's most recent appearance; assists_player under the key the export reads."
+      - name: scorer_points_player
+        description: "{{ doc('scorer_points_player') }}"
+      - name: top_player_rank
+        description: "1 for the player picked first on this side for this fixture, then 2, 3 and so on, ordered by goals plus assists, then goals, then fewer minutes, unknown minutes last. It is a selection order, not a rating: ties are broken by player_sk so that no two players share a rank. NULL when the player's goals plus assists is unknown."
       - name: saves_player
         description: "{{ doc('saves_player') }}"
       - name: shots_on
@@ -2195,12 +2202,15 @@ models:
 
   - name: mart_head_to_head
     description: >
-      One team's all-time record against one opponent, across every competition. Directed, so a
-      pair appears twice, once from each side. Grain: (team_sk, opponent_team_sk).
+      One team's record against one opponent over every finished meeting the warehouse holds,
+      across every competition. Each competition contributes the seasons its registry history
+      window covers. Directed, so a pair appears twice, once from each side. Grain: (team_sk,
+      opponent_team_sk).
 
       Built from int_legs__team_match. Raw record facts only, with no derived ratios — a
       head-to-head record is a fact rather than a catalogue metric. recent_meetings holds up to
-      the ten most recent meetings, each with date, competition, score and result.
+      the ten most recent meetings, each with date, competition, which side was at home, score and
+      result.
 
       A pair that has never met has no row at all.
     tests:
@@ -2239,7 +2249,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: total_meetings
-        description: "Count of finished meetings between this team and this opponent, across every competition, all time — the number of legs behind this row. Never NULL: a row exists only once the pair has met."
+        description: "Count of finished meetings between this team and this opponent that the warehouse holds, across every competition — the number of legs behind this row. Each competition contributes the seasons its registry history window covers. Never NULL: a row exists only once the pair has met."
         tests: [not_null]
       - name: last_meeting_result
         description: "The result of the most recent meeting between this team and this opponent, from this team's side: W, D or L."
@@ -2273,7 +2283,9 @@ models:
       - name: last_meeting_goals_against
         description: "{{ doc('goals_against') }} Here it is the goals this team conceded in the most recent meeting between the two."
       - name: recent_meetings
-        description: "The up to ten most recent meetings between this team and this opponent, most recent first, each carrying its kick-off, competition, score and result — enough to render a head-to-head strip without a further join. At least one element whenever the row exists, never more than ten."
+        description: "The up to ten most recent meetings between this team and this opponent, most recent first, each carrying its kick-off, competition, which side was at home, score and result — enough to render a head-to-head strip without a further join. At least one element whenever the row exists, never more than ten."
+      - name: recent_meetings.home_away
+        description: "{{ doc('home_away') }} Here it is this team's side in that one past meeting, inside the recent_meetings array."
       - name: recent_meetings.goals_against
         description: "{{ doc('goals_against') }} Here it is the goals this team conceded in that one past meeting, inside the recent_meetings array."
       - name: recent_meetings.goals_for
@@ -2824,7 +2836,8 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: home_team_name
-        description: "The home team's display name from dim_team."
+        description: "The home team's display name from dim_team. Never NULL."
+        tests: [not_null]
       - name: home_team_slug
         description: "The home team's permanent URL segment from dim_team."
       - name: home_team_logo_url
@@ -2837,7 +2850,8 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: away_team_name
-        description: "The away team's display name from dim_team."
+        description: "The away team's display name from dim_team. Never NULL."
+        tests: [not_null]
       - name: away_team_slug
         description: "The away team's permanent URL segment from dim_team."
       - name: away_team_logo_url
