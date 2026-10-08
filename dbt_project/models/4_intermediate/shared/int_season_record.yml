@@ -230,6 +230,10 @@ models:
         description: "{{ doc('cards_red_player') }}"
       - name: defensive_actions_player
         description: "{{ doc('defensive_actions_player') }}"
+      - name: scorer_points_player
+        description: "{{ doc('scorer_points_player') }}"
+      - name: minutes
+        description: "Cumulative minutes the player played in this competition-season through this match. NULL when a match's minutes are unknown or a team match in the window has no player data."
       - name: saves_player_pct
         description: "{{ doc('saves_player_pct') }}"
       - name: dribbles_success_player_pct

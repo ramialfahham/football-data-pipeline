@@ -1,50 +1,32 @@
-# Review — feature/177-form-comparison-order — 2026-10-07
+# Review — feature/166-match-page-marts
 
-diff_sha256: 38b934f6e1a5a1eed741e7e84dad7b1572b46df25c122ffa86be09df70948073
+diff_sha256: 94edc88c32102f929d018623953466ec1dcd7d2837ad0d2d44e0fbf617dbef3f
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every file is in scope_paths; the data README and the fixture wireframe join through a recorded doc-sync amendment.
-- No new mechanism or recurring cost; metric_rows.json is an export file of the metric_groups.json kind, no BigQuery read.
-- Reserved decisions untouched: team page, Rankings and Home rows; metricRows.ts changes only in a comment.
-- The Form comparison only filters and keeps served order; a test blocks metric ids in the code it reads.
-- Doc-sync: metric_rules.md, metric_layer.md, metrics_display.md, 01_fixture_page.md, the data README and the seed schema.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- All 36 served rows trace to catalogue rows and to mart_team_momentum columns; no field is fabricated.
-- The components spell no metric id, order, direction or format.
-- No naked percentage: every share has its count in the same group; dribbles_success_pct says "percentage".
-- Discipline last; tier never orders; the team page keeps its 16 rows.
-- 01_fixture_page.md §3c and metrics_display.md now describe the served rows.
+- Every non-task file in the diff is in scope_paths; no amendment lacks authority.
+- The §10 items (warehouse-first split, no new model, the §1/§4 window rules, the §1 enforcement test) are recorded in decisions_taken; nothing in decisions_reserved is touched.
+- scorer_points_player is an existing catalogue metric generated onto int_player_season_record, so no invented metric; no frontend file is touched.
+- The impact map's reader claims hold: int_player_profile__yoy names its columns, and dbt ls shows no downstream model of either mart.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The order lives in the seed; the export filters and copies; no model reads metric_order or metric_group_order.
-- metric_order is 1..N per group, 36 team rows; metric_group_order 1..10; uniqueness test on (entity, group, order).
-- The row set equals the mart_team_momentum metrics in metric_map.csv minus points_won.
-- The guard test scans every file in the comparison's import closure; copy lines are skipped only in strings.ts.
-- The per-match rule is one helper in the export.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- No description, formula, format, tier or direction changes; only metric_order and three group orders.
-- Group order 1..10 with no gap or tie; Discipline last of the shown groups.
-- The order inside each group reads sensibly to an analyst.
+- Round-1 findings resolved: int_player_club_season__metrics is untouched; metrics_context_model.md and the window_type__season_record block are untouched and true; recent_meetings.home_away uses doc('home_away'); top_player_rank is NULL when goals plus assists is unknown.
+- The generated scorer_points_player matches the catalogue formula and the Surface order; the mart only selects and ranks; minutes_to_date applies the same completeness gate.
+- The side-level window choice keeps the (upcoming_fixture_sk, team_sk, player_sk) grain unique and follows the §4 fallback.
+- assert_season_record_within_one_competition reads columns both season-record marts carry; the formula recompute test already covers scorer_points_player on int_player_season_record.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The new export entity reads only the seed and runs in the default --entities set; CI's explicit entity lists skip it.
-- tests/test_metric_rows.py fails on regeneration drift, set drift, order gaps and a wrong per-match flag.
-- The guard self-checks cover the one-line and multi-line forms; the import follower fails closed.
-- Pin tests only move down.
+- The generator change adds one metric to the int_player_season_record surface; the generated block's position and layout match; the drift test in test:python stays the arbiter.
+- Round-1 findings closed: the rank-order test fails on a flipped sort, a dropped key or a minutes order change; the mirror branch catches a missing mirror, a duplicated side and a wrong side taken in the mart.
+- The within-one-competition test's player bound counts every leg, so it never false-fails; the rank partition keeps non-null ranks contiguous.
+- No hook, workflow, CI, dependency, credential or site change.
 
 ## escalations
 (none)

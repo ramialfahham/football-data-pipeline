@@ -67,6 +67,8 @@ running as (
         minutes,
         any_value(position_code) over w as position_code,
         countif(minutes > 0) over w as match_number,
+        if(logical_and(window_is_complete and minutes is not null) over w, sum(minutes) over w, null)
+            as minutes_to_date,
         -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
         if(logical_and(window_is_complete and goals is not null) over w, sum(goals) over w, null) as goals_player,
         if(logical_and(window_is_complete and assists is not null) over w, sum(assists) over w, null) as assists_player,
@@ -151,6 +153,11 @@ running as (
             sum(tackles + interceptions + blocks) over w,
             null
         ) as defensive_actions_player,
+        if(
+            logical_and(window_is_complete and (goals + assists) is not null) over w,
+            sum(goals + assists) over w,
+            null
+        ) as scorer_points_player,
         safe_divide(
             if(
                 logical_and(window_is_complete and saves is not null) over w,
@@ -201,7 +208,8 @@ running as (
 )
 
 select
-    * except (minutes, match_number),
+    * except (minutes, match_number, minutes_to_date),
+    minutes_to_date as minutes,
     'season_to_date' as window_type,
     match_number,
     match_number as games_played
