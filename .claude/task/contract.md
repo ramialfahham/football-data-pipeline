@@ -18,6 +18,7 @@ scope_paths:
   - site_v2/src/components/fixture/*.astro
   - site_v2/src/styles/system.css
   - site_v2/src/i18n/strings.ts
+  - site_v2/src/i18n/strings.test.mjs
   - site_v2/src/lib/types.ts
   - site_v2/src/lib/format.ts
   - site_v2/src/lib/metricRows.ts
@@ -71,7 +72,9 @@ decisions_taken: >
   W/D/L letters reuse compColWins/Draws/Losses; competition names as served; a goalkeeper's row shows
   saves without the save percentage, which metrics_display.md shows only with its denominator, and
   no mart serves shots faced for the season record. The two content_architecture.md rows for the
-  match preview and the key players: exact text approved in chat, 2026-10-09.
+  match preview and the key players: exact text approved in chat, 2026-10-09. The German intros name
+  the competition with its article, "im" before a name whose head noun is Cup or Pokal and "in der"
+  before every other, the nine "im" competitions listed in strings.ts: approved in chat, 2026-10-09.
 
   THRESHOLD DECLARATIONS: NEW MECHANISM: the breadcrumb's small scroll script (progressive; the page works
   without it). RECURRING COST: the export reads mart_player_season_record (52.8 MB) in place of

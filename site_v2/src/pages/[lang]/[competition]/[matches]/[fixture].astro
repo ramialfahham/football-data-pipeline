@@ -11,7 +11,7 @@ import SplitSection from "../../../../components/fixture/SplitSection.astro";
 import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
 import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
-import { t } from "../../../../i18n/strings";
+import { t, inCompetition } from "../../../../i18n/strings";
 import { localeHref, word } from "../../../../lib/href";
 import { formatShortDate } from "../../../../lib/format";
 import type { Lang } from "../../../../lib/format";
@@ -96,7 +96,9 @@ const teamHref = (slug?: string | null) =>
   slug && built.teamSlugs.includes(slug) ? localeHref(lang, `${word(lang, "teams")}/${slug}/`) : undefined;
 
 const playersPrev = [home, away].some((s) => (s.top_players ?? []).some((p) => p.window_type === "prev_season"));
-const playersIntro = t(lang, playersPrev ? "playersIntroPrev" : "playersIntro", { competition: compName });
+const playersIntro = t(lang, playersPrev ? "playersIntroPrev" : "playersIntro", {
+  in: inCompetition(lang, fixture.league_code, compName),
+});
 
 // schema.org/SportsEvent per 01_fixture_page.md section 8; every value a served payload field, an
 // optional member omitted rather than emitted empty.

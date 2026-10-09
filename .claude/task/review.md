@@ -1,15 +1,17 @@
 # Review — feature/166-match-page-build
 
-diff_sha256: ee3a85aa71daee50cb72e1a3dc70a59941a63e24f528d6b67bc21cb763f6f626
+diff_sha256: f9a369fb95a7cab2c540112c81c9212a2954719d8a6a47c507cca6d9bbf8bb33
 
-rounds: 3
+rounds: 5
+
+rounds_cap_override: the German article correction approved in chat, 2026-10-09, needed its own review; its second pass closed the placeholder fill that review found.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every file is in scope_paths; the strings, readings, criteria and the two content_architecture.md rows are recorded as approved with their date.
+- Every file is in scope_paths, strings.test.mjs included; the strings, readings, criteria, the two content_architecture.md rows and the German article rule are recorded as approved with their date.
 - The breadcrumb script and the measured export read are declared; the export no longer reads mart_competition_index.
-- Round 1 and round 2 findings closed: content_architecture.md, the old diagram and history sentence, the rationale clause, the metricRows.ts comment, the goalkeeper line and the competition bindings in 01_fixture_page.md.
+- The test file and the `t()` fill add no product decision, wording, mechanism or cost; no other page's text changes.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -23,14 +25,14 @@ VERDICT: PASS
 risks_checked:
 - Every rendered field traces to the export or a mart column; the Matchdays label and the logo come from the competition index, so sample pages are labelled right.
 - Rows are unlinked as a block, team and competition links only where the page is built; a goalkeeper row shows saves only, the missing input registered.
-- rendered_page_evidence.md covers the real payload at 375, 700 and 1010px in EN, DE and FI; the spec in 01_fixture_page.md matches the page.
+- German intros read "im" before the nine Cup or Pokal names and "in der" before every other; EN and FI text is unchanged except the last-season form intro, which now names the competition twice.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The breadcrumb levels carry `lvl`; no `.seg` rule reaches them on the built pages.
-- The new fetch-level test fails on a revert of any new export field; the page set and the built-page link conditions are unchanged.
-- The two history pins match the files; no dependency, credential, hook or CI change.
+- `t()` fills every copy of a placeholder; only EN formIntroPrev repeats one, and strings.test.mjs fails on a revert to the first-copy fill.
+- strings.test.mjs walks every competitions.json code against the head-noun rule, so a trimmed set or a new Cup or Pokal competition fails `npm test`, which prebuild runs.
+- The breadcrumb levels carry `lvl`; the fetch-level test fails on a revert of any new export field; no dependency, credential, hook or CI change.
 
 ## escalations
 (none)

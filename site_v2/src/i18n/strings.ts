@@ -61,8 +61,10 @@ const EN: Dict = {
   h2hNone: "No meetings on record.",
   formIntro: "Form metrics from each team's last 5 matches across all competitions.",
   formIntroPrev: "Form metrics from each team's last 5 matches across all competitions; before a team's first {competition} match, from its last {competition} season.",
-  playersIntro: "Each team's leading players in {competition} this season, by goals plus assists.",
-  playersIntroPrev: "Each team's leading players in {competition} by goals plus assists; before a team's first match in it, last season's.",
+  playersIntro: "Each team's leading players {in} this season, by goals plus assists.",
+  playersIntroPrev: "Each team's leading players {in} by goals plus assists; before a team's first match in it, last season's.",
+  compIn: "in {competition}",
+  compInMasculine: "in {competition}",
   haHome: "H",
   haAway: "A",
   noRecentForm: "No recent matches",
@@ -374,9 +376,11 @@ const DE: Dict = {
   h2hSplitDrawn: "Von den letzten {n} Duellen gewann {home} {w} und {away} {l}, {d} endeten unentschieden.",
   h2hNone: "Keine Duelle erfasst.",
   formIntro: "Formwerte aus den letzten 5 Spielen jedes Teams in allen Wettbewerben.",
-  formIntroPrev: "Formwerte aus den letzten 5 Spielen jedes Teams in allen Wettbewerben; vor dem ersten Spiel in {competition} aus der letzten Saison dort.",
-  playersIntro: "Die besten Spieler jedes Teams in {competition} in dieser Saison, nach Toren plus Vorlagen.",
-  playersIntroPrev: "Die besten Spieler jedes Teams in {competition} nach Toren plus Vorlagen; vor dem ersten Spiel dort aus der letzten Saison.",
+  formIntroPrev: "Formwerte aus den letzten 5 Spielen jedes Teams in allen Wettbewerben; vor dem ersten Spiel in der {competition} aus der letzten Saison dort.",
+  compIn: "in der {competition}",
+  compInMasculine: "im {competition}",
+  playersIntro: "Die besten Spieler jedes Teams {in} in dieser Saison, nach Toren plus Vorlagen.",
+  playersIntroPrev: "Die besten Spieler jedes Teams {in} nach Toren plus Vorlagen; vor dem ersten Spiel dort aus der letzten Saison.",
   haHome: "H",
   haAway: "A",
   noRecentForm: "Keine aktuellen Spiele",
@@ -635,8 +639,10 @@ const FI: Dict = {
   h2hNone: "Ei kirjattuja kohtaamisia.",
   formIntro: "Kuntoluvut kunkin joukkueen 5 viimeisestä ottelusta kaikissa kilpailuissa.",
   formIntroPrev: "Kuntoluvut kunkin joukkueen 5 viimeisestä ottelusta kaikissa kilpailuissa; ennen ensimmäistä ottelua sarjassa {competition} edelliseltä kaudelta siellä.",
-  playersIntro: "Kunkin joukkueen parhaat pelaajat sarjassa {competition} tällä kaudella, maalien ja syöttöjen mukaan.",
-  playersIntroPrev: "Kunkin joukkueen parhaat pelaajat sarjassa {competition} maalien ja syöttöjen mukaan; ennen ensimmäistä ottelua edelliseltä kaudelta.",
+  compIn: "sarjassa {competition}",
+  compInMasculine: "sarjassa {competition}",
+  playersIntro: "Kunkin joukkueen parhaat pelaajat {in} tällä kaudella, maalien ja syöttöjen mukaan.",
+  playersIntroPrev: "Kunkin joukkueen parhaat pelaajat {in} maalien ja syöttöjen mukaan; ennen ensimmäistä ottelua edelliseltä kaudelta.",
   haHome: "K",
   haAway: "V",
   noRecentForm: "Ei viimeaikaisia otteluita",
@@ -859,9 +865,18 @@ const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
 export function t(lang: Lang, key: string, params?: Record<string, string | number>): string {
   let s = STRINGS[lang]?.[key] ?? EN[key] ?? key;
   if (params) {
-    for (const [k, v] of Object.entries(params)) s = s.replace(`{${k}}`, String(v));
+    for (const [k, v] of Object.entries(params)) s = s.replaceAll(`{${k}}`, String(v));
   }
   return s;
+}
+
+/** Competitions whose German name is masculine (its head noun is Cup or Pokal), so German reads
+ *  "im {competition}"; every other competition reads "in der {competition}". */
+const MASCULINE_IN_GERMAN = new Set(["DFBP", "FAC", "UESC", "WC", "CWC", "ACN", "AFCON", "GCUP", "CCCU"]);
+
+/** "in {competition}" in the page's language, with the German article the competition's name takes. */
+export function inCompetition(lang: Lang, leagueCode: string, name: string): string {
+  return t(lang, MASCULINE_IN_GERMAN.has(leagueCode) ? "compInMasculine" : "compIn", { competition: name });
 }
 
 /** Spelled position from the payload `position_code` (F/M/D/G). Raw code shown for anything else. */
