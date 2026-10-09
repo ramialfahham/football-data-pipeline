@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 9b9f7406..52d20fef 100644
+index 9b9f7406..bdfdea2d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,20 +1,32 @@
+@@ -1,20 +1,33 @@
 -# Task contract — #166, part 2 of the page build: the warehouse serves which form window each side shows
 +# Task contract — #166, part 3 of the page build: the next match page, built to the approved design
  
@@ -34,6 +34,7 @@ index 9b9f7406..52d20fef 100644
 +  - site_v2/src/components/fixture/*.astro
 +  - site_v2/src/styles/system.css
 +  - site_v2/src/i18n/strings.ts
++  - site_v2/src/i18n/strings.test.mjs
 +  - site_v2/src/lib/types.ts
 +  - site_v2/src/lib/format.ts
 +  - site_v2/src/lib/metricRows.ts
@@ -46,7 +47,7 @@ index 9b9f7406..52d20fef 100644
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -23,36 +35,54 @@ scope_paths:
+@@ -23,36 +36,56 @@ scope_paths:
    - .claude/task/audit_reviewer_outputs.md
  
  impact_map: >
@@ -105,7 +106,9 @@ index 9b9f7406..52d20fef 100644
 +  W/D/L letters reuse compColWins/Draws/Losses; competition names as served; a goalkeeper's row shows
 +  saves without the save percentage, which metrics_display.md shows only with its denominator, and
 +  no mart serves shots faced for the season record. The two content_architecture.md rows for the
-+  match preview and the key players: exact text approved in chat, 2026-10-09.
++  match preview and the key players: exact text approved in chat, 2026-10-09. The German intros name
++  the competition with its article, "im" before a name whose head noun is Cup or Pokal and "in der"
++  before every other, the nine "im" competitions listed in strings.ts: approved in chat, 2026-10-09.
  
 -  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: measured on the compiled SQL before the
 -  MR and stated on it.
@@ -1340,52 +1343,115 @@ index d3a826a1..0b365240 100644
        <div class="colhead">{awayLabel}</div>
        <slot name="away" />
      </div>
+diff --git a/site_v2/src/i18n/strings.test.mjs b/site_v2/src/i18n/strings.test.mjs
+new file mode 100644
+index 00000000..20ee961f
+--- /dev/null
++++ b/site_v2/src/i18n/strings.test.mjs
+@@ -0,0 +1,29 @@
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import { fileURLToPath } from "node:url";
++import { dirname, join } from "node:path";
++
++const HERE = dirname(fileURLToPath(import.meta.url));
++const competitions = JSON.parse(readFileSync(join(HERE, "../data/competitions.json"), "utf8"));
++const { t, inCompetition } = await import("./strings.ts");
++
++const headNoun = (name) => name.replace(/ of .*$/, "").split(/[\s-]+/).pop();
++
++test("German reads im before a Cup or Pokal and in der before every other competition", () => {
++  for (const [code, { name }] of Object.entries(competitions)) {
++    const article = ["Cup", "Pokal"].includes(headNoun(name)) ? "im" : "in der";
++    assert.equal(inCompetition("de", code, name), `${article} ${name}`, code);
++  }
++});
++
++test("English and Finnish name the competition without an article", () => {
++  assert.equal(inCompetition("en", "DFBP", "DFB-Pokal"), "in DFB-Pokal");
++  assert.equal(inCompetition("fi", "BL1", "Bundesliga"), "sarjassa Bundesliga");
++});
++
++test("a placeholder used twice is filled twice", () => {
++  const s = t("en", "formIntroPrev", { competition: "Bundesliga" });
++  assert.ok(!s.includes("{competition}"), s);
++  assert.equal(s.split("Bundesliga").length - 1, 2, s);
++});
 diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index 582b98b6..a451f1af 100644
+index 582b98b6..78a9b220 100644
 --- a/site_v2/src/i18n/strings.ts
 +++ b/site_v2/src/i18n/strings.ts
-@@ -58,6 +58,13 @@ const EN: Dict = {
+@@ -58,6 +58,15 @@ const EN: Dict = {
    h2hSplit: "{home} won {w} and {away} {l} of the last {n} meetings.",
    h2hSplitOneDrawn: "{home} won {w} and {away} {l} of the last {n} meetings, and 1 was drawn.",
    h2hSplitDrawn: "{home} won {w} and {away} {l} of the last {n} meetings, and {d} were drawn.",
 +  h2hNone: "No meetings on record.",
 +  formIntro: "Form metrics from each team's last 5 matches across all competitions.",
 +  formIntroPrev: "Form metrics from each team's last 5 matches across all competitions; before a team's first {competition} match, from its last {competition} season.",
-+  playersIntro: "Each team's leading players in {competition} this season, by goals plus assists.",
-+  playersIntroPrev: "Each team's leading players in {competition} by goals plus assists; before a team's first match in it, last season's.",
++  playersIntro: "Each team's leading players {in} this season, by goals plus assists.",
++  playersIntroPrev: "Each team's leading players {in} by goals plus assists; before a team's first match in it, last season's.",
++  compIn: "in {competition}",
++  compInMasculine: "in {competition}",
 +  haHome: "H",
 +  haAway: "A",
    noRecentForm: "No recent matches",
    noMatchStats: "match stats not available",
    timeTBD: "time TBD",
-@@ -365,6 +372,13 @@ const DE: Dict = {
+@@ -365,6 +374,15 @@ const DE: Dict = {
    h2hSplit: "Von den letzten {n} Duellen gewann {home} {w} und {away} {l}.",
    h2hSplitOneDrawn: "Von den letzten {n} Duellen gewann {home} {w} und {away} {l}, 1 endete unentschieden.",
    h2hSplitDrawn: "Von den letzten {n} Duellen gewann {home} {w} und {away} {l}, {d} endeten unentschieden.",
 +  h2hNone: "Keine Duelle erfasst.",
 +  formIntro: "Formwerte aus den letzten 5 Spielen jedes Teams in allen Wettbewerben.",
-+  formIntroPrev: "Formwerte aus den letzten 5 Spielen jedes Teams in allen Wettbewerben; vor dem ersten Spiel in {competition} aus der letzten Saison dort.",
-+  playersIntro: "Die besten Spieler jedes Teams in {competition} in dieser Saison, nach Toren plus Vorlagen.",
-+  playersIntroPrev: "Die besten Spieler jedes Teams in {competition} nach Toren plus Vorlagen; vor dem ersten Spiel dort aus der letzten Saison.",
++  formIntroPrev: "Formwerte aus den letzten 5 Spielen jedes Teams in allen Wettbewerben; vor dem ersten Spiel in der {competition} aus der letzten Saison dort.",
++  compIn: "in der {competition}",
++  compInMasculine: "im {competition}",
++  playersIntro: "Die besten Spieler jedes Teams {in} in dieser Saison, nach Toren plus Vorlagen.",
++  playersIntroPrev: "Die besten Spieler jedes Teams {in} nach Toren plus Vorlagen; vor dem ersten Spiel dort aus der letzten Saison.",
 +  haHome: "H",
 +  haAway: "A",
    noRecentForm: "Keine aktuellen Spiele",
    noMatchStats: "Keine Spielstatistik",
    timeTBD: "Uhrzeit offen",
-@@ -618,6 +632,13 @@ const FI: Dict = {
+@@ -618,6 +636,15 @@ const FI: Dict = {
    h2hSplit: "{n} edellisestä kohtaamisesta {home} voitti {w} ja {away} {l}.",
    h2hSplitOneDrawn: "{n} edellisestä kohtaamisesta {home} voitti {w} ja {away} {l}, ja 1 päättyi tasan.",
    h2hSplitDrawn: "{n} edellisestä kohtaamisesta {home} voitti {w} ja {away} {l}, ja {d} päättyi tasan.",
 +  h2hNone: "Ei kirjattuja kohtaamisia.",
 +  formIntro: "Kuntoluvut kunkin joukkueen 5 viimeisestä ottelusta kaikissa kilpailuissa.",
 +  formIntroPrev: "Kuntoluvut kunkin joukkueen 5 viimeisestä ottelusta kaikissa kilpailuissa; ennen ensimmäistä ottelua sarjassa {competition} edelliseltä kaudelta siellä.",
-+  playersIntro: "Kunkin joukkueen parhaat pelaajat sarjassa {competition} tällä kaudella, maalien ja syöttöjen mukaan.",
-+  playersIntroPrev: "Kunkin joukkueen parhaat pelaajat sarjassa {competition} maalien ja syöttöjen mukaan; ennen ensimmäistä ottelua edelliseltä kaudelta.",
++  compIn: "sarjassa {competition}",
++  compInMasculine: "sarjassa {competition}",
++  playersIntro: "Kunkin joukkueen parhaat pelaajat {in} tällä kaudella, maalien ja syöttöjen mukaan.",
++  playersIntroPrev: "Kunkin joukkueen parhaat pelaajat {in} maalien ja syöttöjen mukaan; ennen ensimmäistä ottelua edelliseltä kaudelta.",
 +  haHome: "K",
 +  haAway: "V",
    noRecentForm: "Ei viimeaikaisia otteluita",
    noMatchStats: "Ei ottelutilastoja",
    timeTBD: "Aika auki",
+@@ -838,11 +865,20 @@ const STRINGS: Record<Lang, Dict> = { de: DE, en: EN, fi: FI };
+ export function t(lang: Lang, key: string, params?: Record<string, string | number>): string {
+   let s = STRINGS[lang]?.[key] ?? EN[key] ?? key;
+   if (params) {
+-    for (const [k, v] of Object.entries(params)) s = s.replace(`{${k}}`, String(v));
++    for (const [k, v] of Object.entries(params)) s = s.replaceAll(`{${k}}`, String(v));
+   }
+   return s;
+ }
+ 
++/** Competitions whose German name is masculine (its head noun is Cup or Pokal), so German reads
++ *  "im {competition}"; every other competition reads "in der {competition}". */
++const MASCULINE_IN_GERMAN = new Set(["DFBP", "FAC", "UESC", "WC", "CWC", "ACN", "AFCON", "GCUP", "CCCU"]);
++
++/** "in {competition}" in the page's language, with the German article the competition's name takes. */
++export function inCompetition(lang: Lang, leagueCode: string, name: string): string {
++  return t(lang, MASCULINE_IN_GERMAN.has(leagueCode) ? "compInMasculine" : "compIn", { competition: name });
++}
++
+ /** Spelled position from the payload `position_code` (F/M/D/G). Raw code shown for anything else. */
+ export function positionLabel(lang: Lang, code: string | null | undefined): string {
+   const key = code ? `pos${code.toUpperCase()}` : "";
 diff --git a/site_v2/src/lib/format.ts b/site_v2/src/lib/format.ts
 index 222354e5..12387f2d 100644
 --- a/site_v2/src/lib/format.ts
@@ -1475,7 +1541,7 @@ index 01e37a91..841ecc4b 100644
    home: Side;
    away: Side;
 diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-index 31d32a50..afb584f1 100644
+index 31d32a50..e1117062 100644
 --- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
 +++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
 @@ -1,47 +1,56 @@
@@ -1500,7 +1566,7 @@ index 31d32a50..afb584f1 100644
  import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
 -import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
 -import { t, BRAND } from "../../../../i18n/strings";
-+import { t } from "../../../../i18n/strings";
++import { t, inCompetition } from "../../../../i18n/strings";
  import { localeHref, word } from "../../../../lib/href";
  import { formatShortDate } from "../../../../lib/format";
  import type { Lang } from "../../../../lib/format";
@@ -1553,7 +1619,7 @@ index 31d32a50..afb584f1 100644
      }));
    });
  }
-@@ -49,58 +58,48 @@ export function getStaticPaths() {
+@@ -49,58 +58,50 @@ export function getStaticPaths() {
  interface Props {
    fixture: Fixture;
    lang: Lang;
@@ -1629,19 +1695,21 @@ index 31d32a50..afb584f1 100644
  ];
 +const teamHref = (slug?: string | null) =>
 +  slug && built.teamSlugs.includes(slug) ? localeHref(lang, `${word(lang, "teams")}/${slug}/`) : undefined;
++
++const playersPrev = [home, away].some((s) => (s.top_players ?? []).some((p) => p.window_type === "prev_season"));
++const playersIntro = t(lang, playersPrev ? "playersIntroPrev" : "playersIntro", {
++  in: inCompetition(lang, fixture.league_code, compName),
++});
  
 -// schema.org/SportsEvent per 01_fixture_page.md section 8. Selection only — every value is a served
 -// payload field. Optional members are omitted rather than emitted null: the audit rejects a graph
 -// carrying null/empty values, because a present-but-empty property is worse than an absent one.
-+const playersPrev = [home, away].some((s) => (s.top_players ?? []).some((p) => p.window_type === "prev_season"));
-+const playersIntro = t(lang, playersPrev ? "playersIntroPrev" : "playersIntro", { competition: compName });
-+
 +// schema.org/SportsEvent per 01_fixture_page.md section 8; every value a served payload field, an
 +// optional member omitted rather than emitted empty.
  const entity = {
    "@type": "SportsEvent",
    name: `${home.name} vs ${away.name}`,
-@@ -122,38 +121,38 @@ const entity = {
+@@ -122,38 +123,38 @@ const entity = {
    crumbs={crumbs.map((c) => ({ name: c.label, href: c.href }))}
    image={home.crest ?? undefined}
  >
@@ -1700,10 +1768,10 @@ index 31d32a50..afb584f1 100644
    </div>
  </Layout>
 diff --git a/site_v2/src/specs/competition/matches/fixture.spec.json b/site_v2/src/specs/competition/matches/fixture.spec.json
-index e7cef538..1c1953e4 100644
+index e7cef538..c4b953c6 100644
 --- a/site_v2/src/specs/competition/matches/fixture.spec.json
 +++ b/site_v2/src/specs/competition/matches/fixture.spec.json
-@@ -19,48 +19,77 @@
+@@ -19,48 +19,79 @@
    },
    "blocks": [
      {
@@ -1789,6 +1857,8 @@ index e7cef538..1c1953e4 100644
 +        "secPlayers",
 +        "playersIntro",
 +        "playersIntroPrev",
++        "compIn",
++        "compInMasculine",
 +        "posF",
 +        "posM",
 +        "posD",
@@ -2075,7 +2145,9 @@ index 3cb6b8b9..db90c3a1 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 53 ++++++++++++++++++++++------------
-#    .claude/task/rendered_page_evidence.md | 39 +++++++++++++++++--------
-#    2 files changed, 61 insertions(+), 31 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   53 +-
+#    .claude/task/rendered_page_evidence.md |   39 +-
+#    .claude/task/review.md                 |   32 +-
+#    .claude/task/review_input.patch        | 2286 ++++++++++++++++++++++++++++----
+#    4 files changed, 2142 insertions(+), 268 deletions(-)
 # ============================================================================
