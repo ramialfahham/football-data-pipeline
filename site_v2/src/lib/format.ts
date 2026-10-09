@@ -133,6 +133,14 @@ export function formatShortDate(iso: string | null | undefined, lang: Lang): str
     day: "numeric", month: "short", timeZone: "UTC",
   }).format(d);
 }
+/** A day with its year, "16 May 2026": a past meeting's date. */
+export function formatDayYear(iso: string | null | undefined, lang: Lang): string {
+  const d = toDate(iso);
+  if (!d) return DASH;
+  return new Intl.DateTimeFormat(LOCALE[lang], {
+    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+  }).format(d);
+}
 export function formatTime(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);
   if (!d) return DASH;

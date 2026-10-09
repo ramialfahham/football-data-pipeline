@@ -1,47 +1,56 @@
 ---
-// Fixture page (screen 01) — the v2 design system's first real screen.
-// URL: /{lang}/{competition-slug}/{matches word}/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
-// This increment renders ONE committed real fixture across the three locales; at scale
-// getStaticPaths iterates every exported fixture (data/fixtures/*.json). The page only
-// COMPOSES the shared components in order — it holds no styling and derives no facts.
+// The next match page (screen 01, render match-page_2026-10-07_75). URL:
+// /{lang}/{competition-slug}/{matches word}/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
+// One page per exported fixture and locale. The page composes the blocks in order; a link exists
+// only where its page is built.
 import Layout from "../../../../layouts/Layout.astro";
 import Breadcrumb from "../../../../components/fixture/Breadcrumb.astro";
 import Masthead from "../../../../components/fixture/Masthead.astro";
-import NarrativeSlot from "../../../../components/fixture/NarrativeSlot.astro";
 import FormSegment from "../../../../components/fixture/FormSegment.astro";
 import SplitSection from "../../../../components/fixture/SplitSection.astro";
 import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
 import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
-import LinksFooter from "../../../../components/fixture/LinksFooter.astro";
-import { t, BRAND } from "../../../../i18n/strings";
+import { t } from "../../../../i18n/strings";
 import { localeHref, word } from "../../../../lib/href";
 import { formatShortDate } from "../../../../lib/format";
 import type { Lang } from "../../../../lib/format";
-import type { Fixture } from "../../../../lib/types";
+import type { CompetitionIndex, CompetitionPayload, Fixture, Team } from "../../../../lib/types";
+import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
 import competitions from "../../../../data/competitions.json";
+import competitionIndex from "../../../../data/competition_index.json";
+
+interface Built {
+  competitionPage: boolean;
+  matchdaysPage: boolean;
+  teamSlugs: string[];
+}
 
 export function getStaticPaths() {
   const locales: Lang[] = ["de", "en", "fi"];
   const comps = competitions as Record<string, { slug: string }>;
-  // Every fixture the export wrote to src/data/fixtures/*.json becomes a page. Dev/PR: the committed
-  // sample(s); production: the full export at build time (the bulk is gitignored). One page per
-  // fixture x 3 locales; the competition URL segment is each fixture's league slug from the full map.
-  // The glob is called inside getStaticPaths (Astro extracts this fn in isolation).
-  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", {
+  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", { eager: true, import: "default" });
+  const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
     eager: true,
     import: "default",
   });
+  const teams = import.meta.glob<Team>("/src/data/teams/*.json", { eager: true, import: "default" });
+  const teamSlugs = Object.values(teams).map((team) => team.slug);
+  const indexed = new Set((competitionIndex as unknown as CompetitionIndex).competitions.map((c) => c.league_code));
   return Object.values(fixtures).flatMap((fixture) => {
     const comp = comps[fixture.league_code];
     if (!comp) {
-      throw new Error(
-        `No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`,
-      );
+      throw new Error(`No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`);
     }
+    const payload = latestSeasonPayload(Object.values(payloads).filter((p) => p.league_code === fixture.league_code));
+    const built: Built = {
+      competitionPage: indexed.has(fixture.league_code),
+      matchdaysPage: indexed.has(fixture.league_code) && Boolean(payload?.fixtures?.length),
+      teamSlugs,
+    };
     return locales.map((lang) => ({
       params: { lang, competition: comp.slug, matches: word(lang, "matches"), fixture: fixture.slug },
-      props: { fixture, lang },
+      props: { fixture, lang, built },
     }));
   });
 }
@@ -49,58 +58,48 @@ export function getStaticPaths() {
 interface Props {
   fixture: Fixture;
   lang: Lang;
+  built: Built;
 }
-const { fixture, lang } = Astro.props;
+const { fixture, lang, built } = Astro.props;
 const { home, away } = fixture;
 
-// Title per 01_fixture_page.md section 8, THROUGH t() (#844). It was string-concatenated from two
-// locale-independent fields, so all three locales shipped a byte-identical <title>. That wireframe
-// ends the fixture title with the COMPETITION (unlike the team title, which ends with the brand) —
-// both are built exactly as approved rather than generalised to one shape.
-// The competition name comes from the REGISTRY (competitions.json), not the provider's
-// `fixture.league_name`. The provider calls the Brazilian top flight "Serie A" — ambiguous with
-// Italy's, on a Brazilian match — while the registry has "Brasileirão Série A" and the team page
-// already reads it. Two pages were naming the same concept from two sources; this is the
-// authoritative one. (Provider names taken on trust are the #850 class.)
-const compName =
-  (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code]?.name ??
-  fixture.league_name ??
-  fixture.league_code;
-// The title carries the two teams plus a one-word descriptor, not the competition — the same
-// `{entity}: <descriptor>` shape as the team title, and no brand suffix, per the rule
-// recorded in strings.ts. Researched rather than preferred: Sofascore and FBref both omit
-// the competition from a match title. Keeping it failed 4 of 26 competitions against the 660px
-// hard cap, worst 886px; the shape below measures 597px at its worst, inside the 600px budget.
-//
-// The title was `compName`'s ONLY consumer. Dropping it here would have stranded the fix above and
-// left every remaining mention of the competition on the provider's name — the very ambiguity
-// ("Serie A" for Brazil) it was introduced to remove. So the breadcrumb and the JSON-LD superEvent
-// below now read `compName` too, and the authoritative name outlives its removal from the title.
-// The date tells apart two meetings of the same clubs (a cup tie and a league match, or two
-// league meetings in a season), which would otherwise share a title; it is the UTC day the
-// match's address carries.
+const comp = (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code];
+const compName = comp?.name ?? fixture.league_name ?? fixture.league_code;
+const indexRow = (competitionIndex as unknown as CompetitionIndex).competitions.find(
+  (c) => c.league_code === fixture.league_code,
+);
+const isLeague = indexRow?.competition_type === "domestic_league";
+const matchLabel = `${home.name ?? ""} ${t(lang, "vs")} ${away.name ?? ""}`;
+const round = isLeague && fixture.round_order != null
+  ? t(lang, "compFactMatchday", { n: fixture.round_order })
+  : fixture.round ?? "";
+
 const title = t(lang, "seoFixtureTitle", {
   home: home.name ?? "",
   away: away.name ?? "",
   date: formatShortDate(fixture.kickoff, lang),
 });
-const description = t(lang, "aboutNoH2h", {
-  home: home.name ?? "",
-  away: away.name ?? "",
-  round: fixture.round ?? "",
-});
+const description = t(lang, "aboutNoH2h", { home: home.name ?? "", away: away.name ?? "", round });
 
-// Home is a real target (the locale landing); competition hub + Matches are not built
-// yet → hrefless (plain text), no dead links.
+const compHref = built.competitionPage ? localeHref(lang, `${comp.slug}/`) : undefined;
 const crumbs = [
   { label: t(lang, "crumbHome"), href: localeHref(lang) },
-  { label: compName },
-  { label: t(lang, "crumbMatches") },
+  { label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
+  { label: compName, href: compHref },
+  {
+    label: t(lang, isLeague ? "compTabMatchdays" : "compTabRounds"),
+    href: built.matchdaysPage ? localeHref(lang, `${comp.slug}/${word(lang, "matches")}/`) : undefined,
+  },
+  { label: matchLabel },
 ];
+const teamHref = (slug?: string | null) =>
+  slug && built.teamSlugs.includes(slug) ? localeHref(lang, `${word(lang, "teams")}/${slug}/`) : undefined;
 
-// schema.org/SportsEvent per 01_fixture_page.md section 8. Selection only — every value is a served
-// payload field. Optional members are omitted rather than emitted null: the audit rejects a graph
-// carrying null/empty values, because a present-but-empty property is worse than an absent one.
+const playersPrev = [home, away].some((s) => (s.top_players ?? []).some((p) => p.window_type === "prev_season"));
+const playersIntro = t(lang, playersPrev ? "playersIntroPrev" : "playersIntro", { competition: compName });
+
+// schema.org/SportsEvent per 01_fixture_page.md section 8; every value a served payload field, an
+// optional member omitted rather than emitted empty.
 const entity = {
   "@type": "SportsEvent",
   name: `${home.name} vs ${away.name}`,
@@ -122,38 +121,38 @@ const entity = {
   crumbs={crumbs.map((c) => ({ name: c.label, href: c.href }))}
   image={home.crest ?? undefined}
 >
-  <div class="inner">
-    <Breadcrumb items={crumbs} />
-    <Masthead fixture={fixture} lang={lang} />
-    <NarrativeSlot fixture={fixture} lang={lang} />
-    <FormSegment fixture={fixture} lang={lang} />
+  <div class="inner mp">
+    <Breadcrumb items={crumbs} lang={lang} />
+    <Masthead
+      fixture={fixture}
+      lang={lang}
+      title={title}
+      round={round}
+      compName={compName}
+      compLogo={indexRow?.logo_url}
+      compHref={compHref}
+      teamHrefs={{ home: teamHref(home.slug), away: teamHref(away.slug) }}
+    />
+    <FormSegment fixture={fixture} lang={lang} compName={compName} />
 
     <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
       <Fragment slot="home">
-        {(home.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
+        {(home.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
       </Fragment>
       <Fragment slot="away">
-        {(away.form_window ?? []).map((m) => <RecentMatch match={m} lang={lang} />)}
+        {(away.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
       </Fragment>
     </SplitSection>
 
-    <SplitSection
-      label={t(lang, "secPlayers")}
-      note={t(lang, "playersWindow")}
-      homeLabel={home.name}
-      awayLabel={away.name}
-    >
+    <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
       <Fragment slot="home">
-        {(home.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
+        {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
       </Fragment>
       <Fragment slot="away">
-        {(away.top_players ?? []).map((p) => <PlayerRow player={p} lang={lang} />)}
+        {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
       </Fragment>
     </SplitSection>
 
-    <HeadToHead h2h={fixture.head_to_head} homeName={home.name} awayName={away.name} lang={lang} />
-    <LinksFooter fixture={fixture} lang={lang} />
-
-    <div class="footnote">{t(lang, "footnote", { brand: BRAND })}</div>
+    <HeadToHead h2h={fixture.head_to_head} home={home} away={away} lang={lang} />
   </div>
 </Layout>

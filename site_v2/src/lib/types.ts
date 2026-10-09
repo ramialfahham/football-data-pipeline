@@ -69,15 +69,16 @@ export interface TopPlayer {
   passes_key_player?: number | null;
   player_name?: string | null;
   player_photo_url?: string | null;
+  window_type?: string | null;
 }
 
 export interface Side {
   team_id: number;
   name?: string | null;
+  slug?: string | null;
   crest?: string | null;
   country?: string | null;
-  w1?: WindowStats | null;
-  w2?: WindowStats | null;
+  form?: WindowStats | null;
   standing?: Standing | null;
   form_window?: FormMatch[];
   top_players?: TopPlayer[];
@@ -86,6 +87,7 @@ export interface Side {
 export interface RecentMeeting {
   kickoff_datetime?: string | null;
   league_code?: string | null;
+  home_away?: string | null;
   goals_for?: number | null;
   goals_against?: number | null;
   result?: string | null;
@@ -105,6 +107,7 @@ export interface HeadToHead {
   last_meeting_goals_against?: number | null;
   last_meeting_result?: string | null;
   recent_meetings?: RecentMeeting[];
+  intro?: Record<string, string> | null;
 }
 
 export interface Fixture {
@@ -117,6 +120,7 @@ export interface Fixture {
   league_name?: string | null;
   season?: number | null;
   round?: string | null;
+  round_order?: number | null;
   venue?: string | null;
   home: Side;
   away: Side;

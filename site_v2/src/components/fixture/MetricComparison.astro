@@ -15,10 +15,8 @@ interface Props {
   home?: WindowStats | null;
   away?: WindowStats | null;
   lang: Lang;
-  homeName?: string | null;
-  awayName?: string | null;
 }
-const { home, away, lang, homeName, awayName } = Astro.props;
+const { home, away, lang } = Astro.props;
 
 const served = metricRows.rows as ServedMetricRow[];
 const hasData = (def: ServedMetricRow): boolean =>
@@ -33,18 +31,11 @@ const groups = [...metricGroups.groups]
   .filter((g) => g.rows.length > 0);
 ---
 
-<div class="cmp">
-  <div class="cmp-head">
-    <div class="h">{homeName}</div>
-    <div></div>
-    <div class="h">{awayName}</div>
-  </div>
-  {groups.map(({ group, rows }) => (
-    <>
-      <div class="mgroup">{group}</div>
-      {rows.map((def) => (
-        <MetricRow def={def} home={home} away={away} lang={lang} />
-      ))}
-    </>
-  ))}
-</div>
+{groups.map(({ group, rows }) => (
+  <>
+    <div class="mgroup">{group}</div>
+    {rows.map((def) => (
+      <MetricRow def={def} home={home} away={away} lang={lang} />
+    ))}
+  </>
+))}

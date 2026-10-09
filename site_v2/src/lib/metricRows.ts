@@ -10,7 +10,7 @@
 // and a group's name per locale is `metricLabel(lang, "metricGroups.<key>.label")`. Nothing about
 // a group is spelled here (#152).
 //
-// `field` is the payload key on w1/w2 (the bare metric name) — NOT the display id.
+// `field` is the metric's key on a window block (the bare metric name) — NOT the display id.
 // Note the intentional field ≠ metrics_display id: row 6 is `shots_on_goal_per_match`.
 //
 // A row is a display SLOT, and one slot can bind a different catalogue metric per surface: the
@@ -49,7 +49,7 @@ export interface TeamBinding {
 }
 
 export interface MetricRowDef {
-  field: string;              // payload key on w1 / w2
+  field: string;              // the metric's key on a window block
   // The catalogue's `label_i18n_key`, verbatim. Resolve it with `metricLabel(lang, labelKey)`.
   // ⚠ Read it from the `label_i18n_key` COLUMN of metric_catalogue.csv, never from `metric_id` —
   // those two deliberately disagree for at least one metric (see row 6). Inferring a key from an id

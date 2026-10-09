@@ -1,28 +1,35 @@
 ---
-// One recent-form row (a form_window entry): result chip · score (this team's
-// perspective) · opponent + H/A · competition + date. Rows are inert this increment
-// (the matchstats drill-down page isn't built); a match with no stats gets the
-// designed "not clickable" state + microcopy (a real, common provider-coverage gap).
+// One Recent matches row, the result row: result chip · score from this team's side · opponent (crest,
+// name, H or A) · competition name · date. Unlinked until played-match pages exist.
+import Crest from "../ui/Crest.astro";
 import { formatShortDate } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import type { FormMatch } from "../../lib/types";
+import competitions from "../../data/competitions.json";
 
 interface Props {
   match: FormMatch;
   lang: Lang;
 }
 const { match, lang } = Astro.props;
-const hasStats = Boolean(match.has_team_stats || match.has_player_stats);
-const ha = match.home_away === "home" ? "H" : match.home_away === "away" ? "A" : "";
-const meta = [match.played_league_code, formatShortDate(match.played_kickoff_datetime, lang)]
-  .filter(Boolean)
-  .join(" · ");
+const LETTER: Record<string, string> = { W: "compColWins", D: "compColDraws", L: "compColLosses" };
+const result = match.result && LETTER[match.result] ? match.result : null;
+const ha = match.home_away === "home" ? t(lang, "haHome") : match.home_away === "away" ? t(lang, "haAway") : "";
+const comp = (competitions as Record<string, { name?: string }>)[match.played_league_code ?? ""]?.name;
 ---
 
-<div class:list={["rmatch", { noclick: !hasStats }]} title={hasStats ? undefined : t(lang, "noMatchStats")}>
-  <span class:list={["res", match.result]}>{match.result}</span>
-  <span class="rscore">{match.goals_for}–{match.goals_against}</span>
-  <span class="ropp">{match.opponent_name}{ha && <span class="ha">{ha}</span>}</span>
-  <span class="rmeta">{meta}</span>
+<div class="lrow">
+  <div class="resrow">
+    {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
+    <span class="rscore">{match.goals_for}–{match.goals_against}</span>
+    <span class="ropp">
+      <span class="club"><Crest name={match.opponent_name} crest={match.opponent_logo_url} size="xs" /><span class="cn">{match.opponent_name}</span></span>
+      {ha && <span class="ha">{ha}</span>}
+    </span>
+    <span class="rmeta">
+      {comp && <><span class="nb">{comp}</span> · </>}
+      <span class="nb">{formatShortDate(match.played_kickoff_datetime, lang)}</span>
+    </span>
+  </div>
 </div>

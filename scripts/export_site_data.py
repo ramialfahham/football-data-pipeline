@@ -113,7 +113,7 @@ _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
 _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
 _FW_DROP = {"upcoming_fixture_sk", "team_sk", "entity_type", "season_api_year", "window_type"}
 _TOPPLAYER_DROP = {"upcoming_fixture_sk", "team_sk", "is_home", "entity_type",
-                   "season_api_year", "window_type", "league_code", "top_player_rank"}
+                   "season_api_year", "league_code", "top_player_rank"}
 
 # The competition_type -> nav group MAPPING now lives in the competition_types seed
 # (display_group column, GAP-19.3), read via _display_group_of_type() — no hardcoded
@@ -588,21 +588,29 @@ def shape_player_payload(
     }
 
 
-def _fixture_side(team_id: int, identity: dict | None, w1: dict | None,
-                  w2: dict | None, ctx: dict | None,
+def form_block(w1: dict | None, w2: dict | None) -> dict | None:
+    """The side's form block: the momentum row or the season-record row the warehouse flags with
+    is_form_window, or None when neither is flagged."""
+    if w1 and w1.get("is_form_window"):
+        return _drop(w1, _W1_DROP | {"is_form_window"})
+    if w2 and w2.get("is_form_window"):
+        return _drop(w2, _W2_DROP | {"is_form_window"})
+    return None
+
+
+def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: dict | None,
                   form_window: list | None = None, top_players: list | None = None,
                   next_match: dict | None = None) -> dict:
-    """One team's block on the fixture page: identity + W1 form + W2 season-to-date
-    + standings context + the form-window drill-down list + top players + its next match.
-    Each sub-block is None/[] when that mart has no row for the side (honest absence —
-    the UI renders the empty state)."""
+    """One team's block on the fixture page: identity + its form block + standings context + the
+    form-window list + top players + its next match. Each sub-block is None/[] when no mart serves
+    it for the side (honest absence — the UI renders the empty state)."""
     return {
         "team_id": team_id,
         "name": (identity or {}).get("team_name"),
+        "slug": (identity or {}).get("team_slug"),
         "crest": (identity or {}).get("team_logo_url"),
         "country": (identity or {}).get("team_country"),
-        "w1": _drop(w1, _W1_DROP) if w1 else None,
-        "w2": _drop(w2, _W2_DROP) if w2 else None,
+        "form": form,
         "standing": _drop(ctx, _CTX_DROP) if ctx else None,
         "form_window": form_window or [],
         "top_players": top_players or [],
@@ -627,8 +635,8 @@ def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
 
 def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
     """Top N players for a fixture side, SELECTED by the warehouse top_player_rank
-    (goals_player -> assists_player -> key passes, computed in mart_player_momentum; the export
-    does not rank). Names/photos joined from dim_player. Relies on the mart column
+    (goals plus assists, then goals, then fewer minutes, computed in mart_player_season_record; the
+    export does not rank). Names/photos joined from dim_player. Relies on the mart column
     being present (ship-the-mart-first); a Python ranking fallback is intentionally
     NOT provided — re-deriving the rank here would violate the consumption-layer
     contract (anti-pattern A5)."""
@@ -906,6 +914,7 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
         "league_name": fix.get("league_name"),
         "season": fix.get("season_api_year"),
         "round": fix.get("round_name"),
+        "round_order": fix.get("round_order"),
         "venue": fix.get("venue_name_snapshot"),
         "home": home_side,
         "away": away_side,
@@ -1075,9 +1084,10 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
     fixtures the warehouse held before any sampling, for the manifest."""
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     fixtures = _query(client, f"""
-        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, status_short,
-               venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
-               home_team_name, home_team_logo_url, away_team_name, away_team_logo_url
+        select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
+               status_short, venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
+               home_team_name, home_team_slug, home_team_logo_url,
+               away_team_name, away_team_slug, away_team_logo_url
         from `{marts}.mart_competition_fixtures`
         where status_short in ('NS', 'TBD') and fixture_date >= current_date()
     """)
@@ -1139,10 +1149,10 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
         form_window.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(
             _drop(r, _FW_DROP)
         )
-    mom_players: dict = {}
-    for r in _query(client, f"select * from `{marts}.mart_player_momentum` "
-                            f"where upcoming_fixture_sk in ({fid_in})"):
-        mom_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
+    season_players: dict = {}
+    for r in _query(client, f"select * from `{marts}.mart_player_season_record` "
+                            f"where upcoming_fixture_sk in ({fid_in}) and top_player_rank <= 5"):
+        season_players.setdefault((int(r["upcoming_fixture_sk"]), int(r["team_sk"])), []).append(r)
     player_names = {
         int(r["player_sk"]): r
         for r in _query(client, f"select player_sk, player_name, player_photo_url "
@@ -1168,13 +1178,14 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
     def _side(f, side):
         fid, team_id = int(f["fixture_sk"]), int(f[f"{side}_team_sk"])
         identity = {"team_name": f.get(f"{side}_team_name"), "team_logo_url": f.get(f"{side}_team_logo_url"),
+                    "team_slug": f.get(f"{side}_team_slug"),
                     "team_country": (teams.get(team_id) or {}).get("team_country")}
         return _fixture_side(
-            team_id, identity, w1.get((fid, team_id)), w2.get((fid, team_id)),
+            team_id, identity, form_block(w1.get((fid, team_id)), w2.get((fid, team_id))),
             ctx.get((fid, team_id)),
             form_window=sorted(form_window.get((fid, team_id), []),
                                key=lambda r: r.get("recency_rank") or 99),
-            top_players=shape_top_players(mom_players.get((fid, team_id), []), player_names),
+            top_players=shape_top_players(season_players.get((fid, team_id), []), player_names),
             next_match=shape_next_match(next_matches.get(team_id), fid),
         )
 

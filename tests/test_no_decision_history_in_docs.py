@@ -48,7 +48,7 @@ PINNED = {
     "docs/roles/platform_reliability.md": 2,
     "docs/roles/seo_expert.md": 3,
     "docs/wireframes/00_overview.md": 21,
-    "docs/wireframes/01_fixture_page.md": 6,
+    "docs/wireframes/01_fixture_page.md": 4,
     "docs/wireframes/02_team_profile.md": 2,
     "docs/wireframes/03_player_profile.md": 4,
     "docs/wireframes/08_browse.md": 27,

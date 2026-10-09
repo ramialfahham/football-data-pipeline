@@ -81,8 +81,8 @@ either subject, and appears on many tabs. The Subject column names the entity a 
 | **Listings** | Squad / roster | team→players | `mart_roster` + `mart_player_career` (per-player season stats) |
 | | Team directory | competition→teams | `dim_team_competition_season_mapping` (a core model) |
 | | Player career (clubs + per-comp totals) | player | `mart_player_career` |
-| **Matchup** | Match preview (two sides) | fixture | composed: recent form (`mart_team_momentum`) + season to date (`mart_team_season_record`) + standing (`mart_fixture_standing_context`) + head-to-head (`mart_head_to_head`) |
-| | Lineups / key players | fixture | `mart_player_momentum` (key players). No mart serves lineups. |
+| **Matchup** | Match preview (two sides) | fixture | composed: the form window (`mart_team_momentum` or `mart_team_season_record`, whichever `is_form_window` flags) + standing (`mart_fixture_standing_context`) + head-to-head (`mart_head_to_head`) |
+| | Lineups / key players | fixture | `mart_player_season_record` (key players, by `top_player_rank`). No mart serves lineups. |
 | | Head-to-head | fixture | `mart_head_to_head` |
 | **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` (`deserved_points`, `deserved_rank`, `deserved_points_gap`) |
 | | Vs-own-history / YoY *(flagship)* | team (player v1.x) | `int_team_profile__yoy` → `mart_team_profile` |

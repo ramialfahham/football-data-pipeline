@@ -1,9 +1,7 @@
 ---
-// One "players to watch" row: photo · name + position · headline stats. Outfielders
-// show goals · assists; goalkeepers show saves · save %. Player per-match nulls mean
-// zero (a recorded 0, not missing) so counts coalesce to 0; save % (a ratio) shows
-// "-" when it has no denominator. Name is inert this increment (player pages not built).
-import { percent } from "../../lib/format";
+// One Players to watch row, the player row: photo · name over position · goals and assists (a
+// goalkeeper's saves). A count the warehouse leaves blank shows as a dash.
+import { DASH, integer } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t, positionLabel } from "../../i18n/strings";
 import type { TopPlayer } from "../../lib/types";
@@ -20,23 +18,30 @@ const initials = (player.player_name ?? "")
   .join("")
   .slice(0, 2)
   .toUpperCase();
+const count = (v: number | null | undefined) => (v == null ? DASH : integer(v, lang));
+const word = (v: number | null | undefined, one: string, many: string) => t(lang, v === 1 ? one : many);
 ---
 
-<div class="prow">
-  <span class="pphoto">
-    {player.player_photo_url
-      ? <img src={player.player_photo_url} alt="" loading="lazy" width="34" height="34" />
-      : <span>{initials}</span>}
-  </span>
-  <span class="pname">
-    <div class="nm">{player.player_name}</div>
-    <div class="ps">{positionLabel(lang, player.position_code)}</div>
-  </span>
-  <span class="pstat">
-    {isGK ? (
-      <><b>{player.saves_player ?? 0}</b> {t(lang, "saves")} · <b>{percent(player.saves_player_pct, lang)}</b></>
-    ) : (
-      <><b>{player.goals_total ?? 0}</b> {t(lang, "goals")} · <b>{player.goals_assists ?? 0}</b> {t(lang, "assists")}</>
-    )}
-  </span>
+<div class="lrow">
+  <div class="plrow">
+    <span class="pphoto">
+      {player.player_photo_url
+        ? <img src={player.player_photo_url} alt="" loading="lazy" width="34" height="34" />
+        : <span>{initials}</span>}
+    </span>
+    <span class="pname">
+      <span class="nm">{player.player_name}</span>
+      <span class="ps">{positionLabel(lang, player.position_code)}</span>
+    </span>
+    <span class="pstat">
+      {isGK ? (
+        <span class="nb"><b>{count(player.saves_player)}</b> {t(lang, "saves")}</span>
+      ) : (
+        <>
+          <span class="nb"><b>{count(player.goals_total)}</b> {word(player.goals_total, "goalOne", "goals")}</span> ·{" "}
+          <span class="nb"><b>{count(player.goals_assists)}</b> {word(player.goals_assists, "assistOne", "assists")}</span>
+        </>
+      )}
+    </span>
+  </div>
 </div>

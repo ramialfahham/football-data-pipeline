@@ -7,8 +7,8 @@
 ## 1. Purpose
 
 Pre-match: within seconds, give the fan **five things worth saying about this match**
-(north star). The **stop-scrolling moment** is the side-by-side form comparison with
-its W1↔W2 contrast — "hot right now vs the season reality" — switchable in place.
+(north star). The **stop-scrolling moment** is the side-by-side form comparison, one
+window per team.
 Secondary hook: the past-meetings record ("they've never beaten them at home" energy).
 
 ## 2. URL
@@ -21,7 +21,7 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
   team names; falls back to `fixture-{id}`).
 - `fixture_id` in the payload is the provider fixture id (verified:
   `fixture_sk == fixture_api_id` for all 20,149 fixtures).
-- Breadcrumb: Home → {competition} → Matches → {this match}.
+- Breadcrumb: Home → Competitions → {competition} → Matchdays (Rounds for a cup) → {this match}.
 
 ## 3. Data sources
 
@@ -31,74 +31,24 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
 | `data/matchstats/{played_fixture_sk}.json` | The drill-down target when a past-match row is clicked (§7) — exists exactly for fixtures referenced by a form window |
 
 Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
-season, round, venue, home, away, head_to_head`.
-Each side (`home`/`away`): `team_id, name, crest, country, w1, w2, standing,
-form_window[], top_players[]`.
+season, round, round_order, venue, home, away, head_to_head`.
+Each side (`home`/`away`): `team_id, name, slug, crest, country, form, standing,
+form_window[], top_players[], next_match`.
 
 ## 4. Layout
 
-Mobile (primary). `▸` = link. Sections numbered for §5.
+The page draws render `match-page_2026-10-07_75`. Its blocks, in order:
 
-```
-┌────────────────────────────────────────────┐
-│ ▸Home › ▸Bundesliga › Matches              │  (1) breadcrumb
-├────────────────────────────────────────────┤
-│        Sat 13 Dec · 15:30 · Matchday 14    │  (2) match header
-│   [crest]                       [crest]    │
-│  ▸Bayern München    vs    ▸Borussia        │
-│                            Dortmund        │
-│        Allianz Arena · Bundesliga          │
-│  ┌ #1 · 33 pts ┐          ┌ #4 · 26 pts ┐  │  (2a) standing chips
-├────────────────────────────────────────────┤
-│  [ Last 5 · all comps ●—○ Bundesliga ]     │  (3) form comparison
-│  5 games · 13/15 pts    5 games · 9/15 pts │  (3a) window header
-│  Form  W W W D W        W L W W D          │  (3b) W1 pills (W2: counts)
-│  GOALS                                     │  (3c) metric rows, grouped
-│  goals_per_match   2.6 ▐████▌▐██▌ 1.8      │       per metrics_display.md; each
-│  goals_against_…   0.6 ▐█▌  ▐███▌ 1.4      │       name is its key's entry in
-│  clean_sheets      3/5 ▐███▌ ▐█▌  1/5      │       site_v2/src/i18n/strings.ts
-│  SHOOTING                                  │
-│  shots_per_match  17.2 ▐████▌▐███▌ 14.1    │
-├──────────────— fold (~700px) —─────────────┤
-│   …12 more rows under group subheads…      │
-│  ⓘ incl. Champions League, DFB-Pokal       │  (3d) window caption
-├────────────────────────────────────────────┤
-│  RECENT MATCHES                            │  (4) form drill-down
-│  Bayern                                    │
-│  ▸ W 3-1  H  Gladbach [crest]  BL1  6 Dec  │
-│  ▸ W 2-0  A  Arsenal  [crest]  UCL  3 Dec  │
-│    …up to 5 rows…                          │
-│  Dortmund                                  │
-│    …up to 5 rows…                          │
-├────────────────────────────────────────────┤
-│  PLAYERS TO WATCH                          │  (5) top players
-│  Bayern: [photo] ▸Kane FW · 5 gls · 2 ast  │
-│    …top 5 per side…                        │
-├────────────────────────────────────────────┤
-│  HEAD TO HEAD                              │  (6) past meetings
-│  Bayern 18 — 8 draws — 6 Dortmund          │
-│  ▐██████████▌▐███▌▐████▌  (32 meetings)    │
-│  Last: 2-2 · Bundesliga · 12 Apr 2025      │
-│  · 1-0 W · BL1 · 12 Apr 25                 │
-│    …up to 10 recent meetings…              │
-│  ▸ Full head-to-head                       │
-├────────────────────────────────────────────┤
-│  ABOUT THIS MATCH                          │  (7) narrative (slot)
-│  (data-to-text — GAP-03; until then a      │
-│   templated factual sentence)              │
-├────────────────────────────────────────────┤
-│  ▸Bayern profile ▸Dortmund profile         │  (8) internal links
-│  ▸Bundesliga ▸Table ▸Top scorers           │
-└────────────────────────────────────────────┘
-```
+1. Breadcrumb: Home › Competitions › {competition} › Matchdays (Rounds for a cup) › the match.
+2. Header: the competition's group head, then round · date · time UTC · venue, then the two teams.
+3. Form comparison: one window per team, the W/D/L pills, the catalogue's rows.
+4. Recent matches: up to 5 result rows per team.
+5. Players to watch: up to 5 player rows per team.
+6. Head to head: the intro, then up to 5 meetings.
 
-**Above the fold (mobile)**: breadcrumb + header + standing chips + segment control +
-window header + form strings + the first ~4 metric rows. The fold lands inside (3) by
-design — the comparison must be visibly "going on" to pull the scroll.
-
-**Desktop (≥ ~900px)**: header full-width; (3) stays a single centered column
-(comparison is inherently two-sided already); (4) and (5) reflow to two columns
-(home | away side by side); (6)–(8) full-width. Max content width ~1100px.
+The page has no sentence under the header, no window switch, no internal-link chips and no
+sample-data line. Under 700px the teams stack and the trail slides on one line. From 560px the
+two teams' lists sit side by side, their rows level.
 
 ## 5. Module bindings
 
@@ -109,12 +59,14 @@ i18n key. Formats/direction from the catalogue row named.
 
 | Element | JSON key(s) | Notes / links |
 |---|---|---|
-| Competition crumb + name | `league_code`, `league_name` | ▸ competition hub |
-| Kickoff | `kickoff` (UTC ISO) | locale date+time; TZ enhancement per 00 conventions |
-| Round | `round` | provider string — localization is GAP-08 |
-| Venue | `venue` | plain text; may be null → omit line |
-| Status | `status` (`NS`/`TBD`) | `TBD` → show date, "time TBD" (chrome) |
-| Team names/crests | `home.name`, `home.crest`, `away.name`, `away.crest` | ▸ team profiles; crest fallback = monogram (brief §4) |
+| Competition crumb, group head | `league_code` → `competitions.json` name and slug; `competition_index.json` `logo_url` | a link when the competition's page is built |
+| Matchdays crumb | `league_code` → `competition_index.json` `competition_type` | "Matchdays" for a domestic league, "Rounds" otherwise; a link when the Matchdays tab is built |
+| Kickoff | `kickoff` (UTC ISO) | locale date, then the time with "UTC" |
+| Round | `round_order`, `round` | "Matchday N" for a domestic league round with a number; the provider's round name otherwise |
+| Venue | `venue` | closes the kick-off line; left out when null |
+| Status | `status` (`NS`/`TBD`) | `TBD` → "time TBD" in place of the time |
+| Team names/crests | `home.name`, `home.crest`, `home.slug`, and the same for `away` | each team one link to its team page when that page is built; crest fallback = monogram |
+| Page heading | the page title | one H1, visually hidden: the two teams and the date |
 
 ### (2a) Standing chips — per side `standing`
 
@@ -131,91 +83,55 @@ overlapping-table leagues → omit the chip entirely, no empty state.
 `standing.standing_form` is NOT rendered here (the comparison's form strings come
 from `form_window`, §3b) — it belongs to the competition-hub table (04).
 
-### (3) Form comparison — per side `w1` / `w2` (segment control)
+### (3) Form comparison — per side `form`
 
-Window header (3a): W1 `w1.games_in_window` + `w1.points_won`; W2 `w2.games_played`
-+ `w2.points_won` — points as `points_fraction` ("13/15", denominator = games × 3).
+The window: each side's `form` is the block the warehouse flags with `is_form_window`.
+That is the last 5 across all the club's competitions while a league runs. Before a team's
+first match in a domestic league it is last season's record there. The export picks the
+flagged block and decides nothing.
 
-Form display (3b) — **window-correct, ruled 2026-06-11**:
-- W1: the last-5 W/D/L pills, from `form_window[].result` in `recency_rank` order.
-- W2: aggregate counts `10W · 3D · 1L` — pills would misrepresent a full-season
-  window. Needs `wins`/`draws`/`losses` in `mart_team_season_record` (GAP-10);
-  until that ships W2 shows the window header only.
+The head row: each team's name over its W/D/L pills, from `form_window[].result` in
+`recency_rank` order, the letters in the page's language. A side showing last season's
+record shows no pills.
 
-Metric rows (3c) — the rows are the catalogue's team metrics with a `metric_order`,
-served as `src/data/metric_rows.json`. They render under group subheads in the
-catalogue's group order, and in `metric_order` inside a group. A row shows when
-the window carries a value for either team. W2 reads `mart_team_season_record`, so
-it shows only the rows that mart carries. Formats and `direction` per catalogue
-row. Paired bars are normalized to the larger of the two values (a relative
-share, never a probability).
+The intro: `formIntro`, or `formIntroPrev` when a side shows last season's record. No
+points, no caption, no switch.
 
-Segment + caption labels (3, 3d) — **the toggle changes BOTH window and
-competition scope; the labels must declare it** (window & scope display contract
-in [`metrics_display.md`](metrics_display.md)):
-- Segment states: "Last 5 · all competitions" ↔ "{competition}" (never bare
-  "Last 5 / Season"). National-team fixtures: "all national-team matches".
-- W1 caption: `w1.contributing_competitions` → "incl. {list}" when it names more
-  than the fixture's own competition; coverage note from
-  `w1.games_with_team_stats` when `< games_in_window` ("stats from N of M
-  matches", chrome).
-- W2 caption: `w2.window_type` — `season_to_date` → "{competition} · through
-  matchday {w2.games_played}"; `prev_season` → "{competition} · last season
-  ({w2.season_api_year})" (chrome templates; the season string uses the
-  registry's split/calendar-year rule).
-- Tournament fixtures (world/continental championship): the window is
-  cumulative-within-the-tournament with a qualifier preview pre-MD2 — labelled
-  "This tournament so far" / "Qualifiers", never "last 5". ⚠ GAP-18: the
-  shipped W1 mart hard-caps at 5 and has no phase descriptor; until it lands,
-  tournament labels cannot be derived honestly from the payload.
+Metric rows: the catalogue's team metrics with a `metric_order`, served as
+`src/data/metric_rows.json`, under the Rankings tab's group headings in the catalogue's order.
+A row shows when either side carries a value. A row is number · name · number, the bar the
+full width beneath. Bars are normalized to the larger of the two values.
 
-### (4) Form drill-down — per side `form_window[]` (≤5 rows, `recency_rank` asc)
+### (4) Recent matches — per side `form_window[]` (≤5 result rows, `recency_rank` asc)
 
 | Element | JSON key | Notes |
 |---|---|---|
-| Result chip | `result` | W/D/L letter+color |
-| Score | `goals_for`, `goals_against` | always from this team's perspective |
-| Home/away | `home_away` | "H"/"A" badge |
-| Opponent | `opponent_name`, `opponent_logo_url` | ▸ opponent team profile (`opponent_team_sk`) |
-| Competition | `played_league_code` | badge — W1 is cross-competition |
+| Result chip | `result` | the letter in the page's language, on the result colour |
+| Score | `goals_for`, `goals_against` | always from this team's side |
+| Home/away | `home_away` | `haHome` / `haAway` |
+| Opponent | `opponent_name`, `opponent_logo_url` | crest before the name, the name wrapping |
+| Competition | `played_league_code` → `competitions.json` name | the name, never the code |
 | Date | `played_kickoff_datetime` | locale short date |
-| Round | `played_round_name` | tooltip/secondary (GAP-08 applies) |
-| Click-through | `has_team_stats`, `has_player_stats`, `played_fixture_sk` | row links to `matchstats/{played_fixture_sk}` **only when** `has_team_stats` or `has_player_stats` — else not clickable + "match stats not available" (chrome, a designed COMMON state) |
+| Link | — | none until played-match pages exist |
 
-### (5) Top players — per side `top_players[]` (≤5, ranked goals → assists → key passes)
+### (5) Players to watch — per side `top_players[]` (≤5)
 
-Compact row: `player_photo_url`, `player_name` (▸ player profile via `player_sk`),
-`position_code` badge, then by position:
-- Outfield: `goals_total`, `goals_assists`, `shots_on`, `passes_key_player`
-- GK (`position_code = 'G'`): `goals_saves`, `saves_player_pct`
+The players: `mart_player_season_record` by `top_player_rank`, the season record of the
+match's competition. The rank orders by goals plus assists, then goals, then fewer minutes.
 
-Full per-player window stats available in the payload for an expanded row (design
-decision): `passes_player/passes_accurate_player/passes_accuracy_player_pct, tackles_player,
-blocks_player, interceptions_player, duels_won_player/duels_player/duels_won_player_pct,
-dribbles_success_player/dribbles_attempts_player/dribbles_past_player, offsides_player, penalty_won_player/
-penalty_committed_player, cards_yellow_player, cards_red_player, games_in_window`.
-Ranking is transparent (counts), never a composite score.
+The player row: `player_photo_url`, `player_name` over `position_code`, then
+`goals_total` and `goals_assists`; a goalkeeper shows `saves_player`.
+The intro is `playersIntro`, or `playersIntroPrev` when a row's `window_type` is `prev_season`.
+No link until the players' pages exist.
 
 ### (6) Head-to-head — `head_to_head` (perspective = **home team**)
 
 | Element | JSON key(s) | Notes |
 |---|---|---|
-| Record bar + counts | `wins`, `draws`, `losses`, `total_meetings` | "{home} {wins} — {draws} draws — {losses} {away}"; `losses` = away team's wins |
-| Goals | `goals_for`, `goals_against` | secondary line ("48:39 goals") |
-| Last-5 split | `meetings_last5`, `wins_last5`, `draws_last5`, `losses_last5` | "recent edge" sub-row |
-| Last meeting | `last_meeting_at`, `last_meeting_league_code`, `last_meeting_goals_for`, `last_meeting_goals_against`, `last_meeting_result` | one highlighted row |
-| Recent meetings (≤10) | `recent_meetings[]`: `kickoff_datetime`, `league_code`, `goals_for`, `goals_against`, `result` | **display-only** — the struct carries no fixture reference, so rows are not clickable (06 spec decides whether to extend) |
-| Full H2H link | — | ▸ `/h2h/{pair}/` (page export is GAP-06) |
+| Intro | `intro` (EN/DE/FI) | the export's sentence from the last-5 split; `h2hNone` when the warehouse holds no meeting |
+| Meetings (≤5) | `recent_meetings[]`: `kickoff_datetime`, `league_code`, `home_away`, `goals_for`, `goals_against` | the meeting row: the score in the match's order, the side at home first with crests, competition · date with year |
 
-All-competitions, all-time record (mart scope). Raw facts only — no derived ratios.
-
-### (7) Narrative + (8) internal links
-
-Narrative: a named slot. Until GAP-03 lands, render one templated factual sentence
-from already-bound fields (e.g. home `w1.points_won`/`games_in_window` + h2h
-`total_meetings`) or omit. Never fabricated content.
-Internal links: both team profiles, competition hub, `/table/`, `/top-scorers/`,
-full H2H — the SEO internal-link graph (§8).
+The block shows no totals and no bar. No link until played-match pages exist.
 
 ## 6. States
 
@@ -223,24 +139,21 @@ full H2H — the SEO internal-link graph (§8).
 |---|---|---|
 | Preview (normal) | `status` = `NS` | everything above |
 | Time TBD | `status` = `TBD` | date without time + "time TBD" |
-| No form data (side) | `w1`/`w2` = null | that column shows the designed empty state ("No recent matches"); the other side still renders |
-| No standings context | `standing` = null | omit chips entirely (by design: knockout/overlapping) — not an error, no "-" |
-| Prev-season fallback | `w2.window_type` = `prev_season` | W2 labelled "last season ({year})" |
-| Reduced stat coverage | `games_with_team_stats < games` | coverage caption (3d); metric nulls → "-" per row |
-| Never met | `head_to_head` = null | "First-ever meeting" styled state |
-| Stats-less past match | `has_team_stats` & `has_player_stats` false | row not clickable + microcopy |
-| Null metric value | any rate null | "-" + no bar (that row, that side) |
+| No form window (side) | `form` = null | that side's values show "–"; both null: the block is absent |
+| No standings context | `standing` = null or no `league_rank` | no chip, no empty state |
+| Last season's window | `form.window_type` = `prev_season` | `formIntroPrev`; that side shows no pills |
+| Never met | `head_to_head` = null | "No meetings on record." |
+| Null metric value | either side null | "–" on that side; both null: the row is hidden |
 | **Report (finished match)** | `status` = FT | **no payload today — GAP-07.** URL stays (preview → report is the promise); until then the page is not regenerated after kickoff |
 | Thin page | fixture not in export | page not generated (export covers upcoming NS/TBD fixtures only) |
 
 ## 7. Interactions
 
-- **W1/W2 segment**: swaps the comparison values + captions in place. No data
-  refetch (both windows are in the payload). Lightweight island or CSS toggle —
-  implementation is #368's call; both windows must be crawlable in the HTML.
-- **Past-match row** → `matchstats/{played_fixture_sk}` page (or overlay on
-  desktop — design call), when flagged available.
-- Team names/crests → team profiles; players → player profiles; H2H → pair page.
+- Breadcrumb levels, the competition's group head and the two teams link to their pages when
+  those pages are built.
+- Rows of Recent matches, Players to watch and Head to head are not links until their pages exist.
+  Every row of a block links, or none.
+- Under 700px the breadcrumb slides sideways on one line; a small script opens it at its end.
 - No swipe-carousel between fixtures (that is the MVP's pattern, retired in v2);
   prev/next-match navigation belongs to the competition fixtures list (04).
 
@@ -269,23 +182,19 @@ full H2H — the SEO internal-link graph (§8).
     German football writing); the Finnish tight en dash follows Yle/MTV's "KuPS–HJK".
 - Meta description: templated from real fields (round, kickoff date, h2h record)
   until GAP-03 narratives.
-- `BreadcrumbList` mirroring §2; canonical per locale + hreflang set + OG/Twitter
+- `BreadcrumbList` mirroring the visible trail of §4; canonical per locale + hreflang set + OG/Twitter
   card (both crests, kickoff).
 
 ## 9. Component census
 
-Breadcrumb ➕ · fixture header · standing chip ➕ · segment control · metric
-comparison row · window caption ➕ · form string · fixture row · result chip ·
-player row · H2H record block ➕ · empty states · narrative slot ➕ ·
-internal-links footer ➕. (➕ = new vs brief §7 — see 00 census.)
+Breadcrumb · competition group head · match header · standing chip · form head row · metric
+comparison row · result chip · result row · meeting row · player row · block explainer ·
+empty states. Each is a row of `block_standard.md` or of the comparison's own rules.
 
 ## 10. Gaps
 
-- [GAP-03](99_gaps_register.md) — data-to-text narrative generator (section 7 slot).
-- [GAP-06](99_gaps_register.md) — `/h2h/{pair}/` page has no export target (link in section 6).
+- [GAP-06](99_gaps_register.md) — `/h2h/{pair}/` page has no export target.
 - [GAP-07](99_gaps_register.md) — no report-state payload for finished fixtures (§6).
-- [GAP-08](99_gaps_register.md) — `round_name` is a raw provider string; no localization strategy yet.
-- [GAP-09](99_gaps_register.md) — `metric_group` / `importance_tier` / `group_display_order` catalogue columns (§5.3c grouping).
-- [GAP-10](99_gaps_register.md) — W2 W/D/L counts need `wins`/`draws`/`losses` in `mart_team_season_record` (§5.3b).
-- [GAP-11](99_gaps_register.md) — four new team metrics + finishing relabel + description tightenings (§5.3c).
-- [GAP-18](99_gaps_register.md) — tournament window mode + phase descriptor missing from the window marts (§5.3d) — needed before WC 2026.
+- [GAP-08](99_gaps_register.md) — `round_name` is a raw provider string; a cup's round shows it untranslated.
+- [GAP-18](99_gaps_register.md) — the Form comparison's intro names only the last 5 and last season, not a tournament window — needed before WC 2026.
+- Goalkeeper's save percentage on the player row: no mart serves the shots faced it needs.
