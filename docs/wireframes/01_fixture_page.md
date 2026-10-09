@@ -103,8 +103,9 @@ record shows no pills.
 The intro: `formIntro`, or `formIntroPrev` when a side shows last season's record. No
 points, no caption, no switch.
 
-Metric rows: the catalogue's team metrics with a `metric_order`, served as
-`src/data/metric_rows.json`, under the Rankings tab's group headings in the catalogue's order.
+Metric rows: the team metrics `mart_team_momentum` serves outside Results, in the catalogue's
+`metric_order`. They are served as `src/data/metric_rows.json`, under the Rankings tab's group
+headings in the catalogue's order.
 A row shows when either side carries a value. A row is number · name · number, the bar the
 full width beneath. Bars are normalized to the larger of the two values.
 

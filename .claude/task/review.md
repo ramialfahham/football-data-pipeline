@@ -1,36 +1,43 @@
-# Review — feature/166-future-match-page
+# Review — feature/177-catalogue-order
 
-diff_sha256: 69f7f4e379d7aeec570db924f8d73546f382a1f0a79ce0ecbb67de2a4d012d3a
+diff_sha256: 57bfecc54b9523c9d5993465e8ef4e0f5a9ef1b26b6fe31da848a52c949535dd
 
-rounds: 3
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every path is in scope_paths; the block_standard.md Match page entry change carries a dated approved amendment.
-- The impact map pastes the reader grep (one reader, [fixture].astro:33) and an empty dbt_project diff.
-- No new strings, mechanism or reserved decision; the recurring cost is declared and measured.
+- The impact map pastes the lineage: one model downstream of the catalogue (direction only), 57 tests; nothing in dbt reads metric_order but the seed's uniqueness test.
+- Every path is in scope_paths; the three added paths carry a dated approved amendment.
+- The order table matches decisions_taken; no new mechanism, cost or reserved decision.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Every new select column exists in mart_competition_fixtures; _competition_fixture only casts and renames; the page's own fixture is still dropped.
-- The tests pin the next-match row shape and the payload's is_next_round.
-- A missing is_next_round renders as the next-match page, as the contract says.
+- No (entity, group, metric_order) repeats; the uniqueness test still filters blanks.
+- The export sorts only by catalogue fields and fails on a shown board without a place; the Form comparison keeps its 36 rows.
+- The BL1 sample is a pure reorder; the docs state the export's selection rule.
 
-## bi-analyst-reviewer
+## football-analytics-expert-reviewer
 VERDICT: PASS
 risks_checked:
-- Every rendered field traces to the served match row; no new strings; compTBC is the match row's TBD text.
-- The future page matches renders _31/_32: Head to head, then Next matches with the group head, a date heading per day and linked rows; no standing chip.
-- The Match page entry expects only the parts both states show, so a future page sorting first cannot fail the check.
+- Only metric_order changes, on 23 rows; no other column moves.
+- Each total sits after its per-match twin; player orders follow the team order of the same measure.
+- Volume before rate, goals before assists, yellow before red.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- The export is read-only and pure; fixture_order is never null; the tests fail on a revert.
-- The page set is unchanged; showStanding's one caller passes it; no new request kind, dependency or CI change.
-- The design check's Expect narrowing matches its design and the recorded ruling.
+- A fetch-level test runs the Rankings and leaderboards fetches through a faked warehouse and fails when the ordering is removed.
+- _in_catalogue_order is a pure read and sort; no query, page or request changes.
+- The Form comparison selection matches its pinned test.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Every Rankings and Home board has a place; only the Passing player boards move, to Passes, Pass accuracy, Key passes.
+- The committed BL1 sample and build show that order in EN, DE and FI; no other page's text changes.
+- The edited metrics_display.md, 01_fixture_page.md and README sentences match the export.
 
 ## escalations
 (none)

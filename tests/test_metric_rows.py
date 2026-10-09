@@ -1,10 +1,9 @@
 """The match page's Form comparison rows are the catalogue's, and the site reads a copy of them.
 
 `site_v2/src/data/metric_rows.json` is a committed build input the export writes from
-`metric_catalogue.csv`: every team metric with a `metric_order`. These tests lock the committed
-file to a fresh regeneration, hold the row set to the metrics `mart_team_momentum` serves (minus
-the Results group, which the page shows elsewhere), and hold each group's order to the positions
-1..N.
+`metric_catalogue.csv`: every team metric `mart_team_momentum` serves, minus the Results group,
+which the page shows elsewhere. These tests lock the committed file to a fresh regeneration, hold
+the row set to that, and hold each group to the catalogue's rising `metric_order`.
 """
 from __future__ import annotations
 
@@ -47,12 +46,12 @@ def test_the_rows_are_the_form_window_metrics_outside_results():
     )
 
 
-def test_each_group_is_ordered_one_to_n():
+def test_each_group_rises_in_the_catalogue_order():
     by_group: dict[str, list[int]] = {}
     for r in export.fetch_metric_rows()["rows"]:
         by_group.setdefault(r["metric_group"], []).append(r["metric_order"])
-    bad = {g: o for g, o in by_group.items() if o != list(range(1, len(o) + 1))}
-    assert bad == {}, f"groups whose metric_order is not 1..N in file order: {bad}"
+    bad = {g: o for g, o in by_group.items() if o != sorted(set(o))}
+    assert bad == {}, f"groups whose metric_order does not rise in file order: {bad}"
 
 
 def test_the_rows_follow_the_group_order():

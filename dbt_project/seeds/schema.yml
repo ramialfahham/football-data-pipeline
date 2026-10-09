@@ -359,9 +359,9 @@ seeds:
           - not_null
       - name: metric_order
         description: >
-          Where the metric sits inside its group on the match page's Form comparison: 1 first.
-          Blank for a metric that the Form comparison does not show. No two metrics of one entity
-          and group share a position.
+          Where the metric sits inside its group on every surface that shows it: 1 first. Blank
+          for a metric that no surface shows. No two metrics of one entity and group share a
+          position.
       - name: importance_tier
         description: >
           Display importance: 1 = survives on a compact surface, 2 = standard, 3 = depth. Tier

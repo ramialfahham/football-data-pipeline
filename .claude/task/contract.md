@@ -1,24 +1,28 @@
-# Task contract — #166 state 2: the future match page
+# Task contract — #177 part 3: one order for every metric, from the catalogue
 
 objective: >
-  A match further out than the next matchday gets the future match page: breadcrumb, header without the
-  teams' table position, Head to head, each team's Next matches, the footer. A next-match page stays as it is.
-  The export carries the served is_next_round and each side's next match as the site's match row.
+  Every metric a surface shows has its place in its group in the catalogue's metric_order. The export
+  orders the Rankings and Home boards by the catalogue and only filters with its board lists; the Form
+  comparison keeps its rows. The docs say the order is the catalogue's.
 
 refs: >
-  #166 ("state 2, the future match page") as #132 decided it; renders future-match-page_2026-09-28_31 and
-  _32. The plan, its readings and the acceptance criteria: approved in chat, 2026-10-09.
+  #177 ("the catalogue holds the order of the metrics within a group ... every surface shows its metrics
+  in that order and only filters"), decided on #132. The plan, the order table, its readings and the
+  acceptance criteria: approved in chat, 2026-10-09.
 
 scope_paths:
+  - dbt_project/seeds/metric_catalogue.csv
+  - dbt_project/seeds/schema.yml
   - scripts/export_site_data.py
+  - tests/test_metric_rows.py
   - tests/test_export_site_data.py
-  - site_v2/src/pages/*/*/*/*fixture*.astro
-  - site_v2/src/components/fixture/*.astro
-  - site_v2/src/styles/system.css
-  - site_v2/src/lib/types.ts
-  - site_v2/src/specs/competition/matches/fixture.spec.json
+  - tests/test_catalogue_order.py
+  - site_v2/src/data/metric_rows.json
+  - docs/metric_layer.md
+  - docs/wireframes/metrics_display.md
   - docs/wireframes/01_fixture_page.md
-  - docs/wireframes/block_standard.md
+  - site_v2/src/data/README.md
+  - site_v2/src/data/competitions/BL1/2026.json
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -27,46 +31,50 @@ scope_paths:
   - .claude/task/audit_reviewer_outputs.md
 
 impact_map: >
-  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/{fixture_id}.json. The fixture
-    payload gains is_next_round (mart_competition_fixtures); each side's next_match takes the match-row
-    shape _competition_fixture already gives the competition and match-day payloads, from the same mart.
-    No dbt model changes.
-  downstream: `grep -rn "data/fixtures" site_v2/src site_v2/scripts site_v2/integrations` (tests
-    excluded) returns one reader, `pages/[lang]/[competition]/[matches]/[fixture].astro:33`, the
-    `import.meta.glob` of the payloads; components/fixture/* take their values from it. `git diff --cached
-    -- dbt_project` is empty: no model, seed or test changes, so no dbt lineage moves. A payload without
-    is_next_round renders as today's next-match page, so the sample pages keep their text.
-    ui/MatchRow.astro and the group head markup are reused, not changed.
-  layer_rules: the export selects served columns; which page a fixture gets is the served is_next_round;
-    the page formats and routes only.
-  deploy_order: the nightly export writes the new fields after merge; the site changes on the next manual
-    deploy (deploy:site-v2).
-  blast_radius: every match page outside the next matchday; no other page's text.
+  writers: metric_catalogue.csv by hand (metric_order only); the export writes metric_rows.json,
+    metric_groups.json and the competition and landing payloads.
+  downstream: `dbt ls --select metric_catalogue+ --resource-type model` returns one model,
+    5_marts.shared.mart_team_leaderboards, which reads only `direction`; the same selection with
+    `--resource-type test` returns 57 tests. `grep -rl "ref('metric_catalogue')" dbt_project/models`
+    returns that one model; 24 other model files name the catalogue in comments or descriptions only.
+    `grep -rl metric_order dbt_project/models dbt_project/tests dbt_project/macros` returns nothing; in
+    dbt only seeds/schema.yml's uniqueness test on (entity, metric_group, metric_order) reads it. The
+    export's readers of metric_order: fetch_metric_rows (Form comparison) and the board sorting for the
+    Rankings, Home and leaderboards payloads. The site renders the served order. The committed BL1
+    sample's two board lists are re-sorted by the export's order, no value changed.
+  layer_rules: the catalogue holds the order; the export sorts by it and filters with its board lists;
+    the site renders.
+  deploy_order: the seed loads with the nightly; the export writes the new order; the site changes on
+    the next manual deploy.
+  blast_radius: the Rankings' Passing player boards (passes, pass accuracy, key passes); no other
+    surface's order moves.
 
 acceptance_criteria:
-  - A fixture whose payload says is_next_round false renders, in EN, DE and FI, the breadcrumb, the header without a standing chip, Head to head, then Next matches, then the footer; no Form comparison, Recent matches or Players to watch.
-  - Next matches shows each team's next match under its competition's head, with a date heading per day and the match row with both crests and the kick-off with its zone, every row a link to that match's page; a team whose next match is this one, or who has none, adds no row.
-  - A fixture with is_next_round true or missing renders exactly as main's build; every page that is not a match page shows the same text as main's build.
-  - At 375, 700 and 1010px no horizontal scroll, and check_design_inventory.py passes.
-  - One real future fixture's payload, exported for this check and never committed, renders every block above in EN, DE and FI.
+  - Every metric shown by the Rankings tab, Home or the Form comparison has a catalogue metric_order, unique in its entity and group.
+  - On a built Rankings page the boards of each group follow the catalogue order; the Passing player boards read Passes, Pass accuracy, Key passes in EN, DE and FI.
+  - Home's boards and the Form comparison rows show the same metrics in the same order as main's build.
+  - Every page other than the Rankings tab shows the same text as main's build.
 
 decisions_taken: >
-  The plan, the readings and the acceptance criteria: approved in chat, 2026-10-09. Readings: "drawn as
-  the approved Home's Next matches" is the ruled elements that render draws (the competition group head,
-  a date heading per day, the match row), as the Matches page draws them; a missing is_next_round renders
-  as the next-match page; no new strings.
+  The plan, the order table (team: Shots on target difference 4 in Shooting, the rest after it one
+  down; Yellow cards 4 and Red cards 6 in Discipline, per match 3 and 5; player: Goals 1, Assists 2;
+  Shots on target 1, Goals per shot on target 2; Passes 1, Pass accuracy 2, Key passes 3; Dribbles
+  attempted 1, Duels 2; Defensive actions 1; Saves 1; Yellow cards 1, Red cards 2), its readings and
+  the acceptance criteria: approved in chat, 2026-10-09. Readings: a player metric takes the team order
+  of the same measure; a total sits right after its per-match twin; a metric no surface shows keeps a
+  blank order. The metrics_display.md sentence and the metric_layer.md order row, exact text:
+  approved in chat, 2026-10-09.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: the export's fixture and next-match queries
-  read more served columns of mart_competition_fixtures, dry-run measured and put to the CPO.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none; no query changes.
 
 decisions_reserved:
-  - Which future match pages search engines index: the go-live decision.
-  - Home's Next matches block: Home's design review.
+  - Direction and format from the catalogue, the site's own copies (metricRows.ts) and the team page's
+    order, the export reading the catalogue from the warehouse, the spelled-key checks: the next #177 MR.
 
 done_when:
-  - check_copy_gate.py, pytest tests/, npm test, npm run build (audit-seo, check-built-pages),
-    check_page_css.py and check_design_inventory.py pass.
-  - The acceptance criteria are shown in .claude/task/acceptance_evidence.md from the built pages.
+  - dbt parse clean; pytest tests/, npm test, npm run build (audit-seo, check-built-pages), the copy
+    gate and check_design_inventory.py pass.
+  - The acceptance criteria are shown in .claude/task/acceptance_evidence.md.
 
 amendments:
-  - block_standard.md's Match page entry expects only the parts both match-page states show (Block heading, Match header competition head, Navigation link, the search controls); Result row, Player row and the Next matches rows stay measured against their rules wherever they appear: approved in chat, 2026-10-09.
+  - 01_fixture_page.md's Metric rows sentence and site_v2/src/data/README.md's metric_rows.json sentence state the Form comparison's selection rule (the team metrics mart_team_momentum serves outside Results), exact text; the committed BL1 sample's board lists re-sorted by the export's order: approved in chat, 2026-10-09.
