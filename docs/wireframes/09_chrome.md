@@ -35,8 +35,8 @@ fields that exist in today's exported JSON") does not apply here; there is no pa
 │              (page content)                │
 ├────────────────────────────────────────────┤
 │ MatchdayPilot                              │  (3) footer
-│ Competitions · Teams · Players ·           │
-│ Statistics ·                               │
+│ Competitions · Matches · Teams · Players · │
+│ Standings · Statistics ·                   │
 │ About · Imprint (pending)                  │
 │ EN · DE · FI · Data: API-Football          │
 └────────────────────────────────────────────┘
@@ -72,21 +72,24 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
 | Search placeholder / icon-button aria | `searchPlaceholder`, `searchAria` |
 | Theme toggle aria | `themeToggleAria` |
 | Hamburger aria | `menuAria` |
-| Footer link row (5 of 6 items reuse the nav keys) | `navCompetitions`, `navTeams`, `navPlayers`, `navStatistics`, `footerAbout` |
+| Footer link row (the main nav's 6 items, from `lib/menu.ts`, then About) | the main nav's keys, `footerAbout` |
 | Footer Imprint slot | `footerImprintPending` |
 | Footer data-source line | `footerDataSource` (prefix only — "EN · DE · FI" itself is locale-invariant literal text, language codes are not translated) |
 
 ## 6. States
 
 - **No dead links.** A nav or footer item is an inert `<span>` (not `<a>`) until the page behind
-  it is built. Competitions became a real link when its index shipped; none of
-  Matches/Teams/Players/Standings/Statistics/About has a built index page, so those are still
-  spans — beyond Competitions, only detail pages exist today, reachable by direct entity URL and
-  not by browsing from chrome. `.mainnav a, .mainnav span` (and the footer/drawer
+  it is built. Competitions and Matches are links; Teams, Players, Standings, Statistics and
+  About have no built index page, so they are spans. The footer's row repeats the menu, each
+  item a link exactly when the menu's is. `.mainnav a, .mainnav span` (and the footer/drawer
   equivalents) apply identical styling to both, so an inert item looks no different from a real
   one until it's wired. This mirrors the existing convention on the fixture page's breadcrumb and
   the team page's Explore chips (both already ship this pattern, pre-dating this task). The brand
   links to `localeHref(lang)`, which resolves — the locale root is a real, if placeholder, route.
+- **The page's section is marked.** The menu and the drawer mark the section the page sits in.
+  The marked item carries `aria-current="true"` and the tab bar's selected style: ink, bold and,
+  in the menu, the 2px line. A competition's pages and its matches sit under Competitions, the
+  Matches pages under Matches, a team under Teams, a player under Players. Home marks none.
 - **Imprint**: permanently labelled "(pending)" until the CPO settles the operator/address
   question (#799); not a data state, a publication gate.
 - **Search**: visually present, functionally inert — no input element wired, no keystroke

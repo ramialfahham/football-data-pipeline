@@ -1,12 +1,21 @@
-# Acceptance evidence — Sint Maarten in the country list
+# Acceptance evidence — the footer repeats the menu, and the menu marks the page's section
 
-Read from the committed seed with a script, and from the log of the nightly run that failed on 2026-10-09.
+Read from `astro build` of the committed sample (2,538 locale pages; audit-seo and check-built-pages OK) and from a
+build of main from the same sample. A script parses every built page in both; the dev-server check covers the look.
 
 criteria_demonstrated:
-  - THE ROW. countries.csv holds 225 countries; sint-maarten,Sint Maarten sits between singapore and slovakia.
-    country_key and country_name are unique, none is blank, every name is ASCII. dim_country.sql's header
-    comment counts 225 rows; the edit is inside a {# #} comment, so the compiled SQL is unchanged.
-  - THE FAILING VALUE. The nightly's relationships test returned one row ("Got 1 result"), player L. Bleeker,
-    whose player_birth_country reads "Sint Maarten". That value is now a country_name in countries.csv, so the
-    test has no value left to return. Every other model in the run passed (PASS=1477, ERROR=1, SKIP=0).
-  - pytest tests/ passes: 1490 passed, 2 skipped.
+  - THE FOOTER ROW. On all 2,538 pages the footer reads the six menu items in the menu's order, then About and
+    Imprint (pending). EN: Competitions · Matches · Teams · Players · Standings · Statistics · About · Imprint
+    (pending); DE: Wettbewerbe · Spiele · … · Impressum (in Vorbereitung); FI: Kilpailut · Ottelut · … ·
+    Vastuutiedot (tulossa). On every page each footer item is a link exactly when the menu's item is:
+    Competitions and Matches are links, the rest spans.
+  - THE MARKED SECTION. On every page but the three Home pages exactly one item carries aria-current="true" and
+    class `on`, in the menu and in the drawer, at the section's place. Pages by section: Competitions 2,037,
+    Matches 174, Teams 108, Players 216; Home marks none. No footer item is marked.
+  - THE LOOK. On a match page at 1010px the marked "Competitions" is ink at weight 700 with the inset 2px ink
+    line; "Matches" stays muted at 600 with no line. At 375px the drawer's marked item is ink at 700, the others
+    600, and the page does not scroll sideways.
+  - NO OTHER TEXT. With the footer left out, every page's text equals main's build, and both builds hold the
+    same pages.
+  - GATES. npm test 117 pass; check_copy_gate, check_page_css, and check_design_inventory (0 failures in 165
+    renders) pass; pytest tests/ 1490 passed, 2 skipped.

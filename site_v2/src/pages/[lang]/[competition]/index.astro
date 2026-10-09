@@ -84,7 +84,7 @@ const crumbs = [
 const competitionType = payload?.competition_type ?? competition.competition_type;
 ---
 
-<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="competitions">
   <div class="inner">
     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
