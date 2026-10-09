@@ -502,13 +502,13 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
    air and carries no line: there the lines belong to the tables' heads. */
 .fxgroup { margin-top: 34px; }
 .fxgroup:first-of-type { margin-top: 14px; }
-.fxgroup > .gh {
+.fxgroup > .gh, .mcomp > .gh {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   padding-bottom: 10px; border-bottom: 2px solid var(--div);
 }
-.fxgroup > .gh .nm { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.2; }
-.fxgroup > .gh .cnm { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.fxgroup > .gh .cnm .chev { margin-left: 2px; }
+.fxgroup > .gh .nm, .mcomp > .gh .nm { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.fxgroup > .gh .cnm, .mcomp > .gh .cnm { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.fxgroup > .gh .cnm .chev, .mcomp > .gh .cnm .chev { margin-left: 2px; }
 .clogo { width: 26px; height: 26px; flex: 0 0 auto; display: grid; place-items: center; color: var(--muted); }
 .clogo svg { width: 26px; height: 26px; display: block; }
 .rkgroup > .gh { border-bottom: 0; padding-bottom: 0; }
@@ -877,5 +877,106 @@ a.comp-row:focus-visible { outline-offset: -2px; }
   .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .frow .fv { text-align: left; }
 }
+
+/* ---- the next match page (.mp) ---- */
+.vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* Breadcrumb trail: a separator travels with the level after it; every link has a 44px touch area.
+   Under 700px Home and the page itself leave, and the levels above the page sit on one line that
+   slides sideways, its cut start faded. */
+.trail { align-items: center; padding-top: 6px; row-gap: 0; }
+.trail .lvl { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.trail .lnk { padding: 12px 6px; margin-inline: -6px; }
+@media (max-width: 699.98px) {
+  .trail .far { display: none; }
+  .trail { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .trail::-webkit-scrollbar { display: none; }
+  .trail.cut { -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px); mask-image: linear-gradient(to right, transparent 0, #000 28px); }
+}
+
+/* Header: the competition's group head opens it; each team is one link with the chevron at rest;
+   under 700px the two teams stack, one per line. */
+.mp .mast .mcomp { text-align: start; }
+.mp .mast a.team { color: inherit; }
+.mp .mast .team .chev { vertical-align: -1px; margin-left: 5px; }
+@media (hover: hover) { .mp .mast a.team:hover .chev { color: var(--ink-2); transform: translateX(2px); } }
+.mp .mast a.team:active .chev { color: var(--ink); }
+@media (max-width: 699.98px) {
+  .mp .mast .teams { grid-template-columns: 1fr; gap: 0; margin-top: 16px; }
+  .mp .mast .vs { display: none; }
+  .mp .mast .team { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; row-gap: 4px; align-items: center;
+                    text-align: left; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .mp .mast .team:last-child { border-bottom: 0; }
+  .mp .mast .team .crest { grid-row: span 2; }
+  .mp .mast .team .tname { font-size: 20px; text-wrap: pretty; }
+  .mp .mast .team .stand { grid-column: 2; }
+}
+@media (max-width: 699.98px) and (hover: hover) {
+  .mp .mast a.team:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
+}
+
+/* Form comparison: one head row of each team's name over its pills; each metric group under the
+   Rankings tab's group heading; a row is number · name · number with the bar the full width beneath. */
+.mp .formhead { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+.mp .formhead .fh { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mp .formhead .fh.home { align-items: flex-start; text-align: left; }
+.mp .formhead .fh.away { align-items: flex-end; text-align: right; }
+.mp .formhead .h { font-size: 12px; font-weight: 700; color: var(--muted); }
+.mp .formhead .pills { width: 100%; max-width: 140px; }
+.mp .formhead .away .pills { justify-content: flex-end; }
+.mp .formhead .pill { width: auto; height: auto; flex: 0 1 24px; min-width: 0; aspect-ratio: 1; }
+.mp .mgroup { font-size: 17px; font-weight: 700; line-height: 1.2; letter-spacing: normal; text-transform: none; color: var(--ink);
+              text-align: left; padding: 34px 0 0; margin-bottom: 26px; }
+.mp .mrow { grid-template-columns: 4.6ch 1fr 4.6ch; grid-template-areas: "home lab away" "bar bar bar"; column-gap: 12px; row-gap: 6px; }
+.mp .mrow .mmid { display: contents; }
+.mp .mrow .mlabel { grid-area: lab; }
+.mp .mrow .mbar { grid-area: bar; max-width: none; }
+.mp .mrow .mval.home { grid-area: home; text-align: left; }
+.mp .mrow .mval.away { grid-area: away; text-align: right; }
+
+/* Two lists side by side from 560px, their rows level with each other. */
+.mp .rsplit { display: grid; grid-template-columns: 1fr; column-gap: 30px; margin-top: 4px; }
+@container (min-width: 560px) { .mp .rsplit { grid-template-columns: 1fr 1fr; } .mp .rsplit .colhead { margin-top: 0; } }
+.mp .rcol { display: grid; grid-template-rows: subgrid; grid-row: span 6; align-content: start; }
+.mp .sechead + .rsplit .rcol:first-child .colhead,
+.mp .bsub + .rsplit .rcol:first-child .colhead { margin-top: 0; }
+
+/* A list row measures the list's width, so a row can lay itself out by it. */
+.lrow { container-type: inline-size; }
+.lrow:not(:last-child) { border-bottom: 1px solid var(--line); }
+
+/* Result row: result chip · score · opponent (crest, name, H or A) · competition · date. One line
+   where the list is 420px wide or more, two lines below; the name wraps, never cut off. */
+.resrow { display: grid; grid-template-columns: 24px 42px 1fr; grid-template-areas: "res score opp" ". . meta";
+          column-gap: 11px; row-gap: 2px; align-items: center; align-content: start; padding: 8px 0; font-size: 13px; }
+.resrow .pill { grid-area: res; }
+.resrow .rscore { grid-area: score; font-size: 15px; }
+.resrow .ropp { grid-area: opp; font-size: 15px; white-space: normal; overflow: visible; text-overflow: clip; }
+.resrow .rmeta { grid-area: meta; text-align: left; white-space: normal; }
+@container (min-width: 420px) {
+  .resrow { grid-template-columns: 24px 42px 1fr auto; grid-template-areas: "res score opp meta"; }
+  .resrow .rmeta { text-align: right; }
+}
+/* A meeting of the two teams: the row without the chip, which would take one side. */
+.resrow.meet { grid-template-columns: 42px 1fr; grid-template-areas: "score opp" ". meta"; }
+@container (min-width: 420px) {
+  .resrow.meet { grid-template-columns: 42px 1fr auto; grid-template-areas: "score opp meta"; }
+}
+/* A result row opening a block carries no space of its own. */
+.mp .sechead + .rlist > .lrow:first-child .resrow { padding-top: 0; }
+/* A club in a match row carries its crest before its name, 10px apart. */
+.club { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; max-width: 100%; }
+.club .cn { min-width: 0; }
+.ropp > .club:only-child { vertical-align: top; }
+
+/* Player row: photo · name over position · numbers on the right at every width; the name wraps. */
+.plrow { display: grid; grid-template-columns: 34px 1fr auto; grid-template-areas: "photo name stat" "photo pos stat";
+         column-gap: 12px; row-gap: 2px; align-items: center; align-content: start; padding: 9px 0; }
+.plrow .pphoto { grid-area: photo; }
+.plrow .pname { display: contents; }
+.plrow .pname .nm { grid-area: name; font-size: 15px; font-weight: 400; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; }
+.plrow .pname .ps { grid-area: pos; font-size: 12px; color: var(--muted); }
+.plrow .pstat { grid-area: stat; align-self: center; text-align: right; font-size: 12px; }
+.plrow .pstat b { font-size: 15px; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

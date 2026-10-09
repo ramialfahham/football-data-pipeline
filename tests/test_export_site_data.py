@@ -8,6 +8,7 @@ from scripts.export_site_data import (
     _competitions_index,
     _display_group_of_type,
     _fixture_side,
+    form_block,
     _shape_benchmark_member,
     _shape_benchmarks,
     _shape_career_row,
@@ -373,13 +374,24 @@ def test_group_fixtures_by_round_is_empty_when_nothing_is_served():
     assert p["fixtures"] == []
 
 
-def test_fixture_side_drops_join_keys_and_handles_missing():
-    w1 = {"upcoming_fixture_sk": 9, "team_sk": 1, "is_home": True, "goals_per_match": 1.4}
-    side = _fixture_side(1, {"team_name": "A", "team_logo_url": "u", "team_country": "X"},
-                         w1, None, None)
-    assert side["team_id"] == 1 and side["name"] == "A" and side["crest"] == "u"
-    assert side["w1"] == {"goals_per_match": 1.4}      # join keys dropped
-    assert side["w2"] is None and side["standing"] is None  # honest absence
+def test_fixture_side_carries_identity_and_handles_missing():
+    side = _fixture_side(1, {"team_name": "A", "team_slug": "a", "team_logo_url": "u", "team_country": "X"},
+                         {"goals_per_match": 1.4}, None)
+    assert side["team_id"] == 1 and side["name"] == "A" and side["slug"] == "a" and side["crest"] == "u"
+    assert side["form"] == {"goals_per_match": 1.4}
+    assert side["standing"] is None and side["top_players"] == []  # honest absence
+
+
+def test_form_block_is_the_block_the_warehouse_flags():
+    keys = {"upcoming_fixture_sk": 9, "team_sk": 1, "is_home": True}
+    w1 = {**keys, "window_type": "last_5", "goals_per_match": 1.4}
+    w2 = {**keys, "window_type": "prev_season", "goals_per_match": 2.0}
+    assert form_block({**w1, "is_form_window": True}, {**w2, "is_form_window": False}) == {
+        "window_type": "last_5", "goals_per_match": 1.4}
+    assert form_block({**w1, "is_form_window": False}, {**w2, "is_form_window": True}) == {
+        "window_type": "prev_season", "goals_per_match": 2.0}
+    assert form_block({**w1, "is_form_window": False}, {**w2, "is_form_window": False}) is None
+    assert form_block(None, None) is None
 
 
 def test_shape_fixture_payload_composes_header_and_sides():
@@ -415,7 +427,8 @@ def test_shape_next_match_is_the_mart_row_unless_it_is_this_match():
 
 def _match_row(fid, home, away, kickoff, home_next=False, away_next=False):
     return {"fixture_sk": fid, "league_code": "BL1", "season_api_year": 2026, "kickoff_datetime": kickoff,
-            "round_name": "Regular Season - 5", "status_short": "NS", "venue_name_snapshot": "Arena %d" % fid,
+            "round_name": "Regular Season - 5", "round_order": 5, "status_short": "NS",
+            "venue_name_snapshot": "Arena %d" % fid,
             "fixture_slug": "slug-%d" % fid,
             "home_team_sk": home, "home_team_name": "T%d" % home, "home_team_slug": "t%d" % home,
             "home_team_logo_url": "c%d" % home,
@@ -451,6 +464,39 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
     assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
     assert p["home"]["next_match"]["fixture_id"] == 10, "team 1's flagged row, though it plays away there"
     assert p["away"]["next_match"] is None, "team 2's next match is this page's own match"
+
+
+def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players(monkeypatch):
+    """Each side's form is the block the warehouse flags; the round number and the team slugs are the
+    mart's; Players to watch are mart_player_season_record's top five by rank, with their window."""
+    page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z")
+    keys = {"upcoming_fixture_sk": 20, "is_home": True}
+
+    def fake_query(client, sql):
+        if "mart_competition_fixtures" in sql and "status_short in" in sql:
+            return [page]
+        if "mart_team_momentum`" in sql:
+            return [{**keys, "team_sk": 1, "window_type": "last_5", "goals_per_match": 1.4, "is_form_window": True},
+                    {**keys, "team_sk": 2, "window_type": "last_5", "goals_per_match": 0.9, "is_form_window": False}]
+        if "mart_team_season_record" in sql:
+            return [{**keys, "team_sk": 2, "window_type": "prev_season", "goals_per_match": 2.0, "is_form_window": True}]
+        if "mart_player_season_record" in sql:
+            return [{**keys, "team_sk": 1, "player_sk": 7, "top_player_rank": 1, "goals_total": 3, "goals_assists": 1,
+                     "window_type": "season_to_date", "league_code": "BL1"}]
+        if "core.dim_player" in sql:
+            return [{"player_sk": 7, "player_name": "P7", "player_photo_url": "u7"}]
+        return []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    (p,) = export_site_data.fetch_fixture_payloads(object())
+
+    assert p["round_order"] == 5
+    assert p["home"]["slug"] == "t1" and p["away"]["slug"] == "t2"
+    assert p["home"]["form"] == {"window_type": "last_5", "goals_per_match": 1.4}
+    assert p["away"]["form"] == {"window_type": "prev_season", "goals_per_match": 2.0}, "the flagged season record"
+    assert p["home"]["top_players"] == [{"player_sk": 7, "goals_total": 3, "goals_assists": 1,
+                                          "window_type": "season_to_date", "player_name": "P7",
+                                          "player_photo_url": "u7"}]
 
 
 def test_player_slug_folds_accents_and_appends_id():

@@ -19,48 +19,77 @@
   },
   "blocks": [
     {
-      "block": "Match preview (two sides)",
-      "mart": "mart_fixture_standing_context",
-      "i18n_keys": ["crumbMatches", "eyebrowPreview", "vs", "timeTBD"]
-    },
-    {
-      "block": "Form (recent)",
-      "mart": ["mart_team_momentum", "mart_team_season_record", "mart_team_momentum_window"],
+      "block": "Breadcrumb and header",
+      "mart": [
+        "mart_competition_fixtures",
+        "mart_competition_index",
+        "mart_fixture_standing_context"
+      ],
       "i18n_keys": [
-        "secForm",
-        "segLast5",
-        "segSeason",
-        "scopeAllComps",
-        "secRecent",
-        "noRecentForm",
-        "noMatchStats",
-        "metrics.goals_per_match.label",
-        "metrics.goals_against_per_match.label",
-        "metrics.clean_sheets.label",
-        "metrics.shots_per_match.label",
-        "metrics.shots_inside_box_pct.label",
-        "metrics.shots_on_target_per_match.label",
-        "metrics.finishing_efficiency_pct.label",
-        "metrics.duels_per_match.label",
-        "metrics.duels_won_pct.label",
-        "metrics.defensive_actions_per_match.label",
-        "metrics.passes_per_match.label",
-        "metrics.passes_accuracy_pct.label",
-        "metrics.passes_key_per_match.label",
-        "metrics.corners_per_match.label",
-        "metrics.corners_against_per_match.label",
-        "metrics.saves_pct.label"
+        "crumbHome",
+        "navCompetitions",
+        "compTabMatchdays",
+        "compTabRounds",
+        "compFactMatchday",
+        "eyebrowPreview",
+        "vs",
+        "timeTBD",
+        "pts",
+        "compColGoalDiff"
       ]
     },
     {
-      "block": "Lineups / key players",
-      "mart": "mart_player_momentum",
-      "i18n_keys": ["secPlayers", "playersWindow", "posF", "posM", "posD", "posG"]
+      "block": "Form comparison",
+      "mart": [
+        "mart_team_momentum",
+        "mart_team_season_record",
+        "mart_team_momentum_window"
+      ],
+      "i18n_keys": [
+        "secForm",
+        "formIntro",
+        "formIntroPrev",
+        "compColWins",
+        "compColDraws",
+        "compColLosses",
+        "perMatch",
+        "percentage"
+      ]
     },
     {
-      "block": "Head-to-head",
+      "block": "Recent matches",
+      "mart": "mart_team_momentum_window",
+      "i18n_keys": [
+        "secRecent",
+        "haHome",
+        "haAway"
+      ]
+    },
+    {
+      "block": "Players to watch",
+      "mart": "mart_player_season_record",
+      "i18n_keys": [
+        "secPlayers",
+        "playersIntro",
+        "playersIntroPrev",
+        "posF",
+        "posM",
+        "posD",
+        "posG",
+        "goals",
+        "goalOne",
+        "assists",
+        "assistOne",
+        "saves"
+      ]
+    },
+    {
+      "block": "Head to head",
       "mart": "mart_head_to_head",
-      "i18n_keys": ["secH2H", "meetings", "draws", "lastMeeting", "firstMeeting", "fullH2H"]
+      "i18n_keys": [
+        "secH2H",
+        "h2hNone"
+      ]
     }
   ]
 }

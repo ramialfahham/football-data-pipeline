@@ -73,6 +73,20 @@
 | Chevron heading link | `a.cnm` | a heading that leads somewhere carries a chevron at rest and is never underlined | `text-decoration-line=none` | ruled | #52; #129 binding rules |
 | Chevron | `a.cnm .chev` | 15px, muted at rest | `color=muted` | ruled | #52 |
 | Prose link | `p a, .lede a, .sub a, .bnote a` | the one place an underline stays: a link inside running text | `text-decoration-line=underline` | ruled | #52 |
+| Header team link | `.mast a.team` | a team in the match header leads to its team page: one link with the chevron at rest, never underlined | `text-decoration-line=none` | ruled | the match page review |
+| Match header competition head | `.mast .mcomp > .gh` | the competition group head opening the match header: a heading link to the competition's page, the 2px line under it | `border-bottom-width=2px` | ruled | the match page review |
+| Navigation link | `nav.trail a.lnk` | a link known by its place: the logo, the menu, search, the breadcrumb, the tabs, the picker and the filters. A breadcrumb level has a 44px touch area | `min-box=44px` | ruled | the match page review |
+| List row | `.lrow` | one row of a list, a line between rows, nothing cut off. Its name is 15px, its second line 12px muted, its numbers 15px bold | `fits` | ruled | the match page review |
+| Result chip | `.resrow .pill` | one match's W, D or L from a team's side, in the page's language, on the result colour | `font-size=12px; font-weight=700; color=pill-ink` | ruled | the match page review |
+| Result row | `.resrow` | result chip · score · opponent (crest, name, H or A) · competition · date. One line where its list is 420px wide or more, two lines below | `fits` | ruled | the match page review |
+| Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+| Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
+| Result row meta | `.resrow .rmeta` | the competition's name and the date, 12px muted | `font-size=12px; color=muted` | ruled | the match page review |
+| Meeting row | `.resrow.meet` | a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year | `fits` | ruled | the match page review |
+| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width | `fits` | ruled | the match page review |
+| Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
+| Player row position | `.plrow .pname .ps` | 12px muted | `font-size=12px; color=muted` | ruled | the match page review |
+| Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
 | Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | #129 Matchdays; #127 correction 2 |
 | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |
 | Picker title | `.mdstep .mdtitle .num` | 13px bold capitals ink | `font-size=13px; font-weight=700; text-transform=uppercase; color=ink` | ruled | #129 Matchdays |
@@ -122,7 +136,7 @@ and `gen_taxonomy.py` are diagrams.
 | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
-| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Search field [>=1010px], Search button [<1010px] |
+| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Result row, Player row, Search field [>=1010px], Search button [<1010px] |
 | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
 | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |

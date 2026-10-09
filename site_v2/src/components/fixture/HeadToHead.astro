@@ -1,59 +1,57 @@
 ---
-// Head-to-head (perspective = home team): record numbers coloured to the W/D/L bar,
-// the stacked record bar, and the recent-meetings list (which leads with the last
-// meeting — the separate "last meeting" line was dropped as a duplicate). "First-ever
-// meeting" when there is no record. All raw served facts; the bar widths are display.
+// Head to head: the served intro, then the last meetings as the result row without its chip (the chip
+// would take one side): the score in the match's order, the side that was at home first, competition ·
+// date with its year. "No meetings on record." when the warehouse holds none. Unlinked until
+// played-match pages exist.
 import SectionHead from "../ui/SectionHead.astro";
-import { formatShortDate } from "../../lib/format";
+import Crest from "../ui/Crest.astro";
+import { formatDayYear } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { stackShares } from "../../lib/bars";
 import { t } from "../../i18n/strings";
-import type { HeadToHead } from "../../lib/types";
+import type { HeadToHead, Side } from "../../lib/types";
+import competitions from "../../data/competitions.json";
 
 interface Props {
   h2h?: HeadToHead | null;
-  homeName?: string | null;
-  awayName?: string | null;
+  home: Side;
+  away: Side;
   lang: Lang;
 }
-const { h2h, homeName, awayName, lang } = Astro.props;
-const has = Boolean(h2h && (h2h.total_meetings ?? 0) > 0);
-const shares = stackShares(h2h?.wins, h2h?.draws, h2h?.losses);
-const meetings = h2h?.recent_meetings ?? [];
+const { h2h, home, away, lang } = Astro.props;
+const meetings = (h2h?.recent_meetings ?? []).slice(0, 5);
+const intro = h2h ? h2h.intro?.[lang] : t(lang, "h2hNone");
+const names = competitions as Record<string, { name?: string }>;
+const rows = meetings.map((m) => {
+  const homeFirst = m.home_away === "home";
+  return {
+    first: homeFirst ? home : away,
+    second: homeFirst ? away : home,
+    score: homeFirst ? `${m.goals_for}–${m.goals_against}` : `${m.goals_against}–${m.goals_for}`,
+    comp: names[m.league_code ?? ""]?.name,
+    date: formatDayYear(m.kickoff_datetime, lang),
+  };
+});
 ---
 
 <section aria-label={t(lang, "secH2H")}>
   <SectionHead label={t(lang, "secH2H")} />
-  {has ? (
-    <>
-      <div class="h2h-top">
-        <div class="h2h-rec">
-          <b class="cw">{h2h?.wins}</b> <span class="nm">{homeName}</span> &nbsp;·&nbsp;
-          <b>{h2h?.draws}</b> <span class="nm">{t(lang, "draws")}</span> &nbsp;·&nbsp;
-          <b class="cl">{h2h?.losses}</b> <span class="nm">{awayName}</span>
+  {intro && <p class="bsub">{intro}</p>}
+  <div class="rlist">
+    {rows.map((r) => (
+      <div class="lrow">
+        <div class="resrow meet">
+          <span class="rscore">{r.score}</span>
+          <span class="ropp">
+            <span class="club"><Crest name={r.first.name} crest={r.first.crest} size="xs" /><span class="cn">{r.first.name}</span></span>
+            {" – "}
+            <span class="club"><Crest name={r.second.name} crest={r.second.crest} size="xs" /><span class="cn">{r.second.name}</span></span>
+          </span>
+          <span class="rmeta">
+            {r.comp && <><span class="nb">{r.comp}</span> · </>}
+            <span class="nb">{r.date}</span>
+          </span>
         </div>
-        <div class="h2h-meta">
-          {h2h?.total_meetings} {t(lang, "meetings")}<br />
-          {h2h?.goals_for}:{h2h?.goals_against} {t(lang, "goalsWord")}
-        </div>
       </div>
-      <div class="h2h-bar" aria-hidden="true">
-        <span class="w" style={`width:${shares.w}%`}></span>
-        <span class="d" style={`width:${shares.d}%`}></span>
-        <span class="l" style={`width:${shares.l}%`}></span>
-      </div>
-      <div class="h2h-list">
-        {meetings.map((m) => (
-          <div class="rmatch">
-            <span class:list={["res", m.result]}>{m.result}</span>
-            <span class="rscore">{m.goals_for}–{m.goals_against}</span>
-            <span class="ropp">{m.league_code}</span>
-            <span class="rmeta">{formatShortDate(m.kickoff_datetime, lang)}</span>
-          </div>
-        ))}
-      </div>
-    </>
-  ) : (
-    <div class="h2h-last">{t(lang, "firstMeeting")}</div>
-  )}
+    ))}
+  </div>
 </section>

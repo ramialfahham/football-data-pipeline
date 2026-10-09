@@ -1,22 +1,49 @@
 ---
-// Breadcrumb: Home › {competition} › Matches. Items with an href render as links;
-// targets not yet built in v2 (competition hub) are passed hrefless → plain text
-// (no dead links this increment; wire hrefs when those pages land).
+// The site hierarchy's trail. A level links when its page is built; the last level is the page
+// itself. Under 700px the levels above the page sit on one line that slides sideways, opened at the
+// nearest level; the page works the same without the script.
+import { t } from "../../i18n/strings";
+import type { Lang } from "../../lib/format";
+
 export interface Crumb {
   label: string;
   href?: string;
 }
 interface Props {
   items: Crumb[];
+  lang: Lang;
 }
-const { items } = Astro.props;
+const { items, lang } = Astro.props;
 ---
 
-<nav class="crumb" aria-label="Breadcrumb">
-  {items.map((c, i) => (
-    <>
-      {i > 0 && <span class="sep">›</span>}
-      {c.href ? <a class="lnk" href={c.href}>{c.label}</a> : <span>{c.label}</span>}
-    </>
-  ))}
+<nav class="crumb trail" aria-label={t(lang, "crumbAria")}>
+  {items.map((c, i) => {
+    const last = i === items.length - 1;
+    return (
+      <span class:list={["lvl", { far: i === 0 || last }]}>
+        {i > 0 && <span class="sep" aria-hidden="true">›</span>}
+        {last ? (
+          <span class="here" aria-current="page">{c.label}</span>
+        ) : c.href ? (
+          <a class="lnk" href={c.href}>{c.label}</a>
+        ) : (
+          <span>{c.label}</span>
+        )}
+      </span>
+    );
+  })}
 </nav>
+
+<script>
+  const trail = document.querySelector<HTMLElement>("nav.trail");
+  if (trail) {
+    const cut = () => trail.classList.toggle("cut", trail.scrollLeft > 0);
+    const toEnd = () => {
+      trail.scrollLeft = trail.scrollWidth;
+      cut();
+    };
+    trail.addEventListener("scroll", cut, { passive: true });
+    addEventListener("resize", toEnd);
+    toEnd();
+  }
+</script>

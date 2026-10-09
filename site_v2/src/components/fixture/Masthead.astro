@@ -1,45 +1,97 @@
 ---
-// Match header: eyebrow + kickoff line + the two teams (crest, name, standing chip)
-// + venue. Standing is omitted entirely when null (knockout / overlapping tables) —
-// by design, not an empty state (01_fixture_page.md §2a). Team names are inert this
-// increment (team pages not built).
+// The match header: the competition's group head (a heading link), the kick-off line (round · date ·
+// time UTC · venue, each unit whole when the line wraps), and the two teams, each one link to its team
+// page when that page is built, with the standing chip only when the table position is served.
 import Crest from "../ui/Crest.astro";
+import Chevron from "./Chevron.astro";
 import { formatDate, formatTime, signedInteger } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
-import type { Fixture } from "../../lib/types";
+import type { Fixture, Side } from "../../lib/types";
 
 interface Props {
   fixture: Fixture;
   lang: Lang;
+  title: string;
+  round: string;
+  compName: string;
+  compLogo?: string | null;
+  compHref?: string;
+  teamHrefs: { home?: string; away?: string };
 }
-const { fixture, lang } = Astro.props;
+const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs } = Astro.props;
 const { home, away } = fixture;
 
-const dateStr = formatDate(fixture.kickoff, lang);
-const timeStr = fixture.status === "TBD" ? t(lang, "timeTBD") : formatTime(fixture.kickoff, lang);
-const kick = [fixture.round, dateStr, timeStr].filter(Boolean).join(" · ");
+const time = fixture.status === "TBD" ? t(lang, "timeTBD") : `${formatTime(fixture.kickoff, lang)} UTC`;
+const kick = [round, formatDate(fixture.kickoff, lang), time, fixture.venue].filter(Boolean);
+
+function nameParts(name: string | null | undefined): [string, string] {
+  const words = (name ?? "").trim().split(/\s+/);
+  const last = words.pop() ?? "";
+  return [words.length ? `${words.join(" ")} ` : "", last];
+}
+const sides: { side: Side; href?: string }[] = [
+  { side: home, href: teamHrefs.home },
+  { side: away, href: teamHrefs.away },
+];
 ---
 
 <header class="mast">
+  <div class="mcomp">
+    <div class="gh">
+      {compHref ? (
+        <a class="cnm" href={compHref}>
+          <span class="clogo"><Crest name={compName} crest={compLogo} size="xs" /></span>
+          <span class="nm">{compName}</span>
+          <Chevron />
+        </a>
+      ) : (
+        <span class="cnm">
+          <span class="clogo"><Crest name={compName} crest={compLogo} size="xs" /></span>
+          <span class="nm">{compName}</span>
+        </span>
+      )}
+    </div>
+  </div>
+  <h1 class="vh">{title}</h1>
   <div class="eyebrow">{t(lang, "eyebrowPreview")}</div>
-  <div class="kick">{kick}</div>
-  <div class="teams">
-    {[home, away].map((side, i) => (
+  <div class="kick">
+    {kick.map((unit, i) => (
       <>
-        {i === 1 && <div class="vs">{t(lang, "vs")}</div>}
-        <div class="team">
-          <Crest name={side.name} crest={side.crest} />
-          <span class="tname">{side.name}</span>
-          {side.standing && (
-            <div class="stand num">
-              #<b>{side.standing.league_rank}</b> · <b>{side.standing.standing_points}</b>{" "}
-              {t(lang, "pts")} · GD <b>{signedInteger(side.standing.standing_goals_diff, lang)}</b>
-            </div>
-          )}
-        </div>
+        {i > 0 && " · "}
+        <span class="nb">{unit}</span>
       </>
     ))}
   </div>
-  {fixture.venue && <div class="venue">{fixture.venue}</div>}
+  <div class="teams">
+    {sides.map(({ side, href }, i) => {
+      const Tag = href ? "a" : "div";
+      const [lead, last] = nameParts(side.name);
+      const st = side.standing;
+      return (
+        <>
+          {i === 1 && <div class="vs">{t(lang, "vs")}</div>}
+          <Tag class="team" href={href}>
+            <Crest name={side.name} crest={side.crest} />
+            <span class="tname">
+              {lead}
+              <span class="nb">
+                {last}
+                {href && <Chevron />}
+              </span>
+            </span>
+            {st?.league_rank != null && (
+              <div class="stand num">
+                <span class="nb">#<b>{st.league_rank}</b></span> ·{" "}
+                <span class="nb"><b>{st.standing_points}</b> {t(lang, "pts")}</span> ·{" "}
+                <span class="nb">
+                  {t(lang, "compColGoalDiff")} <b>{signedInteger(st.standing_goals_diff, lang)}</b>
+                </span>
+              </div>
+            )}
+          </Tag>
+        </>
+      );
+    })}
+  </div>
 </header>
