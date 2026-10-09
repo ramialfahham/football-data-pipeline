@@ -11,7 +11,7 @@
     no provider id, so country_key IS the key. Inventing a synthetic integer would add a join
     without adding identity.
 
-    ⚠ NOT "UN countries". 188 of the 224 rows are UN states; the rest are football associations
+    ⚠ NOT "UN countries". 188 of the 225 rows are UN states; the rest are football associations
     (England n=2723, Scotland, Wales, Northern Ireland, Kosovo, Chinese Taipei), territories that
     produce players, one unrecognised state and one historical (Yugoslavia, for players born
     before 1992). Dropping any of them is not an option — England is the single most common value
