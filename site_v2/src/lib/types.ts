@@ -82,6 +82,8 @@ export interface Side {
   standing?: Standing | null;
   form_window?: FormMatch[];
   top_players?: TopPlayer[];
+  /** The team's next match in any competition, as the site's match row; absent when it is this one. */
+  next_match?: (CompetitionFixture & { league_code: string }) | null;
 }
 
 export interface RecentMeeting {
@@ -121,6 +123,8 @@ export interface Fixture {
   season?: number | null;
   round?: string | null;
   round_order?: number | null;
+  /** True when the match is in its competition's next round; the match page then shows its full preview. */
+  is_next_round?: boolean;
   venue?: string | null;
   home: Side;
   away: Side;

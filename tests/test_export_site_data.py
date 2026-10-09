@@ -412,22 +412,28 @@ def test_shape_fixture_payload_composes_header_and_sides():
 
 def test_shape_next_match_is_the_mart_row_unless_it_is_this_match():
     row = {"fixture_sk": 11, "league_code": "DFBP", "kickoff_datetime": "2026-10-28T19:45:00",
-           "round_name": "2nd Round", "fixture_slug": "2026-10-28-a-vs-b",
+           "round_name": "2nd Round", "round_order": None, "round_sequence": 2, "fixture_order": 4,
+           "fixture_slug": "2026-10-28-a-vs-b", "status_short": "TBD", "is_played": False,
+           "goals_home": None, "goals_away": None, "is_next_round": False, "is_match_that_matters": False,
            "home_team_sk": 1, "home_team_name": "A", "home_team_slug": "a", "home_team_logo_url": "ua",
            "away_team_sk": 2, "away_team_name": "B", "away_team_slug": "b", "away_team_logo_url": "ub"}
     m = shape_next_match(row, 7)
-    assert m["fixture_id"] == 11 and m["slug"] == "2026-10-28-a-vs-b" and m["league_code"] == "DFBP"
+    assert m == {**export_site_data._competition_fixture(row), "league_code": "DFBP"}, \
+        "the site's one match row, with its competition"
+    assert m["fixture_id"] == 11 and m["slug"] == "2026-10-28-a-vs-b" and m["status"] == "TBD"
     assert m["home"] == {"team_id": 1, "name": "A", "slug": "a", "crest": "ua"}
-    assert m["away"]["team_id"] == 2
+    assert m["away"]["team_id"] == 2 and m["is_played"] is False
     assert shape_next_match(row, 11) is None, "the page's own match is not its next match"
     assert shape_next_match(None, 7) is None
     side = _fixture_side(1, {"team_name": "A"}, None, None, None, next_match=m)
     assert side["next_match"] == m
 
 
-def _match_row(fid, home, away, kickoff, home_next=False, away_next=False):
+def _match_row(fid, home, away, kickoff, home_next=False, away_next=False, next_round=True):
     return {"fixture_sk": fid, "league_code": "BL1", "season_api_year": 2026, "kickoff_datetime": kickoff,
-            "round_name": "Regular Season - 5", "round_order": 5, "status_short": "NS",
+            "round_name": "Regular Season - 5", "round_order": 5, "round_sequence": 5, "fixture_order": fid,
+            "status_short": "NS", "is_played": False, "goals_home": None, "goals_away": None,
+            "is_next_round": next_round, "is_match_that_matters": False,
             "venue_name_snapshot": "Arena %d" % fid,
             "fixture_slug": "slug-%d" % fid,
             "home_team_sk": home, "home_team_name": "T%d" % home, "home_team_slug": "t%d" % home,
@@ -440,7 +446,7 @@ def _match_row(fid, home, away, kickoff, home_next=False, away_next=False):
 def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart(monkeypatch):
     """The header and each team's next match are rows of mart_competition_fixtures: the next match is
     the row the mart flags for that team, and none when it is the page's own match."""
-    page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z", away_next=True)
+    page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z", away_next=True, next_round=False)
     team1_next = _match_row(10, 3, 1, "2026-10-10T13:30:00Z", away_next=True)
     captured: list[str] = []
 
@@ -462,7 +468,9 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
     assert not any("core.fct_fixture" in s for s in captured), "the match is read from the mart"
     assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
     assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
+    assert p["is_next_round"] is False, "the served flag says which page this fixture gets"
     assert p["home"]["next_match"]["fixture_id"] == 10, "team 1's flagged row, though it plays away there"
+    assert p["home"]["next_match"]["status"] == "NS" and p["home"]["next_match"]["league_code"] == "BL1"
     assert p["away"]["next_match"] is None, "team 2's next match is this page's own match"
 
 

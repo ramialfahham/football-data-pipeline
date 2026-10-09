@@ -1,478 +1,540 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 208e8c25..31443585 100644
+index 31443585..f0e8a845 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,47 +1,69 @@
--# Task contract — Sint Maarten in the country list
-+# Task contract — #166: the footer repeats the menu, and the menu marks the page's section
+@@ -1,29 +1,24 @@
+-# Task contract — #166: the footer repeats the menu, and the menu marks the page's section
++# Task contract — #166 state 2: the future match page
  
  objective: >
--  The country list gains Sint Maarten as its own country, so every player's birth country is a listed
--  country and the nightly's relationships test on dim_player passes.
-+  The footer's link row repeats the menu's six items in its order, then About and Imprint, each a link
-+  exactly when the menu's item is. The menu and the phone drawer mark the section the page sits in.
-+  09_chrome.md says what the chrome now is.
+-  The footer's link row repeats the menu's six items in its order, then About and Imprint, each a link
+-  exactly when the menu's item is. The menu and the phone drawer mark the section the page sits in.
+-  09_chrome.md says what the chrome now is.
++  A match further out than the next matchday gets the future match page: breadcrumb, header without the
++  teams' table position, Head to head, each team's Next matches, the footer. A next-match page stays as it is.
++  The export carries the served is_next_round and each side's next match as the site's match row.
  
  refs: >
--  The nightly's failing test relationships_dim_player_player_birth_country (one player, born in Sint
--  Maarten). Sint Maarten as its own row, as Curacao is: approved in chat, 2026-10-09.
-+  #166 (the footer and the menu marking lines) as #132 decided them; render match-page_2026-10-07_75
-+  for the marked item. The plan, its readings and the acceptance criteria: approved in chat, 2026-10-09.
+-  #166 (the footer and the menu marking lines) as #132 decided them; render match-page_2026-10-07_75
+-  for the marked item. The plan, its readings and the acceptance criteria: approved in chat, 2026-10-09.
++  #166 ("state 2, the future match page") as #132 decided it; renders future-match-page_2026-09-28_31 and
++  _32. The plan, its readings and the acceptance criteria: approved in chat, 2026-10-09.
  
  scope_paths:
--  - dbt_project/seeds/countries.csv
--  - dbt_project/models/3_core/dim_country.sql
-+  - site_v2/src/lib/menu.ts
-+  - site_v2/src/components/chrome/SiteHeader.astro
-+  - site_v2/src/components/chrome/SiteFooter.astro
-+  - site_v2/src/layouts/Layout.astro
-+  - site_v2/src/pages/*/*/*/*fixture*.astro
-+  - site_v2/src/pages/*/*/*/index.astro
-+  - site_v2/src/pages/*/*/index.astro
-+  - site_v2/src/pages/*/*/*day*.astro
-+  - site_v2/src/pages/*/*/*team*.astro
-+  - site_v2/src/pages/*/*/*player*.astro
-+  - site_v2/src/styles/system.css
-+  - docs/wireframes/09_chrome.md
-+  - tests/test_sentence_length_in_docs.py
-+  - tests/test_no_decision_history_in_code.py
+-  - site_v2/src/lib/menu.ts
+-  - site_v2/src/components/chrome/SiteHeader.astro
+-  - site_v2/src/components/chrome/SiteFooter.astro
+-  - site_v2/src/layouts/Layout.astro
++  - scripts/export_site_data.py
++  - tests/test_export_site_data.py
+   - site_v2/src/pages/*/*/*/*fixture*.astro
+-  - site_v2/src/pages/*/*/*/index.astro
+-  - site_v2/src/pages/*/*/index.astro
+-  - site_v2/src/pages/*/*/*day*.astro
+-  - site_v2/src/pages/*/*/*team*.astro
+-  - site_v2/src/pages/*/*/*player*.astro
++  - site_v2/src/components/fixture/*.astro
+   - site_v2/src/styles/system.css
+-  - docs/wireframes/09_chrome.md
+-  - tests/test_sentence_length_in_docs.py
+-  - tests/test_no_decision_history_in_code.py
++  - site_v2/src/lib/types.ts
++  - site_v2/src/specs/competition/matches/fixture.spec.json
++  - docs/wireframes/01_fixture_page.md
++  - docs/wireframes/block_standard.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-   - .claude/task/acceptance_evidence.md
-+  - .claude/task/rendered_page_evidence.md
-+  - .claude/task/audit_reviewer_outputs.md
+@@ -32,38 +27,46 @@ scope_paths:
+   - .claude/task/audit_reviewer_outputs.md
  
  impact_map: >
--  writers: dim_country.sql changes only the row count inside its {# #} header comment, which dbt drops
--    at compile; its compiled SQL is unchanged. The countries seed gains one row.
--  downstream: `dbt ls --select dim_country+` returns dim_country and 8 tests, no model -
--    not_null and unique on country_key and country_name, and the relationships tests from
--    dim_coach.coach_birth_country, dim_league.league_country, dim_player.player_birth_country and
--    dim_team.team_country. One more row lets a failing relationships test pass and changes no
--    existing row.
--  layer_rules: a seed row and a comment; no logic.
--  deploy_order: the nightly loads the seed after merge.
--  blast_radius: dim_country gains one row; the nightly's relationships test on dim_player passes.
-+  writers: none; no export or data change. menu.ts holds the six menu items SiteHeader.astro holds
-+    today.
-+  downstream: SiteHeader and SiteFooter render on every page through Layout.astro, so every built page
-+    changes in its footer row and, except Home, in one marked menu item. The new `section` prop is
-+    optional; a page that passes none marks nothing. system.css gains rules for `.mainnav .on` and
-+    `.drawer .on` only; `.on` is also used by `.comp-tabs .tab.on`, which the new selectors do not
-+    reach.
-+  layer_rules: the page names its section; the chrome formats and routes only.
-+  deploy_order: the site changes on the next manual deploy (deploy:site-v2).
-+  blast_radius: the footer and the menu on every page; no other text.
+-  writers: none; no export or data change. menu.ts holds the six menu items SiteHeader.astro holds
+-    today.
+-  downstream: SiteHeader and SiteFooter render on every page through Layout.astro, so every built page
+-    changes in its footer row and, except Home, in one marked menu item. The new `section` prop is
+-    optional; a page that passes none marks nothing. system.css gains rules for `.mainnav .on` and
+-    `.drawer .on` only; `.on` is also used by `.comp-tabs .tab.on`, which the new selectors do not
+-    reach.
+-  layer_rules: the page names its section; the chrome formats and routes only.
+-  deploy_order: the site changes on the next manual deploy (deploy:site-v2).
+-  blast_radius: the footer and the menu on every page; no other text.
++  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/{fixture_id}.json. The fixture
++    payload gains is_next_round (mart_competition_fixtures); each side's next_match takes the match-row
++    shape _competition_fixture already gives the competition and match-day payloads, from the same mart.
++    No dbt model changes.
++  downstream: `grep -rn "data/fixtures" site_v2/src site_v2/scripts site_v2/integrations` (tests
++    excluded) returns one reader, `pages/[lang]/[competition]/[matches]/[fixture].astro:33`, the
++    `import.meta.glob` of the payloads; components/fixture/* take their values from it. `git diff --cached
++    -- dbt_project` is empty: no model, seed or test changes, so no dbt lineage moves. A payload without
++    is_next_round renders as today's next-match page, so the sample pages keep their text.
++    ui/MatchRow.astro and the group head markup are reused, not changed.
++  layer_rules: the export selects served columns; which page a fixture gets is the served is_next_round;
++    the page formats and routes only.
++  deploy_order: the nightly export writes the new fields after merge; the site changes on the next manual
++    deploy (deploy:site-v2).
++  blast_radius: every match page outside the next matchday; no other page's text.
  
  acceptance_criteria:
--  - countries.csv has the row sint-maarten,Sint Maarten in alphabetical order; country_key and country_name stay unique and not null.
--  - Every value the nightly's relationships test returned is a country_name in countries.csv.
-+  - On every built page the footer's link row reads the six menu items in the menu's order, then About and Imprint (pending), in the page's language; each item is a link exactly when the menu's item is a link.
-+  - On every built page but Home, exactly one menu item, the page's section, carries aria-current="true", in the menu and in the drawer; Home marks none.
-+  - The marked item is ink and bold, with the 2px line in the menu; no other item changes look.
-+  - Apart from the footer row and the marking, every page shows the same text as main's build.
+-  - On every built page the footer's link row reads the six menu items in the menu's order, then About and Imprint (pending), in the page's language; each item is a link exactly when the menu's item is a link.
+-  - On every built page but Home, exactly one menu item, the page's section, carries aria-current="true", in the menu and in the drawer; Home marks none.
+-  - The marked item is ink and bold, with the 2px line in the menu; no other item changes look.
+-  - Apart from the footer row and the marking, every page shows the same text as main's build.
++  - A fixture whose payload says is_next_round false renders, in EN, DE and FI, the breadcrumb, the header without a standing chip, Head to head, then Next matches, then the footer; no Form comparison, Recent matches or Players to watch.
++  - Next matches shows each team's next match under its competition's head, with a date heading per day and the match row with both crests and the kick-off with its zone, every row a link to that match's page; a team whose next match is this one, or who has none, adds no row.
++  - A fixture with is_next_round true or missing renders exactly as main's build; every page that is not a match page shows the same text as main's build.
++  - At 375, 700 and 1010px no horizontal scroll, and check_design_inventory.py passes.
++  - One real future fixture's payload, exported for this check and never committed, renders every block above in EN, DE and FI.
  
  decisions_taken: >
--  Sint Maarten is its own country row, apart from Saint Martin (the French half of the island), as
--  Curacao is: approved in chat, 2026-10-09.
-+  The plan, the readings and the acceptance criteria: approved in chat, 2026-10-09. Readings: the
-+  section rule holds on every page, an inert item (Teams, Players) marked the same way; Imprint
-+  keeps its "(pending)" label, the publication gate not lifted; no new strings.
-+
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
+-  The plan, the readings and the acceptance criteria: approved in chat, 2026-10-09. Readings: the
+-  section rule holds on every page, an inert item (Teams, Players) marked the same way; Imprint
+-  keeps its "(pending)" label, the publication gate not lifted; no new strings.
++  The plan, the readings and the acceptance criteria: approved in chat, 2026-10-09. Readings: "drawn as
++  the approved Home's Next matches" is the ruled elements that render draws (the competition group head,
++  a date heading per day, the match row), as the Matches page draws them; a missing is_next_round renders
++  as the next-match page; no new strings.
+ 
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: the export's fixture and next-match queries
++  read more served columns of mart_competition_fixtures, dry-run measured and put to the CPO.
  
  decisions_reserved:
--  - Any other country, override or naming change.
-+  - The Imprint label and page: the publication gate.
-+  - Links inside text, the team page's rows, Home's intros and the Rankings tab order: their own MRs.
+-  - The Imprint label and page: the publication gate.
+-  - Links inside text, the team page's rows, Home's intros and the Rankings tab order: their own MRs.
++  - Which future match pages search engines index: the go-live decision.
++  - Home's Next matches block: Home's design review.
  
  done_when:
--  - The two acceptance criteria are shown in .claude/task/acceptance_evidence.md.
--  - pytest tests/ passes.
-+  - npm test, npm run build (audit-seo, check-built-pages), check_copy_gate.py, check_page_css.py and
-+    check_design_inventory.py pass.
-+  - The acceptance criteria are shown in .claude/task/acceptance_evidence.md from the built pages.
+-  - npm test, npm run build (audit-seo, check-built-pages), check_copy_gate.py, check_page_css.py and
+-    check_design_inventory.py pass.
++  - check_copy_gate.py, pytest tests/, npm test, npm run build (audit-seo, check-built-pages),
++    check_page_css.py and check_design_inventory.py pass.
+   - The acceptance criteria are shown in .claude/task/acceptance_evidence.md from the built pages.
  
--amendments: dim_country.sql added to scope_paths, with the impact map, so its row count in the header
--  comment stays true: approved in chat, 2026-10-09.
-+amendments:
-+  - The two pin tests added to scope_paths; their counts lowered to what this change leaves, 09_chrome.md's long sentences 9 to 8 and the code's history lines 751 to 749: approved in chat, 2026-10-09.
-diff --git a/docs/wireframes/09_chrome.md b/docs/wireframes/09_chrome.md
-index 9e93360b..defd84dd 100644
---- a/docs/wireframes/09_chrome.md
-+++ b/docs/wireframes/09_chrome.md
-@@ -35,8 +35,8 @@ fields that exist in today's exported JSON") does not apply here; there is no pa
- │              (page content)                │
- ├────────────────────────────────────────────┤
- │ MatchdayPilot                              │  (3) footer
--│ Competitions · Teams · Players ·           │
--│ Statistics ·                               │
-+│ Competitions · Matches · Teams · Players · │
-+│ Standings · Statistics ·                   │
- │ About · Imprint (pending)                  │
- │ EN · DE · FI · Data: API-Football          │
- └────────────────────────────────────────────┘
-@@ -72,21 +72,24 @@ All chrome text is chrome-string i18n (`t(lang, key)`), not catalogue-bound (§3
- | Search placeholder / icon-button aria | `searchPlaceholder`, `searchAria` |
- | Theme toggle aria | `themeToggleAria` |
- | Hamburger aria | `menuAria` |
--| Footer link row (5 of 6 items reuse the nav keys) | `navCompetitions`, `navTeams`, `navPlayers`, `navStatistics`, `footerAbout` |
-+| Footer link row (the main nav's 6 items, from `lib/menu.ts`, then About) | the main nav's keys, `footerAbout` |
- | Footer Imprint slot | `footerImprintPending` |
- | Footer data-source line | `footerDataSource` (prefix only — "EN · DE · FI" itself is locale-invariant literal text, language codes are not translated) |
+ amendments:
+-  - The two pin tests added to scope_paths; their counts lowered to what this change leaves, 09_chrome.md's long sentences 9 to 8 and the code's history lines 751 to 749: approved in chat, 2026-10-09.
++  - block_standard.md's Match page entry expects only the parts both match-page states show (Block heading, Match header competition head, Navigation link, the search controls); Result row, Player row and the Next matches rows stay measured against their rules wherever they appear: approved in chat, 2026-10-09.
+diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
+index 764ff530..de83101d 100644
+--- a/docs/wireframes/01_fixture_page.md
++++ b/docs/wireframes/01_fixture_page.md
+@@ -31,7 +31,7 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
+ | `data/matchstats/{played_fixture_sk}.json` | The drill-down target when a past-match row is clicked (§7) — exists exactly for fixtures referenced by a form window |
  
- ## 6. States
+ Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
+-season, round, round_order, venue, home, away, head_to_head`.
++season, round, round_order, is_next_round, venue, home, away, head_to_head`.
+ Each side (`home`/`away`): `team_id, name, slug, crest, country, form, standing,
+ form_window[], top_players[], next_match`.
  
- - **No dead links.** A nav or footer item is an inert `<span>` (not `<a>`) until the page behind
--  it is built. Competitions became a real link when its index shipped; none of
--  Matches/Teams/Players/Standings/Statistics/About has a built index page, so those are still
--  spans — beyond Competitions, only detail pages exist today, reachable by direct entity URL and
--  not by browsing from chrome. `.mainnav a, .mainnav span` (and the footer/drawer
-+  it is built. Competitions and Matches are links; Teams, Players, Standings, Statistics and
-+  About have no built index page, so they are spans. The footer's row repeats the menu, each
-+  item a link exactly when the menu's is. `.mainnav a, .mainnav span` (and the footer/drawer
-   equivalents) apply identical styling to both, so an inert item looks no different from a real
-   one until it's wired. This mirrors the existing convention on the fixture page's breadcrumb and
-   the team page's Explore chips (both already ship this pattern, pre-dating this task). The brand
-   links to `localeHref(lang)`, which resolves — the locale root is a real, if placeholder, route.
-+- **The page's section is marked.** The menu and the drawer mark the section the page sits in.
-+  The marked item carries `aria-current="true"` and the tab bar's selected style: ink, bold and,
-+  in the menu, the 2px line. A competition's pages and its matches sit under Competitions, the
-+  Matches pages under Matches, a team under Teams, a player under Players. Home marks none.
- - **Imprint**: permanently labelled "(pending)" until the CPO settles the operator/address
-   question (#799); not a data state, a publication gate.
- - **Search**: visually present, functionally inert — no input element wired, no keystroke
-diff --git a/site_v2/src/components/chrome/SiteFooter.astro b/site_v2/src/components/chrome/SiteFooter.astro
-index aa1ccc25..bec78e80 100644
---- a/site_v2/src/components/chrome/SiteFooter.astro
-+++ b/site_v2/src/components/chrome/SiteFooter.astro
-@@ -3,13 +3,14 @@
- // locale/data-source meta text. Markup transcribed from the approved
- // foundation mock (artifact 87d14109); classes are system.css's.
- //
--// Every link-row item is an inert <span> (no index page built for any of
--// them yet — same "no dead links" convention as the header nav). The Imprint
-+// The link row repeats the menu (lib/menu.ts), each item a link exactly when the menu's is, then
-+// About, inert until its page exists. The Imprint
- // slot stays labelled pending: publication is blocked on the operator/address
- // question (#799), a reserved product call, not resolved here. "EN · DE · FI" is
- // locale-invariant literal text (language codes, not translated copy).
- import { t } from "../../i18n/strings";
- import { localeHref } from "../../lib/href";
-+import { menuItems } from "../../lib/menu";
- import type { Lang } from "../../lib/format";
+@@ -46,6 +46,12 @@ The page draws render `match-page_2026-10-07_75`. Its blocks, in order:
+ 5. Players to watch: up to 5 player rows per team.
+ 6. Head to head: the intro, then up to 5 meetings.
  
- interface Props {
-@@ -17,13 +18,7 @@ interface Props {
- }
- const { lang } = Astro.props;
++A match further out than the next matchday gets the future match page, drawn by render
++`future-match-page_2026-09-28_31`. It keeps the breadcrumb, the header without the standing chip,
++and Head to head. After them comes Next matches: each team's `next_match` under its competition's
++group head, a date heading per day, the match row. A team whose next match is this one adds no row.
++The page turns into the next match page when its matchday becomes the next one.
++
+ The page has no sentence under the header, no window switch, no internal-link chips and no
+ sample-data line. Under 700px the teams stack and the trail slides on one line. From 560px the
+ two teams' lists sit side by side, their rows level.
+@@ -137,7 +143,9 @@ The block shows no totals and no bar. No link until played-match pages exist.
  
--const flinks = [
--  t(lang, "navCompetitions"),
--  t(lang, "navTeams"),
--  t(lang, "navPlayers"),
--  t(lang, "navStatistics"),
--  t(lang, "footerAbout"),
--];
-+const flinks: { label: string; href?: string }[] = [...menuItems(lang), { label: t(lang, "footerAbout") }];
+ | State | Trigger | Render |
+ |---|---|---|
+-| Preview (normal) | `status` = `NS` | everything above |
++| Preview (normal) | `status` = `NS`, `is_next_round` true or missing | everything above |
++| Future match | `is_next_round` = false | breadcrumb, header without chip, Head to head, Next matches |
++| No next match (side) | `next_match` = null | that team adds no row; both null: Next matches is absent |
+ | Time TBD | `status` = `TBD` | date without time + "time TBD" |
+ | No form window (side) | `form` = null | that side's values show "–"; both null: the block is absent |
+ | No standings context | `standing` = null or no `league_rank` | no chip, no empty state |
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 2bb05858..d6fef8e9 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -136,7 +136,7 @@ and `gen_taxonomy.py` are diagrams.
+ | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+-| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Result row, Player row, Search field [>=1010px], Search button [<1010px] |
++| Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Search field [>=1010px], Search button [<1010px] |
+ | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
+ | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |
+diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
+index 5fa38e6d..7c779e2c 100644
+--- a/scripts/export_site_data.py
++++ b/scripts/export_site_data.py
+@@ -619,18 +619,11 @@ def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: d
+ 
+ 
+ def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
+-    """A team's next match, its mart_competition_fixtures row as it stands; None when the team has
+-    none, or when it is the fixture whose page this is."""
++    """A team's next match, its mart_competition_fixtures row as the site's match row with its
++    competition; None when the team has none, or when it is the fixture whose page this is."""
+     if not row or int(row["fixture_sk"]) == fixture_id:
+         return None
+-
+-    def team(side):
+-        return {"team_id": int(row[f"{side}_team_sk"]), "name": row.get(f"{side}_team_name"),
+-                "slug": row.get(f"{side}_team_slug"), "crest": row.get(f"{side}_team_logo_url")}
+-
+-    return {"fixture_id": int(row["fixture_sk"]), "slug": row.get("fixture_slug"),
+-            "league_code": row.get("league_code"), "kickoff": row.get("kickoff_datetime"),
+-            "round": row.get("round_name"), "home": team("home"), "away": team("away")}
++    return {**_competition_fixture(row), "league_code": row.get("league_code")}
+ 
+ 
+ def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
+@@ -915,6 +908,7 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
+         "season": fix.get("season_api_year"),
+         "round": fix.get("round_name"),
+         "round_order": fix.get("round_order"),
++        "is_next_round": bool(fix.get("is_next_round")),
+         "venue": fix.get("venue_name_snapshot"),
+         "home": home_side,
+         "away": away_side,
+@@ -1085,6 +1079,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+     fixtures = _query(client, f"""
+         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
++               is_next_round,
+                status_short, venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
+                home_team_name, home_team_slug, home_team_logo_url,
+                away_team_name, away_team_slug, away_team_logo_url
+@@ -1162,10 +1157,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
+     team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
+     next_matches: dict = {}
+     for r in _query(client, f"""
+-        select fixture_sk, league_code, kickoff_datetime, round_name, fixture_slug,
+-               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
+-               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
+-               is_home_team_next_match, is_away_team_next_match
++        select {_COMPETITION_FIXTURE_COLUMNS}, is_home_team_next_match, is_away_team_next_match
+         from `{marts}.mart_competition_fixtures`
+         where (is_home_team_next_match and home_team_sk in ({team_in}))
+            or (is_away_team_next_match and away_team_sk in ({team_in}))
+diff --git a/site_v2/src/components/fixture/Masthead.astro b/site_v2/src/components/fixture/Masthead.astro
+index 777a1688..a8001b52 100644
+--- a/site_v2/src/components/fixture/Masthead.astro
++++ b/site_v2/src/components/fixture/Masthead.astro
+@@ -1,7 +1,8 @@
  ---
- 
- <footer class="site-footer">
-@@ -37,7 +32,7 @@ const flinks = [
-         page — a note naming the old brand would ship it straight back into the output. */}
-     <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
-     <div class="flinks">
--      {flinks.map((label) => <span>{label}</span>)}
-+      {flinks.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
-       <span class="imp">{t(lang, "footerImprintPending")}</span>
-     </div>
-     <div class="fmeta">EN · DE · FI &nbsp;·&nbsp; {t(lang, "footerDataSource")}</div>
-diff --git a/site_v2/src/components/chrome/SiteHeader.astro b/site_v2/src/components/chrome/SiteHeader.astro
-index 163e3355..d1197939 100644
---- a/site_v2/src/components/chrome/SiteHeader.astro
-+++ b/site_v2/src/components/chrome/SiteHeader.astro
-@@ -3,34 +3,24 @@
- // toggle, mobile hamburger + drawer. Markup transcribed from the approved
- // foundation mock (artifact 87d14109); classes are system.css's, defined there.
- //
--// Nav items render as an inert <span>, not <a>, because none of their index
--// pages exist yet (only team/fixture DETAIL pages are built) — same "no dead
--// links" convention already used by the fixture page's breadcrumb and the team
--// page's Explore chips. Exact nav order/contents is a reserved product call
--// (§10); this is the specified starting list, unchanged from the mock.
-+// The menu's items come from lib/menu.ts; the item for the page's section is marked
-+// (aria-current, class `on`).
- // Search is visually present but inert (no input, no backend) — search style
- // is a reserved product call.
--//
--// Competitions is the first item to earn a real href (#62 step 5, #54): its index page now
--// exists. system.css styles `.mainnav a`/`.mainnav span` identically, so the tag swap is the
--// whole visual change (#54's own text). Every other item stays a span until its own index ships.
- import { t } from "../../i18n/strings";
--import { localeHref, word } from "../../lib/href";
-+import { localeHref } from "../../lib/href";
-+import { menuItems } from "../../lib/menu";
-+import type { Section } from "../../lib/menu";
- import type { Lang } from "../../lib/format";
- 
- interface Props {
-   lang: Lang;
-+  section?: Section;
+ // The match header: the competition's group head (a heading link), the kick-off line (round · date ·
+ // time UTC · venue, each unit whole when the line wraps), and the two teams, each one link to its team
+-// page when that page is built, with the standing chip only when the table position is served.
++// page when that page is built, with the standing chip only on the next match and when the table
++// position is served: today's table is not the position going into a match further out.
+ import Crest from "../ui/Crest.astro";
+ import Chevron from "./Chevron.astro";
+ import { formatDate, formatTime, signedInteger } from "../../lib/format";
+@@ -18,8 +19,9 @@ interface Props {
+   compLogo?: string | null;
+   compHref?: string;
+   teamHrefs: { home?: string; away?: string };
++  showStanding: boolean;
  }
--const { lang } = Astro.props;
-+const { lang, section } = Astro.props;
+-const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs } = Astro.props;
++const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs, showStanding } = Astro.props;
+ const { home, away } = fixture;
  
--const navItems: { label: string; href?: string }[] = [
--  { label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
--  { label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
--  { label: t(lang, "navTeams") },
--  { label: t(lang, "navPlayers") },
--  { label: t(lang, "navStandings") },
--  { label: t(lang, "navStatistics") },
--];
-+const navItems = menuItems(lang);
-+const mark = (s: Section) => (s === section ? { class: "on", "aria-current": "true" } : {});
- ---
- 
- <header class="site-header">
-@@ -42,7 +32,9 @@ const navItems: { label: string; href?: string }[] = [
-     <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
- 
-     <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
--      {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
-+      {navItems.map((item) => item.href
-+        ? <a href={item.href} {...mark(item.section)}>{item.label}</a>
-+        : <span {...mark(item.section)}>{item.label}</span>)}
-     </nav>
- 
-     <div class="header-actions">
-@@ -79,7 +71,9 @@ const navItems: { label: string; href?: string }[] = [
-   </div>
- 
-   <nav class="drawer" id="drawer" aria-label={t(lang, "mainNavAria")}>
--    {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
-+    {navItems.map((item) => item.href
-+      ? <a href={item.href} {...mark(item.section)}>{item.label}</a>
-+      : <span {...mark(item.section)}>{item.label}</span>)}
-   </nav>
- </header>
- 
-diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
-index c80d97b4..a00b796b 100644
---- a/site_v2/src/layouts/Layout.astro
-+++ b/site_v2/src/layouts/Layout.astro
-@@ -6,6 +6,7 @@
- // Foundation shell (#825): a global header + footer now wrap every page's <slot>.
- import "../styles/system.css";
- import SiteHeader from "../components/chrome/SiteHeader.astro";
-+import type { Section } from "../lib/menu";
- import SiteFooter from "../components/chrome/SiteFooter.astro";
- import type { Lang } from "../lib/format";
- import { alternatePaths } from "../lib/href";
-@@ -23,8 +24,10 @@ interface Props {
-   crumbs?: { name: string; href?: string }[];
-   /** Absolute or site-relative image for the OG/Twitter card. */
-   image?: string;
-+  /** The menu section the page sits in, marked in the menu; none on Home. */
-+  section?: Section;
- }
--const { lang, title, description, entity, crumbs, image } = Astro.props;
-+const { lang, title, description, entity, crumbs, image, section } = Astro.props;
- 
- // Canonical from Astro.site + the PATHNAME. Never Astro.url.href: in a static build that carries
- // the dev/preview origin (localhost:4321), so every canonical would point at a machine that is not
-@@ -111,7 +114,7 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
-         } catch (e) {}
-       })();
-     </script>
--    <SiteHeader lang={lang} />
-+    <SiteHeader lang={lang} section={section} />
-     <slot />
-     <SiteFooter lang={lang} />
-   </body>
-diff --git a/site_v2/src/lib/menu.ts b/site_v2/src/lib/menu.ts
+ const time = fixture.status === "TBD" ? t(lang, "timeTBD") : `${formatTime(fixture.kickoff, lang)} UTC`;
+@@ -80,7 +82,7 @@ const sides: { side: Side; href?: string }[] = [
+                 {href && <Chevron />}
+               </span>
+             </span>
+-            {st?.league_rank != null && (
++            {showStanding && st?.league_rank != null && (
+               <div class="stand num">
+                 <span class="nb">#<b>{st.league_rank}</b></span> ·{" "}
+                 <span class="nb"><b>{st.standing_points}</b> {t(lang, "pts")}</span> ·{" "}
+diff --git a/site_v2/src/components/fixture/NextMatches.astro b/site_v2/src/components/fixture/NextMatches.astro
 new file mode 100644
-index 00000000..1fcfdac0
+index 00000000..009ca06d
 --- /dev/null
-+++ b/site_v2/src/lib/menu.ts
-@@ -0,0 +1,25 @@
-+// The menu's six items in the menu's order; the header, the phone drawer and the footer all read this
-+// list. An item carries an href only once its page is built; until then it renders as an inert span,
-+// styled the same as a link (09_chrome.md §6).
-+import { t } from "../i18n/strings";
-+import { localeHref, word } from "./href";
-+import type { Lang } from "./format";
++++ b/site_v2/src/components/fixture/NextMatches.astro
+@@ -0,0 +1,92 @@
++---
++// Next matches on the future match page: each team's next match, under its competition's group head
++// (a heading link when the competition page is built), a date heading per day, every row THE match
++// row. Two next matches of one competition share its head; the competitions follow kick-off. A team
++// whose next match is this one, or who has none, adds no row; with no row the block is absent.
++import SectionHead from "../ui/SectionHead.astro";
++import MatchRow from "../ui/MatchRow.astro";
++import Crest from "../ui/Crest.astro";
++import Chevron from "./Chevron.astro";
++import { t } from "../../i18n/strings";
++import { localeHref } from "../../lib/href";
++import { formatDate } from "../../lib/format";
++import type { Lang } from "../../lib/format";
++import type { CompetitionIndex, Side } from "../../lib/types";
++import competitions from "../../data/competitions.json";
++import competitionIndex from "../../data/competition_index.json";
 +
-+export type Section = "competitions" | "matches" | "teams" | "players" | "standings" | "statistics";
++interface Props {
++  home: Side;
++  away: Side;
++  lang: Lang;
++}
++const { home, away, lang } = Astro.props;
 +
-+export interface MenuItem {
-+  section: Section;
-+  label: string;
-+  href?: string;
++type Next = NonNullable<Side["next_match"]>;
++const comps = competitions as Record<string, { slug: string; name?: string }>;
++const indexed = (competitionIndex as unknown as CompetitionIndex).competitions;
++
++const matches = [home.next_match, away.next_match]
++  .filter((m): m is Next => Boolean(m))
++  .filter((m, i, all) => all.findIndex((o) => o.fixture_id === m.fixture_id) === i)
++  .sort((a, b) => (a.kickoff ?? "").localeCompare(b.kickoff ?? ""));
++
++const groups = new Map<string, Next[]>();
++for (const m of matches) {
++  if (!groups.has(m.league_code)) groups.set(m.league_code, []);
++  groups.get(m.league_code)!.push(m);
 +}
 +
-+export function menuItems(lang: Lang): MenuItem[] {
-+  return [
-+    { section: "competitions", label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
-+    { section: "matches", label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
-+    { section: "teams", label: t(lang, "navTeams") },
-+    { section: "players", label: t(lang, "navPlayers") },
-+    { section: "standings", label: t(lang, "navStandings") },
-+    { section: "statistics", label: t(lang, "navStatistics") },
-+  ];
++function days(fixtures: Next[]): Next[][] {
++  const byDay = new Map<string, Next[]>();
++  for (const fx of fixtures) {
++    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : "";
++    if (!byDay.has(day)) byDay.set(day, []);
++    byDay.get(day)!.push(fx);
++  }
++  return [...byDay.values()];
 +}
++
++const head = (code: string) => {
++  const row = indexed.find((c) => c.league_code === code);
++  return {
++    name: comps[code]?.name ?? code,
++    slug: comps[code]?.slug ?? null,
++    logo: row?.logo_url ?? null,
++    href: row && comps[code] ? localeHref(lang, `${comps[code].slug}/`) : undefined,
++  };
++};
++---
++
++{matches.length > 0 && (
++  <section aria-label={t(lang, "homeNext")}>
++    <SectionHead label={t(lang, "homeNext")} />
++    {[...groups.entries()].map(([code, fixtures]) => {
++      const g = head(code);
++      return (
++        <div class="fxgroup">
++          <div class="gh">
++            {g.href ? (
++              <a class="cnm" href={g.href}>
++                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
++                <span class="nm">{g.name}</span>
++                <Chevron />
++              </a>
++            ) : (
++              <span class="cnm">
++                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
++                <span class="nm">{g.name}</span>
++              </span>
++            )}
++          </div>
++          {days(fixtures).map((day) => (
++            <>
++              <div class="dh">{formatDate(day[0].kickoff, lang)}</div>
++              {day.map((fx) => <MatchRow fx={fx} competitionSlug={g.slug} lang={lang} />)}
++            </>
++          ))}
++        </div>
++      );
++    })}
++  </section>
++)}
+diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
+index 841ecc4b..7cb6ee2f 100644
+--- a/site_v2/src/lib/types.ts
++++ b/site_v2/src/lib/types.ts
+@@ -82,6 +82,8 @@ export interface Side {
+   standing?: Standing | null;
+   form_window?: FormMatch[];
+   top_players?: TopPlayer[];
++  /** The team's next match in any competition, as the site's match row; absent when it is this one. */
++  next_match?: (CompetitionFixture & { league_code: string }) | null;
+ }
+ 
+ export interface RecentMeeting {
+@@ -121,6 +123,8 @@ export interface Fixture {
+   season?: number | null;
+   round?: string | null;
+   round_order?: number | null;
++  /** True when the match is in its competition's next round; the match page then shows its full preview. */
++  is_next_round?: boolean;
+   venue?: string | null;
+   home: Side;
+   away: Side;
 diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-index e1117062..63be209c 100644
+index 63be209c..e42a26bc 100644
 --- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
 +++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-@@ -122,6 +122,7 @@ const entity = {
-   entity={entity}
-   crumbs={crumbs.map((c) => ({ name: c.label, href: c.href }))}
-   image={home.crest ?? undefined}
-+  section="competitions"
- >
-   <div class="inner mp">
-     <Breadcrumb items={crumbs} lang={lang} />
-diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro b/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
-index a183fcb8..556d062c 100644
---- a/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
-+++ b/site_v2/src/pages/[lang]/[competition]/[matches]/index.astro
-@@ -68,7 +68,7 @@ const crumbs = [
- ];
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="competitions">
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-diff --git a/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro b/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
-index 2a1c390f..b350e497 100644
---- a/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
-+++ b/site_v2/src/pages/[lang]/[competition]/[stats]/index.astro
-@@ -69,7 +69,7 @@ const crumbs = [
- ];
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="competitions">
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-diff --git a/site_v2/src/pages/[lang]/[competition]/index.astro b/site_v2/src/pages/[lang]/[competition]/index.astro
-index c41d5b69..778f861e 100644
---- a/site_v2/src/pages/[lang]/[competition]/index.astro
-+++ b/site_v2/src/pages/[lang]/[competition]/index.astro
-@@ -84,7 +84,7 @@ const crumbs = [
- const competitionType = payload?.competition_type ?? competition.competition_type;
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="competitions">
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-diff --git a/site_v2/src/pages/[lang]/[competitions]/index.astro b/site_v2/src/pages/[lang]/[competitions]/index.astro
-index c3a15b30..a6dbd3a2 100644
---- a/site_v2/src/pages/[lang]/[competitions]/index.astro
-+++ b/site_v2/src/pages/[lang]/[competitions]/index.astro
-@@ -43,7 +43,7 @@ const crumbs = [
- ];
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="competitions">
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-diff --git a/site_v2/src/pages/[lang]/[matches]/[day].astro b/site_v2/src/pages/[lang]/[matches]/[day].astro
-index b54da8e6..1354634a 100644
---- a/site_v2/src/pages/[lang]/[matches]/[day].astro
-+++ b/site_v2/src/pages/[lang]/[matches]/[day].astro
-@@ -48,6 +48,6 @@ const crumbs = [
- ];
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="matches">
-   <MatchesDay day={day} openingDay={openingDay} lang={lang} />
- </Layout>
-diff --git a/site_v2/src/pages/[lang]/[matches]/index.astro b/site_v2/src/pages/[lang]/[matches]/index.astro
-index 9295e0f0..90598b2c 100644
---- a/site_v2/src/pages/[lang]/[matches]/index.astro
-+++ b/site_v2/src/pages/[lang]/[matches]/index.astro
-@@ -42,6 +42,6 @@ const crumbs = [
- ];
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="matches">
-   <MatchesDay day={day} openingDay={day.day} lang={lang} />
- </Layout>
-diff --git a/site_v2/src/pages/[lang]/[players]/[player].astro b/site_v2/src/pages/[lang]/[players]/[player].astro
-index b7b38a6d..f3a540b4 100644
---- a/site_v2/src/pages/[lang]/[players]/[player].astro
-+++ b/site_v2/src/pages/[lang]/[players]/[player].astro
-@@ -100,7 +100,7 @@ const crumbs = [
- ];
- ---
- 
--<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs}>
-+<Layout lang={lang} title={title} description={description} entity={entity} crumbs={crumbs} section="players">
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-       <a class="lnk" href={localeHref(lang)}>{t(lang, "crumbHome")}</a>
-diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
-index 3be420a7..5d27d30d 100644
---- a/site_v2/src/pages/[lang]/[teams]/[team].astro
-+++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
-@@ -96,6 +96,7 @@ const linkChips = [t(lang, "table"), t(lang, "topScorers")];
-   entity={entity}
-   crumbs={crumbs}
-   image={team.crest ?? undefined}
-+  section="teams"
- >
-   <div class="inner">
-     <nav class="crumb" aria-label={t(lang, "crumbAria")}>
-diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
-index 6756d358..7688f410 100644
---- a/site_v2/src/styles/system.css
-+++ b/site_v2/src/styles/system.css
-@@ -442,6 +442,10 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
-   padding: 13px clamp(16px, 3.5vw, 28px); border-bottom: 1px solid var(--line);
+@@ -11,6 +11,7 @@ import SplitSection from "../../../../components/fixture/SplitSection.astro";
+ import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
+ import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
+ import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
++import NextMatches from "../../../../components/fixture/NextMatches.astro";
+ import { t, inCompetition } from "../../../../i18n/strings";
+ import { localeHref, word } from "../../../../lib/href";
+ import { formatShortDate } from "../../../../lib/format";
+@@ -62,6 +63,8 @@ interface Props {
  }
- .drawer a:last-child, .drawer span:last-child { border-bottom: 0; }
-+/* The menu marks the page's section as the tab bar marks its tab: ink and bold, the 2px line in the
-+   desktop menu. */
-+.mainnav .on { color: var(--ink); font-weight: 700; border-radius: 0; box-shadow: inset 0 -2px 0 var(--ink); }
-+.drawer .on { color: var(--ink); font-weight: 700; }
+ const { fixture, lang, built } = Astro.props;
+ const { home, away } = fixture;
++// The next matchday's match gets the full preview; a match further out waits for it.
++const isNext = fixture.is_next_round !== false;
  
- /* ---- generic page grid (main + rail) — a system primitive, not yet wired ---- *
-  * into any page: which pages get a rail and what fills it is reserved (§10).   *
-diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
-index b68491dc..a535d759 100644
---- a/tests/test_no_decision_history_in_code.py
-+++ b/tests/test_no_decision_history_in_code.py
-@@ -30,7 +30,7 @@ sys.path.insert(0, HOOKS)
- import comment_history_gate as gate  # noqa: E402
+ const comp = (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code];
+ const compName = comp?.name ?? fixture.league_name ?? fixture.league_code;
+@@ -135,27 +138,33 @@ const entity = {
+       compLogo={indexRow?.logo_url}
+       compHref={compHref}
+       teamHrefs={{ home: teamHref(home.slug), away: teamHref(away.slug) }}
++      showStanding={isNext}
+     />
+-    <FormSegment fixture={fixture} lang={lang} compName={compName} />
++    {isNext && (
++      <>
++        <FormSegment fixture={fixture} lang={lang} compName={compName} />
  
- # The pin. A sweep MR lowers these two numbers and nothing else may move them.
--PINNED_LINES = 751
-+PINNED_LINES = 749
- PINNED_FILES = 189
+-    <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
+-      <Fragment slot="home">
+-        {(home.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
+-      </Fragment>
+-      <Fragment slot="away">
+-        {(away.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
+-      </Fragment>
+-    </SplitSection>
++        <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
++          <Fragment slot="home">
++            {(home.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
++          </Fragment>
++          <Fragment slot="away">
++            {(away.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
++          </Fragment>
++        </SplitSection>
  
- HASH = chr(35)
-diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
-index c3b24777..f7f0c302 100644
---- a/tests/test_sentence_length_in_docs.py
-+++ b/tests/test_sentence_length_in_docs.py
-@@ -65,7 +65,7 @@ PINNED = {
-     "docs/wireframes/02_team_profile.md": 3,
-     "docs/wireframes/03_player_profile.md": 3,
-     "docs/wireframes/08_browse.md": 11,
--    "docs/wireframes/09_chrome.md": 9,
-+    "docs/wireframes/09_chrome.md": 8,
-     "docs/wireframes/10_home.md": 128,
-     "docs/wireframes/11_team_squad.md": 7,
-     "docs/wireframes/12_player_stats.md": 16,
+-    <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
+-      <Fragment slot="home">
+-        {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
+-      </Fragment>
+-      <Fragment slot="away">
+-        {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
+-      </Fragment>
+-    </SplitSection>
++        <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
++          <Fragment slot="home">
++            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
++          </Fragment>
++          <Fragment slot="away">
++            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
++          </Fragment>
++        </SplitSection>
++      </>
++    )}
+ 
+     <HeadToHead h2h={fixture.head_to_head} home={home} away={away} lang={lang} />
++    {!isNext && <NextMatches home={home} away={away} lang={lang} />}
+   </div>
+ </Layout>
+diff --git a/site_v2/src/specs/competition/matches/fixture.spec.json b/site_v2/src/specs/competition/matches/fixture.spec.json
+index c4b953c6..dc3e3ba1 100644
+--- a/site_v2/src/specs/competition/matches/fixture.spec.json
++++ b/site_v2/src/specs/competition/matches/fixture.spec.json
+@@ -92,6 +92,14 @@
+         "secH2H",
+         "h2hNone"
+       ]
++    },
++    {
++      "block": "Next matches",
++      "mart": "mart_competition_fixtures",
++      "i18n_keys": [
++        "homeNext",
++        "compTBC"
++      ]
+     }
+   ]
+ }
+diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
+index 07347317..e3369808 100644
+--- a/tests/test_export_site_data.py
++++ b/tests/test_export_site_data.py
+@@ -412,22 +412,28 @@ def test_shape_fixture_payload_composes_header_and_sides():
+ 
+ def test_shape_next_match_is_the_mart_row_unless_it_is_this_match():
+     row = {"fixture_sk": 11, "league_code": "DFBP", "kickoff_datetime": "2026-10-28T19:45:00",
+-           "round_name": "2nd Round", "fixture_slug": "2026-10-28-a-vs-b",
++           "round_name": "2nd Round", "round_order": None, "round_sequence": 2, "fixture_order": 4,
++           "fixture_slug": "2026-10-28-a-vs-b", "status_short": "TBD", "is_played": False,
++           "goals_home": None, "goals_away": None, "is_next_round": False, "is_match_that_matters": False,
+            "home_team_sk": 1, "home_team_name": "A", "home_team_slug": "a", "home_team_logo_url": "ua",
+            "away_team_sk": 2, "away_team_name": "B", "away_team_slug": "b", "away_team_logo_url": "ub"}
+     m = shape_next_match(row, 7)
+-    assert m["fixture_id"] == 11 and m["slug"] == "2026-10-28-a-vs-b" and m["league_code"] == "DFBP"
++    assert m == {**export_site_data._competition_fixture(row), "league_code": "DFBP"}, \
++        "the site's one match row, with its competition"
++    assert m["fixture_id"] == 11 and m["slug"] == "2026-10-28-a-vs-b" and m["status"] == "TBD"
+     assert m["home"] == {"team_id": 1, "name": "A", "slug": "a", "crest": "ua"}
+-    assert m["away"]["team_id"] == 2
++    assert m["away"]["team_id"] == 2 and m["is_played"] is False
+     assert shape_next_match(row, 11) is None, "the page's own match is not its next match"
+     assert shape_next_match(None, 7) is None
+     side = _fixture_side(1, {"team_name": "A"}, None, None, None, next_match=m)
+     assert side["next_match"] == m
+ 
+ 
+-def _match_row(fid, home, away, kickoff, home_next=False, away_next=False):
++def _match_row(fid, home, away, kickoff, home_next=False, away_next=False, next_round=True):
+     return {"fixture_sk": fid, "league_code": "BL1", "season_api_year": 2026, "kickoff_datetime": kickoff,
+-            "round_name": "Regular Season - 5", "round_order": 5, "status_short": "NS",
++            "round_name": "Regular Season - 5", "round_order": 5, "round_sequence": 5, "fixture_order": fid,
++            "status_short": "NS", "is_played": False, "goals_home": None, "goals_away": None,
++            "is_next_round": next_round, "is_match_that_matters": False,
+             "venue_name_snapshot": "Arena %d" % fid,
+             "fixture_slug": "slug-%d" % fid,
+             "home_team_sk": home, "home_team_name": "T%d" % home, "home_team_slug": "t%d" % home,
+@@ -440,7 +446,7 @@ def _match_row(fid, home, away, kickoff, home_next=False, away_next=False):
+ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart(monkeypatch):
+     """The header and each team's next match are rows of mart_competition_fixtures: the next match is
+     the row the mart flags for that team, and none when it is the page's own match."""
+-    page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z", away_next=True)
++    page = _match_row(20, 1, 2, "2026-10-31T17:30:00Z", away_next=True, next_round=False)
+     team1_next = _match_row(10, 3, 1, "2026-10-10T13:30:00Z", away_next=True)
+     captured: list[str] = []
+ 
+@@ -462,7 +468,9 @@ def test_fixture_payloads_read_the_match_and_each_teams_next_match_from_the_mart
+     assert not any("core.fct_fixture" in s for s in captured), "the match is read from the mart"
+     assert p["venue"] == "Arena 20" and p["league_name"] == "Bundesliga" and p["slug"] == "slug-20"
+     assert p["home"]["name"] == "T1" and p["home"]["crest"] == "c1" and p["home"]["country"] == "Germany"
++    assert p["is_next_round"] is False, "the served flag says which page this fixture gets"
+     assert p["home"]["next_match"]["fixture_id"] == 10, "team 1's flagged row, though it plays away there"
++    assert p["home"]["next_match"]["status"] == "NS" and p["home"]["next_match"]["league_code"] == "BL1"
+     assert p["away"]["next_match"] is None, "team 2's next match is this page's own match"
+ 
+ 
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    | 41 +++++++++++++++++++---------------
+#    .claude/task/rendered_page_evidence.md | 39 ++++++++++++--------------------
+#    2 files changed, 37 insertions(+), 43 deletions(-)
+# ============================================================================

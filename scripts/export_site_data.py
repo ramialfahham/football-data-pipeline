@@ -619,18 +619,11 @@ def _fixture_side(team_id: int, identity: dict | None, form: dict | None, ctx: d
 
 
 def shape_next_match(row: dict | None, fixture_id: int) -> dict | None:
-    """A team's next match, its mart_competition_fixtures row as it stands; None when the team has
-    none, or when it is the fixture whose page this is."""
+    """A team's next match, its mart_competition_fixtures row as the site's match row with its
+    competition; None when the team has none, or when it is the fixture whose page this is."""
     if not row or int(row["fixture_sk"]) == fixture_id:
         return None
-
-    def team(side):
-        return {"team_id": int(row[f"{side}_team_sk"]), "name": row.get(f"{side}_team_name"),
-                "slug": row.get(f"{side}_team_slug"), "crest": row.get(f"{side}_team_logo_url")}
-
-    return {"fixture_id": int(row["fixture_sk"]), "slug": row.get("fixture_slug"),
-            "league_code": row.get("league_code"), "kickoff": row.get("kickoff_datetime"),
-            "round": row.get("round_name"), "home": team("home"), "away": team("away")}
+    return {**_competition_fixture(row), "league_code": row.get("league_code")}
 
 
 def shape_top_players(rows: list[dict], names: dict, limit: int = 5) -> list[dict]:
@@ -915,6 +908,7 @@ def shape_fixture_payload(fix: dict, home_side: dict, away_side: dict,
         "season": fix.get("season_api_year"),
         "round": fix.get("round_name"),
         "round_order": fix.get("round_order"),
+        "is_next_round": bool(fix.get("is_next_round")),
         "venue": fix.get("venue_name_snapshot"),
         "home": home_side,
         "away": away_side,
@@ -1085,6 +1079,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
     marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
     fixtures = _query(client, f"""
         select fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order,
+               is_next_round,
                status_short, venue_name as venue_name_snapshot, home_team_sk, away_team_sk, fixture_slug,
                home_team_name, home_team_slug, home_team_logo_url,
                away_team_name, away_team_slug, away_team_logo_url
@@ -1162,10 +1157,7 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
     team_in = ", ".join(sorted({str(int(f[k])) for f in fixtures for k in ("home_team_sk", "away_team_sk")}))
     next_matches: dict = {}
     for r in _query(client, f"""
-        select fixture_sk, league_code, kickoff_datetime, round_name, fixture_slug,
-               home_team_sk, home_team_name, home_team_slug, home_team_logo_url,
-               away_team_sk, away_team_name, away_team_slug, away_team_logo_url,
-               is_home_team_next_match, is_away_team_next_match
+        select {_COMPETITION_FIXTURE_COLUMNS}, is_home_team_next_match, is_away_team_next_match
         from `{marts}.mart_competition_fixtures`
         where (is_home_team_next_match and home_team_sk in ({team_in}))
            or (is_away_team_next_match and away_team_sk in ({team_in}))

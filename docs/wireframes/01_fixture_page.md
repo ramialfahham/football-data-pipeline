@@ -31,7 +31,7 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
 | `data/matchstats/{played_fixture_sk}.json` | The drill-down target when a past-match row is clicked (§7) — exists exactly for fixtures referenced by a form window |
 
 Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
-season, round, round_order, venue, home, away, head_to_head`.
+season, round, round_order, is_next_round, venue, home, away, head_to_head`.
 Each side (`home`/`away`): `team_id, name, slug, crest, country, form, standing,
 form_window[], top_players[], next_match`.
 
@@ -45,6 +45,12 @@ The page draws render `match-page_2026-10-07_75`. Its blocks, in order:
 4. Recent matches: up to 5 result rows per team.
 5. Players to watch: up to 5 player rows per team.
 6. Head to head: the intro, then up to 5 meetings.
+
+A match further out than the next matchday gets the future match page, drawn by render
+`future-match-page_2026-09-28_31`. It keeps the breadcrumb, the header without the standing chip,
+and Head to head. After them comes Next matches: each team's `next_match` under its competition's
+group head, a date heading per day, the match row. A team whose next match is this one adds no row.
+The page turns into the next match page when its matchday becomes the next one.
 
 The page has no sentence under the header, no window switch, no internal-link chips and no
 sample-data line. Under 700px the teams stack and the trail slides on one line. From 560px the
@@ -137,7 +143,9 @@ The block shows no totals and no bar. No link until played-match pages exist.
 
 | State | Trigger | Render |
 |---|---|---|
-| Preview (normal) | `status` = `NS` | everything above |
+| Preview (normal) | `status` = `NS`, `is_next_round` true or missing | everything above |
+| Future match | `is_next_round` = false | breadcrumb, header without chip, Head to head, Next matches |
+| No next match (side) | `next_match` = null | that team adds no row; both null: Next matches is absent |
 | Time TBD | `status` = `TBD` | date without time + "time TBD" |
 | No form window (side) | `form` = null | that side's values show "–"; both null: the block is absent |
 | No standings context | `standing` = null or no `league_rank` | no chip, no empty state |
