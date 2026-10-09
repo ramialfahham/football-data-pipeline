@@ -1,7 +1,8 @@
 ---
 // The match header: the competition's group head (a heading link), the kick-off line (round · date ·
 // time UTC · venue, each unit whole when the line wraps), and the two teams, each one link to its team
-// page when that page is built, with the standing chip only when the table position is served.
+// page when that page is built, with the standing chip only on the next match and when the table
+// position is served: today's table is not the position going into a match further out.
 import Crest from "../ui/Crest.astro";
 import Chevron from "./Chevron.astro";
 import { formatDate, formatTime, signedInteger } from "../../lib/format";
@@ -18,8 +19,9 @@ interface Props {
   compLogo?: string | null;
   compHref?: string;
   teamHrefs: { home?: string; away?: string };
+  showStanding: boolean;
 }
-const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs } = Astro.props;
+const { fixture, lang, title, round, compName, compLogo, compHref, teamHrefs, showStanding } = Astro.props;
 const { home, away } = fixture;
 
 const time = fixture.status === "TBD" ? t(lang, "timeTBD") : `${formatTime(fixture.kickoff, lang)} UTC`;
@@ -80,7 +82,7 @@ const sides: { side: Side; href?: string }[] = [
                 {href && <Chevron />}
               </span>
             </span>
-            {st?.league_rank != null && (
+            {showStanding && st?.league_rank != null && (
               <div class="stand num">
                 <span class="nb">#<b>{st.league_rank}</b></span> ·{" "}
                 <span class="nb"><b>{st.standing_points}</b> {t(lang, "pts")}</span> ·{" "}

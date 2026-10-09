@@ -1,0 +1,92 @@
+---
+// Next matches on the future match page: each team's next match, under its competition's group head
+// (a heading link when the competition page is built), a date heading per day, every row THE match
+// row. Two next matches of one competition share its head; the competitions follow kick-off. A team
+// whose next match is this one, or who has none, adds no row; with no row the block is absent.
+import SectionHead from "../ui/SectionHead.astro";
+import MatchRow from "../ui/MatchRow.astro";
+import Crest from "../ui/Crest.astro";
+import Chevron from "./Chevron.astro";
+import { t } from "../../i18n/strings";
+import { localeHref } from "../../lib/href";
+import { formatDate } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import type { CompetitionIndex, Side } from "../../lib/types";
+import competitions from "../../data/competitions.json";
+import competitionIndex from "../../data/competition_index.json";
+
+interface Props {
+  home: Side;
+  away: Side;
+  lang: Lang;
+}
+const { home, away, lang } = Astro.props;
+
+type Next = NonNullable<Side["next_match"]>;
+const comps = competitions as Record<string, { slug: string; name?: string }>;
+const indexed = (competitionIndex as unknown as CompetitionIndex).competitions;
+
+const matches = [home.next_match, away.next_match]
+  .filter((m): m is Next => Boolean(m))
+  .filter((m, i, all) => all.findIndex((o) => o.fixture_id === m.fixture_id) === i)
+  .sort((a, b) => (a.kickoff ?? "").localeCompare(b.kickoff ?? ""));
+
+const groups = new Map<string, Next[]>();
+for (const m of matches) {
+  if (!groups.has(m.league_code)) groups.set(m.league_code, []);
+  groups.get(m.league_code)!.push(m);
+}
+
+function days(fixtures: Next[]): Next[][] {
+  const byDay = new Map<string, Next[]>();
+  for (const fx of fixtures) {
+    const day = fx.kickoff ? fx.kickoff.slice(0, 10) : "";
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day)!.push(fx);
+  }
+  return [...byDay.values()];
+}
+
+const head = (code: string) => {
+  const row = indexed.find((c) => c.league_code === code);
+  return {
+    name: comps[code]?.name ?? code,
+    slug: comps[code]?.slug ?? null,
+    logo: row?.logo_url ?? null,
+    href: row && comps[code] ? localeHref(lang, `${comps[code].slug}/`) : undefined,
+  };
+};
+---
+
+{matches.length > 0 && (
+  <section aria-label={t(lang, "homeNext")}>
+    <SectionHead label={t(lang, "homeNext")} />
+    {[...groups.entries()].map(([code, fixtures]) => {
+      const g = head(code);
+      return (
+        <div class="fxgroup">
+          <div class="gh">
+            {g.href ? (
+              <a class="cnm" href={g.href}>
+                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
+                <span class="nm">{g.name}</span>
+                <Chevron />
+              </a>
+            ) : (
+              <span class="cnm">
+                <span class="clogo"><Crest name={g.name} crest={g.logo} size="xs" /></span>
+                <span class="nm">{g.name}</span>
+              </span>
+            )}
+          </div>
+          {days(fixtures).map((day) => (
+            <>
+              <div class="dh">{formatDate(day[0].kickoff, lang)}</div>
+              {day.map((fx) => <MatchRow fx={fx} competitionSlug={g.slug} lang={lang} />)}
+            </>
+          ))}
+        </div>
+      );
+    })}
+  </section>
+)}

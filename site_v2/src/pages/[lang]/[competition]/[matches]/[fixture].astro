@@ -11,6 +11,7 @@ import SplitSection from "../../../../components/fixture/SplitSection.astro";
 import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
 import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
+import NextMatches from "../../../../components/fixture/NextMatches.astro";
 import { t, inCompetition } from "../../../../i18n/strings";
 import { localeHref, word } from "../../../../lib/href";
 import { formatShortDate } from "../../../../lib/format";
@@ -62,6 +63,8 @@ interface Props {
 }
 const { fixture, lang, built } = Astro.props;
 const { home, away } = fixture;
+// The next matchday's match gets the full preview; a match further out waits for it.
+const isNext = fixture.is_next_round !== false;
 
 const comp = (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code];
 const compName = comp?.name ?? fixture.league_name ?? fixture.league_code;
@@ -135,27 +138,33 @@ const entity = {
       compLogo={indexRow?.logo_url}
       compHref={compHref}
       teamHrefs={{ home: teamHref(home.slug), away: teamHref(away.slug) }}
+      showStanding={isNext}
     />
-    <FormSegment fixture={fixture} lang={lang} compName={compName} />
+    {isNext && (
+      <>
+        <FormSegment fixture={fixture} lang={lang} compName={compName} />
 
-    <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
-      <Fragment slot="home">
-        {(home.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
-      </Fragment>
-      <Fragment slot="away">
-        {(away.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
-      </Fragment>
-    </SplitSection>
+        <SplitSection label={t(lang, "secRecent")} homeLabel={home.name} awayLabel={away.name}>
+          <Fragment slot="home">
+            {(home.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
+          </Fragment>
+          <Fragment slot="away">
+            {(away.form_window ?? []).slice(0, 5).map((m) => <RecentMatch match={m} lang={lang} />)}
+          </Fragment>
+        </SplitSection>
 
-    <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
-      <Fragment slot="home">
-        {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
-      </Fragment>
-      <Fragment slot="away">
-        {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
-      </Fragment>
-    </SplitSection>
+        <SplitSection label={t(lang, "secPlayers")} intro={playersIntro} homeLabel={home.name} awayLabel={away.name}>
+          <Fragment slot="home">
+            {(home.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
+          </Fragment>
+          <Fragment slot="away">
+            {(away.top_players ?? []).slice(0, 5).map((p) => <PlayerRow player={p} lang={lang} />)}
+          </Fragment>
+        </SplitSection>
+      </>
+    )}
 
     <HeadToHead h2h={fixture.head_to_head} home={home} away={away} lang={lang} />
+    {!isNext && <NextMatches home={home} away={away} lang={lang} />}
   </div>
 </Layout>
