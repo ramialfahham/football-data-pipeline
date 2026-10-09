@@ -46,13 +46,14 @@ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
                 "competition_index", "matches")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+METRIC_MAP_PATH = "dbt_project/seeds/metric_map.csv"
 COMPETITION_TYPES_SEED_PATH = "dbt_project/seeds/competition_types.csv"
 STRINGS_PATH = "site_v2/src/i18n/strings.ts"
 SENTENCE_LANGS = ("en", "de", "fi")
 
 # The competition page's Rankings tab (GitLab #129, #151): the twelve team boards and the thirteen
-# player boards, each tuple in the RULED order within its groups — the page groups them by the
-# catalogue's metric_group in metric_groups.json's order and keeps this order inside a group.
+# player boards. Each tuple is a filter; the payload carries its boards in the catalogue's order
+# (`_in_catalogue_order`), and the page groups them by metric_group in metric_groups.json's order.
 # These are the marts' own metric_key values; `tests/test_leaderboard_board_sets.py` pins each
 # tuple to its mart's Jinja list and to the yml's accepted_values, so the three cannot drift.
 _COMPETITION_TEAM_BOARDS = (
@@ -76,7 +77,7 @@ _COMPETITION_PLAYER_BOARDS = (
 # this is the cut.
 _COMPETITION_BOARD_ROWS = 5
 # Player leaderboards (the per-league `leaderboards/` payload): every board mart_leaderboards
-# ranks, in the ruled order — the same thirteen the Rankings tab shows.
+# ranks, in the catalogue's order — the same thirteen the Rankings tab shows.
 _LEADERBOARD_METRICS = _COMPETITION_PLAYER_BOARDS
 # The HOME page's Top players boards (#40): four boards, one metric each, in display order.
 # ⚠ SEPARATE from _LEADERBOARD_METRICS below, which serves the per-league leaderboards payload — a
@@ -786,7 +787,7 @@ def shape_competition_payload(league_code: str, season: int, meta: dict,
 def shape_competition_boards(rows: list[dict], boards: tuple[str, ...], catalogue: dict[str, dict],
                              entity: str, limit: int = _COMPETITION_BOARD_ROWS) -> list[dict]:
     """The Rankings tab's boards for one competition-season, from the served leaderboard rows of
-    one entity (team or player): grouped by board in the ruled order, each cut at `limit` rows in
+    one entity (team or player): grouped by board in the order given, each cut at `limit` rows in
     the order the warehouse served them (its tie-broken league_leader_order). A board with no
     rows is omitted; a group with no board is then absent on the page.
 
@@ -1511,6 +1512,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
     )
     team_catalogue = _board_catalogue(_COMPETITION_TEAM_BOARDS, "team")
     player_catalogue = _board_catalogue(_COMPETITION_PLAYER_BOARDS, "player")
+    team_order = _in_catalogue_order(_COMPETITION_TEAM_BOARDS, "team")
+    player_order = _in_catalogue_order(_COMPETITION_PLAYER_BOARDS, "player")
     summaries = {
         (r["league_code"], int(r["season_api_year"])): r
         for r in _query(client, f"select * from `{marts}.mart_competition_season_summary`")
@@ -1558,9 +1561,9 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
             shape_season_summary(summaries.get((lc, season)), teams, slugs),
             [_fixture(r) for r in fixtures.get((lc, season), [])],
             shape_competition_boards(team_board_rows.get((lc, season), []),
-                                     _COMPETITION_TEAM_BOARDS, team_catalogue, "team"),
+                                     team_order, team_catalogue, "team"),
             shape_competition_boards(player_board_rows.get((lc, season), []),
-                                     _COMPETITION_PLAYER_BOARDS, player_catalogue, "player"),
+                                     player_order, player_catalogue, "player"),
         ))
     return payloads
 
@@ -1596,7 +1599,8 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
         keys = keys[:sample]
     out = []
     for (lc, season) in keys:
-        boards = shape_leaderboards(grouped[(lc, season)])
+        boards = shape_leaderboards(grouped[(lc, season)],
+                                    _in_catalogue_order(_LEADERBOARD_METRICS, "player"))
         if not any(boards.values()):
             continue
         out.append({
@@ -1666,6 +1670,21 @@ def _landing_side(team: dict | None) -> dict:
 def _per_match(row: dict[str, str]) -> bool:
     """A catalogue row is an average per match: its denominator is the matches and it is not a share."""
     return (row.get("denominator_expr") or "").strip() == "count(*)" and row.get("format") != "percent"
+
+
+def _in_catalogue_order(boards: tuple[str, ...], entity: str,
+                        seed_path: str = CATALOGUE_SEED_PATH) -> tuple[str, ...]:
+    """A board list in the catalogue's order: group order, then the metric's order inside its group.
+    The list only says which boards a surface shows; a board without a catalogue order fails."""
+    import csv
+
+    with open(seed_path, encoding="utf-8") as f:
+        by_id = {r["metric_id"]: r for r in csv.DictReader(f) if r.get("entity") == entity}
+    unordered = [k for k in boards if not (by_id.get(k) or {}).get("metric_order")]
+    if unordered:
+        raise KeyError(f"no {entity} metric_order in {seed_path} for: {', '.join(unordered)}.")
+    return tuple(sorted(boards, key=lambda k: (int(by_id[k]["metric_group_order"]),
+                                               int(by_id[k]["metric_order"]))))
 
 
 def _board_catalogue(
@@ -1773,7 +1792,7 @@ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, s
         })
 
     boards = []
-    for key in _HOME_PLAYER_BOARDS:
+    for key in _in_catalogue_order(_HOME_PLAYER_BOARDS, "player"):
         # NO SORTING HERE, DELIBERATELY. The rows arrive in the order the query asked the warehouse
         # for, and this preserves it — "the page renders the order it is served". An earlier
         # version of this file deduped and sorted in Python; that was ranking in the consumption
@@ -1838,7 +1857,7 @@ def shape_home_top_teams(rows: list[dict], meta: dict, catalogue: dict[str, dict
         })
 
     boards = []
-    for key in _HOME_TEAM_BOARDS:
+    for key in _in_catalogue_order(_HOME_TEAM_BOARDS, "team"):
         entries = by_board[key]
         if not entries:
             continue
@@ -2070,13 +2089,17 @@ def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
             "groups": [{"key": key, "order": order} for order, key in groups]}
 
 
-def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
-    """metric_rows.json — the rows of the match page's Form comparison: every team metric with a
-    `metric_order`, in group order and then that order. A selection from the seed, no BigQuery."""
+def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
+    """metric_rows.json — the rows of the match page's Form comparison: every team metric
+    mart_team_momentum serves outside the Results group, in group order and then the catalogue's
+    `metric_order`. A selection from the seeds, no BigQuery."""
     import csv
 
+    with open(map_path, encoding="utf-8") as f:
+        served = {r["metric_id"] for r in csv.DictReader(f) if r["table_name"] == "mart_team_momentum"}
     with open(seed_path, encoding="utf-8") as f:
-        rows = [r for r in csv.DictReader(f) if r["entity"] == "team" and r["metric_order"]]
+        rows = [r for r in csv.DictReader(f)
+                if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"]
     rows.sort(key=lambda r: (int(r["metric_group_order"]), int(r["metric_order"])))
     return {"type": "metric_rows", "rows": [
         {"metric_id": r["metric_id"],

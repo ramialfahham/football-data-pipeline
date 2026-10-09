@@ -13,7 +13,7 @@
 > **Tiers now live in `metric_catalogue.csv`, and they cover players (CPO, 2026-08-04).**
 > The seed carries a tier on all 85 rows. This section keeps the SEMANTICS; the values are in
 > the seed. The order of the groups is the catalogue's `metric_group_order`. The order inside a
-> group is the catalogue's `metric_order` on the match page's Form comparison. On the team page it
+> group is the catalogue's `metric_order` on the match page's Form comparison, the Rankings and Home. On the team page it
 > is the team table below.
 
 1. **Tier never orders.** Display order is fixed once. It is the order the note above names.

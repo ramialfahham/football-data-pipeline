@@ -7977,56 +7977,6 @@
       ]
     },
     {
-      "metric_key": "defensive_actions_per_match",
-      "label_i18n_key": "metrics.defensive_actions_per_match.label",
-      "format": "decimal_1",
-      "metric_group": "defending",
-      "per_match": true,
-      "rank_order": "desc",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 39.5,
-          "team_id": 174,
-          "slug": "fc-schalke-04",
-          "name": "FC Schalke 04",
-          "crest": "https://media.api-sports.io/football/teams/174.png"
-        },
-        {
-          "rank": 2,
-          "value": 37.5,
-          "team_id": 162,
-          "slug": "sv-werder-bremen",
-          "name": "SV Werder Bremen",
-          "crest": "https://media.api-sports.io/football/teams/162.png"
-        },
-        {
-          "rank": 3,
-          "value": 35.25,
-          "team_id": 165,
-          "slug": "borussia-dortmund",
-          "name": "Borussia Dortmund",
-          "crest": "https://media.api-sports.io/football/teams/165.png"
-        },
-        {
-          "rank": 3,
-          "value": 35.25,
-          "team_id": 167,
-          "slug": "tsg-1899-hoffenheim",
-          "name": "TSG 1899 Hoffenheim",
-          "crest": "https://media.api-sports.io/football/teams/167.png"
-        },
-        {
-          "rank": 4,
-          "value": 34.75,
-          "team_id": 185,
-          "slug": "sc-paderborn-07",
-          "name": "SC Paderborn 07",
-          "crest": "https://media.api-sports.io/football/teams/185.png"
-        }
-      ]
-    },
-    {
       "metric_key": "duels_per_match",
       "label_i18n_key": "metrics.duels_per_match.label",
       "format": "decimal_0",
@@ -8123,6 +8073,56 @@
           "slug": "1-fsv-mainz-05",
           "name": "1. FSV Mainz 05",
           "crest": "https://media.api-sports.io/football/teams/164.png"
+        }
+      ]
+    },
+    {
+      "metric_key": "defensive_actions_per_match",
+      "label_i18n_key": "metrics.defensive_actions_per_match.label",
+      "format": "decimal_1",
+      "metric_group": "defending",
+      "per_match": true,
+      "rank_order": "desc",
+      "rows": [
+        {
+          "rank": 1,
+          "value": 39.5,
+          "team_id": 174,
+          "slug": "fc-schalke-04",
+          "name": "FC Schalke 04",
+          "crest": "https://media.api-sports.io/football/teams/174.png"
+        },
+        {
+          "rank": 2,
+          "value": 37.5,
+          "team_id": 162,
+          "slug": "sv-werder-bremen",
+          "name": "SV Werder Bremen",
+          "crest": "https://media.api-sports.io/football/teams/162.png"
+        },
+        {
+          "rank": 3,
+          "value": 35.25,
+          "team_id": 165,
+          "slug": "borussia-dortmund",
+          "name": "Borussia Dortmund",
+          "crest": "https://media.api-sports.io/football/teams/165.png"
+        },
+        {
+          "rank": 3,
+          "value": 35.25,
+          "team_id": 167,
+          "slug": "tsg-1899-hoffenheim",
+          "name": "TSG 1899 Hoffenheim",
+          "crest": "https://media.api-sports.io/football/teams/167.png"
+        },
+        {
+          "rank": 4,
+          "value": 34.75,
+          "team_id": 185,
+          "slug": "sc-paderborn-07",
+          "name": "SC Paderborn 07",
+          "crest": "https://media.api-sports.io/football/teams/185.png"
         }
       ]
     },
@@ -8453,66 +8453,6 @@
       ]
     },
     {
-      "metric_key": "passes_key_player",
-      "label_i18n_key": "playerMetrics.keyPasses.label",
-      "format": "integer",
-      "metric_group": "passing",
-      "per_match": false,
-      "rank_order": "desc",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 17.0,
-          "player_id": 25158,
-          "slug": "d-raum-25158",
-          "name": "D. Raum",
-          "club": "RB Leipzig",
-          "club_slug": "rb-leipzig",
-          "crest": "https://media.api-sports.io/football/teams/173.png"
-        },
-        {
-          "rank": 2,
-          "value": 14.0,
-          "player_id": 714,
-          "slug": "n-amiri-714",
-          "name": "N. Amiri",
-          "club": "1. FSV Mainz 05",
-          "club_slug": "1-fsv-mainz-05",
-          "crest": "https://media.api-sports.io/football/teams/164.png"
-        },
-        {
-          "rank": 2,
-          "value": 14.0,
-          "player_id": 25342,
-          "slug": "m-mittelstadt-25342",
-          "name": "M. Mittelstädt",
-          "club": "VfB Stuttgart",
-          "club_slug": "vfb-stuttgart",
-          "crest": "https://media.api-sports.io/football/teams/172.png"
-        },
-        {
-          "rank": 3,
-          "value": 13.0,
-          "player_id": 47516,
-          "slug": "aleix-garcia-47516",
-          "name": "Aleix García",
-          "club": "Bayer 04 Leverkusen",
-          "club_slug": "bayer-04-leverkusen",
-          "crest": "https://media.api-sports.io/football/teams/168.png"
-        },
-        {
-          "rank": 3,
-          "value": 13.0,
-          "player_id": 380587,
-          "slug": "i-maza-380587",
-          "name": "I. Maza",
-          "club": "Bayer 04 Leverkusen",
-          "club_slug": "bayer-04-leverkusen",
-          "crest": "https://media.api-sports.io/football/teams/168.png"
-        }
-      ]
-    },
-    {
       "metric_key": "passes_accuracy_player_pct",
       "label_i18n_key": "playerMetrics.passAccuracy.label",
       "format": "percent",
@@ -8569,6 +8509,66 @@
           "club": "Bayern München",
           "club_slug": "bayern-munchen",
           "crest": "https://media.api-sports.io/football/teams/157.png"
+        }
+      ]
+    },
+    {
+      "metric_key": "passes_key_player",
+      "label_i18n_key": "playerMetrics.keyPasses.label",
+      "format": "integer",
+      "metric_group": "passing",
+      "per_match": false,
+      "rank_order": "desc",
+      "rows": [
+        {
+          "rank": 1,
+          "value": 17.0,
+          "player_id": 25158,
+          "slug": "d-raum-25158",
+          "name": "D. Raum",
+          "club": "RB Leipzig",
+          "club_slug": "rb-leipzig",
+          "crest": "https://media.api-sports.io/football/teams/173.png"
+        },
+        {
+          "rank": 2,
+          "value": 14.0,
+          "player_id": 714,
+          "slug": "n-amiri-714",
+          "name": "N. Amiri",
+          "club": "1. FSV Mainz 05",
+          "club_slug": "1-fsv-mainz-05",
+          "crest": "https://media.api-sports.io/football/teams/164.png"
+        },
+        {
+          "rank": 2,
+          "value": 14.0,
+          "player_id": 25342,
+          "slug": "m-mittelstadt-25342",
+          "name": "M. Mittelstädt",
+          "club": "VfB Stuttgart",
+          "club_slug": "vfb-stuttgart",
+          "crest": "https://media.api-sports.io/football/teams/172.png"
+        },
+        {
+          "rank": 3,
+          "value": 13.0,
+          "player_id": 47516,
+          "slug": "aleix-garcia-47516",
+          "name": "Aleix García",
+          "club": "Bayer 04 Leverkusen",
+          "club_slug": "bayer-04-leverkusen",
+          "crest": "https://media.api-sports.io/football/teams/168.png"
+        },
+        {
+          "rank": 3,
+          "value": 13.0,
+          "player_id": 380587,
+          "slug": "i-maza-380587",
+          "name": "I. Maza",
+          "club": "Bayer 04 Leverkusen",
+          "club_slug": "bayer-04-leverkusen",
+          "crest": "https://media.api-sports.io/football/teams/168.png"
         }
       ]
     },
@@ -8753,6 +8753,66 @@
       ]
     },
     {
+      "metric_key": "saves_player",
+      "label_i18n_key": "playerMetrics.savePct.saves",
+      "format": "integer",
+      "metric_group": "goalkeeping",
+      "per_match": false,
+      "rank_order": "desc",
+      "rows": [
+        {
+          "rank": 1,
+          "value": 23.0,
+          "player_id": 1972,
+          "slug": "l-karius-1972",
+          "name": "L. Karius",
+          "club": "FC Schalke 04",
+          "club_slug": "fc-schalke-04",
+          "crest": "https://media.api-sports.io/football/teams/174.png"
+        },
+        {
+          "rank": 2,
+          "value": 22.0,
+          "player_id": 25626,
+          "slug": "m-nicolas-25626",
+          "name": "M. Nicolas",
+          "club": "Borussia Mönchengladbach",
+          "club_slug": "borussia-monchengladbach",
+          "crest": "https://media.api-sports.io/football/teams/163.png"
+        },
+        {
+          "rank": 3,
+          "value": 21.0,
+          "player_id": 25903,
+          "slug": "f-dahmen-25903",
+          "name": "F. Dahmen",
+          "club": "FC Augsburg",
+          "club_slug": "fc-augsburg",
+          "crest": "https://media.api-sports.io/football/teams/170.png"
+        },
+        {
+          "rank": 3,
+          "value": 21.0,
+          "player_id": 178768,
+          "slug": "n-atubolu-178768",
+          "name": "N. Atubolu",
+          "club": "Eintracht Frankfurt",
+          "club_slug": "eintracht-frankfurt",
+          "crest": "https://media.api-sports.io/football/teams/169.png"
+        },
+        {
+          "rank": 4,
+          "value": 18.0,
+          "player_id": 1798,
+          "slug": "f-rnnow-1798",
+          "name": "F. Rønnow",
+          "club": "1. FC Union Berlin",
+          "club_slug": "1-fc-union-berlin",
+          "crest": "https://media.api-sports.io/football/teams/182.png"
+        }
+      ]
+    },
+    {
       "metric_key": "cards_yellow_player",
       "label_i18n_key": "playerMetrics.cards.yellow",
       "format": "integer",
@@ -8849,66 +8909,6 @@
           "club": "Borussia Mönchengladbach",
           "club_slug": "borussia-monchengladbach",
           "crest": "https://media.api-sports.io/football/teams/163.png"
-        }
-      ]
-    },
-    {
-      "metric_key": "saves_player",
-      "label_i18n_key": "playerMetrics.savePct.saves",
-      "format": "integer",
-      "metric_group": "goalkeeping",
-      "per_match": false,
-      "rank_order": "desc",
-      "rows": [
-        {
-          "rank": 1,
-          "value": 23.0,
-          "player_id": 1972,
-          "slug": "l-karius-1972",
-          "name": "L. Karius",
-          "club": "FC Schalke 04",
-          "club_slug": "fc-schalke-04",
-          "crest": "https://media.api-sports.io/football/teams/174.png"
-        },
-        {
-          "rank": 2,
-          "value": 22.0,
-          "player_id": 25626,
-          "slug": "m-nicolas-25626",
-          "name": "M. Nicolas",
-          "club": "Borussia Mönchengladbach",
-          "club_slug": "borussia-monchengladbach",
-          "crest": "https://media.api-sports.io/football/teams/163.png"
-        },
-        {
-          "rank": 3,
-          "value": 21.0,
-          "player_id": 25903,
-          "slug": "f-dahmen-25903",
-          "name": "F. Dahmen",
-          "club": "FC Augsburg",
-          "club_slug": "fc-augsburg",
-          "crest": "https://media.api-sports.io/football/teams/170.png"
-        },
-        {
-          "rank": 3,
-          "value": 21.0,
-          "player_id": 178768,
-          "slug": "n-atubolu-178768",
-          "name": "N. Atubolu",
-          "club": "Eintracht Frankfurt",
-          "club_slug": "eintracht-frankfurt",
-          "crest": "https://media.api-sports.io/football/teams/169.png"
-        },
-        {
-          "rank": 4,
-          "value": 18.0,
-          "player_id": 1798,
-          "slug": "f-rnnow-1798",
-          "name": "F. Rønnow",
-          "club": "1. FC Union Berlin",
-          "club_slug": "1-fc-union-berlin",
-          "crest": "https://media.api-sports.io/football/teams/182.png"
         }
       ]
     }
