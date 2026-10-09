@@ -6,19 +6,27 @@ default_install_hook_types: [pre-commit, post-commit]
 # data, the retired `site/`, the protected `.github/workflows/` snapshot, and the review artifacts
 # under `.claude/task/`. The secret scans have no exclusion: they see every file.
 repos:
+  # Each check starts as `python -m`, so no separately built helper program runs.
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-added-large-files
+        entry: python -m pre_commit_hooks.check_added_large_files
       - id: check-merge-conflict
+        entry: python -m pre_commit_hooks.check_merge_conflict
       - id: detect-private-key
+        entry: python -m pre_commit_hooks.detect_private_key
       - id: check-yaml
+        entry: python -m pre_commit_hooks.check_yaml
         args: [--unsafe]
       - id: check-json
+        entry: python -m pre_commit_hooks.check_json
         exclude: ^dbt_project/target/
       - id: end-of-file-fixer
+        entry: python -m pre_commit_hooks.end_of_file_fixer
         exclude: ^(site_v2/src/data/|site/|\.github/workflows/|\.claude/task/|.*\.svg$|.*\.png$|.*\.jpg$|.*\.jpeg$)
       - id: trailing-whitespace
+        entry: python -m pre_commit_hooks.trailing_whitespace_fixer
         exclude: ^(site_v2/src/data/|site/|\.github/workflows/|\.claude/task/|.*\.md$|.*\.svg$)
         args: [--markdown-linebreak-ext=md]
 

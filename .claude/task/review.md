@@ -1,43 +1,22 @@
-# Review — feature/177-catalogue-order
+# Review — chore/precommit-python-entry
 
-diff_sha256: 57bfecc54b9523c9d5993465e8ef4e0f5a9ef1b26b6fe31da848a52c949535dd
+diff_sha256: 0a183114374d56af7c1a78f28089f926a61aa2aec645b08441fcf995a37c6451
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The impact map pastes the lineage: one model downstream of the catalogue (direction only), 57 tests; nothing in dbt reads metric_order but the seed's uniqueness test.
-- Every path is in scope_paths; the three added paths carry a dated approved amendment.
-- The order table matches decisions_taken; no new mechanism, cost or reserved decision.
-
-## analytics-engineer-reviewer
-VERDICT: PASS
-risks_checked:
-- No (entity, group, metric_order) repeats; the uniqueness test still filters blanks.
-- The export sorts only by catalogue fields and fails on a shown board without a place; the Form comparison keeps its 36 rows.
-- The BL1 sample is a pure reorder; the docs state the export's selection rule.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- Only metric_order changes, on 23 rows; no other column moves.
-- Each total sits after its per-match twin; player orders follow the team order of the same measure.
-- Volume before rate, goals before assists, yellow before red.
+- Seven entry lines and one comment in .pre-commit-config.yaml; ids, args, excludes and the rev unchanged.
+- The route is recorded as approved with its date; no new hook, dependency, mechanism or cost.
+- Machine settings stay reserved and untouched.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- A fetch-level test runs the Rankings and leaderboards fetches through a faked warehouse and fails when the ordering is removed.
-- _in_catalogue_order is a pure read and sort; no query, page or request changes.
-- The Form comparison selection matches its pinned test.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Every Rankings and Home board has a place; only the Passing player boards move, to Passes, Pass accuracy, Key passes.
-- The committed BL1 sample and build show that order in EN, DE and FI; no other page's text changes.
-- The edited metrics_display.md, 01_fixture_page.md and README sentences match the export.
+- All seven modules exist in pre-commit-hooks v5.0.0 with main() and a __main__ guard, so `python -m` runs the same function.
+- Args, excludes and stages still apply; exit codes still come from main().
+- CI's lint:python resolves python to the hook venv's interpreter; test_lint_config.py reads only the ruff hook.
 
 ## escalations
 (none)
