@@ -6,6 +6,7 @@
 // Foundation shell (#825): a global header + footer now wrap every page's <slot>.
 import "../styles/system.css";
 import SiteHeader from "../components/chrome/SiteHeader.astro";
+import type { Section } from "../lib/menu";
 import SiteFooter from "../components/chrome/SiteFooter.astro";
 import type { Lang } from "../lib/format";
 import { alternatePaths } from "../lib/href";
@@ -23,8 +24,10 @@ interface Props {
   crumbs?: { name: string; href?: string }[];
   /** Absolute or site-relative image for the OG/Twitter card. */
   image?: string;
+  /** The menu section the page sits in, marked in the menu; none on Home. */
+  section?: Section;
 }
-const { lang, title, description, entity, crumbs, image } = Astro.props;
+const { lang, title, description, entity, crumbs, image, section } = Astro.props;
 
 // Canonical from Astro.site + the PATHNAME. Never Astro.url.href: in a static build that carries
 // the dev/preview origin (localhost:4321), so every canonical would point at a machine that is not
@@ -111,7 +114,7 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
         } catch (e) {}
       })();
     </script>
-    <SiteHeader lang={lang} />
+    <SiteHeader lang={lang} section={section} />
     <slot />
     <SiteFooter lang={lang} />
   </body>

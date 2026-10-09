@@ -65,7 +65,7 @@ PINNED = {
     "docs/wireframes/02_team_profile.md": 3,
     "docs/wireframes/03_player_profile.md": 3,
     "docs/wireframes/08_browse.md": 11,
-    "docs/wireframes/09_chrome.md": 9,
+    "docs/wireframes/09_chrome.md": 8,
     "docs/wireframes/10_home.md": 128,
     "docs/wireframes/11_team_squad.md": 7,
     "docs/wireframes/12_player_stats.md": 16,

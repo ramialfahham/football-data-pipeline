@@ -3,13 +3,14 @@
 // locale/data-source meta text. Markup transcribed from the approved
 // foundation mock (artifact 87d14109); classes are system.css's.
 //
-// Every link-row item is an inert <span> (no index page built for any of
-// them yet — same "no dead links" convention as the header nav). The Imprint
+// The link row repeats the menu (lib/menu.ts), each item a link exactly when the menu's is, then
+// About, inert until its page exists. The Imprint
 // slot stays labelled pending: publication is blocked on the operator/address
 // question (#799), a reserved product call, not resolved here. "EN · DE · FI" is
 // locale-invariant literal text (language codes, not translated copy).
 import { t } from "../../i18n/strings";
 import { localeHref } from "../../lib/href";
+import { menuItems } from "../../lib/menu";
 import type { Lang } from "../../lib/format";
 
 interface Props {
@@ -17,13 +18,7 @@ interface Props {
 }
 const { lang } = Astro.props;
 
-const flinks = [
-  t(lang, "navCompetitions"),
-  t(lang, "navTeams"),
-  t(lang, "navPlayers"),
-  t(lang, "navStatistics"),
-  t(lang, "footerAbout"),
-];
+const flinks: { label: string; href?: string }[] = [...menuItems(lang), { label: t(lang, "footerAbout") }];
 ---
 
 <footer class="site-footer">
@@ -37,7 +32,7 @@ const flinks = [
         page — a note naming the old brand would ship it straight back into the output. */}
     <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
     <div class="flinks">
-      {flinks.map((label) => <span>{label}</span>)}
+      {flinks.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
       <span class="imp">{t(lang, "footerImprintPending")}</span>
     </div>
     <div class="fmeta">EN · DE · FI &nbsp;·&nbsp; {t(lang, "footerDataSource")}</div>

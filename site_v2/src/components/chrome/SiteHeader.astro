@@ -3,34 +3,24 @@
 // toggle, mobile hamburger + drawer. Markup transcribed from the approved
 // foundation mock (artifact 87d14109); classes are system.css's, defined there.
 //
-// Nav items render as an inert <span>, not <a>, because none of their index
-// pages exist yet (only team/fixture DETAIL pages are built) — same "no dead
-// links" convention already used by the fixture page's breadcrumb and the team
-// page's Explore chips. Exact nav order/contents is a reserved product call
-// (§10); this is the specified starting list, unchanged from the mock.
+// The menu's items come from lib/menu.ts; the item for the page's section is marked
+// (aria-current, class `on`).
 // Search is visually present but inert (no input, no backend) — search style
 // is a reserved product call.
-//
-// Competitions is the first item to earn a real href (#62 step 5, #54): its index page now
-// exists. system.css styles `.mainnav a`/`.mainnav span` identically, so the tag swap is the
-// whole visual change (#54's own text). Every other item stays a span until its own index ships.
 import { t } from "../../i18n/strings";
-import { localeHref, word } from "../../lib/href";
+import { localeHref } from "../../lib/href";
+import { menuItems } from "../../lib/menu";
+import type { Section } from "../../lib/menu";
 import type { Lang } from "../../lib/format";
 
 interface Props {
   lang: Lang;
+  section?: Section;
 }
-const { lang } = Astro.props;
+const { lang, section } = Astro.props;
 
-const navItems: { label: string; href?: string }[] = [
-  { label: t(lang, "navCompetitions"), href: localeHref(lang, `${word(lang, "competitions")}/`) },
-  { label: t(lang, "navMatches"), href: localeHref(lang, `${word(lang, "matches")}/`) },
-  { label: t(lang, "navTeams") },
-  { label: t(lang, "navPlayers") },
-  { label: t(lang, "navStandings") },
-  { label: t(lang, "navStatistics") },
-];
+const navItems = menuItems(lang);
+const mark = (s: Section) => (s === section ? { class: "on", "aria-current": "true" } : {});
 ---
 
 <header class="site-header">
@@ -42,7 +32,9 @@ const navItems: { label: string; href?: string }[] = [
     <a class="brand" href={localeHref(lang)}>Matchday<span class="iq">Pilot</span></a>
 
     <nav class="mainnav" aria-label={t(lang, "mainNavAria")}>
-      {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
+      {navItems.map((item) => item.href
+        ? <a href={item.href} {...mark(item.section)}>{item.label}</a>
+        : <span {...mark(item.section)}>{item.label}</span>)}
     </nav>
 
     <div class="header-actions">
@@ -79,7 +71,9 @@ const navItems: { label: string; href?: string }[] = [
   </div>
 
   <nav class="drawer" id="drawer" aria-label={t(lang, "mainNavAria")}>
-    {navItems.map((item) => item.href ? <a href={item.href}>{item.label}</a> : <span>{item.label}</span>)}
+    {navItems.map((item) => item.href
+      ? <a href={item.href} {...mark(item.section)}>{item.label}</a>
+      : <span {...mark(item.section)}>{item.label}</span>)}
   </nav>
 </header>
 

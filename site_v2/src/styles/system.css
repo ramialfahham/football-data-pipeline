@@ -442,6 +442,10 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
   padding: 13px clamp(16px, 3.5vw, 28px); border-bottom: 1px solid var(--line);
 }
 .drawer a:last-child, .drawer span:last-child { border-bottom: 0; }
+/* The menu marks the page's section as the tab bar marks its tab: ink and bold, the 2px line in the
+   desktop menu. */
+.mainnav .on { color: var(--ink); font-weight: 700; border-radius: 0; box-shadow: inset 0 -2px 0 var(--ink); }
+.drawer .on { color: var(--ink); font-weight: 700; }
 
 /* ---- generic page grid (main + rail) — a system primitive, not yet wired ---- *
  * into any page: which pages get a rail and what fills it is reserved (§10).   *
