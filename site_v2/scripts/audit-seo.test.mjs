@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import {
   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
   specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
-  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf, sharesHeader,
+  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf, sharesHeader, keepDeadLinks,
 } from "./audit-seo.mjs";
 
 const SITE = "https://matchdaypilot.com";
@@ -231,6 +231,27 @@ test("auditSet: dead internal links are caught — Astro validates none of these
     knownPaths: new Set(Object.values(TEAM_X)),
   });
   assert.ok(issues.some((i) => i.includes("dead internal link")));
+});
+
+test("keepDeadLinks: the reduced head reports what the full head reports", () => {
+  const known = new Set(Object.values(TEAM_X));
+  const full = head({ hrefs: ["/en/teams/x/", "/en/teams/ghost/", "https://example.org/"] });
+  const reduced = keepDeadLinks(full, "/en/teams/x/", known, { site: SITE });
+  assert.deepEqual(reduced.hrefs, ["/en/teams/ghost/"]);
+  assert.equal(reduced.hrefCount, 3);
+  const issues = (h) => auditSet([{ path: "/en/teams/x/", head: h }], { ...OPTS, knownPaths: known });
+  assert.deepEqual(issues(reduced), issues(full));
+
+  // A page whose links all resolve keeps none, and still counts as a page with links.
+  const clean = keepDeadLinks(head(), "/en/teams/x/", known, { site: SITE });
+  assert.deepEqual(clean.hrefs, []);
+  assert.deepEqual(issues(clean), []);
+
+  // The self-check still fires when no page has a link at all.
+  const blind = Array.from({ length: 5 }, (_, i) => ({
+    path: `/en/teams/${i}/`, head: keepDeadLinks(head({ hrefs: [] }), `/en/teams/${i}/`, known, { site: SITE }),
+  }));
+  assert.match(auditSet(blind, OPTS)[0], /only 0 of 5 pages yielded an <a href>/);
 });
 
 test("auditSet: within a locale, a duplicate title/description/h1 is caught", () => {
