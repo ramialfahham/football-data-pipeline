@@ -8,8 +8,6 @@
 // so the site serves from "/".
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
-import seoAudit from "./integrations/seo-audit.mjs";
-import builtPages from "./integrations/built-pages.mjs";
 import { SITEMAP_EXCLUDE } from "./src/config/indexability.mjs";
 
 export default defineConfig({
@@ -30,8 +28,8 @@ export default defineConfig({
       prefixDefaultLocale: true,
     },
   },
-  // ORDER MATTERS. Astro runs integration hooks sequentially in this array's order, so the audit is
-  // placed AFTER sitemap() — it inspects the sitemap the previous integration just wrote.
+  // The SEO audit and the built-pages check are not integrations: `npm run build` runs them after
+  // `astro build` exits, so their memory never adds to the build's, and the audit sees the sitemap.
   //
   // The sitemap is GENERATED even while the site is `noindex`. Deferring it entirely would leave its
   // 50k-per-file splitting and the locale-reciprocal index logic with ZERO exercise until go-live —
@@ -39,7 +37,5 @@ export default defineConfig({
   // and robots.txt does not advertise it, so a noindex corpus is not being announced.
   integrations: [
     sitemap({ filter: (page) => !SITEMAP_EXCLUDE.some((re) => re.test(new URL(page).pathname)) }),
-    seoAudit(),
-    builtPages(),
   ],
 });
