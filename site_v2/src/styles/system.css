@@ -847,6 +847,8 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 
 /* The block explainer: one sentence under a block name. */
 .bsub { margin: 2px 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+/* A group opening the block after its explainer carries no space of its own either. */
+.bsub + .fxgroup { margin-top: 0; }
 /* Two more table kinds, each one fixed track list. `.dpt`: the Overview's deserved points table
    (# · club · Balance · Deserved · Pts · Diff); the ordered-by number keeps the accent. */
 .ctab.dpt, .ctab.dpt.ctab { --cols: 2rem minmax(0, 1fr) 3.6rem 4.2rem 2.6rem 3.2rem; }

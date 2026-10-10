@@ -1,13 +1,22 @@
-# Rendered page evidence — one order for every metric, from the catalogue
+# Rendered page evidence — the Rankings tab's two blocks get their intro line
 
-No markup or CSS changes; the evidence is the built pages' text, read by script from `astro build` of the committed
-sample on this branch and on main. No screenshot.
+The change adds one existing element, the block explainer (`.bsub`), under each of the two block
+names on the Rankings tab, and one CSS rule, `.bsub + .fxgroup { margin-top: 0; }`. In the branch
+build that pair occurs only on the three Rankings tab pages (`grep` of the built HTML). The built
+text is in `.claude/task/acceptance_evidence.md`.
 
-| Page | Passing player boards, this branch | main |
-|---|---|---|
-| /en/bundesliga/stats/ | Passes · Pass accuracy · Key passes | Passes · Key passes · Pass accuracy |
-| /de/bundesliga/statistiken/ | Pässe · Passquote · Schlüsselpässe | Pässe · Schlüsselpässe · Passquote |
-| /fi/bundesliga/tilastot/ | Syötöt · Syöttötarkkuus · Avainsyötöt | Syötöt · Avainsyötöt · Syöttötarkkuus |
+Measured in the browser on the dev server, `getBoundingClientRect` per block:
 
-Every other board on these three pages, and every other page of the 2,539, reads as on main.
-check_design_inventory.py reports 0 failures in 165 renders.
+| Page | Width | Block | name → intro | intro → first group head |
+|---|---|---|---|---|
+| en/bundesliga/stats | 375 | Team rankings, Player rankings | 14px | 8px |
+| de/bundesliga/statistiken | 700 | Mannschafts-Ranglisten, Spieler-Ranglisten | 14px | 8px |
+| fi/bundesliga/tilastot | 1010 | Joukkuerankingit, Pelaajarankingit | 14px | 8px |
+| en/bundesliga (Deserved points table, approved) | 1010 | Deserved points table | 14px | 8px |
+
+Without the rule the first group head sat 34px under the intro, its own margin.
+
+The design check (`scripts/check_design_inventory.py --dist site_v2/dist`) on the branch build, with
+the Rankings mock now carrying the two intros: 165 renders at 375, 700 and 1010px, 0 failures, 27
+warnings. Main's build gives the same 0 failures and 27 warnings (the header row at 700px), so none
+comes from this change.

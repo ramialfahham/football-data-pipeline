@@ -14,17 +14,19 @@ import type { CompetitionBoard } from "../../lib/types";
 
 interface Props {
   label: string;
+  intro: string;
   boards: CompetitionBoard[];
   entity: "team" | "player";
   lang: Lang;
 }
-const { label, boards, entity, lang } = Astro.props;
+const { label, intro, boards, entity, lang } = Astro.props;
 const groups = boardGroups(boards, GROUP_KEYS_IN_ORDER) as { key: string; boards: CompetitionBoard[] }[];
 ---
 
 {groups.length > 0 && (
   <section>
     <SectionHead label={label} />
+    <p class="bsub">{intro}</p>
     {groups.map((group) => (
       <div class="fxgroup rkgroup">
         <div class="gh"><span class="nm">{metricLabel(lang, `metricGroups.${group.key}.label`)}</span></div>
