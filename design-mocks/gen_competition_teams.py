@@ -38,6 +38,10 @@ COPY.update({
     "metricGroups.goalkeeping.label": ("Goalkeeping", "Maalivahti", False),
     "secTeamRankings": ("Team rankings", "Joukkuerankingit", False),
     "secPlayerRankings": ("Player rankings", "Pelaajarankingit", False),
+    "teamRankingsIntro": ("The leading teams in Bundesliga this season, metric by metric.",
+                          "Parhaat joukkueet sarjassa Bundesliga tällä kaudella, tilasto kerrallaan.", False),
+    "playerRankingsIntro": ("The leading players in Bundesliga this season, metric by metric.",
+                            "Parhaat pelaajat sarjassa Bundesliga tällä kaudella, tilasto kerrallaan.", False),
 })
 
 METRICS_FILE = HERE / "bl1_team_metrics.json"
@@ -162,9 +166,10 @@ def boards_html(boards):
     return """
       <section>
         <div class="sechead"><span class="eyebrow">%s</span></div>
+        <p class="bsub">%s</p>
 %s
       </section>
-""" % (loc("secTeamRankings"), "\n".join(parts))
+""" % (loc("secTeamRankings"), loc("teamRankingsIntro"), "\n".join(parts))
 
 
 # ---- the player half: the approved 17 boards in seven groups ----
@@ -251,9 +256,10 @@ def player_boards_html(boards):
     return """
       <section>
         <div class="sechead"><span class="eyebrow">%s</span></div>
+        <p class="bsub">%s</p>
 %s
       </section>
-""" % (loc("secPlayerRankings"), "\n".join(parts))
+""" % (loc("secPlayerRankings"), loc("playerRankingsIntro"), "\n".join(parts))
 
 
 def build():
