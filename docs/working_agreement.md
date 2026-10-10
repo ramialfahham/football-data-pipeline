@@ -368,7 +368,7 @@ however obvious the answer seems.
 | Rule reinterpretation or extension | applying a written rule to a domain it did not explicitly cover |
 | Changing shipped numbers | anything a published page displays |
 | Cost, schedule, scope | API budget, history depth, run cadence, widening a task |
-| Core document text | every edit to `north_star.md`, `site_architecture.md`, `content_architecture.md`, `ui_design_brief.md`, `working_agreement.md`, `agent_guardrails.md`, `metrics_context_model.md`: the exact text, approved before the edit |
+| Core document text | every edit to `north_star.md`, `site_architecture.md`, `content_architecture.md`, `ui_design_brief.md`, `working_agreement.md`, `agent_guardrails.md`, `metrics_context_model.md`, `metric_layer.md`: the exact text, approved before the edit |
 
 **Agent-executable:** implementation inside a written contract, and mechanical work whose every
 judgment a contract document already codifies. The contract documents are layering, engineering
