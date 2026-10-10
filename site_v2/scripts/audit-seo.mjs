@@ -503,17 +503,18 @@ export function emptyPaths(node, trail = "$", out = []) {
   return out;
 }
 
-/** The ONLY I/O. A generator, so the corpus is streamed rather than materialised. */
-export function* readDist(dir, root = dir) {
+/** The ONLY I/O. A generator, so the corpus is streamed rather than materialised. With `withHtml`
+ * false it yields paths only, and `html` is null. */
+export function* readDist(dir, root = dir, withHtml = true) {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     if (statSync(full).isDirectory()) {
-      yield* readDist(full, root);
+      yield* readDist(full, root, withHtml);
     } else if (name.endsWith(".html")) {
       const rel = "/" + relative(root, full).split(sep).join("/");
       // dist/en/teams/x/index.html is served at /en/teams/x/ (trailingSlash: "always").
       const path = rel.endsWith("/index.html") ? rel.slice(0, -"index.html".length) : rel;
-      yield { path, html: readFileSync(full, "utf8") };
+      yield { path, html: withHtml ? readFileSync(full, "utf8") : null };
     }
   }
 }
@@ -559,12 +560,14 @@ export async function main(distDir = DIST_DIR) {
 
   // Pass 1: the path set, so dead-link detection can be exact.
   const knownPaths = new Set();
-  for (const { path } of readDist(distDir)) knownPaths.add(path);
+  for (const { path } of readDist(distDir, distDir, false)) knownPaths.add(path);
 
   // Pass 2: parse and reduce. `html` is never retained, and of a page's links only the dead ones
   // and their count: a full link list per page is what outgrows the heap at full scale.
+  // structuredClone copies the kept strings: a regex match can be a slice that keeps its whole
+  // page in memory.
   const pages = [];
-  for (const { path, html } of readDist(distDir)) pages.push({ path, head: keepDeadLinks(parseHead(html), path, knownPaths, { site }) });
+  for (const { path, html } of readDist(distDir)) pages.push({ path, head: structuredClone(keepDeadLinks(parseHead(html), path, knownPaths, { site })) });
 
   // Expected @type comes FROM THE SPECS, so a page's declaration is what it is verified against.
   // "none" means the spec says this page carries no entity node (the scaffold).

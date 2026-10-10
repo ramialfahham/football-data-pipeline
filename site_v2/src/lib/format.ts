@@ -9,8 +9,31 @@ export const DASH = "–";
 const LOCALE: Record<Lang, string> = { de: "de-DE", en: "en-GB", fi: "fi-FI" };
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
+// One formatter per locale and option set, reused: a new Intl formatter per call holds native
+// memory outside the heap until the next garbage collection, and a full build makes millions.
+const numberFormats = new Map<string, Intl.NumberFormat>();
+function numberFormat(lang: Lang, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = lang + JSON.stringify(options);
+  let f = numberFormats.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat(LOCALE[lang], options);
+    numberFormats.set(key, f);
+  }
+  return f;
+}
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+function dateFormat(lang: Lang, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = lang + JSON.stringify(options);
+  let f = dateFormats.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(LOCALE[lang], options);
+    dateFormats.set(key, f);
+  }
+  return f;
+}
+
 function nf(lang: Lang, min: number, max: number): Intl.NumberFormat {
-  return new Intl.NumberFormat(LOCALE[lang], {
+  return numberFormat(lang, {
     minimumFractionDigits: min,
     maximumFractionDigits: max,
   });
@@ -28,7 +51,7 @@ export function integer(v: number | null | undefined, lang: Lang): string {
 // Signed integer ("+17" / "−1" / "0"), for goal difference. Formatting only.
 export function signedInteger(v: number | null | undefined, lang: Lang): string {
   return isNum(v)
-    ? new Intl.NumberFormat(LOCALE[lang], { signDisplay: "exceptZero", maximumFractionDigits: 0 }).format(v)
+    ? numberFormat(lang, { signDisplay: "exceptZero", maximumFractionDigits: 0 }).format(v)
     : DASH;
 }
 // `percent` metrics are served as a 0..1 ratio; the format multiplies by 100 for
@@ -88,14 +111,14 @@ export function signedDelta(
 ): { value: string; unit: string | null } {
   if (!isNum(delta)) return { value: DASH, unit: null };
   if (format === "percent") {
-    const pp = new Intl.NumberFormat(LOCALE[lang], {
+    const pp = numberFormat(lang, {
       signDisplay: "exceptZero",
       maximumFractionDigits: 0,
     }).format(delta * 100);
     return { value: pp, unit: "pp" };
   }
   const digits = format === "decimal_1" ? 1 : 0;
-  const value = new Intl.NumberFormat(LOCALE[lang], {
+  const value = numberFormat(lang, {
     signDisplay: "exceptZero",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
@@ -114,7 +137,7 @@ function toDate(iso: string | null | undefined): Date | null {
 export function formatDate(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);
   if (!d) return DASH;
-  return new Intl.DateTimeFormat(LOCALE[lang], {
+  return dateFormat(lang, {
     weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
   }).format(d);
 }
@@ -122,14 +145,14 @@ export function formatDate(iso: string | null | undefined, lang: Lang): string {
 export function formatLongDate(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);
   if (!d) return DASH;
-  return new Intl.DateTimeFormat(LOCALE[lang], {
+  return dateFormat(lang, {
     weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
   }).format(d);
 }
 export function formatShortDate(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);
   if (!d) return DASH;
-  return new Intl.DateTimeFormat(LOCALE[lang], {
+  return dateFormat(lang, {
     day: "numeric", month: "short", timeZone: "UTC",
   }).format(d);
 }
@@ -137,14 +160,14 @@ export function formatShortDate(iso: string | null | undefined, lang: Lang): str
 export function formatDayYear(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);
   if (!d) return DASH;
-  return new Intl.DateTimeFormat(LOCALE[lang], {
+  return dateFormat(lang, {
     day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
   }).format(d);
 }
 export function formatTime(iso: string | null | undefined, lang: Lang): string {
   const d = toDate(iso);
   if (!d) return DASH;
-  return new Intl.DateTimeFormat(LOCALE[lang], {
+  return dateFormat(lang, {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC",
   }).format(d);
 }

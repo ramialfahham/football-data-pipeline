@@ -31,24 +31,26 @@ export function getStaticPaths() {
   // gitignored, never committed). One page per team x 3 locales. Read from disk inside
   // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope);
   // an import would bundle every team file into the build's JavaScript, which runs out of memory.
+  // Only the file name travels as a prop: Astro holds every route's props until the build ends.
   const dir = join(process.cwd(), "src/data/teams");
   const teams = readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
     .sort()
-    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as Team);
-  return teams.flatMap((team) =>
+    .map((file) => ({ file, slug: (JSON.parse(readFileSync(join(dir, file), "utf8")) as Team).slug }));
+  return teams.flatMap(({ file, slug }) =>
     locales.map((lang) => ({
-      params: { lang, teams: word(lang, "teams"), team: team.slug },
-      props: { team, lang },
+      params: { lang, teams: word(lang, "teams"), team: slug },
+      props: { file, lang },
     })),
   );
 }
 
 interface Props {
-  team: Team;
+  file: string;
   lang: Lang;
 }
-const { team, lang } = Astro.props;
+const { file, lang } = Astro.props;
+const team = JSON.parse(readFileSync(join(process.cwd(), "src/data/teams", file), "utf8")) as Team;
 
 // The season this page opens on is decided in the warehouse and served on the row (#846).
 // This is a lookup of a flag, not a choice: the rule used to be written here, again on the

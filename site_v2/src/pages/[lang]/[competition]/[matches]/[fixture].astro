@@ -34,11 +34,15 @@ export function getStaticPaths() {
   const comps = competitions as Record<string, { slug: string }>;
   // Read from disk, not imported: an import bundles every payload into the build's JavaScript,
   // and the build then runs out of memory long before every match has its page.
+  // Only the file name travels as a prop: Astro holds every route's props until the build ends.
   const dir = join(process.cwd(), "src/data/fixtures");
   const fixtures = readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
     .sort()
-    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as Fixture);
+    .map((file) => {
+      const { slug, league_code } = JSON.parse(readFileSync(join(dir, file), "utf8")) as Fixture;
+      return { file, slug, league_code };
+    });
   const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
     eager: true,
     import: "default",
@@ -48,30 +52,31 @@ export function getStaticPaths() {
     .filter((name) => name.endsWith(".json"))
     .map((name) => (JSON.parse(readFileSync(join(teamDir, name), "utf8")) as Team).slug);
   const indexed = new Set((competitionIndex as unknown as CompetitionIndex).competitions.map((c) => c.league_code));
-  return fixtures.flatMap((fixture) => {
-    const comp = comps[fixture.league_code];
+  return fixtures.flatMap(({ file, slug, league_code }) => {
+    const comp = comps[league_code];
     if (!comp) {
-      throw new Error(`No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`);
+      throw new Error(`No competition slug for league_code "${league_code}" in src/data/competitions.json`);
     }
-    const payload = latestSeasonPayload(Object.values(payloads).filter((p) => p.league_code === fixture.league_code));
+    const payload = latestSeasonPayload(Object.values(payloads).filter((p) => p.league_code === league_code));
     const built: Built = {
-      competitionPage: indexed.has(fixture.league_code),
-      matchdaysPage: indexed.has(fixture.league_code) && Boolean(payload?.fixtures?.length),
+      competitionPage: indexed.has(league_code),
+      matchdaysPage: indexed.has(league_code) && Boolean(payload?.fixtures?.length),
       teamSlugs,
     };
     return locales.map((lang) => ({
-      params: { lang, competition: comp.slug, matches: word(lang, "matches"), fixture: fixture.slug },
-      props: { fixture, lang, built },
+      params: { lang, competition: comp.slug, matches: word(lang, "matches"), fixture: slug },
+      props: { file, lang, built },
     }));
   });
 }
 
 interface Props {
-  fixture: Fixture;
+  file: string;
   lang: Lang;
   built: Built;
 }
-const { fixture, lang, built } = Astro.props;
+const { file, lang, built } = Astro.props;
+const fixture = JSON.parse(readFileSync(join(process.cwd(), "src/data/fixtures", file), "utf8")) as Fixture;
 const { home, away } = fixture;
 // The next matchday's match gets the full preview; a match further out waits for it.
 const isNext = fixture.is_next_round !== false;
