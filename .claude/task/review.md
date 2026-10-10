@@ -1,31 +1,27 @@
-# Review — fix/build-carries-every-match
+# Review — fix/build-memory-one-payload
 
-diff_sha256: 715d223524f86624d741ae32acd4d0d2b9640145df4a29e3cd693cae8c5f3c9a
+diff_sha256: 446c69b45298de01ad697daf5c5b647e46c5b15c2938911173068b76e12bd74f
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; the team-page amendment carries its approval and measurements; nothing reserved for #175/#176 is touched.
-- The threshold declarations name the new mechanism (node:fs reads at build time) and no recurring cost, which the diff matches; the SEO check's self-check floor is not weakened.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- The build runs from site_v2 in every path (build:site-v2, deploy:site-v2, bootstrap.py, the dev server), so the reads resolve; both route lists are sorted for Linux; a missing directory or bad JSON fails the build closed.
-- keepDeadLinks applies the dead-link check's own predicate, the self-check reads hrefCount, and the new test goes red on each regression it names; check-built-pages backstops the page count against the files on disk.
+- Every changed path is in scope_paths; format.ts joined by an amendment that names its approval and its measured basis; nothing reserved (the incremental build, the runner size, #175/#176, the competition payloads) is touched.
+- Route params and slugs, metric formats and labels are unchanged; the declaration of no new mechanism and no recurring cost matches the diff.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- The match and team pages receive the same props and the same page set as before; the team-slug list is a membership set, so its order is irrelevant; nothing new is derived on the page.
+- Round 1 failed on evidence files left from the previous task; round 2 read this branch's evidence: a byte compare with main's build, 0 files differ on the committed sample (2,543 files) and at full scale (198,999 files), and the design check at 375, 700 and 1010px with 0 failures and main's 27 warnings.
+- Both pages read their own file at render and carry only file name, slug, league code and locale as route data; format.ts builds every Intl formatter in two cached helpers keyed by locale and options; no field, label, metric or order changes.
 
-## cto-reviewer
+## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Reading the files with node:fs is the plain mechanism: no dependency, configuration or loader, lighter than content collections, and it leaves the export's output contract unchanged.
-- No guard path is touched; the SEO audit, the page specs and the copy gate keep their invariants; the declaration is honest.
+- readDist keeps its default, so check-built-pages still gets the HTML; pass 1 yields the same path set; structuredClone exists on the pinned Node 24 and copies only plain data; the SEO check still fails the build closed.
+- The page reads use the same process.cwd() and node:fs pattern as before; the formatter caches are bounded by the literal option sets in format.ts and formatters hold no state.
 
 ## escalations
-(none)
+- question: A memory peak outside the two planned fixes (about 7.8 GB outside the heap during page writing, traced to a new Intl formatter per call in src/lib/format.ts) — fix it in this MR or in a separate issue?
+  CPO ANSWER: in this MR; approved in chat, 2026-10-10.

@@ -1,279 +1,356 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index dd218271..3d421d4f 100644
+index 3d421d4f..a2f4e8ef 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,21 +1,20 @@
--# Task contract — the Rankings tab's two blocks get their intro line (#166)
-+# Task contract — the site build carries every played match
+@@ -1,18 +1,19 @@
+-# Task contract — the site build carries every played match
++# Task contract — the site build's memory at full scale
  
  objective: >
--  The competition page's Rankings tab shows one intro line, the block explainer, under Team
--  rankings and under Player rankings, as every board carries one.
-+  The site build renders and checks about 63,000 match payloads within the CI's 8 GB heap. The
-+  match page reads its data files from disk instead of bundling them, and the SEO check keeps only
-+  what it compares.
+-  The site build renders and checks about 63,000 match payloads within the CI's 8 GB heap. The
+-  match page reads its data files from disk instead of bundling them, and the SEO check keeps only
+-  what it compares.
++  Measure where the full-scale site build's memory goes, phase by phase. The match page and the
++  team page then each read their own data file while that page renders, and the SEO check keeps
++  only what it compares, so the build no longer holds every data file at once.
  
  refs: >
--  #166 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/166), the match page
--  build; its line "Intros per content block type", decided on #132. The plan and the wording:
--  approved in chat, 2026-10-10.
-+  #174 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/174): every played
-+  match in the data window gets a page, approved in chat, 2026-10-10. The plan: approved in chat,
-+  2026-10-10.
+-  #174 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/174): every played
+-  match in the data window gets a page, approved in chat, 2026-10-10. The plan: approved in chat,
+-  2026-10-10.
++  #208 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208): the issue and
++  its plan, approved in chat, 2026-10-10. Measure first, before an incremental build: approved in
++  chat, 2026-10-10.
  
  scope_paths:
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/components/competition/RankingsBlock.astro
--  - site_v2/src/pages/?lang?/?competition?/?stats?/index.astro
--  - site_v2/src/specs/competition/stats/index.spec.json
--  - site_v2/src/styles/system.css
--  - design-mocks/gen_competition_teams.py
-+  - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
-+  - site_v2/src/pages/?lang?/?teams?/?team?.astro
-+  - site_v2/scripts/audit-seo.mjs
-+  - site_v2/scripts/audit-seo.test.mjs
+   - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
+   - site_v2/src/pages/?lang?/?teams?/?team?.astro
++  - site_v2/src/lib/format.ts
+   - site_v2/scripts/audit-seo.mjs
+   - site_v2/scripts/audit-seo.test.mjs
    - .claude/task/contract.md
-   - .claude/task/review.md
-   - .claude/task/review_input.patch
-@@ -23,59 +22,39 @@ scope_paths:
+@@ -22,39 +23,52 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: none; no mart, model or export changes. The two strings live in strings.ts.
--  downstream: the Rankings tab page ([lang]/[competition]/[stats]/index.astro) is the only page
--  that renders RankingsBlock (`grep -rn "RankingsBlock" site_v2/src` lists that page and the
--  component). Leaf change: copy, and one CSS rule whose selector pair (`.bsub + .fxgroup`) occurs
--  only on the Rankings tab pages in the build.
--  layer_rules: the page renders served data and copy; the competition name comes from the payload.
-+  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/*.json; unchanged.
-+  downstream: `grep -rln "data/fixtures" site_v2/src` lists the match page and its spec only, so
-+  the match page is the one reader of those files. The SEO check runs after every site build
-+  (site_v2/integrations/seo-audit.mjs) and in CI's build:site-v2; its checks and its verdicts are
+-  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/*.json; unchanged.
+-  downstream: `grep -rln "data/fixtures" site_v2/src` lists the match page and its spec only, so
+-  the match page is the one reader of those files. The SEO check runs after every site build
+-  (site_v2/integrations/seo-audit.mjs) and in CI's build:site-v2; its checks and its verdicts are
+-  unchanged.
++  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/*.json and
++  site_v2/src/data/teams/*.json; unchanged.
++  downstream: `grep -rln "data/fixtures" site_v2/src` lists the match page and its spec only;
++  `grep -rln "data/teams" site_v2/src` lists the match page, the team page, the team spec and the
++  spec schema. So the two pages are the only code readers. The SEO check runs as a child process
++  after every site build (site_v2/integrations/seo-audit.mjs) and in CI's build:site-v2 and
++  deploy:site-v2; its checks and its verdicts are unchanged.
+   layer_rules: the page selects and renders served data; nothing is computed.
++  site_v2/src/lib/format.ts: `grep -rl "lib/format" site_v2/src | wc -l` gives 51 importers, every
++  page type among them; no script or integration imports it. Its exports and their output are
 +  unchanged.
-+  layer_rules: the page selects and renders served data; nothing is computed.
    deploy_order: none; a site build.
--  blast_radius: every built Rankings tab page gains two lines of text; no other page changes.
-+  blast_radius: no built page changes (verified by comparing every page's text with main). The
-+  build's memory and time change; measured before and after at 628 and 62,800 match payloads.
+-  blast_radius: no built page changes (verified by comparing every page's text with main). The
+-  build's memory and time change; measured before and after at 628 and 62,800 match payloads.
++  blast_radius: no built page changes, verified by a byte compare of every built file with main's
++  build of the same day. The build's memory and time change; measured before and after at full
++  scale.
  
  acceptance_criteria:
--  - On every built Rankings tab page, a block explainer line sits directly under the Team rankings name and one under the Player rankings name, reading the approved wording for the page's language with its competition named as the match page names it.
--  - Every other built page's visible text equals main's.
-+  - Every built page's visible text on the branch equals main's.
-+  - A build of 62,800 match payloads with NODE_OPTIONS=--max-old-space-size=8192 ends with exit 0 and every build check passing; the same build on main runs out of memory.
+-  - Every built page's visible text on the branch equals main's.
+-  - A build of 62,800 match payloads with NODE_OPTIONS=--max-old-space-size=8192 ends with exit 0 and every build check passing; the same build on main runs out of memory.
++  - A full-scale build is measured: 62,800 match payloads and 3,348 team payloads. Peak process memory, peak heap and time are recorded per phase (bundling, page writing, sitemap, SEO check, built-pages check), on main and on this branch, on this issue.
++  - A match page and a team page are each built from their own data file, read while that page renders. The build no longer holds every data file at once.
++  - "Today's site is unchanged: every file built from the committed sample is byte-identical to main's build, built the same day."
++  - With a 3 GB heap cap, the full-scale build passes every build check. If it does not, this issue names the phase that runs out of memory and its peak.
  
  decisions_taken: >
--  The wording, approved in chat, 2026-10-10. Team rankings: "The leading teams {in} this season,
--  metric by metric." · "Die besten Mannschaften {in} in dieser Saison, Kennzahl für Kennzahl." ·
--  "Parhaat joukkueet {in} tällä kaudella, tilasto kerrallaan." Player rankings: "The leading
--  players {in} this season, metric by metric." · "Die besten Spieler {in} in dieser Saison,
--  Kennzahl für Kennzahl." · "Parhaat pelaajat {in} tällä kaudella, tilasto kerrallaan." {in} is
--  inCompetition(), as on the match page.
--
--  The result-row spacing and the club-in-its-cell lines of #166 are already built
--  (site_v2/src/styles/system.css, the two rules after the meeting row); this change builds nothing
--  for them.
-+  Every played match gets a page, and the build must carry it: approved in chat, 2026-10-10. The
-+  plan (the match page reads its files with node:fs; the SEO check keeps each page's dead links
-+  and its link count, not its full link list): approved in chat, 2026-10-10.
+-  Every played match gets a page, and the build must carry it: approved in chat, 2026-10-10. The
+-  plan (the match page reads its files with node:fs; the SEO check keeps each page's dead links
+-  and its link count, not its full link list): approved in chat, 2026-10-10.
++  The issue's plan, approved in chat, 2026-10-10: getStaticPaths of the match page and the team
++  page returns id, slug and locale only, and each page reads its own file as it renders. If the
++  profile puts a peak in the SEO check, it keeps only the fields it compares, and its first pass
++  collects paths from file names without reading the HTML.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: the match page's data is read from disk at build time
-+  instead of through Vite's import; no new dependency, library or service. RECURRING COST: none.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: the match page's data is read from disk at build time
+-  instead of through Vite's import; no new dependency, library or service. RECURRING COST: none.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; the pages already read their data with node:fs,
++  and this moves the read of a page's own file from getStaticPaths into the page. RECURRING COST:
++  none.
  
  decisions_reserved:
--  - Home's intros (#127) and the Metric Glossary links (#168).
-+  - The played match payload and page (#175, #176), and any change to the other data the build bundles (teams, players, competition payloads).
+-  - The played match payload and page (#175, #176), and any change to the other data the build bundles (teams, players, competition payloads).
++  - A memory peak anywhere other than the two pages' route data and the SEO check goes to the CPO with the profile, unfixed.
++  - The incremental build and the machine or runner size, decided from this issue's numbers.
++  - The played match payload and page (#175, #176), and any change to the other data the build bundles (competition payloads).
  
  done_when:
    - npm test in site_v2 passes; pytest tests/ passes.
--  - The criteria are shown in .claude/task/acceptance_evidence.md from the built output.
-+  - The criteria are shown in .claude/task/acceptance_evidence.md.
+-  - The criteria are shown in .claude/task/acceptance_evidence.md.
++  - A build of the committed sample ends with both build checks printing OK.
++  - A byte compare of every built file against main's build of the same day finds 0 differences.
++  - The full-scale measurements, main and branch, at 8 GB and 3 GB heap caps, are in .claude/task/acceptance_evidence.md and on #208.
  
  amendments: >
--  After round 1 of the review. With the explainer between the block name and the first metric
--  group, the group kept its own 34px top margin. block_standard.md's Block heading gap row (a group
--  opening the block carries no space of its own) applies to the group after the explainer too, as
--  the match page's `.mp .bsub + .rsplit` rule already does: system.css gains `.bsub + .fxgroup`
--  with no top margin, so the explainer's own 8px separates them, as on the Deserved points table.
--  The Rankings tab's design mock (design-mocks/gen_competition_teams.py) gains the two approved
--  intro lines (EN and FI, Bundesliga), so the mock and the built page agree.
--
--  After round 2: the gap is the CPO's ruling, not a reading. Approved in chat, 2026-10-10: the
--  explainer's own 8px is the whole gap to the block's first line, which carries no space of its
--  own; the rule, the mock edit and block_standard.md's Block explainer row rest on it.
--
--  After round 3: the approved Form comparison keeps 22px under its intro (render 74), so the row
--  names what the 8px holds for. Its Rule column reads, exact text approved in chat, 2026-10-10:
--  "the one sentence under a block name, 13px muted; 8px under it to a list, table or group, which
--  carries no space of its own". A fourth review round: approved in chat, 2026-10-10.
--
--  After round 4: the approved Head to head list with meetings also keeps its own space under its
--  intro, so no general sentence holds. The block_standard.md edit is undone and the file leaves
--  the scope; the 8px ruling for the Rankings tab stands as recorded above: approved in chat,
--  2026-10-10.
-+  The team data joins: approved in chat, 2026-10-10. Measured on a scratch build of today's live
-+  site at full scale (5,024 upcoming match payloads, 3,348 team payloads of ~540 KB each): with
-+  the team files bundled the build runs out of memory at 8 GB while bundling; read from disk it
-+  passes every check (25,662 pages, 4.2 GB peak memory). The team page and the match page's team
-+  slug list read src/data/teams/*.json with node:fs. A third criterion: that live-site build ends
-+  with exit 0 and every build check passing.
+-  The team data joins: approved in chat, 2026-10-10. Measured on a scratch build of today's live
+-  site at full scale (5,024 upcoming match payloads, 3,348 team payloads of ~540 KB each): with
+-  the team files bundled the build runs out of memory at 8 GB while bundling; read from disk it
+-  passes every check (25,662 pages, 4.2 GB peak memory). The team page and the match page's team
+-  slug list read src/data/teams/*.json with node:fs. A third criterion: that live-site build ends
+-  with exit 0 and every build check passing.
++  site_v2/src/lib/format.ts joins: approved in chat, 2026-10-10. Main's full-scale profile put
++  about 7.8 GB of the page-writing peak outside the heap (11.2 GB process memory, 3.3 GB heap).
++  format.ts builds a new Intl formatter on every call; a probe of that pattern held 4.2 GB outside
++  the heap over 400,000 calls, against 0.05 GB with one formatter reused. The file keeps one
++  formatter per locale and option set; every formatted string is unchanged.
 diff --git a/site_v2/scripts/audit-seo.mjs b/site_v2/scripts/audit-seo.mjs
-index aed1c0e6..ccc673f7 100644
+index ccc673f7..8f3b381a 100644
 --- a/site_v2/scripts/audit-seo.mjs
 +++ b/site_v2/scripts/audit-seo.mjs
-@@ -98,6 +98,16 @@ export function parseHead(html) {
-   };
+@@ -503,17 +503,18 @@ export function emptyPaths(node, trail = "$", out = []) {
+   return out;
  }
  
-+/** Pure: a parseHead() result with only its dead links kept, and `hrefCount` holding how many links
-+ * the page had. auditSet reports the same issues from it as from the full head. */
-+export function keepDeadLinks(head, path, knownPaths, opts) {
-+  const hrefs = head.hrefs.filter((raw) => {
-+    const target = resolveHref(raw, path, opts);
-+    return target && !knownPaths.has(target);
-+  });
-+  return { ...head, hrefs, hrefCount: head.hrefs.length };
-+}
-+
- /** Pure: turn an href found on the page at `fromPath` into the app path it targets, or null when it
-  * is not a same-site page reference (external, mailto, #fragment, or an asset). */
- export function resolveHref(href, fromPath, { site, base = "/" } = {}) {
-@@ -321,7 +331,7 @@ export function auditSet(pages, opts) {
-   const floor = Math.min(MIN_EXPECTED_PAGES, contentPages.length);
-   for (const [what, n] of [
-     ["a <title>", contentPages.filter((p) => p.head.title).length],
--    ["an <a href>", contentPages.filter((p) => p.head.hrefs.length).length],
-+    ["an <a href>", contentPages.filter((p) => p.head.hrefCount ?? p.head.hrefs.length).length],
-     ["an og:title", contentPages.filter((p) => p.head.ogTitle).length],
-   ]) {
-     if (n < floor) {
-@@ -551,9 +561,10 @@ export async function main(distDir = DIST_DIR) {
-   const knownPaths = new Set();
-   for (const { path } of readDist(distDir)) knownPaths.add(path);
+-/** The ONLY I/O. A generator, so the corpus is streamed rather than materialised. */
+-export function* readDist(dir, root = dir) {
++/** The ONLY I/O. A generator, so the corpus is streamed rather than materialised. With `withHtml`
++ * false it yields paths only, and `html` is null. */
++export function* readDist(dir, root = dir, withHtml = true) {
+   for (const name of readdirSync(dir)) {
+     const full = join(dir, name);
+     if (statSync(full).isDirectory()) {
+-      yield* readDist(full, root);
++      yield* readDist(full, root, withHtml);
+     } else if (name.endsWith(".html")) {
+       const rel = "/" + relative(root, full).split(sep).join("/");
+       // dist/en/teams/x/index.html is served at /en/teams/x/ (trailingSlash: "always").
+       const path = rel.endsWith("/index.html") ? rel.slice(0, -"index.html".length) : rel;
+-      yield { path, html: readFileSync(full, "utf8") };
++      yield { path, html: withHtml ? readFileSync(full, "utf8") : null };
+     }
+   }
+ }
+@@ -559,12 +560,14 @@ export async function main(distDir = DIST_DIR) {
  
--  // Pass 2: parse and reduce. `html` is never retained.
-+  // Pass 2: parse and reduce. `html` is never retained, and of a page's links only the dead ones
-+  // and their count: a full link list per page is what outgrows the heap at full scale.
+   // Pass 1: the path set, so dead-link detection can be exact.
+   const knownPaths = new Set();
+-  for (const { path } of readDist(distDir)) knownPaths.add(path);
++  for (const { path } of readDist(distDir, distDir, false)) knownPaths.add(path);
+ 
+   // Pass 2: parse and reduce. `html` is never retained, and of a page's links only the dead ones
+   // and their count: a full link list per page is what outgrows the heap at full scale.
++  // structuredClone copies the kept strings: a regex match can be a slice that keeps its whole
++  // page in memory.
    const pages = [];
--  for (const { path, html } of readDist(distDir)) pages.push({ path, head: parseHead(html) });
-+  for (const { path, html } of readDist(distDir)) pages.push({ path, head: keepDeadLinks(parseHead(html), path, knownPaths, { site }) });
+-  for (const { path, html } of readDist(distDir)) pages.push({ path, head: keepDeadLinks(parseHead(html), path, knownPaths, { site }) });
++  for (const { path, html } of readDist(distDir)) pages.push({ path, head: structuredClone(keepDeadLinks(parseHead(html), path, knownPaths, { site })) });
  
    // Expected @type comes FROM THE SPECS, so a page's declaration is what it is verified against.
    // "none" means the spec says this page carries no entity node (the scaffold).
-diff --git a/site_v2/scripts/audit-seo.test.mjs b/site_v2/scripts/audit-seo.test.mjs
-index 016d594f..7f14eba2 100644
---- a/site_v2/scripts/audit-seo.test.mjs
-+++ b/site_v2/scripts/audit-seo.test.mjs
-@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
- import {
-   parseHead, resolveHref, auditSet, decode, emptyPaths, entityKey, isRootRedirect,
-   specRouteRegex, readSpecExpectations, titleWidthPx, TITLE_PX_BUDGET, TITLE_PX_HARD,
--  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf, sharesHeader,
-+  MIN_EXPECTED_PAGES, routeSpecificity, specForPath, specTie, isTabOf, sharesHeader, keepDeadLinks,
- } from "./audit-seo.mjs";
+diff --git a/site_v2/src/lib/format.ts b/site_v2/src/lib/format.ts
+index 12387f2d..56f01709 100644
+--- a/site_v2/src/lib/format.ts
++++ b/site_v2/src/lib/format.ts
+@@ -9,8 +9,31 @@ export const DASH = "–";
+ const LOCALE: Record<Lang, string> = { de: "de-DE", en: "en-GB", fi: "fi-FI" };
+ const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
  
- const SITE = "https://matchdaypilot.com";
-@@ -233,6 +233,27 @@ test("auditSet: dead internal links are caught — Astro validates none of these
-   assert.ok(issues.some((i) => i.includes("dead internal link")));
- });
- 
-+test("keepDeadLinks: the reduced head reports what the full head reports", () => {
-+  const known = new Set(Object.values(TEAM_X));
-+  const full = head({ hrefs: ["/en/teams/x/", "/en/teams/ghost/", "https://example.org/"] });
-+  const reduced = keepDeadLinks(full, "/en/teams/x/", known, { site: SITE });
-+  assert.deepEqual(reduced.hrefs, ["/en/teams/ghost/"]);
-+  assert.equal(reduced.hrefCount, 3);
-+  const issues = (h) => auditSet([{ path: "/en/teams/x/", head: h }], { ...OPTS, knownPaths: known });
-+  assert.deepEqual(issues(reduced), issues(full));
++// One formatter per locale and option set, reused: a new Intl formatter per call holds native
++// memory outside the heap until the next garbage collection, and a full build makes millions.
++const numberFormats = new Map<string, Intl.NumberFormat>();
++function numberFormat(lang: Lang, options: Intl.NumberFormatOptions): Intl.NumberFormat {
++  const key = lang + JSON.stringify(options);
++  let f = numberFormats.get(key);
++  if (!f) {
++    f = new Intl.NumberFormat(LOCALE[lang], options);
++    numberFormats.set(key, f);
++  }
++  return f;
++}
++const dateFormats = new Map<string, Intl.DateTimeFormat>();
++function dateFormat(lang: Lang, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
++  const key = lang + JSON.stringify(options);
++  let f = dateFormats.get(key);
++  if (!f) {
++    f = new Intl.DateTimeFormat(LOCALE[lang], options);
++    dateFormats.set(key, f);
++  }
++  return f;
++}
 +
-+  // A page whose links all resolve keeps none, and still counts as a page with links.
-+  const clean = keepDeadLinks(head(), "/en/teams/x/", known, { site: SITE });
-+  assert.deepEqual(clean.hrefs, []);
-+  assert.deepEqual(issues(clean), []);
-+
-+  // The self-check still fires when no page has a link at all.
-+  const blind = Array.from({ length: 5 }, (_, i) => ({
-+    path: `/en/teams/${i}/`, head: keepDeadLinks(head({ hrefs: [] }), `/en/teams/${i}/`, known, { site: SITE }),
-+  }));
-+  assert.match(auditSet(blind, OPTS)[0], /only 0 of 5 pages yielded an <a href>/);
-+});
-+
- test("auditSet: within a locale, a duplicate title/description/h1 is caught", () => {
-   const pages = [
-     { path: "/en/teams/a/", head: head({ canonical: `${SITE}/en/teams/a/`, ogUrl: `${SITE}/en/teams/a/`, alternates: {} }) },
+ function nf(lang: Lang, min: number, max: number): Intl.NumberFormat {
+-  return new Intl.NumberFormat(LOCALE[lang], {
++  return numberFormat(lang, {
+     minimumFractionDigits: min,
+     maximumFractionDigits: max,
+   });
+@@ -28,7 +51,7 @@ export function integer(v: number | null | undefined, lang: Lang): string {
+ // Signed integer ("+17" / "−1" / "0"), for goal difference. Formatting only.
+ export function signedInteger(v: number | null | undefined, lang: Lang): string {
+   return isNum(v)
+-    ? new Intl.NumberFormat(LOCALE[lang], { signDisplay: "exceptZero", maximumFractionDigits: 0 }).format(v)
++    ? numberFormat(lang, { signDisplay: "exceptZero", maximumFractionDigits: 0 }).format(v)
+     : DASH;
+ }
+ // `percent` metrics are served as a 0..1 ratio; the format multiplies by 100 for
+@@ -88,14 +111,14 @@ export function signedDelta(
+ ): { value: string; unit: string | null } {
+   if (!isNum(delta)) return { value: DASH, unit: null };
+   if (format === "percent") {
+-    const pp = new Intl.NumberFormat(LOCALE[lang], {
++    const pp = numberFormat(lang, {
+       signDisplay: "exceptZero",
+       maximumFractionDigits: 0,
+     }).format(delta * 100);
+     return { value: pp, unit: "pp" };
+   }
+   const digits = format === "decimal_1" ? 1 : 0;
+-  const value = new Intl.NumberFormat(LOCALE[lang], {
++  const value = numberFormat(lang, {
+     signDisplay: "exceptZero",
+     minimumFractionDigits: digits,
+     maximumFractionDigits: digits,
+@@ -114,7 +137,7 @@ function toDate(iso: string | null | undefined): Date | null {
+ export function formatDate(iso: string | null | undefined, lang: Lang): string {
+   const d = toDate(iso);
+   if (!d) return DASH;
+-  return new Intl.DateTimeFormat(LOCALE[lang], {
++  return dateFormat(lang, {
+     weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+   }).format(d);
+ }
+@@ -122,14 +145,14 @@ export function formatDate(iso: string | null | undefined, lang: Lang): string {
+ export function formatLongDate(iso: string | null | undefined, lang: Lang): string {
+   const d = toDate(iso);
+   if (!d) return DASH;
+-  return new Intl.DateTimeFormat(LOCALE[lang], {
++  return dateFormat(lang, {
+     weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+   }).format(d);
+ }
+ export function formatShortDate(iso: string | null | undefined, lang: Lang): string {
+   const d = toDate(iso);
+   if (!d) return DASH;
+-  return new Intl.DateTimeFormat(LOCALE[lang], {
++  return dateFormat(lang, {
+     day: "numeric", month: "short", timeZone: "UTC",
+   }).format(d);
+ }
+@@ -137,14 +160,14 @@ export function formatShortDate(iso: string | null | undefined, lang: Lang): str
+ export function formatDayYear(iso: string | null | undefined, lang: Lang): string {
+   const d = toDate(iso);
+   if (!d) return DASH;
+-  return new Intl.DateTimeFormat(LOCALE[lang], {
++  return dateFormat(lang, {
+     day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+   }).format(d);
+ }
+ export function formatTime(iso: string | null | undefined, lang: Lang): string {
+   const d = toDate(iso);
+   if (!d) return DASH;
+-  return new Intl.DateTimeFormat(LOCALE[lang], {
++  return dateFormat(lang, {
+     hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC",
+   }).format(d);
+ }
 diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-index e42a26bc..fd799072 100644
+index fd799072..30a057ea 100644
 --- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
 +++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-@@ -20,6 +20,8 @@ import type { CompetitionIndex, CompetitionPayload, Fixture, Team } from "../../
- import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
- import competitions from "../../../../data/competitions.json";
- import competitionIndex from "../../../../data/competition_index.json";
-+import { readdirSync, readFileSync } from "node:fs";
-+import { join } from "node:path";
- 
- interface Built {
-   competitionPage: boolean;
-@@ -30,15 +32,23 @@ interface Built {
- export function getStaticPaths() {
-   const locales: Lang[] = ["de", "en", "fi"];
+@@ -34,11 +34,15 @@ export function getStaticPaths() {
    const comps = competitions as Record<string, { slug: string }>;
--  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", { eager: true, import: "default" });
-+  // Read from disk, not imported: an import bundles every payload into the build's JavaScript,
-+  // and the build then runs out of memory long before every match has its page.
-+  const dir = join(process.cwd(), "src/data/fixtures");
-+  const fixtures = readdirSync(dir)
-+    .filter((name) => name.endsWith(".json"))
-+    .sort()
-+    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as Fixture);
+   // Read from disk, not imported: an import bundles every payload into the build's JavaScript,
+   // and the build then runs out of memory long before every match has its page.
++  // Only the file name travels as a prop: Astro holds every route's props until the build ends.
+   const dir = join(process.cwd(), "src/data/fixtures");
+   const fixtures = readdirSync(dir)
+     .filter((name) => name.endsWith(".json"))
+     .sort()
+-    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as Fixture);
++    .map((file) => {
++      const { slug, league_code } = JSON.parse(readFileSync(join(dir, file), "utf8")) as Fixture;
++      return { file, slug, league_code };
++    });
    const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
      eager: true,
      import: "default",
-   });
--  const teams = import.meta.glob<Team>("/src/data/teams/*.json", { eager: true, import: "default" });
--  const teamSlugs = Object.values(teams).map((team) => team.slug);
-+  const teamDir = join(process.cwd(), "src/data/teams");
-+  const teamSlugs = readdirSync(teamDir)
-+    .filter((name) => name.endsWith(".json"))
-+    .map((name) => (JSON.parse(readFileSync(join(teamDir, name), "utf8")) as Team).slug);
+@@ -48,30 +52,31 @@ export function getStaticPaths() {
+     .filter((name) => name.endsWith(".json"))
+     .map((name) => (JSON.parse(readFileSync(join(teamDir, name), "utf8")) as Team).slug);
    const indexed = new Set((competitionIndex as unknown as CompetitionIndex).competitions.map((c) => c.league_code));
--  return Object.values(fixtures).flatMap((fixture) => {
-+  return fixtures.flatMap((fixture) => {
-     const comp = comps[fixture.league_code];
+-  return fixtures.flatMap((fixture) => {
+-    const comp = comps[fixture.league_code];
++  return fixtures.flatMap(({ file, slug, league_code }) => {
++    const comp = comps[league_code];
      if (!comp) {
-       throw new Error(`No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`);
+-      throw new Error(`No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`);
++      throw new Error(`No competition slug for league_code "${league_code}" in src/data/competitions.json`);
+     }
+-    const payload = latestSeasonPayload(Object.values(payloads).filter((p) => p.league_code === fixture.league_code));
++    const payload = latestSeasonPayload(Object.values(payloads).filter((p) => p.league_code === league_code));
+     const built: Built = {
+-      competitionPage: indexed.has(fixture.league_code),
+-      matchdaysPage: indexed.has(fixture.league_code) && Boolean(payload?.fixtures?.length),
++      competitionPage: indexed.has(league_code),
++      matchdaysPage: indexed.has(league_code) && Boolean(payload?.fixtures?.length),
+       teamSlugs,
+     };
+     return locales.map((lang) => ({
+-      params: { lang, competition: comp.slug, matches: word(lang, "matches"), fixture: fixture.slug },
+-      props: { fixture, lang, built },
++      params: { lang, competition: comp.slug, matches: word(lang, "matches"), fixture: slug },
++      props: { file, lang, built },
+     }));
+   });
+ }
+ 
+ interface Props {
+-  fixture: Fixture;
++  file: string;
+   lang: Lang;
+   built: Built;
+ }
+-const { fixture, lang, built } = Astro.props;
++const { file, lang, built } = Astro.props;
++const fixture = JSON.parse(readFileSync(join(process.cwd(), "src/data/fixtures", file), "utf8")) as Fixture;
+ const { home, away } = fixture;
+ // The next matchday's match gets the full preview; a match further out waits for it.
+ const isNext = fixture.is_next_round !== false;
 diff --git a/site_v2/src/pages/[lang]/[teams]/[team].astro b/site_v2/src/pages/[lang]/[teams]/[team].astro
-index 5d27d30d..28beb6a2 100644
+index 28beb6a2..962bd62f 100644
 --- a/site_v2/src/pages/[lang]/[teams]/[team].astro
 +++ b/site_v2/src/pages/[lang]/[teams]/[team].astro
-@@ -21,18 +21,22 @@ import { localeHref, word } from "../../../lib/href";
- import type { Lang } from "../../../lib/format";
- import type { Team, TeamSeason } from "../../../lib/types";
- import competitions from "../../../data/competitions.json";
-+import { readdirSync, readFileSync } from "node:fs";
-+import { join } from "node:path";
- 
- export function getStaticPaths() {
-   const locales: Lang[] = ["de", "en", "fi"];
-   // Every team the export wrote to src/data/teams/*.json becomes a page. Dev/PR: the committed
-   // sample(s); production: the full export populated into the dir at build time (the bulk is
--  // gitignored, never committed). One page per team x 3 locales. The glob is called inside
--  // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope).
--  const teams = import.meta.glob<Team>("/src/data/teams/*.json", {
--    eager: true,
--    import: "default",
--  });
--  return Object.values(teams).flatMap((team) =>
-+  // gitignored, never committed). One page per team x 3 locales. Read from disk inside
-+  // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope);
-+  // an import would bundle every team file into the build's JavaScript, which runs out of memory.
-+  const dir = join(process.cwd(), "src/data/teams");
-+  const teams = readdirSync(dir)
-+    .filter((name) => name.endsWith(".json"))
-+    .sort()
-+    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as Team);
-+  return teams.flatMap((team) =>
+@@ -31,24 +31,26 @@ export function getStaticPaths() {
+   // gitignored, never committed). One page per team x 3 locales. Read from disk inside
+   // getStaticPaths (Astro extracts this fn in isolation, so a module-level const is out of scope);
+   // an import would bundle every team file into the build's JavaScript, which runs out of memory.
++  // Only the file name travels as a prop: Astro holds every route's props until the build ends.
+   const dir = join(process.cwd(), "src/data/teams");
+   const teams = readdirSync(dir)
+     .filter((name) => name.endsWith(".json"))
+     .sort()
+-    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as Team);
+-  return teams.flatMap((team) =>
++    .map((file) => ({ file, slug: (JSON.parse(readFileSync(join(dir, file), "utf8")) as Team).slug }));
++  return teams.flatMap(({ file, slug }) =>
      locales.map((lang) => ({
-       params: { lang, teams: word(lang, "teams"), team: team.slug },
-       props: { team, lang },
+-      params: { lang, teams: word(lang, "teams"), team: team.slug },
+-      props: { team, lang },
++      params: { lang, teams: word(lang, "teams"), team: slug },
++      props: { file, lang },
+     })),
+   );
+ }
+ 
+ interface Props {
+-  team: Team;
++  file: string;
+   lang: Lang;
+ }
+-const { team, lang } = Astro.props;
++const { file, lang } = Astro.props;
++const team = JSON.parse(readFileSync(join(process.cwd(), "src/data/teams", file), "utf8")) as Team;
+ 
+ // The season this page opens on is decided in the warehouse and served on the row (#846).
+ // This is a lookup of a flag, not a choice: the rule used to be written here, again on the
