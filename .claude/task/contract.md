@@ -1,21 +1,20 @@
-# Task contract — the Rankings tab's two blocks get their intro line (#166)
+# Task contract — the site build carries every played match
 
 objective: >
-  The competition page's Rankings tab shows one intro line, the block explainer, under Team
-  rankings and under Player rankings, as every board carries one.
+  The site build renders and checks about 63,000 match payloads within the CI's 8 GB heap. The
+  match page reads its data files from disk instead of bundling them, and the SEO check keeps only
+  what it compares.
 
 refs: >
-  #166 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/166), the match page
-  build; its line "Intros per content block type", decided on #132. The plan and the wording:
-  approved in chat, 2026-10-10.
+  #174 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/174): every played
+  match in the data window gets a page, approved in chat, 2026-10-10. The plan: approved in chat,
+  2026-10-10.
 
 scope_paths:
-  - site_v2/src/i18n/strings.ts
-  - site_v2/src/components/competition/RankingsBlock.astro
-  - site_v2/src/pages/?lang?/?competition?/?stats?/index.astro
-  - site_v2/src/specs/competition/stats/index.spec.json
-  - site_v2/src/styles/system.css
-  - design-mocks/gen_competition_teams.py
+  - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
+  - site_v2/src/pages/?lang?/?teams?/?team?.astro
+  - site_v2/scripts/audit-seo.mjs
+  - site_v2/scripts/audit-seo.test.mjs
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -23,59 +22,39 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: none; no mart, model or export changes. The two strings live in strings.ts.
-  downstream: the Rankings tab page ([lang]/[competition]/[stats]/index.astro) is the only page
-  that renders RankingsBlock (`grep -rn "RankingsBlock" site_v2/src` lists that page and the
-  component). Leaf change: copy, and one CSS rule whose selector pair (`.bsub + .fxgroup`) occurs
-  only on the Rankings tab pages in the build.
-  layer_rules: the page renders served data and copy; the competition name comes from the payload.
+  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/*.json; unchanged.
+  downstream: `grep -rln "data/fixtures" site_v2/src` lists the match page and its spec only, so
+  the match page is the one reader of those files. The SEO check runs after every site build
+  (site_v2/integrations/seo-audit.mjs) and in CI's build:site-v2; its checks and its verdicts are
+  unchanged.
+  layer_rules: the page selects and renders served data; nothing is computed.
   deploy_order: none; a site build.
-  blast_radius: every built Rankings tab page gains two lines of text; no other page changes.
+  blast_radius: no built page changes (verified by comparing every page's text with main). The
+  build's memory and time change; measured before and after at 628 and 62,800 match payloads.
 
 acceptance_criteria:
-  - On every built Rankings tab page, a block explainer line sits directly under the Team rankings name and one under the Player rankings name, reading the approved wording for the page's language with its competition named as the match page names it.
-  - Every other built page's visible text equals main's.
+  - Every built page's visible text on the branch equals main's.
+  - A build of 62,800 match payloads with NODE_OPTIONS=--max-old-space-size=8192 ends with exit 0 and every build check passing; the same build on main runs out of memory.
 
 decisions_taken: >
-  The wording, approved in chat, 2026-10-10. Team rankings: "The leading teams {in} this season,
-  metric by metric." · "Die besten Mannschaften {in} in dieser Saison, Kennzahl für Kennzahl." ·
-  "Parhaat joukkueet {in} tällä kaudella, tilasto kerrallaan." Player rankings: "The leading
-  players {in} this season, metric by metric." · "Die besten Spieler {in} in dieser Saison,
-  Kennzahl für Kennzahl." · "Parhaat pelaajat {in} tällä kaudella, tilasto kerrallaan." {in} is
-  inCompetition(), as on the match page.
+  Every played match gets a page, and the build must carry it: approved in chat, 2026-10-10. The
+  plan (the match page reads its files with node:fs; the SEO check keeps each page's dead links
+  and its link count, not its full link list): approved in chat, 2026-10-10.
 
-  The result-row spacing and the club-in-its-cell lines of #166 are already built
-  (site_v2/src/styles/system.css, the two rules after the meeting row); this change builds nothing
-  for them.
-
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: the match page's data is read from disk at build time
+  instead of through Vite's import; no new dependency, library or service. RECURRING COST: none.
 
 decisions_reserved:
-  - Home's intros (#127) and the Metric Glossary links (#168).
+  - The played match payload and page (#175, #176), and any change to the other data the build bundles (teams, players, competition payloads).
 
 done_when:
   - npm test in site_v2 passes; pytest tests/ passes.
-  - The criteria are shown in .claude/task/acceptance_evidence.md from the built output.
+  - The criteria are shown in .claude/task/acceptance_evidence.md.
 
 amendments: >
-  After round 1 of the review. With the explainer between the block name and the first metric
-  group, the group kept its own 34px top margin. block_standard.md's Block heading gap row (a group
-  opening the block carries no space of its own) applies to the group after the explainer too, as
-  the match page's `.mp .bsub + .rsplit` rule already does: system.css gains `.bsub + .fxgroup`
-  with no top margin, so the explainer's own 8px separates them, as on the Deserved points table.
-  The Rankings tab's design mock (design-mocks/gen_competition_teams.py) gains the two approved
-  intro lines (EN and FI, Bundesliga), so the mock and the built page agree.
-
-  After round 2: the gap is the CPO's ruling, not a reading. Approved in chat, 2026-10-10: the
-  explainer's own 8px is the whole gap to the block's first line, which carries no space of its
-  own; the rule, the mock edit and block_standard.md's Block explainer row rest on it.
-
-  After round 3: the approved Form comparison keeps 22px under its intro (render 74), so the row
-  names what the 8px holds for. Its Rule column reads, exact text approved in chat, 2026-10-10:
-  "the one sentence under a block name, 13px muted; 8px under it to a list, table or group, which
-  carries no space of its own". A fourth review round: approved in chat, 2026-10-10.
-
-  After round 4: the approved Head to head list with meetings also keeps its own space under its
-  intro, so no general sentence holds. The block_standard.md edit is undone and the file leaves
-  the scope; the 8px ruling for the Rankings tab stands as recorded above: approved in chat,
-  2026-10-10.
+  The team data joins: approved in chat, 2026-10-10. Measured on a scratch build of today's live
+  site at full scale (5,024 upcoming match payloads, 3,348 team payloads of ~540 KB each): with
+  the team files bundled the build runs out of memory at 8 GB while bundling; read from disk it
+  passes every check (25,662 pages, 4.2 GB peak memory). The team page and the match page's team
+  slug list read src/data/teams/*.json with node:fs. A third criterion: that live-site build ends
+  with exit 0 and every build check passing.

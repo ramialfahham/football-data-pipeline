@@ -98,6 +98,16 @@ export function parseHead(html) {
   };
 }
 
+/** Pure: a parseHead() result with only its dead links kept, and `hrefCount` holding how many links
+ * the page had. auditSet reports the same issues from it as from the full head. */
+export function keepDeadLinks(head, path, knownPaths, opts) {
+  const hrefs = head.hrefs.filter((raw) => {
+    const target = resolveHref(raw, path, opts);
+    return target && !knownPaths.has(target);
+  });
+  return { ...head, hrefs, hrefCount: head.hrefs.length };
+}
+
 /** Pure: turn an href found on the page at `fromPath` into the app path it targets, or null when it
  * is not a same-site page reference (external, mailto, #fragment, or an asset). */
 export function resolveHref(href, fromPath, { site, base = "/" } = {}) {
@@ -321,7 +331,7 @@ export function auditSet(pages, opts) {
   const floor = Math.min(MIN_EXPECTED_PAGES, contentPages.length);
   for (const [what, n] of [
     ["a <title>", contentPages.filter((p) => p.head.title).length],
-    ["an <a href>", contentPages.filter((p) => p.head.hrefs.length).length],
+    ["an <a href>", contentPages.filter((p) => p.head.hrefCount ?? p.head.hrefs.length).length],
     ["an og:title", contentPages.filter((p) => p.head.ogTitle).length],
   ]) {
     if (n < floor) {
@@ -551,9 +561,10 @@ export async function main(distDir = DIST_DIR) {
   const knownPaths = new Set();
   for (const { path } of readDist(distDir)) knownPaths.add(path);
 
-  // Pass 2: parse and reduce. `html` is never retained.
+  // Pass 2: parse and reduce. `html` is never retained, and of a page's links only the dead ones
+  // and their count: a full link list per page is what outgrows the heap at full scale.
   const pages = [];
-  for (const { path, html } of readDist(distDir)) pages.push({ path, head: parseHead(html) });
+  for (const { path, html } of readDist(distDir)) pages.push({ path, head: keepDeadLinks(parseHead(html), path, knownPaths, { site }) });
 
   // Expected @type comes FROM THE SPECS, so a page's declaration is what it is verified against.
   // "none" means the spec says this page carries no entity node (the scaffold).

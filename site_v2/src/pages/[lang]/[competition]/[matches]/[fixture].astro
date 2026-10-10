@@ -20,6 +20,8 @@ import type { CompetitionIndex, CompetitionPayload, Fixture, Team } from "../../
 import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
 import competitions from "../../../../data/competitions.json";
 import competitionIndex from "../../../../data/competition_index.json";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 interface Built {
   competitionPage: boolean;
@@ -30,15 +32,23 @@ interface Built {
 export function getStaticPaths() {
   const locales: Lang[] = ["de", "en", "fi"];
   const comps = competitions as Record<string, { slug: string }>;
-  const fixtures = import.meta.glob<Fixture>("/src/data/fixtures/*.json", { eager: true, import: "default" });
+  // Read from disk, not imported: an import bundles every payload into the build's JavaScript,
+  // and the build then runs out of memory long before every match has its page.
+  const dir = join(process.cwd(), "src/data/fixtures");
+  const fixtures = readdirSync(dir)
+    .filter((name) => name.endsWith(".json"))
+    .sort()
+    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as Fixture);
   const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
     eager: true,
     import: "default",
   });
-  const teams = import.meta.glob<Team>("/src/data/teams/*.json", { eager: true, import: "default" });
-  const teamSlugs = Object.values(teams).map((team) => team.slug);
+  const teamDir = join(process.cwd(), "src/data/teams");
+  const teamSlugs = readdirSync(teamDir)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => (JSON.parse(readFileSync(join(teamDir, name), "utf8")) as Team).slug);
   const indexed = new Set((competitionIndex as unknown as CompetitionIndex).competitions.map((c) => c.league_code));
-  return Object.values(fixtures).flatMap((fixture) => {
+  return fixtures.flatMap((fixture) => {
     const comp = comps[fixture.league_code];
     if (!comp) {
       throw new Error(`No competition slug for league_code "${fixture.league_code}" in src/data/competitions.json`);
