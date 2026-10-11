@@ -132,20 +132,17 @@ delivered as (
 
 fixtures as (
     select
-        fixtures_next.fixture_id,
-        fixtures_next.league_code,
-        scores.goals_home,
-        scores.goals_away,
-        fixtures_next.raw_ingested_at,
-        cast(fixtures_next.home_team_id as int64) as home_team_id,
-        cast(fixtures_next.away_team_id as int64) as away_team_id,
-        fixtures_next.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
-        and scores.goals_home is not null and scores.goals_away is not null
-        and fixtures_next.home_team_id is not null
-        and fixtures_next.away_team_id is not null as is_finished
-    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
-    inner join {{ ref('base_apif__fixture_scores') }} as scores
-        on fixtures_next.fixture_id = scores.fixture_id
+        fixture_id,
+        league_code,
+        goals_home,
+        goals_away,
+        raw_ingested_at,
+        cast(home_team_id as int64) as home_team_id,
+        cast(away_team_id as int64) as away_team_id,
+        status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
+        and goals_home is not null and goals_away is not null
+        and home_team_id is not null and away_team_id is not null as is_finished
+    from {{ ref('base_apif__fixtures_next') }}
 ),
 
 finished_teams as (

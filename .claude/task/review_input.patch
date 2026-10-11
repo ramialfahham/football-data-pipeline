@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index a0eb8136..50278486 100644
+index a0eb8136..c24ec181 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,78 +1,101 @@
+@@ -1,78 +1,85 @@
 -# Task contract — the site build's two checks run after Astro exits
 +# Task contract — matches after extra time carry their score after extra time
  
@@ -10,18 +10,19 @@ index a0eb8136..50278486 100644
 -  The SEO check and the built-pages check run as steps of `npm run build` after `astro build` has
 -  exited, instead of as child processes inside it, so their memory no longer adds to Astro's and
 -  the full-scale build fits ci-runner-01.
-+  A match decided after extra time carries its score after extra time, the shoot-out excluded.
-+  Where the provider's score stops at 90 minutes while its goal events hold the extra-time goals,
-+  a new base model takes the score from the goal events, and every model that reads the score
-+  reads it from there.
++  The 26 matches after extra time whose provider score stops at 90 minutes get their score after
++  extra time from fixture_result_corrections, each with two match reports on different sites. A
++  test fails a match whose score stops at 90 minutes while an open-play goal or an own goal after
++  minute 90 exists, so a new case is caught and corrected the same way.
  
  refs: >
 -  #209 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/209). Checks after the
 -  build, over a bigger machine: approved in chat, 2026-10-10. The plan: approved in chat,
 -  2026-10-11. The runner measurement: #208
 -  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208#note_3990668184).
-+  #210 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/210): the defect and
-+  its plan, approved in chat, 2026-10-11.
++  #210 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/210): the defect,
++  approved in chat, 2026-10-11. Corrections in the seed instead of a rule that infers the score
++  from the goal events: approved in chat, 2026-10-11.
  
  scope_paths:
 -  - site_v2/package.json
@@ -33,6 +34,8 @@ index a0eb8136..50278486 100644
 -  - site_v2/src/config/indexability.mjs
 -  - site_v2/src/specs/page-spec.schema.json
 -  - tests/test_no_decision_history_in_code.py
++  - dbt_project/seeds/fixture_result_corrections.csv
++  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
 +  - dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
 +  - dbt_project/models/2_base/api_football/base.yml
 +  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
@@ -41,7 +44,6 @@ index a0eb8136..50278486 100644
 +  - dbt_project/models/3_core/core.yml
 +  - dbt_project/models/docs/cleaning_rules.md
 +  - dbt_project/docs/layering.md
-+  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
 +  - dbt_project/tests/assert_base_team_stats_cleaned.sql
 +  - dbt_project/tests/assert_base_player_stats_cleaned.sql
    - .claude/task/contract.md
@@ -68,79 +70,64 @@ index a0eb8136..50278486 100644
 -  - "`npm run build` runs the SEO check and then the built-pages check after `astro build` has exited; a page the SEO check refuses still makes `npm run build` exit non-zero."
 -  - "Today's site is unchanged: every file built from the committed sample is byte-identical to main's build, built the same day."
 -  - On ci-runner-01, this branch's full-scale build (62,800 match payloads, 3,348 team payloads) passes both checks without being killed; its peak process memory and time are on this issue.
-+  writers: base_apif__fixtures_next (the provider's score and the fixture_result_corrections seed)
-+  and base_apif__fixture_events (the goal events) feed the new base_apif__fixture_scores. Three
-+  models switch their score to it: fct_fixture, base_apif__fixture_statistics and
-+  base_apif__fixture_players. So do the two singular tests that check those stats models'
-+  cleaning, assert_base_team_stats_cleaned and assert_base_player_stats_cleaned.
-+  assert_result_corrections_applied keeps reading base_apif__fixtures_next, the model whose
-+  corrections seed it checks. Nothing else changes its SQL; `grep -rln base_apif__fixtures_next
-+  dbt_project/tests dbt_project/models` filtered to files reading goals_home/goals_away lists
-+  exactly these.
-+  downstream: `dbt ls --select fct_fixture+ base_apif__fixture_statistics+
-+  base_apif__fixture_players+ --resource-type model` gives 54 models: base_apif__fixture_players
-+  base_apif__fixture_statistics fct_fixture fct_fixture_player_stats fct_fixture_team_stats
-+  int_legs__player_match int_legs__team_from_players int_legs__team_match
-+  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
-+  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
-+  int_player_profile__yoy int_player_season__metrics int_player_season__team
-+  int_player_season_position__metrics int_player_season_record
-+  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
-+  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
-+  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
-+  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
-+  mart_competition_index mart_competition_season_summary mart_fixture_standing_context
-+  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
-+  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats
-+  mart_player_match_log mart_player_momentum mart_player_profile mart_player_season_record
-+  mart_team_competition_benchmarks mart_team_fixture_stats mart_team_fixtures
-+  mart_team_leaderboards mart_team_momentum mart_team_momentum_window mart_team_profile
-+  mart_team_season mart_team_season_insights mart_team_season_record.
-+  layer_rules: base may ref its own layer (layering.md, the ref rule); check_layer_contract.py
-+  forbids a base ref to dim_/fct_/int_/mart_ models and any per-model materialized config; the
-+  new model takes the folder's materialisation.
-+  deploy_order: one dbt graph; the new model builds before its three readers in the same run, in
-+  data:build:main on merge and in the 04:00 fdp-nightly. No staged migration.
-+  blast_radius: the 41 matches after extra time whose score the rule changes (8 this season, 14
-+  with a different result), in fct_fixture and every listed model that carries a score, a result,
-+  goals for and against, or form for those matches. Measured by a before/after query of the new
-+  model's compiled SQL against prod: exactly those 41 scores change and no other; the list goes on
-+  the MR.
++  writers: dbt seed loads fixture_result_corrections; base_apif__fixtures_next applies each row's
++  official score and keeps the provider's beside it. Nothing else writes the score.
++  downstream: `dbt ls --select fixture_result_corrections+ --resource-type model` on main gives 67
++  models: base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
++  base_apif__fixtures_next base_apif__players base_apif__teams base_apif__teams_global dim_player
++  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
++  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats int_legs__player_match
++  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
++  int_player_season__metrics int_player_season__team int_player_season_position__metrics
++  int_player_season_record int_team_competition_benchmark_metrics_long
++  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
++  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
++  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
++  mart_competition_fixtures mart_competition_index mart_competition_season_summary
++  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
++  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
++  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
++  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
++  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record. The seed's own test,
++  assert_result_corrections_applied, checks every row is applied and sourced.
++  layer_rules: a seed is configuration; no model changes. Every other path in scope_paths is back
++  at main's version: the branch's earlier approach is withdrawn.
++  deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
++  blast_radius: the 26 matches' scores (8 this season, no result changes) and every listed model
++  that carries a score, goals for and against, or form for those matches.
  
  decisions_taken: >
 -  The issue's plan, approved in chat, 2026-10-11: the build script runs `astro build`, then
 -  scripts/audit-seo.mjs, then scripts/check-built-pages.mjs, each only if the previous step passed;
 -  astro.config.mjs drops the two integrations and site_v2/integrations/ is deleted; comments and
 -  schema descriptions that name the integrations or astro:build:done say where the checks run now.
-+  The issue's plan, approved in chat, 2026-10-11: a base model base_apif__fixture_scores takes a
-+  match's score from its goal events where the match ended after extra time, the official-result
-+  seed does not correct it, the goal events of the first 90 minutes equal the provider's score,
-+  goal events after minute 90 exist, and no goal event lacks a minute. Goal events are goals,
-+  penalties and own goals with a player, shoot-out kicks left out. fct_fixture and the two
-+  base stats models read the score from it. cleaning_rules.md states the rule; the result rule
-+  there names goal events after extra time beside the league's official decision.
++  The defect and the corrections in the seed, each row with two match reports on different sites
++  (source_kind match_reports) or an official record: approved in chat, 2026-10-11. The test is a
++  detector: only open-play goals and own goals after minute 90 count as evidence, because the
++  provider files some shoot-outs as penalty goals without the shoot-out label.
  
 -  THRESHOLD DECLARATIONS: NEW MECHANISM: none; two existing scripts move from build hooks to the
 -  build script, approved in chat, 2026-10-10. RECURRING COST: none.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a base cleaning model, the pattern
-+  base_apif__fixtures_next already follows with its corrections seed. RECURRING COST: one more
-+  base table built in each nightly from two base tables; its read is measured by dry-run before
-+  commit and recorded on the MR.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; fixture_result_corrections and its test exist.
++  RECURRING COST: none.
  
  decisions_reserved:
 -  - The machine or runner size, and the nightly site build (#156).
 -  - The played match payload (#175, #176), which changes the full-scale numbers.
-+  - Goal mismatches that are not extra-time scores, and the goal lists (#176).
-+  - The shoot-out score (#178).
++  - The shoot-out score (#178), the goal lists and the award kind in the seed (#176).
  
  done_when:
 -  - npm test in site_v2 passes; pytest tests/ passes; the offline CI gates pass.
 -  - npm run build on the committed sample prints both checks' OK lines after Astro completes, and a byte compare with main's build of the same day finds 0 differences.
 -  - A planted duplicate page makes npm run build exit non-zero with the SEO check's finding.
 -  - The ci-runner-01 full-scale measurement is in .claude/task/acceptance_evidence.md and on #209.
-+  - dbt parse passes; sqlfluff on the changed models shows no finding that main does not show.
-+  - The new model's compiled SQL, run as a query, changes exactly the 41 matches' scores.
-+  - The new test's compiled SQL returns the 41 matches on today's fct_fixture and none on the new model's scores.
++  - dbt parse passes; sqlfluff on the test shows no finding.
++  - Each of the 26 rows has two sources on different sites, read against the match.
++  - The test's compiled SQL returns the 26 matches on today's fct_fixture and none with the seed's scores applied.
 +  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
  
  amendments: >
@@ -154,358 +141,64 @@ index a0eb8136..50278486 100644
 -  file that fails unless the build script is `astro build`, then scripts/audit-seo.mjs, then
 -  scripts/check-built-pages.mjs, each joined by `&&`, and unless astro.config.mjs imports nothing
 -  from ./integrations/.
-+  dbt_project/tests/assert_base_team_stats_cleaned.sql and
-+  dbt_project/tests/assert_base_player_stats_cleaned.sql join: authority, the approved plan's
-+  step that the stats models read the corrected score (approved in chat, 2026-10-11); the tests
-+  that check those models' cleaning must read the same score. Found by the
-+  analytics-engineer-reviewer in round 1: both still read the 90-minute score from
-+  base_apif__fixtures_next and would fail the 41 matches. Content: each test's fixtures CTE takes
-+  goals_home and goals_away from base_apif__fixture_scores.
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 408789a2..77dd0fb7 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -257,7 +257,7 @@ Canonical fact inventory for this project:
- 
- | Fact | Grain | Source staging model(s) | Notes |
- |------|-------|-------------------------|-------|
--| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
-+| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next`, `base_apif__fixture_scores` (the score) | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
- | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
- | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
- | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 5c64f1a6..9fdc19c4 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -129,7 +129,8 @@ models:
-       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
-       fixture_id. Where the provider's result differs from the league's official decision, the
-       score and status are the official ones from the fixture_result_corrections seed, and the
--      provider's stay on the row. Grain: fixture_id.
-+      provider's stay on the row. After extra time this score can stop at 90 minutes;
-+      base_apif__fixture_scores holds the score with the extra-time goals. Grain: fixture_id.
-     config:
-       tags: ["base", "api_football", "fixture_context"]
-     tests:
-@@ -153,6 +154,31 @@ models:
-       - name: result_correction_source
-         description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
- 
-+  - name: base_apif__fixture_scores
-+    description: >
-+      One row per fixture: its score. After extra time the provider's score can stop at 90
-+      minutes while its goal events hold the extra-time goals. There the score is the goal
-+      events' total, where those of the first 90 minutes equal the provider's score. Every goal
-+      event must have a minute, and the league's official result is not corrected. Goal events
-+      are goals, penalties and own goals with a player, shoot-out kicks left out. Elsewhere the
-+      score is the one in base_apif__fixtures_next. Grain: fixture_id.
-+    config:
-+      tags: ["base", "api_football", "fixture_context"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [fixture_id]
-+    columns:
-+      - name: fixture_id
-+        description: "{{ doc('fixture_api_id') }}"
-+        tests: [not_null]
-+      - name: is_score_from_goal_events
-+        description: "True where the score was taken from the goal events because the provider's stopped at 90 minutes."
-+        tests: [not_null]
-+      - name: goals_home
-+        description: "The home team's goals, extra time included, the penalty shoot-out excluded. NULL until the match is played."
-+      - name: goals_away
-+        description: "The away team's goals, extra time included, the penalty shoot-out excluded. NULL until the match is played."
-+
-   - name: base_apif__standings
-     description: >
-       One row per team per standings section, from the generic stg_apif__standings model,
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-index 88793c7e..8bc4c998 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-@@ -224,12 +224,14 @@ delivered as (
- 
- fixtures as (
-     select
--        fixture_id,
--        cast(home_team_id as int64) as home_team_id,
--        cast(away_team_id as int64) as away_team_id,
--        goals_home,
--        goals_away
--    from {{ ref('base_apif__fixtures_next') }}
-+        fixtures_next.fixture_id,
-+        cast(fixtures_next.home_team_id as int64) as home_team_id,
-+        cast(fixtures_next.away_team_id as int64) as away_team_id,
-+        scores.goals_home,
-+        scores.goals_away
-+    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
-+    inner join {{ ref('base_apif__fixture_scores') }} as scores
-+        on fixtures_next.fixture_id = scores.fixture_id
- ),
- 
- events as (
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
-new file mode 100644
-index 00000000..af16de08
---- /dev/null
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
-@@ -0,0 +1,76 @@
-+-- Each fixture's score; after extra time it comes from the goal events where the provider's
-+-- score stops at 90 minutes.
-+with import_base_apif__fixtures_next as (
-+    select * from {{ ref('base_apif__fixtures_next') }}
-+),
-+
-+import_base_apif__fixture_events as (
-+    select * from {{ ref('base_apif__fixture_events') }}
-+),
-+
-+goal_events as (
-+    select
-+        fixture_id,
-+        team_id,
-+        minute_elapsed
-+    from import_base_apif__fixture_events
-+    where
-+        event_type = 'Goal'
-+        and event_detail in ('Normal Goal', 'Penalty', 'Own Goal')
-+        and event_comments is distinct from 'Penalty Shootout'
-+        and player_id is not null
-+),
-+
-+goal_counts as (
-+    select
-+        fixtures.fixture_id,
-+        countif(
-+            goal_events.team_id = cast(fixtures.home_team_id as int64)
-+            and goal_events.minute_elapsed <= 90
-+        ) as home_goals_in_90,
-+        countif(
-+            goal_events.team_id = cast(fixtures.away_team_id as int64)
-+            and goal_events.minute_elapsed <= 90
-+        ) as away_goals_in_90,
-+        countif(
-+            goal_events.team_id = cast(fixtures.home_team_id as int64)
-+            and goal_events.minute_elapsed > 90
-+        ) as home_goals_after_90,
-+        countif(
-+            goal_events.team_id = cast(fixtures.away_team_id as int64)
-+            and goal_events.minute_elapsed > 90
-+        ) as away_goals_after_90,
-+        countif(goal_events.minute_elapsed is null) as goals_without_minute
-+    from import_base_apif__fixtures_next as fixtures
-+    inner join goal_events
-+        on fixtures.fixture_id = goal_events.fixture_id
-+    group by fixtures.fixture_id
-+),
-+
-+scores as (
-+    select
-+        fixtures.fixture_id,
-+        fixtures.goals_home,
-+        fixtures.goals_away,
-+        goal_counts.home_goals_after_90,
-+        goal_counts.away_goals_after_90,
-+        coalesce(
-+            fixtures.status_short in ('AET', 'PEN')
-+            and fixtures.result_correction_source is null
-+            and goal_counts.goals_without_minute = 0
-+            and goal_counts.home_goals_in_90 = fixtures.goals_home
-+            and goal_counts.away_goals_in_90 = fixtures.goals_away
-+            and goal_counts.home_goals_after_90 + goal_counts.away_goals_after_90 > 0,
-+            false
-+        ) as is_score_from_goal_events
-+    from import_base_apif__fixtures_next as fixtures
-+    left join goal_counts
-+        on fixtures.fixture_id = goal_counts.fixture_id
-+)
-+
-+select
-+    fixture_id,
-+    is_score_from_goal_events,
-+    if(is_score_from_goal_events, goals_home + home_goals_after_90, goals_home) as goals_home,
-+    if(is_score_from_goal_events, goals_away + away_goals_after_90, goals_away) as goals_away
-+from scores
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-index 5d0000cc..60072494 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-@@ -132,17 +132,20 @@ delivered as (
- 
- fixtures as (
-     select
--        fixture_id,
--        league_code,
--        goals_home,
--        goals_away,
--        raw_ingested_at,
--        cast(home_team_id as int64) as home_team_id,
--        cast(away_team_id as int64) as away_team_id,
--        status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
--        and goals_home is not null and goals_away is not null
--        and home_team_id is not null and away_team_id is not null as is_finished
--    from {{ ref('base_apif__fixtures_next') }}
-+        fixtures_next.fixture_id,
-+        fixtures_next.league_code,
-+        scores.goals_home,
-+        scores.goals_away,
-+        fixtures_next.raw_ingested_at,
-+        cast(fixtures_next.home_team_id as int64) as home_team_id,
-+        cast(fixtures_next.away_team_id as int64) as away_team_id,
-+        fixtures_next.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
-+        and scores.goals_home is not null and scores.goals_away is not null
-+        and fixtures_next.home_team_id is not null
-+        and fixtures_next.away_team_id is not null as is_finished
-+    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
-+    inner join {{ ref('base_apif__fixture_scores') }} as scores
-+        on fixtures_next.fixture_id = scores.fixture_id
- ),
- 
- finished_teams as (
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index ddfd8c88..17ade177 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -537,9 +537,9 @@ models:
-       - name: round_name
-         description: "{{ doc('round_name') }}"
-       - name: goals_home
--        description: "Final-time goals scored by home team."
-+        description: "Final-time goals scored by home team, extra time included, the penalty shoot-out excluded."
-       - name: goals_away
--        description: "Final-time goals scored by away team."
-+        description: "Final-time goals scored by away team, extra time included, the penalty shoot-out excluded."
-       - name: awarded_to_team_sk
-         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
-         tests:
-diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
-index 0ecb8c9f..ed97945f 100644
---- a/dbt_project/models/3_core/fct_fixture.sql
-+++ b/dbt_project/models/3_core/fct_fixture.sql
-@@ -1,5 +1,19 @@
- with import_base_apif__fixtures_next as (
-     select * from {{ ref('base_apif__fixtures_next') }}
-+),
-+
-+import_base_apif__fixture_scores as (
-+    select * from {{ ref('base_apif__fixture_scores') }}
-+),
-+
-+fixtures as (
-+    select
-+        fixtures_next.* except (goals_home, goals_away),
-+        scores.goals_home,
-+        scores.goals_away
-+    from import_base_apif__fixtures_next as fixtures_next
-+    inner join import_base_apif__fixture_scores as scores
-+        on fixtures_next.fixture_id = scores.fixture_id
- )
- 
- select
-@@ -28,4 +42,4 @@ select
-     venue_name as venue_name_snapshot,
-     venue_city as venue_city_snapshot,
-     raw_ingested_at
--from import_base_apif__fixtures_next
-+from fixtures
-diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
-index 5929aea7..d6bee13d 100644
---- a/dbt_project/models/docs/cleaning_rules.md
-+++ b/dbt_project/models/docs/cleaning_rules.md
-@@ -14,7 +14,9 @@ match stats are good enough.
-   opponent with no shot on target means the team made no saves. A player who did something in the
-   match keeps a blank minutes figure. Possession is a share, not a count, so a blank possession
-   stays blank.
--- Results. A team's goals are the score. Its penalty and own goals come from its goal events where
-+- Results. A team's goals are the score. After extra time, a score equal to the goal events of
-+  the first 90 minutes takes in the later goal events too. Its penalty and own goals come from its
-+  goal events where
-   those add up to its score, penalty shoot-outs left out. A player's goals come from the per-player
-   count or the goal events, whichever adds up to the score.
- - A player's team. Where his statistics row and his match events, own goals aside, name different
-@@ -26,7 +28,8 @@ match stats are good enough.
- - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
-   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
-   left blank when the gap is larger or when neither side passes its check. A result is corrected
--  only to the league's official decision, with its source; match stats never correct a result.
-+  only to the league's official decision, with its source, or after extra time to its own goal
-+  events. Match stats never correct a result.
- - Every correction is listed on its row in stat_corrections, under one of these rules:
-   goals_from_events (a player's goals taken from the goal events);
-   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;
-diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-index 316b4737..61e7409c 100644
---- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
-+++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
-@@ -64,12 +64,14 @@ delivered as (
- 
- fixtures as (
-     select
--        fixture_id,
--        cast(home_team_id as int64) as home_team_id,
--        cast(away_team_id as int64) as away_team_id,
--        goals_home,
--        goals_away
--    from {{ ref('base_apif__fixtures_next') }}
-+        fixtures_next.fixture_id,
-+        cast(fixtures_next.home_team_id as int64) as home_team_id,
-+        cast(fixtures_next.away_team_id as int64) as away_team_id,
-+        scores.goals_home,
-+        scores.goals_away
-+    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
-+    inner join {{ ref('base_apif__fixture_scores') }} as scores
-+        on fixtures_next.fixture_id = scores.fixture_id
- ),
- 
- events as (
-diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
-index 77ef4240..99631c79 100644
---- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
-+++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
-@@ -95,14 +95,16 @@ delivered as (
- 
- fixtures as (
-     select
--        fixture_id,
--        league_code,
--        status_short,
--        cast(home_team_id as int64) as home_team_id,
--        cast(away_team_id as int64) as away_team_id,
--        goals_home,
--        goals_away
--    from {{ ref('base_apif__fixtures_next') }}
-+        fixtures_next.fixture_id,
-+        fixtures_next.league_code,
-+        fixtures_next.status_short,
-+        cast(fixtures_next.home_team_id as int64) as home_team_id,
-+        cast(fixtures_next.away_team_id as int64) as away_team_id,
-+        scores.goals_home,
-+        scores.goals_away
-+    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
-+    inner join {{ ref('base_apif__fixture_scores') }} as scores
-+        on fixtures_next.fixture_id = scores.fixture_id
- ),
- 
- events as (
++  Reworked from a rule that inferred the score from the goal events into seed corrections:
++  approved in chat, 2026-10-11. The rule changed 15 shoot-outs the provider files as penalty goals
++  after minute 120 (CI's corrections-share guard failed on Club World Cup 2020). Every model,
++  document and test change of the rule's version returns to main's version.
+diff --git a/dbt_project/seeds/fixture_result_corrections.csv b/dbt_project/seeds/fixture_result_corrections.csv
+index 0930adf2..334df621 100644
+--- a/dbt_project/seeds/fixture_result_corrections.csv
++++ b/dbt_project/seeds/fixture_result_corrections.csv
+@@ -8,3 +8,29 @@ fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,source_kind,source,n
+ 1213268,5,0,true,,official,https://www.proleague.be/fr/informations/le-derby-anversois-se-termine-sur-un-score-de-5-0-le-beerschot-est-condamne-a-une-amende-de-50-000-euro-et-les-statistiques-sont-retenues,"Antwerp-Beerschot, BPL 29 Sep 2024: abandoned at 4-0, awarded 5-0"
+ 828366,2,0,false,,official,https://www.kleague.com/match.do?year=2022&leagueId=1&gameId=174&meetSeq=1&startTabNum=3,"Seongnam-Ulsan, KL1 4 Sep 2022: played 2-0"
+ 884568,0,3,true,,official,https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Trabzonspor, TSL 19 Mar 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++1378959,4,4,false,,match_reports,https://www.zdfheute.de/sport/fussball-dfb-pokal-2025-2026-runde-1-eintracht-braunschweig-vfb-stuttgart-100.html https://www.sport1.de/news/fussball/dfb-pokal/2025/08/vfb-rettet-sich-in-irrem-pokal-krimi-nubel-erst-pechvogel-dann-held,"Eintracht Braunschweig-Stuttgart, DFB-Pokal 26 Aug 2025: 3-3 after 90 minutes, 4-4 after extra time"
++1383553,1,1,false,,match_reports,https://global.espn.com/football/match/_/gameId/741723/levski-sofia-hapoel-beer https://bnrnews.bg/en/post/137461/levski-defeats-israels-football-champions-hapoel-be-er-sheva-in-a-penalty-shootout,"Hapoel Beer Sheva-Levski Sofia, UEL 17 Jul 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1383555,2,1,false,,match_reports,https://www.espn.com/soccer/match/_/gameId/741720 https://www.tanjug.rs/english/sports/178349/partizan-knocked-out-of-europa-league-qualifiers-by-aek-larnaca-after-penalties/vest,"Partizan-AEK Larnaca, UEL 17 Jul 2025: 1-0 after 90 minutes, 2-1 after extra time"
++1463466,2,2,false,,match_reports,https://www.flashscore.de/news/fu-ball-dfb-pokal-im-elfmeterkrimi-st-pauli-wirft-hoffenheim-aus-dem-pokal/W0QS5Op3/ https://ligainsider.de/fc-st-pauli/20/elfer-drama-st-pauli-feiert-sieg-gegen-hoffenheim-404023/,"St. Pauli-Hoffenheim, DFB-Pokal 28 Oct 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1477537,4,0,false,,match_reports,https://alicanteplaza.es/alicanteplaza/deportesalicante/el-enrique-roca-de-murcia-acoge-el-sueno-de-los-garres-ante-un-primera-como-el-elche https://africa.espn.com/football/match/_/gameId/758901/manises-cf-union-deportiva-los-garres,"Los Garres-Manises, Copa del Rey preliminary round 4 Oct 2025: 2-0 after 90 minutes, 4-0 after extra time"
++1480759,2,2,false,,match_reports,https://www.diaridetarragona.com/deportes/243733/cronica-reus-europa-reus-tira-epica-pasa-ronda.html https://www.3cat.cat/esport3/el-sabadell-pateix-pero-simposa-a-sa-pobla-en-el-temps-extra-1-2/noticia/3377642/,"Reus Reddis-Europa, Copa del Rey 29 Oct 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1481723,2,2,false,,match_reports,https://www.newport-county.co.uk/news/highlights-newport-county-2-2-gillingham-4-3-penalties https://www.kentsportsnews.com/newport-county-2-2-gillingham-4-3-pens-01-11-2025,"Newport County-Gillingham, FA Cup 1 Nov 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1485260,1,1,false,,match_reports,https://www.zdfheute.de/sport/fussball-dfb-pokal-achtelfinale-hamburger-sv-holstein-kiel-2025-26-tore-ergebnis-100.html https://www.sport1.de/news/fussball/dfb-pokal/2025/12/viertelfinaltraum-geplatzt-hsv-stolpert-uber-zweitligist-kiel,"Hamburger SV-Holstein Kiel, DFB-Pokal 3 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1485290,2,2,false,,match_reports,https://global.espn.com/football/match/_/gameId/760639/mansfield-town-accrington-stanley https://www.skysports.com/football/accrington-stanley-vs-mansfield-town/549885,"Accrington Stanley-Mansfield Town, FA Cup 6 Dec 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1486128,1,1,false,,match_reports,https://www.espn.com/soccer/match/_/gameId/761011 https://www.laliga.com/partido/temporada-2025-2026-copa-del-rey-club-atletico-antoniano-villarreal-cf-4,"Antoniano-Villarreal, Copa del Rey 3 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1486152,1,1,false,,match_reports,https://rccelta.es/en/equipo/actualidad/celta-clings-to-the-cup-from-the-penalty-spot/ https://africa.espn.com/football/match/_/gameId/761021,"Sant Andreu-Celta, Copa del Rey 4 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1489464,1,1,false,,match_reports,https://www.dfb.de/news/freiburg-bewahrt-im-elfmeterschiessen-die-nerven https://www.sport1.de/news/fussball/dfb-pokal/2026/02/ausgetraumt-freiburg-wirft-hertha-aus-dfb-pokal,"Hertha BSC-Freiburg, DFB-Pokal 10 Feb 2026: 0-0 after 90 minutes, 1-1 after extra time"
++1490808,3,3,false,,match_reports,https://www.skysports.com/football/news/11095/13492886/newcastle-3-3-bournemouth-7-6-pens-aaron-ramsdale-penalty-heroics-send-magpies-through-after-fa-cup-third-round-epic https://www.vavel.com/en/football/2026/01/10/1246897-newcastle-3-3-bournemouth7-6-pens-ramsdale-the-hero-as-newcastle-edge-past-bournemouth-after-fa-cup-classic.amp.html,"Newcastle-Bournemouth, FA Cup 10 Jan 2026: 2-2 after 90 minutes, 3-3 after extra time"
++1490817,2,2,false,,match_reports,https://www.swanseacity.com/news/report-swansea-city-2-west-bromwich-albion-2-5-6-penalties https://www.espn.com/soccer/match/_/gameId/762508,"Swansea-West Brom, FA Cup 11 Jan 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1515538,0,2,false,,match_reports,https://www.espn.com/soccer/match/_/gameId/401858783 https://www.flashscore.com/news/crvena-zvezda-lille-uel-report-2026-02-26/rwBcICoK,"Crvena Zvezda-Lille, UEL 26 Feb 2026: 0-1 after 90 minutes, 0-2 after extra time"
++1537579,2,2,false,,match_reports,https://www.beinsports.com/en-us/soccer/uefa-world-cup-qualifiers/articles/czechia-2-2-denmark-aet-3-1-pens-hojlund-dreyer-and-jensen-misses-decide-shoot-out-2026-03-31 https://www.freemalaysiatoday.com/category/sports/2026/04/01/czechs-beat-denmark-on-penalties-to-book-world-cup-spot,"Czechia-Denmark, WC qualifying play-off final 31 Mar 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1544182,2,2,false,,match_reports,https://www.diariojornada.com.ar/416318/deportes/river_derroto_a_san_lorenzo_en_una_definicion_de_pelicula https://www.elespectador.com/deportes/futbol-mundial/juan-fernando-quintero-salvo-a-river-y-dejo-emotivas-declaraciones-casi-entre-lagrimas-river-vs-san-lorenzo/,"River Plate-San Lorenzo, Argentina Apertura round of 16 10 May 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1546052,1,1,false,,match_reports,https://english.ajax.nl/articles/ajax-beat-fc-utrecht-after-penalty-shootout/ https://nltimes.nl/2026/05/24/ajax-advance-second-qualifying-round-penalty-win-fc-utrecht,"Ajax-Utrecht, Eredivisie play-off final 24 May 2026: 0-0 after 90 minutes, 1-1 after extra time"
++1554439,2,2,false,,match_reports,https://www.sportinglife.com/football/live/231742/yelimay-vs-alashkert/commentary https://www.livefoot.fr/direct/ligue-europa-conference-europe/match-yelimay-semey-vs-alashkert-b5a43491,"Yelimay Semey-Alashkert, UECL 16 Jul 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1556508,1,4,false,,match_reports,https://www.bluewin.ch/en/sport/football/soccer-shock-for-poland-s-champions-this-is-how-embarrassments-happen-li.3546757 https://www.flashscore.co.uk/news/football-champions-league-qualifying-agf-pull-off-miracle-against-lech-poznan/29KCYh5S/,"Lech Poznan-Aarhus, UCL 29 Jul 2026: 0-3 after 90 minutes, 1-4 after extra time"
++1591937,2,2,false,,match_reports,https://balticfootballnews.com/?p=28012 https://www.espn.com/soccer/match/_/gameId/401891861,"Celje-Egnatia, UCL 28 Jul 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1593506,2,1,false,,match_reports,https://www.flashscore.com/news/soccer-conference-league-ilves-keep-conference-league-dream-alive-with-shootout-win-over-stjarnan/GWlmybpn/ https://www.skysports.com/football/ilves-vs-umf-stjarnan/569387,"Ilves-Stjarnan, UECL 30 Jul 2026: 1-0 after 90 minutes, 2-1 after extra time"
++1593509,1,3,false,,match_reports,https://www.sportinglife.com/football/live/231824/koper-vs-nsi-runavik/commentary https://www.espn.com.ec/futbol/partido/_/juegoId/401896202,"Koper-NSI Runavik, UECL 30 Jul 2026: 0-2 after 90 minutes, 1-3 after extra time"
++1593527,4,0,false,,match_reports,https://www.sportinglife.com/football/live/231776/pafos-vs-hajduk-split/commentary https://www.espn.com/soccer/team-stats/_/gameId/401896230,"Pafos-Hajduk Split, UEL 30 Jul 2026: 2-0 after 90 minutes, 4-0 after extra time"
++1607616,2,1,false,,match_reports,https://www.sportinglife.com/football/live/242718/ml-vitebsk-vs-borac-banja-luka/commentary https://nashaniva.com/en/402266,"ML Vitebsk-Borac Banja Luka, UECL 13 Aug 2026: 1-0 after 90 minutes, 2-1 after extra time"
++1623429,2,2,false,,match_reports,https://www.heartsfc.co.uk/blogs/news/match-report-sk-rapid-2-2-hearts-3-4p https://www.irishnews.com/sport/soccer/ten-man-hearts-side-prevail-on-penalties-to-down-rapid-vienna-MKQUCMXFSJIE7C6GJH4JM6P62I/,"Rapid Vienna-Hearts, UECL 26 Aug 2026: 1-1 after 90 minutes, 2-2 after extra time"
 diff --git a/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql b/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
 new file mode 100644
-index 00000000..e71346f6
+index 00000000..2d08598f
 --- /dev/null
 +++ b/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,46 @@
 +{{ config(severity = 'error', store_failures = true) }}
 +
 +-- A match decided after extra time counts its goals after minute 90. Fails a match whose score
-+-- equals its goal events of the first 90 minutes while goal events after minute 90 exist: that
-+-- score stopped at 90 minutes. Goal events are goals, penalties and own goals with a player,
-+-- shoot-out kicks left out, in matches where every goal event has a minute.
++-- equals its goal events of the first 90 minutes while an open-play goal or an own goal after
++-- minute 90 exists: that score stopped at 90 minutes. A penalty after minute 90 is no evidence,
++-- because the provider files some shoot-outs as penalty goals without the shoot-out label. The fix
++-- is a row in fixture_result_corrections with its sources.
 +
 +with goal_events as (
 +    select
 +        fixture_sk,
 +        team_sk,
-+        minute_elapsed
++        minute_elapsed,
++        event_detail
 +    from {{ ref('fct_fixture_event') }}
 +    where
 +        event_type = 'Goal'
@@ -522,7 +215,7 @@ index 00000000..e71346f6
 +        f.goals_away,
 +        countif(e.team_sk = f.home_team_sk and e.minute_elapsed <= 90) as home_goals_in_90,
 +        countif(e.team_sk = f.away_team_sk and e.minute_elapsed <= 90) as away_goals_in_90,
-+        countif(e.minute_elapsed > 90) as goals_after_90,
++        countif(e.minute_elapsed > 90 and e.event_detail in ('Normal Goal', 'Own Goal')) as open_play_goals_after_90,
 +        countif(e.minute_elapsed is null) as goals_without_minute
 +    from {{ ref('fct_fixture') }} as f
 +    inner join goal_events as e
@@ -535,6 +228,24 @@ index 00000000..e71346f6
 +from goal_counts
 +where
 +    goals_without_minute = 0
-+    and goals_after_90 > 0
++    and open_play_goals_after_90 > 0
 +    and home_goals_in_90 = goals_home
 +    and away_goals_in_90 = goals_away
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md |  43 +-
+#    .claude/task/review.md              |  29 +-
+#    .claude/task/review_input.patch     | 831 ++++++++++++++++++++++--------------
+#    3 files changed, 547 insertions(+), 356 deletions(-)
+# ============================================================================

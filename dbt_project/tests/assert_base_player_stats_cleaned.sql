@@ -64,14 +64,12 @@ delivered as (
 
 fixtures as (
     select
-        fixtures_next.fixture_id,
-        cast(fixtures_next.home_team_id as int64) as home_team_id,
-        cast(fixtures_next.away_team_id as int64) as away_team_id,
-        scores.goals_home,
-        scores.goals_away
-    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
-    inner join {{ ref('base_apif__fixture_scores') }} as scores
-        on fixtures_next.fixture_id = scores.fixture_id
+        fixture_id,
+        cast(home_team_id as int64) as home_team_id,
+        cast(away_team_id as int64) as away_team_id,
+        goals_home,
+        goals_away
+    from {{ ref('base_apif__fixtures_next') }}
 ),
 
 events as (
