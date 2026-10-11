@@ -1,6 +1,6 @@
 // The built-pages check: proof, on every build, that the site carries what the warehouse holds
-// and that the Matchdays tab keeps its two invariants. Runs at astro:build:done, after the SEO
-// audit, as a child process (integrations/built-pages.mjs), and is directly runnable:
+// and that the Matchdays tab keeps its two invariants. `npm run build` runs it after `astro build`
+// and the SEO audit, and it is directly runnable:
 //
 //   node scripts/check-built-pages.mjs [distDir] [dataDir]
 //

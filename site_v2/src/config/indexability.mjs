@@ -1,7 +1,7 @@
 // The ONE switch that decides whether this site is crawlable (#844).
 //
-// `.mjs`, not `.ts`, on purpose: `scripts/audit-seo.mjs` and `integrations/seo-audit.mjs` run as
-// plain node, and node cannot `import` a `.ts` file without a loader flag. Four consumers read this
+// `.mjs`, not `.ts`, on purpose: `scripts/audit-seo.mjs` runs as plain node, and node cannot
+// `import` a `.ts` file without a loader flag. Four consumers read this
 // single value -- astro.config.mjs, Layout.astro, src/pages/robots.txt.ts and the audit -- so the
 // site cannot end up half-indexable.
 //

@@ -1,27 +1,33 @@
-# Review — fix/build-memory-one-payload
+# Review — fix/build-checks-after-astro
 
-diff_sha256: 446c69b45298de01ad697daf5c5b647e46c5b15c2938911173068b76e12bd74f
+diff_sha256: e9d1402469269ef369971a1538ef294f4568de3aedb5f8781919fb16d75fc44b
 
 rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; format.ts joined by an amendment that names its approval and its measured basis; nothing reserved (the incremental build, the runner size, #175/#176, the competition payloads) is touched.
-- Route params and slugs, metric formats and labels are unchanged; the declaration of no new mechanism and no recurring cost matches the diff.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 1 failed on evidence files left from the previous task; round 2 read this branch's evidence: a byte compare with main's build, 0 files differ on the committed sample (2,543 files) and at full scale (198,999 files), and the design check at 375, 700 and 1010px with 0 failures and main's 27 warnings.
-- Both pages read their own file at render and carry only file name, slug, league code and locale as route data; format.ts builds every Intl formatter in two cached helpers keyed by locale and options; no field, label, metric or order changes.
+- Every touched path is in scope_paths; the test pin and the wiring test each joined by an amendment that names its approval, trigger and content; nothing reserved (runner size, the nightly site build, the played match payload) is decided.
+- Build wiring only: both checks and their verdicts are unchanged, no page, metric, URL or wording changes; the lost page-count log line is disclosed and has no reader.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- readDist keeps its default, so check-built-pages still gets the HTML; pass 1 yields the same path set; structuredClone exists on the pinned Node 24 and copies only plain data; the SEO check still fails the build closed.
-- The page reads use the same process.cwd() and node:fs pattern as before; the formatter caches are bounded by the literal option sets in format.ts and formatters hold no state.
+- Round 1 failed because no test pinned the build script; round 2: build-wiring.test.mjs asserts the exact `&&` steps and that astro.config.mjs imports nothing from ./integrations/, it fails on main's wiring and runs in prebuild on every build.
+- The `&&` chain fails closed: both scripts exit with their code, both default to site_v2/dist, the sitemap is written before Astro exits; the decision-history pin moves 749/189 to 748/188 for the one flagged line in the deleted integration.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- The site_v2/src edits are a code comment and two schema description strings that no page renders; the byte compare of the committed sample (2,543 files, 0 differ) and the design check (165 renders, 0 failures, main's 27 warnings) show no rendered change.
+- No dangling reference to the integrations or astro:build:done remains under site_v2; the page_count_driver description no longer claims what the removed hook did.
+
+## cto-reviewer
+VERDICT: PASS
+risks_checked:
+- No new mechanism: two existing scripts move from Astro integration hooks to `&&` steps of the build script, which drops a hook layer and two child-process wrappers; no dependency or lockfile change.
+- The guard invariant holds: both CI jobs run `npm run build`, a failing check stops the build and the deploy; no cost, cadence or credential change.
 
 ## escalations
-- question: A memory peak outside the two planned fixes (about 7.8 GB outside the heap during page writing, traced to a new Intl formatter per call in src/lib/format.ts) — fix it in this MR or in a separate issue?
-  CPO ANSWER: in this MR; approved in chat, 2026-10-10.
+- question: Nothing pins the new build line, so reverting it would drop both checks silently — add a wiring test to this MR?
+  CPO ANSWER: add it; approved in chat, 2026-10-11.

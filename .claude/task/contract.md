@@ -1,21 +1,26 @@
-# Task contract — the site build's memory at full scale
+# Task contract — the site build's two checks run after Astro exits
 
 objective: >
-  Measure where the full-scale site build's memory goes, phase by phase. The match page and the
-  team page then each read their own data file while that page renders, and the SEO check keeps
-  only what it compares, so the build no longer holds every data file at once.
+  The SEO check and the built-pages check run as steps of `npm run build` after `astro build` has
+  exited, instead of as child processes inside it, so their memory no longer adds to Astro's and
+  the full-scale build fits ci-runner-01.
 
 refs: >
-  #208 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208): the issue and
-  its plan, approved in chat, 2026-10-10. Measure first, before an incremental build: approved in
-  chat, 2026-10-10.
+  #209 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/209). Checks after the
+  build, over a bigger machine: approved in chat, 2026-10-10. The plan: approved in chat,
+  2026-10-11. The runner measurement: #208
+  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208#note_3990668184).
 
 scope_paths:
-  - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
-  - site_v2/src/pages/?lang?/?teams?/?team?.astro
-  - site_v2/src/lib/format.ts
-  - site_v2/scripts/audit-seo.mjs
-  - site_v2/scripts/audit-seo.test.mjs
+  - site_v2/package.json
+  - site_v2/astro.config.mjs
+  - site_v2/integrations/seo-audit.mjs
+  - site_v2/integrations/built-pages.mjs
+  - site_v2/scripts/check-built-pages.mjs
+  - site_v2/scripts/build-wiring.test.mjs
+  - site_v2/src/config/indexability.mjs
+  - site_v2/src/specs/page-spec.schema.json
+  - tests/test_no_decision_history_in_code.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -23,52 +28,51 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/*.json and
-  site_v2/src/data/teams/*.json; unchanged.
-  downstream: `grep -rln "data/fixtures" site_v2/src` lists the match page and its spec only;
-  `grep -rln "data/teams" site_v2/src` lists the match page, the team page, the team spec and the
-  spec schema. So the two pages are the only code readers. The SEO check runs as a child process
-  after every site build (site_v2/integrations/seo-audit.mjs) and in CI's build:site-v2 and
-  deploy:site-v2; its checks and its verdicts are unchanged.
-  layer_rules: the page selects and renders served data; nothing is computed.
-  site_v2/src/lib/format.ts: `grep -rl "lib/format" site_v2/src | wc -l` gives 51 importers, every
-  page type among them; no script or integration imports it. Its exports and their output are
-  unchanged.
+  writers: none; the two check scripts and the export are unchanged in what they check.
+  downstream: `grep -rln "seoAudit\|builtPages\|integrations/seo-audit\|integrations/built-pages"`
+  over site_v2 lists astro.config.mjs, the two integration files, and two comments
+  (scripts/check-built-pages.mjs, src/config/indexability.mjs). `grep -n "npm run build"
+  .gitlab-ci.yml` gives build:site-v2 (line 642) and deploy:site-v2 (line 1077): both run the
+  build script, so both keep both checks. tests/test_governance_hooks.py names
+  site_v2/integrations/seo-audit.mjs only as a routing example.
+  layer_rules: none; build wiring, no page logic.
   deploy_order: none; a site build.
   blast_radius: no built page changes, verified by a byte compare of every built file with main's
-  build of the same day. The build's memory and time change; measured before and after at full
-  scale.
+  build of the same day. Lost: the route-pattern page-count log line the SEO integration printed,
+  which nothing reads.
 
 acceptance_criteria:
-  - A full-scale build is measured: 62,800 match payloads and 3,348 team payloads. Peak process memory, peak heap and time are recorded per phase (bundling, page writing, sitemap, SEO check, built-pages check), on main and on this branch, on this issue.
-  - A match page and a team page are each built from their own data file, read while that page renders. The build no longer holds every data file at once.
+  - "`npm run build` runs the SEO check and then the built-pages check after `astro build` has exited; a page the SEO check refuses still makes `npm run build` exit non-zero."
   - "Today's site is unchanged: every file built from the committed sample is byte-identical to main's build, built the same day."
-  - With a 3 GB heap cap, the full-scale build passes every build check. If it does not, this issue names the phase that runs out of memory and its peak.
+  - On ci-runner-01, this branch's full-scale build (62,800 match payloads, 3,348 team payloads) passes both checks without being killed; its peak process memory and time are on this issue.
 
 decisions_taken: >
-  The issue's plan, approved in chat, 2026-10-10: getStaticPaths of the match page and the team
-  page returns id, slug and locale only, and each page reads its own file as it renders. If the
-  profile puts a peak in the SEO check, it keeps only the fields it compares, and its first pass
-  collects paths from file names without reading the HTML.
+  The issue's plan, approved in chat, 2026-10-11: the build script runs `astro build`, then
+  scripts/audit-seo.mjs, then scripts/check-built-pages.mjs, each only if the previous step passed;
+  astro.config.mjs drops the two integrations and site_v2/integrations/ is deleted; comments and
+  schema descriptions that name the integrations or astro:build:done say where the checks run now.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; the pages already read their data with node:fs,
-  and this moves the read of a page's own file from getStaticPaths into the page. RECURRING COST:
-  none.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; two existing scripts move from build hooks to the
+  build script, approved in chat, 2026-10-10. RECURRING COST: none.
 
 decisions_reserved:
-  - A memory peak anywhere other than the two pages' route data and the SEO check goes to the CPO with the profile, unfixed.
-  - The incremental build and the machine or runner size, decided from this issue's numbers.
-  - The played match payload and page (#175, #176), and any change to the other data the build bundles (competition payloads).
+  - The machine or runner size, and the nightly site build (#156).
+  - The played match payload (#175, #176), which changes the full-scale numbers.
 
 done_when:
-  - npm test in site_v2 passes; pytest tests/ passes.
-  - A build of the committed sample ends with both build checks printing OK.
-  - A byte compare of every built file against main's build of the same day finds 0 differences.
-  - The full-scale measurements, main and branch, at 8 GB and 3 GB heap caps, are in .claude/task/acceptance_evidence.md and on #208.
+  - npm test in site_v2 passes; pytest tests/ passes; the offline CI gates pass.
+  - npm run build on the committed sample prints both checks' OK lines after Astro completes, and a byte compare with main's build of the same day finds 0 differences.
+  - A planted duplicate page makes npm run build exit non-zero with the SEO check's finding.
+  - The ci-runner-01 full-scale measurement is in .claude/task/acceptance_evidence.md and on #209.
 
 amendments: >
-  site_v2/src/lib/format.ts joins: approved in chat, 2026-10-10. Main's full-scale profile put
-  about 7.8 GB of the page-writing peak outside the heap (11.2 GB process memory, 3.3 GB heap).
-  format.ts builds a new Intl formatter on every call; a probe of that pattern held 4.2 GB outside
-  the heap over 400,000 calls, against 0.05 GB with one formatter reused. The file keeps one
-  formatter per locale and option set; every formatted string is unchanged.
+  tests/test_no_decision_history_in_code.py joins: authority, the approved plan's deletion of
+  site_v2/integrations/ (approved in chat, 2026-10-11). One deleted file carried one flagged line,
+  so the tree holds 748 flagged lines in 188 files against the pin of 749 in 189; the test requires
+  the pin to follow the sweep down. Content: PINNED_LINES 749 to 748, PINNED_FILES 189 to 188.
+
+  site_v2/scripts/build-wiring.test.mjs joins: approved in chat, 2026-10-11, after the
+  platform-reviewer's round-1 finding that no test pins the build script. Content: a node --test
+  file that fails unless the build script is `astro build`, then scripts/audit-seo.mjs, then
+  scripts/check-built-pages.mjs, each joined by `&&`, and unless astro.config.mjs imports nothing
+  from ./integrations/.
