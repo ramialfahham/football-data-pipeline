@@ -111,25 +111,27 @@ events as (
         team_id,
         event_type,
         event_detail,
-        event_comments is not distinct from 'Penalty Shootout' as is_shootout
+        is_goal,
+        is_own_goal,
+        is_missed_penalty,
+        has_full_events
     from {{ ref('base_apif__fixture_events') }}
 ),
 
 matches_with_events as (
     select distinct fixture_id
     from events
-    where event_type in ('subst', 'Card')
+    where has_full_events
 ),
 
 team_events as (
     select
         fixture_id,
         team_id,
-        countif(not is_shootout and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'))
-            as goal_events,
-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Own Goal') as own_goal_events,
-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events,
+        countif(is_goal) as goal_events,
+        countif(is_goal and event_detail = 'Penalty') as penalty_goal_events,
+        countif(is_goal and is_own_goal) as own_goal_events,
+        countif(is_missed_penalty) as missed_penalty_events,
         countif(
             (event_type = 'Card' and coalesce(event_detail, '') != 'Red Card')
             or (event_type = 'Var' and event_detail = 'Card reviewed')

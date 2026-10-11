@@ -10,6 +10,7 @@ with src as (
         player_id,
         player_name,
         assist_player_name,
+        assist_player_id,
         event_type,
         event_detail,
         event_comments,
@@ -43,6 +44,7 @@ recovered as (
         player_id,
         player_name,
         assist_player_name,
+        assist_player_id,
         event_type,
         event_detail,
         event_comments,
@@ -104,6 +106,7 @@ attributed as (
         recovered.player_id,
         recovered.player_name,
         recovered.assist_player_name,
+        recovered.assist_player_id,
         recovered.event_type,
         recovered.event_detail,
         recovered.event_comments,
@@ -277,35 +280,120 @@ team_names as (
         max(team_name) as team_name
     from attributed
     group by fixture_id, team_id
+),
+
+resolved as (
+    select
+        attributed.league_code,
+        attributed.fixture_id,
+        attributed.event_index,
+        attributed.minute_elapsed,
+        attributed.minute_extra,
+        attributed.player_id,
+        attributed.player_name,
+        attributed.assist_player_name,
+        attributed.assist_player_id,
+        attributed.event_type,
+        attributed.event_detail,
+        attributed.event_comments,
+        attributed.raw_ingested_at,
+        attributed.is_own_goal,
+        decisions.resolved_player_team_id,
+        coalesce(decisions.resolved_player_team_id, attributed.team_id) as team_id,
+        if(
+            decisions.resolved_player_team_id != attributed.team_id,
+            team_names.team_name,
+            attributed.team_name
+        ) as team_name
+    from attributed
+    left join decisions
+        on
+            attributed.fixture_id = decisions.fixture_id
+            and attributed.player_id = decisions.player_id
+            and not attributed.is_own_goal
+    left join team_names
+        on
+            attributed.fixture_id = team_names.fixture_id
+            and decisions.resolved_player_team_id = team_names.team_id
+),
+
+-- A shoot-out kick is no goal: the provider labels most, and files the rest at a negative minute.
+shootout_kicks as (
+    select
+        *,
+        coalesce(
+            event_type = 'Goal'
+            and (event_comments is not distinct from 'Penalty Shootout' or coalesce(minute_elapsed < 0, false)),
+            false
+        ) as is_shootout_kick
+    from resolved
+),
+
+goal_events as (
+    select
+        *,
+        coalesce(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'), false)
+        and not is_shootout_kick as is_goal_event,
+        coalesce(player_id, 0) = 0 and player_name is null as is_nameless
+    from shootout_kicks
+),
+
+-- The score a match's goal events must add up to: the one on the pitch where a played or
+-- abandoned match was awarded afterwards.
+fixture_scores as (
+    select
+        fixture_id,
+        cast(home_team_id as int64) as home_team_id,
+        cast(away_team_id as int64) as away_team_id,
+        if(award_kind in ('played', 'abandoned'), on_pitch_home, goals_home) as score_home,
+        if(award_kind in ('played', 'abandoned'), on_pitch_away, goals_away) as score_away
+    from {{ ref('base_apif__fixtures_next') }}
+),
+
+-- A goal event with neither scorer id nor scorer name is a goal that did not count where the match
+-- adds up without such events and not with them; elsewhere such events are goals whose scorer the
+-- provider did not record.
+nameless_left_out as (
+    select g.fixture_id
+    from goal_events as g
+    inner join fixture_scores as s
+        on g.fixture_id = s.fixture_id
+    group by g.fixture_id, s.score_home, s.score_away
+    having
+        not (
+            countif(g.is_goal_event and g.team_id = s.home_team_id) = s.score_home
+            and countif(g.is_goal_event and g.team_id = s.away_team_id) = s.score_away
+        )
+        and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.home_team_id) = s.score_home
+        and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.away_team_id) = s.score_away
 )
 
 select
-    attributed.league_code,
-    attributed.fixture_id,
-    attributed.event_index,
-    attributed.minute_elapsed,
-    attributed.minute_extra,
-    attributed.player_id,
-    attributed.player_name,
-    attributed.assist_player_name,
-    attributed.event_type,
-    attributed.event_detail,
-    attributed.event_comments,
-    attributed.raw_ingested_at,
-    decisions.resolved_player_team_id,
-    coalesce(decisions.resolved_player_team_id, attributed.team_id) as team_id,
-    if(
-        decisions.resolved_player_team_id != attributed.team_id,
-        team_names.team_name,
-        attributed.team_name
-    ) as team_name
-from attributed
-left join decisions
-    on
-        attributed.fixture_id = decisions.fixture_id
-        and attributed.player_id = decisions.player_id
-        and not attributed.is_own_goal
-left join team_names
-    on
-        attributed.fixture_id = team_names.fixture_id
-        and decisions.resolved_player_team_id = team_names.team_id
+    g.league_code,
+    g.fixture_id,
+    g.event_index,
+    g.minute_elapsed,
+    g.minute_extra,
+    g.player_id,
+    g.player_name,
+    g.assist_player_name,
+    g.assist_player_id,
+    g.event_type,
+    g.event_detail,
+    g.event_comments,
+    g.raw_ingested_at,
+    g.resolved_player_team_id,
+    g.team_id,
+    g.team_name,
+    g.is_shootout_kick,
+    g.is_own_goal,
+    g.is_goal_event and not (g.is_nameless and n.fixture_id is not null) as is_goal,
+    coalesce(g.event_type = 'Goal' and g.event_detail = 'Missed Penalty', false) and not g.is_shootout_kick
+        as is_missed_penalty,
+    -- The events prove a zero only where they cover more than the goals: a match with at least one
+    -- substitution or card, which every played match has.
+    coalesce(logical_or(g.event_type in ('subst', 'Card')) over (partition by g.league_code, g.fixture_id), false)
+        as has_full_events
+from goal_events as g
+left join nameless_left_out as n
+    on g.fixture_id = n.fixture_id

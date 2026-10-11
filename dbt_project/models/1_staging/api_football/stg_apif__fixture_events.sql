@@ -33,6 +33,7 @@ select
     json_value(event_el, '$.player.name') as player_name,
     safe_cast(json_value(event_el, '$.player.id') as int64) as player_id,
     json_value(event_el, '$.assist.name') as assist_player_name,
+    safe_cast(json_value(event_el, '$.assist.id') as int64) as assist_player_id,
     json_value(event_el, '$.type') as event_type,
     json_value(event_el, '$.detail') as event_detail,
     json_value(event_el, '$.comments') as event_comments

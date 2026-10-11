@@ -1,137 +1,744 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 71360d54..048a4c93 100644
+index 048a4c93..60f4f5b1 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,79 +1,46 @@
--# Task contract — awarded results carry their kind and the score on the pitch
-+# Task contract — one naming rule for core and mart models
+@@ -1,46 +1,93 @@
+-# Task contract — one naming rule for core and mart models
++# Task contract — one goal definition
  
  objective: >
--  fixture_result_corrections records how each awarded result came about: not played, played, or
--  abandoned, with the score on the pitch for the last two. The 44 matches researched for #176
--  get a sourced row: 42 never played and awarded, one played and awarded afterwards, one whose
--  provider score is wrong. The seed's test fails a row whose kind and on-pitch score do not fit
--  its award.
-+  The naming rule in engineering_standards.md section 1 states the names the core and mart models
-+  follow: fct_ and dim_ in core, mart_<entity>_<subject> in the marts, with a single match named
-+  fixture. The note in content_architecture.md that no document settles mart naming goes.
+-  The naming rule in engineering_standards.md section 1 states the names the core and mart models
+-  follow: fct_ and dim_ in core, mart_<entity>_<subject> in the marts, with a single match named
+-  fixture. The note in content_architecture.md that no document settles mart naming goes.
++  What counts as a goal is defined once, in base_apif__fixture_events, and every model and test
++  that counts goals reads it: a Goal event (normal goal, penalty, own goal) that is not a
++  shoot-out kick (the shoot-out label, or a negative minute), leaving out a goal event with
++  neither scorer id nor scorer name where the match adds up without it. The same model decides
++  once whether a match's events cover more than its goals. Staging reads the assist's player id;
++  fct_fixture_event serves the goal flags and the assist; fct_fixture carries the award's kind and
++  the score on the pitch from fixture_result_corrections.
  
  refs: >
--  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): every played
--  match has one goal-data state, among them an awarded result with its kind, approved in chat,
--  2026-10-11. This change: approved in chat, 2026-10-11.
-+  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): its goals,
-+  line-ups and merged player-match mart add names. The rule text: approved in chat, 2026-10-11.
+-  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): its goals,
+-  line-ups and merged player-match mart add names. The rule text: approved in chat, 2026-10-11.
++  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the goals,
++  step 1. The plan (one goal definition, then the goals on mart_competition_fixtures): approved in
++  chat, 2026-10-11.
  
  scope_paths:
--  - dbt_project/seeds/fixture_result_corrections.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/tests/assert_result_corrections_applied.sql
-+  - dbt_project/docs/engineering_standards.md
-+  - docs/content_architecture.md
+-  - dbt_project/docs/engineering_standards.md
+-  - docs/content_architecture.md
++  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture_event.sql
++  - dbt_project/models/3_core/fct_fixture.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/docs/layering.md
++  - dbt_project/tests/assert_base_player_stats_cleaned.sql
++  - dbt_project/tests/assert_base_team_stats_cleaned.sql
++  - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
++  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: dbt seed loads fixture_result_corrections; base_apif__fixtures_next applies each row's
--  official score, status and winner and keeps the provider's beside them. The three new columns
--  have no reader yet. Nothing else writes the result.
--  downstream: `dbt ls --select fixture_result_corrections+ --resource-type model` on main gives 67
--  models: base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
--  base_apif__fixtures_next base_apif__players base_apif__teams base_apif__teams_global dim_player
--  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
--  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats int_legs__player_match
--  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
--  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
--  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
--  int_player_season__metrics int_player_season__team int_player_season_position__metrics
--  int_player_season_record int_team_competition_benchmark_metrics_long
--  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
--  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
--  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
--  mart_competition_fixtures mart_competition_index mart_competition_season_summary
--  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
--  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
--  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
--  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
--  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
--  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
--  mart_team_season_insights mart_team_season_record. The seed's own test,
--  assert_result_corrections_applied, checks every row is applied, sourced and valid.
--  layer_rules: a seed is configuration; no model changes. An awarded result (status AWD) already
--  counts in results and tables and stays out of form and stat windows (int_legs__team_match).
--  deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
--  blast_radius: 43 matches the provider files as played become awarded (status AWD): 28 Super Lig
--  2022 matches after the withdrawals of Gaziantep FK and Hatayspor, 14 other forfeits and
--  Verona-Roma 2020. Two scores change: Etoile Matoury-Le Geldar 2-2 becomes 1-1, and La
--  Passe-Volcan Club 0-1 becomes a win for La Passe with no score set.
-+  writers: two documents; no model, test, script or page changes.
-+  downstream: none; no test, hook or script reads either line (grep for the old rule text finds
-+  only these two files).
-+  layer_rules: unchanged; layering.md keeps the tests a table must pass to earn fct_ or dim_.
-+  deploy_order: none.
-+  blast_radius: the rule new and renamed models follow. Seven marts do not follow it today
-+  (mart_leaderboards, mart_standings, mart_roster, mart_head_to_head, mart_match_days,
-+  mart_next_matchday, and mart_player_match_log, which #176 merges into
-+  mart_player_fixture_stats); no model is renamed here.
+-  writers: two documents; no model, test, script or page changes.
+-  downstream: none; no test, hook or script reads either line (grep for the old rule text finds
+-  only these two files).
+-  layer_rules: unchanged; layering.md keeps the tests a table must pass to earn fct_ or dim_.
+-  deploy_order: none.
+-  blast_radius: the rule new and renamed models follow. Seven marts do not follow it today
+-  (mart_leaderboards, mart_standings, mart_roster, mart_head_to_head, mart_match_days,
+-  mart_next_matchday, and mart_player_match_log, which #176 merges into
+-  mart_player_fixture_stats); no model is renamed here.
++  writers: dbt only. stg_apif__fixture_events reads RAW_APIF_FIXTURE_DETAILS; nothing else writes
++  an event.
++  downstream: `dbt ls --select stg_apif__fixture_events+ base_apif__fixtures_next+ --resource-type
++  model` on main gives 68 models: stg_apif__fixture_events base_apif__fixture_events
++  base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
++  base_apif__players base_apif__teams base_apif__teams_global dim_player
++  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
++  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats int_legs__player_match
++  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
++  int_player_season__metrics int_player_season__team int_player_season_position__metrics
++  int_player_season_record int_team_competition_benchmark_metrics_long
++  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
++  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
++  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
++  mart_competition_fixtures mart_competition_index mart_competition_season_summary
++  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
++  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
++  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
++  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
++  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
++  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record.
++  layer_rules: the definition is cleaning, so it lives in base; core serves it; no mart changes.
++  deploy_order: one dbt run.
++  blast_radius: the matches whose goal events add up only with the cleaning: measured on prod, 19
++  where a nameless goal event is left out and 5 with shoot-out kicks at a negative minute. Their
++  team goal split and their players' goals may change; every other row is unchanged, which the
++  before/after comparison against prod shows model by model before merge.
  
  decisions_taken: >
--  The award's kind (not_played, played, abandoned) and the score on the pitch as seed columns,
--  the 9 existing rows filled, and the 44 researched rows, each official or with two match reports
--  on different sites: approved in chat, 2026-10-11. A won match with no score set follows the
--  existing Bastia-Lyon row: 0-0 with the winner in awarded_to_team_id.
-+  The rule text, and deleting the content_architecture.md bullet so the rule has one owner:
-+  approved in chat, 2026-10-11.
+-  The rule text, and deleting the content_architecture.md bullet so the rule has one owner:
+-  approved in chat, 2026-10-11.
++  One goal definition in base_apif__fixture_events, read by the base models and tests that count
++  goals; the nameless-event rule as #176's findings state it; negative minutes as shoot-out kicks;
++  the award's kind and on-pitch score carried to fct_fixture: approved in chat, 2026-10-11.
++  Measured on prod before the plan: leaving out every goal event without a scorer id would break
++  275 matches that add up today, so the nameless rule applies only where the match then adds up;
++  negative minutes fix 5 matches and break none.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; three columns on an existing seed and one more
--  problem kind in its existing test. RECURRING COST: none.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: none.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; columns on existing models. RECURRING COST: the
++  changed models' nightly read, measured by dry-run against prod before merge.
  
  decisions_reserved:
--  - Serving the kind and the on-pitch score to the marts and pages, and the goal lists (#176).
--  - The header status word of an awarded result (#175).
--  - The goal corrections of the 30 played matches researched with these (#176).
--  - The wrong team in CAF match 1619054.
-+  - The new names of the seven marts that do not follow the rule, and when they change.
-+  - The intermediate and staging rules, unchanged.
+-  - The new names of the seven marts that do not follow the rule, and when they change.
+-  - The intermediate and staging rules, unchanged.
++  - The goals list and goal-data state on mart_competition_fixtures, and the hand goal corrections seed (#176, the next MR).
++  - The page (#175).
  
  done_when:
--  - dbt parse passes; sqlfluff on the test shows no finding.
--  - Every row passes a local check of the test's rules: kind with award, on-pitch score where it belongs, source shape and sites.
--  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
-+  - The two lines in engineering_standards.md read as approved; the content_architecture.md bullet is gone.
-+  - pytest tests/ passes; the offline CI gates pass.
+-  - The two lines in engineering_standards.md read as approved; the content_architecture.md bullet is gone.
+-  - pytest tests/ passes; the offline CI gates pass.
++  - dbt parse passes; sqlfluff shows no new finding on every changed model and test.
++  - The changed base and core models' compiled SQL against prod differs from today's tables only on the matches the cleaning fixes.
++  - The changed tests' compiled SQL against prod returns no rows.
++  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
  
  amendments: >
    none
-diff --git a/dbt_project/docs/engineering_standards.md b/dbt_project/docs/engineering_standards.md
-index 074fb014..b08d789c 100644
---- a/dbt_project/docs/engineering_standards.md
-+++ b/dbt_project/docs/engineering_standards.md
-@@ -14,9 +14,9 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
- - Prefix by layer intent:
-   - staging: `stg_<source>__<entity>`
-   - base: `base_<domain>__<entity>`
--  - core: `core_<entity>`
-+  - core: `fct_<entity>` for facts and `dim_<entity>` for dimensions; `layering.md` says when a table earns each.
-   - intermediate: `int_<domain>__<purpose>` — use **`int_matchday__*`** for matchday preview / form / fixture denorm spine, **`int_team_season__*`** for per-team-season preparation (e.g. standings dedupe), **`int_pipeline__*`** for ingestion or warehouse-operation helpers (for example raw load-time spread). Intermediate must not `ref()` any `mart_*` model.
--  - marts: `mart_<consumer_or_domain>__<purpose>`
-+  - marts: `mart_<entity>_<subject>`, where `<entity>` is whose data the mart holds: `player`, `team`, `competition`, `fixture` or `matchday`. A single match is `fixture` in every name; a round of matches is `matchday`.
- - Columns use lowercase snake_case.
- - Boolean columns start with `is_` or `has_`.
- - Timestamp columns end with `_at`, dates end with `_date`.
-diff --git a/docs/content_architecture.md b/docs/content_architecture.md
-index 296f9ade..63e0ffa1 100644
---- a/docs/content_architecture.md
-+++ b/docs/content_architecture.md
-@@ -187,8 +187,6 @@ opponents**.
- - **No News tab and no Transfers tab.** The site has no news source and no transfers surface.
- - **Career and History depth** equals the backfill depth of each competition (section 8).
- - **Coach and Stadium blocks** appear only where the provider data is clean.
--- **Mart naming mixes patterns**, for example `mart_team_fixtures` beside `mart_player_match_log`.
--  This document does not settle naming.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 408789a2..10299ace 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -261,7 +261,7 @@ Canonical fact inventory for this project:
+ | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
+ | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
+ | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
+-| `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
++| `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`. |
+ | `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR). WC-scoped — no `league_code`. |
  
- ---
+ Most facts propagate `league_code` so they are safe to union across future leagues
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+index c1bdb082..736d8735 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
+@@ -33,6 +33,7 @@ select
+     json_value(event_el, '$.player.name') as player_name,
+     safe_cast(json_value(event_el, '$.player.id') as int64) as player_id,
+     json_value(event_el, '$.assist.name') as assist_player_name,
++    safe_cast(json_value(event_el, '$.assist.id') as int64) as assist_player_id,
+     json_value(event_el, '$.type') as event_type,
+     json_value(event_el, '$.detail') as event_detail,
+     json_value(event_el, '$.comments') as event_comments
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 5c64f1a6..04073feb 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -144,6 +144,12 @@ models:
+         tests: [not_null]
+       - name: awarded_to_team_id
+         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
++      - name: award_kind
++        description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
++      - name: on_pitch_home
++        description: "The home goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise."
++      - name: on_pitch_away
++        description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise."
+       - name: provider_goals_home
+         description: "The provider's home goals; differs from goals_home only where the official result was corrected."
+       - name: provider_goals_away
+@@ -371,6 +377,28 @@ models:
+           On the events of a player whose statistics row names the other team of the match, the team
+           the player's-team rule decides for him, which his events and his row then both carry. NULL
+           on every other event, on an own goal, and where nothing decides.
++      - name: assist_player_id
++        description: "The assisting player's provider id. NULL where the goal has no assist or the provider names the assist without an id."
++      - name: is_shootout_kick
++        description: "TRUE for a penalty shoot-out kick, scored or missed: a Goal event the provider labels as a shoot-out, or files at a negative minute."
++        tests: [not_null]
++      - name: is_goal
++        description: >
++          TRUE for a goal that counts: a Goal event that is a normal goal, a penalty or an own goal,
++          and not a shoot-out kick. A goal event with neither scorer id nor scorer name is left out
++          in a match whose goal events add up to its score only without such events: there it is a
++          goal that did not count. The score is the one on the pitch where a played or abandoned
++          match was awarded afterwards. team_id is the side the goal counts for, own goals included.
++        tests: [not_null]
++      - name: is_own_goal
++        description: "TRUE where the Goal event is an own goal. Its team_id is the side the goal counts for, not the scorer's team."
++        tests: [not_null]
++      - name: is_missed_penalty
++        description: "TRUE for a penalty missed or saved during the match; a missed shoot-out kick is not one."
++        tests: [not_null]
++      - name: has_full_events
++        description: "TRUE on every event of a match whose events include a substitution or a card, which every played match has: only then do its events show that a team or player had none of something."
++        tests: [not_null]
+ 
+   - name: base_apif__player_team_season
+     description: >
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+index 9fba4a22..81bdaeaf 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
+@@ -10,6 +10,7 @@ with src as (
+         player_id,
+         player_name,
+         assist_player_name,
++        assist_player_id,
+         event_type,
+         event_detail,
+         event_comments,
+@@ -43,6 +44,7 @@ recovered as (
+         player_id,
+         player_name,
+         assist_player_name,
++        assist_player_id,
+         event_type,
+         event_detail,
+         event_comments,
+@@ -104,6 +106,7 @@ attributed as (
+         recovered.player_id,
+         recovered.player_name,
+         recovered.assist_player_name,
++        recovered.assist_player_id,
+         recovered.event_type,
+         recovered.event_detail,
+         recovered.event_comments,
+@@ -277,35 +280,120 @@ team_names as (
+         max(team_name) as team_name
+     from attributed
+     group by fixture_id, team_id
++),
++
++resolved as (
++    select
++        attributed.league_code,
++        attributed.fixture_id,
++        attributed.event_index,
++        attributed.minute_elapsed,
++        attributed.minute_extra,
++        attributed.player_id,
++        attributed.player_name,
++        attributed.assist_player_name,
++        attributed.assist_player_id,
++        attributed.event_type,
++        attributed.event_detail,
++        attributed.event_comments,
++        attributed.raw_ingested_at,
++        attributed.is_own_goal,
++        decisions.resolved_player_team_id,
++        coalesce(decisions.resolved_player_team_id, attributed.team_id) as team_id,
++        if(
++            decisions.resolved_player_team_id != attributed.team_id,
++            team_names.team_name,
++            attributed.team_name
++        ) as team_name
++    from attributed
++    left join decisions
++        on
++            attributed.fixture_id = decisions.fixture_id
++            and attributed.player_id = decisions.player_id
++            and not attributed.is_own_goal
++    left join team_names
++        on
++            attributed.fixture_id = team_names.fixture_id
++            and decisions.resolved_player_team_id = team_names.team_id
++),
++
++-- A shoot-out kick is no goal: the provider labels most, and files the rest at a negative minute.
++shootout_kicks as (
++    select
++        *,
++        coalesce(
++            event_type = 'Goal'
++            and (event_comments is not distinct from 'Penalty Shootout' or coalesce(minute_elapsed < 0, false)),
++            false
++        ) as is_shootout_kick
++    from resolved
++),
++
++goal_events as (
++    select
++        *,
++        coalesce(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'), false)
++        and not is_shootout_kick as is_goal_event,
++        coalesce(player_id, 0) = 0 and player_name is null as is_nameless
++    from shootout_kicks
++),
++
++-- The score a match's goal events must add up to: the one on the pitch where a played or
++-- abandoned match was awarded afterwards.
++fixture_scores as (
++    select
++        fixture_id,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id,
++        if(award_kind in ('played', 'abandoned'), on_pitch_home, goals_home) as score_home,
++        if(award_kind in ('played', 'abandoned'), on_pitch_away, goals_away) as score_away
++    from {{ ref('base_apif__fixtures_next') }}
++),
++
++-- A goal event with neither scorer id nor scorer name is a goal that did not count where the match
++-- adds up without such events and not with them; elsewhere such events are goals whose scorer the
++-- provider did not record.
++nameless_left_out as (
++    select g.fixture_id
++    from goal_events as g
++    inner join fixture_scores as s
++        on g.fixture_id = s.fixture_id
++    group by g.fixture_id, s.score_home, s.score_away
++    having
++        not (
++            countif(g.is_goal_event and g.team_id = s.home_team_id) = s.score_home
++            and countif(g.is_goal_event and g.team_id = s.away_team_id) = s.score_away
++        )
++        and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.home_team_id) = s.score_home
++        and countif(g.is_goal_event and not g.is_nameless and g.team_id = s.away_team_id) = s.score_away
+ )
+ 
+ select
+-    attributed.league_code,
+-    attributed.fixture_id,
+-    attributed.event_index,
+-    attributed.minute_elapsed,
+-    attributed.minute_extra,
+-    attributed.player_id,
+-    attributed.player_name,
+-    attributed.assist_player_name,
+-    attributed.event_type,
+-    attributed.event_detail,
+-    attributed.event_comments,
+-    attributed.raw_ingested_at,
+-    decisions.resolved_player_team_id,
+-    coalesce(decisions.resolved_player_team_id, attributed.team_id) as team_id,
+-    if(
+-        decisions.resolved_player_team_id != attributed.team_id,
+-        team_names.team_name,
+-        attributed.team_name
+-    ) as team_name
+-from attributed
+-left join decisions
+-    on
+-        attributed.fixture_id = decisions.fixture_id
+-        and attributed.player_id = decisions.player_id
+-        and not attributed.is_own_goal
+-left join team_names
+-    on
+-        attributed.fixture_id = team_names.fixture_id
+-        and decisions.resolved_player_team_id = team_names.team_id
++    g.league_code,
++    g.fixture_id,
++    g.event_index,
++    g.minute_elapsed,
++    g.minute_extra,
++    g.player_id,
++    g.player_name,
++    g.assist_player_name,
++    g.assist_player_id,
++    g.event_type,
++    g.event_detail,
++    g.event_comments,
++    g.raw_ingested_at,
++    g.resolved_player_team_id,
++    g.team_id,
++    g.team_name,
++    g.is_shootout_kick,
++    g.is_own_goal,
++    g.is_goal_event and not (g.is_nameless and n.fixture_id is not null) as is_goal,
++    coalesce(g.event_type = 'Goal' and g.event_detail = 'Missed Penalty', false) and not g.is_shootout_kick
++        as is_missed_penalty,
++    -- The events prove a zero only where they cover more than the goals: a match with at least one
++    -- substitution or card, which every played match has.
++    coalesce(logical_or(g.event_type in ('subst', 'Card')) over (partition by g.league_code, g.fixture_id), false)
++        as has_full_events
++from goal_events as g
++left join nameless_left_out as n
++    on g.fixture_id = n.fixture_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index 88793c7e..e3aab7ec 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -240,16 +240,18 @@ events as (
+         event_type,
+         event_detail,
+         assist_player_name,
+-        event_comments is distinct from 'Penalty Shootout' as is_in_play
++        is_goal,
++        is_own_goal,
++        is_missed_penalty,
++        has_full_events,
++        is_goal and not is_own_goal as is_scorer_goal
+     from {{ ref('base_apif__fixture_events') }}
+ ),
+ 
+--- The events prove a zero only where they cover more than the goals: a match with at least one
+--- substitution or card, which every played match has.
+ fixtures_with_events as (
+     select fixture_id
+     from events
+-    where event_type in ('subst', 'Card')
++    where has_full_events
+     group by fixture_id
+ ),
+ 
+@@ -257,22 +259,14 @@ team_events as (
+     select
+         fixture_id,
+         team_id,
+-        countif(is_in_play and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty'))
+-            as goal_events,
+-        countif(
+-            is_in_play and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty')
+-            and player_id is null
+-        ) as goal_events_without_scorer,
+-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Normal Goal') as open_play_goal_events,
+-        countif(
+-            is_in_play and event_type = 'Goal' and event_detail = 'Normal Goal'
+-            and assist_player_name is not null
+-        ) as assisted_goal_events,
+-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Own Goal') as own_goals,
+-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
+-        countif(is_in_play and event_type = 'Goal' and event_detail in ('Penalty', 'Missed Penalty'))
+-            as penalty_events,
+-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events,
++        countif(is_scorer_goal) as goal_events,
++        countif(is_scorer_goal and player_id is null) as goal_events_without_scorer,
++        countif(is_goal and event_detail = 'Normal Goal') as open_play_goal_events,
++        countif(is_goal and event_detail = 'Normal Goal' and assist_player_name is not null) as assisted_goal_events,
++        countif(is_goal and is_own_goal) as own_goals,
++        countif(is_goal and event_detail = 'Penalty') as penalty_goal_events,
++        countif((is_goal and event_detail = 'Penalty') or is_missed_penalty) as penalty_events,
++        countif(is_missed_penalty) as missed_penalty_events,
+         countif(event_type = 'Card') as card_events
+     from events
+     group by fixture_id, team_id
+@@ -281,7 +275,7 @@ team_events as (
+ match_assist_names as (
+     select
+         fixture_id,
+-        countif(is_in_play and event_type = 'Goal' and assist_player_name is not null) as assisted_goal_events
++        countif(is_goal and assist_player_name is not null) as assisted_goal_events
+     from events
+     group by fixture_id
+ ),
+@@ -291,8 +285,8 @@ player_events as (
+         fixture_id,
+         team_id,
+         player_id,
+-        countif(is_in_play and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty')) as goals,
+-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Penalty') as goals_penalty
++        countif(is_scorer_goal) as goals,
++        countif(is_goal and event_detail = 'Penalty') as goals_penalty
+     from events
+     where player_id is not null
+     group by fixture_id, team_id, player_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index 5d0000cc..4bb370bc 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -178,9 +178,9 @@ team_matches as (
+         on d.fixture_id = ft.fixture_id and d.team_id = ft.team_id
+ ),
+ 
+--- The provider files an own goal under the team it counts for, and a shoot-out kick is no goal.
+--- A card event of no colour, and a video review of a card, count against a zero of either colour
+--- they could be; an upgrade or a cancelled red counts as red.
++-- The provider files an own goal under the team it counts for. A card event of no colour, and a
++-- video review of a card, count against a zero of either colour they could be; an upgrade or a
++-- cancelled red counts as red.
+ events as (
+     select
+         fixture_id,
+@@ -188,16 +188,17 @@ events as (
+         event_type,
+         event_detail,
+         raw_ingested_at,
+-        event_comments is not distinct from 'Penalty Shootout' as is_shootout
++        is_goal,
++        is_own_goal,
++        is_missed_penalty,
++        has_full_events
+     from {{ ref('base_apif__fixture_events') }}
+ ),
+ 
+--- The events prove a zero only where they cover more than the goals: a match with at least one
+--- substitution or card, which every played match has.
+ match_events as (
+     select
+         fixture_id,
+-        logical_or(event_type in ('subst', 'Card')) as events_delivered,
++        logical_or(has_full_events) as events_delivered,
+         max(raw_ingested_at) as events_ingested_at
+     from events
+     group by fixture_id
+@@ -207,11 +208,10 @@ team_events as (
+     select
+         fixture_id,
+         team_id,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'))
+-            as goal_events,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Own Goal') as own_goal_events,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events,
++        countif(is_goal) as goal_events,
++        countif(is_goal and event_detail = 'Penalty') as penalty_goal_events,
++        countif(is_goal and is_own_goal) as own_goal_events,
++        countif(is_missed_penalty) as missed_penalty_events,
+         countif(
+             (event_type = 'Card' and coalesce(event_detail, '') != 'Red Card')
+             or (event_type = 'Var' and event_detail = 'Card reviewed')
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+index 330188cc..2c289b9e 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+@@ -31,6 +31,9 @@ select
+     f.home_team_id,
+     f.away_team_id,
+     c.awarded_to_team_id,
++    c.award_kind,
++    c.on_pitch_home,
++    c.on_pitch_away,
+     f.goals_home as provider_goals_home,
+     f.goals_away as provider_goals_away,
+     f.status_short as provider_status_short,
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index ddfd8c88..fb0ce426 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -546,6 +546,15 @@ models:
+           - relationships:
+               to: ref('dim_team')
+               field: team_sk
++      - name: award_kind
++        description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
++        tests:
++          - accepted_values:
++              values: ["not_played", "played", "abandoned"]
++      - name: on_pitch_home
++        description: "The home goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_home is then the awarded score."
++      - name: on_pitch_away
++        description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_away is then the awarded score."
+       - name: venue_api_id
+         description: "API-Football venue id."
+       - name: venue_name_snapshot
+@@ -889,7 +898,29 @@ models:
+       - name: player_name_snapshot
+         description: "The player's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
+       - name: assist_player_name
+-        description: "Assisting player name. Degenerate attribute because the API does not emit an id in the events payload."
++        description: "The assisting player's name as the events feed spells it, and the only name available for an assist the feed gives no id for."
++      - name: assist_player_sk
++        description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist or the assist has no id."
++        tests:
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++              where: "assist_player_sk is not null"
++      - name: assist_player_api_id
++        description: "{{ doc('player_api_id') }} Here it is the assisting player."
++      - name: is_goal
++        description: >
++          TRUE for a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick.
++          A goal event with neither scorer id nor scorer name is left out in a match whose goal
++          events add up to its score only without such events. team_sk is the side the goal counts
++          for, own goals included.
++        tests: [not_null]
++      - name: is_own_goal
++        description: "TRUE where the Goal event is an own goal; team_sk is the side it counts for."
++        tests: [not_null]
++      - name: is_shootout_kick
++        description: "TRUE for a penalty shoot-out kick, scored or missed. A shoot-out kick is never a goal."
++        tests: [not_null]
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+ 
+diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
+index 0ecb8c9f..8866612c 100644
+--- a/dbt_project/models/3_core/fct_fixture.sql
++++ b/dbt_project/models/3_core/fct_fixture.sql
+@@ -24,6 +24,9 @@ select
+     goals_home,
+     goals_away,
+     cast(awarded_to_team_id as int64) as awarded_to_team_sk,
++    award_kind,
++    on_pitch_home,
++    on_pitch_away,
+     venue_id as venue_api_id,
+     venue_name as venue_name_snapshot,
+     venue_city as venue_city_snapshot,
+diff --git a/dbt_project/models/3_core/fct_fixture_event.sql b/dbt_project/models/3_core/fct_fixture_event.sql
+index ada2672a..373d3d5d 100644
+--- a/dbt_project/models/3_core/fct_fixture_event.sql
++++ b/dbt_project/models/3_core/fct_fixture_event.sql
+@@ -3,8 +3,7 @@
+     onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
+     is the zero-based array position from the API-Football /fixtures/events response.
+     API-Football does not emit event IDs; array position is the only stable unique
+-    identifier within a fixture's event list. Assist player arrives as a name only (no id
+-    in source), so it stays as a degenerate attribute.
++    identifier within a fixture's event list.
+ #}
+ 
+ with src as (
+@@ -31,5 +30,10 @@ select
+     team_name as team_name_snapshot,
+     player_name as player_name_snapshot,
+     assist_player_name,
++    nullif(cast(assist_player_id as int64), 0) as assist_player_sk,
++    assist_player_id as assist_player_api_id,
++    is_goal,
++    is_own_goal,
++    is_shootout_kick,
+     src.raw_ingested_at
+ from src
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 5929aea7..6f5f07a4 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -15,7 +15,9 @@ match stats are good enough.
+   match keeps a blank minutes figure. Possession is a share, not a count, so a blank possession
+   stays blank.
+ - Results. A team's goals are the score. Its penalty and own goals come from its goal events where
+-  those add up to its score, penalty shoot-outs left out. A player's goals come from the per-player
++  those add up to its score. A shoot-out kick is no goal event: the provider labels most and files
++  the rest at a negative minute. A goal event with no scorer id or name is left out where the goal
++  events add up to the score only without such events. A player's goals come from the per-player
+   count or the goal events, whichever adds up to the score.
+ - A player's team. Where his statistics row and his match events, own goals aside, name different
+   teams of the match, the squad list for the season decides, and his other matches decide where it
+diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+index 316b4737..7d7b53c7 100644
+--- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+@@ -77,28 +77,28 @@ events as (
+         fixture_id,
+         team_id,
+         player_id,
+-        event_type,
+-        event_detail
++        event_detail,
++        is_missed_penalty,
++        is_goal and not is_own_goal as is_scorer_goal,
++        is_goal and is_own_goal as is_own_goal
+     from {{ ref('base_apif__fixture_events') }}
+-    where event_comments is distinct from 'Penalty Shootout'
+ ),
+ 
+ fixtures_with_events as (
+     select distinct fixture_id
+     from {{ ref('base_apif__fixture_events') }}
+-    where event_type in ('subst', 'Card')
++    where has_full_events
+ ),
+ 
+ team_events as (
+     select
+         fixture_id,
+         team_id,
+-        countif(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty')) as goal_events,
+-        countif(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty') and player_id is null)
+-            as goal_events_without_scorer,
+-        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals,
+-        countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
+-        countif(event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events
++        countif(is_scorer_goal) as goal_events,
++        countif(is_scorer_goal and player_id is null) as goal_events_without_scorer,
++        countif(is_own_goal) as own_goals,
++        countif(is_scorer_goal and event_detail = 'Penalty') as penalty_goal_events,
++        countif(is_missed_penalty) as missed_penalty_events
+     from events
+     group by fixture_id, team_id
+ ),
+@@ -110,7 +110,7 @@ player_goal_events as (
+         player_id,
+         count(*) as goals
+     from events
+-    where event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty') and player_id is not null
++    where is_scorer_goal and player_id is not null
+     group by fixture_id, team_id, player_id
+ ),
+ 
+diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+index 77ef4240..897deb06 100644
+--- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+@@ -111,25 +111,27 @@ events as (
+         team_id,
+         event_type,
+         event_detail,
+-        event_comments is not distinct from 'Penalty Shootout' as is_shootout
++        is_goal,
++        is_own_goal,
++        is_missed_penalty,
++        has_full_events
+     from {{ ref('base_apif__fixture_events') }}
+ ),
+ 
+ matches_with_events as (
+     select distinct fixture_id
+     from events
+-    where event_type in ('subst', 'Card')
++    where has_full_events
+ ),
+ 
+ team_events as (
+     select
+         fixture_id,
+         team_id,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'))
+-            as goal_events,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Own Goal') as own_goal_events,
+-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events,
++        countif(is_goal) as goal_events,
++        countif(is_goal and event_detail = 'Penalty') as penalty_goal_events,
++        countif(is_goal and is_own_goal) as own_goal_events,
++        countif(is_missed_penalty) as missed_penalty_events,
+         countif(
+             (event_type = 'Card' and coalesce(event_detail, '') != 'Red Card')
+             or (event_type = 'Var' and event_detail = 'Card reviewed')
+diff --git a/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql b/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
+index 2d08598f..89cce4b7 100644
+--- a/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
++++ b/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
+@@ -14,9 +14,7 @@ with goal_events as (
+         event_detail
+     from {{ ref('fct_fixture_event') }}
+     where
+-        event_type = 'Goal'
+-        and event_detail in ('Normal Goal', 'Penalty', 'Own Goal')
+-        and event_comments is distinct from 'Penalty Shootout'
++        is_goal
+         and player_sk is not null
+ ),
+ 
+diff --git a/dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql b/dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
+index 1c7e3bb5..11622d31 100644
+--- a/dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
++++ b/dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
+@@ -15,9 +15,7 @@ with goal_events as (
+         event_detail
+     from {{ ref('fct_fixture_event') }}
+     where
+-        event_type = 'Goal'
+-        and event_detail in ('Normal Goal', 'Penalty', 'Own Goal')
+-        and event_comments is distinct from 'Penalty Shootout'
++        is_goal
+         and team_sk is not null
+ ),
  

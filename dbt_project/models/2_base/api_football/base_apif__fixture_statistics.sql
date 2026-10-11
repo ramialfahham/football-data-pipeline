@@ -178,9 +178,9 @@ team_matches as (
         on d.fixture_id = ft.fixture_id and d.team_id = ft.team_id
 ),
 
--- The provider files an own goal under the team it counts for, and a shoot-out kick is no goal.
--- A card event of no colour, and a video review of a card, count against a zero of either colour
--- they could be; an upgrade or a cancelled red counts as red.
+-- The provider files an own goal under the team it counts for. A card event of no colour, and a
+-- video review of a card, count against a zero of either colour they could be; an upgrade or a
+-- cancelled red counts as red.
 events as (
     select
         fixture_id,
@@ -188,16 +188,17 @@ events as (
         event_type,
         event_detail,
         raw_ingested_at,
-        event_comments is not distinct from 'Penalty Shootout' as is_shootout
+        is_goal,
+        is_own_goal,
+        is_missed_penalty,
+        has_full_events
     from {{ ref('base_apif__fixture_events') }}
 ),
 
--- The events prove a zero only where they cover more than the goals: a match with at least one
--- substitution or card, which every played match has.
 match_events as (
     select
         fixture_id,
-        logical_or(event_type in ('subst', 'Card')) as events_delivered,
+        logical_or(has_full_events) as events_delivered,
         max(raw_ingested_at) as events_ingested_at
     from events
     group by fixture_id
@@ -207,11 +208,10 @@ team_events as (
     select
         fixture_id,
         team_id,
-        countif(not is_shootout and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'))
-            as goal_events,
-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Own Goal') as own_goal_events,
-        countif(not is_shootout and event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events,
+        countif(is_goal) as goal_events,
+        countif(is_goal and event_detail = 'Penalty') as penalty_goal_events,
+        countif(is_goal and is_own_goal) as own_goal_events,
+        countif(is_missed_penalty) as missed_penalty_events,
         countif(
             (event_type = 'Card' and coalesce(event_detail, '') != 'Red Card')
             or (event_type = 'Var' and event_detail = 'Card reviewed')
