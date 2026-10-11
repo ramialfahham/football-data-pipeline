@@ -17,8 +17,9 @@ match stats are good enough.
 - Results. A team's goals are the score. Its penalty and own goals come from its goal events where
   those add up to its score. A shoot-out kick is no goal event: the provider labels most and files
   the rest at a negative minute. A goal event with no scorer id or name is left out where the goal
-  events add up to the score only without such events. A player's goals come from the per-player
-  count or the goal events, whichever adds up to the score.
+  events add up to the score only without such events. Where a match's goal events stay wrong, its
+  goals come from sourced research in the fixture_goal_corrections seed. A player's goals come from
+  the per-player count or the goal events, whichever adds up to the score.
 - A player's team. Where his statistics row and his match events, own goals aside, name different
   teams of the match, the squad list for the season decides, and his other matches decide where it
   names both teams or neither; the side it contradicts, his row or his events, moves to the team

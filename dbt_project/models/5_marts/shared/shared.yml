@@ -2769,6 +2769,11 @@ models:
       round of the competition-season's earliest fixture not yet started, by mart_next_matchday's
       rule, and that mart's match-that-matters flag is carried onto its fixture.
 
+      A played match carries its goals as one list and its goal_data_state. The goals come from
+      its goal events where they add up to its score, otherwise from its players' goals with its
+      own-goal events. An awarded match carries how the award came about and, when played or
+      abandoned, its score on the pitch.
+
       The fixture slug is the match's permanent URL segment, built from the kick-off date and the
       two published team slugs. Rebuilt nightly, so the next-round flag is correct as of the
       morning it was built.
@@ -2905,6 +2910,44 @@ models:
           - accepted_values:
               values: [true, false]
               quote: false
+      - name: award_kind
+        description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
+      - name: on_pitch_home
+        description: "The home goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_home is then the awarded score."
+      - name: on_pitch_away
+        description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_away is then the awarded score."
+      - name: goal_data_state
+        description: >
+          What a played match's goal data holds. goals: every goal with its scorer and minute, one
+          entry each; a 0-0 has none. goals_without_minutes: the scorers without minutes, one entry
+          per scorer. not_recorded: the provider recorded no goal, only the score. awarded: the
+          result was awarded, as award_kind says; the goals as scored, none when not played. NULL
+          on a match not played.
+        tests:
+          - accepted_values:
+              values: ["goals", "goals_without_minutes", "not_recorded", "awarded"]
+      - name: goals
+        description: "The match's goals, home and away together: one entry per goal in match order when every minute is known, otherwise one per scorer. Empty when the match has none, was not played, or its goals are not recorded."
+      - name: goals.side
+        description: "home or away: the side the goal counts for, own goals included, inside the goals array."
+      - name: goals.player_api_id
+        description: "The scorer's provider player id inside the goals array, which is player_sk in dim_player. NULL where the scorer has no player id."
+      - name: goals.player_name
+        description: "The scorer's name inside the goals array."
+      - name: goals.minute_elapsed
+        description: "The minute of normal time the goal was scored in, inside the goals array. NULL on a per-scorer entry."
+      - name: goals.minute_extra
+        description: "Minutes into added time, on top of minute_elapsed, inside the goals array. NULL for a goal in normal play."
+      - name: goals.goals
+        description: "The goals the entry stands for, inside the goals array: 1 on a goal, the scorer's count on a per-scorer entry."
+      - name: goals.penalties
+        description: "How many of the entry's goals were penalties, inside the goals array. NULL where the source does not say."
+      - name: goals.is_own_goal
+        description: "TRUE where the entry is an own goal, inside the goals array: the scorer is then the opponent who put it into his own net."
+      - name: goals.assist_player_api_id
+        description: "The assisting player's provider player id inside the goals array, which is player_sk in dim_player. NULL on a per-scorer entry and where no assist is recorded."
+      - name: goals.assist_player_name
+        description: "The assisting player's name inside the goals array. NULL on a per-scorer entry and where no assist is recorded."
 
   - name: mart_match_days
     description: >

@@ -1,4 +1,4 @@
--- Every hand correction of a result, from the two correction seeds, is applied, sourced and still
+-- Every hand correction of a result, from the three correction seeds, is applied, sourced and still
 -- needed. One row per broken correction:
 --   - not_applied: base has no such match or table row, or does not carry the official figures
 --     and team.
@@ -8,7 +8,11 @@
 --     abandoned award without the score on the pitch, or a score on the pitch on any other row.
 --   - not_sourced: a source that is not https URLs separated by a space, an official one with
 --     none, or match reports with fewer than two sites.
---   - no_longer_needed: the provider now carries the official result itself.
+--   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
+--     score on the pitch for a played or abandoned award), name a team not in the match, or sit
+--     beside the row that says the match had no goal.
+--   - no_longer_needed: the provider now carries the official result, or goals that add up, itself.
+--     An award is always needed: the provider never says how it came about.
 
 {{ config(store_failures = true) }}
 
@@ -26,6 +30,69 @@ table_corrections as (
 
 standings as (
     select * from {{ ref('base_apif__standings') }}
+),
+
+goal_corrections as (
+    select * from {{ ref('fixture_goal_corrections') }}
+),
+
+events as (
+    select * from {{ ref('base_apif__fixture_events') }}
+),
+
+goal_counts as (
+    select
+        c.fixture_id,
+        countif(c.goal_order > 0) as seed_goals,
+        countif(c.goal_order = 0) > 0 and count(*) > 1 as no_goal_row_with_goals,
+        countif(c.goal_order > 0 and c.team_id = f.home_team_id) as seed_home,
+        countif(c.goal_order > 0 and c.team_id = f.away_team_id) as seed_away,
+        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)) as score_home,
+        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)) as score_away
+    from goal_corrections as c
+    left join fixtures as f
+        on c.fixture_id = f.fixture_id
+    group by c.fixture_id
+),
+
+event_counts as (
+    select
+        e.fixture_id,
+        countif(e.is_goal and e.goal_correction_source is not null) as applied_goals,
+        countif(e.is_goal and e.goal_correction_source is null) as provider_goals_counted,
+        countif(e.is_provider_goal and e.team_id = f.home_team_id) as provider_home,
+        countif(e.is_provider_goal and e.team_id = f.away_team_id) as provider_away
+    from events as e
+    inner join goal_counts as g
+        on e.fixture_id = g.fixture_id
+    inner join fixtures as f
+        on e.fixture_id = f.fixture_id
+    group by e.fixture_id
+),
+
+goal_checks as (
+    select
+        'fixture_goal_corrections' as seed,
+        cast(g.fixture_id as string) as correction,
+        case
+            when
+                coalesce(e.applied_goals, 0) != g.seed_goals
+                or coalesce(e.provider_goals_counted, 0) != 0
+                then 'not_applied'
+            when
+                g.no_goal_row_with_goals
+                or g.seed_goals != g.seed_home + g.seed_away
+                or g.seed_home is distinct from g.score_home
+                or g.seed_away is distinct from g.score_away
+                then 'does_not_add_up'
+            when
+                e.provider_home = g.score_home
+                and e.provider_away = g.score_away
+                then 'no_longer_needed'
+        end as problem
+    from goal_counts as g
+    left join event_counts as e
+        on g.fixture_id = e.fixture_id
 ),
 
 fixture_checks as (
@@ -62,8 +129,7 @@ fixture_checks as (
             when
                 f.provider_goals_home = c.goals_home
                 and f.provider_goals_away = c.goals_away
-                and (not c.awarded or f.provider_status_short in ('AWD', 'WO'))
-                and c.awarded_to_team_id is null
+                and not c.awarded
                 then 'no_longer_needed'
         end as problem
     from fixture_corrections as c
@@ -126,6 +192,13 @@ sources as (
         source_kind,
         source
     from table_corrections
+    union all
+    select
+        'fixture_goal_corrections' as seed,
+        concat(cast(fixture_id as string), ' ', cast(goal_order as string)) as correction,
+        source_kind,
+        source
+    from goal_corrections
 ),
 
 source_urls as (
@@ -167,6 +240,13 @@ select
     correction,
     problem
 from table_checks
+where problem is not null
+union all
+select
+    seed,
+    correction,
+    problem
+from goal_checks
 where problem is not null
 union all
 select

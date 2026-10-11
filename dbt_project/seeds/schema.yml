@@ -593,6 +593,82 @@ seeds:
         description: "The match and the official decision, in words."
         tests: [not_null]
 
+  - name: fixture_goal_corrections
+    description: >
+      Every goal of a match whose provider goal events do not add up to its score, one row per goal,
+      researched and sourced; a match with no goal has one row at goal_order 0 and no goal fields.
+      Applied in base_apif__fixture_events: the match's goals are these, and
+      the provider's goal events stay beside them, not counted. assert_result_corrections_applied
+      fails when a match's rows are not applied, do not add up to its score, are not sourced, or
+      are no longer needed.
+    config:
+      column_types:
+        fixture_id: int64
+        goal_order: int64
+        team_id: int64
+        player_id: int64
+        player_name: string
+        minute_elapsed: int64
+        minute_extra: int64
+        event_detail: string
+        assist_player_id: int64
+        assist_player_name: string
+        source_kind: string
+        source: string
+        note: string
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id, goal_order]
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: goal_order
+        description: "The goal's place in the match, 1 for its first goal; 0 on the one row of a match with no goal."
+        tests: [not_null]
+      - name: team_id
+        description: "{{ doc('team_api_id') }} Here it is the side the goal counts for, own goals included."
+        tests:
+          - not_null:
+              config:
+                where: "goal_order > 0"
+      - name: player_id
+        description: "The scorer's provider player id. NULL where the provider holds no id for the scorer."
+      - name: player_name
+        description: "The scorer's name as the source gives it."
+        tests:
+          - not_null:
+              config:
+                where: "goal_order > 0"
+      - name: minute_elapsed
+        description: "The minute of normal time the goal was scored in. NULL where no source gives it."
+      - name: minute_extra
+        description: "Minutes into added time, on top of minute_elapsed. NULL for a goal in normal play."
+      - name: event_detail
+        description: "Normal Goal, Penalty or Own Goal, as the provider's goal events name them."
+        tests:
+          - not_null:
+              config:
+                where: "goal_order > 0"
+          - accepted_values:
+              values: ["Normal Goal", "Penalty", "Own Goal"]
+      - name: assist_player_id
+        description: "The assisting player's provider id. NULL where no source names an assist or the provider holds no id for the player."
+      - name: assist_player_name
+        description: "The assisting player's name as the source gives it. NULL where no source names an assist."
+      - name: source_kind
+        description: "official = the competition's match record; match_reports = two independent match reports that name the scorers."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["official", "match_reports"]
+      - name: source
+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
+        tests: [not_null]
+      - name: note
+        description: "The match and its goals, in words."
+        tests: [not_null]
+
   - name: standings_corrections
     description: >
       The league's official figures for each provider league-table row that differs from them,

@@ -1,9 +1,10 @@
--- Player identity (global entity): one row per player_api_id, unioned from three sources
+-- Player identity (global entity): one row per player_api_id, unioned from four sources
 -- and deduplicated in a single pass that prefers the most authoritative NAMED source
 -- (lowest source_priority) and then the most recent ingest:
 --   priority 1 — /players endpoint (biographical attributes, most complete)
 --   priority 2 — fixture player stats (match appearances)
 --   priority 3 — fixture events (broadest appearance coverage)
+--   priority 4 — the assisting player of a fixture event
 -- Identity only — no league_code, no team/season affiliation: a player is one entity
 -- across competitions, and "which team/season" lives in dim_player_team_season_mapping
 -- and the facts, not here. Feeds dim_player 1:1. Grain: player_api_id.

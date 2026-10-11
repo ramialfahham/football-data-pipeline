@@ -1,20 +1,20 @@
-# Review — feat/goal-definition
+# Review — feat/goals-on-match-mart
 
-diff_sha256: ae2a4ed68d09b03c5b88a89bbc87d582c201b87f7b7e099b7c4f64e735ff3cae
+diff_sha256: d0ea5824e8937d69450195e6855df2dc0a7186308b4770d42e90968d52f7df63
 
 rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every file in the diff is in scope_paths, the two added by the amendment included; the goal definition, the nameless-event rule, negative minutes as shoot-out kicks and the award columns match decisions_taken; nothing reserved is touched.
-- The amendment's claim holds: every mart that reads dim_player left-joins it or starts from a fact, so the assisters it gains add no mart rows.
+- Every file is in scope_paths, the result-corrections seed and its test by the recorded amendment; the goals list, the states, the award columns, the new seed and the goal-source order are in decisions_taken; nothing reserved (#175, CAF 1619054, the mart renames) is touched.
+- The impact map pastes the 67-model lineage of both seeds and a blast radius that names the 42 goal-corrected matches, the 20 score changes, the 8 walkover winners, the 11 status changes and the 23 award kinds; the 151 seed rows match it.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The definition lives once in base_apif__fixture_events and every goal count reads it; core only passes flags through; the score join adds no cycle or fan-out; the answer-key row's new working matches the nameless-event rule.
-- base_apif__players adds the assister at the lowest priority, so an assist never overrides a better-named source; the new columns carry not_null, relationships and accepted_values tests.
+- The goal seed is applied in base like the other correction seeds; the union aligns column by column; replaced provider goals stay uncounted, seeded goals sit at event_index 10000 and up, and the latest-fetch test skips only them; the mart stays one row per fixture.
+- Tests ship with the change: the seed's grain and value tests, the extended corrections test, and the new mart test (state, adds up, minutes, unknown player, unreconciled goals); the hand-checked side tallies of the seeded matches add up, own goals under the side they count for.
 
 ## escalations
 (none)
