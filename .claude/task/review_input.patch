@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 048a4c93..60f4f5b1 100644
+index 048a4c93..23a20545 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,46 +1,93 @@
+@@ -1,46 +1,101 @@
 -# Task contract — one naming rule for core and mart models
 +# Task contract — one goal definition
  
@@ -44,6 +44,8 @@ index 048a4c93..60f4f5b1 100644
 +  - dbt_project/tests/assert_base_team_stats_cleaned.sql
 +  - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
 +  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
++  - dbt_project/seeds/team_match_cleaning_answer_key.csv
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
@@ -119,7 +121,14 @@ index 048a4c93..60f4f5b1 100644
 +  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
  
  amendments: >
-   none
+-  none
++  data:build:mr failed on two tests; both fixes approved in chat, 2026-10-11.
++  (1) team_match_cleaning_answer_key: Aston Villa 0-1 Arsenal (1557377), Arsenal's penalties change
++  from blank to 0, because the nameless goal event that did not count is now left out and the
++  events add up to the score. (2) base_apif__players adds the assisting player from the match
++  events, as it adds the event's own player, so every assist_player_sk resolves in dim_player
++  (3,026 assist events did not). dim_player gains those players; the marts read it only to name
++  players they already hold, so no mart gains rows.
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
 index 408789a2..10299ace 100644
 --- a/dbt_project/docs/layering.md
@@ -146,7 +155,7 @@ index c1bdb082..736d8735 100644
      json_value(event_el, '$.detail') as event_detail,
      json_value(event_el, '$.comments') as event_comments
 diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 5c64f1a6..04073feb 100644
+index 5c64f1a6..122ce0e4 100644
 --- a/dbt_project/models/2_base/api_football/base.yml
 +++ b/dbt_project/models/2_base/api_football/base.yml
 @@ -144,6 +144,12 @@ models:
@@ -162,6 +171,15 @@ index 5c64f1a6..04073feb 100644
        - name: provider_goals_home
          description: "The provider's home goals; differs from goals_home only where the official result was corrected."
        - name: provider_goals_away
+@@ -305,7 +311,7 @@ models:
+   - name: base_apif__players
+     description: >
+       Global player identity: one row per player_api_id, unioned from /players, fixture player
+-      stats and fixture events, then deduplicated in a single pass that prefers the most
++      stats, and the players and assisting players of fixture events, then deduplicated in a single pass that prefers the most
+       authoritative named source and, within that, the most recent ingest.
+       Grain: player_api_id.
+ 
 @@ -371,6 +377,28 @@ models:
            On the events of a player whose statistics row names the other team of the match, the team
            the player's-team rule decides for him, which his events and his row then both carry. NULL
@@ -516,6 +534,43 @@ index 330188cc..2c289b9e 100644
      f.goals_home as provider_goals_home,
      f.goals_away as provider_goals_away,
      f.status_short as provider_status_short,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index de3b7ba4..7b414d01 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -57,12 +57,32 @@ fixture_events_src as (
+         and safe_cast(player_id as int64) != 0
+ ),
+ 
++-- The assisting player of a goal event, named as the events feed names the assist.
++assist_events_src as (
++    select
++        assist_player_id as player_api_id,
++        assist_player_name as player_name,
++        cast(null as string) as player_first_name,
++        cast(null as string) as player_last_name,
++        cast(null as date) as player_birth_date,
++        cast(null as string) as player_nationality,
++        cast(null as string) as player_photo_url,
++        raw_ingested_at,
++        4 as source_priority
++    from {{ ref('base_apif__fixture_events') }}
++    where
++        assist_player_id is not null
++        and assist_player_id != 0
++),
++
+ src as (
+     select * from players_src
+     union all
+     select * from fixture_players_src
+     union all
+     select * from fixture_events_src
++    union all
++    select * from assist_events_src
+ )
+ 
+ select
 diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
 index ddfd8c88..fb0ce426 100644
 --- a/dbt_project/models/3_core/core.yml
@@ -621,6 +676,19 @@ index 5929aea7..6f5f07a4 100644
    count or the goal events, whichever adds up to the score.
  - A player's team. Where his statistics row and his match events, own goals aside, name different
    teams of the match, the squad list for the season decides, and his other matches decide where it
+diff --git a/dbt_project/seeds/team_match_cleaning_answer_key.csv b/dbt_project/seeds/team_match_cleaning_answer_key.csv
+index d80d6524..fb35ff82 100644
+--- a/dbt_project/seeds/team_match_cleaning_answer_key.csv
++++ b/dbt_project/seeds/team_match_cleaning_answer_key.csv
+@@ -9,7 +9,7 @@ fixture_id,team_id,stat,expected_value,rule,working
+ 1545408,84,saves,0,,"Ligue 1 2025, 0-0. Neither line has a saves value; the other team's line shows 0 shots on target, so this team's keeper had nothing to save: 0."
+ 1575152,170,goals_own,1,,"Bundesliga 2026, 4-1. The team's goal events are one own goal (filed under the team it counts for) and three open-play goals, 4, its score: 1 own goal."
+ 1575152,170,goals_penalty,0,,"Same match: none of its four goal events is a penalty."
+-1557377,42,goals_penalty,,,"Premier League 2026, 1-0. The events list two open-play goals for this team against a score of 1, so they do not add up and its penalties are unknown: blank."
++1557377,42,goals_penalty,0,,"Premier League 2026, 1-0. The events list two open-play goals for this team against a score of 1; one has neither scorer id nor scorer name, and without it they add up, so it did not count: 0 penalties."
+ 1575174,163,goals_penalty,1,,"Bundesliga 2026, 3-4. Goal events: two open-play goals and a penalty, 3, the score; the missed penalty is no goal: 1 penalty."
+ 1641074,8941,goals_penalty,,,"FA Cup 2026, 4-5. The provider sent no events for the match (no substitution or card), so nothing proves how the 4 goals were scored: blank."
+ 1641074,8941,cards_red,,,"Same match: no statistics line and no events, so nothing proves a zero: blank."
 diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
 index 316b4737..7d7b53c7 100644
 --- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
@@ -742,3 +810,21 @@ index 1c7e3bb5..11622d31 100644
          and team_sk is not null
  ),
  
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md |  52 ++-
+#    .claude/task/review.md              |  14 +-
+#    .claude/task/review_input.patch     | 829 +++++++++++++++++++++++++++++++-----
+#    3 files changed, 764 insertions(+), 131 deletions(-)
+# ============================================================================

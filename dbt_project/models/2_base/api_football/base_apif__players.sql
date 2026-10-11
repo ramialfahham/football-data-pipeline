@@ -57,12 +57,32 @@ fixture_events_src as (
         and safe_cast(player_id as int64) != 0
 ),
 
+-- The assisting player of a goal event, named as the events feed names the assist.
+assist_events_src as (
+    select
+        assist_player_id as player_api_id,
+        assist_player_name as player_name,
+        cast(null as string) as player_first_name,
+        cast(null as string) as player_last_name,
+        cast(null as date) as player_birth_date,
+        cast(null as string) as player_nationality,
+        cast(null as string) as player_photo_url,
+        raw_ingested_at,
+        4 as source_priority
+    from {{ ref('base_apif__fixture_events') }}
+    where
+        assist_player_id is not null
+        and assist_player_id != 0
+),
+
 src as (
     select * from players_src
     union all
     select * from fixture_players_src
     union all
     select * from fixture_events_src
+    union all
+    select * from assist_events_src
 )
 
 select

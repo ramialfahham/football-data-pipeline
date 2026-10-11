@@ -9,7 +9,7 @@ fixture_id,team_id,stat,expected_value,rule,working
 1545408,84,saves,0,,"Ligue 1 2025, 0-0. Neither line has a saves value; the other team's line shows 0 shots on target, so this team's keeper had nothing to save: 0."
 1575152,170,goals_own,1,,"Bundesliga 2026, 4-1. The team's goal events are one own goal (filed under the team it counts for) and three open-play goals, 4, its score: 1 own goal."
 1575152,170,goals_penalty,0,,"Same match: none of its four goal events is a penalty."
-1557377,42,goals_penalty,,,"Premier League 2026, 1-0. The events list two open-play goals for this team against a score of 1, so they do not add up and its penalties are unknown: blank."
+1557377,42,goals_penalty,0,,"Premier League 2026, 1-0. The events list two open-play goals for this team against a score of 1; one has neither scorer id nor scorer name, and without it they add up, so it did not count: 0 penalties."
 1575174,163,goals_penalty,1,,"Bundesliga 2026, 3-4. Goal events: two open-play goals and a penalty, 3, the score; the missed penalty is no goal: 1 penalty."
 1641074,8941,goals_penalty,,,"FA Cup 2026, 4-5. The provider sent no events for the match (no substitution or card), so nothing proves how the 4 goals were scored: blank."
 1641074,8941,cards_red,,,"Same match: no statistics line and no events, so nothing proves a zero: blank."

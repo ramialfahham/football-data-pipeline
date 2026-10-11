@@ -31,6 +31,8 @@ scope_paths:
   - dbt_project/tests/assert_base_team_stats_cleaned.sql
   - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
   - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
+  - dbt_project/seeds/team_match_cleaning_answer_key.csv
+  - dbt_project/models/2_base/api_football/base_apif__players.sql
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -90,4 +92,10 @@ done_when:
   - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
 
 amendments: >
-  none
+  data:build:mr failed on two tests; both fixes approved in chat, 2026-10-11.
+  (1) team_match_cleaning_answer_key: Aston Villa 0-1 Arsenal (1557377), Arsenal's penalties change
+  from blank to 0, because the nameless goal event that did not count is now left out and the
+  events add up to the score. (2) base_apif__players adds the assisting player from the match
+  events, as it adds the event's own player, so every assist_player_sk resolves in dim_player
+  (3,026 assist events did not). dim_player gains those players; the marts read it only to name
+  players they already hold, so no mart gains rows.

@@ -311,7 +311,7 @@ models:
   - name: base_apif__players
     description: >
       Global player identity: one row per player_api_id, unioned from /players, fixture player
-      stats and fixture events, then deduplicated in a single pass that prefers the most
+      stats, and the players and assisting players of fixture events, then deduplicated in a single pass that prefers the most
       authoritative named source and, within that, the most recent ingest.
       Grain: player_api_id.
 

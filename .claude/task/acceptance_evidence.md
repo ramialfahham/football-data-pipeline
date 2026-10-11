@@ -30,8 +30,13 @@ temp tables (read-only, dry-run first), against today's prod tables.
     return 0 rows on the branch's rebuilt data.
 - **Nightly read:** the events model now also reads `base_apif__fixtures_next`'s score columns,
   2.5 MB a night (about 75 MB a month). Nothing else reads more.
-- **Not checkable before CI:** prod's staging has no assist id yet, so the relationships test on
-  `assist_player_sk` runs first in `data:build:mr`.
+- **The first `data:build:mr` failed on two tests; both fixes approved in chat, 2026-10-11:**
+  - `assert_team_match_cleaning_answer_key`: Aston Villa 0-1 Arsenal's expected penalties change
+    from blank to 0. The nameless goal event did not count (the match report has only Saka 59'),
+    and without it the events add up.
+  - The `assist_player_sk` relationships test: 3,026 assist events in 1,449 matches named 2,318
+    players missing from `dim_player`. All 2,318 carry a name (13 MB check on the MR's CI
+    tables). `base_apif__players` now adds the assister as it adds the event's own player.
 - **Checks:**
   - `dbt parse` passes.
   - sqlfluff shows no new finding on any changed model or test (counts equal to main's).

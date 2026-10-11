@@ -1,20 +1,20 @@
 # Review — feat/goal-definition
 
-diff_sha256: 420187eea4a46fe2363cb515d23c619c41955a7377b0d8f390df69b55e8d2153
+diff_sha256: ae2a4ed68d09b03c5b88a89bbc87d582c201b87f7b7e099b7c4f64e735ff3cae
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every file in the diff is in scope_paths; the goal definition, the nameless-event rule, negative minutes as shoot-out kicks and the award columns match decisions_taken; nothing reserved (the goals list, the state, the corrections seed, the page) is touched.
-- Doc-sync: layering.md, core.yml, the fct_fixture_event header and cleaning_rules.md no longer say the assist has no id, and cleaning_rules.md carries both new goal-event rules.
+- Every file in the diff is in scope_paths, the two added by the amendment included; the goal definition, the nameless-event rule, negative minutes as shoot-out kicks and the award columns match decisions_taken; nothing reserved is touched.
+- The amendment's claim holds: every mart that reads dim_player left-joins it or starts from a fact, so the assisters it gains add no mart rows.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The definition lives once in base_apif__fixture_events; staging only casts the assist id, core only passes the flags through; the new score join adds no cycle and no fan-out (one row per fixture), and no other model or test keeps its own goal or shoot-out filter.
-- The new columns carry not_null, relationships and accepted_values tests; the four goal tests are repointed to is_goal, not removed; the impact map's 68-model lineage and the measured blast radius match the change.
+- The definition lives once in base_apif__fixture_events and every goal count reads it; core only passes flags through; the score join adds no cycle or fan-out; the answer-key row's new working matches the nameless-event rule.
+- base_apif__players adds the assister at the lowest priority, so an assist never overrides a better-named source; the new columns carry not_null, relationships and accepted_values tests.
 
 ## escalations
 (none)
