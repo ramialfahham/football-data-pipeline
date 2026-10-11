@@ -1,24 +1,29 @@
-# Verification — matches after extra time carry their score after extra time
+# Verification — awarded results carry their kind and the score on the pitch
 
-The fix is 26 rows in `fixture_result_corrections`. Each row gives the score after extra time and
-two match reports on different sites (`source_kind` match_reports). A detector test catches a new
-case. Read-only queries ran against prod's `core` tables, each dry-run first.
+The change is three columns on `fixture_result_corrections` and 44 new rows. No model changes.
+No BigQuery query was run for it; `data:build:mr` loads the seed and runs its tests.
 
-- **Sources:** each of the 26 scores was researched on the web, with two https sources on
-  different sites per match, and all 26 confirm the corrected score.
-  - Six rest their second source on a URL or title that states the score: Hearts' and Swansea's
-    club reports, Newport County's club page, Kent Sports News, and the Sky Sports and Vavel pages
-    for Newcastle v Bournemouth. The other source of each was read in full.
-  - Sky Sports shows the two-leg aggregate in its header for ML Vitebsk v Borac and Ilves v
-    Stjarnan; the match score was used.
-- **The detector today (0.05 GB):** the compiled test on prod's `fct_fixture` returns exactly the
-  26 matches. It flags none of the 15 shoot-outs the provider files as penalty goals after minute
-  120, among them Villarreal v Manchester United in the 2021 Europa League final.
-- **With the seed applied (0.05 GB):** the same test, with `fct_fixture`'s score replaced by the
-  seed's official score as `base_apif__fixtures_next` applies it, returns 0 rows.
-- **The score change:** 26 matches (8 this season), no result changes. The 41 the earlier rule
-  changed included the 15 shoot-outs; that rule and every model and document change of it return
-  to main's version.
-- **Checks:** `dbt parse` passes, and so does every offline gate. sqlfluff (repo root, jinja,
-  bigquery, full rules) reports 0 findings on the test. The seed's own test,
-  `assert_result_corrections_applied`, and the new test run in `data:build:mr`.
+- **Rows:** a script wrote every row from the research files and checked each against the test's
+  rules before writing: unique ids, kind with award, on-pitch score only on played and abandoned
+  awards, https sources, two different sites for match_reports, no Wikipedia page as a source.
+  Result: 79 rows (35 + 44), 0 problems.
+  - 42 not played: 28 Super Lig 2022 (TFF match page and TFF decision), 3 CAF 2020-21, La
+    Passe-Volcan Club, Standard-Westerlo, Tours-Lorient, 5 UEFA COVID-19 forfeits, Cuba-Cayman
+    Islands, 2 Dnipro-1-Puskas Akademia.
+  - 1 played and awarded afterwards: Verona-Roma 2020, 0-0 on the pitch, awarded 3-0.
+  - 1 score fix: Etoile Matoury-Le Geldar, 1-1 where the provider has 2-2.
+  - The 9 existing rows: 4 played, 4 abandoned (Bastia-Lyon 0-0 at half-time, with a third
+    source), 1 not played (Gaziantep-Trabzonspor, with its TFF match page added).
+- **Sources read for the six rows first sourced to Wikipedia:** each now has a second site that
+  states the award; CAF's own statement makes La Passe-Volcan Club official, with no score set.
+  Al Hilal-Asante Kotoko 2-0 rests on a report that the match was not played and Al Hilal went
+  through, and a results page with 2-0.
+- **Checks:**
+  - `dbt parse` passes.
+  - sqlfluff (repo root, jinja, bigquery, full rules) reports 0 findings on the test.
+  - Every offline gate passes.
+  - pytest: 1496 passed, 2 skipped.
+- **Seen by the reviewer, for #176:** `base_apif__fixture_players` checks player goals against
+  the applied score, which for a played-then-awarded match is the awarded score, not the one on
+  the pitch. This is unchanged by this MR (the provider already carries Verona-Roma as 3-0); the
+  on-pitch columns are what #176 can read to fix it.

@@ -541,7 +541,8 @@ seeds:
       The league's official result for each match whose provider result differs from it, one row
       per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
       provider's score and status next to it. assert_result_corrections_applied fails when a row
-      is not applied, its source is not valid, or it no longer changes anything.
+      is not applied, its source is not valid, its award kind or score on the pitch does not fit
+      its award, or it no longer changes anything.
     config:
       column_types:
         fixture_id: int64
@@ -549,6 +550,9 @@ seeds:
         goals_away: int64
         awarded: bool
         awarded_to_team_id: int64
+        award_kind: string
+        on_pitch_home: int64
+        on_pitch_away: int64
         source_kind: string
         source: string
         note: string
@@ -567,6 +571,15 @@ seeds:
         tests: [not_null]
       - name: awarded_to_team_id
         description: "The team the league awarded the match to where it set no score; NULL where the score shows the winner."
+      - name: award_kind
+        description: "How an awarded result came about: not_played = the match was not played; played = played to the end, the result decided afterwards; abandoned = stopped before the end. NULL where the result is not awarded."
+        tests:
+          - accepted_values:
+              values: ["not_played", "played", "abandoned"]
+      - name: on_pitch_home
+        description: "The home goals at the final whistle or at the abandonment, for a played or abandoned award; NULL otherwise."
+      - name: on_pitch_away
+        description: "The away goals at the final whistle or at the abandonment, for a played or abandoned award; NULL otherwise."
       - name: source_kind
         description: "official = the league's or federation's decision or match record; match_reports = two independent match reports."
         tests:
