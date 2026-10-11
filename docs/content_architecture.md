@@ -187,8 +187,6 @@ opponents**.
 - **No News tab and no Transfers tab.** The site has no news source and no transfers surface.
 - **Career and History depth** equals the backfill depth of each competition (section 8).
 - **Coach and Stadium blocks** appear only where the provider data is clean.
-- **Mart naming mixes patterns**, for example `mart_team_fixtures` beside `mart_player_match_log`.
-  This document does not settle naming.
 
 ---
 
