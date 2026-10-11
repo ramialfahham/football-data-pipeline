@@ -29,6 +29,7 @@ scope_paths:
   - dbt_project/tests/assert_result_corrections_applied.sql
   - dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
   - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
+  - dbt_project/tests/assert_player_row_and_events_same_team.sql
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -108,3 +109,9 @@ amendments: >
   is the two-leg aggregate or counts shoot-out kicks; each gets a sourced row with the score after
   extra time, as the extra-time rows before. assert_result_corrections_applied no longer calls an
   award "no longer needed": the provider never says how an award came about.
+  data:build:mr failed on assert_player_row_and_events_same_team in one match, the 2019 Copa
+  Libertadores final (247587): the provider files both teams' players under the other team, in its
+  player rows and its events alike, so the corrected goals disagree with its player rows. The test
+  now compares only the provider's own events with the player rows, as
+  assert_fixture_events_only_from_latest_fetch does; the swapped team lists of that match are a
+  separate item. Approved in chat, 2026-10-11, with a fourth review round.

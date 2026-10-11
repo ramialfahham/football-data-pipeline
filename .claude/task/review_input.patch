@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 23a20545..ba3c6e31 100644
+index 23a20545..41c862cd 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,48 +1,45 @@
+@@ -1,48 +1,46 @@
 -# Task contract — one goal definition
 +# Task contract — a played match's goals on the match mart
  
@@ -56,6 +56,7 @@ index 23a20545..ba3c6e31 100644
 +  - dbt_project/tests/assert_result_corrections_applied.sql
 +  - dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
 +  - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
++  - dbt_project/tests/assert_player_row_and_events_same_team.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
@@ -74,7 +75,7 @@ index 23a20545..ba3c6e31 100644
    base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
    base_apif__players base_apif__teams base_apif__teams_global dim_player
    dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
-@@ -63,39 +60,51 @@ impact_map: >
+@@ -63,39 +61,57 @@ impact_map: >
    mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
    mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
    mart_team_season_insights mart_team_season_record.
@@ -151,6 +152,12 @@ index 23a20545..ba3c6e31 100644
 +  is the two-leg aggregate or counts shoot-out kicks; each gets a sourced row with the score after
 +  extra time, as the extra-time rows before. assert_result_corrections_applied no longer calls an
 +  award "no longer needed": the provider never says how an award came about.
++  data:build:mr failed on assert_player_row_and_events_same_team in one match, the 2019 Copa
++  Libertadores final (247587): the provider files both teams' players under the other team, in its
++  player rows and its events alike, so the corrected goals disagree with its player rows. The test
++  now compares only the provider's own events with the player rows, as
++  assert_fixture_events_only_from_latest_fetch does; the swapped team lists of that match are a
++  separate item. Approved in chat, 2026-10-11, with a fourth review round.
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
 index 10299ace..09c20c96 100644
 --- a/dbt_project/docs/layering.md
@@ -907,9 +914,18 @@ index d8c31f1a..80a9bcf4 100644
 +368990,1,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027691 https://www.croatiaweek.com/?p=80473,"Osijek-CSKA Sofia, UEL 2nd qualifying round 2nd leg 1 Aug 2019: 1-0 after extra time, 1-1 on aggregate, CSKA Sofia won 4-3 on penalties. Croatia Week names the same scorer"
 +369088,2,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027606,"Spartak Trnava-Radnik Bijeljina, UEL 1st qualifying round 2nd leg 18 Jul 2019: 2-0 after extra time (Sobczyk 10', Mihalek 87'), 2-2 on aggregate, Trnava won 3-2 on penalties; stored 4-0 is wrong"
 diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 2ccee1eb..ff7ddb7c 100644
+index 2ccee1eb..a7dd5031 100644
 --- a/dbt_project/seeds/schema.yml
 +++ b/dbt_project/seeds/schema.yml
+@@ -542,7 +542,7 @@ seeds:
+       per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
+       provider's score and status next to it. assert_result_corrections_applied fails when a row
+       is not applied, its source is not valid, its award kind or score on the pitch does not fit
+-      its award, or it no longer changes anything.
++      its award, or a row that is no award no longer changes anything.
+     config:
+       column_types:
+         fixture_id: int64
 @@ -593,6 +593,82 @@ seeds:
          description: "The match and the official decision, in words."
          tests: [not_null]
@@ -1125,6 +1141,24 @@ index 00000000..2f72722c
 +select *
 +from checked
 +where problem is not null
+diff --git a/dbt_project/tests/assert_player_row_and_events_same_team.sql b/dbt_project/tests/assert_player_row_and_events_same_team.sql
+index 6f9a8360..c5ff9c73 100644
+--- a/dbt_project/tests/assert_player_row_and_events_same_team.sql
++++ b/dbt_project/tests/assert_player_row_and_events_same_team.sql
+@@ -3,7 +3,7 @@
+ -- A cleaned player row and that player's events in the same match under different teams. The
+ -- player's-team rule of the cleaning rules moves the side the squad list contradicts, so a row here
+ -- is a match the rule could not decide. Own goals are left out: the provider files them under the
+--- team they count for.
++-- team they count for. A goal corrected by hand is no provider event and is left out too.
+ select
+     player_row.league_code,
+     player_row.fixture_id,
+@@ -20,3 +20,4 @@ inner join {{ ref('base_apif__fixture_events') }} as player_event
+ where
+     player_event.team_id != player_row.team_id
+     and not (player_event.event_type = 'Goal' and player_event.event_detail = 'Own Goal')
++    and player_event.goal_correction_source is null
 diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
 index eba4a64d..f737b9fe 100644
 --- a/dbt_project/tests/assert_result_corrections_applied.sql
@@ -1256,3 +1290,21 @@ index eba4a64d..f737b9fe 100644
  select
      seed,
      correction,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md |   69 +-
+#    .claude/task/review.md              |   12 +-
+#    .claude/task/review_input.patch     | 1906 +++++++++++++++++++++--------------
+#    3 files changed, 1205 insertions(+), 782 deletions(-)
+# ============================================================================

@@ -30,6 +30,11 @@ branch's compiled SQL on prod data in session-only temp tables, read-only, dry-r
 
   - `assert_mart_competition_fixtures_goals_add_up` and `assert_result_corrections_applied`
     return 0 rows.
+- **First MR build:** `assert_player_row_and_events_same_team` failed on 3 rows, all in the 2019
+  Copa Libertadores final (247587). The provider files both teams' players under the other team,
+  so the corrected goals (Borre for River, Gabriel Barbosa twice for Flamengo) disagree with its
+  player rows. The test now skips the corrected goals, as the latest-fetch test does; the swapped
+  team lists are a separate item.
 - **Nightly read:** the mart reads about 0.15 GB more a night (goal events, players' goals,
   player names), about 4.6 GB a month.
 - **Checks:**

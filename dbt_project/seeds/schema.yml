@@ -542,7 +542,7 @@ seeds:
       per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
       provider's score and status next to it. assert_result_corrections_applied fails when a row
       is not applied, its source is not valid, its award kind or score on the pitch does not fit
-      its award, or it no longer changes anything.
+      its award, or a row that is no award no longer changes anything.
     config:
       column_types:
         fixture_id: int64
