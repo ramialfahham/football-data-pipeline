@@ -1,29 +1,21 @@
-# Task contract — matches after extra time carry their score after extra time
+# Task contract — awarded results carry their kind and the score on the pitch
 
 objective: >
-  The 26 matches after extra time whose provider score stops at 90 minutes get their score after
-  extra time from fixture_result_corrections, each with two match reports on different sites. A
-  test fails a match whose score stops at 90 minutes while an open-play goal or an own goal after
-  minute 90 exists, so a new case is caught and corrected the same way.
+  fixture_result_corrections records how each awarded result came about: not played, played, or
+  abandoned, with the score on the pitch for the last two. The 44 matches researched for #176
+  get a sourced row: 42 never played and awarded, one played and awarded afterwards, one whose
+  provider score is wrong. The seed's test fails a row whose kind and on-pitch score do not fit
+  its award.
 
 refs: >
-  #210 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/210): the defect,
-  approved in chat, 2026-10-11. Corrections in the seed instead of a rule that infers the score
-  from the goal events: approved in chat, 2026-10-11.
+  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): every played
+  match has one goal-data state, among them an awarded result with its kind, approved in chat,
+  2026-10-11. This change: approved in chat, 2026-10-11.
 
 scope_paths:
   - dbt_project/seeds/fixture_result_corrections.csv
-  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
-  - dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
-  - dbt_project/models/2_base/api_football/base.yml
-  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
-  - dbt_project/models/3_core/fct_fixture.sql
-  - dbt_project/models/3_core/core.yml
-  - dbt_project/models/docs/cleaning_rules.md
-  - dbt_project/docs/layering.md
-  - dbt_project/tests/assert_base_team_stats_cleaned.sql
-  - dbt_project/tests/assert_base_player_stats_cleaned.sql
+  - dbt_project/seeds/schema.yml
+  - dbt_project/tests/assert_result_corrections_applied.sql
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -31,7 +23,8 @@ scope_paths:
 
 impact_map: >
   writers: dbt seed loads fixture_result_corrections; base_apif__fixtures_next applies each row's
-  official score and keeps the provider's beside it. Nothing else writes the score.
+  official score, status and winner and keeps the provider's beside them. The three new columns
+  have no reader yet. Nothing else writes the result.
   downstream: `dbt ls --select fixture_result_corrections+ --resource-type model` on main gives 67
   models: base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
   base_apif__fixtures_next base_apif__players base_apif__teams base_apif__teams_global dim_player
@@ -53,33 +46,34 @@ impact_map: >
   mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
   mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
   mart_team_season_insights mart_team_season_record. The seed's own test,
-  assert_result_corrections_applied, checks every row is applied and sourced.
-  layer_rules: a seed is configuration; no model changes. Every other path in scope_paths is back
-  at main's version: the branch's earlier approach is withdrawn.
+  assert_result_corrections_applied, checks every row is applied, sourced and valid.
+  layer_rules: a seed is configuration; no model changes. An awarded result (status AWD) already
+  counts in results and tables and stays out of form and stat windows (int_legs__team_match).
   deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
-  blast_radius: the 26 matches' scores (8 this season, no result changes) and every listed model
-  that carries a score, goals for and against, or form for those matches.
+  blast_radius: 43 matches the provider files as played become awarded (status AWD): 28 Super Lig
+  2022 matches after the withdrawals of Gaziantep FK and Hatayspor, 14 other forfeits and
+  Verona-Roma 2020. Two scores change: Etoile Matoury-Le Geldar 2-2 becomes 1-1, and La
+  Passe-Volcan Club 0-1 becomes a win for La Passe with no score set.
 
 decisions_taken: >
-  The defect and the corrections in the seed, each row with two match reports on different sites
-  (source_kind match_reports) or an official record: approved in chat, 2026-10-11. The test is a
-  detector: only open-play goals and own goals after minute 90 count as evidence, because the
-  provider files some shoot-outs as penalty goals without the shoot-out label.
+  The award's kind (not_played, played, abandoned) and the score on the pitch as seed columns,
+  the 9 existing rows filled, and the 44 researched rows, each official or with two match reports
+  on different sites: approved in chat, 2026-10-11. A won match with no score set follows the
+  existing Bastia-Lyon row: 0-0 with the winner in awarded_to_team_id.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; fixture_result_corrections and its test exist.
-  RECURRING COST: none.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; three columns on an existing seed and one more
+  problem kind in its existing test. RECURRING COST: none.
 
 decisions_reserved:
-  - The shoot-out score (#178), the goal lists and the award kind in the seed (#176).
+  - Serving the kind and the on-pitch score to the marts and pages, and the goal lists (#176).
+  - The header status word of an awarded result (#175).
+  - The goal corrections of the 30 played matches researched with these (#176).
+  - The wrong team in CAF match 1619054.
 
 done_when:
   - dbt parse passes; sqlfluff on the test shows no finding.
-  - Each of the 26 rows has two sources on different sites, read against the match.
-  - The test's compiled SQL returns the 26 matches on today's fct_fixture and none with the seed's scores applied.
+  - Every row passes a local check of the test's rules: kind with award, on-pitch score where it belongs, source shape and sites.
   - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
 
 amendments: >
-  Reworked from a rule that inferred the score from the goal events into seed corrections:
-  approved in chat, 2026-10-11. The rule changed 15 shoot-outs the provider files as penalty goals
-  after minute 120 (CI's corrections-share guard failed on Club World Cup 2020). Every model,
-  document and test change of the rule's version returns to main's version.
+  none

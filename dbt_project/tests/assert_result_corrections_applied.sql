@@ -4,6 +4,8 @@
 --     and team.
 --   - winner_not_valid: a winner is set where the score already decides, or names a team not in
 --     the match.
+--   - award_not_valid: an award without its kind or a kind without an award, a played or
+--     abandoned award without the score on the pitch, or a score on the pitch on any other row.
 --   - not_sourced: a source that is not https URLs separated by a space, an official one with
 --     none, or match reports with fewer than two sites.
 --   - no_longer_needed: the provider now carries the official result itself.
@@ -46,6 +48,17 @@ fixture_checks as (
                     or c.awarded_to_team_id not in (f.home_team_id, f.away_team_id)
                 )
                 then 'winner_not_valid'
+            when
+                c.awarded is distinct from (c.award_kind is not null)
+                or (
+                    c.award_kind in ('played', 'abandoned')
+                    and (c.on_pitch_home is null or c.on_pitch_away is null)
+                )
+                or (
+                    coalesce(c.award_kind, '') not in ('played', 'abandoned')
+                    and (c.on_pitch_home is not null or c.on_pitch_away is not null)
+                )
+                then 'award_not_valid'
             when
                 f.provider_goals_home = c.goals_home
                 and f.provider_goals_away = c.goals_away
