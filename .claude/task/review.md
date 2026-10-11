@@ -1,20 +1,20 @@
-# Review — fix/awarded-results
+# Review — docs/naming-rule
 
-diff_sha256: 916109d8ecdc34a304516f1437e70b90996f0f4d64ea2cfbe867015ba5e45815
+diff_sha256: e406463e497e8b8d5a0f343f6c63ab3206090a548996eaee48cdd3ed328a35ad
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The diff is the seed, its schema, its test and the contract, all in scope_paths; the three columns, the 9 filled rows and the 44 new rows are covered by decisions_taken; nothing in decisions_reserved is touched (no mart or page reads the new columns, no goal corrections, CAF match 1619054 absent).
-- NEW MECHANISM and RECURRING COST none holds against the diff: three columns on an existing seed and one problem kind in its existing test; every source is https, official rows carry at least one URL and match_reports rows two different sites.
+- The diff is the two rule lines in engineering_standards.md, the deleted content_architecture.md bullet and the contract, all in scope_paths; the rule text is in decisions_taken; no mart is renamed and the intermediate and staging lines are unchanged.
+- The old rule text has no other copy in the repository; layering.md keeps the tests for fct_ and dim_, which the new line points to.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- No model changes; base_apif__fixtures_next applies goals, status and winner as before, and the new columns have no reader; every row traced by hand passes award_not_valid, and the 43 newly awarded matches go through the existing AWD handling in int_legs__team_match and the coverage tests.
-- The CSV has 79 rows (35 + 44, 42 not played, 1 played, 1 score fix); home and away goals agree with the team order in the notes; the two winner-without-score rows carry 0-0 and awarded_to_team_id as the Bastia-Lyon row does.
+- Every core model is fct_ or dim_; every mart starts with one of the five entity words except the seven the contract lists, which matches an independent count of the 29 marts.
+- No script, hook, test or CI gate reads the changed lines; check_layer_contract.py checks only the fct_ prefix, which the rule keeps.
 
 ## escalations
 (none)

@@ -14,9 +14,9 @@ Use it together with [`layering.md`](layering.md) (BigQuery dataset layout and l
 - Prefix by layer intent:
   - staging: `stg_<source>__<entity>`
   - base: `base_<domain>__<entity>`
-  - core: `core_<entity>`
+  - core: `fct_<entity>` for facts and `dim_<entity>` for dimensions; `layering.md` says when a table earns each.
   - intermediate: `int_<domain>__<purpose>` — use **`int_matchday__*`** for matchday preview / form / fixture denorm spine, **`int_team_season__*`** for per-team-season preparation (e.g. standings dedupe), **`int_pipeline__*`** for ingestion or warehouse-operation helpers (for example raw load-time spread). Intermediate must not `ref()` any `mart_*` model.
-  - marts: `mart_<consumer_or_domain>__<purpose>`
+  - marts: `mart_<entity>_<subject>`, where `<entity>` is whose data the mart holds: `player`, `team`, `competition`, `fixture` or `matchday`. A single match is `fixture` in every name; a round of matches is `matchday`.
 - Columns use lowercase snake_case.
 - Boolean columns start with `is_` or `has_`.
 - Timestamp columns end with `_at`, dates end with `_date`.
