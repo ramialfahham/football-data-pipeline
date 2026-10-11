@@ -129,7 +129,8 @@ models:
       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
       fixture_id. Where the provider's result differs from the league's official decision, the
       score and status are the official ones from the fixture_result_corrections seed, and the
-      provider's stay on the row. Grain: fixture_id.
+      provider's stay on the row. After extra time this score can stop at 90 minutes;
+      base_apif__fixture_scores holds the score with the extra-time goals. Grain: fixture_id.
     config:
       tags: ["base", "api_football", "fixture_context"]
     tests:
@@ -152,6 +153,31 @@ models:
         description: "The provider's status code; differs from status_short only where the league awarded a match the provider files as played."
       - name: result_correction_source
         description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
+
+  - name: base_apif__fixture_scores
+    description: >
+      One row per fixture: its score. After extra time the provider's score can stop at 90
+      minutes while its goal events hold the extra-time goals. There the score is the goal
+      events' total, where those of the first 90 minutes equal the provider's score. Every goal
+      event must have a minute, and the league's official result is not corrected. Goal events
+      are goals, penalties and own goals with a player, shoot-out kicks left out. Elsewhere the
+      score is the one in base_apif__fixtures_next. Grain: fixture_id.
+    config:
+      tags: ["base", "api_football", "fixture_context"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_id]
+    columns:
+      - name: fixture_id
+        description: "{{ doc('fixture_api_id') }}"
+        tests: [not_null]
+      - name: is_score_from_goal_events
+        description: "True where the score was taken from the goal events because the provider's stopped at 90 minutes."
+        tests: [not_null]
+      - name: goals_home
+        description: "The home team's goals, extra time included, the penalty shoot-out excluded. NULL until the match is played."
+      - name: goals_away
+        description: "The away team's goals, extra time included, the penalty shoot-out excluded. NULL until the match is played."
 
   - name: base_apif__standings
     description: >

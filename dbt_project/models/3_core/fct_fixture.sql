@@ -1,5 +1,19 @@
 with import_base_apif__fixtures_next as (
     select * from {{ ref('base_apif__fixtures_next') }}
+),
+
+import_base_apif__fixture_scores as (
+    select * from {{ ref('base_apif__fixture_scores') }}
+),
+
+fixtures as (
+    select
+        fixtures_next.* except (goals_home, goals_away),
+        scores.goals_home,
+        scores.goals_away
+    from import_base_apif__fixtures_next as fixtures_next
+    inner join import_base_apif__fixture_scores as scores
+        on fixtures_next.fixture_id = scores.fixture_id
 )
 
 select
@@ -28,4 +42,4 @@ select
     venue_name as venue_name_snapshot,
     venue_city as venue_city_snapshot,
     raw_ingested_at
-from import_base_apif__fixtures_next
+from fixtures

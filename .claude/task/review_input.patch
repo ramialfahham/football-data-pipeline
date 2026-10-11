@@ -1,359 +1,540 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index a2f4e8ef..a0eb8136 100644
+index a0eb8136..50278486 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,21 +1,26 @@
--# Task contract — the site build's memory at full scale
-+# Task contract — the site build's two checks run after Astro exits
+@@ -1,78 +1,101 @@
+-# Task contract — the site build's two checks run after Astro exits
++# Task contract — matches after extra time carry their score after extra time
  
  objective: >
--  Measure where the full-scale site build's memory goes, phase by phase. The match page and the
--  team page then each read their own data file while that page renders, and the SEO check keeps
--  only what it compares, so the build no longer holds every data file at once.
-+  The SEO check and the built-pages check run as steps of `npm run build` after `astro build` has
-+  exited, instead of as child processes inside it, so their memory no longer adds to Astro's and
-+  the full-scale build fits ci-runner-01.
+-  The SEO check and the built-pages check run as steps of `npm run build` after `astro build` has
+-  exited, instead of as child processes inside it, so their memory no longer adds to Astro's and
+-  the full-scale build fits ci-runner-01.
++  A match decided after extra time carries its score after extra time, the shoot-out excluded.
++  Where the provider's score stops at 90 minutes while its goal events hold the extra-time goals,
++  a new base model takes the score from the goal events, and every model that reads the score
++  reads it from there.
  
  refs: >
--  #208 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208): the issue and
--  its plan, approved in chat, 2026-10-10. Measure first, before an incremental build: approved in
--  chat, 2026-10-10.
-+  #209 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/209). Checks after the
-+  build, over a bigger machine: approved in chat, 2026-10-10. The plan: approved in chat,
-+  2026-10-11. The runner measurement: #208
-+  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208#note_3990668184).
+-  #209 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/209). Checks after the
+-  build, over a bigger machine: approved in chat, 2026-10-10. The plan: approved in chat,
+-  2026-10-11. The runner measurement: #208
+-  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208#note_3990668184).
++  #210 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/210): the defect and
++  its plan, approved in chat, 2026-10-11.
  
  scope_paths:
--  - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
--  - site_v2/src/pages/?lang?/?teams?/?team?.astro
--  - site_v2/src/lib/format.ts
--  - site_v2/scripts/audit-seo.mjs
--  - site_v2/scripts/audit-seo.test.mjs
-+  - site_v2/package.json
-+  - site_v2/astro.config.mjs
-+  - site_v2/integrations/seo-audit.mjs
-+  - site_v2/integrations/built-pages.mjs
-+  - site_v2/scripts/check-built-pages.mjs
-+  - site_v2/scripts/build-wiring.test.mjs
-+  - site_v2/src/config/indexability.mjs
-+  - site_v2/src/specs/page-spec.schema.json
-+  - tests/test_no_decision_history_in_code.py
+-  - site_v2/package.json
+-  - site_v2/astro.config.mjs
+-  - site_v2/integrations/seo-audit.mjs
+-  - site_v2/integrations/built-pages.mjs
+-  - site_v2/scripts/check-built-pages.mjs
+-  - site_v2/scripts/build-wiring.test.mjs
+-  - site_v2/src/config/indexability.mjs
+-  - site_v2/src/specs/page-spec.schema.json
+-  - tests/test_no_decision_history_in_code.py
++  - dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++  - dbt_project/models/3_core/fct_fixture.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/docs/layering.md
++  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
++  - dbt_project/tests/assert_base_team_stats_cleaned.sql
++  - dbt_project/tests/assert_base_player_stats_cleaned.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -23,52 +28,51 @@ scope_paths:
-   - .claude/task/rendered_page_evidence.md
+   - .claude/task/acceptance_evidence.md
+-  - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: scripts/export_site_data.py writes site_v2/src/data/fixtures/*.json and
--  site_v2/src/data/teams/*.json; unchanged.
--  downstream: `grep -rln "data/fixtures" site_v2/src` lists the match page and its spec only;
--  `grep -rln "data/teams" site_v2/src` lists the match page, the team page, the team spec and the
--  spec schema. So the two pages are the only code readers. The SEO check runs as a child process
--  after every site build (site_v2/integrations/seo-audit.mjs) and in CI's build:site-v2 and
--  deploy:site-v2; its checks and its verdicts are unchanged.
--  layer_rules: the page selects and renders served data; nothing is computed.
--  site_v2/src/lib/format.ts: `grep -rl "lib/format" site_v2/src | wc -l` gives 51 importers, every
--  page type among them; no script or integration imports it. Its exports and their output are
--  unchanged.
-+  writers: none; the two check scripts and the export are unchanged in what they check.
-+  downstream: `grep -rln "seoAudit\|builtPages\|integrations/seo-audit\|integrations/built-pages"`
-+  over site_v2 lists astro.config.mjs, the two integration files, and two comments
-+  (scripts/check-built-pages.mjs, src/config/indexability.mjs). `grep -n "npm run build"
-+  .gitlab-ci.yml` gives build:site-v2 (line 642) and deploy:site-v2 (line 1077): both run the
-+  build script, so both keep both checks. tests/test_governance_hooks.py names
-+  site_v2/integrations/seo-audit.mjs only as a routing example.
-+  layer_rules: none; build wiring, no page logic.
-   deploy_order: none; a site build.
-   blast_radius: no built page changes, verified by a byte compare of every built file with main's
--  build of the same day. The build's memory and time change; measured before and after at full
--  scale.
-+  build of the same day. Lost: the route-pattern page-count log line the SEO integration printed,
-+  which nothing reads.
- 
- acceptance_criteria:
--  - A full-scale build is measured: 62,800 match payloads and 3,348 team payloads. Peak process memory, peak heap and time are recorded per phase (bundling, page writing, sitemap, SEO check, built-pages check), on main and on this branch, on this issue.
--  - A match page and a team page are each built from their own data file, read while that page renders. The build no longer holds every data file at once.
-+  - "`npm run build` runs the SEO check and then the built-pages check after `astro build` has exited; a page the SEO check refuses still makes `npm run build` exit non-zero."
-   - "Today's site is unchanged: every file built from the committed sample is byte-identical to main's build, built the same day."
--  - With a 3 GB heap cap, the full-scale build passes every build check. If it does not, this issue names the phase that runs out of memory and its peak.
-+  - On ci-runner-01, this branch's full-scale build (62,800 match payloads, 3,348 team payloads) passes both checks without being killed; its peak process memory and time are on this issue.
+-  writers: none; the two check scripts and the export are unchanged in what they check.
+-  downstream: `grep -rln "seoAudit\|builtPages\|integrations/seo-audit\|integrations/built-pages"`
+-  over site_v2 lists astro.config.mjs, the two integration files, and two comments
+-  (scripts/check-built-pages.mjs, src/config/indexability.mjs). `grep -n "npm run build"
+-  .gitlab-ci.yml` gives build:site-v2 (line 642) and deploy:site-v2 (line 1077): both run the
+-  build script, so both keep both checks. tests/test_governance_hooks.py names
+-  site_v2/integrations/seo-audit.mjs only as a routing example.
+-  layer_rules: none; build wiring, no page logic.
+-  deploy_order: none; a site build.
+-  blast_radius: no built page changes, verified by a byte compare of every built file with main's
+-  build of the same day. Lost: the route-pattern page-count log line the SEO integration printed,
+-  which nothing reads.
+-
+-acceptance_criteria:
+-  - "`npm run build` runs the SEO check and then the built-pages check after `astro build` has exited; a page the SEO check refuses still makes `npm run build` exit non-zero."
+-  - "Today's site is unchanged: every file built from the committed sample is byte-identical to main's build, built the same day."
+-  - On ci-runner-01, this branch's full-scale build (62,800 match payloads, 3,348 team payloads) passes both checks without being killed; its peak process memory and time are on this issue.
++  writers: base_apif__fixtures_next (the provider's score and the fixture_result_corrections seed)
++  and base_apif__fixture_events (the goal events) feed the new base_apif__fixture_scores. Three
++  models switch their score to it: fct_fixture, base_apif__fixture_statistics and
++  base_apif__fixture_players. So do the two singular tests that check those stats models'
++  cleaning, assert_base_team_stats_cleaned and assert_base_player_stats_cleaned.
++  assert_result_corrections_applied keeps reading base_apif__fixtures_next, the model whose
++  corrections seed it checks. Nothing else changes its SQL; `grep -rln base_apif__fixtures_next
++  dbt_project/tests dbt_project/models` filtered to files reading goals_home/goals_away lists
++  exactly these.
++  downstream: `dbt ls --select fct_fixture+ base_apif__fixture_statistics+
++  base_apif__fixture_players+ --resource-type model` gives 54 models: base_apif__fixture_players
++  base_apif__fixture_statistics fct_fixture fct_fixture_player_stats fct_fixture_team_stats
++  int_legs__player_match int_legs__team_from_players int_legs__team_match
++  int_player_club_season__metrics int_player_competition_benchmark_metrics_long
++  int_player_competition_benchmarks int_player_momentum__metrics int_player_profile__contribution
++  int_player_profile__yoy int_player_season__metrics int_player_season__team
++  int_player_season_position__metrics int_player_season_record
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
++  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
++  mart_competition_index mart_competition_season_summary mart_fixture_standing_context
++  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats
++  mart_player_match_log mart_player_momentum mart_player_profile mart_player_season_record
++  mart_team_competition_benchmarks mart_team_fixture_stats mart_team_fixtures
++  mart_team_leaderboards mart_team_momentum mart_team_momentum_window mart_team_profile
++  mart_team_season mart_team_season_insights mart_team_season_record.
++  layer_rules: base may ref its own layer (layering.md, the ref rule); check_layer_contract.py
++  forbids a base ref to dim_/fct_/int_/mart_ models and any per-model materialized config; the
++  new model takes the folder's materialisation.
++  deploy_order: one dbt graph; the new model builds before its three readers in the same run, in
++  data:build:main on merge and in the 04:00 fdp-nightly. No staged migration.
++  blast_radius: the 41 matches after extra time whose score the rule changes (8 this season, 14
++  with a different result), in fct_fixture and every listed model that carries a score, a result,
++  goals for and against, or form for those matches. Measured by a before/after query of the new
++  model's compiled SQL against prod: exactly those 41 scores change and no other; the list goes on
++  the MR.
  
  decisions_taken: >
--  The issue's plan, approved in chat, 2026-10-10: getStaticPaths of the match page and the team
--  page returns id, slug and locale only, and each page reads its own file as it renders. If the
--  profile puts a peak in the SEO check, it keeps only the fields it compares, and its first pass
--  collects paths from file names without reading the HTML.
-+  The issue's plan, approved in chat, 2026-10-11: the build script runs `astro build`, then
-+  scripts/audit-seo.mjs, then scripts/check-built-pages.mjs, each only if the previous step passed;
-+  astro.config.mjs drops the two integrations and site_v2/integrations/ is deleted; comments and
-+  schema descriptions that name the integrations or astro:build:done say where the checks run now.
+-  The issue's plan, approved in chat, 2026-10-11: the build script runs `astro build`, then
+-  scripts/audit-seo.mjs, then scripts/check-built-pages.mjs, each only if the previous step passed;
+-  astro.config.mjs drops the two integrations and site_v2/integrations/ is deleted; comments and
+-  schema descriptions that name the integrations or astro:build:done say where the checks run now.
++  The issue's plan, approved in chat, 2026-10-11: a base model base_apif__fixture_scores takes a
++  match's score from its goal events where the match ended after extra time, the official-result
++  seed does not correct it, the goal events of the first 90 minutes equal the provider's score,
++  goal events after minute 90 exist, and no goal event lacks a minute. Goal events are goals,
++  penalties and own goals with a player, shoot-out kicks left out. fct_fixture and the two
++  base stats models read the score from it. cleaning_rules.md states the rule; the result rule
++  there names goal events after extra time beside the league's official decision.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; the pages already read their data with node:fs,
--  and this moves the read of a page's own file from getStaticPaths into the page. RECURRING COST:
--  none.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; two existing scripts move from build hooks to the
-+  build script, approved in chat, 2026-10-10. RECURRING COST: none.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; two existing scripts move from build hooks to the
+-  build script, approved in chat, 2026-10-10. RECURRING COST: none.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a base cleaning model, the pattern
++  base_apif__fixtures_next already follows with its corrections seed. RECURRING COST: one more
++  base table built in each nightly from two base tables; its read is measured by dry-run before
++  commit and recorded on the MR.
  
  decisions_reserved:
--  - A memory peak anywhere other than the two pages' route data and the SEO check goes to the CPO with the profile, unfixed.
--  - The incremental build and the machine or runner size, decided from this issue's numbers.
--  - The played match payload and page (#175, #176), and any change to the other data the build bundles (competition payloads).
-+  - The machine or runner size, and the nightly site build (#156).
-+  - The played match payload (#175, #176), which changes the full-scale numbers.
+-  - The machine or runner size, and the nightly site build (#156).
+-  - The played match payload (#175, #176), which changes the full-scale numbers.
++  - Goal mismatches that are not extra-time scores, and the goal lists (#176).
++  - The shoot-out score (#178).
  
  done_when:
--  - npm test in site_v2 passes; pytest tests/ passes.
--  - A build of the committed sample ends with both build checks printing OK.
--  - A byte compare of every built file against main's build of the same day finds 0 differences.
--  - The full-scale measurements, main and branch, at 8 GB and 3 GB heap caps, are in .claude/task/acceptance_evidence.md and on #208.
-+  - npm test in site_v2 passes; pytest tests/ passes; the offline CI gates pass.
-+  - npm run build on the committed sample prints both checks' OK lines after Astro completes, and a byte compare with main's build of the same day finds 0 differences.
-+  - A planted duplicate page makes npm run build exit non-zero with the SEO check's finding.
-+  - The ci-runner-01 full-scale measurement is in .claude/task/acceptance_evidence.md and on #209.
+-  - npm test in site_v2 passes; pytest tests/ passes; the offline CI gates pass.
+-  - npm run build on the committed sample prints both checks' OK lines after Astro completes, and a byte compare with main's build of the same day finds 0 differences.
+-  - A planted duplicate page makes npm run build exit non-zero with the SEO check's finding.
+-  - The ci-runner-01 full-scale measurement is in .claude/task/acceptance_evidence.md and on #209.
++  - dbt parse passes; sqlfluff on the changed models shows no finding that main does not show.
++  - The new model's compiled SQL, run as a query, changes exactly the 41 matches' scores.
++  - The new test's compiled SQL returns the 41 matches on today's fct_fixture and none on the new model's scores.
++  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
  
  amendments: >
--  site_v2/src/lib/format.ts joins: approved in chat, 2026-10-10. Main's full-scale profile put
--  about 7.8 GB of the page-writing peak outside the heap (11.2 GB process memory, 3.3 GB heap).
--  format.ts builds a new Intl formatter on every call; a probe of that pattern held 4.2 GB outside
--  the heap over 400,000 calls, against 0.05 GB with one formatter reused. The file keeps one
--  formatter per locale and option set; every formatted string is unchanged.
-+  tests/test_no_decision_history_in_code.py joins: authority, the approved plan's deletion of
-+  site_v2/integrations/ (approved in chat, 2026-10-11). One deleted file carried one flagged line,
-+  so the tree holds 748 flagged lines in 188 files against the pin of 749 in 189; the test requires
-+  the pin to follow the sweep down. Content: PINNED_LINES 749 to 748, PINNED_FILES 189 to 188.
-+
-+  site_v2/scripts/build-wiring.test.mjs joins: approved in chat, 2026-10-11, after the
-+  platform-reviewer's round-1 finding that no test pins the build script. Content: a node --test
-+  file that fails unless the build script is `astro build`, then scripts/audit-seo.mjs, then
-+  scripts/check-built-pages.mjs, each joined by `&&`, and unless astro.config.mjs imports nothing
-+  from ./integrations/.
-diff --git a/site_v2/astro.config.mjs b/site_v2/astro.config.mjs
-index fd7b1f9e..d90975d4 100644
---- a/site_v2/astro.config.mjs
-+++ b/site_v2/astro.config.mjs
-@@ -8,8 +8,6 @@
- // so the site serves from "/".
- import { defineConfig } from "astro/config";
- import sitemap from "@astrojs/sitemap";
--import seoAudit from "./integrations/seo-audit.mjs";
--import builtPages from "./integrations/built-pages.mjs";
- import { SITEMAP_EXCLUDE } from "./src/config/indexability.mjs";
+-  tests/test_no_decision_history_in_code.py joins: authority, the approved plan's deletion of
+-  site_v2/integrations/ (approved in chat, 2026-10-11). One deleted file carried one flagged line,
+-  so the tree holds 748 flagged lines in 188 files against the pin of 749 in 189; the test requires
+-  the pin to follow the sweep down. Content: PINNED_LINES 749 to 748, PINNED_FILES 189 to 188.
+-
+-  site_v2/scripts/build-wiring.test.mjs joins: approved in chat, 2026-10-11, after the
+-  platform-reviewer's round-1 finding that no test pins the build script. Content: a node --test
+-  file that fails unless the build script is `astro build`, then scripts/audit-seo.mjs, then
+-  scripts/check-built-pages.mjs, each joined by `&&`, and unless astro.config.mjs imports nothing
+-  from ./integrations/.
++  dbt_project/tests/assert_base_team_stats_cleaned.sql and
++  dbt_project/tests/assert_base_player_stats_cleaned.sql join: authority, the approved plan's
++  step that the stats models read the corrected score (approved in chat, 2026-10-11); the tests
++  that check those models' cleaning must read the same score. Found by the
++  analytics-engineer-reviewer in round 1: both still read the 90-minute score from
++  base_apif__fixtures_next and would fail the 41 matches. Content: each test's fixtures CTE takes
++  goals_home and goals_away from base_apif__fixture_scores.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 408789a2..77dd0fb7 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -257,7 +257,7 @@ Canonical fact inventory for this project:
  
- export default defineConfig({
-@@ -30,8 +28,8 @@ export default defineConfig({
-       prefixDefaultLocale: true,
-     },
-   },
--  // ORDER MATTERS. Astro runs integration hooks sequentially in this array's order, so the audit is
--  // placed AFTER sitemap() — it inspects the sitemap the previous integration just wrote.
-+  // The SEO audit and the built-pages check are not integrations: `npm run build` runs them after
-+  // `astro build` exits, so their memory never adds to the build's, and the audit sees the sitemap.
-   //
-   // The sitemap is GENERATED even while the site is `noindex`. Deferring it entirely would leave its
-   // 50k-per-file splitting and the locale-reciprocal index logic with ZERO exercise until go-live —
-@@ -39,7 +37,5 @@ export default defineConfig({
-   // and robots.txt does not advertise it, so a noindex corpus is not being announced.
-   integrations: [
-     sitemap({ filter: (page) => !SITEMAP_EXCLUDE.some((re) => re.test(new URL(page).pathname)) }),
--    seoAudit(),
--    builtPages(),
-   ],
- });
-diff --git a/site_v2/integrations/built-pages.mjs b/site_v2/integrations/built-pages.mjs
-deleted file mode 100644
-index b672a16a..00000000
---- a/site_v2/integrations/built-pages.mjs
-+++ /dev/null
-@@ -1,27 +0,0 @@
--// The Astro integration that runs the built-pages check as part of `astro build`, after the SEO
--// audit: the site carries every unplayed match the warehouse holds, and the Matchdays tab keeps
--// its invariants (scripts/check-built-pages.mjs says which). A child process, for the reasons
--// integrations/seo-audit.mjs gives: a fresh heap and a script that stays directly runnable.
--
--import { execFileSync } from "node:child_process";
--import { fileURLToPath } from "node:url";
--import { join } from "node:path";
--
--export default function builtPages() {
--  return {
--    name: "built-pages",
--    hooks: {
--      "astro:build:done": ({ dir }) => {
--        const script = join(fileURLToPath(new URL(".", import.meta.url)), "..", "scripts", "check-built-pages.mjs");
--        try {
--          execFileSync(process.execPath, [script, fileURLToPath(dir)], { stdio: "inherit" });
--        } catch {
--          throw new Error(
--            "built-pages: the build does not carry what the warehouse holds, or a fixtures page breaks " +
--              "its invariants (see the list above). The gate refuses the build rather than shipping it.",
--          );
--        }
--      },
--    },
--  };
--}
-diff --git a/site_v2/integrations/seo-audit.mjs b/site_v2/integrations/seo-audit.mjs
-deleted file mode 100644
-index 3394b01f..00000000
---- a/site_v2/integrations/seo-audit.mjs
-+++ /dev/null
-@@ -1,51 +0,0 @@
--// The Astro integration that runs the SEO audit as part of `astro build` (#844).
--//
--// WHY AN INTEGRATION AND NOT AN npm `postbuild` SCRIPT — the honest reason, because the plan's
--// original one was wrong. The plan argued that `npm ci --ignore-scripts` skips pre/post hooks while
--// still running the main script, yielding a complete `dist/` with no checks and exit 0. That npm
--// behaviour is real, but NEITHER workflow in this repo passes `--ignore-scripts`, and both invoke
--// exactly `npm run build` (never bare `astro build`) — so that bypass is not present here.
--//
--// The real reason is `astro:build:done`'s payload: it hands over `assets`, a Map keyed by each
--// route's PATTERN, so a template's emitted-file count comes for free. That is the page-count driver
--// a page spec declares, and a `dist/` walker cannot reconstruct it — once the files are on disk
--// there is nothing left tying `/en/teams/foo/` back to `[lang]/teams/[team].astro`.
--//
--// The checker runs as a CHILD PROCESS: it gets a fresh heap (the audit streams a corpus measured in
--// hundreds of MB, and the Astro build already needs --max-old-space-size=8192 at full scale), and it
--// stays a plain, directly-runnable, unit-testable script rather than becoming integration-only code.
--
--import { execFileSync } from "node:child_process";
--import { fileURLToPath } from "node:url";
--import { join } from "node:path";
--
--export default function seoAudit() {
--  return {
--    name: "seo-audit",
--    hooks: {
--      "astro:build:done": ({ dir, assets, logger }) => {
--        // The page-count driver, free from the hook payload: route pattern -> emitted file count.
--        if (assets) {
--          const counts = [...assets.entries()]
--            .map(([pattern, files]) => `${pattern} -> ${files.length}`)
--            .join(", ");
--          logger.info(`page-count driver: ${counts}`);
--        }
--
--        const script = join(fileURLToPath(new URL(".", import.meta.url)), "..", "scripts", "audit-seo.mjs");
--        try {
--          // stdio inherit: the audit's own violation list is the error message. Wrapping it would
--          // only hide which page failed.
--          execFileSync(process.execPath, [script, fileURLToPath(dir)], { stdio: "inherit" });
--        } catch {
--          // The build has already written dist/ by this point. Throwing is what makes the FAILURE
--          // real: `astro build` exits non-zero, so CI and the deploy workflow both stop.
--          throw new Error(
--            "seo-audit: the built site violates its own page specs (see the list above). " +
--              "The gate refuses the build rather than shipping pages whose SEO surface is wrong (#844).",
--          );
--        }
--      },
--    },
--  };
--}
-diff --git a/site_v2/package.json b/site_v2/package.json
-index d4fe871d..d74536ff 100644
---- a/site_v2/package.json
-+++ b/site_v2/package.json
-@@ -9,7 +9,7 @@
-     "test": "node --test",
-     "prebuild": "npm test && node scripts/check-page-specs.mjs",
-     "dev": "astro dev",
--    "build": "astro build",
-+    "build": "astro build && node scripts/audit-seo.mjs && node scripts/check-built-pages.mjs",
-     "preview": "astro preview"
-   },
-   "dependencies": {
-diff --git a/site_v2/scripts/build-wiring.test.mjs b/site_v2/scripts/build-wiring.test.mjs
+ | Fact | Grain | Source staging model(s) | Notes |
+ |------|-------|-------------------------|-------|
+-| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next` | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
++| `fct_fixture` | `fixture_sk` (= `fixture_api_id`) | `base_apif__fixtures_next`, `base_apif__fixture_scores` (the score) | Match header; status, round, and venue travel as degenerate attributes. Half-time / extra-time / penalty splits deferred. |
+ | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
+ | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
+ | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 5c64f1a6..9fdc19c4 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -129,7 +129,8 @@ models:
+       One row per fixture, from the generic stg_apif__fixtures_next model, deduplicated on
+       fixture_id. Where the provider's result differs from the league's official decision, the
+       score and status are the official ones from the fixture_result_corrections seed, and the
+-      provider's stay on the row. Grain: fixture_id.
++      provider's stay on the row. After extra time this score can stop at 90 minutes;
++      base_apif__fixture_scores holds the score with the extra-time goals. Grain: fixture_id.
+     config:
+       tags: ["base", "api_football", "fixture_context"]
+     tests:
+@@ -153,6 +154,31 @@ models:
+       - name: result_correction_source
+         description: "Where the result was corrected, the source of the official result: the league's or federation's decision or record, or two independent match reports. NULL elsewhere."
+ 
++  - name: base_apif__fixture_scores
++    description: >
++      One row per fixture: its score. After extra time the provider's score can stop at 90
++      minutes while its goal events hold the extra-time goals. There the score is the goal
++      events' total, where those of the first 90 minutes equal the provider's score. Every goal
++      event must have a minute, and the league's official result is not corrected. Goal events
++      are goals, penalties and own goals with a player, shoot-out kicks left out. Elsewhere the
++      score is the one in base_apif__fixtures_next. Grain: fixture_id.
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [fixture_id]
++    columns:
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: is_score_from_goal_events
++        description: "True where the score was taken from the goal events because the provider's stopped at 90 minutes."
++        tests: [not_null]
++      - name: goals_home
++        description: "The home team's goals, extra time included, the penalty shoot-out excluded. NULL until the match is played."
++      - name: goals_away
++        description: "The away team's goals, extra time included, the penalty shoot-out excluded. NULL until the match is played."
++
+   - name: base_apif__standings
+     description: >
+       One row per team per standings section, from the generic stg_apif__standings model,
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+index 88793c7e..8bc4c998 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+@@ -224,12 +224,14 @@ delivered as (
+ 
+ fixtures as (
+     select
+-        fixture_id,
+-        cast(home_team_id as int64) as home_team_id,
+-        cast(away_team_id as int64) as away_team_id,
+-        goals_home,
+-        goals_away
+-    from {{ ref('base_apif__fixtures_next') }}
++        fixtures_next.fixture_id,
++        cast(fixtures_next.home_team_id as int64) as home_team_id,
++        cast(fixtures_next.away_team_id as int64) as away_team_id,
++        scores.goals_home,
++        scores.goals_away
++    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
++    inner join {{ ref('base_apif__fixture_scores') }} as scores
++        on fixtures_next.fixture_id = scores.fixture_id
+ ),
+ 
+ events as (
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
 new file mode 100644
-index 00000000..77dac260
+index 00000000..af16de08
 --- /dev/null
-+++ b/site_v2/scripts/build-wiring.test.mjs
-@@ -0,0 +1,24 @@
-+// Regression coverage for how the two build checks are wired. `npm run build` is the only thing
-+// that runs them, so a build script without them ships an unchecked site while every other test
-+// stays green.
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
+@@ -0,0 +1,76 @@
++-- Each fixture's score; after extra time it comes from the goal events where the provider's
++-- score stops at 90 minutes.
++with import_base_apif__fixtures_next as (
++    select * from {{ ref('base_apif__fixtures_next') }}
++),
 +
-+import { test } from "node:test";
-+import assert from "node:assert/strict";
-+import { readFileSync } from "node:fs";
-+import { join } from "node:path";
-+import { fileURLToPath } from "node:url";
++import_base_apif__fixture_events as (
++    select * from {{ ref('base_apif__fixture_events') }}
++),
 +
-+const SITE_ROOT = join(fileURLToPath(new URL(".", import.meta.url)), "..");
++goal_events as (
++    select
++        fixture_id,
++        team_id,
++        minute_elapsed
++    from import_base_apif__fixture_events
++    where
++        event_type = 'Goal'
++        and event_detail in ('Normal Goal', 'Penalty', 'Own Goal')
++        and event_comments is distinct from 'Penalty Shootout'
++        and player_id is not null
++),
 +
-+test("npm run build runs astro build, then the SEO check, then the built-pages check, each only if the step before passed", () => {
-+  const { scripts } = JSON.parse(readFileSync(join(SITE_ROOT, "package.json"), "utf8"));
-+  assert.deepEqual(
-+    scripts.build.split("&&").map((step) => step.trim()),
-+    ["astro build", "node scripts/audit-seo.mjs", "node scripts/check-built-pages.mjs"],
-+  );
-+});
++goal_counts as (
++    select
++        fixtures.fixture_id,
++        countif(
++            goal_events.team_id = cast(fixtures.home_team_id as int64)
++            and goal_events.minute_elapsed <= 90
++        ) as home_goals_in_90,
++        countif(
++            goal_events.team_id = cast(fixtures.away_team_id as int64)
++            and goal_events.minute_elapsed <= 90
++        ) as away_goals_in_90,
++        countif(
++            goal_events.team_id = cast(fixtures.home_team_id as int64)
++            and goal_events.minute_elapsed > 90
++        ) as home_goals_after_90,
++        countif(
++            goal_events.team_id = cast(fixtures.away_team_id as int64)
++            and goal_events.minute_elapsed > 90
++        ) as away_goals_after_90,
++        countif(goal_events.minute_elapsed is null) as goals_without_minute
++    from import_base_apif__fixtures_next as fixtures
++    inner join goal_events
++        on fixtures.fixture_id = goal_events.fixture_id
++    group by fixtures.fixture_id
++),
 +
-+test("astro.config.mjs runs no check inside astro build", () => {
-+  const config = readFileSync(join(SITE_ROOT, "astro.config.mjs"), "utf8");
-+  assert.doesNotMatch(config, /from\s+["']\.\/integrations\//);
-+});
-diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
-index 12290b5d..e4fac7e2 100644
---- a/site_v2/scripts/check-built-pages.mjs
-+++ b/site_v2/scripts/check-built-pages.mjs
-@@ -1,6 +1,6 @@
- // The built-pages check: proof, on every build, that the site carries what the warehouse holds
--// and that the Matchdays tab keeps its two invariants. Runs at astro:build:done, after the SEO
--// audit, as a child process (integrations/built-pages.mjs), and is directly runnable:
-+// and that the Matchdays tab keeps its two invariants. `npm run build` runs it after `astro build`
-+// and the SEO audit, and it is directly runnable:
- //
- //   node scripts/check-built-pages.mjs [distDir] [dataDir]
- //
-diff --git a/site_v2/src/config/indexability.mjs b/site_v2/src/config/indexability.mjs
-index 4827c11c..f951d940 100644
---- a/site_v2/src/config/indexability.mjs
-+++ b/site_v2/src/config/indexability.mjs
-@@ -1,7 +1,7 @@
- // The ONE switch that decides whether this site is crawlable (#844).
- //
--// `.mjs`, not `.ts`, on purpose: `scripts/audit-seo.mjs` and `integrations/seo-audit.mjs` run as
--// plain node, and node cannot `import` a `.ts` file without a loader flag. Four consumers read this
-+// `.mjs`, not `.ts`, on purpose: `scripts/audit-seo.mjs` runs as plain node, and node cannot
-+// `import` a `.ts` file without a loader flag. Four consumers read this
- // single value -- astro.config.mjs, Layout.astro, src/pages/robots.txt.ts and the audit -- so the
- // site cannot end up half-indexable.
- //
-diff --git a/site_v2/src/specs/page-spec.schema.json b/site_v2/src/specs/page-spec.schema.json
-index bf746d97..6ed28741 100644
---- a/site_v2/src/specs/page-spec.schema.json
-+++ b/site_v2/src/specs/page-spec.schema.json
-@@ -2,7 +2,7 @@
-   "$schema": "http://json-schema.org/draft-07/schema#",
-   "$id": "https://matchdaypilot/site_v2/page-spec.schema.json",
-   "title": "Matchday Pilot v2 page spec",
--  "description": "One spec per page TEMPLATE (not per rendered instance). Declares the page's blocks, each block's backing dbt mart, the i18n keys it uses, and (since #844) its SEO surface, so a build-time checker can refuse to build a page with no spec or a spec that references something that does not exist. TWO checkers read this: scripts/check-page-specs.mjs at prebuild (declaration-time: does everything named here exist?) and scripts/audit-seo.mjs at astro:build:done (output-time: does the EMITTED html match what was declared?). Shape rules are mirrored by hand in check-page-specs.mjs -- keep the two in sync; check-page-specs.test.mjs cross-checks them. See docs/content_architecture.md for the block library.",
-+  "description": "One spec per page TEMPLATE (not per rendered instance). Declares the page's blocks, each block's backing dbt mart, the i18n keys it uses, and (since #844) its SEO surface, so a build-time checker can refuse to build a page with no spec or a spec that references something that does not exist. TWO checkers read this: scripts/check-page-specs.mjs at prebuild (declaration-time: does everything named here exist?) and scripts/audit-seo.mjs after astro build (output-time: does the EMITTED html match what was declared?). Shape rules are mirrored by hand in check-page-specs.mjs -- keep the two in sync; check-page-specs.test.mjs cross-checks them. See docs/content_architecture.md for the block library.",
-   "type": "object",
-   "required": ["page", "entity", "blocks", "seo"],
-   "additionalProperties": false,
-@@ -98,7 +98,7 @@
-         },
-         "page_count_driver": {
-           "type": "string",
--          "description": "A FORMULA over build inputs, not a constant -- the fixture count changes daily. e.g. \"teams in src/data/teams/ x locales\". The audit gets the real emitted count per route pattern free from astro:build:done's `assets` map and reports it."
-+          "description": "A FORMULA over build inputs, not a constant -- the fixture count changes daily. e.g. \"teams in src/data/teams/ x locales\"."
-         },
-         "url_permanence": {
-           "type": "string",
-diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
-index a535d759..b306b9e7 100644
---- a/tests/test_no_decision_history_in_code.py
-+++ b/tests/test_no_decision_history_in_code.py
-@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
- import comment_history_gate as gate  # noqa: E402
++scores as (
++    select
++        fixtures.fixture_id,
++        fixtures.goals_home,
++        fixtures.goals_away,
++        goal_counts.home_goals_after_90,
++        goal_counts.away_goals_after_90,
++        coalesce(
++            fixtures.status_short in ('AET', 'PEN')
++            and fixtures.result_correction_source is null
++            and goal_counts.goals_without_minute = 0
++            and goal_counts.home_goals_in_90 = fixtures.goals_home
++            and goal_counts.away_goals_in_90 = fixtures.goals_away
++            and goal_counts.home_goals_after_90 + goal_counts.away_goals_after_90 > 0,
++            false
++        ) as is_score_from_goal_events
++    from import_base_apif__fixtures_next as fixtures
++    left join goal_counts
++        on fixtures.fixture_id = goal_counts.fixture_id
++)
++
++select
++    fixture_id,
++    is_score_from_goal_events,
++    if(is_score_from_goal_events, goals_home + home_goals_after_90, goals_home) as goals_home,
++    if(is_score_from_goal_events, goals_away + away_goals_after_90, goals_away) as goals_away
++from scores
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+index 5d0000cc..60072494 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+@@ -132,17 +132,20 @@ delivered as (
  
- # The pin. A sweep MR lowers these two numbers and nothing else may move them.
--PINNED_LINES = 749
--PINNED_FILES = 189
-+PINNED_LINES = 748
-+PINNED_FILES = 188
+ fixtures as (
+     select
+-        fixture_id,
+-        league_code,
+-        goals_home,
+-        goals_away,
+-        raw_ingested_at,
+-        cast(home_team_id as int64) as home_team_id,
+-        cast(away_team_id as int64) as away_team_id,
+-        status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
+-        and goals_home is not null and goals_away is not null
+-        and home_team_id is not null and away_team_id is not null as is_finished
+-    from {{ ref('base_apif__fixtures_next') }}
++        fixtures_next.fixture_id,
++        fixtures_next.league_code,
++        scores.goals_home,
++        scores.goals_away,
++        fixtures_next.raw_ingested_at,
++        cast(fixtures_next.home_team_id as int64) as home_team_id,
++        cast(fixtures_next.away_team_id as int64) as away_team_id,
++        fixtures_next.status_short in ('FT', 'AET', 'PEN', 'AWD', 'WO')
++        and scores.goals_home is not null and scores.goals_away is not null
++        and fixtures_next.home_team_id is not null
++        and fixtures_next.away_team_id is not null as is_finished
++    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
++    inner join {{ ref('base_apif__fixture_scores') }} as scores
++        on fixtures_next.fixture_id = scores.fixture_id
+ ),
  
- HASH = chr(35)
+ finished_teams as (
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index ddfd8c88..17ade177 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -537,9 +537,9 @@ models:
+       - name: round_name
+         description: "{{ doc('round_name') }}"
+       - name: goals_home
+-        description: "Final-time goals scored by home team."
++        description: "Final-time goals scored by home team, extra time included, the penalty shoot-out excluded."
+       - name: goals_away
+-        description: "Final-time goals scored by away team."
++        description: "Final-time goals scored by away team, extra time included, the penalty shoot-out excluded."
+       - name: awarded_to_team_sk
+         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
+         tests:
+diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
+index 0ecb8c9f..ed97945f 100644
+--- a/dbt_project/models/3_core/fct_fixture.sql
++++ b/dbt_project/models/3_core/fct_fixture.sql
+@@ -1,5 +1,19 @@
+ with import_base_apif__fixtures_next as (
+     select * from {{ ref('base_apif__fixtures_next') }}
++),
++
++import_base_apif__fixture_scores as (
++    select * from {{ ref('base_apif__fixture_scores') }}
++),
++
++fixtures as (
++    select
++        fixtures_next.* except (goals_home, goals_away),
++        scores.goals_home,
++        scores.goals_away
++    from import_base_apif__fixtures_next as fixtures_next
++    inner join import_base_apif__fixture_scores as scores
++        on fixtures_next.fixture_id = scores.fixture_id
+ )
  
+ select
+@@ -28,4 +42,4 @@ select
+     venue_name as venue_name_snapshot,
+     venue_city as venue_city_snapshot,
+     raw_ingested_at
+-from import_base_apif__fixtures_next
++from fixtures
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index 5929aea7..d6bee13d 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -14,7 +14,9 @@ match stats are good enough.
+   opponent with no shot on target means the team made no saves. A player who did something in the
+   match keeps a blank minutes figure. Possession is a share, not a count, so a blank possession
+   stays blank.
+-- Results. A team's goals are the score. Its penalty and own goals come from its goal events where
++- Results. A team's goals are the score. After extra time, a score equal to the goal events of
++  the first 90 minutes takes in the later goal events too. Its penalty and own goals come from its
++  goal events where
+   those add up to its score, penalty shoot-outs left out. A player's goals come from the per-player
+   count or the goal events, whichever adds up to the score.
+ - A player's team. Where his statistics row and his match events, own goals aside, name different
+@@ -26,7 +28,8 @@ match stats are good enough.
+ - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
+   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
+   left blank when the gap is larger or when neither side passes its check. A result is corrected
+-  only to the league's official decision, with its source; match stats never correct a result.
++  only to the league's official decision, with its source, or after extra time to its own goal
++  events. Match stats never correct a result.
+ - Every correction is listed on its row in stat_corrections, under one of these rules:
+   goals_from_events (a player's goals taken from the goal events);
+   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;
+diff --git a/dbt_project/tests/assert_base_player_stats_cleaned.sql b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+index 316b4737..61e7409c 100644
+--- a/dbt_project/tests/assert_base_player_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_player_stats_cleaned.sql
+@@ -64,12 +64,14 @@ delivered as (
+ 
+ fixtures as (
+     select
+-        fixture_id,
+-        cast(home_team_id as int64) as home_team_id,
+-        cast(away_team_id as int64) as away_team_id,
+-        goals_home,
+-        goals_away
+-    from {{ ref('base_apif__fixtures_next') }}
++        fixtures_next.fixture_id,
++        cast(fixtures_next.home_team_id as int64) as home_team_id,
++        cast(fixtures_next.away_team_id as int64) as away_team_id,
++        scores.goals_home,
++        scores.goals_away
++    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
++    inner join {{ ref('base_apif__fixture_scores') }} as scores
++        on fixtures_next.fixture_id = scores.fixture_id
+ ),
+ 
+ events as (
+diff --git a/dbt_project/tests/assert_base_team_stats_cleaned.sql b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+index 77ef4240..99631c79 100644
+--- a/dbt_project/tests/assert_base_team_stats_cleaned.sql
++++ b/dbt_project/tests/assert_base_team_stats_cleaned.sql
+@@ -95,14 +95,16 @@ delivered as (
+ 
+ fixtures as (
+     select
+-        fixture_id,
+-        league_code,
+-        status_short,
+-        cast(home_team_id as int64) as home_team_id,
+-        cast(away_team_id as int64) as away_team_id,
+-        goals_home,
+-        goals_away
+-    from {{ ref('base_apif__fixtures_next') }}
++        fixtures_next.fixture_id,
++        fixtures_next.league_code,
++        fixtures_next.status_short,
++        cast(fixtures_next.home_team_id as int64) as home_team_id,
++        cast(fixtures_next.away_team_id as int64) as away_team_id,
++        scores.goals_home,
++        scores.goals_away
++    from {{ ref('base_apif__fixtures_next') }} as fixtures_next
++    inner join {{ ref('base_apif__fixture_scores') }} as scores
++        on fixtures_next.fixture_id = scores.fixture_id
+ ),
+ 
+ events as (
+diff --git a/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql b/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
+new file mode 100644
+index 00000000..e71346f6
+--- /dev/null
++++ b/dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
+@@ -0,0 +1,44 @@
++{{ config(severity = 'error', store_failures = true) }}
++
++-- A match decided after extra time counts its goals after minute 90. Fails a match whose score
++-- equals its goal events of the first 90 minutes while goal events after minute 90 exist: that
++-- score stopped at 90 minutes. Goal events are goals, penalties and own goals with a player,
++-- shoot-out kicks left out, in matches where every goal event has a minute.
++
++with goal_events as (
++    select
++        fixture_sk,
++        team_sk,
++        minute_elapsed
++    from {{ ref('fct_fixture_event') }}
++    where
++        event_type = 'Goal'
++        and event_detail in ('Normal Goal', 'Penalty', 'Own Goal')
++        and event_comments is distinct from 'Penalty Shootout'
++        and player_sk is not null
++),
++
++goal_counts as (
++    select
++        f.fixture_sk,
++        f.league_code,
++        f.goals_home,
++        f.goals_away,
++        countif(e.team_sk = f.home_team_sk and e.minute_elapsed <= 90) as home_goals_in_90,
++        countif(e.team_sk = f.away_team_sk and e.minute_elapsed <= 90) as away_goals_in_90,
++        countif(e.minute_elapsed > 90) as goals_after_90,
++        countif(e.minute_elapsed is null) as goals_without_minute
++    from {{ ref('fct_fixture') }} as f
++    inner join goal_events as e
++        on f.fixture_sk = e.fixture_sk
++    where f.status_short in ('AET', 'PEN')
++    group by f.fixture_sk, f.league_code, f.goals_home, f.goals_away
++)
++
++select *
++from goal_counts
++where
++    goals_without_minute = 0
++    and goals_after_90 > 0
++    and home_goals_in_90 = goals_home
++    and away_goals_in_90 = goals_away

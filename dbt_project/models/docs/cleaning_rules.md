@@ -14,7 +14,9 @@ match stats are good enough.
   opponent with no shot on target means the team made no saves. A player who did something in the
   match keeps a blank minutes figure. Possession is a share, not a count, so a blank possession
   stays blank.
-- Results. A team's goals are the score. Its penalty and own goals come from its goal events where
+- Results. A team's goals are the score. After extra time, a score equal to the goal events of
+  the first 90 minutes takes in the later goal events too. Its penalty and own goals come from its
+  goal events where
   those add up to its score, penalty shoot-outs left out. A player's goals come from the per-player
   count or the goal events, whichever adds up to the score.
 - A player's team. Where his statistics row and his match events, own goals aside, name different
@@ -26,7 +28,8 @@ match stats are good enough.
 - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
   left blank when the gap is larger or when neither side passes its check. A result is corrected
-  only to the league's official decision, with its source; match stats never correct a result.
+  only to the league's official decision, with its source, or after extra time to its own goal
+  events. Match stats never correct a result.
 - Every correction is listed on its row in stat_corrections, under one of these rules:
   goals_from_events (a player's goals taken from the goal events);
   penalty_goals_limited_to_goals; penalties_scored_matched_to_penalty_goals;

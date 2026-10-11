@@ -537,9 +537,9 @@ models:
       - name: round_name
         description: "{{ doc('round_name') }}"
       - name: goals_home
-        description: "Final-time goals scored by home team."
+        description: "Final-time goals scored by home team, extra time included, the penalty shoot-out excluded."
       - name: goals_away
-        description: "Final-time goals scored by away team."
+        description: "Final-time goals scored by away team, extra time included, the penalty shoot-out excluded."
       - name: awarded_to_team_sk
         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
         tests:

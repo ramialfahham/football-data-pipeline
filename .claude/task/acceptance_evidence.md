@@ -1,12 +1,35 @@
-# Acceptance evidence — the site build's two checks run after Astro exits
+# Verification — matches after extra time carry their score after extra time
 
-The committed-sample builds ran on this machine; main's build ran in a scratch worktree at
-gitlab/main the same day. The full-scale build ran on ci-runner-01 from a `git archive` of this
-branch's tree. It used the `node:24` image in a container capped at 2.83 GiB, and the sample grown
-to 62,800 match and 3,348 team payloads. A sampler preloaded into every Node process recorded each
-one's peak, and the container's anonymous memory was read from cgroup v2 every second.
+Read-only queries against prod's tables, with the new model's and the new test's compiled SQL
+pointed at `dbt_analytics` (base) and `core`. Each was dry-run first; bytes are listed.
 
-criteria_demonstrated:
-  - CHECKS AFTER ASTRO, STILL GATING. `npm run build` on the branch prints `[build] Complete!` (log line 2717), then `audit-seo: 2539 built page(s) checked. OK.` (2718), then `check-built-pages: 1884 match page(s) = 628 payload(s) x 3 ... OK.` (2719), exit 0. `scripts/build-wiring.test.mjs` pins the wiring: both its tests fail against main's package.json and astro.config.mjs and pass on the branch. A planted page with a new id and slug but a repeated title (a gitignored `fixtures/9999991.json`, deleted after): after `[build] Complete!` the SEO check prints `audit-seo: 9 violation(s) in 2542 built page(s):`, listing the repeated title, description and h1 in each locale. `npm run build` exits 1 and the built-pages check does not run.
-  - TODAY'S SITE UNCHANGED. Committed sample, built the same day: main and branch each produce 2,543 files. A script byte-compares every file: 0 differ, 0 on one side only. npm test 120 of 120. The design check on the branch's sample build: 165 renders at 375, 700 and 1010px, 0 failures, 27 warnings, the same as main.
-  - FITS CI-RUNNER-01. The branch's `npm run build` at full scale, with `NODE_OPTIONS=--max-old-space-size=8192` as deploy:site-v2 sets it: exit 0 in 17.7 min, `audit-seo: 198991 built page(s) checked. OK.`, `check-built-pages: 188400 match page(s) = 62800 payload(s) x 3 ... OK.` memory.events oom_kill 0. The container peaks at 1.69 GiB. Per step: astro build 11.8 min at 1.70 GiB, SEO check 3.6 min at 1.13 GiB, built-pages check 2.2 min at 0.10 GiB. Main as wired before is killed on the same runner at 2.59 GiB. The numbers are on #209.
+- **Scores that change (0.05 GB):** the new model against today's `core.fct_fixture` changes 41
+  scores and no other. 8 are this season, and 14 change the result. All 41 are AET/PEN.
+- **Today (0.05 GB):** the new test's compiled SQL on today's `fct_fixture` returns the same 41
+  matches.
+- **With the fix (0.10 GB):** the new test with `fct_fixture`'s score replaced by the new model's
+  returns 0 rows.
+- **The first count of 46** included 5 matches from the 2019 Libertadores and AFC Champions League.
+  Their extra goal events are shoot-out kicks filed at minute -1 without the shoot-out label. The
+  rule counts minute -1 in the first 90 minutes, so it leaves them unchanged.
+- **This season's 8 against match reports:** each corrected score matches the report.
+  - Pafos 4–0 Hajduk Split (stored 2–0) and Rapid Wien 2–2 Hearts (1–1).
+  - ML Vitebsk 2–1 Borac (1–0) and Koper 1–3 NSÍ Runavík (0–2).
+  - Ilves 2–1 Stjarnan (1–0) and Lech Poznań 1–4 AGF (0–3).
+  - Celje 2–2 Egnatia (1–1) and Yelimay 2–2 Alashkert (1–1).
+  - The Lech–AGF report also confirms that the provider's no-player goal event at 21' was a
+    penalty VAR overturned.
+- **The two stats-cleaning tests** (`assert_base_team_stats_cleaned`,
+  `assert_base_player_stats_cleaned`) now read the corrected score, as the models they check do.
+  Prod's stats tables were cleaned against the old score, so a query against prod cannot check
+  them. `data:build:mr` rebuilds the models in CI's datasets and runs both tests.
+- **Nightly cost:** the new model reads 0.05 GB (dry-run against prod), about 1.5 GB a month.
+- **Checks:**
+  - `dbt parse` passes with 104 models and no cycle.
+  - `check_layer_contract`, `check_description_hygiene` and `check_relationships_coverage` pass,
+    and so does every other offline gate.
+  - pytest: 1,496 passed.
+  - sqlfluff (repo root, jinja, bigquery, full rules) reports 0 findings on the new model, the two
+    base models and the test. `fct_fixture` shows the same 3 findings as main, on the
+    `dbt_utils` line that the jinja templater cannot resolve. The two stats-cleaning tests show
+    32 and 66 findings, the same counts as main.
