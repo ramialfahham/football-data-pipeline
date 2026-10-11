@@ -1,78 +1,85 @@
-# Task contract — the site build's two checks run after Astro exits
+# Task contract — matches after extra time carry their score after extra time
 
 objective: >
-  The SEO check and the built-pages check run as steps of `npm run build` after `astro build` has
-  exited, instead of as child processes inside it, so their memory no longer adds to Astro's and
-  the full-scale build fits ci-runner-01.
+  The 26 matches after extra time whose provider score stops at 90 minutes get their score after
+  extra time from fixture_result_corrections, each with two match reports on different sites. A
+  test fails a match whose score stops at 90 minutes while an open-play goal or an own goal after
+  minute 90 exists, so a new case is caught and corrected the same way.
 
 refs: >
-  #209 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/209). Checks after the
-  build, over a bigger machine: approved in chat, 2026-10-10. The plan: approved in chat,
-  2026-10-11. The runner measurement: #208
-  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/208#note_3990668184).
+  #210 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/210): the defect,
+  approved in chat, 2026-10-11. Corrections in the seed instead of a rule that infers the score
+  from the goal events: approved in chat, 2026-10-11.
 
 scope_paths:
-  - site_v2/package.json
-  - site_v2/astro.config.mjs
-  - site_v2/integrations/seo-audit.mjs
-  - site_v2/integrations/built-pages.mjs
-  - site_v2/scripts/check-built-pages.mjs
-  - site_v2/scripts/build-wiring.test.mjs
-  - site_v2/src/config/indexability.mjs
-  - site_v2/src/specs/page-spec.schema.json
-  - tests/test_no_decision_history_in_code.py
+  - dbt_project/seeds/fixture_result_corrections.csv
+  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
+  - dbt_project/models/2_base/api_football/base_apif__fixture_scores.sql
+  - dbt_project/models/2_base/api_football/base.yml
+  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
+  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
+  - dbt_project/models/3_core/fct_fixture.sql
+  - dbt_project/models/3_core/core.yml
+  - dbt_project/models/docs/cleaning_rules.md
+  - dbt_project/docs/layering.md
+  - dbt_project/tests/assert_base_team_stats_cleaned.sql
+  - dbt_project/tests/assert_base_player_stats_cleaned.sql
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
-  - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: none; the two check scripts and the export are unchanged in what they check.
-  downstream: `grep -rln "seoAudit\|builtPages\|integrations/seo-audit\|integrations/built-pages"`
-  over site_v2 lists astro.config.mjs, the two integration files, and two comments
-  (scripts/check-built-pages.mjs, src/config/indexability.mjs). `grep -n "npm run build"
-  .gitlab-ci.yml` gives build:site-v2 (line 642) and deploy:site-v2 (line 1077): both run the
-  build script, so both keep both checks. tests/test_governance_hooks.py names
-  site_v2/integrations/seo-audit.mjs only as a routing example.
-  layer_rules: none; build wiring, no page logic.
-  deploy_order: none; a site build.
-  blast_radius: no built page changes, verified by a byte compare of every built file with main's
-  build of the same day. Lost: the route-pattern page-count log line the SEO integration printed,
-  which nothing reads.
-
-acceptance_criteria:
-  - "`npm run build` runs the SEO check and then the built-pages check after `astro build` has exited; a page the SEO check refuses still makes `npm run build` exit non-zero."
-  - "Today's site is unchanged: every file built from the committed sample is byte-identical to main's build, built the same day."
-  - On ci-runner-01, this branch's full-scale build (62,800 match payloads, 3,348 team payloads) passes both checks without being killed; its peak process memory and time are on this issue.
+  writers: dbt seed loads fixture_result_corrections; base_apif__fixtures_next applies each row's
+  official score and keeps the provider's beside it. Nothing else writes the score.
+  downstream: `dbt ls --select fixture_result_corrections+ --resource-type model` on main gives 67
+  models: base_apif__fixture_events base_apif__fixture_players base_apif__fixture_statistics
+  base_apif__fixtures_next base_apif__players base_apif__teams base_apif__teams_global dim_player
+  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
+  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats int_legs__player_match
+  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
+  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
+  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
+  int_player_season__metrics int_player_season__team int_player_season_position__metrics
+  int_player_season_record int_team_competition_benchmark_metrics_long
+  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
+  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
+  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
+  mart_competition_fixtures mart_competition_index mart_competition_season_summary
+  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
+  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
+  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
+  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
+  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
+  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
+  mart_team_season_insights mart_team_season_record. The seed's own test,
+  assert_result_corrections_applied, checks every row is applied and sourced.
+  layer_rules: a seed is configuration; no model changes. Every other path in scope_paths is back
+  at main's version: the branch's earlier approach is withdrawn.
+  deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
+  blast_radius: the 26 matches' scores (8 this season, no result changes) and every listed model
+  that carries a score, goals for and against, or form for those matches.
 
 decisions_taken: >
-  The issue's plan, approved in chat, 2026-10-11: the build script runs `astro build`, then
-  scripts/audit-seo.mjs, then scripts/check-built-pages.mjs, each only if the previous step passed;
-  astro.config.mjs drops the two integrations and site_v2/integrations/ is deleted; comments and
-  schema descriptions that name the integrations or astro:build:done say where the checks run now.
+  The defect and the corrections in the seed, each row with two match reports on different sites
+  (source_kind match_reports) or an official record: approved in chat, 2026-10-11. The test is a
+  detector: only open-play goals and own goals after minute 90 count as evidence, because the
+  provider files some shoot-outs as penalty goals without the shoot-out label.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; two existing scripts move from build hooks to the
-  build script, approved in chat, 2026-10-10. RECURRING COST: none.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; fixture_result_corrections and its test exist.
+  RECURRING COST: none.
 
 decisions_reserved:
-  - The machine or runner size, and the nightly site build (#156).
-  - The played match payload (#175, #176), which changes the full-scale numbers.
+  - The shoot-out score (#178), the goal lists and the award kind in the seed (#176).
 
 done_when:
-  - npm test in site_v2 passes; pytest tests/ passes; the offline CI gates pass.
-  - npm run build on the committed sample prints both checks' OK lines after Astro completes, and a byte compare with main's build of the same day finds 0 differences.
-  - A planted duplicate page makes npm run build exit non-zero with the SEO check's finding.
-  - The ci-runner-01 full-scale measurement is in .claude/task/acceptance_evidence.md and on #209.
+  - dbt parse passes; sqlfluff on the test shows no finding.
+  - Each of the 26 rows has two sources on different sites, read against the match.
+  - The test's compiled SQL returns the 26 matches on today's fct_fixture and none with the seed's scores applied.
+  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
 
 amendments: >
-  tests/test_no_decision_history_in_code.py joins: authority, the approved plan's deletion of
-  site_v2/integrations/ (approved in chat, 2026-10-11). One deleted file carried one flagged line,
-  so the tree holds 748 flagged lines in 188 files against the pin of 749 in 189; the test requires
-  the pin to follow the sweep down. Content: PINNED_LINES 749 to 748, PINNED_FILES 189 to 188.
-
-  site_v2/scripts/build-wiring.test.mjs joins: approved in chat, 2026-10-11, after the
-  platform-reviewer's round-1 finding that no test pins the build script. Content: a node --test
-  file that fails unless the build script is `astro build`, then scripts/audit-seo.mjs, then
-  scripts/check-built-pages.mjs, each joined by `&&`, and unless astro.config.mjs imports nothing
-  from ./integrations/.
+  Reworked from a rule that inferred the score from the goal events into seed corrections:
+  approved in chat, 2026-10-11. The rule changed 15 shoot-outs the provider files as penalty goals
+  after minute 120 (CI's corrections-share guard failed on Club World Cup 2020). Every model,
+  document and test change of the rule's version returns to main's version.
