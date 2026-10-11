@@ -77,28 +77,28 @@ events as (
         fixture_id,
         team_id,
         player_id,
-        event_type,
-        event_detail
+        event_detail,
+        is_missed_penalty,
+        is_goal and not is_own_goal as is_scorer_goal,
+        is_goal and is_own_goal as is_own_goal
     from {{ ref('base_apif__fixture_events') }}
-    where event_comments is distinct from 'Penalty Shootout'
 ),
 
 fixtures_with_events as (
     select distinct fixture_id
     from {{ ref('base_apif__fixture_events') }}
-    where event_type in ('subst', 'Card')
+    where has_full_events
 ),
 
 team_events as (
     select
         fixture_id,
         team_id,
-        countif(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty')) as goal_events,
-        countif(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty') and player_id is null)
-            as goal_events_without_scorer,
-        countif(event_type = 'Goal' and event_detail = 'Own Goal') as own_goals,
-        countif(event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
-        countif(event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events
+        countif(is_scorer_goal) as goal_events,
+        countif(is_scorer_goal and player_id is null) as goal_events_without_scorer,
+        countif(is_own_goal) as own_goals,
+        countif(is_scorer_goal and event_detail = 'Penalty') as penalty_goal_events,
+        countif(is_missed_penalty) as missed_penalty_events
     from events
     group by fixture_id, team_id
 ),
@@ -110,7 +110,7 @@ player_goal_events as (
         player_id,
         count(*) as goals
     from events
-    where event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty') and player_id is not null
+    where is_scorer_goal and player_id is not null
     group by fixture_id, team_id, player_id
 ),
 

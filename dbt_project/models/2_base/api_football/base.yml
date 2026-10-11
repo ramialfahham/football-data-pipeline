@@ -144,6 +144,12 @@ models:
         tests: [not_null]
       - name: awarded_to_team_id
         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
+      - name: award_kind
+        description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
+      - name: on_pitch_home
+        description: "The home goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise."
+      - name: on_pitch_away
+        description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise."
       - name: provider_goals_home
         description: "The provider's home goals; differs from goals_home only where the official result was corrected."
       - name: provider_goals_away
@@ -305,7 +311,7 @@ models:
   - name: base_apif__players
     description: >
       Global player identity: one row per player_api_id, unioned from /players, fixture player
-      stats and fixture events, then deduplicated in a single pass that prefers the most
+      stats, and the players and assisting players of fixture events, then deduplicated in a single pass that prefers the most
       authoritative named source and, within that, the most recent ingest.
       Grain: player_api_id.
 
@@ -371,6 +377,28 @@ models:
           On the events of a player whose statistics row names the other team of the match, the team
           the player's-team rule decides for him, which his events and his row then both carry. NULL
           on every other event, on an own goal, and where nothing decides.
+      - name: assist_player_id
+        description: "The assisting player's provider id. NULL where the goal has no assist or the provider names the assist without an id."
+      - name: is_shootout_kick
+        description: "TRUE for a penalty shoot-out kick, scored or missed: a Goal event the provider labels as a shoot-out, or files at a negative minute."
+        tests: [not_null]
+      - name: is_goal
+        description: >
+          TRUE for a goal that counts: a Goal event that is a normal goal, a penalty or an own goal,
+          and not a shoot-out kick. A goal event with neither scorer id nor scorer name is left out
+          in a match whose goal events add up to its score only without such events: there it is a
+          goal that did not count. The score is the one on the pitch where a played or abandoned
+          match was awarded afterwards. team_id is the side the goal counts for, own goals included.
+        tests: [not_null]
+      - name: is_own_goal
+        description: "TRUE where the Goal event is an own goal. Its team_id is the side the goal counts for, not the scorer's team."
+        tests: [not_null]
+      - name: is_missed_penalty
+        description: "TRUE for a penalty missed or saved during the match; a missed shoot-out kick is not one."
+        tests: [not_null]
+      - name: has_full_events
+        description: "TRUE on every event of a match whose events include a substitution or a card, which every played match has: only then do its events show that a team or player had none of something."
+        tests: [not_null]
 
   - name: base_apif__player_team_season
     description: >

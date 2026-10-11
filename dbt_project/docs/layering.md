@@ -261,7 +261,7 @@ Canonical fact inventory for this project:
 | `fct_standings` | `(season_sk, team_sk, group_name)` | `base_apif__standings` (from generic `stg_apif__standings`) | Current league position per team-season; raw payload is replaced wholesale per season on each ingest. |
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
-| `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | `assist_player_name` stays as a degenerate attribute (no id in source). |
+| `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`. |
 | `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR). WC-scoped — no `league_code`. |
 
 Most facts propagate `league_code` so they are safe to union across future leagues

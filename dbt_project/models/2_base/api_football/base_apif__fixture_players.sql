@@ -240,16 +240,18 @@ events as (
         event_type,
         event_detail,
         assist_player_name,
-        event_comments is distinct from 'Penalty Shootout' as is_in_play
+        is_goal,
+        is_own_goal,
+        is_missed_penalty,
+        has_full_events,
+        is_goal and not is_own_goal as is_scorer_goal
     from {{ ref('base_apif__fixture_events') }}
 ),
 
--- The events prove a zero only where they cover more than the goals: a match with at least one
--- substitution or card, which every played match has.
 fixtures_with_events as (
     select fixture_id
     from events
-    where event_type in ('subst', 'Card')
+    where has_full_events
     group by fixture_id
 ),
 
@@ -257,22 +259,14 @@ team_events as (
     select
         fixture_id,
         team_id,
-        countif(is_in_play and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty'))
-            as goal_events,
-        countif(
-            is_in_play and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty')
-            and player_id is null
-        ) as goal_events_without_scorer,
-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Normal Goal') as open_play_goal_events,
-        countif(
-            is_in_play and event_type = 'Goal' and event_detail = 'Normal Goal'
-            and assist_player_name is not null
-        ) as assisted_goal_events,
-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Own Goal') as own_goals,
-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Penalty') as penalty_goal_events,
-        countif(is_in_play and event_type = 'Goal' and event_detail in ('Penalty', 'Missed Penalty'))
-            as penalty_events,
-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Missed Penalty') as missed_penalty_events,
+        countif(is_scorer_goal) as goal_events,
+        countif(is_scorer_goal and player_id is null) as goal_events_without_scorer,
+        countif(is_goal and event_detail = 'Normal Goal') as open_play_goal_events,
+        countif(is_goal and event_detail = 'Normal Goal' and assist_player_name is not null) as assisted_goal_events,
+        countif(is_goal and is_own_goal) as own_goals,
+        countif(is_goal and event_detail = 'Penalty') as penalty_goal_events,
+        countif((is_goal and event_detail = 'Penalty') or is_missed_penalty) as penalty_events,
+        countif(is_missed_penalty) as missed_penalty_events,
         countif(event_type = 'Card') as card_events
     from events
     group by fixture_id, team_id
@@ -281,7 +275,7 @@ team_events as (
 match_assist_names as (
     select
         fixture_id,
-        countif(is_in_play and event_type = 'Goal' and assist_player_name is not null) as assisted_goal_events
+        countif(is_goal and assist_player_name is not null) as assisted_goal_events
     from events
     group by fixture_id
 ),
@@ -291,8 +285,8 @@ player_events as (
         fixture_id,
         team_id,
         player_id,
-        countif(is_in_play and event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty')) as goals,
-        countif(is_in_play and event_type = 'Goal' and event_detail = 'Penalty') as goals_penalty
+        countif(is_scorer_goal) as goals,
+        countif(is_goal and event_detail = 'Penalty') as goals_penalty
     from events
     where player_id is not null
     group by fixture_id, team_id, player_id

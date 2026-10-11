@@ -546,6 +546,15 @@ models:
           - relationships:
               to: ref('dim_team')
               field: team_sk
+      - name: award_kind
+        description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
+        tests:
+          - accepted_values:
+              values: ["not_played", "played", "abandoned"]
+      - name: on_pitch_home
+        description: "The home goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_home is then the awarded score."
+      - name: on_pitch_away
+        description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_away is then the awarded score."
       - name: venue_api_id
         description: "API-Football venue id."
       - name: venue_name_snapshot
@@ -889,7 +898,29 @@ models:
       - name: player_name_snapshot
         description: "The player's name as the events feed spelled it when this row was ingested. It is kept as a record of what the feed said, NOT as a name to display: it is neither corrected nor kept in step with the player dimension, and it is the only name available for an event the feed gives no player id for."
       - name: assist_player_name
-        description: "Assisting player name. Degenerate attribute because the API does not emit an id in the events payload."
+        description: "The assisting player's name as the events feed spells it, and the only name available for an assist the feed gives no id for."
+      - name: assist_player_sk
+        description: "{{ doc('player_sk') }} Here it is the assisting player. NULL where the event has no assist or the assist has no id."
+        tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+              where: "assist_player_sk is not null"
+      - name: assist_player_api_id
+        description: "{{ doc('player_api_id') }} Here it is the assisting player."
+      - name: is_goal
+        description: >
+          TRUE for a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick.
+          A goal event with neither scorer id nor scorer name is left out in a match whose goal
+          events add up to its score only without such events. team_sk is the side the goal counts
+          for, own goals included.
+        tests: [not_null]
+      - name: is_own_goal
+        description: "TRUE where the Goal event is an own goal; team_sk is the side it counts for."
+        tests: [not_null]
+      - name: is_shootout_kick
+        description: "TRUE for a penalty shoot-out kick, scored or missed. A shoot-out kick is never a goal."
+        tests: [not_null]
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

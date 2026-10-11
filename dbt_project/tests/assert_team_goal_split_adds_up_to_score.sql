@@ -15,9 +15,7 @@ with goal_events as (
         event_detail
     from {{ ref('fct_fixture_event') }}
     where
-        event_type = 'Goal'
-        and event_detail in ('Normal Goal', 'Penalty', 'Own Goal')
-        and event_comments is distinct from 'Penalty Shootout'
+        is_goal
         and team_sk is not null
 ),
 

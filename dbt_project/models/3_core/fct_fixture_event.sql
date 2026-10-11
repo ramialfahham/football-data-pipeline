@@ -3,8 +3,7 @@
     onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
     is the zero-based array position from the API-Football /fixtures/events response.
     API-Football does not emit event IDs; array position is the only stable unique
-    identifier within a fixture's event list. Assist player arrives as a name only (no id
-    in source), so it stays as a degenerate attribute.
+    identifier within a fixture's event list.
 #}
 
 with src as (
@@ -31,5 +30,10 @@ select
     team_name as team_name_snapshot,
     player_name as player_name_snapshot,
     assist_player_name,
+    nullif(cast(assist_player_id as int64), 0) as assist_player_sk,
+    assist_player_id as assist_player_api_id,
+    is_goal,
+    is_own_goal,
+    is_shootout_kick,
     src.raw_ingested_at
 from src
