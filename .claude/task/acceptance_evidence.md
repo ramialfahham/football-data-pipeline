@@ -1,44 +1,32 @@
-# Verification — a played match's goals on the match mart
+# Verification — researched line-ups, batch 1: Premier League
 
-Every played match now has its goals on `mart_competition_fixtures` and one goal-data state.
-Matches whose provider data is wrong are corrected from sourced research. All checks ran the
-branch's compiled SQL on prod data in session-only temp tables, read-only, dry-run first.
+25 Premier League matches of the 2025-26 and 2026-27 seasons were on the line-up research list.
+All 25 are now researched from the official premierleague.com match pages. None was left out.
 
-- **Research (web, two sources per match or an official record; Wikipedia never):**
-  - 60 matches whose goal events did not add up: 37 corrected goal by goal (6 of them 0-0, one
-    "no goal" row each), 20 whose stored score was wrong, 3 left out because no source names their
-    scorers (they show as not recorded).
-  - The 20 wrong scores were the two-leg aggregate or counted shoot-out kicks. Once corrected, the
-    provider's own goal events add up, so they need only a score row.
-  - 23 matches the provider files as awarded: each gets how it came about. Two (Djoliba-Red Star
-    Bangui, Al Hilal-Salaam) were not played and won by the home side by two reports each, but no
-    source states a score; the provider's is kept and the note says so.
-  - 5 awarded matches that were played or abandoned get their goals as scored on the pitch.
-- **Seeds:** `fixture_goal_corrections` 108 rows in 42 matches; `fixture_result_corrections` 43
-  new rows (20 scores, 23 awards). A script checked every row before writing: sides add up,
-  https sources, two sites for match reports, no Wikipedia.
-- **What changes:** 20 scores (no winner changes), 8 walkovers filed 0-0 gain their winner, 11
-  statuses WO to AWD, 23 award kinds, and the goals of the 42 corrected matches.
-- **The mart on prod data, every played match:**
-
-  | State | This season | Earlier |
-  |---|---|---|
-  | goals | 4,019 | 52,590 |
-  | goals_without_minutes | 1 | 16 |
-  | not_recorded | 248 | 3,185 |
-  | awarded | 3 | 71 |
-
-  - `assert_mart_competition_fixtures_goals_add_up` and `assert_result_corrections_applied`
-    return 0 rows.
-- **First MR build:** `assert_player_row_and_events_same_team` failed on 3 rows, all in the 2019
-  Copa Libertadores final (247587). The provider files both teams' players under the other team,
-  so the corrected goals (Borre for River, Gabriel Barbosa twice for Flamengo) disagree with its
-  player rows. The test now skips the corrected goals, as the latest-fetch test does; the swapped
-  team lists are a separate item.
-- **Nightly read:** the mart reads about 0.15 GB more a night (goal events, players' goals,
-  player names), about 4.6 GB a month.
-- **Checks:**
-  - `dbt parse` passes.
-  - sqlfluff: 0 findings on every changed model and test.
-  - Every offline gate passes, `check_relationships_coverage` included.
-  - pytest: 1496 passed, 2 skipped.
+- **What was missing:** in every match, one substitution named the player who came on but not the
+  player replaced (two in Tottenham Hotspur-Liverpool). Everything else on the provider's sheets
+  had passed the checks.
+- **How each match was checked:** the official line-ups page, read in the built-in browser,
+  compared with the provider's sheets for every starter and bench player by shirt number, and
+  for every substitution minute. The missing outgoing player is the player of that team the page
+  shows going off at that minute; in 25 of the 26 missing substitutions that player had come on
+  earlier, so the provider loses the outgoing player mostly when he was a substitute himself.
+- **Differences from the provider beyond the missing player:**
+  - Leeds United-Sunderland: the provider has Sunderland's substitutions at 55' and 56' the other
+    way round; the rows carry the official minutes.
+  - The official page marks half-time substitutions at 45', the provider at 46'; the rows keep the
+    provider's 46' (the CPO's decision).
+  - Wolverhampton-West Ham: the provider's substitution event gives T. Edozie a different player id
+    from its team sheet; the rows use the team sheet's id, which the official sheet confirms by
+    shirt number.
+- **On prod data** (the branch's base_apif__lineups with the new rows, session-only copy):
+  - all 25 matches come out researched;
+  - assert_lineup_researched_matches_hold, the substitution pairing and the eleven-starters tests
+    return no rows;
+  - the research list holds no Premier League match of 2025-26 or 2026-27 (995 matches remain
+    overall);
+  - every researched player is in dim_player.
+- **The seed:** 999 rows, no duplicate key, no missing required value, every source official and
+  https, one formation per team.
+- **Time:** after a one-time setup to read the page structure, each match took one page load and
+  one automated comparison, about a minute.
