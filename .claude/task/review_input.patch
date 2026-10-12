@@ -1,1295 +1,920 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 23a20545..41c862cd 100644
+index 41c862cd..62b3cedc 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,48 +1,46 @@
--# Task contract — one goal definition
-+# Task contract — a played match's goals on the match mart
+@@ -1,117 +1,58 @@
+-# Task contract — a played match's goals on the match mart
++# Task contract — refetch named matches and squad lists from the provider
  
  objective: >
--  What counts as a goal is defined once, in base_apif__fixture_events, and every model and test
--  that counts goals reads it: a Goal event (normal goal, penalty, own goal) that is not a
--  shoot-out kick (the shoot-out label, or a negative minute), leaving out a goal event with
--  neither scorer id nor scorer name where the match adds up without it. The same model decides
--  once whether a match's events cover more than its goals. Staging reads the assist's player id;
--  fct_fixture_event serves the goal flags and the assist; fct_fixture carries the award's kind and
--  the score on the pitch from fixture_result_corrections.
-+  mart_competition_fixtures serves every played match's goals as one list and one goal-data
-+  state: goals (every goal with its minute; a 0-0 has none), goals_without_minutes,
-+  not_recorded, or awarded; with the award's kind and the score on the pitch. The goals come from
-+  the goal events where they add up to the score, otherwise from the players' goals with the
-+  own-goal events. A new seed, fixture_goal_corrections, holds each goal of a match the provider's
-+  data gets wrong, researched and sourced; base_apif__fixture_events counts those goals instead of
-+  the provider's, so every reader sees the same goals.
+-  mart_competition_fixtures serves every played match's goals as one list and one goal-data
+-  state: goals (every goal with its minute; a 0-0 has none), goals_without_minutes,
+-  not_recorded, or awarded; with the award's kind and the score on the pitch. The goals come from
+-  the goal events where they add up to the score, otherwise from the players' goals with the
+-  own-goal events. A new seed, fixture_goal_corrections, holds each goal of a match the provider's
+-  data gets wrong, researched and sourced; base_apif__fixture_events counts those goals instead of
+-  the provider's, so every reader sees the same goals.
++  One script, scripts/refetch_from_provider.py, asks the provider again for a given list of
++  matches (their fixture details: line-ups, events, player stats, statistics) or a given list of
++  team-seasons (their /players squad lists), and appends the answers to the existing raw tables
++  through the existing loaders. A match is written only when its new fetch is no worse than what
++  the warehouse holds and brings two full line-ups. It plans by default, stops at a call cap,
++  holds the ingest lock and refuses to start after 02:00 UTC.
  
  refs: >
-   #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the goals,
--  step 1. The plan (one goal definition, then the goals on mart_competition_fixtures): approved in
--  chat, 2026-10-11.
-+  step 2. The plan: approved in chat, 2026-10-11.
+-  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the goals,
+-  step 2. The plan: approved in chat, 2026-10-11.
++  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the line-ups,
++  step 2. The refetch plan: approved in chat, 2026-10-12.
  
  scope_paths:
--  - dbt_project/models/1_staging/api_football/stg_apif__fixture_events.sql
--  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
-+  - dbt_project/seeds/fixture_goal_corrections.csv
-+  - dbt_project/seeds/fixture_result_corrections.csv
-+  - dbt_project/seeds/schema.yml
-   - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
--  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
--  - dbt_project/models/2_base/api_football/base_apif__fixture_players.sql
--  - dbt_project/models/2_base/api_football/base_apif__fixture_statistics.sql
-+  - dbt_project/models/2_base/api_football/base_apif__players.sql
-   - dbt_project/models/2_base/api_football/base.yml
-   - dbt_project/models/3_core/fct_fixture_event.sql
--  - dbt_project/models/3_core/fct_fixture.sql
-   - dbt_project/models/3_core/core.yml
-+  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-   - dbt_project/models/docs/cleaning_rules.md
-   - dbt_project/docs/layering.md
--  - dbt_project/tests/assert_base_player_stats_cleaned.sql
--  - dbt_project/tests/assert_base_team_stats_cleaned.sql
--  - dbt_project/tests/assert_team_goal_split_adds_up_to_score.sql
--  - dbt_project/tests/assert_extra_time_goals_counted_in_score.sql
--  - dbt_project/seeds/team_match_cleaning_answer_key.csv
+-  - dbt_project/seeds/fixture_goal_corrections.csv
+-  - dbt_project/seeds/fixture_result_corrections.csv
+-  - dbt_project/seeds/schema.yml
+-  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
 -  - dbt_project/models/2_base/api_football/base_apif__players.sql
-+  - dbt_project/tests/assert_result_corrections_applied.sql
-+  - dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
-+  - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
-+  - dbt_project/tests/assert_player_row_and_events_same_team.sql
+-  - dbt_project/models/2_base/api_football/base.yml
+-  - dbt_project/models/3_core/fct_fixture_event.sql
+-  - dbt_project/models/3_core/core.yml
+-  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/models/docs/cleaning_rules.md
+-  - dbt_project/docs/layering.md
+-  - dbt_project/tests/assert_result_corrections_applied.sql
+-  - dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
+-  - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
+-  - dbt_project/tests/assert_player_row_and_events_same_team.sql
++  - scripts/refetch_from_provider.py
++  - tests/test_refetch_from_provider.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: dbt only. stg_apif__fixture_events reads RAW_APIF_FIXTURE_DETAILS; nothing else writes
--  an event.
--  downstream: `dbt ls --select stg_apif__fixture_events+ base_apif__fixtures_next+ --resource-type
--  model` on main gives 68 models: stg_apif__fixture_events base_apif__fixture_events
-+  writers: dbt seed loads fixture_goal_corrections, which base_apif__fixture_events applies, and
-+  fixture_result_corrections, which base_apif__fixtures_next applies. Nothing else writes a goal,
-+  a score or a result.
-+  downstream: `dbt ls --select fixture_result_corrections+ fixture_goal_corrections+
-+  --resource-type model` on the branch gives 67 models: base_apif__fixture_events
-   base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
-   base_apif__players base_apif__teams base_apif__teams_global dim_player
-   dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
-@@ -63,39 +61,57 @@ impact_map: >
-   mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
-   mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
-   mart_team_season_insights mart_team_season_record.
--  layer_rules: the definition is cleaning, so it lives in base; core serves it; no mart changes.
--  deploy_order: one dbt run.
--  blast_radius: the matches whose goal events add up only with the cleaning: measured on prod, 19
--  where a nameless goal event is left out and 5 with shoot-out kicks at a negative minute. Their
--  team goal split and their players' goals may change; every other row is unchanged, which the
--  before/after comparison against prod shows model by model before merge.
-+  layer_rules: the seeds are configuration applied in base; core serves the events and the
-+  fixtures; the goals list and the state are consumption, on the existing match mart. No new model.
-+  deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
-+  blast_radius: the 42 matches in fixture_goal_corrections: their goal events, and their team
-+  goal split and players' goals where those read the events. The 43 new rows of
-+  fixture_result_corrections: 20 scores change (all after extra time, no winner changes), 8
-+  walkovers the provider files 0-0 gain their winner (a draw becomes a win and a loss in every
-+  results model above int_legs__team_match), 11 statuses change from WO to AWD, and 23 awards gain
-+  their kind. Every goals, results and form model in the list above that reads these matches
-+  changes with them; the standings come from the provider's tables and do not. The new columns of
-+  mart_competition_fixtures.
+-  writers: dbt seed loads fixture_goal_corrections, which base_apif__fixture_events applies, and
+-  fixture_result_corrections, which base_apif__fixtures_next applies. Nothing else writes a goal,
+-  a score or a result.
+-  downstream: `dbt ls --select fixture_result_corrections+ fixture_goal_corrections+
+-  --resource-type model` on the branch gives 67 models: base_apif__fixture_events
+-  base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
+-  base_apif__players base_apif__teams base_apif__teams_global dim_player
+-  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
+-  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats int_legs__player_match
+-  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
+-  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
+-  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
+-  int_player_season__metrics int_player_season__team int_player_season_position__metrics
+-  int_player_season_record int_team_competition_benchmark_metrics_long
+-  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
+-  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
+-  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
+-  mart_competition_fixtures mart_competition_index mart_competition_season_summary
+-  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
+-  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
+-  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
+-  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
+-  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
+-  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
+-  mart_team_season_insights mart_team_season_record.
+-  layer_rules: the seeds are configuration applied in base; core serves the events and the
+-  fixtures; the goals list and the state are consumption, on the existing match mart. No new model.
+-  deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
+-  blast_radius: the 42 matches in fixture_goal_corrections: their goal events, and their team
+-  goal split and players' goals where those read the events. The 43 new rows of
+-  fixture_result_corrections: 20 scores change (all after extra time, no winner changes), 8
+-  walkovers the provider files 0-0 gain their winner (a draw becomes a win and a loss in every
+-  results model above int_legs__team_match), 11 statuses change from WO to AWD, and 23 awards gain
+-  their kind. Every goals, results and form model in the list above that reads these matches
+-  changes with them; the standings come from the provider's tables and do not. The new columns of
+-  mart_competition_fixtures.
++  writers: the script appends to RAW_APIF_FIXTURE_DETAILS (one row per written match) and
++  RAW_APIF_PLAYERS (one row per written team-season), as the nightly ingest does; it deletes
++  nothing. It changes no ingestion module.
++  downstream: no model changes. The next nightly reads the new rows: stg_apif__fixture_events,
++  stg_apif__fixture_players, stg_apif__fixture_statistics and stg_apif__lineups read every fetch;
++  base keeps the latest events fetch, the newest complete-format player fetch and the latest
++  statistics per team; base_apif__player_team_season unions every squad fetch.
++  layer_rules: raw stays append-only; base resolves the versions, unchanged.
++  deploy_order: merge, then one run per list, started by hand outside the nightly window.
++  blast_radius: only the listed matches and team-seasons. A written match's events, player stats
++  and statistics may change to the new fetch's; the guard refuses a fetch with fewer events,
++  player rows or statistics lines than any stored fetch of that match, or that loses the
++  complete player format.
  
  decisions_taken: >
--  One goal definition in base_apif__fixture_events, read by the base models and tests that count
--  goals; the nameless-event rule as #176's findings state it; negative minutes as shoot-out kicks;
--  the award's kind and on-pitch score carried to fct_fixture: approved in chat, 2026-10-11.
--  Measured on prod before the plan: leaving out every goal event without a scorer id would break
--  275 matches that add up today, so the nameless rule applies only where the match then adds up;
--  negative minutes fix 5 matches and break none.
-+  The goals list and goal-data state on mart_competition_fixtures, no new mart; the seed applied
-+  in base_apif__fixture_events; each seeded match researched with an official record or two
-+  sources on different sites naming its scorers: approved in chat, 2026-10-11. A researched
-+  match's sourced goals come before the players' goals, because they carry minutes. The provider's
-+  goal events of a seeded match stay in the events, not counted. A played match whose goal events
-+  exist but add up neither alone nor with the players' goals fails a test until it has a seed row,
-+  so not_recorded means the provider recorded no goals. The choice of a match's goal source and its
-+  state live in mart_competition_fixtures, with no intermediate model (the CPO's choice of the
-+  match mart, approved in chat, 2026-10-11); its players' fallback reads
-+  fct_fixture_player_stats.goals, the players' goals base_apif__fixture_players already chose,
-+  so no rule is restated.
+-  The goals list and goal-data state on mart_competition_fixtures, no new mart; the seed applied
+-  in base_apif__fixture_events; each seeded match researched with an official record or two
+-  sources on different sites naming its scorers: approved in chat, 2026-10-11. A researched
+-  match's sourced goals come before the players' goals, because they carry minutes. The provider's
+-  goal events of a seeded match stay in the events, not counted. A played match whose goal events
+-  exist but add up neither alone nor with the players' goals fails a test until it has a seed row,
+-  so not_recorded means the provider recorded no goals. The choice of a match's goal source and its
+-  state live in mart_competition_fixtures, with no intermediate model (the CPO's choice of the
+-  match mart, approved in chat, 2026-10-11); its players' fallback reads
+-  fct_fixture_player_stats.goals, the players' goals base_apif__fixture_players already chose,
+-  so no rule is restated.
++  The refetch, its lists (matches with no line-up, fewer than eleven starters or one sheet;
++  team-seasons with no squad list), the not-worse guard, the call cap, the lock and the 250 ms
++  pacing: approved in chat, 2026-10-12. The script imports the loaders' own fetch, completeness
++  check and raw writers rather than restating them.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; columns on existing models. RECURRING COST: the
--  changed models' nightly read, measured by dry-run against prod before merge.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a correction seed on the existing pattern, columns
-+  on existing models. RECURRING COST: the changed models' nightly read, measured by dry-run against
-+  prod before merge.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a correction seed on the existing pattern, columns
+-  on existing models. RECURRING COST: the changed models' nightly read, measured by dry-run against
+-  prod before merge.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a one-off operator script on the existing
++  loaders, like the scripts already in scripts/. RECURRING COST: none; each run is started by hand,
++  and its call count is put to the CPO before it runs (about 1,000 calls of the 75,000 a day).
  
  decisions_reserved:
--  - The goals list and goal-data state on mart_competition_fixtures, and the hand goal corrections seed (#176, the next MR).
--  - The page (#175).
-+  - The page and the played-match export (#175).
-+  - The wrong team in CAF match 1619054.
-+  - The seven mart renames.
+-  - The page and the played-match export (#175).
+-  - The wrong team in CAF match 1619054.
+-  - The seven mart renames.
++  - Each run, with its call count.
++  - The line-ups model and its checks (parked on parked/176-lineups).
++  - The research of matches the refetch does not fix.
  
  done_when:
-   - dbt parse passes; sqlfluff shows no new finding on every changed model and test.
--  - The changed base and core models' compiled SQL against prod differs from today's tables only on the matches the cleaning fixes.
--  - The changed tests' compiled SQL against prod returns no rows.
-+  - Every seed row passes a local check: sides add up to the score, sources official or two sites.
-+  - The changed models' compiled SQL against prod gives every played match one state, and the new and changed tests return no rows.
-   - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
+-  - dbt parse passes; sqlfluff shows no new finding on every changed model and test.
+-  - Every seed row passes a local check: sides add up to the score, sources official or two sites.
+-  - The changed models' compiled SQL against prod gives every played match one state, and the new and changed tests return no rows.
+-  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
++  - pytest tests/ passes, the new tests included; the offline CI gates pass.
++  - A plan-mode run on each list prints its call count and makes no call.
  
  amendments: >
--  data:build:mr failed on two tests; both fixes approved in chat, 2026-10-11.
--  (1) team_match_cleaning_answer_key: Aston Villa 0-1 Arsenal (1557377), Arsenal's penalties change
--  from blank to 0, because the nameless goal event that did not count is now left out and the
--  events add up to the score. (2) base_apif__players adds the assisting player from the match
--  events, as it adds the event's own player, so every assist_player_sk resolves in dim_player
--  (3,026 assist events did not). dim_player gains those players; the marts read it only to name
--  players they already hold, so no mart gains rows.
-+  fixture_result_corrections joins the scope, approved in chat, 2026-10-11. The new goals test
-+  found 23 matches the provider itself files as awarded (WO or AWD) with no record of how the
-+  award came about; each researched one gets a sourced row with its kind, as the 44 awarded rows
-+  before. The research of the matches whose goal events do not add up found 20 whose stored score
-+  is the two-leg aggregate or counts shoot-out kicks; each gets a sourced row with the score after
-+  extra time, as the extra-time rows before. assert_result_corrections_applied no longer calls an
-+  award "no longer needed": the provider never says how an award came about.
-+  data:build:mr failed on assert_player_row_and_events_same_team in one match, the 2019 Copa
-+  Libertadores final (247587): the provider files both teams' players under the other team, in its
-+  player rows and its events alike, so the corrected goals disagree with its player rows. The test
-+  now compares only the provider's own events with the player rows, as
-+  assert_fixture_events_only_from_latest_fetch does; the swapped team lists of that match are a
-+  separate item. Approved in chat, 2026-10-11, with a fourth review round.
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 10299ace..09c20c96 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -312,6 +312,7 @@ Canonical mart inventory (exhaustive) for this project:
- | `mart_leaderboards` | (player_sk, season_sk, metric_key) | LONG per-board player leaderboards, the thirteen boards of the competition page's Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share, every board most first. |
- | `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
- | `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
-+| `mart_competition_fixtures` | fixture_sk | Every match of a competition-season, played and unplayed, with both teams, its round and its flags. A played match also carries its goals as one list and its `goal_data_state`. |
- | `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
- | `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
- | `mart_standings` | (league_code, season_api_year, group_name, team_sk) | The league's official standings row, the provider's except where corrected to the league's figures (rank, points, W/D/L, goals scored and conceded, goal difference, form) plus `table_kind`, the section's kind (league / group / conference / split_round / ranking) resolved from its name through the `standings_table_kinds` seed. |
-diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
-index 122ce0e4..6f4ee237 100644
---- a/dbt_project/models/2_base/api_football/base.yml
-+++ b/dbt_project/models/2_base/api_football/base.yml
-@@ -346,7 +346,11 @@ models:
-   - name: base_apif__fixture_events
-     description: >
-       One row per event in a fixture, from stg_apif__fixture_events, keeping the events of the
--      match's latest fetch that has events. Grain: (league_code, fixture_id, event_index).
-+      match's latest fetch that has events, and one row per goal from fixture_goal_corrections.
-+      Grain: (league_code, fixture_id, event_index).
-+
-+      A goal from fixture_goal_corrections is no provider event: it stands at event_index 10000
-+      plus its place in the match, with goal_correction_source set.
- 
-       event_index is the 0-based position in the provider's events array and is the stable
-       identity of an event. Deduplication is on POSITION, not content: the provider sometimes
-@@ -399,6 +403,11 @@ models:
-       - name: has_full_events
-         description: "TRUE on every event of a match whose events include a substitution or a card, which every played match has: only then do its events show that a team or player had none of something."
-         tests: [not_null]
-+      - name: goal_correction_source
-+        description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. Such a goal stands at event_index 10000 plus its place in the match."
-+      - name: is_provider_goal
-+        description: "TRUE where the provider files the event as a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick. On a match whose goals come from fixture_goal_corrections, is_goal is FALSE on these events and TRUE on the corrections."
-+        tests: [not_null]
- 
-   - name: base_apif__player_team_season
-     description: >
-diff --git a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-index 81bdaeaf..cf1b9ebd 100644
---- a/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
-@@ -317,6 +317,49 @@ resolved as (
-             and decisions.resolved_player_team_id = team_names.team_id
- ),
- 
-+-- Every goal of a match whose provider goal events are wrong, from seeds/fixture_goal_corrections.csv,
-+-- at a position past the provider's list.
-+goal_corrections as (
-+    select
-+        f.league_code,
-+        c.fixture_id,
-+        10000 + c.goal_order as event_index,
-+        c.minute_elapsed,
-+        c.minute_extra,
-+        c.player_id,
-+        c.player_name,
-+        c.assist_player_name,
-+        c.assist_player_id,
-+        'Goal' as event_type,
-+        c.event_detail,
-+        cast(null as string) as event_comments,
-+        f.raw_ingested_at,
-+        c.event_detail = 'Own Goal' as is_own_goal,
-+        cast(null as int64) as resolved_player_team_id,
-+        c.team_id,
-+        cast(null as string) as team_name,
-+        c.source as goal_correction_source
-+    from {{ ref('fixture_goal_corrections') }} as c
-+    inner join {{ ref('base_apif__fixtures_next') }} as f
-+        on c.fixture_id = f.fixture_id
-+    where c.goal_order > 0
-+),
-+
-+-- A match with a row at goal_order 0 had no goal.
-+corrected_matches as (
-+    select distinct fixture_id
-+    from {{ ref('fixture_goal_corrections') }}
-+),
-+
-+all_events as (
-+    select
-+        *,
-+        cast(null as string) as goal_correction_source
-+    from resolved
-+    union all
-+    select * from goal_corrections
-+),
-+
- -- A shoot-out kick is no goal: the provider labels most, and files the rest at a negative minute.
- shootout_kicks as (
-     select
-@@ -326,16 +369,19 @@ shootout_kicks as (
-             and (event_comments is not distinct from 'Penalty Shootout' or coalesce(minute_elapsed < 0, false)),
-             false
-         ) as is_shootout_kick
--    from resolved
-+    from all_events
- ),
- 
- goal_events as (
-     select
--        *,
--        coalesce(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'), false)
--        and not is_shootout_kick as is_goal_event,
--        coalesce(player_id, 0) = 0 and player_name is null as is_nameless
--    from shootout_kicks
-+        k.*,
-+        coalesce(k.event_type = 'Goal' and k.event_detail in ('Normal Goal', 'Penalty', 'Own Goal'), false)
-+        and not k.is_shootout_kick as is_goal_event,
-+        coalesce(k.player_id, 0) = 0 and k.player_name is null as is_nameless,
-+        m.fixture_id is not null and k.goal_correction_source is null as is_replaced
-+    from shootout_kicks as k
-+    left join corrected_matches as m
-+        on k.fixture_id = m.fixture_id
- ),
- 
- -- The score a match's goal events must add up to: the one on the pitch where a played or
-@@ -358,6 +404,7 @@ nameless_left_out as (
-     from goal_events as g
-     inner join fixture_scores as s
-         on g.fixture_id = s.fixture_id
-+    where not g.is_replaced
-     group by g.fixture_id, s.score_home, s.score_away
-     having
-         not (
-@@ -385,9 +432,11 @@ select
-     g.resolved_player_team_id,
-     g.team_id,
-     g.team_name,
-+    g.goal_correction_source,
-     g.is_shootout_kick,
-     g.is_own_goal,
--    g.is_goal_event and not (g.is_nameless and n.fixture_id is not null) as is_goal,
-+    g.is_goal_event and g.goal_correction_source is null as is_provider_goal,
-+    g.is_goal_event and not g.is_replaced and not (g.is_nameless and n.fixture_id is not null) as is_goal,
-     coalesce(g.event_type = 'Goal' and g.event_detail = 'Missed Penalty', false) and not g.is_shootout_kick
-         as is_missed_penalty,
-     -- The events prove a zero only where they cover more than the goals: a match with at least one
-diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
-index 7b414d01..0a01bc47 100644
---- a/dbt_project/models/2_base/api_football/base_apif__players.sql
-+++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
-@@ -1,9 +1,10 @@
---- Player identity (global entity): one row per player_api_id, unioned from three sources
-+-- Player identity (global entity): one row per player_api_id, unioned from four sources
- -- and deduplicated in a single pass that prefers the most authoritative NAMED source
- -- (lowest source_priority) and then the most recent ingest:
- --   priority 1 — /players endpoint (biographical attributes, most complete)
- --   priority 2 — fixture player stats (match appearances)
- --   priority 3 — fixture events (broadest appearance coverage)
-+--   priority 4 — the assisting player of a fixture event
- -- Identity only — no league_code, no team/season affiliation: a player is one entity
- -- across competitions, and "which team/season" lives in dim_player_team_season_mapping
- -- and the facts, not here. Feeds dim_player 1:1. Grain: player_api_id.
-diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
-index fb0ce426..75363b30 100644
---- a/dbt_project/models/3_core/core.yml
-+++ b/dbt_project/models/3_core/core.yml
-@@ -836,7 +836,7 @@ models:
-         description: "{{ doc('raw_ingested_at') }}"
- 
-   - name: fct_fixture_event
--    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch."
-+    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
-     meta:
-       owner: "data-platform"
-       domain: "football"
-@@ -848,7 +848,7 @@ models:
-         description: "Surrogate key hashing (fixture_id, event_index)."
-         tests: [not_null, unique]
-       - name: event_index
--        description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
-+        description: "Zero-based array position of the event within the fixture's event list; 10000 plus the goal's place in the match for a goal from fixture_goal_corrections. Combined with fixture_id, this is the unique grain of the fact."
-         tests: [not_null]
-       - name: fixture_sk
-         description: >
-@@ -921,6 +921,8 @@ models:
-       - name: is_shootout_kick
-         description: "TRUE for a penalty shoot-out kick, scored or missed. A shoot-out kick is never a goal."
-         tests: [not_null]
-+      - name: goal_correction_source
-+        description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. A match with such goals counts only them: is_goal is FALSE on its provider goal events."
-       - name: raw_ingested_at
-         description: "{{ doc('raw_ingested_at') }}"
- 
-diff --git a/dbt_project/models/3_core/fct_fixture_event.sql b/dbt_project/models/3_core/fct_fixture_event.sql
-index 373d3d5d..deb3e69e 100644
---- a/dbt_project/models/3_core/fct_fixture_event.sql
-+++ b/dbt_project/models/3_core/fct_fixture_event.sql
-@@ -3,7 +3,8 @@
-     onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
-     is the zero-based array position from the API-Football /fixtures/events response.
-     API-Football does not emit event IDs; array position is the only stable unique
--    identifier within a fixture's event list.
-+    identifier within a fixture's event list. A goal from fixture_goal_corrections stands
-+    at event_index 10000 plus its place in the match.
- #}
- 
- with src as (
-@@ -35,5 +36,6 @@ select
-     is_goal,
-     is_own_goal,
-     is_shootout_kick,
-+    goal_correction_source,
-     src.raw_ingested_at
- from src
-diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-index 133de52d..80b56731 100644
---- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-+++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
-@@ -33,6 +33,13 @@
-   own URL and in every match URL. A fixture whose team is unknown to dim_team gets no slug and
-   fails the tests, which name it, instead of the build inventing a URL.
- 
-+  Goals. A played match's goals come from the first source that adds up to its score, side by
-+  side: its goal events (is_goal, with any goals corrected by hand), then its players' goals with
-+  its own-goal events. A played or abandoned match awarded afterwards adds up to its score on the
-+  pitch. goal_data_state names what the match has: goals (every goal with its minute; a 0-0 has
-+  none), goals_without_minutes (one entry per scorer), not_recorded (the provider recorded no goal),
-+  or awarded (award_kind says how; its goals as scored, none when not played).
-+
-   Grain: fixture_sk. league_code discriminates the competition and is not a BigQuery partition
-   or cluster key.
- #}
-@@ -48,6 +55,9 @@ with fixtures as (
-         status_short,
-         goals_home,
-         goals_away,
-+        award_kind,
-+        on_pitch_home,
-+        on_pitch_away,
-         home_team_sk,
-         away_team_sk,
-         venue_name_snapshot
-@@ -136,6 +146,240 @@ last_round as (
-             and f.season_api_year = r.season_api_year
-             and f.round_name = r.round_name
-     group by f.league_code, f.season_api_year
-+),
-+
-+player_names as (
-+    select
-+        player_sk,
-+        player_name
-+    from {{ ref('dim_player') }}
-+),
-+
-+scores as (
-+    select
-+        f.fixture_sk,
-+        f.home_team_sk,
-+        f.away_team_sk,
-+        if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home) as score_home,
-+        if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away) as score_away
-+    from fixtures as f
-+    inner join played as p
-+        on f.fixture_sk = p.fixture_sk
-+    where f.award_kind is distinct from 'not_played'
-+),
-+
-+goal_events as (
-+    select
-+        e.fixture_sk,
-+        e.team_sk,
-+        e.player_sk,
-+        e.minute_elapsed,
-+        e.minute_extra,
-+        e.is_own_goal,
-+        e.assist_player_sk,
-+        e.event_index,
-+        coalesce(p.player_name, e.player_name_snapshot) as player_name,
-+        if(e.event_detail = 'Penalty', 1, 0) as penalties,
-+        coalesce(ap.player_name, e.assist_player_name) as assist_player_name
-+    from {{ ref('fct_fixture_event') }} as e
-+    left join player_names as p
-+        on e.player_sk = p.player_sk
-+    left join player_names as ap
-+        on e.assist_player_sk = ap.player_sk
-+    where e.is_goal
-+),
-+
-+event_totals as (
-+    select
-+        s.fixture_sk,
-+        countif(g.team_sk = s.home_team_sk) = s.score_home
-+        and countif(g.team_sk = s.away_team_sk) = s.score_away
-+        and countif(g.team_sk not in (s.home_team_sk, s.away_team_sk)) = 0 as events_add_up,
-+        countif(g.fixture_sk is not null and g.minute_elapsed is null) = 0 as events_have_minutes
-+    from scores as s
-+    left join goal_events as g
-+        on s.fixture_sk = g.fixture_sk
-+    group by s.fixture_sk, s.score_home, s.score_away
-+),
-+
-+player_lines as (
-+    select
-+        ps.fixture_sk,
-+        ps.team_sk,
-+        ps.player_sk,
-+        p.player_name,
-+        ps.goals,
-+        ps.goals_penalty
-+    from {{ ref('fct_fixture_player_stats') }} as ps
-+    inner join scores as s
-+        on ps.fixture_sk = s.fixture_sk
-+    left join player_names as p
-+        on ps.player_sk = p.player_sk
-+),
-+
-+-- An own goal counts for the side its event names; the players' goals count for their own team.
-+own_goal_totals as (
-+    select
-+        s.fixture_sk,
-+        countif(g.team_sk = s.home_team_sk) as own_goals_home,
-+        countif(g.team_sk = s.away_team_sk) as own_goals_away
-+    from scores as s
-+    left join goal_events as g
-+        on s.fixture_sk = g.fixture_sk and g.is_own_goal
-+    group by s.fixture_sk
-+),
-+
-+player_totals as (
-+    select
-+        s.fixture_sk,
-+        coalesce(logical_and(l.goals is not null), false)
-+        and coalesce(sum(if(l.team_sk = s.home_team_sk, l.goals, 0)), 0) + o.own_goals_home = s.score_home
-+        and coalesce(sum(if(l.team_sk = s.away_team_sk, l.goals, 0)), 0) + o.own_goals_away = s.score_away
-+            as players_add_up
-+    from scores as s
-+    inner join own_goal_totals as o
-+        on s.fixture_sk = o.fixture_sk
-+    left join player_lines as l
-+        on s.fixture_sk = l.fixture_sk
-+    group by s.fixture_sk, s.score_home, s.score_away, o.own_goals_home, o.own_goals_away
-+),
-+
-+goal_sources as (
-+    select
-+        s.fixture_sk,
-+        case
-+            when e.events_add_up then 'events'
-+            when p.players_add_up then 'players'
-+        end as goal_source,
-+        e.events_add_up and e.events_have_minutes as has_minutes
-+    from scores as s
-+    inner join event_totals as e
-+        on s.fixture_sk = e.fixture_sk
-+    inner join player_totals as p
-+        on s.fixture_sk = p.fixture_sk
-+),
-+
-+served_goals as (
-+    select
-+        g.fixture_sk,
-+        g.team_sk,
-+        g.player_sk,
-+        g.player_name,
-+        g.minute_elapsed,
-+        g.minute_extra,
-+        1 as goals,
-+        g.penalties,
-+        g.is_own_goal,
-+        g.assist_player_sk,
-+        g.assist_player_name,
-+        g.event_index
-+    from goal_events as g
-+    inner join goal_sources as s
-+        on g.fixture_sk = s.fixture_sk
-+    where s.goal_source = 'events'
-+    union all
-+    select
-+        l.fixture_sk,
-+        l.team_sk,
-+        l.player_sk,
-+        l.player_name,
-+        cast(null as int64) as minute_elapsed,
-+        cast(null as int64) as minute_extra,
-+        l.goals,
-+        l.goals_penalty as penalties,
-+        false as is_own_goal,
-+        cast(null as int64) as assist_player_sk,
-+        cast(null as string) as assist_player_name,
-+        cast(null as int64) as event_index
-+    from player_lines as l
-+    inner join goal_sources as s
-+        on l.fixture_sk = s.fixture_sk
-+    where s.goal_source = 'players' and l.goals > 0
-+    union all
-+    select
-+        g.fixture_sk,
-+        g.team_sk,
-+        g.player_sk,
-+        g.player_name,
-+        cast(null as int64) as minute_elapsed,
-+        cast(null as int64) as minute_extra,
-+        1 as goals,
-+        0 as penalties,
-+        true as is_own_goal,
-+        cast(null as int64) as assist_player_sk,
-+        cast(null as string) as assist_player_name,
-+        g.event_index
-+    from goal_events as g
-+    inner join goal_sources as s
-+        on g.fixture_sk = s.fixture_sk
-+    where s.goal_source = 'players' and g.is_own_goal
-+),
-+
-+scorer_goals as (
-+    select
-+        g.fixture_sk,
-+        g.team_sk,
-+        g.player_sk,
-+        g.player_name,
-+        g.is_own_goal,
-+        sum(g.goals) as goals,
-+        sum(g.penalties) as penalties
-+    from served_goals as g
-+    inner join goal_sources as s
-+        on g.fixture_sk = s.fixture_sk
-+    where not s.has_minutes
-+    group by g.fixture_sk, g.team_sk, g.player_sk, g.player_name, g.is_own_goal
-+),
-+
-+-- With every minute known, one entry per goal in match order; otherwise one entry per scorer. A
-+-- player's provider id is his player_sk.
-+goal_lists as (
-+    select
-+        s.fixture_sk,
-+        array_agg(
-+            struct(
-+                case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
-+                g.player_sk as player_api_id,
-+                g.player_name,
-+                g.minute_elapsed,
-+                g.minute_extra,
-+                g.goals,
-+                g.penalties,
-+                g.is_own_goal,
-+                g.assist_player_sk as assist_player_api_id,
-+                g.assist_player_name
-+            )
-+            order by g.minute_elapsed, g.minute_extra, g.event_index
-+        ) as goals
-+    from served_goals as g
-+    inner join goal_sources as s
-+        on g.fixture_sk = s.fixture_sk
-+    inner join scores as sc
-+        on g.fixture_sk = sc.fixture_sk
-+    where s.has_minutes
-+    group by s.fixture_sk
-+    union all
-+    select
-+        g.fixture_sk,
-+        array_agg(
-+            struct(
-+                case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
-+                g.player_sk as player_api_id,
-+                g.player_name,
-+                cast(null as int64) as minute_elapsed,
-+                cast(null as int64) as minute_extra,
-+                g.goals,
-+                g.penalties,
-+                g.is_own_goal,
-+                cast(null as int64) as assist_player_api_id,
-+                cast(null as string) as assist_player_name
-+            )
-+            order by g.goals desc, g.player_name asc
-+        ) as goals
-+    from scorer_goals as g
-+    inner join scores as sc
-+        on g.fixture_sk = sc.fixture_sk
-+    group by g.fixture_sk
- )
- 
- select
-@@ -158,6 +402,10 @@ select
-     a.team_slug as away_team_slug,
-     a.team_logo_url as away_team_logo_url,
-     f.venue_name_snapshot as venue_name,
-+    f.award_kind,
-+    f.on_pitch_home,
-+    f.on_pitch_away,
-+    gl.goals,
-     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
-     p.fixture_sk is not null as is_played,
-     case
-@@ -171,6 +419,13 @@ select
-     coalesce(m.is_match_that_matters, false) as is_match_that_matters,
-     nh.fixture_sk is not null as is_home_team_next_match,
-     na.fixture_sk is not null as is_away_team_next_match,
-+    case
-+        when p.fixture_sk is null then null
-+        when f.status_short in ('AWD', 'WO') then 'awarded'
-+        when gs.goal_source = 'events' and gs.has_minutes then 'goals'
-+        when gs.goal_source is not null then 'goals_without_minutes'
-+        else 'not_recorded'
-+    end as goal_data_state,
-     row_number() over (
-         partition by f.league_code, f.season_api_year
-         order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
-@@ -207,3 +462,7 @@ left join team_next as na
-     on
-         f.fixture_sk = na.fixture_sk
-         and f.away_team_sk = na.team_sk
-+left join goal_sources as gs
-+    on f.fixture_sk = gs.fixture_sk
-+left join goal_lists as gl
-+    on f.fixture_sk = gl.fixture_sk
-diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index fe2cb180..c3ad1a20 100644
---- a/dbt_project/models/5_marts/shared/shared.yml
-+++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -2769,6 +2769,11 @@ models:
-       round of the competition-season's earliest fixture not yet started, by mart_next_matchday's
-       rule, and that mart's match-that-matters flag is carried onto its fixture.
- 
-+      A played match carries its goals as one list and its goal_data_state. The goals come from
-+      its goal events where they add up to its score, otherwise from its players' goals with its
-+      own-goal events. An awarded match carries how the award came about and, when played or
-+      abandoned, its score on the pitch.
-+
-       The fixture slug is the match's permanent URL segment, built from the kick-off date and the
-       two published team slugs. Rebuilt nightly, so the next-round flag is correct as of the
-       morning it was built.
-@@ -2905,6 +2910,44 @@ models:
-           - accepted_values:
-               values: [true, false]
-               quote: false
-+      - name: award_kind
-+        description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
-+      - name: on_pitch_home
-+        description: "The home goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_home is then the awarded score."
-+      - name: on_pitch_away
-+        description: "The away goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_away is then the awarded score."
-+      - name: goal_data_state
-+        description: >
-+          What a played match's goal data holds. goals: every goal with its scorer and minute, one
-+          entry each; a 0-0 has none. goals_without_minutes: the scorers without minutes, one entry
-+          per scorer. not_recorded: the provider recorded no goal, only the score. awarded: the
-+          result was awarded, as award_kind says; the goals as scored, none when not played. NULL
-+          on a match not played.
-+        tests:
-+          - accepted_values:
-+              values: ["goals", "goals_without_minutes", "not_recorded", "awarded"]
-+      - name: goals
-+        description: "The match's goals, home and away together: one entry per goal in match order when every minute is known, otherwise one per scorer. Empty when the match has none, was not played, or its goals are not recorded."
-+      - name: goals.side
-+        description: "home or away: the side the goal counts for, own goals included, inside the goals array."
-+      - name: goals.player_api_id
-+        description: "The scorer's provider player id inside the goals array, which is player_sk in dim_player. NULL where the scorer has no player id."
-+      - name: goals.player_name
-+        description: "The scorer's name inside the goals array."
-+      - name: goals.minute_elapsed
-+        description: "The minute of normal time the goal was scored in, inside the goals array. NULL on a per-scorer entry."
-+      - name: goals.minute_extra
-+        description: "Minutes into added time, on top of minute_elapsed, inside the goals array. NULL for a goal in normal play."
-+      - name: goals.goals
-+        description: "The goals the entry stands for, inside the goals array: 1 on a goal, the scorer's count on a per-scorer entry."
-+      - name: goals.penalties
-+        description: "How many of the entry's goals were penalties, inside the goals array. NULL where the source does not say."
-+      - name: goals.is_own_goal
-+        description: "TRUE where the entry is an own goal, inside the goals array: the scorer is then the opponent who put it into his own net."
-+      - name: goals.assist_player_api_id
-+        description: "The assisting player's provider player id inside the goals array, which is player_sk in dim_player. NULL on a per-scorer entry and where no assist is recorded."
-+      - name: goals.assist_player_name
-+        description: "The assisting player's name inside the goals array. NULL on a per-scorer entry and where no assist is recorded."
- 
-   - name: mart_match_days
-     description: >
-diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
-index 6f5f07a4..c3d498ac 100644
---- a/dbt_project/models/docs/cleaning_rules.md
-+++ b/dbt_project/models/docs/cleaning_rules.md
-@@ -17,8 +17,9 @@ match stats are good enough.
- - Results. A team's goals are the score. Its penalty and own goals come from its goal events where
-   those add up to its score. A shoot-out kick is no goal event: the provider labels most and files
-   the rest at a negative minute. A goal event with no scorer id or name is left out where the goal
--  events add up to the score only without such events. A player's goals come from the per-player
--  count or the goal events, whichever adds up to the score.
-+  events add up to the score only without such events. Where a match's goal events stay wrong, its
-+  goals come from sourced research in the fixture_goal_corrections seed. A player's goals come from
-+  the per-player count or the goal events, whichever adds up to the score.
- - A player's team. Where his statistics row and his match events, own goals aside, name different
-   teams of the match, the squad list for the season decides, and his other matches decide where it
-   names both teams or neither; the side it contradicts, his row or his events, moves to the team
-diff --git a/dbt_project/seeds/fixture_goal_corrections.csv b/dbt_project/seeds/fixture_goal_corrections.csv
+-  fixture_result_corrections joins the scope, approved in chat, 2026-10-11. The new goals test
+-  found 23 matches the provider itself files as awarded (WO or AWD) with no record of how the
+-  award came about; each researched one gets a sourced row with its kind, as the 44 awarded rows
+-  before. The research of the matches whose goal events do not add up found 20 whose stored score
+-  is the two-leg aggregate or counts shoot-out kicks; each gets a sourced row with the score after
+-  extra time, as the extra-time rows before. assert_result_corrections_applied no longer calls an
+-  award "no longer needed": the provider never says how an award came about.
+-  data:build:mr failed on assert_player_row_and_events_same_team in one match, the 2019 Copa
+-  Libertadores final (247587): the provider files both teams' players under the other team, in its
+-  player rows and its events alike, so the corrected goals disagree with its player rows. The test
+-  now compares only the provider's own events with the player rows, as
+-  assert_fixture_events_only_from_latest_fetch does; the swapped team lists of that match are a
+-  separate item. Approved in chat, 2026-10-11, with a fourth review round.
++  none.
+diff --git a/scripts/refetch_from_provider.py b/scripts/refetch_from_provider.py
 new file mode 100644
-index 00000000..5e379b48
+index 00000000..b26427cf
 --- /dev/null
-+++ b/dbt_project/seeds/fixture_goal_corrections.csv
-@@ -0,0 +1,109 @@
-+fixture_id,goal_order,team_id,player_id,player_name,minute_elapsed,minute_extra,event_detail,assist_player_id,assist_player_name,source_kind,source,note
-+158963,1,591,,Camochu,76,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026930 https://www.uefa.com/uefachampionsleague/match/2026930--sp-tre-penne-vs-fc-santa-coloma/,"Tre Penne-FC Santa Coloma, UCL preliminary round semi-final (stored as 1st qualifying round) 25 Jun 2019: 0-1; UEFA match data names Camochu (Javier López Iglesias), 76'"
-+158964,1,4132,,Mendurim Hoti,3,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026929 https://www.uefa.com/uefachampionsleague/match/2026929--feronikeli-vs-lincoln/,"Feronikeli-Lincoln Red Imps, UCL preliminary round semi-final 25 Jun 2019: 1-0; UEFA match data names Hoti 3'"
-+158990,0,,,,,,,,,official,https://www.uefa.com/uefachampionsleague/match/2026961--riga-vs-dundalk/ https://match.uefa.com/v5/matches?matchId=2026961,"Riga-Dundalk, UCL 1st qualifying round 2nd leg 17 Jul 2019: 0-0 after extra time, Dundalk won 5-4 on penalties; every provider goal event is a shoot-out kick"
-+185528,1,591,,Chus Sosa,52,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026931 https://www.uefa.com/uefachampionsleague/match/2026931--feronikeli-vs-fc-santa-coloma/,"Feronikeli-FC Santa Coloma, UCL preliminary round final 28 Jun 2019: 2-1; scorers and minutes from UEFA's own match data behind the uefa.com match page"
-+185528,2,4132,,Mevlan Zeka,58,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026931 https://www.uefa.com/uefachampionsleague/match/2026931--feronikeli-vs-fc-santa-coloma/,"Feronikeli-FC Santa Coloma, UCL preliminary round final 28 Jun 2019: 2-1; scorers and minutes from UEFA's own match data behind the uefa.com match page"
-+185528,3,4132,,Kastriot Rexha,87,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2026931 https://www.uefa.com/uefachampionsleague/match/2026931--feronikeli-vs-fc-santa-coloma/,"Feronikeli-FC Santa Coloma, UCL preliminary round final 28 Jun 2019: 2-1; scorers and minutes from UEFA's own match data behind the uefa.com match page"
-+232615,1,500,30491,Federico Santander,23,,Penalty,,,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
-+232615,2,490,30562,João Pedro,48,,Normal Goal,,Luca Pellegrini,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
-+232615,3,490,30414,Giovanni Simeone,72,,Normal Goal,,Radja Nainggolan,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
-+232615,4,490,30562,João Pedro,83,,Normal Goal,,Artur Ioniță,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
-+232615,5,500,30563,Paolo Faragò,90,1,Own Goal,,,match_reports,https://www.goal.com/it/notizie/cagliari-bologna-3-2/wlq92veioo6w1skpga79gmi9o https://africa.espn.com/football/match/_/gameId/554485/bologna-cagliari,"Cagliari-Bologna, Serie A round 10 30 Oct 2019: 3-2; no official match page found; Simeone's goal is 72' on ESPN, Unione Sarda and Foot Mercato but 73' on Goal; Il Resto del Carlino credits the 90+1' own goal to Olsen, Goal, ESPN and Unione Sarda to Faragò (Cagliari); assists from Goal"
-+247587,1,435,6011,Rafael Santos Borré,14,,Normal Goal,,,official,https://www.conmebol.com/noticias/flamengo-campeon-de-la-conmebol-libertadores-2019/ https://www.conmebol.com/noticias/gabigol-el-jugador-que-le-dio-la-conmebol-libertadores-flamengo/,"Flamengo-River Plate, Copa Libertadores final 23 Nov 2019 (Lima): 2-1; provider had the sides swapped (Borré scored for River, Gabigol for Flamengo)"
-+247587,2,127,10174,Gabriel Barbosa,89,,Normal Goal,,,official,https://www.conmebol.com/noticias/flamengo-campeon-de-la-conmebol-libertadores-2019/ https://www.conmebol.com/noticias/gabigol-el-jugador-que-le-dio-la-conmebol-libertadores-flamengo/,"Flamengo-River Plate, Copa Libertadores final 23 Nov 2019: CONMEBOL gives 89' (SI.com report says 88')"
-+247587,3,127,10174,Gabriel Barbosa,90,2,Normal Goal,,,official,https://www.conmebol.com/noticias/flamengo-campeon-de-la-conmebol-libertadores-2019/ https://www.conmebol.com/noticias/gabigol-el-jugador-que-le-dio-la-conmebol-libertadores-flamengo/,"Flamengo-River Plate, Copa Libertadores final 23 Nov 2019: winner 90+2'"
-+253599,1,2895,44355,Bafetimbi Gomis,14,,Own Goal,,,match_reports,https://www.beinsports.com/en-mena/football/afc-champions-league/articles/al-sadd-1-4-al-hilal-gomis-on-target-at-bot-1 https://global.espn.com/football/match/_/gameId/557798/al-hilal-al-sadd,"Al Sadd-Al Hilal, AFC CL semi-final 1st leg 1 Oct 2019 in Doha: 1-4. Al Hilal's Gomis put it into his own net; the AFC's own article says 'after 15 minutes', beIN, ESPN, Arab News and QFA say 14'"
-+253599,2,2932,44355,Bafetimbi Gomis,33,,Normal Goal,,,match_reports,https://www.beinsports.com/en-mena/football/afc-champions-league/articles/al-sadd-1-4-al-hilal-gomis-on-target-at-bot-1 https://global.espn.com/football/match/_/gameId/557798/al-hilal-al-sadd,"Al Sadd-Al Hilal, AFC CL semi-final 1st leg 1 Oct 2019: 1-4"
-+253599,3,2932,44332,Ali Al-Bulayhi,45,,Normal Goal,,,match_reports,https://www.beinsports.com/en-mena/football/afc-champions-league/articles/al-sadd-1-4-al-hilal-gomis-on-target-at-bot-1 https://global.espn.com/football/match/_/gameId/557798/al-hilal-al-sadd,"Al Sadd-Al Hilal, AFC CL semi-final 1st leg 1 Oct 2019: 1-4; provider spells him Ali Al-Boleahi"
-+253599,4,2932,44355,Bafetimbi Gomis,60,,Normal Goal,,,match_reports,https://www.beinsports.com/en-mena/football/afc-champions-league/articles/al-sadd-1-4-al-hilal-gomis-on-target-at-bot-1 https://global.espn.com/football/match/_/gameId/557798/al-hilal-al-sadd,"Al Sadd-Al Hilal, AFC CL semi-final 1st leg 1 Oct 2019: 1-4. Scorer disputed: beIN, ESPN and the AFC (Gomis 'netted a goal in each half', https://www.the-afc.com/en/club/afc_champions_league/news/lucescu_al_hilal_deserved_big_win.html) credit Gomis; Arab News, QFA and Al Sadd's club site call it a Salem Al-Hajri own goal (QFA says 61')"
-+253599,5,2932,44344,Mohammed Al-Shalhoub,67,,Normal Goal,,,match_reports,https://www.beinsports.com/en-mena/football/afc-champions-league/articles/al-sadd-1-4-al-hilal-gomis-on-target-at-bot-1 https://global.espn.com/football/match/_/gameId/557798/al-hilal-al-sadd,"Al Sadd-Al Hilal, AFC CL semi-final 1st leg 1 Oct 2019: 1-4"
-+341977,1,1577,,Mohamed Magdy Afsha,4,,Normal Goal,,,match_reports,https://theafricanmirror.africa/sport/egyptian-giants-al-ahly-secures-a-big-advantage/ https://africa.espn.com/football/match/_/gameId/570848,"Wydad AC-Al Ahly, CAF CL semi-final 1st leg 17 Oct 2020: 0-2; no official CAF match report found; Al Ahly's own report puts Maâloul's penalty at 60'; the provider's only event is Badie Aouk's missed penalty"
-+341977,2,1577,,Ali Maâloul,62,,Penalty,,,match_reports,https://theafricanmirror.africa/sport/egyptian-giants-al-ahly-secures-a-big-advantage/ https://africa.espn.com/football/match/_/gameId/570848,"Wydad AC-Al Ahly, CAF CL semi-final 1st leg 17 Oct 2020: 0-2; no official CAF match report found; Al Ahly's own report puts Maâloul's penalty at 60'; the provider's only event is Badie Aouk's missed penalty"
-+591118,1,3840,69301,Keith Ward,22,,Normal Goal,,Kris Twardek,official,https://match.uefa.com/v5/matches?matchId=2030285 https://www.the42.ie/bohs-lose-on-penalties-fehervar-europa-league-qualifier-5188489-Aug2020/,"Fehérvár-Bohemians, UEL 1st qualifying round (single match) 27 Aug 2020: 1-1 after extra time, Fehérvár won 4-2 on penalties; provider filed shoot-out kicks as penalty goals"
-+591118,2,610,50917,Nemanja Nikolić,37,,Penalty,,,official,https://match.uefa.com/v5/matches?matchId=2030285 https://www.the42.ie/bohs-lose-on-penalties-fehervar-europa-league-qualifier-5188489-Aug2020/,"Fehérvár-Bohemians, UEL 1st qualifying round (single match) 27 Aug 2020: 1-1 after extra time, Fehérvár won 4-2 on penalties; provider filed shoot-out kicks as penalty goals"
-+591125,0,,,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2030281 https://www.uefa.com/uefaeuropaleague/match/2030281--samaxi-vs-lac/,"Şamaxı-Laçi, UEL 1st qualifying round 27 Aug 2020: 0-0 after extra time, Laçi won 5-4 on penalties; all provider goal events are shoot-out kicks"
-+591131,0,,,,,,,,,official,https://www.uefa.com/uefaeuropaleague/match/2030272--shakhtyor-vs-fcsg/ https://match.uefa.com/v5/matches?matchId=2030272,"Shakhter Soligorsk-Sfintul Gheorghe, UEL 1st qualifying round 27 Aug 2020 (single leg): 0-0 after extra time, Sfintul Gheorghe won 4-1 on penalties; the provider's 120+ penalty events are shoot-out kicks"
-+591141,1,1163,55312,Lauri Ala-Myllymäki,10,,Penalty,,,official,https://www.uefa.com/uefaeuropaleague/match/2030275--shamrock-rovers-vs-ilves/ https://match.uefa.com/v5/matches?matchId=2030275,"Shamrock Rovers-Ilves, UEL 1st qualifying round single match 27 Aug 2020: 2-2 after extra time, Shamrock Rovers won 12-11 on penalties"
-+591141,2,652,19457,Graham Burke,14,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030275--shamrock-rovers-vs-ilves/ https://match.uefa.com/v5/matches?matchId=2030275,"Shamrock Rovers-Ilves, UEL 1st qualifying round single match 27 Aug 2020: 2-2 after extra time, Shamrock Rovers won 12-11 on penalties"
-+591141,3,1163,83285,Joona Veteli,62,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030275--shamrock-rovers-vs-ilves/ https://match.uefa.com/v5/matches?matchId=2030275,"Shamrock Rovers-Ilves, UEL 1st qualifying round single match 27 Aug 2020: 2-2 after extra time, Shamrock Rovers won 12-11 on penalties"
-+591141,4,652,69260,Roberto Lopes,78,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030275--shamrock-rovers-vs-ilves/ https://match.uefa.com/v5/matches?matchId=2030275,"Shamrock Rovers-Ilves, UEL 1st qualifying round single match 27 Aug 2020: 2-2 after extra time, Shamrock Rovers won 12-11 on penalties"
-+591146,0,,,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2030250 https://www.uefa.com/uefaeuropaleague/match/2030250--fc-santa-coloma-vs-iskra/,"FC Santa Coloma-Iskra, UEL preliminary round 20 Aug 2020: 0-0 after extra time, Iskra won 4-3 on penalties; every provider goal event is a shoot-out kick"
-+592879,1,669,105933,James McLaughlin,62,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030256--maribor-vs-coleraine/ https://match.uefa.com/v5/matches?matchId=2030256,"Maribor-Coleraine, UEL 1st qualifying round single match 27 Aug 2020: 1-1 after extra time, Coleraine won 5-4 on penalties; the provider's 120+ penalties are shoot-out kicks"
-+592879,2,552,109685,Rudi Požeg Vancaš,65,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030256--maribor-vs-coleraine/ https://match.uefa.com/v5/matches?matchId=2030256,"Maribor-Coleraine, UEL 1st qualifying round single match 27 Aug 2020: 1-1 after extra time, Coleraine won 5-4 on penalties; the provider's 120+ penalties are shoot-out kicks"
-+606549,1,678,72992,Michał Przybylski,47,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030333 https://nwsport.co.uk/2020/09/17/penalties-heartbreak-for-tns-now-its-down-to-bala-town-and-nomads/,"B36 Tórshavn-The New Saints, UEL 2nd qualifying round (single match) 16 Sep 2020: 2-2 after extra time, B36 won 5-4 on penalties; Leo Smith 81' per UEFA (provider 80')"
-+606549,2,354,53239,Leo Smith,81,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030333 https://nwsport.co.uk/2020/09/17/penalties-heartbreak-for-tns-now-its-down-to-bala-town-and-nomads/,"B36 Tórshavn-The New Saints, UEL 2nd qualifying round (single match) 16 Sep 2020: 2-2 after extra time, B36 won 5-4 on penalties; Leo Smith 81' per UEFA (provider 80')"
-+606549,3,354,53180,Dean Ebbe,112,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030333 https://nwsport.co.uk/2020/09/17/penalties-heartbreak-for-tns-now-its-down-to-bala-town-and-nomads/,"B36 Tórshavn-The New Saints, UEL 2nd qualifying round (single match) 16 Sep 2020: 2-2 after extra time, B36 won 5-4 on penalties; Leo Smith 81' per UEFA (provider 80')"
-+606549,4,678,73086,Stefan Radosavlevic,120,2,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030333 https://nwsport.co.uk/2020/09/17/penalties-heartbreak-for-tns-now-its-down-to-bala-town-and-nomads/,"B36 Tórshavn-The New Saints, UEL 2nd qualifying round (single match) 16 Sep 2020: 2-2 after extra time, B36 won 5-4 on penalties; Leo Smith 81' per UEFA (provider 80')"
-+606559,1,656,56689,Žan Medved,111,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030364 https://www.uefa.com/uefaeuropaleague/match/2030364--kups-vs-s-bratislava/,"KuPS-Slovan Bratislava, UEL 2nd qualifying round 17 Sep 2020: 1-1 after extra time (0-0 at 90'), KuPS won 4-3 on penalties; provider's 120+ events are shoot-out kicks"
-+606559,2,1165,94637,Aniekpeno Udoh,120,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030364 https://www.uefa.com/uefaeuropaleague/match/2030364--kups-vs-s-bratislava/,"KuPS-Slovan Bratislava, UEL 2nd qualifying round 17 Sep 2020: extra-time equaliser 120'"
-+606577,1,2646,45362,Dejan Milicevic,11,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020 (single leg): 4-4 after 90 minutes, 6-6 after extra time, FCSB won 5-4 on penalties; the provider's 120+ events are shoot-out kicks"
-+606577,2,2646,46063,Borko Duronjic,14,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,3,559,43033,Florinel Coman,25,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,4,559,43036,Dennis Man,50,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,5,2646,65410,Goran Antonic,51,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,6,559,43036,Dennis Man,63,,Penalty,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,7,559,129007,Bojan Balaz,90,3,Own Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time. Own goal by TSC's Balaz; UEFA gives 90+3, the provider 90+2"
-+606577,8,2646,45356,Sasa Tomanovic,90,4,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,9,559,43036,Dennis Man,105,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,10,2646,45866,Janko Tumbasevic,105,1,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,11,559,15840,Adrian Petre,108,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606577,12,2646,45356,Sasa Tomanovic,117,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030336--tsc-vs-fcsb/ https://match.uefa.com/v5/matches?matchId=2030336,"TSC-FCSB, UEL 2nd qualifying round 17 Sep 2020: 6-6 after extra time"
-+606586,1,256,17760,Callum Lang,16,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030334--coleraine-vs-motherwell/ https://match.uefa.com/v5/matches?matchId=2030334,"Coleraine-Motherwell, UEL 2nd qualifying round single match 17 Sep 2020: 2-2 after extra time, Motherwell won 3-0 on penalties"
-+606586,2,256,44909,Tony Watt,37,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030334--coleraine-vs-motherwell/ https://match.uefa.com/v5/matches?matchId=2030334,"Coleraine-Motherwell, UEL 2nd qualifying round single match 17 Sep 2020: 2-2 after extra time, Motherwell won 3-0 on penalties"
-+606586,3,669,106036,Ben Doherty,49,,Penalty,,,official,https://www.uefa.com/uefaeuropaleague/match/2030334--coleraine-vs-motherwell/ https://match.uefa.com/v5/matches?matchId=2030334,"Coleraine-Motherwell, UEL 2nd qualifying round single match 17 Sep 2020: 2-2 after extra time, Motherwell won 3-0 on penalties"
-+606586,4,669,106036,Ben Doherty,90,,Penalty,,,official,https://www.uefa.com/uefaeuropaleague/match/2030334--coleraine-vs-motherwell/ https://match.uefa.com/v5/matches?matchId=2030334,"Coleraine-Motherwell, UEL 2nd qualifying round single match 17 Sep 2020: 2-2 after extra time, Motherwell won 3-0 on penalties"
-+629164,0,,,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2030379 https://www.uefa.com/uefaeuropaleague/match/2030379--fehervar-vs-reims/,"Fehervar-Reims, UEL 3rd qualifying round 24 Sep 2020: 0-0 after extra time, Fehervar won 4-1 on penalties; every provider goal event is a shoot-out kick"
-+629178,1,588,111300,Josip Ivančić,11,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030397--apoel-vs-zrinjski/ https://match.uefa.com/v5/matches?matchId=2030397,"APOEL-Zrinjski, UEL 3rd qualifying round single match 24 Sep 2020: 2-2 after extra time, APOEL won 4-2 on penalties; assists from the Cyprus Mail and NFSBiH reports; the 11' assist is left empty because they disagree (Jakovljević vs Todorović)"
-+629178,2,2247,104849,Omer Atzili,14,,Normal Goal,,André Geraldes,official,https://www.uefa.com/uefaeuropaleague/match/2030397--apoel-vs-zrinjski/ https://match.uefa.com/v5/matches?matchId=2030397,"APOEL-Zrinjski, UEL 3rd qualifying round single match 24 Sep 2020: 2-2 after extra time, APOEL won 4-2 on penalties; assists from the Cyprus Mail and NFSBiH reports; the 11' assist is left empty because they disagree (Jakovljević vs Todorović)"
-+629178,3,2247,19402,Atdhe Nuhiu,26,,Normal Goal,,Omer Atzili,official,https://www.uefa.com/uefaeuropaleague/match/2030397--apoel-vs-zrinjski/ https://match.uefa.com/v5/matches?matchId=2030397,"APOEL-Zrinjski, UEL 3rd qualifying round single match 24 Sep 2020: 2-2 after extra time, APOEL won 4-2 on penalties; assists from the Cyprus Mail and NFSBiH reports; the 11' assist is left empty because they disagree (Jakovljević vs Todorović)"
-+629178,4,588,9020,Nemanja Bilbija,69,,Normal Goal,,Damir Zlomislić,official,https://www.uefa.com/uefaeuropaleague/match/2030397--apoel-vs-zrinjski/ https://match.uefa.com/v5/matches?matchId=2030397,"APOEL-Zrinjski, UEL 3rd qualifying round single match 24 Sep 2020: 2-2 after extra time, APOEL won 4-2 on penalties; assists from the Cyprus Mail and NFSBiH reports; the 11' assist is left empty because they disagree (Jakovljević vs Todorović)"
-+629184,0,,,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2030407 https://www.maltafootball.com/2020/09/24/floriana-eliminated-by-flora-fc-after-penalty-shoot-out,"Floriana-Flora Tallinn, UEL 3rd qualifying round (single match) 24 Sep 2020: 0-0 after extra time, Flora won 4-2 on penalties; provider events are all shoot-out kicks"
-+629187,1,549,2005,Güven Yalçın,15,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030390 https://www.uefa.com/uefaeuropaleague/match/2030390--besiktas-vs-rio-ave/,"Beşiktaş-Rio Ave, UEL 3rd qualifying round 24 Sep 2020: 1-1 after extra time, Rio Ave won 4-2 on penalties; provider's 120+ events are shoot-out kicks"
-+629187,2,226,41191,Bruno Moreira,85,,Normal Goal,,,official,https://match.uefa.com/v5/matches?matchId=2030390 https://www.uefa.com/uefaeuropaleague/match/2030390--besiktas-vs-rio-ave/,"Beşiktaş-Rio Ave, UEL 3rd qualifying round 24 Sep 2020: equaliser 85'"
-+629188,1,568,56063,Veaceslav Posmac,8,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030400--sheriff-vs-dundalk/ https://match.uefa.com/v5/matches?matchId=2030400,"Sheriff-Dundalk, UEL 3rd qualifying round 24 Sep 2020 (single leg): 1-1 after extra time, Dundalk won 5-3 on penalties; the provider's 120+ events are shoot-out kicks"
-+629188,2,584,69245,Sean Murray,45,1,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030400--sheriff-vs-dundalk/ https://match.uefa.com/v5/matches?matchId=2030400,"Sheriff-Dundalk, UEL 3rd qualifying round 24 Sep 2020: 1-1 after extra time"
-+634718,1,489,1417,Alexis Saelemaekers,51,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030541--rio-ave-vs-milan/ https://match.uefa.com/v5/matches?matchId=2030541,"Rio Ave-AC Milan, UEL play-off single match 1 Oct 2020: 1-1 after 90 minutes, 2-2 after extra time, Milan won 9-8 on penalties"
-+634718,2,226,1487,Francisco Geraldes,72,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030541--rio-ave-vs-milan/ https://match.uefa.com/v5/matches?matchId=2030541,"Rio Ave-AC Milan, UEL play-off single match 1 Oct 2020: 1-1 after 90 minutes, 2-2 after extra time, Milan won 9-8 on penalties"
-+634718,3,226,3325,Gelson Dala,91,,Normal Goal,,,official,https://www.uefa.com/uefaeuropaleague/match/2030541--rio-ave-vs-milan/ https://match.uefa.com/v5/matches?matchId=2030541,"Rio Ave-AC Milan, UEL play-off single match 1 Oct 2020: 1-1 after 90 minutes, 2-2 after extra time, Milan won 9-8 on penalties"
-+634718,4,489,1640,Hakan Çalhanoğlu,120,2,Penalty,,,official,https://www.uefa.com/uefaeuropaleague/match/2030541--rio-ave-vs-milan/ https://match.uefa.com/v5/matches?matchId=2030541,"Rio Ave-AC Milan, UEL play-off single match 1 Oct 2020: 1-1 after 90 minutes, 2-2 after extra time, Milan won 9-8 on penalties"
-+811833,1,9270,,Raymond Jean-Jacques,50,,Normal Goal,,,official,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html https://guyane-foot.fff.fr/simple/coupe-de-france-le-cscc-qualifie-pour-le-8eme-tour/,"ASC Ouest-CSC Cayenne, CDF 7th round (French Guiana regional final) 13 Nov 2021: 0-2; minutes from the FFF; both pages refuse WebFetch (403) and were read in a browser"
-+811833,2,9270,,Thomas Issorat,55,,Normal Goal,,,official,https://www.fff.fr/article/3845-les-qualifies-en-outre-mer.html https://guyane-foot.fff.fr/simple/coupe-de-france-le-cscc-qualifie-pour-le-8eme-tour/,"ASC Ouest-CSC Cayenne, CDF 7th round (French Guiana regional final) 13 Nov 2021: 0-2; minutes from the FFF; both pages refuse WebFetch (403) and were read in a browser"
-+811834,1,4398,,Thomas Gaydu,21,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/guadeloupe/7e-tour-de-la-coupe-de-france-la-solidarite-scolaire-s-impose-face-a-l-as-gosier-1154425.html https://www.flashscore.com/match/G4GuhCkH/#/match-summary,"Solidarité Scolaire-Gosier, CDF 7th round (Guadeloupe regional final) 13 Nov 2021, Les Abymes: 2-1. La 1ère names the Gosier scorer Jean-Roland Jean-François, Flashscore 'Jean-Francois J-R.' (player slug jean-renaud); Flashscore goals read from its data feed as the page renders client-side"
-+811834,2,4398,,Raphaël Mirval,72,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/guadeloupe/7e-tour-de-la-coupe-de-france-la-solidarite-scolaire-s-impose-face-a-l-as-gosier-1154425.html https://www.flashscore.com/match/G4GuhCkH/#/match-summary,"Solidarité Scolaire-Gosier, CDF 7th round (Guadeloupe regional final) 13 Nov 2021, Les Abymes: 2-1. La 1ère names the Gosier scorer Jean-Roland Jean-François, Flashscore 'Jean-Francois J-R.' (player slug jean-renaud); Flashscore goals read from its data feed as the page renders client-side"
-+811834,3,4394,,Jean-Roland Jean-François,90,2,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/guadeloupe/7e-tour-de-la-coupe-de-france-la-solidarite-scolaire-s-impose-face-a-l-as-gosier-1154425.html https://www.flashscore.com/match/G4GuhCkH/#/match-summary,"Solidarité Scolaire-Gosier, CDF 7th round (Guadeloupe regional final) 13 Nov 2021, Les Abymes: 2-1. La 1ère names the Gosier scorer Jean-Roland Jean-François, Flashscore 'Jean-Francois J-R.' (player slug jean-renaud); Flashscore goals read from its data feed as the page renders client-side"
-+811835,1,3258,,Kilian Polomat,81,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/martinique/le-club-franciscain-s-impose-en-finale-locale-de-la-coupe-de-france-face-au-club-colonial-1-0-1153858.html https://globallfoot.com/2021/11/14/coupe-de-france-le-club-franciscain-affrontera-le-so-cholet-en-martinique/,"Club Colonial-Club Franciscain, Coupe de France 7th round (Martinique final) 13 Nov 2021: 0-1; both reports give 81' (earlier research had 82'); name also spelled Kylian/Killian; FFF page blocked (403)"
-+1239855,1,4525,,Abdou Latif Koanda,19,,Normal Goal,,,match_reports,https://aps.sn/preliminaires-ligue-des-champions-le-stade-dabidjan-bat-teungueth-fc-aux-tirs-aux-buts-et-se-qualifie/ https://www.fotmob.com/en-GB/matches/stade-dabidjan-vs-teungueth-fc/b6fxy86z,"Teungueth-Stade d'Abidjan, CAF CL 1st preliminary round 2nd leg 24 Aug 2024: 1-1 (2-2 agg.), Stade d'Abidjan won 5-4 on penalties. FotMob spells him Abdoul Koanda; Foot Mercato's scorer list (Ndoye 59', Diene 70') is contradicted by APS, FotMob and wiwsport"
-+1239855,2,5296,,Baye Assane Cisse,50,,Normal Goal,,Joseph Layouss Samb,match_reports,https://aps.sn/preliminaires-ligue-des-champions-le-stade-dabidjan-bat-teungueth-fc-aux-tirs-aux-buts-et-se-qualifie/ https://www.fotmob.com/en-GB/matches/stade-dabidjan-vs-teungueth-fc/b6fxy86z,"Teungueth-Stade d'Abidjan, CAF CL 24 Aug 2024: 1-1. Header; FotMob and wiwsport say 50', APS 51'. Assist (corner) from wiwsport: https://wiwsport.com/2024/08/24/ligue-des-champions-caf-teungueth-fc-sarrete-en-tour-preliminaire-apres-sa-defaite-aux-tirs-au-but-contre-le-stade-dabidjan-4-5-tab/"
-+1307025,1,25042,,Ivan Chemby,70,,Normal Goal,,,match_reports,https://www.palenciaenlared.es/villamuriel-vive-una-noche-historica-el-cd-villamuriel-avanza-en-la-copa-del-rey-y-se-enfrentara-a-un-primera-division/ https://www.canal54.es/el-villamuriel-avanza-en-la-copa-del-rey-y-se-enfrentara-a-un-primera-division/,"Villamuriel-Aurrera Vitoria, Copa del Rey 9 Oct 2024: 1-0"
-+1307031,1,21905,,Josemi Caballero,34,,Normal Goal,,Juanito Argudo,match_reports,https://melillahoy.es/3-0-el-melilla-c-d-dice-adios-a-la-copa-en-chiclana-antes-del-apagon-de-luz-de-una-hora/ https://www.sofascore.com/football/match/cd-melilla-chiclana-cf/ELQbsATFc,"Chiclana-Melilla CD, Copa del Rey preliminary round 9 Oct 2024: 4-0 (RFEF results list 4-0; play was stopped about an hour at 81' by a power cut); no official match sheet found; minutes from Sofascore, MelillaHoy gives 33', about 36', 52', 85'; assists from MelillaHoy"
-+1307031,2,21905,,Dani Guerrero,37,,Normal Goal,,Juanito Argudo,match_reports,https://melillahoy.es/3-0-el-melilla-c-d-dice-adios-a-la-copa-en-chiclana-antes-del-apagon-de-luz-de-una-hora/ https://www.sofascore.com/football/match/cd-melilla-chiclana-cf/ELQbsATFc,"Chiclana-Melilla CD, Copa del Rey preliminary round 9 Oct 2024: 4-0 (RFEF results list 4-0; play was stopped about an hour at 81' by a power cut); no official match sheet found; minutes from Sofascore, MelillaHoy gives 33', about 36', 52', 85'; assists from MelillaHoy"
-+1307031,3,21905,,Juanito Argudo,53,,Normal Goal,,,match_reports,https://melillahoy.es/3-0-el-melilla-c-d-dice-adios-a-la-copa-en-chiclana-antes-del-apagon-de-luz-de-una-hora/ https://www.sofascore.com/football/match/cd-melilla-chiclana-cf/ELQbsATFc,"Chiclana-Melilla CD, Copa del Rey preliminary round 9 Oct 2024: 4-0 (RFEF results list 4-0; play was stopped about an hour at 81' by a power cut); no official match sheet found; minutes from Sofascore, MelillaHoy gives 33', about 36', 52', 85'; assists from MelillaHoy"
-+1307031,4,21905,,Adrián Pascual,86,,Normal Goal,,,match_reports,https://melillahoy.es/3-0-el-melilla-c-d-dice-adios-a-la-copa-en-chiclana-antes-del-apagon-de-luz-de-una-hora/ https://www.sofascore.com/football/match/cd-melilla-chiclana-cf/ELQbsATFc,"Chiclana-Melilla CD, Copa del Rey preliminary round 9 Oct 2024: 4-0 (RFEF results list 4-0; play was stopped about an hour at 81' by a power cut); no official match sheet found; minutes from Sofascore, MelillaHoy gives 33', about 36', 52', 85'; assists from MelillaHoy"
-+1314612,1,9275,,Michael Faty,22,,Normal Goal,,,official,https://footbretagne.fff.fr/simple/coupe-de-france-le-programme-du-7eme-tour/ https://newsouest.fr/abers-iroise/football/2024-11-17/la-saint-pierre-milizac-n3-tout-donne-face-dinan-lehon-n2,"Saint-Pierre Milizac-Dinan Léhon, CDF 7th round 16 Nov 2024: 1-1, Dinan Léhon won on penalties. Minutes from the Ligue de Bretagne (FFF) results page (Faty 22', Mourdi 69'); newsouest gives 23'/66', Flashscore 25'/59'. Provider's A. Vermet 78' goal appears in no source. Official page read from its web.archive.org snapshot of 20 Jan 2026 (live site refuses automated fetch)"
-+1314612,2,9309,,Raphaël Mourdi,69,,Normal Goal,,,official,https://footbretagne.fff.fr/simple/coupe-de-france-le-programme-du-7eme-tour/ https://newsouest.fr/abers-iroise/football/2024-11-17/la-saint-pierre-milizac-n3-tout-donne-face-dinan-lehon-n2,"Saint-Pierre Milizac-Dinan Léhon, CDF 7th round 16 Nov 2024: 1-1, Dinan Léhon won on penalties. Minutes from the Ligue de Bretagne (FFF) results page (Faty 22', Mourdi 69'); newsouest gives 23'/66', Flashscore 25'/59'. Provider's A. Vermet 78' goal appears in no source. Official page read from its web.archive.org snapshot of 20 Jan 2026 (live site refuses automated fetch)"
-+1482495,1,2746,34258,Mo Jae-hyeon,62,,Normal Goal,,Kang Yoon-gu,match_reports,https://star.ohmynews.com/NWS_Web/OhmyStar/at_pg.aspx?CNTN_CD=A0003187397 https://www.kleagueunited.com/2025/11/the-k-league-1-wrap-up-daegu-fc-are.html,"Gangwon FC-Pohang Steelers, K League 1 round 38 30 Nov 2025: 1-0; OhmyStar times the goal at 61:41 (62nd minute); provider's Lee Ho-jae 34' goal was a missed penalty that hit the post"
-+1485812,1,19916,,J. Vacher,6,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/polynesie/tahiti/polynesie-francaise/coupe-de-france-l-as-pirae-s-incline-5-1-face-a-carnoux-au-7-tour-1643515.html https://www.fichajes.com/directo/8687881751461761942-carnoux-vs-pirae,"Carnoux-Pirae, CDF 7th round 15 Nov 2025: 5-1. Minutes from Fichajes; La 1ere names the same scorers and puts four goals in the first half"
-+1485812,2,19916,,A. Mokhtari,8,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/polynesie/tahiti/polynesie-francaise/coupe-de-france-l-as-pirae-s-incline-5-1-face-a-carnoux-au-7-tour-1643515.html https://www.fichajes.com/directo/8687881751461761942-carnoux-vs-pirae,"Carnoux-Pirae, CDF 7th round 15 Nov 2025: 5-1. Minute from Fichajes"
-+1485812,3,19916,,J. Vacher,19,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/polynesie/tahiti/polynesie-francaise/coupe-de-france-l-as-pirae-s-incline-5-1-face-a-carnoux-au-7-tour-1643515.html https://www.fichajes.com/directo/8687881751461761942-carnoux-vs-pirae,"Carnoux-Pirae, CDF 7th round 15 Nov 2025: 5-1. Minute from Fichajes"
-+1485812,4,19916,,M. Benarbia,27,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/polynesie/tahiti/polynesie-francaise/coupe-de-france-l-as-pirae-s-incline-5-1-face-a-carnoux-au-7-tour-1643515.html https://www.fichajes.com/directo/8687881751461761942-carnoux-vs-pirae,"Carnoux-Pirae, CDF 7th round 15 Nov 2025: 5-1. Minute from Fichajes"
-+1485812,5,19916,,M. Benarbia,64,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/polynesie/tahiti/polynesie-francaise/coupe-de-france-l-as-pirae-s-incline-5-1-face-a-carnoux-au-7-tour-1643515.html https://www.fichajes.com/directo/8687881751461761942-carnoux-vs-pirae,"Carnoux-Pirae, CDF 7th round 15 Nov 2025: 5-1. Minute from Fichajes; La 1ere confirms it made 5-0 in the second half"
-+1485812,6,8143,,Sandro Tau,89,,Normal Goal,,,match_reports,https://la1ere.franceinfo.fr/polynesie/tahiti/polynesie-francaise/coupe-de-france-l-as-pirae-s-incline-5-1-face-a-carnoux-au-7-tour-1643515.html https://www.fichajes.com/directo/8687881751461761942-carnoux-vs-pirae,"Carnoux-Pirae, CDF 7th round 15 Nov 2025: 5-1. La 1ere gives 89', Fichajes 90'"
-+1619075,1,25735,,Neville Tengeg,68,,Normal Goal,,Emmanuel Jalai,match_reports,https://www.zimlive.com/?p=58622 https://nfas.org.sz/caf-exit-nsingizini-green-mamba-bow-out/,"Scottland FC-Nsingizini Hotspurs, CAF CL 1st preliminary round 1st leg 6 Sep 2026 (Harare): 1-0; minute 68 from the Eswatini FA report, ZimLive gives no minute (second half, just after the hour) and names the assist"
-+1619083,1,6424,,Yendoubouame Yabouri,45,,Normal Goal,,,match_reports,https://foot.tg/2026/09/13/preliminaires-ldc-lasck-encore-stoppee-par-lasec-mimosas/ https://www.sofascore.com/football/match/asc-kara-asec-mimosas/kXqscoAc,"ASEC Mimosas-ASC Kara, CAF CL 1st preliminary round 2nd leg 13 Sep 2026: 2-1 (3-2 agg.); Africa Soccer and Hespress give the same minutes, Africa Top Sports puts the second penalty at 67'"
-+1619083,2,4512,,Sou D'Avila Junior,59,,Penalty,,,match_reports,https://foot.tg/2026/09/13/preliminaires-ldc-lasck-encore-stoppee-par-lasec-mimosas/ https://www.sofascore.com/football/match/asc-kara-asec-mimosas/kXqscoAc,"ASEC Mimosas-ASC Kara, CAF CL 1st preliminary round 2nd leg 13 Sep 2026: 2-1 (3-2 agg.); Africa Soccer and Hespress give the same minutes, Africa Top Sports puts the second penalty at 67'"
-+1619083,3,4512,,Sou D'Avila Junior,68,,Penalty,,,match_reports,https://foot.tg/2026/09/13/preliminaires-ldc-lasck-encore-stoppee-par-lasec-mimosas/ https://www.sofascore.com/football/match/asc-kara-asec-mimosas/kXqscoAc,"ASEC Mimosas-ASC Kara, CAF CL 1st preliminary round 2nd leg 13 Sep 2026: 2-1 (3-2 agg.); Africa Soccer and Hespress give the same minutes, Africa Top Sports puts the second penalty at 67'"
-+1619108,1,24352,,Tot Maet Doh,14,,Normal Goal,,,match_reports,https://elmerriekhbentiusc.com/tot-maet-scores-lone-goal-as-el-merriekh-sc-bentiu-sink-heegan-in-caf-champions-league/ https://cecafaonline.com/sudan-teams-al-hilal-al-merriekh-win-caf-champions-league-ties/,"El Merriekh Bentiu-Heegan, CAF CL 1st preliminary round 1st leg 5 Sep 2026 in Juba: 1-0; the club report says Toat Maet Doh scored after 14 minutes, CECAFA names Tot Maet without a minute; no CAF match page found"
-+1641632,1,7257,,Ciaran Martin,10,,Normal Goal,,,match_reports,https://www.uxbridgefc.com/post/match-report-ten-man-reds-feast-on-cup-glory https://www.hungerfordtown.com/teams/11575/match-centre/0-6632600/report,"Uxbridge-Hungerford Town, FA Cup 3rd qualifying round 3 Oct 2026: 3-1; minutes from the Uxbridge report, Hungerford report agrees (10', midway through half, 10 min before HT, 15 min left); Sofascore lists 9', 37', 45+3', 76'"
-+1641632,2,7257,,George Moore,24,,Normal Goal,,Luis Le Paih,match_reports,https://www.uxbridgefc.com/post/match-report-ten-man-reds-feast-on-cup-glory https://www.hungerfordtown.com/teams/11575/match-centre/0-6632600/report,"Uxbridge-Hungerford Town, FA Cup 3rd qualifying round 3 Oct 2026: second goal 24' per Uxbridge report"
-+1641632,3,7257,,Troy Perez-Duah,35,,Normal Goal,,,match_reports,https://www.uxbridgefc.com/post/match-report-ten-man-reds-feast-on-cup-glory https://www.hungerfordtown.com/teams/11575/match-centre/0-6632600/report,"Uxbridge-Hungerford Town, FA Cup 3rd qualifying round 3 Oct 2026: long-range shot slipped through keeper Ryan Clarke, credited to Perez-Duah by Uxbridge and Sofascore"
-+1641632,4,8661,,Ackeem Stewart,76,,Normal Goal,,George Alston,match_reports,https://www.uxbridgefc.com/post/match-report-ten-man-reds-feast-on-cup-glory https://www.hungerfordtown.com/teams/11575/match-centre/0-6632600/report,"Uxbridge-Hungerford Town, FA Cup 3rd qualifying round 3 Oct 2026: Hungerford goal 76' per Uxbridge report"
-+874845,1,554,,Yari Verschaeren,2,,Normal Goal,,Lior Refaelov,match_reports,https://walfoot.be/belgique/jupiler-pro-league/2022-2023/calendrier/journee-14/standard/anderlecht/suivez-en-direct-commente-le-clasico-entre-le-standard-de-liege-et-le-sporting-danderlecht https://sporza.be/nl/matches/voetbal/jupiler-pro-league/2022-2023/regulier/14/standard-anderlecht-over-en-out-voor-mazzu-forfaitnederlaag-voor-anderlecht-na-vroegtijdig-beeindigde-treurmars~1655899689031/,"0-1; Walfoot and Sporza give 2', DH and L'Avenir's match sheet give 3'; set up by Refaelov from the left"
-+874845,2,733,,Nicolas Raskin,20,,Normal Goal,,Konstantinos Laifis,match_reports,https://walfoot.be/belgique/jupiler-pro-league/2022-2023/calendrier/journee-14/standard/anderlecht/suivez-en-direct-commente-le-clasico-entre-le-standard-de-liege-et-le-sporting-danderlecht https://www.dhnet.be/sports/football/division-1a/2022/10/23/avec-laifis-amuzu-et-verschaeren-pour-un-clasico-qui-sent-le-souffre-suivez-standard-anderlecht-en-direct-des-18h30-S5JKAHOPGVHYVCLXOZVTNTULL4/,1-1; Walfoot report text and DH give 20' (Walfoot's data box and L'Avenir's live report say 21'); deflected shot (L'Avenir: off Vertonghen) credited to Raskin by every source; assist per Walfoot's data box and L'Avenir's match sheet
-+874845,3,733,,Marlon Fossey,27,,Normal Goal,,Noe Dussenne,match_reports,https://walfoot.be/belgique/jupiler-pro-league/2022-2023/calendrier/journee-14/standard/anderlecht/suivez-en-direct-commente-le-clasico-entre-le-standard-de-liege-et-le-sporting-danderlecht https://sporza.be/nl/matches/voetbal/jupiler-pro-league/2022-2023/regulier/14/standard-anderlecht-over-en-out-voor-mazzu-forfaitnederlaag-voor-anderlecht-na-vroegtijdig-beeindigde-treurmars~1655899689031/,"2-1 after a corner scramble; Walfoot report text, Sporza, DH and L'Avenir give 27' (Walfoot's data box says 28'); assist per Walfoot's data box and L'Avenir's match sheet (Sporza: from Dussenne's scuffed shot)"
-+874845,4,733,,Philip Zinckernagel,56,,Normal Goal,,William Balikwisha,match_reports,https://walfoot.be/belgique/jupiler-pro-league/2022-2023/calendrier/journee-14/standard/anderlecht/suivez-en-direct-commente-le-clasico-entre-le-standard-de-liege-et-le-sporting-danderlecht https://sporza.be/nl/matches/voetbal/jupiler-pro-league/2022-2023/regulier/14/standard-anderlecht-over-en-out-voor-mazzu-forfaitnederlaag-voor-anderlecht-na-vroegtijdig-beeindigde-treurmars~1655899689031/,"3-1, header from Balikwisha's cross (Walfoot); match abandoned after Anderlecht fans threw fireworks (Walfoot: after 63 minutes); 3-1 matches the on-pitch score"
-+874880,1,736,,Nadhir Benbouali,52,,Normal Goal,,Adem Zorgane,match_reports,https://sporza.be/nl/sport/voetbal/~3317023/ https://www.footmercato.net/live/2284056040954383253-sporting-charleroi-vs-malines,"1-0 from Zorgane's cross from the left (Sporza live; Foot Mercato: 52' N. Benbouali, PD A. Zorgane); match abandoned later after home fans threw flares; 1-0 matches the on-pitch score"
-+1125896,1,1521,,Emilio Nsue,9,,Normal Goal,,Jose Machin,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400017621?language=en https://www.sportsmole.co.uk/football/liberia/world-cup/preview/liberia-vs-eq-guinea-prediction-team-news-lineups_529337.html,"0-1; FIFA match data: Emilio NSUE 9', goal type 2 (the open-play goal code; penalties are 1, own goals 3 in the same feed), assist PEPIN (shirt 7, listed as Jose MACHIN); Sports Mole also gives Nsue 9' as the only goal"
-+1125960,1,1531,,Relebohile Mofokeng,60,,Normal Goal,,Elias Mokwana,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en https://api.fifa.com/api/v3/timelines/520/288282/288289/400019682?language=en,"1-0; FIFA match data 60', goal type 2, assist Elias MOKWANA; FIFA timeline event 'Goal!' at 60' (SuperSport's report says 61')"
-+1125960,2,1531,,Jayden Adams,64,,Normal Goal,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en https://api.fifa.com/api/v3/timelines/520/288282/288289/400019682?language=en,"2-0; FIFA match data 64', goal type 2, no assist recorded; FIFA timeline event 'Goal!' at 64'; scored from the rebound of his own shot (SuperSport)"
-+1125867,1,1521,,Emilio Nsue,67,,Normal Goal,,Iban Salvador,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400017619?language=en https://www.namibian.com.na/warriors-rue-missed-chance/,"1-0; FIFA match data: Emilio NSUE 67', goal type 2, assist IBAN (Iban Salvador); The Namibian: Bikoro crossed from the left and Iban Salvador found Nsue unmarked in the box"
-diff --git a/dbt_project/seeds/fixture_result_corrections.csv b/dbt_project/seeds/fixture_result_corrections.csv
-index d8c31f1a..80a9bcf4 100644
---- a/dbt_project/seeds/fixture_result_corrections.csv
-+++ b/dbt_project/seeds/fixture_result_corrections.csv
-@@ -78,3 +78,46 @@ fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,award_kind,on_pitch_
- 1169531,3,0,true,,not_played,,,match_reports,https://www.insideworldfootball.com/2024/06/13/cayman-islands-forfeit-2026-qualifier-cuba-fear-us-visa-reprisals/ https://www.fotmob.com/en-GB/matches/cuba-vs-cayman-islands/jtysqyh,"Cuba-Cayman Islands, WCQCA 11 Jun 2024: not played after the Cayman Islands withdrew from travelling, awarded 3-0"
- 1209259,0,3,true,,not_played,,,official,https://www.uefa.com/uefaconferenceleague/match/2041126--dnipro-1-vs-puskas-akademia/ https://infostart.hu/sport/2024/07/23/konferencia-liga-meccs-nelkul-jutott-tovabb-a-puskas-akademia,"Dnipro-1-Puskas Akademia, UECL 25 Jul 2024: not played after UEFA excluded Dnipro-1, awarded 0-3"
- 1209260,3,0,true,,not_played,,,official,https://www.uefa.com/uefaconferenceleague/match/2041175--puskas-akademia-vs-dnipro-1/ https://infostart.hu/sport/2024/07/23/konferencia-liga-meccs-nelkul-jutott-tovabb-a-puskas-akademia,"Puskas Akademia-Dnipro-1, UECL 1 Aug 2024: not played after UEFA excluded Dnipro-1, awarded 3-0"
-+649425,0,0,true,1040,not_played,,,match_reports,https://www.alwihdainfo.com/football-la-caf-suspend-le-club-tchadien-gazelle-fc-et-lui-inflige-une-amende-a99846/ https://nannews.ng/caf-champions-league-how-16-teams-qualified-for-group-stage/,"Gazelle-Zamalek, CAF CL 2020-21 first round 1st leg 23 Dec 2020 (fixtured in Cairo): not played, Gazelle did not travel after a Chad ministry-federation dispute; CAF disqualified Gazelle (USD 5,000 fine, banned from 2021 and 2022 CAF club competitions); Zamalek through on walkover, no score set"
-+649442,0,0,true,12423,not_played,,,match_reports,https://libyaobserver.ly/sports/al-ahly-benghazi-qualifies-32-round-african-champions-league https://rsssf.org/tablesa/afcup2021.html,"Mekelle 70 Enderta-Al Ahli Benghazi, CAF CL 2020-21 preliminary round 2nd leg (provider date 5 Dec 2020): not played; Mekelle withdrew before the 1st leg (28 Nov, Cairo) citing the Tigray war and did not show; Al Ahli Benghazi through on walkover, no score set (RSSSF: w/o); some aggregators show 3-0 but no official score found"
-+844614,0,0,true,173,not_played,,,official,https://www.uefa.com/uefaeuropaleague/news/0272-14876ce2b5c2-4003fb32df94-1000--uefa-europa-league-round-of-16-draw/,"RB Leipzig-Spartak Moscow, UEL round of 16 1st leg 10 Mar 2022: not played, Spartak removed after UEFA suspended all Russian clubs (28 Feb 2022); UEFA: Leipzig qualify directly for the quarter-finals, no score set"
-+874845,5,0,true,,abandoned,3,1,match_reports,https://sporza.be/nl/matches/voetbal/jupiler-pro-league/2022-2023/regulier/14/standard-anderlecht-over-en-out-voor-mazzu-forfaitnederlaag-voor-anderlecht-na-vroegtijdig-beeindigde-treurmars~1655899689031/ https://bx1.be/?p=608099,"Standard Liege-Anderlecht, Pro League matchday 14, 23 Oct 2022: abandoned around the hour (bx1: 63') after Anderlecht fans threw fireworks twice, Standard leading 3-1; goals Verschaeren 2' (A), Raskin 20' (S, minute per ESPN), Fossey 27' (S), Zinckernagel 56' (S); Belgian FA disciplinary council set a 5-0 forfeit defeat for Anderlecht"
-+1098362,0,0,true,13978,not_played,,,match_reports,https://www.wakatsera.com/coup-detat-au-niger-les-clubs-nigeriens-declarent-forfait-aux-competitions-africaines/ https://www.fotmob.com/en-GB/matches/douanes-vs-gnn/1ex0ot01s,"AS GNN (Niger)-AS Douanes (Burkina Faso), CAF CL 2023-24 1st preliminary round 1st leg (provider date 25 Aug 2023): not played; Niger federation withdrew AS GNN on 23 Aug 2023 citing ECOWAS sanctions after the coup; Douanes through on walkover, no score set (FotMob shows the tie as an awarded win, return leg dated 1 Sep)"
-+1100349,0,3,true,,not_played,,,match_reports,https://www.koreajoongangdaily.com/sports/north-korea-lose-world-cup-qualifier-by-forfeit-after-refusing-to-host-japan/12243103 https://www.koreatimes.co.kr/amp/sports/20240330/japan-advances-in-world-cup-qualifying-with-forfeit-win-over-north-korea,"North Korea-Japan, WC 2026 AFC qualifying round 2 Group B, 26 Mar 2024 (Pyongyang): not played, North Korea called it off five days before and no neutral venue was agreed; FIFA declared it forfeited, 0-3 to Japan"
-+1125896,3,0,true,,played,0,1,official,https://www.inside.fifa.com/fr/media-releases/la-commission-de-discipline-de-la-fifa-sanctionne-la-federation-equato https://www.afrik-foot.com/coupe-du-monde-2026-la-guinee-equatoriale-fifa-defaite-tapis-vert-nsue-suspendu,"Liberia-Equatorial Guinea, WC 2026 CAF qualifying Group H, 20 Nov 2023: played, Equatorial Guinea won 1-0 on the pitch (Emilio Nsue 9', minute per FIFA match record); FIFA Disciplinary Committee (24 May 2024) ruled Nsue ineligible and declared it forfeited 3-0 to Liberia"
-+1125960,0,3,true,,played,2,0,official,https://inside.fifa.com/legal/judicial-bodies/news/disciplinary-committee-sanctions-south-african-football-association https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en,"South Africa-Lesotho, WC 2026 CAF qualifying Group C, 21 Mar 2025 (Polokwane): played, South Africa won 2-0 on the pitch (Relebohile Mofokeng 60', Jayden Adams 64'); FIFA Disciplinary Committee (29 Sep 2025) ruled South Africa fielded ineligible Teboho Mokoena and declared it forfeited 0-3 to Lesotho"
-+1125993,0,3,true,,not_played,,,official,https://api.fifa.com/api/v3/calendar/matches?idSeason=288282&idStage=288289&count=500&language=en https://www.zambiamonitor.com/?p=64807,"Congo-Zambia, WC 2026 CAF qualifying Group E, scheduled 25 Mar 2025 in Brazzaville per FIFA (provider date 22 Mar): not played, Congo suspended by FIFA from 6 Feb 2025 for government interference; FIFA awarded 3-0 to Zambia (FIFA match id 400020013)"
-+1239851,0,0,true,8060,not_played,,,match_reports,https://oubanguimedias.com/2024/08/26/centrafrique-foot-red-star-paie-t-il-le-prix-du-pilotage-a-vue-du-foot-national/ https://malibook.net/2024/08/24/ligue-des-champions/,"Djoliba-Red Star de Bangui (Central African Republic), CAF Champions League 2024-25 1st preliminary round 2nd leg, scheduled 25 Aug 2024 in Bamako: CONFIRMED not played, Red Star forfeited the return leg for lack of money (Central African federation note to CAF dated 24 Aug 2024), first leg 0-0 in Douala, Djoliba went through (Oubangui Medias 26 Aug 2024; Malibook 24 Aug 2024). UNRESOLVED: whether CAF recorded a score; no CAF record found (CAF archive pages cover only group and knockout stages), the two reports name no score, and the aggregators disagree (Sofascore awarded 3-0, FotMob awarded win shown 0-0); official score left empty for that reason, not because no score was set. Provider names the away team wrongly as Red Star FC 93 No source states a score; the provider's is kept."
-+1388000,0,0,true,,abandoned,0,0,official,https://ligue1.com/fr/articles/l1_article_5189- https://ligue1.com/fr/articles/l1_article_5119-,"Nantes-Toulouse, Ligue 1 matchday 34, 17 May 2026: abandoned at 0-0 shortly after 20' when Nantes fans lit flares and invaded the pitch, not resumed on the prefect's decision; LFP disciplinary commission (28 May 2026) ratified the 0-0 score at the stoppage; no goals"
-+1535287,0,3,true,,abandoned,0,0,match_reports,https://www.beinsports.com/en-us/soccer/conmebol-libertadores/articles/conmebol-punish-dim-after-flamengo-match-chaos-2026-05-21 https://www.espn.com/soccer/commentary/_/gameId/401865517,"Independiente Medellin-Flamengo, Libertadores Group A matchday 4, 7 May 2026 local (provider 8 May UTC): abandoned at 0-0 in the first five minutes after home fans threw fireworks and objects and tried to invade the pitch; CONMEBOL awarded 3-0 to Flamengo; no goals"
-+649426,0,0,true,1040,not_played,,,match_reports,https://www.btolat.com/news/226472 https://thesun.ng/2020-21-caf-champions-league-all-16-qualifiers-for-group-stage-emerge/,"Zamalek-Gazelle, CAF Champions League 2020-21 first round, scheduled 2nd leg 5 Jan 2021 (both legs set for Cairo): not played; Gazelle (Chad) never arrived in Cairo after a dispute between Chad's sports ministry and its federation, CAF deemed them withdrawn and sent Zamalek to the group stage (CAF letter to Zamalek 21 Dec 2020); no score reported, provider's 0-0 is not an official result"
-+649454,0,0,true,15566,not_played,,,match_reports,https://newscentraltv.com/?p=44835 https://rsssf.org/tablesa/afcup2021.html,"GR/SIAF (Garde Republicaine, Djibouti)-Gazelle, CAF Champions League 2020-21 preliminary round, return leg set for Djibouti 4 Dec 2020: not played; cash-strapped GR/SIAF failed to travel to N'Djamena (RSSSF: no-show for the 29 Nov first leg) and Gazelle went through on walkover without the return leg; no score reported, provider's 0-0 is not an official result; RSSSF is the one stats aggregator"
-+844615,0,0,true,173,not_played,,,official,https://editorial.uefa.com/resources/0273-148f20d27980-23a90d5c0d62-1000/20220228_circular_2022_10_en.pdf,"Spartak Moscow-RB Leipzig, UEL 2021-22 round of 16 2nd leg 17 Mar 2022: not played; UEFA Executive Committee suspended Russian clubs on 28 Feb 2022 and declared Leipzig automatically qualified for the quarter-finals; no score set, provider's 0-0 is not an official result"
-+874880,0,5,true,,abandoned,1,0,match_reports,https://brf.be/sport/1709313 https://sporza.be/nl/2023/04/11/charleroi-kv-mechelen-wordt-niet-herspeeld-kvm-krijgt-de-3-punt~1681216637016,"Charleroi-KV Mechelen, Belgian Pro League 2022-23 matchday 17, 12 Nov 2022: abandoned around the 67th minute (reports vary 67-70) after home fans threw flares onto the pitch, Charleroi leading 1-0 (Nadhir Benbouali 52'); Pro League first gave Mechelen a forfeit win, the Disciplinary Council then ordered a replay (Mar 2023), and the Belgian sports arbitration court (BAS/CBAS) ruled on 11 Apr 2023: no replay, 0-5 forfeit defeat for Charleroi"
-+1098395,3,0,true,,not_played,,,match_reports,https://www.radiotamazuj.org/en/news/article/salaam-fc-bor-withdraw-from-caf-champions-league-over-financing https://cecafaonline.com/al-merreikh-young-africans-apr-qualify-for-next-stage-of-caf-champions-league/,"Al Hilal Omdurman-Salaam FC Bor (South Sudan), CAF Champions League 2023-24 1st preliminary round 2nd leg, scheduled 26 Aug 2023: CONFIRMED not played, Salaam FC Bor withdrew because it could not pay to travel to Morocco, where the tie was to be played, and Al Hilal went through (Radio Tamazuj 21 Aug 2023; CECAFA 27 Aug 2023: Al Hilal through on a walkover). UNRESOLVED: whether CAF set a 3-0 score; neither report gives a score, no CAF record found, only aggregators show 3-0 (FotMob awarded win 3-0, the-sports.org 3-0); official score left empty for that reason. CECAFA and the provider call the club Wau Salaam, Radio Tamazuj and CECAFA's June 2023 entry article call it Salaam FC Bor No source states a score; the provider's is kept."
-+1125867,0,3,true,,played,1,0,official,https://inside.fifa.com/legal/media-releases/fifa-disciplinary-committee-sanctions-the-equatorial-guinean-football-association https://api.fifa.com/api/v3/live/football/520/288282/288289/400017619?language=en,"Equatorial Guinea-Namibia, World Cup 2026 qualifying Africa matchday 1, 15 Nov 2023: played, Equatorial Guinea won 1-0 on the pitch (Emilio Nsue 67'); FIFA Disciplinary Committee (24 May 2024) declared it lost by forfeit 0-3 because Nsue was ineligible"
-+1125913,0,3,true,,not_played,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400018187?language=en https://es.besoccer.com/noticia/congo-no-se-presento-ante-niger-por-problemas-diplomaticos-1318641,"Congo-Niger, World Cup 2026 qualifying Africa matchday 3, 6 Jun 2024: not played; Congo did not turn up for their own home tie (FIFA record: venue Stade des Martyrs, Kinshasa, no line-ups, no goals) and Niger were awarded a 3-0 forfeit win; BeSoccer's account of the venue and reason is muddled"
-+1125967,3,0,true,,not_played,,,official,https://api.fifa.com/api/v3/calendar/matches?idCompetition=520&idSeason=288282&from=2025-03-20T00:00:00Z&to=2025-03-22T00:00:00Z&count=100&language=en https://digitalhub.fifa.com/m/49a18836a3532246/original/Circular-1922_Suspension-of-the-Congolese-Football-Association-FECOFOOT.pdf,"Tanzania-Congo, World Cup 2026 qualifying Africa matchday 5, March 2025: not played; FIFA suspended the Congolese federation (FECOFOOT) from 6 Feb to 14 May 2025, barring its teams from international competition; FIFA records Tanzania 3-0 (FIFA's record dates it 21 Mar 2025, provider 19 Mar)"
-+1126084,3,0,true,,not_played,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400021074?language=en https://africasoccer.com/equatorial-guinea-reappoints-coach-juan-micha-obiang-after-suspension/,"Malawi-Equatorial Guinea, World Cup 2026 qualifying Africa matchday 9, 9 Oct 2025: not played; Equatorial Guinea did not travel to Malawi (players refused over poor travel arrangements) and forfeited; FIFA records Malawi 3-0, no goals"
-+1361880,0,3,true,,abandoned,0,0,match_reports,https://www.gazetaesportiva.com/times/fortaleza/por-invasao-de-campo-jogo-entre-fortaleza-e-colo-colo-na-libertadores-e-cancelado/ https://mais.opovo.com.br/jornal/esportes/2025/04/11/partida-entre-colo-colo-e-fortaleza-e-cancelada-apos-invasao-e-mortes-fora-do-estadio.html,"Colo-Colo-Fortaleza, Copa Libertadores 2025 group stage matchday 2, 10 Apr 2025 (Santiago): stopped when home fans invaded the pitch, score 0-0 (Gazeta Esportiva: 0-0, 24 min into the second half; O Povo: 0-0); reports give the stoppage minute as 68 to 72; CONMEBOL then called the match off; on-pitch score from the two Brazilian reports; the 0-3 to Fortaleza is the CONMEBOL Disciplinary Unit decision published 30 Apr 2025 (https://www.conmebol.com/unidaddisciplinaria/multa-y-advertencia-al-club-social-y-deportivo-colo-colo-11/)"
-+1508003,0,3,true,,played,1,0,official,https://www.cafonline.com/news/caf-appeal-board-media-statement/ https://www.espn.com.ar/futbol/nota/_/id/16197904/marruecos-vs-senegal-final-copa-africana-de-naciones-equipo-fecha-hora-tv-en-vivo,"Senegal-Morocco, AFCON 2025 final, 18 Jan 2026 (Rabat): played to the end, Senegal won 1-0 after extra time (Pape Gueye, about 3 minutes into extra time); Senegal players had briefly walked off in protest at a stoppage-time penalty to Morocco, which Brahim Diaz then missed; CAF Appeal Board (17 Mar 2026) declared Senegal to have forfeited (AFCON regulations Art. 82 and 84), result 0-3 to Morocco; Senegal's appeal to CAS registered 25 Mar 2026, hearing set, no CAS award in CAS media releases as of 30 Sep 2026"
-+78693,1,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2025440,"Astana-APOEL, UEL play-off 2nd leg 30 Aug 2018: 1-0 after extra time (Pedro Henrique pen 16'), 1-1 on aggregate, Astana won 2-1 on penalties; stored 2-0 is wrong"
-+78910,1,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2024729,"Riga-CSKA Sofia, UEL 1st qualifying round 2nd leg 19 Jul 2018: 1-0 after extra time (Antonijs Cernomordijs 44'), 1-1 on aggregate, CSKA Sofia won 5-3 on penalties; stored 2-0 is wrong"
-+78980,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2024542,"St Joseph's-B36 Torshavn, UEL preliminary round 2nd leg 5 Jul 2018: 1-1 after extra time (Cieslewicz pen 14' for B36, Jose Luis Otero 88' for St Joseph's), 2-2 on aggregate, B36 won 4-2 on penalties; stored 2-2 is the aggregate"
-+112252,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2026928,"Chelsea-Eintracht Frankfurt, UEL semi-final 2nd leg 9 May 2019: 1-1 after extra time (Loftus-Cheek 28', Jovic 49'), 2-2 on aggregate, Chelsea won 4-3 on penalties; stored 2-2 is the aggregate"
-+158976,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2026955 https://africa.espn.com/football/match/_/gameId/543718,"Sutjeska-Slovan Bratislava, UCL 1st qualifying round 2nd leg 17 Jul 2019: 1-1 after extra time (stored 2-2 is the aggregate), Sutjeska won 3-2 on penalties. UEFA match data and ESPN agree on both goals"
-+232975,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027006 https://thedailyherald.sx/sport/international-sports/ajax-red-star-through-as-celtic-and-porto-crash-out,"FC Copenhagen-Crvena Zvezda, UCL 3rd qualifying round 2nd leg 13 Aug 2019: 1-1 after extra time (stored 2-2 is the aggregate), Crvena Zvezda won 7-6 on penalties. Reuters (Daily Herald) names the same scorers"
-+253614,3,2,false,,,,,official,https://assets.the-afc.com/migration/a/f/afc-champions-league-quarter-finals-official-programme https://news.cgtn.com/news/2019-06-25/AFC-Champions-League-Guangzhou-Evergrande-seals-quarter-final-berth-HOL4LrOY6s/share_amp.html,"Shandong Luneng-Guangzhou Evergrande, AFC CL round of 16 2nd leg 25 Jun 2019: 3-2 after extra time (2-1 after 90'), 4-4 on aggregate, Guangzhou won 6-5 on penalties. AFC quarter-final official programme (PDF, too large for WebFetch, read via download and text extraction) lists Zhou Haibin 62, Fellaini 70, Liu Junshuai 93; Paulinho 13, 103. CGTN, Reuters (sbs.com.au) and ESPN name the same five scorers"
-+253618,1,1,false,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/cool_shanghai_sipg_seal_quarter-final_berth.html https://english.stadiumastro.com/node/224958,"Jeonbuk Hyundai Motors-Shanghai SIPG, AFC CL round of 16 2nd leg 26 Jun 2019: 1-1 after extra time (stored 2-2 is the aggregate), SIPG won 5-3 on penalties. AFC report names Kim Shin-wook and Hulk; Stadium Astro and the AFC quarter-final official programme give 27' and 80'"
-+253736,1,1,false,,,,,match_reports,https://www.offside.hk/?p=13559 https://www.fotmob.com/matches/kitchee-vs-perak/p2o65ol,"Perak-Kitchee, AFC CL preliminary stage 2 12 Feb 2019: 1-1 after extra time (AFC report), Perak won 6-5 on penalties. Scorers agree in all sources (Wander Luiz for Perak, Li Ngai Hoi for Kitchee); minutes do not: offside.hk and FotMob 14' and 88', NST 13' and 86', Sinar Harian 14' and 85'. AFC report gives the score but no scorers"
-+253755,0,3,false,,,,,match_reports,https://www.koreajoongangdaily.com/sports/suwon-wins-korean-derby-to-reach-acl-semis/10388127 https://www.omanobserver.om/ampArticle/47812,"Suwon Bluewings-Jeonbuk Motors, AFC CL quarter-final 2nd leg 19 Sep 2018 at Suwon World Cup Stadium: 0-3 after extra time (Adriano 11', Choi Bo-kyung 51', Kim Shin-wook 71', all Jeonbuk), 3-3 on aggregate, Suwon won 4-2 on penalties; stored 0-6 is wrong. Inside World Football names the same scorers; AFC report names Adriano 11' only"
-+253891,5,1,false,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/afc_champions_league_quarter-finals_second-leg_shanghai_edge_gutsy_guangzhou_on_penalties.html https://www.espn.co.uk/football/report/_/gameId/479546,"Guangzhou Evergrande-Shanghai SIPG, AFC CL quarter-final 2nd leg 12 Sep 2017: 5-1 after extra time (Alan 21', 35'; Ricardo Goulart 83', 90+1', 118' pen; Hulk 110' for SIPG), 5-5 on aggregate, SIPG won 5-4 on penalties; stored 9-1 is wrong"
-+254009,1,1,false,,,,,match_reports,https://www.spotvnews.co.kr/news/articleView.html?idxno=110070 https://www.hankookilbo.com/news/article/201702072143867935,"Ulsan Hyundai-Kitchee, AFC CL play-off 7 Feb 2017 (single match, Ulsan Munsu): 1-1 after extra time (Kim Sung-hwan first-half added time, Kim Bong-jin 47'), Ulsan won 4-3 on penalties; stored 2-2 is wrong. AFC results list (the-afc.com Brisbane Roar line-up article) and SCMP agree on 1-1 aet 4-3 pens and SCMP names the same scorers"
-+254048,3,2,false,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/acl_rd16_-_2nd_leg_fc_seoul_3-2_urawa_reds_3-3_agg_7-6_pens.html https://nocutnews.co.kr/news/4598754,"FC Seoul-Urawa Red Diamonds, AFC CL round of 16 2nd leg 25 May 2016: 3-2 after extra time (Damjanovic 29', Adriano 94', Lee Tadanari 112' and 115', Go Yo-han 120+2'), 3-3 on aggregate, Seoul won 7-6 on penalties; stored 4-2 is wrong. J.League report (jleague.jp/news/article/5942) names the same scorers"
-+254155,2,2,false,,,,,match_reports,https://www.khaleejtimes.com/sport/local/al-jazira-advance-in-acl https://www.espn.co.cr/futbol/partido/_/juegoId/443052/al-sadd-al-jazira,"Al Jazira-Al Sadd, AFC CL play-off 9 Feb 2016 (Mohammed bin Zayed Stadium): 2-2 after extra time (Sanhaji 22' and 88' for Al Sadd, Kenwyne Jones 45' and Ali Mabkhout 65' for Al Jazira), Al Jazira won 5-4 on penalties; stored 4-4 is wrong. QFA and QSL reports name the same scorers but give 23' and 66'"
-+349900,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2021928 https://www.sportsmole.co.uk/football/europa-league-qualifying/skenderbeu-korce-vs-mlada-boleslav_game_64811.html,"Skenderbeu-Mlada Boleslav, UEL 3rd qualifying round 2nd leg 3 Aug 2017: 2-1 after extra time (no extra-time goals), 3-3 on aggregate, Skenderbeu won 4-2 on penalties (stored 4-2 is the shoot-out). Sports Mole gives the same scorers and minutes"
-+349996,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2021866,"FK Trakai (UEFA: Riteriai)-IFK Norrkoping, UEL 2nd qualifying round 2nd leg 20 Jul 2017: 2-1 after extra time, 3-3 on aggregate, Trakai won 5-3 on penalties"
-+350062,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2021789 https://n1info.rs/sport-klub/fudbal/a281476-LE-Penali-kobni-za-Sarajevo/,"Sarajevo-Zaria Balti, UEL 1st qualifying round 2nd leg 6 Jul 2017: 2-1 after extra time (UEFA and N1 agree), Zaria Balti won 6-5 on penalties. Scorer of the 60' goal for Zaria disputed: UEFA match data records a Marko Mihojevic (Sarajevo) own goal; N1 (Zagniailov) and the provider (S. Zagynaylov, id 76495) credit Zaria's Serhiy Zagynailov. Hebibovic 13' and Kadusic 35' pen (Sarajevo) are undisputed"
-+368830,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2028140 https://en.paperjam.lu/article/delano_football-f91-qualify-again,"F91 Dudelange-Ararat-Armenia, UEL play-off 2nd leg 29 Aug 2019: 2-1 after extra time, 3-3 on aggregate, Dudelange won 5-4 on penalties. Paperjam names the same scorers"
-+368990,1,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027691 https://www.croatiaweek.com/?p=80473,"Osijek-CSKA Sofia, UEL 2nd qualifying round 2nd leg 1 Aug 2019: 1-0 after extra time, 1-1 on aggregate, CSKA Sofia won 4-3 on penalties. Croatia Week names the same scorer"
-+369088,2,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027606,"Spartak Trnava-Radnik Bijeljina, UEL 1st qualifying round 2nd leg 18 Jul 2019: 2-0 after extra time (Sobczyk 10', Mihalek 87'), 2-2 on aggregate, Trnava won 3-2 on penalties; stored 4-0 is wrong"
-diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
-index 2ccee1eb..a7dd5031 100644
---- a/dbt_project/seeds/schema.yml
-+++ b/dbt_project/seeds/schema.yml
-@@ -542,7 +542,7 @@ seeds:
-       per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
-       provider's score and status next to it. assert_result_corrections_applied fails when a row
-       is not applied, its source is not valid, its award kind or score on the pitch does not fit
--      its award, or it no longer changes anything.
-+      its award, or a row that is no award no longer changes anything.
-     config:
-       column_types:
-         fixture_id: int64
-@@ -593,6 +593,82 @@ seeds:
-         description: "The match and the official decision, in words."
-         tests: [not_null]
- 
-+  - name: fixture_goal_corrections
-+    description: >
-+      Every goal of a match whose provider goal events do not add up to its score, one row per goal,
-+      researched and sourced; a match with no goal has one row at goal_order 0 and no goal fields.
-+      Applied in base_apif__fixture_events: the match's goals are these, and
-+      the provider's goal events stay beside them, not counted. assert_result_corrections_applied
-+      fails when a match's rows are not applied, do not add up to its score, are not sourced, or
-+      are no longer needed.
-+    config:
-+      column_types:
-+        fixture_id: int64
-+        goal_order: int64
-+        team_id: int64
-+        player_id: int64
-+        player_name: string
-+        minute_elapsed: int64
-+        minute_extra: int64
-+        event_detail: string
-+        assist_player_id: int64
-+        assist_player_name: string
-+        source_kind: string
-+        source: string
-+        note: string
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [fixture_id, goal_order]
-+    columns:
-+      - name: fixture_id
-+        description: "{{ doc('fixture_api_id') }}"
-+        tests: [not_null]
-+      - name: goal_order
-+        description: "The goal's place in the match, 1 for its first goal; 0 on the one row of a match with no goal."
-+        tests: [not_null]
-+      - name: team_id
-+        description: "{{ doc('team_api_id') }} Here it is the side the goal counts for, own goals included."
-+        tests:
-+          - not_null:
-+              config:
-+                where: "goal_order > 0"
-+      - name: player_id
-+        description: "The scorer's provider player id. NULL where the provider holds no id for the scorer."
-+      - name: player_name
-+        description: "The scorer's name as the source gives it."
-+        tests:
-+          - not_null:
-+              config:
-+                where: "goal_order > 0"
-+      - name: minute_elapsed
-+        description: "The minute of normal time the goal was scored in. NULL where no source gives it."
-+      - name: minute_extra
-+        description: "Minutes into added time, on top of minute_elapsed. NULL for a goal in normal play."
-+      - name: event_detail
-+        description: "Normal Goal, Penalty or Own Goal, as the provider's goal events name them."
-+        tests:
-+          - not_null:
-+              config:
-+                where: "goal_order > 0"
-+          - accepted_values:
-+              values: ["Normal Goal", "Penalty", "Own Goal"]
-+      - name: assist_player_id
-+        description: "The assisting player's provider id. NULL where no source names an assist or the provider holds no id for the player."
-+      - name: assist_player_name
-+        description: "The assisting player's name as the source gives it. NULL where no source names an assist."
-+      - name: source_kind
-+        description: "official = the competition's match record; match_reports = two independent match reports that name the scorers."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: ["official", "match_reports"]
-+      - name: source
-+        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
-+        tests: [not_null]
-+      - name: note
-+        description: "The match and its goals, in words."
-+        tests: [not_null]
++++ b/scripts/refetch_from_provider.py
+@@ -0,0 +1,366 @@
++"""Ask the provider again for named matches or team-seasons, and append the answers to raw.
 +
-   - name: standings_corrections
-     description: >
-       The league's official figures for each provider league-table row that differs from them,
-diff --git a/dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql b/dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
-index 1d4c6fa1..62664d64 100644
---- a/dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
-+++ b/dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
-@@ -1,6 +1,7 @@
- {#
-   A match's events are those of its latest fetch that has events. Returns one row per event in
--  base_apif__fixture_events or fct_fixture_event at a position that fetch does not have.
-+  base_apif__fixture_events or fct_fixture_event at a position that fetch does not have. A goal
-+  corrected by hand is no provider event and is not checked here.
- #}
- {{ config(store_failures = true, severity = 'error') }}
- 
-@@ -31,6 +32,7 @@ held as (
-         fixture_id,
-         event_index
-     from {{ ref('base_apif__fixture_events') }}
-+    where goal_correction_source is null
-     union all
-     select
-         'fct_fixture_event' as model_name,
-@@ -38,6 +40,7 @@ held as (
-         fixture_api_id as fixture_id,
-         event_index
-     from {{ ref('fct_fixture_event') }}
-+    where goal_correction_source is null
- )
- 
- select
-diff --git a/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql b/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
-new file mode 100644
-index 00000000..2f72722c
---- /dev/null
-+++ b/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
-@@ -0,0 +1,97 @@
-+{#
-+  Every played match of mart_competition_fixtures has one goal-data state, and the goals it serves
-+  add up to its score side by side: the score on the pitch for a played or abandoned award. Returns
-+  one row per broken match:
-+  - no_state: a played match without a state, or a match not played with a state or goals;
-+  - award_kind_missing: an awarded result with no kind;
-+  - goals_on_unplayed_award: goals on an award that was not played;
-+  - does_not_add_up: served goals that differ from the score on either side, or name a team not
-+    in the match;
-+  - minute_missing: a goal without its minute in a match whose state says every minute is known;
-+  - unknown_player: a scorer's or assister's provider id that dim_player does not hold;
-+  - goals_not_reconciled: a match whose goal events exist but add up neither alone nor with the
-+    players' goals; it needs its goals in fixture_goal_corrections.
-+#}
-+{{ config(store_failures = true, severity = 'error') }}
++fixtures: GET /fixtures?ids= (20 a call) for every match in --ids-file (CSV: league_code,fixture_id).
++A match is written only when its new answer holds two line-ups of eleven starters and is no worse
++than any stored fetch of it: no fewer events, no fewer player rows or statistics lines for either
++team, and not losing the complete player format. Base takes the latest events fetch whole, so a
++shorter answer would replace a longer one. The stored counts come from the staging tables, so a run
++is refused while raw holds a row for a listed match that staging has not read yet.
 +
-+with fixtures as (
-+    select * from {{ ref('mart_competition_fixtures') }}
-+),
++squads: GET /players?team=&season= for every pair in --pairs-file (CSV: league_code,team_id,season),
++through the nightly's own loader. Base unions every squad fetch, so the loader's incomplete-fetch
++guard is the only one needed.
 +
-+goal_events as (
-+    select
-+        fixture_sk,
-+        count(*) as goal_events
-+    from {{ ref('fct_fixture_event') }}
-+    where is_goal
-+    group by fixture_sk
-+),
++Plans by default and makes no call. --run fetches and writes, holding the ingest lock for a lease
++of LEASE_MINUTES, and makes no call after CALL_WINDOW_MINUTES of it. It stops at --max-calls and on
++the provider's daily limit, and refuses to start between 02:00 and 04:00 UTC, so a lease left by a
++killed run ends before the nightly starts.
 +
-+players as (
-+    select player_sk
-+    from {{ ref('dim_player') }}
-+),
++    python scripts/refetch_from_provider.py fixtures --ids-file <csv>
++    python scripts/refetch_from_provider.py fixtures --ids-file <csv> --run --max-calls 260
++"""
 +
-+served as (
-+    select
-+        f.fixture_sk,
-+        coalesce(sum(if(g.side = 'home', g.goals, 0)), 0) as served_home,
-+        coalesce(sum(if(g.side = 'away', g.goals, 0)), 0) as served_away,
-+        countif(g.goals is not null and g.side is null) as served_other_side,
-+        countif(g.goals is not null and g.minute_elapsed is null) as served_without_minute,
-+        countif(g.player_api_id is not null and p.player_sk is null) as served_unknown_player,
-+        countif(g.assist_player_api_id is not null and ap.player_sk is null) as served_unknown_assist,
-+        count(g.goals) as entries
-+    from fixtures as f
-+    left join unnest(f.goals) as g
-+        on true
-+    left join players as p
-+        on g.player_api_id = p.player_sk
-+    left join players as ap
-+        on g.assist_player_api_id = ap.player_sk
-+    group by f.fixture_sk
-+),
++from __future__ import annotations
 +
-+checked as (
-+    select
-+        f.fixture_sk,
-+        f.league_code,
-+        f.season_api_year,
-+        f.status_short,
-+        f.goal_data_state,
-+        f.award_kind,
-+        f.goals_home,
-+        f.goals_away,
-+        f.on_pitch_home,
-+        f.on_pitch_away,
-+        s.served_home,
-+        s.served_away,
-+        case
-+            when f.is_played and f.goal_data_state is null then 'no_state'
-+            when not f.is_played and (f.goal_data_state is not null or s.entries > 0) then 'no_state'
-+            when f.goal_data_state = 'awarded' and f.award_kind is null then 'award_kind_missing'
-+            when f.award_kind = 'not_played' and s.entries > 0 then 'goals_on_unplayed_award'
-+            when
-+                (f.goal_data_state in ('goals', 'goals_without_minutes') or f.award_kind in ('played', 'abandoned'))
-+                and (
-+                    s.served_other_side > 0
-+                    or s.served_home
-+                    is distinct from if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)
-+                    or s.served_away
-+                    is distinct from if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)
-+                )
-+                then 'does_not_add_up'
-+            when f.goal_data_state = 'goals' and s.served_without_minute > 0 then 'minute_missing'
-+            when s.served_unknown_player > 0 or s.served_unknown_assist > 0 then 'unknown_player'
-+            when f.goal_data_state = 'not_recorded' and coalesce(e.goal_events, 0) > 0 then 'goals_not_reconciled'
-+        end as problem
-+    from fixtures as f
-+    inner join served as s
-+        on f.fixture_sk = s.fixture_sk
-+    left join goal_events as e
-+        on f.fixture_sk = e.fixture_sk
++import argparse
++import csv
++import math
++import os
++import sys
++from collections import defaultdict
++from datetime import datetime, timedelta, timezone
++
++from google.cloud import bigquery
++
++_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
++if _ROOT not in sys.path:
++    sys.path.insert(0, _ROOT)
++
++from ingestion.api_football import http_client  # noqa: E402
++from ingestion.api_football import quota as errors_quota  # noqa: E402
++from ingestion.api_football.bigquery import ensure_unified_raw_table  # noqa: E402
++from ingestion.api_football.http_client import fetch_json, result_is_complete  # noqa: E402
++from ingestion.api_football.ingestion_lock import (  # noqa: E402
++    acquire_ingest_lock,
++    ensure_ingest_lock_table,
++    new_run_id,
++    release_ingest_lock,
++)
++from ingestion.api_football.loads.batch_fixtures import (  # noqa: E402
++    _BATCH_SIZE,
++    _insert_fixture_rows,
++)
++from ingestion.api_football.loads.context import PipelineContext  # noqa: E402
++from ingestion.api_football.loads.squads import load_squad_players_batch  # noqa: E402
++from ingestion.api_football.quota import append_api_errors  # noqa: E402
++from ingestion.api_football.settings import (  # noqa: E402
++    DATASET_ID,
++    GCP_PROJECT_ID,
++    _env_int,
++    get_headers,
++    raw_table,
 +)
 +
-+select *
-+from checked
-+where problem is not null
-diff --git a/dbt_project/tests/assert_player_row_and_events_same_team.sql b/dbt_project/tests/assert_player_row_and_events_same_team.sql
-index 6f9a8360..c5ff9c73 100644
---- a/dbt_project/tests/assert_player_row_and_events_same_team.sql
-+++ b/dbt_project/tests/assert_player_row_and_events_same_team.sql
-@@ -3,7 +3,7 @@
- -- A cleaned player row and that player's events in the same match under different teams. The
- -- player's-team rule of the cleaning rules moves the side the squad list contradicts, so a row here
- -- is a match the rule could not decide. Own goals are left out: the provider files them under the
---- team they count for.
-+-- team they count for. A goal corrected by hand is no provider event and is left out too.
- select
-     player_row.league_code,
-     player_row.fixture_id,
-@@ -20,3 +20,4 @@ inner join {{ ref('base_apif__fixture_events') }} as player_event
- where
-     player_event.team_id != player_row.team_id
-     and not (player_event.event_type = 'Goal' and player_event.event_detail = 'Own Goal')
-+    and player_event.goal_correction_source is null
-diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
-index eba4a64d..f737b9fe 100644
---- a/dbt_project/tests/assert_result_corrections_applied.sql
-+++ b/dbt_project/tests/assert_result_corrections_applied.sql
-@@ -1,4 +1,4 @@
---- Every hand correction of a result, from the two correction seeds, is applied, sourced and still
-+-- Every hand correction of a result, from the three correction seeds, is applied, sourced and still
- -- needed. One row per broken correction:
- --   - not_applied: base has no such match or table row, or does not carry the official figures
- --     and team.
-@@ -8,7 +8,11 @@
- --     abandoned award without the score on the pitch, or a score on the pitch on any other row.
- --   - not_sourced: a source that is not https URLs separated by a space, an official one with
- --     none, or match reports with fewer than two sites.
----   - no_longer_needed: the provider now carries the official result itself.
-+--   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
-+--     score on the pitch for a played or abandoned award), name a team not in the match, or sit
-+--     beside the row that says the match had no goal.
-+--   - no_longer_needed: the provider now carries the official result, or goals that add up, itself.
-+--     An award is always needed: the provider never says how it came about.
- 
- {{ config(store_failures = true) }}
- 
-@@ -28,6 +32,69 @@ standings as (
-     select * from {{ ref('base_apif__standings') }}
- ),
- 
-+goal_corrections as (
-+    select * from {{ ref('fixture_goal_corrections') }}
-+),
++LEASE_MINUTES = 60
++CALL_WINDOW_MINUTES = 50
++STAGING_TABLES = ("stg_apif__fixture_events", "stg_apif__fixture_players", "stg_apif__fixture_statistics")
 +
-+events as (
-+    select * from {{ ref('base_apif__fixture_events') }}
-+),
 +
-+goal_counts as (
-+    select
-+        c.fixture_id,
-+        countif(c.goal_order > 0) as seed_goals,
-+        countif(c.goal_order = 0) > 0 and count(*) > 1 as no_goal_row_with_goals,
-+        countif(c.goal_order > 0 and c.team_id = f.home_team_id) as seed_home,
-+        countif(c.goal_order > 0 and c.team_id = f.away_team_id) as seed_away,
-+        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home)) as score_home,
-+        any_value(if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away)) as score_away
-+    from goal_corrections as c
-+    left join fixtures as f
-+        on c.fixture_id = f.fixture_id
-+    group by c.fixture_id
-+),
++def read_fixture_list(path: str) -> dict[str, list[int]]:
++    groups: dict[str, set[int]] = defaultdict(set)
++    with open(path, newline="", encoding="utf-8") as fh:
++        for row in csv.DictReader(fh):
++            groups[row["league_code"].strip()].add(int(row["fixture_id"]))
++    return {league: sorted(ids) for league, ids in sorted(groups.items())}
 +
-+event_counts as (
-+    select
-+        e.fixture_id,
-+        countif(e.is_goal and e.goal_correction_source is not null) as applied_goals,
-+        countif(e.is_goal and e.goal_correction_source is null) as provider_goals_counted,
-+        countif(e.is_provider_goal and e.team_id = f.home_team_id) as provider_home,
-+        countif(e.is_provider_goal and e.team_id = f.away_team_id) as provider_away
-+    from events as e
-+    inner join goal_counts as g
-+        on e.fixture_id = g.fixture_id
-+    inner join fixtures as f
-+        on e.fixture_id = f.fixture_id
-+    group by e.fixture_id
-+),
 +
-+goal_checks as (
-+    select
-+        'fixture_goal_corrections' as seed,
-+        cast(g.fixture_id as string) as correction,
-+        case
-+            when
-+                coalesce(e.applied_goals, 0) != g.seed_goals
-+                or coalesce(e.provider_goals_counted, 0) != 0
-+                then 'not_applied'
-+            when
-+                g.no_goal_row_with_goals
-+                or g.seed_goals != g.seed_home + g.seed_away
-+                or g.seed_home is distinct from g.score_home
-+                or g.seed_away is distinct from g.score_away
-+                then 'does_not_add_up'
-+            when
-+                e.provider_home = g.score_home
-+                and e.provider_away = g.score_away
-+                then 'no_longer_needed'
-+        end as problem
-+    from goal_counts as g
-+    left join event_counts as e
-+        on g.fixture_id = e.fixture_id
-+),
++def read_pair_list(path: str) -> dict[tuple[str, int], set[int]]:
++    groups: dict[tuple[str, int], set[int]] = defaultdict(set)
++    with open(path, newline="", encoding="utf-8") as fh:
++        for row in csv.DictReader(fh):
++            groups[(row["league_code"].strip(), int(row["season"]))].add(int(row["team_id"]))
++    return dict(sorted(groups.items()))
 +
- fixture_checks as (
-     select
-         'fixture_result_corrections' as seed,
-@@ -62,8 +129,7 @@ fixture_checks as (
-             when
-                 f.provider_goals_home = c.goals_home
-                 and f.provider_goals_away = c.goals_away
--                and (not c.awarded or f.provider_status_short in ('AWD', 'WO'))
--                and c.awarded_to_team_id is null
-+                and not c.awarded
-                 then 'no_longer_needed'
-         end as problem
-     from fixture_corrections as c
-@@ -126,6 +192,13 @@ sources as (
-         source_kind,
-         source
-     from table_corrections
-+    union all
-+    select
-+        'fixture_goal_corrections' as seed,
-+        concat(cast(fixture_id as string), ' ', cast(goal_order as string)) as correction,
-+        source_kind,
-+        source
-+    from goal_corrections
- ),
- 
- source_urls as (
-@@ -169,6 +242,13 @@ select
- from table_checks
- where problem is not null
- union all
-+select
-+    seed,
-+    correction,
-+    problem
-+from goal_checks
-+where problem is not null
++
++def fixture_calls(groups: dict[str, list[int]]) -> int:
++    return sum(math.ceil(len(ids) / _BATCH_SIZE) for ids in groups.values())
++
++
++def squad_calls(groups: dict[tuple[str, int], set[int]], max_pages: int) -> int:
++    return sum(len(teams) for teams in groups.values()) * max_pages
++
++
++def too_close_to_nightly(now: datetime) -> bool:
++    return 2 <= now.astimezone(timezone.utc).hour < 4
++
++
++def _team_id(block: dict) -> int:
++    return int((block.get("team") or {}).get("id") or 0)
++
++
++def payload_counts(fx: dict) -> dict:
++    player_blocks = fx.get("players") or []
++    players = [p for t in player_blocks for p in (t.get("players") or [])]
++    lineups = fx.get("lineups") or []
++    return {
++        "events": len(fx.get("events") or []),
++        "players_by_team": {_team_id(t): len(t.get("players") or []) for t in player_blocks},
++        "players_complete": any(
++            (((p.get("statistics") or [{}])[0] or {}).get("goals") or {}).get("conceded") is not None
++            for p in players
++        ),
++        "statistics_by_team": {_team_id(t): len(t.get("statistics") or []) for t in fx.get("statistics") or []},
++        "full_lineups": len(lineups) == 2
++        and all(len(lu.get("startXI") or []) == 11 for lu in lineups),
++    }
++
++
++def refusal_reasons(new: dict, stored: dict | None) -> list[str]:
++    reasons = []
++    if not new["full_lineups"]:
++        reasons.append("no two line-ups of eleven starters")
++    if stored is None:
++        return reasons
++    if new["events"] < stored["events"]:
++        reasons.append(f"fewer events ({new['events']} < {stored['events']})")
++    for key, label in (("players_by_team", "player rows"), ("statistics_by_team", "statistics lines")):
++        for team, n_stored in sorted(stored[key].items()):
++            n_new = new[key].get(team, 0)
++            if n_new < n_stored:
++                reasons.append(f"fewer {label} for team {team} ({n_new} < {n_stored})")
++    if stored["players_complete"] and not new["players_complete"]:
++        reasons.append("loses the complete player format")
++    return reasons
++
++
++_STORED_SQL = """
++with events as (
++    select fixture_id, raw_ingested_at, count(*) as n
++    from `{p}.staging.stg_apif__fixture_events`
++    where fixture_id in unnest(@ids)
++    group by 1, 2
++),
++players as (
++    select fixture_id, team_id, raw_ingested_at, count(*) as n, logical_or(goals_against is not null) as complete
++    from `{p}.staging.stg_apif__fixture_players`
++    where fixture_id in unnest(@ids)
++    group by 1, 2, 3
++),
++statistics as (
++    select fixture_id, team_id, raw_ingested_at, count(*) as n
++    from `{p}.staging.stg_apif__fixture_statistics`
++    where fixture_id in unnest(@ids)
++    group by 1, 2, 3
++)
++select 'events' as section, fixture_id, cast(null as int64) as team_id, max(n) as n, false as complete
++from events group by 2
 +union all
- select
-     seed,
-     correction,
++select 'players', fixture_id, team_id, max(n), logical_or(complete) from players group by 2, 3
++union all
++select 'statistics', fixture_id, team_id, max(n), false from statistics group by 2, 3
++"""
++
++
++def stored_counts(client: bigquery.Client, fixture_ids: list[int]) -> dict[int, dict]:
++    job = client.query(
++        _STORED_SQL.format(p=GCP_PROJECT_ID),
++        job_config=bigquery.QueryJobConfig(
++            query_parameters=[bigquery.ArrayQueryParameter("ids", "INT64", fixture_ids)]
++        ),
++    )
++    out = {
++        fid: {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
++        for fid in fixture_ids
++    }
++    for r in job.result():
++        stored = out[int(r["fixture_id"])]
++        if r["section"] == "events":
++            stored["events"] = int(r["n"])
++        elif r["section"] == "players":
++            stored["players_by_team"][int(r["team_id"] or 0)] = int(r["n"])
++            stored["players_complete"] = stored["players_complete"] or bool(r["complete"])
++        else:
++            stored["statistics_by_team"][int(r["team_id"] or 0)] = int(r["n"])
++    print(f"stored counts read: {job.total_bytes_billed or 0} bytes billed", flush=True)
++    return out
++
++
++def unread_raw_rows(client: bigquery.Client, fixture_ids: list[int]) -> int:
++    """Listed matches with a raw row newer than the oldest of the staging tables the guard reads."""
++    built = min(client.get_table(f"{GCP_PROJECT_ID}.staging.{t}").modified for t in STAGING_TABLES)
++    job = client.query(
++        f"""
++        select count(distinct fixture_id) as n
++        from `{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table("FIXTURE_DETAILS")}`
++        where fixture_id in unnest(@ids) and ingested_at > @built
++        """,
++        job_config=bigquery.QueryJobConfig(
++            query_parameters=[
++                bigquery.ArrayQueryParameter("ids", "INT64", fixture_ids),
++                bigquery.ScalarQueryParameter("built", "TIMESTAMP", built),
++            ]
++        ),
++    )
++    return int(next(iter(job.result()))["n"])
++
++
++class _CapReached:
++    status_code = 200
++
++    def __init__(self) -> None:
++        self.headers: dict = {}
++
++    def raise_for_status(self) -> None:
++        return None
++
++    def json(self) -> dict:
++        return {"errors": {"call_cap": "the run's call cap or call window is reached"}, "response": []}
++
++
++class CallCounter:
++    """Counts every HTTP call, retries included, and makes none past the cap or the deadline.
++
++    The call refused is answered with a body-level error and latches the daily-limit flag, so
++    result_is_complete turns false, fetch_json makes no further call, and the loaders write nothing
++    they did not finish.
++    """
++
++    def __init__(self, max_calls: int, deadline: datetime | None = None):
++        self.max_calls = max_calls
++        self.deadline = deadline
++        self.calls = 0
++        self._get = http_client.requests.get
++
++    def get(self, *args, **kwargs):
++        past_deadline = self.deadline is not None and datetime.now(timezone.utc) >= self.deadline
++        if self.calls >= self.max_calls or past_deadline:
++            errors_quota._http_quota_exhausted = True
++            return _CapReached()
++        self.calls += 1
++        return self._get(*args, **kwargs)
++
++    def install(self) -> None:
++        http_client.requests.get = self.get
++
++
++def run_fixtures(ctx: PipelineContext, groups: dict[str, list[int]], stored: dict[int, dict]) -> dict:
++    table_name = raw_table("FIXTURE_DETAILS")
++    ensure_unified_raw_table(ctx.client, table_name, include_fixture_id=True)
++    report = {"written": 0, "not_returned": 0, "batches_discarded": 0, "refused": defaultdict(int)}
++    for league_code, ids in groups.items():
++        for start in range(0, len(ids), _BATCH_SIZE):
++            if errors_quota._http_quota_exhausted:
++                return report
++            batch = ids[start:start + _BATCH_SIZE]
++            data = fetch_json("/fixtures", headers=ctx.headers, params={"ids": "-".join(map(str, batch))})
++            append_api_errors(data, f"refetch fixture_details {league_code}", ctx.errors)
++            if not result_is_complete(data):
++                report["batches_discarded"] += 1
++                continue
++            returned = {int((fx.get("fixture") or {}).get("id") or 0): fx for fx in data.get("response") or []}
++            report["not_returned"] += len(set(batch) - set(returned))
++            kept = []
++            for fid, fx in returned.items():
++                reasons = refusal_reasons(payload_counts(fx), stored.get(fid))
++                for reason in reasons:
++                    report["refused"][reason.split(" (")[0].split(" for team")[0]] += 1
++                if not reasons:
++                    kept.append(fx)
++            if kept:
++                _insert_fixture_rows(ctx.client, table_name, kept, datetime.now(timezone.utc), league_code)
++                report["written"] += len(kept)
++    return report
++
++
++def run_squads(ctx: PipelineContext, groups: dict[tuple[str, int], set[int]]) -> None:
++    for (league_code, season), team_ids in groups.items():
++        if errors_quota._http_quota_exhausted:
++            return
++        load_squad_players_batch(
++            ctx,
++            league_code,
++            [season],
++            set(team_ids),
++            reference_season=season,
++            already_captured=set(),
++        )
++
++
++def main(argv: list[str] | None = None) -> int:
++    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
++    parser.add_argument("mode", choices=["fixtures", "squads"])
++    parser.add_argument("--ids-file")
++    parser.add_argument("--pairs-file")
++    parser.add_argument("--run", action="store_true")
++    parser.add_argument("--max-calls", type=int)
++    args = parser.parse_args(argv)
++
++    if args.mode == "fixtures":
++        if not args.ids_file:
++            parser.error("fixtures needs --ids-file")
++        groups = read_fixture_list(args.ids_file)
++        n_items = sum(len(ids) for ids in groups.values())
++        planned = fixture_calls(groups)
++        print(f"plan: {n_items} matches in {len(groups)} competitions, {planned} calls", flush=True)
++    else:
++        if not args.pairs_file:
++            parser.error("squads needs --pairs-file")
++        groups = read_pair_list(args.pairs_file)
++        max_pages = _env_int("API_FOOTBALL_PLAYERS_MAX_PAGE", 3)
++        n_items = sum(len(teams) for teams in groups.values())
++        planned = squad_calls(groups, max_pages)
++        print(f"plan: {n_items} team-seasons, at most {planned} calls ({max_pages} pages each)", flush=True)
++
++    if not args.run:
++        return 0
++    if args.max_calls is None:
++        parser.error("--run needs --max-calls")
++    if too_close_to_nightly(datetime.now(timezone.utc)):
++        print("refused: a run started between 02:00 and 04:00 UTC could still hold the lock at the nightly's start")
++        return 2
++
++    os.environ.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "250")
++    headers = get_headers()
++    client = bigquery.Client(project=GCP_PROJECT_ID)
++    fixture_ids = [fid for ids in groups.values() for fid in ids] if args.mode == "fixtures" else []
++    ensure_ingest_lock_table(client)
++    run_id = new_run_id()
++    if not acquire_ingest_lock(client, run_id, lease_minutes=LEASE_MINUTES):
++        print(f"refused: another ingest holds the lock ({GCP_PROJECT_ID}.{DATASET_ID}.RAW_APIF_INGEST_LOCK)")
++        return 2
++    try:
++        if fixture_ids:
++            unread = unread_raw_rows(client, fixture_ids)
++            if unread:
++                print(f"refused: raw holds {unread} listed matches newer than the staging build; rebuild staging first")
++                return 2
++        deadline = datetime.now(timezone.utc) + timedelta(minutes=CALL_WINDOW_MINUTES)
++        counter = CallCounter(args.max_calls, deadline)
++        counter.install()
++        ctx = PipelineContext(client=client, headers=headers)
++        if args.mode == "fixtures":
++            stored = stored_counts(client, fixture_ids)
++            report = run_fixtures(ctx, groups, stored)
++            print(
++                f"done: {counter.calls} calls, {report['written']} matches written, "
++                f"{report['not_returned']} not returned, {report['batches_discarded']} batches discarded",
++                flush=True,
++            )
++            for reason, n in sorted(report["refused"].items()):
++                print(f"  refused, {reason}: {n}", flush=True)
++        else:
++            run_squads(ctx, groups)
++            print(
++                f"done: {counter.calls} calls, {ctx.tables_loaded} of {len(groups)} competition-seasons written",
++                flush=True,
++            )
++        print(f"quota left: {errors_quota._last_requests_remaining}", flush=True)
++        for err in ctx.errors:
++            print(f"  error: {err}", flush=True)
++    finally:
++        release_ingest_lock(client, run_id)
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/tests/test_refetch_from_provider.py b/tests/test_refetch_from_provider.py
+new file mode 100644
+index 00000000..35cf295e
+--- /dev/null
++++ b/tests/test_refetch_from_provider.py
+@@ -0,0 +1,380 @@
++"""Tests for scripts/refetch_from_provider.py. No network, no BigQuery."""
++
++from __future__ import annotations
++
++from datetime import datetime, timedelta, timezone
++from unittest.mock import MagicMock, patch
++
++import pytest
++
++from ingestion.api_football import http_client
++from ingestion.api_football import quota as errors_quota
++from scripts import refetch_from_provider as refetch
++
++HOME, AWAY = 10, 20
++
++
++def _lineup(starters: int = 11) -> dict:
++    return {"startXI": [{"player": {"id": i}} for i in range(starters)], "substitutes": []}
++
++
++def _player(conceded=None) -> dict:
++    return {"player": {"id": 1}, "statistics": [{"goals": {"conceded": conceded}}]}
++
++
++def _fixture(
++    fid: int = 1,
++    events: int = 5,
++    players: tuple[int, int] = (15, 15),
++    statistics: tuple[int, int] = (8, 8),
++    conceded=0,
++    lineups=None,
++) -> dict:
++    return {
++        "fixture": {"id": fid},
++        "events": [{}] * events,
++        "players": [
++            {"team": {"id": HOME}, "players": [_player(conceded)] * players[0]},
++            {"team": {"id": AWAY}, "players": [_player(conceded)] * players[1]},
++        ],
++        "statistics": [
++            {"team": {"id": HOME}, "statistics": [{}] * statistics[0]},
++            {"team": {"id": AWAY}, "statistics": [{}] * statistics[1]},
++        ],
++        "lineups": lineups if lineups is not None else [_lineup(), _lineup()],
++    }
++
++
++def _stored(
++    events: int = 5,
++    players: tuple[int, int] = (15, 15),
++    statistics: tuple[int, int] = (8, 8),
++    complete: bool = True,
++) -> dict:
++    return {
++        "events": events,
++        "players_by_team": {HOME: players[0], AWAY: players[1]},
++        "statistics_by_team": {HOME: statistics[0], AWAY: statistics[1]},
++        "players_complete": complete,
++    }
++
++
++@pytest.fixture(autouse=True)
++def _reset_quota_flag(monkeypatch):
++    monkeypatch.setattr(errors_quota, "_http_quota_exhausted", False)
++
++
++class TestPayloadCounts:
++    def test_counts_every_section_per_team(self):
++        counts = refetch.payload_counts(_fixture(events=7, players=(16, 15), statistics=(17, 16)))
++        assert counts == {
++            "events": 7,
++            "players_by_team": {HOME: 16, AWAY: 15},
++            "players_complete": True,
++            "statistics_by_team": {HOME: 17, AWAY: 16},
++            "full_lineups": True,
++        }
++
++    def test_incomplete_player_format(self):
++        assert not refetch.payload_counts(_fixture(conceded=None))["players_complete"]
++
++    def test_a_short_line_up_is_not_full(self):
++        assert not refetch.payload_counts(_fixture(lineups=[_lineup(), _lineup(10)]))["full_lineups"]
++
++    def test_one_line_up_is_not_full(self):
++        assert not refetch.payload_counts(_fixture(lineups=[_lineup()]))["full_lineups"]
++
++    def test_empty_payload(self):
++        counts = refetch.payload_counts({})
++        assert counts["events"] == 0
++        assert counts["players_by_team"] == counts["statistics_by_team"] == {}
++        assert not counts["full_lineups"]
++
++
++class TestRefusalReasons:
++    def test_not_worse_with_full_line_ups_is_written(self):
++        assert refetch.refusal_reasons(refetch.payload_counts(_fixture()), _stored()) == []
++
++    def test_a_match_with_nothing_stored_needs_only_the_line_ups(self):
++        empty = {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
++        assert refetch.refusal_reasons(refetch.payload_counts(_fixture(events=0, players=(0, 0))), empty) == []
++
++    @pytest.mark.parametrize(
++        "fixture_kwargs, stored_kwargs, reason",
++        [
++            ({"events": 4}, {"events": 5}, "fewer events (4 < 5)"),
++            ({"players": (14, 15)}, {}, f"fewer player rows for team {HOME} (14 < 15)"),
++            ({"statistics": (8, 7)}, {}, f"fewer statistics lines for team {AWAY} (7 < 8)"),
++            ({"conceded": None}, {"complete": True}, "loses the complete player format"),
++            ({"lineups": [_lineup(10), _lineup()]}, {}, "no two line-ups of eleven starters"),
++        ],
++    )
++    def test_a_worse_fetch_is_refused(self, fixture_kwargs, stored_kwargs, reason):
++        new = refetch.payload_counts(_fixture(**fixture_kwargs))
++        assert refetch.refusal_reasons(new, _stored(**stored_kwargs)) == [reason]
++
++    def test_one_team_gaining_does_not_cover_the_other_losing(self):
++        new = refetch.payload_counts(_fixture(statistics=(0, 20)))
++        assert refetch.refusal_reasons(new, _stored()) == [f"fewer statistics lines for team {HOME} (0 < 8)"]
++
++    def test_more_of_everything_is_written(self):
++        new = refetch.payload_counts(_fixture(events=9, players=(20, 20), statistics=(17, 17)))
++        assert refetch.refusal_reasons(new, _stored()) == []
++
++
++class TestPlan:
++    def test_fixture_calls_are_twenty_a_call_per_competition(self):
++        assert refetch.fixture_calls({"BL1": list(range(21)), "PL": list(range(20))}) == 3
++
++    def test_squad_calls_are_pages_per_team_season(self):
++        assert refetch.squad_calls({("BL1", 2016): {1, 2}, ("PL", 2026): {3}}, 3) == 9
++
++    def test_reads_and_groups_the_lists(self, tmp_path):
++        ids = tmp_path / "ids.csv"
++        ids.write_text("league_code,fixture_id\nPL,3\nBL1,2\nPL,1\nPL,3\n", encoding="utf-8")
++        assert refetch.read_fixture_list(str(ids)) == {"BL1": [2], "PL": [1, 3]}
++        pairs = tmp_path / "pairs.csv"
++        pairs.write_text("league_code,team_id,season\nBL1,5,2016\nBL1,6,2016\nPL,7,2026\n", encoding="utf-8")
++        assert refetch.read_pair_list(str(pairs)) == {("BL1", 2016): {5, 6}, ("PL", 2026): {7}}
++
++    def test_plan_mode_makes_no_call(self, tmp_path, capsys):
++        ids = tmp_path / "ids.csv"
++        ids.write_text("league_code,fixture_id\nPL,1\nPL,2\n", encoding="utf-8")
++        with patch.object(refetch.http_client.requests, "get") as get, patch.object(refetch.bigquery, "Client") as client:
++            assert refetch.main(["fixtures", "--ids-file", str(ids)]) == 0
++        get.assert_not_called()
++        client.assert_not_called()
++        assert "plan: 2 matches in 1 competitions, 1 calls" in capsys.readouterr().out
++
++    def test_run_needs_a_call_cap(self, tmp_path):
++        ids = tmp_path / "ids.csv"
++        ids.write_text("league_code,fixture_id\nPL,1\n", encoding="utf-8")
++        with pytest.raises(SystemExit):
++            refetch.main(["fixtures", "--ids-file", str(ids), "--run"])
++
++
++class TestNightlyWindow:
++    @pytest.mark.parametrize("hour, refused", [(1, False), (2, True), (3, True), (4, False), (23, False)])
++    def test_refuses_two_hours_before_the_nightly(self, hour, refused):
++        assert refetch.too_close_to_nightly(datetime(2026, 10, 12, hour, 30, tzinfo=timezone.utc)) is refused
++
++    def test_the_lease_ends_before_the_nightly(self):
++        latest_start = datetime(2026, 10, 12, 1, 59, tzinfo=timezone.utc)
++        assert latest_start + timedelta(minutes=refetch.LEASE_MINUTES) < datetime(2026, 10, 12, 4, 0, tzinfo=timezone.utc)
++        assert refetch.CALL_WINDOW_MINUTES < refetch.LEASE_MINUTES
++
++
++class TestCallCounter:
++    def test_makes_no_call_past_the_cap(self, monkeypatch):
++        real_get = MagicMock(return_value="response")
++        monkeypatch.setattr(refetch.http_client.requests, "get", real_get)
++        counter = refetch.CallCounter(2)
++        assert counter.get("a") == "response"
++        assert counter.get("b") == "response"
++        capped = counter.get("c")
++        assert real_get.call_count == 2
++        assert counter.calls == 2
++        assert errors_quota._http_quota_exhausted
++        assert capped.json()["response"] == []
++        assert capped.json()["errors"]
++
++    def test_makes_no_call_past_the_deadline(self, monkeypatch):
++        real_get = MagicMock(return_value="response")
++        monkeypatch.setattr(refetch.http_client.requests, "get", real_get)
++        counter = refetch.CallCounter(100, datetime.now(timezone.utc) - timedelta(seconds=1))
++        counter.get("a")
++        real_get.assert_not_called()
++        assert errors_quota._http_quota_exhausted
++
++    def test_through_fetch_json_a_retry_counts_and_the_capped_answer_is_incomplete(self, monkeypatch):
++        monkeypatch.setattr(http_client, "_throttle", lambda: None)
++        monkeypatch.setattr(http_client.time, "sleep", lambda s: None)
++        rate_limited = MagicMock(status_code=429, headers={"Retry-After": "0"})
++        ok = MagicMock(status_code=200, headers={})
++        ok.json.return_value = {"errors": [], "response": [{"fixture": {"id": 1}}]}
++        real_get = MagicMock(side_effect=[rate_limited, ok])
++        monkeypatch.setattr(http_client.requests, "get", real_get)
++        counter = refetch.CallCounter(2)
++        monkeypatch.setattr(http_client.requests, "get", counter.get)
++        first = http_client.fetch_json("/fixtures", headers={}, params={"ids": "1"})
++        assert counter.calls == 2
++        assert http_client.result_is_complete(first)
++        capped = http_client.fetch_json("/fixtures", headers={}, params={"ids": "2"})
++        assert real_get.call_count == 2
++        assert not http_client.result_is_complete(capped)
++
++
++def _ctx() -> MagicMock:
++    ctx = MagicMock()
++    ctx.headers = {}
++    ctx.errors = []
++    return ctx
++
++
++class TestStoredReads:
++    def test_stored_counts_puts_each_section_where_the_guard_reads_it(self):
++        rows = [
++            {"section": "events", "fixture_id": 1, "team_id": None, "n": 12, "complete": False},
++            {"section": "players", "fixture_id": 1, "team_id": HOME, "n": 16, "complete": False},
++            {"section": "players", "fixture_id": 1, "team_id": AWAY, "n": 15, "complete": True},
++            {"section": "statistics", "fixture_id": 1, "team_id": HOME, "n": 17, "complete": False},
++            {"section": "statistics", "fixture_id": 1, "team_id": AWAY, "n": 18, "complete": False},
++        ]
++        client = MagicMock()
++        client.query.return_value.result.return_value = rows
++        client.query.return_value.total_bytes_billed = 0
++        stored = refetch.stored_counts(client, [1, 2])
++        assert stored[1] == {
++            "events": 12,
++            "players_by_team": {HOME: 16, AWAY: 15},
++            "statistics_by_team": {HOME: 17, AWAY: 18},
++            "players_complete": True,
++        }
++        assert stored[2] == {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
++
++    def test_unread_raw_rows_compares_with_the_oldest_staging_table(self):
++        older = datetime(2026, 10, 12, 4, 10, tzinfo=timezone.utc)
++        newer = datetime(2026, 10, 12, 4, 30, tzinfo=timezone.utc)
++        client = MagicMock()
++        client.get_table.side_effect = [MagicMock(modified=newer), MagicMock(modified=older), MagicMock(modified=newer)]
++        client.query.return_value.result.return_value = iter([{"n": 4}])
++        assert refetch.unread_raw_rows(client, [1, 2]) == 4
++        params = {p.name: p for p in client.query.call_args.kwargs["job_config"].query_parameters}
++        assert params["built"].value == older
++        assert params["ids"].values == [1, 2]
++        assert "RAW_APIF_FIXTURE_DETAILS" in client.query.call_args.args[0]
++
++
++class TestRunFixtures:
++    def _run(self, monkeypatch, answers, stored):
++        fetch = MagicMock(side_effect=answers)
++        insert = MagicMock()
++        monkeypatch.setattr(refetch, "fetch_json", fetch)
++        monkeypatch.setattr(refetch, "_insert_fixture_rows", insert)
++        monkeypatch.setattr(refetch, "ensure_unified_raw_table", MagicMock())
++        groups = {"PL": sorted(stored)}
++        return refetch.run_fixtures(_ctx(), groups, stored), fetch, insert
++
++    def test_writes_only_the_matches_the_guard_keeps(self, monkeypatch):
++        answer = {"errors": [], "response": [_fixture(fid=1), _fixture(fid=2, events=1)]}
++        report, _, insert = self._run(monkeypatch, [answer], {1: _stored(), 2: _stored()})
++        written = insert.call_args.args[2]
++        assert [fx["fixture"]["id"] for fx in written] == [1]
++        assert insert.call_args.args[4] == "PL"
++        assert report["written"] == 1
++        assert report["refused"] == {"fewer events": 1}
++
++    def test_an_incomplete_batch_is_not_written(self, monkeypatch):
++        answer = {"errors": {"rateLimit": "Too many requests"}, "response": [_fixture(fid=1)]}
++        report, _, insert = self._run(monkeypatch, [answer], {1: _stored()})
++        insert.assert_not_called()
++        assert report["batches_discarded"] == 1
++
++    def test_stops_at_the_latched_flag(self, monkeypatch):
++        errors_quota._http_quota_exhausted = True
++        report, fetch, insert = self._run(monkeypatch, [], {1: _stored()})
++        fetch.assert_not_called()
++        insert.assert_not_called()
++        assert report["written"] == 0
++
++    def test_counts_matches_the_provider_did_not_return(self, monkeypatch):
++        answer = {"errors": [], "response": [_fixture(fid=1)]}
++        report, _, _ = self._run(monkeypatch, [answer], {1: _stored(), 2: _stored()})
++        assert report["not_returned"] == 1
++
++
++class TestRunSquads:
++    def test_fetches_exactly_the_listed_pairs(self, monkeypatch):
++        load = MagicMock()
++        monkeypatch.setattr(refetch, "load_squad_players_batch", load)
++        ctx = _ctx()
++        refetch.run_squads(ctx, {("BL1", 2016): {5, 6}, ("PL", 2026): {7}})
++        assert load.call_count == 2
++        first = load.call_args_list[0]
++        assert first.args == (ctx, "BL1", [2016], {5, 6})
++        assert first.kwargs == {"reference_season": 2016, "already_captured": set()}
++
++
++class TestMainRun:
++    def _ids(self, tmp_path) -> str:
++        ids = tmp_path / "ids.csv"
++        ids.write_text("league_code,fixture_id\nPL,1\n", encoding="utf-8")
++        return str(ids)
++
++    def _patch(self, monkeypatch, *, hour=12, unread=0, acquired=True, run_fixtures=None):
++        monkeypatch.setattr(refetch, "too_close_to_nightly", lambda now: 2 <= hour < 4)
++        monkeypatch.setattr(refetch, "get_headers", dict)
++        monkeypatch.setattr(refetch.bigquery, "Client", MagicMock())
++        monkeypatch.setattr(refetch, "unread_raw_rows", MagicMock(return_value=unread))
++        monkeypatch.setattr(refetch, "ensure_ingest_lock_table", MagicMock())
++        monkeypatch.setattr(refetch, "acquire_ingest_lock", MagicMock(return_value=acquired))
++        release = MagicMock()
++        monkeypatch.setattr(refetch, "release_ingest_lock", release)
++        monkeypatch.setattr(refetch, "stored_counts", MagicMock(return_value={1: _stored()}))
++        monkeypatch.setattr(
++            refetch,
++            "run_fixtures",
++            run_fixtures or MagicMock(return_value={"written": 0, "not_returned": 0, "batches_discarded": 0, "refused": {}}),
++        )
++        monkeypatch.setattr(refetch.CallCounter, "install", lambda self: None)
++        return release
++
++    def test_refused_in_the_nightly_window(self, monkeypatch, tmp_path):
++        release = self._patch(monkeypatch, hour=3)
++        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 2
++        refetch.acquire_ingest_lock.assert_not_called()
++        release.assert_not_called()
++
++    def test_refused_while_raw_holds_rows_staging_has_not_read(self, monkeypatch, tmp_path):
++        release = self._patch(monkeypatch, unread=3)
++        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 2
++        refetch.acquire_ingest_lock.assert_called_once()
++        refetch.run_fixtures.assert_not_called()
++        release.assert_called_once()
++
++    def test_the_call_window_reaches_the_counter(self, monkeypatch, tmp_path):
++        self._patch(monkeypatch)
++        built = []
++
++        class Recorder(refetch.CallCounter):
++            def __init__(self, max_calls, deadline=None):
++                built.append((max_calls, deadline))
++                super().__init__(max_calls, deadline)
++
++        monkeypatch.setattr(refetch, "CallCounter", Recorder)
++        before = datetime.now(timezone.utc)
++        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 0
++        after = datetime.now(timezone.utc)
++        (max_calls, deadline), = built
++        assert max_calls == 5
++        window = timedelta(minutes=refetch.CALL_WINDOW_MINUTES)
++        assert before + window <= deadline <= after + window
++
++    def test_refused_when_the_lock_is_held(self, monkeypatch, tmp_path):
++        release = self._patch(monkeypatch, acquired=False)
++        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 2
++        release.assert_not_called()
++
++    def test_takes_a_lease_sized_to_the_run(self, monkeypatch, tmp_path):
++        self._patch(monkeypatch)
++        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 0
++        assert refetch.acquire_ingest_lock.call_args.kwargs == {"lease_minutes": refetch.LEASE_MINUTES}
++
++    def test_paces_calls_at_250_ms_unless_set(self, monkeypatch, tmp_path):
++        self._patch(monkeypatch)
++        monkeypatch.delenv("API_FOOTBALL_REQUEST_PAUSE_MS", raising=False)
++        refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"])
++        assert refetch.os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == "250"
++
++    def test_releases_the_lock_when_the_run_fails(self, monkeypatch, tmp_path):
++        release = self._patch(monkeypatch, run_fixtures=MagicMock(side_effect=RuntimeError("boom")))
++        with pytest.raises(RuntimeError):
++            refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"])
++        release.assert_called_once()
++
++    def test_a_missing_api_key_fails_before_the_lock(self, monkeypatch, tmp_path):
++        self._patch(monkeypatch)
++        monkeypatch.setattr(refetch, "get_headers", MagicMock(side_effect=ValueError("no key")))
++        with pytest.raises(ValueError):
++            refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"])
++        refetch.acquire_ingest_lock.assert_not_called()
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -1303,8 +928,7 @@ index eba4a64d..f737b9fe 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md |   69 +-
-#    .claude/task/review.md              |   12 +-
-#    .claude/task/review_input.patch     | 1906 +++++++++++++++++++++--------------
-#    3 files changed, 1205 insertions(+), 782 deletions(-)
+#   .claude/task/review.md          |   24 +-
+#    .claude/task/review_input.patch | 2108 ++++++++++++++++-----------------------
+#    2 files changed, 880 insertions(+), 1252 deletions(-)
 # ============================================================================
