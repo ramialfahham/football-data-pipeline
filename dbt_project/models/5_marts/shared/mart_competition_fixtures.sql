@@ -40,6 +40,9 @@
   none), goals_without_minutes (one entry per scorer), not_recorded (the provider recorded no goal),
   or awarded (award_kind says how; its goals as scored, none when not played).
 
+  Line-ups. lineup_state names whether a played match's team sheets can be shown: confirmed,
+  researched or not_available. The formations are served only for a confirmed or researched match.
+
   Grain: fixture_sk. league_code discriminates the competition and is not a BigQuery partition
   or cluster key.
 #}
@@ -380,6 +383,25 @@ goal_lists as (
     inner join scores as sc
         on g.fixture_sk = sc.fixture_sk
     group by g.fixture_sk
+),
+
+formations as (
+    select
+        fixture_sk,
+        team_sk,
+        any_value(team_formation) as team_formation
+    from {{ ref('fct_fixture_lineup') }}
+    where lineup_state in ('confirmed', 'researched')
+    group by fixture_sk, team_sk
+),
+
+lineup_states as (
+    select
+        fixture_sk,
+        any_value(lineup_state) as lineup_state
+    from {{ ref('fct_fixture_lineup') }}
+    where lineup_state in ('confirmed', 'researched')
+    group by fixture_sk
 )
 
 select
@@ -397,10 +419,12 @@ select
     h.team_name as home_team_name,
     h.team_slug as home_team_slug,
     h.team_logo_url as home_team_logo_url,
+    hf.team_formation as home_team_formation,
     f.away_team_sk,
     a.team_name as away_team_name,
     a.team_slug as away_team_slug,
     a.team_logo_url as away_team_logo_url,
+    af.team_formation as away_team_formation,
     f.venue_name_snapshot as venue_name,
     f.award_kind,
     f.on_pitch_home,
@@ -426,6 +450,10 @@ select
         when gs.goal_source is not null then 'goals_without_minutes'
         else 'not_recorded'
     end as goal_data_state,
+    case
+        when p.fixture_sk is null then null
+        else coalesce(ls.lineup_state, 'not_available')
+    end as lineup_state,
     row_number() over (
         partition by f.league_code, f.season_api_year
         order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
@@ -466,3 +494,13 @@ left join goal_sources as gs
     on f.fixture_sk = gs.fixture_sk
 left join goal_lists as gl
     on f.fixture_sk = gl.fixture_sk
+left join formations as hf
+    on
+        f.fixture_sk = hf.fixture_sk
+        and f.home_team_sk = hf.team_sk
+left join formations as af
+    on
+        f.fixture_sk = af.fixture_sk
+        and f.away_team_sk = af.team_sk
+left join lineup_states as ls
+    on f.fixture_sk = ls.fixture_sk

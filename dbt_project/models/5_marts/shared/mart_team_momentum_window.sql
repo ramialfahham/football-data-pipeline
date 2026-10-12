@@ -10,8 +10,8 @@
   honestly whether that drill-down has data (player stats are missing for a
   meaningful share of matches — the common case, not rare). The flags are
   derived from the detail marts themselves (same-layer refs, the documented
-  exception in layering.md) so "true" literally means "the drill-down query
-  returns rows" — one definition, no drift.
+  exception in layering.md) so "true" literally means "the drill-down holds a
+  stat line" — one definition, no drift.
 
   Grain: (upcoming_fixture_sk, team_sk, played_fixture_sk).
 #}
@@ -48,6 +48,7 @@ player_stat_coverage as (
         fixture_sk,
         team_sk
     from {{ ref('mart_player_fixture_stats') }}
+    where has_stat_line
 )
 
 select

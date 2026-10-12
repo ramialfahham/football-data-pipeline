@@ -251,7 +251,7 @@ Patterns that look like facts but are not:
 - **Derived metric table.** Top scorers, top assists, top yellow cards from API-Football are rankings over per-player events and statistics. They are **derived** from `fct_fixture_player_stats` and `fct_fixture_event` and live in `4_intermediate` or `5_marts` once a consumer needs them. Ingesting them as facts in `3_core` would duplicate the underlying measures.
 - **Degenerate fact.** Rounds are only labels attached to fixtures, with no measures of their own. Keep them as a degenerate attribute on `fct_fixture` (`round_name`); a separate `fct_round` adds no information.
 - **Consumer-specific denormalization.** A wide per-team season summary is a **mart**, not a core fact, even when it carries measures — facts in `3_core` stay at their atomic grain so multiple marts can aggregate them differently.
-- **Deferred fact.** `fct_prediction` and `fct_fixture_lineup` each pass the three-condition test in principle but are deferred until a mart consumer actually queries them; ingesting to `3_core` without a consumer adds maintenance without value.
+- **Deferred fact.** `fct_prediction` passes the three-condition test in principle but is deferred until a mart consumer actually queries it; ingesting to `3_core` without a consumer adds maintenance without value.
 
 Canonical fact inventory for this project:
 
@@ -262,6 +262,7 @@ Canonical fact inventory for this project:
 | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
 | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
 | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`. |
+| `fct_fixture_lineup` | `(fixture_sk, team_sk, player_sk)` | `base_apif__lineups` (with seed `fixture_lineup_corrections`) | Starters and bench from each team's latest line-up or a researched one, with the substitutions paired from the match events and the match's line-up state. |
 | `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR). WC-scoped — no `league_code`. |
 
 Most facts propagate `league_code` so they are safe to union across future leagues
@@ -327,7 +328,7 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
 | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
 | `mart_team_fixture_stats` | (fixture_sk, team_sk) | Per-fixture team stat lines. |
-| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | Per-fixture player stat lines. |
+| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | Per-fixture player rows: every player the stat lines or the line-ups name. |
 | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
 | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
 | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |

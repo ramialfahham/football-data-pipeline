@@ -1,920 +1,1960 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 41c862cd..62b3cedc 100644
+index 62b3cedc..d5ae402a 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,117 +1,58 @@
--# Task contract — a played match's goals on the match mart
-+# Task contract — refetch named matches and squad lists from the provider
+@@ -1,58 +1,130 @@
+-# Task contract — refetch named matches and squad lists from the provider
++# Task contract — a played match's line-ups, shown only when right
  
  objective: >
--  mart_competition_fixtures serves every played match's goals as one list and one goal-data
--  state: goals (every goal with its minute; a 0-0 has none), goals_without_minutes,
--  not_recorded, or awarded; with the award's kind and the score on the pitch. The goals come from
--  the goal events where they add up to the score, otherwise from the players' goals with the
--  own-goal events. A new seed, fixture_goal_corrections, holds each goal of a match the provider's
--  data gets wrong, researched and sourced; base_apif__fixture_events counts those goals instead of
--  the provider's, so every reader sees the same goals.
-+  One script, scripts/refetch_from_provider.py, asks the provider again for a given list of
-+  matches (their fixture details: line-ups, events, player stats, statistics) or a given list of
-+  team-seasons (their /players squad lists), and appends the answers to the existing raw tables
-+  through the existing loaders. A match is written only when its new fetch is no worse than what
-+  the warehouse holds and brings two full line-ups. It plans by default, stops at a call cap,
-+  holds the ingest lock and refuses to start after 02:00 UTC.
+-  One script, scripts/refetch_from_provider.py, asks the provider again for a given list of
+-  matches (their fixture details: line-ups, events, player stats, statistics) or a given list of
+-  team-seasons (their /players squad lists), and appends the answers to the existing raw tables
+-  through the existing loaders. A match is written only when its new fetch is no worse than what
+-  the warehouse holds and brings two full line-ups. It plans by default, stops at a call cap,
+-  holds the ingest lock and refuses to start after 02:00 UTC.
++  Every played match gets one line-up state: confirmed (the provider's line-ups pass every check),
++  researched (the line-ups come from an official source in the new seed fixture_lineup_corrections),
++  or not_available. base_apif__lineups reads each team's latest line-up from stg_apif__lineups,
++  pairs the substitutions and runs the checks; fct_fixture_lineup serves it on surrogate keys.
++  For confirmed and researched matches only, mart_player_fixture_stats gains a row for every
++  player on the team sheets, starter and substitute as the sheets say, the minute on and off and
++  whom a substitute replaced, and mart_competition_fixtures serves each team's formation.
++  mart_competition_fixtures serves lineup_state for every played match. A warn-only test lists the
++  matches the research priority covers that are neither confirmed nor researched.
  
  refs: >
--  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the goals,
--  step 2. The plan: approved in chat, 2026-10-11.
-+  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the line-ups,
-+  step 2. The refetch plan: approved in chat, 2026-10-12.
+   #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the line-ups,
+-  step 2. The refetch plan: approved in chat, 2026-10-12.
++  step 2, and its research priority. The plan: approved in chat, 2026-10-12.
  
  scope_paths:
--  - dbt_project/seeds/fixture_goal_corrections.csv
--  - dbt_project/seeds/fixture_result_corrections.csv
--  - dbt_project/seeds/schema.yml
--  - dbt_project/models/2_base/api_football/base_apif__fixture_events.sql
--  - dbt_project/models/2_base/api_football/base_apif__players.sql
--  - dbt_project/models/2_base/api_football/base.yml
--  - dbt_project/models/3_core/fct_fixture_event.sql
--  - dbt_project/models/3_core/core.yml
--  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/docs/cleaning_rules.md
--  - dbt_project/docs/layering.md
--  - dbt_project/tests/assert_result_corrections_applied.sql
--  - dbt_project/tests/assert_fixture_events_only_from_latest_fetch.sql
--  - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
--  - dbt_project/tests/assert_player_row_and_events_same_team.sql
-+  - scripts/refetch_from_provider.py
-+  - tests/test_refetch_from_provider.py
+-  - scripts/refetch_from_provider.py
+-  - tests/test_refetch_from_provider.py
++  - dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base_apif__players.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture_lineup.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/models/docs/cleaning_rules.md
++  - dbt_project/seeds/fixture_lineup_corrections.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/docs/layering.md
++  - dbt_project/tests/assert_fixture_lineup_*.sql
++  - dbt_project/tests/assert_mart_player_fixture_stats_*.sql
++  - dbt_project/tests/assert_lineup_*.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: dbt seed loads fixture_goal_corrections, which base_apif__fixture_events applies, and
--  fixture_result_corrections, which base_apif__fixtures_next applies. Nothing else writes a goal,
--  a score or a result.
--  downstream: `dbt ls --select fixture_result_corrections+ fixture_goal_corrections+
--  --resource-type model` on the branch gives 67 models: base_apif__fixture_events
--  base_apif__fixture_players base_apif__fixture_statistics base_apif__fixtures_next
--  base_apif__players base_apif__teams base_apif__teams_global dim_player
--  dim_player_team_season_mapping dim_team dim_team_competition_season_mapping fct_fixture
--  fct_fixture_event fct_fixture_player_stats fct_fixture_team_stats int_legs__player_match
--  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
--  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
--  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
--  int_player_season__metrics int_player_season__team int_player_season_position__metrics
--  int_player_season_record int_team_competition_benchmark_metrics_long
--  int_team_competition_benchmarks int_team_momentum__metrics int_team_momentum_window
--  int_team_profile__streaks int_team_profile__yoy int_team_season__deserved_vs_actual
--  int_team_season__metrics int_team_season__metrics_cumulative int_team_season_record
--  mart_competition_fixtures mart_competition_index mart_competition_season_summary
--  mart_fixture_standing_context mart_head_to_head mart_leaderboards mart_match_days
--  mart_matchday_insights mart_next_matchday mart_player_career mart_player_competition_benchmarks
--  mart_player_fixture_stats mart_player_match_log mart_player_momentum mart_player_profile
--  mart_player_season_record mart_roster mart_standings mart_team_competition_benchmarks
--  mart_team_fixture_stats mart_team_fixtures mart_team_leaderboards mart_team_market_value
--  mart_team_momentum mart_team_momentum_window mart_team_profile mart_team_season
--  mart_team_season_insights mart_team_season_record.
--  layer_rules: the seeds are configuration applied in base; core serves the events and the
--  fixtures; the goals list and the state are consumption, on the existing match mart. No new model.
--  deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
--  blast_radius: the 42 matches in fixture_goal_corrections: their goal events, and their team
--  goal split and players' goals where those read the events. The 43 new rows of
--  fixture_result_corrections: 20 scores change (all after extra time, no winner changes), 8
--  walkovers the provider files 0-0 gain their winner (a draw becomes a win and a loss in every
--  results model above int_legs__team_match), 11 statuses change from WO to AWD, and 23 awards gain
--  their kind. Every goals, results and form model in the list above that reads these matches
--  changes with them; the standings come from the provider's tables and do not. The new columns of
--  mart_competition_fixtures.
-+  writers: the script appends to RAW_APIF_FIXTURE_DETAILS (one row per written match) and
-+  RAW_APIF_PLAYERS (one row per written team-season), as the nightly ingest does; it deletes
-+  nothing. It changes no ingestion module.
-+  downstream: no model changes. The next nightly reads the new rows: stg_apif__fixture_events,
-+  stg_apif__fixture_players, stg_apif__fixture_statistics and stg_apif__lineups read every fetch;
-+  base keeps the latest events fetch, the newest complete-format player fetch and the latest
-+  statistics per team; base_apif__player_team_season unions every squad fetch.
-+  layer_rules: raw stays append-only; base resolves the versions, unchanged.
-+  deploy_order: merge, then one run per list, started by hand outside the nightly window.
-+  blast_radius: only the listed matches and team-seasons. A written match's events, player stats
-+  and statistics may change to the new fetch's; the guard refuses a fetch with fewer events,
-+  player rows or statistics lines than any stored fetch of that match, or that loses the
-+  complete player format.
+-  writers: the script appends to RAW_APIF_FIXTURE_DETAILS (one row per written match) and
+-  RAW_APIF_PLAYERS (one row per written team-season), as the nightly ingest does; it deletes
+-  nothing. It changes no ingestion module.
+-  downstream: no model changes. The next nightly reads the new rows: stg_apif__fixture_events,
+-  stg_apif__fixture_players, stg_apif__fixture_statistics and stg_apif__lineups read every fetch;
+-  base keeps the latest events fetch, the newest complete-format player fetch and the latest
+-  statistics per team; base_apif__player_team_season unions every squad fetch.
+-  layer_rules: raw stays append-only; base resolves the versions, unchanged.
+-  deploy_order: merge, then one run per list, started by hand outside the nightly window.
+-  blast_radius: only the listed matches and team-seasons. A written match's events, player stats
+-  and statistics may change to the new fetch's; the guard refuses a fetch with fewer events,
+-  player rows or statistics lines than any stored fetch of that match, or that loses the
+-  complete player format.
++  writers: the nightly ingest appends each finished match's fixture details, line-ups included, to
++  RAW_APIF_FIXTURE_DETAILS, and stg_apif__lineups parses them; the new seed
++  fixture_lineup_corrections holds researched line-ups, written by hand. Nothing else writes a
++  line-up.
++  downstream: on main, `dbt ls --select stg_apif__lineups+ fct_fixture_player_stats+
++  mart_competition_fixtures+ base_apif__players+ --resource-type model` gives 44 models:
++  base_apif__players dim_player fct_fixture_player_stats int_legs__player_match
++  int_legs__team_from_players int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_momentum__metrics int_player_profile__contribution int_player_profile__yoy
++  int_player_season__metrics int_player_season__team int_player_season_position__metrics
++  int_player_season_record int_team_competition_benchmark_metrics_long
++  int_team_competition_benchmarks int_team_momentum__metrics int_team_profile__yoy
++  int_team_season__deserved_vs_actual int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
++  mart_leaderboards mart_match_days mart_matchday_insights mart_player_career
++  mart_player_competition_benchmarks mart_player_fixture_stats mart_player_match_log
++  mart_player_momentum mart_player_profile mart_player_season_record mart_roster
++  mart_team_competition_benchmarks mart_team_leaderboards mart_team_momentum
++  mart_team_momentum_window mart_team_profile mart_team_season mart_team_season_insights
++  mart_team_season_record stg_apif__lineups. The branch adds base_apif__lineups,
++  fct_fixture_lineup and the seed fixture_lineup_corrections.
++  layer_rules: the seed is configuration applied in base; base resolves the latest fetch, unnests
++  the sheets, pairs the substitutions and runs the checks against the squad lists, the transfers
++  and the player stats, all base models; core projects onto surrogate keys and reads no JSON; the
++  marts select and join.
++  deploy_order: one dbt run; dbt seed precedes the models in data:build:main and fdp-nightly.
++  blast_radius: dim_player gains every line-up player no other source names; every reader of
++  dim_player joins it from a fact, so no reader gains rows. mart_player_fixture_stats gains a row
++  for every team-sheet player without a stat line, and its is_starter and is_substitute follow the
++  sheets, in confirmed and researched matches only; other matches keep today's rows and values.
++  mart_team_momentum_window keeps has_player_stats by reading only stat-line rows.
++  mart_competition_fixtures gains lineup_state and the two formations, which the export does not
++  select. The export's matchstats files gain the new rows and columns; no site page reads them.
++  The season starts and substitute appearances metrics read fct_fixture_player_stats and do not
++  change.
  
  decisions_taken: >
--  The goals list and goal-data state on mart_competition_fixtures, no new mart; the seed applied
--  in base_apif__fixture_events; each seeded match researched with an official record or two
--  sources on different sites naming its scorers: approved in chat, 2026-10-11. A researched
--  match's sourced goals come before the players' goals, because they carry minutes. The provider's
--  goal events of a seeded match stay in the events, not counted. A played match whose goal events
--  exist but add up neither alone nor with the players' goals fails a test until it has a seed row,
--  so not_recorded means the provider recorded no goals. The choice of a match's goal source and its
--  state live in mart_competition_fixtures, with no intermediate model (the CPO's choice of the
--  match mart, approved in chat, 2026-10-11); its players' fallback reads
--  fct_fixture_player_stats.goals, the players' goals base_apif__fixture_players already chose,
--  so no rule is restated.
-+  The refetch, its lists (matches with no line-up, fewer than eleven starters or one sheet;
-+  team-seasons with no squad list), the not-worse guard, the call cap, the lock and the 250 ms
-+  pacing: approved in chat, 2026-10-12. The script imports the loaders' own fetch, completeness
-+  check and raw writers rather than restating them.
+-  The refetch, its lists (matches with no line-up, fewer than eleven starters or one sheet;
+-  team-seasons with no squad list), the not-worse guard, the call cap, the lock and the 250 ms
+-  pacing: approved in chat, 2026-10-12. The script imports the loaders' own fetch, completeness
+-  check and raw writers rather than restating them.
++  A line-up is served only when confirmed by the checks or researched from an official source,
++  otherwise not_available; the checks (two sheets, eleven starters each with a player id, the
++  squad lists placing most of each sheet's players at its team and none only at the other team,
++  the transfers in place of a missing squad list, no player on both sheets, no player the stats
++  put on the other team, every substitution bringing on a substitute for a sheet player); no
++  automatic relabelling of swapped sheets; the seed fixture_lineup_corrections on the
++  fixture_goal_corrections pattern, its sources an official record or two match reports on
++  different sites; lineup_state with values confirmed, researched and not_available beside
++  goal_data_state; a warn-only research-list test following the #176 research priority; every
++  sheet player gets a row, the sheets decide starter and substitute, the formation columns
++  home_team_formation and away_team_formation; the substitution cleaning rule (a substitution
++  event's player goes off and its assist comes on, except where the sheets name the assist a
++  starter and the player not; measured in prod, the player is the starter in 449,852 of 457,143
++  substitution events); shirt number and position from the stat line, then the sheet: approved in
++  chat, 2026-10-12. A researched line-up is not held to the squad-list and transfer checks,
++  because its official source outranks the provider's squad lists, and is held to every other
++  check: approved in chat, 2026-10-12. The squad-list check passes a sheet with more of its
++  players on its team's squad list than on the other team's and none listed only at the other
++  team, not one needing over half its players listed (that would drop 657 confirmed matches,
++  mostly for incomplete squad lists): approved in chat, 2026-10-12. Every lineup_state in base,
++  core and the marts takes one of the three approved values; a provider sheet failing a check is
++  not_available in every layer. Readings of the research priority: a club counts as one of those
++  leagues' clubs in the seasons it plays in one of them; a walkover not played is left off the
++  list, having no line-ups; the list carries each match's season so it is read current season
++  first.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a correction seed on the existing pattern, columns
--  on existing models. RECURRING COST: the changed models' nightly read, measured by dry-run against
--  prod before merge.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a one-off operator script on the existing
-+  loaders, like the scripts already in scripts/. RECURRING COST: none; each run is started by hand,
-+  and its call count is put to the CPO before it runs (about 1,000 calls of the 75,000 a day).
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a one-off operator script on the existing
+-  loaders, like the scripts already in scripts/. RECURRING COST: none; each run is started by hand,
+-  and its call count is put to the CPO before it runs (about 1,000 calls of the 75,000 a day).
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a base model, a core fact, a correction seed and
++  columns on existing marts, each on an existing pattern. RECURRING COST: about 1.2 to 1.5 GB more
++  a night (building base_apif__lineups 0.31 GB, fct_fixture_lineup 0.20 GB, the marts' reads of
++  it about 0.2 GB, base_apif__players about 0.06 GB, the new tests about 0.5 GB), measured by
++  dry-run on prod; accepted in chat, 2026-10-12.
  
  decisions_reserved:
--  - The page and the played-match export (#175).
--  - The wrong team in CAF match 1619054.
--  - The seven mart renames.
-+  - Each run, with its call count.
-+  - The line-ups model and its checks (parked on parked/176-lineups).
-+  - The research of matches the refetch does not fix.
+-  - Each run, with its call count.
+-  - The line-ups model and its checks (parked on parked/176-lineups).
+-  - The research of matches the refetch does not fix.
++  - The research rows of fixture_lineup_corrections (each batch its own MR).
++  - Whether the season starts and substitute appearances metrics switch to the team sheets (a new issue).
++  - The page and the played-match export (#175).
++  - The merge of the two player-match marts (#176 step 3).
  
  done_when:
--  - dbt parse passes; sqlfluff shows no new finding on every changed model and test.
--  - Every seed row passes a local check: sides add up to the score, sources official or two sites.
--  - The changed models' compiled SQL against prod gives every played match one state, and the new and changed tests return no rows.
--  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
-+  - pytest tests/ passes, the new tests included; the offline CI gates pass.
-+  - A plan-mode run on each list prints its call count and makes no call.
+-  - pytest tests/ passes, the new tests included; the offline CI gates pass.
+-  - A plan-mode run on each list prints its call count and makes no call.
++  - dbt parse passes; sqlfluff shows no new finding on every changed model and test.
++  - The changed models' compiled SQL against prod gives every played match one line-up state, keeps every stat-line row of mart_player_fixture_stats with no stat-line value changed except is_starter and is_substitute, and the new error tests return no rows.
++  - mart_team_momentum_window's has_player_stats is unchanged against prod.
++  - pytest tests/ passes; the offline CI gates pass; data:build:mr is green on the MR.
  
  amendments: >
--  fixture_result_corrections joins the scope, approved in chat, 2026-10-11. The new goals test
--  found 23 matches the provider itself files as awarded (WO or AWD) with no record of how the
--  award came about; each researched one gets a sourced row with its kind, as the 44 awarded rows
--  before. The research of the matches whose goal events do not add up found 20 whose stored score
--  is the two-leg aggregate or counts shoot-out kicks; each gets a sourced row with the score after
--  extra time, as the extra-time rows before. assert_result_corrections_applied no longer calls an
--  award "no longer needed": the provider never says how an award came about.
--  data:build:mr failed on assert_player_row_and_events_same_team in one match, the 2019 Copa
--  Libertadores final (247587): the provider files both teams' players under the other team, in its
--  player rows and its events alike, so the corrected goals disagree with its player rows. The test
--  now compares only the provider's own events with the player rows, as
--  assert_fixture_events_only_from_latest_fetch does; the swapped team lists of that match are a
--  separate item. Approved in chat, 2026-10-11, with a fourth review round.
-+  none.
-diff --git a/scripts/refetch_from_provider.py b/scripts/refetch_from_provider.py
+-  none.
++  Round 1 of review found decisions recorded without a named approval and checks weaker than their
++  text. The researched-line-up exemption, the squad-list rule and the nightly cost were put to the
++  CPO and approved in chat, 2026-10-12; the substitution rule and the shirt-number precedence are
++  now named under the approvals they already had; the base and core state for a failing sheet is
++  the approved not_available instead of a fourth value.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index 09c20c96..f4c6bfff 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -251,7 +251,7 @@ Patterns that look like facts but are not:
+ - **Derived metric table.** Top scorers, top assists, top yellow cards from API-Football are rankings over per-player events and statistics. They are **derived** from `fct_fixture_player_stats` and `fct_fixture_event` and live in `4_intermediate` or `5_marts` once a consumer needs them. Ingesting them as facts in `3_core` would duplicate the underlying measures.
+ - **Degenerate fact.** Rounds are only labels attached to fixtures, with no measures of their own. Keep them as a degenerate attribute on `fct_fixture` (`round_name`); a separate `fct_round` adds no information.
+ - **Consumer-specific denormalization.** A wide per-team season summary is a **mart**, not a core fact, even when it carries measures — facts in `3_core` stay at their atomic grain so multiple marts can aggregate them differently.
+-- **Deferred fact.** `fct_prediction` and `fct_fixture_lineup` each pass the three-condition test in principle but are deferred until a mart consumer actually queries them; ingesting to `3_core` without a consumer adds maintenance without value.
++- **Deferred fact.** `fct_prediction` passes the three-condition test in principle but is deferred until a mart consumer actually queries it; ingesting to `3_core` without a consumer adds maintenance without value.
+ 
+ Canonical fact inventory for this project:
+ 
+@@ -262,6 +262,7 @@ Canonical fact inventory for this project:
+ | `fct_fixture_team_stats` | `(fixture_sk, team_sk)` | `base_apif__fixture_statistics` | `statistics_lines_json` pivoted to named columns; dedup in base layer. |
+ | `fct_fixture_player_stats` | `(fixture_sk, team_sk, player_sk)` | `base_apif__fixture_players` | `player_statistics_json[0]` flattened into measures. |
+ | `fct_fixture_event` | `event_sk` hashed over full staging grain | `base_apif__fixture_events` | What counts as a goal is `is_goal`, defined once in `base_apif__fixture_events`. |
++| `fct_fixture_lineup` | `(fixture_sk, team_sk, player_sk)` | `base_apif__lineups` (with seed `fixture_lineup_corrections`) | Starters and bench from each team's latest line-up or a researched one, with the substitutions paired from the match events and the match's line-up state. |
+ | `fct_team_market_value_snapshot` | `(team_sk, as_of_date, source_code)` | seed `wc_team_market_value_snapshot` | Seed-loaded WC national-team squad market-value snapshots (EUR). WC-scoped — no `league_code`. |
+ 
+ Most facts propagate `league_code` so they are safe to union across future leagues
+@@ -327,7 +328,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
+ | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
+ | `mart_team_fixture_stats` | (fixture_sk, team_sk) | Per-fixture team stat lines. |
+-| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | Per-fixture player stat lines. |
++| `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | Per-fixture player rows: every player the stat lines or the line-ups name. |
+ | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
+ | `mart_roster` | (team_sk, league_code, season_api_year, player_sk) | Identity-only club squad list from `dim_player_team_season_mapping` ⋈ `dim_player`; club-scoped via `competition_types`. No per-club stat columns of its own; the Squad tab's per-player stats come from `mart_player_career` (#480), joined onto the roster at the export. |
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+index 99b78dd7..7517a03f 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__lineups.sql
+@@ -4,8 +4,6 @@
+ -- versions). So it carries many fixtures per league_code AND several versions per
+ -- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
+ -- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc.
+--- ⚠ This model has NO consumer today (`dbt ls --select stg_apif__lineups+` returns only itself),
+--- so nothing downstream resolves its versions. See dbt_project/docs/layering.md §1_staging.
+ with src as (
+     select *
+     from {{ source('api_football', 'raw_apif_fixture_details') }}
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index 6f4ee237..e6633fcd 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -308,10 +308,73 @@ models:
+       - name: stat_corrections.rule
+         description: "{{ doc('stat_corrections_rule') }}"
+ 
++  - name: base_apif__lineups
++    description: >
++      One row per player the team sheets name for a match: the starting eleven and the bench, from
++      each team's latest fetch of the stg_apif__lineups model or, for a researched match, from the
++      fixture_lineup_corrections seed. Each row carries the minute a substitution brought the
++      player on or took the player off, whom a substitute replaced, and the match's line-up state.
++      Grain: (league_code, fixture_id, team_id, player_id).
++
++      {{ doc('cleaning_rules') }}
++
++      A player a sheet names without a player id has no row; the sheet then fails the eleven
++      starters check. Known provider team-id defects are corrected from the
++      fixture_team_id_overrides seed before the latest fetch is chosen.
++    config:
++      tags: ["base", "api_football", "fixture_context"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, fixture_id, team_id, player_id]
++    columns:
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "The provider's numeric team id for this player's side, after the known-defect corrections in the fixture_team_id_overrides seed, as base_apif__fixture_statistics.team_id."
++        tests: [not_null]
++      - name: player_id
++        description: "{{ doc('player_api_id') }}"
++        tests: [not_null]
++      - name: is_starter
++        description: "{{ doc('is_starter__lineup') }}"
++        tests: [not_null]
++      - name: shirt_number
++        description: "{{ doc('shirt_number__lineup') }}"
++      - name: position_code
++        description: "The player's position as the line-ups give it (G, D, M or F). NULL where they give none."
++      - name: grid_position
++        description: "{{ doc('grid_position') }}"
++      - name: team_formation
++        description: "{{ doc('team_formation') }}"
++      - name: minute_on
++        description: "{{ doc('minute_on') }}"
++      - name: minute_on_extra
++        description: "{{ doc('minute_on_extra') }}"
++      - name: replaced_player_id
++        description: "The provider's player id of the player this substitute replaced. NULL for a player who did not come on as a substitute."
++      - name: minute_off
++        description: "{{ doc('minute_off') }}"
++      - name: minute_off_extra
++        description: "{{ doc('minute_off_extra') }}"
++      - name: lineup_state
++        description: "{{ doc('lineup_state__sheet') }}"
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["confirmed", "researched", "not_available"]
++      - name: failed_checks
++        description: "The line-up checks the match fails, by name: two_sheets, eleven_starters, squad_lists, player_stats_team, player_on_both_sheets, substitutions. Empty when it passes every one."
++      - name: raw_ingested_at
++        description: "{{ doc('raw_ingested_at') }} NULL on a researched match's rows."
++
+   - name: base_apif__players
+     description: >
+       Global player identity: one row per player_api_id, unioned from /players, fixture player
+-      stats, and the players and assisting players of fixture events, then deduplicated in a single pass that prefers the most
++      stats, the players and assisting players of fixture events, and the match line-ups, then deduplicated in a single pass that prefers the most
+       authoritative named source and, within that, the most recent ingest.
+       Grain: player_api_id.
+ 
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
 new file mode 100644
-index 00000000..b26427cf
+index 00000000..47f04335
 --- /dev/null
-+++ b/scripts/refetch_from_provider.py
-@@ -0,0 +1,366 @@
-+"""Ask the provider again for named matches or team-seasons, and append the answers to raw.
-+
-+fixtures: GET /fixtures?ids= (20 a call) for every match in --ids-file (CSV: league_code,fixture_id).
-+A match is written only when its new answer holds two line-ups of eleven starters and is no worse
-+than any stored fetch of it: no fewer events, no fewer player rows or statistics lines for either
-+team, and not losing the complete player format. Base takes the latest events fetch whole, so a
-+shorter answer would replace a longer one. The stored counts come from the staging tables, so a run
-+is refused while raw holds a row for a listed match that staging has not read yet.
-+
-+squads: GET /players?team=&season= for every pair in --pairs-file (CSV: league_code,team_id,season),
-+through the nightly's own loader. Base unions every squad fetch, so the loader's incomplete-fetch
-+guard is the only one needed.
-+
-+Plans by default and makes no call. --run fetches and writes, holding the ingest lock for a lease
-+of LEASE_MINUTES, and makes no call after CALL_WINDOW_MINUTES of it. It stops at --max-calls and on
-+the provider's daily limit, and refuses to start between 02:00 and 04:00 UTC, so a lease left by a
-+killed run ends before the nightly starts.
-+
-+    python scripts/refetch_from_provider.py fixtures --ids-file <csv>
-+    python scripts/refetch_from_provider.py fixtures --ids-file <csv> --run --max-calls 260
-+"""
-+
-+from __future__ import annotations
-+
-+import argparse
-+import csv
-+import math
-+import os
-+import sys
-+from collections import defaultdict
-+from datetime import datetime, timedelta, timezone
-+
-+from google.cloud import bigquery
-+
-+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-+if _ROOT not in sys.path:
-+    sys.path.insert(0, _ROOT)
-+
-+from ingestion.api_football import http_client  # noqa: E402
-+from ingestion.api_football import quota as errors_quota  # noqa: E402
-+from ingestion.api_football.bigquery import ensure_unified_raw_table  # noqa: E402
-+from ingestion.api_football.http_client import fetch_json, result_is_complete  # noqa: E402
-+from ingestion.api_football.ingestion_lock import (  # noqa: E402
-+    acquire_ingest_lock,
-+    ensure_ingest_lock_table,
-+    new_run_id,
-+    release_ingest_lock,
-+)
-+from ingestion.api_football.loads.batch_fixtures import (  # noqa: E402
-+    _BATCH_SIZE,
-+    _insert_fixture_rows,
-+)
-+from ingestion.api_football.loads.context import PipelineContext  # noqa: E402
-+from ingestion.api_football.loads.squads import load_squad_players_batch  # noqa: E402
-+from ingestion.api_football.quota import append_api_errors  # noqa: E402
-+from ingestion.api_football.settings import (  # noqa: E402
-+    DATASET_ID,
-+    GCP_PROJECT_ID,
-+    _env_int,
-+    get_headers,
-+    raw_table,
-+)
-+
-+LEASE_MINUTES = 60
-+CALL_WINDOW_MINUTES = 50
-+STAGING_TABLES = ("stg_apif__fixture_events", "stg_apif__fixture_players", "stg_apif__fixture_statistics")
-+
-+
-+def read_fixture_list(path: str) -> dict[str, list[int]]:
-+    groups: dict[str, set[int]] = defaultdict(set)
-+    with open(path, newline="", encoding="utf-8") as fh:
-+        for row in csv.DictReader(fh):
-+            groups[row["league_code"].strip()].add(int(row["fixture_id"]))
-+    return {league: sorted(ids) for league, ids in sorted(groups.items())}
-+
-+
-+def read_pair_list(path: str) -> dict[tuple[str, int], set[int]]:
-+    groups: dict[tuple[str, int], set[int]] = defaultdict(set)
-+    with open(path, newline="", encoding="utf-8") as fh:
-+        for row in csv.DictReader(fh):
-+            groups[(row["league_code"].strip(), int(row["season"]))].add(int(row["team_id"]))
-+    return dict(sorted(groups.items()))
-+
-+
-+def fixture_calls(groups: dict[str, list[int]]) -> int:
-+    return sum(math.ceil(len(ids) / _BATCH_SIZE) for ids in groups.values())
-+
-+
-+def squad_calls(groups: dict[tuple[str, int], set[int]], max_pages: int) -> int:
-+    return sum(len(teams) for teams in groups.values()) * max_pages
-+
-+
-+def too_close_to_nightly(now: datetime) -> bool:
-+    return 2 <= now.astimezone(timezone.utc).hour < 4
-+
-+
-+def _team_id(block: dict) -> int:
-+    return int((block.get("team") or {}).get("id") or 0)
-+
-+
-+def payload_counts(fx: dict) -> dict:
-+    player_blocks = fx.get("players") or []
-+    players = [p for t in player_blocks for p in (t.get("players") or [])]
-+    lineups = fx.get("lineups") or []
-+    return {
-+        "events": len(fx.get("events") or []),
-+        "players_by_team": {_team_id(t): len(t.get("players") or []) for t in player_blocks},
-+        "players_complete": any(
-+            (((p.get("statistics") or [{}])[0] or {}).get("goals") or {}).get("conceded") is not None
-+            for p in players
-+        ),
-+        "statistics_by_team": {_team_id(t): len(t.get("statistics") or []) for t in fx.get("statistics") or []},
-+        "full_lineups": len(lineups) == 2
-+        and all(len(lu.get("startXI") or []) == 11 for lu in lineups),
-+    }
-+
-+
-+def refusal_reasons(new: dict, stored: dict | None) -> list[str]:
-+    reasons = []
-+    if not new["full_lineups"]:
-+        reasons.append("no two line-ups of eleven starters")
-+    if stored is None:
-+        return reasons
-+    if new["events"] < stored["events"]:
-+        reasons.append(f"fewer events ({new['events']} < {stored['events']})")
-+    for key, label in (("players_by_team", "player rows"), ("statistics_by_team", "statistics lines")):
-+        for team, n_stored in sorted(stored[key].items()):
-+            n_new = new[key].get(team, 0)
-+            if n_new < n_stored:
-+                reasons.append(f"fewer {label} for team {team} ({n_new} < {n_stored})")
-+    if stored["players_complete"] and not new["players_complete"]:
-+        reasons.append("loses the complete player format")
-+    return reasons
-+
-+
-+_STORED_SQL = """
-+with events as (
-+    select fixture_id, raw_ingested_at, count(*) as n
-+    from `{p}.staging.stg_apif__fixture_events`
-+    where fixture_id in unnest(@ids)
-+    group by 1, 2
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -0,0 +1,623 @@
++-- One row per player the team sheets name for a match: the starting eleven and the bench, from
++-- each team's latest fetch or, for a researched match, from fixture_lineup_corrections, with the
++-- minute a substitution brought each player on or took them off, and the match's line-up state.
++-- Grain: (league_code, fixture_id, team_id, player_id).
++with src as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        formation,
++        start_xi_json,
++        substitutes_json,
++        raw_ingested_at
++    from {{ ref('stg_apif__lineups') }}
++    where
++        fixture_id is not null
++        and team_id is not null
 +),
-+players as (
-+    select fixture_id, team_id, raw_ingested_at, count(*) as n, logical_or(goals_against is not null) as complete
-+    from `{p}.staging.stg_apif__fixture_players`
-+    where fixture_id in unnest(@ids)
-+    group by 1, 2, 3
++
++fixture_participants as (
++    select
++        league_code,
++        fixture_id,
++        season,
++        fixture_date,
++        cast(home_team_id as int64) as home_team_id,
++        cast(away_team_id as int64) as away_team_id
++    from {{ ref('base_apif__fixtures_next') }}
++    where
++        home_team_id is not null
++        and away_team_id is not null
 +),
-+statistics as (
-+    select fixture_id, team_id, raw_ingested_at, count(*) as n
-+    from `{p}.staging.stg_apif__fixture_statistics`
-+    where fixture_id in unnest(@ids)
-+    group by 1, 2, 3
-+)
-+select 'events' as section, fixture_id, cast(null as int64) as team_id, max(n) as n, false as complete
-+from events group by 2
-+union all
-+select 'players', fixture_id, team_id, max(n), logical_or(complete) from players group by 2, 3
-+union all
-+select 'statistics', fixture_id, team_id, max(n), false from statistics group by 2, 3
-+"""
 +
++overrides as (
++    select
++        cast(wrong_team_api_id as int64) as wrong_team_api_id,
++        cast(correct_team_api_id as int64) as correct_team_api_id,
++        mode
++    from {{ ref('fixture_team_id_overrides') }}
++),
 +
-+def stored_counts(client: bigquery.Client, fixture_ids: list[int]) -> dict[int, dict]:
-+    job = client.query(
-+        _STORED_SQL.format(p=GCP_PROJECT_ID),
-+        job_config=bigquery.QueryJobConfig(
-+            query_parameters=[bigquery.ArrayQueryParameter("ids", "INT64", fixture_ids)]
-+        ),
-+    )
-+    out = {
-+        fid: {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
-+        for fid in fixture_ids
-+    }
-+    for r in job.result():
-+        stored = out[int(r["fixture_id"])]
-+        if r["section"] == "events":
-+            stored["events"] = int(r["n"])
-+        elif r["section"] == "players":
-+            stored["players_by_team"][int(r["team_id"] or 0)] = int(r["n"])
-+            stored["players_complete"] = stored["players_complete"] or bool(r["complete"])
-+        else:
-+            stored["statistics_by_team"][int(r["team_id"] or 0)] = int(r["n"])
-+    print(f"stored counts read: {job.total_bytes_billed or 0} bytes billed", flush=True)
-+    return out
++corrected as (
++    select
++        src.* except (team_id),
++        coalesce(
++            alias_override.correct_team_api_id,
++            reattribute_override.correct_team_api_id,
++            src.team_id
++        ) as team_id
++    from src
++    left join overrides as alias_override
++        on
++            src.team_id = alias_override.wrong_team_api_id
++            and alias_override.mode = 'alias'
++    left join fixture_participants
++        on src.fixture_id = fixture_participants.fixture_id
++    left join overrides as reattribute_override
++        on
++            src.team_id = reattribute_override.wrong_team_api_id
++            and reattribute_override.mode = 'reattribute_if_cohabiting'
++            and reattribute_override.correct_team_api_id in (
++                fixture_participants.home_team_id, fixture_participants.away_team_id
++            )
++            and reattribute_override.wrong_team_api_id not in (
++                fixture_participants.home_team_id, fixture_participants.away_team_id
++            )
++),
 +
++latest as (
++    select *
++    from corrected
++    qualify row_number() over (
++        partition by league_code, fixture_id, team_id
++        order by raw_ingested_at desc
++    ) = 1
++),
 +
-+def unread_raw_rows(client: bigquery.Client, fixture_ids: list[int]) -> int:
-+    """Listed matches with a raw row newer than the oldest of the staging tables the guard reads."""
-+    built = min(client.get_table(f"{GCP_PROJECT_ID}.staging.{t}").modified for t in STAGING_TABLES)
-+    job = client.query(
-+        f"""
-+        select count(distinct fixture_id) as n
-+        from `{GCP_PROJECT_ID}.{DATASET_ID}.{raw_table("FIXTURE_DETAILS")}`
-+        where fixture_id in unnest(@ids) and ingested_at > @built
-+        """,
-+        job_config=bigquery.QueryJobConfig(
-+            query_parameters=[
-+                bigquery.ArrayQueryParameter("ids", "INT64", fixture_ids),
-+                bigquery.ScalarQueryParameter("built", "TIMESTAMP", built),
-+            ]
-+        ),
-+    )
-+    return int(next(iter(job.result()))["n"])
++named as (
++    select
++        latest.league_code,
++        latest.fixture_id,
++        latest.team_id,
++        latest.formation,
++        latest.raw_ingested_at,
++        true as is_starter,
++        player_el
++    from latest,
++        unnest(json_query_array(latest.start_xi_json)) as player_el
++    union all
++    select
++        latest.league_code,
++        latest.fixture_id,
++        latest.team_id,
++        latest.formation,
++        latest.raw_ingested_at,
++        false as is_starter,
++        player_el
++    from latest,
++        unnest(json_query_array(latest.substitutes_json)) as player_el
++),
 +
++parsed as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        formation,
++        raw_ingested_at,
++        is_starter,
++        nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as player_id,
++        json_value(player_el, '$.player.name') as player_name,
++        safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
++        json_value(player_el, '$.player.pos') as position_code,
++        json_value(player_el, '$.player.grid') as grid_position
++    from named
++),
 +
-+class _CapReached:
-+    status_code = 200
++provider_sheets as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        countif(is_starter) as n_starters_listed,
++        countif(is_starter and player_id is null) as n_starters_without_id,
++        count(distinct if(is_starter, player_id, null)) as n_distinct_starters
++    from parsed
++    group by league_code, fixture_id, team_id
++),
 +
-+    def __init__(self) -> None:
-+        self.headers: dict = {}
++provider_players as (
++    select *
++    from parsed
++    where player_id is not null
++    qualify row_number() over (
++        partition by league_code, fixture_id, team_id, player_id
++        order by is_starter desc
++    ) = 1
++),
 +
-+    def raise_for_status(self) -> None:
-+        return None
++starters as (
++    select distinct
++        league_code,
++        fixture_id,
++        player_id
++    from provider_players
++    where is_starter
++),
 +
-+    def json(self) -> dict:
-+        return {"errors": {"call_cap": "the run's call cap or call window is reached"}, "response": []}
++substitutions as (
++    select
++        league_code,
++        fixture_id,
++        event_index,
++        minute_elapsed,
++        minute_extra,
++        player_id,
++        assist_player_id
++    from {{ ref('base_apif__fixture_events') }}
++    where event_type = 'subst'
++),
 +
++-- The event's player goes off and its assist comes on, unless the line-ups say the reverse.
++paired as (
++    select
++        substitutions.league_code,
++        substitutions.fixture_id,
++        substitutions.event_index,
++        substitutions.minute_elapsed,
++        substitutions.minute_extra,
++        if(
++            assist_starter.player_id is not null and player_starter.player_id is null,
++            substitutions.assist_player_id,
++            substitutions.player_id
++        ) as off_player_id,
++        if(
++            assist_starter.player_id is not null and player_starter.player_id is null,
++            substitutions.player_id,
++            substitutions.assist_player_id
++        ) as on_player_id
++    from substitutions
++    left join starters as player_starter
++        on
++            substitutions.league_code = player_starter.league_code
++            and substitutions.fixture_id = player_starter.fixture_id
++            and substitutions.player_id = player_starter.player_id
++    left join starters as assist_starter
++        on
++            substitutions.league_code = assist_starter.league_code
++            and substitutions.fixture_id = assist_starter.fixture_id
++            and substitutions.assist_player_id = assist_starter.player_id
++),
 +
-+class CallCounter:
-+    """Counts every HTTP call, retries included, and makes none past the cap or the deadline.
++came_on as (
++    select
++        league_code,
++        fixture_id,
++        on_player_id as player_id,
++        minute_elapsed as minute_on,
++        minute_extra as minute_on_extra,
++        off_player_id as replaced_player_id
++    from paired
++    where on_player_id is not null
++    qualify row_number() over (
++        partition by league_code, fixture_id, on_player_id
++        order by minute_elapsed, coalesce(minute_extra, 0), event_index
++    ) = 1
++),
 +
-+    The call refused is answered with a body-level error and latches the daily-limit flag, so
-+    result_is_complete turns false, fetch_json makes no further call, and the loaders write nothing
-+    they did not finish.
-+    """
++went_off as (
++    select
++        league_code,
++        fixture_id,
++        off_player_id as player_id,
++        minute_elapsed as minute_off,
++        minute_extra as minute_off_extra
++    from paired
++    where off_player_id is not null
++    qualify row_number() over (
++        partition by league_code, fixture_id, off_player_id
++        order by minute_elapsed, coalesce(minute_extra, 0), event_index
++    ) = 1
++),
 +
-+    def __init__(self, max_calls: int, deadline: datetime | None = None):
-+        self.max_calls = max_calls
-+        self.deadline = deadline
-+        self.calls = 0
-+        self._get = http_client.requests.get
++researched as (
++    select
++        fixture_participants.league_code,
++        corrections.fixture_id,
++        corrections.team_id,
++        corrections.player_id,
++        corrections.player_name,
++        corrections.is_starter,
++        corrections.shirt_number,
++        corrections.position_code,
++        corrections.grid_position,
++        corrections.team_formation,
++        corrections.minute_on,
++        corrections.minute_on_extra,
++        corrections.replaced_player_id,
++        corrections.minute_off,
++        corrections.minute_off_extra
++    from {{ ref('fixture_lineup_corrections') }} as corrections
++    inner join fixture_participants
++        on corrections.fixture_id = fixture_participants.fixture_id
++),
 +
-+    def get(self, *args, **kwargs):
-+        past_deadline = self.deadline is not None and datetime.now(timezone.utc) >= self.deadline
-+        if self.calls >= self.max_calls or past_deadline:
-+            errors_quota._http_quota_exhausted = True
-+            return _CapReached()
-+        self.calls += 1
-+        return self._get(*args, **kwargs)
++researched_fixtures as (
++    select distinct
++        league_code,
++        fixture_id
++    from researched
++),
 +
-+    def install(self) -> None:
-+        http_client.requests.get = self.get
++lined as (
++    select
++        provider_players.league_code,
++        provider_players.fixture_id,
++        provider_players.team_id,
++        provider_players.player_id,
++        provider_players.player_name,
++        provider_players.is_starter,
++        provider_players.shirt_number,
++        provider_players.position_code,
++        provider_players.grid_position,
++        provider_players.formation as team_formation,
++        came_on.minute_on,
++        came_on.minute_on_extra,
++        came_on.replaced_player_id,
++        went_off.minute_off,
++        went_off.minute_off_extra,
++        provider_players.raw_ingested_at,
++        false as is_researched
++    from provider_players
++    left join came_on
++        on
++            provider_players.league_code = came_on.league_code
++            and provider_players.fixture_id = came_on.fixture_id
++            and provider_players.player_id = came_on.player_id
++    left join went_off
++        on
++            provider_players.league_code = went_off.league_code
++            and provider_players.fixture_id = went_off.fixture_id
++            and provider_players.player_id = went_off.player_id
++    left join researched_fixtures
++        on
++            provider_players.league_code = researched_fixtures.league_code
++            and provider_players.fixture_id = researched_fixtures.fixture_id
++    where researched_fixtures.fixture_id is null
++    union all
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id,
++        player_name,
++        is_starter,
++        shirt_number,
++        position_code,
++        grid_position,
++        team_formation,
++        minute_on,
++        minute_on_extra,
++        replaced_player_id,
++        minute_off,
++        minute_off_extra,
++        cast(null as timestamp) as raw_ingested_at,
++        true as is_researched
++    from researched
++),
 +
++sheet_listing as (
++    select
++        provider_sheets.league_code,
++        provider_sheets.fixture_id,
++        provider_sheets.team_id,
++        provider_sheets.n_starters_listed,
++        provider_sheets.n_starters_without_id,
++        provider_sheets.n_distinct_starters
++    from provider_sheets
++    left join researched_fixtures
++        on
++            provider_sheets.league_code = researched_fixtures.league_code
++            and provider_sheets.fixture_id = researched_fixtures.fixture_id
++    where researched_fixtures.fixture_id is null
++    union all
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        countif(is_starter) as n_starters_listed,
++        0 as n_starters_without_id,
++        count(distinct if(is_starter, player_id, null)) as n_distinct_starters
++    from researched
++    group by league_code, fixture_id, team_id
++),
 +
-+def run_fixtures(ctx: PipelineContext, groups: dict[str, list[int]], stored: dict[int, dict]) -> dict:
-+    table_name = raw_table("FIXTURE_DETAILS")
-+    ensure_unified_raw_table(ctx.client, table_name, include_fixture_id=True)
-+    report = {"written": 0, "not_returned": 0, "batches_discarded": 0, "refused": defaultdict(int)}
-+    for league_code, ids in groups.items():
-+        for start in range(0, len(ids), _BATCH_SIZE):
-+            if errors_quota._http_quota_exhausted:
-+                return report
-+            batch = ids[start:start + _BATCH_SIZE]
-+            data = fetch_json("/fixtures", headers=ctx.headers, params={"ids": "-".join(map(str, batch))})
-+            append_api_errors(data, f"refetch fixture_details {league_code}", ctx.errors)
-+            if not result_is_complete(data):
-+                report["batches_discarded"] += 1
-+                continue
-+            returned = {int((fx.get("fixture") or {}).get("id") or 0): fx for fx in data.get("response") or []}
-+            report["not_returned"] += len(set(batch) - set(returned))
-+            kept = []
-+            for fid, fx in returned.items():
-+                reasons = refusal_reasons(payload_counts(fx), stored.get(fid))
-+                for reason in reasons:
-+                    report["refused"][reason.split(" (")[0].split(" for team")[0]] += 1
-+                if not reasons:
-+                    kept.append(fx)
-+            if kept:
-+                _insert_fixture_rows(ctx.client, table_name, kept, datetime.now(timezone.utc), league_code)
-+                report["written"] += len(kept)
-+    return report
++squads as (
++    select distinct
++        player_id,
++        team_id,
++        season_year
++    from {{ ref('base_apif__player_team_season') }}
++),
 +
++transfers as (
++    select
++        player_id,
++        team_in_id,
++        transfer_date
++    from {{ ref('base_apif__transfers') }}
++    where team_in_id is not null
++),
 +
-+def run_squads(ctx: PipelineContext, groups: dict[tuple[str, int], set[int]]) -> None:
-+    for (league_code, season), team_ids in groups.items():
-+        if errors_quota._http_quota_exhausted:
-+            return
-+        load_squad_players_batch(
-+            ctx,
-+            league_code,
-+            [season],
-+            set(team_ids),
-+            reference_season=season,
-+            already_captured=set(),
++club_on_match_day as (
++    select
++        lined.league_code,
++        lined.fixture_id,
++        lined.player_id,
++        array_agg(transfers.team_in_id order by transfers.transfer_date desc limit 1)[offset(0)]
++            as team_id
++    from lined
++    inner join fixture_participants
++        on
++            lined.league_code = fixture_participants.league_code
++            and lined.fixture_id = fixture_participants.fixture_id
++    inner join transfers
++        on
++            lined.player_id = transfers.player_id
++            and fixture_participants.fixture_date >= transfers.transfer_date
++    group by lined.league_code, lined.fixture_id, lined.player_id
++),
++
++placed as (
++    select
++        lined.league_code,
++        lined.fixture_id,
++        lined.team_id,
++        lined.player_id,
++        lined.is_researched,
++        own_squad.player_id is not null as listed_at_own_team,
++        other_squad.player_id is not null as listed_at_other_team,
++        coalesce(club_on_match_day.team_id = lined.team_id, false) as joined_own_team,
++        coalesce(
++            club_on_match_day.team_id = if(
++                lined.team_id = fixture_participants.home_team_id,
++                fixture_participants.away_team_id,
++                fixture_participants.home_team_id
++            ),
++            false
++        ) as joined_other_team
++    from lined
++    inner join fixture_participants
++        on
++            lined.league_code = fixture_participants.league_code
++            and lined.fixture_id = fixture_participants.fixture_id
++    left join squads as own_squad
++        on
++            lined.player_id = own_squad.player_id
++            and lined.team_id = own_squad.team_id
++            and fixture_participants.season = own_squad.season_year
++    left join squads as other_squad
++        on
++            lined.player_id = other_squad.player_id
++            and other_squad.team_id = if(
++                lined.team_id = fixture_participants.home_team_id,
++                fixture_participants.away_team_id,
++                fixture_participants.home_team_id
++            )
++            and fixture_participants.season = other_squad.season_year
++    left join club_on_match_day
++        on
++            lined.league_code = club_on_match_day.league_code
++            and lined.fixture_id = club_on_match_day.fixture_id
++            and lined.player_id = club_on_match_day.player_id
++),
++
++sheet_placement as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        countif(listed_at_own_team) as n_listed_own,
++        countif(listed_at_other_team) as n_listed_other,
++        countif(listed_at_other_team and not listed_at_own_team) as n_listed_only_other,
++        countif(joined_own_team) as n_joined_own,
++        countif(joined_other_team) as n_joined_other
++    from placed
++    group by league_code, fixture_id, team_id
++),
++
++sheet_checks as (
++    select
++        sheet_listing.league_code,
++        sheet_listing.fixture_id,
++        sheet_listing.team_id,
++        sheet_listing.team_id in (
++            fixture_participants.home_team_id, fixture_participants.away_team_id
++        ) as is_participant,
++        sheet_listing.n_starters_listed = 11
++        and sheet_listing.n_starters_without_id = 0
++        and sheet_listing.n_distinct_starters = 11 as has_eleven_starters,
++        case
++            when coalesce(sheet_placement.n_listed_own + sheet_placement.n_listed_other, 0) > 0
++                then
++                    sheet_placement.n_listed_own > sheet_placement.n_listed_other
++                    and sheet_placement.n_listed_only_other = 0
++            else coalesce(
++                sheet_placement.n_joined_own > 0 and sheet_placement.n_joined_other = 0, false
++            )
++        end as is_placed_at_team
++    from sheet_listing
++    inner join fixture_participants
++        on
++            sheet_listing.league_code = fixture_participants.league_code
++            and sheet_listing.fixture_id = fixture_participants.fixture_id
++    left join sheet_placement
++        on
++            sheet_listing.league_code = sheet_placement.league_code
++            and sheet_listing.fixture_id = sheet_placement.fixture_id
++            and sheet_listing.team_id = sheet_placement.team_id
++),
++
++stat_lines as (
++    select
++        league_code,
++        fixture_id,
++        team_id,
++        player_id
++    from {{ ref('base_apif__fixture_players') }}
++),
++
++stat_clashes as (
++    select distinct
++        lined.league_code,
++        lined.fixture_id
++    from lined
++    inner join stat_lines
++        on
++            lined.league_code = stat_lines.league_code
++            and lined.fixture_id = stat_lines.fixture_id
++            and lined.player_id = stat_lines.player_id
++            and lined.team_id != stat_lines.team_id
++),
++
++player_sheets as (
++    select
++        league_code,
++        fixture_id,
++        player_id
++    from lined
++    group by league_code, fixture_id, player_id
++    having count(distinct team_id) > 1
++),
++
++on_both_sheets as (
++    select distinct
++        league_code,
++        fixture_id
++    from player_sheets
++),
++
++broken_sheet_substitutions as (
++    select distinct
++        came_on.league_code,
++        came_on.fixture_id
++    from lined as came_on
++    left join lined as replaced
++        on
++            came_on.league_code = replaced.league_code
++            and came_on.fixture_id = replaced.fixture_id
++            and came_on.replaced_player_id = replaced.player_id
++    where
++        (came_on.is_starter and came_on.minute_on is not null)
++        or (
++            came_on.replaced_player_id is not null
++            and (
++                replaced.player_id is null
++                or replaced.team_id != came_on.team_id
++                or replaced.minute_off is distinct from came_on.minute_on
++                or coalesce(replaced.minute_off_extra, 0) != coalesce(came_on.minute_on_extra, 0)
++            )
 +        )
++),
 +
++broken_events as (
++    select distinct
++        paired.league_code,
++        paired.fixture_id
++    from paired
++    left join researched_fixtures
++        on
++            paired.league_code = researched_fixtures.league_code
++            and paired.fixture_id = researched_fixtures.fixture_id
++    left join lined as on_player
++        on
++            paired.league_code = on_player.league_code
++            and paired.fixture_id = on_player.fixture_id
++            and paired.on_player_id = on_player.player_id
++    left join lined as off_player
++        on
++            paired.league_code = off_player.league_code
++            and paired.fixture_id = off_player.fixture_id
++            and paired.off_player_id = off_player.player_id
++    where
++        researched_fixtures.fixture_id is null
++        and (
++            on_player.player_id is null
++            or off_player.player_id is null
++            or on_player.team_id != off_player.team_id
++        )
++),
 +
-+def main(argv: list[str] | None = None) -> int:
-+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-+    parser.add_argument("mode", choices=["fixtures", "squads"])
-+    parser.add_argument("--ids-file")
-+    parser.add_argument("--pairs-file")
-+    parser.add_argument("--run", action="store_true")
-+    parser.add_argument("--max-calls", type=int)
-+    args = parser.parse_args(argv)
++broken_substitutions as (
++    select
++        league_code,
++        fixture_id
++    from broken_sheet_substitutions
++    union distinct
++    select
++        league_code,
++        fixture_id
++    from broken_events
++),
 +
-+    if args.mode == "fixtures":
-+        if not args.ids_file:
-+            parser.error("fixtures needs --ids-file")
-+        groups = read_fixture_list(args.ids_file)
-+        n_items = sum(len(ids) for ids in groups.values())
-+        planned = fixture_calls(groups)
-+        print(f"plan: {n_items} matches in {len(groups)} competitions, {planned} calls", flush=True)
-+    else:
-+        if not args.pairs_file:
-+            parser.error("squads needs --pairs-file")
-+        groups = read_pair_list(args.pairs_file)
-+        max_pages = _env_int("API_FOOTBALL_PLAYERS_MAX_PAGE", 3)
-+        n_items = sum(len(teams) for teams in groups.values())
-+        planned = squad_calls(groups, max_pages)
-+        print(f"plan: {n_items} team-seasons, at most {planned} calls ({max_pages} pages each)", flush=True)
++match_checks as (
++    select
++        sheet_checks.league_code,
++        sheet_checks.fixture_id,
++        array_concat(
++            if(
++                countif(sheet_checks.is_participant) = 2 and logical_and(sheet_checks.is_participant),
++                [],
++                ['two_sheets']
++            ),
++            if(logical_and(sheet_checks.has_eleven_starters), [], ['eleven_starters']),
++            if(logical_and(sheet_checks.is_placed_at_team), [], ['squad_lists']),
++            if(max(stat_clashes.fixture_id) is null, [], ['player_stats_team']),
++            if(max(on_both_sheets.fixture_id) is null, [], ['player_on_both_sheets']),
++            if(max(broken_substitutions.fixture_id) is null, [], ['substitutions'])
++        ) as failed_checks
++    from sheet_checks
++    left join stat_clashes
++        on
++            sheet_checks.league_code = stat_clashes.league_code
++            and sheet_checks.fixture_id = stat_clashes.fixture_id
++    left join on_both_sheets
++        on
++            sheet_checks.league_code = on_both_sheets.league_code
++            and sheet_checks.fixture_id = on_both_sheets.fixture_id
++    left join broken_substitutions
++        on
++            sheet_checks.league_code = broken_substitutions.league_code
++            and sheet_checks.fixture_id = broken_substitutions.fixture_id
++    group by sheet_checks.league_code, sheet_checks.fixture_id
++)
 +
-+    if not args.run:
-+        return 0
-+    if args.max_calls is None:
-+        parser.error("--run needs --max-calls")
-+    if too_close_to_nightly(datetime.now(timezone.utc)):
-+        print("refused: a run started between 02:00 and 04:00 UTC could still hold the lock at the nightly's start")
-+        return 2
++select
++    lined.league_code,
++    lined.fixture_id,
++    lined.team_id,
++    lined.player_id,
++    lined.player_name,
++    lined.is_starter,
++    lined.shirt_number,
++    lined.position_code,
++    lined.grid_position,
++    lined.team_formation,
++    lined.minute_on,
++    lined.minute_on_extra,
++    lined.replaced_player_id,
++    lined.minute_off,
++    lined.minute_off_extra,
++    match_checks.failed_checks,
++    lined.raw_ingested_at,
++    case
++        when lined.is_researched then 'researched'
++        when array_length(match_checks.failed_checks) = 0 then 'confirmed'
++        else 'not_available'
++    end as lineup_state
++from lined
++inner join match_checks
++    on
++        lined.league_code = match_checks.league_code
++        and lined.fixture_id = match_checks.fixture_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__players.sql b/dbt_project/models/2_base/api_football/base_apif__players.sql
+index 0a01bc47..79de9615 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__players.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__players.sql
+@@ -1,10 +1,11 @@
+--- Player identity (global entity): one row per player_api_id, unioned from four sources
++-- Player identity (global entity): one row per player_api_id, unioned from five sources
+ -- and deduplicated in a single pass that prefers the most authoritative NAMED source
+ -- (lowest source_priority) and then the most recent ingest:
+ --   priority 1 — /players endpoint (biographical attributes, most complete)
+ --   priority 2 — fixture player stats (match appearances)
+ --   priority 3 — fixture events (broadest appearance coverage)
+ --   priority 4 — the assisting player of a fixture event
++--   priority 5 — the match line-ups (a bench player who never came on)
+ -- Identity only — no league_code, no team/season affiliation: a player is one entity
+ -- across competitions, and "which team/season" lives in dim_player_team_season_mapping
+ -- and the facts, not here. Feeds dim_player 1:1. Grain: player_api_id.
+@@ -76,6 +77,20 @@ assist_events_src as (
+         and assist_player_id != 0
+ ),
+ 
++lineups_src as (
++    select
++        player_id as player_api_id,
++        player_name,
++        cast(null as string) as player_first_name,
++        cast(null as string) as player_last_name,
++        cast(null as date) as player_birth_date,
++        cast(null as string) as player_nationality,
++        cast(null as string) as player_photo_url,
++        raw_ingested_at,
++        5 as source_priority
++    from {{ ref('base_apif__lineups') }}
++),
 +
-+    os.environ.setdefault("API_FOOTBALL_REQUEST_PAUSE_MS", "250")
-+    headers = get_headers()
-+    client = bigquery.Client(project=GCP_PROJECT_ID)
-+    fixture_ids = [fid for ids in groups.values() for fid in ids] if args.mode == "fixtures" else []
-+    ensure_ingest_lock_table(client)
-+    run_id = new_run_id()
-+    if not acquire_ingest_lock(client, run_id, lease_minutes=LEASE_MINUTES):
-+        print(f"refused: another ingest holds the lock ({GCP_PROJECT_ID}.{DATASET_ID}.RAW_APIF_INGEST_LOCK)")
-+        return 2
-+    try:
-+        if fixture_ids:
-+            unread = unread_raw_rows(client, fixture_ids)
-+            if unread:
-+                print(f"refused: raw holds {unread} listed matches newer than the staging build; rebuild staging first")
-+                return 2
-+        deadline = datetime.now(timezone.utc) + timedelta(minutes=CALL_WINDOW_MINUTES)
-+        counter = CallCounter(args.max_calls, deadline)
-+        counter.install()
-+        ctx = PipelineContext(client=client, headers=headers)
-+        if args.mode == "fixtures":
-+            stored = stored_counts(client, fixture_ids)
-+            report = run_fixtures(ctx, groups, stored)
-+            print(
-+                f"done: {counter.calls} calls, {report['written']} matches written, "
-+                f"{report['not_returned']} not returned, {report['batches_discarded']} batches discarded",
-+                flush=True,
-+            )
-+            for reason, n in sorted(report["refused"].items()):
-+                print(f"  refused, {reason}: {n}", flush=True)
-+        else:
-+            run_squads(ctx, groups)
-+            print(
-+                f"done: {counter.calls} calls, {ctx.tables_loaded} of {len(groups)} competition-seasons written",
-+                flush=True,
-+            )
-+        print(f"quota left: {errors_quota._last_requests_remaining}", flush=True)
-+        for err in ctx.errors:
-+            print(f"  error: {err}", flush=True)
-+    finally:
-+        release_ingest_lock(client, run_id)
-+    return 0
+ src as (
+     select * from players_src
+     union all
+@@ -84,6 +99,8 @@ src as (
+     select * from fixture_events_src
+     union all
+     select * from assist_events_src
++    union all
++    select * from lineups_src
+ )
+ 
+ select
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index 75363b30..fcd54c4c 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -835,6 +835,84 @@ models:
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+ 
++  - name: fct_fixture_lineup
++    description: "Every player the team sheets name for a match, starters and bench, with the substitutions that brought them on or took them off and the match's line-up state, as base_apif__lineups reads them. Grain: (fixture_sk, team_sk, player_sk)."
++    meta:
++      owner: "data-platform"
++      domain: "football"
++      criticality: "high"
++    config:
++      tags: ["core", "fact"]
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns:
++            - fixture_sk
++            - team_sk
++            - player_sk
++    columns:
++      - name: fixture_sk
++        description: "{{ doc('fixture_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('fct_fixture')
++              field: fixture_sk
++      - name: team_sk
++        description: "{{ doc('team_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++      - name: player_sk
++        description: "{{ doc('player_sk') }}"
++        tests:
++          - not_null
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++      - name: league_code
++        description: "{{ doc('league_code') }}"
++        tests: [not_null]
++      - name: fixture_api_id
++        description: "{{ doc('fixture_api_id') }}"
++      - name: team_api_id
++        description: "{{ doc('team_api_id') }}"
++      - name: player_api_id
++        description: "{{ doc('player_api_id') }}"
++      - name: is_starter
++        description: "{{ doc('is_starter__lineup') }}"
++        tests: [not_null]
++      - name: shirt_number
++        description: "{{ doc('shirt_number__lineup') }}"
++      - name: position_code
++        description: "{{ doc('position_code__leg') }}"
++      - name: grid_position
++        description: "{{ doc('grid_position') }}"
++      - name: team_formation
++        description: "{{ doc('team_formation') }}"
++      - name: minute_on
++        description: "{{ doc('minute_on') }}"
++      - name: minute_on_extra
++        description: "{{ doc('minute_on_extra') }}"
++      - name: replaced_player_sk
++        description: "{{ doc('replaced_player_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++              where: "replaced_player_sk is not null"
++      - name: minute_off
++        description: "{{ doc('minute_off') }}"
++      - name: minute_off_extra
++        description: "{{ doc('minute_off_extra') }}"
++      - name: lineup_state
++        description: "{{ doc('lineup_state__sheet') }}"
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["confirmed", "researched", "not_available"]
 +
-+
-+if __name__ == "__main__":
-+    sys.exit(main())
-diff --git a/tests/test_refetch_from_provider.py b/tests/test_refetch_from_provider.py
+   - name: fct_fixture_event
+     description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
+     meta:
+diff --git a/dbt_project/models/3_core/fct_fixture_lineup.sql b/dbt_project/models/3_core/fct_fixture_lineup.sql
 new file mode 100644
-index 00000000..35cf295e
+index 00000000..5986faf2
 --- /dev/null
-+++ b/tests/test_refetch_from_provider.py
-@@ -0,0 +1,380 @@
-+"""Tests for scripts/refetch_from_provider.py. No network, no BigQuery."""
++++ b/dbt_project/models/3_core/fct_fixture_lineup.sql
+@@ -0,0 +1,24 @@
++with src as (
++    select * from {{ ref('base_apif__lineups') }}
++)
 +
-+from __future__ import annotations
++select
++    cast(fixture_id as int64) as fixture_sk,
++    cast(team_id as int64) as team_sk,
++    cast(player_id as int64) as player_sk,
++    league_code,
++    fixture_id as fixture_api_id,
++    team_id as team_api_id,
++    player_id as player_api_id,
++    is_starter,
++    shirt_number,
++    position_code,
++    grid_position,
++    team_formation,
++    minute_on,
++    minute_on_extra,
++    cast(replaced_player_id as int64) as replaced_player_sk,
++    minute_off,
++    minute_off_extra,
++    lineup_state
++from src
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+index 80b56731..c262cdcd 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -40,6 +40,9 @@
+   none), goals_without_minutes (one entry per scorer), not_recorded (the provider recorded no goal),
+   or awarded (award_kind says how; its goals as scored, none when not played).
+ 
++  Line-ups. lineup_state names whether a played match's team sheets can be shown: confirmed,
++  researched or not_available. The formations are served only for a confirmed or researched match.
 +
-+from datetime import datetime, timedelta, timezone
-+from unittest.mock import MagicMock, patch
+   Grain: fixture_sk. league_code discriminates the competition and is not a BigQuery partition
+   or cluster key.
+ #}
+@@ -380,6 +383,25 @@ goal_lists as (
+     inner join scores as sc
+         on g.fixture_sk = sc.fixture_sk
+     group by g.fixture_sk
++),
 +
-+import pytest
++formations as (
++    select
++        fixture_sk,
++        team_sk,
++        any_value(team_formation) as team_formation
++    from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched')
++    group by fixture_sk, team_sk
++),
 +
-+from ingestion.api_football import http_client
-+from ingestion.api_football import quota as errors_quota
-+from scripts import refetch_from_provider as refetch
++lineup_states as (
++    select
++        fixture_sk,
++        any_value(lineup_state) as lineup_state
++    from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched')
++    group by fixture_sk
+ )
+ 
+ select
+@@ -397,10 +419,12 @@ select
+     h.team_name as home_team_name,
+     h.team_slug as home_team_slug,
+     h.team_logo_url as home_team_logo_url,
++    hf.team_formation as home_team_formation,
+     f.away_team_sk,
+     a.team_name as away_team_name,
+     a.team_slug as away_team_slug,
+     a.team_logo_url as away_team_logo_url,
++    af.team_formation as away_team_formation,
+     f.venue_name_snapshot as venue_name,
+     f.award_kind,
+     f.on_pitch_home,
+@@ -426,6 +450,10 @@ select
+         when gs.goal_source is not null then 'goals_without_minutes'
+         else 'not_recorded'
+     end as goal_data_state,
++    case
++        when p.fixture_sk is null then null
++        else coalesce(ls.lineup_state, 'not_available')
++    end as lineup_state,
+     row_number() over (
+         partition by f.league_code, f.season_api_year
+         order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
+@@ -466,3 +494,13 @@ left join goal_sources as gs
+     on f.fixture_sk = gs.fixture_sk
+ left join goal_lists as gl
+     on f.fixture_sk = gl.fixture_sk
++left join formations as hf
++    on
++        f.fixture_sk = hf.fixture_sk
++        and f.home_team_sk = hf.team_sk
++left join formations as af
++    on
++        f.fixture_sk = af.fixture_sk
++        and f.away_team_sk = af.team_sk
++left join lineup_states as ls
++    on f.fixture_sk = ls.fixture_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+index 99c2c0fb..5eb03b25 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+@@ -1,18 +1,19 @@
+ {#
+-  Per-fixture player stat lines (#323). The player half of the match detail
+-  view: every player's stat line for one finished fixture, both sides. A
+-  projection of fct_fixture_player_stats plus player / team identity for
+-  display. The app reads this mart, never core.
++  Per-fixture player rows (#323). The player half of the match detail
++  view: every player of one finished fixture, both sides, that the stat lines
++  or the confirmed or researched team sheets name. A projection of
++  fct_fixture_player_stats and fct_fixture_lineup plus player / team identity
++  for display. The app reads
++  this mart, never core.
+ 
+   The stat line keeps the keys the export has always read. Its one derived
+   value, passes_accuracy_percent, is the catalogue's pass accuracy over the
+   player's own match (written by scripts/generate_metric_sql.py), as a whole
+   percentage.
+ 
+-  Covers ALL finished fixtures that have player stats. Many competitions do
+-  not provide statistics_players from the API, so a fixture with no rows here
+-  is the COMMON case — the app must render "player stats not available for
+-  this match", not treat it as an error.
++  Many competitions do not provide statistics_players from the API, so a row
++  without a stat line (has_stat_line false) is common: its statistics are
++  unavailable, never zero.
+ 
+   Grain: (fixture_sk, team_sk, player_sk).
+ #}
+@@ -72,12 +73,51 @@ teams as (
+         team_sk,
+         team_name
+     from {{ ref('dim_team') }}
++),
 +
-+HOME, AWAY = 10, 20
++lineups as (
++    select
++        fixture_sk,
++        team_sk,
++        player_sk,
++        is_starter,
++        shirt_number,
++        position_code,
++        minute_on,
++        minute_on_extra,
++        minute_off,
++        minute_off_extra,
++        replaced_player_sk
++    from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched')
++),
++
++appearances as (
++    select
++        lineups.minute_on,
++        lineups.minute_on_extra,
++        lineups.minute_off,
++        lineups.minute_off_extra,
++        lineups.replaced_player_sk,
++        coalesce(stats.fixture_sk, lineups.fixture_sk) as fixture_sk,
++        coalesce(stats.team_sk, lineups.team_sk) as team_sk,
++        coalesce(stats.player_sk, lineups.player_sk) as player_sk,
++        stats.player_sk is not null as has_stat_line,
++        coalesce(stats.position_code, lineups.position_code) as position_code,
++        coalesce(stats.shirt_number, lineups.shirt_number) as shirt_number,
++        if(lineups.player_sk is not null, not lineups.is_starter, stats.is_substitute) as is_substitute,
++        if(lineups.player_sk is not null, lineups.is_starter, stats.is_starter) as is_starter
++    from stats
++    full outer join lineups
++        on
++            stats.fixture_sk = lineups.fixture_sk
++            and stats.player_sk = lineups.player_sk
+ )
+ 
+ select
+-    s.fixture_sk,
+-    s.team_sk,
+-    s.player_sk,
++    a.fixture_sk,
++    a.team_sk,
++    a.player_sk,
+     f.league_code,
+     f.season_api_year,
+     f.kickoff_datetime,
+@@ -85,12 +125,18 @@ select
+     t.team_name,
+     p.player_name,
+     p.player_photo_url,
+-    s.position_code,
+-    s.shirt_number,
++    a.has_stat_line,
++    a.position_code,
++    a.shirt_number,
+     s.minutes as minutes_played,
+     s.is_captain,
+-    s.is_substitute,
+-    s.is_starter,
++    a.is_substitute,
++    a.is_starter,
++    a.minute_on,
++    a.minute_on_extra,
++    a.minute_off,
++    a.minute_off_extra,
++    a.replaced_player_sk,
+     s.offsides,
+     s.shots as shots_total,
+     s.shots_on_target as shots_on,
+@@ -118,13 +164,15 @@ select
+     s.penalties_scored as penalty_scored,
+     s.penalties_missed as penalty_missed,
+     s.penalties_saved as penalty_saved,
+-    s.team_sk = f.home_team_sk as is_home
+-from stats as s
++    a.team_sk = f.home_team_sk as is_home
++from appearances as a
+ inner join fixtures as f
+-    on s.fixture_sk = f.fixture_sk
+-inner join match_rates as r
+-    on s.fixture_sk = r.fixture_sk and s.team_sk = r.team_sk and s.player_sk = r.player_sk
++    on a.fixture_sk = f.fixture_sk
++left join stats as s
++    on a.fixture_sk = s.fixture_sk and a.team_sk = s.team_sk and a.player_sk = s.player_sk
++left join match_rates as r
++    on a.fixture_sk = r.fixture_sk and a.team_sk = r.team_sk and a.player_sk = r.player_sk
+ left join players as p
+-    on s.player_sk = p.player_sk
++    on a.player_sk = p.player_sk
+ left join teams as t
+-    on s.team_sk = t.team_sk
++    on a.team_sk = t.team_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+index 99c1ee79..41129ba4 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+@@ -10,8 +10,8 @@
+   honestly whether that drill-down has data (player stats are missing for a
+   meaningful share of matches — the common case, not rare). The flags are
+   derived from the detail marts themselves (same-layer refs, the documented
+-  exception in layering.md) so "true" literally means "the drill-down query
+-  returns rows" — one definition, no drift.
++  exception in layering.md) so "true" literally means "the drill-down holds a
++  stat line" — one definition, no drift.
+ 
+   Grain: (upcoming_fixture_sk, team_sk, played_fixture_sk).
+ #}
+@@ -48,6 +48,7 @@ player_stat_coverage as (
+         fixture_sk,
+         team_sk
+     from {{ ref('mart_player_fixture_stats') }}
++    where has_stat_line
+ )
+ 
+ select
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index c3ad1a20..43ab69c9 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -500,7 +500,7 @@ models:
+         description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
+         tests: [not_null]
+       - name: has_player_stats
+-        description: "True when mart_player_fixture_stats has rows for this played fixture + team. False is the common case — many competitions lack player stats."
++        description: "True when mart_player_fixture_stats has a player stat line (has_stat_line) for this played fixture + team. False is the common case — many competitions lack player stats."
+         tests: [not_null]
+       - name: is_home
+         description: "True when team_sk is the home side of the upcoming fixture."
+@@ -615,13 +615,17 @@ models:
+ 
+   - name: mart_player_fixture_stats
+     description: >
+-      One player's stat line from one finished match, with player and team identity alongside.
++      One player in one finished match: every player the stat lines or the team sheets name, with
++      the line-up role, the substitutions, the stat line, and player and team identity alongside.
+       Grain: (fixture_sk, team_sk, player_sk).
+ 
+-      A pure projection of fct_fixture_player_stats — nothing is derived here.
++      A projection of fct_fixture_player_stats and fct_fixture_lineup, joined on the match and the
++      player; the team is the stat line's where it has one. The team sheets count only where the
++      match's lineup_state on mart_competition_fixtures is confirmed or researched; in every other
++      match the rows and their values are the stat lines'.
+ 
+-      A fixture with no rows here has no player stats at all, which is the COMMON case: many
+-      competitions do not supply them. Absence means unavailable, never zero.
++      A row without a stat line is common: many competitions do not supply player statistics. Its
++      statistics are NULL, meaning unavailable, never zero.
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [fixture_sk, team_sk, player_sk]
+@@ -665,18 +669,36 @@ models:
+         description: "{{ doc('player_name') }}"
+       - name: player_photo_url
+         description: "{{ doc('player_photo_url') }}"
++      - name: has_stat_line
++        description: "{{ doc('has_stat_line__player') }}"
++        tests: [not_null]
+       - name: position_code
+-        description: "{{ doc('position_code__leg') }}"
++        description: "{{ doc('position_code__leg') }} The stat line's where it has one, otherwise the line-ups'."
+       - name: shirt_number
+-        description: "{{ doc('shirt_number') }}"
++        description: "{{ doc('shirt_number') }} Where the stat line gives none, the team sheet gives it."
+       - name: minutes_played
+         description: "{{ doc('minutes_played') }}"
+       - name: is_captain
+         description: "{{ doc('is_captain') }}"
+       - name: is_substitute
+-        description: "{{ doc('is_substitute') }}"
++        description: "{{ doc('is_substitute__fixture') }}"
+       - name: is_starter
+-        description: "{{ doc('is_starter') }}"
++        description: "{{ doc('is_starter__fixture') }}"
++      - name: minute_on
++        description: "{{ doc('minute_on') }}"
++      - name: minute_on_extra
++        description: "{{ doc('minute_on_extra') }}"
++      - name: minute_off
++        description: "{{ doc('minute_off') }}"
++      - name: minute_off_extra
++        description: "{{ doc('minute_off_extra') }}"
++      - name: replaced_player_sk
++        description: "{{ doc('replaced_player_sk') }}"
++        tests:
++          - relationships:
++              to: ref('dim_player')
++              field: player_sk
++              where: "replaced_player_sk is not null"
+       - name: offsides
+         description: "{{ doc('offsides_player') }}"
+       - name: shots_total
+@@ -2787,6 +2809,9 @@ models:
+       - dbt_utils.expression_is_true:
+           expression: "not is_played or (goals_home is not null and goals_away is not null)"
+           name: competition_fixtures_played_has_a_score
++      - dbt_utils.expression_is_true:
++          expression: "is_played = (lineup_state is not null)"
++          name: competition_fixtures_played_has_a_lineup_state
+       - dbt_utils.expression_is_true:
+           expression: "not is_match_that_matters or is_next_round"
+           name: competition_fixtures_top_match_is_in_the_next_round
+@@ -2853,6 +2878,8 @@ models:
+         description: "The home team's permanent URL segment from dim_team."
+       - name: home_team_logo_url
+         description: "The home team's crest URL from dim_team."
++      - name: home_team_formation
++        description: "{{ doc('team_formation') }} Here, the home team's; NULL unless lineup_state is confirmed or researched."
+       - name: away_team_sk
+         description: "{{ doc('away_team_sk') }}"
+         tests:
+@@ -2867,6 +2894,8 @@ models:
+         description: "The away team's permanent URL segment from dim_team."
+       - name: away_team_logo_url
+         description: "The away team's crest URL from dim_team."
++      - name: away_team_formation
++        description: "{{ doc('team_formation') }} Here, the away team's; NULL unless lineup_state is confirmed or researched."
+       - name: fixture_slug
+         description: "The match's permanent URL segment: the kick-off date, the home team's slug, -vs-, the away team's slug, e.g. YYYY-MM-DD-bayern-munchen-vs-1-fc-union-berlin. Present on every row: both teams resolve on dim_team, whose slug is never null."
+         tests: [not_null]
+@@ -2926,6 +2955,11 @@ models:
+         tests:
+           - accepted_values:
+               values: ["goals", "goals_without_minutes", "not_recorded", "awarded"]
++      - name: lineup_state
++        description: "{{ doc('lineup_state') }}"
++        tests:
++          - accepted_values:
++              values: ["confirmed", "researched", "not_available"]
+       - name: goals
+         description: "The match's goals, home and away together: one entry per goal in match order when every minute is known, otherwise one per scorer. Empty when the match has none, was not played, or its goals are not recorded."
+       - name: goals.side
+diff --git a/dbt_project/models/docs/cleaning_rules.md b/dbt_project/models/docs/cleaning_rules.md
+index c3d498ac..c7f92594 100644
+--- a/dbt_project/models/docs/cleaning_rules.md
++++ b/dbt_project/models/docs/cleaning_rules.md
+@@ -26,6 +26,21 @@ match stats are good enough.
+   it names. Where nothing decides, both stay where the provider put them.
+ - Accurate passes are a count in every match. Where a match's values add up to more than its
+   passes, the provider sent a percentage, and it is converted once.
++- Substitutions. A substitution event names the player who went off and, as its assist, the player
++  who came on. Where the line-ups name the assist as a starter and the player as not one, the two
++  are swapped.
++- Line-ups. A match's team sheets are shown when they pass every check below. Otherwise they are
++  shown only when researched from an official source, in fixture_lineup_corrections. A researched
++  line-up passes every check but the squad lists, which its official source outranks.
++  - Two sheets, each with eleven different starters, every starter with a player id.
++  - More of a sheet's players are on its team's squad list than on the other team's, and none is
++    listed only at the other team. Without a squad list, the club each player last joined decides.
++  - No player is on both sheets, and the stat lines put no player on the other team.
++  - Every substitution brings on a substitute for a player of the same team on the sheets, at the
++    minute that player went off.
++  - Research covers, in this order: every match of a domestic league in the registry;
++    national-team matches; the matches of that season's clubs of those leagues in other
++    competitions. The current season comes first. A match not played has no line-ups to research.
+ - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
+   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
+   left blank when the gap is larger or when neither side passes its check. A result is corrected
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 57161ba2..88275816 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -192,6 +192,92 @@ zero minutes, so counting appearances from this column alone overstates them bad
+ {% enddocs %}
+ 
+ 
++{% docs is_starter__lineup %}
++True when the match line-ups name the player in the starting eleven; false for a player on the
++bench.
++{% enddocs %}
 +
 +
-+def _lineup(starters: int = 11) -> dict:
-+    return {"startXI": [{"player": {"id": i}} for i in range(starters)], "substitutes": []}
++{% docs is_starter__fixture %}
++True when the player started the match. A confirmed or researched team sheet decides where it
++names the player. Elsewhere the stat line decides: minutes > 0 and not listed among the
++substitutes.
++{% enddocs %}
 +
 +
-+def _player(conceded=None) -> dict:
-+    return {"player": {"id": 1}, "statistics": [{"goals": {"conceded": conceded}}]}
++{% docs is_substitute__fixture %}
++True when the player was on the bench at kick-off, whether or not they came on. A confirmed or
++researched team sheet decides where it names the player; elsewhere the provider's stat line does.
++{% enddocs %}
 +
 +
-+def _fixture(
-+    fid: int = 1,
-+    events: int = 5,
-+    players: tuple[int, int] = (15, 15),
-+    statistics: tuple[int, int] = (8, 8),
-+    conceded=0,
-+    lineups=None,
-+) -> dict:
-+    return {
-+        "fixture": {"id": fid},
-+        "events": [{}] * events,
-+        "players": [
-+            {"team": {"id": HOME}, "players": [_player(conceded)] * players[0]},
-+            {"team": {"id": AWAY}, "players": [_player(conceded)] * players[1]},
-+        ],
-+        "statistics": [
-+            {"team": {"id": HOME}, "statistics": [{}] * statistics[0]},
-+            {"team": {"id": AWAY}, "statistics": [{}] * statistics[1]},
-+        ],
-+        "lineups": lineups if lineups is not None else [_lineup(), _lineup()],
-+    }
++{% docs has_stat_line__player %}
++True where the provider sent a statistics line for this player in this match. False for a player
++only the line-ups name: every statistic of that row is NULL.
++{% enddocs %}
 +
 +
-+def _stored(
-+    events: int = 5,
-+    players: tuple[int, int] = (15, 15),
-+    statistics: tuple[int, int] = (8, 8),
-+    complete: bool = True,
-+) -> dict:
-+    return {
-+        "events": events,
-+        "players_by_team": {HOME: players[0], AWAY: players[1]},
-+        "statistics_by_team": {HOME: statistics[0], AWAY: statistics[1]},
-+        "players_complete": complete,
-+    }
++{% docs lineup_state__sheet %}
++Whether the match's team sheets can be shown. confirmed: the provider's sheets pass every line-up
++check in the cleaning rules. researched: the sheets come from fixture_lineup_corrections, an
++official source. not_available: the provider's sheets fail at least one check, so they are not
++shown.
++{% enddocs %}
 +
 +
-+@pytest.fixture(autouse=True)
-+def _reset_quota_flag(monkeypatch):
-+    monkeypatch.setattr(errors_quota, "_http_quota_exhausted", False)
++{% docs lineup_state %}
++What a played match's line-ups hold. confirmed: the provider's team sheets pass every line-up
++check. researched: the sheets come from an official source. not_available: the provider sent no
++sheets, or its sheets fail a check and no official source replaces them. NULL on a match not
++played.
++{% enddocs %}
 +
 +
-+class TestPayloadCounts:
-+    def test_counts_every_section_per_team(self):
-+        counts = refetch.payload_counts(_fixture(events=7, players=(16, 15), statistics=(17, 16)))
-+        assert counts == {
-+            "events": 7,
-+            "players_by_team": {HOME: 16, AWAY: 15},
-+            "players_complete": True,
-+            "statistics_by_team": {HOME: 17, AWAY: 16},
-+            "full_lineups": True,
-+        }
-+
-+    def test_incomplete_player_format(self):
-+        assert not refetch.payload_counts(_fixture(conceded=None))["players_complete"]
-+
-+    def test_a_short_line_up_is_not_full(self):
-+        assert not refetch.payload_counts(_fixture(lineups=[_lineup(), _lineup(10)]))["full_lineups"]
-+
-+    def test_one_line_up_is_not_full(self):
-+        assert not refetch.payload_counts(_fixture(lineups=[_lineup()]))["full_lineups"]
-+
-+    def test_empty_payload(self):
-+        counts = refetch.payload_counts({})
-+        assert counts["events"] == 0
-+        assert counts["players_by_team"] == counts["statistics_by_team"] == {}
-+        assert not counts["full_lineups"]
++{% docs shirt_number__lineup %}
++The number the line-ups give the player for this match.
++{% enddocs %}
 +
 +
-+class TestRefusalReasons:
-+    def test_not_worse_with_full_line_ups_is_written(self):
-+        assert refetch.refusal_reasons(refetch.payload_counts(_fixture()), _stored()) == []
++{% docs team_formation %}
++The formation the team started the match in, as the line-ups give it (e.g. 4-2-3-1). NULL where
++the line-ups give none.
++{% enddocs %}
 +
-+    def test_a_match_with_nothing_stored_needs_only_the_line_ups(self):
-+        empty = {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
-+        assert refetch.refusal_reasons(refetch.payload_counts(_fixture(events=0, players=(0, 0))), empty) == []
 +
-+    @pytest.mark.parametrize(
-+        "fixture_kwargs, stored_kwargs, reason",
-+        [
-+            ({"events": 4}, {"events": 5}, "fewer events (4 < 5)"),
-+            ({"players": (14, 15)}, {}, f"fewer player rows for team {HOME} (14 < 15)"),
-+            ({"statistics": (8, 7)}, {}, f"fewer statistics lines for team {AWAY} (7 < 8)"),
-+            ({"conceded": None}, {"complete": True}, "loses the complete player format"),
-+            ({"lineups": [_lineup(10), _lineup()]}, {}, "no two line-ups of eleven starters"),
-+        ],
++{% docs grid_position %}
++The player's place in the starting formation, as the line-ups give it: row:column, row 1 being
++the goalkeeper. NULL for a player on the bench and where the line-ups give none.
++{% enddocs %}
++
++
++{% docs minute_on %}
++The minute of normal time a substitution brought the player on. NULL for a player who did not
++come on as a substitute.
++{% enddocs %}
++
++
++{% docs minute_on_extra %}
++Minutes into added time, on top of minute_on. NULL for a substitution in normal play.
++{% enddocs %}
++
++
++{% docs minute_off %}
++The minute of normal time a substitution took the player off. NULL for a player not
++substituted off.
++{% enddocs %}
++
++
++{% docs minute_off_extra %}
++Minutes into added time, on top of minute_off. NULL for a substitution in normal play.
++{% enddocs %}
++
++
++{% docs replaced_player_sk %}
++The player this substitute replaced, which is player_sk in dim_player. NULL for a player who did
++not come on as a substitute.
++{% enddocs %}
++
++
+ {% docs kickoff_datetime %}
+ Full kickoff timestamp.
+ {% enddocs %}
+diff --git a/dbt_project/seeds/fixture_lineup_corrections.csv b/dbt_project/seeds/fixture_lineup_corrections.csv
+new file mode 100644
+index 00000000..de4fe961
+--- /dev/null
++++ b/dbt_project/seeds/fixture_lineup_corrections.csv
+@@ -0,0 +1 @@
++fixture_id,team_id,player_id,player_name,is_starter,shirt_number,position_code,grid_position,team_formation,minute_on,minute_on_extra,replaced_player_id,minute_off,minute_off_extra,source_kind,source,note
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index a7dd5031..2ff2ab2f 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -669,6 +669,83 @@ seeds:
+         description: "The match and its goals, in words."
+         tests: [not_null]
+ 
++  - name: fixture_lineup_corrections
++    description: >
++      Both team sheets of a match whose provider line-ups fail a line-up check, researched and
++      sourced: one row per player named on a sheet. Applied in base_apif__lineups: the match's
++      line-ups are these, and its line-up state is researched. A player needs a provider player id,
++      so a match whose sheets name a player the provider holds no id for cannot be researched here.
++      assert_lineup_researched_matches_hold fails a researched match that breaks a line-up check
++      other than the squad lists and transfers, or whose rows are not sourced.
++    config:
++      column_types:
++        fixture_id: int64
++        team_id: int64
++        player_id: int64
++        player_name: string
++        is_starter: boolean
++        shirt_number: int64
++        position_code: string
++        grid_position: string
++        team_formation: string
++        minute_on: int64
++        minute_on_extra: int64
++        replaced_player_id: int64
++        minute_off: int64
++        minute_off_extra: int64
++        source_kind: string
++        source: string
++        note: string
++    tests:
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [fixture_id, team_id, player_id]
++    columns:
++      - name: fixture_id
++        description: "{{ doc('fixture_api_id') }}"
++        tests: [not_null]
++      - name: team_id
++        description: "{{ doc('team_api_id') }} Here it is the team whose sheet names the player."
++        tests: [not_null]
++      - name: player_id
++        description: "{{ doc('player_api_id') }}"
++        tests: [not_null]
++      - name: player_name
++        description: "The player's name as the source gives it."
++        tests: [not_null]
++      - name: is_starter
++        description: "{{ doc('is_starter__lineup') }}"
++        tests: [not_null]
++      - name: shirt_number
++        description: "{{ doc('shirt_number__lineup') }}"
++      - name: position_code
++        description: "The player's position on the sheet (G, D, M or F). NULL where the source gives none."
++      - name: grid_position
++        description: "{{ doc('grid_position') }}"
++      - name: team_formation
++        description: "{{ doc('team_formation') }} The same on every row of a team's sheet."
++      - name: minute_on
++        description: "{{ doc('minute_on') }}"
++      - name: minute_on_extra
++        description: "{{ doc('minute_on_extra') }}"
++      - name: replaced_player_id
++        description: "The provider player id of the player this substitute replaced. NULL for a player who did not come on as a substitute."
++      - name: minute_off
++        description: "{{ doc('minute_off') }}"
++      - name: minute_off_extra
++        description: "{{ doc('minute_off_extra') }}"
++      - name: source_kind
++        description: "official = the competition's match record; match_reports = two independent match reports that name the line-ups."
++        tests:
++          - not_null
++          - accepted_values:
++              values: ["official", "match_reports"]
++      - name: source
++        description: "The source's https URLs, separated by a space: at least one when official, two on different sites when match_reports."
++        tests: [not_null]
++      - name: note
++        description: "The match and its line-ups, in words."
++        tests: [not_null]
++
+   - name: standings_corrections
+     description: >
+       The league's official figures for each provider league-table row that differs from them,
+diff --git a/dbt_project/tests/assert_fixture_lineup_at_most_eleven_starters.sql b/dbt_project/tests/assert_fixture_lineup_at_most_eleven_starters.sql
+new file mode 100644
+index 00000000..620a7eae
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_lineup_at_most_eleven_starters.sql
+@@ -0,0 +1,13 @@
++-- A team starts a match with at most eleven players. Returns a row (= fails) per confirmed or
++-- researched team line-up that names more than eleven starters; a provider sheet that does is
++-- not_available and never shown.
++{{ config(store_failures = true) }}
++
++select
++    fixture_sk,
++    team_sk,
++    countif(is_starter) as n_starters
++from {{ ref('fct_fixture_lineup') }}
++where lineup_state in ('confirmed', 'researched')
++group by fixture_sk, team_sk
++having countif(is_starter) > 11
+diff --git a/dbt_project/tests/assert_fixture_lineup_one_formation_per_team.sql b/dbt_project/tests/assert_fixture_lineup_one_formation_per_team.sql
+new file mode 100644
+index 00000000..d08d8201
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_lineup_one_formation_per_team.sql
+@@ -0,0 +1,11 @@
++-- A team takes the field in one formation per match. Returns a row (= fails) per team line-up
++-- whose players carry more than one formation.
++{{ config(store_failures = true) }}
++
++select
++    fixture_sk,
++    team_sk,
++    count(distinct team_formation) as n_formations
++from {{ ref('fct_fixture_lineup') }}
++group by fixture_sk, team_sk
++having count(distinct team_formation) > 1
+diff --git a/dbt_project/tests/assert_fixture_lineup_substitutions_pair_up.sql b/dbt_project/tests/assert_fixture_lineup_substitutions_pair_up.sql
+new file mode 100644
+index 00000000..2d365400
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_lineup_substitutions_pair_up.sql
+@@ -0,0 +1,40 @@
++{#
++  Every substitution in a confirmed or researched line-up of fct_fixture_lineup pairs two players
++  of one match. Returns one row per broken line-up row:
++  - starter_came_on: a starter with a minute on;
++  - replaced_not_off: a substitute whose replaced player has no minute off, or a different one.
++#}
++{{ config(store_failures = true) }}
++
++with lineups as (
++    select * from {{ ref('fct_fixture_lineup') }}
++    where lineup_state in ('confirmed', 'researched')
++)
++
++select
++    'starter_came_on' as problem,
++    fixture_sk,
++    team_sk,
++    player_sk
++from lineups
++where is_starter and minute_on is not null
++
++union all
++
++select
++    'replaced_not_off' as problem,
++    came_on.fixture_sk,
++    came_on.team_sk,
++    came_on.player_sk
++from lineups as came_on
++left join lineups as went_off
++    on
++        came_on.fixture_sk = went_off.fixture_sk
++        and came_on.replaced_player_sk = went_off.player_sk
++where
++    came_on.replaced_player_sk is not null
++    and (
++        went_off.minute_off is null
++        or went_off.minute_off != came_on.minute_on
++        or coalesce(went_off.minute_off_extra, 0) != coalesce(came_on.minute_on_extra, 0)
 +    )
-+    def test_a_worse_fetch_is_refused(self, fixture_kwargs, stored_kwargs, reason):
-+        new = refetch.payload_counts(_fixture(**fixture_kwargs))
-+        assert refetch.refusal_reasons(new, _stored(**stored_kwargs)) == [reason]
+diff --git a/dbt_project/tests/assert_lineup_research_list.sql b/dbt_project/tests/assert_lineup_research_list.sql
+new file mode 100644
+index 00000000..c9fc8d7e
+--- /dev/null
++++ b/dbt_project/tests/assert_lineup_research_list.sql
+@@ -0,0 +1,77 @@
++{#
++  The line-up research list: every played match the research priority of the cleaning rules
++  covers whose lineup_state is not_available, one row each, with its priority group:
++  1 our_league: a match of a domestic league in the competition registry;
++  2 national_team: a national-team match;
++  3 our_club: another competition's match with a club from such a league in that season.
++  A walkover not played has no line-ups and is left out. Warn only: the stored rows are the list
++  researchers work from, by group and then current season first.
++#}
++{{ config(store_failures = true, severity = 'warn') }}
 +
-+    def test_one_team_gaining_does_not_cover_the_other_losing(self):
-+        new = refetch.payload_counts(_fixture(statistics=(0, 20)))
-+        assert refetch.refusal_reasons(new, _stored()) == [f"fewer statistics lines for team {HOME} (0 < 8)"]
++with registry as (
++    select
++        league_code,
++        competition_type
++    from {{ ref('competition_registry') }}
++),
 +
-+    def test_more_of_everything_is_written(self):
-+        new = refetch.payload_counts(_fixture(events=9, players=(20, 20), statistics=(17, 17)))
-+        assert refetch.refusal_reasons(new, _stored()) == []
++fixtures as (
++    select
++        f.fixture_sk,
++        f.league_code,
++        f.season_api_year,
++        f.kickoff_datetime,
++        f.home_team_sk,
++        f.home_team_name,
++        f.away_team_sk,
++        f.away_team_name,
++        f.lineup_state,
++        r.competition_type
++    from {{ ref('mart_competition_fixtures') }} as f
++    left join registry as r
++        on f.league_code = r.league_code
++    where
++        f.is_played
++        and coalesce(f.award_kind, '') != 'not_played'
++),
 +
++our_clubs as (
++    select distinct
++        team_sk,
++        season_api_year
++    from fixtures,
++        unnest([home_team_sk, away_team_sk]) as team_sk
++    where competition_type = 'domestic_league'
++),
 +
-+class TestPlan:
-+    def test_fixture_calls_are_twenty_a_call_per_competition(self):
-+        assert refetch.fixture_calls({"BL1": list(range(21)), "PL": list(range(20))}) == 3
++grouped as (
++    select
++        fixtures.*,
++        case
++            when fixtures.competition_type = 'domestic_league' then 'our_league'
++            when exists (
++                select 1
++                from our_clubs
++                where
++                    our_clubs.season_api_year = fixtures.season_api_year
++                    and our_clubs.team_sk in (fixtures.home_team_sk, fixtures.away_team_sk)
++            ) then 'our_club'
++            when fixtures.competition_type in (
++                'qualifying', 'continental_championship', 'world_championship'
++            ) then 'national_team'
++        end as priority_group
++    from fixtures
++    where fixtures.lineup_state = 'not_available'
++)
 +
-+    def test_squad_calls_are_pages_per_team_season(self):
-+        assert refetch.squad_calls({("BL1", 2016): {1, 2}, ("PL", 2026): {3}}, 3) == 9
++select
++    priority_group,
++    league_code,
++    season_api_year,
++    fixture_sk,
++    kickoff_datetime,
++    home_team_name,
++    away_team_name
++from grouped
++where priority_group is not null
+diff --git a/dbt_project/tests/assert_lineup_researched_matches_hold.sql b/dbt_project/tests/assert_lineup_researched_matches_hold.sql
+new file mode 100644
+index 00000000..82c5fd42
+--- /dev/null
++++ b/dbt_project/tests/assert_lineup_researched_matches_hold.sql
+@@ -0,0 +1,78 @@
++{#
++  Every researched line-up in fixture_lineup_corrections is applied and holds. Returns one row
++  per broken match:
++  - not_applied: the match has seed rows but no researched rows in base_apif__lineups;
++  - fails_check: base_apif__lineups finds it failing a line-up check other than the squad lists,
++    which an official source outranks;
++  - source_not_valid: a source that is not https, or match reports from fewer than two sites.
++#}
++{{ config(store_failures = true, severity = 'error') }}
 +
-+    def test_reads_and_groups_the_lists(self, tmp_path):
-+        ids = tmp_path / "ids.csv"
-+        ids.write_text("league_code,fixture_id\nPL,3\nBL1,2\nPL,1\nPL,3\n", encoding="utf-8")
-+        assert refetch.read_fixture_list(str(ids)) == {"BL1": [2], "PL": [1, 3]}
-+        pairs = tmp_path / "pairs.csv"
-+        pairs.write_text("league_code,team_id,season\nBL1,5,2016\nBL1,6,2016\nPL,7,2026\n", encoding="utf-8")
-+        assert refetch.read_pair_list(str(pairs)) == {("BL1", 2016): {5, 6}, ("PL", 2026): {7}}
++with seeded_rows as (
++    select
++        fixture_id,
++        source_kind,
++        source as source_urls
++    from {{ ref('fixture_lineup_corrections') }}
++),
 +
-+    def test_plan_mode_makes_no_call(self, tmp_path, capsys):
-+        ids = tmp_path / "ids.csv"
-+        ids.write_text("league_code,fixture_id\nPL,1\nPL,2\n", encoding="utf-8")
-+        with patch.object(refetch.http_client.requests, "get") as get, patch.object(refetch.bigquery, "Client") as client:
-+            assert refetch.main(["fixtures", "--ids-file", str(ids)]) == 0
-+        get.assert_not_called()
-+        client.assert_not_called()
-+        assert "plan: 2 matches in 1 competitions, 1 calls" in capsys.readouterr().out
++seeded as (
++    select distinct fixture_id
++    from seeded_rows
++),
 +
-+    def test_run_needs_a_call_cap(self, tmp_path):
-+        ids = tmp_path / "ids.csv"
-+        ids.write_text("league_code,fixture_id\nPL,1\n", encoding="utf-8")
-+        with pytest.raises(SystemExit):
-+            refetch.main(["fixtures", "--ids-file", str(ids), "--run"])
++applied as (
++    select
++        lineups.fixture_id,
++        logical_and(lineups.lineup_state = 'researched') as is_researched,
++        any_value(lineups.failed_checks) as failed_checks
++    from {{ ref('base_apif__lineups') }} as lineups
++    inner join seeded
++        on lineups.fixture_id = seeded.fixture_id
++    group by lineups.fixture_id
++),
 +
++sources as (
++    select
++        seeded_rows.fixture_id,
++        seeded_rows.source_kind,
++        seeded_rows.source_urls,
++        countif(not starts_with(url, 'https://')) as n_not_https,
++        count(distinct net.host(url)) as n_sites
++    from seeded_rows,
++        unnest(split(seeded_rows.source_urls, ' ')) as url
++    where url != ''
++    group by seeded_rows.fixture_id, seeded_rows.source_kind, seeded_rows.source_urls
++),
 +
-+class TestNightlyWindow:
-+    @pytest.mark.parametrize("hour, refused", [(1, False), (2, True), (3, True), (4, False), (23, False)])
-+    def test_refuses_two_hours_before_the_nightly(self, hour, refused):
-+        assert refetch.too_close_to_nightly(datetime(2026, 10, 12, hour, 30, tzinfo=timezone.utc)) is refused
++failing as (
++    select distinct applied.fixture_id
++    from applied,
++        unnest(applied.failed_checks) as failed_check
++    where failed_check != 'squad_lists'
++)
 +
-+    def test_the_lease_ends_before_the_nightly(self):
-+        latest_start = datetime(2026, 10, 12, 1, 59, tzinfo=timezone.utc)
-+        assert latest_start + timedelta(minutes=refetch.LEASE_MINUTES) < datetime(2026, 10, 12, 4, 0, tzinfo=timezone.utc)
-+        assert refetch.CALL_WINDOW_MINUTES < refetch.LEASE_MINUTES
++select
++    seeded.fixture_id,
++    'not_applied' as problem
++from seeded
++left join applied
++    on seeded.fixture_id = applied.fixture_id
++where not coalesce(applied.is_researched, false)
 +
++union all
 +
-+class TestCallCounter:
-+    def test_makes_no_call_past_the_cap(self, monkeypatch):
-+        real_get = MagicMock(return_value="response")
-+        monkeypatch.setattr(refetch.http_client.requests, "get", real_get)
-+        counter = refetch.CallCounter(2)
-+        assert counter.get("a") == "response"
-+        assert counter.get("b") == "response"
-+        capped = counter.get("c")
-+        assert real_get.call_count == 2
-+        assert counter.calls == 2
-+        assert errors_quota._http_quota_exhausted
-+        assert capped.json()["response"] == []
-+        assert capped.json()["errors"]
++select
++    fixture_id,
++    'fails_check' as problem
++from failing
 +
-+    def test_makes_no_call_past_the_deadline(self, monkeypatch):
-+        real_get = MagicMock(return_value="response")
-+        monkeypatch.setattr(refetch.http_client.requests, "get", real_get)
-+        counter = refetch.CallCounter(100, datetime.now(timezone.utc) - timedelta(seconds=1))
-+        counter.get("a")
-+        real_get.assert_not_called()
-+        assert errors_quota._http_quota_exhausted
++union all
 +
-+    def test_through_fetch_json_a_retry_counts_and_the_capped_answer_is_incomplete(self, monkeypatch):
-+        monkeypatch.setattr(http_client, "_throttle", lambda: None)
-+        monkeypatch.setattr(http_client.time, "sleep", lambda s: None)
-+        rate_limited = MagicMock(status_code=429, headers={"Retry-After": "0"})
-+        ok = MagicMock(status_code=200, headers={})
-+        ok.json.return_value = {"errors": [], "response": [{"fixture": {"id": 1}}]}
-+        real_get = MagicMock(side_effect=[rate_limited, ok])
-+        monkeypatch.setattr(http_client.requests, "get", real_get)
-+        counter = refetch.CallCounter(2)
-+        monkeypatch.setattr(http_client.requests, "get", counter.get)
-+        first = http_client.fetch_json("/fixtures", headers={}, params={"ids": "1"})
-+        assert counter.calls == 2
-+        assert http_client.result_is_complete(first)
-+        capped = http_client.fetch_json("/fixtures", headers={}, params={"ids": "2"})
-+        assert real_get.call_count == 2
-+        assert not http_client.result_is_complete(capped)
++select
++    sources.fixture_id,
++    'source_not_valid' as problem
++from sources
++where
++    sources.n_not_https > 0
++    or (sources.source_kind = 'match_reports' and sources.n_sites < 2)
+diff --git a/dbt_project/tests/assert_mart_player_fixture_stats_keeps_every_stat_line.sql b/dbt_project/tests/assert_mart_player_fixture_stats_keeps_every_stat_line.sql
+new file mode 100644
+index 00000000..3cbf41cb
+--- /dev/null
++++ b/dbt_project/tests/assert_mart_player_fixture_stats_keeps_every_stat_line.sql
+@@ -0,0 +1,46 @@
++-- mart_player_fixture_stats serves every stat line of a finished match exactly once, flagged
++-- has_stat_line, and flags no row that has none. A join to the line-ups that drops, doubles or
++-- moves a stat line fails here.
++--
++-- Returns a row (= fails) per stat line missing from the mart, per flagged row with no stat line,
++-- and per stat line served more than once.
++{{ config(store_failures = true) }}
 +
++with expected as (
++    select
++        s.fixture_sk,
++        s.team_sk,
++        s.player_sk
++    from {{ ref('fct_fixture_player_stats') }} as s
++    inner join {{ ref('fct_fixture') }} as f
++        on s.fixture_sk = f.fixture_sk
++    where f.status_short in ('FT', 'AET', 'PEN')
++),
 +
-+def _ctx() -> MagicMock:
-+    ctx = MagicMock()
-+    ctx.headers = {}
-+    ctx.errors = []
-+    return ctx
++served as (
++    select
++        fixture_sk,
++        team_sk,
++        player_sk,
++        count(*) as n_served
++    from {{ ref('mart_player_fixture_stats') }}
++    where has_stat_line
++    group by fixture_sk, team_sk, player_sk
++)
 +
-+
-+class TestStoredReads:
-+    def test_stored_counts_puts_each_section_where_the_guard_reads_it(self):
-+        rows = [
-+            {"section": "events", "fixture_id": 1, "team_id": None, "n": 12, "complete": False},
-+            {"section": "players", "fixture_id": 1, "team_id": HOME, "n": 16, "complete": False},
-+            {"section": "players", "fixture_id": 1, "team_id": AWAY, "n": 15, "complete": True},
-+            {"section": "statistics", "fixture_id": 1, "team_id": HOME, "n": 17, "complete": False},
-+            {"section": "statistics", "fixture_id": 1, "team_id": AWAY, "n": 18, "complete": False},
-+        ]
-+        client = MagicMock()
-+        client.query.return_value.result.return_value = rows
-+        client.query.return_value.total_bytes_billed = 0
-+        stored = refetch.stored_counts(client, [1, 2])
-+        assert stored[1] == {
-+            "events": 12,
-+            "players_by_team": {HOME: 16, AWAY: 15},
-+            "statistics_by_team": {HOME: 17, AWAY: 18},
-+            "players_complete": True,
-+        }
-+        assert stored[2] == {"events": 0, "players_by_team": {}, "statistics_by_team": {}, "players_complete": False}
-+
-+    def test_unread_raw_rows_compares_with_the_oldest_staging_table(self):
-+        older = datetime(2026, 10, 12, 4, 10, tzinfo=timezone.utc)
-+        newer = datetime(2026, 10, 12, 4, 30, tzinfo=timezone.utc)
-+        client = MagicMock()
-+        client.get_table.side_effect = [MagicMock(modified=newer), MagicMock(modified=older), MagicMock(modified=newer)]
-+        client.query.return_value.result.return_value = iter([{"n": 4}])
-+        assert refetch.unread_raw_rows(client, [1, 2]) == 4
-+        params = {p.name: p for p in client.query.call_args.kwargs["job_config"].query_parameters}
-+        assert params["built"].value == older
-+        assert params["ids"].values == [1, 2]
-+        assert "RAW_APIF_FIXTURE_DETAILS" in client.query.call_args.args[0]
-+
-+
-+class TestRunFixtures:
-+    def _run(self, monkeypatch, answers, stored):
-+        fetch = MagicMock(side_effect=answers)
-+        insert = MagicMock()
-+        monkeypatch.setattr(refetch, "fetch_json", fetch)
-+        monkeypatch.setattr(refetch, "_insert_fixture_rows", insert)
-+        monkeypatch.setattr(refetch, "ensure_unified_raw_table", MagicMock())
-+        groups = {"PL": sorted(stored)}
-+        return refetch.run_fixtures(_ctx(), groups, stored), fetch, insert
-+
-+    def test_writes_only_the_matches_the_guard_keeps(self, monkeypatch):
-+        answer = {"errors": [], "response": [_fixture(fid=1), _fixture(fid=2, events=1)]}
-+        report, _, insert = self._run(monkeypatch, [answer], {1: _stored(), 2: _stored()})
-+        written = insert.call_args.args[2]
-+        assert [fx["fixture"]["id"] for fx in written] == [1]
-+        assert insert.call_args.args[4] == "PL"
-+        assert report["written"] == 1
-+        assert report["refused"] == {"fewer events": 1}
-+
-+    def test_an_incomplete_batch_is_not_written(self, monkeypatch):
-+        answer = {"errors": {"rateLimit": "Too many requests"}, "response": [_fixture(fid=1)]}
-+        report, _, insert = self._run(monkeypatch, [answer], {1: _stored()})
-+        insert.assert_not_called()
-+        assert report["batches_discarded"] == 1
-+
-+    def test_stops_at_the_latched_flag(self, monkeypatch):
-+        errors_quota._http_quota_exhausted = True
-+        report, fetch, insert = self._run(monkeypatch, [], {1: _stored()})
-+        fetch.assert_not_called()
-+        insert.assert_not_called()
-+        assert report["written"] == 0
-+
-+    def test_counts_matches_the_provider_did_not_return(self, monkeypatch):
-+        answer = {"errors": [], "response": [_fixture(fid=1)]}
-+        report, _, _ = self._run(monkeypatch, [answer], {1: _stored(), 2: _stored()})
-+        assert report["not_returned"] == 1
-+
-+
-+class TestRunSquads:
-+    def test_fetches_exactly_the_listed_pairs(self, monkeypatch):
-+        load = MagicMock()
-+        monkeypatch.setattr(refetch, "load_squad_players_batch", load)
-+        ctx = _ctx()
-+        refetch.run_squads(ctx, {("BL1", 2016): {5, 6}, ("PL", 2026): {7}})
-+        assert load.call_count == 2
-+        first = load.call_args_list[0]
-+        assert first.args == (ctx, "BL1", [2016], {5, 6})
-+        assert first.kwargs == {"reference_season": 2016, "already_captured": set()}
-+
-+
-+class TestMainRun:
-+    def _ids(self, tmp_path) -> str:
-+        ids = tmp_path / "ids.csv"
-+        ids.write_text("league_code,fixture_id\nPL,1\n", encoding="utf-8")
-+        return str(ids)
-+
-+    def _patch(self, monkeypatch, *, hour=12, unread=0, acquired=True, run_fixtures=None):
-+        monkeypatch.setattr(refetch, "too_close_to_nightly", lambda now: 2 <= hour < 4)
-+        monkeypatch.setattr(refetch, "get_headers", dict)
-+        monkeypatch.setattr(refetch.bigquery, "Client", MagicMock())
-+        monkeypatch.setattr(refetch, "unread_raw_rows", MagicMock(return_value=unread))
-+        monkeypatch.setattr(refetch, "ensure_ingest_lock_table", MagicMock())
-+        monkeypatch.setattr(refetch, "acquire_ingest_lock", MagicMock(return_value=acquired))
-+        release = MagicMock()
-+        monkeypatch.setattr(refetch, "release_ingest_lock", release)
-+        monkeypatch.setattr(refetch, "stored_counts", MagicMock(return_value={1: _stored()}))
-+        monkeypatch.setattr(
-+            refetch,
-+            "run_fixtures",
-+            run_fixtures or MagicMock(return_value={"written": 0, "not_returned": 0, "batches_discarded": 0, "refused": {}}),
-+        )
-+        monkeypatch.setattr(refetch.CallCounter, "install", lambda self: None)
-+        return release
-+
-+    def test_refused_in_the_nightly_window(self, monkeypatch, tmp_path):
-+        release = self._patch(monkeypatch, hour=3)
-+        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 2
-+        refetch.acquire_ingest_lock.assert_not_called()
-+        release.assert_not_called()
-+
-+    def test_refused_while_raw_holds_rows_staging_has_not_read(self, monkeypatch, tmp_path):
-+        release = self._patch(monkeypatch, unread=3)
-+        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 2
-+        refetch.acquire_ingest_lock.assert_called_once()
-+        refetch.run_fixtures.assert_not_called()
-+        release.assert_called_once()
-+
-+    def test_the_call_window_reaches_the_counter(self, monkeypatch, tmp_path):
-+        self._patch(monkeypatch)
-+        built = []
-+
-+        class Recorder(refetch.CallCounter):
-+            def __init__(self, max_calls, deadline=None):
-+                built.append((max_calls, deadline))
-+                super().__init__(max_calls, deadline)
-+
-+        monkeypatch.setattr(refetch, "CallCounter", Recorder)
-+        before = datetime.now(timezone.utc)
-+        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 0
-+        after = datetime.now(timezone.utc)
-+        (max_calls, deadline), = built
-+        assert max_calls == 5
-+        window = timedelta(minutes=refetch.CALL_WINDOW_MINUTES)
-+        assert before + window <= deadline <= after + window
-+
-+    def test_refused_when_the_lock_is_held(self, monkeypatch, tmp_path):
-+        release = self._patch(monkeypatch, acquired=False)
-+        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 2
-+        release.assert_not_called()
-+
-+    def test_takes_a_lease_sized_to_the_run(self, monkeypatch, tmp_path):
-+        self._patch(monkeypatch)
-+        assert refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"]) == 0
-+        assert refetch.acquire_ingest_lock.call_args.kwargs == {"lease_minutes": refetch.LEASE_MINUTES}
-+
-+    def test_paces_calls_at_250_ms_unless_set(self, monkeypatch, tmp_path):
-+        self._patch(monkeypatch)
-+        monkeypatch.delenv("API_FOOTBALL_REQUEST_PAUSE_MS", raising=False)
-+        refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"])
-+        assert refetch.os.environ["API_FOOTBALL_REQUEST_PAUSE_MS"] == "250"
-+
-+    def test_releases_the_lock_when_the_run_fails(self, monkeypatch, tmp_path):
-+        release = self._patch(monkeypatch, run_fixtures=MagicMock(side_effect=RuntimeError("boom")))
-+        with pytest.raises(RuntimeError):
-+            refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"])
-+        release.assert_called_once()
-+
-+    def test_a_missing_api_key_fails_before_the_lock(self, monkeypatch, tmp_path):
-+        self._patch(monkeypatch)
-+        monkeypatch.setattr(refetch, "get_headers", MagicMock(side_effect=ValueError("no key")))
-+        with pytest.raises(ValueError):
-+            refetch.main(["fixtures", "--ids-file", self._ids(tmp_path), "--run", "--max-calls", "5"])
-+        refetch.acquire_ingest_lock.assert_not_called()
++select
++    coalesce(e.fixture_sk, s.fixture_sk) as fixture_sk,
++    coalesce(e.team_sk, s.team_sk) as team_sk,
++    coalesce(e.player_sk, s.player_sk) as player_sk,
++    e.fixture_sk is not null as in_stat_lines,
++    coalesce(s.n_served, 0) as n_served
++from expected as e
++full outer join served as s
++    on
++        e.fixture_sk = s.fixture_sk
++        and e.team_sk = s.team_sk
++        and e.player_sk = s.player_sk
++where
++    e.fixture_sk is null
++    or s.fixture_sk is null
++    or s.n_served > 1
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -928,7 +1968,6 @@ index 00000000..35cf295e
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/review.md          |   24 +-
-#    .claude/task/review_input.patch | 2108 ++++++++++++++++-----------------------
-#    2 files changed, 880 insertions(+), 1252 deletions(-)
+#   .claude/task/review_input.patch | 2719 ++++++++++++++++++++++++++-------------
+#    1 file changed, 1824 insertions(+), 895 deletions(-)
 # ============================================================================

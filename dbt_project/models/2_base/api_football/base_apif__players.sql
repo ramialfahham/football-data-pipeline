@@ -1,10 +1,11 @@
--- Player identity (global entity): one row per player_api_id, unioned from four sources
+-- Player identity (global entity): one row per player_api_id, unioned from five sources
 -- and deduplicated in a single pass that prefers the most authoritative NAMED source
 -- (lowest source_priority) and then the most recent ingest:
 --   priority 1 — /players endpoint (biographical attributes, most complete)
 --   priority 2 — fixture player stats (match appearances)
 --   priority 3 — fixture events (broadest appearance coverage)
 --   priority 4 — the assisting player of a fixture event
+--   priority 5 — the match line-ups (a bench player who never came on)
 -- Identity only — no league_code, no team/season affiliation: a player is one entity
 -- across competitions, and "which team/season" lives in dim_player_team_season_mapping
 -- and the facts, not here. Feeds dim_player 1:1. Grain: player_api_id.
@@ -76,6 +77,20 @@ assist_events_src as (
         and assist_player_id != 0
 ),
 
+lineups_src as (
+    select
+        player_id as player_api_id,
+        player_name,
+        cast(null as string) as player_first_name,
+        cast(null as string) as player_last_name,
+        cast(null as date) as player_birth_date,
+        cast(null as string) as player_nationality,
+        cast(null as string) as player_photo_url,
+        raw_ingested_at,
+        5 as source_priority
+    from {{ ref('base_apif__lineups') }}
+),
+
 src as (
     select * from players_src
     union all
@@ -84,6 +99,8 @@ src as (
     select * from fixture_events_src
     union all
     select * from assist_events_src
+    union all
+    select * from lineups_src
 )
 
 select

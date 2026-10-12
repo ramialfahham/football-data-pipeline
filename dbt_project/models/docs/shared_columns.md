@@ -192,6 +192,92 @@ zero minutes, so counting appearances from this column alone overstates them bad
 {% enddocs %}
 
 
+{% docs is_starter__lineup %}
+True when the match line-ups name the player in the starting eleven; false for a player on the
+bench.
+{% enddocs %}
+
+
+{% docs is_starter__fixture %}
+True when the player started the match. A confirmed or researched team sheet decides where it
+names the player. Elsewhere the stat line decides: minutes > 0 and not listed among the
+substitutes.
+{% enddocs %}
+
+
+{% docs is_substitute__fixture %}
+True when the player was on the bench at kick-off, whether or not they came on. A confirmed or
+researched team sheet decides where it names the player; elsewhere the provider's stat line does.
+{% enddocs %}
+
+
+{% docs has_stat_line__player %}
+True where the provider sent a statistics line for this player in this match. False for a player
+only the line-ups name: every statistic of that row is NULL.
+{% enddocs %}
+
+
+{% docs lineup_state__sheet %}
+Whether the match's team sheets can be shown. confirmed: the provider's sheets pass every line-up
+check in the cleaning rules. researched: the sheets come from fixture_lineup_corrections, an
+official source. not_available: the provider's sheets fail at least one check, so they are not
+shown.
+{% enddocs %}
+
+
+{% docs lineup_state %}
+What a played match's line-ups hold. confirmed: the provider's team sheets pass every line-up
+check. researched: the sheets come from an official source. not_available: the provider sent no
+sheets, or its sheets fail a check and no official source replaces them. NULL on a match not
+played.
+{% enddocs %}
+
+
+{% docs shirt_number__lineup %}
+The number the line-ups give the player for this match.
+{% enddocs %}
+
+
+{% docs team_formation %}
+The formation the team started the match in, as the line-ups give it (e.g. 4-2-3-1). NULL where
+the line-ups give none.
+{% enddocs %}
+
+
+{% docs grid_position %}
+The player's place in the starting formation, as the line-ups give it: row:column, row 1 being
+the goalkeeper. NULL for a player on the bench and where the line-ups give none.
+{% enddocs %}
+
+
+{% docs minute_on %}
+The minute of normal time a substitution brought the player on. NULL for a player who did not
+come on as a substitute.
+{% enddocs %}
+
+
+{% docs minute_on_extra %}
+Minutes into added time, on top of minute_on. NULL for a substitution in normal play.
+{% enddocs %}
+
+
+{% docs minute_off %}
+The minute of normal time a substitution took the player off. NULL for a player not
+substituted off.
+{% enddocs %}
+
+
+{% docs minute_off_extra %}
+Minutes into added time, on top of minute_off. NULL for a substitution in normal play.
+{% enddocs %}
+
+
+{% docs replaced_player_sk %}
+The player this substitute replaced, which is player_sk in dim_player. NULL for a player who did
+not come on as a substitute.
+{% enddocs %}
+
+
 {% docs kickoff_datetime %}
 Full kickoff timestamp.
 {% enddocs %}

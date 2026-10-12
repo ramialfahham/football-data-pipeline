@@ -500,7 +500,7 @@ models:
         description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
         tests: [not_null]
       - name: has_player_stats
-        description: "True when mart_player_fixture_stats has rows for this played fixture + team. False is the common case — many competitions lack player stats."
+        description: "True when mart_player_fixture_stats has a player stat line (has_stat_line) for this played fixture + team. False is the common case — many competitions lack player stats."
         tests: [not_null]
       - name: is_home
         description: "True when team_sk is the home side of the upcoming fixture."
@@ -615,13 +615,17 @@ models:
 
   - name: mart_player_fixture_stats
     description: >
-      One player's stat line from one finished match, with player and team identity alongside.
+      One player in one finished match: every player the stat lines or the team sheets name, with
+      the line-up role, the substitutions, the stat line, and player and team identity alongside.
       Grain: (fixture_sk, team_sk, player_sk).
 
-      A pure projection of fct_fixture_player_stats — nothing is derived here.
+      A projection of fct_fixture_player_stats and fct_fixture_lineup, joined on the match and the
+      player; the team is the stat line's where it has one. The team sheets count only where the
+      match's lineup_state on mart_competition_fixtures is confirmed or researched; in every other
+      match the rows and their values are the stat lines'.
 
-      A fixture with no rows here has no player stats at all, which is the COMMON case: many
-      competitions do not supply them. Absence means unavailable, never zero.
+      A row without a stat line is common: many competitions do not supply player statistics. Its
+      statistics are NULL, meaning unavailable, never zero.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [fixture_sk, team_sk, player_sk]
@@ -665,18 +669,36 @@ models:
         description: "{{ doc('player_name') }}"
       - name: player_photo_url
         description: "{{ doc('player_photo_url') }}"
+      - name: has_stat_line
+        description: "{{ doc('has_stat_line__player') }}"
+        tests: [not_null]
       - name: position_code
-        description: "{{ doc('position_code__leg') }}"
+        description: "{{ doc('position_code__leg') }} The stat line's where it has one, otherwise the line-ups'."
       - name: shirt_number
-        description: "{{ doc('shirt_number') }}"
+        description: "{{ doc('shirt_number') }} Where the stat line gives none, the team sheet gives it."
       - name: minutes_played
         description: "{{ doc('minutes_played') }}"
       - name: is_captain
         description: "{{ doc('is_captain') }}"
       - name: is_substitute
-        description: "{{ doc('is_substitute') }}"
+        description: "{{ doc('is_substitute__fixture') }}"
       - name: is_starter
-        description: "{{ doc('is_starter') }}"
+        description: "{{ doc('is_starter__fixture') }}"
+      - name: minute_on
+        description: "{{ doc('minute_on') }}"
+      - name: minute_on_extra
+        description: "{{ doc('minute_on_extra') }}"
+      - name: minute_off
+        description: "{{ doc('minute_off') }}"
+      - name: minute_off_extra
+        description: "{{ doc('minute_off_extra') }}"
+      - name: replaced_player_sk
+        description: "{{ doc('replaced_player_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+              where: "replaced_player_sk is not null"
       - name: offsides
         description: "{{ doc('offsides_player') }}"
       - name: shots_total
@@ -2788,6 +2810,9 @@ models:
           expression: "not is_played or (goals_home is not null and goals_away is not null)"
           name: competition_fixtures_played_has_a_score
       - dbt_utils.expression_is_true:
+          expression: "is_played = (lineup_state is not null)"
+          name: competition_fixtures_played_has_a_lineup_state
+      - dbt_utils.expression_is_true:
           expression: "not is_match_that_matters or is_next_round"
           name: competition_fixtures_top_match_is_in_the_next_round
       - dbt_utils.unique_combination_of_columns:
@@ -2853,6 +2878,8 @@ models:
         description: "The home team's permanent URL segment from dim_team."
       - name: home_team_logo_url
         description: "The home team's crest URL from dim_team."
+      - name: home_team_formation
+        description: "{{ doc('team_formation') }} Here, the home team's; NULL unless lineup_state is confirmed or researched."
       - name: away_team_sk
         description: "{{ doc('away_team_sk') }}"
         tests:
@@ -2867,6 +2894,8 @@ models:
         description: "The away team's permanent URL segment from dim_team."
       - name: away_team_logo_url
         description: "The away team's crest URL from dim_team."
+      - name: away_team_formation
+        description: "{{ doc('team_formation') }} Here, the away team's; NULL unless lineup_state is confirmed or researched."
       - name: fixture_slug
         description: "The match's permanent URL segment: the kick-off date, the home team's slug, -vs-, the away team's slug, e.g. YYYY-MM-DD-bayern-munchen-vs-1-fc-union-berlin. Present on every row: both teams resolve on dim_team, whose slug is never null."
         tests: [not_null]
@@ -2926,6 +2955,11 @@ models:
         tests:
           - accepted_values:
               values: ["goals", "goals_without_minutes", "not_recorded", "awarded"]
+      - name: lineup_state
+        description: "{{ doc('lineup_state') }}"
+        tests:
+          - accepted_values:
+              values: ["confirmed", "researched", "not_available"]
       - name: goals
         description: "The match's goals, home and away together: one entry per goal in match order when every minute is known, otherwise one per scorer. Empty when the match has none, was not played, or its goals are not recorded."
       - name: goals.side
