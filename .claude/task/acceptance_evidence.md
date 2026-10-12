@@ -1,32 +1,30 @@
-# Verification — researched line-ups, batch 1: Premier League
+# Verification — researched line-ups, batch 2: Bundesliga and 2. Bundesliga
 
-25 Premier League matches of the 2025-26 and 2026-27 seasons were on the line-up research list.
-All 25 are now researched from the official premierleague.com match pages. None was left out.
+34 Bundesliga and 2. Bundesliga matches of 2025-26 and 2026-27 were on the line-up research list.
+33 are now researched from the official bundesliga.com pages; one stays out.
 
-- **What was missing:** in every match, one substitution named the player who came on but not the
-  player replaced (two in Tottenham Hotspur-Liverpool). Everything else on the provider's sheets
-  had passed the checks.
-- **How each match was checked:** the official line-ups page, read in the built-in browser,
-  compared with the provider's sheets for every starter and bench player by shirt number, and
-  for every substitution minute. The missing outgoing player is the player of that team the page
-  shows going off at that minute; in 25 of the 26 missing substitutions that player had come on
-  earlier, so the provider loses the outgoing player mostly when he was a substitute himself.
-- **Differences from the provider beyond the missing player:**
-  - Leeds United-Sunderland: the provider has Sunderland's substitutions at 55' and 56' the other
-    way round; the rows carry the official minutes.
-  - The official page marks half-time substitutions at 45', the provider at 46'; the rows keep the
-    provider's 46' (the CPO's decision).
-  - Wolverhampton-West Ham: the provider's substitution event gives T. Edozie a different player id
-    from its team sheet; the rows use the team sheet's id, which the official sheet confirms by
-    shirt number.
-- **On prod data** (the branch's base_apif__lineups with the new rows, session-only copy):
-  - all 25 matches come out researched;
-  - assert_lineup_researched_matches_hold, the substitution pairing and the eleven-starters tests
-    return no rows;
-  - the research list holds no Premier League match of 2025-26 or 2026-27 (995 matches remain
-    overall);
-  - every researched player is in dim_player.
-- **The seed:** 999 rows, no duplicate key, no missing required value, every source official and
-  https, one formation per team.
-- **Time:** after a one-time setup to read the page structure, each match took one page load and
-  one automated comparison, about a minute.
+- **What was missing:** in 32 matches one substitution named the player who came on but not the
+  player replaced; in 2 the player who came on had no id.
+- **How each match was checked:** the official line-up page for both starting elevens (by name,
+  accents and spelling variants matched by hand) and the formations; the official live ticker for
+  every substitution, with its minute, the player on and the player off. Each match's number of
+  substitutions equals the ticker's.
+- **Left out:** 1. FC Union Berlin-SV Elversberg (2026-27): the incoming M. Gray has no provider id
+  that a squad list confirms, so the match stays not available.
+- **Differences from the provider, the rows following the ticker:**
+  - three pairings: 1. FC Heidenheim-Bayer Leverkusen (two players named Conteh), Karlsruher
+    SC-Preußen Münster, SC Paderborn-Eintracht Braunschweig;
+  - 1. FC Nürnberg-VfL Wolfsburg: the provider's sheet leaves out A. Ceresoli, who came on for
+    Porstner at 81'; the row takes his id from the club's 2026 squad list; the provider's sheet
+    also lacked the 90+8' change of Haugen for Zoma that the ticker and the provider's own events
+    record;
+  - about 15 substitutions one minute off.
+  - Half-time substitutions keep the provider's 46'; the ticker stamps them with the break time
+    (45' plus the minutes of the break).
+- **On prod data** (the branch's base_apif__lineups with all 58 researched matches, session-only
+  copy): every one comes out researched; assert_lineup_researched_matches_hold, the substitution
+  pairing and the eleven-starters tests return no rows; one Bundesliga match of 2025-26 or
+  2026-27 is left on the research list, Union Berlin-Elversberg; 962 matches remain overall; every
+  researched player is in dim_player.
+- **The seed:** 1,318 new rows (2,317 in all), no duplicate key, no missing required value, every
+  source official and https, one formation per team; the Premier League rows unchanged.

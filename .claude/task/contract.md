@@ -1,15 +1,15 @@
-# Task contract — researched line-ups, batch 1: Premier League
+# Task contract — researched line-ups, batch 2: Bundesliga and 2. Bundesliga
 
 objective: >
-  fixture_lineup_corrections gains the researched line-ups of the Premier League matches of the
-  2025 and 2026 seasons on the research list: both team sheets of each match, every player with
-  the provider's id, starter or bench, the minutes on and off, whom each substitute replaced and
-  the formation, from the official premierleague.com match page. A match the official page cannot
-  complete stays out and is listed in the MR.
+  fixture_lineup_corrections gains the researched line-ups of the Bundesliga and 2. Bundesliga
+  matches of the 2025 and 2026 seasons on the research list: both team sheets of each match, every
+  player with the provider's id, starter or bench, the minutes on and off, whom each substitute
+  replaced and the formation, from the official bundesliga.com line-up page and live ticker. A
+  match the official pages cannot complete stays out and is listed in the MR.
 
 refs: >
   #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the research
-  order and sources. The pilot plan: approved in chat, 2026-10-12.
+  order and sources. The Bundesliga batch as the next league: approved in chat, 2026-10-12.
 
 scope_paths:
   - dbt_project/seeds/fixture_lineup_corrections.csv
@@ -30,23 +30,26 @@ impact_map: >
   list loses them.
 
 decisions_taken: >
-  The research order, the sources and the Premier League pilot: approved in chat, 2026-10-12. A
-  missing outgoing player is the player of the substitute's team, a starter or a substitute who
-  came on earlier, whom the official page shows going off at the substitution's minute; where two
-  went off in that minute, the page's commentary names the pair: approved in chat, 2026-10-12.
-  Half-time substitutions keep the provider's 46', where the official page shows 45', so every
-  match shares one convention: approved in chat, 2026-10-12. Where the official page gives a
-  substitution a different minute from the provider, the rows carry the official minute. Player
-  ids are the provider's; where the provider gives one player two ids, the rows use the team
-  sheet's id that the official sheet confirms by shirt number; a match whose official sheet names
-  a player without a provider id stays out.
+  The research order, the sources and the Bundesliga batch: approved in chat, 2026-10-12. As in
+  batch 1 (approved in chat, 2026-10-12): a missing outgoing player is the player of the
+  substitute's team, a starter or a substitute who came on earlier, whom the official ticker shows
+  going off at the substitution's minute; half-time substitutions keep the provider's 46', where
+  the official ticker stamps them with the break time (45' plus the minutes of the break); where
+  the official ticker gives a substitution a different minute from the provider, the rows carry
+  the official minute. Where the official ticker pairs a substitution differently from the
+  provider, the rows carry the official pair, because the seed replaces the provider's sheets with
+  the official record. Player ids are the provider's: where the provider's sheet leaves out a
+  player the official sheet names, the row takes the id the provider's squad list gives that
+  player at that club in that season; a match whose official sheet names a player the provider
+  holds no confirmable id for stays out.
 
   THRESHOLD DECLARATIONS: NEW MECHANISM: none; rows in the existing seed. RECURRING COST: none
-  measurable; 999 seed rows.
+  measurable; 1,318 seed rows.
 
 decisions_reserved:
   - The next leagues and batches.
   - The older seasons.
+  - The provider's garbled player names in its own data (a separate data-quality defect).
 
 done_when:
   - dbt parse passes; the seed's tests pass.
@@ -54,6 +57,4 @@ done_when:
   - data:build:mr is green on the MR.
 
 amendments: >
-  Review round 1 found the outgoing-player rule written as "the starter", while in 25 of the 26
-  researched substitutions the player who went off had come on earlier; the CPO corrected the
-  wording and decided the half-time minute convention, both in chat, 2026-10-12.
+  none.
