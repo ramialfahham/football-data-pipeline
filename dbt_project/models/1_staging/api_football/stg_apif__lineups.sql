@@ -4,8 +4,6 @@
 -- versions). So it carries many fixtures per league_code AND several versions per
 -- fixture. Staging reads ALL rows faithfully (NO latest-snapshot qualify — that would drop
 -- fixtures) and base assembles current-per-entity by entity-key dedup on raw_ingested_at desc.
--- ⚠ This model has NO consumer today (`dbt ls --select stg_apif__lineups+` returns only itself),
--- so nothing downstream resolves its versions. See dbt_project/docs/layering.md §1_staging.
 with src as (
     select *
     from {{ source('api_football', 'raw_apif_fixture_details') }}

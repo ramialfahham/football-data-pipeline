@@ -835,6 +835,84 @@ models:
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 
+  - name: fct_fixture_lineup
+    description: "Every player the team sheets name for a match, starters and bench, with the substitutions that brought them on or took them off and the match's line-up state, as base_apif__lineups reads them. Grain: (fixture_sk, team_sk, player_sk)."
+    meta:
+      owner: "data-platform"
+      domain: "football"
+      criticality: "high"
+    config:
+      tags: ["core", "fact"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+            - team_sk
+            - player_sk
+    columns:
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: team_sk
+        description: "{{ doc('team_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: fixture_api_id
+        description: "{{ doc('fixture_api_id') }}"
+      - name: team_api_id
+        description: "{{ doc('team_api_id') }}"
+      - name: player_api_id
+        description: "{{ doc('player_api_id') }}"
+      - name: is_starter
+        description: "{{ doc('is_starter__lineup') }}"
+        tests: [not_null]
+      - name: shirt_number
+        description: "{{ doc('shirt_number__lineup') }}"
+      - name: position_code
+        description: "{{ doc('position_code__leg') }}"
+      - name: grid_position
+        description: "{{ doc('grid_position') }}"
+      - name: team_formation
+        description: "{{ doc('team_formation') }}"
+      - name: minute_on
+        description: "{{ doc('minute_on') }}"
+      - name: minute_on_extra
+        description: "{{ doc('minute_on_extra') }}"
+      - name: replaced_player_sk
+        description: "{{ doc('replaced_player_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+              where: "replaced_player_sk is not null"
+      - name: minute_off
+        description: "{{ doc('minute_off') }}"
+      - name: minute_off_extra
+        description: "{{ doc('minute_off_extra') }}"
+      - name: lineup_state
+        description: "{{ doc('lineup_state__sheet') }}"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["confirmed", "researched", "not_available"]
+
   - name: fct_fixture_event
     description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
     meta:

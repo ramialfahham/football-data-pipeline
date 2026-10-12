@@ -26,6 +26,21 @@ match stats are good enough.
   it names. Where nothing decides, both stay where the provider put them.
 - Accurate passes are a count in every match. Where a match's values add up to more than its
   passes, the provider sent a percentage, and it is converted once.
+- Substitutions. A substitution event names the player who went off and, as its assist, the player
+  who came on. Where the line-ups name the assist as a starter and the player as not one, the two
+  are swapped.
+- Line-ups. A match's team sheets are shown when they pass every check below. Otherwise they are
+  shown only when researched from an official source, in fixture_lineup_corrections. A researched
+  line-up passes every check but the squad lists, which its official source outranks.
+  - Two sheets, each with eleven different starters, every starter with a player id.
+  - More of a sheet's players are on its team's squad list than on the other team's, and none is
+    listed only at the other team. Without a squad list, the club each player last joined decides.
+  - No player is on both sheets, and the stat lines put no player on the other team.
+  - Every substitution brings on a substitute for a player of the same team on the sheets, at the
+    minute that player went off.
+  - Research covers, in this order: every match of a domestic league in the registry;
+    national-team matches; the matches of that season's clubs of those leagues in other
+    competitions. The current season comes first. A match not played has no line-ups to research.
 - Contradictions. A match stat that contradicts a result, a stat that passes its own check, or its
   own total is corrected to the nearest value consistent with it when the gap is at most 2. It is
   left blank when the gap is larger or when neither side passes its check. A result is corrected

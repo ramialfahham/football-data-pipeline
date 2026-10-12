@@ -1,18 +1,19 @@
 {#
-  Per-fixture player stat lines (#323). The player half of the match detail
-  view: every player's stat line for one finished fixture, both sides. A
-  projection of fct_fixture_player_stats plus player / team identity for
-  display. The app reads this mart, never core.
+  Per-fixture player rows (#323). The player half of the match detail
+  view: every player of one finished fixture, both sides, that the stat lines
+  or the confirmed or researched team sheets name. A projection of
+  fct_fixture_player_stats and fct_fixture_lineup plus player / team identity
+  for display. The app reads
+  this mart, never core.
 
   The stat line keeps the keys the export has always read. Its one derived
   value, passes_accuracy_percent, is the catalogue's pass accuracy over the
   player's own match (written by scripts/generate_metric_sql.py), as a whole
   percentage.
 
-  Covers ALL finished fixtures that have player stats. Many competitions do
-  not provide statistics_players from the API, so a fixture with no rows here
-  is the COMMON case — the app must render "player stats not available for
-  this match", not treat it as an error.
+  Many competitions do not provide statistics_players from the API, so a row
+  without a stat line (has_stat_line false) is common: its statistics are
+  unavailable, never zero.
 
   Grain: (fixture_sk, team_sk, player_sk).
 #}
@@ -72,12 +73,51 @@ teams as (
         team_sk,
         team_name
     from {{ ref('dim_team') }}
+),
+
+lineups as (
+    select
+        fixture_sk,
+        team_sk,
+        player_sk,
+        is_starter,
+        shirt_number,
+        position_code,
+        minute_on,
+        minute_on_extra,
+        minute_off,
+        minute_off_extra,
+        replaced_player_sk
+    from {{ ref('fct_fixture_lineup') }}
+    where lineup_state in ('confirmed', 'researched')
+),
+
+appearances as (
+    select
+        lineups.minute_on,
+        lineups.minute_on_extra,
+        lineups.minute_off,
+        lineups.minute_off_extra,
+        lineups.replaced_player_sk,
+        coalesce(stats.fixture_sk, lineups.fixture_sk) as fixture_sk,
+        coalesce(stats.team_sk, lineups.team_sk) as team_sk,
+        coalesce(stats.player_sk, lineups.player_sk) as player_sk,
+        stats.player_sk is not null as has_stat_line,
+        coalesce(stats.position_code, lineups.position_code) as position_code,
+        coalesce(stats.shirt_number, lineups.shirt_number) as shirt_number,
+        if(lineups.player_sk is not null, not lineups.is_starter, stats.is_substitute) as is_substitute,
+        if(lineups.player_sk is not null, lineups.is_starter, stats.is_starter) as is_starter
+    from stats
+    full outer join lineups
+        on
+            stats.fixture_sk = lineups.fixture_sk
+            and stats.player_sk = lineups.player_sk
 )
 
 select
-    s.fixture_sk,
-    s.team_sk,
-    s.player_sk,
+    a.fixture_sk,
+    a.team_sk,
+    a.player_sk,
     f.league_code,
     f.season_api_year,
     f.kickoff_datetime,
@@ -85,12 +125,18 @@ select
     t.team_name,
     p.player_name,
     p.player_photo_url,
-    s.position_code,
-    s.shirt_number,
+    a.has_stat_line,
+    a.position_code,
+    a.shirt_number,
     s.minutes as minutes_played,
     s.is_captain,
-    s.is_substitute,
-    s.is_starter,
+    a.is_substitute,
+    a.is_starter,
+    a.minute_on,
+    a.minute_on_extra,
+    a.minute_off,
+    a.minute_off_extra,
+    a.replaced_player_sk,
     s.offsides,
     s.shots as shots_total,
     s.shots_on_target as shots_on,
@@ -118,13 +164,15 @@ select
     s.penalties_scored as penalty_scored,
     s.penalties_missed as penalty_missed,
     s.penalties_saved as penalty_saved,
-    s.team_sk = f.home_team_sk as is_home
-from stats as s
+    a.team_sk = f.home_team_sk as is_home
+from appearances as a
 inner join fixtures as f
-    on s.fixture_sk = f.fixture_sk
-inner join match_rates as r
-    on s.fixture_sk = r.fixture_sk and s.team_sk = r.team_sk and s.player_sk = r.player_sk
+    on a.fixture_sk = f.fixture_sk
+left join stats as s
+    on a.fixture_sk = s.fixture_sk and a.team_sk = s.team_sk and a.player_sk = s.player_sk
+left join match_rates as r
+    on a.fixture_sk = r.fixture_sk and a.team_sk = r.team_sk and a.player_sk = r.player_sk
 left join players as p
-    on s.player_sk = p.player_sk
+    on a.player_sk = p.player_sk
 left join teams as t
-    on s.team_sk = t.team_sk
+    on a.team_sk = t.team_sk
