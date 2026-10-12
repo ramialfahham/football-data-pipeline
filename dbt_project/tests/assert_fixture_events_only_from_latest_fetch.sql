@@ -1,6 +1,7 @@
 {#
   A match's events are those of its latest fetch that has events. Returns one row per event in
-  base_apif__fixture_events or fct_fixture_event at a position that fetch does not have.
+  base_apif__fixture_events or fct_fixture_event at a position that fetch does not have. A goal
+  corrected by hand is no provider event and is not checked here.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 
@@ -31,6 +32,7 @@ held as (
         fixture_id,
         event_index
     from {{ ref('base_apif__fixture_events') }}
+    where goal_correction_source is null
     union all
     select
         'fct_fixture_event' as model_name,
@@ -38,6 +40,7 @@ held as (
         fixture_api_id as fixture_id,
         event_index
     from {{ ref('fct_fixture_event') }}
+    where goal_correction_source is null
 )
 
 select

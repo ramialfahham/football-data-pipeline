@@ -3,7 +3,7 @@
 -- A cleaned player row and that player's events in the same match under different teams. The
 -- player's-team rule of the cleaning rules moves the side the squad list contradicts, so a row here
 -- is a match the rule could not decide. Own goals are left out: the provider files them under the
--- team they count for.
+-- team they count for. A goal corrected by hand is no provider event and is left out too.
 select
     player_row.league_code,
     player_row.fixture_id,
@@ -20,3 +20,4 @@ inner join {{ ref('base_apif__fixture_events') }} as player_event
 where
     player_event.team_id != player_row.team_id
     and not (player_event.event_type = 'Goal' and player_event.event_detail = 'Own Goal')
+    and player_event.goal_correction_source is null

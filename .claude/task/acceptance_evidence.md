@@ -1,44 +1,44 @@
-# Verification — one goal definition
+# Verification — a played match's goals on the match mart
 
-What counts as a goal is now defined once, in `base_apif__fixture_events`. Every model and test that
-counts goals reads it. The checks below ran the branch's compiled SQL on prod data in session-only
-temp tables (read-only, dry-run first), against today's prod tables.
+Every played match now has its goals on `mart_competition_fixtures` and one goal-data state.
+Matches whose provider data is wrong are corrected from sourced research. All checks ran the
+branch's compiled SQL on prod data in session-only temp tables, read-only, dry-run first.
 
-- **Before the plan (0.29 GB in three queries):** leaving out every goal event without a scorer id
-  would break 275 matches that add up today, so the nameless rule applies only where the match then
-  adds up. Negative-minute kicks: leaving them out fixes 5 matches and breaks none.
-- **Row by row against prod (about 1.5 GB):**
+- **Research (web, two sources per match or an official record; Wikipedia never):**
+  - 60 matches whose goal events did not add up: 37 corrected goal by goal (6 of them 0-0, one
+    "no goal" row each), 20 whose stored score was wrong, 3 left out because no source names their
+    scorers (they show as not recorded).
+  - The 20 wrong scores were the two-leg aggregate or counted shoot-out kicks. Once corrected, the
+    provider's own goal events add up, so they need only a score row.
+  - 23 matches the provider files as awarded: each gets how it came about. Two (Djoliba-Red Star
+    Bangui, Al Hilal-Salaam) were not played and won by the home side by two reports each, but no
+    source states a score; the provider's is kept and the note says so.
+  - 5 awarded matches that were played or abandoned get their goals as scored on the pitch.
+- **Seeds:** `fixture_goal_corrections` 108 rows in 42 matches; `fixture_result_corrections` 43
+  new rows (20 scores, 23 awards). A script checked every row before writing: sides add up,
+  https sources, two sites for match reports, no Wikipedia.
+- **What changes:** 20 scores (no winner changes), 8 walkovers filed 0-0 gain their winner, 11
+  statuses WO to AWD, 23 award kinds, and the goals of the 42 corrected matches.
+- **The mart on prod data, every played match:**
 
-  | Model | Rows | Rows that differ | Matches that differ |
-  |---|---|---|---|
-  | `base_apif__fixture_events` (existing columns) | 871,852 | 0 | none |
-  | `base_apif__fixture_players` | 1,911,038 | 128 | 5 shoot-outs with kicks at a negative minute |
-  | `base_apif__fixture_statistics` | 120,266 | 18 | 17, each with a nameless event left out or a negative-minute kick |
+  | State | This season | Earlier |
+  |---|---|---|
+  | goals | 4,019 | 52,590 |
+  | goals_without_minutes | 1 | 16 |
+  | not_recorded | 248 | 3,185 |
+  | awarded | 3 | 71 |
 
-  - The new flags are never null; a nameless goal event is left out in exactly the 19 matches
-    measured before the plan.
-- **What changes, column by column (about 1.8 GB):**
-  - Players, 2019 AFC Champions League shoot-outs (241324, 241336, 253614, 253618, 253724): 7
-    players had a shoot-out kick counted as an in-match penalty goal; their `goals_penalty` and
-    `penalties_scored` drop by 1, their goals do not change. Blank `penalties_won` and
-    `penalties_committed` become 0 on 124 and 110 rows, because the events now show no penalty in
-    the match.
-  - Statistics: the team goal split (`goals_penalty`, `goals_own`) is filled for those matches,
-    whose goal events now add up to the score.
-  - The four changed tests (`assert_base_player_stats_cleaned`, `assert_base_team_stats_cleaned`,
-    `assert_team_goal_split_adds_up_to_score`, `assert_extra_time_goals_counted_in_score`)
-    return 0 rows on the branch's rebuilt data.
-- **Nightly read:** the events model now also reads `base_apif__fixtures_next`'s score columns,
-  2.5 MB a night (about 75 MB a month). Nothing else reads more.
-- **The first `data:build:mr` failed on two tests; both fixes approved in chat, 2026-10-11:**
-  - `assert_team_match_cleaning_answer_key`: Aston Villa 0-1 Arsenal's expected penalties change
-    from blank to 0. The nameless goal event did not count (the match report has only Saka 59'),
-    and without it the events add up.
-  - The `assist_player_sk` relationships test: 3,026 assist events in 1,449 matches named 2,318
-    players missing from `dim_player`. All 2,318 carry a name (13 MB check on the MR's CI
-    tables). `base_apif__players` now adds the assister as it adds the event's own player.
+  - `assert_mart_competition_fixtures_goals_add_up` and `assert_result_corrections_applied`
+    return 0 rows.
+- **First MR build:** `assert_player_row_and_events_same_team` failed on 3 rows, all in the 2019
+  Copa Libertadores final (247587). The provider files both teams' players under the other team,
+  so the corrected goals (Borre for River, Gabriel Barbosa twice for Flamengo) disagree with its
+  player rows. The test now skips the corrected goals, as the latest-fetch test does; the swapped
+  team lists are a separate item.
+- **Nightly read:** the mart reads about 0.15 GB more a night (goal events, players' goals,
+  player names), about 4.6 GB a month.
 - **Checks:**
   - `dbt parse` passes.
-  - sqlfluff shows no new finding on any changed model or test (counts equal to main's).
-  - Every offline gate passes.
+  - sqlfluff: 0 findings on every changed model and test.
+  - Every offline gate passes, `check_relationships_coverage` included.
   - pytest: 1496 passed, 2 skipped.

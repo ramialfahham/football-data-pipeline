@@ -317,6 +317,49 @@ resolved as (
             and decisions.resolved_player_team_id = team_names.team_id
 ),
 
+-- Every goal of a match whose provider goal events are wrong, from seeds/fixture_goal_corrections.csv,
+-- at a position past the provider's list.
+goal_corrections as (
+    select
+        f.league_code,
+        c.fixture_id,
+        10000 + c.goal_order as event_index,
+        c.minute_elapsed,
+        c.minute_extra,
+        c.player_id,
+        c.player_name,
+        c.assist_player_name,
+        c.assist_player_id,
+        'Goal' as event_type,
+        c.event_detail,
+        cast(null as string) as event_comments,
+        f.raw_ingested_at,
+        c.event_detail = 'Own Goal' as is_own_goal,
+        cast(null as int64) as resolved_player_team_id,
+        c.team_id,
+        cast(null as string) as team_name,
+        c.source as goal_correction_source
+    from {{ ref('fixture_goal_corrections') }} as c
+    inner join {{ ref('base_apif__fixtures_next') }} as f
+        on c.fixture_id = f.fixture_id
+    where c.goal_order > 0
+),
+
+-- A match with a row at goal_order 0 had no goal.
+corrected_matches as (
+    select distinct fixture_id
+    from {{ ref('fixture_goal_corrections') }}
+),
+
+all_events as (
+    select
+        *,
+        cast(null as string) as goal_correction_source
+    from resolved
+    union all
+    select * from goal_corrections
+),
+
 -- A shoot-out kick is no goal: the provider labels most, and files the rest at a negative minute.
 shootout_kicks as (
     select
@@ -326,16 +369,19 @@ shootout_kicks as (
             and (event_comments is not distinct from 'Penalty Shootout' or coalesce(minute_elapsed < 0, false)),
             false
         ) as is_shootout_kick
-    from resolved
+    from all_events
 ),
 
 goal_events as (
     select
-        *,
-        coalesce(event_type = 'Goal' and event_detail in ('Normal Goal', 'Penalty', 'Own Goal'), false)
-        and not is_shootout_kick as is_goal_event,
-        coalesce(player_id, 0) = 0 and player_name is null as is_nameless
-    from shootout_kicks
+        k.*,
+        coalesce(k.event_type = 'Goal' and k.event_detail in ('Normal Goal', 'Penalty', 'Own Goal'), false)
+        and not k.is_shootout_kick as is_goal_event,
+        coalesce(k.player_id, 0) = 0 and k.player_name is null as is_nameless,
+        m.fixture_id is not null and k.goal_correction_source is null as is_replaced
+    from shootout_kicks as k
+    left join corrected_matches as m
+        on k.fixture_id = m.fixture_id
 ),
 
 -- The score a match's goal events must add up to: the one on the pitch where a played or
@@ -358,6 +404,7 @@ nameless_left_out as (
     from goal_events as g
     inner join fixture_scores as s
         on g.fixture_id = s.fixture_id
+    where not g.is_replaced
     group by g.fixture_id, s.score_home, s.score_away
     having
         not (
@@ -385,9 +432,11 @@ select
     g.resolved_player_team_id,
     g.team_id,
     g.team_name,
+    g.goal_correction_source,
     g.is_shootout_kick,
     g.is_own_goal,
-    g.is_goal_event and not (g.is_nameless and n.fixture_id is not null) as is_goal,
+    g.is_goal_event and g.goal_correction_source is null as is_provider_goal,
+    g.is_goal_event and not g.is_replaced and not (g.is_nameless and n.fixture_id is not null) as is_goal,
     coalesce(g.event_type = 'Goal' and g.event_detail = 'Missed Penalty', false) and not g.is_shootout_kick
         as is_missed_penalty,
     -- The events prove a zero only where they cover more than the goals: a match with at least one

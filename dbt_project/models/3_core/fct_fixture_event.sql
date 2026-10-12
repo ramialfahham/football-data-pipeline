@@ -3,7 +3,8 @@
     onboarded competitions. Grain: (league_code, fixture_id, event_index) — event_index
     is the zero-based array position from the API-Football /fixtures/events response.
     API-Football does not emit event IDs; array position is the only stable unique
-    identifier within a fixture's event list.
+    identifier within a fixture's event list. A goal from fixture_goal_corrections stands
+    at event_index 10000 plus its place in the match.
 #}
 
 with src as (
@@ -35,5 +36,6 @@ select
     is_goal,
     is_own_goal,
     is_shootout_kick,
+    goal_correction_source,
     src.raw_ingested_at
 from src

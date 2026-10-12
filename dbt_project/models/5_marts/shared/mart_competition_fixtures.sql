@@ -33,6 +33,13 @@
   own URL and in every match URL. A fixture whose team is unknown to dim_team gets no slug and
   fails the tests, which name it, instead of the build inventing a URL.
 
+  Goals. A played match's goals come from the first source that adds up to its score, side by
+  side: its goal events (is_goal, with any goals corrected by hand), then its players' goals with
+  its own-goal events. A played or abandoned match awarded afterwards adds up to its score on the
+  pitch. goal_data_state names what the match has: goals (every goal with its minute; a 0-0 has
+  none), goals_without_minutes (one entry per scorer), not_recorded (the provider recorded no goal),
+  or awarded (award_kind says how; its goals as scored, none when not played).
+
   Grain: fixture_sk. league_code discriminates the competition and is not a BigQuery partition
   or cluster key.
 #}
@@ -48,6 +55,9 @@ with fixtures as (
         status_short,
         goals_home,
         goals_away,
+        award_kind,
+        on_pitch_home,
+        on_pitch_away,
         home_team_sk,
         away_team_sk,
         venue_name_snapshot
@@ -136,6 +146,240 @@ last_round as (
             and f.season_api_year = r.season_api_year
             and f.round_name = r.round_name
     group by f.league_code, f.season_api_year
+),
+
+player_names as (
+    select
+        player_sk,
+        player_name
+    from {{ ref('dim_player') }}
+),
+
+scores as (
+    select
+        f.fixture_sk,
+        f.home_team_sk,
+        f.away_team_sk,
+        if(f.award_kind in ('played', 'abandoned'), f.on_pitch_home, f.goals_home) as score_home,
+        if(f.award_kind in ('played', 'abandoned'), f.on_pitch_away, f.goals_away) as score_away
+    from fixtures as f
+    inner join played as p
+        on f.fixture_sk = p.fixture_sk
+    where f.award_kind is distinct from 'not_played'
+),
+
+goal_events as (
+    select
+        e.fixture_sk,
+        e.team_sk,
+        e.player_sk,
+        e.minute_elapsed,
+        e.minute_extra,
+        e.is_own_goal,
+        e.assist_player_sk,
+        e.event_index,
+        coalesce(p.player_name, e.player_name_snapshot) as player_name,
+        if(e.event_detail = 'Penalty', 1, 0) as penalties,
+        coalesce(ap.player_name, e.assist_player_name) as assist_player_name
+    from {{ ref('fct_fixture_event') }} as e
+    left join player_names as p
+        on e.player_sk = p.player_sk
+    left join player_names as ap
+        on e.assist_player_sk = ap.player_sk
+    where e.is_goal
+),
+
+event_totals as (
+    select
+        s.fixture_sk,
+        countif(g.team_sk = s.home_team_sk) = s.score_home
+        and countif(g.team_sk = s.away_team_sk) = s.score_away
+        and countif(g.team_sk not in (s.home_team_sk, s.away_team_sk)) = 0 as events_add_up,
+        countif(g.fixture_sk is not null and g.minute_elapsed is null) = 0 as events_have_minutes
+    from scores as s
+    left join goal_events as g
+        on s.fixture_sk = g.fixture_sk
+    group by s.fixture_sk, s.score_home, s.score_away
+),
+
+player_lines as (
+    select
+        ps.fixture_sk,
+        ps.team_sk,
+        ps.player_sk,
+        p.player_name,
+        ps.goals,
+        ps.goals_penalty
+    from {{ ref('fct_fixture_player_stats') }} as ps
+    inner join scores as s
+        on ps.fixture_sk = s.fixture_sk
+    left join player_names as p
+        on ps.player_sk = p.player_sk
+),
+
+-- An own goal counts for the side its event names; the players' goals count for their own team.
+own_goal_totals as (
+    select
+        s.fixture_sk,
+        countif(g.team_sk = s.home_team_sk) as own_goals_home,
+        countif(g.team_sk = s.away_team_sk) as own_goals_away
+    from scores as s
+    left join goal_events as g
+        on s.fixture_sk = g.fixture_sk and g.is_own_goal
+    group by s.fixture_sk
+),
+
+player_totals as (
+    select
+        s.fixture_sk,
+        coalesce(logical_and(l.goals is not null), false)
+        and coalesce(sum(if(l.team_sk = s.home_team_sk, l.goals, 0)), 0) + o.own_goals_home = s.score_home
+        and coalesce(sum(if(l.team_sk = s.away_team_sk, l.goals, 0)), 0) + o.own_goals_away = s.score_away
+            as players_add_up
+    from scores as s
+    inner join own_goal_totals as o
+        on s.fixture_sk = o.fixture_sk
+    left join player_lines as l
+        on s.fixture_sk = l.fixture_sk
+    group by s.fixture_sk, s.score_home, s.score_away, o.own_goals_home, o.own_goals_away
+),
+
+goal_sources as (
+    select
+        s.fixture_sk,
+        case
+            when e.events_add_up then 'events'
+            when p.players_add_up then 'players'
+        end as goal_source,
+        e.events_add_up and e.events_have_minutes as has_minutes
+    from scores as s
+    inner join event_totals as e
+        on s.fixture_sk = e.fixture_sk
+    inner join player_totals as p
+        on s.fixture_sk = p.fixture_sk
+),
+
+served_goals as (
+    select
+        g.fixture_sk,
+        g.team_sk,
+        g.player_sk,
+        g.player_name,
+        g.minute_elapsed,
+        g.minute_extra,
+        1 as goals,
+        g.penalties,
+        g.is_own_goal,
+        g.assist_player_sk,
+        g.assist_player_name,
+        g.event_index
+    from goal_events as g
+    inner join goal_sources as s
+        on g.fixture_sk = s.fixture_sk
+    where s.goal_source = 'events'
+    union all
+    select
+        l.fixture_sk,
+        l.team_sk,
+        l.player_sk,
+        l.player_name,
+        cast(null as int64) as minute_elapsed,
+        cast(null as int64) as minute_extra,
+        l.goals,
+        l.goals_penalty as penalties,
+        false as is_own_goal,
+        cast(null as int64) as assist_player_sk,
+        cast(null as string) as assist_player_name,
+        cast(null as int64) as event_index
+    from player_lines as l
+    inner join goal_sources as s
+        on l.fixture_sk = s.fixture_sk
+    where s.goal_source = 'players' and l.goals > 0
+    union all
+    select
+        g.fixture_sk,
+        g.team_sk,
+        g.player_sk,
+        g.player_name,
+        cast(null as int64) as minute_elapsed,
+        cast(null as int64) as minute_extra,
+        1 as goals,
+        0 as penalties,
+        true as is_own_goal,
+        cast(null as int64) as assist_player_sk,
+        cast(null as string) as assist_player_name,
+        g.event_index
+    from goal_events as g
+    inner join goal_sources as s
+        on g.fixture_sk = s.fixture_sk
+    where s.goal_source = 'players' and g.is_own_goal
+),
+
+scorer_goals as (
+    select
+        g.fixture_sk,
+        g.team_sk,
+        g.player_sk,
+        g.player_name,
+        g.is_own_goal,
+        sum(g.goals) as goals,
+        sum(g.penalties) as penalties
+    from served_goals as g
+    inner join goal_sources as s
+        on g.fixture_sk = s.fixture_sk
+    where not s.has_minutes
+    group by g.fixture_sk, g.team_sk, g.player_sk, g.player_name, g.is_own_goal
+),
+
+-- With every minute known, one entry per goal in match order; otherwise one entry per scorer. A
+-- player's provider id is his player_sk.
+goal_lists as (
+    select
+        s.fixture_sk,
+        array_agg(
+            struct(
+                case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
+                g.player_sk as player_api_id,
+                g.player_name,
+                g.minute_elapsed,
+                g.minute_extra,
+                g.goals,
+                g.penalties,
+                g.is_own_goal,
+                g.assist_player_sk as assist_player_api_id,
+                g.assist_player_name
+            )
+            order by g.minute_elapsed, g.minute_extra, g.event_index
+        ) as goals
+    from served_goals as g
+    inner join goal_sources as s
+        on g.fixture_sk = s.fixture_sk
+    inner join scores as sc
+        on g.fixture_sk = sc.fixture_sk
+    where s.has_minutes
+    group by s.fixture_sk
+    union all
+    select
+        g.fixture_sk,
+        array_agg(
+            struct(
+                case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
+                g.player_sk as player_api_id,
+                g.player_name,
+                cast(null as int64) as minute_elapsed,
+                cast(null as int64) as minute_extra,
+                g.goals,
+                g.penalties,
+                g.is_own_goal,
+                cast(null as int64) as assist_player_api_id,
+                cast(null as string) as assist_player_name
+            )
+            order by g.goals desc, g.player_name asc
+        ) as goals
+    from scorer_goals as g
+    inner join scores as sc
+        on g.fixture_sk = sc.fixture_sk
+    group by g.fixture_sk
 )
 
 select
@@ -158,6 +402,10 @@ select
     a.team_slug as away_team_slug,
     a.team_logo_url as away_team_logo_url,
     f.venue_name_snapshot as venue_name,
+    f.award_kind,
+    f.on_pitch_home,
+    f.on_pitch_away,
+    gl.goals,
     safe_cast(regexp_extract(f.round_name, r'(\d+)$') as int64) as round_order,
     p.fixture_sk is not null as is_played,
     case
@@ -171,6 +419,13 @@ select
     coalesce(m.is_match_that_matters, false) as is_match_that_matters,
     nh.fixture_sk is not null as is_home_team_next_match,
     na.fixture_sk is not null as is_away_team_next_match,
+    case
+        when p.fixture_sk is null then null
+        when f.status_short in ('AWD', 'WO') then 'awarded'
+        when gs.goal_source = 'events' and gs.has_minutes then 'goals'
+        when gs.goal_source is not null then 'goals_without_minutes'
+        else 'not_recorded'
+    end as goal_data_state,
     row_number() over (
         partition by f.league_code, f.season_api_year
         order by r.round_sequence asc, f.kickoff_datetime asc, f.fixture_sk asc
@@ -207,3 +462,7 @@ left join team_next as na
     on
         f.fixture_sk = na.fixture_sk
         and f.away_team_sk = na.team_sk
+left join goal_sources as gs
+    on f.fixture_sk = gs.fixture_sk
+left join goal_lists as gl
+    on f.fixture_sk = gl.fixture_sk

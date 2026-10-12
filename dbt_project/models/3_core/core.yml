@@ -836,7 +836,7 @@ models:
         description: "{{ doc('raw_ingested_at') }}"
 
   - name: fct_fixture_event
-    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch."
+    description: "In-match events (goals, cards, substitutions, VAR decisions). Grain: (fixture_id, event_index) — event_index is the zero-based array position from the API-Football /fixtures/events response, which does not emit event IDs. Rebuilt in full every night from base_apif__fixture_events, so each match carries the events of its latest fetch, and any goals from fixture_goal_corrections at event_index 10000 and up."
     meta:
       owner: "data-platform"
       domain: "football"
@@ -848,7 +848,7 @@ models:
         description: "Surrogate key hashing (fixture_id, event_index)."
         tests: [not_null, unique]
       - name: event_index
-        description: "Zero-based array position of the event within the fixture's event list. Combined with fixture_id, this is the unique grain of the fact."
+        description: "Zero-based array position of the event within the fixture's event list; 10000 plus the goal's place in the match for a goal from fixture_goal_corrections. Combined with fixture_id, this is the unique grain of the fact."
         tests: [not_null]
       - name: fixture_sk
         description: >
@@ -921,6 +921,8 @@ models:
       - name: is_shootout_kick
         description: "TRUE for a penalty shoot-out kick, scored or missed. A shoot-out kick is never a goal."
         tests: [not_null]
+      - name: goal_correction_source
+        description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. A match with such goals counts only them: is_goal is FALSE on its provider goal events."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
 

@@ -346,7 +346,11 @@ models:
   - name: base_apif__fixture_events
     description: >
       One row per event in a fixture, from stg_apif__fixture_events, keeping the events of the
-      match's latest fetch that has events. Grain: (league_code, fixture_id, event_index).
+      match's latest fetch that has events, and one row per goal from fixture_goal_corrections.
+      Grain: (league_code, fixture_id, event_index).
+
+      A goal from fixture_goal_corrections is no provider event: it stands at event_index 10000
+      plus its place in the match, with goal_correction_source set.
 
       event_index is the 0-based position in the provider's events array and is the stable
       identity of an event. Deduplication is on POSITION, not content: the provider sometimes
@@ -398,6 +402,11 @@ models:
         tests: [not_null]
       - name: has_full_events
         description: "TRUE on every event of a match whose events include a substitution or a card, which every played match has: only then do its events show that a team or player had none of something."
+        tests: [not_null]
+      - name: goal_correction_source
+        description: "On a goal from fixture_goal_corrections, the source's https URLs; NULL on every event the provider sent. Such a goal stands at event_index 10000 plus its place in the match."
+      - name: is_provider_goal
+        description: "TRUE where the provider files the event as a goal that counts: a normal goal, a penalty or an own goal, not a shoot-out kick. On a match whose goals come from fixture_goal_corrections, is_goal is FALSE on these events and TRUE on the corrections."
         tests: [not_null]
 
   - name: base_apif__player_team_season
