@@ -1,25 +1,26 @@
-# Review — feat/lineup-research-mls-2
+# Review — feat/lineup-research-apd
 
-diff_sha256: 182a55b686965dbf71998a1de084bb79042a57aa25d51441ba632a66c25c5c47
+diff_sha256: d4a5969da23e5abdbe91c294388ab12264a75f7eb066ea3e0e1a6ae8b488648a
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only the contract and the seed change, both in scope_paths; the seed hunk adds rows only, so no earlier row changes.
-- Nothing decides the next leagues, the older seasons or the garbled provider names, which stay reserved; the rows are MLS 2025 and 2026 only.
-- MLS as the batch, the provider's formations and pitch positions, and Austin-LAFC left out each carry their named approval; the carried-over batch-1 and batch-2 rules are restated with theirs.
+- Only the contract and the seed change, both in scope_paths; the seed hunk adds 1,185 rows and removes none.
+- Nothing decides the next leagues, the previous season (#215) or the garbled provider names.
+- The current-season order, Argentina as the batch and the widened id rule each carry their named approval; the provider's formations, positions and unused substitutes are a stated reading, as the official sheet shows none.
+- Round 1 note: the extra-time break reading appeared only in the evidence; round 2 names it in decisions_taken as a reading of the half-time rule.
 - No new mechanism and no recurring cost; nothing in Appendix A applies; no chat wording in the pushed files.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- All 64 matches read: two teams with 11 distinct starters each, no starter with a minute on, every substitute's replaced player on the same team with a matching minute off, offs equal to ons.
-- One formation per team; the four teams without one are the four the provider holds none for, which the schema allows.
-- Sources are https on mlssoccer.com and change only at match boundaries; the notes of the playoff, Klauss, Vancouver-LAFC and D.C. United-Philadelphia matches are true to their rows and to the official data.
-- Spot checks against the official data hold, including the swapped playoff match 1482413 and Klauss's id at LA Galaxy; substitutions the official data gives no minute keep the provider's.
-- The earlier rows, the base model, the schema and the tests are unchanged.
+- 572 starter rows, 11 distinct per team sheet in all 52, checked against the official sheets; no starter with a minute on; one formation per team.
+- 241 substitutions, equal to the official lists: each replaced player on the same team with a matching minute off, each pair the official commentary's.
+- Spot checks hold: Herrera's id in 1493176, Ramírez's in 1493169, the official pairing in 1493166, and the extra-time minutes of the three knockout matches.
+- Round 1 note: three notes left out a minute change on a substitution whose outgoing player the provider lacked; round 2 counts it, and only the note column of those matches changed.
+- Notes constant per match and true to their rows; every source https on ligaprofesional.ar; earlier rows, model, schema and tests unchanged.
 
 ## escalations
 (none)
