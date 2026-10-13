@@ -15,17 +15,17 @@
 -- 177 windows keep their rates that would otherwise be nulled), and this test is the standing guard
 -- for when real data finally reaches it.
 --
--- `games_expecting_team_stats` is projected out of mart_team_momentum for this test. Without it
+-- `games_expecting_team_stats` is projected out of mart_team_window_metrics for this test. Without it
 -- nothing on this surface can tell a correct gate from one reverted to games_in_window.
 
 {{ config(store_failures = true) }}
 
 with momentum as (
-    select * from {{ ref('mart_team_momentum') }}
+    select * from {{ ref('mart_team_window_metrics') }}
 )
 
 select
-    upcoming_fixture_sk,
+    fixture_sk,
     team_sk,
     window_type,
     games_in_window,

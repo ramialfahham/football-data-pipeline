@@ -41,11 +41,11 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
       fixture shows **15 rows / 6 groups**; the other three show the full **16 / 7**.
   ⚠ The outgoing 2026-08-28 set showed why this must be replaced rather than refreshed: it was four
   days past, and its payloads pre-dated four mart columns, so the comparison rendered 12 of 16 rows.
-  ⛔ **A PAST FIXTURE CAN NEVER BE RE-EXPORTED, so this set is REPLACED and never appended to.**
+  ⛔ **A PAST FIXTURE CAN NEVER BE RE-EXPORTED, so this set is REPLACED and never appended to**.
   `fetch_fixture_payloads` selects `status_short in ('NS', 'TBD') and fixture_date >=
-  current_date()`, and once a match kicks off its pre-match form rows leave `mart_team_momentum`
-  and `mart_team_season_record` altogether (queried on 2026-08-28 against the previous set: **0
-  rows** in both marts for `1492306` and `1622620`). A stale id left in the allowlist therefore
+  current_date()`. Once a match kicks off, its pre-match form rows leave
+  `mart_team_window_metrics` and `mart_team_season_record` altogether. A stale id left in the
+  allowlist therefore
   pins a payload that no rerun can ever update — which is exactly how the previous set came to
   serve column names that had been renamed two merge requests earlier.
 - `matches/*.json` — the Matches page's days (#160), one file per day in reach, produced verbatim
@@ -73,7 +73,7 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
   per language are copy in `strings.ts`. Pinned to the seed by `tests/test_metric_groups.py`, so a
   seed change means regenerating this file in the same commit.
 - `metric_rows.json` — the rows of the match page's Form comparison. Each is a team metric
-  `mart_team_momentum` serves outside Results, in the catalogue's `metric_order`: its key, name key,
+  `mart_team_window_metrics` serves outside Results, in the catalogue's `metric_order`: its key, name key,
   group, order, direction, format and per-match
   flag. Produced verbatim by `python scripts/export_site_data.py --entities metric_rows` from
   `metric_catalogue.csv` (no BigQuery). Pinned to the seed by `tests/test_metric_rows.py`.
@@ -105,11 +105,11 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
 regenerating it changes WHICH fixture and team ids belong here. Regenerate `landing.json`, then
 update the `.gitignore` allowlist and the committed files to match it, in the same commit.
 
-⛔ **AND THERE IS NO OTHER KIND OF FIXTURE REFRESH — this is the trap that cost a merge request.**
-The obvious move, rerunning the export and expecting the committed payloads to update in place,
-CANNOT work: `fetch_fixture_payloads` emits upcoming fixtures only, and a kicked-off fixture's
-pre-match form rows are gone from `mart_team_momentum` and `mart_team_season_record` (0 rows,
-queried). So a rerun writes thousands of new payloads and silently leaves every committed one
+⛔ **AND THERE IS NO OTHER KIND OF FIXTURE REFRESH — this is the trap that cost a merge request**.
+Rerunning the export does NOT update the committed payloads in place. `fetch_fixture_payloads`
+emits upcoming fixtures only. A kicked-off fixture's pre-match form rows are gone from
+`mart_team_window_metrics` and `mart_team_season_record`. So a rerun writes thousands of new
+payloads and silently leaves every committed one
 exactly as it was. On 2026-08-28 that is precisely what happened: the export exited 0, reported
 5,066 fixture payloads written, and not one of the 17 tracked files changed — they were still
 serving two column names renamed two merge requests earlier. Roll the whole set forward, or the

@@ -4,7 +4,9 @@ models:
   - name: int_team_momentum_window
     description: >
       WHICH past matches count as a side's recent form. One row per (upcoming fixture side,
-      selected match). Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk).
+      selected match). Grain: (upcoming_fixture_sk, team_sk, leg_fixture_sk). Every played
+      fixture is also a window of one for each side (window_type match): there
+      upcoming_fixture_sk and leg_fixture_sk both hold that played fixture.
 
       {{ doc('window_type__form') }}
 
@@ -18,7 +20,7 @@ models:
           name: momentum_window_team_recency_rank_capped_for_last_5
     columns:
       - name: upcoming_fixture_sk
-        description: "{{ doc('upcoming_fixture_sk') }}"
+        description: "{{ doc('upcoming_fixture_sk') }} On a match window (window_type match) it holds the played fixture itself."
         tests:
           - not_null
           - relationships:
@@ -43,7 +45,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5", "tournament_to_date", "qualifiers"]
+              values: ["last_5", "tournament_to_date", "qualifiers", "match"]
       - name: recency_rank
         description: "1 = most recent of the window legs (uncapped for tournament windows)."
         tests: [not_null]

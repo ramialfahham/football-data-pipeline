@@ -321,7 +321,7 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_team_market_value` | team_sk | Team squad market value; currently WC-scoped (see #418 to generalize). |
 | `mart_team_profile` | (team_sk, season_sk) | v2 team profile: full-season metrics, YoY deltas, streaks. |
 | `mart_player_profile` | (player_sk, season_sk) | v2 player profile rollup. |
-| `mart_team_momentum` | (upcoming_fixture_sk, team_sk) | W1 last-5 momentum aggregate (team). |
+| `mart_team_window_metrics` | (fixture_sk, team_sk) | A team's metrics over a window, for the match whose page shows them: its form before an upcoming match, the match alone once played. |
 | `mart_player_momentum` | (upcoming_fixture_sk, team_sk, player_sk) | W1 momentum aggregate (player). |
 | `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
 | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |

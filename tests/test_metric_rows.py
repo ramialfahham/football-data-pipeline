@@ -1,7 +1,7 @@
 """The match page's Form comparison rows are the catalogue's, and the site reads a copy of them.
 
 `site_v2/src/data/metric_rows.json` is a committed build input the export writes from
-`metric_catalogue.csv`: every team metric `mart_team_momentum` serves, minus the Results group,
+`metric_catalogue.csv`: every team metric `mart_team_window_metrics` serves, minus the Results group,
 which the page shows elsewhere. These tests lock the committed file to a fresh regeneration, hold
 the row set to that, and hold each group to the catalogue's rising `metric_order`.
 """
@@ -36,7 +36,7 @@ def test_the_committed_file_is_a_fresh_regeneration_from_the_seed():
 
 def test_the_rows_are_the_form_window_metrics_outside_results():
     team = {r["metric_id"]: r for r in _read(CATALOGUE) if r["entity"] == "team"}
-    served = {r["metric_id"] for r in _read(METRIC_MAP) if r["table_name"] == "mart_team_momentum"}
+    served = {r["metric_id"] for r in _read(METRIC_MAP) if r["table_name"] == "mart_team_window_metrics"}
     expected = {m for m in served if team[m]["metric_group"] != "outcomes"}
     rows = {r["metric_id"] for r in export.fetch_metric_rows()["rows"]}
     assert len(expected) >= 30

@@ -1,6 +1,6 @@
 {#
   The rate guard of engineering_standards.md section 3.2, on the form-window surface. For every
-  team rate the catalogue defines with a denominator, wherever mart_team_momentum shows a value,
+  team rate the catalogue defines with a denominator, wherever mart_team_window_metrics shows a value,
   every column its formula reads is present in every non-awarded leg of that window.
 
   Generated from metric_catalogue.csv at run time: the identifiers of numerator_expr /
@@ -19,12 +19,12 @@
 #}
 {{ config(store_failures = true) }}
 -- depends_on: {{ ref('metric_catalogue') }}
--- depends_on: {{ ref('mart_team_momentum') }}
+-- depends_on: {{ ref('mart_team_window_metrics') }}
 -- depends_on: {{ ref('int_team_momentum_window') }}
 -- depends_on: {{ ref('int_legs__team_match') }}
 -- depends_on: {{ ref('int_legs__team_from_players') }}
 
-{% set surface = 'mart_team_momentum' %}
+{% set surface = 'mart_team_window_metrics' %}
 {% set member_floor = 10 %}
 {% set legs = {'int_legs__team_match': 'l', 'int_legs__team_from_players': 'p'} %}
 {% set members = [] %}
@@ -101,7 +101,10 @@ with uncovered as (
 ),
 
 surface as (
-    select * from {{ ref(surface) }}
+    select
+        fixture_sk as upcoming_fixture_sk,
+        * except (fixture_sk)
+    from {{ ref(surface) }}
 )
 
 {% for m in members %}

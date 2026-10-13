@@ -61,7 +61,7 @@ PINNED = {
     "docs/wireframes/99_gaps_register.md": 30,
     "docs/wireframes/block_standard.md": 51,
     "docs/wireframes/metrics_display.md": 44,
-    "site_v2/src/data/README.md": 19,
+    "site_v2/src/data/README.md": 18,
 }
 
 DATE = "-".join(["20" + "31", "01", "02"])

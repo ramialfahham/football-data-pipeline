@@ -1,5 +1,5 @@
 -- #484: the player top-players strip and the team form panel must use the SAME form window.
--- Both mart_player_momentum and mart_team_momentum derive window_type from the one shared
+-- Both mart_player_momentum and mart_team_window_metrics derive window_type from the one shared
 -- selection (int_team_momentum_window), so for every upcoming fixture side present in BOTH marts
 -- the window_type must be identical. A mismatch means the player path drifted off the shared
 -- window (e.g. a re-introduced inline last_5) — the exact regression #484 fixed.
@@ -21,10 +21,10 @@ with player_sides as (
 
 team_sides as (
     select
-        upcoming_fixture_sk,
+        fixture_sk as upcoming_fixture_sk,
         team_sk,
         window_type
-    from {{ ref('mart_team_momentum') }}
+    from {{ ref('mart_team_window_metrics') }}
 )
 
 select

@@ -24,6 +24,10 @@
   feeds the player momentum builder (int_player_momentum__metrics), so the player top-players strip
   and the team form panel share one window (#484).
 
+  Match window (window_type='match'): every played fixture is a window of one for each side, its
+  own page's numbers. Here upcoming_fixture_sk holds that played fixture. The form readers
+  (int_player_momentum__metrics, mart_team_momentum_window) leave these rows out.
+
   Returns no rows for a team with no finished matches yet (before phase for a club
   domestic_league); #326's season-to-date fallback covers that gap.
 
@@ -152,6 +156,53 @@ candidate_legs as (
         on l.league_code = legreg.league_code
 ),
 
+-- Every played match is its own window of one, for its own page: the fixture's key holds the
+-- played match itself. Same columns, in the same order, as candidate_legs.
+match_legs as (
+    select
+        l.fixture_sk as upcoming_fixture_sk,
+        l.team_sk,
+        l.season_api_year,
+        l.entity_type,
+        l.league_code as upcoming_league_code,
+        l.fixture_sk as leg_fixture_sk,
+        l.league_code as leg_league_code,
+        legreg.parent_competition as leg_parent_competition,
+        l.season_api_year as leg_season_api_year,
+        l.kickoff_datetime as leg_kickoff_datetime,
+        l.round_name as leg_round_name,
+        l.home_away,
+        l.opponent_team_sk,
+        l.result,
+        l.is_awarded_result,
+        l.goals,
+        l.goals_against,
+        l.goals_penalty,
+        l.goals_own,
+        l.goals_own_against,
+        l.shots,
+        l.shots_on_target,
+        l.shots_inside_box,
+        l.passes,
+        l.passes_accurate,
+        l.corners,
+        l.corners_against,
+        l.saves,
+        l.shots_on_target_against,
+        l.shots_off_target,
+        l.shots_blocked,
+        l.passes_against,
+        l.fouls,
+        l.offsides,
+        l.free_kicks,
+        l.cards_yellow,
+        l.cards_red,
+        false as is_tournament
+    from {{ ref('int_legs__team_match') }} as l
+    left join registry as legreg
+        on l.league_code = legreg.league_code
+),
+
 -- Tournament side, while running: legs played in THIS tournament edition so far.
 tournament_legs as (
     select *
@@ -219,6 +270,14 @@ qualifier_window as (
     from qualifier_legs
 ),
 
+match_window as (
+    select
+        *,
+        'match' as window_type,
+        1 as recency_rank
+    from match_legs
+),
+
 last5_window as (
     select
         *,
@@ -238,6 +297,8 @@ combined as (
     select * from tournament_window
     union all
     select * from qualifier_window
+    union all
+    select * from match_window
     union all
     select * from last5_window
     where recency_rank <= 5

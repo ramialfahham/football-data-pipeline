@@ -329,7 +329,7 @@ site_v2/src/data/fixtures/*.json
 # ⛔ THIS SET REPLACED THE 2026-08-28 ONE WHOLESALE, and a future refresh must do the same rather
 # than append. The export emits UPCOMING fixtures only — `status_short in ('NS', 'TBD') and
 # fixture_date >= current_date()` in `fetch_fixture_payloads` — and once a fixture kicks off its
-# pre-match form rows leave `mart_team_momentum` and `mart_team_season_record` altogether. So a past
+# pre-match form rows leave `mart_team_window_metrics` and `mart_team_season_record` altogether. So a past
 # id can never be re-exported, and a stale entry left here would pin a payload that no rerun can
 # ever update. Replace, never add.
 # ⚠ The 2026-08-28 set proved that from the other side: it was FOUR DAYS past when replaced, and its

@@ -66,15 +66,15 @@ provenance_failures as (
 
 tournament_sides as (
     select
-        m.upcoming_fixture_sk,
+        m.fixture_sk as upcoming_fixture_sk,
         m.team_sk,
         m.league_code,
         m.season_api_year,
         m.games_in_window,
         f.kickoff_datetime
-    from {{ ref('mart_team_momentum') }} as m
+    from {{ ref('mart_team_window_metrics') }} as m
     inner join {{ ref('fct_fixture') }} as f
-        on m.upcoming_fixture_sk = f.fixture_sk
+        on m.fixture_sk = f.fixture_sk
     where m.window_type = 'tournament_to_date'
 ),
 

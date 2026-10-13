@@ -1,30 +1,12 @@
-# Verification — researched line-ups, batch 5: the elite pool and the World Cup
+# Verification — a window of one played match on the Form comparison's mart
 
-26 current-season matches of the elite pool and the World Cup were on the line-up research list:
-La Liga 3, Serie A 3, Ligue 1 5, Liga Portugal 6, Eredivisie 5, World Cup 4. 23 are now researched
-from each competition's official match record; three stay out.
+The site does not read the renamed mart's new rows: the export's form read stays scoped to
+upcoming fixtures. Of the two files under site_v2/src that change, the README is read by nothing,
+and the spec is read only by the prebuild gate `check-page-specs.mjs`, which checks that every mart
+a spec names exists: on the branch it prints "10 page(s) validated against their specs. OK." The
+checks below show the site and its payloads unchanged.
 
-- **Sources** (each competition's own site and the data its pages load): laliga.com match pages,
-  legaseriea.it line-ups, ligue1.com match sheets, ligaportugal.pt match data, eredivisie.nl match
-  data, fifa.com match centre. Each gives both team sheets with the full bench, shirt numbers, the
-  formation and every substitution with its minute, the player on and the player off.
-- **How each match was checked:** every official player matched to the provider's player by team,
-  shirt number and name; 41 matched by shirt only, the provider using another form of the name,
-  and every one is confirmed by the provider's full name (e.g. Yusi is Youssef Enríquez, E. Mbondo
-  is Emmanuel Alexi Koum Mbondo, Dunga is Nabil Emad). Each match's number of substitutions equals
-  the official one.
-- **Differences from the provider, the rows following the official record:** 21 substitutions
-  without the player replaced, 2 substitutions missing, 33 minutes; five players the provider's
-  sheets leave out take the id the provider gives them at their club in 2026 (Kostić, M. L. Ndiaye,
-  Simakha and Kamissoko from its squad lists, Jemide from its own Alverca sheet of another match).
-- **Formations and pitch positions** are the provider's; New Zealand and Czechia, for whom the
-  provider has none, take FIFA's.
-- **Left out**, their players having no provider id at the club in 2026: Telstar-ADO Den Haag
-  (Álex Pozo), Stade Rennais-AJ Auxerre (Youssef Khoudda), FC Arouca-Moreirense (Rodrigo Soares).
-- **On prod data** (the branch's base_apif__lineups with all 171 researched matches, session-only
-  copy): every one comes out researched; assert_lineup_researched_matches_hold, the substitution
-  pairing and the eleven-starters tests return no rows; of these competitions only the three
-  matches above are left on the research list; 851 matches remain overall; every researched
-  player is in dim_player.
-- **The seed:** 1,056 new rows (7,105 in all), no duplicate key, every source official and https,
-  one formation per team; the earlier rows unchanged.
+criteria_demonstrated:
+  - Committed sample payloads unchanged: `git diff --stat gitlab/main -- site_v2/src/data` on the branch lists one file, `site_v2/src/data/README.md` (10 insertions, 10 deletions: the mart's new name and two sentences split); no payload under site_v2/src/data differs from main.
+  - Built site unchanged: main (7601c714, a scratch worktree) and the branch each built with astro build, 2,538 pages plus the root redirect `dist/index.html`; a script compared every HTML file under dist: pages main=2539 branch=2539, only on one side 0, pages with different text 0, pages with different HTML 0 (byte-identical).
+  - Fixture payload keys unchanged: tests/test_export_site_data.py feeds fetch_fixture_payloads a mart_team_window_metrics row keyed by fixture_sk and asserts the home side's form block is exactly {"window_type": "last_5", "goals_per_match": 1.4}; test_form_block_is_the_block_the_warehouse_flags asserts the same with a fixture_sk-keyed row; both pass.
