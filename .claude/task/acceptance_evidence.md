@@ -1,40 +1,36 @@
-# Verification — researched line-ups, batch 3: MLS
+# Verification — researched line-ups, batch 4: Argentina's Liga Profesional
 
-66 MLS matches of 2025 and 2026 were on the line-up research list. 64 are now researched from the
-league's official match data, the data the mlssoccer.com line-up and match feed pages show; two
-stay out.
+26 Liga Profesional matches of the 2026 season were on the line-up research list: 25 with a
+substitution the provider could not pair, one with a sheet lacking eleven identified starters. All
+26 are now researched from the league's official match sheet on ligaprofesional.ar.
 
-- **What was wrong at the provider:** in 52 matches a substitution named the player who came on
-  but not the player replaced (53 substitutions); in 11 playoff matches each team's sheet was filed
-  under the other team; 2 substitutions were missing from the sheets entirely; in 2 matches a
-  player was on no squad list of his club, and the official sheets confirm the provider's.
-- **How each match was checked:** the official data's two sheets, starters and bench with shirt
-  numbers, and every substitution with its minute, the player on and the player off. Each official
-  player was matched to the provider's player by team, shirt number and name; six matched by shirt
-  only, the provider using another form of the name, and five of those are confirmed by the
-  provider's full names (Zanka is Mathias Jørgensen, Pedrinho is Pedro Martins, N. Mercau is
-  Nicolás Fernández Mercau, D. D'Avilla is Dje D'Avilla, Casemiro is Carlos Casimiro); A. Gomez,
-  Orlando's #3, is the starter in the official Adrián Marín's place and shirt, whose full surname is
-  Marín Gómez. Each match's number of substitutions equals the official one.
-- **Differences from the provider, the rows following the official data:**
-  - two matches with substitutions paired differently: New England-D.C. United, Atlanta-Sporting
-    Kansas City;
-  - 17 substitutions a minute or two off;
-  - St. Louis-LA Galaxy (2026): J. Klauss, whom the provider's sheet leaves out, came on for
-    Furuhashi at 11'; the row takes his id from the club's 2026 squad list;
-  - D.C. United-Philadelphia (2025): the provider's bench also lists J. Hopkins, whom the official
-    sheet does not name; he has no row.
-  - Half-time substitutions keep the provider's 46', and the one substitution in the break before
-    extra time (Vancouver-LAFC) its 91': the official data gives them no minute.
-  - Formations and pitch positions are the provider's.
-- **Left out:**
-  - New York Red Bulls-San Diego (2026): D. Mimbang and Pedrinho Castro are on no provider squad
-    list of their clubs in 2026.
-  - Austin-LAFC (2025 playoffs): the provider's statistics put I. Sánchez, who started for Austin,
-    under LAFC; the fix is #213.
-- **On prod data** (the branch's base_apif__lineups with all 122 researched matches, session-only
+- **How each match was checked:** the official sheet's two team sheets give the starting elevens
+  and every substitute who came on, with shirt numbers; its commentary gives every substitution
+  with its minute, the player on and the player off. Each official player was matched to the
+  provider's player by team, shirt number and surname. Each match's number of substitutions equals
+  the official one, and every starting eleven equals the provider's but for the goalkeeper the
+  provider holds no id for in River Plate-Estudiantes de Río Cuarto.
+- **Names checked against the provider's full names**, the provider using another form: O. Gill is
+  Orlando Gill, N. Tripichio is Nicolás Tripichio, S. Rosané is Siro Cabral Rosané, L. Gianetti is
+  Lautaro Giannetti, J. Mattar is Jerónimo Gómez Mattar, B. Gallego is Baltasar Gallego Rodríguez.
+  J. Freitas wears 35 on the official sheet and 44 at the provider; the row carries 35.
+- **Differences from the provider, the rows following the official sheet:**
+  - 22 matches lacked the player replaced in one substitution;
+  - River Plate-Estudiantes de Río Cuarto: the provider's sheet has no id for the starting
+    goalkeeper, Lautaro Herrera, who takes the id of the provider's 2026 squad list of his club;
+  - Central Córdoba-Estudiantes de La Plata: the provider's sheet leaves out Tiziano Ramírez, who
+    came on for Vera at 67'; he takes the id the provider gives him on its own Deportivo
+    Riestra-Central Córdoba sheet of the same season;
+  - Deportivo Riestra-Central Córdoba: the provider's sheet lacks Ramírez's substitution at 74';
+  - one pairing (Vélez-Platense) and six minutes, two of them on substitutions whose outgoing
+    player the provider also lacked.
+  - Half-time substitutions keep the provider's 46', and those in the breaks of extra time the
+    provider's 91' and 106': the official sheet stamps them with the minute before the break.
+  - Formations, pitch positions and unused substitutes are the provider's: the official sheet
+    shows none.
+- **On prod data** (the branch's base_apif__lineups with all 148 researched matches, session-only
   copy): every one comes out researched; assert_lineup_researched_matches_hold, the substitution
-  pairing and the eleven-starters tests return no rows; the two MLS matches above are left on the
-  research list; 898 matches remain overall; every researched player is in dim_player.
-- **The seed:** 2,547 new rows (4,864 in all), no duplicate key, every source official and https,
+  pairing and the eleven-starters tests return no rows; no Liga Profesional match of 2026 is left
+  on the research list; 874 matches remain overall; every researched player is in dim_player.
+- **The seed:** 1,185 new rows (6,049 in all), no duplicate key, every source official and https,
   one formation per team; the earlier rows unchanged.
