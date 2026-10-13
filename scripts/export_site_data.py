@@ -1027,6 +1027,18 @@ def fetch_team_payloads(client, sample: int = 0) -> list[dict]:
     ]
 
 
+_PLAYER_MATCH_LOG_COLUMNS = (
+    "player_sk, fixture_sk, team_sk, opponent_team_sk, league_code, season_api_year, "
+    "kickoff_datetime, round_name, is_home, team_goals_for as goals_for, "
+    "team_goals_against as goals_against, player_name, player_photo_url, team_name, "
+    "team_logo_url, opponent_name, opponent_logo_url, position_code, minutes_played, "
+    "is_starter, is_substitute, goals_total, goals_assists, saves, shots_total, shots_on, "
+    "passes_total, passes_key, passes_accuracy_percent, tackles_total, tackles_interceptions, "
+    "duels_total, duels_won, dribbles_attempts, dribbles_success, fouls_drawn, "
+    "fouls_committed, cards_yellow, cards_red, result"
+)
+
+
 def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
     profiles = _query(
         client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_player_profile`"
@@ -1034,14 +1046,15 @@ def fetch_player_payloads(client, sample: int = 0) -> list[dict]:
     by_player = _group_by(profiles, "player_sk")
     player_ids = list(by_player.keys())[:sample] if sample else list(by_player.keys())
     wanted = set(player_ids)
-    log_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_match_log`"
+    log_table = f"`{GCP_PROJECT}.{MARTS_DATASET}.mart_player_fixture_stats`"
+    log_select = f"select {_PLAYER_MATCH_LOG_COLUMNS} from {log_table} where has_stat_line"
     if sample:
         # Don't pull the whole match log for a sample run — scope it to the
         # sampled players (player_sk is an int64 surrogate, safe to inline).
         id_list = ", ".join(str(int(pid)) for pid in player_ids)
-        log_sql = f"select * from {log_table} where player_sk in ({id_list})"
+        log_sql = f"{log_select} and player_sk in ({id_list})"
     else:
-        log_sql = f"select * from {log_table}"
+        log_sql = log_select
     logs = _query(client, log_sql)
     by_player_log = _group_by(logs, "player_sk")
     # GAP-21: per-player benchmark rows from mart_player_competition_benchmarks (scoped to the
@@ -2025,6 +2038,12 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     )
 
 
+_MATCHSTATS_PLAYER_DROP = {
+    "fixture_sk", "opponent_team_sk", "team_goals_for", "team_goals_against", "team_logo_url",
+    "opponent_name", "opponent_logo_url", "result",
+}
+
+
 def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:
     """One played fixture's full stat lines (the form-window click-through):
     both teams' team-stat rows + every player's row."""
@@ -2032,7 +2051,7 @@ def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[d
         "type": "matchstats",
         "fixture_id": fixture_id,
         "team_stats": [_drop(r, {"fixture_sk"}) for r in team_rows],
-        "player_stats": [_drop(r, {"fixture_sk"}) for r in player_rows],
+        "player_stats": [_drop(r, _MATCHSTATS_PLAYER_DROP) for r in player_rows],
     }
 
 

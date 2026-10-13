@@ -280,7 +280,7 @@ QUESTIONS = (
     ("How many goals did Lewandowski score for Barcelona each season?",
      "mart_player_career", "goals_player", "goals_player", {}),
     ("How many tackles did Declan Rice make in his last match?",
-     "mart_player_match_log", "tackles_total", "tackles_player", {}),
+     "mart_player_fixture_stats", "tackles_total", "tackles_player", {}),
     ("What share of his team's goals has Mbappé scored or set up this season?",
      "mart_player_profile", "contribution_player_pct", "contribution_player_pct", {}),
 )

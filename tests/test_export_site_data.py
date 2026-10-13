@@ -101,6 +101,34 @@ def test_shape_matchstats_drops_fixture_sk():
     assert p["player_stats"][0]["goals_total"] == 1
 
 
+def test_shape_matchstats_leaves_out_the_match_context_columns_of_the_player_mart():
+    context = {"opponent_team_sk": 2, "team_goals_for": 1, "team_goals_against": 0, "team_logo_url": "u",
+               "opponent_name": "B", "opponent_logo_url": "v", "result": "W"}
+    p = shape_matchstats(99, [], [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1, **context}])
+    assert p["player_stats"] == [{"player_sk": 7, "goals_total": 1}]
+
+
+def test_player_payload_reads_the_match_log_from_the_player_in_a_match_mart(monkeypatch):
+    """The match log is the stat-line rows of mart_player_fixture_stats, with the team's score under the
+    keys the payload has always carried."""
+    seen = []
+
+    def fake_query(client, sql):
+        seen.append(sql)
+        if "mart_player_profile" in sql:
+            return [{"player_sk": 7, "player_name": "P7", "season_api_year": 2026, "league_code": "BL1",
+                     "is_featured_season": True}]
+        return []
+
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    export_site_data.fetch_player_payloads(object(), sample=1)
+
+    (log_sql,) = [s for s in seen if "mart_player_fixture_stats" in s]
+    assert "mart_player_match_log" not in " ".join(seen)
+    assert "where has_stat_line and player_sk in (7)" in log_sql
+    assert "team_goals_for as goals_for" in log_sql and "team_goals_against as goals_against" in log_sql
+
+
 def test_fetch_glossary_reads_catalogue_seed():
     g = fetch_glossary()                       # reads the real seed (offline, no BQ)
     assert g["type"] == "glossary"

@@ -6,7 +6,7 @@
   compare at a relative 1e-9.
 
   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
-  grain present on one side only. The two match-level marts carry the pass accuracy of the player's
+  grain present on one side only. The match-level mart carries the pass accuracy of the player's
   own match as a whole percentage (passes_accuracy_percent), checked the same way.
 #}
 {{ config(store_failures = true, severity = 'error') }}
@@ -22,7 +22,6 @@
 -- depends_on: {{ ref('int_player_season_record') }}
 -- depends_on: {{ ref('int_player_profile__contribution') }}
 -- depends_on: {{ ref('mart_player_fixture_stats') }}
--- depends_on: {{ ref('mart_player_match_log') }}
 -- depends_on: {{ ref('fct_fixture_player_stats') }}
 
 {% set surfaces = [
@@ -226,16 +225,12 @@ match_level as (
         s.player_sk,
         cast(round(100 * safe_divide(s.passes_accurate, s.passes)) as int64) as expected_percent,
         fs.passes_accuracy_percent as fixture_stats_percent,
-        ml.passes_accuracy_percent as match_log_percent,
-        fs.fixture_sk is not null as in_fixture_stats,
-        ml.fixture_sk is not null as in_match_log
+        fs.fixture_sk is not null as in_fixture_stats
     from {{ ref('fct_fixture_player_stats') }} as s
     inner join {{ ref('int_legs__player_match') }} as l
         on s.fixture_sk = l.fixture_sk and s.player_sk = l.player_sk
     left join {{ ref('mart_player_fixture_stats') }} as fs
         on s.fixture_sk = fs.fixture_sk and s.team_sk = fs.team_sk and s.player_sk = fs.player_sk
-    left join {{ ref('mart_player_match_log') }} as ml
-        on s.fixture_sk = ml.fixture_sk and s.player_sk = ml.player_sk
 )
 
 {% for check in checks %}
@@ -255,14 +250,10 @@ union all
 {% endfor %}
 
 select
-    mart as surface,
+    'mart_player_fixture_stats' as surface,
     'passes_accuracy_percent' as metric_id,
     to_json_string(struct(fixture_sk, team_sk, player_sk)) as grain,
-    cast(mart_value as float64) as model_value,
+    cast(fixture_stats_percent as float64) as model_value,
     cast(expected_percent as float64) as expected_value
-from match_level,
-    unnest([
-        struct('mart_player_fixture_stats' as mart, fixture_stats_percent as mart_value, in_fixture_stats as present),
-        struct('mart_player_match_log', match_log_percent, in_match_log)
-    ])
-where present and mart_value is distinct from expected_percent
+from match_level
+where in_fixture_stats and fixture_stats_percent is distinct from expected_percent
