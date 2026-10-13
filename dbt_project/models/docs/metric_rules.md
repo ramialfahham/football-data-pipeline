@@ -46,5 +46,6 @@ Which matches the window holds. `last_5`: the team's last five finished matches 
 fixture, across its club or its national-team competitions, for a club this season's only.
 `tournament_to_date`: every finished match of the team in this tournament edition before the
 fixture. `qualifiers`: before the team's first match of a tournament, every finished match of the
-team in that tournament's qualifying competitions.
+team in that tournament's qualifying competitions. `match`: the fixture itself, once played; the
+window of one on that match's page. The player tables and the form list leave it out.
 {% enddocs %}

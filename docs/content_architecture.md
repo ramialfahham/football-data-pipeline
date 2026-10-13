@@ -66,7 +66,7 @@ either subject, and appears on many tabs. The Subject column names the entity a 
 | **Identity** | Team header | team | `mart_team_profile`: identity from `dim_team` (+ founded year, venue), + standing chip |
 | | Player header | player | `mart_player_profile`: identity from `dim_player` (+ birth date), + current club |
 | | Competition header | competition | `mart_competition_index` (name, crest, region) + `mart_competition_fixtures` (the next round) |
-| **Performance** | Form (recent) | team, player | `mart_team_momentum`, `mart_player_momentum` (+ `mart_team_momentum_window` drill-down, team only) |
+| **Performance** | Form (recent) | team, player | `mart_team_window_metrics`, `mart_player_momentum` (+ `mart_team_momentum_window` drill-down, team only) |
 | | Season (this season; per-game toggle) | team, player | `mart_team_profile`, `mart_player_profile` |
 | | Season-over-season | team, player | `int_team_profile__yoy` → `mart_team_profile`; `int_player_profile__yoy` → `mart_player_profile` |
 | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_team_competition_benchmarks`, `mart_player_competition_benchmarks` |
@@ -81,7 +81,7 @@ either subject, and appears on many tabs. The Subject column names the entity a 
 | **Listings** | Squad / roster | team→players | `mart_roster` + `mart_player_career` (per-player season stats) |
 | | Team directory | competition→teams | `dim_team_competition_season_mapping` (a core model) |
 | | Player career (clubs + per-comp totals) | player | `mart_player_career` |
-| **Matchup** | Match preview (two sides) | fixture | composed: the form window (`mart_team_momentum` or `mart_team_season_record`, whichever `is_form_window` flags) + standing (`mart_fixture_standing_context`) + head-to-head (`mart_head_to_head`) |
+| **Matchup** | Match preview (two sides) | fixture | composed: the form window (`mart_team_window_metrics` or `mart_team_season_record`, whichever `is_form_window` flags) + standing (`mart_fixture_standing_context`) + head-to-head (`mart_head_to_head`) |
 | | Lineups / key players | fixture | `mart_player_season_record` (key players, by `top_player_rank`). No mart serves lineups. |
 | | Head-to-head | fixture | `mart_head_to_head` |
 | **Insight** | Deserved-vs-actual *(flagship)* | team (player v1.x) | `mart_team_profile` (`deserved_points`, `deserved_rank`, `deserved_points_gap`) |

@@ -1,7 +1,7 @@
 {#
   Wide fixture-preview mart — one row per upcoming fixture (next round per league).
 
-  Reads mart_team_momentum as the form source (same-layer ref — deliberate: this mart
+  Reads mart_team_window_metrics as the form source (same-layer ref — deliberate: this mart
   is a wide presentation pivot of the normalized momentum mart for the Pages UI consumer;
   see dbt_project/docs/layering.md §cross-layer-consumption-rule). Fixture metadata
   and team/league attributes come from core dims. League rank = the team's position in
@@ -18,12 +18,12 @@
 #}
 
 with momentum_home as (
-    select * from {{ ref('mart_team_momentum') }}
+    select * from {{ ref('mart_team_window_metrics') }}
     where is_home = true
 ),
 
 momentum_away as (
-    select * from {{ ref('mart_team_momentum') }}
+    select * from {{ ref('mart_team_window_metrics') }}
     where is_home = false
 ),
 
@@ -139,7 +139,7 @@ select
     -- mart_fixture_standing_context; read straight through.
     home_st.league_rank as home_league_rank,
     away_st.league_rank as away_league_rank,
-    -- home form window (from mart_team_momentum). Rates stay null when a team has
+    -- home form window (from mart_team_window_metrics). Rates stay null when a team has
     -- no finished matches in the window.
     mh.goals_per_match as home_goals_per_match_recent,
     mh.goals_against_per_match as home_goals_against_per_match_recent,
@@ -152,7 +152,7 @@ select
     mh.corners_per_match as home_corners_per_match_recent,
     mh.corners_against_per_match as home_corners_against_per_match_recent,
     mh.saves_pct as home_saves_pct_recent,
-    -- away form window (from mart_team_momentum).
+    -- away form window (from mart_team_window_metrics).
     ma.goals_per_match as away_goals_per_match_recent,
     ma.goals_against_per_match as away_goals_against_per_match_recent,
     ma.shots_per_match as away_shots_per_match_recent,
@@ -194,11 +194,11 @@ left join dim_league as l
     on f.league_sk = l.league_sk
 left join momentum_home as mh
     on
-        f.fixture_sk = mh.upcoming_fixture_sk
+        f.fixture_sk = mh.fixture_sk
         and f.home_team_sk = mh.team_sk
 left join momentum_away as ma
     on
-        f.fixture_sk = ma.upcoming_fixture_sk
+        f.fixture_sk = ma.fixture_sk
         and f.away_team_sk = ma.team_sk
 left join standing_context as home_st
     on

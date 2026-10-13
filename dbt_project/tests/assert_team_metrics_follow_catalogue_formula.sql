@@ -17,7 +17,7 @@
 -- depends_on: {{ ref('int_team_season__metrics_cumulative') }}
 -- depends_on: {{ ref('int_team_season__metrics') }}
 -- depends_on: {{ ref('int_team_momentum__metrics') }}
--- depends_on: {{ ref('mart_team_momentum') }}
+-- depends_on: {{ ref('mart_team_window_metrics') }}
 -- depends_on: {{ ref('mart_team_fixture_stats') }}
 -- depends_on: {{ ref('fct_fixture_team_stats') }}
 
@@ -28,8 +28,8 @@
      'grain': ['team_sk', 'season_sk'], 'windowed': false},
     {'model': 'int_team_momentum__metrics', 'rows': 'momentum_rows',
      'grain': ['upcoming_fixture_sk', 'team_sk'], 'windowed': false},
-    {'model': 'mart_team_momentum', 'rows': 'momentum_rows',
-     'grain': ['upcoming_fixture_sk', 'team_sk'], 'windowed': false},
+    {'model': 'mart_team_window_metrics', 'rows': 'window_mart_rows',
+     'grain': ['fixture_sk', 'team_sk'], 'windowed': false},
 ] %}
 {% set forfeit_counted = ['points_won', 'goals', 'goals_against'] %}
 {% set member_floor = 100 %}
@@ -113,6 +113,13 @@ momentum_rows as (
     from {{ ref('int_team_momentum_window') }} as w
     inner join legs
         on w.leg_fixture_sk = legs.fixture_sk and w.team_sk = legs.team_sk
+),
+
+window_mart_rows as (
+    select
+        upcoming_fixture_sk as fixture_sk,
+        * except (upcoming_fixture_sk, fixture_sk)
+    from momentum_rows
 ),
 
 {% for check in checks %}

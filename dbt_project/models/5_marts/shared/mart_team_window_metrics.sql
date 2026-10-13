@@ -1,10 +1,12 @@
 {#
-  W1 momentum mart — team.
+  A team's metrics over a window, for the match whose page shows them.
 
-  The displayed form-window metrics, taken from int_team_momentum__metrics, where they are the
-  catalogue formulas over the window that window_type names. Nothing is computed here.
+  The displayed window metrics, taken from int_team_momentum__metrics, where they are the
+  catalogue formulas over the window that window_type names. Nothing is computed here. For an
+  upcoming fixture the window is the team's form; for a played fixture (window_type 'match') it
+  is that match alone.
 
-  Grain: (upcoming_fixture_sk, team_sk).
+  Grain: (fixture_sk, team_sk).
 
   league_rank is not computed here — it comes from the standings surface (#322).
   is_form_window is false only before the team's first match in a domestic league this season, when
@@ -39,7 +41,7 @@ played_this_season as (
 )
 
 select
-    b.upcoming_fixture_sk,
+    b.upcoming_fixture_sk as fixture_sk,
     b.team_sk,
     f.league_code,
     b.entity_type,
@@ -91,7 +93,11 @@ select
     b.cards_yellow_per_match,
     b.cards_red_per_match,
     b.team_sk = f.home_team_sk as is_home,
-    p.team_sk is not null or f.league_code not in (select d.league_code from domestic_leagues as d) as is_form_window
+    b.window_type != 'match'
+    and (
+        p.team_sk is not null
+        or f.league_code not in (select d.league_code from domestic_leagues as d)
+    ) as is_form_window
 from builder as b
 inner join fixtures as f
     on b.upcoming_fixture_sk = f.fixture_sk

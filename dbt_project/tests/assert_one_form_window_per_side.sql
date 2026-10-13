@@ -5,10 +5,10 @@
 
 with form as (
     select
-        upcoming_fixture_sk,
+        fixture_sk as upcoming_fixture_sk,
         team_sk,
         is_form_window
-    from {{ ref('mart_team_momentum') }}
+    from {{ ref('mart_team_window_metrics') }}
 ),
 
 season as (

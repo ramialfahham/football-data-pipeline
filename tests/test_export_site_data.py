@@ -412,7 +412,7 @@ def test_fixture_side_carries_identity_and_handles_missing():
 
 def test_form_block_is_the_block_the_warehouse_flags():
     keys = {"upcoming_fixture_sk": 9, "team_sk": 1, "is_home": True}
-    w1 = {**keys, "window_type": "last_5", "goals_per_match": 1.4}
+    w1 = {"fixture_sk": 9, "team_sk": 1, "is_home": True, "window_type": "last_5", "goals_per_match": 1.4}
     w2 = {**keys, "window_type": "prev_season", "goals_per_match": 2.0}
     assert form_block({**w1, "is_form_window": True}, {**w2, "is_form_window": False}) == {
         "window_type": "last_5", "goals_per_match": 1.4}
@@ -511,9 +511,10 @@ def test_fixture_payloads_carry_the_served_window_round_slugs_and_season_players
     def fake_query(client, sql):
         if "mart_competition_fixtures" in sql and "status_short in" in sql:
             return [page]
-        if "mart_team_momentum`" in sql:
-            return [{**keys, "team_sk": 1, "window_type": "last_5", "goals_per_match": 1.4, "is_form_window": True},
-                    {**keys, "team_sk": 2, "window_type": "last_5", "goals_per_match": 0.9, "is_form_window": False}]
+        if "mart_team_window_metrics`" in sql:
+            form_keys = {"fixture_sk": 20, "is_home": True}
+            return [{**form_keys, "team_sk": 1, "window_type": "last_5", "goals_per_match": 1.4, "is_form_window": True},
+                    {**form_keys, "team_sk": 2, "window_type": "last_5", "goals_per_match": 0.9, "is_form_window": False}]
         if "mart_team_season_record" in sql:
             return [{**keys, "team_sk": 2, "window_type": "prev_season", "goals_per_match": 2.0, "is_form_window": True}]
         if "mart_player_season_record" in sql:

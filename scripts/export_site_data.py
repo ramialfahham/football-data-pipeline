@@ -108,7 +108,7 @@ _LB_KEEP = ("player_sk", "player_name", "player_photo_url", "player_position",
 
 # Join/identity keys dropped from each per-side block in the fixture payload
 # (they live at the fixture top level or are join plumbing, not display data).
-_W1_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
+_W1_DROP = {"fixture_sk", "team_sk", "is_home"}
 _W2_DROP = {"upcoming_fixture_sk", "team_sk", "is_home"}
 _CTX_DROP = {"fixture_sk", "team_sk", "season_sk"}
 _H2H_DROP = {"team_sk", "opponent_team_sk", "pair_key", "is_canonical"}
@@ -1120,9 +1120,9 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
                                 f"from `{GCP_PROJECT}.core.dim_league`")
     }
     w1 = {
-        (int(r["upcoming_fixture_sk"]), int(r["team_sk"])): r
-        for r in _query(client, f"select * from `{marts}.mart_team_momentum` "
-                                f"where upcoming_fixture_sk in ({fid_in})")
+        (int(r["fixture_sk"]), int(r["team_sk"])): r
+        for r in _query(client, f"select * from `{marts}.mart_team_window_metrics` "
+                                f"where fixture_sk in ({fid_in})")
     }
     w2 = {
         (int(r["upcoming_fixture_sk"]), int(r["team_sk"])): r
@@ -2110,12 +2110,12 @@ def fetch_metric_groups(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
 
 def fetch_metric_rows(seed_path: str = CATALOGUE_SEED_PATH, map_path: str = METRIC_MAP_PATH) -> dict:
     """metric_rows.json — the rows of the match page's Form comparison: every team metric
-    mart_team_momentum serves outside the Results group, in group order and then the catalogue's
+    mart_team_window_metrics serves outside the Results group, in group order and then the catalogue's
     `metric_order`. A selection from the seeds, no BigQuery."""
     import csv
 
     with open(map_path, encoding="utf-8") as f:
-        served = {r["metric_id"] for r in csv.DictReader(f) if r["table_name"] == "mart_team_momentum"}
+        served = {r["metric_id"] for r in csv.DictReader(f) if r["table_name"] == "mart_team_window_metrics"}
     with open(seed_path, encoding="utf-8") as f:
         rows = [r for r in csv.DictReader(f)
                 if r["entity"] == "team" and r["metric_id"] in served and r["metric_group"] != "outcomes"]

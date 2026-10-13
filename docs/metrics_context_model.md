@@ -159,6 +159,8 @@ matches. The two are separate, and both live in the **intermediate** layer.
 - **Form window.** It holds the entity's last 5 matches across all its competitions, as of the
   upcoming fixture. It exists only for an upcoming fixture, because a played match makes it
   obsolete.
+- **Match window.** It holds one played match, for that match's own page. Its `window_type` is
+  `match`, and the same formulas apply to a window of one.
 - **Season record.** It is cumulative within one competition through each match of the season. One
   model gives the record to date, the full season and year-over-year.
 
@@ -171,7 +173,7 @@ Each form window carries a descriptor for the UI's window meta line: `window_typ
 
 ### Momentum marts
 
-- `mart_team_momentum` and `mart_player_momentum` each serve every competition type. A reader
+- `mart_team_window_metrics` and `mart_player_momentum` each serve every competition type. A reader
   filters them by `league_code`.
 - Each metric is a column, beside the descriptor columns.
 - `mart_team_momentum_window` lists the matches of each team form window.
@@ -302,7 +304,8 @@ This matrix produces a **fixed set** of window kinds:
 - club last 5;
 - domestic or club full season;
 - national-team context: up to 5 national-team appearances, pooled;
-- big-tournament cumulative.
+- big-tournament cumulative;
+- one played match, for its own page.
 
 The models' `window_type` values carry these kinds. Each column has an `accepted_values` test. The
 `window_type` columns are the single source for window kinds.
@@ -311,6 +314,7 @@ The models' `window_type` values carry these kinds. Each column has an `accepted
 |---|---|
 | Form window (momentum) | `last_5`, `tournament_to_date`, `qualifiers` |
 | Season record | `season_to_date`, `prev_season` |
+| Match window | `match` |
 
 ### 8.5 National figures are context
 

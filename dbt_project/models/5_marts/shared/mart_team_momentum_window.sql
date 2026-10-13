@@ -1,6 +1,6 @@
 {#
-  W1 momentum-window list mart — team. The drill-down behind the momentum metrics
-  (#323): the same window matches mart_team_momentum aggregates, exposed
+  W1 momentum-window list mart — team. The drill-down behind the momentum metrics:
+  the same form-window matches mart_team_window_metrics aggregates, exposed
   un-aggregated — one row per (upcoming fixture side, past match), newest first.
   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
   selection; tournament windows are cumulative, so a side can have more than five rows.
@@ -18,6 +18,7 @@
 
 with window_legs as (
     select * from {{ ref('int_team_momentum_window') }}
+    where window_type != 'match'
 ),
 
 fixtures as (

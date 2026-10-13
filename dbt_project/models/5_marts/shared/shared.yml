@@ -89,10 +89,11 @@ models:
       - name: last_kickoff_datetime
         description: "Most recent past fixture kickoff for this league_code. NULL when nothing has ever been played."
 
-  - name: mart_team_momentum
+  - name: mart_team_window_metrics
     description: >
-      Recent-form metrics for each side of an upcoming fixture, over the last-5 window. Grain:
-      (upcoming_fixture_sk, team_sk).
+      A team's metrics over a window, for each side of the match whose page shows them. Grain:
+      (fixture_sk, team_sk). For an upcoming fixture the window is the side's recent form; for a
+      played fixture it is that match alone (window_type match), a window of one.
 
       Every team metric is taken from int_team_momentum__metrics, where it is its catalogue formula
       over the window's legs; nothing is computed here.
@@ -101,7 +102,7 @@ models:
       from a form window.
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [upcoming_fixture_sk, team_sk]
+          combination_of_columns: [fixture_sk, team_sk]
       # Ratio bounds [0,1] — guards the same-window contract at the source.
       # A value > 1 means numerator and denominator were computed over different
       # game sets (a coverage-window bug), so these must stay strict.
@@ -173,8 +174,8 @@ models:
           expression: "duels_per_match is null or duels_per_match >= 0"
           name: momentum_team_duels_per_match_non_negative
     columns:
-      - name: upcoming_fixture_sk
-        description: "{{ doc('upcoming_fixture_sk') }}"
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }} The match whose page shows these figures: an upcoming fixture for a form window, the played fixture itself for a match window."
         tests:
           - not_null
           - relationships:
@@ -201,9 +202,9 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5", "tournament_to_date", "qualifiers"]
+              values: ["last_5", "tournament_to_date", "qualifiers", "match"]
       - name: games_in_window
-        description: "How many past matches make up this side's form window: 5 for a last_5 window (fewer only before a team has 5 finished matches to draw on), or the full cumulative count of tournament matches so far on a tournament_to_date or qualifiers window. The denominator every per-match rate on this row divides by."
+        description: "How many played matches make up this side's window: 5 for a last_5 window (fewer only before a team has 5 finished matches to draw on), the full cumulative count of tournament matches so far on a tournament_to_date or qualifiers window, or 1 on a match window. The denominator every per-match rate on this row divides by."
         tests: [not_null]
       - name: games_expecting_team_stats
         description: "Window legs that COULD carry a team stat line — the window size minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one."
@@ -212,10 +213,10 @@ models:
         description: "Window legs with shots present. Never NULL."
         tests: [not_null]
       - name: is_home
-        description: "True when team_sk is the home side of the upcoming fixture."
+        description: "True when team_sk is the home side of the fixture."
         tests: [not_null]
       - name: is_form_window
-        description: "True when this row is the form window the match page shows for this side: every side except, in a domestic league, a team that has no finished match in that league this season; that side shows its previous-season record from mart_team_season_record instead (docs/metrics_context_model.md section 4)."
+        description: "True when this row is the form window the match page shows for this side: every side of an upcoming fixture except, in a domestic league, a team that has no finished match in that league this season; that side shows its previous-season record from mart_team_season_record instead (docs/metrics_context_model.md section 4). False on every match window."
         tests: [not_null]
       - name: season_api_year
         description: "{{ doc('season_api_year') }}"
@@ -302,7 +303,7 @@ models:
   - name: mart_player_momentum
     description: >
       Recent-form metrics per player for each side of an upcoming fixture, over the same window
-      as mart_team_momentum. Grain: (upcoming_fixture_sk, team_sk, player_sk).
+      as mart_team_window_metrics. Grain: (upcoming_fixture_sk, team_sk, player_sk).
 
       Every metric, counts and ratios alike, passes through from int_player_momentum__metrics,
       which computes each from its metric_catalogue formula over the window. Goals, assists and
@@ -435,7 +436,7 @@ models:
   - name: mart_team_momentum_window
     description: >
       The individual past matches behind a side's momentum figures: the same window
-      mart_team_momentum aggregates, listed rather than summed. Grain: (upcoming_fixture_sk,
+      mart_team_window_metrics aggregates, listed rather than summed. Grain: (upcoming_fixture_sk,
       team_sk, played_fixture_sk).
 
       played_fixture_sk identifies each past match, so a per-fixture stat line can be looked up
@@ -1218,7 +1219,7 @@ models:
       Before a team has played any of it, the row falls back to the same competition's previous
       season and window_type says so.
 
-      Uses the same metric ids, formulas and same-window coverage rule as mart_team_momentum, so
+      Uses the same metric ids, formulas and same-window coverage rule as mart_team_window_metrics, so
       the two are directly comparable — a season figure beside a form figure.
     tests:
       - dbt_utils.unique_combination_of_columns:

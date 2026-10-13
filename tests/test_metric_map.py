@@ -240,7 +240,7 @@ def test_the_real_map_matches_the_generator():
 # (question, table, column, metric, the filters the answer needs)
 QUESTIONS = (
     ("How many goals per match has Arsenal scored in its last five matches?",
-     "mart_team_momentum", "goals_per_match", "goals_per_match", {"window_type": "last_5"}),
+     "mart_team_window_metrics", "goals_per_match", "goals_per_match", {"window_type": "last_5"}),
     ("How many more or fewer points does Bayern Munich have than at the same point last season?",
      "mart_team_profile", "points_delta_yoy", "points_won", {}),
     ("How many goals per match was Leverkusen conceding at this point last season?",

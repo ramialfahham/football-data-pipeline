@@ -6,13 +6,14 @@ models:
       The recent-form metrics for each side of an upcoming fixture: each its catalogue formula,
       written by scripts/generate_metric_sql.py over the window legs that int_team_momentum_window
       selects, so this model and the match-by-match list cover the same set of matches.
-      Grain: (upcoming_fixture_sk, team_sk).
+      Grain: (upcoming_fixture_sk, team_sk). A played fixture's sides carry its window of one
+      (window_type match), the same formulas over that match alone.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [upcoming_fixture_sk, team_sk]
     columns:
       - name: upcoming_fixture_sk
-        description: "{{ doc('upcoming_fixture_sk') }}"
+        description: "{{ doc('upcoming_fixture_sk') }} On a match window (window_type match) it holds the played fixture itself."
         tests:
           - not_null
           - relationships:
@@ -39,9 +40,9 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["last_5", "tournament_to_date", "qualifiers"]
+              values: ["last_5", "tournament_to_date", "qualifiers", "match"]
       - name: games_in_window
-        description: "Finished matches in the window: 1–5 for last_5, the cumulative count for tournament windows."
+        description: "Finished matches in the window: 1–5 for last_5, the cumulative count for tournament windows, 1 for a match window."
         tests: [not_null]
       - name: games_expecting_team_stats
         description: "Games in this form window that COULD carry a team stat line — games in the window minus any awarded result (technical loss, walkover), which is decided off the pitch and never has one."
