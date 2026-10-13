@@ -406,6 +406,50 @@ def test_each_merge_request_builds_into_its_own_datasets() -> None:
     )
 
 
+def test_the_mr_build_rebuilds_every_changed_seed() -> None:
+    """A merge request that changes a seed must rebuild it and its readers.
+
+    dbt fingerprints a seed only up to 1 MB; above that it compares the path alone and reports the
+    seed unchanged, so `state:modified+` selects nothing from it and the singular tests read the
+    branch's seed against prod's tables, with nothing red to say why.
+    """
+    build, _ = _mr_dbt_invocations()
+    lines = [" ".join(line.split()) for line in _script_lines_by_job(_ci_config())["data:build:mr"]]
+
+    def only(prefix: str) -> int:
+        found = [i for i, ln in enumerate(lines) if ln.startswith(prefix)]
+        assert len(found) == 1, (
+            f"data:build:mr no longer has exactly one `{prefix}` line. Without it a changed seed "
+            f"over 1 MB is invisible to state:modified+. Lines seen: {lines}"
+        )
+        return found[0]
+
+    diff_at, seeds_at, build_at = only("SEED_DIFF="), only("CHANGED_SEEDS="), lines.index(build)
+    diff, seeds = lines[diff_at], lines[seeds_at]
+    for part in ("git diff", "${CI_MERGE_REQUEST_DIFF_BASE_SHA:?}", "dbt_project/seeds/", "|| exit 1"):
+        assert part in diff, (
+            f"the SEED_DIFF line lost `{part}`: it must list the seeds this merge request changed "
+            f"against its diff base and stop the job when that fails. Line: {diff}"
+        )
+    # A pipe after `git diff` would report the last command's status and hide the failure.
+    assert diff.replace("|| exit 1", "").count("|") == 0, (
+        f"`git diff` feeds a pipe, so its failure no longer stops the job. Line: {diff}"
+    )
+    for part in ("$SEED_DIFF", "path:%s+", "${f#dbt_project/}"):
+        assert part in seeds, (
+            f"the CHANGED_SEEDS line lost `{part}`: each changed seed must become a path selector "
+            f"with `+`, or its readers are not rebuilt. Line: {seeds}"
+        )
+    assert " $CHANGED_SEEDS " in build and '"$CHANGED_SEEDS"' not in build, (
+        "data:build:mr's `dbt build` must pass $CHANGED_SEEDS unquoted, one selector per word, "
+        f"next to state:modified+. Line: {build}"
+    )
+    assert "state:modified+" in build
+    assert diff_at < seeds_at < build_at, (
+        "SEED_DIFF, CHANGED_SEEDS and the `dbt build` that reads them are out of order."
+    )
+
+
 SELECTORS_FILE = ROOT / "dbt_project" / "selectors.yml"
 
 

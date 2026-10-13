@@ -1,23 +1,32 @@
-# Review — feat/lineup-research-bl
+# Review — fix/ci-changed-seed-selection
 
-diff_sha256: a357bcccef1fdc18bd0abae753584ea8260c0490d14eb61dc375595de29393d7
+diff_sha256: 177be476b0c606ad5d9fed2b0a9eebe1ea7c1f5138f3049f7a88ddfb9608700c
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only the contract and the seed change, both in scope_paths; the seed hunk is additions only, so no Premier League row changes; nothing decides the next leagues, the older seasons or the garbled provider names, which stay reserved.
-- The rules the rows follow are the batch-1 rules with their named approvals; the official pairing where the provider's differs and the squad-list id for a player the provider's sheet leaves out are applications of those rules, the seed replacing the provider's sheets with the official record and the ids staying the provider's.
-- No new mechanism and no recurring cost; nothing in Appendix A applies.
+- Round 1 FAIL: the base-SHA guard sat at the head of a pipe, whose status is the last command's, so a missing base gave an empty selection. Fixed: the git diff is its own assignment ending in `|| exit 1`, and the test pins it.
+- Every changed path is in scope_paths; the .gitlab-ci.yml edit stays inside data:build:mr, within protected_override; decisions_reserved untouched.
+- The threshold declarations hold: no new mechanism, a per-merge-request cost with its number and nothing on a schedule.
+- The CI comment and the test docstring state the mechanism only; no issue, MR, date or chat wording; no secrets.
 
-## analytics-engineer-reviewer
+## cto-reviewer
 VERDICT: PASS
 risks_checked:
-- All 1,318 new rows read: 33 matches, 11 distinct starters per sheet, no starter with a minute on, every substitute's replaced player on the same team with a matching minute off, offs equal to ons, one formation per team.
-- The four named corrections (1388546, 1388621, 1388836, 1576194) are internally consistent; added time is stored as 90 plus extra, half-time substitutions as 46.
-- Each note's stated fact matches its rows and is constant per match; every source is official, https and on bundesliga.com.
-- The Premier League rows are unchanged; the base model, the schema and the tests are unchanged.
+- Round 1 FAIL on the same fail-open pipe; closed in round 2 without relying on the runner's pipefail.
+- Not a new mechanism: one more selector on the existing state:modified+ build, in the same job; no dependency, job, hook or service.
+- The data:build:mr guard invariants hold: the per-merge-request target, --defer --favor-state on the build line only, no ingest; no prod writer touched.
+- The recurring-cost declaration is adequate: merge request pipelines that change a seed only, measured in the issue.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL: the test did not pin the `path:` rewrite, the `+` children operator or the unquoted use. Round 2 pins all three, the `|| exit 1`, the absence of a pipe and the line order; each removal fails the test.
+- Shell: an unset or unknown base ends the job red; no changed seed leaves today's command; a deleted seed gives a selector that matches nothing without error; the variable survives across script entries.
+- YAML: both new lines parse as plain strings (`${f#` and `path:%s` are not comment or key markers).
+- dbt 1.7 parses `path:seeds/<file>.csv+` as the path method with children and globs from the project root.
 
 ## escalations
 (none)

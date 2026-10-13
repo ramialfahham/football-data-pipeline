@@ -1,60 +1,54 @@
-# Task contract — researched line-ups, batch 2: Bundesliga and 2. Bundesliga
+# Task contract — merge request build: rebuild a changed seed even when it is over 1 MB
 
 objective: >
-  fixture_lineup_corrections gains the researched line-ups of the Bundesliga and 2. Bundesliga
-  matches of the 2025 and 2026 seasons on the research list: both team sheets of each match, every
-  player with the provider's id, starter or bench, the minutes on and off, whom each substitute
-  replaced and the formation, from the official bundesliga.com line-up page and live ticker. A
-  match the official pages cannot complete stays out and is listed in the MR.
+  data:build:mr rebuilds every seed the merge request changed, and every model that reads it,
+  whatever the seed's size; a merge request that changes no seed builds what it builds today; a
+  build that cannot tell which seeds changed fails. A test in tests/test_ci_data_job_invariants.py
+  fails when either half is removed.
 
 refs: >
-  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the research
-  order and sources. The Bundesliga batch as the next league: approved in chat, 2026-10-12.
+  #214 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/214). Found on the
+  MLS line-up batch, !310, whose data:build:mr selected nothing because dbt cannot fingerprint a
+  seed over 1 MB.
 
 scope_paths:
-  - dbt_project/seeds/fixture_lineup_corrections.csv
+  - .gitlab-ci.yml
+  - tests/test_ci_data_job_invariants.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
 
 impact_map: >
-  writers: the seed rows, written by hand from the official match pages; base_apif__lineups applies
-  them, replacing the provider's sheets of each listed match. Nothing else changes.
-  downstream: base_apif__lineups, fct_fixture_lineup, base_apif__players, dim_player and every
-  reader of fct_fixture_lineup: mart_player_fixture_stats and mart_competition_fixtures, whose
-  listed matches turn from not_available to researched.
-  layer_rules: the seed is configuration applied in base, on the existing pattern.
-  deploy_order: dbt seed precedes the models in data:build:main and fdp-nightly.
-  blast_radius: only the listed matches: their line-ups, formations and lineup_state; the research
-  list loses them.
+  writers: data:build:mr only, in its own ci_mr<IID>_* datasets; data:build:main, fdp-nightly and
+  every other job are unchanged.
+  downstream: a merge request that changes a seed rebuilds that seed's readers in its own datasets,
+  so its singular tests read the branch's tables instead of prod's.
+  layer_rules: none; no dbt file changes.
+  deploy_order: none; the change applies to the next merge request pipeline.
+  blast_radius: merge request pipelines that change a seed: more models built in their own
+  datasets. A merge request without a seed change selects exactly what it selects today.
+
+protected_override: >
+  .gitlab-ci.yml, job data:build:mr only: the changed-seed selection on its dbt build line. The
+  plan naming this edit approved in chat, 2026-10-12.
 
 decisions_taken: >
-  The research order, the sources and the Bundesliga batch: approved in chat, 2026-10-12. As in
-  batch 1 (approved in chat, 2026-10-12): a missing outgoing player is the player of the
-  substitute's team, a starter or a substitute who came on earlier, whom the official ticker shows
-  going off at the substitution's minute; half-time substitutions keep the provider's 46', where
-  the official ticker stamps them with the break time (45' plus the minutes of the break); where
-  the official ticker gives a substitution a different minute from the provider, the rows carry
-  the official minute. Where the official ticker pairs a substitution differently from the
-  provider, the rows carry the official pair, because the seed replaces the provider's sheets with
-  the official record. Player ids are the provider's: where the provider's sheet leaves out a
-  player the official sheet names, the row takes the id the provider's squad list gives that
-  player at that club in that season; a match whose official sheet names a player the provider
-  holds no confirmable id for stays out.
+  The CI fix as a separate merge request, merged before !310: approved in chat, 2026-10-12.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; rows in the existing seed. RECURRING COST: none
-  measurable; 1,318 seed rows.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; one more selector on the existing state:modified+
+  build. RECURRING COST: none on any schedule; a merge request that changes the line-up seed
+  rebuilds 14 models, estimated at 4-5 GB of BigQuery reads per pipeline, measured in #214.
 
 decisions_reserved:
-  - The next leagues and batches.
-  - The older seasons.
-  - The provider's garbled player names in its own data (a separate data-quality defect).
+  - Shrinking or splitting the line-up seed.
+  - Any change to the prod builds.
 
 done_when:
-  - dbt parse passes; the seed's tests pass.
-  - The branch's base_apif__lineups on prod data turns every listed match researched, assert_lineup_researched_matches_hold returns no rows, and the research list loses exactly those matches.
-  - data:build:mr is green on the MR.
+  - tests/test_ci_data_job_invariants.py fails on main's .gitlab-ci.yml and passes on the branch.
+  - The validate-local tier-1 gates pass.
+  - validate:governance and test:python are green on the merge request.
+  - After the merge, !310's data:build:mr builds fixture_lineup_corrections and its readers and assert_lineup_researched_matches_hold passes.
 
 amendments: >
   none.

@@ -765,9 +765,12 @@ data:build:mr:
     # Writes this merge request's OWN ci_mr<IID>_* datasets (see .dbt_profile);
     # --defer --favor-state resolves unbuilt upstreams to prod. An empty selection
     # (an MR that changes no models) is a no-op success.
+    # dbt cannot tell whether a seed over 1 MB changed, so each seed this MR changed is also selected by path.
+    - SEED_DIFF=$(git diff --name-only "${CI_MERGE_REQUEST_DIFF_BASE_SHA:?}" HEAD -- 'dbt_project/seeds/*.csv') || exit 1
+    - CHANGED_SEEDS=$(for f in $SEED_DIFF; do printf 'path:%s+ ' "${f#dbt_project/}"; done)
     - cd dbt_project
     - >-
-      dbt build --select state:modified+ --exclude tag:freshness_check
+      dbt build --select state:modified+ $CHANGED_SEEDS --exclude tag:freshness_check
       --defer --favor-state --state /tmp/main-state --target "$DBT_CI_TARGET"
     # DQ is non-negotiable and the full singular suite always runs. Slimming applies
     # to model BUILDS only, never to the DQ gate.
