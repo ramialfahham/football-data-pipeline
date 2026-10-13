@@ -1,32 +1,25 @@
-# Review — fix/ci-changed-seed-selection
+# Review — feat/lineup-research-mls-2
 
-diff_sha256: 177be476b0c606ad5d9fed2b0a9eebe1ea7c1f5138f3049f7a88ddfb9608700c
+diff_sha256: 182a55b686965dbf71998a1de084bb79042a57aa25d51441ba632a66c25c5c47
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: the base-SHA guard sat at the head of a pipe, whose status is the last command's, so a missing base gave an empty selection. Fixed: the git diff is its own assignment ending in `|| exit 1`, and the test pins it.
-- Every changed path is in scope_paths; the .gitlab-ci.yml edit stays inside data:build:mr, within protected_override; decisions_reserved untouched.
-- The threshold declarations hold: no new mechanism, a per-merge-request cost with its number and nothing on a schedule.
-- The CI comment and the test docstring state the mechanism only; no issue, MR, date or chat wording; no secrets.
+- Only the contract and the seed change, both in scope_paths; the seed hunk adds rows only, so no earlier row changes.
+- Nothing decides the next leagues, the older seasons or the garbled provider names, which stay reserved; the rows are MLS 2025 and 2026 only.
+- MLS as the batch, the provider's formations and pitch positions, and Austin-LAFC left out each carry their named approval; the carried-over batch-1 and batch-2 rules are restated with theirs.
+- No new mechanism and no recurring cost; nothing in Appendix A applies; no chat wording in the pushed files.
 
-## cto-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL on the same fail-open pipe; closed in round 2 without relying on the runner's pipefail.
-- Not a new mechanism: one more selector on the existing state:modified+ build, in the same job; no dependency, job, hook or service.
-- The data:build:mr guard invariants hold: the per-merge-request target, --defer --favor-state on the build line only, no ingest; no prod writer touched.
-- The recurring-cost declaration is adequate: merge request pipelines that change a seed only, measured in the issue.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 1 FAIL: the test did not pin the `path:` rewrite, the `+` children operator or the unquoted use. Round 2 pins all three, the `|| exit 1`, the absence of a pipe and the line order; each removal fails the test.
-- Shell: an unset or unknown base ends the job red; no changed seed leaves today's command; a deleted seed gives a selector that matches nothing without error; the variable survives across script entries.
-- YAML: both new lines parse as plain strings (`${f#` and `path:%s` are not comment or key markers).
-- dbt 1.7 parses `path:seeds/<file>.csv+` as the path method with children and globs from the project root.
+- All 64 matches read: two teams with 11 distinct starters each, no starter with a minute on, every substitute's replaced player on the same team with a matching minute off, offs equal to ons.
+- One formation per team; the four teams without one are the four the provider holds none for, which the schema allows.
+- Sources are https on mlssoccer.com and change only at match boundaries; the notes of the playoff, Klauss, Vancouver-LAFC and D.C. United-Philadelphia matches are true to their rows and to the official data.
+- Spot checks against the official data hold, including the swapped playoff match 1482413 and Klauss's id at LA Galaxy; substitutions the official data gives no minute keep the provider's.
+- The earlier rows, the base model, the schema and the tests are unchanged.
 
 ## escalations
 (none)
