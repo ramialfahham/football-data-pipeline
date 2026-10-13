@@ -1,64 +1,98 @@
-# Task contract — researched line-ups, batch 5: the elite pool and the World Cup
+# Task contract — one player-in-a-match mart
 
 objective: >
-  fixture_lineup_corrections gains the researched line-ups of the current-season matches on the
-  research list of the elite pool's leagues (La Liga, Serie A, Ligue 1, Liga Portugal, Eredivisie)
-  and of the World Cup 2026: both team sheets of each match, every player with the provider's id,
-  starter or bench, the minutes on and off and whom each substitute replaced, from each
-  competition's official match record (laliga.com, legaseriea.it, ligue1.com, ligaportugal.pt,
-  eredivisie.nl, fifa.com). A match the official record cannot complete stays out and is listed in
-  the MR.
+  mart_player_fixture_stats absorbs mart_player_match_log and becomes the one mart for a player
+  in a finished match: the match context (opponent, the team's score, the result, crests) joins
+  the columns it has, and mart_player_match_log is deleted. Every reader of the match log moves
+  to it. Every count and rate a reader showed before it shows after; the flags is_starter,
+  is_substitute and position_code come from the checked line-ups, as they already do on
+  mart_player_fixture_stats, and the match-log rows where they change are counted and listed
+  before merge.
 
 refs: >
-  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176): the research
-  order, the sources and the id rule. The elite pool and the World Cup as the competitions
-  researched now, the rest parked in #216: approved in chat, 2026-10-13.
+  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176), the line
+  "mart_player_match_log and mart_player_fixture_stats become one mart". Kept name, the pair
+  team_goals_for / team_goals_against, and the line-up flags: approved in chat, 2026-10-13.
 
 scope_paths:
-  - dbt_project/seeds/fixture_lineup_corrections.csv
+  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+  - dbt_project/models/5_marts/shared/mart_player_match_log.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
+  - dbt_project/seeds/metric_map.csv
+  - dbt_project/models/docs/metric_columns.md
+  - dbt_project/docs/layering.md
+  - scripts/generate_metric_sql.py
+  - scripts/export_site_data.py
+  - tests/test_metric_map.py
+  - tests/test_export_site_data.py
+  - tests/test_no_decision_history_in_code.py
+  - tests/test_no_decision_history_in_docs.py
+  - docs/site_architecture.md
+  - docs/content_architecture.md
+  - docs/wireframes/03_player_profile.md
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
   - .claude/task/acceptance_evidence.md
 
 impact_map: >
-  writers: the seed rows, built from the official match records and the provider's sheets;
-  base_apif__lineups applies them, replacing the provider's sheets of each listed match. Nothing
-  else changes.
-  downstream: base_apif__lineups, fct_fixture_lineup, base_apif__players, dim_player and every
-  reader of fct_fixture_lineup: mart_player_fixture_stats and mart_competition_fixtures, whose
-  listed matches turn from not_available to researched.
-  layer_rules: the seed is configuration applied in base, on the existing pattern.
-  deploy_order: dbt seed precedes the models in data:build:main and fdp-nightly.
-  blast_radius: only the listed matches: their line-ups, formations and lineup_state; the research
-  list loses them.
+  writers: dbt builds mart_player_fixture_stats and mart_player_match_log from
+  fct_fixture_player_stats, fct_fixture_lineup, fct_fixture, dim_player and dim_team. No ingestion
+  writer.
+  downstream: dbt ls --select mart_player_match_log+ mart_player_fixture_stats+ (dbt 1.7.20, on
+  the branch's base) returns the models mart_player_fixture_stats, mart_player_match_log,
+  mart_team_momentum_window and the singular tests assert_mart_player_fixture_stats_keeps_every_stat_line,
+  assert_momentum_window_matches_momentum, assert_player_metrics_follow_catalogue_formula,
+  assert_tournament_form_window. mart_player_match_log has no dbt reader but its own tests and
+  assert_player_metrics_follow_catalogue_formula. Outside dbt: scripts/export_site_data.py
+  (fetch_player_payloads reads the match log; fetch_matchstats_payloads reads
+  mart_player_fixture_stats), scripts/generate_metric_sql.py (one Surface per mart),
+  seeds/metric_map.csv and models/docs/metric_columns.md (generated from shared.yml by
+  scripts/sync_metric_docs_blocks.py), tests/test_metric_map.py (fan question 19). site_v2/src
+  reads neither payload's fields.
+  layer_rules: marts read core and dims only; no new model, no new mart; check_layer_contract
+  unchanged.
+  deploy_order: the merged mart builds in data:build:mr and in the first nightly after merge.
+  The player export reads the new columns only after that build; the old table
+  marts.mart_player_match_log stays in prod until the CPO drops it.
+  blast_radius: mart_player_match_log disappears; mart_player_fixture_stats gains seven columns
+  (opponent_team_sk, team_goals_for, team_goals_against, team_logo_url, opponent_name,
+  opponent_logo_url, result) and keeps every existing value. The player payload is read with the
+  same keys and values apart from is_starter, is_substitute and position_code on the rows the
+  line-ups correct; the match-stats payload is unchanged.
 
 decisions_taken: >
-  The elite pool and the World Cup researched now, the rest of the current season parked in #216:
-  approved in chat, 2026-10-13. As in batches 1 to 4 (approved in chat, 2026-10-12 and
-  2026-10-13): half-time substitutions keep the provider's 46' where the official record gives
-  them no minute or 45'; where the official record gives a substitution a different minute or
-  pairing from the provider, the rows carry the official one, because the seed replaces the
-  provider's sheets with the official record; where the official record writes minutes without
-  added time and the provider's minute is the same minute with added time, the rows keep the
-  provider's added time, the two agreeing. Player ids are the provider's: a player the official
-  record names and the provider's sheet leaves out takes the id the provider gives him at that
-  club in that season, on its squad list or on its own team sheet of another match; with no such
-  id the match stays out. Formations and pitch positions are the provider's, as for MLS; where
-  the provider has no formation for a team the row takes the official one: approved in chat,
-  2026-10-13.
+  Merged mart keeps the name mart_player_fixture_stats; the match-log score pair is named
+  team_goals_for and team_goals_against, the goalkeeper's goals_against keeps its name; flags
+  from the checked line-ups with the changed rows counted before merge: approved in chat,
+  2026-10-13. No new mechanism, no new dependency.
 
-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; rows in the existing seed. RECURRING COST: none
-  measurable; 1,056 seed rows.
+  THRESHOLD DECLARATIONS: NEW MECHANISM: none. RECURRING COST: expected to fall, one mart build
+  less per nightly; measured before and after and put to the CPO in GiB.
 
 decisions_reserved:
-  - The competitions parked in #216 and the previous season, #215.
-  - The provider's garbled player names in its own data (a separate data-quality defect).
+  - Dropping the orphaned prod table marts.mart_player_match_log after merge.
+  - The one-match window mart's name, mart_leaderboards as a window of one, and removing
+    mart_team_fixture_stats: later lines of #176, not this change.
+  - design-mocks/gen_match_page.py text that says two marts serve one stat line: belongs to the
+    played match page, #175.
 
 done_when:
-  - dbt parse passes; the seed's tests pass.
-  - The branch's base_apif__lineups on prod data turns every listed match researched, assert_lineup_researched_matches_hold returns no rows, and the research list loses exactly those matches.
-  - data:build:mr is green on the MR.
+  - dbt parse passes; dbt compile of mart_player_fixture_stats passes; sqlfluff lint of the mart is clean.
+  - python scripts/generate_metric_sql.py --check and the pytest files test_metric_map, test_generate_metric_sql, test_sync_metric_docs_blocks, test_export_site_data pass.
+  - data:build:mr is green on the MR, its tests included.
+  - On prod data, the merged mart where has_stat_line against the old match log has the same key set and the same value in every shared column except the line-up flags; those are counted per column and listed.
+  - On prod data, the merged mart against the old mart_player_fixture_stats shows no difference on that mart's own columns.
+  - The nightly warehouse read of the two marts before and after is measured and put to the CPO.
 
 amendments: >
-  none.
+  Added tests/test_no_decision_history_in_code.py to scope_paths: deleting
+  mart_player_match_log.sql removes flagged comment lines, and the test pins the count in both
+  directions, so its two pin numbers go down to the new count. Likewise
+  tests/test_no_decision_history_in_docs.py: the Player profile wireframe loses its dated
+  "verified" note when it names the merged mart, so that file's pin goes from 4 to 3.
+  Authority: the pins' own instruction to lower them when a cleanup removes lines; no behaviour
+  changes.
+  docs/site_architecture.md: the one replacement of the mart list in the Player profile row
+  was approved as exact text in chat, 2026-10-13.

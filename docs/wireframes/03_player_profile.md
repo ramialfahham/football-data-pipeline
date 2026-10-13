@@ -1,7 +1,7 @@
 # 03 — Player profile ⭐ (#391)
 
 > Field-bound against `shape_player_payload` / `mart_player_profile` /
-> `mart_player_match_log` (verified 2026-06-11). Stat rows follow the LOCKED
+> `mart_player_fixture_stats`. Stat rows follow the LOCKED
 > player bundles in [`metrics_display.md`](metrics_display.md) — 9 bundled rows,
 > no tiers, full-triple ratios, zero-denominator rule.
 

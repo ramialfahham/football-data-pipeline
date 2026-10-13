@@ -1,10 +1,10 @@
 {#
-  Per-fixture player rows (#323). The player half of the match detail
-  view: every player of one finished fixture, both sides, that the stat lines
-  or the confirmed or researched team sheets name. A projection of
-  fct_fixture_player_stats and fct_fixture_lineup plus player / team identity
-  for display. The app reads
-  this mart, never core.
+  A player in a finished match: every player of one finished fixture, both sides,
+  that the stat lines or the confirmed or researched team sheets name. A
+  projection of fct_fixture_player_stats and fct_fixture_lineup plus player / team
+  identity and the match context (opponent, the team's score, the result) for
+  display. Read from the match's side and from the player's side alike. The app
+  reads this mart, never core.
 
   The stat line keeps the keys the export has always read. Its one derived
   value, passes_accuracy_percent, is the catalogue's pass accuracy over the
@@ -55,7 +55,10 @@ fixtures as (
         season_api_year,
         kickoff_datetime,
         round_name,
-        home_team_sk
+        home_team_sk,
+        away_team_sk,
+        goals_home,
+        goals_away
     from {{ ref('fct_fixture') }}
     where status_short in ('FT', 'AET', 'PEN')
 ),
@@ -71,7 +74,8 @@ players as (
 teams as (
     select
         team_sk,
-        team_name
+        team_name,
+        team_logo_url
     from {{ ref('dim_team') }}
 ),
 
@@ -123,6 +127,9 @@ select
     f.kickoff_datetime,
     f.round_name,
     t.team_name,
+    t.team_logo_url,
+    opp.team_name as opponent_name,
+    opp.team_logo_url as opponent_logo_url,
     p.player_name,
     p.player_photo_url,
     a.has_stat_line,
@@ -164,7 +171,15 @@ select
     s.penalties_scored as penalty_scored,
     s.penalties_missed as penalty_missed,
     s.penalties_saved as penalty_saved,
-    a.team_sk = f.home_team_sk as is_home
+    a.team_sk = f.home_team_sk as is_home,
+    if(a.team_sk = f.home_team_sk, f.away_team_sk, f.home_team_sk) as opponent_team_sk,
+    if(a.team_sk = f.home_team_sk, f.goals_home, f.goals_away) as team_goals_for,
+    if(a.team_sk = f.home_team_sk, f.goals_away, f.goals_home) as team_goals_against,
+    case
+        when f.goals_home > f.goals_away then if(a.team_sk = f.home_team_sk, 'W', 'L')
+        when f.goals_home < f.goals_away then if(a.team_sk = f.home_team_sk, 'L', 'W')
+        else 'D'
+    end as result
 from appearances as a
 inner join fixtures as f
     on a.fixture_sk = f.fixture_sk
@@ -176,3 +191,5 @@ left join players as p
     on a.player_sk = p.player_sk
 left join teams as t
     on a.team_sk = t.team_sk
+left join teams as opp
+    on if(a.team_sk = f.home_team_sk, f.away_team_sk, f.home_team_sk) = opp.team_sk
