@@ -1,26 +1,26 @@
-# Review — feat/lineup-research-apd
+# Review — feat/lineup-research-elite
 
-diff_sha256: d4a5969da23e5abdbe91c294388ab12264a75f7eb066ea3e0e1a6ae8b488648a
+diff_sha256: 40e32f13f8c408ef35b7277bd69d3e8cc692134c142751ff639dfaa3d3cdf12c
 
-rounds: 2
+rounds: 1
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only the contract and the seed change, both in scope_paths; the seed hunk adds 1,185 rows and removes none.
-- Nothing decides the next leagues, the previous season (#215) or the garbled provider names.
-- The current-season order, Argentina as the batch and the widened id rule each carry their named approval; the provider's formations, positions and unused substitutes are a stated reading, as the official sheet shows none.
-- Round 1 note: the extra-time break reading appeared only in the evidence; round 2 names it in decisions_taken as a reading of the half-time rule.
+- Only the contract and the seed change, both in scope_paths; the seed hunk adds 1,056 rows and removes none.
+- Nothing decides the competitions parked in #216, the previous season (#215) or the garbled provider names; the rows are elite-pool and World Cup matches of the current season.
+- The elite pool and World Cup selection and the formation rule carry their named approvals; the minute readings are stated readings of approved rules.
 - No new mechanism and no recurring cost; nothing in Appendix A applies; no chat wording in the pushed files.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- 572 starter rows, 11 distinct per team sheet in all 52, checked against the official sheets; no starter with a minute on; one formation per team.
-- 241 substitutions, equal to the official lists: each replaced player on the same team with a matching minute off, each pair the official commentary's.
-- Spot checks hold: Herrera's id in 1493176, Ramírez's in 1493169, the official pairing in 1493166, and the extra-time minutes of the three knockout matches.
-- Round 1 note: three notes left out a minute change on a substitution whose outgoing player the provider lacked; round 2 counts it, and only the note column of those matches changed.
-- Notes constant per match and true to their rows; every source https on ligaprofesional.ar; earlier rows, model, schema and tests unchanged.
+- 23 matches, 46 team sheets with 11 distinct starters each; no repeated player id within a match.
+- Every substitution's replaced player is on the same team with a matching minute off; offs equal ons; the chains of substitutes replaced later hold.
+- Formations equal the provider's everywhere but New Zealand and Czechia, which take FIFA's where the provider has none.
+- Sources are https on each competition's own site; notes are constant per match and true to their rows.
+- Spot checks against the official data hold in every competition, including the two Ndiayes of Le Havre, Koum as E. Mbondo, Jemide's id and the half-time substitutions without an official minute.
+- The earlier rows, the model, the schema and the tests are unchanged.
 
 ## escalations
 (none)
