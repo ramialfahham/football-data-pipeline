@@ -1,1224 +1,771 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 32ed2f39..e59cbb3d 100644
+index e59cbb3d..9a13c99c 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,141 +1,147 @@
--# Task contract — a window of one played match on the Form comparison's mart
-+# Task contract — a window of one played match on mart_leaderboards
+@@ -1,147 +1,91 @@
+-# Task contract — a window of one played match on mart_leaderboards
++# Task contract — retire mart_team_fixture_stats and the old match-stats export
  
  objective: >
--  The Form comparison's mart serves each played match as a window of one: for every played
--  fixture, each side gets one row with window_type match, the same columns, catalogue formulas,
--  coverage gates and directions as the form windows, so the played match page can show each
--  team's numbers in that match. The mart is renamed mart_team_momentum to
--  mart_team_window_metrics and its key upcoming_fixture_sk to fixture_sk. Every existing form
--  window row and value, and every existing page and payload, stays the same.
-+  mart_leaderboards serves each played match as a window of one: for every played match with
-+  player stats, seven count boards (Shots, Passes, Key passes, Dribbles attempted, Duels won,
-+  Defensive actions, Fouls), each the top three across both teams, a shared count sharing the
-+  rank, a tie at the cut won by fewer minutes, so the played match page's Match leaders block can
-+  read them. A new player metric fouls_player joins the catalogue, and three metrics get their
-+  place in the catalogue's order. The season boards, every existing payload and every page stay
-+  the same.
+-  mart_leaderboards serves each played match as a window of one: for every played match with
+-  player stats, seven count boards (Shots, Passes, Key passes, Dribbles attempted, Duels won,
+-  Defensive actions, Fouls), each the top three across both teams, a shared count sharing the
+-  rank, a tie at the cut won by fewer minutes, so the played match page's Match leaders block can
+-  read them. A new player metric fouls_player joins the catalogue, and three metrics get their
+-  place in the catalogue's order. The season boards, every existing payload and every page stay
+-  the same.
++  mart_team_fixture_stats, a raw copy of the provider's team stat line, is removed, and with it
++  the old matchstats export that no site component reads. A played match's team numbers come from
++  mart_team_window_metrics' window of one. The form list's has_team_stats flag reads that window
++  instead, so it still says whether the played match's page holds a team stat line. No page and no
++  payload the site reads changes.
  
  refs: >
    #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176), the line
--  "The Form comparison's mart serves one match as a window of one". The name
--  mart_team_window_metrics with the key fixture_sk, the plan, and the four core-document texts
--  in decisions_taken: approved in chat, 2026-10-13. The page it feeds is #175, its design
--  approved on #132.
-+  "mart_leaderboards serves a window of one match: each player's counts in that match". The
-+  Match leaders block is #175, its design approved on #132. The plan, the fouls_player metric,
-+  its texts and the catalogue order in decisions_taken: approved in chat, 2026-10-14.
+-  "mart_leaderboards serves a window of one match: each player's counts in that match". The
+-  Match leaders block is #175, its design approved on #132. The plan, the fouls_player metric,
+-  its texts and the catalogue order in decisions_taken: approved in chat, 2026-10-14.
++  "mart_team_fixture_stats is removed once nothing reads it (with the old match-stats export)".
++  The plan and the document texts in decisions_taken: approved in chat, 2026-10-14.
  
  scope_paths:
--  - dbt_project/models/4_intermediate/shared/int_team_momentum_window.sql
--  - dbt_project/models/4_intermediate/shared/int_momentum_window.yml
--  - dbt_project/models/4_intermediate/shared/int_momentum.yml
--  - dbt_project/models/4_intermediate/shared/int_player_momentum__metrics.sql
--  - dbt_project/models/4_intermediate/world_championship/wc/int_wc.yml
--  - dbt_project/models/5_marts/shared/mart_team_momentum.sql
--  - dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
--  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/models/5_marts/domestic_league/mart_matchday_insights.sql
--  - dbt_project/models/5_marts/domestic_league/domestic_league.yml
--  - dbt_project/models/docs/metric_rules.md
--  - dbt_project/models/docs/metric_columns.md
-+  - dbt_project/seeds/metric_catalogue.csv
-   - dbt_project/seeds/metric_map.csv
--  - dbt_project/tests/assert_form_window_rates_inputs_covered.sql
--  - dbt_project/tests/assert_momentum_awarded_matches_do_not_null_team_stats.sql
--  - dbt_project/tests/assert_momentum_window_matches_momentum.sql
--  - dbt_project/tests/assert_one_form_window_per_side.sql
--  - dbt_project/tests/assert_player_momentum_window_matches_team.sql
--  - dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
--  - dbt_project/tests/assert_tournament_form_window.sql
--  - dbt_project/tests/assert_team_form_window_follows_the_rule.sql
-+  - dbt_project/models/docs/metric_columns.md
-+  - site_v2/src/i18n/strings.ts
-+  - scripts/generate_metric_sql.py
-+  - dbt_project/models/4_intermediate/shared/int_player_match__metrics.sql
-+  - dbt_project/models/4_intermediate/shared/int_player_match.yml
-+  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
+-  - dbt_project/seeds/metric_catalogue.csv
++  - dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
++  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
 +  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-+  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-+  - dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
-+  - dbt_project/tests/assert_one_current_season_per_league.sql
-   - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
--  - dbt_project/tests/assert_match_window_covers_every_played_match.sql
-+  - dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
++  - dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+   - dbt_project/seeds/metric_map.csv
+   - dbt_project/models/docs/metric_columns.md
+-  - site_v2/src/i18n/strings.ts
+-  - scripts/generate_metric_sql.py
+-  - dbt_project/models/4_intermediate/shared/int_player_match__metrics.sql
+-  - dbt_project/models/4_intermediate/shared/int_player_match.yml
+-  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
+-  - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
+-  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
+-  - dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
+-  - dbt_project/tests/assert_one_current_season_per_league.sql
+-  - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
+-  - dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
    - dbt_project/docs/layering.md
    - scripts/export_site_data.py
--  - scripts/generate_metric_sql.py
--  - scripts/sync_metric_docs_blocks.py
--  - scripts/declare_missing_columns.py
-+  - tests/test_catalogue_order.py
-+  - tests/test_export_landing.py
+-  - tests/test_catalogue_order.py
+-  - tests/test_export_landing.py
++  - scripts/generate_metric_sql.py
    - tests/test_export_site_data.py
-+  - tests/test_leaderboard_board_sets.py
+-  - tests/test_leaderboard_board_sets.py
    - tests/test_metric_map.py
--  - tests/test_metric_rows.py
-+  - tests/test_generate_metric_sql.py
+-  - tests/test_generate_metric_sql.py
    - tests/test_no_decision_history_in_code.py
    - tests/test_no_decision_history_in_docs.py
    - tests/test_sentence_length_in_docs.py
--  - site_v2/src/specs/competition/matches/fixture.spec.json
--  - site_v2/src/data/README.md
--  - .gitignore
--  - docs/metrics_context_model.md
--  - docs/site_architecture.md
--  - docs/content_architecture.md
--  - docs/wireframes/01_fixture_page.md
++  - docs/content_architecture.md
++  - docs/site_architecture.md
++  - docs/wireframes/01_fixture_page.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: dbt builds int_team_momentum_window from fct_fixture, the competition registry and
--  types seeds, and int_legs__team_match; int_team_momentum__metrics aggregates it; the mart reads
--  that. No ingestion writer.
--  downstream: dbt ls --select int_team_momentum_window+ (dbt 1.7.20, on the branch's base)
--  returns the models int_player_momentum__metrics, int_team_momentum__metrics,
--  int_team_momentum_window, mart_matchday_insights, mart_player_momentum, mart_team_momentum,
--  mart_team_momentum_window and the singular tests assert_form_window_rates_inputs_covered,
--  assert_momentum_awarded_matches_do_not_null_team_stats, assert_momentum_window_matches_momentum,
--  assert_one_form_window_per_side, assert_player_metrics_follow_catalogue_formula,
--  assert_player_momentum_window_matches_team, assert_team_form_window_follows_the_rule,
--  assert_team_metrics_follow_catalogue_formula, assert_tournament_form_window. Outside dbt:
--  scripts/export_site_data.py (fetch_fixture_payloads, fetch_metric_rows),
--  scripts/generate_metric_sql.py, metric_map.csv (generated), the Python tests,
--  site_v2/src/specs/competition/matches/fixture.spec.json.
--  layer_rules: selection stays in int_team_momentum_window, aggregation in the generated
--  int_team_momentum__metrics; no new model beyond the renamed mart; check_layer_contract unchanged.
--  deploy_order: the renamed mart builds in data:build:mr and in the first build on main. The
--  committed fixture samples are not re-exported; the CI export reads the renamed mart only after
--  that build. The old prod table marts.mart_team_momentum stays until the CPO drops it.
--  blast_radius: int_team_momentum_window and int_team_momentum__metrics gain two rows per played
--  fixture (window_type match); the player builder and the form list filter them out, so
--  mart_player_momentum and mart_team_momentum_window are unchanged; mart_matchday_insights joins
--  upcoming fixtures only and is unchanged; the fixture payload keeps its keys and values.
-+  writers: dbt builds the new int_player_match__metrics from int_legs__player_match, and
-+  mart_leaderboards from int_player_season__metrics, the new intermediate, dim_player and
-+  dim_team. The catalogue seed and the metric map seed are configuration. No ingestion writer.
-+  downstream: pasted output of `dbt ls --select int_player_match__metrics+ mart_leaderboards+
-+  metric_catalogue+ --resource-type model --output name` on the branch (dbt 1.7.20), 3 models:
-+  int_player_match__metrics mart_leaderboards mart_team_leaderboards.
-+  The same selection with --resource-type test, singular tests only (names starting assert_),
-+  20 tests: assert_form_window_rates_inputs_covered
-+  assert_mart_leaderboards_board_leader_order_is_total
-+  assert_mart_leaderboards_every_home_board_has_a_leader
-+  assert_mart_leaderboards_match_boards_follow_the_rule
-+  assert_mart_leaderboards_one_leader_per_league assert_mart_team_leaderboards_all_boards_present
-+  assert_mart_team_leaderboards_every_board_has_a_leader
-+  assert_mart_team_leaderboards_one_leader_per_league
-+  assert_mart_team_leaderboards_rank_follows_rank_order assert_metric_catalogue_expr_resolvable
-+  assert_metric_catalogue_unique_by_entity assert_metric_group_order_is_one_per_group
-+  assert_metric_meaning_complete assert_no_uncatalogued_season_metric
-+  assert_one_current_season_per_league assert_player_metrics_follow_catalogue_formula
-+  assert_player_season_answer_key assert_season_rates_inputs_covered
-+  assert_team_metrics_follow_catalogue_formula assert_team_season_answer_key.
-+  mart_team_leaderboards and the team tests read the catalogue seed; this change edits only
-+  player rows of it, so their reach is the seed reload alone. The catalogue seed is also read by
-+  scripts/generate_metric_sql.py, scripts/sync_metric_docs_blocks.py and the export's board
-+  order (_in_catalogue_order).
-+  Outside dbt: scripts/export_site_data.py (fetch_competition_payloads,
-+  fetch_leaderboard_payloads, fetch_landing_payload), the Python tests named in scope,
-+  site_v2/src/i18n/strings.ts (one new label key).
-+  layer_rules: the match window's selection and its catalogue formulas live in the new
-+  intermediate (metrics_context_model.md section 8.1); the mart ranks and cuts. Generic, not per
-+  competition; check_layer_contract unchanged.
-+  deploy_order: the seeds load before the models in data:build:mr, data:build:main and
-+  fdp-nightly. The export reads window_type, which the mart has only after the first build on
-+  main; the CI export runs teams and fixtures only.
-+  blast_radius: mart_leaderboards gains match rows, at most 21 per played match with player
-+  stats (seven boards, match_leader_order cut at three; the new singular test holds it) and
-+  three columns (window_type, fixture_sk,
-+  match_leader_order); every season row keeps its values and key. The catalogue gains
-+  fouls_player; shots_on_goal_player, finishing_efficiency_player_pct, cards_yellow_player and
-+  cards_red_player move one place down with their relative order kept, so no page changes.
- 
- acceptance_criteria:
--  - Every committed sample payload under site_v2/src/data is byte-identical to main's; git diff gitlab/main -- site_v2/src/data lists only README.md.
--  - The built site's every page has the same text on the branch as on main, compared by script over the built output.
--  - The fixture payload the export shapes from a form row carries the same keys as before; a unit test shows it.
-+  - Every committed sample payload under site_v2/src/data is byte-identical to main's; git diff gitlab/main -- site_v2/src/data lists nothing.
-+  - The built site's every page is byte-identical on the branch and on main, compared by script over the built output.
-+  - The export reads only season rows of mart_leaderboards (window_type season_to_date) in all three of its leaderboard reads; unit tests show each filter.
+-  writers: dbt builds the new int_player_match__metrics from int_legs__player_match, and
+-  mart_leaderboards from int_player_season__metrics, the new intermediate, dim_player and
+-  dim_team. The catalogue seed and the metric map seed are configuration. No ingestion writer.
+-  downstream: pasted output of `dbt ls --select int_player_match__metrics+ mart_leaderboards+
+-  metric_catalogue+ --resource-type model --output name` on the branch (dbt 1.7.20), 3 models:
+-  int_player_match__metrics mart_leaderboards mart_team_leaderboards.
+-  The same selection with --resource-type test, singular tests only (names starting assert_),
+-  20 tests: assert_form_window_rates_inputs_covered
+-  assert_mart_leaderboards_board_leader_order_is_total
+-  assert_mart_leaderboards_every_home_board_has_a_leader
+-  assert_mart_leaderboards_match_boards_follow_the_rule
+-  assert_mart_leaderboards_one_leader_per_league assert_mart_team_leaderboards_all_boards_present
+-  assert_mart_team_leaderboards_every_board_has_a_leader
+-  assert_mart_team_leaderboards_one_leader_per_league
+-  assert_mart_team_leaderboards_rank_follows_rank_order assert_metric_catalogue_expr_resolvable
+-  assert_metric_catalogue_unique_by_entity assert_metric_group_order_is_one_per_group
+-  assert_metric_meaning_complete assert_no_uncatalogued_season_metric
+-  assert_one_current_season_per_league assert_player_metrics_follow_catalogue_formula
+-  assert_player_season_answer_key assert_season_rates_inputs_covered
+-  assert_team_metrics_follow_catalogue_formula assert_team_season_answer_key.
+-  mart_team_leaderboards and the team tests read the catalogue seed; this change edits only
+-  player rows of it, so their reach is the seed reload alone. The catalogue seed is also read by
+-  scripts/generate_metric_sql.py, scripts/sync_metric_docs_blocks.py and the export's board
+-  order (_in_catalogue_order).
+-  Outside dbt: scripts/export_site_data.py (fetch_competition_payloads,
+-  fetch_leaderboard_payloads, fetch_landing_payload), the Python tests named in scope,
+-  site_v2/src/i18n/strings.ts (one new label key).
+-  layer_rules: the match window's selection and its catalogue formulas live in the new
+-  intermediate (metrics_context_model.md section 8.1); the mart ranks and cuts. Generic, not per
+-  competition; check_layer_contract unchanged.
+-  deploy_order: the seeds load before the models in data:build:mr, data:build:main and
+-  fdp-nightly. The export reads window_type, which the mart has only after the first build on
+-  main; the CI export runs teams and fixtures only.
+-  blast_radius: mart_leaderboards gains match rows, at most 21 per played match with player
+-  stats (seven boards, match_leader_order cut at three; the new singular test holds it) and
+-  three columns (window_type, fixture_sk,
+-  match_leader_order); every season row keeps its values and key. The catalogue gains
+-  fouls_player; shots_on_goal_player, finishing_efficiency_player_pct, cards_yellow_player and
+-  cards_red_player move one place down with their relative order kept, so no page changes.
+-
+-acceptance_criteria:
+-  - Every committed sample payload under site_v2/src/data is byte-identical to main's; git diff gitlab/main -- site_v2/src/data lists nothing.
+-  - The built site's every page is byte-identical on the branch and on main, compared by script over the built output.
+-  - The export reads only season rows of mart_leaderboards (window_type season_to_date) in all three of its leaderboard reads; unit tests show each filter.
++  writers: dbt builds mart_team_fixture_stats from fct_fixture_team_stats; nothing else writes it.
++  downstream: pasted output of `dbt ls --select mart_team_fixture_stats+ --output name` on the
++  branch's base (dbt 1.7.20): the models mart_team_fixture_stats and mart_team_momentum_window;
++  the singular tests assert_momentum_window_matches_momentum,
++  assert_team_metrics_follow_catalogue_formula and assert_tournament_form_window; and the generic
++  tests of those two models, among them not_null_mart_team_momentum_window_has_team_stats and
++  team_fixture_stats_passes_accuracy_percent_in_range. Outside dbt:
++  scripts/export_site_data.py (fetch_matchstats_payloads, shape_matchstats, the matchstats
++  entity; fetch_fixture_payloads passes has_team_stats into each form-list row),
++  scripts/generate_metric_sql.py (one Surface), metric_map.csv (7 generated rows),
++  tests/test_metric_map.py (one fan question), tests/test_export_site_data.py (two tests).
++  site_v2/src/lib/types.ts declares has_team_stats; no component reads it.
++  layer_rules: mart_team_momentum_window keeps its documented same-layer read, now of
++  mart_team_window_metrics; no new model; check_layer_contract unchanged.
++  deploy_order: the CI export runs teams and fixtures only; the matchstats entity has no CI
++  caller. The prod table marts.mart_team_fixture_stats stays until the CPO drops it.
++  blast_radius: mart_team_fixture_stats and the matchstats export disappear;
++  mart_team_momentum_window keeps every row and column, and has_team_stats may change on rows
++  where the provider's stat line and the match window disagree, counted before merge. No
++  payload the site reads changes shape.
  
  decisions_taken: >
--  The name mart_team_window_metrics, the key fixture_sk, the intermediates keeping their names and
--  upcoming_fixture_sk as their key, is_form_window false on match rows, and these exact
--  core-document texts: approved in chat, 2026-10-13.
--  docs/metrics_context_model.md section 5, a new bullet after Form window: "- **Match window.** It
--  holds one played match, for that match's own page. Its `window_type` is `match`, and the same
--  formulas apply to a window of one." Section 6: mart_team_momentum becomes
--  mart_team_window_metrics. docs/site_architecture.md Fixture page row and
--  docs/content_architecture.md Matchup row: mart_team_momentum becomes mart_team_window_metrics.
-+  Approved in chat, 2026-10-14: the plan; a new catalogue metric fouls_player, sum(fouls) over
-+  int_legs__player_match, description "Fouls the player committed.", interpretation "Fouls
-+  committed - free kicks given away in the window; low = disciplined (high can also mean a player
-+  who breaks up play).", format integer, group discipline, direction lower_better, tier 3, label
-+  key playerMetrics.fouls.label with the words the team metric shows (EN "Fouls", DE "Fouls",
-+  FI "Rikkeet"); the catalogue order shots_player 1, shots_on_goal_player 2,
-+  finishing_efficiency_player_pct 3 in shooting, duels_won_player 3 in one_on_one, fouls_player
-+  1, cards_yellow_player 2, cards_red_player 3 in discipline; the match boards and their rule as
-+  #175 states them (top three, a shared count sharing the rank, a tie at the cut won by fewer
-+  minutes, no zero); and this dbt_project/docs/layering.md row text: "| `mart_leaderboards` |
-+  (player_sk, season_sk, metric_key) on season rows; (fixture_sk, player_sk, metric_key) on match
-+  rows | LONG per-board player leaderboards: the thirteen season boards of the competition page's
-+  Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor), top 10
-+  per board; and seven count boards for each played match (window_type match), top three.
-+  Composes `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share,
-+  every board most first, a zero never ranked. |"
+-  Approved in chat, 2026-10-14: the plan; a new catalogue metric fouls_player, sum(fouls) over
+-  int_legs__player_match, description "Fouls the player committed.", interpretation "Fouls
+-  committed - free kicks given away in the window; low = disciplined (high can also mean a player
+-  who breaks up play).", format integer, group discipline, direction lower_better, tier 3, label
+-  key playerMetrics.fouls.label with the words the team metric shows (EN "Fouls", DE "Fouls",
+-  FI "Rikkeet"); the catalogue order shots_player 1, shots_on_goal_player 2,
+-  finishing_efficiency_player_pct 3 in shooting, duels_won_player 3 in one_on_one, fouls_player
+-  1, cards_yellow_player 2, cards_red_player 3 in discipline; the match boards and their rule as
+-  #175 states them (top three, a shared count sharing the rank, a tie at the cut won by fewer
+-  minutes, no zero); and this dbt_project/docs/layering.md row text: "| `mart_leaderboards` |
+-  (player_sk, season_sk, metric_key) on season rows; (fixture_sk, player_sk, metric_key) on match
+-  rows | LONG per-board player leaderboards: the thirteen season boards of the competition page's
+-  Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor), top 10
+-  per board; and seven count boards for each played match (window_type match), top three.
+-  Composes `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share,
+-  every board most first, a zero never ranked. |"
++  Approved in chat, 2026-10-14: the plan; has_team_stats reads mart_team_window_metrics' match
++  window (games_with_team_stats > 0) for the played fixture and team; the fan question "How many
++  corners did Dortmund win in their last match?" reads mart_team_window_metrics.corners_per_match
++  with window_type match; these exact document texts: docs/content_architecture.md line 73
++  becomes "| | Single fixture | team, player | `mart_team_window_metrics` (window_type match),
++  `mart_player_fixture_stats` |"; docs/site_architecture.md, Fixture page row, the sentence "The
++  played-match drill-down has no page; its export is `matchstats/{fixture_api_id}.json`, from
++  `mart_team_fixture_stats` and `mart_player_fixture_stats`." is removed and nothing else
++  changes; docs/wireframes/01_fixture_page.md, the data-source row for
++  `data/matchstats/{played_fixture_sk}.json` is removed; dbt_project/docs/layering.md, the
++  mart_team_fixture_stats row is removed.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; one more window type through the existing
--  selection and the generated formulas. RECURRING COST: rises, two rows per played fixture through
--  the window selection and the aggregate in every build; measured before and after and put to the
--  CPO in GiB.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; one intermediate on the existing generated-surface
-+  pattern and one more window on an existing mart. RECURRING COST: rises with the new
-+  intermediate and the match rows in every build; measured before and after and put to the CPO
-+  in GiB.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; one intermediate on the existing generated-surface
+-  pattern and one more window on an existing mart. RECURRING COST: rises with the new
+-  intermediate and the match rows in every build; measured before and after and put to the CPO
+-  in GiB.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a removal. RECURRING COST: falls, one mart build
++  less; measured before and after and put to the CPO in GiB.
  
  decisions_reserved:
--  - Dropping the orphaned prod table marts.mart_team_momentum after merge.
--  - Renaming the intermediates and their key upcoming_fixture_sk.
--  - mart_leaderboards' window of one and removing mart_team_fixture_stats: later lines of #176.
-+  - Renaming mart_leaderboards (#102).
-+  - Removing mart_team_fixture_stats and the old match-stats export: the next line of #176.
-+  - What the played match page shows for a board with fewer than three players, or none: #175.
+-  - Renaming mart_leaderboards (#102).
+-  - Removing mart_team_fixture_stats and the old match-stats export: the next line of #176.
+-  - What the played match page shows for a board with fewer than three players, or none: #175.
++  - Dropping the prod tables no longer built: marts.mart_team_fixture_stats,
++    marts.mart_player_match_log, marts.mart_team_momentum.
++  - docs/wireframes/03_player_profile.md still links match-log rows to matchstats: the player
++    page's design (#136).
++  - GAP-07 in docs/wireframes/99_gaps_register.md and design-mocks/gen_match_page.py: the played
++    match page (#175).
  
  done_when:
--  - dbt parse passes; dbt compile of the changed models passes; sqlfluff lint of the changed models is clean.
--  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; the full pytest suite passes.
-+  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; the copy gate passes; dbt parse and compile pass; sqlfluff lint of the changed models is clean; the full pytest suite passes.
+-  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; the copy gate passes; dbt parse and compile pass; sqlfluff lint of the changed models is clean; the full pytest suite passes.
++  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; the governance gates pass; dbt parse and compile pass; sqlfluff lint of mart_team_momentum_window is clean; the full pytest suite passes; npm run build in site_v2 exits 0 with no site_v2/src change.
    - data:build:mr is green, its tests included.
--  - On prod data the renamed mart's form rows equal prod mart_team_momentum in every key and column; the match rows number two per played fixture.
-+  - On prod data the season rows of the MR's mart equal prod mart_leaderboards in every key and column; the match boards hold at most three rows each, none zero.
-   - The acceptance criteria are shown in acceptance_evidence.md.
+-  - On prod data the season rows of the MR's mart equal prod mart_leaderboards in every key and column; the match boards hold at most three rows each, none zero.
+-  - The acceptance criteria are shown in acceptance_evidence.md.
++  - On prod data mart_team_momentum_window from the MR build equals prod on every key and on every column but has_team_stats; has_team_stats differences are counted and listed.
    - The warehouse read before and after is measured and put to the CPO.
  
  amendments: >
--  After review round 1, approved in chat, 2026-10-13, as exact text:
--  (1) docs/content_architecture.md, the Performance / Form (recent) row: mart_team_momentum
--  becomes mart_team_window_metrics, nothing else.
--  (2) docs/metrics_context_model.md section 8.4: the list of window kinds gains the last bullet
--  "- one played match, for its own page." and its window_type table gains the row
--  "| Match window | `match` |".
--  (3) dbt_project/docs/layering.md mart inventory row: "| `mart_team_window_metrics` |
--  (fixture_sk, team_sk) | A team's metrics over a window, for the match whose page shows them:
--  its form before an upcoming match, the match alone once played. |"
--  (4) the window_type__form doc block in dbt_project/models/docs/metric_rules.md gains:
--  "`match`: the fixture itself, once played; the window of one on that match's page. The player
--  tables and the form list leave it out." This corrects the first approved wording, which said
--  `match` was on mart_team_window_metrics only although its two intermediates carry it too:
--  approved in chat, 2026-10-13, after review round 2.
--  Added tests/test_sentence_length_in_docs.py to scope_paths: the two README sentences that named
--  the old mart were over the length limit and are now split, so the file's pin goes down. No
--  behaviour changes.
-+  The layering.md row text in decisions_taken is one sentence of 32 words, which the sentence-length
-+  gate refuses. It is replaced by the same facts in short sentences, approved in chat, 2026-10-14:
-+  "| `mart_leaderboards` | (player_sk, season_sk, metric_key) on season rows; (fixture_sk,
-+  player_sk, metric_key) on match rows | LONG per-board player leaderboards. The season rows are
-+  the thirteen boards of the competition page's Rankings tab, top 10 per board: 11 count and 2
-+  rate. The rate boards sit behind a minutes and position floor. The match rows are seven count
-+  boards for each played match (window_type match), top three. Composes
-+  `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every
-+  board most first, a zero never ranked. |"
-+  layering.md lists marts only, so the new intermediate gets no row there.
-+  After the MR build: site_v2/scripts/check-metric-labels.test.mjs refuses a metric label that no
-+  page asks for, and no page shows fouls_player yet. So playerMetrics.fouls.label leaves
-+  strings.ts in this change; its approved words (EN "Fouls", DE "Fouls", FI "Rikkeet") go in
-+  with the played match page (#175), the first page that shows it, as the labels of shots_player
-+  and duels_won_player will. The catalogue row keeps its label key. The third acceptance
-+  criterion and the first two are unchanged; site_v2/src is now untouched by this change.
+-  The layering.md row text in decisions_taken is one sentence of 32 words, which the sentence-length
+-  gate refuses. It is replaced by the same facts in short sentences, approved in chat, 2026-10-14:
+-  "| `mart_leaderboards` | (player_sk, season_sk, metric_key) on season rows; (fixture_sk,
+-  player_sk, metric_key) on match rows | LONG per-board player leaderboards. The season rows are
+-  the thirteen boards of the competition page's Rankings tab, top 10 per board: 11 count and 2
+-  rate. The rate boards sit behind a minutes and position floor. The match rows are seven count
+-  boards for each played match (window_type match), top three. Composes
+-  `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every
+-  board most first, a zero never ranked. |"
+-  layering.md lists marts only, so the new intermediate gets no row there.
+-  After the MR build: site_v2/scripts/check-metric-labels.test.mjs refuses a metric label that no
+-  page asks for, and no page shows fouls_player yet. So playerMetrics.fouls.label leaves
+-  strings.ts in this change; its approved words (EN "Fouls", DE "Fouls", FI "Rikkeet") go in
+-  with the played match page (#175), the first page that shows it, as the labels of shots_player
+-  and duels_won_player will. The catalogue row keeps its label key. The third acceptance
+-  criterion and the first two are unchanged; site_v2/src is now untouched by this change.
++  none.
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 5364c799..1ba8ebeb 100644
+index 1ba8ebeb..c61db874 100644
 --- a/dbt_project/docs/layering.md
 +++ b/dbt_project/docs/layering.md
-@@ -310,7 +310,7 @@ Canonical mart inventory (exhaustive) for this project:
- | Mart | Grain | Notes |
- |------|-------|-------|
- | `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
--| `mart_leaderboards` | (player_sk, season_sk, metric_key) | LONG per-board player leaderboards, the thirteen boards of the competition page's Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor); generalises the retired `mart_top_scorers`. Composes `int_player_season__metrics`; top-10 per board, DENSE_RANK ties share, every board most first. |
-+| `mart_leaderboards` | (player_sk, season_sk, metric_key) on season rows; (fixture_sk, player_sk, metric_key) on match rows | LONG per-board player leaderboards. The season rows are the thirteen boards of the competition page's Rankings tab, top 10 per board: 11 count and 2 rate. The rate boards sit behind a minutes and position floor. The match rows are seven count boards for each played match (window_type match), top three. Composes `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every board most first, a zero never ranked. |
- | `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
- | `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
- | `mart_competition_fixtures` | fixture_sk | Every match of a competition-season, played and unplayed, with both teams, its round and its flags. A played match also carries its goals as one list and its `goal_data_state`. |
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_match.yml b/dbt_project/models/4_intermediate/shared/int_player_match.yml
-new file mode 100644
-index 00000000..9614c223
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_player_match.yml
-@@ -0,0 +1,74 @@
-+version: 2
-+
-+models:
-+  - name: int_player_match__metrics
-+    description: >
-+      A player's numbers in one played match: the match window, a window of one. Grain:
-+      (fixture_sk, player_sk). One row per player with a stat line in a played match.
-+
-+      Every metric is its metric_catalogue formula over that one match. These are the counts the
-+      played match page's Match leaders boards rank in mart_leaderboards (window_type match).
-+    config:
-+      tags: ["intermediate", "football", "player"]
-+    tests:
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns:
-+            - fixture_sk
-+            - player_sk
-+    columns:
-+      - name: fixture_sk
-+        description: "{{ doc('fixture_sk') }} The played match this row's numbers come from."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-+      - name: player_sk
-+        description: "{{ doc('player_sk') }}"
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_player')
-+              field: player_sk
-+      - name: team_sk
-+        description: "{{ doc('team_sk') }} Here it is the side the player's stat line names in this match."
-+        tests:
-+          - not_null
-+          - relationships:
-+              to: ref('dim_team')
-+              field: team_sk
-+      - name: league_sk
-+        description: "{{ doc('league_sk') }}"
-+        tests:
-+          - relationships:
-+              to: ref('dim_league')
-+              field: league_sk
-+      - name: season_sk
-+        description: "{{ doc('season_sk') }}"
-+        tests:
-+          - relationships:
-+              to: ref('dim_competition_season')
-+              field: season_sk
-+      - name: league_code
-+        description: "{{ doc('league_code') }}"
-+        tests: [not_null]
-+      - name: season_api_year
-+        description: "{{ doc('season_api_year') }}"
-+      - name: kickoff_datetime
-+        description: "{{ doc('kickoff_datetime') }}"
-+      - name: minutes
-+        description: "{{ doc('minutes_played') }}"
-+      - name: shots_player
-+        description: "{{ doc('shots_player') }}"
-+      - name: passes_player
-+        description: "{{ doc('passes_player') }}"
-+      - name: passes_key_player
-+        description: "{{ doc('passes_key_player') }}"
-+      - name: dribbles_attempts_player
-+        description: "{{ doc('dribbles_attempts_player') }}"
-+      - name: duels_won_player
-+        description: "{{ doc('duels_won_player') }}"
-+      - name: defensive_actions_player
-+        description: "{{ doc('defensive_actions_player') }}"
-+      - name: fouls_player
-+        description: "{{ doc('fouls_player') }}"
-diff --git a/dbt_project/models/4_intermediate/shared/int_player_match__metrics.sql b/dbt_project/models/4_intermediate/shared/int_player_match__metrics.sql
-new file mode 100644
-index 00000000..1848d0e6
---- /dev/null
-+++ b/dbt_project/models/4_intermediate/shared/int_player_match__metrics.sql
-@@ -0,0 +1,48 @@
-+{#
-+  A player's numbers in one played match: the match window, a window of one. One row per player per
-+  played match with a stat line, carrying the count metrics the played match page's Match leaders
-+  boards rank (mart_leaderboards, window_type match).
-+
-+  Grain: (fixture_sk, player_sk).
-+
-+  The window is the match itself, so every row is complete: a stat line exists only where the
-+  team's match has player data. Every metric is its catalogue formula over that one row, written by
-+  scripts/generate_metric_sql.py by the rules in models/docs/metric_rules.md.
-+#}
-+
-+with legs as (
-+    select * from {{ ref('int_legs__player_match') }}
-+),
-+
-+window_rows as (
-+    select
-+        legs.*,
-+        true as window_is_complete
-+    from legs
-+)
-+
-+select
-+    fixture_sk,
-+    player_sk,
-+    team_sk,
-+    league_sk,
-+    season_sk,
-+    league_code,
-+    season_api_year,
-+    kickoff_datetime,
-+    if(logical_and(window_is_complete and minutes is not null), sum(minutes), null) as minutes,
-+    -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
-+    if(logical_and(window_is_complete and shots is not null), sum(shots), null) as shots_player,
-+    if(logical_and(window_is_complete and passes is not null), sum(passes), null) as passes_player,
-+    if(logical_and(window_is_complete and passes_key is not null), sum(passes_key), null) as passes_key_player,
-+    if(logical_and(window_is_complete and dribbles is not null), sum(dribbles), null) as dribbles_attempts_player,
-+    if(logical_and(window_is_complete and duels_won is not null), sum(duels_won), null) as duels_won_player,
-+    if(
-+        logical_and(window_is_complete and (tackles + interceptions + blocks) is not null),
-+        sum(tackles + interceptions + blocks),
-+        null
-+    ) as defensive_actions_player,
-+    if(logical_and(window_is_complete and fouls is not null), sum(fouls), null) as fouls_player
-+    -- end of generated metric sql
-+from window_rows
-+group by fixture_sk, player_sk, team_sk, league_sk, season_sk, league_code, season_api_year, kickoff_datetime
-diff --git a/dbt_project/models/5_marts/shared/mart_leaderboards.sql b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-index 55ee097e..374028fa 100644
---- a/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-+++ b/dbt_project/models/5_marts/shared/mart_leaderboards.sql
-@@ -18,6 +18,12 @@
+@@ -326,7 +326,6 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
+ | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
+ | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
+-| `mart_team_fixture_stats` | (fixture_sk, team_sk) | Per-fixture team stat lines. |
+ | `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | A player in a finished match: every player the stat lines or the line-ups name, with the match context. A player's match log is its rows with a stat line. |
+ | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
+ | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
+diff --git a/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
+deleted file mode 100644
+index 4f161fc7..00000000
+--- a/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
++++ /dev/null
+@@ -1,108 +0,0 @@
+-{#
+-  Per-fixture team stat line (#323). The detail view behind a match in the
+-  form-window list: the full team stat line for one finished fixture, both
+-  sides as two rows: a projection of fct_fixture_team_stats plus fixture
+-  metadata and team identity for display. The one derived value,
+-  passes_accuracy_percent, is the catalogue's pass accuracy over the team's own
+-  match, written by scripts/generate_metric_sql.py and shown as a whole
+-  percentage. The app reads this mart, never core.
+-
+-  Covers ALL finished fixtures that have team stats, not just form-window
+-  matches: it is selection-free by design and serves the team/player profile
+-  surfaces (#324/#325) too. A fixture with no rows here has no team stats —
+-  the honest "not available" state. The stat line is the cleaned one from
+-  core, handed on under the names the export reads.
+-
+-  Grain: (fixture_sk, team_sk).
+-#}
+-
+-with stats as (
+-    select
+-        *,
+-        false as is_awarded_result
+-    from {{ ref('fct_fixture_team_stats') }}
+-    -- Core holds a row for every team of a finished match; only a line the provider
+-    -- sent with a value in it is shown, so a team without one gets the "stats not
+-    -- available" state rather than a view of blanks and event-proven zero cards.
+-    where has_stat_line
+-),
+-
+-match_rates as (
+-    select
+-        fixture_sk,
+-        team_sk,
+-        -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
+-        safe_divide(
+-            if(
+-                logical_and(is_awarded_result or passes_accurate is not null) over w,
+-                sum(if(is_awarded_result, null, passes_accurate)) over w,
+-                null
+-            ),
+-            if(
+-                logical_and(is_awarded_result or passes is not null) over w,
+-                sum(if(is_awarded_result, null, passes)) over w,
+-                null
+-            )
+-        ) as passes_accuracy_pct
+-        -- end of generated metric sql
+-    from stats
+-    window w as (partition by fixture_sk, team_sk)
+-),
+-
+-fixtures as (
+-    select
+-        fixture_sk,
+-        league_code,
+-        season_api_year,
+-        kickoff_datetime,
+-        round_name,
+-        home_team_sk,
+-        goals_home,
+-        goals_away
+-    from {{ ref('fct_fixture') }}
+-    where status_short in ('FT', 'AET', 'PEN')
+-),
+-
+-teams as (
+-    select
+-        team_sk,
+-        team_name,
+-        team_logo_url
+-    from {{ ref('dim_team') }}
+-)
+-
+-select
+-    s.fixture_sk,
+-    s.team_sk,
+-    f.league_code,
+-    f.season_api_year,
+-    f.kickoff_datetime,
+-    f.round_name,
+-    t.team_name,
+-    t.team_logo_url,
+-    s.shots_on_target as shots_on_goal,
+-    s.shots_off_target as shots_off_goal,
+-    s.shots as shots_total,
+-    s.shots_blocked,
+-    s.shots_inside_box,
+-    s.shots_outside_box,
+-    s.fouls,
+-    s.corners as corner_kicks,
+-    s.offsides,
+-    s.possession_pct as ball_possession_percent,
+-    s.cards_yellow as yellow_cards,
+-    s.cards_red as red_cards,
+-    s.saves as goalkeeper_saves,
+-    s.passes as passes_total,
+-    s.passes_accurate,
+-    cast(round(100 * r.passes_accuracy_pct) as int64) as passes_accuracy_percent,
+-    s.team_sk = f.home_team_sk as is_home,
+-    if(s.team_sk = f.home_team_sk, f.goals_home, f.goals_away) as goals_for,
+-    if(s.team_sk = f.home_team_sk, f.goals_away, f.goals_home) as goals_against
+-from stats as s
+-inner join match_rates as r
+-    on s.fixture_sk = r.fixture_sk and s.team_sk = r.team_sk
+-inner join fixtures as f
+-    on s.fixture_sk = f.fixture_sk
+-left join teams as t
+-    on s.team_sk = t.team_sk
+diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+index e82f8aff..730551a3 100644
+--- a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++++ b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
+@@ -5,13 +5,13 @@
+   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
+   selection; tournament windows are cumulative, so a side can have more than five rows.
  
-   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
-   what we show); sort_value is the board's own ranked value. Grain: (player_sk, season_sk, metric_key).
-+
-+  The match window (window_type 'match'): for every played match with player stats, seven count boards
-+  across both teams, from int_player_match__metrics. rank is the same DENSE_RANK within the match;
-+  match_leader_order is the tie-broken position, fewer minutes winning, and the board keeps its first
-+  three. On match rows the value is sort_value alone, so the season-only columns are NULL. Season rows
-+  carry window_type 'season_to_date'. Grain of a match row: (fixture_sk, player_sk, metric_key).
+-  played_fixture_sk is the click-through key into mart_team_fixture_stats /
+-  mart_player_fixture_stats. has_team_stats / has_player_stats tell the app
+-  honestly whether that drill-down has data (player stats are missing for a
+-  meaningful share of matches — the common case, not rare). The flags are
+-  derived from the detail marts themselves (same-layer refs, the documented
+-  exception in layering.md) so "true" literally means "the drill-down holds a
+-  stat line" — one definition, no drift.
++  played_fixture_sk is the click-through key into the played match: its window of one in
++  mart_team_window_metrics and its players in mart_player_fixture_stats. has_team_stats /
++  has_player_stats tell the app honestly whether that drill-down has data (player stats are
++  missing for a meaningful share of matches — the common case, not rare). The flags are
++  derived from those marts themselves (same-layer refs, the documented exception in
++  layering.md) so "true" literally means "the drill-down holds a stat line" — one
++  definition, no drift.
+ 
+   Grain: (upcoming_fixture_sk, team_sk, played_fixture_sk).
  #}
- 
- {# The board set, in the ruled order. Adding or removing a key here must also move seeds'
-@@ -44,6 +50,18 @@
-      'qualify': outfield ~ ' and shots_on_goal_player >= ' ~ var('player_min_shots_on_target')},
- ] %}
- 
-+{# The Match leaders boards of the played match page, in the catalogue's order. #}
-+{% set match_boards = [
-+    'shots_player',
-+    'passes_player',
-+    'passes_key_player',
-+    'dribbles_attempts_player',
-+    'duels_won_player',
-+    'defensive_actions_player',
-+    'fouls_player',
-+] %}
-+{% set match_board_rows = 3 %}
-+
- {# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
-    guard. Count boards rank all positive performers; rate boards add the qualification rule. #}
- {% set boards = [] %}
-@@ -60,6 +78,10 @@ with season as (
-     select * from {{ ref('int_player_season__metrics') }}
+@@ -38,10 +38,11 @@ opponents as (
  ),
  
-+match_metrics as (
-+    select * from {{ ref('int_player_match__metrics') }}
-+),
-+
- players as (
-     select
-         player_sk,
-@@ -165,6 +187,128 @@ ranked as (
-     union all
-     {% endif %}
-     {% endfor %}
-+),
-+
-+match_base as (
+ team_stat_coverage as (
+-    select distinct
 +    select
-+        m.fixture_sk,
-+        m.player_sk,
-+        m.season_sk,
-+        m.league_sk,
-+        m.league_code,
-+        m.season_api_year,
-+        m.minutes,
-+        m.team_sk,
-+        m.shots_player,
-+        m.passes_player,
-+        m.passes_key_player,
-+        m.dribbles_attempts_player,
-+        m.duels_won_player,
-+        m.defensive_actions_player,
-+        m.fouls_player,
-+        p.player_name,
-+        p.player_nationality,
-+        p.player_position,
-+        p.player_photo_url,
-+        t.team_name,
-+        t.team_slug,
-+        t.team_logo_url
-+    from match_metrics as m
-+    left join players as p on m.player_sk = p.player_sk
-+    left join teams as t on m.team_sk = t.team_sk
-+),
-+
-+-- One match's boards: the same DENSE_RANK as a season board, and the same tie-break at the cut,
-+-- fewer minutes first, with player_sk as the stable last resort.
-+match_ranked as (
-+    {% for key in match_boards %}
-+    select
-+        fixture_sk,
-+        player_sk,
-+        season_sk,
-+        league_sk,
-+        league_code,
-+        season_api_year,
-+        minutes,
-+        team_sk,
-+        player_name,
-+        player_nationality,
-+        player_position,
-+        player_photo_url,
-+        team_name,
-+        team_slug,
-+        team_logo_url,
-+        '{{ key }}' as metric_key,
-+        cast({{ key }} as float64) as sort_value,
-+        dense_rank() over (
-+            partition by fixture_sk
-+            order by {{ key }} desc
-+        ) as board_rank,
-+        row_number() over (
-+            partition by fixture_sk
-+            order by {{ key }} desc, minutes asc nulls last, player_sk asc
-+        ) as match_leader_order
-+    from match_base
-+    where {{ key }} > 0
-+    {% if not loop.last %}
-+    union all
-+    {% endif %}
-+    {% endfor %}
-+),
-+
-+match_rows as (
-+    select
-+        fixture_sk,
-+        player_sk,
-+        season_sk,
-+        league_sk,
-+        league_code,
-+        season_api_year,
-+        minutes,
-+        team_sk,
-+        player_name,
-+        player_nationality,
-+        player_position,
-+        player_photo_url,
-+        team_name,
-+        team_slug,
-+        team_logo_url,
-+        metric_key,
-+        sort_value,
-+        board_rank,
-+        match_leader_order,
-+        {{ dbt_utils.generate_surrogate_key(["'match'", 'fixture_sk', 'player_sk', 'metric_key']) }}
-+            as player_leaderboard_sk,
-+        'match' as window_type,
-+        cast(null as int64) as league_leader_order,
-+        cast(null as int64) as appearances,
-+        cast(null as int64) as goals_player,
-+        cast(null as int64) as assists_player,
-+        cast(null as int64) as shots_on_goal_player,
-+        cast(null as int64) as dribbles_attempts_player,
-+        cast(null as int64) as dribbles_success_player,
-+        cast(null as int64) as passes_player,
-+        cast(null as int64) as passes_key_player,
-+        cast(null as int64) as duels_player,
-+        cast(null as int64) as duels_won_player,
-+        cast(null as int64) as tackles_player,
-+        cast(null as int64) as interceptions_player,
-+        cast(null as int64) as blocks_player,
-+        cast(null as int64) as cards_yellow_player,
-+        cast(null as int64) as cards_red_player,
-+        cast(null as int64) as saves_player,
-+        cast(null as int64) as scorer_points_player,
-+        cast(null as int64) as defensive_actions_player,
-+        cast(null as int64) as cards_player,
-+        cast(null as float64) as passes_accuracy_player_pct,
-+        cast(null as float64) as duels_won_player_pct,
-+        cast(null as float64) as dribbles_success_player_pct,
-+        cast(null as float64) as saves_player_pct,
-+        cast(null as float64) as finishing_efficiency_player_pct,
-+        cast(null as bool) as is_current_season,
-+        cast(null as int64) as board_leader_order
-+    from match_ranked
-+    where match_leader_order <= {{ match_board_rows }}
- )
+         fixture_sk,
+         team_sk
+-    from {{ ref('mart_team_fixture_stats') }}
++    from {{ ref('mart_team_window_metrics') }}
++    where window_type = 'match' and games_with_team_stats > 0
+ ),
  
- -- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
-@@ -261,6 +405,62 @@ select
-                 minutes asc nulls last,
-                 player_sk asc
-         )
--    end as board_leader_order
-+    end as board_leader_order,
-+    'season_to_date' as window_type,
-+    cast(null as int64) as fixture_sk,
-+    cast(null as int64) as match_leader_order
- from ranked
- where board_rank <= 10
-+
-+union all
-+
-+select
-+    player_leaderboard_sk,
-+    metric_key,
-+    board_rank as rank,
-+    league_leader_order,
-+    sort_value,
-+    league_code,
-+    season_api_year,
-+    season_sk,
-+    league_sk,
-+    player_sk,
-+    player_name,
-+    player_nationality,
-+    player_position,
-+    player_photo_url,
-+    team_sk,
-+    team_name,
-+    team_slug,
-+    team_logo_url,
-+    appearances,
-+    minutes,
-+    goals_player,
-+    assists_player,
-+    shots_on_goal_player,
-+    dribbles_attempts_player,
-+    dribbles_success_player,
-+    passes_player,
-+    passes_key_player,
-+    duels_player,
-+    duels_won_player,
-+    tackles_player,
-+    interceptions_player,
-+    blocks_player,
-+    cards_yellow_player,
-+    cards_red_player,
-+    saves_player,
-+    scorer_points_player,
-+    defensive_actions_player,
-+    cards_player,
-+    passes_accuracy_player_pct,
-+    duels_won_player_pct,
-+    dribbles_success_player_pct,
-+    saves_player_pct,
-+    finishing_efficiency_player_pct,
-+    is_current_season,
-+    board_leader_order,
-+    window_type,
-+    fixture_sk,
-+    match_leader_order
-+from match_rows
+ player_stat_coverage as (
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 0d9bcac7..68a2e86a 100644
+index 68a2e86a..e9591c3f 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -2243,8 +2243,9 @@ models:
-   - name: mart_leaderboards
-     description: >
-       One row per (player, board): where that player ranks on that board within a
--      competition-season. Long-shaped — the board is a value in metric_key, not a column.
--      Grain: (player_sk, season_sk, metric_key).
-+      competition-season, or within one played match. Long-shaped — the board is a value in
-+      metric_key, not a column. Grain: (player_sk, season_sk, metric_key) on season rows,
-+      (fixture_sk, player_sk, metric_key) on match rows.
+@@ -440,8 +440,10 @@ models:
+       team_sk, played_fixture_sk).
  
-       Season-to-date, composed from int_player_season__metrics, dim_player and dim_team. rank is a
-       DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
-@@ -2261,6 +2262,12 @@ models:
-       is_current_season marks the latest season a competition has, so a consumer showing one season
-       filters on a served fact instead of choosing a season itself.
+       played_fixture_sk identifies each past match, so a per-fixture stat line can be looked up
+-      from here. has_team_stats and has_player_stats are computed against the per-fixture stat
+-      marts, so true means detail genuinely exists rather than that it ought to.
++      from here. has_team_stats and has_player_stats are computed against the played match's
++      window of one in mart_team_window_metrics and its player stat lines in
++      mart_player_fixture_stats, so true means detail genuinely exists rather than that it ought
++      to.
  
-+      Rows with window_type match are one played match's boards, for the match's Match leaders
-+      block: seven count boards across both teams, each its first three players by
-+      match_leader_order. Their grain is (fixture_sk, player_sk, metric_key). On them the value is
-+      sort_value alone; minutes holds the match's minutes, and the other count and rate columns,
-+      appearances and the season orders are NULL. Every other row has window_type season_to_date.
-+
-       {{ doc('ranking_rules') }}
-     meta:
-       owner: "data-platform"
-@@ -2271,6 +2278,12 @@ models:
-     tests:
-       - dbt_utils.unique_combination_of_columns:
-           combination_of_columns: [player_sk, season_sk, metric_key]
-+          config:
-+            where: "window_type = 'season_to_date'"
-+      - dbt_utils.unique_combination_of_columns:
-+          combination_of_columns: [fixture_sk, player_sk, metric_key]
-+          config:
-+            where: "window_type = 'match'"
-       - dbt_utils.expression_is_true:
-           expression: "rank between 1 and 10"
-           name: mart_leaderboards_rank_in_range
-@@ -2296,16 +2309,37 @@ models:
-           name: mart_leaderboards_finishing_efficiency_player_pct_in_range
-     columns:
-       - name: player_leaderboard_sk
--        description: "Surrogate from (player_sk, season_sk, metric_key)."
-+        description: "Surrogate from (player_sk, season_sk, metric_key) on season rows; from ('match', fixture_sk, player_sk, metric_key) on match rows."
-         tests: [not_null, unique]
-       - name: metric_key
--        description: "The board — a metric_catalogue metric_id (11 count + 2 rate boards = 13, the competition page's Rankings tab)."
-+        description: "The board — a metric_catalogue metric_id: on season rows the 13 boards of the competition page's Rankings tab (11 count + 2 rate); on match rows the 7 count boards of the played match page's Match leaders."
-         tests:
-           - not_null
-           - accepted_values:
--              values: ["goals_player", "assists_player", "shots_on_goal_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_player", "defensive_actions_player", "cards_yellow_player", "cards_red_player", "saves_player", "passes_accuracy_player_pct", "finishing_efficiency_player_pct"]
-+              values: ["goals_player", "assists_player", "shots_on_goal_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_player", "defensive_actions_player", "cards_yellow_player", "cards_red_player", "saves_player", "passes_accuracy_player_pct", "finishing_efficiency_player_pct", "shots_player", "duels_won_player", "fouls_player"]
-+      - name: window_type
-+        description: "Which matches the boards rank: `season_to_date`, the competition-season the row belongs to; `match`, one played match."
-+        tests:
-+          - not_null
-+          - accepted_values:
-+              values: ["season_to_date", "match"]
-+      - name: fixture_sk
-+        description: "{{ doc('fixture_sk') }} The played match a match row ranks; NULL on season rows."
-+        tests:
-+          - not_null:
-+              config:
-+                where: "window_type = 'match'"
-+          - relationships:
-+              to: ref('fct_fixture')
-+              field: fixture_sk
-+      - name: match_leader_order
-+        description: "The tie-broken position on one match's board: best value, then fewer minutes, then player_sk. A board keeps positions 1 to 3. NULL on season rows."
-+        tests:
-+          - not_null:
-+              config:
-+                where: "window_type = 'match'"
-       - name: rank
--        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
-+        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10 on season rows, at the third position on match rows."
+       assert_momentum_window_matches_momentum guards that these rows and the aggregate stay
+       consistent.
+@@ -498,7 +500,7 @@ models:
+               to: ref('dim_team')
+               field: team_sk
+       - name: has_team_stats
+-        description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
++        description: "True when the played fixture's window of one for this team in mart_team_window_metrics (window_type match) holds a team stat line (games_with_team_stats above 0)."
          tests: [not_null]
-       - name: league_leader_order
-         description: >
-@@ -2314,8 +2348,12 @@ models:
-           when a consumer must show ONE player per league: rank is a DENSE_RANK, so joint leaders
-           share it and a league can hold several 1s. Ties break by fewer minutes played, then by
-           player_sk. Fewer minutes wins because the same tally in less time is the better
--          performance; player_sk is a stable last resort and means nothing on its own.
+       - name: has_player_stats
+         description: "True when mart_player_fixture_stats has a player stat line (has_stat_line) for this played fixture + team. False is the common case — many competitions lack player stats."
+@@ -527,93 +529,6 @@ models:
+       - name: opponent_logo_url
+         description: "{{ doc('opponent_logo_url') }}"
+ 
+-  - name: mart_team_fixture_stats
+-    description: >
+-      One team's stat line from one finished match, with the fixture's own details and the team's
+-      identity alongside. Both sides of a fixture appear, as two rows. Grain: (fixture_sk,
+-      team_sk).
+-
+-      A projection of fct_fixture_team_stats; the one derived value, passes_accuracy_percent, is
+-      the catalogue's pass accuracy over the team's own match, written by
+-      scripts/generate_metric_sql.py and shown as a whole percentage.
+-
+-      Covers finished fixtures that have team stats. Provider shell rows, where the statistics
+-      block exists but every value is NULL, are excluded, so a fixture missing from here has no
+-      usable stats rather than zero of everything.
+-    tests:
+-      - dbt_utils.unique_combination_of_columns:
+-          combination_of_columns: [fixture_sk, team_sk]
+-      - dbt_utils.expression_is_true:
+-          expression: "passes_accuracy_percent is null or (passes_accuracy_percent between 0 and 100)"
+-          name: team_fixture_stats_passes_accuracy_percent_in_range
+-    columns:
+-      - name: fixture_sk
+-        description: "{{ doc('fixture_sk') }}"
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('fct_fixture')
+-              field: fixture_sk
+-      - name: team_sk
+-        description: "{{ doc('team_sk') }}"
+-        tests:
+-          - not_null
+-          - relationships:
+-              to: ref('dim_team')
+-              field: team_sk
+-      - name: league_code
+-        description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
 -        tests: [not_null]
-+          performance; player_sk is a stable last resort and means nothing on its own. NULL on
-+          match rows.
-+        tests:
-+          - not_null:
-+              config:
-+                where: "window_type = 'season_to_date'"
-       - name: board_leader_order
-         description: >
-           The order the league leaders appear in on this board, across every league, by the same
-@@ -2338,8 +2376,11 @@ models:
- 
-           Per LEAGUE, not per player, so all rows of a league's latest season agree. Latest by
-           season_api_year alone; it does not ask whether that season has started or how many
--          matches have been played.
+-      - name: is_home
+-        description: "{{ doc('is_home__own_fixture') }}"
 -        tests: [not_null]
-+          matches have been played. NULL on match rows.
-+        tests:
-+          - not_null:
-+              config:
-+                where: "window_type = 'season_to_date'"
-       - name: player_sk
-         description: "{{ doc('player_sk') }}"
-         tests:
-@@ -2395,7 +2436,7 @@ models:
-       - name: appearances
-         description: "{{ doc('appearances__season_to_date') }}"
-       - name: minutes
--        description: "{{ doc('minutes__season_to_date') }}"
-+        description: "{{ doc('minutes__season_to_date') }} On match rows: the minutes the player played in that match, the tie-break at the cut."
-       - name: goals_player
-         description: "{{ doc('goals_player') }}"
-       - name: assists_player
-diff --git a/dbt_project/models/docs/metric_columns.md b/dbt_project/models/docs/metric_columns.md
-index 59e59954..66b63f5f 100644
---- a/dbt_project/models/docs/metric_columns.md
-+++ b/dbt_project/models/docs/metric_columns.md
-@@ -443,6 +443,11 @@ Average number of fouls the team's players committed per match.
- {% enddocs %}
- 
- 
-+{% docs fouls_player %}
-+Fouls the player committed.
-+{% enddocs %}
-+
-+
- {% docs free_kicks_per_match %}
- Average number of free kicks the team was awarded per match.
- {% enddocs %}
-diff --git a/dbt_project/seeds/metric_catalogue.csv b/dbt_project/seeds/metric_catalogue.csv
-index c809fc2a..70c2769a 100644
---- a/dbt_project/seeds/metric_catalogue.csv
-+++ b/dbt_project/seeds/metric_catalogue.csv
-@@ -12,7 +12,7 @@ shots_on_goal_pct,team,metrics.shots_on_goal_pct.label,The team's shots on targe
- shots_inside_box_pct,team,metrics.shots_inside_box_pct.label,The team's shots from inside the penalty area as a share of all its shots.,int_legs__team_match,sum(shots_inside_box),sum(shots),expression,percent,shooting,2,higher_better,Chance quality - share of shots from inside the box; high = better positions,2,8
- shots_on_goal_per_match,team,metrics.shots_on_target_per_match.label,Average number of shots on target the team had per match.,int_legs__team_match,sum(shots_on_target),count(*),expression,decimal_1,shooting,1,higher_better,On-target threat - efforts testing the keeper; high = sustained threat,2,2
- finishing_efficiency_pct,team,metrics.finishing_efficiency_pct.label,"Goals the team scored, not counting penalties and opponents' own goals, as a share of its shots on target.",int_legs__team_match,sum(goals - goals_penalty - goals_own),sum(shots_on_target),expression,percent,shooting,1,higher_better,Clinical finishing - open-play goals per shot on goal; high = ruthless,2,10
--finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,"Goals the player scored, not counting penalties, as a share of the player's shots on target.",int_legs__player_match,sum(goals - goals_penalty),sum(shots_on_target),expression,percent,shooting,2,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher,2,2
-+finishing_efficiency_player_pct,player,playerMetrics.finishingEfficiency.label,"Goals the player scored, not counting penalties, as a share of the player's shots on target.",int_legs__player_match,sum(goals - goals_penalty),sum(shots_on_target),expression,percent,shooting,2,higher_better,Clinical finishing - open-play goals per shot on target; high = a ruthless finisher,2,3
- duels_per_match,team,metrics.duels_per_match.label,"Average number of one-on-one challenges for the ball, on the ground or in the air, that the team's players contested per match.",int_legs__team_from_players,sum(duels),count(*),expression,decimal_0,one_on_one,2,higher_better,Duel engagement - duels contested per game; high = a physically engaged side (volume; can also reflect a side under sustained pressure),4,4
- duels_won_pct,team,metrics.duels_won_pct.label,"One-on-one challenges for the ball, on the ground or in the air, that the team's players won, as a share of those they contested.",int_legs__team_from_players,sum(duels_won),sum(duels),expression,percent,one_on_one,2,higher_better,Duel success - share of duels won; high = wins the physical battle,4,6
- duels_won_player_pct,player,playerMetrics.duels.wonPct,"One-on-one challenges for the ball, on the ground or in the air, that the player won, as a share of those the player contested.",int_legs__player_match,sum(duels_won),sum(duels),expression,percent,one_on_one,1,higher_better,Duel success - share of 1v1 contests won; high = wins the physical battle,4,
-@@ -31,8 +31,8 @@ assists_player,player,playerMetrics.scorerPoints.assists,Goals the player set up
- goals_penalty_player,player,playerMetrics.goalsPenalty.label,"Goals the player scored from penalties, not counting penalty shoot-outs.",int_legs__player_match,sum(goals_penalty),,expression,integer,goals,3,higher_better,Penalty goals - goals from the spot; they count toward the result and reward taking and converting penalties,1,
- goals_open_play_player,player,playerMetrics.goalsOpenPlay.label,"Goals the player scored, not counting penalties.",int_legs__player_match,sum(goals - goals_penalty),,expression,integer,goals,3,higher_better,Open-play goals - goals from open play (excl. penalties); the player's core attacking output,1,
- penalty_won_player,player,playerMetrics.penalties.won,Penalties awarded for fouls on the player.,int_legs__player_match,sum(penalties_won),,expression,integer,goals,3,higher_better,Penalties won - spot kicks earned in the window; high = draws fouls in dangerous areas (rare enough that small differences mean little),1,
--shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on target the player had.,int_legs__player_match,sum(shots_on_target),,expression,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played),2,1
--duels_won_player,player,playerMetrics.duels.won,"One-on-one challenges for the ball, on the ground or in the air, that the player won.",int_legs__player_match,sum(duels_won),,expression,integer,one_on_one,1,higher_better,Duels won - physical 1v1 contests won in the window; high = comes out on top in physical battles (a volume read; the duel win rate captures efficiency),4,
-+shots_on_goal_player,player,playerMetrics.shotsOnTarget.label,Shots on target the player had.,int_legs__player_match,sum(shots_on_target),,expression,integer,shooting,1,higher_better,On-target threat - efforts that tested the keeper; high = a persistent goal threat (a raw count so it also tracks minutes played),2,2
-+duels_won_player,player,playerMetrics.duels.won,"One-on-one challenges for the ball, on the ground or in the air, that the player won.",int_legs__player_match,sum(duels_won),,expression,integer,one_on_one,1,higher_better,Duels won - physical 1v1 contests won in the window; high = comes out on top in physical battles (a volume read; the duel win rate captures efficiency),4,3
- duels_player,player,playerMetrics.duels.total,"One-on-one challenges for the ball, on the ground or in the air, that the player contested.",int_legs__player_match,sum(duels),,expression,integer,one_on_one,1,higher_better,Duel engagement - 1v1 contests entered in the window; high = a physically involved player (a volume read; can also reflect a side under pressure),4,2
- dribbles_success_player,player,playerMetrics.dribbles.success,Dribbles in which the player got past an opponent.,int_legs__player_match,sum(dribbles_success),,expression,integer,one_on_one,1,higher_better,Take-ons completed - opponents beaten on the dribble; high = a dangerous ball-carrier (a volume read; the success rate captures reliability),4,
- dribbles_attempts_player,player,playerMetrics.dribbles.attempts,Times the player tried to dribble past an opponent.,int_legs__player_match,sum(dribbles),,expression,integer,one_on_one,1,higher_better,Take-ons attempted - times the player ran at an opponent; high = willing to take players on (a volume read; the success rate shows how often it comes off),4,1
-@@ -45,14 +45,15 @@ passes_accurate_player,player,playerMetrics.passAccuracy.accurate,The player's p
- passes_player,player,playerMetrics.passAccuracy.total,Passes the player attempted.,int_legs__player_match,sum(passes),,expression,integer,passing,1,higher_better,Passing volume - passes attempted in the window; high = a possession-anchoring role; low = a more direct or less involved one (a raw count so it also tracks minutes played),3,1
- passes_accuracy_player_pct,player,playerMetrics.passAccuracy.label,"The player's passes that reached a teammate, as a share of all the player's passes.",int_legs__player_match,sum(passes_accurate),sum(passes),expression,percent,passing,1,higher_better,Share of passes completed; high = a secure and reliable passer.,3,2
- passes_key_player,player,playerMetrics.keyPasses.label,The player's passes that led directly to a teammate's shot.,int_legs__player_match,sum(passes_key),,expression,integer,passing,1,higher_better,Chance creation - passes leading directly to a shot; high = a creative hub (a raw count so it also tracks minutes played),3,3
--cards_yellow_player,player,playerMetrics.cards.yellow,Yellow cards the player received.,int_legs__player_match,sum(cards_yellow),,expression,integer,discipline,1,lower_better,Cautions - yellow cards shown in the window; low = stays on the right side of the referee (high can reflect an aggressive role as much as poor discipline),8,1
--cards_red_player,player,playerMetrics.cards.red,Red cards the player received.,int_legs__player_match,sum(cards_red),,expression,integer,discipline,1,lower_better,Dismissals - red cards shown in the window; low = avoids leaving the team a man short (rare enough that a single card dominates the count),8,2
-+cards_yellow_player,player,playerMetrics.cards.yellow,Yellow cards the player received.,int_legs__player_match,sum(cards_yellow),,expression,integer,discipline,1,lower_better,Cautions - yellow cards shown in the window; low = stays on the right side of the referee (high can reflect an aggressive role as much as poor discipline),8,2
-+cards_red_player,player,playerMetrics.cards.red,Red cards the player received.,int_legs__player_match,sum(cards_red),,expression,integer,discipline,1,lower_better,Dismissals - red cards shown in the window; low = avoids leaving the team a man short (rare enough that a single card dominates the count),8,3
-+fouls_player,player,playerMetrics.fouls.label,Fouls the player committed.,int_legs__player_match,sum(fouls),,expression,integer,discipline,3,lower_better,Fouls committed - free kicks given away in the window; low = disciplined (high can also mean a player who breaks up play),8,1
- offsides_player,player,playerMetrics.offsides.label,Times the player was caught offside.,int_legs__player_match,sum(offsides),,expression,integer,discipline,2,lower_better,Offside calls - times caught beyond the last defender; low = better timed runs (high can reflect a striker who plays the shoulder rather than poor movement),8,
- penalty_committed_player,player,playerMetrics.penalties.committed,Penalties the player gave away.,int_legs__player_match,sum(penalties_committed),,expression,integer,discipline,3,lower_better,Penalties conceded - fouls given in the team's own box; low = defends cleanly in dangerous areas (rare enough that small differences mean little),8,
- saves_player,player,playerMetrics.savePct.saves,Shots on target the player saved in goal.,int_legs__player_match,sum(saves),,expression,integer,goalkeeping,1,higher_better,Save volume - shots on goal kept out; high = a busy keeper facing plenty of work (volume also tracks shots faced so it is not shot-stopping quality; the save rate captures that),6,1
- shots_on_goal_against_player,player,playerMetrics.savePct.faced,Shots on target the player faced in goal: the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves + goals_against),,expression,integer,goalkeeping,1,lower_better,On-target shots faced - efforts the keeper had to deal with; low = a well-protected goal (a workload read; it says more about the defence than the keeper),6,
- saves_player_pct,player,playerMetrics.savePct.label,The player's saves as a share of the player's saves plus the goals conceded while the player was in goal.,int_legs__player_match,sum(saves),sum(saves + goals_against),expression,percent,goalkeeping,1,higher_better,Share of shots on goal saved; high = a strong shot-stopper.,6,
--shots_player,player,playerMetrics.shots.label,Shots the player took.,int_legs__player_match,sum(shots),,expression,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played),2,
-+shots_player,player,playerMetrics.shots.label,Shots the player took.,int_legs__player_match,sum(shots),,expression,integer,shooting,2,higher_better,Shot volume - attempts on and off target; high = shoots often (volume not shot quality; a raw count so it also tracks minutes played),2,1
- goals_against_player,player,playerMetrics.goalsConceded.label,Goals the team conceded while the player was in goal.,int_legs__player_match,sum(goals_against),,expression,integer,goalkeeping,1,lower_better,Goals conceded - goals let in while the player was on the pitch; low = kept the goal intact (a team outcome; it reflects the defence as much as the individual),6,
- shots_share_pct,team,metrics.shots_share_pct.label,The team's shots as a share of all shots in its matches.,int_legs__team_match,sum(shots),sum(shots + shots_against),expression,percent,shooting,2,higher_better,Shooting dominance - share of the match's shots; high = controls the chances (deserved-vs-actual input),2,
- points_capture_pct,team,metrics.points_capture_pct.label,Points the team won as a share of the 3 points per match it could have won.,int_legs__team_match,sum(case result when 'W' then 3 when 'D' then 1 else 0 end),3 * count(*),expression,percent,outcomes,2,higher_better,Results efficiency - share of available points won (deserved-vs-actual input),9,
+-      - name: season_api_year
+-        description: "{{ doc('season_api_year') }}"
+-      - name: kickoff_datetime
+-        description: "{{ doc('kickoff_datetime') }}"
+-      - name: round_name
+-        description: "{{ doc('round_name') }}"
+-      - name: team_name
+-        description: "{{ doc('team_name') }}"
+-      - name: team_logo_url
+-        description: "{{ doc('team_logo_url') }}"
+-      - name: shots_on_goal
+-        description: "{{ doc('shots_on_goal__team_match') }}"
+-      - name: shots_off_goal
+-        description: "{{ doc('shots_off_goal') }}"
+-      - name: shots_total
+-        description: "{{ doc('shots_total__team_match') }}"
+-      - name: shots_blocked
+-        description: "{{ doc('shots_blocked') }}"
+-      - name: shots_inside_box
+-        description: "{{ doc('shots_inside_box') }}"
+-      - name: shots_outside_box
+-        description: "{{ doc('shots_outside_box') }}"
+-      - name: fouls
+-        description: "{{ doc('fouls') }}"
+-      - name: corner_kicks
+-        description: "{{ doc('corners') }}"
+-      - name: offsides
+-        description: "{{ doc('offsides__team_match') }}"
+-      - name: ball_possession_percent
+-        description: "{{ doc('ball_possession_percent') }}"
+-      - name: yellow_cards
+-        description: "{{ doc('cards_yellow') }}"
+-      - name: red_cards
+-        description: "{{ doc('cards_red') }}"
+-      - name: goalkeeper_saves
+-        description: "{{ doc('saves') }}"
+-      - name: passes_total
+-        description: "{{ doc('passes_total__team_match') }}"
+-      - name: passes_accurate
+-        description: "{{ doc('passes_accurate__team_match') }}"
+-      - name: passes_accuracy_percent
+-        description: "{{ doc('passes_accuracy_percent') }}"
+-      - name: goals_for
+-        description: "{{ doc('goals') }}"
+-      - name: goals_against
+-        description: "{{ doc('goals_against') }}"
+-
+   - name: mart_player_fixture_stats
+     description: >
+       One player in one finished match: every player the stat lines or the team sheets name, with
 diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
-index ae7209b9..5be76420 100644
+index 5be76420..da8be670 100644
 --- a/dbt_project/seeds/metric_map.csv
 +++ b/dbt_project/seeds/metric_map.csv
-@@ -8,42 +8,45 @@ mart_head_to_head,last_meeting_goals_against,goals_against,last_meeting,,
- mart_head_to_head,last_meeting_goals_for,goals,last_meeting,,
- mart_head_to_head,recent_meetings.goals_against,goals_against,recent_meetings,,
- mart_head_to_head,recent_meetings.goals_for,goals,recent_meetings,,
--mart_leaderboards,assists_player,assists_player,,,
--mart_leaderboards,blocks_player,blocks_player,,,
--mart_leaderboards,cards_player,cards_player,,,
--mart_leaderboards,cards_red_player,cards_red_player,,,
--mart_leaderboards,cards_yellow_player,cards_yellow_player,,,
--mart_leaderboards,defensive_actions_player,defensive_actions_player,,,
--mart_leaderboards,dribbles_attempts_player,dribbles_attempts_player,,,
--mart_leaderboards,dribbles_success_player,dribbles_success_player,,,
--mart_leaderboards,dribbles_success_player_pct,dribbles_success_player_pct,,,
--mart_leaderboards,duels_player,duels_player,,,
--mart_leaderboards,duels_won_player,duels_won_player,,,
--mart_leaderboards,duels_won_player_pct,duels_won_player_pct,,,
--mart_leaderboards,finishing_efficiency_player_pct,finishing_efficiency_player_pct,,,
--mart_leaderboards,goals_player,goals_player,,,
--mart_leaderboards,interceptions_player,interceptions_player,,,
--mart_leaderboards,passes_accuracy_player_pct,passes_accuracy_player_pct,,,
--mart_leaderboards,passes_key_player,passes_key_player,,,
--mart_leaderboards,passes_player,passes_player,,,
--mart_leaderboards,saves_player,saves_player,,,
--mart_leaderboards,saves_player_pct,saves_player_pct,,,
--mart_leaderboards,scorer_points_player,scorer_points_player,,,
--mart_leaderboards,shots_on_goal_player,shots_on_goal_player,,,
--mart_leaderboards,sort_value,assists_player,,,metric_key
--mart_leaderboards,sort_value,cards_red_player,,,metric_key
--mart_leaderboards,sort_value,cards_yellow_player,,,metric_key
--mart_leaderboards,sort_value,defensive_actions_player,,,metric_key
--mart_leaderboards,sort_value,dribbles_attempts_player,,,metric_key
--mart_leaderboards,sort_value,duels_player,,,metric_key
--mart_leaderboards,sort_value,finishing_efficiency_player_pct,,,metric_key
--mart_leaderboards,sort_value,goals_player,,,metric_key
--mart_leaderboards,sort_value,passes_accuracy_player_pct,,,metric_key
--mart_leaderboards,sort_value,passes_key_player,,,metric_key
--mart_leaderboards,sort_value,passes_player,,,metric_key
--mart_leaderboards,sort_value,saves_player,,,metric_key
--mart_leaderboards,sort_value,shots_on_goal_player,,,metric_key
--mart_leaderboards,tackles_player,tackles_player,,,
-+mart_leaderboards,assists_player,assists_player,,window_type,
-+mart_leaderboards,blocks_player,blocks_player,,window_type,
-+mart_leaderboards,cards_player,cards_player,,window_type,
-+mart_leaderboards,cards_red_player,cards_red_player,,window_type,
-+mart_leaderboards,cards_yellow_player,cards_yellow_player,,window_type,
-+mart_leaderboards,defensive_actions_player,defensive_actions_player,,window_type,
-+mart_leaderboards,dribbles_attempts_player,dribbles_attempts_player,,window_type,
-+mart_leaderboards,dribbles_success_player,dribbles_success_player,,window_type,
-+mart_leaderboards,dribbles_success_player_pct,dribbles_success_player_pct,,window_type,
-+mart_leaderboards,duels_player,duels_player,,window_type,
-+mart_leaderboards,duels_won_player,duels_won_player,,window_type,
-+mart_leaderboards,duels_won_player_pct,duels_won_player_pct,,window_type,
-+mart_leaderboards,finishing_efficiency_player_pct,finishing_efficiency_player_pct,,window_type,
-+mart_leaderboards,goals_player,goals_player,,window_type,
-+mart_leaderboards,interceptions_player,interceptions_player,,window_type,
-+mart_leaderboards,passes_accuracy_player_pct,passes_accuracy_player_pct,,window_type,
-+mart_leaderboards,passes_key_player,passes_key_player,,window_type,
-+mart_leaderboards,passes_player,passes_player,,window_type,
-+mart_leaderboards,saves_player,saves_player,,window_type,
-+mart_leaderboards,saves_player_pct,saves_player_pct,,window_type,
-+mart_leaderboards,scorer_points_player,scorer_points_player,,window_type,
-+mart_leaderboards,shots_on_goal_player,shots_on_goal_player,,window_type,
-+mart_leaderboards,sort_value,assists_player,,window_type,metric_key
-+mart_leaderboards,sort_value,cards_red_player,,window_type,metric_key
-+mart_leaderboards,sort_value,cards_yellow_player,,window_type,metric_key
-+mart_leaderboards,sort_value,defensive_actions_player,,window_type,metric_key
-+mart_leaderboards,sort_value,dribbles_attempts_player,,window_type,metric_key
-+mart_leaderboards,sort_value,duels_player,,window_type,metric_key
-+mart_leaderboards,sort_value,duels_won_player,,window_type,metric_key
-+mart_leaderboards,sort_value,finishing_efficiency_player_pct,,window_type,metric_key
-+mart_leaderboards,sort_value,fouls_player,,window_type,metric_key
-+mart_leaderboards,sort_value,goals_player,,window_type,metric_key
-+mart_leaderboards,sort_value,passes_accuracy_player_pct,,window_type,metric_key
-+mart_leaderboards,sort_value,passes_key_player,,window_type,metric_key
-+mart_leaderboards,sort_value,passes_player,,window_type,metric_key
-+mart_leaderboards,sort_value,saves_player,,window_type,metric_key
-+mart_leaderboards,sort_value,shots_on_goal_player,,window_type,metric_key
-+mart_leaderboards,sort_value,shots_player,,window_type,metric_key
-+mart_leaderboards,tackles_player,tackles_player,,window_type,
- mart_matchday_insights,away_corners_against_per_match_recent,corners_against_per_match,away_form,,
- mart_matchday_insights,away_corners_per_match_recent,corners_per_match,away_form,,
- mart_matchday_insights,away_finishing_efficiency_pct_recent,finishing_efficiency_pct,away_form,,
-diff --git a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-index f23e29ee..c9fda1e9 100644
---- a/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-+++ b/dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
-@@ -21,6 +21,7 @@
+@@ -239,13 +239,6 @@ mart_team_competition_benchmarks,metric_value,shots_on_goal_pct,,,metric_key
+ mart_team_competition_benchmarks,metric_value,shots_on_goal_per_match,,,metric_key
+ mart_team_competition_benchmarks,metric_value,shots_per_match,,,metric_key
+ mart_team_competition_benchmarks,metric_value,tackles_per_match,,,metric_key
+-mart_team_fixture_stats,corner_kicks,corners,,,
+-mart_team_fixture_stats,goalkeeper_saves,saves,,,
+-mart_team_fixture_stats,goals_against,goals_against,,,
+-mart_team_fixture_stats,goals_for,goals,,,
+-mart_team_fixture_stats,red_cards,cards_red,,,
+-mart_team_fixture_stats,shots_inside_box,shots_inside_box,,,
+-mart_team_fixture_stats,yellow_cards,cards_yellow,,,
+ mart_team_fixtures,goals_against,goals_against,,,
+ mart_team_fixtures,goals_for,goals,,,
+ mart_team_leaderboards,sort_value,cards_red,,,metric_key
+diff --git a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+index 3aa7827f..8afddafc 100644
+--- a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
++++ b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+@@ -6,8 +6,7 @@
+   Floats compare at a relative 1e-9.
  
- with import_mart_leaderboards as (
-     select * from {{ ref('mart_leaderboards') }}
-+    where window_type = 'season_to_date'
- ),
+   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
+-  grain present on one side only. The match-stats mart carries the pass accuracy of the team's own
+-  match as a whole percentage (passes_accuracy_percent), checked the same way.
++  grain present on one side only.
+ #}
+ {{ config(store_failures = true, severity = 'error') }}
+ -- depends_on: {{ ref('metric_catalogue') }}
+@@ -18,8 +17,6 @@
+ -- depends_on: {{ ref('int_team_season__metrics') }}
+ -- depends_on: {{ ref('int_team_momentum__metrics') }}
+ -- depends_on: {{ ref('mart_team_window_metrics') }}
+--- depends_on: {{ ref('mart_team_fixture_stats') }}
+--- depends_on: {{ ref('fct_fixture_team_stats') }}
  
- leaders as (
-diff --git a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-index 4612977d..7618f523 100644
---- a/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-+++ b/dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
-@@ -28,6 +28,7 @@
+ {% set surfaces = [
+     {'model': 'int_team_season__metrics_cumulative', 'rows': 'season_rows',
+@@ -162,20 +159,9 @@ window_mart_rows as (
+     from {{ s.model }}__expected as e
+     full outer join {{ ref(s.model) }} as m
+         on {% for key in s.grain %}e.{{ key }} = m.{{ key }}{% if not loop.last %} and {% endif %}{% endfor %}
+-),
++){% if not loop.last %},{% endif %}
+ {% endfor %}
  
- with import_mart_leaderboards as (
-     select * from {{ ref('mart_leaderboards') }}
-+    where window_type = 'season_to_date'
- ),
- 
- import_competition_registry as (
-diff --git a/dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql b/dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
-new file mode 100644
-index 00000000..8ce65d7c
---- /dev/null
-+++ b/dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
-@@ -0,0 +1,76 @@
-+-- Each played match's boards on mart_leaderboards follow the Match leaders rule, recomputed here from
-+-- int_player_match__metrics: per board the players with a count above zero, ordered by count, then
-+-- fewer minutes, then player_sk; the first three kept; rank the DENSE_RANK of the count.
-+--
-+-- Returns a row (= fails) per board row on one side only, and per row whose value, rank or position
-+-- differs from the recomputation.
-+{{ config(store_failures = true) }}
-+
-+{% set match_boards = [
-+    'shots_player', 'passes_player', 'passes_key_player', 'dribbles_attempts_player',
-+    'duels_won_player', 'defensive_actions_player', 'fouls_player',
-+] %}
-+
-+with match_metrics as (
-+    select * from {{ ref('int_player_match__metrics') }}
-+),
-+
-+served as (
-+    select
-+        fixture_sk,
-+        player_sk,
-+        metric_key,
-+        sort_value,
-+        rank,
-+        match_leader_order
-+    from {{ ref('mart_leaderboards') }}
-+    where window_type = 'match'
-+),
-+
-+recomputed as (
-+    {% for key in match_boards %}
-+    select
-+        fixture_sk,
-+        player_sk,
-+        '{{ key }}' as metric_key,
-+        cast({{ key }} as float64) as sort_value,
-+        dense_rank() over (partition by fixture_sk order by {{ key }} desc) as rank,
-+        row_number() over (
-+            partition by fixture_sk
-+            order by {{ key }} desc, minutes asc nulls last, player_sk asc
-+        ) as match_leader_order
-+    from match_metrics
-+    where {{ key }} > 0
-+    {% if not loop.last %}
-+    union all
-+    {% endif %}
-+    {% endfor %}
-+),
-+
-+expected as (
-+    select * from recomputed
-+    where match_leader_order <= 3
-+)
-+
-+select
-+    coalesce(e.fixture_sk, s.fixture_sk) as fixture_sk,
-+    coalesce(e.player_sk, s.player_sk) as player_sk,
-+    coalesce(e.metric_key, s.metric_key) as metric_key,
-+    e.sort_value as expected_value,
-+    s.sort_value as served_value,
-+    e.rank as expected_rank,
-+    s.rank as served_rank,
-+    e.match_leader_order as expected_order,
-+    s.match_leader_order as served_order
-+from expected as e
-+full outer join served as s
-+    on
-+        e.fixture_sk = s.fixture_sk
-+        and e.player_sk = s.player_sk
-+        and e.metric_key = s.metric_key
-+where
-+    e.fixture_sk is null
-+    or s.fixture_sk is null
-+    or e.sort_value != s.sort_value
-+    or e.rank != s.rank
-+    or e.match_leader_order != s.match_leader_order
-diff --git a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
-index 2ca758f6..ef03775a 100644
---- a/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
-+++ b/dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
-@@ -22,6 +22,7 @@
- 
- with import_mart_leaderboards as (
-     select * from {{ ref('mart_leaderboards') }}
-+    where window_type = 'season_to_date'
- ),
- 
- -- 1. The order is total: one and only one leader per league-board.
-diff --git a/dbt_project/tests/assert_one_current_season_per_league.sql b/dbt_project/tests/assert_one_current_season_per_league.sql
-index b988aab3..405ea8ca 100644
---- a/dbt_project/tests/assert_one_current_season_per_league.sql
-+++ b/dbt_project/tests/assert_one_current_season_per_league.sql
-@@ -30,6 +30,7 @@
- 
- with import_mart_leaderboards as (
-     select * from {{ ref('mart_leaderboards') }}
-+    where window_type = 'season_to_date'
- ),
- 
- per_season as (
-diff --git a/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql b/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
-index 131a4ad7..9c8924cb 100644
---- a/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
-+++ b/dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
-@@ -21,6 +21,7 @@
- -- depends_on: {{ ref('int_player_momentum__metrics') }}
- -- depends_on: {{ ref('int_player_season_record') }}
- -- depends_on: {{ ref('int_player_profile__contribution') }}
-+-- depends_on: {{ ref('int_player_match__metrics') }}
- -- depends_on: {{ ref('mart_player_fixture_stats') }}
- -- depends_on: {{ ref('fct_fixture_player_stats') }}
- 
-@@ -37,6 +38,8 @@
-      'grain': ['team_sk', 'player_sk', 'league_code', 'season_api_year', 'fixture_sk'], 'windowed': true},
-     {'model': 'int_player_profile__contribution', 'rows': 'contribution_rows',
-      'grain': ['player_sk', 'team_sk', 'season_sk'], 'windowed': false},
-+    {'model': 'int_player_match__metrics', 'rows': 'match_rows',
-+     'grain': ['fixture_sk', 'player_sk'], 'windowed': false},
- ] %}
- {% set member_floor = 60 %}
- {% set checks = [] %}
-@@ -172,6 +175,13 @@ contribution_rows as (
-         on legs.fixture_sk = tm.fixture_sk and legs.team_sk = tm.team_sk
- ),
- 
-+match_rows as (
-+    select
-+        legs.*,
-+        true as window_is_complete
-+    from legs
-+),
-+
+-match_level as (
+-    select
+-        m.fixture_sk,
+-        m.team_sk,
+-        m.passes_accuracy_percent as mart_value,
+-        cast(round(100 * safe_divide(s.passes_accurate, s.passes)) as int64) as expected_percent
+-    from {{ ref('mart_team_fixture_stats') }} as m
+-    inner join {{ ref('fct_fixture_team_stats') }} as s
+-        on m.fixture_sk = s.fixture_sk and m.team_sk = s.team_sk
+-)
+-
  {% for check in checks %}
- {% set s = check.surface %}
- {{ s.model }}__expected as (
+ select
+     surface,
+@@ -188,15 +174,7 @@ where
+     not (in_model and in_expected)
+     or (v.model_value is null) != (v.expected_value is null)
+     or abs(v.model_value - v.expected_value) > 1e-9 * greatest(1, abs(v.expected_value))
+-
++{% if not loop.last %}
+ union all
++{% endif %}
+ {% endfor %}
+-
+-select
+-    'mart_team_fixture_stats' as surface,
+-    'passes_accuracy_percent' as metric_id,
+-    to_json_string(struct(fixture_sk, team_sk)) as grain,
+-    cast(mart_value as float64) as model_value,
+-    cast(expected_percent as float64) as expected_value
+-from match_level
+-where mart_value is distinct from expected_percent
+diff --git a/docs/content_architecture.md b/docs/content_architecture.md
+index 159f8383..54dac57e 100644
+--- a/docs/content_architecture.md
++++ b/docs/content_architecture.md
+@@ -70,7 +70,7 @@ either subject, and appears on many tabs. The Subject column names the entity a
+ | | Season (this season; per-game toggle) | team, player | `mart_team_profile`, `mart_player_profile` |
+ | | Season-over-season | team, player | `int_team_profile__yoy` → `mart_team_profile`; `int_player_profile__yoy` → `mart_player_profile` |
+ | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_team_competition_benchmarks`, `mart_player_competition_benchmarks` |
+-| | Single fixture | team, player | `mart_team_fixture_stats`, `mart_player_fixture_stats` |
++| | Single fixture | team, player | `mart_team_window_metrics` (window_type match), `mart_player_fixture_stats` |
+ | **Standings / rank** | League / group table | team | `mart_standings`: the league's official row (the provider's, except where corrected), with `table_kind` |
+ | | Standing-as-context | team | `mart_fixture_standing_context` on the fixture page; `mart_team_profile` on the team page |
+ | | Deserved points (better / worse than the table says) | team | `mart_team_profile` |
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 955dd0a8..0084a729 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -277,7 +277,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
+ | Competitions index / country hub | `competition_index.json` | `mart_competition_index` |
+ | Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank). Read `fetch_match_day_payloads`. |
+ | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
+-| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. The played-match drill-down has no page; its export is `matchstats/{fixture_api_id}.json`, from `mart_team_fixture_stats` and `mart_player_fixture_stats`. |
++| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. |
+ | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
+ | Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_fixture_stats` (the rows with a stat line), `mart_player_competition_benchmarks`, `mart_player_career`. Read `fetch_player_payloads`. The page is a stub and does not read `players/`. It takes its players from `landing.json` and the competition files. |
+ | Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
+diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
+index 57c486cc..afb80ce2 100644
+--- a/docs/wireframes/01_fixture_page.md
++++ b/docs/wireframes/01_fixture_page.md
+@@ -28,7 +28,6 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
+ | File | Used for |
+ |---|---|
+ | `data/fixtures/{fixture_id}.json` | Everything on this page |
+-| `data/matchstats/{played_fixture_sk}.json` | The drill-down target when a past-match row is clicked (§7) — exists exactly for fixtures referenced by a form window |
+ 
+ Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
+ season, round, round_order, is_next_round, venue, home, away, head_to_head`.
 diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index f12f8d97..b0b1609b 100644
+index b0b1609b..b6045820 100644
 --- a/scripts/export_site_data.py
 +++ b/scripts/export_site_data.py
-@@ -1517,7 +1517,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
-             select league_code, season_api_year, metric_key, rank, sort_value,
-                    player_sk, player_name, team_name, team_slug, team_logo_url
-             from `{marts}.mart_leaderboards`
--            where metric_key in ({", ".join(f"'{k}'" for k in _COMPETITION_PLAYER_BOARDS)})
-+            where window_type = 'season_to_date'
-+              and metric_key in ({", ".join(f"'{k}'" for k in _COMPETITION_PLAYER_BOARDS)})
-               and league_leader_order <= {_COMPETITION_BOARD_ROWS}
-             order by league_code, season_api_year, metric_key, league_leader_order
-         """),
-@@ -1604,7 +1605,8 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
-         for c in _registry_competitions(registry_path)
-     }
-     grouped = _group2(
--        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards`"),
-+        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` "
-+                       f"where window_type = 'season_to_date'"),
-         "league_code", "season_api_year",
+@@ -42,7 +42,7 @@ MARTS_DATASET = "marts"
+ SEEDS_DATASET = "dbt_analytics"
+ DEFAULT_OUT = "artifacts/site_data"
+ ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
+-                "leaderboards", "matchstats", "glossary", "metric_groups", "metric_rows", "landing",
++                "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
+                 "competition_index", "matches")
+ REGISTRY_PATH = "docs/competition_registry.yml"
+ CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
+@@ -2041,52 +2041,6 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
      )
-     keys = sorted(grouped.keys())
-@@ -2004,7 +2006,8 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
-         from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` as l
-         join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
-             on l.league_code = r.league_code
--        where l.is_current_season
-+        where l.window_type = 'season_to_date'
-+          and l.is_current_season
-           and l.league_leader_order = 1
-           and r.competition_group = 'elite'
-           and l.metric_key in ({", ".join(f"'{k}'" for k in _HOME_PLAYER_BOARDS)})
+ 
+ 
+-_MATCHSTATS_PLAYER_DROP = {
+-    "fixture_sk", "opponent_team_sk", "team_goals_for", "team_goals_against", "team_logo_url",
+-    "opponent_name", "opponent_logo_url", "result",
+-}
+-
+-
+-def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:
+-    """One played fixture's full stat lines (the form-window click-through):
+-    both teams' team-stat rows + every player's row."""
+-    return {
+-        "type": "matchstats",
+-        "fixture_id": fixture_id,
+-        "team_stats": [_drop(r, {"fixture_sk"}) for r in team_rows],
+-        "player_stats": [_drop(r, _MATCHSTATS_PLAYER_DROP) for r in player_rows],
+-    }
+-
+-
+-def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
+-    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+-    fids = sorted({
+-        int(r["played_fixture_sk"])
+-        for r in _query(client, f"select distinct played_fixture_sk "
+-                                f"from `{marts}.mart_team_momentum_window` "
+-                                f"where played_fixture_sk is not null")
+-    })
+-    if sample:
+-        fids = fids[:sample]
+-    if not fids:
+-        return []
+-    fid_in = ", ".join(str(i) for i in fids)
+-    team = _group_by(
+-        _query(client, f"select * from `{marts}.mart_team_fixture_stats` where fixture_sk in ({fid_in})"),
+-        "fixture_sk",
+-    )
+-    player = _group_by(
+-        _query(client, f"select * from `{marts}.mart_player_fixture_stats` where fixture_sk in ({fid_in})"),
+-        "fixture_sk",
+-    )
+-    out = []
+-    for fid in fids:
+-        ts, ps = team.get(fid, []), player.get(fid, [])
+-        if ts or ps:
+-            out.append(shape_matchstats(fid, ts, ps))
+-    return out
+-
+-
+ def fetch_glossary(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
+     """metrics.json — the metric catalogue (definitions + i18n keys + format).
+     No BigQuery; the seed is the single source of metric definitions (#327)."""
+@@ -2202,12 +2156,6 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
+             entries.append({"type": "leaderboards",
+                             "id": f"{p['league_code']}-{p['season']}",
+                             "slug": p.get("slug"), "path": relpath, "sha256": sha})
+-    if "matchstats" in entities:
+-        for p in fetch_matchstats_payloads(client, sample):
+-            relpath = f"matchstats/{p['fixture_id']}.json"
+-            sha = write_file(out_root, relpath, p)
+-            entries.append({"type": "matchstats", "id": p["fixture_id"],
+-                            "slug": None, "path": relpath, "sha256": sha})
+     if "glossary" in entities:
+         sha = write_file(out_root, "metrics.json", fetch_glossary())
+         entries.append({"type": "glossary", "id": "metrics", "slug": None,
 diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
-index a39fd05c..37c661a7 100644
+index 37c661a7..51904158 100644
 --- a/scripts/generate_metric_sql.py
 +++ b/scripts/generate_metric_sql.py
-@@ -104,6 +104,10 @@ WINDOW_RATIOS = (
-     "saves_player_pct", "dribbles_success_player_pct", "passes_accuracy_player_pct",
-     "duels_won_player_pct",
- )
-+MATCH_BOARDS = (
-+    "shots_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_won_player",
-+    "defensive_actions_player", "fouls_player",
-+)
- POSITION_COUNTS = (
-     "goals_player", "goals_penalty_player", "assists_player", "shots_on_goal_player", "passes_player",
-     "passes_accurate_player", "passes_key_player", "tackles_player", "interceptions_player",
-@@ -133,6 +137,7 @@ SURFACES = (
-             WINDOW_COUNTS + ("defensive_actions_player", "scorer_points_player") + WINDOW_RATIOS, windowed=True),
-     Surface("4_intermediate/shared/int_player_profile__contribution.sql",
-             ("scorer_points_player",)),
-+    Surface("4_intermediate/shared/int_player_match__metrics.sql", MATCH_BOARDS),
-     Surface("5_marts/shared/mart_player_fixture_stats.sql",
-             ("passes_accuracy_player_pct",), windowed=True),
+@@ -143,7 +143,6 @@ SURFACES = (
      Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
+             TEAM_SEASON, windowed=True, entity="team"),
+     Surface("4_intermediate/shared/int_team_momentum__metrics.sql", TEAM_FORM, entity="team"),
+-    Surface("5_marts/shared/mart_team_fixture_stats.sql", ("passes_accuracy_pct",), windowed=True, entity="team"),
+ )
+ 
+ 
 diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index 2206ebc2..e8612b5a 100644
+index e8612b5a..daa2b97e 100644
 --- a/tests/test_export_site_data.py
 +++ b/tests/test_export_site_data.py
-@@ -89,6 +89,19 @@ def test_display_group_of_type_covers_the_renamed_and_new_types():
-     assert m["intercontinental_super_cup"] == "continental-club"
+@@ -25,7 +25,6 @@ from scripts.export_site_data import (
+     shape_fixture_payload,
+     shape_next_match,
+     shape_leaderboards,
+-    shape_matchstats,
+     shape_player_payload,
+     shape_team_payload,
+     shape_top_players,
+@@ -102,25 +101,6 @@ def test_every_leaderboard_read_takes_the_season_rows_only():
+         assert "window_type = 'season_to_date'" in source[at:at + 400], source[at - 200:at + 400]
  
  
-+def test_every_leaderboard_read_takes_the_season_rows_only():
-+    """mart_leaderboards also holds one-match boards (window_type match); every query the export
-+    sends to it reads the season boards alone."""
-+    import inspect
-+    import re
-+
-+    source = inspect.getsource(export_site_data)
-+    reads = [m.start() for m in re.finditer(r"\.mart_leaderboards`", source)]
-+    assert len(reads) == 3, "the competition, leaderboard and landing reads"
-+    for at in reads:
-+        assert "window_type = 'season_to_date'" in source[at:at + 400], source[at - 200:at + 400]
-+
-+
- def test_shape_matchstats_drops_fixture_sk():
-     p = shape_matchstats(
-         99,
-diff --git a/tests/test_leaderboard_board_sets.py b/tests/test_leaderboard_board_sets.py
-index 8bd0080b..932d3913 100644
---- a/tests/test_leaderboard_board_sets.py
-+++ b/tests/test_leaderboard_board_sets.py
-@@ -74,9 +74,15 @@ def test_team_boards_are_one_set_in_the_mart_the_yml_and_the_export():
- 
- 
- def test_player_boards_are_one_set_in_the_mart_the_yml_and_the_export():
--    mart = _player_boards_in_sql(PLAYER_SQL.read_text(encoding="utf-8"))
-+    text = PLAYER_SQL.read_text(encoding="utf-8")
-+    mart = _player_boards_in_sql(text)
-     assert len(mart) == 13, "the ruled player board count (GitLab #129)"
--    assert _check(mart, _accepted_values("mart_leaderboards"), _COMPETITION_PLAYER_BOARDS, "player") == []
-+    match_boards = _jinja_list(text, "match_boards")
-+    assert len(match_boards) == 7, "the Match leaders boards of the played match page"
-+    accepted = _accepted_values("mart_leaderboards")
-+    assert set(accepted) == set(mart) | set(match_boards), "accepted_values cover the season and match boards"
-+    assert _check(mart, sorted(set(accepted) - (set(match_boards) - set(mart))),
-+                  _COMPETITION_PLAYER_BOARDS, "player") == []
- 
- 
- def test_the_export_lists_the_ruled_order():
+-def test_shape_matchstats_drops_fixture_sk():
+-    p = shape_matchstats(
+-        99,
+-        [{"fixture_sk": 99, "team_sk": 1, "shots_total": 10}],
+-        [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1}],
+-    )
+-    assert p["type"] == "matchstats" and p["fixture_id"] == 99
+-    assert "fixture_sk" not in p["team_stats"][0]
+-    assert p["team_stats"][0]["shots_total"] == 10
+-    assert p["player_stats"][0]["goals_total"] == 1
+-
+-
+-def test_shape_matchstats_leaves_out_the_match_context_columns_of_the_player_mart():
+-    context = {"opponent_team_sk": 2, "team_goals_for": 1, "team_goals_against": 0, "team_logo_url": "u",
+-               "opponent_name": "B", "opponent_logo_url": "v", "result": "W"}
+-    p = shape_matchstats(99, [], [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1, **context}])
+-    assert p["player_stats"] == [{"player_sk": 7, "goals_total": 1}]
+-
+-
+ def test_player_payload_reads_the_match_log_from_the_player_in_a_match_mart(monkeypatch):
+     """The match log is the stat-line rows of mart_player_fixture_stats, with the team's score under the
+     keys the payload has always carried."""
 diff --git a/tests/test_metric_map.py b/tests/test_metric_map.py
-index 854c73f7..4c1712aa 100644
+index 4c1712aa..85ec496f 100644
 --- a/tests/test_metric_map.py
 +++ b/tests/test_metric_map.py
-@@ -264,7 +264,8 @@ QUESTIONS = (
-     ("How many goals has Harry Kane scored this season?",
-      "mart_player_profile", "goals_player", "goals_player", {}),
-     ("Who are the top scorers in La Liga this season?",
--     "mart_leaderboards", "sort_value", "goals_player", {"metric_key": "goals_player"}),
-+     "mart_leaderboards", "sort_value", "goals_player",
-+     {"metric_key": "goals_player", "window_type": "season_to_date"}),
-     ("How many goals per 90 minutes does Haaland score, compared with other forwards in his "
-      "league?",
-      "mart_player_competition_benchmarks", "metric_value", "goals_per90",
-diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
-index d2bd0d88..9d006742 100644
---- a/tests/test_sentence_length_in_docs.py
-+++ b/tests/test_sentence_length_in_docs.py
-@@ -38,7 +38,7 @@ PINNED = {
-     "CLAUDE.md": 27,
-     "README.md": 9,
-     "dbt_project/docs/engineering_standards.md": 34,
--    "dbt_project/docs/layering.md": 44,
-+    "dbt_project/docs/layering.md": 43,
-     "dbt_project/models/1_staging/api_football/README.md": 1,
-     "dbt_project/models/docs/cleaning_rules.md": 5,
-     "dbt_project/models/docs/metric_columns.md": 37,
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/acceptance_evidence.md |   17 +-
-#    .claude/task/review.md              |   51 +-
-#    .claude/task/review_input.patch     | 2428 ++++++++++++++++-------------------
-#    3 files changed, 1143 insertions(+), 1353 deletions(-)
-# ============================================================================
+@@ -255,7 +255,7 @@ QUESTIONS = (
+     ("How many goals did Barcelona score the last time they played Real Madrid?",
+      "mart_head_to_head", "last_meeting_goals_for", "goals", {}),
+     ("How many corners did Dortmund win in their last match?",
+-     "mart_team_fixture_stats", "corner_kicks", "corners", {}),
++     "mart_team_window_metrics", "corners_per_match", "corners_per_match", {"window_type": "match"}),
+     ("How many goals per match did Argentina score at the 2026 World Cup?",
+      "mart_team_profile", "goals_per_match", "goals_per_match", {"league_code": "WC"}),
+     ("Going into Saturday's game, how many points has the home side taken from its recent "
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 52b367c9..8bce6da3 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 744
+-PINNED_FILES = 185
++PINNED_LINES = 742
++PINNED_FILES = 184
+ 
+ HASH = chr(35)
+ 

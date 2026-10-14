@@ -6,8 +6,7 @@
   Floats compare at a relative 1e-9.
 
   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
-  grain present on one side only. The match-stats mart carries the pass accuracy of the team's own
-  match as a whole percentage (passes_accuracy_percent), checked the same way.
+  grain present on one side only.
 #}
 {{ config(store_failures = true, severity = 'error') }}
 -- depends_on: {{ ref('metric_catalogue') }}
@@ -18,8 +17,6 @@
 -- depends_on: {{ ref('int_team_season__metrics') }}
 -- depends_on: {{ ref('int_team_momentum__metrics') }}
 -- depends_on: {{ ref('mart_team_window_metrics') }}
--- depends_on: {{ ref('mart_team_fixture_stats') }}
--- depends_on: {{ ref('fct_fixture_team_stats') }}
 
 {% set surfaces = [
     {'model': 'int_team_season__metrics_cumulative', 'rows': 'season_rows',
@@ -162,19 +159,8 @@ window_mart_rows as (
     from {{ s.model }}__expected as e
     full outer join {{ ref(s.model) }} as m
         on {% for key in s.grain %}e.{{ key }} = m.{{ key }}{% if not loop.last %} and {% endif %}{% endfor %}
-),
+){% if not loop.last %},{% endif %}
 {% endfor %}
-
-match_level as (
-    select
-        m.fixture_sk,
-        m.team_sk,
-        m.passes_accuracy_percent as mart_value,
-        cast(round(100 * safe_divide(s.passes_accurate, s.passes)) as int64) as expected_percent
-    from {{ ref('mart_team_fixture_stats') }} as m
-    inner join {{ ref('fct_fixture_team_stats') }} as s
-        on m.fixture_sk = s.fixture_sk and m.team_sk = s.team_sk
-)
 
 {% for check in checks %}
 select
@@ -188,15 +174,7 @@ where
     not (in_model and in_expected)
     or (v.model_value is null) != (v.expected_value is null)
     or abs(v.model_value - v.expected_value) > 1e-9 * greatest(1, abs(v.expected_value))
-
+{% if not loop.last %}
 union all
+{% endif %}
 {% endfor %}
-
-select
-    'mart_team_fixture_stats' as surface,
-    'passes_accuracy_percent' as metric_id,
-    to_json_string(struct(fixture_sk, team_sk)) as grain,
-    cast(mart_value as float64) as model_value,
-    cast(expected_percent as float64) as expected_value
-from match_level
-where mart_value is distinct from expected_percent

@@ -28,7 +28,6 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
 | File | Used for |
 |---|---|
 | `data/fixtures/{fixture_id}.json` | Everything on this page |
-| `data/matchstats/{played_fixture_sk}.json` | The drill-down target when a past-match row is clicked (§7) — exists exactly for fixtures referenced by a form window |
 
 Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
 season, round, round_order, is_next_round, venue, home, away, head_to_head`.

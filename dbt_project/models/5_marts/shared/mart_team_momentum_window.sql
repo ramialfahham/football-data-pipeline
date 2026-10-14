@@ -5,13 +5,13 @@
   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
   selection; tournament windows are cumulative, so a side can have more than five rows.
 
-  played_fixture_sk is the click-through key into mart_team_fixture_stats /
-  mart_player_fixture_stats. has_team_stats / has_player_stats tell the app
-  honestly whether that drill-down has data (player stats are missing for a
-  meaningful share of matches — the common case, not rare). The flags are
-  derived from the detail marts themselves (same-layer refs, the documented
-  exception in layering.md) so "true" literally means "the drill-down holds a
-  stat line" — one definition, no drift.
+  played_fixture_sk is the click-through key into the played match: its window of one in
+  mart_team_window_metrics and its players in mart_player_fixture_stats. has_team_stats /
+  has_player_stats tell the app honestly whether that drill-down has data (player stats are
+  missing for a meaningful share of matches — the common case, not rare). The flags are
+  derived from those marts themselves (same-layer refs, the documented exception in
+  layering.md) so "true" literally means "the drill-down holds a stat line" — one
+  definition, no drift.
 
   Grain: (upcoming_fixture_sk, team_sk, played_fixture_sk).
 #}
@@ -38,10 +38,11 @@ opponents as (
 ),
 
 team_stat_coverage as (
-    select distinct
+    select
         fixture_sk,
         team_sk
-    from {{ ref('mart_team_fixture_stats') }}
+    from {{ ref('mart_team_window_metrics') }}
+    where window_type = 'match' and games_with_team_stats > 0
 ),
 
 player_stat_coverage as (

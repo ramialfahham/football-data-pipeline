@@ -42,7 +42,7 @@ MARTS_DATASET = "marts"
 SEEDS_DATASET = "dbt_analytics"
 DEFAULT_OUT = "artifacts/site_data"
 ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
-                "leaderboards", "matchstats", "glossary", "metric_groups", "metric_rows", "landing",
+                "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
                 "competition_index", "matches")
 REGISTRY_PATH = "docs/competition_registry.yml"
 CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
@@ -2041,52 +2041,6 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
     )
 
 
-_MATCHSTATS_PLAYER_DROP = {
-    "fixture_sk", "opponent_team_sk", "team_goals_for", "team_goals_against", "team_logo_url",
-    "opponent_name", "opponent_logo_url", "result",
-}
-
-
-def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:
-    """One played fixture's full stat lines (the form-window click-through):
-    both teams' team-stat rows + every player's row."""
-    return {
-        "type": "matchstats",
-        "fixture_id": fixture_id,
-        "team_stats": [_drop(r, {"fixture_sk"}) for r in team_rows],
-        "player_stats": [_drop(r, _MATCHSTATS_PLAYER_DROP) for r in player_rows],
-    }
-
-
-def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
-    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
-    fids = sorted({
-        int(r["played_fixture_sk"])
-        for r in _query(client, f"select distinct played_fixture_sk "
-                                f"from `{marts}.mart_team_momentum_window` "
-                                f"where played_fixture_sk is not null")
-    })
-    if sample:
-        fids = fids[:sample]
-    if not fids:
-        return []
-    fid_in = ", ".join(str(i) for i in fids)
-    team = _group_by(
-        _query(client, f"select * from `{marts}.mart_team_fixture_stats` where fixture_sk in ({fid_in})"),
-        "fixture_sk",
-    )
-    player = _group_by(
-        _query(client, f"select * from `{marts}.mart_player_fixture_stats` where fixture_sk in ({fid_in})"),
-        "fixture_sk",
-    )
-    out = []
-    for fid in fids:
-        ts, ps = team.get(fid, []), player.get(fid, [])
-        if ts or ps:
-            out.append(shape_matchstats(fid, ts, ps))
-    return out
-
-
 def fetch_glossary(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
     """metrics.json — the metric catalogue (definitions + i18n keys + format).
     No BigQuery; the seed is the single source of metric definitions (#327)."""
@@ -2202,12 +2156,6 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             entries.append({"type": "leaderboards",
                             "id": f"{p['league_code']}-{p['season']}",
                             "slug": p.get("slug"), "path": relpath, "sha256": sha})
-    if "matchstats" in entities:
-        for p in fetch_matchstats_payloads(client, sample):
-            relpath = f"matchstats/{p['fixture_id']}.json"
-            sha = write_file(out_root, relpath, p)
-            entries.append({"type": "matchstats", "id": p["fixture_id"],
-                            "slug": None, "path": relpath, "sha256": sha})
     if "glossary" in entities:
         sha = write_file(out_root, "metrics.json", fetch_glossary())
         entries.append({"type": "glossary", "id": "metrics", "slug": None,
