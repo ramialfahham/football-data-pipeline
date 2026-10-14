@@ -139,3 +139,9 @@ amendments: >
   `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every
   board most first, a zero never ranked. |"
   layering.md lists marts only, so the new intermediate gets no row there.
+  After the MR build: site_v2/scripts/check-metric-labels.test.mjs refuses a metric label that no
+  page asks for, and no page shows fouls_player yet. So playerMetrics.fouls.label leaves
+  strings.ts in this change; its approved words (EN "Fouls", DE "Fouls", FI "Rikkeet") go in
+  with the played match page (#175), the first page that shows it, as the labels of shots_player
+  and duels_won_player will. The catalogue row keeps its label key. The third acceptance
+  criterion and the first two are unchanged; site_v2/src is now untouched by this change.

@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 32ed2f39..ae3affdb 100644
+index 32ed2f39..e59cbb3d 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,141 +1,141 @@
+@@ -1,141 +1,147 @@
 -# Task contract — a window of one played match on the Form comparison's mart
 +# Task contract — a window of one played match on mart_leaderboards
  
@@ -249,6 +249,12 @@ index 32ed2f39..ae3affdb 100644
 +  `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every
 +  board most first, a zero never ranked. |"
 +  layering.md lists marts only, so the new intermediate gets no row there.
++  After the MR build: site_v2/scripts/check-metric-labels.test.mjs refuses a metric label that no
++  page asks for, and no page shows fouls_player yet. So playerMetrics.fouls.label leaves
++  strings.ts in this change; its approved words (EN "Fouls", DE "Fouls", FI "Rikkeet") go in
++  with the played match page (#175), the first page that shows it, as the labels of shots_player
++  and duels_won_player will. The catalogue row keeps its label key. The third acceptance
++  criterion and the first two are unchanged; site_v2/src is now untouched by this change.
 diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
 index 5364c799..1ba8ebeb 100644
 --- a/dbt_project/docs/layering.md
@@ -1125,34 +1131,6 @@ index a39fd05c..37c661a7 100644
      Surface("5_marts/shared/mart_player_fixture_stats.sql",
              ("passes_accuracy_player_pct",), windowed=True),
      Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index 937aa8e2..20bbbcb0 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -971,6 +971,7 @@ const METRIC_LABELS_EN: MetricLabels = {
-   "playerMetrics.dribbles.attempts": "Dribbles attempted",
-   "playerMetrics.duels.total": "Duels",
-   "playerMetrics.defensiveActions.label": "Defensive actions",
-+  "playerMetrics.fouls.label": "Fouls",
-   "playerMetrics.cards.yellow": "Yellow cards",
-   "playerMetrics.cards.red": "Red cards",
-   "playerMetrics.savePct.saves": "Saves",
-@@ -1043,6 +1044,7 @@ const METRIC_LABELS_DE: MetricLabels = {
-   "playerMetrics.dribbles.attempts": "Dribblings",
-   "playerMetrics.duels.total": "Zweikämpfe",
-   "playerMetrics.defensiveActions.label": "Defensivaktionen",
-+  "playerMetrics.fouls.label": "Fouls",
-   "playerMetrics.cards.yellow": "Gelbe Karten",
-   "playerMetrics.cards.red": "Rote Karten",
-   "playerMetrics.savePct.saves": "Gehaltene Schüsse",
-@@ -1109,6 +1111,7 @@ const METRIC_LABELS_FI: MetricLabels = {
-   "playerMetrics.dribbles.attempts": "Harhautukset",
-   "playerMetrics.duels.total": "Kaksinkamppailut",
-   "playerMetrics.defensiveActions.label": "Puolustustoimet",
-+  "playerMetrics.fouls.label": "Rikkeet",
-   "playerMetrics.cards.yellow": "Keltaiset kortit",
-   "playerMetrics.cards.red": "Punaiset kortit",
-   "playerMetrics.savePct.saves": "Torjunnat",
 diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
 index 2206ebc2..e8612b5a 100644
 --- a/tests/test_export_site_data.py
@@ -1226,3 +1204,21 @@ index d2bd0d88..9d006742 100644
      "dbt_project/models/1_staging/api_football/README.md": 1,
      "dbt_project/models/docs/cleaning_rules.md": 5,
      "dbt_project/models/docs/metric_columns.md": 37,
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md |   17 +-
+#    .claude/task/review.md              |   51 +-
+#    .claude/task/review_input.patch     | 2428 ++++++++++++++++-------------------
+#    3 files changed, 1143 insertions(+), 1353 deletions(-)
+# ============================================================================
