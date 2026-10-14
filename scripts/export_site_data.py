@@ -1517,7 +1517,8 @@ def fetch_competition_payloads(client, sample: int = 0, registry_path: str = REG
             select league_code, season_api_year, metric_key, rank, sort_value,
                    player_sk, player_name, team_name, team_slug, team_logo_url
             from `{marts}.mart_leaderboards`
-            where metric_key in ({", ".join(f"'{k}'" for k in _COMPETITION_PLAYER_BOARDS)})
+            where window_type = 'season_to_date'
+              and metric_key in ({", ".join(f"'{k}'" for k in _COMPETITION_PLAYER_BOARDS)})
               and league_leader_order <= {_COMPETITION_BOARD_ROWS}
             order by league_code, season_api_year, metric_key, league_leader_order
         """),
@@ -1604,7 +1605,8 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
         for c in _registry_competitions(registry_path)
     }
     grouped = _group2(
-        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards`"),
+        _query(client, f"select * from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` "
+                       f"where window_type = 'season_to_date'"),
         "league_code", "season_api_year",
     )
     keys = sorted(grouped.keys())
@@ -2004,7 +2006,8 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
         from `{GCP_PROJECT}.{MARTS_DATASET}.mart_leaderboards` as l
         join `{GCP_PROJECT}.{SEEDS_DATASET}.competition_registry` as r
             on l.league_code = r.league_code
-        where l.is_current_season
+        where l.window_type = 'season_to_date'
+          and l.is_current_season
           and l.league_leader_order = 1
           and r.competition_group = 'elite'
           and l.metric_key in ({", ".join(f"'{k}'" for k in _HOME_PLAYER_BOARDS)})

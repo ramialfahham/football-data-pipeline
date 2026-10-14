@@ -2243,8 +2243,9 @@ models:
   - name: mart_leaderboards
     description: >
       One row per (player, board): where that player ranks on that board within a
-      competition-season. Long-shaped — the board is a value in metric_key, not a column.
-      Grain: (player_sk, season_sk, metric_key).
+      competition-season, or within one played match. Long-shaped — the board is a value in
+      metric_key, not a column. Grain: (player_sk, season_sk, metric_key) on season rows,
+      (fixture_sk, player_sk, metric_key) on match rows.
 
       Season-to-date, composed from int_player_season__metrics, dim_player and dim_team. rank is a
       DENSE_RANK over the board's metric descending within (league_code, season_api_year), so ties
@@ -2261,6 +2262,12 @@ models:
       is_current_season marks the latest season a competition has, so a consumer showing one season
       filters on a served fact instead of choosing a season itself.
 
+      Rows with window_type match are one played match's boards, for the match's Match leaders
+      block: seven count boards across both teams, each its first three players by
+      match_leader_order. Their grain is (fixture_sk, player_sk, metric_key). On them the value is
+      sort_value alone; minutes holds the match's minutes, and the other count and rate columns,
+      appearances and the season orders are NULL. Every other row has window_type season_to_date.
+
       {{ doc('ranking_rules') }}
     meta:
       owner: "data-platform"
@@ -2271,6 +2278,12 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [player_sk, season_sk, metric_key]
+          config:
+            where: "window_type = 'season_to_date'"
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fixture_sk, player_sk, metric_key]
+          config:
+            where: "window_type = 'match'"
       - dbt_utils.expression_is_true:
           expression: "rank between 1 and 10"
           name: mart_leaderboards_rank_in_range
@@ -2296,16 +2309,37 @@ models:
           name: mart_leaderboards_finishing_efficiency_player_pct_in_range
     columns:
       - name: player_leaderboard_sk
-        description: "Surrogate from (player_sk, season_sk, metric_key)."
+        description: "Surrogate from (player_sk, season_sk, metric_key) on season rows; from ('match', fixture_sk, player_sk, metric_key) on match rows."
         tests: [not_null, unique]
       - name: metric_key
-        description: "The board — a metric_catalogue metric_id (11 count + 2 rate boards = 13, the competition page's Rankings tab)."
+        description: "The board — a metric_catalogue metric_id: on season rows the 13 boards of the competition page's Rankings tab (11 count + 2 rate); on match rows the 7 count boards of the played match page's Match leaders."
         tests:
           - not_null
           - accepted_values:
-              values: ["goals_player", "assists_player", "shots_on_goal_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_player", "defensive_actions_player", "cards_yellow_player", "cards_red_player", "saves_player", "passes_accuracy_player_pct", "finishing_efficiency_player_pct"]
+              values: ["goals_player", "assists_player", "shots_on_goal_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_player", "defensive_actions_player", "cards_yellow_player", "cards_red_player", "saves_player", "passes_accuracy_player_pct", "finishing_efficiency_player_pct", "shots_player", "duels_won_player", "fouls_player"]
+      - name: window_type
+        description: "Which matches the boards rank: `season_to_date`, the competition-season the row belongs to; `match`, one played match."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["season_to_date", "match"]
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }} The played match a match row ranks; NULL on season rows."
+        tests:
+          - not_null:
+              config:
+                where: "window_type = 'match'"
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: match_leader_order
+        description: "The tie-broken position on one match's board: best value, then fewer minutes, then player_sk. A board keeps positions 1 to 3. NULL on season rows."
+        tests:
+          - not_null:
+              config:
+                where: "window_type = 'match'"
       - name: rank
-        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10."
+        description: "DENSE_RANK over the board's metric desc (ties share a rank). 1 is top; cut at 10 on season rows, at the third position on match rows."
         tests: [not_null]
       - name: league_leader_order
         description: >
@@ -2314,8 +2348,12 @@ models:
           when a consumer must show ONE player per league: rank is a DENSE_RANK, so joint leaders
           share it and a league can hold several 1s. Ties break by fewer minutes played, then by
           player_sk. Fewer minutes wins because the same tally in less time is the better
-          performance; player_sk is a stable last resort and means nothing on its own.
-        tests: [not_null]
+          performance; player_sk is a stable last resort and means nothing on its own. NULL on
+          match rows.
+        tests:
+          - not_null:
+              config:
+                where: "window_type = 'season_to_date'"
       - name: board_leader_order
         description: >
           The order the league leaders appear in on this board, across every league, by the same
@@ -2338,8 +2376,11 @@ models:
 
           Per LEAGUE, not per player, so all rows of a league's latest season agree. Latest by
           season_api_year alone; it does not ask whether that season has started or how many
-          matches have been played.
-        tests: [not_null]
+          matches have been played. NULL on match rows.
+        tests:
+          - not_null:
+              config:
+                where: "window_type = 'season_to_date'"
       - name: player_sk
         description: "{{ doc('player_sk') }}"
         tests:
@@ -2395,7 +2436,7 @@ models:
       - name: appearances
         description: "{{ doc('appearances__season_to_date') }}"
       - name: minutes
-        description: "{{ doc('minutes__season_to_date') }}"
+        description: "{{ doc('minutes__season_to_date') }} On match rows: the minutes the player played in that match, the tie-break at the cut."
       - name: goals_player
         description: "{{ doc('goals_player') }}"
       - name: assists_player

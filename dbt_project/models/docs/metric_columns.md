@@ -443,6 +443,11 @@ Average number of fouls the team's players committed per match.
 {% enddocs %}
 
 
+{% docs fouls_player %}
+Fouls the player committed.
+{% enddocs %}
+
+
 {% docs free_kicks_per_match %}
 Average number of free kicks the team was awarded per match.
 {% enddocs %}

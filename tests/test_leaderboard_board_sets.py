@@ -74,9 +74,15 @@ def test_team_boards_are_one_set_in_the_mart_the_yml_and_the_export():
 
 
 def test_player_boards_are_one_set_in_the_mart_the_yml_and_the_export():
-    mart = _player_boards_in_sql(PLAYER_SQL.read_text(encoding="utf-8"))
+    text = PLAYER_SQL.read_text(encoding="utf-8")
+    mart = _player_boards_in_sql(text)
     assert len(mart) == 13, "the ruled player board count (GitLab #129)"
-    assert _check(mart, _accepted_values("mart_leaderboards"), _COMPETITION_PLAYER_BOARDS, "player") == []
+    match_boards = _jinja_list(text, "match_boards")
+    assert len(match_boards) == 7, "the Match leaders boards of the played match page"
+    accepted = _accepted_values("mart_leaderboards")
+    assert set(accepted) == set(mart) | set(match_boards), "accepted_values cover the season and match boards"
+    assert _check(mart, sorted(set(accepted) - (set(match_boards) - set(mart))),
+                  _COMPETITION_PLAYER_BOARDS, "player") == []
 
 
 def test_the_export_lists_the_ruled_order():

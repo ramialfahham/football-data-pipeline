@@ -28,6 +28,7 @@
 
 with import_mart_leaderboards as (
     select * from {{ ref('mart_leaderboards') }}
+    where window_type = 'season_to_date'
 ),
 
 import_competition_registry as (

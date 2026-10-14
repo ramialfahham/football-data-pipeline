@@ -18,6 +18,12 @@
 
   Each row carries the union of the boards' display atoms so the export selects per board (marts contain
   what we show); sort_value is the board's own ranked value. Grain: (player_sk, season_sk, metric_key).
+
+  The match window (window_type 'match'): for every played match with player stats, seven count boards
+  across both teams, from int_player_match__metrics. rank is the same DENSE_RANK within the match;
+  match_leader_order is the tie-broken position, fewer minutes winning, and the board keeps its first
+  three. On match rows the value is sort_value alone, so the season-only columns are NULL. Season rows
+  carry window_type 'season_to_date'. Grain of a match row: (fixture_sk, player_sk, metric_key).
 #}
 
 {# The board set, in the ruled order. Adding or removing a key here must also move seeds'
@@ -44,6 +50,18 @@
      'qualify': outfield ~ ' and shots_on_goal_player >= ' ~ var('player_min_shots_on_target')},
 ] %}
 
+{# The Match leaders boards of the played match page, in the catalogue's order. #}
+{% set match_boards = [
+    'shots_player',
+    'passes_player',
+    'passes_key_player',
+    'dribbles_attempts_player',
+    'duels_won_player',
+    'defensive_actions_player',
+    'fouls_player',
+] %}
+{% set match_board_rows = 3 %}
+
 {# Unified board specs — each carries its own WHERE so ONE ranked loop drives the union-all
    guard. Count boards rank all positive performers; rate boards add the qualification rule. #}
 {% set boards = [] %}
@@ -58,6 +76,10 @@
 
 with season as (
     select * from {{ ref('int_player_season__metrics') }}
+),
+
+match_metrics as (
+    select * from {{ ref('int_player_match__metrics') }}
 ),
 
 players as (
@@ -165,6 +187,128 @@ ranked as (
     union all
     {% endif %}
     {% endfor %}
+),
+
+match_base as (
+    select
+        m.fixture_sk,
+        m.player_sk,
+        m.season_sk,
+        m.league_sk,
+        m.league_code,
+        m.season_api_year,
+        m.minutes,
+        m.team_sk,
+        m.shots_player,
+        m.passes_player,
+        m.passes_key_player,
+        m.dribbles_attempts_player,
+        m.duels_won_player,
+        m.defensive_actions_player,
+        m.fouls_player,
+        p.player_name,
+        p.player_nationality,
+        p.player_position,
+        p.player_photo_url,
+        t.team_name,
+        t.team_slug,
+        t.team_logo_url
+    from match_metrics as m
+    left join players as p on m.player_sk = p.player_sk
+    left join teams as t on m.team_sk = t.team_sk
+),
+
+-- One match's boards: the same DENSE_RANK as a season board, and the same tie-break at the cut,
+-- fewer minutes first, with player_sk as the stable last resort.
+match_ranked as (
+    {% for key in match_boards %}
+    select
+        fixture_sk,
+        player_sk,
+        season_sk,
+        league_sk,
+        league_code,
+        season_api_year,
+        minutes,
+        team_sk,
+        player_name,
+        player_nationality,
+        player_position,
+        player_photo_url,
+        team_name,
+        team_slug,
+        team_logo_url,
+        '{{ key }}' as metric_key,
+        cast({{ key }} as float64) as sort_value,
+        dense_rank() over (
+            partition by fixture_sk
+            order by {{ key }} desc
+        ) as board_rank,
+        row_number() over (
+            partition by fixture_sk
+            order by {{ key }} desc, minutes asc nulls last, player_sk asc
+        ) as match_leader_order
+    from match_base
+    where {{ key }} > 0
+    {% if not loop.last %}
+    union all
+    {% endif %}
+    {% endfor %}
+),
+
+match_rows as (
+    select
+        fixture_sk,
+        player_sk,
+        season_sk,
+        league_sk,
+        league_code,
+        season_api_year,
+        minutes,
+        team_sk,
+        player_name,
+        player_nationality,
+        player_position,
+        player_photo_url,
+        team_name,
+        team_slug,
+        team_logo_url,
+        metric_key,
+        sort_value,
+        board_rank,
+        match_leader_order,
+        {{ dbt_utils.generate_surrogate_key(["'match'", 'fixture_sk', 'player_sk', 'metric_key']) }}
+            as player_leaderboard_sk,
+        'match' as window_type,
+        cast(null as int64) as league_leader_order,
+        cast(null as int64) as appearances,
+        cast(null as int64) as goals_player,
+        cast(null as int64) as assists_player,
+        cast(null as int64) as shots_on_goal_player,
+        cast(null as int64) as dribbles_attempts_player,
+        cast(null as int64) as dribbles_success_player,
+        cast(null as int64) as passes_player,
+        cast(null as int64) as passes_key_player,
+        cast(null as int64) as duels_player,
+        cast(null as int64) as duels_won_player,
+        cast(null as int64) as tackles_player,
+        cast(null as int64) as interceptions_player,
+        cast(null as int64) as blocks_player,
+        cast(null as int64) as cards_yellow_player,
+        cast(null as int64) as cards_red_player,
+        cast(null as int64) as saves_player,
+        cast(null as int64) as scorer_points_player,
+        cast(null as int64) as defensive_actions_player,
+        cast(null as int64) as cards_player,
+        cast(null as float64) as passes_accuracy_player_pct,
+        cast(null as float64) as duels_won_player_pct,
+        cast(null as float64) as dribbles_success_player_pct,
+        cast(null as float64) as saves_player_pct,
+        cast(null as float64) as finishing_efficiency_player_pct,
+        cast(null as bool) as is_current_season,
+        cast(null as int64) as board_leader_order
+    from match_ranked
+    where match_leader_order <= {{ match_board_rows }}
 )
 
 -- THE ORDER OF THE LEAGUE LEADERS ON A BOARD, so a consumer showing one leader per league orders by
@@ -261,6 +405,62 @@ select
                 minutes asc nulls last,
                 player_sk asc
         )
-    end as board_leader_order
+    end as board_leader_order,
+    'season_to_date' as window_type,
+    cast(null as int64) as fixture_sk,
+    cast(null as int64) as match_leader_order
 from ranked
 where board_rank <= 10
+
+union all
+
+select
+    player_leaderboard_sk,
+    metric_key,
+    board_rank as rank,
+    league_leader_order,
+    sort_value,
+    league_code,
+    season_api_year,
+    season_sk,
+    league_sk,
+    player_sk,
+    player_name,
+    player_nationality,
+    player_position,
+    player_photo_url,
+    team_sk,
+    team_name,
+    team_slug,
+    team_logo_url,
+    appearances,
+    minutes,
+    goals_player,
+    assists_player,
+    shots_on_goal_player,
+    dribbles_attempts_player,
+    dribbles_success_player,
+    passes_player,
+    passes_key_player,
+    duels_player,
+    duels_won_player,
+    tackles_player,
+    interceptions_player,
+    blocks_player,
+    cards_yellow_player,
+    cards_red_player,
+    saves_player,
+    scorer_points_player,
+    defensive_actions_player,
+    cards_player,
+    passes_accuracy_player_pct,
+    duels_won_player_pct,
+    dribbles_success_player_pct,
+    saves_player_pct,
+    finishing_efficiency_player_pct,
+    is_current_season,
+    board_leader_order,
+    window_type,
+    fixture_sk,
+    match_leader_order
+from match_rows

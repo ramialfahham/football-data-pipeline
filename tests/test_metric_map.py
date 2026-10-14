@@ -264,7 +264,8 @@ QUESTIONS = (
     ("How many goals has Harry Kane scored this season?",
      "mart_player_profile", "goals_player", "goals_player", {}),
     ("Who are the top scorers in La Liga this season?",
-     "mart_leaderboards", "sort_value", "goals_player", {"metric_key": "goals_player"}),
+     "mart_leaderboards", "sort_value", "goals_player",
+     {"metric_key": "goals_player", "window_type": "season_to_date"}),
     ("How many goals per 90 minutes does Haaland score, compared with other forwards in his "
      "league?",
      "mart_player_competition_benchmarks", "metric_value", "goals_per90",

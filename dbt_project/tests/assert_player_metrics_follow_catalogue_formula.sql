@@ -21,6 +21,7 @@
 -- depends_on: {{ ref('int_player_momentum__metrics') }}
 -- depends_on: {{ ref('int_player_season_record') }}
 -- depends_on: {{ ref('int_player_profile__contribution') }}
+-- depends_on: {{ ref('int_player_match__metrics') }}
 -- depends_on: {{ ref('mart_player_fixture_stats') }}
 -- depends_on: {{ ref('fct_fixture_player_stats') }}
 
@@ -37,6 +38,8 @@
      'grain': ['team_sk', 'player_sk', 'league_code', 'season_api_year', 'fixture_sk'], 'windowed': true},
     {'model': 'int_player_profile__contribution', 'rows': 'contribution_rows',
      'grain': ['player_sk', 'team_sk', 'season_sk'], 'windowed': false},
+    {'model': 'int_player_match__metrics', 'rows': 'match_rows',
+     'grain': ['fixture_sk', 'player_sk'], 'windowed': false},
 ] %}
 {% set member_floor = 60 %}
 {% set checks = [] %}
@@ -170,6 +173,13 @@ contribution_rows as (
     from legs
     inner join {{ ref('int_legs__team_match') }} as tm
         on legs.fixture_sk = tm.fixture_sk and legs.team_sk = tm.team_sk
+),
+
+match_rows as (
+    select
+        legs.*,
+        true as window_is_complete
+    from legs
 ),
 
 {% for check in checks %}

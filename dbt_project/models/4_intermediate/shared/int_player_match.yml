@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: int_player_match__metrics
+    description: >
+      A player's numbers in one played match: the match window, a window of one. Grain:
+      (fixture_sk, player_sk). One row per player with a stat line in a played match.
+
+      Every metric is its metric_catalogue formula over that one match. These are the counts the
+      played match page's Match leaders boards rank in mart_leaderboards (window_type match).
+    config:
+      tags: ["intermediate", "football", "player"]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - fixture_sk
+            - player_sk
+    columns:
+      - name: fixture_sk
+        description: "{{ doc('fixture_sk') }} The played match this row's numbers come from."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('fct_fixture')
+              field: fixture_sk
+      - name: player_sk
+        description: "{{ doc('player_sk') }}"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: team_sk
+        description: "{{ doc('team_sk') }} Here it is the side the player's stat line names in this match."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: league_sk
+        description: "{{ doc('league_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_league')
+              field: league_sk
+      - name: season_sk
+        description: "{{ doc('season_sk') }}"
+        tests:
+          - relationships:
+              to: ref('dim_competition_season')
+              field: season_sk
+      - name: league_code
+        description: "{{ doc('league_code') }}"
+        tests: [not_null]
+      - name: season_api_year
+        description: "{{ doc('season_api_year') }}"
+      - name: kickoff_datetime
+        description: "{{ doc('kickoff_datetime') }}"
+      - name: minutes
+        description: "{{ doc('minutes_played') }}"
+      - name: shots_player
+        description: "{{ doc('shots_player') }}"
+      - name: passes_player
+        description: "{{ doc('passes_player') }}"
+      - name: passes_key_player
+        description: "{{ doc('passes_key_player') }}"
+      - name: dribbles_attempts_player
+        description: "{{ doc('dribbles_attempts_player') }}"
+      - name: duels_won_player
+        description: "{{ doc('duels_won_player') }}"
+      - name: defensive_actions_player
+        description: "{{ doc('defensive_actions_player') }}"
+      - name: fouls_player
+        description: "{{ doc('fouls_player') }}"

@@ -38,7 +38,7 @@ PINNED = {
     "CLAUDE.md": 27,
     "README.md": 9,
     "dbt_project/docs/engineering_standards.md": 34,
-    "dbt_project/docs/layering.md": 44,
+    "dbt_project/docs/layering.md": 43,
     "dbt_project/models/1_staging/api_football/README.md": 1,
     "dbt_project/models/docs/cleaning_rules.md": 5,
     "dbt_project/models/docs/metric_columns.md": 37,

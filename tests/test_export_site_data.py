@@ -89,6 +89,19 @@ def test_display_group_of_type_covers_the_renamed_and_new_types():
     assert m["intercontinental_super_cup"] == "continental-club"
 
 
+def test_every_leaderboard_read_takes_the_season_rows_only():
+    """mart_leaderboards also holds one-match boards (window_type match); every query the export
+    sends to it reads the season boards alone."""
+    import inspect
+    import re
+
+    source = inspect.getsource(export_site_data)
+    reads = [m.start() for m in re.finditer(r"\.mart_leaderboards`", source)]
+    assert len(reads) == 3, "the competition, leaderboard and landing reads"
+    for at in reads:
+        assert "window_type = 'season_to_date'" in source[at:at + 400], source[at - 200:at + 400]
+
+
 def test_shape_matchstats_drops_fixture_sk():
     p = shape_matchstats(
         99,
