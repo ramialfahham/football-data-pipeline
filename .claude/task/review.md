@@ -1,43 +1,50 @@
-# Review — feat/176-match-window
+# Review — feat/176-match-leaders
 
-diff_sha256: f1eb77546b3a94dcffa10592669d0fbd210721e49616cc2944056bd7d2d47aa0
+diff_sha256: 17188086bfc419b3f4bbeda744445ffdab73c47c77620206d398e00c2a2239f0
 
-rounds: 3
+rounds: 2
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The match_window branch of int_team_momentum_window: match_legs gives candidate_legs' 41 columns in the same order and types; the trailing recency_rank <= 5 still binds only to the last-5 branch.
-- Existing form rows unchanged: the old branches are untouched and match rows carry keys disjoint from upcoming fixtures (FT/AET/PEN/AWD/WO against NS/TBD), so the grain tests hold.
-- Readers that must not see match rows filter them: the player builder, the form list, and the tests comparing against those; mart_matchday_insights joins upcoming fixtures only.
-- The generated gates apply to a window of one: an awarded match blanks the team rates, a missing input blanks the rate; the formula and coverage tests now check the match rows too.
-- The key rename reaches every consumer; the intermediates' persisted descriptions now describe the match window; the shared window_type doc block reads true on all six columns that carry it.
+- Season rows keep their select list, window columns, surrogate key and types; the three new columns trail, and the windows run before the union.
+- The union's 49 columns line up in order and type; the match null casts coerce with the season types.
+- Match boards: DENSE_RANK per fixture across both teams, cut by row_number on count, fewer minutes, player_sk at three, zeros and nulls dropped.
+- The new intermediate reads int_legs__player_match only, at its grain, with the generated catalogue formulas; the formula test covers it.
+- yml tests split per window; the descriptions now state both grains, both key formulas, and the match minutes.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- The fixture payload keeps its form-block keys after the key rename; the unit tests feed fixture_sk-keyed rows and assert the exact block.
-- metric_rows.json: the same 37 metric ids under the renamed table, order from the catalogue; served set and order unchanged.
-- No match row reaches a page or payload: the export is upcoming-only and is_form_window is false on match rows.
-- The block-to-mart map, the README and the window doc block name the new mart; no stale name left outside the design mocks reserved to #175.
-- The built site is byte-identical to main; the window-of-one labels are the played match page's question, not this change's.
+- No page or payload changes: the three export reads take season rows only, and the export's allow-lists keep the new columns out.
+- The new label carries the approved words in EN, DE and FI and is used by no page yet.
+- The catalogue's order change keeps every order a page shows: the Rankings and Home boards keep their relative order.
+- The match boards follow the approved Match leaders design: seven boards, top three, a shared count sharing the rank, fewer minutes at the cut, no zero.
+
+## football-analytics-expert-reviewer
+VERDICT: PASS
+risks_checked:
+- fouls_player is the player's own fouls committed, traced to the provider's committed count; formula, name and description agree.
+- The description is one plain sentence on cleaned data; the interpretation carries the meaning; each column holds only its own thing.
+- Direction lower_better and tier 3 match the team twin and the other discipline counts.
+- The order is unique per group and reads naturally: shots, on target, conversion; dribbles, duels, duels won; fouls, yellow, red.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Export form read: table, key column and _W1_DROP renamed together; the fixture payload keeps its keys; tests fail on a revert.
-- The singular tests that read the renamed mart or the window selection, read by hand: aliases and match-row filters correct; the new coverage test fails on a missing, doubled or wrong-sized match window.
-- The page-spec prebuild gate validates the renamed spec; deploy order fails closed before the first build on main.
-- Pins recounted against the gates: code 744 lines in 185 files, README history 18, README long sentences 22, metric_rules.md unchanged at 2.
-- Acceptance evidence demonstrates each criterion, with the page count reconciled and the README figures current.
+- The three export reads carry the season filter; the source-text test fails on a dropped filter or a fourth read.
+- The generator surface renders the seven formulas as the model holds them; the metric map adds the three sort_value rows and the window column.
+- The sentence-length pin moves by exactly the one long sentence removed from layering.md.
+- Deploy order: the CI export reads no leaderboard entity; a manual export before the first build fails closed.
+- The acceptance evidence demonstrates each criterion.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is inside scope_paths, the sentence-length pin file added by amendment.
-- Each core-document edit matches its approved text: the decisions_taken texts and amendments (1) to (4), the last corrected after round 2 with its own approval.
-- The reserved decisions are untouched: the prod table, the intermediates' names, mart_leaderboards, mart_team_fixture_stats.
-- Threshold declarations honest: no new mechanism; the recurring-cost rise declared, to be measured.
+- Every changed path is in scope; nothing beyond the objective.
+- The fouls_player row, the catalogue order, the label words and the layering.md text match decisions_taken and the amendment exactly.
+- The impact_map pastes the dbt ls output (3 models, 20 singular tests); the blast radius states at most 21 rows per match.
+- Threshold declarations honest; the cost rise declared, measured on the MR build before merge; reserved decisions untouched.
 
 ## escalations
 (none)

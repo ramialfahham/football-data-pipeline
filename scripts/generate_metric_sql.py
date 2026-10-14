@@ -104,6 +104,10 @@ WINDOW_RATIOS = (
     "saves_player_pct", "dribbles_success_player_pct", "passes_accuracy_player_pct",
     "duels_won_player_pct",
 )
+MATCH_BOARDS = (
+    "shots_player", "passes_player", "passes_key_player", "dribbles_attempts_player", "duels_won_player",
+    "defensive_actions_player", "fouls_player",
+)
 POSITION_COUNTS = (
     "goals_player", "goals_penalty_player", "assists_player", "shots_on_goal_player", "passes_player",
     "passes_accurate_player", "passes_key_player", "tackles_player", "interceptions_player",
@@ -133,6 +137,7 @@ SURFACES = (
             WINDOW_COUNTS + ("defensive_actions_player", "scorer_points_player") + WINDOW_RATIOS, windowed=True),
     Surface("4_intermediate/shared/int_player_profile__contribution.sql",
             ("scorer_points_player",)),
+    Surface("4_intermediate/shared/int_player_match__metrics.sql", MATCH_BOARDS),
     Surface("5_marts/shared/mart_player_fixture_stats.sql",
             ("passes_accuracy_player_pct",), windowed=True),
     Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",

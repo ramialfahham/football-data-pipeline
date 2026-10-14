@@ -22,6 +22,7 @@
 
 with import_mart_leaderboards as (
     select * from {{ ref('mart_leaderboards') }}
+    where window_type = 'season_to_date'
 ),
 
 -- 1. The order is total: one and only one leader per league-board.
