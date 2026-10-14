@@ -440,8 +440,10 @@ models:
       team_sk, played_fixture_sk).
 
       played_fixture_sk identifies each past match, so a per-fixture stat line can be looked up
-      from here. has_team_stats and has_player_stats are computed against the per-fixture stat
-      marts, so true means detail genuinely exists rather than that it ought to.
+      from here. has_team_stats and has_player_stats are computed against the played match's
+      window of one in mart_team_window_metrics and its player stat lines in
+      mart_player_fixture_stats, so true means detail genuinely exists rather than that it ought
+      to.
 
       assert_momentum_window_matches_momentum guards that these rows and the aggregate stay
       consistent.
@@ -498,7 +500,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: has_team_stats
-        description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
+        description: "True when the played fixture's window of one for this team in mart_team_window_metrics (window_type match) holds a team stat line (games_with_team_stats above 0)."
         tests: [not_null]
       - name: has_player_stats
         description: "True when mart_player_fixture_stats has a player stat line (has_stat_line) for this played fixture + team. False is the common case — many competitions lack player stats."
@@ -526,93 +528,6 @@ models:
         description: "{{ doc('opponent_name') }}"
       - name: opponent_logo_url
         description: "{{ doc('opponent_logo_url') }}"
-
-  - name: mart_team_fixture_stats
-    description: >
-      One team's stat line from one finished match, with the fixture's own details and the team's
-      identity alongside. Both sides of a fixture appear, as two rows. Grain: (fixture_sk,
-      team_sk).
-
-      A projection of fct_fixture_team_stats; the one derived value, passes_accuracy_percent, is
-      the catalogue's pass accuracy over the team's own match, written by
-      scripts/generate_metric_sql.py and shown as a whole percentage.
-
-      Covers finished fixtures that have team stats. Provider shell rows, where the statistics
-      block exists but every value is NULL, are excluded, so a fixture missing from here has no
-      usable stats rather than zero of everything.
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [fixture_sk, team_sk]
-      - dbt_utils.expression_is_true:
-          expression: "passes_accuracy_percent is null or (passes_accuracy_percent between 0 and 100)"
-          name: team_fixture_stats_passes_accuracy_percent_in_range
-    columns:
-      - name: fixture_sk
-        description: "{{ doc('fixture_sk') }}"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('fct_fixture')
-              field: fixture_sk
-      - name: team_sk
-        description: "{{ doc('team_sk') }}"
-        tests:
-          - not_null
-          - relationships:
-              to: ref('dim_team')
-              field: team_sk
-      - name: league_code
-        description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
-        tests: [not_null]
-      - name: is_home
-        description: "{{ doc('is_home__own_fixture') }}"
-        tests: [not_null]
-      - name: season_api_year
-        description: "{{ doc('season_api_year') }}"
-      - name: kickoff_datetime
-        description: "{{ doc('kickoff_datetime') }}"
-      - name: round_name
-        description: "{{ doc('round_name') }}"
-      - name: team_name
-        description: "{{ doc('team_name') }}"
-      - name: team_logo_url
-        description: "{{ doc('team_logo_url') }}"
-      - name: shots_on_goal
-        description: "{{ doc('shots_on_goal__team_match') }}"
-      - name: shots_off_goal
-        description: "{{ doc('shots_off_goal') }}"
-      - name: shots_total
-        description: "{{ doc('shots_total__team_match') }}"
-      - name: shots_blocked
-        description: "{{ doc('shots_blocked') }}"
-      - name: shots_inside_box
-        description: "{{ doc('shots_inside_box') }}"
-      - name: shots_outside_box
-        description: "{{ doc('shots_outside_box') }}"
-      - name: fouls
-        description: "{{ doc('fouls') }}"
-      - name: corner_kicks
-        description: "{{ doc('corners') }}"
-      - name: offsides
-        description: "{{ doc('offsides__team_match') }}"
-      - name: ball_possession_percent
-        description: "{{ doc('ball_possession_percent') }}"
-      - name: yellow_cards
-        description: "{{ doc('cards_yellow') }}"
-      - name: red_cards
-        description: "{{ doc('cards_red') }}"
-      - name: goalkeeper_saves
-        description: "{{ doc('saves') }}"
-      - name: passes_total
-        description: "{{ doc('passes_total__team_match') }}"
-      - name: passes_accurate
-        description: "{{ doc('passes_accurate__team_match') }}"
-      - name: passes_accuracy_percent
-        description: "{{ doc('passes_accuracy_percent') }}"
-      - name: goals_for
-        description: "{{ doc('goals') }}"
-      - name: goals_against
-        description: "{{ doc('goals_against') }}"
 
   - name: mart_player_fixture_stats
     description: >

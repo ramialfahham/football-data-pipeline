@@ -25,7 +25,6 @@ from scripts.export_site_data import (
     shape_fixture_payload,
     shape_next_match,
     shape_leaderboards,
-    shape_matchstats,
     shape_player_payload,
     shape_team_payload,
     shape_top_players,
@@ -100,25 +99,6 @@ def test_every_leaderboard_read_takes_the_season_rows_only():
     assert len(reads) == 3, "the competition, leaderboard and landing reads"
     for at in reads:
         assert "window_type = 'season_to_date'" in source[at:at + 400], source[at - 200:at + 400]
-
-
-def test_shape_matchstats_drops_fixture_sk():
-    p = shape_matchstats(
-        99,
-        [{"fixture_sk": 99, "team_sk": 1, "shots_total": 10}],
-        [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1}],
-    )
-    assert p["type"] == "matchstats" and p["fixture_id"] == 99
-    assert "fixture_sk" not in p["team_stats"][0]
-    assert p["team_stats"][0]["shots_total"] == 10
-    assert p["player_stats"][0]["goals_total"] == 1
-
-
-def test_shape_matchstats_leaves_out_the_match_context_columns_of_the_player_mart():
-    context = {"opponent_team_sk": 2, "team_goals_for": 1, "team_goals_against": 0, "team_logo_url": "u",
-               "opponent_name": "B", "opponent_logo_url": "v", "result": "W"}
-    p = shape_matchstats(99, [], [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1, **context}])
-    assert p["player_stats"] == [{"player_sk": 7, "goals_total": 1}]
 
 
 def test_player_payload_reads_the_match_log_from_the_player_in_a_match_mart(monkeypatch):

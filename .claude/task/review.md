@@ -1,42 +1,40 @@
-# Review — feat/176-match-leaders
+# Review — chore/176-retire-team-fixture-stats
 
-diff_sha256: 1d66af64abc2d3b0249d8cec03b4d55bf24021ef5f12ddf3a0195240166e751c
+diff_sha256: 4d3f64fce1c12f777d43ec21179fbdefb64d020032abfdae63ae8f7d5b43f1df
 
-rounds: 3
+rounds: 1
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 3 delta: strings.ts back to main and the contract amendment; no dbt model, yml, test, seed or script changed, so the SQL, union, rank and cut, catalogue and reader findings of rounds 1 and 2 stand.
-- The fouls_player label key with no string breaks no check: the label test resolves only keys a page asks for, and the copy gate reads no catalogue keys.
-- shots_player and duels_won_player already stand without strings, so fouls_player follows the existing state.
+- No reader of the deleted mart is left outside the three items the contract reserves.
+- The new has_team_stats join reads mart_team_window_metrics' match rows, unique on (fixture_sk, team_sk), so the form list cannot fan out and the flag stays non-null.
+- The flag now means shots present on the match window; it can differ from the provider's any-stat line, as the contract declares, counted before merge.
+- The formula test's Jinja still renders valid SQL: the comma and union all are conditional on the last surface.
+- The pass-accuracy check on match rows stays covered by the window mart's surface; no metric was created or redefined.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- The branch no longer touches site_v2/src; no page or payload depends on the removed label.
-- The export emits a catalogue label key only for boards in its own lists, none of which holds fouls_player; match rows stay out of all three reads.
-- The approved words are recorded for the played match page; no unapproved string ships.
-
-## football-analytics-expert-reviewer
-VERDICT: PASS
-risks_checked:
-- The fouls_player row is unchanged since its review: formula, description, direction, tier and order.
-- No gate turns the label key without a string into a defect; the key stays distinct from the team row's.
+- No component, page or spec reads matchstats or has_team_stats; types.ts only declares the flag.
+- A changed flag value cannot change a rendered page; no new field or sample key.
+- The wireframe edit removes only the dead data-source row; the core-document edits match the approved texts.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Every consumer of the catalogue's label keys checked: the copy gate, the site's label test, the page-spec check and the i18n metric check; none needs the fouls label.
-- The regenerated patch holds no site_v2 file; criterion 2 now holds trivially, and npm run build exiting 0 is the right evidence.
-- The fouls label goes in with the page that first shows the board.
+- No CI job, deploy script, nightly entrypoint, manifest or test still names the matchstats entity.
+- The metric map loses exactly the 7 rows of the deleted model; the repointed fan question has its map row and accepted window value.
+- The code-history pin moves by exactly the two flagged lines in the one deleted file.
+- Deploy order: the stale prod table is read by nothing; old and new images are compatible either way.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- The amendment narrows the change: it removes the label strings, takes no new decision, and keeps the approved words for the played match page.
-- The regenerated patch holds no site_v2 file, consistent with the amendment and the evidence.
-- The pasted dbt ls lineage, the match-board rule, the catalogue rows, the layering.md row and the reserved decisions are unaffected.
+- Every changed path is in scope; the mechanical removals follow from the objective.
+- The four document edits match the approved texts character for character; the has_team_stats source and the fan question match decisions_taken.
+- The reserved items are untouched: the prod table drops, the player wireframe, GAP-07, the design mocks.
+- Threshold declarations honest: a removal, the cost falls, measured before merge.
 
 ## escalations
 (none)

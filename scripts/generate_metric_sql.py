@@ -143,7 +143,6 @@ SURFACES = (
     Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
             TEAM_SEASON, windowed=True, entity="team"),
     Surface("4_intermediate/shared/int_team_momentum__metrics.sql", TEAM_FORM, entity="team"),
-    Surface("5_marts/shared/mart_team_fixture_stats.sql", ("passes_accuracy_pct",), windowed=True, entity="team"),
 )
 
 

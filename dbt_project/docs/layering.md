@@ -326,7 +326,6 @@ Canonical mart inventory (exhaustive) for this project:
 | `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
 | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
 | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
-| `mart_team_fixture_stats` | (fixture_sk, team_sk) | Per-fixture team stat lines. |
 | `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | A player in a finished match: every player the stat lines or the line-ups name, with the match context. A player's match log is its rows with a stat line. |
 | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
 | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |

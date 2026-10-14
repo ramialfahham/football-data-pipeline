@@ -255,7 +255,7 @@ QUESTIONS = (
     ("How many goals did Barcelona score the last time they played Real Madrid?",
      "mart_head_to_head", "last_meeting_goals_for", "goals", {}),
     ("How many corners did Dortmund win in their last match?",
-     "mart_team_fixture_stats", "corner_kicks", "corners", {}),
+     "mart_team_window_metrics", "corners_per_match", "corners_per_match", {"window_type": "match"}),
     ("How many goals per match did Argentina score at the 2026 World Cup?",
      "mart_team_profile", "goals_per_match", "goals_per_match", {"league_code": "WC"}),
     ("Going into Saturday's game, how many points has the home side taken from its recent "

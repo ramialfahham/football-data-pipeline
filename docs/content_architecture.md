@@ -70,7 +70,7 @@ either subject, and appears on many tabs. The Subject column names the entity a 
 | | Season (this season; per-game toggle) | team, player | `mart_team_profile`, `mart_player_profile` |
 | | Season-over-season | team, player | `int_team_profile__yoy` → `mart_team_profile`; `int_player_profile__yoy` → `mart_player_profile` |
 | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_team_competition_benchmarks`, `mart_player_competition_benchmarks` |
-| | Single fixture | team, player | `mart_team_fixture_stats`, `mart_player_fixture_stats` |
+| | Single fixture | team, player | `mart_team_window_metrics` (window_type match), `mart_player_fixture_stats` |
 | **Standings / rank** | League / group table | team | `mart_standings`: the league's official row (the provider's, except where corrected), with `table_kind` |
 | | Standing-as-context | team | `mart_fixture_standing_context` on the fixture page; `mart_team_profile` on the team page |
 | | Deserved points (better / worse than the table says) | team | `mart_team_profile` |
