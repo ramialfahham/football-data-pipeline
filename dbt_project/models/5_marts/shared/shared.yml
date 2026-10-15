@@ -643,6 +643,8 @@ models:
               to: ref('dim_player')
               field: player_sk
               where: "replaced_player_sk is not null"
+      - name: lineup_order
+        description: "{{ doc('lineup_order') }} NULL where no confirmed or researched sheet names the player."
       - name: offsides
         description: "{{ doc('offsides_player') }}"
       - name: shots_total
@@ -2731,6 +2733,16 @@ models:
         description: "{{ doc('goals') }} Here, the home side's, once the fixture is played."
       - name: goals_away
         description: "{{ doc('goals') }} Here, the away side's, once the fixture is played."
+      - name: shootout_home
+        description: "{{ doc('shootout_home') }}"
+      - name: shootout_away
+        description: "{{ doc('shootout_away') }}"
+      - name: winner_team_sk
+        description: "{{ doc('winner_team') }}"
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: home_team_sk
         description: "{{ doc('home_team_sk') }}"
         tests:
@@ -2849,6 +2861,10 @@ models:
         description: "The assisting player's provider player id inside the goals array, which is player_sk in dim_player. NULL on a per-scorer entry and where no assist is recorded."
       - name: goals.assist_player_name
         description: "The assisting player's name inside the goals array. NULL on a per-scorer entry and where no assist is recorded."
+      - name: goals.score_home_after
+        description: "The home side's goals once this goal is scored, inside the goals array. NULL on a per-scorer entry."
+      - name: goals.score_away_after
+        description: "The away side's goals once this goal is scored, inside the goals array. NULL on a per-scorer entry."
 
   - name: mart_match_days
     description: >

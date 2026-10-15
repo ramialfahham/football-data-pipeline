@@ -455,15 +455,32 @@ models:
     description: >
       Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id).
 
-      The measures are FINAL-TIME goals only. Half-time, extra-time and penalty shoot-out splits
-      are deliberately not carried, so a score here is the result and never a stage of it. Status,
-      round and venue ride along as degenerate attributes.
+      The measures are FINAL-TIME goals only. Half-time and extra-time splits are not carried, so a
+      score here is the result and never a stage of it. The penalty shoot-out has its own two
+      columns and is never part of the goals. Status, round and venue ride along as degenerate
+      attributes.
     meta:
       owner: "data-platform"
       domain: "football"
       criticality: "high"
     config:
       tags: ["core", "fact"]
+    tests:
+      - dbt_utils.expression_is_true:
+          name: fct_fixture_shootout_both_or_neither_and_decided_on_penalties
+          expression: >
+            (shootout_home is null) = (shootout_away is null)
+            and (status_short != 'PEN' or shootout_home != shootout_away)
+      - dbt_utils.expression_is_true:
+          name: fct_fixture_winner_follows_the_result
+          expression: >
+            winner_team_sk is not distinct from case
+                when awarded_to_team_sk is not null then awarded_to_team_sk
+                when status_short = 'PEN' and shootout_home > shootout_away then home_team_sk
+                when status_short = 'PEN' and shootout_away > shootout_home then away_team_sk
+                when status_short in ('FT', 'AET', 'AWD', 'WO') and goals_home > goals_away then home_team_sk
+                when status_short in ('FT', 'AET', 'AWD', 'WO') and goals_away > goals_home then away_team_sk
+            end
     columns:
       - name: fixture_sk
         description: "{{ doc('fixture_sk') }}"
@@ -540,6 +557,26 @@ models:
         description: "Final-time goals scored by home team."
       - name: goals_away
         description: "Final-time goals scored by away team."
+      - name: shootout_home
+        description: "{{ doc('shootout_home') }}"
+        tests:
+          - not_null:
+              where: "status_short = 'PEN'"
+      - name: shootout_away
+        description: "{{ doc('shootout_away') }}"
+        tests:
+          - not_null:
+              where: "status_short = 'PEN'"
+      - name: winner_team_sk
+        description: "{{ doc('winner_team') }}"
+        tests:
+          - not_null:
+              where: "status_short = 'PEN'"
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+          - dbt_utils.expression_is_true:
+              expression: "is null or winner_team_sk in (home_team_sk, away_team_sk)"
       - name: awarded_to_team_sk
         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
         tests:
@@ -906,6 +943,8 @@ models:
         description: "{{ doc('minute_off') }}"
       - name: minute_off_extra
         description: "{{ doc('minute_off_extra') }}"
+      - name: lineup_order
+        description: "{{ doc('lineup_order') }}"
       - name: lineup_state
         description: "{{ doc('lineup_state__sheet') }}"
         tests:

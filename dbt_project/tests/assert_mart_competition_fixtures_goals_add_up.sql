@@ -8,6 +8,8 @@
   - does_not_add_up: served goals that differ from the score on either side, or name a team not
     in the match;
   - minute_missing: a goal without its minute in a match whose state says every minute is known;
+  - score_after_wrong: a list in match order whose scores after each goal do not step up one goal
+    at a time to the goals it serves;
   - unknown_player: a scorer's or assister's provider id that dim_player does not hold;
   - goals_not_reconciled: a match whose goal events exist but add up neither alone nor with the
     players' goals; it needs its goals in fixture_goal_corrections.
@@ -41,6 +43,9 @@ served as (
         countif(g.goals is not null and g.minute_elapsed is null) as served_without_minute,
         countif(g.player_api_id is not null and p.player_sk is null) as served_unknown_player,
         countif(g.assist_player_api_id is not null and ap.player_sk is null) as served_unknown_assist,
+        max(g.score_home_after) as last_score_home,
+        max(g.score_away_after) as last_score_away,
+        count(distinct g.score_home_after + g.score_away_after) as score_steps,
         count(g.goals) as entries
     from fixtures as f
     left join unnest(f.goals) as g
@@ -82,6 +87,14 @@ checked as (
                 )
                 then 'does_not_add_up'
             when f.goal_data_state = 'goals' and s.served_without_minute > 0 then 'minute_missing'
+            when
+                s.entries > 0 and s.served_without_minute = 0
+                and (
+                    s.score_steps != s.entries
+                    or s.last_score_home is distinct from s.served_home
+                    or s.last_score_away is distinct from s.served_away
+                )
+                then 'score_after_wrong'
             when s.served_unknown_player > 0 or s.served_unknown_assist > 0 then 'unknown_player'
             when f.goal_data_state = 'not_recorded' and coalesce(e.goal_events, 0) > 0 then 'goals_not_reconciled'
         end as problem
