@@ -1985,7 +1985,7 @@ index 00000000..319c43d8
 +}
 diff --git a/site_v2/src/lib/builtFixtures.test.mjs b/site_v2/src/lib/builtFixtures.test.mjs
 new file mode 100644
-index 00000000..f27984ba
+index 00000000..63cd2b5b
 --- /dev/null
 +++ b/site_v2/src/lib/builtFixtures.test.mjs
 @@ -0,0 +1,21 @@
@@ -2010,7 +2010,6 @@ index 00000000..f27984ba
 +  assert.equal(built.get(12).is_played, false, "a next-match payload carries no played flag");
 +  assert.equal(built.has(13), false, "a match without a payload has no page");
 +});
-\ No newline at end of file
 diff --git a/site_v2/src/lib/format.ts b/site_v2/src/lib/format.ts
 index 56f01709..8d52cf60 100644
 --- a/site_v2/src/lib/format.ts
@@ -2031,7 +2030,7 @@ index 56f01709..8d52cf60 100644
 +  return `${isNum(home) ? home : DASH}–${isNum(away) ? away : DASH}`;
 +}
 diff --git a/site_v2/src/lib/href.ts b/site_v2/src/lib/href.ts
-index a66f7bd5..f178d0af 100644
+index a66f7bd5..f1253ddb 100644
 --- a/site_v2/src/lib/href.ts
 +++ b/site_v2/src/lib/href.ts
 @@ -3,7 +3,9 @@
@@ -2058,7 +2057,6 @@ index a66f7bd5..f178d0af 100644
 +  if (!page?.slug || !comp?.slug) return undefined;
 +  return localeHref(lang, `${comp.slug}/${word(lang, "matches")}/${page.slug}/`);
 +}
-\ No newline at end of file
 diff --git a/site_v2/src/lib/types.ts b/site_v2/src/lib/types.ts
 index 7cb6ee2f..0bc8b19e 100644
 --- a/site_v2/src/lib/types.ts
@@ -2692,14 +2690,18 @@ index 8bce6da3..93756c60 100644
 # particular: whether a field displayed by a component actually EXISTS in the
 # exported sample is checked by opening these files, not by reading a diff.
 #
-#   site_v2/src/data/fixtures/1224099.json | 236 ++++++++
-#    site_v2/src/data/fixtures/1318799.json | 178 ++++++
-#    site_v2/src/data/fixtures/1388000.json | 178 ++++++
-#    site_v2/src/data/fixtures/1550684.json | 994 +++++++++++++++++++++++++++++++++
-#    site_v2/src/data/fixtures/1550700.json | 919 ++++++++++++++++++++++++++++++
-#    site_v2/src/data/fixtures/1575150.json | 991 ++++++++++++++++++++++++++++++++
-#    site_v2/src/data/fixtures/1644170.json | 239 ++++++++
-#    7 files changed, 3735 insertions(+)
+#   site_v2/src/data/fixtures/1224099.json | 235 +++++++++
+#    site_v2/src/data/fixtures/1318799.json | 179 +++++++
+#    site_v2/src/data/fixtures/1388000.json | 179 +++++++
+#    site_v2/src/data/fixtures/1478037.json | 865 ++++++++++++++++++++++++++++++
+#    site_v2/src/data/fixtures/1550684.json | 935 +++++++++++++++++++++++++++++++++
+#    site_v2/src/data/fixtures/1550700.json | 865 ++++++++++++++++++++++++++++++
+#    site_v2/src/data/fixtures/1575150.json | 934 ++++++++++++++++++++++++++++++++
+#    site_v2/src/data/fixtures/1640000.json | 729 +++++++++++++++++++++++++
+#    site_v2/src/data/fixtures/1640760.json | 152 ++++++
+#    site_v2/src/data/fixtures/1644170.json | 236 +++++++++
+#    site_v2/src/data/fixtures/93198.json   | 179 +++++++
+#    11 files changed, 5488 insertions(+)
 # ============================================================================
 
 # ============================================================================
@@ -2714,7 +2716,9 @@ index 8bce6da3..93756c60 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 29 +++++++++++++++++++-------
-#    .claude/task/rendered_page_evidence.md | 38 ++++++++++++++++++++++++----------
-#    2 files changed, 49 insertions(+), 18 deletions(-)
+#   .claude/task/acceptance_evidence.md    |   30 +-
+#    .claude/task/rendered_page_evidence.md |   38 +-
+#    .claude/task/review.md                 |   54 +-
+#    .claude/task/review_input.patch        | 3724 +++++++++++++++++++++++---------
+#    4 files changed, 2726 insertions(+), 1120 deletions(-)
 # ============================================================================

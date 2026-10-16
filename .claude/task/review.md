@@ -1,8 +1,8 @@
 # Review — feat/175-played-match-page
 
-diff_sha256: e27a14975fe654c6142b2679b79af7364308aab285afc0ee8edcd9097c7e6f49
+diff_sha256: 1ce8ffdedd2229751cac08a68e23f17cedfbb7c53b5d923a47c43eca65089710
 
-rounds: 2
+rounds: 3
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -21,7 +21,7 @@ risks_checked:
 - A missing scorer, player or replaced player shows "–"; the score is reachable by screen readers at every width.
 - Played rows link exactly when their page is built, proven by check-built-pages' data-fixture check; player rows stay unlinked by CPO ruling.
 - The Substitutes head keeps its 14px in both columns; rendered_page_evidence.md reads 375 and 1010px and the design check passes.
-- Open by agreement: the re-export from the MR build replaces all seven samples, with awarded_to_team_id, no player slug and the three missing states.
+- Round 3: the eleven samples re-exported from the MR build carry no player slug, carry awarded_to_team_id (Bastia–Lyon names Lyon), list substitutes in coming-on order, and cover goals without minutes, goals not recorded and one side without player stats.
 
 ## platform-reviewer
 VERDICT: PASS
@@ -40,6 +40,7 @@ risks_checked:
 - Core-document edits (ui_design_brief.md, site_architecture.md) carry their approved texts.
 - No new mechanism; the recurring cost is declared and its measurement is owed (criterion 16).
 - No secrets; doc-sync complete.
+- Round 3: the delta is the eleven sample payloads only, in scope; no secret, no player slug; the export query bytes were put to the CPO first.
 
 ## escalations
 (none)
