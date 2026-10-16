@@ -69,11 +69,13 @@ impact_map: >
   Matches page, the Matchdays tab and the next match page.
   layer_rules: the substitutes' order is base logic; the export selects and shapes served values
   only; the site renders what it is served (layering.md, Consumption layer). No new model.
-  deploy_order: the warehouse change builds in data:build:mr; the export and the site build run
-  in CI on the MR; deploy:site-v2 stays manual. No prod write.
+  deploy_order: the warehouse change builds in data:build:mr; the site build runs on the
+  committed samples in CI on the MR; the merge's build adds the new columns to prod.
+  deploy:site-v2 stays manual: the one manual deploy from main after the merge is criterion 16's
+  measurement, and it publishes the site to its unlisted Firebase address.
   blast_radius: lineup_order changes on substitute rows only. ~60,000 played payloads and three
   locale pages each join the build; the export's size and the build's size and time are measured
-  and put to the CPO before the MR is called ready.
+  right after the merge and put to the CPO (criterion 16).
 
 acceptance_criteria:
   - "1. Payload: the export writes one payload for every played match (is_played) and copies served values only; unit tests show no value computed in Python; every next-match payload is byte-identical to main's except each head-to-head meeting gaining its fixture id."
@@ -91,7 +93,7 @@ acceptance_criteria:
   - "13. Every new label exists in EN, DE and FI; the label tests pass; the DE and FI words are the ones the CPO approved on the MR."
   - "14. At 375, 700 and 1010px in EN, DE and FI a played page has no horizontal scroll; check_design_inventory.py passes on it with no failures; block_standard.md carries the new element rows."
   - "15. Committed sample payloads cover full time, extra time, penalties, the three award kinds, goals without minutes, goals not recorded, no player stats and one side without player stats; each renders as above in EN, DE and FI."
-  - "16. The full export and site build with every played page is measured on ci-runner-01 (output size in GiB, run time) and put to the CPO before the MR is called ready."
+  - "16. Right after the merge, once the merge's build has added this MR's columns to prod, the full export and site build with every played page is measured on ci-runner-01 by a manual deploy from main (export run time and artifact size in GiB, build run time and output size in GiB) and put to the CPO."
 
 decisions_taken: >
   Approved in chat, 2026-10-15 and 2026-10-16: the plan; the 16 acceptance criteria above; the
@@ -156,3 +158,6 @@ amendments: >
   + dbt_project/tests/assert_mart_head_to_head_meetings_are_fixtures.sql. Authority:
   engineering_standards.md §3.1 (a key carries a test of its parent), raised by the analytics
   engineer in review round 1. Content: every meeting's fixture_api_id is a fixture of fct_fixture.
+  + criterion 16 moves to right after the merge. Authority: approved in chat, 2026-10-16 (the
+  deploy export reads prod's marts, which hold this MR's new columns only once the merge builds
+  them, so no full-scale run can pass before it). Content: the criterion's new text above.

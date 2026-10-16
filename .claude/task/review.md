@@ -1,8 +1,10 @@
 # Review — feat/175-played-match-page
 
-diff_sha256: 1ce8ffdedd2229751cac08a68e23f17cedfbb7c53b5d923a47c43eca65089710
+diff_sha256: 7eb0a7cd795be57a1a0a37d6fb4aff0e761a2e6195504ac885777a77e930f1e3
 
-rounds: 3
+rounds: 5
+
+rounds_cap_override: approved in chat, 2026-10-16, for rounds 4 and 5, limited to criterion 16 moving to right after the merge and the two impact_map lines that state its reach.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -41,6 +43,7 @@ risks_checked:
 - No new mechanism; the recurring cost is declared and its measurement is owed (criterion 16).
 - No secrets; doc-sync complete.
 - Round 3: the delta is the eleven sample payloads only, in scope; no secret, no player slug; the export query bytes were put to the CPO first.
+- Rounds 4 and 5: criterion 16 moves to right after the merge with its authority recorded; deploy_order and blast_radius now say the measuring deploy from main runs after the merge and publishes the site.
 
 ## escalations
 (none)

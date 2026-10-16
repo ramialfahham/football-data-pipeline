@@ -4,7 +4,7 @@ Read from the built output of `npm run build` in site_v2 on the branch (prebuild
 build, audit-seo, check-built-pages), with the committed samples, among them eleven played
 payloads exported by `fetch_played_fixture_payloads` from this MR's build (`ci_mr320_marts` for
 the three marts it rebuilt, prod for the rest). Pages were read in the Browser pane and from
-site_v2/dist. Criterion 16 is shown after a full-scale run, as agreed with the CPO (approved in
+site_v2/dist. Criterion 16 is measured right after the merge, as the CPO moved it (approved in
 chat, 2026-10-16); its line says what stands now.
 
 criteria_demonstrated:
@@ -23,4 +23,4 @@ criteria_demonstrated:
   - 13 Labels: strings.ts carries every new key in EN, DE and FI with the words the CPO approved in chat on 2026-10-16; the copy gate reports 924 strings across 3 locales OK; check-metric-labels.test.mjs passes 13 of 13 with the Match leaders boards in its asked set; check-page-specs validates 10 pages.
   - 14 Layout and design check: check_design_inventory.py --dist site_v2/dist renders 24 pages at 375, 700 and 1010px in every published locale, 174 renders, 0 failures; the played match page row measures Match header winner, Goal row meta, Comparison element and Column head; its 30 warnings are the existing header-row overflow class at 700px.
   - 15 Samples: eleven played payloads, every one built in EN, DE and FI: full time (Hoffenheim–Dortmund), extra time (Halle–Schalke), penalties (Viktoria Köln–Nürnberg), played then awarded (Union Berlin–Bochum), abandoned then awarded (Nantes–Toulouse), awarded to a team (Bastia–Lyon), not played (Tours–Lorient), goals without minutes (Bahia–Sport Recife), goals not recorded (Exmouth–Thame), no player stats (Wingate–Bedford), one side without player stats (Saint Martin–Bahamas, which shows "The numbers of Bahamas's players are not recorded for this match." above the boards). No payload carries a player slug; every one carries `awarded_to_team_id`.
-  - 16 Scale (shown after the MR build): the export of the played matches reads 0.514 GiB per run (dry run of its seven queries); the full export and site build on ci-runner-01, size in GiB and run time, is measured in a manual run after the MR build and put to the CPO before the Draft mark comes off.
+  - 16 Scale (measured right after the merge, as the criterion now reads): before it, the CI export (`--entities teams,fixtures`) reads 0.93 GiB per run by dry run of its 22 queries, 0.514 GiB of it for the played matches; a dry run against prod today fails on `awarded_to_team_sk`, which the merge's build adds, which is why no full-scale run can pass before the merge. After the merge, a manual deploy from main on ci-runner-01 gives the export run time and artifact size and the build run time and output size, put to the CPO.
