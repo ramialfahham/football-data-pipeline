@@ -171,3 +171,14 @@ export function formatTime(iso: string | null | undefined, lang: Lang): string {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC",
   }).format(d);
 }
+
+/** A match minute as football writes it: 45’, and 90+6’ in added time. */
+export function matchMinute(minute: number | null | undefined, extra?: number | null): string {
+  if (!isNum(minute)) return DASH;
+  return isNum(extra) && extra > 0 ? `${minute}+${extra}’` : `${minute}’`;
+}
+
+/** A score, home goals first: 1–1. */
+export function scoreLine(home: number | null | undefined, away: number | null | undefined): string {
+  return `${isNum(home) ? home : DASH}–${isNum(away) ? away : DASH}`;
+}

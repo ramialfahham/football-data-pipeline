@@ -73,6 +73,12 @@ _COMPETITION_PLAYER_BOARDS = (
     "cards_yellow_player", "cards_red_player",
     "saves_player",
 )
+# The played match page's Match leaders: mart_leaderboards' match boards, a filter like the tuples
+# above, carried in the catalogue's order. The warehouse cuts each board at three.
+_MATCH_PLAYER_BOARDS = (
+    "shots_player", "passes_player", "passes_key_player", "dribbles_attempts_player",
+    "duels_won_player", "defensive_actions_player", "fouls_player",
+)
 # Five rows per board on a competition page (#129 board rules); the warehouse ranks and orders,
 # this is the cut.
 _COMPETITION_BOARD_ROWS = 5
@@ -1207,6 +1213,242 @@ def fetch_fixture_payloads(client, sample: int = 0, source_counts: dict | None =
     return payloads
 
 
+_PLAYED_FIXTURE_COLUMNS = (
+    "fixture_sk, league_code, season_api_year, kickoff_datetime, round_name, round_order, "
+    "status_short, venue_name, fixture_slug, goals_home, goals_away, shootout_home, shootout_away, "
+    "winner_team_sk, award_kind, awarded_to_team_sk, on_pitch_home, on_pitch_away, goals, goal_data_state, "
+    "lineup_state, "
+    "home_team_sk, home_team_name, home_team_slug, home_team_logo_url, home_team_formation, "
+    "away_team_sk, away_team_name, away_team_slug, away_team_logo_url, away_team_formation"
+)
+_MATCH_LEADER_COLUMNS = (
+    "fixture_sk, metric_key, rank, match_leader_order, sort_value, player_sk, player_name, "
+    "team_sk, team_name, team_slug, team_logo_url"
+)
+_LINEUP_COLUMNS = (
+    "fixture_sk, team_sk, player_sk, player_name, player_photo_url, position_code, is_starter, "
+    "minute_on, minute_on_extra, minute_off, minute_off_extra, replaced_player_sk, minutes_played, "
+    "lineup_order"
+)
+_MATCH_STATS_DROP = _W1_DROP | {"is_form_window"}
+
+
+def _played_goals(fix: dict) -> list[dict]:
+    """The served goals list, each scorer and assister by provider id and name."""
+    out = []
+    for g in fix.get("goals") or []:
+        out.append({
+            "side": g.get("side"),
+            "player_id": g.get("player_api_id"),
+            "player_name": g.get("player_name"),
+            "minute": g.get("minute_elapsed"),
+            "minute_extra": g.get("minute_extra"),
+            "goals": g.get("goals"),
+            "penalties": g.get("penalties"),
+            "is_own_goal": bool(g.get("is_own_goal")),
+            "assist_player_id": g.get("assist_player_api_id"),
+            "assist_player_name": g.get("assist_player_name"),
+            "score_home_after": g.get("score_home_after"),
+            "score_away_after": g.get("score_away_after"),
+        })
+    return out
+
+
+def shape_match_leaders(rows: list[dict], catalogue: dict[str, dict],
+                        boards: tuple[str, ...]) -> list[dict]:
+    """The Match leaders boards of one played match: the served match rows grouped by board, in the
+    order given (the catalogue's), each in the warehouse's match_leader_order with its served rank.
+    A board with no row is omitted."""
+    by_board: dict[str, list[dict]] = {key: [] for key in boards}
+    for r in sorted(rows, key=lambda r: int(r["match_leader_order"])):
+        key = r.get("metric_key")
+        if key not in by_board:
+            raise KeyError(f"mart_leaderboards serves a match board the export does not list: {key}")
+        by_board[key].append({
+            "rank": r.get("rank"),
+            "value": r.get("sort_value"),
+            "player_id": r.get("player_sk"),
+            "name": r.get("player_name"),
+            "club": r.get("team_name"),
+            "club_slug": r.get("team_slug"),
+            "crest": r.get("team_logo_url"),
+        })
+    return [
+        {"metric_key": key, "label_i18n_key": catalogue[key]["label_i18n_key"],
+         "format": catalogue[key]["format"], "rows": by_board[key]}
+        for key in boards if by_board[key]
+    ]
+
+
+def shape_lineup(rows: list[dict]) -> list[dict]:
+    """One team's sheet as the page lists it: the starters and the substitutes who came on, in the
+    served lineup_order; a substitute names the player he replaced from the same sheet."""
+    names = {r["player_sk"]: r.get("player_name") for r in rows}
+    out = []
+    for r in sorted(rows, key=lambda r: int(r["lineup_order"])):
+        if not r.get("is_starter") and r.get("minute_on") is None:
+            continue
+        replaced = r.get("replaced_player_sk")
+        out.append({
+            "player_id": r.get("player_sk"),
+            "name": r.get("player_name"),
+            "photo": r.get("player_photo_url"),
+            "position_code": r.get("position_code"),
+            "is_starter": bool(r.get("is_starter")),
+            "minute_on": r.get("minute_on"),
+            "minute_on_extra": r.get("minute_on_extra"),
+            "minute_off": r.get("minute_off"),
+            "minute_off_extra": r.get("minute_off_extra"),
+            "replaced_player_name": names.get(replaced) if replaced is not None else None,
+            "minutes": r.get("minutes_played"),
+        })
+    return out
+
+
+def shape_played_fixture_payload(fix: dict, league_name: str | None, stats: list[dict],
+                                 leaders: list[dict], lineups: list[dict], next_matches: dict,
+                                 catalogue: dict[str, dict], boards: tuple[str, ...]) -> dict:
+    """A played match's page payload: the result, its goals, the Match leaders boards, each side's
+    numbers in the match and its team sheet, and each team's next match. Every value is a served
+    column of mart_competition_fixtures, mart_leaderboards (window_type match),
+    mart_team_window_metrics (window_type match) or mart_player_fixture_stats; nothing is computed."""
+    fid = int(fix["fixture_sk"])
+    stats_by_team = {int(r["team_sk"]): r for r in stats}
+
+    def _side(side: str) -> dict:
+        team_id = int(fix[f"{side}_team_sk"])
+        row = stats_by_team.get(team_id)
+        return {
+            "team_id": team_id,
+            "name": fix.get(f"{side}_team_name"),
+            "slug": fix.get(f"{side}_team_slug"),
+            "crest": fix.get(f"{side}_team_logo_url"),
+            "formation": fix.get(f"{side}_team_formation"),
+            "has_team_stats": bool(row and row.get("games_with_team_stats")),
+            "has_player_stats": bool(row and row.get("games_with_player_stats")),
+            "match_stats": _drop(row, _MATCH_STATS_DROP) if row else None,
+            "lineup": shape_lineup([r for r in lineups if int(r["team_sk"]) == team_id]),
+            "next_match": shape_next_match(next_matches.get(team_id), fid),
+        }
+
+    winner, awarded_to = fix.get("winner_team_sk"), fix.get("awarded_to_team_sk")
+    return {
+        "type": "fixture",
+        "fixture_id": fid,
+        "slug": fix.get("fixture_slug"),
+        "kickoff": fix.get("kickoff_datetime"),
+        "status": fix.get("status_short"),
+        "league_code": fix.get("league_code"),
+        "league_name": league_name,
+        "season": fix.get("season_api_year"),
+        "round": fix.get("round_name"),
+        "round_order": fix.get("round_order"),
+        "is_next_round": False,
+        "is_played": True,
+        "venue": fix.get("venue_name"),
+        "result": {
+            "goals_home": fix.get("goals_home"),
+            "goals_away": fix.get("goals_away"),
+            "shootout_home": fix.get("shootout_home"),
+            "shootout_away": fix.get("shootout_away"),
+            "winner_team_id": int(winner) if winner is not None else None,
+            "award_kind": fix.get("award_kind"),
+            "awarded_to_team_id": int(awarded_to) if awarded_to is not None else None,
+            "on_pitch_home": fix.get("on_pitch_home"),
+            "on_pitch_away": fix.get("on_pitch_away"),
+        },
+        "goal_data_state": fix.get("goal_data_state"),
+        "goals": _played_goals(fix),
+        "lineup_state": fix.get("lineup_state"),
+        "leaders": shape_match_leaders(leaders, catalogue, boards),
+        "home": _side("home"),
+        "away": _side("away"),
+    }
+
+
+def _stream(client, sql: str):
+    """The query's rows one at a time, so a result too large to hold is never held."""
+    for row in client.query(sql).result():
+        yield dict(row.items())
+
+
+class _ByFixture:
+    """A query's rows, ordered by fixture_sk, handed out one fixture at a time as the fixtures
+    stream reaches it."""
+
+    def __init__(self, rows):
+        self._rows = iter(rows)
+        self._next = next(self._rows, None)
+
+    def take(self, fixture_sk: int) -> list[dict]:
+        while self._next is not None and int(self._next["fixture_sk"]) < fixture_sk:
+            self._next = next(self._rows, None)
+        out = []
+        while self._next is not None and int(self._next["fixture_sk"]) == fixture_sk:
+            out.append(self._next)
+            self._next = next(self._rows, None)
+        return out
+
+
+def fetch_played_fixture_payloads(client, sample: int = 0, source_counts: dict | None = None,
+                                  fixture_ids: tuple[int, ...] = ()):
+    """One payload per played match, every competition, yielded as each is shaped. Each mart is read
+    once, ordered by fixture_sk, and walked in step with the matches. `fixture_ids` limits the
+    export to those matches (the committed samples); `sample` to the first N by fixture_sk. When
+    `source_counts` is given it receives the number of played matches the warehouse holds."""
+    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
+    played = f"select fixture_sk from `{marts}.mart_competition_fixtures` where is_played"
+    if source_counts is not None:
+        source_counts["fixtures_played"] = int(
+            _query(client, f"select count(*) as n from ({played})")[0]["n"])
+    if fixture_ids:
+        played += " and fixture_sk in (" + ", ".join(str(int(i)) for i in fixture_ids) + ")"
+    if sample:
+        played += f" order by fixture_sk limit {int(sample)}"
+
+    leagues = {
+        r["league_code"]: r.get("league_name")
+        for r in _query(client, f"select league_code, league_name from `{GCP_PROJECT}.core.dim_league`")
+    }
+    next_matches: dict = {}
+    for r in _query(client, f"""
+        select {_COMPETITION_FIXTURE_COLUMNS}, is_home_team_next_match, is_away_team_next_match
+        from `{marts}.mart_competition_fixtures`
+        where is_home_team_next_match or is_away_team_next_match
+    """):
+        if r["is_home_team_next_match"]:
+            next_matches[int(r["home_team_sk"])] = r
+        if r["is_away_team_next_match"]:
+            next_matches[int(r["away_team_sk"])] = r
+    catalogue = _board_catalogue(_MATCH_PLAYER_BOARDS, "player")
+    boards = _in_catalogue_order(_MATCH_PLAYER_BOARDS, "player")
+
+    stats = _ByFixture(_stream(client, f"""
+        select * from `{marts}.mart_team_window_metrics`
+        where window_type = 'match' and fixture_sk in ({played})
+        order by fixture_sk, team_sk
+    """))
+    leaders = _ByFixture(_stream(client, f"""
+        select {_MATCH_LEADER_COLUMNS} from `{marts}.mart_leaderboards`
+        where window_type = 'match' and fixture_sk in ({played})
+        order by fixture_sk, metric_key, match_leader_order
+    """))
+    lineups = _ByFixture(_stream(client, f"""
+        select {_LINEUP_COLUMNS} from `{marts}.mart_player_fixture_stats`
+        where lineup_order is not null and fixture_sk in ({played})
+        order by fixture_sk, team_sk, lineup_order
+    """))
+    for fix in _stream(client, f"""
+        select {_PLAYED_FIXTURE_COLUMNS} from `{marts}.mart_competition_fixtures`
+        where fixture_sk in ({played})
+        order by fixture_sk
+    """):
+        fid = int(fix["fixture_sk"])
+        yield shape_played_fixture_payload(
+            fix, leagues.get(fix.get("league_code")), stats.take(fid), leaders.take(fid),
+            lineups.take(fid), next_matches, catalogue, boards)
+
+
 def _display_group_of_type(seed_path: str = COMPETITION_TYPES_SEED_PATH) -> dict:
     """competition_type -> nav display_group, from the competition_types seed
     (GAP-19.3). Empty cell -> None (the type does not appear in the nav). Reading
@@ -2113,7 +2355,8 @@ def write_entity(out_root: pathlib.Path, subdir: str, entity_id: int, payload: d
     }
 
 
-def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, client=None) -> dict:
+def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, client=None,
+               played_ids: tuple[int, ...] = ()) -> dict:
     client = client or _client()
     entries: list[dict] = []
     slug_map: dict[str, dict] = {}
@@ -2131,6 +2374,10 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
             slug_map[p["slug"]] = {"type": "player", "id": p["player_id"]}
     if "fixtures" in entities:
         for p in fetch_fixture_payloads(client, sample, source_counts):
+            e = write_entity(out_root, "fixtures", p["fixture_id"], p)
+            entries.append(e)
+            slug_map[p["slug"]] = {"type": "fixture", "id": p["fixture_id"]}
+        for p in fetch_played_fixture_payloads(client, sample, source_counts, played_ids):
             e = write_entity(out_root, "fixtures", p["fixture_id"], p)
             entries.append(e)
             slug_map[p["slug"]] = {"type": "fixture", "id": p["fixture_id"]}
@@ -2204,11 +2451,14 @@ def main() -> int:
                     help="comma-separated: teams,players")
     ap.add_argument("--sample", type=int, default=0,
                     help="cap entities per type (0 = all; for quick checks)")
+    ap.add_argument("--played-ids", default="",
+                    help="comma-separated fixture ids: the played matches to export (the unplayed ones are exported in full)")
     args = ap.parse_args()
     entities = tuple(e.strip() for e in args.entities.split(",") if e.strip())
+    played_ids = tuple(int(i) for i in args.played_ids.split(",") if i.strip())
     out_root = pathlib.Path(args.out)
     out_root.mkdir(parents=True, exist_ok=True)
-    manifest = export_all(out_root, entities, args.sample)
+    manifest = export_all(out_root, entities, args.sample, played_ids=played_ids)
     print(f"[export_site_data] wrote {manifest['counts']} to {out_root}")
     return 0
 

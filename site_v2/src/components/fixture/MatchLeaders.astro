@@ -1,0 +1,38 @@
+---
+// Match leaders: the Rankings tab's player board, one per count in the catalogue's order, each the
+// match's top three across both teams as served; the board name and the rows lead nowhere until the
+// player pages carry an address the warehouse serves. Without player stats the heading says so in
+// one line; with one side's missing the boards stand and one line names that side.
+import SectionHead from "../ui/SectionHead.astro";
+import RankingBoard from "../competition/RankingBoard.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { PlayedFixture } from "../../lib/types";
+
+interface Props {
+  fixture: PlayedFixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const { home, away, leaders } = fixture;
+
+const missing = [home, away].filter((side) => !side.has_player_stats);
+const none = missing.length === 2 || leaders.length === 0;
+---
+
+<section aria-label={t(lang, "secMatchLeaders")}>
+  <SectionHead label={t(lang, "secMatchLeaders")} />
+  {none ? (
+    <p class="bsub">{t(lang, "leadersNotRecorded")}</p>
+  ) : (
+    <>
+      <p class="bsub">{t(lang, "leadersIntro")}</p>
+      {missing.length === 1 && (
+        <p class="bsub">{t(lang, "leadersSideNotRecorded", { team: missing[0].name ?? "" })}</p>
+      )}
+      {leaders.map((board) => (
+        <RankingBoard board={board} entity="player" lang={lang} rowHref={() => undefined} />
+      ))}
+    </>
+  )}
+</section>

@@ -15,7 +15,12 @@ from pathlib import Path
 
 import yaml
 
-from scripts.export_site_data import _COMPETITION_PLAYER_BOARDS, _COMPETITION_TEAM_BOARDS
+from scripts.export_site_data import (
+    _COMPETITION_PLAYER_BOARDS,
+    _COMPETITION_TEAM_BOARDS,
+    _MATCH_PLAYER_BOARDS,
+    _in_catalogue_order,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 MARTS = REPO / "dbt_project" / "models" / "5_marts" / "shared"
@@ -83,6 +88,16 @@ def test_player_boards_are_one_set_in_the_mart_the_yml_and_the_export():
     assert set(accepted) == set(mart) | set(match_boards), "accepted_values cover the season and match boards"
     assert _check(mart, sorted(set(accepted) - (set(match_boards) - set(mart))),
                   _COMPETITION_PLAYER_BOARDS, "player") == []
+
+
+def test_match_boards_are_one_set_in_the_mart_and_the_export():
+    match_boards = _jinja_list(PLAYER_SQL.read_text(encoding="utf-8"), "match_boards")
+    assert set(match_boards) == set(_MATCH_PLAYER_BOARDS), "the Match leaders boards the export carries"
+    assert len(set(_MATCH_PLAYER_BOARDS)) == len(_MATCH_PLAYER_BOARDS)
+    assert _in_catalogue_order(_MATCH_PLAYER_BOARDS, "player") == (
+        "shots_player", "passes_player", "passes_key_player", "dribbles_attempts_player",
+        "duels_won_player", "defensive_actions_player", "fouls_player",
+    ), "the ruled order of the Match leaders boards"
 
 
 def test_the_export_lists_the_ruled_order():

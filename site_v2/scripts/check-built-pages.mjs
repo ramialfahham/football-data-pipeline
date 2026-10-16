@@ -4,13 +4,13 @@
 //
 //   node scripts/check-built-pages.mjs [distDir] [dataDir]
 //
-// 1. Every unplayed match has a page. The emitted match pages equal the fixture payloads times
-//    the locales, and when the export's manifest is present (a full export; the committed sample
-//    carries none) the payloads written equal the unplayed fixtures the warehouse held when the
-//    export ran. A sampled export therefore fails a full build, by design.
+// 1. Every match the export carries has a page. The emitted match pages equal the fixture payloads
+//    times the locales, and when the export's manifest is present (a full export; the committed
+//    sample carries none) the payloads written equal the unplayed and the played fixtures the
+//    warehouse held when the export ran. A sampled export therefore fails a full build, by design.
 // 2. On every fixtures page exactly one round is checked on load, and it is the round the
-//    warehouse flagged next whenever one is flagged; every unplayed row is a link and no played row
-//    is, until the match report page exists.
+//    warehouse flagged next whenever one is flagged; every unplayed row is a link. On every page,
+//    a row that names its match (`data-fixture`) is a link exactly when that match has a payload.
 // 3. On every Rankings page (at the stats word) every board keeps the board rules: one to five rows,
 //    every row a link, the boards the payload served and no others, and no zero on a most-first
 //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
@@ -54,15 +54,18 @@ export function checkMatchPageCount({ matchPages, payloadFiles, manifest = null,
   }
   if (manifest) {
     const written = manifest.counts?.fixture ?? 0;
-    const held = manifest.source_counts?.fixtures_unplayed;
+    const unplayed = manifest.source_counts?.fixtures_unplayed;
+    const played = manifest.source_counts?.fixtures_played;
     // More files than written is the committed sample sitting beside a full export, not a gap.
     if (payloadFiles < written) {
       issues.push(`manifest: ${written} fixture payload(s) written, only ${payloadFiles} on disk`);
     }
-    if (held === undefined) {
-      issues.push("manifest: no source count of unplayed fixtures, so the build cannot prove it carries them all");
-    } else if (held !== written) {
-      issues.push(`manifest: the warehouse held ${held} unplayed fixture(s), the export wrote ${written}`);
+    if (unplayed === undefined || played === undefined) {
+      issues.push("manifest: no source count of unplayed and played fixtures, so the build cannot prove it carries them all");
+    } else if (unplayed + played !== written) {
+      issues.push(
+        `manifest: the warehouse held ${unplayed} unplayed and ${played} played fixture(s), the export wrote ${written}`,
+      );
     }
   }
   return issues;
@@ -85,7 +88,8 @@ export function rounds(html) {
   return starts.map((s, i) => html.slice(s, starts[i + 1] ?? html.length));
 }
 
-/** Issues on one fixtures page: the checked round and the row links. */
+/** Issues on one fixtures page: the checked round and the row links. A played row links to its
+ * match page when the build makes one; audit-seo fails a link to a page that is not built. */
 export function checkFixturesPage(html, path = "") {
   const issues = [];
   const rs = rounds(html);
@@ -109,9 +113,23 @@ export function checkFixturesPage(html, path = "") {
     const played = Boolean(cls[1]);
     const isLink = tag === "a" && RE.href.test(attrs);
     if (!played && !isLink) issues.push(`${path}: an unplayed row is not a link`);
-    if (played && isLink) issues.push(`${path}: a played row is a link, but no report page exists`);
   }
   return [...new Set(issues)];
+}
+
+const ROW_RE = /<(a|div)(\s[^>]*\sdata-fixture="(\d+)"[^>]*)>/g;
+
+/** Issues on one page: a row naming a match with a payload that is not a link, or a row linking to
+ *  a match with none. */
+export function checkMatchRowLinks(html, built, path = "") {
+  const issues = [];
+  for (const [, tag, attrs, id] of html.matchAll(ROW_RE)) {
+    const isLink = tag === "a" && RE.href.test(attrs);
+    const has = built.has(Number(id));
+    if (has && !isLink) issues.push(`${path}: the row of match ${id} is not a link, though its page is built`);
+    if (!has && isLink) issues.push(`${path}: the row of match ${id} links, though it has no page`);
+  }
+  return issues;
 }
 
 const BOARD_RE = {
@@ -222,8 +240,14 @@ export function readManifest(dataDir = DATA_DIR) {
 }
 
 export function countPayloads(dataDir = DATA_DIR) {
+  return payloadIds(dataDir).size;
+}
+
+/** The fixture ids with a payload, from the payload file names (`{fixture_id}.json`). */
+export function payloadIds(dataDir = DATA_DIR) {
   const dir = join(dataDir, "fixtures");
-  return existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).length : 0;
+  if (!existsSync(dir)) return new Set();
+  return new Set(readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => Number(f.slice(0, -5))));
 }
 
 export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
@@ -236,8 +260,10 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   let fixturesPages = 0;
   let rankingsPages = 0;
   const expected = expectedBoards(dataDir);
+  const built = payloadIds(dataDir);
   for (const { path, html } of readDist(distDir)) {
     if (MATCH_PAGE.test(path)) matchPages += 1;
+    issues.push(...checkMatchRowLinks(html, built, path));
     if (FIXTURES_PAGE.test(path)) {
       fixturesPages += 1;
       issues.push(...checkFixturesPage(html, path));
@@ -247,7 +273,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
       issues.push(...checkRankingsPage(html, path, expected.get(path.split("/")[2]) ?? null));
     }
   }
-  const payloadFiles = countPayloads(dataDir);
+  const payloadFiles = built.size;
   const manifest = readManifest(dataDir);
   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
@@ -258,7 +284,9 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   }
   console.log(
     `check-built-pages: ${matchPages} match page(s) = ${payloadFiles} payload(s) x ${LOCALES.length}` +
-      (manifest ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed` : " (no manifest: sample build)") +
+      (manifest
+        ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
+        : " (no manifest: sample build)") +
       `; ${fixturesPages} fixtures page(s) and ${rankingsPages} rankings page(s) checked. OK.`,
   );
   return 0;

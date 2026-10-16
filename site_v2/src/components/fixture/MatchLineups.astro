@@ -1,0 +1,70 @@
+---
+// Line-ups: each team's eleven in the served order under "{team} · {formation}", then
+// "Substitutes": the players who came on, in the order they came on. The player row carries the
+// position with "off 73'" or "on 73' for {player}" on its second line and the minutes on the right.
+// The two columns sit side by side from 560px, their rows level. Without a line-up the heading says
+// so in one line.
+import SectionHead from "../ui/SectionHead.astro";
+import { DASH, integer, matchMinute } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t, positionLabel } from "../../i18n/strings";
+import type { LineupPlayer, PlayedFixture, PlayedSide } from "../../lib/types";
+
+interface Props {
+  fixture: PlayedFixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const sides = [fixture.home, fixture.away];
+const shown = (fixture.lineup_state === "confirmed" || fixture.lineup_state === "researched")
+  && sides.some((s) => s.lineup.length > 0);
+
+const head = (side: PlayedSide) => (side.formation ? `${side.name} · ${side.formation}` : side.name ?? "");
+function second(p: LineupPlayer): string {
+  const position = positionLabel(lang, p.position_code);
+  const change = p.is_starter
+    ? p.minute_off != null ? t(lang, "lineupOff", { minute: matchMinute(p.minute_off, p.minute_off_extra) }) : ""
+    : t(lang, "lineupOn", { minute: matchMinute(p.minute_on, p.minute_on_extra), player: p.replaced_player_name ?? DASH });
+  return [position, change].filter(Boolean).join(" · ");
+}
+const initials = (name: string | null | undefined) =>
+  (name ?? "").split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
+---
+
+<section aria-label={t(lang, "secLineups")}>
+  <SectionHead label={t(lang, "secLineups")} />
+  {shown ? (
+    <div class="rsplit sheets">
+      {sides.map((side) => (
+        <div class="rcol">
+          <div class="colhead">{head(side)}</div>
+          {side.lineup.map((p, i) => {
+            return (
+              <>
+                {!p.is_starter && (i === 0 || side.lineup[i - 1].is_starter) && (
+                  <div class="colhead">{t(lang, "lineupSubstitutes")}</div>
+                )}
+                <div class="lrow">
+                  <div class="plrow">
+                    <span class="pphoto">
+                      {p.photo ? <img src={p.photo} alt="" loading="lazy" width="34" height="34" /> : <span>{initials(p.name)}</span>}
+                    </span>
+                    <span class="pname">
+                      <span class="nm">{p.name ?? DASH}</span>
+                      <span class="ps">{second(p)}</span>
+                    </span>
+                    <span class="pstat">
+                      {p.minutes != null && <span class="nb"><b>{integer(p.minutes, lang)}</b> {t(lang, "lineupMinutes")}</span>}
+                    </span>
+                  </div>
+                </div>
+              </>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  ) : (
+    <p class="bsub">{t(lang, "lineupsNotRecorded")}</p>
+  )}
+</section>

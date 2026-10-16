@@ -252,8 +252,9 @@ the goalkeeper. NULL for a player on the bench and where the line-ups give none.
 
 {% docs lineup_order %}
 The player's place on the team sheet, 1 first: the starters, then the substitutes. A provider
-sheet keeps the provider's order. A researched sheet lists its starters by pitch position, row
-then column, and the rest by shirt number.
+sheet keeps the provider's order of starters; a researched sheet lists them by pitch position, row
+then column. Substitutes who came on follow in the order they came on, then the rest by shirt
+number.
 {% enddocs %}
 
 

@@ -1,13 +1,14 @@
 ---
 // Head to head: the served intro, then the last meetings as the result row without its chip (the chip
 // would take one side): the score in the match's order, the side that was at home first, competition ·
-// date with its year. "No meetings on record." when the warehouse holds none. Unlinked until
-// played-match pages exist.
+// date with its year. "No meetings on record." when the warehouse holds none. A meeting links to
+// its match's page when this build makes one.
 import SectionHead from "../ui/SectionHead.astro";
 import Crest from "../ui/Crest.astro";
 import { formatDayYear } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
+import { matchPageHref } from "../../lib/href";
 import type { HeadToHead, Side } from "../../lib/types";
 import competitions from "../../data/competitions.json";
 
@@ -29,6 +30,8 @@ const rows = meetings.map((m) => {
     score: homeFirst ? `${m.goals_for}–${m.goals_against}` : `${m.goals_against}–${m.goals_for}`,
     comp: names[m.league_code ?? ""]?.name,
     date: formatDayYear(m.kickoff_datetime, lang),
+    fixture: m.fixture_api_id,
+    href: matchPageHref(lang, m.fixture_api_id),
   };
 });
 ---
@@ -37,8 +40,10 @@ const rows = meetings.map((m) => {
   <SectionHead label={t(lang, "secH2H")} />
   {intro && <p class="bsub">{intro}</p>}
   <div class="rlist">
-    {rows.map((r) => (
-      <div class="lrow">
+    {rows.map((r) => {
+      const Row = r.href ? "a" : "div";
+      return (
+      <Row class="lrow" href={r.href} data-fixture={r.fixture ?? undefined}>
         <div class="resrow meet">
           <span class="rscore">{r.score}</span>
           <span class="ropp">
@@ -51,7 +56,8 @@ const rows = meetings.map((m) => {
             <span class="nb">{r.date}</span>
           </span>
         </div>
-      </div>
-    ))}
+      </Row>
+      );
+    })}
   </div>
 </section>

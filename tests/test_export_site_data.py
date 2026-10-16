@@ -89,16 +89,24 @@ def test_display_group_of_type_covers_the_renamed_and_new_types():
 
 
 def test_every_leaderboard_read_takes_the_season_rows_only():
-    """mart_leaderboards also holds one-match boards (window_type match); every query the export
-    sends to it reads the season boards alone."""
+    """mart_leaderboards holds season boards and one-match boards (window_type match); every query
+    the export sends to it names one window: the season boards, or the match boards for the played
+    match page alone."""
     import inspect
     import re
 
     source = inspect.getsource(export_site_data)
     reads = [m.start() for m in re.finditer(r"\.mart_leaderboards`", source)]
-    assert len(reads) == 3, "the competition, leaderboard and landing reads"
+    assert len(reads) == 4, "the competition, leaderboard, landing and played match reads"
+    windows = []
     for at in reads:
-        assert "window_type = 'season_to_date'" in source[at:at + 400], source[at - 200:at + 400]
+        nearby = source[at:at + 400]
+        named = [w for w in ("season_to_date", "match") if f"window_type = '{w}'" in nearby]
+        assert len(named) == 1, source[at - 200:at + 400]
+        windows.append(named[0])
+    assert sorted(windows) == ["match", "season_to_date", "season_to_date", "season_to_date"]
+    played = inspect.getsource(export_site_data.fetch_played_fixture_payloads)
+    assert "window_type = 'match'" in played and "season_to_date" not in played
 
 
 def test_player_payload_reads_the_match_log_from_the_player_in_a_match_mart(monkeypatch):
@@ -1204,6 +1212,147 @@ def test_hero_carries_region_rank_from_the_served_meta():
          "BSA": {"name": "Brasileirao", "slug": "brasileirao", "region_rank": 3}},
     )
     assert {g["league_code"]: g["region_rank"] for g in groups} == {"PL": 1, "BSA": 3}
+
+
+_BOARDS = export_site_data._in_catalogue_order(export_site_data._MATCH_PLAYER_BOARDS, "player")
+_CATALOGUE = export_site_data._board_catalogue(export_site_data._MATCH_PLAYER_BOARDS, "player")
+
+
+def _played_row(fid, **over):
+    row = {"fixture_sk": fid, "league_code": "DFBP", "season_api_year": 2026,
+           "kickoff_datetime": "2026-08-22T13:30:00Z", "round_name": "Round of 64", "round_order": None,
+           "status_short": "PEN", "venue_name": "Sportpark", "fixture_slug": f"slug-{fid}",
+           "goals_home": 1, "goals_away": 1, "shootout_home": 4, "shootout_away": 5,
+           "winner_team_sk": 2, "award_kind": None, "awarded_to_team_sk": None, "on_pitch_home": None,
+           "on_pitch_away": None,
+           "goal_data_state": "goals", "lineup_state": "confirmed",
+           "goals": [
+               {"side": "away", "player_api_id": 70, "player_name": "P. Scobel", "minute_elapsed": 56,
+                "minute_extra": None, "goals": 1, "penalties": 0, "is_own_goal": False,
+                "assist_player_api_id": 71, "assist_player_name": "A. Markhiev",
+                "score_home_after": 0, "score_away_after": 1},
+               {"side": "home", "player_api_id": 80, "player_name": "M. Sponsel", "minute_elapsed": 90,
+                "minute_extra": 6, "goals": 1, "penalties": 0, "is_own_goal": False,
+                "assist_player_api_id": None, "assist_player_name": None,
+                "score_home_after": 1, "score_away_after": 1},
+           ],
+           "home_team_sk": 1, "home_team_name": "Köln", "home_team_slug": "koln", "home_team_logo_url": "c1",
+           "home_team_formation": "4-4-2",
+           "away_team_sk": 2, "away_team_name": "Nürnberg", "away_team_slug": "nurnberg",
+           "away_team_logo_url": "c2", "away_team_formation": None}
+    row.update(over)
+    return row
+
+
+def _leader(fid, key, order, player, rank=None):
+    return {"fixture_sk": fid, "metric_key": key, "rank": rank or order, "match_leader_order": order,
+            "sort_value": 10 - order, "player_sk": player, "player_name": f"Player {player}",
+            "team_sk": 1, "team_name": "Köln", "team_slug": "koln", "team_logo_url": "c1"}
+
+
+def _sheet(fid, team, player, order, starter=True, on=None, replaced=None, minutes=90):
+    return {"fixture_sk": fid, "team_sk": team, "player_sk": player, "player_name": f"Player {player}",
+            "player_photo_url": None, "position_code": "M", "is_starter": starter,
+            "minute_on": on, "minute_on_extra": None, "minute_off": None, "minute_off_extra": None,
+            "replaced_player_sk": replaced, "minutes_played": minutes, "lineup_order": order}
+
+
+def test_shape_played_fixture_payload_copies_the_served_result_and_goals():
+    p = export_site_data.shape_played_fixture_payload(
+        _played_row(9), "DFB-Pokal", [], [], [], {}, _CATALOGUE, _BOARDS)
+    assert p["type"] == "fixture" and p["is_played"] is True and p["is_next_round"] is False
+    assert p["slug"] == "slug-9" and p["league_name"] == "DFB-Pokal" and p["venue"] == "Sportpark"
+    assert p["result"] == {"goals_home": 1, "goals_away": 1, "shootout_home": 4, "shootout_away": 5,
+                           "winner_team_id": 2, "award_kind": None, "awarded_to_team_id": None,
+                           "on_pitch_home": None, "on_pitch_away": None}, \
+        "the served result, no score worked out here"
+    first, second = p["goals"]
+    assert (first["score_home_after"], first["score_away_after"]) == (0, 1), "the served running score"
+    assert first["player_id"] == 70 and "player_slug" not in first, "no page address is built here"
+    assert second["minute"] == 90 and second["minute_extra"] == 6 and second["assist_player_name"] is None
+    assert p["home"]["formation"] == "4-4-2" and p["away"]["formation"] is None
+    assert p["home"]["match_stats"] is None and p["home"]["has_team_stats"] is False
+
+
+def test_shape_match_leaders_keeps_the_catalogue_order_and_the_served_rows():
+    rows = [_leader(9, "fouls_player", 1, 5), _leader(9, "shots_player", 2, 4, rank=1),
+            _leader(9, "shots_player", 1, 3)]
+    boards = export_site_data.shape_match_leaders(rows, _CATALOGUE, _BOARDS)
+    assert [b["metric_key"] for b in boards] == ["shots_player", "fouls_player"], \
+        "the catalogue's order; a board without a row is left out"
+    assert [r["player_id"] for r in boards[0]["rows"]] == [3, 4], "the served match_leader_order"
+    assert [r["rank"] for r in boards[0]["rows"]] == [1, 1], "a shared count keeps its served rank"
+    assert boards[0]["label_i18n_key"] == "playerMetrics.shots.label"
+    assert "slug" not in boards[0]["rows"][0], "no page address is built here"
+
+
+def test_shape_match_leaders_refuses_a_board_it_does_not_list():
+    import pytest
+
+    with pytest.raises(KeyError):
+        export_site_data.shape_match_leaders([_leader(9, "goals_player", 1, 3)], _CATALOGUE, _BOARDS)
+
+
+def test_shape_lineup_lists_the_starters_then_the_substitutes_who_came_on():
+    rows = [_sheet(9, 1, 12, 13, starter=False), _sheet(9, 1, 11, 12, starter=False, on=73, replaced=1),
+            _sheet(9, 1, 1, 1)]
+    sheet = export_site_data.shape_lineup(rows)
+    assert [r["player_id"] for r in sheet] == [1, 11], "served order; a substitute who stayed on the bench is left out"
+    assert sheet[1]["replaced_player_name"] == "Player 1" and sheet[1]["minute_on"] == 73
+    assert sheet[0]["minutes"] == 90 and sheet[0]["player_id"] == 1 and "slug" not in sheet[0]
+
+
+def test_played_payloads_walk_each_mart_once_in_fixture_order(monkeypatch):
+    """Every mart is read once and the rows of each match reach that match only, whatever the
+    fixtures between them hold."""
+    streamed: list[str] = []
+    stats = [{"fixture_sk": 5, "team_sk": 1, "is_home": True, "games_with_team_stats": 1,
+              "games_with_player_stats": 0, "shots_per_match": 9},
+             {"fixture_sk": 9, "team_sk": 2, "is_home": False, "games_with_team_stats": 1,
+              "games_with_player_stats": 1, "shots_per_match": 14}]
+    leaders = [_leader(9, "shots_player", 1, 3)]
+    lineups = [_sheet(5, 1, 1, 1), _sheet(9, 2, 7, 1)]
+
+    def fake_stream(client, sql):
+        streamed.append(sql)
+        if "mart_team_window_metrics" in sql:
+            return iter(stats)
+        if "mart_leaderboards" in sql:
+            return iter(leaders)
+        if "mart_player_fixture_stats" in sql:
+            return iter(lineups)
+        return iter([_played_row(5, goals=[]), _played_row(7, goals=[]), _played_row(9)])
+
+    def fake_query(client, sql):
+        if "count(*)" in sql:
+            return [{"n": 3}]
+        if "core.dim_league" in sql:
+            return [{"league_code": "DFBP", "league_name": "DFB-Pokal"}]
+        return []
+
+    monkeypatch.setattr(export_site_data, "_stream", fake_stream)
+    monkeypatch.setattr(export_site_data, "_query", fake_query)
+    counts: dict = {}
+    payloads = list(export_site_data.fetch_played_fixture_payloads(object(), source_counts=counts))
+
+    assert counts == {"fixtures_played": 3}
+    assert len(streamed) == 4 and all("order by fixture_sk" in s for s in streamed)
+    assert [p["fixture_id"] for p in payloads] == [5, 7, 9]
+    five, seven, nine = payloads
+    assert five["home"]["has_team_stats"] is True and five["home"]["has_player_stats"] is False
+    assert five["home"]["match_stats"] == {"games_with_team_stats": 1, "games_with_player_stats": 0,
+                                           "shots_per_match": 9}
+    assert seven["leaders"] == [] and seven["home"]["lineup"] == [] and seven["away"]["match_stats"] is None
+    assert [b["metric_key"] for b in nine["leaders"]] == ["shots_player"]
+    assert [r["player_id"] for r in nine["away"]["lineup"]] == [7] and nine["home"]["lineup"] == []
+
+
+def test_played_payloads_take_the_listed_matches_only(monkeypatch):
+    streamed: list[str] = []
+    monkeypatch.setattr(export_site_data, "_stream", lambda client, sql: streamed.append(sql) or iter([]))
+    monkeypatch.setattr(export_site_data, "_query", lambda client, sql: [])
+    assert list(export_site_data.fetch_played_fixture_payloads(object(), fixture_ids=(11, 12))) == []
+    assert all("fixture_sk in (11, 12)" in s for s in streamed)
 
 
 # ⚠ THERE IS DELIBERATELY NO TEST PINNING WHERE THE MATCHDAY IS SELECTED.

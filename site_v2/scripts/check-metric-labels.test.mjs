@@ -87,13 +87,14 @@ function boardTuple(name, entity, atLeast) {
   });
 }
 
-// The Home boards and the competition page's Rankings tab (#151): the twelve team boards and the
-// thirteen player boards, resolved the same way, so a board label missing in a locale is red here
-// before the page ships it blank.
+// The Home boards, the competition page's Rankings tab and the played match page's Match leaders,
+// resolved the same way, so a board label missing in a locale is red here before the page ships it
+// blank.
 const boardKeys = [
   ...boardTuple("_HOME_PLAYER_BOARDS", "player", 4),
   ...boardTuple("_COMPETITION_TEAM_BOARDS", "team", 12),
   ...boardTuple("_COMPETITION_PLAYER_BOARDS", "player", 13),
+  ...boardTuple("_MATCH_PLAYER_BOARDS", "player", 7),
 ];
 
 /** The metric GROUPS (#152): keys and order from the export's copy of the catalogue

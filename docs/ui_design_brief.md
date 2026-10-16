@@ -60,7 +60,7 @@ thing.
 | Images | Team crests and player photos come from the provider's content delivery network (CDN) as small PNGs of variable quality. The design needs a graceful fallback: a monogram or initials. |
 | Labels | Labels and wording are i18n (internationalisation) keys. Design with realistic strings from the longest language. |
 | Row links | A row that leads somewhere is ONE link: the whole row. Hover tints its background, a press sinks it, and the focus ring sits inside the row. An underline marks a word inside running text, such as a breadcrumb or a sentence. A name inside a row never has an underline. One shared rule in `system.css` carries this for every row link on the site. |
-| Nothing renders empty | A block with no served data is absent: no heading over nothing, no placeholder rows, no dashes in place of a block. A single missing value inside a rendered row shows "–". |
+| Nothing renders empty | A block that does not apply to a page is absent. A block that applies but that the data cannot fill keeps its heading. It says in one line what is not recorded, in the same words on every page. A single missing value inside a rendered row shows "–". |
 | Names hold together | A team name, a "Matchday N" or a date never breaks inside itself; a wrap falls between them. |
 
 ## 5. Navigation and page inventory

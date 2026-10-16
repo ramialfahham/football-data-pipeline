@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  checkFixturesPage, checkMatchPageCount, checkRankingsPage, boards, isZeroValue, renderedBoards,
+  checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkRankingsPage, boards, isZeroValue, renderedBoards,
   rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
 } from "./check-built-pages.mjs";
 
@@ -134,16 +134,16 @@ test("the payload's boards are read in the order the page renders them: team blo
 test("match pages equal payloads times locales, and the manifest ties them to the warehouse", () => {
   assert.deepEqual(checkMatchPageCount({ matchPages: 6, payloadFiles: 2 }), []);
   assert.match(checkMatchPageCount({ matchPages: 5, payloadFiles: 2 })[0], /5 emitted, 6 expected/);
-  const manifest = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 2 } };
+  const manifest = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 1, fixtures_played: 1 } };
   assert.deepEqual(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest }), []);
-  const sampled = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 5022 } };
-  assert.match(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest: sampled })[0], /held 5022 .* wrote 2/);
-  const short = { counts: { fixture: 3 }, source_counts: { fixtures_unplayed: 3 } };
+  const sampled = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 5022, fixtures_played: 60054 } };
+  assert.match(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest: sampled })[0], /held 5022 unplayed and 60054 played .* wrote 2/);
+  const short = { counts: { fixture: 3 }, source_counts: { fixtures_unplayed: 2, fixtures_played: 1 } };
   assert.match(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest: short })[0], /3 fixture payload\(s\) written, only 2 on disk/);
   // the committed sample beside a full export: more files than written is not a gap
-  const beside = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 2 } };
+  const beside = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 2, fixtures_played: 0 } };
   assert.deepEqual(checkMatchPageCount({ matchPages: 9, payloadFiles: 3, manifest: beside }), []);
-  const blind = { counts: { fixture: 2 }, source_counts: {} };
+  const blind = { counts: { fixture: 2 }, source_counts: { fixtures_unplayed: 2 } };
   assert.match(checkMatchPageCount({ matchPages: 6, payloadFiles: 2, manifest: blind })[0], /no source count/);
 });
 
@@ -165,14 +165,27 @@ test("no flagged round: any single checked round passes (after or before the sea
   assert.deepEqual(checkFixturesPage(round(33, { rows: ["played"] }) + round(34, { checked: true, rows: ["played"] }), "p"), []);
 });
 
-test("every unplayed row is a link and no played row is", () => {
+test("every unplayed row is a link, and a played row may link to its page", () => {
   assert.deepEqual(checkFixturesPage(round(4, { checked: true, rows: ["unplayed", "unplayed", "played"] }), "p"), []);
   // the same rows with class before href, and an unrelated <a> and <div> on the page: no difference
   const swapped = round(4, { checked: true }).replace("<section>",
     '<section><a class="fxrow" href="/en/x/matches/s/"></a><a class="lnk" href="/en/">Home</a><div class="dh">Fri</div>');
   assert.deepEqual(checkFixturesPage(swapped, "p"), []);
   assert.match(checkFixturesPage(round(4, { checked: true, rows: ["unplayed-inert"] }), "p")[0], /an unplayed row is not a link/);
-  assert.match(checkFixturesPage(round(4, { checked: true, rows: ["played-linked"] }), "p")[0], /a played row is a link/);
+  assert.deepEqual(checkFixturesPage(round(4, { checked: true, rows: ["played-linked"] }), "p"), []);
+});
+
+test("a row naming its match links exactly when that match has a page", () => {
+  const built = new Set([11, 12]);
+  const page = '<a href="/en/x/matches/a/" class="fxrow played" data-fixture="11"></a>'
+    + '<a class="lrow" data-fixture="12" href="/en/x/matches/b/"></a><div class="lrow" data-fixture="13"></div>';
+  assert.deepEqual(checkMatchRowLinks(page, built, "p"), []);
+  assert.match(checkMatchRowLinks('<div class="fxrow played" data-fixture="11"></div>', built, "p")[0],
+    /match 11 is not a link, though its page is built/);
+  assert.match(checkMatchRowLinks('<a class="lrow" href="/en/x/" data-fixture="13"></a>', built, "p")[0],
+    /match 13 links, though it has no page/);
+  assert.deepEqual(checkMatchRowLinks('<div class="fxrow"></div><a class="lnk" href="/en/">Home</a>', built, "p"), [],
+    "a row that names no match is not checked");
 });
 
 test("a page with no round at all is an issue, not a pass", () => {

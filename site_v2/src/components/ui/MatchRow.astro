@@ -5,9 +5,8 @@
 // information). The winner by weight, never by hue. The Top match tag sits before the kick-off on
 // the one flagged row of the next round, the row otherwise unchanged.
 //
-// A row is a link only when its target exists: an unplayed match links to its preview page; a
-// played match has no page yet, so it renders inert until the report page lands. `linkPlayed` is
-// the one switch that flips then; the markup is the same either way.
+// A row is a link only when its target exists: a match links to its page when this build makes one,
+// the preview of an unplayed match or the page of a played one; the markup is the same either way.
 //
 // The kick-off is rendered in UTC with that label until the warehouse serves the venue's clock
 // and zone (#146); a fixture whose time is not set yet shows the TBC copy in the time slot.
@@ -16,6 +15,7 @@ import { formatTime } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { localeHref, word } from "../../lib/href";
 import { t } from "../../i18n/strings";
+import { builtFixtures } from "../../lib/builtFixtures.mjs";
 import type { CompetitionFixture } from "../../lib/types";
 
 interface Props {
@@ -23,13 +23,12 @@ interface Props {
   competitionSlug: string | null;
   lang: Lang;
   topMatch?: boolean;
-  linkPlayed?: boolean;
 }
-const { fx, competitionSlug, lang, topMatch = false, linkPlayed = false } = Astro.props;
+const { fx, competitionSlug, lang, topMatch = false } = Astro.props;
 
 const ZONE = "UTC";
 const played = fx.is_played && fx.goals_home != null && fx.goals_away != null;
-const linked = Boolean(competitionSlug && fx.slug) && (!played || linkPlayed);
+const linked = Boolean(competitionSlug && fx.slug) && builtFixtures().has(fx.fixture_id);
 const href = linked ? localeHref(lang, `${competitionSlug}/${word(lang, "matches")}/${fx.slug}/`) : undefined;
 const Row = linked ? "a" : "div";
 const homeWins = played && (fx.goals_home as number) > (fx.goals_away as number);
@@ -37,7 +36,7 @@ const awayWins = played && (fx.goals_away as number) > (fx.goals_home as number)
 const time = fx.status === "TBD" ? t(lang, "compTBC") : formatTime(fx.kickoff, lang);
 ---
 
-<Row class:list={["fxrow", { played }]} href={href}>
+<Row class:list={["fxrow", { played }]} href={href} data-fixture={fx.fixture_id}>
   <span class="sides">
     <span class="side">
       <Crest name={fx.home.name} crest={fx.home.crest} size="xs" />

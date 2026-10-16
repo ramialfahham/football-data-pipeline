@@ -14,23 +14,27 @@ import { formatValue } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { boardTitle } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
-import type { CompetitionBoard } from "../../lib/types";
+import type { CompetitionBoard, MatchLeaderBoard } from "../../lib/types";
 
 interface Props {
-  board: CompetitionBoard;
+  board: CompetitionBoard | MatchLeaderBoard;
   entity: "team" | "player";
   lang: Lang;
+  /** Where a row leads; by default the team or player page its slug names. */
+  rowHref?: (slug: string | null | undefined) => string | undefined;
 }
-const { board, entity, lang } = Astro.props;
+const { board, entity, lang, rowHref } = Astro.props;
 
 // A per-match board says so in its title ("Goals per match"), only where the catalogue says the
 // metric is per match — the export carries that fact.
-const title = boardTitle(lang, board.label_i18n_key, board.per_match);
+const title = boardTitle(lang, board.label_i18n_key, "per_match" in board ? board.per_match : false);
 
-function href(slug: string | null): string | undefined {
+function href(slug: string | null | undefined): string | undefined {
+  if (rowHref) return rowHref(slug);
   if (!slug) return undefined;
   return localeHref(lang, `${word(lang, entity === "team" ? "teams" : "players")}/${slug}/`);
 }
+const Row = (slug: string | null | undefined) => (href(slug) ? "a" : "div");
 ---
 
 <div class="board">
@@ -42,8 +46,11 @@ function href(slug: string | null): string | undefined {
       </span>
       <span class="h"></span>
     </div>
-    {board.rows.map((row) => (
-      <a class="ctab-row" href={href(row.slug)}>
+    {board.rows.map((row) => {
+      const slug = "slug" in row ? row.slug : null;
+      const Tag = Row(slug);
+      return (
+      <Tag class="ctab-row" href={href(slug)}>
         <span class="rk num">{row.rank}</span>
         <span class="tm">
           <Crest name={entity === "team" ? row.name : row.club} crest={row.crest} size="xs" />
@@ -57,7 +64,8 @@ function href(slug: string | null): string | undefined {
           )}
         </span>
         <span class="n num pts">{formatValue(row.value, board.format, lang)}</span>
-      </a>
-    ))}
+      </Tag>
+      );
+    })}
   </div>
 </div>

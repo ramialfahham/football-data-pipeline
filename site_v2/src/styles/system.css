@@ -691,11 +691,12 @@ a.brow .nm { text-decoration: none; }
 /* ONE hover tint, ink at 11%: twice the table stripe, so it shows against a striped row too.
    `:active` follows at the same specificity so a press wins over the hover it happens under. */
 @media (hover: hover) {
-  a.brow:hover, a.comp-row:hover, a.fxrow:hover, a.ctab-row:hover, a.frow:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
+  a.brow:hover, a.comp-row:hover, a.fxrow:hover, a.ctab-row:hover, a.frow:hover, a.lrow:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
 }
-a.brow:active, a.comp-row:active, a.fxrow:active, a.ctab-row:active, a.frow:active { background: var(--sunk); }
-a.fxrow, a.ctab-row, a.frow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; color: inherit; text-decoration: none; }
-a.fxrow:focus-visible, a.ctab-row:focus-visible, a.frow:focus-visible { outline-offset: -2px; }
+a.brow:active, a.comp-row:active, a.fxrow:active, a.ctab-row:active, a.frow:active, a.lrow:active { background: var(--sunk); }
+a.fxrow, a.ctab-row, a.frow, a.lrow { border-radius: 9px; margin-inline: -12px; padding-inline: 12px; color: inherit; text-decoration: none; }
+a.fxrow:focus-visible, a.ctab-row:focus-visible, a.frow:focus-visible, a.lrow:focus-visible { outline-offset: -2px; }
+a.lrow { display: block; }
 /* ⚠ THE RING IS DRAWN INSIDE, and the reason is measured, not stylistic — same defect class as
    `a.cnm` above. `.fx a:focus-visible` draws `outline: 2px solid` at `outline-offset: 2px`, so it
    reaches 4px BEYOND the border box; a `.brow`'s border-box bottom IS the divider, and the next row
@@ -920,6 +921,20 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 @media (max-width: 699.98px) and (hover: hover) {
   .mp .mast a.team:hover { background: color-mix(in srgb, var(--ink) 11%, transparent); }
 }
+/* A played match: the final score where "vs" stands, the winner by weight. Under 700px the teams
+   stack and each team's goals close its line, as the match row's sides do. */
+.mp .mast .vs.score { font-size: clamp(30px, 6cqw, 40px); font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink); }
+@media (min-width: 700px) { .mp .mast .vs.score { display: flex; align-items: center; gap: 10px; } }
+.mp .mast .vs.score .dash { color: var(--muted); }
+.mp .mast .vs.score .winner, .mp .mast .team .sg.winner { font-weight: 700; }
+.mp .mast .team .sg { display: none; }
+@media (max-width: 699.98px) {
+  .mp .mast .teams.played .team { grid-template-columns: auto 1fr auto; }
+  .mp .mast .team .sg { display: block; grid-column: 3; grid-row: 1 / span 2; align-self: center; font-size: 24px; font-weight: 400; color: var(--ink); }
+}
+/* The line under the score: after penalties, the score after extra time; on an award, how it came about. */
+.mp .mast .resline { font-size: 13px; color: var(--muted); margin-top: 14px; }
+.mp .mast .resline b { color: var(--ink-2); font-weight: 600; }
 
 /* Form comparison: one head row of each team's name over its pills; each metric group under the
    Rankings tab's group heading; a row is number · name · number with the bar the full width beneath. */
@@ -944,8 +959,12 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .mp .rsplit { display: grid; grid-template-columns: 1fr; column-gap: 30px; margin-top: 4px; }
 @container (min-width: 560px) { .mp .rsplit { grid-template-columns: 1fr 1fr; } .mp .rsplit .colhead { margin-top: 0; } }
 .mp .rcol { display: grid; grid-template-rows: subgrid; grid-row: span 6; align-content: start; }
+/* A team sheet runs longer than any list: more rows than a sheet holds, the empty ones collapse. */
+.mp .rsplit.sheets .rcol { grid-row: span 30; }
 .mp .sechead + .rsplit .rcol:first-child .colhead,
 .mp .bsub + .rsplit .rcol:first-child .colhead { margin-top: 0; }
+/* A team sheet's second head opens the substitutes with the column head's own space above it. */
+.mp .rsplit.sheets .rcol .lrow + .colhead { margin-top: 14px; }
 
 /* A list row measures the list's width, so a row can lay itself out by it. */
 .lrow { container-type: inline-size; }
@@ -967,6 +986,13 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .resrow.meet { grid-template-columns: 42px 1fr; grid-template-areas: "score opp" ". meta"; }
 @container (min-width: 420px) {
   .resrow.meet { grid-template-columns: 42px 1fr auto; grid-template-areas: "score opp meta"; }
+}
+/* A goal: its minute and assist are part of the goal, so its second line is larger and lighter than
+   a list row's. A scorer without a minute has no running score. */
+.resrow.goal .rmeta { font-size: 14px; color: var(--ink-2); }
+.resrow.scorer { grid-template-columns: 1fr; grid-template-areas: "opp" "meta"; }
+@container (min-width: 420px) {
+  .resrow.scorer { grid-template-columns: 1fr auto; grid-template-areas: "opp meta"; }
 }
 /* A result row opening a block carries no space of its own. */
 .mp .sechead + .rlist > .lrow:first-child .resrow { padding-top: 0; }

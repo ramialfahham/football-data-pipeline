@@ -201,7 +201,8 @@ came_on as (
         on_player_id as player_id,
         minute_elapsed as minute_on,
         minute_extra as minute_on_extra,
-        off_player_id as replaced_player_id
+        off_player_id as replaced_player_id,
+        event_index as on_event_index
     from paired
     where on_player_id is not null
     qualify row_number() over (
@@ -269,6 +270,7 @@ lined as (
         came_on.minute_on,
         came_on.minute_on_extra,
         came_on.replaced_player_id,
+        came_on.on_event_index,
         went_off.minute_off,
         went_off.minute_off_extra,
         provider_players.raw_ingested_at,
@@ -305,6 +307,7 @@ lined as (
         minute_on,
         minute_on_extra,
         replaced_player_id,
+        cast(null as int64) as on_event_index,
         minute_off,
         minute_off_extra,
         cast(null as timestamp) as raw_ingested_at,
@@ -622,14 +625,19 @@ select
         when array_length(match_checks.failed_checks) = 0 then 'confirmed'
         else 'not_available'
     end as lineup_state,
-    -- A researched sheet has no provider order: its starters go by pitch position, the rest by shirt.
+    -- A researched sheet has no provider order: its starters go by pitch position. Substitutes go by
+    -- when they came on, the rest by shirt.
     row_number() over (
         partition by lined.league_code, lined.fixture_id, lined.team_id
         order by
             lined.is_starter desc,
-            lined.sheet_index asc,
+            if(lined.is_starter, lined.sheet_index, null) asc nulls last,
             safe_cast(split(lined.grid_position, ':')[safe_offset(0)] as int64) asc nulls last,
             safe_cast(split(lined.grid_position, ':')[safe_offset(1)] as int64) asc nulls last,
+            lined.minute_on is null asc,
+            lined.minute_on asc,
+            coalesce(lined.minute_on_extra, 0) asc,
+            lined.on_event_index asc nulls last,
             lined.shirt_number asc nulls last,
             lined.player_id asc
     ) as lineup_order

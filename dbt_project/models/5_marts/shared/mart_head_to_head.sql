@@ -89,6 +89,7 @@ agg as (
         countif(recency_rank <= 5 and result = 'L') as losses_last5,
         array_agg(
             struct(
+                fixture_sk as fixture_api_id,
                 kickoff_datetime,
                 league_code,
                 home_away,
