@@ -28,6 +28,9 @@ scope_paths:
   - dbt_project/models/docs/shared_columns.md
   - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
   - dbt_project/tests/assert_fixture_lineup_order_starters_first.sql
+  - dbt_project/seeds/fixture_result_corrections.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/tests/assert_result_corrections_applied.sql
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -106,3 +109,11 @@ amendments: >
   engineering_standards.md §3.1 (a derived column carries a consistency test), raised by the
   analytics engineer in review round 1. Content: lineup_order numbers each team sheet 1 to n with
   every starter before every substitute.
+  + dbt_project/seeds/fixture_result_corrections.csv, dbt_project/seeds/schema.yml,
+  dbt_project/tests/assert_result_corrections_applied.sql. Authority: approved in chat,
+  2026-10-16, after data:build:mr found 30 matches settled on penalties without a shoot-out score
+  from the provider. Content: the seed gains shootout_home and shootout_away, the official
+  shoot-out score, researched and sourced for those 30 matches; base applies them over the
+  provider's and keeps the provider's beside them; the seed's test checks they are applied and
+  still needed. The PEN tests stay errors, so a new case turns the nightly red until it has a
+  researched row.

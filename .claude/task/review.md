@@ -1,8 +1,10 @@
 # Review — feat/175-played-match-data
 
-diff_sha256: 69ca89357d2814c3d0a0e405dc75f6a508e7e6c7cafbdc96c8bbda39762aab3b
+diff_sha256: 80b45744e3f1c961dfcdeeac6beda935015d05d23f0ea6d8cfe69439e58e4690
 
-rounds: 2
+rounds: 4
+
+rounds_cap_override: approved in chat, 2026-10-16, for a fourth round limited to the source labels of four seed rows.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
@@ -14,6 +16,9 @@ risks_checked:
 - The score after each goal uses the same order in the window as in the array; score_after_wrong checks it steps one goal at a time to the served totals.
 - Star selects of the changed models feed named-column outputs; the export names its columns, so no payload gains a key.
 - Not tested, accepted: the provider order of a provider sheet (sheet_index is not an output column), and the mart's nullable pass-through of lineup_order.
+- The shoot-out corrections: base applies the seed's shoot-out over the provider's and keeps the provider's beside it; the PEN winner reads the corrected values, consistent with the core recompute test.
+- assert_result_corrections_applied covers the shoot-out in not_applied, adds shootout_not_valid (no level-score rule, for second legs) and extends no_longer_needed.
+- The 30 shoot-out rows: unique ids; no club-site-only row is labelled official; every match_reports row cites at least two sites.
 
 ## scope-auditor
 VERDICT: PASS
@@ -23,6 +28,8 @@ risks_checked:
 - decisions_reserved stay untouched: a penalties match still counts as a draw in int_legs__team_match; AWD matches stay out of the player mart; no site or export change.
 - Thresholds: no new mechanism; the declared recurring cost is the staging read, measured unchanged.
 - The fct_fixture description and the new doc blocks state the current state only, with no history.
+- The seed route (second amendment) extends an existing correction seed: no new mechanism; the recurring research is disclosed with the approval.
+- The four FA Cup rows moved from official to match_reports narrow an overclaim; no value changed.
 
 ## escalations
 (none)

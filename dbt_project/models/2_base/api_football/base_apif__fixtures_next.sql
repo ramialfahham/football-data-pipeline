@@ -36,8 +36,8 @@ select
     c.on_pitch_away,
     f.goals_home as provider_goals_home,
     f.goals_away as provider_goals_away,
-    f.shootout_home,
-    f.shootout_away,
+    f.shootout_home as provider_shootout_home,
+    f.shootout_away as provider_shootout_away,
     f.status_short as provider_status_short,
     c.source as result_correction_source,
     f.venue_id,
@@ -48,12 +48,16 @@ select
     if(c.awarded, 'Technical loss', f.status_long) as status_long,
     coalesce(c.goals_home, f.goals_home) as goals_home,
     coalesce(c.goals_away, f.goals_away) as goals_away,
+    coalesce(c.shootout_home, f.shootout_home) as shootout_home,
+    coalesce(c.shootout_away, f.shootout_away) as shootout_away,
     case
         when c.awarded and c.awarded_to_team_id is not null then cast(c.awarded_to_team_id as int64)
         when not coalesce(c.awarded, false) and f.status_short = 'PEN'
             then case
-                when f.shootout_home > f.shootout_away then f.home_team_id
-                when f.shootout_away > f.shootout_home then f.away_team_id
+                when coalesce(c.shootout_home, f.shootout_home) > coalesce(c.shootout_away, f.shootout_away)
+                    then f.home_team_id
+                when coalesce(c.shootout_away, f.shootout_away) > coalesce(c.shootout_home, f.shootout_home)
+                    then f.away_team_id
             end
         when c.awarded or f.status_short in ('FT', 'AET', 'AWD', 'WO')
             then case

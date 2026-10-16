@@ -145,9 +145,13 @@ models:
       - name: awarded_to_team_id
         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
       - name: shootout_home
-        description: "{{ doc('shootout_home') }}"
+        description: "{{ doc('shootout_home') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
       - name: shootout_away
-        description: "{{ doc('shootout_away') }}"
+        description: "{{ doc('shootout_away') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
+      - name: provider_shootout_home
+        description: "The provider's home shoot-out goals; differs from shootout_home only where the official result was corrected."
+      - name: provider_shootout_away
+        description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
       - name: winner_team_id
         description: "{{ doc('winner_team') }} Here, the provider's team id."
       - name: award_kind

@@ -258,14 +258,12 @@ then column, and the rest by shirt number.
 
 
 {% docs shootout_home %}
-The home side's goals in the penalty shoot-out, as the provider gives them. NULL where the match
-had no shoot-out.
+The home side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
 {% enddocs %}
 
 
 {% docs shootout_away %}
-The away side's goals in the penalty shoot-out, as the provider gives them. NULL where the match
-had no shoot-out.
+The away side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
 {% enddocs %}
 
 
