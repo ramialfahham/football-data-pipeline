@@ -20,5 +20,6 @@ select
     cast(replaced_player_id as int64) as replaced_player_sk,
     minute_off,
     minute_off_extra,
+    lineup_order,
     lineup_state
 from src

@@ -38,7 +38,11 @@
   its own-goal events. A played or abandoned match awarded afterwards adds up to its score on the
   pitch. goal_data_state names what the match has: goals (every goal with its minute; a 0-0 has
   none), goals_without_minutes (one entry per scorer), not_recorded (the provider recorded no goal),
-  or awarded (award_kind says how; its goals as scored, none when not played).
+  or awarded (award_kind says how; its goals as scored, none when not played). On a list in
+  match order each goal carries the score after it.
+
+  Result. winner_team_sk is the team that won or went through: the awarded team, else the
+  shoot-out's winner, else the side with more goals; NULL on a draw.
 
   Line-ups. lineup_state names whether a played match's team sheets can be shown: confirmed,
   researched or not_available. The formations are served only for a confirmed or researched match.
@@ -58,6 +62,9 @@ with fixtures as (
         status_short,
         goals_home,
         goals_away,
+        shootout_home,
+        shootout_away,
+        winner_team_sk,
         award_kind,
         on_pitch_home,
         on_pitch_away,
@@ -334,14 +341,43 @@ scorer_goals as (
     group by g.fixture_sk, g.team_sk, g.player_sk, g.player_name, g.is_own_goal
 ),
 
+timed_goals as (
+    select
+        g.fixture_sk,
+        g.player_sk,
+        g.player_name,
+        g.minute_elapsed,
+        g.minute_extra,
+        g.goals,
+        g.penalties,
+        g.is_own_goal,
+        g.assist_player_sk,
+        g.assist_player_name,
+        g.event_index,
+        case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
+        countif(g.team_sk = sc.home_team_sk) over match_so_far as score_home_after,
+        countif(g.team_sk = sc.away_team_sk) over match_so_far as score_away_after
+    from served_goals as g
+    inner join goal_sources as s
+        on g.fixture_sk = s.fixture_sk
+    inner join scores as sc
+        on g.fixture_sk = sc.fixture_sk
+    where s.has_minutes
+    window match_so_far as (
+        partition by g.fixture_sk
+        order by g.minute_elapsed, g.minute_extra, g.event_index
+        rows between unbounded preceding and current row
+    )
+),
+
 -- With every minute known, one entry per goal in match order; otherwise one entry per scorer. A
 -- player's provider id is his player_sk.
 goal_lists as (
     select
-        s.fixture_sk,
+        g.fixture_sk,
         array_agg(
             struct(
-                case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
+                g.side,
                 g.player_sk as player_api_id,
                 g.player_name,
                 g.minute_elapsed,
@@ -350,17 +386,14 @@ goal_lists as (
                 g.penalties,
                 g.is_own_goal,
                 g.assist_player_sk as assist_player_api_id,
-                g.assist_player_name
+                g.assist_player_name,
+                g.score_home_after,
+                g.score_away_after
             )
             order by g.minute_elapsed, g.minute_extra, g.event_index
         ) as goals
-    from served_goals as g
-    inner join goal_sources as s
-        on g.fixture_sk = s.fixture_sk
-    inner join scores as sc
-        on g.fixture_sk = sc.fixture_sk
-    where s.has_minutes
-    group by s.fixture_sk
+    from timed_goals as g
+    group by g.fixture_sk
     union all
     select
         g.fixture_sk,
@@ -375,7 +408,9 @@ goal_lists as (
                 g.penalties,
                 g.is_own_goal,
                 cast(null as int64) as assist_player_api_id,
-                cast(null as string) as assist_player_name
+                cast(null as string) as assist_player_name,
+                cast(null as int64) as score_home_after,
+                cast(null as int64) as score_away_after
             )
             order by g.goals desc, g.player_name asc
         ) as goals
@@ -415,6 +450,9 @@ select
     f.status_short,
     f.goals_home,
     f.goals_away,
+    f.shootout_home,
+    f.shootout_away,
+    f.winner_team_sk,
     f.home_team_sk,
     h.team_name as home_team_name,
     h.team_slug as home_team_slug,

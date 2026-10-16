@@ -1,6 +1,7 @@
 -- One row per player the team sheets name for a match: the starting eleven and the bench, from
 -- each team's latest fetch or, for a researched match, from fixture_lineup_corrections, with the
--- minute a substitution brought each player on or took them off, and the match's line-up state.
+-- minute a substitution brought each player on or took them off, the player's place on the sheet,
+-- and the match's line-up state.
 -- Grain: (league_code, fixture_id, team_id, player_id).
 with src as (
     select
@@ -83,9 +84,10 @@ named as (
         latest.formation,
         latest.raw_ingested_at,
         true as is_starter,
-        player_el
+        player_el,
+        sheet_index
     from latest,
-        unnest(json_query_array(latest.start_xi_json)) as player_el
+        unnest(json_query_array(latest.start_xi_json)) as player_el with offset as sheet_index
     union all
     select
         latest.league_code,
@@ -94,9 +96,10 @@ named as (
         latest.formation,
         latest.raw_ingested_at,
         false as is_starter,
-        player_el
+        player_el,
+        sheet_index
     from latest,
-        unnest(json_query_array(latest.substitutes_json)) as player_el
+        unnest(json_query_array(latest.substitutes_json)) as player_el with offset as sheet_index
 ),
 
 parsed as (
@@ -107,6 +110,7 @@ parsed as (
         formation,
         raw_ingested_at,
         is_starter,
+        sheet_index,
         nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as player_id,
         json_value(player_el, '$.player.name') as player_name,
         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
@@ -268,6 +272,7 @@ lined as (
         went_off.minute_off,
         went_off.minute_off_extra,
         provider_players.raw_ingested_at,
+        provider_players.sheet_index,
         false as is_researched
     from provider_players
     left join came_on
@@ -303,6 +308,7 @@ lined as (
         minute_off,
         minute_off_extra,
         cast(null as timestamp) as raw_ingested_at,
+        cast(null as int64) as sheet_index,
         true as is_researched
     from researched
 ),
@@ -615,7 +621,18 @@ select
         when lined.is_researched then 'researched'
         when array_length(match_checks.failed_checks) = 0 then 'confirmed'
         else 'not_available'
-    end as lineup_state
+    end as lineup_state,
+    -- A researched sheet has no provider order: its starters go by pitch position, the rest by shirt.
+    row_number() over (
+        partition by lined.league_code, lined.fixture_id, lined.team_id
+        order by
+            lined.is_starter desc,
+            lined.sheet_index asc,
+            safe_cast(split(lined.grid_position, ':')[safe_offset(0)] as int64) asc nulls last,
+            safe_cast(split(lined.grid_position, ':')[safe_offset(1)] as int64) asc nulls last,
+            lined.shirt_number asc nulls last,
+            lined.player_id asc
+    ) as lineup_order
 from lined
 inner join match_checks
     on

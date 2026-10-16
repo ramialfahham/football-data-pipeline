@@ -144,6 +144,16 @@ models:
         tests: [not_null]
       - name: awarded_to_team_id
         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
+      - name: shootout_home
+        description: "{{ doc('shootout_home') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
+      - name: shootout_away
+        description: "{{ doc('shootout_away') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
+      - name: provider_shootout_home
+        description: "The provider's home shoot-out goals; differs from shootout_home only where the official result was corrected."
+      - name: provider_shootout_away
+        description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
+      - name: winner_team_id
+        description: "{{ doc('winner_team') }} Here, the provider's team id."
       - name: award_kind
         description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
       - name: on_pitch_home
@@ -326,6 +336,8 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [league_code, fixture_id, team_id, player_id]
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [league_code, fixture_id, team_id, lineup_order]
     columns:
       - name: league_code
         description: "{{ doc('league_code') }}"
@@ -360,6 +372,9 @@ models:
         description: "{{ doc('minute_off') }}"
       - name: minute_off_extra
         description: "{{ doc('minute_off_extra') }}"
+      - name: lineup_order
+        description: "{{ doc('lineup_order') }}"
+        tests: [not_null]
       - name: lineup_state
         description: "{{ doc('lineup_state__sheet') }}"
         tests:

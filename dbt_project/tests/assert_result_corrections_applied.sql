@@ -6,6 +6,8 @@
 --     the match.
 --   - award_not_valid: an award without its kind or a kind without an award, a played or
 --     abandoned award without the score on the pitch, or a score on the pitch on any other row.
+--   - shootout_not_valid: one shoot-out score without the other, or a shoot-out score that is tied,
+--     on an award, or on a match the provider does not file as settled on penalties.
 --   - not_sourced: a source that is not https URLs separated by a space, an official one with
 --     none, or match reports with fewer than two sites.
 --   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
@@ -106,6 +108,8 @@ fixture_checks as (
                 or f.goals_away is distinct from c.goals_away
                 or f.status_short is distinct from if(c.awarded, 'AWD', f.provider_status_short)
                 or f.awarded_to_team_id is distinct from c.awarded_to_team_id
+                or f.shootout_home is distinct from coalesce(c.shootout_home, f.provider_shootout_home)
+                or f.shootout_away is distinct from coalesce(c.shootout_away, f.provider_shootout_away)
                 then 'not_applied'
             when
                 c.awarded_to_team_id is not null
@@ -127,9 +131,24 @@ fixture_checks as (
                 )
                 then 'award_not_valid'
             when
+                (c.shootout_home is null) != (c.shootout_away is null)
+                or (
+                    c.shootout_home is not null
+                    and (
+                        f.provider_status_short != 'PEN'
+                        or c.awarded
+                        or c.shootout_home = c.shootout_away
+                    )
+                )
+                then 'shootout_not_valid'
+            when
                 f.provider_goals_home = c.goals_home
                 and f.provider_goals_away = c.goals_away
                 and not c.awarded
+                and (
+                    c.shootout_home is null
+                    or (f.provider_shootout_home = c.shootout_home and f.provider_shootout_away = c.shootout_away)
+                )
                 then 'no_longer_needed'
         end as problem
     from fixture_corrections as c

@@ -250,6 +250,30 @@ the goalkeeper. NULL for a player on the bench and where the line-ups give none.
 {% enddocs %}
 
 
+{% docs lineup_order %}
+The player's place on the team sheet, 1 first: the starters, then the substitutes. A provider
+sheet keeps the provider's order. A researched sheet lists its starters by pitch position, row
+then column, and the rest by shirt number.
+{% enddocs %}
+
+
+{% docs shootout_home %}
+The home side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
+{% enddocs %}
+
+
+{% docs shootout_away %}
+The away side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
+{% enddocs %}
+
+
+{% docs winner_team %}
+The team that won the match or went through. On an awarded result it is the awarded team, and on
+a match settled on penalties the shoot-out's winner. Otherwise it is the side with more goals.
+NULL on a draw and on a match not played.
+{% enddocs %}
+
+
 {% docs minute_on %}
 The minute of normal time a substitution brought the player on. NULL for a player who did not
 come on as a substitute.

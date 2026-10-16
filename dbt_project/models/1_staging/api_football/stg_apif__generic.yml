@@ -44,6 +44,10 @@ models:
       - name: away_team_id
         description: "API-Football's numeric id for the away side of this fixture ($.teams.away.id)."
         tests: [not_null]
+      - name: shootout_home
+        description: "{{ doc('shootout_home') }} Read from $.score.penalty.home."
+      - name: shootout_away
+        description: "{{ doc('shootout_away') }} Read from $.score.penalty.away."
       - name: raw_ingested_at
         description: "{{ doc('raw_ingested_at') }}"
         tests: [not_null]

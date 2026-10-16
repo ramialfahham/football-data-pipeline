@@ -91,7 +91,8 @@ lineups as (
         minute_on_extra,
         minute_off,
         minute_off_extra,
-        replaced_player_sk
+        replaced_player_sk,
+        lineup_order
     from {{ ref('fct_fixture_lineup') }}
     where lineup_state in ('confirmed', 'researched')
 ),
@@ -103,6 +104,7 @@ appearances as (
         lineups.minute_off,
         lineups.minute_off_extra,
         lineups.replaced_player_sk,
+        lineups.lineup_order,
         coalesce(stats.fixture_sk, lineups.fixture_sk) as fixture_sk,
         coalesce(stats.team_sk, lineups.team_sk) as team_sk,
         coalesce(stats.player_sk, lineups.player_sk) as player_sk,
@@ -144,6 +146,7 @@ select
     a.minute_off,
     a.minute_off_extra,
     a.replaced_player_sk,
+    a.lineup_order,
     s.offsides,
     s.shots as shots_total,
     s.shots_on_target as shots_on,

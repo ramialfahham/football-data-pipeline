@@ -1,771 +1,1156 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index e59cbb3d..9a13c99c 100644
+index 9a13c99c..3f494d14 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,147 +1,91 @@
--# Task contract — a window of one played match on mart_leaderboards
-+# Task contract — retire mart_team_fixture_stats and the old match-stats export
+@@ -1,91 +1,119 @@
+-# Task contract — retire mart_team_fixture_stats and the old match-stats export
++# Task contract — the played match's missing data: shoot-out, winner, score after each goal, line-up order
  
  objective: >
--  mart_leaderboards serves each played match as a window of one: for every played match with
--  player stats, seven count boards (Shots, Passes, Key passes, Dribbles attempted, Duels won,
--  Defensive actions, Fouls), each the top three across both teams, a shared count sharing the
--  rank, a tie at the cut won by fewer minutes, so the played match page's Match leaders block can
--  read them. A new player metric fouls_player joins the catalogue, and three metrics get their
--  place in the catalogue's order. The season boards, every existing payload and every page stay
--  the same.
-+  mart_team_fixture_stats, a raw copy of the provider's team stat line, is removed, and with it
-+  the old matchstats export that no site component reads. A played match's team numbers come from
-+  mart_team_window_metrics' window of one. The form list's has_team_stats flag reads that window
-+  instead, so it still says whether the played match's page holds a team stat line. No page and no
-+  payload the site reads changes.
+-  mart_team_fixture_stats, a raw copy of the provider's team stat line, is removed, and with it
+-  the old matchstats export that no site component reads. A played match's team numbers come from
+-  mart_team_window_metrics' window of one. The form list's has_team_stats flag reads that window
+-  instead, so it still says whether the played match's page holds a team stat line. No page and no
+-  payload the site reads changes.
++  The played match page needs four values the warehouse does not serve. mart_competition_fixtures
++  gains the shoot-out score (shootout_home, shootout_away) and the team that won or went through
++  (winner_team_sk); each entry of its goals list gains the score after that goal
++  (score_home_after, score_away_after); mart_player_fixture_stats gains a player's place on the
++  team sheet (lineup_order). No page and no payload the site reads changes.
  
  refs: >
-   #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176), the line
--  "mart_leaderboards serves a window of one match: each player's counts in that match". The
--  Match leaders block is #175, its design approved on #132. The plan, the fouls_player metric,
--  its texts and the catalogue order in decisions_taken: approved in chat, 2026-10-14.
-+  "mart_team_fixture_stats is removed once nothing reads it (with the old match-stats export)".
-+  The plan and the document texts in decisions_taken: approved in chat, 2026-10-14.
+-  #176 (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/176), the line
+-  "mart_team_fixture_stats is removed once nothing reads it (with the old match-stats export)".
+-  The plan and the document texts in decisions_taken: approved in chat, 2026-10-14.
++  #175, the played match page (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/175);
++  #178 step 1, the shoot-out score and the team that went through
++  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/178).
++  The plan, the column names and the order rule in decisions_taken: approved in chat, 2026-10-15.
  
  scope_paths:
--  - dbt_project/seeds/metric_catalogue.csv
-+  - dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
-+  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
-+  - dbt_project/models/5_marts/shared/shared.yml
-+  - dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
-   - dbt_project/seeds/metric_map.csv
-   - dbt_project/models/docs/metric_columns.md
--  - site_v2/src/i18n/strings.ts
+-  - dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
+-  - dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
++  - dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++  - dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
++  - dbt_project/models/2_base/api_football/base.yml
++  - dbt_project/models/3_core/fct_fixture.sql
++  - dbt_project/models/3_core/fct_fixture_lineup.sql
++  - dbt_project/models/3_core/core.yml
++  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++  - dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+   - dbt_project/models/5_marts/shared/shared.yml
+-  - dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
+-  - dbt_project/seeds/metric_map.csv
+-  - dbt_project/models/docs/metric_columns.md
+-  - dbt_project/docs/layering.md
+-  - scripts/export_site_data.py
 -  - scripts/generate_metric_sql.py
--  - dbt_project/models/4_intermediate/shared/int_player_match__metrics.sql
--  - dbt_project/models/4_intermediate/shared/int_player_match.yml
--  - dbt_project/models/5_marts/shared/mart_leaderboards.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - dbt_project/tests/assert_mart_leaderboards_board_leader_order_is_total.sql
--  - dbt_project/tests/assert_mart_leaderboards_every_home_board_has_a_leader.sql
--  - dbt_project/tests/assert_mart_leaderboards_one_leader_per_league.sql
--  - dbt_project/tests/assert_one_current_season_per_league.sql
--  - dbt_project/tests/assert_player_metrics_follow_catalogue_formula.sql
--  - dbt_project/tests/assert_mart_leaderboards_match_boards_follow_the_rule.sql
-   - dbt_project/docs/layering.md
-   - scripts/export_site_data.py
--  - tests/test_catalogue_order.py
--  - tests/test_export_landing.py
-+  - scripts/generate_metric_sql.py
-   - tests/test_export_site_data.py
--  - tests/test_leaderboard_board_sets.py
-   - tests/test_metric_map.py
--  - tests/test_generate_metric_sql.py
-   - tests/test_no_decision_history_in_code.py
-   - tests/test_no_decision_history_in_docs.py
-   - tests/test_sentence_length_in_docs.py
-+  - docs/content_architecture.md
-+  - docs/site_architecture.md
-+  - docs/wireframes/01_fixture_page.md
+-  - tests/test_export_site_data.py
+-  - tests/test_metric_map.py
+-  - tests/test_no_decision_history_in_code.py
+-  - tests/test_no_decision_history_in_docs.py
+-  - tests/test_sentence_length_in_docs.py
+-  - docs/content_architecture.md
+-  - docs/site_architecture.md
+-  - docs/wireframes/01_fixture_page.md
++  - dbt_project/models/docs/shared_columns.md
++  - dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
++  - dbt_project/tests/assert_fixture_lineup_order_starters_first.sql
++  - dbt_project/seeds/fixture_result_corrections.csv
++  - dbt_project/seeds/schema.yml
++  - dbt_project/tests/assert_result_corrections_applied.sql
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
  
  impact_map: >
--  writers: dbt builds the new int_player_match__metrics from int_legs__player_match, and
--  mart_leaderboards from int_player_season__metrics, the new intermediate, dim_player and
--  dim_team. The catalogue seed and the metric map seed are configuration. No ingestion writer.
--  downstream: pasted output of `dbt ls --select int_player_match__metrics+ mart_leaderboards+
--  metric_catalogue+ --resource-type model --output name` on the branch (dbt 1.7.20), 3 models:
--  int_player_match__metrics mart_leaderboards mart_team_leaderboards.
--  The same selection with --resource-type test, singular tests only (names starting assert_),
--  20 tests: assert_form_window_rates_inputs_covered
--  assert_mart_leaderboards_board_leader_order_is_total
--  assert_mart_leaderboards_every_home_board_has_a_leader
--  assert_mart_leaderboards_match_boards_follow_the_rule
--  assert_mart_leaderboards_one_leader_per_league assert_mart_team_leaderboards_all_boards_present
--  assert_mart_team_leaderboards_every_board_has_a_leader
--  assert_mart_team_leaderboards_one_leader_per_league
--  assert_mart_team_leaderboards_rank_follows_rank_order assert_metric_catalogue_expr_resolvable
--  assert_metric_catalogue_unique_by_entity assert_metric_group_order_is_one_per_group
--  assert_metric_meaning_complete assert_no_uncatalogued_season_metric
--  assert_one_current_season_per_league assert_player_metrics_follow_catalogue_formula
--  assert_player_season_answer_key assert_season_rates_inputs_covered
--  assert_team_metrics_follow_catalogue_formula assert_team_season_answer_key.
--  mart_team_leaderboards and the team tests read the catalogue seed; this change edits only
--  player rows of it, so their reach is the seed reload alone. The catalogue seed is also read by
--  scripts/generate_metric_sql.py, scripts/sync_metric_docs_blocks.py and the export's board
--  order (_in_catalogue_order).
--  Outside dbt: scripts/export_site_data.py (fetch_competition_payloads,
--  fetch_leaderboard_payloads, fetch_landing_payload), the Python tests named in scope,
--  site_v2/src/i18n/strings.ts (one new label key).
--  layer_rules: the match window's selection and its catalogue formulas live in the new
--  intermediate (metrics_context_model.md section 8.1); the mart ranks and cuts. Generic, not per
--  competition; check_layer_contract unchanged.
--  deploy_order: the seeds load before the models in data:build:mr, data:build:main and
--  fdp-nightly. The export reads window_type, which the mart has only after the first build on
--  main; the CI export runs teams and fixtures only.
--  blast_radius: mart_leaderboards gains match rows, at most 21 per played match with player
--  stats (seven boards, match_leader_order cut at three; the new singular test holds it) and
--  three columns (window_type, fixture_sk,
--  match_leader_order); every season row keeps its values and key. The catalogue gains
--  fouls_player; shots_on_goal_player, finishing_efficiency_player_pct, cards_yellow_player and
--  cards_red_player move one place down with their relative order kept, so no page changes.
--
--acceptance_criteria:
--  - Every committed sample payload under site_v2/src/data is byte-identical to main's; git diff gitlab/main -- site_v2/src/data lists nothing.
--  - The built site's every page is byte-identical on the branch and on main, compared by script over the built output.
--  - The export reads only season rows of mart_leaderboards (window_type season_to_date) in all three of its leaderboard reads; unit tests show each filter.
-+  writers: dbt builds mart_team_fixture_stats from fct_fixture_team_stats; nothing else writes it.
-+  downstream: pasted output of `dbt ls --select mart_team_fixture_stats+ --output name` on the
-+  branch's base (dbt 1.7.20): the models mart_team_fixture_stats and mart_team_momentum_window;
-+  the singular tests assert_momentum_window_matches_momentum,
-+  assert_team_metrics_follow_catalogue_formula and assert_tournament_form_window; and the generic
-+  tests of those two models, among them not_null_mart_team_momentum_window_has_team_stats and
-+  team_fixture_stats_passes_accuracy_percent_in_range. Outside dbt:
-+  scripts/export_site_data.py (fetch_matchstats_payloads, shape_matchstats, the matchstats
-+  entity; fetch_fixture_payloads passes has_team_stats into each form-list row),
-+  scripts/generate_metric_sql.py (one Surface), metric_map.csv (7 generated rows),
-+  tests/test_metric_map.py (one fan question), tests/test_export_site_data.py (two tests).
-+  site_v2/src/lib/types.ts declares has_team_stats; no component reads it.
-+  layer_rules: mart_team_momentum_window keeps its documented same-layer read, now of
-+  mart_team_window_metrics; no new model; check_layer_contract unchanged.
-+  deploy_order: the CI export runs teams and fixtures only; the matchstats entity has no CI
-+  caller. The prod table marts.mart_team_fixture_stats stays until the CPO drops it.
-+  blast_radius: mart_team_fixture_stats and the matchstats export disappear;
-+  mart_team_momentum_window keeps every row and column, and has_team_stats may change on rows
-+  where the provider's stat line and the match window disagree, counted before merge. No
-+  payload the site reads changes shape.
+-  writers: dbt builds mart_team_fixture_stats from fct_fixture_team_stats; nothing else writes it.
+-  downstream: pasted output of `dbt ls --select mart_team_fixture_stats+ --output name` on the
+-  branch's base (dbt 1.7.20): the models mart_team_fixture_stats and mart_team_momentum_window;
+-  the singular tests assert_momentum_window_matches_momentum,
+-  assert_team_metrics_follow_catalogue_formula and assert_tournament_form_window; and the generic
+-  tests of those two models, among them not_null_mart_team_momentum_window_has_team_stats and
+-  team_fixture_stats_passes_accuracy_percent_in_range. Outside dbt:
+-  scripts/export_site_data.py (fetch_matchstats_payloads, shape_matchstats, the matchstats
+-  entity; fetch_fixture_payloads passes has_team_stats into each form-list row),
+-  scripts/generate_metric_sql.py (one Surface), metric_map.csv (7 generated rows),
+-  tests/test_metric_map.py (one fan question), tests/test_export_site_data.py (two tests).
+-  site_v2/src/lib/types.ts declares has_team_stats; no component reads it.
+-  layer_rules: mart_team_momentum_window keeps its documented same-layer read, now of
+-  mart_team_window_metrics; no new model; check_layer_contract unchanged.
+-  deploy_order: the CI export runs teams and fixtures only; the matchstats entity has no CI
+-  caller. The prod table marts.mart_team_fixture_stats stays until the CPO drops it.
+-  blast_radius: mart_team_fixture_stats and the matchstats export disappear;
+-  mart_team_momentum_window keeps every row and column, and has_team_stats may change on rows
+-  where the provider's stat line and the match window disagree, counted before merge. No
+-  payload the site reads changes shape.
++  writers: stg_apif__fixtures_next reads RAW_APIF_FIXTURES_NEXT; base_apif__lineups reads
++  stg_apif__lineups and the seed fixture_lineup_corrections. dbt is the only writer of every model
++  in scope.
++  downstream: pasted output of `dbt ls --resource-type model --select stg_apif__fixtures_next+
++  base_apif__lineups+ --output name` on the branch's base (68 models, the wide fan-out of
++  base_apif__fixtures_next): base_apif__fixture_events base_apif__fixture_players
++  base_apif__fixture_statistics base_apif__fixtures_next base_apif__lineups base_apif__players
++  base_apif__teams base_apif__teams_global dim_player dim_player_team_season_mapping dim_team
++  dim_team_competition_season_mapping fct_fixture fct_fixture_event fct_fixture_lineup
++  fct_fixture_player_stats fct_fixture_team_stats int_legs__player_match
++  int_legs__team_from_players int_legs__team_match int_player_club_season__metrics
++  int_player_competition_benchmark_metrics_long int_player_competition_benchmarks
++  int_player_match__metrics int_player_momentum__metrics int_player_profile__contribution
++  int_player_profile__yoy int_player_season__metrics int_player_season__team
++  int_player_season_position__metrics int_player_season_record
++  int_team_competition_benchmark_metrics_long int_team_competition_benchmarks
++  int_team_momentum__metrics int_team_momentum_window int_team_profile__streaks
++  int_team_profile__yoy int_team_season__deserved_vs_actual int_team_season__metrics
++  int_team_season__metrics_cumulative int_team_season_record mart_competition_fixtures
++  mart_competition_index mart_competition_season_summary mart_fixture_standing_context
++  mart_head_to_head mart_leaderboards mart_match_days mart_matchday_insights mart_next_matchday
++  mart_player_career mart_player_competition_benchmarks mart_player_fixture_stats
++  mart_player_momentum mart_player_profile mart_player_season_record mart_roster mart_standings
++  mart_team_competition_benchmarks mart_team_fixtures mart_team_leaderboards
++  mart_team_market_value mart_team_momentum_window mart_team_profile mart_team_season
++  mart_team_season_insights mart_team_season_record mart_team_window_metrics
++  stg_apif__fixtures_next. Only columns are added. The star selects of the changed models
++  (fct_fixture in int_legs__team_match, int_legs__player_match and mart_competition_index;
++  base_apif__lineups in fct_fixture_lineup) feed CTEs whose outputs name their columns, except
++  fct_fixture_lineup, which gains lineup_order by design. scripts/export_site_data.py names the
++  columns it reads from mart_competition_fixtures and mart_player_fixture_stats, so no payload
++  gains a key.
++  layer_rules: extraction in staging; the winner and the order are first logic in base; core casts
++  and passes through; marts serve. No new model; check_layer_contract unchanged.
++  deploy_order: additive columns; the 04:00 nightly builds them after merge; no reader exists
++  until the page MR.
++  blast_radius: three marts and their parents gain columns; every existing column and row of
++  every model is unchanged, compared on prod data before merge.
  
  decisions_taken: >
--  Approved in chat, 2026-10-14: the plan; a new catalogue metric fouls_player, sum(fouls) over
--  int_legs__player_match, description "Fouls the player committed.", interpretation "Fouls
--  committed - free kicks given away in the window; low = disciplined (high can also mean a player
--  who breaks up play).", format integer, group discipline, direction lower_better, tier 3, label
--  key playerMetrics.fouls.label with the words the team metric shows (EN "Fouls", DE "Fouls",
--  FI "Rikkeet"); the catalogue order shots_player 1, shots_on_goal_player 2,
--  finishing_efficiency_player_pct 3 in shooting, duels_won_player 3 in one_on_one, fouls_player
--  1, cards_yellow_player 2, cards_red_player 3 in discipline; the match boards and their rule as
--  #175 states them (top three, a shared count sharing the rank, a tie at the cut won by fewer
--  minutes, no zero); and this dbt_project/docs/layering.md row text: "| `mart_leaderboards` |
--  (player_sk, season_sk, metric_key) on season rows; (fixture_sk, player_sk, metric_key) on match
--  rows | LONG per-board player leaderboards: the thirteen season boards of the competition page's
--  Rankings tab (11 count + 2 rate, the rate boards behind a minutes and position floor), top 10
--  per board; and seven count boards for each played match (window_type match), top three.
--  Composes `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share,
--  every board most first, a zero never ranked. |"
-+  Approved in chat, 2026-10-14: the plan; has_team_stats reads mart_team_window_metrics' match
-+  window (games_with_team_stats > 0) for the played fixture and team; the fan question "How many
-+  corners did Dortmund win in their last match?" reads mart_team_window_metrics.corners_per_match
-+  with window_type match; these exact document texts: docs/content_architecture.md line 73
-+  becomes "| | Single fixture | team, player | `mart_team_window_metrics` (window_type match),
-+  `mart_player_fixture_stats` |"; docs/site_architecture.md, Fixture page row, the sentence "The
-+  played-match drill-down has no page; its export is `matchstats/{fixture_api_id}.json`, from
-+  `mart_team_fixture_stats` and `mart_player_fixture_stats`." is removed and nothing else
-+  changes; docs/wireframes/01_fixture_page.md, the data-source row for
-+  `data/matchstats/{played_fixture_sk}.json` is removed; dbt_project/docs/layering.md, the
-+  mart_team_fixture_stats row is removed.
+-  Approved in chat, 2026-10-14: the plan; has_team_stats reads mart_team_window_metrics' match
+-  window (games_with_team_stats > 0) for the played fixture and team; the fan question "How many
+-  corners did Dortmund win in their last match?" reads mart_team_window_metrics.corners_per_match
+-  with window_type match; these exact document texts: docs/content_architecture.md line 73
+-  becomes "| | Single fixture | team, player | `mart_team_window_metrics` (window_type match),
+-  `mart_player_fixture_stats` |"; docs/site_architecture.md, Fixture page row, the sentence "The
+-  played-match drill-down has no page; its export is `matchstats/{fixture_api_id}.json`, from
+-  `mart_team_fixture_stats` and `mart_player_fixture_stats`." is removed and nothing else
+-  changes; docs/wireframes/01_fixture_page.md, the data-source row for
+-  `data/matchstats/{played_fixture_sk}.json` is removed; dbt_project/docs/layering.md, the
+-  mart_team_fixture_stats row is removed.
++  Approved in chat, 2026-10-15: the warehouse MR comes before the page; the column names
++  shootout_home, shootout_away, winner_team_sk, goals.score_home_after, goals.score_away_after and
++  lineup_order. winner_team_sk is the team that won or went through: the awarded team on an awarded
++  result, otherwise the shoot-out's winner on a match settled on penalties, otherwise the side
++  with more goals; NULL on a draw and on a match not played. The score after each goal is served
++  on every goal entry of a list in match order and is NULL on a per-scorer entry. lineup_order:
++  starters first, then substitutes; a provider sheet in the provider's order; a researched sheet's
++  starters by pitch position (grid row, then column), its substitutes and any starter without a
++  position by shirt number.
  
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; one intermediate on the existing generated-surface
--  pattern and one more window on an existing mart. RECURRING COST: rises with the new
--  intermediate and the match rows in every build; measured before and after and put to the CPO
--  in GiB.
-+  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a removal. RECURRING COST: falls, one mart build
-+  less; measured before and after and put to the CPO in GiB.
+-  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a removal. RECURRING COST: falls, one mart build
+-  less; measured before and after and put to the CPO in GiB.
++  THRESHOLD DECLARATIONS: NEW MECHANISM: none; columns on existing models. RECURRING COST: the
++  staging read of RAW_APIF_FIXTURES_NEXT gains two JSON paths; measured by dry-run before and
++  after and put to the CPO in GiB.
  
  decisions_reserved:
--  - Renaming mart_leaderboards (#102).
--  - Removing mart_team_fixture_stats and the old match-stats export: the next line of #176.
--  - What the played match page shows for a board with fewer than three players, or none: #175.
-+  - Dropping the prod tables no longer built: marts.mart_team_fixture_stats,
-+    marts.mart_player_match_log, marts.mart_team_momentum.
-+  - docs/wireframes/03_player_profile.md still links match-log rows to matchstats: the player
-+    page's design (#136).
-+  - GAP-07 in docs/wireframes/99_gaps_register.md and design-mocks/gen_match_page.py: the played
-+    match page (#175).
+-  - Dropping the prod tables no longer built: marts.mart_team_fixture_stats,
+-    marts.mart_player_match_log, marts.mart_team_momentum.
+-  - docs/wireframes/03_player_profile.md still links match-log rows to matchstats: the player
+-    page's design (#136).
+-  - GAP-07 in docs/wireframes/99_gaps_register.md and design-mocks/gen_match_page.py: the played
+-    match page (#175).
++  - A match settled on penalties still counts as a draw in int_legs__team_match (results, form,
++    standings); #178 and #179 own that, not this task.
++  - Matches played then awarded (status AWD) stay out of mart_player_fixture_stats and the match
++    window and boards.
++  - How the site's match rows show a shoot-out (#178 steps 2-3).
  
  done_when:
--  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; the copy gate passes; dbt parse and compile pass; sqlfluff lint of the changed models is clean; the full pytest suite passes.
-+  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; the governance gates pass; dbt parse and compile pass; sqlfluff lint of mart_team_momentum_window is clean; the full pytest suite passes; npm run build in site_v2 exits 0 with no site_v2/src change.
+-  - generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass; the governance gates pass; dbt parse and compile pass; sqlfluff lint of mart_team_momentum_window is clean; the full pytest suite passes; npm run build in site_v2 exits 0 with no site_v2/src change.
++  - dbt parse and compile pass; sqlfluff lint of every changed model is clean against main's baseline; check_layer_contract, check_description_hygiene and the governance gates pass; the full pytest suite passes.
    - data:build:mr is green, its tests included.
--  - On prod data the season rows of the MR's mart equal prod mart_leaderboards in every key and column; the match boards hold at most three rows each, none zero.
--  - The acceptance criteria are shown in acceptance_evidence.md.
-+  - On prod data mart_team_momentum_window from the MR build equals prod on every key and on every column but has_team_stats; has_team_stats differences are counted and listed.
-   - The warehouse read before and after is measured and put to the CPO.
+-  - On prod data mart_team_momentum_window from the MR build equals prod on every key and on every column but has_team_stats; has_team_stats differences are counted and listed.
+-  - The warehouse read before and after is measured and put to the CPO.
++  - On prod data, from the MR build, every changed mart equals prod on every key and every existing column; the new columns are counted (PEN matches with a shoot-out score and a winner; played matches with a winner; goal entries with a score after; sheet rows with an order).
++  - The warehouse read of stg_apif__fixtures_next before and after is measured and put to the CPO in GiB.
  
  amendments: >
--  The layering.md row text in decisions_taken is one sentence of 32 words, which the sentence-length
--  gate refuses. It is replaced by the same facts in short sentences, approved in chat, 2026-10-14:
--  "| `mart_leaderboards` | (player_sk, season_sk, metric_key) on season rows; (fixture_sk,
--  player_sk, metric_key) on match rows | LONG per-board player leaderboards. The season rows are
--  the thirteen boards of the competition page's Rankings tab, top 10 per board: 11 count and 2
--  rate. The rate boards sit behind a minutes and position floor. The match rows are seven count
--  boards for each played match (window_type match), top three. Composes
--  `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every
--  board most first, a zero never ranked. |"
--  layering.md lists marts only, so the new intermediate gets no row there.
--  After the MR build: site_v2/scripts/check-metric-labels.test.mjs refuses a metric label that no
--  page asks for, and no page shows fouls_player yet. So playerMetrics.fouls.label leaves
--  strings.ts in this change; its approved words (EN "Fouls", DE "Fouls", FI "Rikkeet") go in
--  with the played match page (#175), the first page that shows it, as the labels of shots_player
--  and duels_won_player will. The catalogue row keeps its label key. The third acceptance
--  criterion and the first two are unchanged; site_v2/src is now untouched by this change.
-+  none.
-diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
-index 1ba8ebeb..c61db874 100644
---- a/dbt_project/docs/layering.md
-+++ b/dbt_project/docs/layering.md
-@@ -326,7 +326,6 @@ Canonical mart inventory (exhaustive) for this project:
- | `mart_team_momentum_window` | (upcoming_fixture_sk, team_sk, played_fixture_sk) | W1 momentum-window drill-down legs (team). |
- | `mart_team_season_record` | (upcoming_fixture_sk, team_sk) | W2 season-record aggregate (team). |
- | `mart_player_season_record` | (upcoming_fixture_sk, team_sk, player_sk) | W2 season-record aggregate (player). |
--| `mart_team_fixture_stats` | (fixture_sk, team_sk) | Per-fixture team stat lines. |
- | `mart_player_fixture_stats` | (fixture_sk, team_sk, player_sk) | A player in a finished match: every player the stat lines or the line-ups name, with the match context. A player's match log is its rows with a stat line. |
- | `mart_fixture_standing_context` | (fixture_sk, team_sk) | Pre-fixture standings / rank context. |
- | `mart_head_to_head` | (team_sk, opponent_team_sk) | Head-to-head history per team pair. |
-diff --git a/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
-deleted file mode 100644
-index 4f161fc7..00000000
---- a/dbt_project/models/5_marts/shared/mart_team_fixture_stats.sql
-+++ /dev/null
-@@ -1,108 +0,0 @@
--{#
--  Per-fixture team stat line (#323). The detail view behind a match in the
--  form-window list: the full team stat line for one finished fixture, both
--  sides as two rows: a projection of fct_fixture_team_stats plus fixture
--  metadata and team identity for display. The one derived value,
--  passes_accuracy_percent, is the catalogue's pass accuracy over the team's own
--  match, written by scripts/generate_metric_sql.py and shown as a whole
--  percentage. The app reads this mart, never core.
--
--  Covers ALL finished fixtures that have team stats, not just form-window
--  matches: it is selection-free by design and serves the team/player profile
--  surfaces (#324/#325) too. A fixture with no rows here has no team stats —
--  the honest "not available" state. The stat line is the cleaned one from
--  core, handed on under the names the export reads.
--
--  Grain: (fixture_sk, team_sk).
--#}
--
--with stats as (
--    select
--        *,
--        false as is_awarded_result
--    from {{ ref('fct_fixture_team_stats') }}
--    -- Core holds a row for every team of a finished match; only a line the provider
--    -- sent with a value in it is shown, so a team without one gets the "stats not
--    -- available" state rather than a view of blanks and event-proven zero cards.
--    where has_stat_line
--),
--
--match_rates as (
--    select
--        fixture_sk,
--        team_sk,
--        -- metric sql generated from metric_catalogue.csv by scripts/generate_metric_sql.py; edit the catalogue
--        safe_divide(
--            if(
--                logical_and(is_awarded_result or passes_accurate is not null) over w,
--                sum(if(is_awarded_result, null, passes_accurate)) over w,
--                null
--            ),
--            if(
--                logical_and(is_awarded_result or passes is not null) over w,
--                sum(if(is_awarded_result, null, passes)) over w,
--                null
--            )
--        ) as passes_accuracy_pct
--        -- end of generated metric sql
--    from stats
--    window w as (partition by fixture_sk, team_sk)
--),
--
--fixtures as (
--    select
--        fixture_sk,
--        league_code,
--        season_api_year,
--        kickoff_datetime,
--        round_name,
--        home_team_sk,
--        goals_home,
--        goals_away
--    from {{ ref('fct_fixture') }}
--    where status_short in ('FT', 'AET', 'PEN')
--),
--
--teams as (
--    select
--        team_sk,
--        team_name,
--        team_logo_url
--    from {{ ref('dim_team') }}
--)
--
--select
--    s.fixture_sk,
--    s.team_sk,
--    f.league_code,
--    f.season_api_year,
--    f.kickoff_datetime,
--    f.round_name,
--    t.team_name,
--    t.team_logo_url,
--    s.shots_on_target as shots_on_goal,
--    s.shots_off_target as shots_off_goal,
--    s.shots as shots_total,
--    s.shots_blocked,
--    s.shots_inside_box,
--    s.shots_outside_box,
--    s.fouls,
--    s.corners as corner_kicks,
--    s.offsides,
--    s.possession_pct as ball_possession_percent,
--    s.cards_yellow as yellow_cards,
--    s.cards_red as red_cards,
--    s.saves as goalkeeper_saves,
--    s.passes as passes_total,
--    s.passes_accurate,
--    cast(round(100 * r.passes_accuracy_pct) as int64) as passes_accuracy_percent,
--    s.team_sk = f.home_team_sk as is_home,
--    if(s.team_sk = f.home_team_sk, f.goals_home, f.goals_away) as goals_for,
--    if(s.team_sk = f.home_team_sk, f.goals_away, f.goals_home) as goals_against
--from stats as s
--inner join match_rates as r
--    on s.fixture_sk = r.fixture_sk and s.team_sk = r.team_sk
--inner join fixtures as f
--    on s.fixture_sk = f.fixture_sk
--left join teams as t
--    on s.team_sk = t.team_sk
-diff --git a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
-index e82f8aff..730551a3 100644
---- a/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
-+++ b/dbt_project/models/5_marts/shared/mart_team_momentum_window.sql
-@@ -5,13 +5,13 @@
-   window_type (last_5 / tournament_to_date / qualifiers, GAP-18) is carried from the
-   selection; tournament windows are cumulative, so a side can have more than five rows.
- 
--  played_fixture_sk is the click-through key into mart_team_fixture_stats /
--  mart_player_fixture_stats. has_team_stats / has_player_stats tell the app
--  honestly whether that drill-down has data (player stats are missing for a
--  meaningful share of matches — the common case, not rare). The flags are
--  derived from the detail marts themselves (same-layer refs, the documented
--  exception in layering.md) so "true" literally means "the drill-down holds a
--  stat line" — one definition, no drift.
-+  played_fixture_sk is the click-through key into the played match: its window of one in
-+  mart_team_window_metrics and its players in mart_player_fixture_stats. has_team_stats /
-+  has_player_stats tell the app honestly whether that drill-down has data (player stats are
-+  missing for a meaningful share of matches — the common case, not rare). The flags are
-+  derived from those marts themselves (same-layer refs, the documented exception in
-+  layering.md) so "true" literally means "the drill-down holds a stat line" — one
-+  definition, no drift.
- 
-   Grain: (upcoming_fixture_sk, team_sk, played_fixture_sk).
- #}
-@@ -38,10 +38,11 @@ opponents as (
+-  none.
++  + dbt_project/tests/assert_fixture_lineup_order_starters_first.sql. Authority: the standing rule
++  engineering_standards.md §3.1 (a derived column carries a consistency test), raised by the
++  analytics engineer in review round 1. Content: lineup_order numbers each team sheet 1 to n with
++  every starter before every substitute.
++  + dbt_project/seeds/fixture_result_corrections.csv, dbt_project/seeds/schema.yml,
++  dbt_project/tests/assert_result_corrections_applied.sql. Authority: approved in chat,
++  2026-10-16, after data:build:mr found 30 matches settled on penalties without a shoot-out score
++  from the provider. Content: the seed gains shootout_home and shootout_away, the official
++  shoot-out score, researched and sourced for those 30 matches; base applies them over the
++  provider's and keeps the provider's beside them; the seed's test checks they are applied and
++  still needed. The PEN tests stay errors, so a new case turns the nightly red until it has a
++  researched row.
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+index 1d0cc353..40317938 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
++++ b/dbt_project/models/1_staging/api_football/stg_apif__fixtures_next.sql
+@@ -47,6 +47,8 @@ select
+     json_value(match_json, '$.teams.away.name') as away_team_name,
+     safe_cast(json_value(match_json, '$.goals.home') as int64) as goals_home,
+     safe_cast(json_value(match_json, '$.goals.away') as int64) as goals_away,
++    safe_cast(json_value(match_json, '$.score.penalty.home') as int64) as shootout_home,
++    safe_cast(json_value(match_json, '$.score.penalty.away') as int64) as shootout_away,
+     json_value(match_json, '$.fixture.venue.id') as venue_id,
+     json_value(match_json, '$.fixture.venue.name') as venue_name,
+     json_value(match_json, '$.fixture.venue.city') as venue_city
+diff --git a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+index 6e630d75..3a78ed0b 100644
+--- a/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
++++ b/dbt_project/models/1_staging/api_football/stg_apif__generic.yml
+@@ -44,6 +44,10 @@ models:
+       - name: away_team_id
+         description: "API-Football's numeric id for the away side of this fixture ($.teams.away.id)."
+         tests: [not_null]
++      - name: shootout_home
++        description: "{{ doc('shootout_home') }} Read from $.score.penalty.home."
++      - name: shootout_away
++        description: "{{ doc('shootout_away') }} Read from $.score.penalty.away."
+       - name: raw_ingested_at
+         description: "{{ doc('raw_ingested_at') }}"
+         tests: [not_null]
+diff --git a/dbt_project/models/2_base/api_football/base.yml b/dbt_project/models/2_base/api_football/base.yml
+index e6633fcd..8d9d6a42 100644
+--- a/dbt_project/models/2_base/api_football/base.yml
++++ b/dbt_project/models/2_base/api_football/base.yml
+@@ -144,6 +144,16 @@ models:
+         tests: [not_null]
+       - name: awarded_to_team_id
+         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
++      - name: shootout_home
++        description: "{{ doc('shootout_home') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
++      - name: shootout_away
++        description: "{{ doc('shootout_away') }} Here, the official one from the fixture_result_corrections seed where the provider gives none or a different one."
++      - name: provider_shootout_home
++        description: "The provider's home shoot-out goals; differs from shootout_home only where the official result was corrected."
++      - name: provider_shootout_away
++        description: "The provider's away shoot-out goals; differs from shootout_away only where the official result was corrected."
++      - name: winner_team_id
++        description: "{{ doc('winner_team') }} Here, the provider's team id."
+       - name: award_kind
+         description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
+       - name: on_pitch_home
+@@ -326,6 +336,8 @@ models:
+     tests:
+       - dbt_utils.unique_combination_of_columns:
+           combination_of_columns: [league_code, fixture_id, team_id, player_id]
++      - dbt_utils.unique_combination_of_columns:
++          combination_of_columns: [league_code, fixture_id, team_id, lineup_order]
+     columns:
+       - name: league_code
+         description: "{{ doc('league_code') }}"
+@@ -360,6 +372,9 @@ models:
+         description: "{{ doc('minute_off') }}"
+       - name: minute_off_extra
+         description: "{{ doc('minute_off_extra') }}"
++      - name: lineup_order
++        description: "{{ doc('lineup_order') }}"
++        tests: [not_null]
+       - name: lineup_state
+         description: "{{ doc('lineup_state__sheet') }}"
+         tests:
+diff --git a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+index 2c289b9e..232eaea6 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__fixtures_next.sql
+@@ -36,6 +36,8 @@ select
+     c.on_pitch_away,
+     f.goals_home as provider_goals_home,
+     f.goals_away as provider_goals_away,
++    f.shootout_home as provider_shootout_home,
++    f.shootout_away as provider_shootout_away,
+     f.status_short as provider_status_short,
+     c.source as result_correction_source,
+     f.venue_id,
+@@ -45,7 +47,24 @@ select
+     if(c.awarded, 'AWD', f.status_short) as status_short,
+     if(c.awarded, 'Technical loss', f.status_long) as status_long,
+     coalesce(c.goals_home, f.goals_home) as goals_home,
+-    coalesce(c.goals_away, f.goals_away) as goals_away
++    coalesce(c.goals_away, f.goals_away) as goals_away,
++    coalesce(c.shootout_home, f.shootout_home) as shootout_home,
++    coalesce(c.shootout_away, f.shootout_away) as shootout_away,
++    case
++        when c.awarded and c.awarded_to_team_id is not null then cast(c.awarded_to_team_id as int64)
++        when not coalesce(c.awarded, false) and f.status_short = 'PEN'
++            then case
++                when coalesce(c.shootout_home, f.shootout_home) > coalesce(c.shootout_away, f.shootout_away)
++                    then f.home_team_id
++                when coalesce(c.shootout_away, f.shootout_away) > coalesce(c.shootout_home, f.shootout_home)
++                    then f.away_team_id
++            end
++        when c.awarded or f.status_short in ('FT', 'AET', 'AWD', 'WO')
++            then case
++                when coalesce(c.goals_home, f.goals_home) > coalesce(c.goals_away, f.goals_away) then f.home_team_id
++                when coalesce(c.goals_away, f.goals_away) > coalesce(c.goals_home, f.goals_home) then f.away_team_id
++            end
++    end as winner_team_id
+ from latest as f
+ left join result_corrections as c
+     on f.fixture_id = c.fixture_id
+diff --git a/dbt_project/models/2_base/api_football/base_apif__lineups.sql b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+index 47f04335..29748249 100644
+--- a/dbt_project/models/2_base/api_football/base_apif__lineups.sql
++++ b/dbt_project/models/2_base/api_football/base_apif__lineups.sql
+@@ -1,6 +1,7 @@
+ -- One row per player the team sheets name for a match: the starting eleven and the bench, from
+ -- each team's latest fetch or, for a researched match, from fixture_lineup_corrections, with the
+--- minute a substitution brought each player on or took them off, and the match's line-up state.
++-- minute a substitution brought each player on or took them off, the player's place on the sheet,
++-- and the match's line-up state.
+ -- Grain: (league_code, fixture_id, team_id, player_id).
+ with src as (
+     select
+@@ -83,9 +84,10 @@ named as (
+         latest.formation,
+         latest.raw_ingested_at,
+         true as is_starter,
+-        player_el
++        player_el,
++        sheet_index
+     from latest,
+-        unnest(json_query_array(latest.start_xi_json)) as player_el
++        unnest(json_query_array(latest.start_xi_json)) as player_el with offset as sheet_index
+     union all
+     select
+         latest.league_code,
+@@ -94,9 +96,10 @@ named as (
+         latest.formation,
+         latest.raw_ingested_at,
+         false as is_starter,
+-        player_el
++        player_el,
++        sheet_index
+     from latest,
+-        unnest(json_query_array(latest.substitutes_json)) as player_el
++        unnest(json_query_array(latest.substitutes_json)) as player_el with offset as sheet_index
  ),
  
- team_stat_coverage as (
--    select distinct
+ parsed as (
+@@ -107,6 +110,7 @@ parsed as (
+         formation,
+         raw_ingested_at,
+         is_starter,
++        sheet_index,
+         nullif(safe_cast(json_value(player_el, '$.player.id') as int64), 0) as player_id,
+         json_value(player_el, '$.player.name') as player_name,
+         safe_cast(json_value(player_el, '$.player.number') as int64) as shirt_number,
+@@ -268,6 +272,7 @@ lined as (
+         went_off.minute_off,
+         went_off.minute_off_extra,
+         provider_players.raw_ingested_at,
++        provider_players.sheet_index,
+         false as is_researched
+     from provider_players
+     left join came_on
+@@ -303,6 +308,7 @@ lined as (
+         minute_off,
+         minute_off_extra,
+         cast(null as timestamp) as raw_ingested_at,
++        cast(null as int64) as sheet_index,
+         true as is_researched
+     from researched
+ ),
+@@ -615,7 +621,18 @@ select
+         when lined.is_researched then 'researched'
+         when array_length(match_checks.failed_checks) = 0 then 'confirmed'
+         else 'not_available'
+-    end as lineup_state
++    end as lineup_state,
++    -- A researched sheet has no provider order: its starters go by pitch position, the rest by shirt.
++    row_number() over (
++        partition by lined.league_code, lined.fixture_id, lined.team_id
++        order by
++            lined.is_starter desc,
++            lined.sheet_index asc,
++            safe_cast(split(lined.grid_position, ':')[safe_offset(0)] as int64) asc nulls last,
++            safe_cast(split(lined.grid_position, ':')[safe_offset(1)] as int64) asc nulls last,
++            lined.shirt_number asc nulls last,
++            lined.player_id asc
++    ) as lineup_order
+ from lined
+ inner join match_checks
+     on
+diff --git a/dbt_project/models/3_core/core.yml b/dbt_project/models/3_core/core.yml
+index fcd54c4c..dfbb309c 100644
+--- a/dbt_project/models/3_core/core.yml
++++ b/dbt_project/models/3_core/core.yml
+@@ -455,15 +455,32 @@ models:
+     description: >
+       Match-level fact, one row per fixture. Grain: fixture_sk (= fixture_api_id).
+ 
+-      The measures are FINAL-TIME goals only. Half-time, extra-time and penalty shoot-out splits
+-      are deliberately not carried, so a score here is the result and never a stage of it. Status,
+-      round and venue ride along as degenerate attributes.
++      The measures are FINAL-TIME goals only. Half-time and extra-time splits are not carried, so a
++      score here is the result and never a stage of it. The penalty shoot-out has its own two
++      columns and is never part of the goals. Status, round and venue ride along as degenerate
++      attributes.
+     meta:
+       owner: "data-platform"
+       domain: "football"
+       criticality: "high"
+     config:
+       tags: ["core", "fact"]
++    tests:
++      - dbt_utils.expression_is_true:
++          name: fct_fixture_shootout_both_or_neither_and_decided_on_penalties
++          expression: >
++            (shootout_home is null) = (shootout_away is null)
++            and (status_short != 'PEN' or shootout_home != shootout_away)
++      - dbt_utils.expression_is_true:
++          name: fct_fixture_winner_follows_the_result
++          expression: >
++            winner_team_sk is not distinct from case
++                when awarded_to_team_sk is not null then awarded_to_team_sk
++                when status_short = 'PEN' and shootout_home > shootout_away then home_team_sk
++                when status_short = 'PEN' and shootout_away > shootout_home then away_team_sk
++                when status_short in ('FT', 'AET', 'AWD', 'WO') and goals_home > goals_away then home_team_sk
++                when status_short in ('FT', 'AET', 'AWD', 'WO') and goals_away > goals_home then away_team_sk
++            end
+     columns:
+       - name: fixture_sk
+         description: "{{ doc('fixture_sk') }}"
+@@ -540,6 +557,26 @@ models:
+         description: "Final-time goals scored by home team."
+       - name: goals_away
+         description: "Final-time goals scored by away team."
++      - name: shootout_home
++        description: "{{ doc('shootout_home') }}"
++        tests:
++          - not_null:
++              where: "status_short = 'PEN'"
++      - name: shootout_away
++        description: "{{ doc('shootout_away') }}"
++        tests:
++          - not_null:
++              where: "status_short = 'PEN'"
++      - name: winner_team_sk
++        description: "{{ doc('winner_team') }}"
++        tests:
++          - not_null:
++              where: "status_short = 'PEN'"
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
++          - dbt_utils.expression_is_true:
++              expression: "is null or winner_team_sk in (home_team_sk, away_team_sk)"
+       - name: awarded_to_team_sk
+         description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
+         tests:
+@@ -906,6 +943,8 @@ models:
+         description: "{{ doc('minute_off') }}"
+       - name: minute_off_extra
+         description: "{{ doc('minute_off_extra') }}"
++      - name: lineup_order
++        description: "{{ doc('lineup_order') }}"
+       - name: lineup_state
+         description: "{{ doc('lineup_state__sheet') }}"
+         tests:
+diff --git a/dbt_project/models/3_core/fct_fixture.sql b/dbt_project/models/3_core/fct_fixture.sql
+index 8866612c..f83fecd5 100644
+--- a/dbt_project/models/3_core/fct_fixture.sql
++++ b/dbt_project/models/3_core/fct_fixture.sql
+@@ -23,6 +23,9 @@ select
+     round_name,
+     goals_home,
+     goals_away,
++    shootout_home,
++    shootout_away,
++    cast(winner_team_id as int64) as winner_team_sk,
+     cast(awarded_to_team_id as int64) as awarded_to_team_sk,
+     award_kind,
+     on_pitch_home,
+diff --git a/dbt_project/models/3_core/fct_fixture_lineup.sql b/dbt_project/models/3_core/fct_fixture_lineup.sql
+index 5986faf2..931097cf 100644
+--- a/dbt_project/models/3_core/fct_fixture_lineup.sql
++++ b/dbt_project/models/3_core/fct_fixture_lineup.sql
+@@ -20,5 +20,6 @@ select
+     cast(replaced_player_id as int64) as replaced_player_sk,
+     minute_off,
+     minute_off_extra,
++    lineup_order,
+     lineup_state
+ from src
+diff --git a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+index c262cdcd..88092e57 100644
+--- a/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
++++ b/dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
+@@ -38,7 +38,11 @@
+   its own-goal events. A played or abandoned match awarded afterwards adds up to its score on the
+   pitch. goal_data_state names what the match has: goals (every goal with its minute; a 0-0 has
+   none), goals_without_minutes (one entry per scorer), not_recorded (the provider recorded no goal),
+-  or awarded (award_kind says how; its goals as scored, none when not played).
++  or awarded (award_kind says how; its goals as scored, none when not played). On a list in
++  match order each goal carries the score after it.
++
++  Result. winner_team_sk is the team that won or went through: the awarded team, else the
++  shoot-out's winner, else the side with more goals; NULL on a draw.
+ 
+   Line-ups. lineup_state names whether a played match's team sheets can be shown: confirmed,
+   researched or not_available. The formations are served only for a confirmed or researched match.
+@@ -58,6 +62,9 @@ with fixtures as (
+         status_short,
+         goals_home,
+         goals_away,
++        shootout_home,
++        shootout_away,
++        winner_team_sk,
+         award_kind,
+         on_pitch_home,
+         on_pitch_away,
+@@ -334,14 +341,43 @@ scorer_goals as (
+     group by g.fixture_sk, g.team_sk, g.player_sk, g.player_name, g.is_own_goal
+ ),
+ 
++timed_goals as (
 +    select
-         fixture_sk,
-         team_sk
--    from {{ ref('mart_team_fixture_stats') }}
-+    from {{ ref('mart_team_window_metrics') }}
-+    where window_type = 'match' and games_with_team_stats > 0
++        g.fixture_sk,
++        g.player_sk,
++        g.player_name,
++        g.minute_elapsed,
++        g.minute_extra,
++        g.goals,
++        g.penalties,
++        g.is_own_goal,
++        g.assist_player_sk,
++        g.assist_player_name,
++        g.event_index,
++        case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
++        countif(g.team_sk = sc.home_team_sk) over match_so_far as score_home_after,
++        countif(g.team_sk = sc.away_team_sk) over match_so_far as score_away_after
++    from served_goals as g
++    inner join goal_sources as s
++        on g.fixture_sk = s.fixture_sk
++    inner join scores as sc
++        on g.fixture_sk = sc.fixture_sk
++    where s.has_minutes
++    window match_so_far as (
++        partition by g.fixture_sk
++        order by g.minute_elapsed, g.minute_extra, g.event_index
++        rows between unbounded preceding and current row
++    )
++),
++
+ -- With every minute known, one entry per goal in match order; otherwise one entry per scorer. A
+ -- player's provider id is his player_sk.
+ goal_lists as (
+     select
+-        s.fixture_sk,
++        g.fixture_sk,
+         array_agg(
+             struct(
+-                case g.team_sk when sc.home_team_sk then 'home' when sc.away_team_sk then 'away' end as side,
++                g.side,
+                 g.player_sk as player_api_id,
+                 g.player_name,
+                 g.minute_elapsed,
+@@ -350,17 +386,14 @@ goal_lists as (
+                 g.penalties,
+                 g.is_own_goal,
+                 g.assist_player_sk as assist_player_api_id,
+-                g.assist_player_name
++                g.assist_player_name,
++                g.score_home_after,
++                g.score_away_after
+             )
+             order by g.minute_elapsed, g.minute_extra, g.event_index
+         ) as goals
+-    from served_goals as g
+-    inner join goal_sources as s
+-        on g.fixture_sk = s.fixture_sk
+-    inner join scores as sc
+-        on g.fixture_sk = sc.fixture_sk
+-    where s.has_minutes
+-    group by s.fixture_sk
++    from timed_goals as g
++    group by g.fixture_sk
+     union all
+     select
+         g.fixture_sk,
+@@ -375,7 +408,9 @@ goal_lists as (
+                 g.penalties,
+                 g.is_own_goal,
+                 cast(null as int64) as assist_player_api_id,
+-                cast(null as string) as assist_player_name
++                cast(null as string) as assist_player_name,
++                cast(null as int64) as score_home_after,
++                cast(null as int64) as score_away_after
+             )
+             order by g.goals desc, g.player_name asc
+         ) as goals
+@@ -415,6 +450,9 @@ select
+     f.status_short,
+     f.goals_home,
+     f.goals_away,
++    f.shootout_home,
++    f.shootout_away,
++    f.winner_team_sk,
+     f.home_team_sk,
+     h.team_name as home_team_name,
+     h.team_slug as home_team_slug,
+diff --git a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+index b7f7007b..cacfd15a 100644
+--- a/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
++++ b/dbt_project/models/5_marts/shared/mart_player_fixture_stats.sql
+@@ -91,7 +91,8 @@ lineups as (
+         minute_on_extra,
+         minute_off,
+         minute_off_extra,
+-        replaced_player_sk
++        replaced_player_sk,
++        lineup_order
+     from {{ ref('fct_fixture_lineup') }}
+     where lineup_state in ('confirmed', 'researched')
  ),
- 
- player_stat_coverage as (
+@@ -103,6 +104,7 @@ appearances as (
+         lineups.minute_off,
+         lineups.minute_off_extra,
+         lineups.replaced_player_sk,
++        lineups.lineup_order,
+         coalesce(stats.fixture_sk, lineups.fixture_sk) as fixture_sk,
+         coalesce(stats.team_sk, lineups.team_sk) as team_sk,
+         coalesce(stats.player_sk, lineups.player_sk) as player_sk,
+@@ -144,6 +146,7 @@ select
+     a.minute_off,
+     a.minute_off_extra,
+     a.replaced_player_sk,
++    a.lineup_order,
+     s.offsides,
+     s.shots as shots_total,
+     s.shots_on_target as shots_on,
 diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
-index 68a2e86a..e9591c3f 100644
+index e9591c3f..bd475919 100644
 --- a/dbt_project/models/5_marts/shared/shared.yml
 +++ b/dbt_project/models/5_marts/shared/shared.yml
-@@ -440,8 +440,10 @@ models:
-       team_sk, played_fixture_sk).
+@@ -643,6 +643,8 @@ models:
+               to: ref('dim_player')
+               field: player_sk
+               where: "replaced_player_sk is not null"
++      - name: lineup_order
++        description: "{{ doc('lineup_order') }} NULL where no confirmed or researched sheet names the player."
+       - name: offsides
+         description: "{{ doc('offsides_player') }}"
+       - name: shots_total
+@@ -2731,6 +2733,16 @@ models:
+         description: "{{ doc('goals') }} Here, the home side's, once the fixture is played."
+       - name: goals_away
+         description: "{{ doc('goals') }} Here, the away side's, once the fixture is played."
++      - name: shootout_home
++        description: "{{ doc('shootout_home') }}"
++      - name: shootout_away
++        description: "{{ doc('shootout_away') }}"
++      - name: winner_team_sk
++        description: "{{ doc('winner_team') }}"
++        tests:
++          - relationships:
++              to: ref('dim_team')
++              field: team_sk
+       - name: home_team_sk
+         description: "{{ doc('home_team_sk') }}"
+         tests:
+@@ -2849,6 +2861,10 @@ models:
+         description: "The assisting player's provider player id inside the goals array, which is player_sk in dim_player. NULL on a per-scorer entry and where no assist is recorded."
+       - name: goals.assist_player_name
+         description: "The assisting player's name inside the goals array. NULL on a per-scorer entry and where no assist is recorded."
++      - name: goals.score_home_after
++        description: "The home side's goals once this goal is scored, inside the goals array. NULL on a per-scorer entry."
++      - name: goals.score_away_after
++        description: "The away side's goals once this goal is scored, inside the goals array. NULL on a per-scorer entry."
  
-       played_fixture_sk identifies each past match, so a per-fixture stat line can be looked up
--      from here. has_team_stats and has_player_stats are computed against the per-fixture stat
--      marts, so true means detail genuinely exists rather than that it ought to.
-+      from here. has_team_stats and has_player_stats are computed against the played match's
-+      window of one in mart_team_window_metrics and its player stat lines in
-+      mart_player_fixture_stats, so true means detail genuinely exists rather than that it ought
-+      to.
- 
-       assert_momentum_window_matches_momentum guards that these rows and the aggregate stay
-       consistent.
-@@ -498,7 +500,7 @@ models:
-               to: ref('dim_team')
-               field: team_sk
-       - name: has_team_stats
--        description: "True when mart_team_fixture_stats has rows for this played fixture + team (API shell rows with all-NULL stats count as no data)."
-+        description: "True when the played fixture's window of one for this team in mart_team_window_metrics (window_type match) holds a team stat line (games_with_team_stats above 0)."
-         tests: [not_null]
-       - name: has_player_stats
-         description: "True when mart_player_fixture_stats has a player stat line (has_stat_line) for this played fixture + team. False is the common case — many competitions lack player stats."
-@@ -527,93 +529,6 @@ models:
-       - name: opponent_logo_url
-         description: "{{ doc('opponent_logo_url') }}"
- 
--  - name: mart_team_fixture_stats
--    description: >
--      One team's stat line from one finished match, with the fixture's own details and the team's
--      identity alongside. Both sides of a fixture appear, as two rows. Grain: (fixture_sk,
--      team_sk).
--
--      A projection of fct_fixture_team_stats; the one derived value, passes_accuracy_percent, is
--      the catalogue's pass accuracy over the team's own match, written by
--      scripts/generate_metric_sql.py and shown as a whole percentage.
--
--      Covers finished fixtures that have team stats. Provider shell rows, where the statistics
--      block exists but every value is NULL, are excluded, so a fixture missing from here has no
--      usable stats rather than zero of everything.
--    tests:
--      - dbt_utils.unique_combination_of_columns:
--          combination_of_columns: [fixture_sk, team_sk]
--      - dbt_utils.expression_is_true:
--          expression: "passes_accuracy_percent is null or (passes_accuracy_percent between 0 and 100)"
--          name: team_fixture_stats_passes_accuracy_percent_in_range
--    columns:
--      - name: fixture_sk
--        description: "{{ doc('fixture_sk') }}"
--        tests:
--          - not_null
--          - relationships:
--              to: ref('fct_fixture')
--              field: fixture_sk
--      - name: team_sk
--        description: "{{ doc('team_sk') }}"
--        tests:
--          - not_null
--          - relationships:
--              to: ref('dim_team')
--              field: team_sk
--      - name: league_code
--        description: "{{ doc('league_code') }} Here it is the PLAYED fixture's competition."
--        tests: [not_null]
--      - name: is_home
--        description: "{{ doc('is_home__own_fixture') }}"
--        tests: [not_null]
--      - name: season_api_year
--        description: "{{ doc('season_api_year') }}"
--      - name: kickoff_datetime
--        description: "{{ doc('kickoff_datetime') }}"
--      - name: round_name
--        description: "{{ doc('round_name') }}"
--      - name: team_name
--        description: "{{ doc('team_name') }}"
--      - name: team_logo_url
--        description: "{{ doc('team_logo_url') }}"
--      - name: shots_on_goal
--        description: "{{ doc('shots_on_goal__team_match') }}"
--      - name: shots_off_goal
--        description: "{{ doc('shots_off_goal') }}"
--      - name: shots_total
--        description: "{{ doc('shots_total__team_match') }}"
--      - name: shots_blocked
--        description: "{{ doc('shots_blocked') }}"
--      - name: shots_inside_box
--        description: "{{ doc('shots_inside_box') }}"
--      - name: shots_outside_box
--        description: "{{ doc('shots_outside_box') }}"
--      - name: fouls
--        description: "{{ doc('fouls') }}"
--      - name: corner_kicks
--        description: "{{ doc('corners') }}"
--      - name: offsides
--        description: "{{ doc('offsides__team_match') }}"
--      - name: ball_possession_percent
--        description: "{{ doc('ball_possession_percent') }}"
--      - name: yellow_cards
--        description: "{{ doc('cards_yellow') }}"
--      - name: red_cards
--        description: "{{ doc('cards_red') }}"
--      - name: goalkeeper_saves
--        description: "{{ doc('saves') }}"
--      - name: passes_total
--        description: "{{ doc('passes_total__team_match') }}"
--      - name: passes_accurate
--        description: "{{ doc('passes_accurate__team_match') }}"
--      - name: passes_accuracy_percent
--        description: "{{ doc('passes_accuracy_percent') }}"
--      - name: goals_for
--        description: "{{ doc('goals') }}"
--      - name: goals_against
--        description: "{{ doc('goals_against') }}"
--
-   - name: mart_player_fixture_stats
+   - name: mart_match_days
      description: >
-       One player in one finished match: every player the stat lines or the team sheets name, with
-diff --git a/dbt_project/seeds/metric_map.csv b/dbt_project/seeds/metric_map.csv
-index 5be76420..da8be670 100644
---- a/dbt_project/seeds/metric_map.csv
-+++ b/dbt_project/seeds/metric_map.csv
-@@ -239,13 +239,6 @@ mart_team_competition_benchmarks,metric_value,shots_on_goal_pct,,,metric_key
- mart_team_competition_benchmarks,metric_value,shots_on_goal_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,shots_per_match,,,metric_key
- mart_team_competition_benchmarks,metric_value,tackles_per_match,,,metric_key
--mart_team_fixture_stats,corner_kicks,corners,,,
--mart_team_fixture_stats,goalkeeper_saves,saves,,,
--mart_team_fixture_stats,goals_against,goals_against,,,
--mart_team_fixture_stats,goals_for,goals,,,
--mart_team_fixture_stats,red_cards,cards_red,,,
--mart_team_fixture_stats,shots_inside_box,shots_inside_box,,,
--mart_team_fixture_stats,yellow_cards,cards_yellow,,,
- mart_team_fixtures,goals_against,goals_against,,,
- mart_team_fixtures,goals_for,goals,,,
- mart_team_leaderboards,sort_value,cards_red,,,metric_key
-diff --git a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
-index 3aa7827f..8afddafc 100644
---- a/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
-+++ b/dbt_project/tests/assert_team_metrics_follow_catalogue_formula.sql
-@@ -6,8 +6,7 @@
-   Floats compare at a relative 1e-9.
- 
-   One row per disagreeing value (surface, metric, grain, model value, expected value), plus one per
--  grain present on one side only. The match-stats mart carries the pass accuracy of the team's own
--  match as a whole percentage (passes_accuracy_percent), checked the same way.
-+  grain present on one side only.
- #}
- {{ config(store_failures = true, severity = 'error') }}
- -- depends_on: {{ ref('metric_catalogue') }}
-@@ -18,8 +17,6 @@
- -- depends_on: {{ ref('int_team_season__metrics') }}
- -- depends_on: {{ ref('int_team_momentum__metrics') }}
- -- depends_on: {{ ref('mart_team_window_metrics') }}
---- depends_on: {{ ref('mart_team_fixture_stats') }}
---- depends_on: {{ ref('fct_fixture_team_stats') }}
- 
- {% set surfaces = [
-     {'model': 'int_team_season__metrics_cumulative', 'rows': 'season_rows',
-@@ -162,20 +159,9 @@ window_mart_rows as (
-     from {{ s.model }}__expected as e
-     full outer join {{ ref(s.model) }} as m
-         on {% for key in s.grain %}e.{{ key }} = m.{{ key }}{% if not loop.last %} and {% endif %}{% endfor %}
--),
-+){% if not loop.last %},{% endif %}
- {% endfor %}
- 
--match_level as (
--    select
--        m.fixture_sk,
--        m.team_sk,
--        m.passes_accuracy_percent as mart_value,
--        cast(round(100 * safe_divide(s.passes_accurate, s.passes)) as int64) as expected_percent
--    from {{ ref('mart_team_fixture_stats') }} as m
--    inner join {{ ref('fct_fixture_team_stats') }} as s
--        on m.fixture_sk = s.fixture_sk and m.team_sk = s.team_sk
--)
--
- {% for check in checks %}
- select
-     surface,
-@@ -188,15 +174,7 @@ where
-     not (in_model and in_expected)
-     or (v.model_value is null) != (v.expected_value is null)
-     or abs(v.model_value - v.expected_value) > 1e-9 * greatest(1, abs(v.expected_value))
--
-+{% if not loop.last %}
- union all
-+{% endif %}
- {% endfor %}
--
--select
--    'mart_team_fixture_stats' as surface,
--    'passes_accuracy_percent' as metric_id,
--    to_json_string(struct(fixture_sk, team_sk)) as grain,
--    cast(mart_value as float64) as model_value,
--    cast(expected_percent as float64) as expected_value
--from match_level
--where mart_value is distinct from expected_percent
-diff --git a/docs/content_architecture.md b/docs/content_architecture.md
-index 159f8383..54dac57e 100644
---- a/docs/content_architecture.md
-+++ b/docs/content_architecture.md
-@@ -70,7 +70,7 @@ either subject, and appears on many tabs. The Subject column names the entity a
- | | Season (this season; per-game toggle) | team, player | `mart_team_profile`, `mart_player_profile` |
- | | Season-over-season | team, player | `int_team_profile__yoy` → `mart_team_profile`; `int_player_profile__yoy` → `mart_player_profile` |
- | | Vs-benchmark (bars vs league avg + percentile) | team, player | `mart_team_competition_benchmarks`, `mart_player_competition_benchmarks` |
--| | Single fixture | team, player | `mart_team_fixture_stats`, `mart_player_fixture_stats` |
-+| | Single fixture | team, player | `mart_team_window_metrics` (window_type match), `mart_player_fixture_stats` |
- | **Standings / rank** | League / group table | team | `mart_standings`: the league's official row (the provider's, except where corrected), with `table_kind` |
- | | Standing-as-context | team | `mart_fixture_standing_context` on the fixture page; `mart_team_profile` on the team page |
- | | Deserved points (better / worse than the table says) | team | `mart_team_profile` |
-diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index 955dd0a8..0084a729 100644
---- a/docs/site_architecture.md
-+++ b/docs/site_architecture.md
-@@ -277,7 +277,7 @@ every file. The `fetch_*` function for a file holds its live list of marts.
- | Competitions index / country hub | `competition_index.json` | `mart_competition_index` |
- | Matches page and its days | `matches/{yyyy-mm-dd}.json`, one per day | `mart_match_days` (the reach, each day's neighbours, the opening day), `mart_competition_fixtures` (the match rows), `mart_competition_index` (a competition's name, crest, kind and region rank). Read `fetch_match_day_payloads`. |
- | Competition page, all three tabs | `competitions/{league_code}/{season}.json` (the page shows the latest season served) | Header: `mart_competition_index`. The table: `mart_standings`, with `table_kind`. The deserved points table: `mart_team_profile`. The season in numbers: `mart_competition_season_summary`. The Matchdays tab, the header's round and the match-that-matters flag: `mart_competition_fixtures`. The Rankings tab's boards, the top five per board: `mart_team_leaderboards` and `mart_leaderboards`. Read `fetch_competition_payloads` for the live list. |
--| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. The played-match drill-down has no page; its export is `matchstats/{fixture_api_id}.json`, from `mart_team_fixture_stats` and `mart_player_fixture_stats`. |
-+| Fixture page ⭐ | `fixtures/{fixture_api_id}.json` | `mart_team_window_metrics` (W1), `mart_team_season_record` (W2), `mart_fixture_standing_context` (rank), `mart_head_to_head` (H2H), `mart_team_momentum_window` (the form list), `mart_player_momentum` (top players). Read `fetch_fixture_payloads`. **Not** `mart_matchday_insights`, the retired MVP's presentation pivot of the momentum mart. v2 reads the source marts directly. |
- | Team profile ⭐ | `teams/{team_api_id}.json` | `mart_team_profile`, `mart_team_fixtures` (next match, last five), `mart_roster` (the squad), `mart_team_competition_benchmarks`, `mart_player_career` (squad season stats). Read `fetch_team_payloads`. |
- | Player profile ⭐ | `players/{player_api_id}.json` | `mart_player_profile`, `mart_player_fixture_stats` (the rows with a stat line), `mart_player_competition_benchmarks`, `mart_player_career`. Read `fetch_player_payloads`. The page is a stub and does not read `players/`. It takes its players from `landing.json` and the competition files. |
- | Standings | within the competition file | `mart_standings` (league and group tables, incl. WC group letters) |
-diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
-index 57c486cc..afb80ce2 100644
---- a/docs/wireframes/01_fixture_page.md
-+++ b/docs/wireframes/01_fixture_page.md
-@@ -28,7 +28,6 @@ Secondary hook: the past-meetings record ("they've never beaten them at home" en
- | File | Used for |
- |---|---|
- | `data/fixtures/{fixture_id}.json` | Everything on this page |
--| `data/matchstats/{played_fixture_sk}.json` | The drill-down target when a past-match row is clicked (§7) — exists exactly for fixtures referenced by a form window |
- 
- Payload top level: `fixture_id, slug, kickoff, status, league_code, league_name,
- season, round, round_order, is_next_round, venue, home, away, head_to_head`.
-diff --git a/scripts/export_site_data.py b/scripts/export_site_data.py
-index b0b1609b..b6045820 100644
---- a/scripts/export_site_data.py
-+++ b/scripts/export_site_data.py
-@@ -42,7 +42,7 @@ MARTS_DATASET = "marts"
- SEEDS_DATASET = "dbt_analytics"
- DEFAULT_OUT = "artifacts/site_data"
- ENTITY_TYPES = ("teams", "players", "fixtures", "competitions", "nav",
--                "leaderboards", "matchstats", "glossary", "metric_groups", "metric_rows", "landing",
-+                "leaderboards", "glossary", "metric_groups", "metric_rows", "landing",
-                 "competition_index", "matches")
- REGISTRY_PATH = "docs/competition_registry.yml"
- CATALOGUE_SEED_PATH = "dbt_project/seeds/metric_catalogue.csv"
-@@ -2041,52 +2041,6 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
-     )
+diff --git a/dbt_project/models/docs/shared_columns.md b/dbt_project/models/docs/shared_columns.md
+index 88275816..55e2bd8d 100644
+--- a/dbt_project/models/docs/shared_columns.md
++++ b/dbt_project/models/docs/shared_columns.md
+@@ -250,6 +250,30 @@ the goalkeeper. NULL for a player on the bench and where the line-ups give none.
+ {% enddocs %}
  
  
--_MATCHSTATS_PLAYER_DROP = {
--    "fixture_sk", "opponent_team_sk", "team_goals_for", "team_goals_against", "team_logo_url",
--    "opponent_name", "opponent_logo_url", "result",
--}
--
--
--def shape_matchstats(fixture_id: int, team_rows: list[dict], player_rows: list[dict]) -> dict:
--    """One played fixture's full stat lines (the form-window click-through):
--    both teams' team-stat rows + every player's row."""
--    return {
--        "type": "matchstats",
--        "fixture_id": fixture_id,
--        "team_stats": [_drop(r, {"fixture_sk"}) for r in team_rows],
--        "player_stats": [_drop(r, _MATCHSTATS_PLAYER_DROP) for r in player_rows],
--    }
--
--
--def fetch_matchstats_payloads(client, sample: int = 0) -> list[dict]:
--    marts = f"{GCP_PROJECT}.{MARTS_DATASET}"
--    fids = sorted({
--        int(r["played_fixture_sk"])
--        for r in _query(client, f"select distinct played_fixture_sk "
--                                f"from `{marts}.mart_team_momentum_window` "
--                                f"where played_fixture_sk is not null")
--    })
--    if sample:
--        fids = fids[:sample]
--    if not fids:
--        return []
--    fid_in = ", ".join(str(i) for i in fids)
--    team = _group_by(
--        _query(client, f"select * from `{marts}.mart_team_fixture_stats` where fixture_sk in ({fid_in})"),
--        "fixture_sk",
--    )
--    player = _group_by(
--        _query(client, f"select * from `{marts}.mart_player_fixture_stats` where fixture_sk in ({fid_in})"),
--        "fixture_sk",
--    )
--    out = []
--    for fid in fids:
--        ts, ps = team.get(fid, []), player.get(fid, [])
--        if ts or ps:
--            out.append(shape_matchstats(fid, ts, ps))
--    return out
--
--
- def fetch_glossary(seed_path: str = CATALOGUE_SEED_PATH) -> dict:
-     """metrics.json — the metric catalogue (definitions + i18n keys + format).
-     No BigQuery; the seed is the single source of metric definitions (#327)."""
-@@ -2202,12 +2156,6 @@ def export_all(out_root: pathlib.Path, entities: tuple[str, ...], sample: int, c
-             entries.append({"type": "leaderboards",
-                             "id": f"{p['league_code']}-{p['season']}",
-                             "slug": p.get("slug"), "path": relpath, "sha256": sha})
--    if "matchstats" in entities:
--        for p in fetch_matchstats_payloads(client, sample):
--            relpath = f"matchstats/{p['fixture_id']}.json"
--            sha = write_file(out_root, relpath, p)
--            entries.append({"type": "matchstats", "id": p["fixture_id"],
--                            "slug": None, "path": relpath, "sha256": sha})
-     if "glossary" in entities:
-         sha = write_file(out_root, "metrics.json", fetch_glossary())
-         entries.append({"type": "glossary", "id": "metrics", "slug": None,
-diff --git a/scripts/generate_metric_sql.py b/scripts/generate_metric_sql.py
-index 37c661a7..51904158 100644
---- a/scripts/generate_metric_sql.py
-+++ b/scripts/generate_metric_sql.py
-@@ -143,7 +143,6 @@ SURFACES = (
-     Surface("4_intermediate/domestic_league/team_season/int_team_season__metrics_cumulative.sql",
-             TEAM_SEASON, windowed=True, entity="team"),
-     Surface("4_intermediate/shared/int_team_momentum__metrics.sql", TEAM_FORM, entity="team"),
--    Surface("5_marts/shared/mart_team_fixture_stats.sql", ("passes_accuracy_pct",), windowed=True, entity="team"),
- )
++{% docs lineup_order %}
++The player's place on the team sheet, 1 first: the starters, then the substitutes. A provider
++sheet keeps the provider's order. A researched sheet lists its starters by pitch position, row
++then column, and the rest by shirt number.
++{% enddocs %}
++
++
++{% docs shootout_home %}
++The home side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
++{% enddocs %}
++
++
++{% docs shootout_away %}
++The away side's goals in the penalty shoot-out. NULL where the match had no shoot-out.
++{% enddocs %}
++
++
++{% docs winner_team %}
++The team that won the match or went through. On an awarded result it is the awarded team, and on
++a match settled on penalties the shoot-out's winner. Otherwise it is the side with more goals.
++NULL on a draw and on a match not played.
++{% enddocs %}
++
++
+ {% docs minute_on %}
+ The minute of normal time a substitution brought the player on. NULL for a player who did not
+ come on as a substitute.
+diff --git a/dbt_project/seeds/fixture_result_corrections.csv b/dbt_project/seeds/fixture_result_corrections.csv
+index 80a9bcf4..1ad704fc 100644
+--- a/dbt_project/seeds/fixture_result_corrections.csv
++++ b/dbt_project/seeds/fixture_result_corrections.csv
+@@ -1,123 +1,152 @@
+-fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,award_kind,on_pitch_home,on_pitch_away,source_kind,source,note
+-1224099,0,2,true,,played,1,1,official,https://www.dfb.de/news/dfb-bundesgericht-weist-berufung-von-union-berlin-zurueck,"Union Berlin-Bochum, BL1 14 Dec 2024: played 1-1, awarded 0-2"
+-93198,0,0,true,80,abandoned,0,0,match_reports,https://www.corsenetinfos.corsica/Commission-de-discipline-de-la-LFP-Match-perdu-pour-le-Sporting-face-a-Lyon-et-trois-matches-a-huis-clos-sur-terrain_a27164.html https://www.espn.com/soccer/story/_/id/37521073/bastia-forfeit-abandoned-lyon-game-lfp-commission-says https://worldsoccertalk.com/2017/04/16/match-abandoned-after-bastia-fans-attack-lyon-players/,"Bastia-Lyon, L1 16 Apr 2017: abandoned at half-time at 0-0, lost by Bastia with no score set"
+-21650,0,3,true,,played,2,1,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/,"Sassuolo-Pescara, SA 28 Aug 2016: played 2-1, awarded 0-3"
+-1252618,0,3,true,,played,2,1,match_reports,https://worldsoccertalk.com/news/cristiano-ronaldo-gets-major-boost-from-spl-as-al-nassrs-afc-champions-league-hopes-reignite/ https://www.besoccer.com/new/ronaldo-s-al-nassr-reap-rewards-from-ineligible-player-scandal-1360303,"Al Orubah-Al Nassr, SPL 28 Feb 2025: played 2-1, awarded 0-3"
+-1074761,0,3,true,,abandoned,1,2,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=43023,"Istanbulspor-Trabzonspor, TSL 19 Dec 2023: abandoned at 1-2, awarded 0-3"
+-1238054,3,0,true,,abandoned,1,0,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=46746,"Galatasaray-Adana Demirspor, TSL 9 Feb 2025: abandoned at 1-0, awarded 3-0"
+-1213268,5,0,true,,abandoned,4,0,official,https://www.proleague.be/fr/informations/le-derby-anversois-se-termine-sur-un-score-de-5-0-le-beerschot-est-condamne-a-une-amende-de-50-000-euro-et-les-statistiques-sont-retenues,"Antwerp-Beerschot, BPL 29 Sep 2024: abandoned at 4-0, awarded 5-0"
+-828366,2,0,false,,,,,official,https://www.kleague.com/match.do?year=2022&leagueId=1&gameId=174&meetSeq=1&startTabNum=3,"Seongnam-Ulsan, KL1 4 Sep 2022: played 2-0"
+-884568,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234934 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Trabzonspor, TSL 19 Mar 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-1378959,4,4,false,,,,,match_reports,https://www.zdfheute.de/sport/fussball-dfb-pokal-2025-2026-runde-1-eintracht-braunschweig-vfb-stuttgart-100.html https://www.sport1.de/news/fussball/dfb-pokal/2025/08/vfb-rettet-sich-in-irrem-pokal-krimi-nubel-erst-pechvogel-dann-held,"Eintracht Braunschweig-Stuttgart, DFB-Pokal 26 Aug 2025: 3-3 after 90 minutes, 4-4 after extra time"
+-1383553,1,1,false,,,,,match_reports,https://global.espn.com/football/match/_/gameId/741723/levski-sofia-hapoel-beer https://bnrnews.bg/en/post/137461/levski-defeats-israels-football-champions-hapoel-be-er-sheva-in-a-penalty-shootout,"Hapoel Beer Sheva-Levski Sofia, UEL 17 Jul 2025: 0-0 after 90 minutes, 1-1 after extra time"
+-1383555,2,1,false,,,,,match_reports,https://www.espn.com/soccer/match/_/gameId/741720 https://www.tanjug.rs/english/sports/178349/partizan-knocked-out-of-europa-league-qualifiers-by-aek-larnaca-after-penalties/vest,"Partizan-AEK Larnaca, UEL 17 Jul 2025: 1-0 after 90 minutes, 2-1 after extra time"
+-1463466,2,2,false,,,,,match_reports,https://www.flashscore.de/news/fu-ball-dfb-pokal-im-elfmeterkrimi-st-pauli-wirft-hoffenheim-aus-dem-pokal/W0QS5Op3/ https://ligainsider.de/fc-st-pauli/20/elfer-drama-st-pauli-feiert-sieg-gegen-hoffenheim-404023/,"St. Pauli-Hoffenheim, DFB-Pokal 28 Oct 2025: 1-1 after 90 minutes, 2-2 after extra time"
+-1477537,4,0,false,,,,,match_reports,https://alicanteplaza.es/alicanteplaza/deportesalicante/el-enrique-roca-de-murcia-acoge-el-sueno-de-los-garres-ante-un-primera-como-el-elche https://africa.espn.com/football/match/_/gameId/758901/manises-cf-union-deportiva-los-garres,"Los Garres-Manises, Copa del Rey preliminary round 4 Oct 2025: 2-0 after 90 minutes, 4-0 after extra time"
+-1480759,2,2,false,,,,,match_reports,https://www.diaridetarragona.com/deportes/243733/cronica-reus-europa-reus-tira-epica-pasa-ronda.html https://www.3cat.cat/esport3/el-sabadell-pateix-pero-simposa-a-sa-pobla-en-el-temps-extra-1-2/noticia/3377642/,"Reus Reddis-Europa, Copa del Rey 29 Oct 2025: 1-1 after 90 minutes, 2-2 after extra time"
+-1481723,2,2,false,,,,,match_reports,https://www.newport-county.co.uk/news/highlights-newport-county-2-2-gillingham-4-3-penalties https://www.kentsportsnews.com/newport-county-2-2-gillingham-4-3-pens-01-11-2025,"Newport County-Gillingham, FA Cup 1 Nov 2025: 1-1 after 90 minutes, 2-2 after extra time"
+-1485260,1,1,false,,,,,match_reports,https://www.zdfheute.de/sport/fussball-dfb-pokal-achtelfinale-hamburger-sv-holstein-kiel-2025-26-tore-ergebnis-100.html https://www.sport1.de/news/fussball/dfb-pokal/2025/12/viertelfinaltraum-geplatzt-hsv-stolpert-uber-zweitligist-kiel,"Hamburger SV-Holstein Kiel, DFB-Pokal 3 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
+-1485290,2,2,false,,,,,match_reports,https://global.espn.com/football/match/_/gameId/760639/mansfield-town-accrington-stanley https://www.skysports.com/football/accrington-stanley-vs-mansfield-town/549885,"Accrington Stanley-Mansfield Town, FA Cup 6 Dec 2025: 1-1 after 90 minutes, 2-2 after extra time"
+-1486128,1,1,false,,,,,match_reports,https://www.espn.com/soccer/match/_/gameId/761011 https://www.laliga.com/partido/temporada-2025-2026-copa-del-rey-club-atletico-antoniano-villarreal-cf-4,"Antoniano-Villarreal, Copa del Rey 3 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
+-1486152,1,1,false,,,,,match_reports,https://rccelta.es/en/equipo/actualidad/celta-clings-to-the-cup-from-the-penalty-spot/ https://africa.espn.com/football/match/_/gameId/761021,"Sant Andreu-Celta, Copa del Rey 4 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
+-1489464,1,1,false,,,,,match_reports,https://www.dfb.de/news/freiburg-bewahrt-im-elfmeterschiessen-die-nerven https://www.sport1.de/news/fussball/dfb-pokal/2026/02/ausgetraumt-freiburg-wirft-hertha-aus-dfb-pokal,"Hertha BSC-Freiburg, DFB-Pokal 10 Feb 2026: 0-0 after 90 minutes, 1-1 after extra time"
+-1490808,3,3,false,,,,,match_reports,https://www.skysports.com/football/news/11095/13492886/newcastle-3-3-bournemouth-7-6-pens-aaron-ramsdale-penalty-heroics-send-magpies-through-after-fa-cup-third-round-epic https://www.vavel.com/en/football/2026/01/10/1246897-newcastle-3-3-bournemouth7-6-pens-ramsdale-the-hero-as-newcastle-edge-past-bournemouth-after-fa-cup-classic.amp.html,"Newcastle-Bournemouth, FA Cup 10 Jan 2026: 2-2 after 90 minutes, 3-3 after extra time"
+-1490817,2,2,false,,,,,match_reports,https://www.swanseacity.com/news/report-swansea-city-2-west-bromwich-albion-2-5-6-penalties https://www.espn.com/soccer/match/_/gameId/762508,"Swansea-West Brom, FA Cup 11 Jan 2026: 1-1 after 90 minutes, 2-2 after extra time"
+-1515538,0,2,false,,,,,match_reports,https://www.espn.com/soccer/match/_/gameId/401858783 https://www.flashscore.com/news/crvena-zvezda-lille-uel-report-2026-02-26/rwBcICoK,"Crvena Zvezda-Lille, UEL 26 Feb 2026: 0-1 after 90 minutes, 0-2 after extra time"
+-1537579,2,2,false,,,,,match_reports,https://www.beinsports.com/en-us/soccer/uefa-world-cup-qualifiers/articles/czechia-2-2-denmark-aet-3-1-pens-hojlund-dreyer-and-jensen-misses-decide-shoot-out-2026-03-31 https://www.freemalaysiatoday.com/category/sports/2026/04/01/czechs-beat-denmark-on-penalties-to-book-world-cup-spot,"Czechia-Denmark, WC qualifying play-off final 31 Mar 2026: 1-1 after 90 minutes, 2-2 after extra time"
+-1544182,2,2,false,,,,,match_reports,https://www.diariojornada.com.ar/416318/deportes/river_derroto_a_san_lorenzo_en_una_definicion_de_pelicula https://www.elespectador.com/deportes/futbol-mundial/juan-fernando-quintero-salvo-a-river-y-dejo-emotivas-declaraciones-casi-entre-lagrimas-river-vs-san-lorenzo/,"River Plate-San Lorenzo, Argentina Apertura round of 16 10 May 2026: 1-1 after 90 minutes, 2-2 after extra time"
+-1546052,1,1,false,,,,,match_reports,https://english.ajax.nl/articles/ajax-beat-fc-utrecht-after-penalty-shootout/ https://nltimes.nl/2026/05/24/ajax-advance-second-qualifying-round-penalty-win-fc-utrecht,"Ajax-Utrecht, Eredivisie play-off final 24 May 2026: 0-0 after 90 minutes, 1-1 after extra time"
+-1554439,2,2,false,,,,,match_reports,https://www.sportinglife.com/football/live/231742/yelimay-vs-alashkert/commentary https://www.livefoot.fr/direct/ligue-europa-conference-europe/match-yelimay-semey-vs-alashkert-b5a43491,"Yelimay Semey-Alashkert, UECL 16 Jul 2026: 1-1 after 90 minutes, 2-2 after extra time"
+-1556508,1,4,false,,,,,match_reports,https://www.bluewin.ch/en/sport/football/soccer-shock-for-poland-s-champions-this-is-how-embarrassments-happen-li.3546757 https://www.flashscore.co.uk/news/football-champions-league-qualifying-agf-pull-off-miracle-against-lech-poznan/29KCYh5S/,"Lech Poznan-Aarhus, UCL 29 Jul 2026: 0-3 after 90 minutes, 1-4 after extra time"
+-1591937,2,2,false,,,,,match_reports,https://balticfootballnews.com/?p=28012 https://www.espn.com/soccer/match/_/gameId/401891861,"Celje-Egnatia, UCL 28 Jul 2026: 1-1 after 90 minutes, 2-2 after extra time"
+-1593506,2,1,false,,,,,match_reports,https://www.flashscore.com/news/soccer-conference-league-ilves-keep-conference-league-dream-alive-with-shootout-win-over-stjarnan/GWlmybpn/ https://www.skysports.com/football/ilves-vs-umf-stjarnan/569387,"Ilves-Stjarnan, UECL 30 Jul 2026: 1-0 after 90 minutes, 2-1 after extra time"
+-1593509,1,3,false,,,,,match_reports,https://www.sportinglife.com/football/live/231824/koper-vs-nsi-runavik/commentary https://www.espn.com.ec/futbol/partido/_/juegoId/401896202,"Koper-NSI Runavik, UECL 30 Jul 2026: 0-2 after 90 minutes, 1-3 after extra time"
+-1593527,4,0,false,,,,,match_reports,https://www.sportinglife.com/football/live/231776/pafos-vs-hajduk-split/commentary https://www.espn.com/soccer/team-stats/_/gameId/401896230,"Pafos-Hajduk Split, UEL 30 Jul 2026: 2-0 after 90 minutes, 4-0 after extra time"
+-1607616,2,1,false,,,,,match_reports,https://www.sportinglife.com/football/live/242718/ml-vitebsk-vs-borac-banja-luka/commentary https://nashaniva.com/en/402266,"ML Vitebsk-Borac Banja Luka, UECL 13 Aug 2026: 1-0 after 90 minutes, 2-1 after extra time"
+-1623429,2,2,false,,,,,match_reports,https://www.heartsfc.co.uk/blogs/news/match-report-sk-rapid-2-2-hearts-3-4p https://www.irishnews.com/sport/soccer/ten-man-hearts-side-prevail-on-penalties-to-down-rapid-vienna-MKQUCMXFSJIE7C6GJH4JM6P62I/,"Rapid Vienna-Hearts, UECL 26 Aug 2026: 1-1 after 90 minutes, 2-2 after extra time"
+-884549,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234915 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Galatasaray, TSL 5 Mar 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-884555,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234921 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Adana Demirspor-Hatayspor, TSL 5 Mar 2023: not played after Hatayspor's withdrawal, awarded 3-0"
+-884560,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234926 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Umraniyespor-Gaziantep FK, TSL 12 Mar 2023: not played after Gaziantep's withdrawal, awarded 3-0"
+-884563,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234929 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Konyaspor, TSL 12 Mar 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884573,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234939 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Kayserispor-Hatayspor, TSL 19 Mar 2023: not played after Hatayspor's withdrawal, awarded 3-0"
+-884577,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234943 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Sivasspor, TSL 2 Apr 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884580,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234946 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Kasimpasa, TSL 2 Apr 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-884586,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234952 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Adana Demirspor-Gaziantep FK, TSL 9 Apr 2023: not played after Gaziantep's withdrawal, awarded 3-0"
+-884591,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234957 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Alanyaspor-Hatayspor, TSL 9 Apr 2023: not played after Hatayspor's withdrawal, awarded 3-0"
+-884593,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234959 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Fatih Karagumruk, TSL 16 Apr 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884599,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234965 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Konyaspor, TSL 16 Apr 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-884609,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234975 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Besiktas-Hatayspor, TSL 19 Apr 2023: not played after Hatayspor's withdrawal, awarded 3-0"
+-884610,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234976 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Alanyaspor, TSL 23 Apr 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-884614,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234980 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Ankaragucu, TSL 23 Apr 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884623,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234989 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Kayserispor-Gaziantep FK, TSL 30 Apr 2023: not played after Gaziantep's withdrawal, awarded 3-0"
+-884627,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234993 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Basaksehir-Hatayspor, TSL 30 Apr 2023: not played after Hatayspor's withdrawal, awarded 3-0"
+-884629,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234995 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Fatih Karagumruk, TSL 7 May 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-884634,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235000 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Istanbulspor, TSL 7 May 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884641,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235007 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Besiktas-Gaziantep FK, TSL 17 May 2023: not played after Gaziantep's withdrawal, awarded 3-0"
+-884645,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235011 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Giresunspor-Hatayspor, TSL 17 May 2023: not played after Hatayspor's withdrawal, awarded 3-0"
+-884653,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235019 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Fenerbahce, TSL 21 May 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884654,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235020 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Giresunspor, TSL 21 May 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-884656,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235022 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Umraniyespor, TSL 30 May 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884659,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235025 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Basaksehir-Gaziantep FK, TSL 30 May 2023: not played after Gaziantep's withdrawal, awarded 3-0"
+-884669,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235035 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Istanbulspor, TSL 3 Jun 2023: not played after Gaziantep's withdrawal, awarded 0-3"
+-884672,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235038 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Antalyaspor-Hatayspor, TSL 3 Jun 2023: not played after Hatayspor's withdrawal, awarded 3-0"
+-884675,0,3,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235041 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Galatasaray, TSL 7 Jun 2023: not played after Hatayspor's withdrawal, awarded 0-3"
+-884677,3,0,true,,not_played,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235043 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Fenerbahce-Gaziantep FK, TSL 7 Jun 2023: not played after Gaziantep's withdrawal, awarded 3-0"
+-649464,2,0,true,,not_played,,,match_reports,https://newscentraltv.com/?p=44767 https://ghanaiantimes.com.gh/kotoko-host-al-hilal-dec-22-23/,"Asante Kotoko-Nouadhibou, CAFCL 6 Dec 2020: not played, Nouadhibou refused to play after COVID-19 cases; awarded 2-0"
+-649468,2,0,true,,not_played,,,match_reports,https://newscentraltv.com/?p=44767 https://guineenews.org/2020/12/06/preliminaires-interclubs-caf-tous-les-trois-clubs-guineens-elimines/,"Stade Malien-Ashanti GB, CAFCL 5 Dec 2020: not played after COVID-19 cases at Ashanti GB, awarded 2-0"
+-652214,2,0,true,,not_played,,,match_reports,https://graphic.com.gh/sports/football/asante-kotoko-out-of-caf-champions-league.html https://www.sporx.com/al-hilal-omdurman-asante-kotoko-maci-istatistik-9npl3utg3mpg902rny8b645ck,"Al Hilal Omdurman-Asante Kotoko, CAFCL 6 Jan 2021: not played, Asante Kotoko could not field a team after COVID-19 cases; awarded 2-0"
+-933204,0,0,true,19862,not_played,,,official,https://www.cafonline.com/caf-champions-league/news/volcan-club-de-moroni-disqualified-from-totalenergies-champions-league/ https://gazettengr.com/caf-disqualifies-volcan-club-for-failing-to-play-champions-league-match/,"La Passe-Volcan Club, CAFCL 16 Sep 2022: not played, Volcan Club did not arrive and were disqualified; won by La Passe with no score set"
+-1186236,0,5,true,,not_played,,,match_reports,https://sporza.be/nl/2024/05/28/geen-overmacht-voor-standard-westerlo-krijgt-forfaitzege-voor-groene-tafel-na-supportersprotest~1716897164078/ https://uk.soccerway.com/matches/2024/05/10/belgium/pro-league/standard-de-liege/kvc-westerlo/4338777/,"Standard Liege-Westerlo, BPL 10 May 2024: not played after Standard supporters blocked the team bus, awarded 0-5"
+-608489,3,0,true,,played,0,0,match_reports,https://www.lapresse.it/sport/2020/09/22/calcio-giudice-sportivo-verona-roma-3-0-a-tavolino/ https://sport.sky.it/calcio/serie-a/2020/11/10/verona-roma-ricorso-diawara-news,"Hellas Verona-Roma, SA 19 Sep 2020: played 0-0, awarded 3-0 after Roma fielded a player not on their squad list"
+-1318799,0,3,true,,not_played,,,official,https://www.fff.fr/article/13900-lorient-qualifie-pour-les-16es-de-finale.html https://www.fotmob.com/matches/tours-vs-lorient/2gqg4p,"Tours-Lorient, CDF 21 Dec 2024: not played, called off because Tours could not ensure crowd safety; lost by Tours by penalty, 0-3"
+-1486096,1,1,false,,,,,official,https://www.fff.fr/article/15570-les-resultats-des-clubs-ultramarins.html https://sports.orange.fr/football/coupe-de-france/calendrier-resultats-7eme-tour.html,"Etoile Matoury-Le Geldar, CDF 15 Nov 2025: played 1-1, Le Geldar won on penalties"
+-590780,3,0,true,,not_played,,,official,https://www.uefa.com/news-media/news/0260-1035795da3be-41fdb8281cb1-1000--uefa-appeals-body-renders-decision-on-ucl-first-qualifying-roun,"KI Klaksvik-Slovan Bratislava, UCL 19 Aug 2020: not played after Slovan Bratislava's squad was quarantined, awarded 3-0"
+-590783,0,3,true,,not_played,,,official,https://www.uefa.com/insideuefa/disciplinary/news/0260-101d7a577e05-dea7e69efeb2-1000--uefa-appeals-body-renders-decision-on-kf-drita,"Drita-Linfield, UCL 11 Aug 2020: not played after Drita's squad was quarantined, awarded 0-3"
+-591150,3,0,true,,not_played,,,official,https://www.uefa.com/insideuefa/disciplinary/news/0260-103577fa1e3e-bd49f9b94dc1-1000--uefa-appeals-body-renders-decision-on-uel-preliminary-round-mat/,"Lincoln Red Imps-Prishtina, UEL 18 Aug 2020: not played after COVID-19 cases at Prishtina, awarded 3-0"
+-635812,3,0,true,,not_played,,,official,https://www.uefa.com/news-media/news/0264-111ec5a43f08-60d12c855894-1000--cedb-villarreal-cf-v-qarabag-fk,"Villarreal-Qarabag, UEL 10 Dec 2020: not played after COVID-19 cases at Qarabag, awarded 3-0"
+-787897,0,3,true,,not_played,,,official,https://www.uefa.com/uefaconferenceleague/news/0270-14009a873227-d729fc1f988d-1000--tottenham-vs-rennes-forfeited/,"Tottenham-Rennes, UECL 9 Dec 2021: not played after COVID-19 cases at Tottenham, awarded 0-3"
+-1169531,3,0,true,,not_played,,,match_reports,https://www.insideworldfootball.com/2024/06/13/cayman-islands-forfeit-2026-qualifier-cuba-fear-us-visa-reprisals/ https://www.fotmob.com/en-GB/matches/cuba-vs-cayman-islands/jtysqyh,"Cuba-Cayman Islands, WCQCA 11 Jun 2024: not played after the Cayman Islands withdrew from travelling, awarded 3-0"
+-1209259,0,3,true,,not_played,,,official,https://www.uefa.com/uefaconferenceleague/match/2041126--dnipro-1-vs-puskas-akademia/ https://infostart.hu/sport/2024/07/23/konferencia-liga-meccs-nelkul-jutott-tovabb-a-puskas-akademia,"Dnipro-1-Puskas Akademia, UECL 25 Jul 2024: not played after UEFA excluded Dnipro-1, awarded 0-3"
+-1209260,3,0,true,,not_played,,,official,https://www.uefa.com/uefaconferenceleague/match/2041175--puskas-akademia-vs-dnipro-1/ https://infostart.hu/sport/2024/07/23/konferencia-liga-meccs-nelkul-jutott-tovabb-a-puskas-akademia,"Puskas Akademia-Dnipro-1, UECL 1 Aug 2024: not played after UEFA excluded Dnipro-1, awarded 3-0"
+-649425,0,0,true,1040,not_played,,,match_reports,https://www.alwihdainfo.com/football-la-caf-suspend-le-club-tchadien-gazelle-fc-et-lui-inflige-une-amende-a99846/ https://nannews.ng/caf-champions-league-how-16-teams-qualified-for-group-stage/,"Gazelle-Zamalek, CAF CL 2020-21 first round 1st leg 23 Dec 2020 (fixtured in Cairo): not played, Gazelle did not travel after a Chad ministry-federation dispute; CAF disqualified Gazelle (USD 5,000 fine, banned from 2021 and 2022 CAF club competitions); Zamalek through on walkover, no score set"
+-649442,0,0,true,12423,not_played,,,match_reports,https://libyaobserver.ly/sports/al-ahly-benghazi-qualifies-32-round-african-champions-league https://rsssf.org/tablesa/afcup2021.html,"Mekelle 70 Enderta-Al Ahli Benghazi, CAF CL 2020-21 preliminary round 2nd leg (provider date 5 Dec 2020): not played; Mekelle withdrew before the 1st leg (28 Nov, Cairo) citing the Tigray war and did not show; Al Ahli Benghazi through on walkover, no score set (RSSSF: w/o); some aggregators show 3-0 but no official score found"
+-844614,0,0,true,173,not_played,,,official,https://www.uefa.com/uefaeuropaleague/news/0272-14876ce2b5c2-4003fb32df94-1000--uefa-europa-league-round-of-16-draw/,"RB Leipzig-Spartak Moscow, UEL round of 16 1st leg 10 Mar 2022: not played, Spartak removed after UEFA suspended all Russian clubs (28 Feb 2022); UEFA: Leipzig qualify directly for the quarter-finals, no score set"
+-874845,5,0,true,,abandoned,3,1,match_reports,https://sporza.be/nl/matches/voetbal/jupiler-pro-league/2022-2023/regulier/14/standard-anderlecht-over-en-out-voor-mazzu-forfaitnederlaag-voor-anderlecht-na-vroegtijdig-beeindigde-treurmars~1655899689031/ https://bx1.be/?p=608099,"Standard Liege-Anderlecht, Pro League matchday 14, 23 Oct 2022: abandoned around the hour (bx1: 63') after Anderlecht fans threw fireworks twice, Standard leading 3-1; goals Verschaeren 2' (A), Raskin 20' (S, minute per ESPN), Fossey 27' (S), Zinckernagel 56' (S); Belgian FA disciplinary council set a 5-0 forfeit defeat for Anderlecht"
+-1098362,0,0,true,13978,not_played,,,match_reports,https://www.wakatsera.com/coup-detat-au-niger-les-clubs-nigeriens-declarent-forfait-aux-competitions-africaines/ https://www.fotmob.com/en-GB/matches/douanes-vs-gnn/1ex0ot01s,"AS GNN (Niger)-AS Douanes (Burkina Faso), CAF CL 2023-24 1st preliminary round 1st leg (provider date 25 Aug 2023): not played; Niger federation withdrew AS GNN on 23 Aug 2023 citing ECOWAS sanctions after the coup; Douanes through on walkover, no score set (FotMob shows the tie as an awarded win, return leg dated 1 Sep)"
+-1100349,0,3,true,,not_played,,,match_reports,https://www.koreajoongangdaily.com/sports/north-korea-lose-world-cup-qualifier-by-forfeit-after-refusing-to-host-japan/12243103 https://www.koreatimes.co.kr/amp/sports/20240330/japan-advances-in-world-cup-qualifying-with-forfeit-win-over-north-korea,"North Korea-Japan, WC 2026 AFC qualifying round 2 Group B, 26 Mar 2024 (Pyongyang): not played, North Korea called it off five days before and no neutral venue was agreed; FIFA declared it forfeited, 0-3 to Japan"
+-1125896,3,0,true,,played,0,1,official,https://www.inside.fifa.com/fr/media-releases/la-commission-de-discipline-de-la-fifa-sanctionne-la-federation-equato https://www.afrik-foot.com/coupe-du-monde-2026-la-guinee-equatoriale-fifa-defaite-tapis-vert-nsue-suspendu,"Liberia-Equatorial Guinea, WC 2026 CAF qualifying Group H, 20 Nov 2023: played, Equatorial Guinea won 1-0 on the pitch (Emilio Nsue 9', minute per FIFA match record); FIFA Disciplinary Committee (24 May 2024) ruled Nsue ineligible and declared it forfeited 3-0 to Liberia"
+-1125960,0,3,true,,played,2,0,official,https://inside.fifa.com/legal/judicial-bodies/news/disciplinary-committee-sanctions-south-african-football-association https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en,"South Africa-Lesotho, WC 2026 CAF qualifying Group C, 21 Mar 2025 (Polokwane): played, South Africa won 2-0 on the pitch (Relebohile Mofokeng 60', Jayden Adams 64'); FIFA Disciplinary Committee (29 Sep 2025) ruled South Africa fielded ineligible Teboho Mokoena and declared it forfeited 0-3 to Lesotho"
+-1125993,0,3,true,,not_played,,,official,https://api.fifa.com/api/v3/calendar/matches?idSeason=288282&idStage=288289&count=500&language=en https://www.zambiamonitor.com/?p=64807,"Congo-Zambia, WC 2026 CAF qualifying Group E, scheduled 25 Mar 2025 in Brazzaville per FIFA (provider date 22 Mar): not played, Congo suspended by FIFA from 6 Feb 2025 for government interference; FIFA awarded 3-0 to Zambia (FIFA match id 400020013)"
+-1239851,0,0,true,8060,not_played,,,match_reports,https://oubanguimedias.com/2024/08/26/centrafrique-foot-red-star-paie-t-il-le-prix-du-pilotage-a-vue-du-foot-national/ https://malibook.net/2024/08/24/ligue-des-champions/,"Djoliba-Red Star de Bangui (Central African Republic), CAF Champions League 2024-25 1st preliminary round 2nd leg, scheduled 25 Aug 2024 in Bamako: CONFIRMED not played, Red Star forfeited the return leg for lack of money (Central African federation note to CAF dated 24 Aug 2024), first leg 0-0 in Douala, Djoliba went through (Oubangui Medias 26 Aug 2024; Malibook 24 Aug 2024). UNRESOLVED: whether CAF recorded a score; no CAF record found (CAF archive pages cover only group and knockout stages), the two reports name no score, and the aggregators disagree (Sofascore awarded 3-0, FotMob awarded win shown 0-0); official score left empty for that reason, not because no score was set. Provider names the away team wrongly as Red Star FC 93 No source states a score; the provider's is kept."
+-1388000,0,0,true,,abandoned,0,0,official,https://ligue1.com/fr/articles/l1_article_5189- https://ligue1.com/fr/articles/l1_article_5119-,"Nantes-Toulouse, Ligue 1 matchday 34, 17 May 2026: abandoned at 0-0 shortly after 20' when Nantes fans lit flares and invaded the pitch, not resumed on the prefect's decision; LFP disciplinary commission (28 May 2026) ratified the 0-0 score at the stoppage; no goals"
+-1535287,0,3,true,,abandoned,0,0,match_reports,https://www.beinsports.com/en-us/soccer/conmebol-libertadores/articles/conmebol-punish-dim-after-flamengo-match-chaos-2026-05-21 https://www.espn.com/soccer/commentary/_/gameId/401865517,"Independiente Medellin-Flamengo, Libertadores Group A matchday 4, 7 May 2026 local (provider 8 May UTC): abandoned at 0-0 in the first five minutes after home fans threw fireworks and objects and tried to invade the pitch; CONMEBOL awarded 3-0 to Flamengo; no goals"
+-649426,0,0,true,1040,not_played,,,match_reports,https://www.btolat.com/news/226472 https://thesun.ng/2020-21-caf-champions-league-all-16-qualifiers-for-group-stage-emerge/,"Zamalek-Gazelle, CAF Champions League 2020-21 first round, scheduled 2nd leg 5 Jan 2021 (both legs set for Cairo): not played; Gazelle (Chad) never arrived in Cairo after a dispute between Chad's sports ministry and its federation, CAF deemed them withdrawn and sent Zamalek to the group stage (CAF letter to Zamalek 21 Dec 2020); no score reported, provider's 0-0 is not an official result"
+-649454,0,0,true,15566,not_played,,,match_reports,https://newscentraltv.com/?p=44835 https://rsssf.org/tablesa/afcup2021.html,"GR/SIAF (Garde Republicaine, Djibouti)-Gazelle, CAF Champions League 2020-21 preliminary round, return leg set for Djibouti 4 Dec 2020: not played; cash-strapped GR/SIAF failed to travel to N'Djamena (RSSSF: no-show for the 29 Nov first leg) and Gazelle went through on walkover without the return leg; no score reported, provider's 0-0 is not an official result; RSSSF is the one stats aggregator"
+-844615,0,0,true,173,not_played,,,official,https://editorial.uefa.com/resources/0273-148f20d27980-23a90d5c0d62-1000/20220228_circular_2022_10_en.pdf,"Spartak Moscow-RB Leipzig, UEL 2021-22 round of 16 2nd leg 17 Mar 2022: not played; UEFA Executive Committee suspended Russian clubs on 28 Feb 2022 and declared Leipzig automatically qualified for the quarter-finals; no score set, provider's 0-0 is not an official result"
+-874880,0,5,true,,abandoned,1,0,match_reports,https://brf.be/sport/1709313 https://sporza.be/nl/2023/04/11/charleroi-kv-mechelen-wordt-niet-herspeeld-kvm-krijgt-de-3-punt~1681216637016,"Charleroi-KV Mechelen, Belgian Pro League 2022-23 matchday 17, 12 Nov 2022: abandoned around the 67th minute (reports vary 67-70) after home fans threw flares onto the pitch, Charleroi leading 1-0 (Nadhir Benbouali 52'); Pro League first gave Mechelen a forfeit win, the Disciplinary Council then ordered a replay (Mar 2023), and the Belgian sports arbitration court (BAS/CBAS) ruled on 11 Apr 2023: no replay, 0-5 forfeit defeat for Charleroi"
+-1098395,3,0,true,,not_played,,,match_reports,https://www.radiotamazuj.org/en/news/article/salaam-fc-bor-withdraw-from-caf-champions-league-over-financing https://cecafaonline.com/al-merreikh-young-africans-apr-qualify-for-next-stage-of-caf-champions-league/,"Al Hilal Omdurman-Salaam FC Bor (South Sudan), CAF Champions League 2023-24 1st preliminary round 2nd leg, scheduled 26 Aug 2023: CONFIRMED not played, Salaam FC Bor withdrew because it could not pay to travel to Morocco, where the tie was to be played, and Al Hilal went through (Radio Tamazuj 21 Aug 2023; CECAFA 27 Aug 2023: Al Hilal through on a walkover). UNRESOLVED: whether CAF set a 3-0 score; neither report gives a score, no CAF record found, only aggregators show 3-0 (FotMob awarded win 3-0, the-sports.org 3-0); official score left empty for that reason. CECAFA and the provider call the club Wau Salaam, Radio Tamazuj and CECAFA's June 2023 entry article call it Salaam FC Bor No source states a score; the provider's is kept."
+-1125867,0,3,true,,played,1,0,official,https://inside.fifa.com/legal/media-releases/fifa-disciplinary-committee-sanctions-the-equatorial-guinean-football-association https://api.fifa.com/api/v3/live/football/520/288282/288289/400017619?language=en,"Equatorial Guinea-Namibia, World Cup 2026 qualifying Africa matchday 1, 15 Nov 2023: played, Equatorial Guinea won 1-0 on the pitch (Emilio Nsue 67'); FIFA Disciplinary Committee (24 May 2024) declared it lost by forfeit 0-3 because Nsue was ineligible"
+-1125913,0,3,true,,not_played,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400018187?language=en https://es.besoccer.com/noticia/congo-no-se-presento-ante-niger-por-problemas-diplomaticos-1318641,"Congo-Niger, World Cup 2026 qualifying Africa matchday 3, 6 Jun 2024: not played; Congo did not turn up for their own home tie (FIFA record: venue Stade des Martyrs, Kinshasa, no line-ups, no goals) and Niger were awarded a 3-0 forfeit win; BeSoccer's account of the venue and reason is muddled"
+-1125967,3,0,true,,not_played,,,official,https://api.fifa.com/api/v3/calendar/matches?idCompetition=520&idSeason=288282&from=2025-03-20T00:00:00Z&to=2025-03-22T00:00:00Z&count=100&language=en https://digitalhub.fifa.com/m/49a18836a3532246/original/Circular-1922_Suspension-of-the-Congolese-Football-Association-FECOFOOT.pdf,"Tanzania-Congo, World Cup 2026 qualifying Africa matchday 5, March 2025: not played; FIFA suspended the Congolese federation (FECOFOOT) from 6 Feb to 14 May 2025, barring its teams from international competition; FIFA records Tanzania 3-0 (FIFA's record dates it 21 Mar 2025, provider 19 Mar)"
+-1126084,3,0,true,,not_played,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400021074?language=en https://africasoccer.com/equatorial-guinea-reappoints-coach-juan-micha-obiang-after-suspension/,"Malawi-Equatorial Guinea, World Cup 2026 qualifying Africa matchday 9, 9 Oct 2025: not played; Equatorial Guinea did not travel to Malawi (players refused over poor travel arrangements) and forfeited; FIFA records Malawi 3-0, no goals"
+-1361880,0,3,true,,abandoned,0,0,match_reports,https://www.gazetaesportiva.com/times/fortaleza/por-invasao-de-campo-jogo-entre-fortaleza-e-colo-colo-na-libertadores-e-cancelado/ https://mais.opovo.com.br/jornal/esportes/2025/04/11/partida-entre-colo-colo-e-fortaleza-e-cancelada-apos-invasao-e-mortes-fora-do-estadio.html,"Colo-Colo-Fortaleza, Copa Libertadores 2025 group stage matchday 2, 10 Apr 2025 (Santiago): stopped when home fans invaded the pitch, score 0-0 (Gazeta Esportiva: 0-0, 24 min into the second half; O Povo: 0-0); reports give the stoppage minute as 68 to 72; CONMEBOL then called the match off; on-pitch score from the two Brazilian reports; the 0-3 to Fortaleza is the CONMEBOL Disciplinary Unit decision published 30 Apr 2025 (https://www.conmebol.com/unidaddisciplinaria/multa-y-advertencia-al-club-social-y-deportivo-colo-colo-11/)"
+-1508003,0,3,true,,played,1,0,official,https://www.cafonline.com/news/caf-appeal-board-media-statement/ https://www.espn.com.ar/futbol/nota/_/id/16197904/marruecos-vs-senegal-final-copa-africana-de-naciones-equipo-fecha-hora-tv-en-vivo,"Senegal-Morocco, AFCON 2025 final, 18 Jan 2026 (Rabat): played to the end, Senegal won 1-0 after extra time (Pape Gueye, about 3 minutes into extra time); Senegal players had briefly walked off in protest at a stoppage-time penalty to Morocco, which Brahim Diaz then missed; CAF Appeal Board (17 Mar 2026) declared Senegal to have forfeited (AFCON regulations Art. 82 and 84), result 0-3 to Morocco; Senegal's appeal to CAS registered 25 Mar 2026, hearing set, no CAS award in CAS media releases as of 30 Sep 2026"
+-78693,1,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2025440,"Astana-APOEL, UEL play-off 2nd leg 30 Aug 2018: 1-0 after extra time (Pedro Henrique pen 16'), 1-1 on aggregate, Astana won 2-1 on penalties; stored 2-0 is wrong"
+-78910,1,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2024729,"Riga-CSKA Sofia, UEL 1st qualifying round 2nd leg 19 Jul 2018: 1-0 after extra time (Antonijs Cernomordijs 44'), 1-1 on aggregate, CSKA Sofia won 5-3 on penalties; stored 2-0 is wrong"
+-78980,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2024542,"St Joseph's-B36 Torshavn, UEL preliminary round 2nd leg 5 Jul 2018: 1-1 after extra time (Cieslewicz pen 14' for B36, Jose Luis Otero 88' for St Joseph's), 2-2 on aggregate, B36 won 4-2 on penalties; stored 2-2 is the aggregate"
+-112252,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2026928,"Chelsea-Eintracht Frankfurt, UEL semi-final 2nd leg 9 May 2019: 1-1 after extra time (Loftus-Cheek 28', Jovic 49'), 2-2 on aggregate, Chelsea won 4-3 on penalties; stored 2-2 is the aggregate"
+-158976,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2026955 https://africa.espn.com/football/match/_/gameId/543718,"Sutjeska-Slovan Bratislava, UCL 1st qualifying round 2nd leg 17 Jul 2019: 1-1 after extra time (stored 2-2 is the aggregate), Sutjeska won 3-2 on penalties. UEFA match data and ESPN agree on both goals"
+-232975,1,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027006 https://thedailyherald.sx/sport/international-sports/ajax-red-star-through-as-celtic-and-porto-crash-out,"FC Copenhagen-Crvena Zvezda, UCL 3rd qualifying round 2nd leg 13 Aug 2019: 1-1 after extra time (stored 2-2 is the aggregate), Crvena Zvezda won 7-6 on penalties. Reuters (Daily Herald) names the same scorers"
+-253614,3,2,false,,,,,official,https://assets.the-afc.com/migration/a/f/afc-champions-league-quarter-finals-official-programme https://news.cgtn.com/news/2019-06-25/AFC-Champions-League-Guangzhou-Evergrande-seals-quarter-final-berth-HOL4LrOY6s/share_amp.html,"Shandong Luneng-Guangzhou Evergrande, AFC CL round of 16 2nd leg 25 Jun 2019: 3-2 after extra time (2-1 after 90'), 4-4 on aggregate, Guangzhou won 6-5 on penalties. AFC quarter-final official programme (PDF, too large for WebFetch, read via download and text extraction) lists Zhou Haibin 62, Fellaini 70, Liu Junshuai 93; Paulinho 13, 103. CGTN, Reuters (sbs.com.au) and ESPN name the same five scorers"
+-253618,1,1,false,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/cool_shanghai_sipg_seal_quarter-final_berth.html https://english.stadiumastro.com/node/224958,"Jeonbuk Hyundai Motors-Shanghai SIPG, AFC CL round of 16 2nd leg 26 Jun 2019: 1-1 after extra time (stored 2-2 is the aggregate), SIPG won 5-3 on penalties. AFC report names Kim Shin-wook and Hulk; Stadium Astro and the AFC quarter-final official programme give 27' and 80'"
+-253736,1,1,false,,,,,match_reports,https://www.offside.hk/?p=13559 https://www.fotmob.com/matches/kitchee-vs-perak/p2o65ol,"Perak-Kitchee, AFC CL preliminary stage 2 12 Feb 2019: 1-1 after extra time (AFC report), Perak won 6-5 on penalties. Scorers agree in all sources (Wander Luiz for Perak, Li Ngai Hoi for Kitchee); minutes do not: offside.hk and FotMob 14' and 88', NST 13' and 86', Sinar Harian 14' and 85'. AFC report gives the score but no scorers"
+-253755,0,3,false,,,,,match_reports,https://www.koreajoongangdaily.com/sports/suwon-wins-korean-derby-to-reach-acl-semis/10388127 https://www.omanobserver.om/ampArticle/47812,"Suwon Bluewings-Jeonbuk Motors, AFC CL quarter-final 2nd leg 19 Sep 2018 at Suwon World Cup Stadium: 0-3 after extra time (Adriano 11', Choi Bo-kyung 51', Kim Shin-wook 71', all Jeonbuk), 3-3 on aggregate, Suwon won 4-2 on penalties; stored 0-6 is wrong. Inside World Football names the same scorers; AFC report names Adriano 11' only"
+-253891,5,1,false,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/afc_champions_league_quarter-finals_second-leg_shanghai_edge_gutsy_guangzhou_on_penalties.html https://www.espn.co.uk/football/report/_/gameId/479546,"Guangzhou Evergrande-Shanghai SIPG, AFC CL quarter-final 2nd leg 12 Sep 2017: 5-1 after extra time (Alan 21', 35'; Ricardo Goulart 83', 90+1', 118' pen; Hulk 110' for SIPG), 5-5 on aggregate, SIPG won 5-4 on penalties; stored 9-1 is wrong"
+-254009,1,1,false,,,,,match_reports,https://www.spotvnews.co.kr/news/articleView.html?idxno=110070 https://www.hankookilbo.com/news/article/201702072143867935,"Ulsan Hyundai-Kitchee, AFC CL play-off 7 Feb 2017 (single match, Ulsan Munsu): 1-1 after extra time (Kim Sung-hwan first-half added time, Kim Bong-jin 47'), Ulsan won 4-3 on penalties; stored 2-2 is wrong. AFC results list (the-afc.com Brisbane Roar line-up article) and SCMP agree on 1-1 aet 4-3 pens and SCMP names the same scorers"
+-254048,3,2,false,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/acl_rd16_-_2nd_leg_fc_seoul_3-2_urawa_reds_3-3_agg_7-6_pens.html https://nocutnews.co.kr/news/4598754,"FC Seoul-Urawa Red Diamonds, AFC CL round of 16 2nd leg 25 May 2016: 3-2 after extra time (Damjanovic 29', Adriano 94', Lee Tadanari 112' and 115', Go Yo-han 120+2'), 3-3 on aggregate, Seoul won 7-6 on penalties; stored 4-2 is wrong. J.League report (jleague.jp/news/article/5942) names the same scorers"
+-254155,2,2,false,,,,,match_reports,https://www.khaleejtimes.com/sport/local/al-jazira-advance-in-acl https://www.espn.co.cr/futbol/partido/_/juegoId/443052/al-sadd-al-jazira,"Al Jazira-Al Sadd, AFC CL play-off 9 Feb 2016 (Mohammed bin Zayed Stadium): 2-2 after extra time (Sanhaji 22' and 88' for Al Sadd, Kenwyne Jones 45' and Ali Mabkhout 65' for Al Jazira), Al Jazira won 5-4 on penalties; stored 4-4 is wrong. QFA and QSL reports name the same scorers but give 23' and 66'"
+-349900,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2021928 https://www.sportsmole.co.uk/football/europa-league-qualifying/skenderbeu-korce-vs-mlada-boleslav_game_64811.html,"Skenderbeu-Mlada Boleslav, UEL 3rd qualifying round 2nd leg 3 Aug 2017: 2-1 after extra time (no extra-time goals), 3-3 on aggregate, Skenderbeu won 4-2 on penalties (stored 4-2 is the shoot-out). Sports Mole gives the same scorers and minutes"
+-349996,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2021866,"FK Trakai (UEFA: Riteriai)-IFK Norrkoping, UEL 2nd qualifying round 2nd leg 20 Jul 2017: 2-1 after extra time, 3-3 on aggregate, Trakai won 5-3 on penalties"
+-350062,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2021789 https://n1info.rs/sport-klub/fudbal/a281476-LE-Penali-kobni-za-Sarajevo/,"Sarajevo-Zaria Balti, UEL 1st qualifying round 2nd leg 6 Jul 2017: 2-1 after extra time (UEFA and N1 agree), Zaria Balti won 6-5 on penalties. Scorer of the 60' goal for Zaria disputed: UEFA match data records a Marko Mihojevic (Sarajevo) own goal; N1 (Zagniailov) and the provider (S. Zagynaylov, id 76495) credit Zaria's Serhiy Zagynailov. Hebibovic 13' and Kadusic 35' pen (Sarajevo) are undisputed"
+-368830,2,1,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2028140 https://en.paperjam.lu/article/delano_football-f91-qualify-again,"F91 Dudelange-Ararat-Armenia, UEL play-off 2nd leg 29 Aug 2019: 2-1 after extra time, 3-3 on aggregate, Dudelange won 5-4 on penalties. Paperjam names the same scorers"
+-368990,1,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027691 https://www.croatiaweek.com/?p=80473,"Osijek-CSKA Sofia, UEL 2nd qualifying round 2nd leg 1 Aug 2019: 1-0 after extra time, 1-1 on aggregate, CSKA Sofia won 4-3 on penalties. Croatia Week names the same scorer"
+-369088,2,0,false,,,,,official,https://match.uefa.com/v5/matches?matchId=2027606,"Spartak Trnava-Radnik Bijeljina, UEL 1st qualifying round 2nd leg 18 Jul 2019: 2-0 after extra time (Sobczyk 10', Mihalek 87'), 2-2 on aggregate, Trnava won 3-2 on penalties; stored 4-0 is wrong"
++fixture_id,goals_home,goals_away,awarded,awarded_to_team_id,award_kind,on_pitch_home,on_pitch_away,shootout_home,shootout_away,source_kind,source,note
++1224099,0,2,true,,played,1,1,,,official,https://www.dfb.de/news/dfb-bundesgericht-weist-berufung-von-union-berlin-zurueck,"Union Berlin-Bochum, BL1 14 Dec 2024: played 1-1, awarded 0-2"
++93198,0,0,true,80,abandoned,0,0,,,match_reports,https://www.corsenetinfos.corsica/Commission-de-discipline-de-la-LFP-Match-perdu-pour-le-Sporting-face-a-Lyon-et-trois-matches-a-huis-clos-sur-terrain_a27164.html https://www.espn.com/soccer/story/_/id/37521073/bastia-forfeit-abandoned-lyon-game-lfp-commission-says https://worldsoccertalk.com/2017/04/16/match-abandoned-after-bastia-fans-attack-lyon-players/,"Bastia-Lyon, L1 16 Apr 2017: abandoned at half-time at 0-0, lost by Bastia with no score set"
++21650,0,3,true,,played,2,1,,,official,https://www.figc.it/it/federazione/news/corte-sportiva-d-appello-respinto-il-ricorso-del-sassuolo-confermato-lo-0-3-con-il-pescara/,"Sassuolo-Pescara, SA 28 Aug 2016: played 2-1, awarded 0-3"
++1252618,0,3,true,,played,2,1,,,match_reports,https://worldsoccertalk.com/news/cristiano-ronaldo-gets-major-boost-from-spl-as-al-nassrs-afc-champions-league-hopes-reignite/ https://www.besoccer.com/new/ronaldo-s-al-nassr-reap-rewards-from-ineligible-player-scandal-1360303,"Al Orubah-Al Nassr, SPL 28 Feb 2025: played 2-1, awarded 0-3"
++1074761,0,3,true,,abandoned,1,2,,,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=43023,"Istanbulspor-Trabzonspor, TSL 19 Dec 2023: abandoned at 1-2, awarded 0-3"
++1238054,3,0,true,,abandoned,1,0,,,official,https://www.tff.org/default.aspx?pageID=246&ftxtID=46746,"Galatasaray-Adana Demirspor, TSL 9 Feb 2025: abandoned at 1-0, awarded 3-0"
++1213268,5,0,true,,abandoned,4,0,,,official,https://www.proleague.be/fr/informations/le-derby-anversois-se-termine-sur-un-score-de-5-0-le-beerschot-est-condamne-a-une-amende-de-50-000-euro-et-les-statistiques-sont-retenues,"Antwerp-Beerschot, BPL 29 Sep 2024: abandoned at 4-0, awarded 5-0"
++828366,2,0,false,,,,,,,official,https://www.kleague.com/match.do?year=2022&leagueId=1&gameId=174&meetSeq=1&startTabNum=3,"Seongnam-Ulsan, KL1 4 Sep 2022: played 2-0"
++884568,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234934 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Trabzonspor, TSL 19 Mar 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++1378959,4,4,false,,,,,,,match_reports,https://www.zdfheute.de/sport/fussball-dfb-pokal-2025-2026-runde-1-eintracht-braunschweig-vfb-stuttgart-100.html https://www.sport1.de/news/fussball/dfb-pokal/2025/08/vfb-rettet-sich-in-irrem-pokal-krimi-nubel-erst-pechvogel-dann-held,"Eintracht Braunschweig-Stuttgart, DFB-Pokal 26 Aug 2025: 3-3 after 90 minutes, 4-4 after extra time"
++1383553,1,1,false,,,,,,,match_reports,https://global.espn.com/football/match/_/gameId/741723/levski-sofia-hapoel-beer https://bnrnews.bg/en/post/137461/levski-defeats-israels-football-champions-hapoel-be-er-sheva-in-a-penalty-shootout,"Hapoel Beer Sheva-Levski Sofia, UEL 17 Jul 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1383555,2,1,false,,,,,,,match_reports,https://www.espn.com/soccer/match/_/gameId/741720 https://www.tanjug.rs/english/sports/178349/partizan-knocked-out-of-europa-league-qualifiers-by-aek-larnaca-after-penalties/vest,"Partizan-AEK Larnaca, UEL 17 Jul 2025: 1-0 after 90 minutes, 2-1 after extra time"
++1463466,2,2,false,,,,,,,match_reports,https://www.flashscore.de/news/fu-ball-dfb-pokal-im-elfmeterkrimi-st-pauli-wirft-hoffenheim-aus-dem-pokal/W0QS5Op3/ https://ligainsider.de/fc-st-pauli/20/elfer-drama-st-pauli-feiert-sieg-gegen-hoffenheim-404023/,"St. Pauli-Hoffenheim, DFB-Pokal 28 Oct 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1477537,4,0,false,,,,,,,match_reports,https://alicanteplaza.es/alicanteplaza/deportesalicante/el-enrique-roca-de-murcia-acoge-el-sueno-de-los-garres-ante-un-primera-como-el-elche https://africa.espn.com/football/match/_/gameId/758901/manises-cf-union-deportiva-los-garres,"Los Garres-Manises, Copa del Rey preliminary round 4 Oct 2025: 2-0 after 90 minutes, 4-0 after extra time"
++1480759,2,2,false,,,,,,,match_reports,https://www.diaridetarragona.com/deportes/243733/cronica-reus-europa-reus-tira-epica-pasa-ronda.html https://www.3cat.cat/esport3/el-sabadell-pateix-pero-simposa-a-sa-pobla-en-el-temps-extra-1-2/noticia/3377642/,"Reus Reddis-Europa, Copa del Rey 29 Oct 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1481723,2,2,false,,,,,,,match_reports,https://www.newport-county.co.uk/news/highlights-newport-county-2-2-gillingham-4-3-penalties https://www.kentsportsnews.com/newport-county-2-2-gillingham-4-3-pens-01-11-2025,"Newport County-Gillingham, FA Cup 1 Nov 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1485260,1,1,false,,,,,,,match_reports,https://www.zdfheute.de/sport/fussball-dfb-pokal-achtelfinale-hamburger-sv-holstein-kiel-2025-26-tore-ergebnis-100.html https://www.sport1.de/news/fussball/dfb-pokal/2025/12/viertelfinaltraum-geplatzt-hsv-stolpert-uber-zweitligist-kiel,"Hamburger SV-Holstein Kiel, DFB-Pokal 3 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1485290,2,2,false,,,,,,,match_reports,https://global.espn.com/football/match/_/gameId/760639/mansfield-town-accrington-stanley https://www.skysports.com/football/accrington-stanley-vs-mansfield-town/549885,"Accrington Stanley-Mansfield Town, FA Cup 6 Dec 2025: 1-1 after 90 minutes, 2-2 after extra time"
++1486128,1,1,false,,,,,,,match_reports,https://www.espn.com/soccer/match/_/gameId/761011 https://www.laliga.com/partido/temporada-2025-2026-copa-del-rey-club-atletico-antoniano-villarreal-cf-4,"Antoniano-Villarreal, Copa del Rey 3 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1486152,1,1,false,,,,,,,match_reports,https://rccelta.es/en/equipo/actualidad/celta-clings-to-the-cup-from-the-penalty-spot/ https://africa.espn.com/football/match/_/gameId/761021,"Sant Andreu-Celta, Copa del Rey 4 Dec 2025: 0-0 after 90 minutes, 1-1 after extra time"
++1489464,1,1,false,,,,,,,match_reports,https://www.dfb.de/news/freiburg-bewahrt-im-elfmeterschiessen-die-nerven https://www.sport1.de/news/fussball/dfb-pokal/2026/02/ausgetraumt-freiburg-wirft-hertha-aus-dfb-pokal,"Hertha BSC-Freiburg, DFB-Pokal 10 Feb 2026: 0-0 after 90 minutes, 1-1 after extra time"
++1490808,3,3,false,,,,,,,match_reports,https://www.skysports.com/football/news/11095/13492886/newcastle-3-3-bournemouth-7-6-pens-aaron-ramsdale-penalty-heroics-send-magpies-through-after-fa-cup-third-round-epic https://www.vavel.com/en/football/2026/01/10/1246897-newcastle-3-3-bournemouth7-6-pens-ramsdale-the-hero-as-newcastle-edge-past-bournemouth-after-fa-cup-classic.amp.html,"Newcastle-Bournemouth, FA Cup 10 Jan 2026: 2-2 after 90 minutes, 3-3 after extra time"
++1490817,2,2,false,,,,,,,match_reports,https://www.swanseacity.com/news/report-swansea-city-2-west-bromwich-albion-2-5-6-penalties https://www.espn.com/soccer/match/_/gameId/762508,"Swansea-West Brom, FA Cup 11 Jan 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1515538,0,2,false,,,,,,,match_reports,https://www.espn.com/soccer/match/_/gameId/401858783 https://www.flashscore.com/news/crvena-zvezda-lille-uel-report-2026-02-26/rwBcICoK,"Crvena Zvezda-Lille, UEL 26 Feb 2026: 0-1 after 90 minutes, 0-2 after extra time"
++1537579,2,2,false,,,,,,,match_reports,https://www.beinsports.com/en-us/soccer/uefa-world-cup-qualifiers/articles/czechia-2-2-denmark-aet-3-1-pens-hojlund-dreyer-and-jensen-misses-decide-shoot-out-2026-03-31 https://www.freemalaysiatoday.com/category/sports/2026/04/01/czechs-beat-denmark-on-penalties-to-book-world-cup-spot,"Czechia-Denmark, WC qualifying play-off final 31 Mar 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1544182,2,2,false,,,,,,,match_reports,https://www.diariojornada.com.ar/416318/deportes/river_derroto_a_san_lorenzo_en_una_definicion_de_pelicula https://www.elespectador.com/deportes/futbol-mundial/juan-fernando-quintero-salvo-a-river-y-dejo-emotivas-declaraciones-casi-entre-lagrimas-river-vs-san-lorenzo/,"River Plate-San Lorenzo, Argentina Apertura round of 16 10 May 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1546052,1,1,false,,,,,,,match_reports,https://english.ajax.nl/articles/ajax-beat-fc-utrecht-after-penalty-shootout/ https://nltimes.nl/2026/05/24/ajax-advance-second-qualifying-round-penalty-win-fc-utrecht,"Ajax-Utrecht, Eredivisie play-off final 24 May 2026: 0-0 after 90 minutes, 1-1 after extra time"
++1554439,2,2,false,,,,,,,match_reports,https://www.sportinglife.com/football/live/231742/yelimay-vs-alashkert/commentary https://www.livefoot.fr/direct/ligue-europa-conference-europe/match-yelimay-semey-vs-alashkert-b5a43491,"Yelimay Semey-Alashkert, UECL 16 Jul 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1556508,1,4,false,,,,,,,match_reports,https://www.bluewin.ch/en/sport/football/soccer-shock-for-poland-s-champions-this-is-how-embarrassments-happen-li.3546757 https://www.flashscore.co.uk/news/football-champions-league-qualifying-agf-pull-off-miracle-against-lech-poznan/29KCYh5S/,"Lech Poznan-Aarhus, UCL 29 Jul 2026: 0-3 after 90 minutes, 1-4 after extra time"
++1591937,2,2,false,,,,,,,match_reports,https://balticfootballnews.com/?p=28012 https://www.espn.com/soccer/match/_/gameId/401891861,"Celje-Egnatia, UCL 28 Jul 2026: 1-1 after 90 minutes, 2-2 after extra time"
++1593506,2,1,false,,,,,,,match_reports,https://www.flashscore.com/news/soccer-conference-league-ilves-keep-conference-league-dream-alive-with-shootout-win-over-stjarnan/GWlmybpn/ https://www.skysports.com/football/ilves-vs-umf-stjarnan/569387,"Ilves-Stjarnan, UECL 30 Jul 2026: 1-0 after 90 minutes, 2-1 after extra time"
++1593509,1,3,false,,,,,,,match_reports,https://www.sportinglife.com/football/live/231824/koper-vs-nsi-runavik/commentary https://www.espn.com.ec/futbol/partido/_/juegoId/401896202,"Koper-NSI Runavik, UECL 30 Jul 2026: 0-2 after 90 minutes, 1-3 after extra time"
++1593527,4,0,false,,,,,,,match_reports,https://www.sportinglife.com/football/live/231776/pafos-vs-hajduk-split/commentary https://www.espn.com/soccer/team-stats/_/gameId/401896230,"Pafos-Hajduk Split, UEL 30 Jul 2026: 2-0 after 90 minutes, 4-0 after extra time"
++1607616,2,1,false,,,,,,,match_reports,https://www.sportinglife.com/football/live/242718/ml-vitebsk-vs-borac-banja-luka/commentary https://nashaniva.com/en/402266,"ML Vitebsk-Borac Banja Luka, UECL 13 Aug 2026: 1-0 after 90 minutes, 2-1 after extra time"
++1623429,2,2,false,,,,,,,match_reports,https://www.heartsfc.co.uk/blogs/news/match-report-sk-rapid-2-2-hearts-3-4p https://www.irishnews.com/sport/soccer/ten-man-hearts-side-prevail-on-penalties-to-down-rapid-vienna-MKQUCMXFSJIE7C6GJH4JM6P62I/,"Rapid Vienna-Hearts, UECL 26 Aug 2026: 1-1 after 90 minutes, 2-2 after extra time"
++884549,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234915 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Galatasaray, TSL 5 Mar 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++884555,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234921 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Adana Demirspor-Hatayspor, TSL 5 Mar 2023: not played after Hatayspor's withdrawal, awarded 3-0"
++884560,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234926 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Umraniyespor-Gaziantep FK, TSL 12 Mar 2023: not played after Gaziantep's withdrawal, awarded 3-0"
++884563,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234929 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Konyaspor, TSL 12 Mar 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884573,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234939 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Kayserispor-Hatayspor, TSL 19 Mar 2023: not played after Hatayspor's withdrawal, awarded 3-0"
++884577,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234943 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Sivasspor, TSL 2 Apr 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884580,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234946 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Kasimpasa, TSL 2 Apr 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++884586,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234952 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Adana Demirspor-Gaziantep FK, TSL 9 Apr 2023: not played after Gaziantep's withdrawal, awarded 3-0"
++884591,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234957 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Alanyaspor-Hatayspor, TSL 9 Apr 2023: not played after Hatayspor's withdrawal, awarded 3-0"
++884593,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234959 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Fatih Karagumruk, TSL 16 Apr 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884599,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234965 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Konyaspor, TSL 16 Apr 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++884609,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234975 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Besiktas-Hatayspor, TSL 19 Apr 2023: not played after Hatayspor's withdrawal, awarded 3-0"
++884610,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234976 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Alanyaspor, TSL 23 Apr 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++884614,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234980 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Ankaragucu, TSL 23 Apr 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884623,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234989 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Kayserispor-Gaziantep FK, TSL 30 Apr 2023: not played after Gaziantep's withdrawal, awarded 3-0"
++884627,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234993 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Basaksehir-Hatayspor, TSL 30 Apr 2023: not played after Hatayspor's withdrawal, awarded 3-0"
++884629,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=234995 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Fatih Karagumruk, TSL 7 May 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++884634,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235000 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Istanbulspor, TSL 7 May 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884641,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235007 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Besiktas-Gaziantep FK, TSL 17 May 2023: not played after Gaziantep's withdrawal, awarded 3-0"
++884645,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235011 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Giresunspor-Hatayspor, TSL 17 May 2023: not played after Hatayspor's withdrawal, awarded 3-0"
++884653,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235019 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Fenerbahce, TSL 21 May 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884654,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235020 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Giresunspor, TSL 21 May 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++884656,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235022 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Umraniyespor, TSL 30 May 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884659,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235025 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Basaksehir-Gaziantep FK, TSL 30 May 2023: not played after Gaziantep's withdrawal, awarded 3-0"
++884669,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235035 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Gaziantep FK-Istanbulspor, TSL 3 Jun 2023: not played after Gaziantep's withdrawal, awarded 0-3"
++884672,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235038 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Antalyaspor-Hatayspor, TSL 3 Jun 2023: not played after Hatayspor's withdrawal, awarded 3-0"
++884675,0,3,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235041 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Hatayspor-Galatasaray, TSL 7 Jun 2023: not played after Hatayspor's withdrawal, awarded 0-3"
++884677,3,0,true,,not_played,,,,,official,https://www.tff.org/Default.aspx?pageID=29&macId=235043 https://www.tff.org/default.aspx?pageID=687&ftxtID=39572,"Fenerbahce-Gaziantep FK, TSL 7 Jun 2023: not played after Gaziantep's withdrawal, awarded 3-0"
++649464,2,0,true,,not_played,,,,,match_reports,https://newscentraltv.com/?p=44767 https://ghanaiantimes.com.gh/kotoko-host-al-hilal-dec-22-23/,"Asante Kotoko-Nouadhibou, CAFCL 6 Dec 2020: not played, Nouadhibou refused to play after COVID-19 cases; awarded 2-0"
++649468,2,0,true,,not_played,,,,,match_reports,https://newscentraltv.com/?p=44767 https://guineenews.org/2020/12/06/preliminaires-interclubs-caf-tous-les-trois-clubs-guineens-elimines/,"Stade Malien-Ashanti GB, CAFCL 5 Dec 2020: not played after COVID-19 cases at Ashanti GB, awarded 2-0"
++652214,2,0,true,,not_played,,,,,match_reports,https://graphic.com.gh/sports/football/asante-kotoko-out-of-caf-champions-league.html https://www.sporx.com/al-hilal-omdurman-asante-kotoko-maci-istatistik-9npl3utg3mpg902rny8b645ck,"Al Hilal Omdurman-Asante Kotoko, CAFCL 6 Jan 2021: not played, Asante Kotoko could not field a team after COVID-19 cases; awarded 2-0"
++933204,0,0,true,19862,not_played,,,,,official,https://www.cafonline.com/caf-champions-league/news/volcan-club-de-moroni-disqualified-from-totalenergies-champions-league/ https://gazettengr.com/caf-disqualifies-volcan-club-for-failing-to-play-champions-league-match/,"La Passe-Volcan Club, CAFCL 16 Sep 2022: not played, Volcan Club did not arrive and were disqualified; won by La Passe with no score set"
++1186236,0,5,true,,not_played,,,,,match_reports,https://sporza.be/nl/2024/05/28/geen-overmacht-voor-standard-westerlo-krijgt-forfaitzege-voor-groene-tafel-na-supportersprotest~1716897164078/ https://uk.soccerway.com/matches/2024/05/10/belgium/pro-league/standard-de-liege/kvc-westerlo/4338777/,"Standard Liege-Westerlo, BPL 10 May 2024: not played after Standard supporters blocked the team bus, awarded 0-5"
++608489,3,0,true,,played,0,0,,,match_reports,https://www.lapresse.it/sport/2020/09/22/calcio-giudice-sportivo-verona-roma-3-0-a-tavolino/ https://sport.sky.it/calcio/serie-a/2020/11/10/verona-roma-ricorso-diawara-news,"Hellas Verona-Roma, SA 19 Sep 2020: played 0-0, awarded 3-0 after Roma fielded a player not on their squad list"
++1318799,0,3,true,,not_played,,,,,official,https://www.fff.fr/article/13900-lorient-qualifie-pour-les-16es-de-finale.html https://www.fotmob.com/matches/tours-vs-lorient/2gqg4p,"Tours-Lorient, CDF 21 Dec 2024: not played, called off because Tours could not ensure crowd safety; lost by Tours by penalty, 0-3"
++1486096,1,1,false,,,,,2,3,official,https://www.fff.fr/article/15570-les-resultats-des-clubs-ultramarins.html https://sports.orange.fr/football/coupe-de-france/calendrier-resultats-7eme-tour.html,"Etoile Matoury-Le Geldar, CDF 15 Nov 2025: played 1-1, 2-3 on penalties"
++590780,3,0,true,,not_played,,,,,official,https://www.uefa.com/news-media/news/0260-1035795da3be-41fdb8281cb1-1000--uefa-appeals-body-renders-decision-on-ucl-first-qualifying-roun,"KI Klaksvik-Slovan Bratislava, UCL 19 Aug 2020: not played after Slovan Bratislava's squad was quarantined, awarded 3-0"
++590783,0,3,true,,not_played,,,,,official,https://www.uefa.com/insideuefa/disciplinary/news/0260-101d7a577e05-dea7e69efeb2-1000--uefa-appeals-body-renders-decision-on-kf-drita,"Drita-Linfield, UCL 11 Aug 2020: not played after Drita's squad was quarantined, awarded 0-3"
++591150,3,0,true,,not_played,,,,,official,https://www.uefa.com/insideuefa/disciplinary/news/0260-103577fa1e3e-bd49f9b94dc1-1000--uefa-appeals-body-renders-decision-on-uel-preliminary-round-mat/,"Lincoln Red Imps-Prishtina, UEL 18 Aug 2020: not played after COVID-19 cases at Prishtina, awarded 3-0"
++635812,3,0,true,,not_played,,,,,official,https://www.uefa.com/news-media/news/0264-111ec5a43f08-60d12c855894-1000--cedb-villarreal-cf-v-qarabag-fk,"Villarreal-Qarabag, UEL 10 Dec 2020: not played after COVID-19 cases at Qarabag, awarded 3-0"
++787897,0,3,true,,not_played,,,,,official,https://www.uefa.com/uefaconferenceleague/news/0270-14009a873227-d729fc1f988d-1000--tottenham-vs-rennes-forfeited/,"Tottenham-Rennes, UECL 9 Dec 2021: not played after COVID-19 cases at Tottenham, awarded 0-3"
++1169531,3,0,true,,not_played,,,,,match_reports,https://www.insideworldfootball.com/2024/06/13/cayman-islands-forfeit-2026-qualifier-cuba-fear-us-visa-reprisals/ https://www.fotmob.com/en-GB/matches/cuba-vs-cayman-islands/jtysqyh,"Cuba-Cayman Islands, WCQCA 11 Jun 2024: not played after the Cayman Islands withdrew from travelling, awarded 3-0"
++1209259,0,3,true,,not_played,,,,,official,https://www.uefa.com/uefaconferenceleague/match/2041126--dnipro-1-vs-puskas-akademia/ https://infostart.hu/sport/2024/07/23/konferencia-liga-meccs-nelkul-jutott-tovabb-a-puskas-akademia,"Dnipro-1-Puskas Akademia, UECL 25 Jul 2024: not played after UEFA excluded Dnipro-1, awarded 0-3"
++1209260,3,0,true,,not_played,,,,,official,https://www.uefa.com/uefaconferenceleague/match/2041175--puskas-akademia-vs-dnipro-1/ https://infostart.hu/sport/2024/07/23/konferencia-liga-meccs-nelkul-jutott-tovabb-a-puskas-akademia,"Puskas Akademia-Dnipro-1, UECL 1 Aug 2024: not played after UEFA excluded Dnipro-1, awarded 3-0"
++649425,0,0,true,1040,not_played,,,,,match_reports,https://www.alwihdainfo.com/football-la-caf-suspend-le-club-tchadien-gazelle-fc-et-lui-inflige-une-amende-a99846/ https://nannews.ng/caf-champions-league-how-16-teams-qualified-for-group-stage/,"Gazelle-Zamalek, CAF CL 2020-21 first round 1st leg 23 Dec 2020 (fixtured in Cairo): not played, Gazelle did not travel after a Chad ministry-federation dispute; CAF disqualified Gazelle (USD 5,000 fine, banned from 2021 and 2022 CAF club competitions); Zamalek through on walkover, no score set"
++649442,0,0,true,12423,not_played,,,,,match_reports,https://libyaobserver.ly/sports/al-ahly-benghazi-qualifies-32-round-african-champions-league https://rsssf.org/tablesa/afcup2021.html,"Mekelle 70 Enderta-Al Ahli Benghazi, CAF CL 2020-21 preliminary round 2nd leg (provider date 5 Dec 2020): not played; Mekelle withdrew before the 1st leg (28 Nov, Cairo) citing the Tigray war and did not show; Al Ahli Benghazi through on walkover, no score set (RSSSF: w/o); some aggregators show 3-0 but no official score found"
++844614,0,0,true,173,not_played,,,,,official,https://www.uefa.com/uefaeuropaleague/news/0272-14876ce2b5c2-4003fb32df94-1000--uefa-europa-league-round-of-16-draw/,"RB Leipzig-Spartak Moscow, UEL round of 16 1st leg 10 Mar 2022: not played, Spartak removed after UEFA suspended all Russian clubs (28 Feb 2022); UEFA: Leipzig qualify directly for the quarter-finals, no score set"
++874845,5,0,true,,abandoned,3,1,,,match_reports,https://sporza.be/nl/matches/voetbal/jupiler-pro-league/2022-2023/regulier/14/standard-anderlecht-over-en-out-voor-mazzu-forfaitnederlaag-voor-anderlecht-na-vroegtijdig-beeindigde-treurmars~1655899689031/ https://bx1.be/?p=608099,"Standard Liege-Anderlecht, Pro League matchday 14, 23 Oct 2022: abandoned around the hour (bx1: 63') after Anderlecht fans threw fireworks twice, Standard leading 3-1; goals Verschaeren 2' (A), Raskin 20' (S, minute per ESPN), Fossey 27' (S), Zinckernagel 56' (S); Belgian FA disciplinary council set a 5-0 forfeit defeat for Anderlecht"
++1098362,0,0,true,13978,not_played,,,,,match_reports,https://www.wakatsera.com/coup-detat-au-niger-les-clubs-nigeriens-declarent-forfait-aux-competitions-africaines/ https://www.fotmob.com/en-GB/matches/douanes-vs-gnn/1ex0ot01s,"AS GNN (Niger)-AS Douanes (Burkina Faso), CAF CL 2023-24 1st preliminary round 1st leg (provider date 25 Aug 2023): not played; Niger federation withdrew AS GNN on 23 Aug 2023 citing ECOWAS sanctions after the coup; Douanes through on walkover, no score set (FotMob shows the tie as an awarded win, return leg dated 1 Sep)"
++1100349,0,3,true,,not_played,,,,,match_reports,https://www.koreajoongangdaily.com/sports/north-korea-lose-world-cup-qualifier-by-forfeit-after-refusing-to-host-japan/12243103 https://www.koreatimes.co.kr/amp/sports/20240330/japan-advances-in-world-cup-qualifying-with-forfeit-win-over-north-korea,"North Korea-Japan, WC 2026 AFC qualifying round 2 Group B, 26 Mar 2024 (Pyongyang): not played, North Korea called it off five days before and no neutral venue was agreed; FIFA declared it forfeited, 0-3 to Japan"
++1125896,3,0,true,,played,0,1,,,official,https://www.inside.fifa.com/fr/media-releases/la-commission-de-discipline-de-la-fifa-sanctionne-la-federation-equato https://www.afrik-foot.com/coupe-du-monde-2026-la-guinee-equatoriale-fifa-defaite-tapis-vert-nsue-suspendu,"Liberia-Equatorial Guinea, WC 2026 CAF qualifying Group H, 20 Nov 2023: played, Equatorial Guinea won 1-0 on the pitch (Emilio Nsue 9', minute per FIFA match record); FIFA Disciplinary Committee (24 May 2024) ruled Nsue ineligible and declared it forfeited 3-0 to Liberia"
++1125960,0,3,true,,played,2,0,,,official,https://inside.fifa.com/legal/judicial-bodies/news/disciplinary-committee-sanctions-south-african-football-association https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en,"South Africa-Lesotho, WC 2026 CAF qualifying Group C, 21 Mar 2025 (Polokwane): played, South Africa won 2-0 on the pitch (Relebohile Mofokeng 60', Jayden Adams 64'); FIFA Disciplinary Committee (29 Sep 2025) ruled South Africa fielded ineligible Teboho Mokoena and declared it forfeited 0-3 to Lesotho"
++1125993,0,3,true,,not_played,,,,,official,https://api.fifa.com/api/v3/calendar/matches?idSeason=288282&idStage=288289&count=500&language=en https://www.zambiamonitor.com/?p=64807,"Congo-Zambia, WC 2026 CAF qualifying Group E, scheduled 25 Mar 2025 in Brazzaville per FIFA (provider date 22 Mar): not played, Congo suspended by FIFA from 6 Feb 2025 for government interference; FIFA awarded 3-0 to Zambia (FIFA match id 400020013)"
++1239851,0,0,true,8060,not_played,,,,,match_reports,https://oubanguimedias.com/2024/08/26/centrafrique-foot-red-star-paie-t-il-le-prix-du-pilotage-a-vue-du-foot-national/ https://malibook.net/2024/08/24/ligue-des-champions/,"Djoliba-Red Star de Bangui (Central African Republic), CAF Champions League 2024-25 1st preliminary round 2nd leg, scheduled 25 Aug 2024 in Bamako: CONFIRMED not played, Red Star forfeited the return leg for lack of money (Central African federation note to CAF dated 24 Aug 2024), first leg 0-0 in Douala, Djoliba went through (Oubangui Medias 26 Aug 2024; Malibook 24 Aug 2024). UNRESOLVED: whether CAF recorded a score; no CAF record found (CAF archive pages cover only group and knockout stages), the two reports name no score, and the aggregators disagree (Sofascore awarded 3-0, FotMob awarded win shown 0-0); official score left empty for that reason, not because no score was set. Provider names the away team wrongly as Red Star FC 93 No source states a score; the provider's is kept."
++1388000,0,0,true,,abandoned,0,0,,,official,https://ligue1.com/fr/articles/l1_article_5189- https://ligue1.com/fr/articles/l1_article_5119-,"Nantes-Toulouse, Ligue 1 matchday 34, 17 May 2026: abandoned at 0-0 shortly after 20' when Nantes fans lit flares and invaded the pitch, not resumed on the prefect's decision; LFP disciplinary commission (28 May 2026) ratified the 0-0 score at the stoppage; no goals"
++1535287,0,3,true,,abandoned,0,0,,,match_reports,https://www.beinsports.com/en-us/soccer/conmebol-libertadores/articles/conmebol-punish-dim-after-flamengo-match-chaos-2026-05-21 https://www.espn.com/soccer/commentary/_/gameId/401865517,"Independiente Medellin-Flamengo, Libertadores Group A matchday 4, 7 May 2026 local (provider 8 May UTC): abandoned at 0-0 in the first five minutes after home fans threw fireworks and objects and tried to invade the pitch; CONMEBOL awarded 3-0 to Flamengo; no goals"
++649426,0,0,true,1040,not_played,,,,,match_reports,https://www.btolat.com/news/226472 https://thesun.ng/2020-21-caf-champions-league-all-16-qualifiers-for-group-stage-emerge/,"Zamalek-Gazelle, CAF Champions League 2020-21 first round, scheduled 2nd leg 5 Jan 2021 (both legs set for Cairo): not played; Gazelle (Chad) never arrived in Cairo after a dispute between Chad's sports ministry and its federation, CAF deemed them withdrawn and sent Zamalek to the group stage (CAF letter to Zamalek 21 Dec 2020); no score reported, provider's 0-0 is not an official result"
++649454,0,0,true,15566,not_played,,,,,match_reports,https://newscentraltv.com/?p=44835 https://rsssf.org/tablesa/afcup2021.html,"GR/SIAF (Garde Republicaine, Djibouti)-Gazelle, CAF Champions League 2020-21 preliminary round, return leg set for Djibouti 4 Dec 2020: not played; cash-strapped GR/SIAF failed to travel to N'Djamena (RSSSF: no-show for the 29 Nov first leg) and Gazelle went through on walkover without the return leg; no score reported, provider's 0-0 is not an official result; RSSSF is the one stats aggregator"
++844615,0,0,true,173,not_played,,,,,official,https://editorial.uefa.com/resources/0273-148f20d27980-23a90d5c0d62-1000/20220228_circular_2022_10_en.pdf,"Spartak Moscow-RB Leipzig, UEL 2021-22 round of 16 2nd leg 17 Mar 2022: not played; UEFA Executive Committee suspended Russian clubs on 28 Feb 2022 and declared Leipzig automatically qualified for the quarter-finals; no score set, provider's 0-0 is not an official result"
++874880,0,5,true,,abandoned,1,0,,,match_reports,https://brf.be/sport/1709313 https://sporza.be/nl/2023/04/11/charleroi-kv-mechelen-wordt-niet-herspeeld-kvm-krijgt-de-3-punt~1681216637016,"Charleroi-KV Mechelen, Belgian Pro League 2022-23 matchday 17, 12 Nov 2022: abandoned around the 67th minute (reports vary 67-70) after home fans threw flares onto the pitch, Charleroi leading 1-0 (Nadhir Benbouali 52'); Pro League first gave Mechelen a forfeit win, the Disciplinary Council then ordered a replay (Mar 2023), and the Belgian sports arbitration court (BAS/CBAS) ruled on 11 Apr 2023: no replay, 0-5 forfeit defeat for Charleroi"
++1098395,3,0,true,,not_played,,,,,match_reports,https://www.radiotamazuj.org/en/news/article/salaam-fc-bor-withdraw-from-caf-champions-league-over-financing https://cecafaonline.com/al-merreikh-young-africans-apr-qualify-for-next-stage-of-caf-champions-league/,"Al Hilal Omdurman-Salaam FC Bor (South Sudan), CAF Champions League 2023-24 1st preliminary round 2nd leg, scheduled 26 Aug 2023: CONFIRMED not played, Salaam FC Bor withdrew because it could not pay to travel to Morocco, where the tie was to be played, and Al Hilal went through (Radio Tamazuj 21 Aug 2023; CECAFA 27 Aug 2023: Al Hilal through on a walkover). UNRESOLVED: whether CAF set a 3-0 score; neither report gives a score, no CAF record found, only aggregators show 3-0 (FotMob awarded win 3-0, the-sports.org 3-0); official score left empty for that reason. CECAFA and the provider call the club Wau Salaam, Radio Tamazuj and CECAFA's June 2023 entry article call it Salaam FC Bor No source states a score; the provider's is kept."
++1125867,0,3,true,,played,1,0,,,official,https://inside.fifa.com/legal/media-releases/fifa-disciplinary-committee-sanctions-the-equatorial-guinean-football-association https://api.fifa.com/api/v3/live/football/520/288282/288289/400017619?language=en,"Equatorial Guinea-Namibia, World Cup 2026 qualifying Africa matchday 1, 15 Nov 2023: played, Equatorial Guinea won 1-0 on the pitch (Emilio Nsue 67'); FIFA Disciplinary Committee (24 May 2024) declared it lost by forfeit 0-3 because Nsue was ineligible"
++1125913,0,3,true,,not_played,,,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400018187?language=en https://es.besoccer.com/noticia/congo-no-se-presento-ante-niger-por-problemas-diplomaticos-1318641,"Congo-Niger, World Cup 2026 qualifying Africa matchday 3, 6 Jun 2024: not played; Congo did not turn up for their own home tie (FIFA record: venue Stade des Martyrs, Kinshasa, no line-ups, no goals) and Niger were awarded a 3-0 forfeit win; BeSoccer's account of the venue and reason is muddled"
++1125967,3,0,true,,not_played,,,,,official,https://api.fifa.com/api/v3/calendar/matches?idCompetition=520&idSeason=288282&from=2025-03-20T00:00:00Z&to=2025-03-22T00:00:00Z&count=100&language=en https://digitalhub.fifa.com/m/49a18836a3532246/original/Circular-1922_Suspension-of-the-Congolese-Football-Association-FECOFOOT.pdf,"Tanzania-Congo, World Cup 2026 qualifying Africa matchday 5, March 2025: not played; FIFA suspended the Congolese federation (FECOFOOT) from 6 Feb to 14 May 2025, barring its teams from international competition; FIFA records Tanzania 3-0 (FIFA's record dates it 21 Mar 2025, provider 19 Mar)"
++1126084,3,0,true,,not_played,,,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400021074?language=en https://africasoccer.com/equatorial-guinea-reappoints-coach-juan-micha-obiang-after-suspension/,"Malawi-Equatorial Guinea, World Cup 2026 qualifying Africa matchday 9, 9 Oct 2025: not played; Equatorial Guinea did not travel to Malawi (players refused over poor travel arrangements) and forfeited; FIFA records Malawi 3-0, no goals"
++1361880,0,3,true,,abandoned,0,0,,,match_reports,https://www.gazetaesportiva.com/times/fortaleza/por-invasao-de-campo-jogo-entre-fortaleza-e-colo-colo-na-libertadores-e-cancelado/ https://mais.opovo.com.br/jornal/esportes/2025/04/11/partida-entre-colo-colo-e-fortaleza-e-cancelada-apos-invasao-e-mortes-fora-do-estadio.html,"Colo-Colo-Fortaleza, Copa Libertadores 2025 group stage matchday 2, 10 Apr 2025 (Santiago): stopped when home fans invaded the pitch, score 0-0 (Gazeta Esportiva: 0-0, 24 min into the second half; O Povo: 0-0); reports give the stoppage minute as 68 to 72; CONMEBOL then called the match off; on-pitch score from the two Brazilian reports; the 0-3 to Fortaleza is the CONMEBOL Disciplinary Unit decision published 30 Apr 2025 (https://www.conmebol.com/unidaddisciplinaria/multa-y-advertencia-al-club-social-y-deportivo-colo-colo-11/)"
++1508003,0,3,true,,played,1,0,,,official,https://www.cafonline.com/news/caf-appeal-board-media-statement/ https://www.espn.com.ar/futbol/nota/_/id/16197904/marruecos-vs-senegal-final-copa-africana-de-naciones-equipo-fecha-hora-tv-en-vivo,"Senegal-Morocco, AFCON 2025 final, 18 Jan 2026 (Rabat): played to the end, Senegal won 1-0 after extra time (Pape Gueye, about 3 minutes into extra time); Senegal players had briefly walked off in protest at a stoppage-time penalty to Morocco, which Brahim Diaz then missed; CAF Appeal Board (17 Mar 2026) declared Senegal to have forfeited (AFCON regulations Art. 82 and 84), result 0-3 to Morocco; Senegal's appeal to CAS registered 25 Mar 2026, hearing set, no CAS award in CAS media releases as of 30 Sep 2026"
++78693,1,0,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2025440,"Astana-APOEL, UEL play-off 2nd leg 30 Aug 2018: 1-0 after extra time (Pedro Henrique pen 16'), 1-1 on aggregate, Astana won 2-1 on penalties; stored 2-0 is wrong"
++78910,1,0,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2024729,"Riga-CSKA Sofia, UEL 1st qualifying round 2nd leg 19 Jul 2018: 1-0 after extra time (Antonijs Cernomordijs 44'), 1-1 on aggregate, CSKA Sofia won 5-3 on penalties; stored 2-0 is wrong"
++78980,1,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2024542,"St Joseph's-B36 Torshavn, UEL preliminary round 2nd leg 5 Jul 2018: 1-1 after extra time (Cieslewicz pen 14' for B36, Jose Luis Otero 88' for St Joseph's), 2-2 on aggregate, B36 won 4-2 on penalties; stored 2-2 is the aggregate"
++112252,1,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2026928,"Chelsea-Eintracht Frankfurt, UEL semi-final 2nd leg 9 May 2019: 1-1 after extra time (Loftus-Cheek 28', Jovic 49'), 2-2 on aggregate, Chelsea won 4-3 on penalties; stored 2-2 is the aggregate"
++158976,1,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2026955 https://africa.espn.com/football/match/_/gameId/543718,"Sutjeska-Slovan Bratislava, UCL 1st qualifying round 2nd leg 17 Jul 2019: 1-1 after extra time (stored 2-2 is the aggregate), Sutjeska won 3-2 on penalties. UEFA match data and ESPN agree on both goals"
++232975,1,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2027006 https://thedailyherald.sx/sport/international-sports/ajax-red-star-through-as-celtic-and-porto-crash-out,"FC Copenhagen-Crvena Zvezda, UCL 3rd qualifying round 2nd leg 13 Aug 2019: 1-1 after extra time (stored 2-2 is the aggregate), Crvena Zvezda won 7-6 on penalties. Reuters (Daily Herald) names the same scorers"
++253614,3,2,false,,,,,,,official,https://assets.the-afc.com/migration/a/f/afc-champions-league-quarter-finals-official-programme https://news.cgtn.com/news/2019-06-25/AFC-Champions-League-Guangzhou-Evergrande-seals-quarter-final-berth-HOL4LrOY6s/share_amp.html,"Shandong Luneng-Guangzhou Evergrande, AFC CL round of 16 2nd leg 25 Jun 2019: 3-2 after extra time (2-1 after 90'), 4-4 on aggregate, Guangzhou won 6-5 on penalties. AFC quarter-final official programme (PDF, too large for WebFetch, read via download and text extraction) lists Zhou Haibin 62, Fellaini 70, Liu Junshuai 93; Paulinho 13, 103. CGTN, Reuters (sbs.com.au) and ESPN name the same five scorers"
++253618,1,1,false,,,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/cool_shanghai_sipg_seal_quarter-final_berth.html https://english.stadiumastro.com/node/224958,"Jeonbuk Hyundai Motors-Shanghai SIPG, AFC CL round of 16 2nd leg 26 Jun 2019: 1-1 after extra time (stored 2-2 is the aggregate), SIPG won 5-3 on penalties. AFC report names Kim Shin-wook and Hulk; Stadium Astro and the AFC quarter-final official programme give 27' and 80'"
++253736,1,1,false,,,,,,,match_reports,https://www.offside.hk/?p=13559 https://www.fotmob.com/matches/kitchee-vs-perak/p2o65ol,"Perak-Kitchee, AFC CL preliminary stage 2 12 Feb 2019: 1-1 after extra time (AFC report), Perak won 6-5 on penalties. Scorers agree in all sources (Wander Luiz for Perak, Li Ngai Hoi for Kitchee); minutes do not: offside.hk and FotMob 14' and 88', NST 13' and 86', Sinar Harian 14' and 85'. AFC report gives the score but no scorers"
++253755,0,3,false,,,,,,,match_reports,https://www.koreajoongangdaily.com/sports/suwon-wins-korean-derby-to-reach-acl-semis/10388127 https://www.omanobserver.om/ampArticle/47812,"Suwon Bluewings-Jeonbuk Motors, AFC CL quarter-final 2nd leg 19 Sep 2018 at Suwon World Cup Stadium: 0-3 after extra time (Adriano 11', Choi Bo-kyung 51', Kim Shin-wook 71', all Jeonbuk), 3-3 on aggregate, Suwon won 4-2 on penalties; stored 0-6 is wrong. Inside World Football names the same scorers; AFC report names Adriano 11' only"
++253891,5,1,false,,,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/afc_champions_league_quarter-finals_second-leg_shanghai_edge_gutsy_guangzhou_on_penalties.html https://www.espn.co.uk/football/report/_/gameId/479546,"Guangzhou Evergrande-Shanghai SIPG, AFC CL quarter-final 2nd leg 12 Sep 2017: 5-1 after extra time (Alan 21', 35'; Ricardo Goulart 83', 90+1', 118' pen; Hulk 110' for SIPG), 5-5 on aggregate, SIPG won 5-4 on penalties; stored 9-1 is wrong"
++254009,1,1,false,,,,,,,match_reports,https://www.spotvnews.co.kr/news/articleView.html?idxno=110070 https://www.hankookilbo.com/news/article/201702072143867935,"Ulsan Hyundai-Kitchee, AFC CL play-off 7 Feb 2017 (single match, Ulsan Munsu): 1-1 after extra time (Kim Sung-hwan first-half added time, Kim Bong-jin 47'), Ulsan won 4-3 on penalties; stored 2-2 is wrong. AFC results list (the-afc.com Brisbane Roar line-up article) and SCMP agree on 1-1 aet 4-3 pens and SCMP names the same scorers"
++254048,3,2,false,,,,,,,official,https://www.the-afc.com/en/club/afc_champions_league/news/acl_rd16_-_2nd_leg_fc_seoul_3-2_urawa_reds_3-3_agg_7-6_pens.html https://nocutnews.co.kr/news/4598754,"FC Seoul-Urawa Red Diamonds, AFC CL round of 16 2nd leg 25 May 2016: 3-2 after extra time (Damjanovic 29', Adriano 94', Lee Tadanari 112' and 115', Go Yo-han 120+2'), 3-3 on aggregate, Seoul won 7-6 on penalties; stored 4-2 is wrong. J.League report (jleague.jp/news/article/5942) names the same scorers"
++254155,2,2,false,,,,,,,match_reports,https://www.khaleejtimes.com/sport/local/al-jazira-advance-in-acl https://www.espn.co.cr/futbol/partido/_/juegoId/443052/al-sadd-al-jazira,"Al Jazira-Al Sadd, AFC CL play-off 9 Feb 2016 (Mohammed bin Zayed Stadium): 2-2 after extra time (Sanhaji 22' and 88' for Al Sadd, Kenwyne Jones 45' and Ali Mabkhout 65' for Al Jazira), Al Jazira won 5-4 on penalties; stored 4-4 is wrong. QFA and QSL reports name the same scorers but give 23' and 66'"
++349900,2,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2021928 https://www.sportsmole.co.uk/football/europa-league-qualifying/skenderbeu-korce-vs-mlada-boleslav_game_64811.html,"Skenderbeu-Mlada Boleslav, UEL 3rd qualifying round 2nd leg 3 Aug 2017: 2-1 after extra time (no extra-time goals), 3-3 on aggregate, Skenderbeu won 4-2 on penalties (stored 4-2 is the shoot-out). Sports Mole gives the same scorers and minutes"
++349996,2,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2021866,"FK Trakai (UEFA: Riteriai)-IFK Norrkoping, UEL 2nd qualifying round 2nd leg 20 Jul 2017: 2-1 after extra time, 3-3 on aggregate, Trakai won 5-3 on penalties"
++350062,2,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2021789 https://n1info.rs/sport-klub/fudbal/a281476-LE-Penali-kobni-za-Sarajevo/,"Sarajevo-Zaria Balti, UEL 1st qualifying round 2nd leg 6 Jul 2017: 2-1 after extra time (UEFA and N1 agree), Zaria Balti won 6-5 on penalties. Scorer of the 60' goal for Zaria disputed: UEFA match data records a Marko Mihojevic (Sarajevo) own goal; N1 (Zagniailov) and the provider (S. Zagynaylov, id 76495) credit Zaria's Serhiy Zagynailov. Hebibovic 13' and Kadusic 35' pen (Sarajevo) are undisputed"
++368830,2,1,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2028140 https://en.paperjam.lu/article/delano_football-f91-qualify-again,"F91 Dudelange-Ararat-Armenia, UEL play-off 2nd leg 29 Aug 2019: 2-1 after extra time, 3-3 on aggregate, Dudelange won 5-4 on penalties. Paperjam names the same scorers"
++368990,1,0,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2027691 https://www.croatiaweek.com/?p=80473,"Osijek-CSKA Sofia, UEL 2nd qualifying round 2nd leg 1 Aug 2019: 1-0 after extra time, 1-1 on aggregate, CSKA Sofia won 4-3 on penalties. Croatia Week names the same scorer"
++369088,2,0,false,,,,,,,official,https://match.uefa.com/v5/matches?matchId=2027606,"Spartak Trnava-Radnik Bijeljina, UEL 1st qualifying round 2nd leg 18 Jul 2019: 2-0 after extra time (Sobczyk 10', Mihalek 87'), 2-2 on aggregate, Trnava won 3-2 on penalties; stored 4-0 is wrong"
++1451305,2,2,false,,,,,4,5,match_reports,https://www.sctfc.com/articles/match-report-abbey-hulton-united-2-2p-sutton-coldfield-town-fc https://www.footballwebpages.co.uk/abbey-hulton-united https://fchd.info/ABBEYHU.HTM,"Abbey Hulton-Sutton Coldfield Town, FAC 1 Sep 2025: 2-2, 4-5 on penalties"
++1469180,1,1,false,,,,,5,3,match_reports,https://www.banburyunitedfc.co.uk/teams/24168/fixtures-results?season=93391 https://lichfieldlive.co.uk/2025/09/17/shootout-disappointment-for-chasetown-as-they-exit-the-fa-cup/,"Banbury United-Chasetown, FAC 16 Sep 2025: 1-1, 5-3 on penalties"
++1469185,1,1,false,,,,,5,3,match_reports,https://frometownfc.com/2025/09/19/gallery-frome-town-fc-1p-1-shaftesbury-fc-fa-cup/ https://www.frometimes.co.uk/frome-hold-nerve-in-penalty-shoot-out-to-clinch-fa-cup-win/,"Frome Town-Shaftesbury Town, FAC 17 Sep 2025: 1-1, 5-3 on penalties"
++1469758,1,0,false,,,,,4,2,official,https://www.cafonline.com/caf-champions-league/news/fixtures-and-results-of-the-second-leg-of-first-preliminary-round-of-202526-totalenergies-caf-champions-league/,"Nsingizini Hotspurs-Simba Bhora, CAFCL 28 Sep 2025: 1-0, 1-1 on aggregate, 4-2 on penalties"
++1485811,0,0,false,,,,,5,3,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Avranches-Gobelins, CDF 15 Nov 2025: 0-0, 5-3 on penalties"
++1485828,0,0,false,,,,,4,3,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Vendée Fontenay-Chamalières, CDF 15 Nov 2025: 0-0, 4-3 on penalties"
++1486227,0,0,false,,,,,4,3,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Seyssinet-Pariset-Aubagne, CDF 15 Nov 2025: 0-0, 4-3 on penalties"
++1485837,1,1,false,,,,,4,2,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Steenvoorde-Chambly Thelle FC, CDF 15 Nov 2025: 1-1, 4-2 on penalties"
++1485835,0,0,false,,,,,2,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Sablé-Saint-Malo, CDF 15 Nov 2025: 0-0, 2-4 on penalties"
++1485830,2,2,false,,,,,7,6,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html https://www.lavoixdunord.fr/1646771/article/2025-11-16/coupe-de-france-croix-encore-au-bout-du-suspense,"Croix Football IC-Racing Colombes 92, CDF 15 Nov 2025: 2-2, 7-6 on penalties"
++1485883,0,0,false,,,,,5,4,official,https://www.fff.fr/article/15570-les-resultats-des-clubs-ultramarins.html,"Espoir Ste Luce-Eveil, CDF 15 Nov 2025: 0-0, 5-4 on penalties"
++1485817,2,2,false,,,,,5,6,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html https://www.macommune.info/coupe-de-france-sochaux-lemporte-finalement-aux-tirs-au-but-a-pontarlier/,"Pontarlier-Sochaux, CDF 15 Nov 2025: 2-2, 5-6 on penalties"
++1485832,1,1,false,,,,,5,6,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Loon-Plage-Stade Béthunois, CDF 15 Nov 2025: 1-1, 5-6 on penalties"
++1485874,1,1,false,,,,,3,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Villars-l'Isle-Sarre Union, CDF 15 Nov 2025: 1-1, 3-4 on penalties"
++1485818,1,1,false,,,,,3,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Andrézieux-Hauts Lyonnais, CDF 15 Nov 2025: 1-1, 3-4 on penalties"
++1485823,2,2,false,,,,,5,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"APM Metz-Fleury 91, CDF 15 Nov 2025: 2-2, 5-4 on penalties"
++1485857,1,1,false,,,,,2,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Saint-Meziery-Périgny, CDF 16 Nov 2025: 1-1, 2-4 on penalties"
++1485888,1,1,false,,,,,4,5,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Etoile Bobigny-Villeneuve-la-Garenne, CDF 16 Nov 2025: 1-1, 4-5 on penalties"
++1485896,1,1,false,,,,,7,8,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Pen Hir-Les Sables-d'Olonne, CDF 16 Nov 2025: 1-1, 7-8 on penalties"
++1485890,4,4,false,,,,,3,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Nord Lozère-Ecotay Moingt, CDF 16 Nov 2025: 4-4, 3-4 on penalties"
++1485864,1,1,false,,,,,3,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Vitré-Plouvorn, CDF 16 Nov 2025: 1-1, 3-4 on penalties"
++1485893,1,1,false,,,,,2,3,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Saint-Brice Courcelles-Bogny, CDF 16 Nov 2025: 1-1, 2-3 on penalties"
++1485856,0,0,false,,,,,4,2,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Saint-Cyr Collonges-Thonon Évian, CDF 16 Nov 2025: 0-0, 4-2 on penalties"
++1485894,2,2,false,,,,,2,3,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Wittenheim-Freyming, CDF 16 Nov 2025: 2-2, 2-3 on penalties"
++1485889,0,0,false,,,,,2,4,official,https://www.fff.fr/article/15734-7e-tour-tous-les-resultats.html,"Mauguio Carnon-Selongey, CDF 16 Nov 2025: 0-0, 2-4 on penalties"
++1486811,2,2,false,,,,,4,1,official,https://www.fff.fr/article/15845-tout-sur-le-8e-tour.html,"Raon l'Etape-Mulhouse, CDF 29 Nov 2025: 2-2, 4-1 on penalties"
++1486822,0,0,false,,,,,20,21,official,https://www.fff.fr/article/15845-tout-sur-le-8e-tour.html,"Steenvoorde-Stade Béthunois, CDF 29 Nov 2025: 0-0, 20-21 on penalties"
++1486814,0,0,false,,,,,5,4,official,https://www.fff.fr/article/15845-tout-sur-le-8e-tour.html,"Saint-Cyr Collonges-Rhone-Vallee, CDF 30 Nov 2025: 0-0, 5-4 on penalties"
++1640766,1,1,false,,,,,4,3,match_reports,https://wsmafc.co.uk/match-highlights-wimborne-town-1-1-wsm-afc-4-3-on-pens/ https://www.footballwebpages.co.uk/fa-cup/20260922,"Wimborne Town-Weston-super-Mare, FAC 22 Sep 2026: 1-1, 4-3 on penalties"
+diff --git a/dbt_project/seeds/schema.yml b/dbt_project/seeds/schema.yml
+index 2ff2ab2f..0dff601d 100644
+--- a/dbt_project/seeds/schema.yml
++++ b/dbt_project/seeds/schema.yml
+@@ -538,11 +538,12 @@ seeds:
  
- 
-diff --git a/tests/test_export_site_data.py b/tests/test_export_site_data.py
-index e8612b5a..daa2b97e 100644
---- a/tests/test_export_site_data.py
-+++ b/tests/test_export_site_data.py
-@@ -25,7 +25,6 @@ from scripts.export_site_data import (
-     shape_fixture_payload,
-     shape_next_match,
-     shape_leaderboards,
--    shape_matchstats,
-     shape_player_payload,
-     shape_team_payload,
-     shape_top_players,
-@@ -102,25 +101,6 @@ def test_every_leaderboard_read_takes_the_season_rows_only():
-         assert "window_type = 'season_to_date'" in source[at:at + 400], source[at - 200:at + 400]
- 
- 
--def test_shape_matchstats_drops_fixture_sk():
--    p = shape_matchstats(
--        99,
--        [{"fixture_sk": 99, "team_sk": 1, "shots_total": 10}],
--        [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1}],
--    )
--    assert p["type"] == "matchstats" and p["fixture_id"] == 99
--    assert "fixture_sk" not in p["team_stats"][0]
--    assert p["team_stats"][0]["shots_total"] == 10
--    assert p["player_stats"][0]["goals_total"] == 1
--
--
--def test_shape_matchstats_leaves_out_the_match_context_columns_of_the_player_mart():
--    context = {"opponent_team_sk": 2, "team_goals_for": 1, "team_goals_against": 0, "team_logo_url": "u",
--               "opponent_name": "B", "opponent_logo_url": "v", "result": "W"}
--    p = shape_matchstats(99, [], [{"fixture_sk": 99, "player_sk": 7, "goals_total": 1, **context}])
--    assert p["player_stats"] == [{"player_sk": 7, "goals_total": 1}]
--
--
- def test_player_payload_reads_the_match_log_from_the_player_in_a_match_mart(monkeypatch):
-     """The match log is the stat-line rows of mart_player_fixture_stats, with the team's score under the
-     keys the payload has always carried."""
-diff --git a/tests/test_metric_map.py b/tests/test_metric_map.py
-index 4c1712aa..85ec496f 100644
---- a/tests/test_metric_map.py
-+++ b/tests/test_metric_map.py
-@@ -255,7 +255,7 @@ QUESTIONS = (
-     ("How many goals did Barcelona score the last time they played Real Madrid?",
-      "mart_head_to_head", "last_meeting_goals_for", "goals", {}),
-     ("How many corners did Dortmund win in their last match?",
--     "mart_team_fixture_stats", "corner_kicks", "corners", {}),
-+     "mart_team_window_metrics", "corners_per_match", "corners_per_match", {"window_type": "match"}),
-     ("How many goals per match did Argentina score at the 2026 World Cup?",
-      "mart_team_profile", "goals_per_match", "goals_per_match", {"league_code": "WC"}),
-     ("Going into Saturday's game, how many points has the home side taken from its recent "
-diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
-index 52b367c9..8bce6da3 100644
---- a/tests/test_no_decision_history_in_code.py
-+++ b/tests/test_no_decision_history_in_code.py
-@@ -30,8 +30,8 @@ sys.path.insert(0, HOOKS)
- import comment_history_gate as gate  # noqa: E402
- 
- # The pin. A sweep MR lowers these two numbers and nothing else may move them.
--PINNED_LINES = 744
--PINNED_FILES = 185
-+PINNED_LINES = 742
-+PINNED_FILES = 184
- 
- HASH = chr(35)
- 
+   - name: fixture_result_corrections
+     description: >
+-      The league's official result for each match whose provider result differs from it, one row
+-      per match, each naming its source. Applied in base_apif__fixtures_next, which keeps the
+-      provider's score and status next to it. assert_result_corrections_applied fails when a row
+-      is not applied, its source is not valid, its award kind or score on the pitch does not fit
+-      its award, or a row that is no award no longer changes anything.
++      The league's official result for each match whose provider result differs from it or lacks
++      its shoot-out score, one row per match, each naming its source. Applied in
++      base_apif__fixtures_next, which keeps the provider's score, shoot-out score and status next
++      to it. assert_result_corrections_applied fails when a row is not applied, its source is not
++      valid, its award kind or score on the pitch does not fit its award, its shoot-out score does
++      not fit a match settled on penalties, or a row that is no award no longer changes anything.
+     config:
+       column_types:
+         fixture_id: int64
+@@ -553,6 +554,8 @@ seeds:
+         award_kind: string
+         on_pitch_home: int64
+         on_pitch_away: int64
++        shootout_home: int64
++        shootout_away: int64
+         source_kind: string
+         source: string
+         note: string
+@@ -580,6 +583,10 @@ seeds:
+         description: "The home goals at the final whistle or at the abandonment, for a played or abandoned award; NULL otherwise."
+       - name: on_pitch_away
+         description: "The away goals at the final whistle or at the abandonment, for a played or abandoned award; NULL otherwise."
++      - name: shootout_home
++        description: "The home side's goals in the penalty shoot-out, for a match settled on penalties; NULL otherwise."
++      - name: shootout_away
++        description: "The away side's goals in the penalty shoot-out, for a match settled on penalties; NULL otherwise."
+       - name: source_kind
+         description: "official = the league's or federation's decision or match record; match_reports = two independent match reports."
+         tests:
+diff --git a/dbt_project/tests/assert_fixture_lineup_order_starters_first.sql b/dbt_project/tests/assert_fixture_lineup_order_starters_first.sql
+new file mode 100644
+index 00000000..f13d5390
+--- /dev/null
++++ b/dbt_project/tests/assert_fixture_lineup_order_starters_first.sql
+@@ -0,0 +1,19 @@
++-- A team sheet is numbered 1 to n with every starter before every substitute. Returns a row
++-- (= fails) per team sheet whose lineup_order skips, repeats or lists a substitute first.
++{{ config(store_failures = true) }}
++
++select
++    fixture_sk,
++    team_sk,
++    count(*) as n_players,
++    min(lineup_order) as first_order,
++    max(lineup_order) as last_order,
++    max(if(is_starter, lineup_order, null)) as last_starter,
++    min(if(not is_starter, lineup_order, null)) as first_substitute
++from {{ ref('fct_fixture_lineup') }}
++group by fixture_sk, team_sk
++having
++    min(lineup_order) != 1
++    or max(lineup_order) != count(*)
++    or count(distinct lineup_order) != count(*)
++    or max(if(is_starter, lineup_order, null)) > min(if(not is_starter, lineup_order, null))
+diff --git a/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql b/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
+index 2f72722c..6f6d2abe 100644
+--- a/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
++++ b/dbt_project/tests/assert_mart_competition_fixtures_goals_add_up.sql
+@@ -8,6 +8,8 @@
+   - does_not_add_up: served goals that differ from the score on either side, or name a team not
+     in the match;
+   - minute_missing: a goal without its minute in a match whose state says every minute is known;
++  - score_after_wrong: a list in match order whose scores after each goal do not step up one goal
++    at a time to the goals it serves;
+   - unknown_player: a scorer's or assister's provider id that dim_player does not hold;
+   - goals_not_reconciled: a match whose goal events exist but add up neither alone nor with the
+     players' goals; it needs its goals in fixture_goal_corrections.
+@@ -41,6 +43,9 @@ served as (
+         countif(g.goals is not null and g.minute_elapsed is null) as served_without_minute,
+         countif(g.player_api_id is not null and p.player_sk is null) as served_unknown_player,
+         countif(g.assist_player_api_id is not null and ap.player_sk is null) as served_unknown_assist,
++        max(g.score_home_after) as last_score_home,
++        max(g.score_away_after) as last_score_away,
++        count(distinct g.score_home_after + g.score_away_after) as score_steps,
+         count(g.goals) as entries
+     from fixtures as f
+     left join unnest(f.goals) as g
+@@ -82,6 +87,14 @@ checked as (
+                 )
+                 then 'does_not_add_up'
+             when f.goal_data_state = 'goals' and s.served_without_minute > 0 then 'minute_missing'
++            when
++                s.entries > 0 and s.served_without_minute = 0
++                and (
++                    s.score_steps != s.entries
++                    or s.last_score_home is distinct from s.served_home
++                    or s.last_score_away is distinct from s.served_away
++                )
++                then 'score_after_wrong'
+             when s.served_unknown_player > 0 or s.served_unknown_assist > 0 then 'unknown_player'
+             when f.goal_data_state = 'not_recorded' and coalesce(e.goal_events, 0) > 0 then 'goals_not_reconciled'
+         end as problem
+diff --git a/dbt_project/tests/assert_result_corrections_applied.sql b/dbt_project/tests/assert_result_corrections_applied.sql
+index f737b9fe..2481347d 100644
+--- a/dbt_project/tests/assert_result_corrections_applied.sql
++++ b/dbt_project/tests/assert_result_corrections_applied.sql
+@@ -6,6 +6,8 @@
+ --     the match.
+ --   - award_not_valid: an award without its kind or a kind without an award, a played or
+ --     abandoned award without the score on the pitch, or a score on the pitch on any other row.
++--   - shootout_not_valid: one shoot-out score without the other, or a shoot-out score that is tied,
++--     on an award, or on a match the provider does not file as settled on penalties.
+ --   - not_sourced: a source that is not https URLs separated by a space, an official one with
+ --     none, or match reports with fewer than two sites.
+ --   - does_not_add_up: a match's corrected goals do not add up to its score side by side (the
+@@ -106,6 +108,8 @@ fixture_checks as (
+                 or f.goals_away is distinct from c.goals_away
+                 or f.status_short is distinct from if(c.awarded, 'AWD', f.provider_status_short)
+                 or f.awarded_to_team_id is distinct from c.awarded_to_team_id
++                or f.shootout_home is distinct from coalesce(c.shootout_home, f.provider_shootout_home)
++                or f.shootout_away is distinct from coalesce(c.shootout_away, f.provider_shootout_away)
+                 then 'not_applied'
+             when
+                 c.awarded_to_team_id is not null
+@@ -126,10 +130,25 @@ fixture_checks as (
+                     and (c.on_pitch_home is not null or c.on_pitch_away is not null)
+                 )
+                 then 'award_not_valid'
++            when
++                (c.shootout_home is null) != (c.shootout_away is null)
++                or (
++                    c.shootout_home is not null
++                    and (
++                        f.provider_status_short != 'PEN'
++                        or c.awarded
++                        or c.shootout_home = c.shootout_away
++                    )
++                )
++                then 'shootout_not_valid'
+             when
+                 f.provider_goals_home = c.goals_home
+                 and f.provider_goals_away = c.goals_away
+                 and not c.awarded
++                and (
++                    c.shootout_home is null
++                    or (f.provider_shootout_home = c.shootout_home and f.provider_shootout_away = c.shootout_away)
++                )
+                 then 'no_longer_needed'
+         end as problem
+     from fixture_corrections as c
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/review.md          |   42 +-
+#    .claude/task/review_input.patch | 1445 +++++++++++++++++++--------------------
+#    2 files changed, 728 insertions(+), 759 deletions(-)
+# ============================================================================

@@ -47,6 +47,8 @@ select
     json_value(match_json, '$.teams.away.name') as away_team_name,
     safe_cast(json_value(match_json, '$.goals.home') as int64) as goals_home,
     safe_cast(json_value(match_json, '$.goals.away') as int64) as goals_away,
+    safe_cast(json_value(match_json, '$.score.penalty.home') as int64) as shootout_home,
+    safe_cast(json_value(match_json, '$.score.penalty.away') as int64) as shootout_away,
     json_value(match_json, '$.fixture.venue.id') as venue_id,
     json_value(match_json, '$.fixture.venue.name') as venue_name,
     json_value(match_json, '$.fixture.venue.city') as venue_city
