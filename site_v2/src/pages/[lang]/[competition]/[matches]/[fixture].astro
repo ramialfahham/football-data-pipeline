@@ -19,7 +19,7 @@ import MatchStats from "../../../../components/fixture/MatchStats.astro";
 import MatchLineups from "../../../../components/fixture/MatchLineups.astro";
 import { t, inCompetition, playedStatusWord } from "../../../../i18n/strings";
 import { localeHref, word } from "../../../../lib/href";
-import { formatShortDate, scoreLine } from "../../../../lib/format";
+import { formatDayYear, formatShortDate, scoreLine } from "../../../../lib/format";
 import type { Lang } from "../../../../lib/format";
 import type { CompetitionIndex, CompetitionPayload, Fixture, PlayedFixture, Team } from "../../../../lib/types";
 import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
@@ -97,12 +97,14 @@ const round = isLeague && fixture.round_order != null
 const title = t(lang, "seoFixtureTitle", {
   home: home.name ?? "",
   away: away.name ?? "",
-  date: formatShortDate(fixture.kickoff, lang),
+  // A played match's year tells it from the same clubs' meetings on the same day in other seasons.
+  date: played ? formatDayYear(fixture.kickoff, lang) : formatShortDate(fixture.kickoff, lang),
 });
-// A played match's description is its status word and its result line, both in the page's language.
+// A played match's description is its status word, its result line and its date, in the page's language.
 const description = played
   ? `${playedStatusWord(lang, played.status, played.result.award_kind)}: ${home.name ?? ""} ${scoreLine(
-      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""} · ${round}.`
+      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""} · ${round} · ${formatDayYear(
+      fixture.kickoff, lang)}.`
   : t(lang, "aboutNoH2h", { home: home.name ?? "", away: away.name ?? "", round });
 
 const compHref = built.competitionPage ? localeHref(lang, `${comp.slug}/`) : undefined;
