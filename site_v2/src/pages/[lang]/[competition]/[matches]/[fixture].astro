@@ -1,5 +1,6 @@
 ---
-// The next match page (screen 01, render match-page_2026-10-07_75). URL:
+// The match page: the next match page (screen 01, render match-page_2026-10-07_75) and, for a played
+// match, its page (renders played-match-page_2026-10-07_41 and _42). URL:
 // /{lang}/{competition-slug}/{matches word}/{yyyy-mm-dd-home-vs-away}/ (site_architecture.md §3).
 // One page per exported fixture and locale. The page composes the blocks in order; a link exists
 // only where its page is built.
@@ -12,12 +13,17 @@ import RecentMatch from "../../../../components/fixture/RecentMatch.astro";
 import PlayerRow from "../../../../components/fixture/PlayerRow.astro";
 import HeadToHead from "../../../../components/fixture/HeadToHead.astro";
 import NextMatches from "../../../../components/fixture/NextMatches.astro";
-import { t, inCompetition } from "../../../../i18n/strings";
+import MatchGoals from "../../../../components/fixture/MatchGoals.astro";
+import MatchLeaders from "../../../../components/fixture/MatchLeaders.astro";
+import MatchStats from "../../../../components/fixture/MatchStats.astro";
+import MatchLineups from "../../../../components/fixture/MatchLineups.astro";
+import { t, inCompetition, playedStatusWord } from "../../../../i18n/strings";
 import { localeHref, word } from "../../../../lib/href";
-import { formatShortDate } from "../../../../lib/format";
+import { formatShortDate, scoreLine } from "../../../../lib/format";
 import type { Lang } from "../../../../lib/format";
-import type { CompetitionIndex, CompetitionPayload, Fixture, Team } from "../../../../lib/types";
+import type { CompetitionIndex, CompetitionPayload, Fixture, PlayedFixture, Team } from "../../../../lib/types";
 import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
+import { builtFixtures } from "../../../../lib/builtFixtures.mjs";
 import competitions from "../../../../data/competitions.json";
 import competitionIndex from "../../../../data/competition_index.json";
 import { readdirSync, readFileSync } from "node:fs";
@@ -35,14 +41,7 @@ export function getStaticPaths() {
   // Read from disk, not imported: an import bundles every payload into the build's JavaScript,
   // and the build then runs out of memory long before every match has its page.
   // Only the file name travels as a prop: Astro holds every route's props until the build ends.
-  const dir = join(process.cwd(), "src/data/fixtures");
-  const fixtures = readdirSync(dir)
-    .filter((name) => name.endsWith(".json"))
-    .sort()
-    .map((file) => {
-      const { slug, league_code } = JSON.parse(readFileSync(join(dir, file), "utf8")) as Fixture;
-      return { file, slug, league_code };
-    });
+  const fixtures = [...builtFixtures().values()];
   const payloads = import.meta.glob<CompetitionPayload>("/src/data/competitions/*/*.json", {
     eager: true,
     import: "default",
@@ -76,10 +75,13 @@ interface Props {
   built: Built;
 }
 const { file, lang, built } = Astro.props;
-const fixture = JSON.parse(readFileSync(join(process.cwd(), "src/data/fixtures", file), "utf8")) as Fixture;
+const fixture = JSON.parse(readFileSync(join(process.cwd(), "src/data/fixtures", file), "utf8")) as Fixture | PlayedFixture;
 const { home, away } = fixture;
+const played = fixture.is_played === true ? fixture : null;
 // The next matchday's match gets the full preview; a match further out waits for it.
-const isNext = fixture.is_next_round !== false;
+const isNext = !played && fixture.is_next_round !== false;
+// A match awarded without being played has no goals, players, numbers or line-ups to show.
+const wasPlayed = played?.result.award_kind !== "not_played";
 
 const comp = (competitions as Record<string, { slug: string; name?: string }>)[fixture.league_code];
 const compName = comp?.name ?? fixture.league_name ?? fixture.league_code;
@@ -97,7 +99,11 @@ const title = t(lang, "seoFixtureTitle", {
   away: away.name ?? "",
   date: formatShortDate(fixture.kickoff, lang),
 });
-const description = t(lang, "aboutNoH2h", { home: home.name ?? "", away: away.name ?? "", round });
+// A played match's description is its status word and its result line, both in the page's language.
+const description = played
+  ? `${playedStatusWord(lang, played.status, played.result.award_kind)}: ${home.name ?? ""} ${scoreLine(
+      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""} · ${round}.`
+  : t(lang, "aboutNoH2h", { home: home.name ?? "", away: away.name ?? "", round });
 
 const compHref = built.competitionPage ? localeHref(lang, `${comp.slug}/`) : undefined;
 const crumbs = [
@@ -153,7 +159,7 @@ const entity = {
       compLogo={indexRow?.logo_url}
       compHref={compHref}
       teamHrefs={{ home: teamHref(home.slug), away: teamHref(away.slug) }}
-      showStanding={isNext}
+      showStanding={isNext && !played}
     />
     {isNext && (
       <>
@@ -179,7 +185,23 @@ const entity = {
       </>
     )}
 
-    <HeadToHead h2h={fixture.head_to_head} home={home} away={away} lang={lang} />
-    {!isNext && <NextMatches home={home} away={away} lang={lang} />}
+    {played ? (
+      <>
+        <MatchGoals fixture={played} lang={lang} />
+        {wasPlayed && (
+          <>
+            <MatchLeaders fixture={played} lang={lang} />
+            <MatchStats fixture={played} lang={lang} />
+            <MatchLineups fixture={played} lang={lang} />
+          </>
+        )}
+        <NextMatches home={home} away={away} lang={lang} />
+      </>
+    ) : (
+      <>
+        <HeadToHead h2h={(fixture as Fixture).head_to_head} home={home} away={away} lang={lang} />
+        {!isNext && <NextMatches home={home} away={away} lang={lang} />}
+      </>
+    )}
   </div>
 </Layout>

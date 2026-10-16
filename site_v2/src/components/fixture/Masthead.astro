@@ -3,15 +3,18 @@
 // time UTC · venue, each unit whole when the line wraps), and the two teams, each one link to its team
 // page when that page is built, with the standing chip only on the next match and when the table
 // position is served: today's table is not the position going into a match further out.
+// A played match shows its status word, the final score where "vs" stands with the winner by weight,
+// and under 700px each team's goals close its line. After penalties the big score is the shoot-out's
+// and the score after extra time stands under it; an awarded result says there how it came about.
 import Crest from "../ui/Crest.astro";
 import Chevron from "./Chevron.astro";
-import { formatDate, formatTime, signedInteger } from "../../lib/format";
+import { formatDate, formatTime, scoreLine, signedInteger } from "../../lib/format";
 import type { Lang } from "../../lib/format";
-import { t } from "../../i18n/strings";
-import type { Fixture, Side } from "../../lib/types";
+import { t, playedStatusWord } from "../../i18n/strings";
+import type { Fixture, PlayedFixture, Side } from "../../lib/types";
 
 interface Props {
-  fixture: Fixture;
+  fixture: Fixture | PlayedFixture;
   lang: Lang;
   title: string;
   round: string;
@@ -26,6 +29,31 @@ const { home, away } = fixture;
 
 const time = fixture.status === "TBD" ? t(lang, "timeTBD") : `${formatTime(fixture.kickoff, lang)} UTC`;
 const kick = [round, formatDate(fixture.kickoff, lang), time, fixture.venue].filter(Boolean);
+
+const result = fixture.is_played ? fixture.result : null;
+const awarded = Boolean(result && (result.award_kind || fixture.status === "AWD" || fixture.status === "WO"));
+const onPenalties = Boolean(result && !awarded && fixture.status === "PEN");
+const eyebrow = result ? playedStatusWord(lang, fixture.status, result.award_kind) : t(lang, "eyebrowPreview");
+const big = result
+  ? onPenalties
+    ? { home: result.shootout_home, away: result.shootout_away }
+    : { home: result.goals_home, away: result.goals_away }
+  : null;
+const isWinner = (side: Side) => result?.winner_team_id != null && result.winner_team_id === side.team_id;
+// Where the league set no score, the line names the team it awarded the match to.
+const awardedTo = [home, away].find((s) => result?.awarded_to_team_id != null && s.team_id === result.awarded_to_team_id);
+const AWARD_KEY = {
+  not_played: ["awardNotPlayed", "awardNotPlayedTo"],
+  played: ["awardPlayed", "awardPlayedTo"],
+  abandoned: ["awardAbandoned", "awardAbandonedTo"],
+} as const;
+const awardLine = !result?.award_kind
+  ? null
+  : t(lang, AWARD_KEY[result.award_kind][awardedTo ? 1 : 0], {
+      onPitch: scoreLine(result.on_pitch_home, result.on_pitch_away),
+      awarded: scoreLine(result.goals_home, result.goals_away),
+      team: awardedTo?.name ?? "",
+    });
 
 function nameParts(name: string | null | undefined): [string, string] {
   const words = (name ?? "").trim().split(/\s+/);
@@ -56,7 +84,7 @@ const sides: { side: Side; href?: string }[] = [
     </div>
   </div>
   <h1 class="vh">{title}</h1>
-  <div class="eyebrow">{t(lang, "eyebrowPreview")}</div>
+  <div class="eyebrow">{eyebrow}</div>
   <div class="kick">
     {kick.map((unit, i) => (
       <>
@@ -65,14 +93,23 @@ const sides: { side: Side; href?: string }[] = [
       </>
     ))}
   </div>
-  <div class="teams">
+  <div class:list={["teams", { played: big }]}>
     {sides.map(({ side, href }, i) => {
       const Tag = href ? "a" : "div";
       const [lead, last] = nameParts(side.name);
       const st = side.standing;
+      const goals = big ? (i === 0 ? big.home : big.away) : null;
       return (
         <>
-          {i === 1 && <div class="vs">{t(lang, "vs")}</div>}
+          {i === 1 && (big ? (
+            <div class="vs score num">
+              <span class:list={[{ winner: isWinner(home) }]}>{big.home ?? "–"}</span>
+              <span class="dash">–</span>
+              <span class:list={[{ winner: isWinner(away) }]}>{big.away ?? "–"}</span>
+            </div>
+          ) : (
+            <div class="vs">{t(lang, "vs")}</div>
+          ))}
           <Tag class="team" href={href}>
             <Crest name={side.name} crest={side.crest} />
             <span class="tname">
@@ -91,9 +128,16 @@ const sides: { side: Side; href?: string }[] = [
                 </span>
               </div>
             )}
+            {big && <span class:list={["sg", "num", { winner: isWinner(side) }]}>{goals ?? "–"}</span>}
           </Tag>
         </>
       );
     })}
   </div>
+  {onPenalties && result && (
+    <div class="resline">
+      <b class="num">{result.goals_home ?? "–"}</b>–<b class="num">{result.goals_away ?? "–"}</b>
+    </div>
+  )}
+  {awardLine && <div class="resline">{awardLine}</div>}
 </header>

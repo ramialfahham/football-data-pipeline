@@ -87,6 +87,7 @@ export interface Side {
 }
 
 export interface RecentMeeting {
+  fixture_api_id?: number | null;
   kickoff_datetime?: string | null;
   league_code?: string | null;
   home_away?: string | null;
@@ -126,9 +127,105 @@ export interface Fixture {
   /** True when the match is in its competition's next round; the match page then shows its full preview. */
   is_next_round?: boolean;
   venue?: string | null;
+  is_played?: false;
   home: Side;
   away: Side;
   head_to_head?: HeadToHead | null;
+}
+
+// The played match payload (scripts/export_site_data.py :: shape_played_fixture_payload).
+
+export interface PlayedResult {
+  goals_home?: number | null;
+  goals_away?: number | null;
+  shootout_home?: number | null;
+  shootout_away?: number | null;
+  /** The team that won or went through; null on a draw. */
+  winner_team_id?: number | null;
+  /** not_played, played or abandoned on an awarded result; null otherwise. */
+  award_kind?: "not_played" | "played" | "abandoned" | null;
+  /** The team the league awarded the match to where it set no score; null elsewhere. */
+  awarded_to_team_id?: number | null;
+  on_pitch_home?: number | null;
+  on_pitch_away?: number | null;
+}
+
+export interface PlayedGoal {
+  side?: "home" | "away" | null;
+  player_id?: number | null;
+  player_name?: string | null;
+  minute?: number | null;
+  minute_extra?: number | null;
+  goals?: number | null;
+  penalties?: number | null;
+  is_own_goal: boolean;
+  assist_player_id?: number | null;
+  assist_player_name?: string | null;
+  score_home_after?: number | null;
+  score_away_after?: number | null;
+}
+
+export interface MatchLeaderRow {
+  rank?: number | null;
+  value?: number | null;
+  player_id?: number | null;
+  name?: string | null;
+  club?: string | null;
+  club_slug?: string | null;
+  crest?: string | null;
+}
+
+export interface MatchLeaderBoard {
+  metric_key: string;
+  label_i18n_key: string;
+  format: SingleFormat;
+  rows: MatchLeaderRow[];
+}
+
+export interface LineupPlayer {
+  player_id?: number | null;
+  name?: string | null;
+  photo?: string | null;
+  position_code?: string | null;
+  is_starter: boolean;
+  minute_on?: number | null;
+  minute_on_extra?: number | null;
+  minute_off?: number | null;
+  minute_off_extra?: number | null;
+  replaced_player_name?: string | null;
+  minutes?: number | null;
+}
+
+export interface PlayedSide extends Side {
+  formation?: string | null;
+  has_team_stats: boolean;
+  has_player_stats: boolean;
+  match_stats?: WindowStats | null;
+  lineup: LineupPlayer[];
+}
+
+export interface PlayedFixture {
+  type: string;
+  fixture_id: number;
+  slug: string;
+  kickoff?: string | null;
+  status?: string | null;
+  league_code: string;
+  league_name?: string | null;
+  season?: number | null;
+  round?: string | null;
+  round_order?: number | null;
+  is_next_round: false;
+  is_played: true;
+  venue?: string | null;
+  result: PlayedResult;
+  /** What the goal data holds, as mart_competition_fixtures.goal_data_state names it. */
+  goal_data_state?: string | null;
+  goals: PlayedGoal[];
+  lineup_state?: "confirmed" | "researched" | "not_available" | null;
+  leaders: MatchLeaderBoard[];
+  home: PlayedSide;
+  away: PlayedSide;
 }
 
 /** Narrow a payload value to a finite number (metric fields arrive as number | null). */

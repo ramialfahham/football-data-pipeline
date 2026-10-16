@@ -51,6 +51,20 @@ and Head to head. After them comes Next matches: each team's `next_match` under 
 group head, a date heading per day, the match row. A team whose next match is this one adds no row.
 The page turns into the next match page when its matchday becomes the next one.
 
+A played match gets the played match page at the same URL, drawn by renders
+`played-match-page_2026-10-07_41` and `_42` (settled on penalties). Its blocks, in order:
+
+1. Breadcrumb, as above.
+2. Header: the group head, the status word, the kick-off line, and the final score where "vs" stands.
+3. Goals: each goal in match order with the score after it.
+4. Match leaders: seven player boards, each the match's top three across both teams.
+5. Match stats: the comparison element over the match, without the Goals group.
+6. Line-ups: each team's eleven, then the substitutes who came on.
+7. Next matches, as above.
+
+A block that applies but that the data cannot fill keeps its heading and one line saying what is
+not recorded. A match awarded without being played shows only the header and Next matches.
+
 The page has no sentence under the header, no window switch, no internal-link chips and no
 sample-data line. Under 700px the teams stack and the trail slides on one line. From 560px the
 two teams' lists sit side by side, their rows level.
@@ -118,7 +132,7 @@ full width beneath. Bars are normalized to the larger of the two values.
 | Opponent | `opponent_name`, `opponent_logo_url` | crest before the name, the name wrapping |
 | Competition | `played_league_code` → `competitions.json` name | the name, never the code |
 | Date | `played_kickoff_datetime` | locale short date |
-| Link | — | none until played-match pages exist |
+| Link | `played_fixture_sk` | to the match's page when the build makes one |
 
 ### (5) Players to watch — per side `top_players[]` (≤5)
 
@@ -135,9 +149,20 @@ No link until the players' pages exist.
 | Element | JSON key(s) | Notes |
 |---|---|---|
 | Intro | `intro` (EN/DE/FI) | the export's sentence from the last-5 split; `h2hNone` when the warehouse holds no meeting |
-| Meetings (≤5) | `recent_meetings[]`: `kickoff_datetime`, `league_code`, `home_away`, `goals_for`, `goals_against` | the meeting row: the score in the match's order, the side at home first with crests, competition · date with year |
+| Meetings (≤5) | `recent_meetings[]`: `fixture_api_id`, `kickoff_datetime`, `league_code`, `home_away`, `goals_for`, `goals_against` | the meeting row: the score in the match's order, the side at home first with crests, competition · date with year |
 
-The block shows no totals and no bar. No link until played-match pages exist.
+The block shows no totals and no bar. A meeting links to its match's page when the build makes one.
+
+### (7) The played match page — `fetch_played_fixture_payloads`
+
+| Block | JSON key(s) | Notes |
+|---|---|---|
+| Header | `status`, `result` (`goals_*`, `shootout_*`, `winner_team_id`, `award_kind`, `awarded_to_team_id`, `on_pitch_*`) | the status word; after penalties the shoot-out score, the score after extra time under it; an award's line under the score |
+| Goals | `goal_data_state`, `goals[]` (`side`, `player_id`, `player_name`, `minute`, `minute_extra`, `goals`, `penalties`, `is_own_goal`, `assist_player_name`, `score_*_after`) | the goal row; without minutes the scorers, home team first; not recorded: the heading and one line |
+| Match leaders | `leaders[]` (`metric_key`, `label_i18n_key`, `format`, `rows[]`), each side's `has_player_stats` | the board as on the Rankings tab; the name leads nowhere |
+| Match stats | each side's `match_stats`, `has_team_stats` | `metric_rows.json` without the Goals group; whole counts, no "per match" line |
+| Line-ups | `lineup_state`, each side's `formation` and `lineup[]` | "{team} · {formation}", the eleven, then Substitutes; the player row with the substitution and the minutes |
+| Next matches | each side's `next_match` | as on the future match page |
 
 ## 6. States
 
@@ -152,14 +177,15 @@ The block shows no totals and no bar. No link until played-match pages exist.
 | Last season's window | `form.window_type` = `prev_season` | `formIntroPrev`; that side shows no pills |
 | Never met | `head_to_head` = null | "No meetings on record." |
 | Null metric value | either side null | "–" on that side; both null: the row is hidden |
-| **Report (finished match)** | `status` = FT | **no payload today — GAP-07.** URL stays (preview → report is the promise); until then the page is not regenerated after kickoff |
-| Thin page | fixture not in export | page not generated (export covers upcoming NS/TBD fixtures only) |
+| Played match | `is_played` = true | the played match page (§4, §5 (7)); the same URL |
+| Thin page | fixture not in export | page not generated |
 
 ## 7. Interactions
 
 - Breadcrumb levels, the competition's group head and the two teams link to their pages when
   those pages are built.
-- Rows of Recent matches, Players to watch and Head to head are not links until their pages exist.
+- Rows of Recent matches and Head to head link to the match's page when the build makes one.
+  Player rows, here and on the played match page, are not links until the players' pages exist.
   Every row of a block links, or none.
 - Under 700px the breadcrumb slides sideways on one line; a small script opens it at its end.
 - No swipe-carousel between fixtures (that is the MVP's pattern, retired in v2);
@@ -202,7 +228,6 @@ empty states. Each is a row of `block_standard.md` or of the comparison's own ru
 ## 10. Gaps
 
 - [GAP-06](99_gaps_register.md) — `/h2h/{pair}/` page has no export target.
-- [GAP-07](99_gaps_register.md) — no report-state payload for finished fixtures (§6).
 - [GAP-08](99_gaps_register.md) — `round_name` is a raw provider string; a cup's round shows it untranslated.
 - [GAP-18](99_gaps_register.md) — the Form comparison's intro names only the last 5 and last season, not a tournament window — needed before WC 2026.
 - Goalkeeper's save percentage on the player row: no mart serves the shots faced it needs.

@@ -81,12 +81,20 @@
 | Result row | `.resrow` | result chip · score · opponent (crest, name, H or A) · competition · date. One line where its list is 420px wide or more, two lines below | `fits` | ruled | the match page review |
 | Result row score | `.resrow .rscore` | the score from the row's side, 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
 | Result row name | `.resrow .ropp` | the club, 15px ink, wrapping, never cut off | `font-size=15px; color=ink; white-space=normal` | ruled | the match page review |
-| Result row meta | `.resrow .rmeta` | the competition's name and the date, 12px muted | `font-size=12px; color=muted` | ruled | the match page review |
+| Result row meta | `.resrow:not(.goal) .rmeta` | the competition's name and the date, 12px muted | `font-size=12px; color=muted` | ruled | the match page review |
 | Meeting row | `.resrow.meet` | a meeting of the two teams: the result row without its chip. The score is in the match's order, the home side first, the date with its year | `fits` | ruled | the match page review |
-| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width | `fits` | ruled | the match page review |
+| Player row | `.plrow` | photo · name over position · goals and assists on the right at every width; on a line-up, the minutes played | `fits` | ruled | the match page review |
 | Player row name | `.plrow .pname .nm` | 15px regular ink, wrapping, never cut off | `font-size=15px; font-weight=400; color=ink; white-space=normal` | ruled | the match page review |
-| Player row position | `.plrow .pname .ps` | 12px muted | `font-size=12px; color=muted` | ruled | the match page review |
+| Player row position | `.plrow .pname .ps` | 12px muted. On a line-up the substitution follows after a middle dot. It is the minute a starter went off, or a substitute came on and for whom | `font-size=12px; color=muted` | ruled | the match page review |
 | Player row number | `.plrow .pstat b` | 15px bold ink | `font-size=15px; font-weight=700; color=ink` | ruled | the match page review |
+| Match header score | `.mast .vs.score` | a played match's final score where "vs" stands, regular weight, ink; from 700px only, below which each team's goals close its line | `font-weight=400; color=ink` | ruled | the played match page review |
+| Match header winner | `.mast .winner` | the winning side's goals by weight, never by hue | `font-weight=700` | ruled | the played match page review |
+| Match header team goals | `.mast .team .sg` | under 700px a team's goals close its line, 24px ink, the winner's bold | `font-size=24px; color=ink` | ruled | the played match page review |
+| Match header result line | `.mast .resline` | the line under the score, 13px muted: after penalties the score after extra time, its numbers bold; on an award, how it came about | `font-size=13px; color=muted` | ruled | the played match page review |
+| Goal row | `.resrow.goal` | a goal: the score after it, then the scorer with the crest of the side it counts for. The second line holds the minute with the assist, own goal or penalty. Without minutes the row has no score | `fits` | ruled | the played match page review |
+| Goal row meta | `.resrow.goal .rmeta` | the goal's minute and its assist, own goal or penalty: 14px ink-2, larger and lighter than a list row's second line | `font-size=14px; color=ink-2` | ruled | the played match page review |
+| Comparison element | `.cmp` | two teams' numbers on one metric list. Each team's name stands over its column. Each metric group's rows read value, name with the diverging bar, value | `fits` | ruled | the played match page review |
+| Column head | `.rcol .colhead` | a list column's name, 13px bold muted; one fact may follow after a middle dot (a team's formation); a second head inside the column opens its second list | `font-size=13px; font-weight=700; color=muted` | ruled | the played match page review |
 | Tag | `.nexttag, .fxrow .topmatch` | Next (on the picker's title) and Top match (on the flagged row, before the kick-off): 10px bold capitals in an accent pill | `font-size=10px; font-weight=700; text-transform=uppercase; background-color=accent; color=pill-ink` | ruled | #129 Matchdays; #127 correction 2 |
 | Matchday picker | `.mdnav .mdstep` | its own full-width line under the tab bar: ‹ MATCHDAY N › with the Next tag, the arrows pinned to the edges, the title centred, a 2px line under; one matchday on screen at a time; no script | `visible=1; border-bottom-width=2px` | ruled | #129 Matchdays |
 | Picker title | `.mdstep .mdtitle .num` | 13px bold capitals ink | `font-size=13px; font-weight=700; text-transform=uppercase; color=ink` | ruled | #129 Matchdays |
@@ -108,6 +116,9 @@ seven on Home, a zero is not a rank on a most-first board (#129 board rules); a 
 which way it ranks — its name and its top value do (CPO, #151 MR, replacing #129's "fewest first"
 note); a name, a "Matchday N" and a date never break inside themselves
 (#129 the fact row). Those are content rules, checked where the content is built.
+
+Not measured, still the rule: a team's crest in the match header is 52px, and every other crest is
+24px.
 
 ## Pages
 
@@ -137,6 +148,7 @@ and `gen_taxonomy.py` are diagrams.
 | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Competition rankings | built | `site_v2/dist` | `en/bundesliga/stats/index.html` | path | Block heading, Metric group heading, Board name, Board sub-line, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Match page | built | `site_v2/dist` | `en/*/matches/*/index.html` | path | Block heading, Match header competition head, Navigation link, Search field [>=1010px], Search button [<1010px] |
+| Played match page | built | `site_v2/dist` | `en/bundesliga/matches/2026-09-05-tsg-1899-hoffenheim-vs-borussia-dortmund/index.html` | path | Match header winner, Goal row meta, Comparison element, Column head, Search field [>=1010px], Search button [<1010px] |
 | Team page | built | `site_v2/dist` | `en/teams/*/index.html` | path | Block heading, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Matches page | built | `site_v2/dist` | `en/matches/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row kick-off, Match row score, Search field [>=1010px], Search button [<1010px] |
 | Matches day page | built | `site_v2/dist` | `en/matches/*/index.html` | path | Page heading, Filter row, Filter button, Matchday picker, Picker title, Picker arrow, Block heading, Competition group head, Competition group name, Fold, Match row score, Search field [>=1010px], Search button [<1010px] |

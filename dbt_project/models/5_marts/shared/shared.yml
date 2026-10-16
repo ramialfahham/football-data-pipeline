@@ -2065,8 +2065,8 @@ models:
 
       Built from int_legs__team_match. Raw record facts only, with no derived ratios — a
       head-to-head record is a fact rather than a catalogue metric. recent_meetings holds up to
-      the ten most recent meetings, each with date, competition, which side was at home, score and
-      result.
+      the ten most recent meetings, each with its fixture, date, competition, which side was at
+      home, score and result.
 
       A pair that has never met has no row at all.
     tests:
@@ -2139,7 +2139,9 @@ models:
       - name: last_meeting_goals_against
         description: "{{ doc('goals_against') }} Here it is the goals this team conceded in the most recent meeting between the two."
       - name: recent_meetings
-        description: "The up to ten most recent meetings between this team and this opponent, most recent first, each carrying its kick-off, competition, which side was at home, score and result — enough to render a head-to-head strip without a further join. At least one element whenever the row exists, never more than ten."
+        description: "The up to ten most recent meetings between this team and this opponent, most recent first, each carrying its fixture, kick-off, competition, which side was at home, score and result — enough to render a head-to-head strip without a further join. At least one element whenever the row exists, never more than ten."
+      - name: recent_meetings.fixture_api_id
+        description: "The provider's fixture id of that one past meeting, inside the recent_meetings array, which is fixture_sk in fct_fixture."
       - name: recent_meetings.home_away
         description: "{{ doc('home_away') }} Here it is this team's side in that one past meeting, inside the recent_meetings array."
       - name: recent_meetings.goals_against
@@ -2820,6 +2822,12 @@ models:
               quote: false
       - name: award_kind
         description: "How an awarded result came about: not_played, played (to the end, the result decided afterwards) or abandoned. NULL where the result is not awarded."
+      - name: awarded_to_team_sk
+        description: "The team the league awarded the match to where it set no score, so the score does not show the winner; NULL elsewhere."
+        tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: on_pitch_home
         description: "The home goals at the final whistle or at the abandonment of a played or abandoned match that was awarded afterwards; NULL otherwise. goals_home is then the awarded score."
       - name: on_pitch_away

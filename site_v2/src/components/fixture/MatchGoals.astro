@@ -1,0 +1,72 @@
+---
+// Goals: each goal in match order in the meeting row — the score after it, the scorer with the crest
+// of the side it counts for, and on a 14px second line the minute with the assist, own goal or
+// penalty. Without minutes, one line
+// says so and each team's scorers follow, home team first, with no running score. Without scorers,
+// the heading and one line. A match with no goal has no block.
+import SectionHead from "../ui/SectionHead.astro";
+import Crest from "../ui/Crest.astro";
+import { DASH, matchMinute, scoreLine } from "../../lib/format";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import type { PlayedFixture, PlayedGoal } from "../../lib/types";
+
+interface Props {
+  fixture: PlayedFixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const { home, away, goals } = fixture;
+
+const timed = goals.length > 0 && goals.every((g) => g.minute != null);
+const notRecorded = fixture.goal_data_state === "not_recorded";
+const rows: PlayedGoal[] = timed ? goals : [
+  ...goals.filter((g) => g.side === "home"),
+  ...goals.filter((g) => g.side === "away"),
+];
+
+function detail(g: PlayedGoal): string[] {
+  const parts: string[] = [];
+  if (timed) parts.push(matchMinute(g.minute, g.minute_extra));
+  if (!timed && (g.goals ?? 0) > 1) parts.push(`${g.goals} ${t(lang, "goals")}`);
+  if (g.is_own_goal) parts.push(t(lang, "goalOwnGoal"));
+  else if ((g.penalties ?? 0) > 0) parts.push(t(lang, "goalPenalty"));
+  else if (timed && g.assist_player_name) parts.push(t(lang, "goalAssist", { name: g.assist_player_name }));
+  return parts;
+}
+---
+
+{(rows.length > 0 || notRecorded) && (
+  <section aria-label={t(lang, "secGoals")}>
+    <SectionHead label={t(lang, "secGoals")} />
+    {notRecorded && <p class="bsub">{t(lang, "goalsNotRecorded")}</p>}
+    {!notRecorded && !timed && <p class="bsub">{t(lang, "goalsNoMinutes")}</p>}
+    {rows.length > 0 && (
+      <div class="rlist">
+        {rows.map((g) => {
+          const side = g.side === "away" ? away : home;
+          return (
+            <div class="lrow">
+              <div class:list={["resrow", "goal", timed ? "meet" : "scorer"]}>
+                {timed && <span class="rscore">{scoreLine(g.score_home_after, g.score_away_after)}</span>}
+                <span class="ropp">
+                  <span class="club"><Crest name={side.name} crest={side.crest} size="xs" /><span class="cn">{g.player_name ?? DASH}</span></span>
+                </span>
+                {detail(g).length > 0 && (
+                  <span class="rmeta">
+                    {detail(g).map((part, i) => (
+                      <>
+                        {i > 0 && " · "}
+                        <span class="nb">{part}</span>
+                      </>
+                    ))}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </section>
+)}

@@ -15,14 +15,18 @@ interface Props {
   home?: WindowStats | null;
   away?: WindowStats | null;
   lang: Lang;
+  /** Metric groups the block leaves out, by the catalogue's group key. */
+  withoutGroups?: string[];
+  oneMatch?: boolean;
 }
-const { home, away, lang } = Astro.props;
+const { home, away, lang, withoutGroups = [], oneMatch = false } = Astro.props;
 
 const served = metricRows.rows as ServedMetricRow[];
 const hasData = (def: ServedMetricRow): boolean =>
   asNumber(home?.[def.metric_id]) !== null || asNumber(away?.[def.metric_id]) !== null;
 
 const groups = [...metricGroups.groups]
+  .filter((g) => !withoutGroups.includes(g.key))
   .sort((a, b) => a.order - b.order)
   .map((g) => ({
     group: metricLabel(lang, `metricGroups.${g.key}.label`),
@@ -35,7 +39,7 @@ const groups = [...metricGroups.groups]
   <>
     <div class="mgroup">{group}</div>
     {rows.map((def) => (
-      <MetricRow def={def} home={home} away={away} lang={lang} />
+      <MetricRow def={def} home={home} away={away} lang={lang} oneMatch={oneMatch} />
     ))}
   </>
 ))}

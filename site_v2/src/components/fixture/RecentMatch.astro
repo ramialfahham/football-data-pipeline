@@ -1,10 +1,11 @@
 ---
 // One Recent matches row, the result row: result chip · score from this team's side · opponent (crest,
-// name, H or A) · competition name · date. Unlinked until played-match pages exist.
+// name, H or A) · competition name · date. The row links to the match's page when this build makes one.
 import Crest from "../ui/Crest.astro";
 import { formatShortDate } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { t } from "../../i18n/strings";
+import { matchPageHref } from "../../lib/href";
 import type { FormMatch } from "../../lib/types";
 import competitions from "../../data/competitions.json";
 
@@ -17,9 +18,11 @@ const LETTER: Record<string, string> = { W: "compColWins", D: "compColDraws", L:
 const result = match.result && LETTER[match.result] ? match.result : null;
 const ha = match.home_away === "home" ? t(lang, "haHome") : match.home_away === "away" ? t(lang, "haAway") : "";
 const comp = (competitions as Record<string, { name?: string }>)[match.played_league_code ?? ""]?.name;
+const href = matchPageHref(lang, match.played_fixture_sk);
+const Row = href ? "a" : "div";
 ---
 
-<div class="lrow">
+<Row class="lrow" href={href} data-fixture={match.played_fixture_sk ?? undefined}>
   <div class="resrow">
     {result && <span class:list={["pill", result]}>{t(lang, LETTER[result])}</span>}
     <span class="rscore">{match.goals_for}–{match.goals_against}</span>
@@ -32,4 +35,4 @@ const comp = (competitions as Record<string, { name?: string }>)[match.played_le
       <span class="nb">{formatShortDate(match.played_kickoff_datetime, lang)}</span>
     </span>
   </div>
-</div>
+</Row>

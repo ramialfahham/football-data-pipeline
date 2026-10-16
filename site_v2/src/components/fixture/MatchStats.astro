@@ -1,0 +1,44 @@
+---
+// Match stats: the Form comparison's element over the match itself — each team's name over its
+// column, the catalogue's rows less the Goals group, which the Goals block shows. Over one match a
+// rate per match is the match's own count, so no row carries "per match". Without team stats the
+// heading says so in one line.
+import SectionHead from "../ui/SectionHead.astro";
+import MetricComparison from "./MetricComparison.astro";
+import metricRows from "../../data/metric_rows.json";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+import { asNumber } from "../../lib/types";
+import type { PlayedFixture, ServedMetricRow } from "../../lib/types";
+
+interface Props {
+  fixture: PlayedFixture;
+  lang: Lang;
+}
+const { fixture, lang } = Astro.props;
+const { home, away } = fixture;
+const WITHOUT = ["goals"];
+// The block shows rows only when one of them has a value; otherwise it says the numbers are not recorded.
+const shown = (metricRows.rows as ServedMetricRow[]).some(
+  (r) => !WITHOUT.includes(r.metric_group)
+    && (asNumber(home.match_stats?.[r.metric_id]) !== null || asNumber(away.match_stats?.[r.metric_id]) !== null),
+);
+---
+
+<section aria-label={t(lang, "secMatchStats")}>
+  <SectionHead label={t(lang, "secMatchStats")} />
+  {shown ? (
+    <>
+      <p class="bsub">{t(lang, "matchStatsIntro")}</p>
+      <div class="cmp">
+        <div class="formhead">
+          <div class="fh home"><div class="h">{home.name}</div></div>
+          <div class="fh away"><div class="h">{away.name}</div></div>
+        </div>
+        <MetricComparison home={home.match_stats} away={away.match_stats} lang={lang} withoutGroups={WITHOUT} oneMatch />
+      </div>
+    </>
+  ) : (
+    <p class="bsub">{t(lang, "matchStatsNotRecorded")}</p>
+  )}
+</section>

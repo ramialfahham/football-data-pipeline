@@ -3,7 +3,9 @@
 // changes. Routing only — no identity/slug generation (slugs come from the payload /
 // the registry-derived competitions map).
 import type { Lang } from "./format";
-import { translatePath } from "./addressWords.mjs";
+import { translatePath, word } from "./addressWords.mjs";
+import { builtFixtures } from "./builtFixtures.mjs";
+import competitions from "../data/competitions.json";
 
 export { word } from "./addressWords.mjs";
 
@@ -48,4 +50,13 @@ export function href(path: string): string {
 export function localeHref(lang: string, path = ""): string {
   const clean = path.startsWith("/") ? path.slice(1) : path;
   return href(`${lang}/${clean}`);
+}
+
+/** The address of a match's page when this build makes one, from the payload's slug and its
+ * competition's slug; undefined when the match has no page. */
+export function matchPageHref(lang: string, fixtureId: number | null | undefined): string | undefined {
+  const page = fixtureId == null ? undefined : builtFixtures().get(Number(fixtureId));
+  const comp = page && (competitions as Record<string, { slug?: string }>)[page.league_code];
+  if (!page?.slug || !comp?.slug) return undefined;
+  return localeHref(lang, `${comp.slug}/${word(lang, "matches")}/${page.slug}/`);
 }

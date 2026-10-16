@@ -14,14 +14,18 @@ interface Props {
   home?: WindowStats | null;
   away?: WindowStats | null;
   lang: Lang;
+  /** A window of one match: an average over it is the match's own count, with no "per match" line. */
+  oneMatch?: boolean;
 }
-const { def, home, away, lang } = Astro.props;
+const { def, home, away, lang, oneMatch = false } = Astro.props;
 
 const hv = asNumber(home?.[def.metric_id]);
 const av = asNumber(away?.[def.metric_id]);
 
+// Over one match an average per match is the match's own count, so it shows whole.
+const format = oneMatch && def.format === "decimal_1" ? "decimal_0" : def.format;
 function display(v: number | null): string {
-  return v == null ? DASH : formatValue(v, def.format, lang);
+  return v == null ? DASH : formatValue(v, format, lang);
 }
 
 const hDisp = display(hv);
@@ -29,7 +33,7 @@ const aDisp = display(av);
 const better = betterSide(hv, av, def.direction);
 const hWidth = barWidth(hv, av);
 const aWidth = barWidth(av, hv);
-const sub = metricSubline(lang, def.label_i18n_key, def.per_match);
+const sub = metricSubline(lang, def.label_i18n_key, def.per_match && !oneMatch);
 ---
 
 <div class="mrow">
