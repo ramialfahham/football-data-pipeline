@@ -73,8 +73,9 @@ scope_paths:
 
 # REQUIRED before the first edit on the PAGE SURFACE (`site_v2/src/**`,
 # `scripts/export_site_data.py`). One line per page the task changes, naming the
-# GitLab issue where the CPO approved that page's design; that issue carries the
-# label `design::approved`, which only the CPO sets, and CI checks it. A task
+# GitLab issue where the CPO approved that page's design. The page and issue must
+# stand in `docs/wireframes/approved_designs.yml` on `main`, which changes only by
+# the CPO's merge; the contract gate and CI check it. A task
 # that changes no page output writes one line `- none: no page output changes`,
 # and scope-auditor checks it against the diff. No approved design, no page edit.
 # approved_design:

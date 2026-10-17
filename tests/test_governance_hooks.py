@@ -3843,15 +3843,125 @@ def test_page_surface_edit_denied_without_approved_design(repo, rel):
     assert denied(out) and "approved_design" in out
 
 
+def _approve_on_base(repo, monkeypatch, text: str = "home: 127\nmatch: 132\n") -> None:
+    """Commit the approved-designs list on a base ref only, so the working branch has no copy."""
+    subprocess.run(["git", "checkout", "-q", "-b", "base_main"], cwd=repo, check=True)
+    path = repo / "docs" / "wireframes" / "approved_designs.yml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "approved"], cwd=repo, check=True)
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=repo, check=True)
+    monkeypatch.setenv("GOVERNANCE_BASE", "base_main")
+
+
 @pytest.mark.parametrize("block", [
     "  - home: #127",
-    "  - home: #127\n  - match page: #132",
+    "  - home: #127\n  - match: #132",
+    "  - Home: #127",
     "  - none: no page output changes",
 ])
-def test_page_surface_edit_allowed_with_approved_design(repo, block):
+def test_page_surface_edit_allowed_with_a_design_on_main(repo, monkeypatch, block):
+    _approve_on_base(repo, monkeypatch)
     write_contract(repo, _with_design(block))
     out, _ = run_hook("task_contract_gate.py", edit_event(repo, "site_v2/src/pages/home.astro"), repo)
     assert not denied(out), out
+
+
+def test_a_none_line_needs_no_list(repo, monkeypatch):
+    monkeypatch.setenv("GOVERNANCE_BASE", "no_such_ref")
+    write_contract(repo, _with_design("  - none: no page output changes"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "site_v2/src/pages/home.astro"), repo)
+    assert not denied(out), out
+
+
+@pytest.mark.parametrize("block, named", [
+    ("  - player: #136", "player: #136"),
+    ("  - home: #128", "home: #128"),
+    ("  - home: #127\n  - player: #136", "player: #136"),
+    ("  - see #127", "#127"),
+])
+def test_page_surface_edit_denied_for_a_design_not_on_main(repo, monkeypatch, block, named):
+    _approve_on_base(repo, monkeypatch)
+    write_contract(repo, _with_design(block))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "site_v2/src/pages/home.astro"), repo)
+    assert denied(out) and named in out and "approved_designs.yml" in out
+
+
+def test_the_branch_copy_of_the_list_does_not_count(repo, monkeypatch):
+    _approve_on_base(repo, monkeypatch, "match: 132\n")
+    path = repo / "docs" / "wireframes" / "approved_designs.yml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("home: 127\n")
+    write_contract(repo, _with_design("  - home: #127"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "site_v2/src/pages/home.astro"), repo)
+    assert denied(out) and "home: #127" in out
+
+
+def test_an_unreadable_list_denies_the_edit(repo, monkeypatch):
+    monkeypatch.setenv("GOVERNANCE_BASE", "no_such_ref")
+    write_contract(repo, _with_design("  - home: #127"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "site_v2/src/pages/home.astro"), repo)
+    assert denied(out) and "home: #127" in out and "no_such_ref" in out
+
+
+def test_shell_write_to_the_page_surface_needs_a_design_on_main(repo, monkeypatch):
+    _approve_on_base(repo, monkeypatch)
+    write_contract(repo, _with_design("  - player: #136"))
+    out, _ = run_hook("task_contract_gate.py", bash_event("echo x >> site_v2/src/pages/home.astro"), repo)
+    assert denied(out) and "player: #136" in out
+
+
+@pytest.mark.parametrize("block, named", [
+    ("  - match: #132, player: #136", "player: #136"),
+    ("  - match: #132 and #136", "#136"),
+])
+def test_every_design_on_a_contract_line_is_checked(repo, monkeypatch, block, named):
+    _approve_on_base(repo, monkeypatch)
+    write_contract(repo, _with_design(block))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "site_v2/src/pages/home.astro"), repo)
+    assert denied(out) and named in out
+
+
+@pytest.mark.parametrize("named, allowed", [("match: #132", True), ("player: #136", False)])
+def test_a_list_with_a_non_utf8_byte_still_gates(repo, monkeypatch, named, allowed):
+    subprocess.run(["git", "checkout", "-q", "-b", "base_main"], cwd=repo, check=True)
+    path = repo / "docs" / "wireframes" / "approved_designs.yml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"# caf\xe9 \x97 list\nmatch: 132\n")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "approved"], cwd=repo, check=True)
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=repo, check=True)
+    monkeypatch.setenv("GOVERNANCE_BASE", "base_main")
+    write_contract(repo, _with_design(f"  - {named}"))
+    out, _ = run_hook("task_contract_gate.py", edit_event(repo, "site_v2/src/pages/home.astro"), repo)
+    assert denied(out) is not allowed, out
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("home: 127\n", {("home", 127)}),
+    ("home: #127\n", {("home", 127)}),
+    ("home: 127  # the home page\n", {("home", 127)}),
+    ("home: 127\r\nmatch: 132\r\n", {("home", 127), ("match", 132)}),
+    ("  home: 127\n", {("home", 127)}),
+    ("# home: 127\n", set()),
+    ("Home: 127\n", set()),
+    ("- home: 127\n", set()),
+    ("home: soon\n", set()),
+])
+def test_the_approved_list_parser(text, expected):
+    sys.path.insert(0, HOOKS)
+    import task_contract_gate as tcg
+    assert tcg.parse_approved(text) == expected
+
+
+def test_the_shipped_approved_list_parses_to_its_seed():
+    sys.path.insert(0, HOOKS)
+    import task_contract_gate as tcg
+    shipped = os.path.join(os.path.dirname(__file__), "..", tcg.APPROVED_DESIGNS)
+    with open(shipped, encoding="utf-8") as f:
+        assert tcg.parse_approved(f.read()) == {
+            ("competitions", 128), ("competition", 129), ("matches", 130), ("match", 132)}
 
 
 @pytest.mark.parametrize("block", ["  - none", "  - none:", "  - <page>: #<issue>", "  >", "", "  # later"])
@@ -3888,130 +3998,52 @@ def test_off_the_page_surface_needs_no_approved_design(repo):
     assert out.strip() == ""
 
 
-def test_ci_design_check_passes_a_labelled_issue_and_fails_the_rest(repo):
+def test_ci_design_check_passes_a_design_on_main_and_fails_the_rest(repo, monkeypatch):
     ci = _ci_module()
-    write_contract(repo, _with_design("  - home: #127\n  - match page: #132"))
-    labels = {127: ["design::approved"], 132: ["bug"]}
-    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), lambda n: labels[n])
-    assert errors == ["#132 named in approved_design does not carry `design::approved`"]
+    _approve_on_base(repo, monkeypatch)
+    write_contract(repo, _with_design("  - home: #127\n  - player: #136"))
+    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "base_main")
+    assert len(errors) == 1 and "`player: #136`" in errors[0] and "base_main" in errors[0]
 
 
-def test_ci_design_check_fails_closed_when_the_labels_cannot_be_read(repo):
+def test_ci_design_check_fails_closed_when_the_list_cannot_be_read(repo):
     ci = _ci_module()
     write_contract(repo, _with_design("  - home: #127"))
-    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), lambda n: None)
-    assert len(errors) == 1 and "could not read the labels of #127" in errors[0]
+    errors = ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref")
+    assert len(errors) == 1 and "`home: #127`" in errors[0]
 
 
 def test_ci_design_check_fails_a_page_diff_without_the_field(repo):
     ci = _ci_module()
     write_contract(repo, _PAGE_CONTRACT)
-    errors = ci.design_errors(["scripts/export_site_data.py"], str(repo), lambda n: ["design::approved"])
+    errors = ci.design_errors(["scripts/export_site_data.py"], str(repo), "no_such_ref")
     assert len(errors) == 1 and "names no approved design" in errors[0]
 
 
 def test_ci_design_check_ignores_a_diff_off_the_page_surface(repo):
     ci = _ci_module()
     write_contract(repo, CONTRACT)
-    calls = []
-    assert ci.design_errors(["docs/allowed_dir/page.md"], str(repo), lambda n: calls.append(n)) == []
-    assert calls == []
+    assert ci.design_errors(["docs/allowed_dir/page.md"], str(repo), "no_such_ref") == []
 
 
-def test_ci_design_check_reads_no_api_for_a_none_line(repo):
+def test_ci_design_check_needs_no_list_for_a_none_line(repo):
     ci = _ci_module()
     write_contract(repo, _with_design("  - none: no page output changes"))
-    calls = []
-    assert ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), lambda n: calls.append(n)) == []
-    assert calls == []
-
-
-@pytest.mark.parametrize("cmd", [
-    "glab issue update 127 --label design::approved",
-    "glab issue update 127 --label 'bug,design::approved'",
-    "glab api -X PUT projects/1/issues/127 -f add_labels=design::approved",
-    "glab api -X PUT 'projects/1/issues/127?add_labels=design%3A%3Aapproved'",
-    "glab label create design::approved",
-])
-def test_the_agent_cannot_set_the_design_approval_label(repo, cmd):
-    out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
-    assert denied(out) and "DESIGN APPROVAL BLOCKED" in out
-
-
-@pytest.mark.parametrize("cmd", [
-    "glab issue list --label design::approved",
-    "glab issue view 127",
-    "glab issue update 127 --label bug",
-])
-def test_reading_the_design_label_and_other_labels_stay_allowed(repo, cmd):
-    out, _ = run_hook("git_discipline.py", bash_event(cmd), repo)
-    assert "DESIGN APPROVAL BLOCKED" not in out
-
-
-def test_ci_label_fetch_without_a_token_reads_nothing(monkeypatch):
-    ci = _ci_module()
-    monkeypatch.delenv("DESIGN_GATE_TOKEN", raising=False)
-    assert ci.fetch_issue_labels(127) is None
-
-
-class _FakeResponse:
-    def __init__(self, status, body):
-        self.status_code, self._body = status, body
-
-    def json(self):
-        if isinstance(self._body, Exception):
-            raise self._body
-        return self._body
-
-
-@pytest.mark.parametrize("response, expected", [
-    (_FakeResponse(200, {"labels": ["design::approved"]}), ["design::approved"]),
-    (_FakeResponse(401, {"message": "401 Unauthorized"}), None),
-    (_FakeResponse(404, {"message": "404 Not found"}), None),
-    (_FakeResponse(200, ValueError("not json")), None),
-])
-def test_ci_label_fetch_reads_the_labels_or_nothing(monkeypatch, response, expected):
-    import requests
-
-    ci = _ci_module()
-    seen = {}
-
-    def fake_get(url, headers, timeout):
-        seen.update(url=url, headers=headers)
-        return response
-
-    monkeypatch.setenv("DESIGN_GATE_TOKEN", "test-token")
-    monkeypatch.delenv("CI_PROJECT_ID", raising=False)
-    monkeypatch.setattr(requests, "get", fake_get)
-    assert ci.fetch_issue_labels(127) == expected
-    assert seen["url"].endswith(f"/projects/{ci.GITLAB_PROJECT_ID}/issues/127")
-    assert seen["headers"] == {"PRIVATE-TOKEN": "test-token"}
-
-
-def test_ci_label_fetch_returns_nothing_on_a_request_error(monkeypatch):
-    import requests
-
-    ci = _ci_module()
-
-    def fake_get(url, headers, timeout):
-        raise requests.ConnectionError("down")
-
-    monkeypatch.setenv("DESIGN_GATE_TOKEN", "test-token")
-    monkeypatch.setattr(requests, "get", fake_get)
-    assert ci.fetch_issue_labels(127) is None
+    assert ci.design_errors(["site_v2/src/pages/home.astro"], str(repo), "no_such_ref") == []
 
 
 def test_ci_check_runs_the_design_check_on_a_page_diff(ci_repo):
-    """End to end through main(): a page-surface diff whose design labels cannot be read fails."""
+    """End to end through main(): a page diff whose design stands only in the branch's own list fails."""
     (ci_repo / "site_v2" / "src" / "pages").mkdir(parents=True, exist_ok=True)
     (ci_repo / "site_v2" / "src" / "pages" / "home.astro").write_text("<h1>x</h1>\n")
+    (ci_repo / "docs" / "wireframes").mkdir(parents=True, exist_ok=True)
+    (ci_repo / "docs" / "wireframes" / "approved_designs.yml").write_text("home: 127\n")
     (ci_repo / ".claude" / "task" / "contract.md").write_text(_with_design("  - home: #127"))
     (ci_repo / ".claude" / "task" / "review.md").write_text("diff_sha256: " + "0" * 64 + "\nrounds: 1\n")
     subprocess.run(["git", "add", "-A"], cwd=ci_repo, check=True)
     subprocess.run(["git", "commit", "-qm", "page"], cwd=ci_repo, check=True)
-    env = {k: v for k, v in os.environ.items() if k != "DESIGN_GATE_TOKEN"}
     r = subprocess.run(
         [sys.executable, os.path.join(SCRIPTS, "check_task_artifacts.py"), "--base", "main"],
-        capture_output=True, text=True, cwd=str(ci_repo), timeout=60, env=env,
+        capture_output=True, text=True, cwd=str(ci_repo), timeout=60,
     )
-    assert r.returncode == 1 and "could not read the labels of #127" in r.stdout
+    assert r.returncode == 1 and "`home: #127`" in r.stdout

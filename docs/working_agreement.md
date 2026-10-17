@@ -92,12 +92,13 @@ escalated, never answered by drawing it.
 - The page surface is `site_v2/src/**` and `scripts/export_site_data.py`: what a visitor sees.
 - A page changes only after its design is approved, so each line names a page and its issue:
   `- home: #127`.
-- That issue carries the label `design::approved`. Only the CPO sets it.
+- The page and its issue stand in `docs/wireframes/approved_designs.yml` on `main`. A page enters
+  that list in the MR that closes its design review; the CPO's merge is the approval.
 - A task that changes no page output says `- none: no page output changes`. `scope-auditor`
   checks that line against the diff.
 - The contract gate denies a page-surface edit without the field.
-- `scripts/check_task_artifacts.py` fails the MR in CI when a named issue lacks the label, or
-  when its labels cannot be read.
+- The contract gate and `scripts/check_task_artifacts.py` fail when a named page and issue are not
+  in that list on the base branch. The copy in the MR's own branch does not count.
 
 **`impact_map`.**
 
