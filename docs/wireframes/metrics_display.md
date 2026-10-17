@@ -71,12 +71,8 @@ context→window matrix, §1/§4). This section binds them to DISPLAY:
 2. **W2's user-facing name is "through matchday N"** — "season-to-date" is the
    internal mart name only. At the final matchday it equals the full season;
    aligned by matchday it powers YoY.
-3. **The W1/W2 switch must declare scope per state** (the toggle changes BOTH
-   window and competition scope — the labels carry that, always):
-   - W1: "Last 5 · all club competitions" / national: "all national-team
-     matches" + the `contributing_competitions` caption.
-   - W2: "{competition} · through matchday {N}"; `prev_season` fallback →
-     "{competition} · last season ({year})"; finished season → "final".
+3. **One window per team, no switch.** The match page shows each team the window that
+   `docs/metrics_context_model.md` §3–4 gives it, flagged by the warehouse.
 4. **Tournament exception** (matrix §4): world/continental championships use
    cumulative-within-the-tournament while running ("This tournament so far"),
    with qualifier matches as the pre-MD2 preview — never a bare "last 5"
