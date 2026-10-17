@@ -19,6 +19,7 @@ scope_paths:
   - docs/wireframes/08_browse.md
   - docs/site_architecture.md
   - tests/test_sentence_length_in_docs.py
+  - tests/test_no_decision_history_in_docs.py
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -89,3 +90,5 @@ amendments: >
   the export into site_v2/src/data, names the staging folder and deploy:site-v2's copy.
   2026-10-17: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that its pin
   moves down when a document loses a long sentence; content: the README's pin drops from 22 to 21.
+  2026-10-17: + tests/test_no_decision_history_in_docs.py — authority: the test's own rule that its
+  pin moves down when a document loses history lines; content: the README's pin drops from 18 to 16.

@@ -1,8 +1,8 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f992b621..ed4904ad 100644
+index f992b621..103e4f54 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,64 +1,91 @@
+@@ -1,64 +1,94 @@
 -# Task contract — the played match page's year
 +# Task contract — the deploy exports every data set the pages read
  
@@ -34,6 +34,7 @@ index f992b621..ed4904ad 100644
 +  - docs/wireframes/08_browse.md
 +  - docs/site_architecture.md
 +  - tests/test_sentence_length_in_docs.py
++  - tests/test_no_decision_history_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
@@ -135,6 +136,8 @@ index f992b621..ed4904ad 100644
 +  the export into site_v2/src/data, names the staging folder and deploy:site-v2's copy.
 +  2026-10-17: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that its pin
 +  moves down when a document loses a long sentence; content: the README's pin drops from 22 to 21.
++  2026-10-17: + tests/test_no_decision_history_in_docs.py — authority: the test's own rule that its
++  pin moves down when a document loses history lines; content: the README's pin drops from 18 to 16.
 \ No newline at end of file
 diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
 index bef85a8a..c2644d88 100644
@@ -201,6 +204,19 @@ index 14a97491..0f052952 100644
 -  needs it kept current.
  - **`minimum_data`** — none beyond the mart's own browsable filter (non-blank `display_group`,
    already applied upstream); every competition in the committed file renders.
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index f2d01a93..4c2a02af 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -61,7 +61,7 @@ PINNED = {
+     "docs/wireframes/99_gaps_register.md": 30,
+     "docs/wireframes/block_standard.md": 51,
+     "docs/wireframes/metrics_display.md": 44,
+-    "site_v2/src/data/README.md": 18,
++    "site_v2/src/data/README.md": 16,
+ }
+ 
+ DATE = "-".join(["20" + "31", "01", "02"])
 diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
 index 9d006742..647bd4b0 100644
 --- a/tests/test_sentence_length_in_docs.py
@@ -228,4 +244,23 @@ index 9d006742..647bd4b0 100644
 #
 #   site_v2/src/data/README.md | 17 +++++++----------
 #    1 file changed, 7 insertions(+), 10 deletions(-)
+# ============================================================================
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    |  21 +-
+#    .claude/task/rendered_page_evidence.md |  17 +-
+#    .claude/task/review.md                 |  44 ++--
+#    .claude/task/review_input.patch        | 468 +++++++++++++++------------------
+#    4 files changed, 244 insertions(+), 306 deletions(-)
 # ============================================================================
