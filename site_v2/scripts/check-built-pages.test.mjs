@@ -1,12 +1,16 @@
 // Regression coverage for check-built-pages.mjs. A build gate whose own logic is untested can
-// silently lose a check, and a lost check reads exactly like a clean run. String literals only, no
-// synthetic dist/ tree, for the reasons audit-seo.test.mjs gives.
+// silently lose a check, and a lost check reads exactly like a clean run. String literals, for the
+// reasons audit-seo.test.mjs gives, except the one test of main's wiring, on a tree in the OS temp
+// folder.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
-  checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkRankingsPage, boards, isZeroValue, renderedBoards,
-  rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+  checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
+  main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
 } from "./check-built-pages.mjs";
 
 function round(n, { checked = false, next = false, rows = [] } = {}) {
@@ -186,6 +190,44 @@ test("a row naming its match links exactly when that match has a page", () => {
     /match 13 links, though it has no page/);
   assert.deepEqual(checkMatchRowLinks('<div class="fxrow"></div><a class="lnk" href="/en/">Home</a>', built, "p"), [],
     "a row that names no match is not checked");
+});
+
+test("a row is read wherever data-fixture sits among its attributes", () => {
+  const built = new Set([11]);
+  assert.match(checkMatchRowLinks('<div data-fixture="11" class="lrow"></div>', built, "p")[0],
+    /match 11 is not a link, though its page is built/);
+  assert.equal(matchRows('<div data-fixture="11"></div><a data-fixture="12" href="/x/"></a><div class="lrow"></div>').length, 2);
+});
+
+test("match payloads with no row naming its match is an issue, not a silent pass", () => {
+  assert.match(checkMatchRowsFound({ matchRows: 0, payloadFiles: 2 })[0], /no row named its match/);
+  assert.deepEqual(checkMatchRowsFound({ matchRows: 5, payloadFiles: 2 }), []);
+  assert.deepEqual(checkMatchRowsFound({ matchRows: 0, payloadFiles: 0 }), []);
+});
+
+// The one test on a tree: the floor only reaches the build through main's row count. The tree is
+// in the OS temp folder, never under the repo, so `node --test` cannot discover it.
+test("main fails a build whose pages name no match, and passes it once a row does", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "check-built-pages-"));
+  try {
+    mkdirSync(join(root, "data", "fixtures"), { recursive: true });
+    writeFileSync(join(root, "data", "fixtures", "7.json"), "{}");
+    const page = (lang, word, html) => {
+      mkdirSync(join(root, "dist", lang, "x", word, "m"), { recursive: true });
+      writeFileSync(join(root, "dist", lang, "x", word, "m", "index.html"), html);
+    };
+    page("de", "spiele", "<html></html>");
+    page("fi", "ottelut", "<html></html>");
+    page("en", "matches", "<html></html>");
+    const errors = t.mock.method(console, "error", () => {});
+    t.mock.method(console, "log", () => {});
+    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
+    assert.ok(errors.mock.calls.some((c) => /no row named its match/.test(c.arguments[0])));
+    page("en", "matches", '<a data-fixture="7" href="/en/x/matches/m/" class="lrow"></a>');
+    assert.equal(main(join(root, "dist"), join(root, "data")), 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("a page with no round at all is an issue, not a pass", () => {

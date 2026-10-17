@@ -10,7 +10,8 @@
 //    warehouse held when the export ran. A sampled export therefore fails a full build, by design.
 // 2. On every fixtures page exactly one round is checked on load, and it is the round the
 //    warehouse flagged next whenever one is flagged; every unplayed row is a link. On every page,
-//    a row that names its match (`data-fixture`) is a link exactly when that match has a payload.
+//    a row that names its match (`data-fixture`) is a link exactly when that match has a payload,
+//    and a build with match payloads has at least one such row.
 // 3. On every Rankings page (at the stats word) every board keeps the board rules: one to five rows,
 //    every row a link, the boards the payload served and no others, and no zero on a most-first
 //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
@@ -117,13 +118,18 @@ export function checkFixturesPage(html, path = "") {
   return [...new Set(issues)];
 }
 
-const ROW_RE = /<(a|div)(\s[^>]*\sdata-fixture="(\d+)"[^>]*)>/g;
+const ROW_RE = /<(a|div)((?:\s[^>]*)?\sdata-fixture="(\d+)"[^>]*)>/g;
+
+/** The rows on one page that name their match, `data-fixture` in any attribute position. */
+export function matchRows(html) {
+  return [...html.matchAll(ROW_RE)];
+}
 
 /** Issues on one page: a row naming a match with a payload that is not a link, or a row linking to
  *  a match with none. */
 export function checkMatchRowLinks(html, built, path = "") {
   const issues = [];
-  for (const [, tag, attrs, id] of html.matchAll(ROW_RE)) {
+  for (const [, tag, attrs, id] of matchRows(html)) {
     const isLink = tag === "a" && RE.href.test(attrs);
     const has = built.has(Number(id));
     if (has && !isLink) issues.push(`${path}: the row of match ${id} is not a link, though its page is built`);
@@ -234,6 +240,15 @@ export function checkTabPagesFound({ fixturesPages, rankingsPages, expected }) {
   return issues;
 }
 
+/** An issue when the build carries match payloads but no row on any page named its match: the
+ *  row-link check only runs on rows that carry `data-fixture`, so a row that dropped it would
+ *  otherwise check nothing and pass. */
+export function checkMatchRowsFound({ matchRows, payloadFiles }) {
+  return payloadFiles > 0 && matchRows === 0
+    ? ["the build carries match payloads but no row named its match with data-fixture"]
+    : [];
+}
+
 export function readManifest(dataDir = DATA_DIR) {
   const file = join(dataDir, "manifest.json");
   return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
@@ -259,10 +274,12 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   let matchPages = 0;
   let fixturesPages = 0;
   let rankingsPages = 0;
+  let rowsChecked = 0;
   const expected = expectedBoards(dataDir);
   const built = payloadIds(dataDir);
   for (const { path, html } of readDist(distDir)) {
     if (MATCH_PAGE.test(path)) matchPages += 1;
+    rowsChecked += matchRows(html).length;
     issues.push(...checkMatchRowLinks(html, built, path));
     if (FIXTURES_PAGE.test(path)) {
       fixturesPages += 1;
@@ -277,6 +294,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
   const manifest = readManifest(dataDir);
   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
+  issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
   if (issues.length) {
     console.error(`check-built-pages: ${issues.length} issue(s)`);
     for (const i of issues) console.error(`  - ${i}`);
@@ -287,7 +305,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
       (manifest
         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
         : " (no manifest: sample build)") +
-      `; ${fixturesPages} fixtures page(s) and ${rankingsPages} rankings page(s) checked. OK.`,
+      `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s) and ${rowsChecked} match row(s) checked. OK.`,
   );
   return 0;
 }
