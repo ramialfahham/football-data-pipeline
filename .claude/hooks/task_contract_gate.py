@@ -96,7 +96,11 @@ _EXPORT_RE = re.compile(r"^scripts/export_[A-Za-z0-9_]+\.py$")
 _PAGE_SURFACE_PREFIXES = ("site_v2/src/",)
 _PAGE_SURFACE_FILES = ("scripts/export_site_data.py",)
 _DESIGN_ISSUE_RE = re.compile(r"#(\d+)\b")
+_DESIGN_PAIR_RE = re.compile(r"([a-z0-9_-]+)\s*:\s*#(\d+)\b")
 _DESIGN_NONE_RE = re.compile(r"^none\s*:\s*\S")
+# Read from the base ref only, so a branch cannot approve its own page.
+APPROVED_DESIGNS = "docs/wireframes/approved_designs.yml"
+_APPROVED_LINE_RE = re.compile(r"^([a-z0-9_-]+)\s*:\s*#?(\d+)\s*(?:#.*)?$")
 # A `<template placeholder>` is not real content; nor is a bare YAML block
 # indicator or an empty/(none) line.
 _PLACEHOLDER_RE = re.compile(r"^<.*>$")
@@ -194,8 +198,9 @@ def _has_real_reservation(lines: list[str]) -> bool:
 
 def _approved_design(lines: list[str]) -> dict:
     """The `approved_design` block: the design issues it names, and whether it states, as a sentence,
-    that no page output changes. A bare `none` or a placeholder is neither."""
-    issues: list[int] = []
+    that no page output changes. A bare `none` or a placeholder is neither. An issue on a line that
+    is not `<page>: #<issue>` is kept with an empty page, which no approved design matches."""
+    pairs: list[tuple[str, int]] = []
     none = False
     for line in _PLACEHOLDER_SPAN.sub(" ", "\n".join(lines)).splitlines():
         s = line.strip().lstrip("-").strip()
@@ -204,8 +209,63 @@ def _approved_design(lines: list[str]) -> dict:
         if _DESIGN_NONE_RE.match(s.lower()):
             none = True
             continue
-        issues.extend(int(n) for n in _DESIGN_ISSUE_RE.findall(s))
-    return {"issues": issues, "none": none, "present": bool(issues) or none}
+        named = [(m.group(1), int(m.group(2))) for m in _DESIGN_PAIR_RE.finditer(s.lower())]
+        leftover = [int(n) for n in _DESIGN_ISSUE_RE.findall(s)]
+        for _, issue in named:
+            leftover.remove(issue)
+        pairs.extend(named)
+        pairs.extend(("", issue) for issue in leftover)
+    return {"pairs": pairs, "none": none, "present": bool(pairs) or none}
+
+
+def default_base_ref(root: str | None = None) -> str:
+    """The ref that holds `main` here: `GOVERNANCE_BASE`, else `gitlab/main` when that remote
+    exists (GitLab is the system of record; `origin` is the GitHub mirror), else `origin/main`."""
+    env = os.environ.get("GOVERNANCE_BASE")
+    if env:
+        return env
+    try:
+        remotes = subprocess.run(
+            ["git", "remote"], cwd=root, capture_output=True, text=True, timeout=10,
+        ).stdout.split()
+    except Exception:
+        return "origin/main"
+    return "gitlab/main" if "gitlab" in remotes else "origin/main"
+
+
+def approved_on_base(base: str, root: str) -> set[tuple[str, int]] | None:
+    """The approved designs as the base ref holds them, or None when the list cannot be read there."""
+    try:
+        out = subprocess.run(
+            ["git", "show", f"{base}:{APPROVED_DESIGNS}"], cwd=root,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    if out.returncode != 0:
+        return None
+    return parse_approved(out.stdout)
+
+
+def parse_approved(text: str) -> set[tuple[str, int]]:
+    """The `page: issue` lines of the approved-designs list; any other line names no design."""
+    approved = set()
+    for line in text.splitlines():
+        m = _APPROVED_LINE_RE.match(line.strip())
+        if m:
+            approved.add((m.group(1), int(m.group(2))))
+    return approved
+
+
+def unapproved_designs(design: dict, base: str, root: str) -> list[str]:
+    """Each design the contract names that the base ref's list does not hold, as `page: #issue`.
+    A list that cannot be read fails every named design."""
+    pairs = design.get("pairs") or []
+    if not pairs:
+        return []
+    approved = approved_on_base(base, root)
+    return [f"{page}: #{issue}" if page else f"#{issue}"
+            for page, issue in pairs if approved is None or (page, issue) not in approved]
 
 
 def _is_page_surface(rel: str) -> bool:
@@ -426,6 +486,30 @@ def _deny_missing_approved_design(rel: str) -> None:
     )
 
 
+def _deny_unapproved_design(rel: str, missing: list[str], base: str) -> None:
+    emit_deny(
+        f"CONTRACT GATE: `{rel}` is on the PAGE SURFACE, and the contract names a design that "
+        f"`{APPROVED_DESIGNS}` on `{base}` does not hold: {', '.join(missing)}. A page enters that "
+        "list in the MR that closes its design review, and the CPO's merge approves it; the copy "
+        "in this branch does not count. If main moved, fetch it. Otherwise stop and bring the "
+        "page's design to the CPO. See docs/working_agreement.md §2."
+    )
+
+
+def _page_surface_refused(rel: str, contract: dict, root: str) -> bool:
+    """Deny a page-surface edit without an approved design on main; True when it denied."""
+    design = contract["approved_design"]
+    if not design["present"]:
+        _deny_missing_approved_design(rel)
+        return True
+    base = default_base_ref(root)
+    missing = unapproved_designs(design, base, root)
+    if missing:
+        _deny_unapproved_design(rel, missing, base)
+        return True
+    return False
+
+
 def _gate_file_edit(event: dict, root: str) -> None:
     path = (event.get("tool_input") or {}).get("file_path") or ""
     if not path:
@@ -475,8 +559,7 @@ def _gate_file_edit(event: dict, root: str) -> None:
     if _is_structural(rel) and not contract.get("impact_map_present"):
         _deny_missing_impact_map(rel)
         return
-    if _is_page_surface(rel) and not contract["approved_design"]["present"]:
-        _deny_missing_approved_design(rel)
+    if _is_page_surface(rel) and _page_surface_refused(rel, contract, root):
         return
 
 
@@ -587,8 +670,7 @@ def _gate_bash_pre(event: dict, root: str) -> None:
         if _is_structural(rel) and not contract.get("impact_map_present"):
             _deny_missing_impact_map(rel)
             return
-        if _is_page_surface(rel) and not contract["approved_design"]["present"]:
-            _deny_missing_approved_design(rel)
+        if _is_page_surface(rel) and _page_surface_refused(rel, contract, root):
             return
 
 
