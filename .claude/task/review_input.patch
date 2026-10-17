@@ -1,266 +1,283 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index f992b621..103e4f54 100644
+index 103e4f54..7b53bfbe 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,64 +1,94 @@
--# Task contract — the played match page's year
-+# Task contract — the deploy exports every data set the pages read
+@@ -1,94 +1,52 @@
+-# Task contract — the deploy exports every data set the pages read
++# Task contract — a floor under the match-row link check
  
  objective: >
--  A played match page's title, heading and description carry the match's year, so two meetings of
--  the same clubs on the same day in different seasons no longer share them. The full-scale site
--  build's audit fails on 921 titles, 921 headings and 555 descriptions without it.
-+  The site deploy builds every page from one full export and none from the committed sample:
-+  deploy:export exports every data set a built page reads into a staging folder, and
-+  deploy:site-v2 empties site_v2/src/data except its README and copies that export in before it
-+  builds. Today the export holds teams and fixtures only and lands over the sample, so the home
-+  page, the competition pages, the competitions index and the day pages are built from the sample
-+  of 25 Sep, and 54 of their links lead to matches the warehouse has since moved.
+-  The site deploy builds every page from one full export and none from the committed sample:
+-  deploy:export exports every data set a built page reads into a staging folder, and
+-  deploy:site-v2 empties site_v2/src/data except its README and copies that export in before it
+-  builds. Today the export holds teams and fixtures only and lands over the sample, so the home
+-  page, the competition pages, the competitions index and the day pages are built from the sample
+-  of 25 Sep, and 54 of their links lead to matches the warehouse has since moved.
++  The built-pages check fails when no row on any built page names its match with data-fixture
++  while the build carries match payloads, so a component that drops the attribute cannot pass the
++  row-link check by checking nothing. The row pattern also reads data-fixture in any attribute
++  position: today it skips every tag where data-fixture is the first attribute.
  
  refs: >
--  #175, the played match page (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/175),
--  whose scale criterion this unblocks. The plan and the wireframe sentence: approved in chat,
--  2026-10-16.
-+  #156, the site built from live data (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/156),
-+  its step 1 (the entity list) and its third requirement (production no longer shows the
-+  committed sample). The nightly schedule stays in #156. The plan: approved in chat, 2026-10-17.
+-  #156, the site built from live data (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/156),
+-  its step 1 (the entity list) and its third requirement (production no longer shows the
+-  committed sample). The nightly schedule stays in #156. The plan: approved in chat, 2026-10-17.
++  The platform review of !320, the played match page
++  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/merge_requests/320), which named the
++  missing floor as not blocking. The plan: approved in chat, 2026-10-16.
  
  scope_paths:
--  - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
--  - site_v2/scripts/audit-seo.test.mjs
--  - docs/wireframes/01_fixture_page.md
-+  - .gitlab-ci.yml
-+  - site_v2/src/data/README.md
-+  - docs/wireframes/08_browse.md
-+  - docs/site_architecture.md
-+  - tests/test_sentence_length_in_docs.py
-+  - tests/test_no_decision_history_in_docs.py
+-  - .gitlab-ci.yml
+-  - site_v2/src/data/README.md
+-  - docs/wireframes/08_browse.md
+-  - docs/site_architecture.md
+-  - tests/test_sentence_length_in_docs.py
+-  - tests/test_no_decision_history_in_docs.py
++  - site_v2/scripts/check-built-pages.mjs
++  - site_v2/scripts/check-built-pages.test.mjs
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
    - .claude/task/rendered_page_evidence.md
  
-+protected_override: >
-+  .gitlab-ci.yml, jobs deploy:export and deploy:site-v2 only (their scripts, artifact path and
-+  comments; rules and needs unchanged): approved in chat, 2026-10-17, as the plan for #156 step 1
-+  and its amendment.
-+
+-protected_override: >
+-  .gitlab-ci.yml, jobs deploy:export and deploy:site-v2 only (their scripts, artifact path and
+-  comments; rules and needs unchanged): approved in chat, 2026-10-17, as the plan for #156 step 1
+-  and its amendment.
+-
  impact_map: >
--  writers: the Astro build writes the match pages; no export, model or seed changes.
--  downstream: the played match pages' title, h1, og and JSON-LD names that read the same title,
--  and their meta description. No other page reads them.
--  layer_rules: the site formats a served kickoff with an existing formatter (formatDayYear in
--  site_v2/src/lib/format.ts); nothing is computed from data.
--  deploy_order: none; the site build runs on the committed samples in CI on the MR; deploy:site-v2
--  stays manual.
--  blast_radius: played match pages only (about 64,000 payloads, three locales each); the next match
--  page's title and description are unchanged.
-+  writers: deploy:export runs scripts/export_site_data.py into site_v2/export_data and hands that
-+  folder to deploy:site-v2 as its artifact; no BigQuery table is written.
-+  downstream: deploy:site-v2 (needs deploy:export) starts from its own checkout, which holds the
-+  committed sample; it empties site_v2/src/data except README.md, copies the artifact's files in,
-+  then builds and publishes the site. No other job reads the artifact; the MR and main builds
-+  (build:site-v2) keep building from the committed sample, which this change does not touch in the
-+  repository.
-+  guard: both jobs' rules stay `web` only, manual (deploy:site-v2 on success of the export);
-+  nothing new fires them. The emptying step runs in deploy:site-v2's own clone, so it removes
-+  nothing from the repository. If the export fails, deploy:site-v2 does not start; if the copy or
-+  the build fails, nothing is deployed, as today.
-+  layer_rules: the export selects and shapes served values only; no export code changes.
-+  deploy_order: none; the first manual deploy from main after the merge is the proof on GitLab.
-+  blast_radius: the published site is built from the export alone: competition pages for every
-+  competition and season, the home page, the competitions index, the day pages, and the player
-+  pages the full export brings, 221,721 pages measured locally. The export reads 0.370 GiB more
-+  per deploy (dry run: competitions 0.193, landing 0.158, matches 0.019, competition_index
-+  0.000; metric_groups and metric_rows read the seeds, not BigQuery), about 1.30 GiB per deploy
-+  in all. The deploy runs only when started by hand, so the cost is not recurring.
- 
- acceptance_criteria:
--  - "1. On a played match page the title and the h1 read the seoFixtureTitle template with the day, month and year of the kick-off (formatDayYear); EN Hoffenheim–Dortmund reads TSG 1899 Hoffenheim vs Borussia Dortmund, 5 Sept 2026, and the DE and FI pages read their templates with their locale's date."
--  - "2. A played match page's meta description ends with · {day month year}., e.g. Full time: TSG 1899 Hoffenheim 2–3 Borussia Dortmund · Matchday 2 · 5 Sept 2026."
--  - "3. Every next match page's title, h1 and description are identical to main's build."
--  - "4. audit-seo.test.mjs asserts the 600px title budget for a next match title and the 660px hard cap for a played match title, whose date carries a year, and passes; the full-scale build's count of titles over 600px is put on the MR."
--  - "5. npm run build in site_v2 passes on the committed sample (prebuild tests, audit-seo, check-built-pages)."
--  - "6. The full-scale build from the export of deploy job 17243256610 shows no title, h1 or description violation in audit-seo; the violations left are the 9 of the two Nyasa Big Bullets team pages and the 54 dead links of moved matches; no title passes the 660px hard cap."
--  - "7. 01_fixture_page.md §8 carries the approved sentence: A played match's date carries its year: the same clubs meet on the same day in other seasons."
-+  - "1. deploy:export runs the export with --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows into a staging folder, its artifact; deploy:site-v2 empties site_v2/src/data except README.md and copies that folder's files in before it builds; both jobs' rules are unchanged."
-+  - "2. A full-scale build from that data, the sample removed and only exported files present, passes the page build at the deploy heap; audit-seo lists none of the 54 dead links that came from the committed sample, and every violation it does list is named on the MR with its cause."
-+  - "3. site_v2/src/data/README.md says the deploy builds from a full export and never from the committed sample, which is the MR build's input."
-+  - "4. The MR pipeline passes: lint, tests and the sample build."
+-  writers: deploy:export runs scripts/export_site_data.py into site_v2/export_data and hands that
+-  folder to deploy:site-v2 as its artifact; no BigQuery table is written.
+-  downstream: deploy:site-v2 (needs deploy:export) starts from its own checkout, which holds the
+-  committed sample; it empties site_v2/src/data except README.md, copies the artifact's files in,
+-  then builds and publishes the site. No other job reads the artifact; the MR and main builds
+-  (build:site-v2) keep building from the committed sample, which this change does not touch in the
+-  repository.
+-  guard: both jobs' rules stay `web` only, manual (deploy:site-v2 on success of the export);
+-  nothing new fires them. The emptying step runs in deploy:site-v2's own clone, so it removes
+-  nothing from the repository. If the export fails, deploy:site-v2 does not start; if the copy or
+-  the build fails, nothing is deployed, as today.
+-  layer_rules: the export selects and shapes served values only; no export code changes.
+-  deploy_order: none; the first manual deploy from main after the merge is the proof on GitLab.
+-  blast_radius: the published site is built from the export alone: competition pages for every
+-  competition and season, the home page, the competitions index, the day pages, and the player
+-  pages the full export brings, 221,721 pages measured locally. The export reads 0.370 GiB more
+-  per deploy (dry run: competitions 0.193, landing 0.158, matches 0.019, competition_index
+-  0.000; metric_groups and metric_rows read the seeds, not BigQuery), about 1.30 GiB per deploy
+-  in all. The deploy runs only when started by hand, so the cost is not recurring.
+-
+-acceptance_criteria:
+-  - "1. deploy:export runs the export with --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows into a staging folder, its artifact; deploy:site-v2 empties site_v2/src/data except README.md and copies that folder's files in before it builds; both jobs' rules are unchanged."
+-  - "2. A full-scale build from that data, the sample removed and only exported files present, passes the page build at the deploy heap; audit-seo lists none of the 54 dead links that came from the committed sample, and every violation it does list is named on the MR with its cause."
+-  - "3. site_v2/src/data/README.md says the deploy builds from a full export and never from the committed sample, which is the MR build's input."
+-  - "4. The MR pipeline passes: lint, tests and the sample build."
++  writers: none; the change is to a read-only check over the built HTML and src/data/fixtures.
++  downstream: `grep -rn check-built-pages` outside node_modules and dist finds three readers:
++  site_v2/package.json (`npm run build` runs it after astro build and audit-seo),
++  site_v2/scripts/build-wiring.test.mjs (pins that order; unchanged) and its own test file.
++  Every CI job that runs `npm run build` in site_v2 therefore runs it.
++  guard: the check can only add failures. It now fails a build with fixture payloads and no
++  data-fixture row, and it reads rows it skipped before. On the !320 build output the current
++  pattern read 18,093 rows; the fixed pattern reads 19,650 (1,557 more, all of the form
++  `<div data-fixture=… class=…>`) and finds 0 rows whose link disagrees with its payload, so it
++  does not turn that build red. The build in this MR re-measures it.
++  layer_rules: none; no dbt model, export or page source changes.
++  deploy_order: none; nothing is deployed by this change.
++  blast_radius: no page changes; a site build can fail where it passed before only when a row's
++  link disagrees with its payload or no row names its match.
  
  decisions_taken: >
--  Approved in chat, 2026-10-16: the year on the played match page's title, heading and
--  description; the plan; the wireframe sentence; the seven acceptance criteria. The next match page keeps its title, as approved.
--  No new string key: the description joins served facts with the existing separator, as the played
--  description already does.
-+  Approved in chat, 2026-10-17: the plan, the four acceptance criteria, the entity list (every data set a page reads; nav,
-+  leaderboards, glossary and players have no reader and stay out), emptying the data folder
-+  in the build job before the export is copied in, and the 0.370 GiB added per manual deploy.
-+  THRESHOLD: a cost change on a manual job, measured and approved; not recurring. No test pins the
-+  CI script: the full-scale audit on each deploy fails on a page built from stale data (approved
-+  in chat, 2026-10-17).
+-  Approved in chat, 2026-10-17: the plan, the four acceptance criteria, the entity list (every data set a page reads; nav,
+-  leaderboards, glossary and players have no reader and stay out), emptying the data folder
+-  in the build job before the export is copied in, and the 0.370 GiB added per manual deploy.
+-  THRESHOLD: a cost change on a manual job, measured and approved; not recurring. No test pins the
+-  CI script: the full-scale audit on each deploy fails on a page built from stale data (approved
+-  in chat, 2026-10-17).
++  The floor is build-wide: one row named anywhere is enough. It is styled on checkTabPagesFound
++  (a count passed in, one issue when it is zero and the payloads call for rows). No new mechanism,
++  dependency or recurring cost.
  
  decisions_reserved:
--  - The two Nyasa Big Bullets team ids (4596 and 4599) that build two team pages with one name.
--  - The deploy export's entity list, which leaves the day pages and competition lists on the committed sample (#156).
--  - Any played title over the 660px hard cap, put to the CPO with the titles.
-+  - The player pages that share a heading or title with another player (453 violations at full scale).
-+  - The competition tab titles over the 660px hard cap (8 violations).
-+  - The World Cup Qualification Africa page linking an Eritrea team page that is not built (3 violations).
-+  - The two Nyasa Big Bullets team ids (9 violations).
+-  - The player pages that share a heading or title with another player (453 violations at full scale).
+-  - The competition tab titles over the 660px hard cap (8 violations).
+-  - The World Cup Qualification Africa page linking an Eritrea team page that is not built (3 violations).
+-  - The two Nyasa Big Bullets team ids (9 violations).
++  - none: the plan was approved in chat, 2026-10-16, and this builds it unchanged.
  
  done_when:
--  - npm run build in site_v2 passes on the committed sample.
--  - The full-scale build's audit-seo lists no title, h1 or description violation.
--  - Reviewers bi-analyst, platform and scope-auditor pass.
-+  - The full-scale build from export-only data shows none of the sample's dead links.
-+  - Reviewers cto-reviewer, platform-reviewer, bi-analyst-reviewer and scope-auditor pass.
-+  - The MR pipeline is green.
+-  - The full-scale build from export-only data shows none of the sample's dead links.
+-  - Reviewers cto-reviewer, platform-reviewer, bi-analyst-reviewer and scope-auditor pass.
+-  - The MR pipeline is green.
++  - node --test site_v2/scripts/check-built-pages.test.mjs passes; the two new tests fail against the code before this change
++  - npm run build in site_v2 passes and its OK line reports the rows checked
++  - the validate-local gates pass
  
- amendments: >
--  2026-10-16: criterion 4 tests a played match title against the 660px hard cap instead of the
--  600px budget, which the longest played pairings pass (626px EN, 633px DE) once the date carries
--  its year — authority: approved in chat, 2026-10-16.
--  2026-10-17: criteria 1 and 2 give the English month as Intl's en-GB form, Sept, the form the
--  head-to-head rows already show — authority: approved in chat, 2026-10-17.
-+  2026-10-17: + docs/wireframes/08_browse.md — authority: the standing rule that a claim made false
-+  by a change is removed in the same MR; content: the "CI wiring" bullet, which says
-+  competition_index is not in the deploy's entity list, is removed.
-+  2026-10-17: the emptying moves from deploy:export to deploy:site-v2, because deploy:site-v2 starts
-+  from its own checkout holding the sample and unpacking the artifact deletes nothing; the export
-+  goes to a staging folder; criterion 1, the objective, protected_override and impact_map say so —
-+  authority: approved in chat, 2026-10-17.
-+  2026-10-17: + docs/site_architecture.md — authority: the standing rule that a claim made false by
-+  a change is corrected in the same MR; content: the deploy bullet, which says deploy:export runs
-+  the export into site_v2/src/data, names the staging folder and deploy:site-v2's copy.
-+  2026-10-17: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that its pin
-+  moves down when a document loses a long sentence; content: the README's pin drops from 22 to 21.
-+  2026-10-17: + tests/test_no_decision_history_in_docs.py — authority: the test's own rule that its
-+  pin moves down when a document loses history lines; content: the README's pin drops from 18 to 16.
+-amendments: >
+-  2026-10-17: + docs/wireframes/08_browse.md — authority: the standing rule that a claim made false
+-  by a change is removed in the same MR; content: the "CI wiring" bullet, which says
+-  competition_index is not in the deploy's entity list, is removed.
+-  2026-10-17: the emptying moves from deploy:export to deploy:site-v2, because deploy:site-v2 starts
+-  from its own checkout holding the sample and unpacking the artifact deletes nothing; the export
+-  goes to a staging folder; criterion 1, the objective, protected_override and impact_map say so —
+-  authority: approved in chat, 2026-10-17.
+-  2026-10-17: + docs/site_architecture.md — authority: the standing rule that a claim made false by
+-  a change is corrected in the same MR; content: the deploy bullet, which says deploy:export runs
+-  the export into site_v2/src/data, names the staging folder and deploy:site-v2's copy.
+-  2026-10-17: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that its pin
+-  moves down when a document loses a long sentence; content: the README's pin drops from 22 to 21.
+-  2026-10-17: + tests/test_no_decision_history_in_docs.py — authority: the test's own rule that its
+-  pin moves down when a document loses history lines; content: the README's pin drops from 18 to 16.
 \ No newline at end of file
-diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
-index bef85a8a..c2644d88 100644
---- a/.gitlab-ci.yml
-+++ b/.gitlab-ci.yml
-@@ -1035,14 +1035,13 @@ deploy:export:
-     - *dbt_profile
-     - *gcp_auth
-     - export PYTHONPATH=.
--    # The --entities list is LOAD-BEARING, not a default worth trusting: it limits
--    # the export to what the built pages actually consume (team + fixture;
--    # competitions.json is always emitted), so we do not scan marts for pages that
--    # have not shipped. Reads marts only; writes no BigQuery table.
--    - python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data
-+    # The --entities list is LOAD-BEARING: every data set a built page reads, and no
-+    # other (competitions.json is always emitted). Reads marts and seeds only; writes
-+    # no BigQuery table.
-+    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
-   artifacts:
-     paths:
--      - site_v2/src/data
-+      - site_v2/export_data
-     expire_in: 1 day
-   # `web` ONLY, and that restriction is the whole gate. An earlier revision used a
-   # bare `when: manual`, which excludes schedules but nothing else — so a Deploy to
-@@ -1074,6 +1073,10 @@ deploy:site-v2:
-     # .gcp_auth is pure shell (printf/cat), so it works on the Node image too —
-     # firebase-tools reads GOOGLE_APPLICATION_CREDENTIALS like any Google client.
-     - *gcp_auth
-+    # This checkout holds the committed sample, the MR build's input; the deployed
-+    # site is built from the export alone, so the sample leaves the folder first.
-+    - find site_v2/src/data -mindepth 1 ! -name README.md -delete
-+    - cp -R site_v2/export_data/. site_v2/src/data/
-     - cd site_v2
-     - npm ci --cache "$CI_PROJECT_DIR/.npm" --prefer-offline
-     # The full ~15k-page build OOMs at the default heap (#818 proved this setting).
-diff --git a/docs/site_architecture.md b/docs/site_architecture.md
-index 1eac327c..7ea38d74 100644
---- a/docs/site_architecture.md
-+++ b/docs/site_architecture.md
-@@ -325,8 +325,9 @@ scripts/export_site_data.py   per-entity export; the only export the v2 site rea
- .gitlab-ci.yml                build:site-v2, deploy:export, deploy:site-v2
- ```
- 
--- `deploy:export` runs the export into `site_v2/src/data/`. `deploy:site-v2` builds the site and
--  deploys it to Firebase Hosting. Both run only on a manual web dispatch.
-+- `deploy:export` runs the export into `site_v2/export_data/`. `deploy:site-v2` replaces the
-+  committed sample in `site_v2/src/data/` with it, builds the site and deploys it to Firebase
-+  Hosting. Both run only on a manual web dispatch.
- - The site serves at its Firebase `.web.app` address, unlisted. `INDEXABLE` in
-   `site_v2/src/config/indexability.mjs` keeps every page `noindex`.
- - v2 goes live on `matchdaypilot.com`. No redirect maps a URL of the retired MVP to v2.
-diff --git a/docs/wireframes/08_browse.md b/docs/wireframes/08_browse.md
-index 14a97491..0f052952 100644
---- a/docs/wireframes/08_browse.md
-+++ b/docs/wireframes/08_browse.md
-@@ -140,9 +140,5 @@ route survives; only the row content's linkedness is still catching up.
- - **Row links** — reserved to the MR that ships #47 (§6).
- - **Multi-select filtering** — #54's stated end state; single-select ships this round (§6), a
-   follow-up adds the JS.
--- **CI wiring** — `competition_index` is not yet in `.gitlab-ci.yml`/`deploy-site-v2.yml`'s
--  `--entities` list; nothing outside this page reads the file's freshness guarantee yet, so
--  wiring it in now would commit a refresh path nothing depends on. Revisit when a real deploy
--  needs it kept current.
- - **`minimum_data`** — none beyond the mart's own browsable filter (non-blank `display_group`,
-   already applied upstream); every competition in the committed file renders.
-diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
-index f2d01a93..4c2a02af 100644
---- a/tests/test_no_decision_history_in_docs.py
-+++ b/tests/test_no_decision_history_in_docs.py
-@@ -61,7 +61,7 @@ PINNED = {
-     "docs/wireframes/99_gaps_register.md": 30,
-     "docs/wireframes/block_standard.md": 51,
-     "docs/wireframes/metrics_display.md": 44,
--    "site_v2/src/data/README.md": 18,
-+    "site_v2/src/data/README.md": 16,
++amendments: (none)
+diff --git a/site_v2/scripts/check-built-pages.mjs b/site_v2/scripts/check-built-pages.mjs
+index edc1bd94..79530c45 100644
+--- a/site_v2/scripts/check-built-pages.mjs
++++ b/site_v2/scripts/check-built-pages.mjs
+@@ -10,7 +10,8 @@
+ //    warehouse held when the export ran. A sampled export therefore fails a full build, by design.
+ // 2. On every fixtures page exactly one round is checked on load, and it is the round the
+ //    warehouse flagged next whenever one is flagged; every unplayed row is a link. On every page,
+-//    a row that names its match (`data-fixture`) is a link exactly when that match has a payload.
++//    a row that names its match (`data-fixture`) is a link exactly when that match has a payload,
++//    and a build with match payloads has at least one such row.
+ // 3. On every Rankings page (at the stats word) every board keeps the board rules: one to five rows,
+ //    every row a link, the boards the payload served and no others, and no zero on a most-first
+ //    board (a zero is not a ranking there; on a fewest-first board it is the top). Nothing on the
+@@ -117,13 +118,18 @@ export function checkFixturesPage(html, path = "") {
+   return [...new Set(issues)];
  }
  
- DATE = "-".join(["20" + "31", "01", "02"])
-diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
-index 9d006742..647bd4b0 100644
---- a/tests/test_sentence_length_in_docs.py
-+++ b/tests/test_sentence_length_in_docs.py
-@@ -74,7 +74,7 @@ PINNED = {
-     "docs/wireframes/99_gaps_register.md": 66,
-     "docs/wireframes/block_standard.md": 11,
-     "docs/wireframes/metrics_display.md": 30,
--    "site_v2/src/data/README.md": 22,
-+    "site_v2/src/data/README.md": 21,
+-const ROW_RE = /<(a|div)(\s[^>]*\sdata-fixture="(\d+)"[^>]*)>/g;
++const ROW_RE = /<(a|div)((?:\s[^>]*)?\sdata-fixture="(\d+)"[^>]*)>/g;
++
++/** The rows on one page that name their match, `data-fixture` in any attribute position. */
++export function matchRows(html) {
++  return [...html.matchAll(ROW_RE)];
++}
+ 
+ /** Issues on one page: a row naming a match with a payload that is not a link, or a row linking to
+  *  a match with none. */
+ export function checkMatchRowLinks(html, built, path = "") {
+   const issues = [];
+-  for (const [, tag, attrs, id] of html.matchAll(ROW_RE)) {
++  for (const [, tag, attrs, id] of matchRows(html)) {
+     const isLink = tag === "a" && RE.href.test(attrs);
+     const has = built.has(Number(id));
+     if (has && !isLink) issues.push(`${path}: the row of match ${id} is not a link, though its page is built`);
+@@ -234,6 +240,15 @@ export function checkTabPagesFound({ fixturesPages, rankingsPages, expected }) {
+   return issues;
  }
  
++/** An issue when the build carries match payloads but no row on any page named its match: the
++ *  row-link check only runs on rows that carry `data-fixture`, so a row that dropped it would
++ *  otherwise check nothing and pass. */
++export function checkMatchRowsFound({ matchRows, payloadFiles }) {
++  return payloadFiles > 0 && matchRows === 0
++    ? ["the build carries match payloads but no row named its match with data-fixture"]
++    : [];
++}
++
+ export function readManifest(dataDir = DATA_DIR) {
+   const file = join(dataDir, "manifest.json");
+   return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
+@@ -259,10 +274,12 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   let matchPages = 0;
+   let fixturesPages = 0;
+   let rankingsPages = 0;
++  let rowsChecked = 0;
+   const expected = expectedBoards(dataDir);
+   const built = payloadIds(dataDir);
+   for (const { path, html } of readDist(distDir)) {
+     if (MATCH_PAGE.test(path)) matchPages += 1;
++    rowsChecked += matchRows(html).length;
+     issues.push(...checkMatchRowLinks(html, built, path));
+     if (FIXTURES_PAGE.test(path)) {
+       fixturesPages += 1;
+@@ -277,6 +294,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+   const manifest = readManifest(dataDir);
+   issues.push(...checkMatchPageCount({ matchPages, payloadFiles, manifest }));
+   issues.push(...checkTabPagesFound({ fixturesPages, rankingsPages, expected }));
++  issues.push(...checkMatchRowsFound({ matchRows: rowsChecked, payloadFiles }));
+   if (issues.length) {
+     console.error(`check-built-pages: ${issues.length} issue(s)`);
+     for (const i of issues) console.error(`  - ${i}`);
+@@ -287,7 +305,7 @@ export function main(distDir = DIST_DIR, dataDir = DATA_DIR) {
+       (manifest
+         ? ` = the warehouse's ${manifest.source_counts?.fixtures_unplayed} unplayed and ${manifest.source_counts?.fixtures_played} played`
+         : " (no manifest: sample build)") +
+-      `; ${fixturesPages} fixtures page(s) and ${rankingsPages} rankings page(s) checked. OK.`,
++      `; ${fixturesPages} fixtures page(s), ${rankingsPages} rankings page(s) and ${rowsChecked} match row(s) checked. OK.`,
+   );
+   return 0;
+ }
+diff --git a/site_v2/scripts/check-built-pages.test.mjs b/site_v2/scripts/check-built-pages.test.mjs
+index d47acd62..40258b9a 100644
+--- a/site_v2/scripts/check-built-pages.test.mjs
++++ b/site_v2/scripts/check-built-pages.test.mjs
+@@ -1,12 +1,16 @@
+ // Regression coverage for check-built-pages.mjs. A build gate whose own logic is untested can
+-// silently lose a check, and a lost check reads exactly like a clean run. String literals only, no
+-// synthetic dist/ tree, for the reasons audit-seo.test.mjs gives.
++// silently lose a check, and a lost check reads exactly like a clean run. String literals, for the
++// reasons audit-seo.test.mjs gives, except the one test of main's wiring, on a tree in the OS temp
++// folder.
  
-
-# ============================================================================
-# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
-# ============================================================================
-# The files below changed and are DELIBERATELY excluded from the diff body:
-# they are generated/sample data, and pasting them has measured at ~89% of the
-# review payload. They are still reviewed content and still bind your verdict.
-#
-# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
-# particular: whether a field displayed by a component actually EXISTS in the
-# exported sample is checked by opening these files, not by reading a diff.
-#
-#   site_v2/src/data/README.md | 17 +++++++----------
-#    1 file changed, 7 insertions(+), 10 deletions(-)
-# ============================================================================
-
-# ============================================================================
-# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
-# ============================================================================
-# The files below changed on this branch and are DELIBERATELY kept out of the
-# diff: they are the review's own paperwork or the handover, which reviewers do
-# not judge (CPO 2026-08-01).
-#
-# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
-# and a path that appears in `scope_paths` but not in the diff is not, by itself,
-# a scope defect. Read them directly with Read/Grep if a claim in contract.md
-# depends on one.
-#
-#   .claude/task/acceptance_evidence.md    |  21 +-
-#    .claude/task/rendered_page_evidence.md |  17 +-
-#    .claude/task/review.md                 |  44 ++--
-#    .claude/task/review_input.patch        | 468 +++++++++++++++------------------
-#    4 files changed, 244 insertions(+), 306 deletions(-)
-# ============================================================================
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
++import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
+ import {
+-  checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkRankingsPage, boards, isZeroValue, renderedBoards,
+-  rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
++  checkFixturesPage, checkMatchPageCount, checkMatchRowLinks, checkMatchRowsFound, checkRankingsPage, boards, isZeroValue,
++  main, matchRows, renderedBoards, rounds, checkTabPagesFound, FIXTURES_PAGE, MATCH_PAGE, RANKINGS_PAGE,
+ } from "./check-built-pages.mjs";
+ 
+ function round(n, { checked = false, next = false, rows = [] } = {}) {
+@@ -188,6 +192,44 @@ test("a row naming its match links exactly when that match has a page", () => {
+     "a row that names no match is not checked");
+ });
+ 
++test("a row is read wherever data-fixture sits among its attributes", () => {
++  const built = new Set([11]);
++  assert.match(checkMatchRowLinks('<div data-fixture="11" class="lrow"></div>', built, "p")[0],
++    /match 11 is not a link, though its page is built/);
++  assert.equal(matchRows('<div data-fixture="11"></div><a data-fixture="12" href="/x/"></a><div class="lrow"></div>').length, 2);
++});
++
++test("match payloads with no row naming its match is an issue, not a silent pass", () => {
++  assert.match(checkMatchRowsFound({ matchRows: 0, payloadFiles: 2 })[0], /no row named its match/);
++  assert.deepEqual(checkMatchRowsFound({ matchRows: 5, payloadFiles: 2 }), []);
++  assert.deepEqual(checkMatchRowsFound({ matchRows: 0, payloadFiles: 0 }), []);
++});
++
++// The one test on a tree: the floor only reaches the build through main's row count. The tree is
++// in the OS temp folder, never under the repo, so `node --test` cannot discover it.
++test("main fails a build whose pages name no match, and passes it once a row does", (t) => {
++  const root = mkdtempSync(join(tmpdir(), "check-built-pages-"));
++  try {
++    mkdirSync(join(root, "data", "fixtures"), { recursive: true });
++    writeFileSync(join(root, "data", "fixtures", "7.json"), "{}");
++    const page = (lang, word, html) => {
++      mkdirSync(join(root, "dist", lang, "x", word, "m"), { recursive: true });
++      writeFileSync(join(root, "dist", lang, "x", word, "m", "index.html"), html);
++    };
++    page("de", "spiele", "<html></html>");
++    page("fi", "ottelut", "<html></html>");
++    page("en", "matches", "<html></html>");
++    const errors = t.mock.method(console, "error", () => {});
++    t.mock.method(console, "log", () => {});
++    assert.equal(main(join(root, "dist"), join(root, "data")), 1);
++    assert.ok(errors.mock.calls.some((c) => /no row named its match/.test(c.arguments[0])));
++    page("en", "matches", '<a data-fixture="7" href="/en/x/matches/m/" class="lrow"></a>');
++    assert.equal(main(join(root, "dist"), join(root, "data")), 0);
++  } finally {
++    rmSync(root, { recursive: true, force: true });
++  }
++});
++
+ test("a page with no round at all is an issue, not a pass", () => {
+   assert.match(checkFixturesPage("<html><body></body></html>", "p")[0], /no round on the page/);
+ });

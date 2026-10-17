@@ -1,47 +1,24 @@
-# Review — fix/156-deploy-exports-every-page-input — 2026-10-17
+# Review — fix/check-built-pages-row-floor — 2026-10-17
 
-diff_sha256: ce2e8bf8bfcd57474180b617dd5d048ec9a2c065af673d36978c53cb2ab18eb3
+diff_sha256: a12c92a55a6a9cd4eb3a0c12882a8884c7a5eb9d2a5c87946f862d135b27f99c
 
-rounds: 3
-
-## cto-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 3: the README's history pin in test_no_decision_history_in_docs.py drops from 18 to 16, a ratchet tightening; the CI flow is unchanged.
-- New mechanism: a find and a cp in deploy:site-v2 and a staging artifact path; no new job, hook, package, service or schedule.
-- Guard authority: protected_override names both deploy jobs, scoped to scripts, artifact path and comments, with a real impact_map; the hunks touch only those.
-- Fail closed: both jobs keep their rules and needs; a failed export, find or cp stops the job before npm ci and Firebase.
-- Cost: 0.370 GiB per manual deploy, declared as a THRESHOLD with its approval; no trigger or schedule added.
-- Entity list covers every src/data reader in site_v2; the emptying removes nothing the build needs.
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 3: the MR pipeline failed on the README's history pin; it drops from 18 to 16, and the full suite passes (1548 passed, 2 skipped).
-- Round 1 failed the emptying in deploy:export, which the build job's own checkout undid; round 2 empties in deploy:site-v2 after the artifact lands, so the build sees export-only data, as the local proof modelled.
-- The find path is relative to the job's clone, keeps the folder and README.md, and fails the job closed on error; a re-run starts from a fresh clone.
-- The staging folder is read by nothing in site_v2; manifest.json and slug_map.json reach src/data through the copy.
-- Timeouts: the export took about 16 min of 1h; the build 880s of 1h; the copy adds seconds to minutes.
-- The CPO ruled out a test pinning the CI script; a dropped entity fails the build, and a dropped find is caught by the audit and the page-count check.
-
-## bi-analyst-reviewer
-VERDICT: PASS
-risks_checked:
-- Round 3: only the history pin changes (18 to 16), following the README deletions; no display surface.
-- Round 1 failed three README claims the change made false; all three are deleted.
-- The README opening matches the two jobs; no later paragraph contradicts it.
-- The entity list covers every data set read under site_v2/src and site_v2/scripts; nothing reads players, nav, leaderboards or metrics.json.
-- Binding rule: the sample is emptied before the copy, so no page is built from data the export does not write.
-- site_architecture.md and the 08_browse.md removal match the CI file; the sentence-length pin follows the deleted sentence.
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 3: tests/test_no_decision_history_in_docs.py is in scope with a dated amendment; its one change lowers the README pin.
-- Round 1 failed two README claims; both are deleted, with no new wording.
-- Every path is in scope_paths; each added path carries a dated amendment with its authority.
-- .gitlab-ci.yml hunks sit only in deploy:export and deploy:site-v2; rules and needs unchanged.
-- Thresholds declared; the four reserved full-scale defects are untouched; no decision history in code or docs.
+- Every path in the diff is in scope_paths: check-built-pages.mjs, its test file and the task artifacts; amendments none.
+- No §10 class crossed: the new issue text is build-gate output only; no metric, URL, slug or visible name changes.
+- No new mechanism, dependency or recurring cost: one pure function styled on checkTabPagesFound, one counter, one test on an OS temp tree using node built-ins only.
+- The impact_map is evidenced: the readers by grep, and the row counts measured before and after (18,093 and 19,650, 0 mismatches); the change widens what is checked and narrows nothing.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 found main's wiring of the floor pinned by no test; round 2 adds a test of main on a tree in os.tmpdir() that fails when either the floor push or the row count is removed, and asserts the floor message rather than any non-zero exit.
+- ROW_RE reads data-fixture in any attribute position, stays linear per tag, and does not match other tags or attribute names; the old pattern fails the attribute-first test.
+- The check fails closed: the floor adds an issue, main returns 1, and npm run build stops.
+- The test tree is removed in a finally and the console mocks are restored per test; nothing is written under the repo.
 
 ## escalations
 (none)
