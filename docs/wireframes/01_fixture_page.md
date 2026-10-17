@@ -210,6 +210,7 @@ The block shows no totals and no bar. A meeting links to its match's page when t
     tie and a league match or two league meetings in a season, otherwise share a title, and the
     audit fails the build on it. The date alone tells every meeting apart; the competition would
     not fit (see above). With no descriptor, the title stays true once a match is played.
+    A played match's date carries its year: the same clubs meet on the same day in other seasons.
   - *Per locale*, each measured at its worst real fixture over every upcoming match: EN
     `{home} vs {away}, {date}` 534px · DE `{home} - {away}, {date}` 535px · FI
     `{home}–{away}, {date}` 505px. All inside the 600px budget. The German dash replaces "gegen" (also the convention in

@@ -453,13 +453,30 @@ test("the REAL fixture templates fit two long names inside the BUDGET, not just 
     ["Wolverhampton Wanderers", "Manchester United"],
     ["Atletico-MG", "Palmeiras"],
   ];
+  // Each template is measured with its own locale's widest real date, as format.ts renders it;
+  // strings.ts holds the templates in the order EN, DE, FI. A played match's date carries its year.
+  const widestDate = (locale, options) => {
+    const format = new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" });
+    const dates = Array.from({ length: 12 }, (_, m) => format.format(new Date(Date.UTC(2026, m, 28))));
+    return dates.reduce((a, b) => (titleWidthPx(b) > titleWidthPx(a) ? b : a));
+  };
+  const locales = ["en-GB", "de-DE", "fi-FI"];
   let worst = 0;
-  for (const tpl of templates) {
+  let worstPlayed = 0;
+  templates.forEach((tpl, i) => {
+    const next = widestDate(locales[i], { day: "numeric", month: "short" });
+    const played = widestDate(locales[i], { day: "numeric", month: "short", year: "numeric" });
     for (const [home, away] of pairings) {
-      const rendered = tpl.replace("{home}", home).replace("{away}", away);
-      worst = Math.max(worst, titleWidthPx(rendered));
+      const pairing = tpl.replace("{home}", home).replace("{away}", away);
+      worst = Math.max(worst, titleWidthPx(pairing.replace("{date}", next)));
+      worstPlayed = Math.max(worstPlayed, titleWidthPx(pairing.replace("{date}", played)));
     }
-  }
+  });
+  // The year pushes the longest played pairings past the budget; the hard cap still holds them.
+  assert.ok(
+    worstPlayed <= TITLE_PX_HARD,
+    `worst realistic played match title is ~${worstPlayed}px, over the ${TITLE_PX_HARD}px hard limit`,
+  );
   // The accepted-overrun note this test used to carry is GONE, because the overrun is gone. The old
   // shape ended with the competition and sat over the ~600px budget by design; the current shape
   // ends with a one-word descriptor and fits inside it. Asserting the BUDGET, not the hard cap, is
