@@ -71,6 +71,15 @@ scope_paths:
 # acceptance_criteria:
 #   - <testable statement — what must be TRUE on the built page, and how you will show it>
 
+# REQUIRED before the first edit on the PAGE SURFACE (`site_v2/src/**`,
+# `scripts/export_site_data.py`). One line per page the task changes, naming the
+# GitLab issue where the CPO approved that page's design; that issue carries the
+# label `design::approved`, which only the CPO sets, and CI checks it. A task
+# that changes no page output writes one line `- none: no page output changes`,
+# and scope-auditor checks it against the diff. No approved design, no page edit.
+# approved_design:
+#   - <page>: #<issue>
+
 decisions_taken: >
   <what this contract pre-approves, naming the CPO ruling it rests on>
 

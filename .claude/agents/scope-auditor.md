@@ -76,6 +76,11 @@ pass. Do not convert an absence of findings into a finding.
    Does each added sentence carry one topic, in active voice, with one word for one meaning (ASD-STE100)?
    A breach is a FAIL that names the line and the clause it breaks.
    Sentence length is the gate's job, not yours.
+10. **Approved design (the page surface)**: this applies when the diff touches `site_v2/src/**` or
+   `scripts/export_site_data.py`. The contract's `approved_design` names each changed page with its
+   design issue. Or it says `none: no page output changes`. A changed page the field does not name
+   → FAIL. A `none` line fails when the diff changes what any page shows. That is markup, copy, an
+   order, a link, or a payload key a page renders. Name the page.
 
 ## Verdict rules (no free passes)
 

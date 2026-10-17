@@ -50,6 +50,51 @@ REVIEW = ".claude/task/review.md"
 # `test_governance_hooks` asserts CI reuses it.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".claude", "hooks"))
 import git_discipline as _gd            # noqa: E402
+import task_contract_gate as _tcg       # noqa: E402
+
+DESIGN_LABEL = "design::approved"
+GITLAB_PROJECT_ID = "85168767"
+
+
+def fetch_issue_labels(number: int) -> list[str] | None:
+    """The GitLab labels of one issue of this project, or None when the API cannot be read."""
+    import requests
+
+    token = os.environ.get("DESIGN_GATE_TOKEN")
+    if not token:
+        return None
+    api = os.environ.get("CI_API_V4_URL", "https://gitlab.com/api/v4")
+    project = os.environ.get("CI_PROJECT_ID", GITLAB_PROJECT_ID)
+    try:
+        r = requests.get(f"{api}/projects/{project}/issues/{number}",
+                         headers={"PRIVATE-TOKEN": token}, timeout=20)
+        if r.status_code != 200:
+            return None
+        return list(r.json().get("labels") or [])
+    except (requests.RequestException, ValueError, AttributeError):
+        return None
+
+
+def design_errors(paths: list[str], root: str, fetch_labels=fetch_issue_labels) -> list[str]:
+    """A diff on the page surface needs the contract's approved_design, and every issue it names
+    must carry the design approval label. Fails closed when a label cannot be read."""
+    page_paths = [p for p in paths if _tcg._is_page_surface(p)]
+    if not page_paths:
+        return []
+    contract = _tcg._read_contract(root)
+    design = (contract or {}).get("approved_design") or {}
+    if not design.get("present"):
+        return [f"the diff changes the page surface ({page_paths[0]}) but the contract names no "
+                "approved design (`approved_design:`)"]
+    errors = []
+    for number in design.get("issues") or []:
+        labels = fetch_labels(number)
+        if labels is None:
+            errors.append(f"could not read the labels of #{number} from the GitLab API "
+                          "(is DESIGN_GATE_TOKEN set and still valid?)")
+        elif DESIGN_LABEL not in labels:
+            errors.append(f"#{number} named in approved_design does not carry `{DESIGN_LABEL}`")
+    return errors
 
 
 def _rounds_error(text: str) -> str | None:
@@ -182,6 +227,7 @@ def main() -> int:
     rounds_err = _rounds_error(text)
     if rounds_err:
         errors.append(rounds_err)
+    errors.extend(design_errors(paths, os.getcwd()))
     if "VERDICT: FAIL" in text:
         errors.append("review.md contains VERDICT: FAIL — unresolved findings")
     # SECONDARY (coarse) backstop only — F12/#421. The per-section loop below is the

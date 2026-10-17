@@ -91,6 +91,12 @@ _IGNORED_TARGETS = {"/dev/null", "$null", "nul"}
 # carry an end-to-end `impact_map` BEFORE the first edit. Trace before code.
 _STRUCTURAL_PREFIXES = ("ingestion/", "dbt_project/models/", "site/", "site_v2/")
 _EXPORT_RE = re.compile(r"^scripts/export_[A-Za-z0-9_]+\.py$")
+# The PAGE SURFACE: what a visitor sees. A change here waits for the page's approved design, so the
+# contract names that design's GitLab issue per page, or says no page output changes.
+_PAGE_SURFACE_PREFIXES = ("site_v2/src/",)
+_PAGE_SURFACE_FILES = ("scripts/export_site_data.py",)
+_DESIGN_ISSUE_RE = re.compile(r"#(\d+)\b")
+_DESIGN_NONE_RE = re.compile(r"^none\s*:\s*\S")
 # A `<template placeholder>` is not real content; nor is a bare YAML block
 # indicator or an empty/(none) line.
 _PLACEHOLDER_RE = re.compile(r"^<.*>$")
@@ -186,6 +192,26 @@ def _has_real_reservation(lines: list[str]) -> bool:
     return any(_reserved_content(line) for line in stripped.splitlines())
 
 
+def _approved_design(lines: list[str]) -> dict:
+    """The `approved_design` block: the design issues it names, and whether it states, as a sentence,
+    that no page output changes. A bare `none` or a placeholder is neither."""
+    issues: list[int] = []
+    none = False
+    for line in _PLACEHOLDER_SPAN.sub(" ", "\n".join(lines)).splitlines():
+        s = line.strip().lstrip("-").strip()
+        if not s or (s.startswith("#") and not _DESIGN_ISSUE_RE.match(s)):
+            continue
+        if _DESIGN_NONE_RE.match(s.lower()):
+            none = True
+            continue
+        issues.extend(int(n) for n in _DESIGN_ISSUE_RE.findall(s))
+    return {"issues": issues, "none": none, "present": bool(issues) or none}
+
+
+def _is_page_surface(rel: str) -> bool:
+    return rel in _PAGE_SURFACE_FILES or any(rel.startswith(p) for p in _PAGE_SURFACE_PREFIXES)
+
+
 def _is_structural(rel: str) -> bool:
     """The structural surface — an impact_map is required before editing here.
 
@@ -228,6 +254,7 @@ def _read_contract(root: str) -> dict | None:
     scope, in_scope_block, override = [], False, False
     in_impact_block, impact_present = False, False
     in_reserved_block, reserved_lines = False, []
+    in_design_block, design_lines = False, []
     try:
         for raw in open(path, encoding="utf-8", errors="replace"):
             line = raw.rstrip("\n")
@@ -240,6 +267,7 @@ def _read_contract(root: str) -> dict | None:
             if mr:
                 in_scope_block = False
                 in_impact_block = False
+                in_design_block = False
                 in_reserved_block = True
                 reserved_lines.append(mr.group(1))
                 continue
@@ -248,6 +276,19 @@ def _read_contract(root: str) -> dict | None:
                     in_reserved_block = False    # next top-level key ends it
                 else:
                     reserved_lines.append(line)
+                    continue
+            md = re.match(r"^approved_design\s*:(.*)$", line)
+            if md:
+                in_scope_block = False
+                in_impact_block = False
+                in_design_block = True
+                design_lines.append(md.group(1))
+                continue
+            if in_design_block:
+                if line.strip() and not line.startswith((" ", "\t")):
+                    in_design_block = False      # next top-level key ends it
+                else:
+                    design_lines.append(line)
                     continue
             if re.match(r"^scope_paths\s*:", line):
                 in_impact_block = False      # close, like every other top-level key
@@ -278,7 +319,8 @@ def _read_contract(root: str) -> dict | None:
         return None
     return {"scope": scope, "protected_override": override,
             "impact_map_present": impact_present,
-            "decisions_reserved_present": _has_real_reservation(reserved_lines)}
+            "decisions_reserved_present": _has_real_reservation(reserved_lines),
+            "approved_design": _approved_design(design_lines)}
 
 
 def _matches_scope(rel: str, scope: list[str]) -> bool:
@@ -372,6 +414,18 @@ def _deny_missing_impact_map(rel: str) -> None:
     )
 
 
+def _deny_missing_approved_design(rel: str) -> None:
+    emit_deny(
+        f"CONTRACT GATE: `{rel}` is on the PAGE SURFACE: it changes what a visitor sees. A page "
+        "changes only after its design is approved, so the task contract must carry "
+        "`approved_design:`, one line per page the task changes naming the GitLab issue where the "
+        "CPO approved that page's design (`- home: #127`), or one line `- none: no page output "
+        "changes` that the reviewers check against the diff. A bare `none` or a placeholder does "
+        "not count. No approved design -> no edit here: stop and bring the page's design to the "
+        "CPO. Add the field on a CLEAN tree. See docs/working_agreement.md §2."
+    )
+
+
 def _gate_file_edit(event: dict, root: str) -> None:
     path = (event.get("tool_input") or {}).get("file_path") or ""
     if not path:
@@ -420,6 +474,9 @@ def _gate_file_edit(event: dict, root: str) -> None:
         return
     if _is_structural(rel) and not contract.get("impact_map_present"):
         _deny_missing_impact_map(rel)
+        return
+    if _is_page_surface(rel) and not contract["approved_design"]["present"]:
+        _deny_missing_approved_design(rel)
         return
 
 
@@ -529,6 +586,9 @@ def _gate_bash_pre(event: dict, root: str) -> None:
         # gate.
         if _is_structural(rel) and not contract.get("impact_map_present"):
             _deny_missing_impact_map(rel)
+            return
+        if _is_page_surface(rel) and not contract["approved_design"]["present"]:
+            _deny_missing_approved_design(rel)
             return
 
 
