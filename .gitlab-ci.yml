@@ -1035,14 +1035,13 @@ deploy:export:
     - *dbt_profile
     - *gcp_auth
     - export PYTHONPATH=.
-    # The --entities list is LOAD-BEARING, not a default worth trusting: it limits
-    # the export to what the built pages actually consume (team + fixture;
-    # competitions.json is always emitted), so we do not scan marts for pages that
-    # have not shipped. Reads marts only; writes no BigQuery table.
-    - python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data
+    # The --entities list is LOAD-BEARING: every data set a built page reads, and no
+    # other (competitions.json is always emitted). Reads marts and seeds only; writes
+    # no BigQuery table.
+    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
   artifacts:
     paths:
-      - site_v2/src/data
+      - site_v2/export_data
     expire_in: 1 day
   # `web` ONLY, and that restriction is the whole gate. An earlier revision used a
   # bare `when: manual`, which excludes schedules but nothing else — so a Deploy to
@@ -1074,6 +1073,10 @@ deploy:site-v2:
     # .gcp_auth is pure shell (printf/cat), so it works on the Node image too —
     # firebase-tools reads GOOGLE_APPLICATION_CREDENTIALS like any Google client.
     - *gcp_auth
+    # This checkout holds the committed sample, the MR build's input; the deployed
+    # site is built from the export alone, so the sample leaves the folder first.
+    - find site_v2/src/data -mindepth 1 ! -name README.md -delete
+    - cp -R site_v2/export_data/. site_v2/src/data/
     - cd site_v2
     - npm ci --cache "$CI_PROJECT_DIR/.npm" --prefer-offline
     # The full ~15k-page build OOMs at the default heap (#818 proved this setting).

@@ -1,9 +1,9 @@
 # site_v2/src/data — committed build inputs (temporary)
 
-Static JSON the Astro build reads at build time. In the finished v2 site these come from the
-per-entity export (`scripts/export_site_data.py`) wired as the build data source (#365 deploy);
-until then a real sample is committed here so the build (and `ci-site-v2`, which has no BigQuery)
-is self-contained.
+Static JSON the Astro build reads at build time. The real sample committed here is the input of
+the MR and main builds (`build:site-v2`, which has no BigQuery). The deploy never builds from it:
+`deploy:site-v2` removes it and copies in the full export (`scripts/export_site_data.py`) that
+`deploy:export` writes.
 
 **The committed sample is a SET, not a pile of examples.** `landing.json` links to specific match
 pages, and those pages exist only if the entity payload behind each one is committed.
@@ -65,8 +65,7 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
   `mart_leaderboards`, and the card totals under them) reach prod with the merge of #151 and its
   first nightly; until then a plain rerun of the export against prod cannot reproduce the file.
 - `competitions.json` — `league_code → { name, slug }` for all **48** registry entries (the
-  registry's authored slug; the frontend never generates slugs). At scale this is the export's
-  `nav.json` / `slug_map.json`.
+  registry's authored slug; the frontend never generates slugs).
 - `metric_groups.json` — the metric groups (key and order, one row per group) as the catalogue
   defines them, produced verbatim by `python scripts/export_site_data.py --entities metric_groups`
   from `metric_catalogue.csv` (no BigQuery). `metricRows.ts` reads the groups from it; the names
@@ -118,8 +117,7 @@ sample does not move.
 The full recipe, in order:
 
 1. `PYTHONPATH=. python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data`
-   from the repo root — the `--entities` list is copied verbatim from `.gitlab-ci.yml`'s
-   `deploy:export`, where a comment marks it load-bearing. Never hand-edit a payload.
+   from the repo root. Never hand-edit a payload.
 2. `... --entities landing --out site_v2/src/data` to move the set's definition forward.
 3. Rewrite the `.gitignore` fixture allowlist to exactly the ids the new `landing.json` links —
    **replacing** the old entries, never appending, since a stale id pins a payload no rerun can
@@ -130,5 +128,4 @@ The full recipe, in order:
    CI — which sees only the tracked set — cannot.
 
 ⚠ **Nothing enforces that today.** The allowlist is hand-maintained and the only thing that catches
-a mismatch is `audit-seo.mjs` in CI, after the fact. The real fix is for CI to build from a live
-export instead of stored samples, which is infrastructure work outside #367.
+a mismatch is `audit-seo.mjs` in CI, after the fact.

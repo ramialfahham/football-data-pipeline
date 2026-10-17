@@ -140,9 +140,5 @@ route survives; only the row content's linkedness is still catching up.
 - **Row links** — reserved to the MR that ships #47 (§6).
 - **Multi-select filtering** — #54's stated end state; single-select ships this round (§6), a
   follow-up adds the JS.
-- **CI wiring** — `competition_index` is not yet in `.gitlab-ci.yml`/`deploy-site-v2.yml`'s
-  `--entities` list; nothing outside this page reads the file's freshness guarantee yet, so
-  wiring it in now would commit a refresh path nothing depends on. Revisit when a real deploy
-  needs it kept current.
 - **`minimum_data`** — none beyond the mart's own browsable filter (non-blank `display_group`,
   already applied upstream); every competition in the committed file renders.

@@ -325,8 +325,9 @@ scripts/export_site_data.py   per-entity export; the only export the v2 site rea
 .gitlab-ci.yml                build:site-v2, deploy:export, deploy:site-v2
 ```
 
-- `deploy:export` runs the export into `site_v2/src/data/`. `deploy:site-v2` builds the site and
-  deploys it to Firebase Hosting. Both run only on a manual web dispatch.
+- `deploy:export` runs the export into `site_v2/export_data/`. `deploy:site-v2` replaces the
+  committed sample in `site_v2/src/data/` with it, builds the site and deploys it to Firebase
+  Hosting. Both run only on a manual web dispatch.
 - The site serves at its Firebase `.web.app` address, unlisted. `INDEXABLE` in
   `site_v2/src/config/indexability.mjs` keeps every page `noindex`.
 - v2 goes live on `matchdaypilot.com`. No redirect maps a URL of the retired MVP to v2.
