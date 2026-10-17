@@ -1,17 +1,17 @@
-# Task contract — metrics_display.md: one window per team on the match page
+# Task contract — competition page tab titles within the title limit
 
 objective: >
-  Rule 3 of the "Window & scope display contract" in docs/wireframes/metrics_display.md still
-  describes a W1/W2 window switch the approved match page no longer has. Replace it with the
-  CPO-approved text: one window per team, no switch, as metrics_context_model.md §3–4 gives it.
+  Eight competition-page tab titles run past the SEO audit's 660px title limit on long competition
+  names, so the site deploy fails audit-seo. Shorten the Rankings title in EN/DE/FI and the
+  Matchdays title in DE/FI to the wording the CPO approved; competition names stay.
 
 refs: >
-  #166, the next match page build
-  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/166), its "Written rules"
-  criterion; the design on #132. The text: approved in chat, 2026-10-17.
+  #129, the competition page's design
+  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/129); the wording is
+  recorded there. Approved in chat, 2026-10-17.
 
 scope_paths:
-  - docs/wireframes/metrics_display.md
+  - site_v2/src/i18n/strings.ts
   - tests/test_sentence_length_in_docs.py
   - tests/test_no_decision_history_in_docs.py
   - .claude/task/contract.md
@@ -20,17 +20,38 @@ scope_paths:
   - .claude/task/acceptance_evidence.md
   - .claude/task/rendered_page_evidence.md
 
+impact_map: >
+  writers: none; five copy strings in site_v2/src/i18n/strings.ts change.
+  downstream: seoCompetitionFixturesTitle is read only by
+  site_v2/src/pages/[lang]/[competition]/[matches]/index.astro and seoCompetitionStatsTitle only by
+  site_v2/src/pages/[lang]/[competition]/[stats]/index.astro (git grep); each sets that page's
+  title, og:title and twitter:title through Layout.astro. No dbt model, export key or other page
+  reads them.
+  layer_rules: copy lives in strings.ts only (layering.md Consumption layer); check_copy_gate.py
+  covers EN/DE/FI parity.
+  deploy_order: none; the titles change on the next site build.
+  blast_radius: the title of each competition's Matchdays page in DE and FI and of each Rankings
+  page in EN, DE and FI; 48 competitions.
+
+approved_design:
+  - competition: #129
+
+acceptance_criteria:
+  - On every built competition Rankings page the title reads "{competition}: Stats {season}" (EN), "{competition}: Statistiken {season}" (DE), "{competition}: tilastot {season}" (FI).
+  - On every built competition Matchdays page the title reads "{competition}: Fixtures and results {season}" (EN, unchanged), "{competition}: Spielplan {season}" (DE), "{competition}: otteluohjelma {season}" (FI).
+  - The Overview titles are unchanged.
+  - Measured with audit-seo.mjs's titleWidthPx over all 48 competitions in competition_index.json, no competition tab title is over 660px.
+
 decisions_taken: >
-  Approved in chat, 2026-10-17: rule 3 is replaced by exactly "3. **One window per team, no
-  switch.** The match page shows each team the window that `docs/metrics_context_model.md` §3–4
-  gives it, flagged by the warehouse." Nothing else in the file changes.
+  Approved in chat, 2026-10-17: the wording in the acceptance criteria, recorded on #129. Nothing
+  else on the page changes.
 
 decisions_reserved:
-  - none: the CPO approved the exact replacement text, and this task writes it unchanged.
+  - none: the CPO approved the exact wording, and this task writes it unchanged.
 
 done_when:
+  - npm run build in site_v2 passes (its prebuild runs the site's tests, then audit-seo and the built-pages check).
   - The full pytest suite passes.
-  - git diff shows only rule 3 replaced in metrics_display.md.
   - Reviewers per review_routing.json pass.
 
 amendments: (none)

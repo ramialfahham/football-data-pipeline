@@ -1,24 +1,26 @@
-# Review — docs/166-metrics-display-one-window — 2026-10-17
+# Review — fix/129-competition-tab-titles — 2026-10-17
 
-diff_sha256: 6d71b124e35be24343a348893b274dcd5039e02615e9d3a0ebae9f80d4c74059
+diff_sha256: b1e4a4bc473bd179c1f5330b645723faf1f8b2da272dd46c2af7aca11b043184
 
 rounds: 1
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- One hunk: rule 3 is replaced by the approved text; numbering stays 1 to 5 and no other line changes.
-- The built match page renders one form block per team with no switch, the block the export picks by the warehouse's is_form_window flag; the new rule states exactly that.
-- The flag is tested to hold at most one window per side, and the section 3 to 4 reference resolves.
-- No other rule in the file contradicts the new rule 3, and no document cites the removed rule.
+- Exactly five title strings change, each matching the acceptance criteria character for character; the EN Matchdays and all Overview titles are untouched.
+- EN, DE and FI still define both keys with the same placeholders, so copy parity holds.
+- The only readers are the competition Matchdays and Rankings pages; the specs name the keys only, and no test, doc or wireframe quotes the old wording.
+- No metric, field, window label or export binding is touched; the meta descriptions are unchanged.
+- The built titles in site_v2/dist match the criteria.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; no code, site, dbt, export or protected file changes.
-- The added text matches the approved words; only the line wrap differs.
-- The locked-document change names its approval in decisions_taken; decisions_reserved none is honest.
-- No decision history, rationale or chat quote in the document.
+- Only strings.ts and the contract change, both in scope_paths.
+- The five strings match the approved wording; nothing else in the file changes.
+- approved_design names competition #129, which stands in approved_designs.yml on main.
+- acceptance_criteria are present and measurable; the impact_map names each reader and the blast radius.
+- No decision history in code; no new mechanism, cost, metric, URL or slug.
 
 ## escalations
 - none
