@@ -32,6 +32,9 @@ from _command_utils import (  # noqa: E402
 )
 
 _MR_MERGE = re.compile(r"glab\s+mr\s+(?:merge|accept)\b")
+# The design approval label records a page's approval, like a merge: a glab command naming it may only read.
+_DESIGN_LABEL = re.compile(r"design(?:::|%3a%3a)approved", re.I)
+_GLAB_READ = re.compile(r"glab\s+issue\s+(?:list|view)\b")
 _BRANCH_CREATE = re.compile(r"git\s+(?:checkout\s+-b|switch\s+(?:-c|--create))\b")
 _COMMIT_FORBIDDEN = re.compile(r"(?:^|\s)(--no-verify|--amend|-n)(?=\s|$)")
 # Commit-flag ALLOWLIST: a denylist of the
@@ -859,6 +862,13 @@ def main() -> int:
                 "Open the MR, get CI green, and stop — the user merges. "
                 "(Only proceed if the user explicitly typed 'merge it' in this thread.) "
                 "See docs/working_agreement.md §3."
+            )
+            return 0
+        if re.match(r"glab\b", part) and _DESIGN_LABEL.search(part) and not _GLAB_READ.match(part):
+            emit_deny(
+                "DESIGN APPROVAL BLOCKED: the label `design::approved` records the CPO's approval of "
+                "a page's design, and only the CPO sets it. Bring the design to the CPO on the "
+                "page's issue and stop. See docs/working_agreement.md §2, `approved_design`."
             )
             return 0
 

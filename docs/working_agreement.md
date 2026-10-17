@@ -68,6 +68,7 @@ writes it before touching any file and commits it with the branch, so the MR sho
 | `decisions_taken` | What the contract pre-approves, naming the approval each item rests on. |
 | `decisions_reserved` | Every known CPO-class question (§10). Each is escalated blinded (§11), never decided. |
 | `acceptance_criteria` | Testable statements of what the built page must do. Required when the diff touches `site_v2/src/`, the user-facing surface. |
+| `approved_design` | For each page the task changes, the GitLab issue where the CPO approved its design, or one line saying no page output changes. Required before the first edit on the page surface. |
 | `impact_map` | The evidenced end-to-end blast-radius map. Required before the first edit on the structural surface. |
 | `protected_override` | Where and when the CPO approved a protected-path edit, never a quote. Required before any protected-path edit. |
 | `done_when` | Mechanical verification steps. |
@@ -85,6 +86,18 @@ escalated, never answered by drawing it.
 - The commit gate also denies a commit until `.claude/task/acceptance_evidence.md` demonstrates
   every criterion under a `criteria_demonstrated:` marker. The evidence is read from the built
   output.
+
+**`approved_design`.**
+
+- The page surface is `site_v2/src/**` and `scripts/export_site_data.py`: what a visitor sees.
+- A page changes only after its design is approved, so each line names a page and its issue:
+  `- home: #127`.
+- That issue carries the label `design::approved`. Only the CPO sets it.
+- A task that changes no page output says `- none: no page output changes`. `scope-auditor`
+  checks that line against the diff.
+- The contract gate denies a page-surface edit without the field.
+- `scripts/check_task_artifacts.py` fails the MR in CI when a named issue lacks the label, or
+  when its labels cannot be read.
 
 **`impact_map`.**
 
