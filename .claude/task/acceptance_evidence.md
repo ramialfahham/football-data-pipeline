@@ -1,15 +1,12 @@
-# Verification — the played match page's year
+# Verification — the deploy exports every data set the pages read
 
-Read from two builds. The sample build ran `npm run build` in site_v2 on main and on the branch, in a
-worktree that held only the committed sample. The full-scale build ran `npm run build` with
-`NODE_OPTIONS=--max-old-space-size=8192` on the export of deploy job 17243256610 (60,303 played
-and 4,340 unplayed payloads, as its manifest counts them).
+Read from a scratch worktree of main (the year fix included) whose `site_v2/src/data` was emptied
+with the job's own `find` command, then filled with exported files only: the teams and fixtures of
+deploy job 17243256610 (16 Oct, selected by that export's manifest) and a local export of the six
+added entities (17 Oct, 54s). The build ran with the deploy job's heap.
 
 criteria_demonstrated:
-  - 1 Title and h1: the full-scale build's Hoffenheim–Dortmund pages read `<title>TSG 1899 Hoffenheim vs Borussia Dortmund, 5 Sept 2026</title>` with the same h1 (EN), `TSG 1899 Hoffenheim - Borussia Dortmund, 5. Sept. 2026` (DE) and `TSG 1899 Hoffenheim–Borussia Dortmund, 5.9.2026` (FI); 60,303 EN match pages carry a year in the title, the manifest's played count exactly.
-  - 2 Description: the EN page's meta description reads "Full time: TSG 1899 Hoffenheim 2–3 Borussia Dortmund · Matchday 2 · 5 Sept 2026."
-  - 3 Next match pages unchanged: on the sample, 2,539 of the branch's pages are byte-identical to main's (hashed asset names aside), every next match page among them; the 33 that differ are the 11 played samples in 3 locales, each gaining its year. At full scale, the 4,342 EN match pages without a year match the manifest's 4,340 unplayed payloads plus the 2 sample payloads the export does not write.
-  - 4 Width test: `node --test scripts/audit-seo.test.mjs` passes 36 of 36; the fixture test measures each locale's template with that locale's widest real date over the twelve months, from Intl as format.ts renders it, and holds the next match form under 600px and the played form under the 660px hard cap (widest: DE "28. März 2026" at 635px, EN "28 Sept 2026" at 631px, FI "28.10.2026" at 591px, for SG Sonnenhof Grossaspach against Borussia Mönchengladbach). At full scale 161 titles are over 600px and none is over 660px.
-  - 5 Sample build: prebuild tests pass (122 of 122), astro build 2,571 pages, "audit-seo: 2572 built page(s) checked. OK.", "check-built-pages: 1917 match page(s) = 639 payload(s) x 3 … OK."
-  - 6 Full scale: 204,498 pages in 724s; audit-seo reports 63 violations, none a title, h1 or description of a match page: 9 from the two Nyasa Big Bullets team pages (team ids 4596 and 4599) and 54 dead links from lists built on the committed sample to 18 moved matches in 3 locales.
-  - 7 Wireframe: 01_fixture_page.md §8 carries "A played match's date carries its year: the same clubs meet on the same day in other seasons."
+  - 1 The jobs: `.gitlab-ci.yml` deploy:export runs `python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data`, its artifact; deploy:site-v2 runs `find site_v2/src/data -mindepth 1 ! -name README.md -delete` and `cp -R site_v2/export_data/. site_v2/src/data/` before `npm ci` and the build; both jobs' `rules:` are unchanged; `glab ci lint` reports the file valid.
+  - 2 Full scale: astro builds 221,721 pages in 880s at `--max-old-space-size=8192` (peak node working set 2.27 GiB, dist 7.8 GiB). audit-seo lists 0 of the 54 dead links that came from the committed sample, and 551 violations, each named with its cause: 453 player pages sharing an h1 (444) or a title and description (9) with a player of the same short name; 9 from the two Nyasa Big Bullets team ids; 8 competition tab titles past the 660px cap; 3 dead links to an Eritrea team page that is not built; 78 dead links from the two exports a day apart (8 DFB-Pokal ties moved from 27 to 28 Oct, PSG–Rennes with home and away swapped, Braga–Gil Vicente, NS on 2026-10-19 in today's mart, so one export writes its page). check-built-pages did not run, because audit-seo failed first.
+  - 3 README: site_v2/src/data/README.md opens "The real sample committed here is the input of the MR and main builds (`build:site-v2`, which has no BigQuery). The deploy never builds from it: `deploy:site-v2` removes it and copies in the full export (`scripts/export_site_data.py`) that `deploy:export` writes."
+  - 4 MR pipeline: lint, tests and the sample build, read on the MR once it runs.

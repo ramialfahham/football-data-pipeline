@@ -1,289 +1,231 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 47bd2b4b..f992b621 100644
+index f992b621..ed4904ad 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,52 +1,19 @@
--# Task contract — the played match page
-+# Task contract — the played match page's year
+@@ -1,64 +1,91 @@
+-# Task contract — the played match page's year
++# Task contract — the deploy exports every data set the pages read
  
  objective: >
--  A played match gets its page (state 3): the export writes a payload for every played match and
--  the match page renders it in the approved order (Breadcrumb, Header, Goals, Match leaders, Match
--  stats, Line-ups, Next matches). Every played row that leads to a match then links to its page.
--  The block standard, the fixture page wireframe and the design brief state the page.
-+  A played match page's title, heading and description carry the match's year, so two meetings of
-+  the same clubs on the same day in different seasons no longer share them. The full-scale site
-+  build's audit fails on 921 titles, 921 headings and 555 descriptions without it.
+-  A played match page's title, heading and description carry the match's year, so two meetings of
+-  the same clubs on the same day in different seasons no longer share them. The full-scale site
+-  build's audit fails on 921 titles, 921 headings and 555 descriptions without it.
++  The site deploy builds every page from one full export and none from the committed sample:
++  deploy:export exports every data set a built page reads into a staging folder, and
++  deploy:site-v2 empties site_v2/src/data except its README and copies that export in before it
++  builds. Today the export holds teams and fixtures only and lands over the sample, so the home
++  page, the competition pages, the competitions index and the day pages are built from the sample
++  of 25 Sep, and 54 of their links lead to matches the warehouse has since moved.
  
  refs: >
--  #175, the played match page (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/175);
--  #174, which matches get a page: option D, every played match in the data window
--  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/174). The renders are
--  design-mocks/renders/played-match-page_2026-10-07_41.html and _42.html. The plan, the readings in
--  decisions_taken and the acceptance criteria: approved in chat, 2026-10-15 and 2026-10-16.
-+  #175, the played match page (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/175),
-+  whose scale criterion this unblocks. The plan and the wireframe sentence: approved in chat,
-+  2026-10-16.
+-  #175, the played match page (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/175),
+-  whose scale criterion this unblocks. The plan and the wireframe sentence: approved in chat,
+-  2026-10-16.
++  #156, the site built from live data (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/156),
++  its step 1 (the entity list) and its third requirement (production no longer shows the
++  committed sample). The nightly schedule stays in #156. The plan: approved in chat, 2026-10-17.
  
  scope_paths:
--  - dbt_project/models/2_base/api_football/base_apif__lineups.sql
--  - dbt_project/models/docs/shared_columns.md
--  - dbt_project/tests/assert_fixture_lineup_order_starters_first.sql
--  - dbt_project/models/5_marts/shared/mart_head_to_head.sql
--  - dbt_project/models/5_marts/shared/mart_competition_fixtures.sql
--  - dbt_project/tests/assert_mart_head_to_head_meetings_are_fixtures.sql
--  - dbt_project/models/5_marts/shared/shared.yml
--  - site_v2/src/lib/builtFixtures.mjs
--  - site_v2/src/lib/builtFixtures.test.mjs
--  - site_v2/src/lib/href.ts
--  - scripts/export_site_data.py
--  - tests/test_export_site_data.py
--  - tests/test_leaderboard_board_sets.py
--  - tests/test_no_decision_history_in_code.py
--  - tests/test_sentence_length_in_docs.py
--  - site_v2/src/lib/format.ts
-   - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
--  - site_v2/src/components/fixture/*.astro
--  - site_v2/src/components/ui/MatchRow.astro
--  - site_v2/src/components/competition/RankingBoard.astro
--  - site_v2/src/lib/types.ts
--  - site_v2/src/i18n/strings.ts
--  - site_v2/src/styles/system.css
--  - site_v2/src/specs/competition/matches/fixture.spec.json
--  - site_v2/src/data/fixtures/*.json
--  - site_v2/scripts/check-built-pages.mjs
--  - site_v2/scripts/check-built-pages.test.mjs
--  - site_v2/scripts/check-metric-labels.test.mjs
--  - docs/wireframes/block_standard.md
-+  - site_v2/scripts/audit-seo.test.mjs
-   - docs/wireframes/01_fixture_page.md
--  - docs/wireframes/99_gaps_register.md
--  - docs/ui_design_brief.md
--  - docs/site_architecture.md
+-  - site_v2/src/pages/?lang?/?competition?/?matches?/?fixture?.astro
+-  - site_v2/scripts/audit-seo.test.mjs
+-  - docs/wireframes/01_fixture_page.md
++  - .gitlab-ci.yml
++  - site_v2/src/data/README.md
++  - docs/wireframes/08_browse.md
++  - docs/site_architecture.md
++  - tests/test_sentence_length_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -54,110 +21,44 @@ scope_paths:
+   - .claude/task/acceptance_evidence.md
    - .claude/task/rendered_page_evidence.md
  
++protected_override: >
++  .gitlab-ci.yml, jobs deploy:export and deploy:site-v2 only (their scripts, artifact path and
++  comments; rules and needs unchanged): approved in chat, 2026-10-17, as the plan for #156 step 1
++  and its amendment.
++
  impact_map: >
--  writers: dbt builds base_apif__lineups from stg_apif__lineups and the seed
--  fixture_lineup_corrections; scripts/export_site_data.py writes site_v2/src/data/fixtures/*.json;
--  the Astro build writes the match pages.
--  downstream: pasted output of `dbt ls --resource-type model --select base_apif__lineups+ --output
--  name` on the branch's base: base_apif__lineups base_apif__players dim_player fct_fixture_lineup
--  mart_competition_fixtures mart_leaderboards mart_match_days mart_player_career
--  mart_player_competition_benchmarks mart_player_fixture_stats mart_player_profile mart_roster
--  mart_team_momentum_window; `dbt ls --select mart_head_to_head+` lists mart_head_to_head alone
--  (a leaf), and its recent_meetings gain the meeting's fixture as fixture_api_id. Only lineup_order's values for substitutes change; no model but
--  fct_fixture_lineup and mart_player_fixture_stats carries that column. Outside dbt: the export
--  gains the played payloads; the match route builds one page per payload and locale; MatchRow,
--  RecentMatch and HeadToHead rows link a played match when its page is built, which changes the
--  Matches page, the Matchdays tab and the next match page.
--  layer_rules: the substitutes' order is base logic; the export selects and shapes served values
--  only; the site renders what it is served (layering.md, Consumption layer). No new model.
--  deploy_order: the warehouse change builds in data:build:mr; the site build runs on the
--  committed samples in CI on the MR; the merge's build adds the new columns to prod.
--  deploy:site-v2 stays manual: the one manual deploy from main after the merge is criterion 16's
--  measurement, and it publishes the site to its unlisted Firebase address.
--  blast_radius: lineup_order changes on substitute rows only. ~60,000 played payloads and three
--  locale pages each join the build; the export's size and the build's size and time are measured
--  right after the merge and put to the CPO (criterion 16).
-+  writers: the Astro build writes the match pages; no export, model or seed changes.
-+  downstream: the played match pages' title, h1, og and JSON-LD names that read the same title,
-+  and their meta description. No other page reads them.
-+  layer_rules: the site formats a served kickoff with an existing formatter (formatDayYear in
-+  site_v2/src/lib/format.ts); nothing is computed from data.
-+  deploy_order: none; the site build runs on the committed samples in CI on the MR; deploy:site-v2
-+  stays manual.
-+  blast_radius: played match pages only (about 64,000 payloads, three locales each); the next match
-+  page's title and description are unchanged.
+-  writers: the Astro build writes the match pages; no export, model or seed changes.
+-  downstream: the played match pages' title, h1, og and JSON-LD names that read the same title,
+-  and their meta description. No other page reads them.
+-  layer_rules: the site formats a served kickoff with an existing formatter (formatDayYear in
+-  site_v2/src/lib/format.ts); nothing is computed from data.
+-  deploy_order: none; the site build runs on the committed samples in CI on the MR; deploy:site-v2
+-  stays manual.
+-  blast_radius: played match pages only (about 64,000 payloads, three locales each); the next match
+-  page's title and description are unchanged.
++  writers: deploy:export runs scripts/export_site_data.py into site_v2/export_data and hands that
++  folder to deploy:site-v2 as its artifact; no BigQuery table is written.
++  downstream: deploy:site-v2 (needs deploy:export) starts from its own checkout, which holds the
++  committed sample; it empties site_v2/src/data except README.md, copies the artifact's files in,
++  then builds and publishes the site. No other job reads the artifact; the MR and main builds
++  (build:site-v2) keep building from the committed sample, which this change does not touch in the
++  repository.
++  guard: both jobs' rules stay `web` only, manual (deploy:site-v2 on success of the export);
++  nothing new fires them. The emptying step runs in deploy:site-v2's own clone, so it removes
++  nothing from the repository. If the export fails, deploy:site-v2 does not start; if the copy or
++  the build fails, nothing is deployed, as today.
++  layer_rules: the export selects and shapes served values only; no export code changes.
++  deploy_order: none; the first manual deploy from main after the merge is the proof on GitLab.
++  blast_radius: the published site is built from the export alone: competition pages for every
++  competition and season, the home page, the competitions index, the day pages, and the player
++  pages the full export brings, 221,721 pages measured locally. The export reads 0.370 GiB more
++  per deploy (dry run: competitions 0.193, landing 0.158, matches 0.019, competition_index
++  0.000; metric_groups and metric_rows read the seeds, not BigQuery), about 1.30 GiB per deploy
++  in all. The deploy runs only when started by hand, so the cost is not recurring.
  
  acceptance_criteria:
--  - "1. Payload: the export writes one payload for every played match (is_played) and copies served values only; unit tests show no value computed in Python; every next-match payload is byte-identical to main's except each head-to-head meeting gaining its fixture id."
--  - "2. Block order: a played page shows Breadcrumb, Header, Goals, Match leaders, Match stats, Line-ups, Next matches, in that order; a block that does not apply is absent."
--  - "3. Breadcrumb: Home › Competitions › {competition} › Matchdays|Rounds › {home} vs {away}, as on the next match page; a cup reads Rounds."
--  - "4. Header, score and status: the competition's group head opens it; the final score stands where vs stood, the winner's number bold (winner_team_sk; neither on a draw); the status word is Full time, After extra time, After penalties or Awarded; no standing chip; under 700px each team's goals close its line."
--  - "5. Header, penalties and awards: after penalties the big score is the shoot-out score, the score after extra time on the line under it; an awarded result shows its line under the score: The match was not played; the result was awarded. / Played {1–1}; the result was awarded {0–2} afterwards. / Abandoned at {1–0}; the result was awarded {3–0}."
--  - "6. Goals: with minutes, one row per goal in served order: the score after the goal, the scorer with the crest of the side it counts for, a 14px line with the minute (45', 90+6') and the assist, Own goal or Penalty; each row links to the scorer's page when that page is built. Without minutes: the line The minutes of these goals are not recorded., then scorers home team first, no running score, 2 goals where it applies. Not recorded: the heading and Goal scorers are not recorded for this round. A 0–0 has no Goals block; a match awarded without being played has no Goals, Match leaders, Match stats or Line-ups."
--  - "7. Match leaders: seven boards in catalogue order (Shots, Passes, Key passes, Dribbles attempted, Duels won, Defensive actions, Fouls), each up to three players in served order with the served rank, a shared count sharing the rank; the board name is not a link and has no chevron; rows link to the player's page when it is built; the intro The match's most notable players, across both teams., with no glossary link until #168; a board with no row is absent; no player stats: the heading and one line; one side missing: the boards and one line naming that side."
--  - "8. Match stats: the Form comparison's element and rows without the Goals group, in catalogue order, no W/D/L pills, no per match line; a row neither side has is left out, a value one side lacks shows –; the intro Each team's numbers in this match.; no team stats: the heading and one line."
--  - "9. Line-ups: each team under {team} · {formation} (the team name alone with no formation served), the eleven in served order, then Substitutes: the players who came on, in the order they came on; the second line {position} · off 73' or {position} · on 73' for {player}; {n} min on the right; rows link when the player's page is built; no line-up: the heading and one line."
--  - "10. Next matches: each team's next match as on the next match page; last on the page."
--  - "11. Played rows link: every played row on the Matches page, the Matchdays tab, Recent matches and Head to head links to its match page exactly when that page is built; check-built-pages.mjs proves it."
--  - "12. Every page that is not a match page shows the same text as main's build, apart from the links in criterion 11."
--  - "13. Every new label exists in EN, DE and FI; the label tests pass; the DE and FI words are the ones the CPO approved on the MR."
--  - "14. At 375, 700 and 1010px in EN, DE and FI a played page has no horizontal scroll; check_design_inventory.py passes on it with no failures; block_standard.md carries the new element rows."
--  - "15. Committed sample payloads cover full time, extra time, penalties, the three award kinds, goals without minutes, goals not recorded, no player stats and one side without player stats; each renders as above in EN, DE and FI."
--  - "16. Right after the merge, once the merge's build has added this MR's columns to prod, the full export and site build with every played page is measured on ci-runner-01 by a manual deploy from main (export run time and artifact size in GiB, build run time and output size in GiB) and put to the CPO."
-+  - "1. On a played match page the title and the h1 read the seoFixtureTitle template with the day, month and year of the kick-off (formatDayYear); EN Hoffenheim–Dortmund reads TSG 1899 Hoffenheim vs Borussia Dortmund, 5 Sept 2026, and the DE and FI pages read their templates with their locale's date."
-+  - "2. A played match page's meta description ends with · {day month year}., e.g. Full time: TSG 1899 Hoffenheim 2–3 Borussia Dortmund · Matchday 2 · 5 Sept 2026."
-+  - "3. Every next match page's title, h1 and description are identical to main's build."
-+  - "4. audit-seo.test.mjs asserts the 600px title budget for a next match title and the 660px hard cap for a played match title, whose date carries a year, and passes; the full-scale build's count of titles over 600px is put on the MR."
-+  - "5. npm run build in site_v2 passes on the committed sample (prebuild tests, audit-seo, check-built-pages)."
-+  - "6. The full-scale build from the export of deploy job 17243256610 shows no title, h1 or description violation in audit-seo; the violations left are the 9 of the two Nyasa Big Bullets team pages and the 54 dead links of moved matches; no title passes the 660px hard cap."
-+  - "7. 01_fixture_page.md §8 carries the approved sentence: A played match's date carries its year: the same clubs meet on the same day in other seasons."
+-  - "1. On a played match page the title and the h1 read the seoFixtureTitle template with the day, month and year of the kick-off (formatDayYear); EN Hoffenheim–Dortmund reads TSG 1899 Hoffenheim vs Borussia Dortmund, 5 Sept 2026, and the DE and FI pages read their templates with their locale's date."
+-  - "2. A played match page's meta description ends with · {day month year}., e.g. Full time: TSG 1899 Hoffenheim 2–3 Borussia Dortmund · Matchday 2 · 5 Sept 2026."
+-  - "3. Every next match page's title, h1 and description are identical to main's build."
+-  - "4. audit-seo.test.mjs asserts the 600px title budget for a next match title and the 660px hard cap for a played match title, whose date carries a year, and passes; the full-scale build's count of titles over 600px is put on the MR."
+-  - "5. npm run build in site_v2 passes on the committed sample (prebuild tests, audit-seo, check-built-pages)."
+-  - "6. The full-scale build from the export of deploy job 17243256610 shows no title, h1 or description violation in audit-seo; the violations left are the 9 of the two Nyasa Big Bullets team pages and the 54 dead links of moved matches; no title passes the 660px hard cap."
+-  - "7. 01_fixture_page.md §8 carries the approved sentence: A played match's date carries its year: the same clubs meet on the same day in other seasons."
++  - "1. deploy:export runs the export with --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows into a staging folder, its artifact; deploy:site-v2 empties site_v2/src/data except README.md and copies that folder's files in before it builds; both jobs' rules are unchanged."
++  - "2. A full-scale build from that data, the sample removed and only exported files present, passes the page build at the deploy heap; audit-seo lists none of the 54 dead links that came from the committed sample, and every violation it does list is named on the MR with its cause."
++  - "3. site_v2/src/data/README.md says the deploy builds from a full export and never from the committed sample, which is the MR build's input."
++  - "4. The MR pipeline passes: lint, tests and the sample build."
  
  decisions_taken: >
--  Approved in chat, 2026-10-15 and 2026-10-16: the plan; the 16 acceptance criteria above; the
--  Match leaders labels (Shots / Schüsse / Laukaukset; Duels won / Gewonnene Zweikämpfe / Voitetut
--  kaksinkamppailut; Fouls / Fouls / Rikkeet); the header's status word for an awarded result,
--  Awarded; lineup_order numbers substitutes in the order they came on (minute, added minute, then
--  the substitution's place in the events), substitutes who did not come on after them by shirt
--  number. The renders _41 and _42 are the design. Readings of the rule "No block renders empty"
--  (approved in chat, 2026-10-11): a played match without player stats, a line-up or team stats
--  keeps that block's heading and one line saying what is not recorded; Match leaders with one
--  side's numbers missing shows the boards and one line naming that side; a 0–0 has no Goals
--  block.
--
--  Approved in chat, 2026-10-16, after the build: every new EN, DE and FI line and label in
--  strings.ts as shown in chat, the "awarded to {team}" lines among them; Finnish "minuuttia" for
--  the minutes; the played page's description is the status word and the result line, composed in
--  the page from translated words; the match page URL is declared permanent in the page spec; the
--  played payloads carry no player slug, so scorer, board and line-up rows stay unlinked until the
--  player pages bring a slug the warehouse serves; the head-to-head meeting's fixture is named
--  fixture_api_id, as goals.player_api_id names a player inside the goals list.
--
--  THRESHOLD DECLARATIONS: NEW MECHANISM: none; a payload kind and page state on the existing
--  export and route. RECURRING COST: the export and the site build grow with ~60,000 played
--  matches × 3 locales; measured on ci-runner-01 and put to the CPO (criterion 16). Hosting stays
--  in the free tier at the #174 estimate (~3.8 GB); re-measured with the real payload.
-+  Approved in chat, 2026-10-16: the year on the played match page's title, heading and
-+  description; the plan; the wireframe sentence; the seven acceptance criteria. The next match page keeps its title, as approved.
-+  No new string key: the description joins served facts with the existing separator, as the played
-+  description already does.
+-  Approved in chat, 2026-10-16: the year on the played match page's title, heading and
+-  description; the plan; the wireframe sentence; the seven acceptance criteria. The next match page keeps its title, as approved.
+-  No new string key: the description joins served facts with the existing separator, as the played
+-  description already does.
++  Approved in chat, 2026-10-17: the plan, the four acceptance criteria, the entity list (every data set a page reads; nav,
++  leaderboards, glossary and players have no reader and stay out), emptying the data folder
++  in the build job before the export is copied in, and the 0.370 GiB added per manual deploy.
++  THRESHOLD: a cost change on a manual job, measured and approved; not recurring. No test pins the
++  CI script: the full-scale audit on each deploy fails on a page built from stale data (approved
++  in chat, 2026-10-17).
  
  decisions_reserved:
--  - The exact EN, DE and FI text of every new line and label, put to the CPO before it is written.
--  - The exact new text of docs/site_architecture.md's Fixture page row (a core document), put to
--    the CPO before the edit.
--  - Matches played then awarded (status AWD) stay out of mart_player_fixture_stats and the match
--    window and boards.
--  - How the match rows elsewhere show a shoot-out (#178 steps 2-3).
--  - The metric glossary links (#168).
-+  - The two Nyasa Big Bullets team ids (4596 and 4599) that build two team pages with one name.
-+  - The deploy export's entity list, which leaves the day pages and competition lists on the committed sample (#156).
-+  - Any played title over the 660px hard cap, put to the CPO with the titles.
+-  - The two Nyasa Big Bullets team ids (4596 and 4599) that build two team pages with one name.
+-  - The deploy export's entity list, which leaves the day pages and competition lists on the committed sample (#156).
+-  - Any played title over the 660px hard cap, put to the CPO with the titles.
++  - The player pages that share a heading or title with another player (453 violations at full scale).
++  - The competition tab titles over the 660px hard cap (8 violations).
++  - The World Cup Qualification Africa page linking an Eritrea team page that is not built (3 violations).
++  - The two Nyasa Big Bullets team ids (9 violations).
  
  done_when:
--  - dbt parse and compile pass; sqlfluff is clean on the changed SQL; the governance gates and the full pytest suite pass.
--  - npm run build in site_v2 exits 0 with its prebuild tests; check-built-pages and audit-seo pass.
--  - check_design_inventory.py passes on the built played page; every acceptance criterion is shown in acceptance_evidence.md from the built output.
--  - data:build:mr is green; the full-scale measurement is put to the CPO.
-+  - npm run build in site_v2 passes on the committed sample.
-+  - The full-scale build's audit-seo lists no title, h1 or description violation.
-+  - Reviewers bi-analyst, platform and scope-auditor pass.
+-  - npm run build in site_v2 passes on the committed sample.
+-  - The full-scale build's audit-seo lists no title, h1 or description violation.
+-  - Reviewers bi-analyst, platform and scope-auditor pass.
++  - The full-scale build from export-only data shows none of the sample's dead links.
++  - Reviewers cto-reviewer, platform-reviewer, bi-analyst-reviewer and scope-auditor pass.
++  - The MR pipeline is green.
  
  amendments: >
--  + tests/test_leaderboard_board_sets.py and site_v2/src/lib/format.ts, before any review.
--  Authority: engineering_standards.md §3 (a board list the export carries is pinned to its mart's
--  list, as the existing tuples are) and the consumption layer's one formatting module. Content:
--  the Match leaders board list pinned to the mart's match_boards; the minute and score formats.
--  + criterion 1 now ends "except each head-to-head meeting gaining its fixture id"; +
--  dbt_project/models/5_marts/shared/mart_head_to_head.sql, dbt_project/models/5_marts/shared/shared.yml,
--  site_v2/src/lib/builtFixtures.mjs and its test. Authority: approved in chat, 2026-10-16 (a
--  head-to-head row can link to its played match only through the meeting's fixture id). Content:
--  mart_head_to_head's recent_meetings carry the meeting's fixture; one build-time list of the match pages
--  built, which every match row reads to decide whether it links.
--  + site_v2/src/lib/href.ts. Authority: the same approval; content: the one function that turns a
--  built match page into its address, beside the other address helpers.
--  + dbt_project/models/5_marts/shared/mart_competition_fixtures.sql. Authority: the award lines
--  that name a team where the league set no score, approved in chat, 2026-10-16. Content: the mart
--  carries fct_fixture's awarded_to_team_sk, under its own name, so the page reads which line
--  applies instead of working it out.
--  + tests/test_no_decision_history_in_code.py and tests/test_sentence_length_in_docs.py. Authority:
--  their own rule, that a pin moves down in the open when the tree sheds a flagged line. Content:
--  the pins lowered to the counts the tree now holds; no pin is raised.
--  + dbt_project/tests/assert_mart_head_to_head_meetings_are_fixtures.sql. Authority:
--  engineering_standards.md §3.1 (a key carries a test of its parent), raised by the analytics
--  engineer in review round 1. Content: every meeting's fixture_api_id is a fixture of fct_fixture.
--  + criterion 16 moves to right after the merge. Authority: approved in chat, 2026-10-16 (the
--  deploy export reads prod's marts, which hold this MR's new columns only once the merge builds
--  them, so no full-scale run can pass before it). Content: the criterion's new text above.
-+  2026-10-16: criterion 4 tests a played match title against the 660px hard cap instead of the
-+  600px budget, which the longest played pairings pass (626px EN, 633px DE) once the date carries
-+  its year — authority: approved in chat, 2026-10-16.
-+  2026-10-17: criteria 1 and 2 give the English month as Intl's en-GB form, Sept, the form the
-+  head-to-head rows already show — authority: approved in chat, 2026-10-17.
-diff --git a/docs/wireframes/01_fixture_page.md b/docs/wireframes/01_fixture_page.md
-index 0a5826bb..b7de1827 100644
---- a/docs/wireframes/01_fixture_page.md
-+++ b/docs/wireframes/01_fixture_page.md
-@@ -210,6 +210,7 @@ The block shows no totals and no bar. A meeting links to its match's page when t
-     tie and a league match or two league meetings in a season, otherwise share a title, and the
-     audit fails the build on it. The date alone tells every meeting apart; the competition would
-     not fit (see above). With no descriptor, the title stays true once a match is played.
-+    A played match's date carries its year: the same clubs meet on the same day in other seasons.
-   - *Per locale*, each measured at its worst real fixture over every upcoming match: EN
-     `{home} vs {away}, {date}` 534px · DE `{home} - {away}, {date}` 535px · FI
-     `{home}–{away}, {date}` 505px. All inside the 600px budget. The German dash replaces "gegen" (also the convention in
-diff --git a/site_v2/scripts/audit-seo.test.mjs b/site_v2/scripts/audit-seo.test.mjs
-index 7f14eba2..3e3b2592 100644
---- a/site_v2/scripts/audit-seo.test.mjs
-+++ b/site_v2/scripts/audit-seo.test.mjs
-@@ -453,13 +453,30 @@ test("the REAL fixture templates fit two long names inside the BUDGET, not just
-     ["Wolverhampton Wanderers", "Manchester United"],
-     ["Atletico-MG", "Palmeiras"],
-   ];
-+  // Each template is measured with its own locale's widest real date, as format.ts renders it;
-+  // strings.ts holds the templates in the order EN, DE, FI. A played match's date carries its year.
-+  const widestDate = (locale, options) => {
-+    const format = new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" });
-+    const dates = Array.from({ length: 12 }, (_, m) => format.format(new Date(Date.UTC(2026, m, 28))));
-+    return dates.reduce((a, b) => (titleWidthPx(b) > titleWidthPx(a) ? b : a));
-+  };
-+  const locales = ["en-GB", "de-DE", "fi-FI"];
-   let worst = 0;
--  for (const tpl of templates) {
-+  let worstPlayed = 0;
-+  templates.forEach((tpl, i) => {
-+    const next = widestDate(locales[i], { day: "numeric", month: "short" });
-+    const played = widestDate(locales[i], { day: "numeric", month: "short", year: "numeric" });
-     for (const [home, away] of pairings) {
--      const rendered = tpl.replace("{home}", home).replace("{away}", away);
--      worst = Math.max(worst, titleWidthPx(rendered));
-+      const pairing = tpl.replace("{home}", home).replace("{away}", away);
-+      worst = Math.max(worst, titleWidthPx(pairing.replace("{date}", next)));
-+      worstPlayed = Math.max(worstPlayed, titleWidthPx(pairing.replace("{date}", played)));
-     }
--  }
-+  });
-+  // The year pushes the longest played pairings past the budget; the hard cap still holds them.
-+  assert.ok(
-+    worstPlayed <= TITLE_PX_HARD,
-+    `worst realistic played match title is ~${worstPlayed}px, over the ${TITLE_PX_HARD}px hard limit`,
-+  );
-   // The accepted-overrun note this test used to carry is GONE, because the overrun is gone. The old
-   // shape ended with the competition and sat over the ~600px budget by design; the current shape
-   // ends with a one-word descriptor and fits inside it. Asserting the BUDGET, not the hard cap, is
-diff --git a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-index 16d3e5bf..6daa2425 100644
---- a/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-+++ b/site_v2/src/pages/[lang]/[competition]/[matches]/[fixture].astro
-@@ -19,7 +19,7 @@ import MatchStats from "../../../../components/fixture/MatchStats.astro";
- import MatchLineups from "../../../../components/fixture/MatchLineups.astro";
- import { t, inCompetition, playedStatusWord } from "../../../../i18n/strings";
- import { localeHref, word } from "../../../../lib/href";
--import { formatShortDate, scoreLine } from "../../../../lib/format";
-+import { formatDayYear, formatShortDate, scoreLine } from "../../../../lib/format";
- import type { Lang } from "../../../../lib/format";
- import type { CompetitionIndex, CompetitionPayload, Fixture, PlayedFixture, Team } from "../../../../lib/types";
- import { latestSeasonPayload } from "../../../../lib/competitionPayload.mjs";
-@@ -97,12 +97,14 @@ const round = isLeague && fixture.round_order != null
- const title = t(lang, "seoFixtureTitle", {
-   home: home.name ?? "",
-   away: away.name ?? "",
--  date: formatShortDate(fixture.kickoff, lang),
-+  // A played match's year tells it from the same clubs' meetings on the same day in other seasons.
-+  date: played ? formatDayYear(fixture.kickoff, lang) : formatShortDate(fixture.kickoff, lang),
- });
--// A played match's description is its status word and its result line, both in the page's language.
-+// A played match's description is its status word, its result line and its date, in the page's language.
- const description = played
-   ? `${playedStatusWord(lang, played.status, played.result.award_kind)}: ${home.name ?? ""} ${scoreLine(
--      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""} · ${round}.`
-+      played.result.goals_home, played.result.goals_away)} ${away.name ?? ""} · ${round} · ${formatDayYear(
-+      fixture.kickoff, lang)}.`
-   : t(lang, "aboutNoH2h", { home: home.name ?? "", away: away.name ?? "", round });
+-  2026-10-16: criterion 4 tests a played match title against the 660px hard cap instead of the
+-  600px budget, which the longest played pairings pass (626px EN, 633px DE) once the date carries
+-  its year — authority: approved in chat, 2026-10-16.
+-  2026-10-17: criteria 1 and 2 give the English month as Intl's en-GB form, Sept, the form the
+-  head-to-head rows already show — authority: approved in chat, 2026-10-17.
++  2026-10-17: + docs/wireframes/08_browse.md — authority: the standing rule that a claim made false
++  by a change is removed in the same MR; content: the "CI wiring" bullet, which says
++  competition_index is not in the deploy's entity list, is removed.
++  2026-10-17: the emptying moves from deploy:export to deploy:site-v2, because deploy:site-v2 starts
++  from its own checkout holding the sample and unpacking the artifact deletes nothing; the export
++  goes to a staging folder; criterion 1, the objective, protected_override and impact_map say so —
++  authority: approved in chat, 2026-10-17.
++  2026-10-17: + docs/site_architecture.md — authority: the standing rule that a claim made false by
++  a change is corrected in the same MR; content: the deploy bullet, which says deploy:export runs
++  the export into site_v2/src/data, names the staging folder and deploy:site-v2's copy.
++  2026-10-17: + tests/test_sentence_length_in_docs.py — authority: the test's own rule that its pin
++  moves down when a document loses a long sentence; content: the README's pin drops from 22 to 21.
+\ No newline at end of file
+diff --git a/.gitlab-ci.yml b/.gitlab-ci.yml
+index bef85a8a..c2644d88 100644
+--- a/.gitlab-ci.yml
++++ b/.gitlab-ci.yml
+@@ -1035,14 +1035,13 @@ deploy:export:
+     - *dbt_profile
+     - *gcp_auth
+     - export PYTHONPATH=.
+-    # The --entities list is LOAD-BEARING, not a default worth trusting: it limits
+-    # the export to what the built pages actually consume (team + fixture;
+-    # competitions.json is always emitted), so we do not scan marts for pages that
+-    # have not shipped. Reads marts only; writes no BigQuery table.
+-    - python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data
++    # The --entities list is LOAD-BEARING: every data set a built page reads, and no
++    # other (competitions.json is always emitted). Reads marts and seeds only; writes
++    # no BigQuery table.
++    - python scripts/export_site_data.py --entities teams,fixtures,competitions,competition_index,landing,matches,metric_groups,metric_rows --out site_v2/export_data
+   artifacts:
+     paths:
+-      - site_v2/src/data
++      - site_v2/export_data
+     expire_in: 1 day
+   # `web` ONLY, and that restriction is the whole gate. An earlier revision used a
+   # bare `when: manual`, which excludes schedules but nothing else — so a Deploy to
+@@ -1074,6 +1073,10 @@ deploy:site-v2:
+     # .gcp_auth is pure shell (printf/cat), so it works on the Node image too —
+     # firebase-tools reads GOOGLE_APPLICATION_CREDENTIALS like any Google client.
+     - *gcp_auth
++    # This checkout holds the committed sample, the MR build's input; the deployed
++    # site is built from the export alone, so the sample leaves the folder first.
++    - find site_v2/src/data -mindepth 1 ! -name README.md -delete
++    - cp -R site_v2/export_data/. site_v2/src/data/
+     - cd site_v2
+     - npm ci --cache "$CI_PROJECT_DIR/.npm" --prefer-offline
+     # The full ~15k-page build OOMs at the default heap (#818 proved this setting).
+diff --git a/docs/site_architecture.md b/docs/site_architecture.md
+index 1eac327c..7ea38d74 100644
+--- a/docs/site_architecture.md
++++ b/docs/site_architecture.md
+@@ -325,8 +325,9 @@ scripts/export_site_data.py   per-entity export; the only export the v2 site rea
+ .gitlab-ci.yml                build:site-v2, deploy:export, deploy:site-v2
+ ```
  
- const compHref = built.competitionPage ? localeHref(lang, `${comp.slug}/`) : undefined;
+-- `deploy:export` runs the export into `site_v2/src/data/`. `deploy:site-v2` builds the site and
+-  deploys it to Firebase Hosting. Both run only on a manual web dispatch.
++- `deploy:export` runs the export into `site_v2/export_data/`. `deploy:site-v2` replaces the
++  committed sample in `site_v2/src/data/` with it, builds the site and deploys it to Firebase
++  Hosting. Both run only on a manual web dispatch.
+ - The site serves at its Firebase `.web.app` address, unlisted. `INDEXABLE` in
+   `site_v2/src/config/indexability.mjs` keeps every page `noindex`.
+ - v2 goes live on `matchdaypilot.com`. No redirect maps a URL of the retired MVP to v2.
+diff --git a/docs/wireframes/08_browse.md b/docs/wireframes/08_browse.md
+index 14a97491..0f052952 100644
+--- a/docs/wireframes/08_browse.md
++++ b/docs/wireframes/08_browse.md
+@@ -140,9 +140,5 @@ route survives; only the row content's linkedness is still catching up.
+ - **Row links** — reserved to the MR that ships #47 (§6).
+ - **Multi-select filtering** — #54's stated end state; single-select ships this round (§6), a
+   follow-up adds the JS.
+-- **CI wiring** — `competition_index` is not yet in `.gitlab-ci.yml`/`deploy-site-v2.yml`'s
+-  `--entities` list; nothing outside this page reads the file's freshness guarantee yet, so
+-  wiring it in now would commit a refresh path nothing depends on. Revisit when a real deploy
+-  needs it kept current.
+ - **`minimum_data`** — none beyond the mart's own browsable filter (non-blank `display_group`,
+   already applied upstream); every competition in the committed file renders.
+diff --git a/tests/test_sentence_length_in_docs.py b/tests/test_sentence_length_in_docs.py
+index 9d006742..647bd4b0 100644
+--- a/tests/test_sentence_length_in_docs.py
++++ b/tests/test_sentence_length_in_docs.py
+@@ -74,7 +74,7 @@ PINNED = {
+     "docs/wireframes/99_gaps_register.md": 66,
+     "docs/wireframes/block_standard.md": 11,
+     "docs/wireframes/metrics_display.md": 30,
+-    "site_v2/src/data/README.md": 22,
++    "site_v2/src/data/README.md": 21,
+ }
+ 
+ 
+
+# ============================================================================
+# NOT PASTED ABOVE, BUT IN SCOPE FOR THIS REVIEW
+# ============================================================================
+# The files below changed and are DELIBERATELY excluded from the diff body:
+# they are generated/sample data, and pasting them has measured at ~89% of the
+# review payload. They are still reviewed content and still bind your verdict.
+#
+# READ THEM DIRECTLY with Read/Grep if your hunt items touch them. In
+# particular: whether a field displayed by a component actually EXISTS in the
+# exported sample is checked by opening these files, not by reading a diff.
+#
+#   site_v2/src/data/README.md | 17 +++++++----------
+#    1 file changed, 7 insertions(+), 10 deletions(-)
+# ============================================================================
