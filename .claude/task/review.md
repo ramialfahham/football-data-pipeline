@@ -1,30 +1,27 @@
-# Review — docs/127-home-design-approved — 2026-10-18
+# Review — feat/219-home-approved-design — 2026-10-18
 
-diff_sha256: 10ff8e45275853887a1e873fa6776b5c73d627f3eac9986a37d513c6df56b6a6
+diff_sha256: 7fe4c91af122e53c4a41f02d045cd356899d98314cfb35dc8c2937b1929674e5
 
-rounds: 1
-
-## platform-reviewer
-VERDICT: PASS
-risks_checked:
-- The new test fails on a line the parser drops, an identical duplicate line, and an empty or comment-only file.
-- CRLF, indentation and comment handling match the parser's own.
-- The gate tests write their own base list and never read the shipped file, so the added entry breaks none of them.
-- No hook, script, CI file, dependency or permission changes.
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every changed path is in scope_paths; amendments are none.
-- The only product change is the line home: 127, named with its approval in decisions_taken.
-- The test change is declared in decisions_taken with its reason.
-- No new mechanism, cost or decision history in files.
+- Round 1 FAIL: dbt_project/docs/layering.md:315 said mart_next_matchday is not ordered; round 2 checked the strip-only fix ("nothing is capped in it") and the scope_paths amendment with its authority, no defect.
+- Checked every changed file against scope_paths, no file outside it.
+- Checked the impact_map: writers, the pasted dbt ls lineage, layer rules, deploy order and blast radius are present; the inner join to competition_order drops no rows.
+- Checked §10: the column name and the order key are plan-approved and ruled on #127; no new mechanism, no recurring cost.
+- Checked the added SQL, yml and test for credential-shaped content, none.
 
-## bi-analyst-reviewer
+## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- The entry home: 127 parses and matches the screen inventory's row for Home, approved on #127.
-- No display contract, field binding, metric or wording changes.
+- Round 1 FAIL: the same layering.md:315 line; round 2 checked the row no longer contradicts the mart and no other line in the file calls it unordered, no defect.
+- Checked the window over the grouped CTE and the league_code final key: a gapless dense rank with no ties, no defect.
+- Checked seed join fan-out: league_code unique in competition_registry, confederation unique in confederations, no extra rows.
+- Checked parity with compareCompetitions: UTC day, region_rank, earliest kick-off, league_code, nulls last where the JS sorts them last, no defect.
+- Checked downstream readers mart_competition_fixtures, mart_match_days and the export name their columns, so the additive column reaches none of them.
+- Checked the singular test recomputes the order from the mart rows and seeds and fails on two orders, a shared order or a wrong place.
 
 ## escalations
-- none
+(none)

@@ -1,107 +1,280 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 6f3db3e8..da2e40db 100644
+index da2e40db..5a31c3e9 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,56 +1,32 @@
--# Task contract — competition page tab titles within the title limit
-+# Task contract — Home enters the approved-designs list
+@@ -1,33 +1,63 @@
+-# Task contract — Home enters the approved-designs list
++# Task contract — Next matches: the warehouse serves the competition order
  
  objective: >
--  Eight competition-page tab titles run past the SEO audit's 660px title limit on long competition
--  names, so the site deploy fails audit-seo. Shorten the Rankings title in EN/DE/FI and the
--  Matchdays title in DE/FI to the wording the CPO approved; competition names stay.
-+  The Home recheck on #127 closed with the design approved. Home enters
-+  docs/wireframes/approved_designs.yml so the design gate lets its build (#219) change the page
-+  once this merges.
+-  The Home recheck on #127 closed with the design approved. Home enters
+-  docs/wireframes/approved_designs.yml so the design gate lets its build (#219) change the page
+-  once this merges.
++  Home's Next matches block orders its competitions in the page code (orderUpcomingGroups), which
++  layering.md forbids. mart_next_matchday gains competition_order, the ruled order of the
++  competitions, so the Home rebuild (#219) can render the order it is served. This is the
++  warehouse half of #219; the export and the page follow in the next MR, once this column is built.
  
  refs: >
--  #129, the competition page's design
--  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/129); the wording is
--  recorded there. Approved in chat, 2026-10-17.
-+  #127, Home's design (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/127);
-+  the build is #219. Approved in chat, 2026-10-18.
+-  #127, Home's design (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/127);
+-  the build is #219. Approved in chat, 2026-10-18.
++  #219, the Home build (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/219);
++  #127, Home's approved design, "Order of competitions". Plan approved in chat, 2026-10-18.
  
  scope_paths:
--  - site_v2/src/i18n/strings.ts
--  - tests/test_sentence_length_in_docs.py
--  - tests/test_no_decision_history_in_docs.py
-+  - docs/wireframes/approved_designs.yml
-+  - tests/test_governance_hooks.py
+-  - docs/wireframes/approved_designs.yml
+-  - tests/test_governance_hooks.py
++  - dbt_project/models/5_marts/shared/mart_next_matchday.sql
++  - dbt_project/models/5_marts/shared/shared.yml
++  - dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql
++  - dbt_project/docs/layering.md
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
    - .claude/task/rendered_page_evidence.md
  
--impact_map: >
--  writers: none; five copy strings in site_v2/src/i18n/strings.ts change.
--  downstream: seoCompetitionFixturesTitle is read only by
--  site_v2/src/pages/[lang]/[competition]/[matches]/index.astro and seoCompetitionStatsTitle only by
--  site_v2/src/pages/[lang]/[competition]/[stats]/index.astro (git grep); each sets that page's
--  title, og:title and twitter:title through Layout.astro. No dbt model, export key or other page
--  reads them.
--  layer_rules: copy lives in strings.ts only (layering.md Consumption layer); check_copy_gate.py
--  covers EN/DE/FI parity.
--  deploy_order: none; the titles change on the next site build.
--  blast_radius: the title of each competition's Matchdays page in DE and FI and of each Rankings
--  page in EN, DE and FI; 48 competitions.
--
--approved_design:
--  - competition: #129
--
--acceptance_criteria:
--  - On every built competition Rankings page the title reads "{competition}: Stats {season}" (EN), "{competition}: Statistiken {season}" (DE), "{competition}: tilastot {season}" (FI).
--  - On every built competition Matchdays page the title reads "{competition}: Fixtures and results {season}" (EN, unchanged), "{competition}: Spielplan {season}" (DE), "{competition}: otteluohjelma {season}" (FI).
--  - The Overview titles are unchanged.
--  - Measured with audit-seo.mjs's titleWidthPx over all 48 competitions in competition_index.json, no competition tab title is over 660px.
--
++impact_map: >
++  writers: mart_next_matchday.sql is the only writer of the mart; it gains one column and loses
++  nothing.
++  downstream: `dbt ls --resource-type model --select mart_next_matchday+ --output name` →
++  mart_competition_fixtures, mart_match_days, mart_next_matchday. Both readers name the columns
++  they take from it (no select *), so the new column reaches neither. Outside dbt the one reader
++  is scripts/export_site_data.py (fetch_landing_payload), which names its columns and is unchanged
++  in this MR.
++  layer_rules: an ordering is the warehouse's (layering.md, Consumption layer, "ALL ranking and
++  ordering"); the column is a mart column from fct_fixture and two seeds; no partition_by or
++  cluster_by.
++  deploy_order: additive column; the deployed export does not read it, so nothing breaks before
++  or after merge. The 04:00 UTC nightly builds it; the next MR's export reads it only after that.
++  blast_radius: one new column on mart_next_matchday; no existing value of any mart changes.
++
++approved_design:
++  - home: #127
++
++acceptance_criteria:
++  - "The order of the competitions in Next matches is served by the warehouse; the page applies no order of its own."
++
  decisions_taken: >
--  Approved in chat, 2026-10-17: the wording in the acceptance criteria, recorded on #129. Nothing
--  else on the page changes.
-+  Approved in chat, 2026-10-18: the Home recheck is closed and Home enters the list as
-+  "home: 127". The shipped-list test stops pinning the exact entries, which would need a test edit
-+  for every approval, and instead checks that every entry line of the shipped file parses.
+-  Approved in chat, 2026-10-18: the Home recheck is closed and Home enters the list as
+-  "home: 127". The shipped-list test stops pinning the exact entries, which would need a test edit
+-  for every approval, and instead checks that every entry line of the shipped file parses.
++  Plan approved in chat, 2026-10-18: the column is named competition_order and is the dense rank
++  of each competition by the key #127 rules (the day its matchday starts, then region rank, then
++  its earliest kick-off, then league_code). The page half of the acceptance criterion, Home
++  rendering the served order, is built in the next MR of #219 and demonstrated there. No new
++  mechanism, no recurring cost: one column on a nightly-built table.
  
  decisions_reserved:
--  - none: the CPO approved the exact wording, and this task writes it unchanged.
-+  - none: the CPO approved the Home design on #127, and this task only records it in the list.
+-  - none: the CPO approved the Home design on #127, and this task only records it in the list.
++  - none: the order key is ruled on #127 and the column name was approved with the plan.
  
  done_when:
--  - npm run build in site_v2 passes (its prebuild runs the site's tests, then audit-seo and the built-pages check).
-   - The full pytest suite passes.
+-  - The full pytest suite passes.
++  - dbt parse passes.
++  - sqlfluff lint of the changed model and the new test passes, full rule set, from the repo root.
++  - The offline gates (FAST_GATES) and the full pytest suite pass.
    - Reviewers per review_routing.json pass.
++  - CI data:build:mr builds the model and passes its tests.
  
-diff --git a/docs/wireframes/approved_designs.yml b/docs/wireframes/approved_designs.yml
-index 82e792f2..a4329b8f 100644
---- a/docs/wireframes/approved_designs.yml
-+++ b/docs/wireframes/approved_designs.yml
-@@ -1,6 +1,7 @@
- # The pages whose design the CPO approved, each with the GitLab issue that holds the design.
- # The contract gate and CI read this file from main only. A page enters it in the MR that closes
- # its design review, and the CPO's merge is the approval.
-+home: 127
- competitions: 128
- competition: 129
- matches: 130
-diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
-index 89efa93d..45146621 100644
---- a/tests/test_governance_hooks.py
-+++ b/tests/test_governance_hooks.py
-@@ -3955,13 +3955,14 @@ def test_the_approved_list_parser(text, expected):
-     assert tcg.parse_approved(text) == expected
+-amendments: (none)
++amendments:
++  - 2026-10-18: + dbt_project/docs/layering.md — authority: the standing rule that a rule's owning document is edited in the same MR (working_agreement.md §11); content: its mart_next_matchday row stops saying the mart is not ordered.
+diff --git a/dbt_project/docs/layering.md b/dbt_project/docs/layering.md
+index c61db874..142c9708 100644
+--- a/dbt_project/docs/layering.md
++++ b/dbt_project/docs/layering.md
+@@ -312,7 +312,7 @@ Canonical mart inventory (exhaustive) for this project:
+ | `mart_team_season` | (team_sk, season_sk) | Per-team-per-season rollup over finished matches; latest rank, form, and standings group label joined from `fct_standings`. |
+ | `mart_leaderboards` | (player_sk, season_sk, metric_key) on season rows; (fixture_sk, player_sk, metric_key) on match rows | LONG per-board player leaderboards. The season rows are the thirteen boards of the competition page's Rankings tab, top 10 per board: 11 count and 2 rate. The rate boards sit behind a minutes and position floor. The match rows are seven count boards for each played match (window_type match), top three. Composes `int_player_season__metrics` and `int_player_match__metrics`; DENSE_RANK ties share, every board most first, a zero never ranked. |
+ | `mart_team_leaderboards` | (team_sk, season_sk, metric_key) | LONG per-board team leaderboards — the team mirror of `mart_leaderboards` (GAP-29). Twelve boards, the Rankings tab's, each ranked in the direction the `metric_catalogue` seed gives its metric and serving it as `rank_order` (the two "against" rates ascending; the two card totals most first by ruling). Composes `int_team_season__metrics` (UNPIVOT, not a union-all loop — one shared rule, unlike the player rate boards) + the catalogue seed + `dim_team`; no games floor; top-10 per board, DENSE_RANK ties share; a zero ranks only on an ascending board. Rank partitions `(league_code, season_api_year, metric_key)` — per league by ruling, so the ranking never crosses competitions. |
+-| `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped or ordered in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
++| `mart_next_matchday` | fixture_sk | Every competition's next matchday: each upcoming fixture (NS/TBD, dated on or after the build day) in the round of that competition's earliest upcoming fixture. The Home hero reads it whole; nothing is capped in it. `is_match_that_matters` flags, per competition, the fixture whose two teams have the lowest sum of table positions. |
+ | `mart_competition_fixtures` | fixture_sk | Every match of a competition-season, played and unplayed, with both teams, its round and its flags. A played match also carries its goals as one list and its `goal_data_state`. |
+ | `mart_matchday_insights` | fixture_sk (per `league_code`) | MVP domestic upcoming matchday + form; filter by `league_code` at export/UI. BL1 play-offs: `mart_matchday_insights_bl1_relegation`. WC: `mart_matchday_insights_wc`. |
+ | `mart_team_season_insights` | (league_code, team_sk) | MVP latest season per league; slice by `league_code` at export/UI. |
+diff --git a/dbt_project/models/5_marts/shared/mart_next_matchday.sql b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+index 9c9d9675..5c3ef6d2 100644
+--- a/dbt_project/models/5_marts/shared/mart_next_matchday.sql
++++ b/dbt_project/models/5_marts/shared/mart_next_matchday.sql
+@@ -14,9 +14,12 @@
+   definition; the straggler counts and the alternative are on GitLab #143.
  
+   Every competition with an upcoming fixture is present, cups and tournaments alike; nothing is
+-  capped and nothing is ordered here — the page applies the site-wide competition ordering key
+-  and folds rows past the third. league_code discriminates the competition and is not a
+-  BigQuery partition or cluster key.
++  capped here, and the page folds rows past the third. league_code discriminates the competition
++  and is not a BigQuery partition or cluster key.
++
++  competition_order is the order the competitions are shown in: the day the competition's
++  matchday starts, then its region rank (Europe first), then its earliest kick-off, then
++  league_code. Soonest first, so a cup playing Tuesday sits above the weekend leagues.
  
--def test_the_shipped_approved_list_parses_to_its_seed():
-+def test_every_entry_of_the_shipped_approved_list_parses():
-     sys.path.insert(0, HOOKS)
-     import task_contract_gate as tcg
-     shipped = os.path.join(os.path.dirname(__file__), "..", tcg.APPROVED_DESIGNS)
-     with open(shipped, encoding="utf-8") as f:
--        assert tcg.parse_approved(f.read()) == {
--            ("competitions", 128), ("competition", 129), ("matches", 130), ("match", 132)}
-+        text = f.read()
-+    entries = [line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
-+    assert entries and len(tcg.parse_approved(text)) == len(entries)
+   is_match_that_matters flags, per competition, the fixture of the matchday whose two teams
+   have the lowest sum of table positions (1st v 9th beats 5th v 7th); ties go to the earlier
+@@ -79,6 +82,33 @@ next_matchday as (
+             and u.round_name = n.round_name
+ ),
  
++competition_keys as (
++    select
++        m.league_code,
++        min(m.fixture_date) as first_date,
++        min(c.region_rank) as region_rank,
++        min(m.kickoff_datetime) as first_kickoff
++    from next_matchday as m
++    left join {{ ref('competition_registry') }} as r
++        on m.league_code = r.league_code
++    left join {{ ref('confederations') }} as c
++        on r.confederation = c.confederation
++    group by m.league_code
++),
++
++competition_order as (
++    select
++        league_code,
++        dense_rank() over (
++            order by
++                first_date asc,
++                region_rank asc nulls last,
++                first_kickoff asc nulls last,
++                league_code asc
++        ) as competition_order
++    from competition_keys
++),
++
+ -- A team's table position, only where it sits in exactly one standings section that season.
+ positions as (
+     select
+@@ -101,8 +131,11 @@ ranked as (
+         m.status_short,
+         m.home_team_sk,
+         m.away_team_sk,
++        o.competition_order,
+         h.standing_rank + a.standing_rank as position_sum
+     from next_matchday as m
++    inner join competition_order as o
++        on m.league_code = o.league_code
+     left join positions as h
+         on
+             m.league_code = h.league_code
+@@ -125,6 +158,7 @@ select
+     status_short,
+     home_team_sk,
+     away_team_sk,
++    competition_order,
+     coalesce(
+         position_sum is not null
+         and row_number() over (
+diff --git a/dbt_project/models/5_marts/shared/shared.yml b/dbt_project/models/5_marts/shared/shared.yml
+index a1fb5919..27ce9077 100644
+--- a/dbt_project/models/5_marts/shared/shared.yml
++++ b/dbt_project/models/5_marts/shared/shared.yml
+@@ -2585,13 +2585,13 @@ models:
  
- @pytest.mark.parametrize("block", ["  - none", "  - none:", "  - <page>: #<issue>", "  >", "", "  # later"])
+       Upcoming means a scheduled status (NS or TBD) and a date on or after the build day, so a
+       fixture left at NS in the past is excluded. Every competition with an upcoming fixture is
+-      present, cups and tournaments included; nothing is capped or ordered here. A postponed
+-      match keeps its original round name, so a rescheduled straggler can be a one-match matchday
+-      until it is played.
++      present, cups and tournaments included; nothing is capped here. A postponed match keeps its
++      original round name, so a rescheduled straggler can be a one-match matchday until it is
++      played.
+ 
+-      The Home page's Next matches block reads this table whole; the page orders the competitions
+-      and folds rows past the third. Rebuilt nightly, so it is correct as of the morning it was
+-      built.
++      The Home page's Next matches block reads this table whole, shows the competitions in
++      competition_order and folds rows past the third. Rebuilt nightly, so it is correct as of the
++      morning it was built.
+     meta:
+       owner: "data-platform"
+       domain: "football"
+@@ -2649,6 +2649,9 @@ models:
+           - accepted_values:
+               values: [true, false]
+               quote: false
++      - name: competition_order
++        description: "The place of this fixture's competition in the order the competitions are shown, 1 first; the same on every row of a competition. Ordered by the day the competition's matchday starts, then its region rank (Europe first), then its earliest kick-off, then league_code."
++        tests: [not_null]
+ 
+   - name: mart_competition_fixtures
+     description: >
+diff --git a/dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql b/dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql
+new file mode 100644
+index 00000000..12bb6c57
+--- /dev/null
++++ b/dbt_project/tests/assert_mart_next_matchday_competition_order_follows_the_key.sql
+@@ -0,0 +1,53 @@
++-- competition_order is exactly "the competitions in the ruled order": one value per competition,
++-- one competition per value, and the value is the competition's place by the day its matchday
++-- starts, then its region rank (Europe first), then its earliest kick-off, then league_code.
++--
++-- Recomputed from the mart's rows and the two seeds, not from the mart's CTEs, so a rewrite that
++-- orders by another key, skips a place or gives one competition two places fails here even when
++-- the not_null test stays green.
++--
++-- Returns a row (= fails) per competition where the property does not hold.
++{{ config(store_failures = true) }}
++
++with served as (
++    select
++        league_code,
++        count(distinct competition_order) as n_orders,
++        min(competition_order) as competition_order,
++        min(fixture_date) as first_date,
++        min(kickoff_datetime) as first_kickoff
++    from {{ ref('mart_next_matchday') }}
++    group by league_code
++),
++
++expected as (
++    select
++        s.league_code,
++        s.n_orders,
++        s.competition_order,
++        dense_rank() over (
++            order by
++                s.first_date asc,
++                c.region_rank asc nulls last,
++                s.first_kickoff asc nulls last,
++                s.league_code asc
++        ) as expected_order,
++        count(*) over (partition by s.competition_order) as n_competitions_at_order
++    from served as s
++    left join {{ ref('competition_registry') }} as r
++        on s.league_code = r.league_code
++    left join {{ ref('confederations') }} as c
++        on r.confederation = c.confederation
++)
++
++select
++    league_code,
++    n_orders,
++    competition_order,
++    expected_order,
++    n_competitions_at_order
++from expected
++where
++    n_orders != 1
++    or competition_order != expected_order
++    or n_competitions_at_order != 1
+
+# ============================================================================
+# NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
+# ============================================================================
+# The files below changed on this branch and are DELIBERATELY kept out of the
+# diff: they are the review's own paperwork or the handover, which reviewers do
+# not judge (CPO 2026-08-01).
+#
+# THEIR ABSENCE ABOVE IS THEREFORE NOT EVIDENCE THAT A FILE WAS LEFT UNEDITED,
+# and a path that appears in `scope_paths` but not in the diff is not, by itself,
+# a scope defect. Read them directly with Read/Grep if a claim in contract.md
+# depends on one.
+#
+#   .claude/task/acceptance_evidence.md    |  10 +-
+#    .claude/task/rendered_page_evidence.md |   6 +-
+#    .claude/task/review_input.patch        | 318 ++++++++++++++++++++++++---------
+#    3 files changed, 245 insertions(+), 89 deletions(-)
+# ============================================================================
