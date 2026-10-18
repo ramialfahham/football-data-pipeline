@@ -8,14 +8,16 @@
   "league_name": "AFC Asian Cup",
   "season": 2027,
   "round": "Group Stage - 1",
+  "round_order": 1,
+  "is_next_round": true,
   "venue": "King Saud University Stadium",
   "home": {
     "team_id": 1570,
     "name": "Kuwait",
+    "slug": "kuwait",
     "crest": "https://media.api-sports.io/football/teams/1570.png",
     "country": "Kuwait",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": "Groups - Group A",
       "is_knockout": false,
@@ -26,15 +28,16 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "away": {
     "team_id": 1552,
     "name": "Oman",
+    "slug": "oman",
     "crest": "https://media.api-sports.io/football/teams/1552.png",
     "country": "Oman",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": "Groups - Group A",
       "is_knockout": false,
@@ -45,7 +48,8 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "head_to_head": {
     "total_meetings": 2,
@@ -65,19 +69,28 @@
     "last_meeting_result": "L",
     "recent_meetings": [
       {
+        "fixture_api_id": 1218547,
         "kickoff_datetime": "2025-03-25 18:15:00+00:00",
         "league_code": "WCQAS",
+        "home_away": "home",
         "goals_for": 0,
         "goals_against": 1,
         "result": "L"
       },
       {
+        "fixture_api_id": 1218502,
         "kickoff_datetime": "2024-10-10 16:00:00+00:00",
         "league_code": "WCQAS",
+        "home_away": "away",
         "goals_for": 0,
         "goals_against": 4,
         "result": "L"
       }
-    ]
+    ],
+    "intro": {
+      "en": "Oman won both of the last 2 meetings.",
+      "de": "Oman gewann die letzten beiden Duelle.",
+      "fi": "Oman voitti kaksi edellistä kohtaamista."
+    }
   }
 }

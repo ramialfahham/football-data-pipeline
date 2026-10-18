@@ -58,7 +58,7 @@
 | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
 | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 12px muted | `font-size=12px; color=muted` | ruled | #129 Rankings |
 | Board spacing | `.board + .board` | 26px between boards | `gap(prev)=26px` | ruled | #40, #41 (the shipped board) |
-| Legacy board value | `.brow .v b` | the built Home's boards until #127 rebuilds them as single-value tables: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+| Legacy board value | `.brow .v b` | the legacy Home mocks' boards: the value follows the ordered-by number | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
 | Schedule block | `.md > section` | the Matchdays tab's only block, under its round's picker line: its name, then the date heading per day and the match rows; one round's block on screen at a time, no script | `visible=1; margin-top=36px` | ruled | #129 Matchdays |
 | Match row name | `.fxrow .side .nm` | a club's name, 15px ink, wraps and never truncates | `font-size=15px; color=ink; white-space=normal` | ruled | #50 |
 | Match row kick-off | `.fxrow .when .t` | the kick-off in the venue's clock, 16px bold ink; "TBC" when no time | `font-size=16px; font-weight=700; color=ink` | ruled | #50; #129 Matchdays; #146 |
@@ -142,7 +142,7 @@ and `gen_taxonomy.py` are diagrams.
 
 | Page | Kind | Source | URL | FI | Expect |
 |---|---|---|---|---|---|
-| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Competition group head, Legacy board value, Search field [>=1010px], Search button [<1010px] |
+| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Block explainer, Competition group head, Date heading, Match row kick-off, Match row zone, Board name, Search field [>=1010px], Search button [<1010px] |
 | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link, Search field [>=1010px], Search button [<1010px] |
 | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |

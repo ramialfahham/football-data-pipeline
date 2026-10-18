@@ -1,0 +1,48 @@
+{
+  "type": "match_day",
+  "slug": "2026-11-18",
+  "day": "2026-11-18",
+  "is_opening_day": false,
+  "previous_day": "2026-11-17",
+  "next_day": "2026-12-02",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1644697,
+          "slug": "2026-11-18-usa-vs-haiti",
+          "kickoff": "2026-11-18 00:00:00+00:00",
+          "round": "Quarter-finals",
+          "round_order": null,
+          "round_sequence": 10,
+          "fixture_order": 98,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2384,
+            "name": "USA",
+            "slug": "usa",
+            "crest": "https://media.api-sports.io/football/teams/2384.png"
+          },
+          "away": {
+            "team_id": 2386,
+            "name": "Haiti",
+            "slug": "haiti",
+            "crest": "https://media.api-sports.io/football/teams/2386.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

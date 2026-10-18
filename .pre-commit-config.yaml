@@ -12,6 +12,7 @@ repos:
     hooks:
       - id: check-added-large-files
         entry: python -m pre_commit_hooks.check_added_large_files
+        args: ["--maxkb=1024"]
       - id: check-merge-conflict
         entry: python -m pre_commit_hooks.check_merge_conflict
       - id: detect-private-key

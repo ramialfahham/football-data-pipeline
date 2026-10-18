@@ -8,14 +8,16 @@
   "league_name": "AFC Asian Cup",
   "season": 2027,
   "round": "Group Stage - 1",
+  "round_order": 1,
+  "is_next_round": true,
   "venue": "Prince Abdullah al-Faisal Stadium",
   "home": {
     "team_id": 12,
     "name": "Japan",
+    "slug": "japan",
     "crest": "https://media.api-sports.io/football/teams/12.png",
     "country": "Japan",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": "Groups - Group F",
       "is_knockout": false,
@@ -26,15 +28,16 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "away": {
     "team_id": 1571,
     "name": "Indonesia",
+    "slug": "indonesia",
     "crest": "https://media.api-sports.io/football/teams/1571.png",
     "country": "Indonesia",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": "Groups - Group F",
       "is_knockout": false,
@@ -45,7 +48,8 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "head_to_head": {
     "total_meetings": 2,
@@ -65,19 +69,28 @@
     "last_meeting_result": "W",
     "recent_meetings": [
       {
+        "fixture_api_id": 1218568,
         "kickoff_datetime": "2025-06-10 10:35:00+00:00",
         "league_code": "WCQAS",
+        "home_away": "home",
         "goals_for": 6,
         "goals_against": 0,
         "result": "W"
       },
       {
+        "fixture_api_id": 1218523,
         "kickoff_datetime": "2024-11-15 12:00:00+00:00",
         "league_code": "WCQAS",
+        "home_away": "away",
         "goals_for": 4,
         "goals_against": 0,
         "result": "W"
       }
-    ]
+    ],
+    "intro": {
+      "en": "Japan won both of the last 2 meetings.",
+      "de": "Japan gewann die letzten beiden Duelle.",
+      "fi": "Japan voitti kaksi edellistä kohtaamista."
+    }
   }
 }

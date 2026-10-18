@@ -1166,52 +1166,36 @@ def test_featured_season_row_refuses_to_choose():
 
 
 def _hero_fixtures(*specs):
-    """(league_code, kickoff) pairs -> fixture rows, kickoff-ordered as the caller supplies them."""
+    """(league_code, kickoff) pairs -> mart_competition_fixtures rows, in the order supplied."""
     return [
         {"fixture_sk": i, "league_code": lc, "season_api_year": 2026,
-         "kickoff_datetime": ko, "round_name": "R1",
-         "home_team_sk": 1, "away_team_sk": 2}
+         "kickoff_datetime": ko, "round_name": "R1", "fixture_order": i,
+         "status_short": "NS", "is_played": False,
+         "home_team_sk": 1, "home_team_name": "Home", "home_team_slug": "home",
+         "away_team_sk": 2, "away_team_name": "Away", "away_team_slug": "away"}
         for i, (lc, ko) in enumerate(specs, start=1)
     ]
 
 
-_HERO_TEAMS = {
-    1: {"team_sk": 1, "team_name": "Home", "team_slug": "home", "team_logo_url": None},
-    2: {"team_sk": 2, "team_name": "Away", "team_slug": "away", "team_logo_url": None},
-}
-
-
 def test_hero_grouping_truncates_nothing():
-    """The count of 12 is gone: this function groups everything it is handed.
-
-    ⚠ The fixture set deliberately holds THIRTEEN matches — one more than the retired cap — so
-    this FAILS against the old `fixtures[:12]` slice instead of passing either way.
-
-    ⚠ WHICH day is shown is NOT tested here, because it is no longer decided here: the matchday
-    restriction is a WHERE clause in `fetch_landing_payload`'s query (computing it in Python was
-    the same layer violation #846 fixed for seasons). A unit test asserting a day filter in this
-    function would now be asserting the wrong thing.
-    """
+    """This function groups everything it is handed: thirteen matches in, thirteen out."""
     thirteen = [("PL", f"2026-08-20 1{i % 10}:00:00+00:00") for i in range(13)]
     groups = group_upcoming_fixtures(
-        _hero_fixtures(*thirteen), _HERO_TEAMS,
-        {"PL": {"name": "Premier League", "slug": "premier-league", "region_rank": 1}},
+        _hero_fixtures(*thirteen),
+        {"PL": {"name": "Premier League", "slug": "premier-league"}},
     )
     assert [g["league_code"] for g in groups] == ["PL"]
-    assert len(groups[0]["fixtures"]) == 13, "every match handed in, not the first 12"
+    assert len(groups[0]["fixtures"]) == 13, "every match handed in"
 
 
-def test_hero_carries_region_rank_from_the_served_meta():
-    """The page's ordering key needs region_rank on the group; the export must pass it through
-    rather than derive it (it comes from mart_competition_index, not from the registry)."""
+def test_hero_carries_no_ordering_key():
+    """The competitions arrive in the served order, so a group carries nothing for the page to
+    sort by."""
     groups = group_upcoming_fixtures(
-        _hero_fixtures(("PL", "2026-08-20 19:00:00+00:00"),
-                       ("BSA", "2026-08-20 21:00:00+00:00")),
-        _HERO_TEAMS,
-        {"PL": {"name": "Premier League", "slug": "premier-league", "region_rank": 1},
-         "BSA": {"name": "Brasileirao", "slug": "brasileirao", "region_rank": 3}},
+        _hero_fixtures(("PL", "2026-08-20 19:00:00+00:00")),
+        {"PL": {"name": "Premier League", "slug": "premier-league", "region_rank": 1}},
     )
-    assert {g["league_code"]: g["region_rank"] for g in groups} == {"PL": 1, "BSA": 3}
+    assert "region_rank" not in groups[0]
 
 
 _BOARDS = export_site_data._in_catalogue_order(export_site_data._MATCH_PLAYER_BOARDS, "player")
@@ -1364,5 +1348,4 @@ def test_played_payloads_take_the_listed_matches_only(monkeypatch):
 # decision moves into the warehouse (GAP-32).
 #
 # The placement is enforced by the layer contract and by review, not by a text assertion. What IS
-# tested below is the function's real behaviour: it truncates nothing, and it passes `region_rank`
-# through without deriving it.
+# tested is the function's real behaviour: it truncates nothing.

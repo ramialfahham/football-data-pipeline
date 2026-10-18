@@ -14,10 +14,10 @@ import { formatValue } from "../../lib/format";
 import type { Lang } from "../../lib/format";
 import { boardTitle } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
-import type { CompetitionBoard, MatchLeaderBoard } from "../../lib/types";
+import type { CompetitionBoard, LandingRankedBoard, MatchLeaderBoard } from "../../lib/types";
 
 interface Props {
-  board: CompetitionBoard | MatchLeaderBoard;
+  board: CompetitionBoard | MatchLeaderBoard | LandingRankedBoard;
   entity: "team" | "player";
   lang: Lang;
   /** Where a row leads; by default the team or player page its slug names. */

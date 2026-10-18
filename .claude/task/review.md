@@ -1,27 +1,46 @@
-# Review — feat/219-home-approved-design — 2026-10-18
+# Review — feat/219-home-rebuild — 2026-10-18
 
-diff_sha256: 7fe4c91af122e53c4a41f02d045cd356899d98314cfb35dc8c2937b1929674e5
+diff_sha256: 25a979daf2d069c8361618042c11f76c4701adc1f9edfe89b1b43663a511b2da
 
-rounds: 2
+rounds: 3
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: dbt_project/docs/layering.md:315 said mart_next_matchday is not ordered; round 2 checked the strip-only fix ("nothing is capped in it") and the scope_paths amendment with its authority, no defect.
-- Checked every changed file against scope_paths, no file outside it.
-- Checked the impact_map: writers, the pasted dbt ls lineage, layer rules, deploy order and blast radius are present; the inner join to competition_order drops no rows.
-- Checked §10: the column name and the order key are plan-approved and ruled on #127; no new mechanism, no recurring cost.
-- Checked the added SQL, yml and test for credential-shaped content, none.
+- Round 1 FAIL: docs/site_architecture.md:276 still named core.dim_team and region_rank; round 2 checked the Landing row against fetch_landing_payload's reads and the scope amendment with its authority, no defect.
+- Checked every file in the diff against scope_paths and the dated amendments, each with a named authority.
+- Checked the six acceptance criteria against #219's What exactly, identical word for word.
+- Checked §10: the crest, the board rows, the 1-7 rank, UTC with its zone and the doc texts are all in decisions_taken; no product, naming or metric decision outside it.
+- Checked system.css reach: .fxmore is used by HeroFixtures and MatchesDay only, and MatchesDay's fold renders unchanged, so approved_design home: #127 holds.
+- Round 3: checked .pre-commit-config.yaml's --maxkb=1024 against its scope amendment and the CPO approval it names; no other hook changes, no secret guard narrowed.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL: a hairline between a date heading and its first match in 3 of 23 folds (system.css:610); round 2 checked the summary-adjacent selector and the in-browser measurement, no defect.
+- Checked the built EN/DE/FI Home: 8 boards of 7 rows in catalogue order and format, both intros p.bsub, localised fold labels, Top match tags and date headings, crest/name/chevron heads.
+- Checked the binding rule: every landing.json field is emitted by the export from marts or the catalogue; no field exists only in the sample.
+- Checked HeroFixtures applies no order of its own and no orderUpcomingGroups, FixtureRow, LandingFixture or region_rank reference remains in site_v2/src.
+- Checked no naked percentage, no fabricated zero, no new metric, existing i18n keys only.
 
 ## analytics-engineer-reviewer
 VERDICT: PASS
 risks_checked:
-- Round 1 FAIL: the same layering.md:315 line; round 2 checked the row no longer contradicts the mart and no other line in the file calls it unordered, no defect.
-- Checked the window over the grouped CTE and the league_code final key: a gapless dense rank with no ties, no defect.
-- Checked seed join fan-out: league_code unique in competition_registry, confederation unique in confederations, no extra rows.
-- Checked parity with compareCompetitions: UTC day, region_rank, earliest kick-off, league_code, nulls last where the JS sorts them last, no defect.
-- Checked downstream readers mart_competition_fixtures, mart_match_days and the export name their columns, so the additive column reaches none of them.
-- Checked the singular test recomputes the order from the mart rows and seeds and fails on two orders, a shared order or a wrong place.
+- Checked fetch_landing_payload selects and joins only, ordered by the served competition_order then fixture_order; the Python sort is gone.
+- Checked competition_order is unique per competition and fixture_order unique within a competition's next round, so the order is deterministic.
+- Checked the inner join to mart_competition_fixtures cannot fan out (fixture_sk unique) and is_match_that_matters is carried from mart_next_matchday.
+- Checked the meta overlay: the crest from _competition_page_meta is set last and a null crest stays None; region_rank is no longer emitted.
+- Checked the Matches page and competition payload shapes are untouched, and the board format and per_match come from _board_catalogue.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- Round 1 FAIL: the competition crest wiring had no test; round 2 checked the hero test now fails if the loop, the logo_url key or the per-competition scope breaks.
+- Checked the .gitignore allowlist expands to exactly the 537 tracked upcoming ids, plus 11 force-tracked played samples, and admits no id outside the set.
+- Checked 34 team payloads and 50 days match the allowlist and the README.
+- Checked the three pin tests are equality pins lowered only for the rewritten files.
+- Checked no dependency, credential, guard-path, hosting or new third-party origin change.
+- Round 3: checked the --maxkb=1024 arg reaches the overridden entry, the check still fails closed above 1 MB, and CI's pre-commit run only checks added files, so already-committed payloads are unaffected.
 
 ## escalations
 (none)

@@ -3,68 +3,452 @@
   "slug": "2026-10-20",
   "day": "2026-10-20",
   "is_opening_day": false,
-  "previous_day": "2026-10-15",
-  "next_day": "2026-10-27",
+  "previous_day": "2026-10-19",
+  "next_day": "2026-10-21",
   "competitions": [
     {
-      "league_code": "LIBER",
-      "name": "Copa Libertadores",
-      "slug": "copa-libertadores",
-      "crest": "https://media.api-sports.io/football/leagues/13.png",
+      "league_code": "APD",
+      "name": "Liga Profesional de Fútbol (Argentina)",
+      "slug": "liga-profesional-argentina",
+      "crest": "https://media.api-sports.io/football/leagues/128.png",
       "entity_type": "club",
       "confederation": "CONMEBOL",
       "region_rank": 3,
       "fixtures": [
         {
-          "fixture_id": 1640021,
-          "slug": "2026-10-20-palmeiras-vs-fluminense",
-          "kickoff": "2026-10-20 20:00:00+00:00",
-          "round": "Semi-finals",
-          "round_order": null,
-          "round_sequence": 12,
-          "fixture_order": 153,
+          "fixture_id": 1493187,
+          "slug": "2026-10-20-deportivo-riestra-vs-union-santa-fe",
+          "kickoff": "2026-10-20 00:15:00+00:00",
+          "round": "Clausura - 13",
+          "round_order": 13,
+          "round_sequence": 33,
+          "fixture_order": 450,
           "status": "NS",
           "is_played": false,
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 121,
-            "name": "Palmeiras",
-            "slug": "palmeiras",
-            "crest": "https://media.api-sports.io/football/teams/121.png"
+            "team_id": 476,
+            "name": "Deportivo Riestra",
+            "slug": "deportivo-riestra",
+            "crest": "https://media.api-sports.io/football/teams/476.png"
           },
           "away": {
-            "team_id": 124,
-            "name": "Fluminense",
-            "slug": "fluminense",
-            "crest": "https://media.api-sports.io/football/teams/124.png"
+            "team_id": 441,
+            "name": "Union Santa Fe",
+            "slug": "union-santa-fe",
+            "crest": "https://media.api-sports.io/football/teams/441.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "CAFCL",
+      "name": "CAF Champions League",
+      "slug": "caf-champions-league",
+      "crest": "https://media.api-sports.io/football/leagues/12.png",
+      "entity_type": "club",
+      "confederation": "CAF",
+      "region_rank": 6,
+      "fixtures": [
+        {
+          "fixture_id": 1644171,
+          "slug": "2026-10-20-15-de-agosto-vs-simba",
+          "kickoff": "2026-10-20 13:00:00+00:00",
+          "round": "2nd Preliminary Round",
+          "round_order": null,
+          "round_sequence": 2,
+          "fixture_order": 74,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 19116,
+            "name": "15 de Agosto",
+            "slug": "15-de-agosto",
+            "crest": "https://media.api-sports.io/football/teams/19116.png"
+          },
+          "away": {
+            "team_id": 6432,
+            "name": "Simba",
+            "slug": "simba",
+            "crest": "https://media.api-sports.io/football/teams/6432.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "SPL",
+      "name": "Saudi Pro League",
+      "slug": "saudi-pro-league",
+      "crest": "https://media.api-sports.io/football/leagues/307.png",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1603054,
+          "slug": "2026-10-20-al-diriyah-vs-al-riyadh",
+          "kickoff": "2026-10-20 15:00:00+00:00",
+          "round": "Regular Season - 10",
+          "round_order": 10,
+          "round_sequence": 10,
+          "fixture_order": 87,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 26738,
+            "name": "Al Diriyah",
+            "slug": "al-diriyah",
+            "crest": "https://media.api-sports.io/football/teams/26738.png"
+          },
+          "away": {
+            "team_id": 10511,
+            "name": "Al Riyadh",
+            "slug": "al-riyadh",
+            "crest": "https://media.api-sports.io/football/teams/10511.png"
           },
           "is_next_round": true,
           "is_match_that_matters": false
         },
         {
-          "fixture_id": 1640556,
-          "slug": "2026-10-20-flamengo-vs-estudiantes-l-p",
-          "kickoff": "2026-10-20 20:00:00+00:00",
-          "round": "Semi-finals",
-          "round_order": null,
-          "round_sequence": 12,
-          "fixture_order": 154,
+          "fixture_id": 1603061,
+          "slug": "2026-10-20-al-taawon-vs-al-qadisiyah-fc",
+          "kickoff": "2026-10-20 15:10:00+00:00",
+          "round": "Regular Season - 10",
+          "round_order": 10,
+          "round_sequence": 10,
+          "fixture_order": 88,
           "status": "NS",
           "is_played": false,
           "goals_home": null,
           "goals_away": null,
           "home": {
-            "team_id": 127,
-            "name": "Flamengo",
-            "slug": "flamengo",
-            "crest": "https://media.api-sports.io/football/teams/127.png"
+            "team_id": 2936,
+            "name": "Al Taawon",
+            "slug": "al-taawon",
+            "crest": "https://media.api-sports.io/football/teams/2936.png"
           },
           "away": {
-            "team_id": 450,
-            "name": "Estudiantes L.P.",
-            "slug": "estudiantes-l-p",
-            "crest": "https://media.api-sports.io/football/teams/450.png"
+            "team_id": 2933,
+            "name": "Al-Qadisiyah FC",
+            "slug": "al-qadisiyah-fc",
+            "crest": "https://media.api-sports.io/football/teams/2933.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603055,
+          "slug": "2026-10-20-al-ettifaq-vs-al-ittihad-fc",
+          "kickoff": "2026-10-20 18:00:00+00:00",
+          "round": "Regular Season - 10",
+          "round_order": 10,
+          "round_sequence": 10,
+          "fixture_order": 89,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2934,
+            "name": "Al-Ettifaq",
+            "slug": "al-ettifaq",
+            "crest": "https://media.api-sports.io/football/teams/2934.png"
+          },
+          "away": {
+            "team_id": 2938,
+            "name": "Al-Ittihad FC",
+            "slug": "al-ittihad-fc",
+            "crest": "https://media.api-sports.io/football/teams/2938.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603059,
+          "slug": "2026-10-20-al-nassr-vs-neom",
+          "kickoff": "2026-10-20 18:00:00+00:00",
+          "round": "Regular Season - 10",
+          "round_order": 10,
+          "round_sequence": 10,
+          "fixture_order": 90,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2939,
+            "name": "Al-Nassr",
+            "slug": "al-nassr",
+            "crest": "https://media.api-sports.io/football/teams/2939.png"
+          },
+          "away": {
+            "team_id": 10513,
+            "name": "NEOM",
+            "slug": "neom",
+            "crest": "https://media.api-sports.io/football/teams/10513.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        }
+      ]
+    },
+    {
+      "league_code": "UCL",
+      "name": "UEFA Champions League",
+      "slug": "champions-league",
+      "crest": "https://media.api-sports.io/football/leagues/2.png",
+      "entity_type": "club",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1635661,
+          "slug": "2026-10-20-fenerbahce-vs-slavia-praha",
+          "kickoff": "2026-10-20 16:45:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 127,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 611,
+            "name": "Fenerbahçe",
+            "slug": "fenerbahce",
+            "crest": "https://media.api-sports.io/football/teams/611.png"
+          },
+          "away": {
+            "team_id": 560,
+            "name": "Slavia Praha",
+            "slug": "slavia-praha",
+            "crest": "https://media.api-sports.io/football/teams/560.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1635719,
+          "slug": "2026-10-20-sabah-fa-vs-borussia-dortmund",
+          "kickoff": "2026-10-20 16:45:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 128,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 13976,
+            "name": "Sabah FA",
+            "slug": "sabah-fa",
+            "crest": "https://media.api-sports.io/football/teams/13976.png"
+          },
+          "away": {
+            "team_id": 165,
+            "name": "Borussia Dortmund",
+            "slug": "borussia-dortmund",
+            "crest": "https://media.api-sports.io/football/teams/165.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1635617,
+          "slug": "2026-10-20-as-roma-vs-slovan-bratislava",
+          "kickoff": "2026-10-20 19:00:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 129,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 497,
+            "name": "AS Roma",
+            "slug": "as-roma",
+            "crest": "https://media.api-sports.io/football/teams/497.png"
+          },
+          "away": {
+            "team_id": 656,
+            "name": "Slovan Bratislava",
+            "slug": "slovan-bratislava",
+            "crest": "https://media.api-sports.io/football/teams/656.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1635655,
+          "slug": "2026-10-20-fc-porto-vs-psv-eindhoven",
+          "kickoff": "2026-10-20 19:00:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 130,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 212,
+            "name": "FC Porto",
+            "slug": "fc-porto",
+            "crest": "https://media.api-sports.io/football/teams/212.png"
+          },
+          "away": {
+            "team_id": 197,
+            "name": "PSV Eindhoven",
+            "slug": "psv-eindhoven",
+            "crest": "https://media.api-sports.io/football/teams/197.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1635688,
+          "slug": "2026-10-20-liverpool-fc-vs-villarreal-cf",
+          "kickoff": "2026-10-20 19:00:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 131,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 40,
+            "name": "Liverpool FC",
+            "slug": "liverpool-fc",
+            "crest": "https://media.api-sports.io/football/teams/40.png"
+          },
+          "away": {
+            "team_id": 533,
+            "name": "Villarreal CF",
+            "slug": "villarreal-cf",
+            "crest": "https://media.api-sports.io/football/teams/533.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1635693,
+          "slug": "2026-10-20-manchester-city-fc-vs-aek-athens-fc",
+          "kickoff": "2026-10-20 19:00:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 132,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 50,
+            "name": "Manchester City FC",
+            "slug": "manchester-city-fc",
+            "crest": "https://media.api-sports.io/football/teams/50.png"
+          },
+          "away": {
+            "team_id": 575,
+            "name": "AEK Athens FC",
+            "slug": "aek-athens-fc",
+            "crest": "https://media.api-sports.io/football/teams/575.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1635700,
+          "slug": "2026-10-20-ssc-napoli-vs-bodo-glimt",
+          "kickoff": "2026-10-20 19:00:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 133,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 492,
+            "name": "SSC Napoli",
+            "slug": "ssc-napoli",
+            "crest": "https://media.api-sports.io/football/teams/492.png"
+          },
+          "away": {
+            "team_id": 327,
+            "name": "Bodo/Glimt",
+            "slug": "bodo-glimt",
+            "crest": "https://media.api-sports.io/football/teams/327.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1635702,
+          "slug": "2026-10-20-paris-saint-germain-fc-vs-fc-barcelona",
+          "kickoff": "2026-10-20 19:00:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 134,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 85,
+            "name": "Paris Saint-Germain FC",
+            "slug": "paris-saint-germain-fc",
+            "crest": "https://media.api-sports.io/football/teams/85.png"
+          },
+          "away": {
+            "team_id": 529,
+            "name": "FC Barcelona",
+            "slug": "fc-barcelona",
+            "crest": "https://media.api-sports.io/football/teams/529.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": true
+        },
+        {
+          "fixture_id": 1635738,
+          "slug": "2026-10-20-vfb-stuttgart-vs-atletico-madrid",
+          "kickoff": "2026-10-20 19:00:00+00:00",
+          "round": "League Stage - 3",
+          "round_order": 3,
+          "round_sequence": 7,
+          "fixture_order": 135,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 172,
+            "name": "VfB Stuttgart",
+            "slug": "vfb-stuttgart",
+            "crest": "https://media.api-sports.io/football/teams/172.png"
+          },
+          "away": {
+            "team_id": 530,
+            "name": "Atlético Madrid",
+            "slug": "atletico-madrid",
+            "crest": "https://media.api-sports.io/football/teams/530.png"
           },
           "is_next_round": true,
           "is_match_that_matters": false

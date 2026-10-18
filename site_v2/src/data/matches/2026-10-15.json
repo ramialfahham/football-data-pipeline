@@ -4,8 +4,176 @@
   "day": "2026-10-15",
   "is_opening_day": false,
   "previous_day": "2026-10-14",
-  "next_day": "2026-10-20",
+  "next_day": "2026-10-16",
   "competitions": [
+    {
+      "league_code": "APD",
+      "name": "Liga Profesional de Fútbol (Argentina)",
+      "slug": "liga-profesional-argentina",
+      "crest": "https://media.api-sports.io/football/leagues/128.png",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1493190,
+          "slug": "2026-10-15-huracan-vs-gimnasia-l-p",
+          "kickoff": "2026-10-15 23:00:00+00:00",
+          "round": "Clausura - 13",
+          "round_order": 13,
+          "round_sequence": 33,
+          "fixture_order": 436,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 2,
+          "home": {
+            "team_id": 445,
+            "name": "Huracan",
+            "slug": "huracan",
+            "crest": "https://media.api-sports.io/football/teams/445.png"
+          },
+          "away": {
+            "team_id": 434,
+            "name": "Gimnasia L.P.",
+            "slug": "gimnasia-l-p",
+            "crest": "https://media.api-sports.io/football/teams/434.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "LIBER",
+      "name": "Copa Libertadores",
+      "slug": "copa-libertadores",
+      "crest": "https://media.api-sports.io/football/leagues/13.png",
+      "entity_type": "club",
+      "confederation": "CONMEBOL",
+      "region_rank": 3,
+      "fixtures": [
+        {
+          "fixture_id": 1640020,
+          "slug": "2026-10-15-fluminense-vs-palmeiras",
+          "kickoff": "2026-10-15 00:30:00+00:00",
+          "round": "Semi-finals",
+          "round_order": null,
+          "round_sequence": 12,
+          "fixture_order": 151,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 2,
+          "home": {
+            "team_id": 124,
+            "name": "Fluminense",
+            "slug": "fluminense",
+            "crest": "https://media.api-sports.io/football/teams/124.png"
+          },
+          "away": {
+            "team_id": 121,
+            "name": "Palmeiras",
+            "slug": "palmeiras",
+            "crest": "https://media.api-sports.io/football/teams/121.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "SPL",
+      "name": "Saudi Pro League",
+      "slug": "saudi-pro-league",
+      "crest": "https://media.api-sports.io/football/leagues/307.png",
+      "entity_type": "club",
+      "confederation": "AFC",
+      "region_rank": 5,
+      "fixtures": [
+        {
+          "fixture_id": 1603046,
+          "slug": "2026-10-15-al-faisaly-fc-vs-al-kholood",
+          "kickoff": "2026-10-15 13:40:00+00:00",
+          "round": "Regular Season - 9",
+          "round_order": 9,
+          "round_sequence": 9,
+          "fixture_order": 73,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 2,
+          "home": {
+            "team_id": 2930,
+            "name": "Al-Faisaly FC",
+            "slug": "al-faisaly-fc",
+            "crest": "https://media.api-sports.io/football/teams/2930.png"
+          },
+          "away": {
+            "team_id": 10509,
+            "name": "Al Kholood",
+            "slug": "al-kholood",
+            "crest": "https://media.api-sports.io/football/teams/10509.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603049,
+          "slug": "2026-10-15-al-khaleej-saihat-vs-al-fayha",
+          "kickoff": "2026-10-15 14:50:00+00:00",
+          "round": "Regular Season - 9",
+          "round_order": 9,
+          "round_sequence": 9,
+          "fixture_order": 74,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 0,
+          "home": {
+            "team_id": 2928,
+            "name": "Al Khaleej Saihat",
+            "slug": "al-khaleej-saihat",
+            "crest": "https://media.api-sports.io/football/teams/2928.png"
+          },
+          "away": {
+            "team_id": 2944,
+            "name": "Al-Fayha",
+            "slug": "al-fayha",
+            "crest": "https://media.api-sports.io/football/teams/2944.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1603047,
+          "slug": "2026-10-15-al-hazm-vs-al-fateh",
+          "kickoff": "2026-10-15 15:15:00+00:00",
+          "round": "Regular Season - 9",
+          "round_order": 9,
+          "round_sequence": 9,
+          "fixture_order": 75,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 3,
+          "home": {
+            "team_id": 2945,
+            "name": "Al-Hazm",
+            "slug": "al-hazm",
+            "crest": "https://media.api-sports.io/football/teams/2945.png"
+          },
+          "away": {
+            "team_id": 2931,
+            "name": "Al-Fateh",
+            "slug": "al-fateh",
+            "crest": "https://media.api-sports.io/football/teams/2931.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    },
     {
       "league_code": "UECL",
       "name": "UEFA Conference League",
@@ -23,10 +191,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 259,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 2,
           "home": {
             "team_id": 853,
             "name": "CSKA Sofia",
@@ -39,7 +207,7 @@
             "slug": "as-monaco-fc",
             "crest": "https://media.api-sports.io/football/teams/91.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -50,10 +218,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 260,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
           "home": {
             "team_id": 3327,
             "name": "Egnatia Rrogozhinë",
@@ -66,7 +234,7 @@
             "slug": "fc-midtjylland",
             "crest": "https://media.api-sports.io/football/teams/397.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -77,10 +245,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 261,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 0,
           "home": {
             "team_id": 631,
             "name": "Gent",
@@ -93,7 +261,7 @@
             "slug": "aarhus",
             "crest": "https://media.api-sports.io/football/teams/406.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -104,10 +272,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 262,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
           "home": {
             "team_id": 608,
             "name": "HNK Hajduk Split",
@@ -120,7 +288,7 @@
             "slug": "afc-ajax",
             "crest": "https://media.api-sports.io/football/teams/194.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -131,10 +299,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 263,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 4,
           "home": {
             "team_id": 1165,
             "name": "KuPS",
@@ -147,7 +315,7 @@
             "slug": "trabzonspor",
             "crest": "https://media.api-sports.io/football/teams/998.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -158,10 +326,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 264,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 2,
           "home": {
             "team_id": 606,
             "name": "FC Lugano",
@@ -174,7 +342,7 @@
             "slug": "fk-crvena-zvezda",
             "crest": "https://media.api-sports.io/football/teams/598.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -185,10 +353,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 265,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 0,
           "home": {
             "team_id": 2240,
             "name": "Mjallby AIF",
@@ -201,7 +369,7 @@
             "slug": "inter-club-descaldes",
             "crest": "https://media.api-sports.io/football/teams/3342.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -212,10 +380,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 266,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
           "home": {
             "team_id": 617,
             "name": "Panathinaikos",
@@ -228,7 +396,7 @@
             "slug": "borac-banja-luka",
             "crest": "https://media.api-sports.io/football/teams/3364.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -239,10 +407,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 267,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
           "home": {
             "team_id": 10124,
             "name": "Riga",
@@ -255,7 +423,7 @@
             "slug": "kairat-almaty",
             "crest": "https://media.api-sports.io/football/teams/664.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -266,10 +434,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 268,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
           "home": {
             "team_id": 632,
             "name": "Universitatea Craiova",
@@ -282,7 +450,7 @@
             "slug": "getafe-cf",
             "crest": "https://media.api-sports.io/football/teams/546.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -293,10 +461,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 269,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 1,
           "home": {
             "team_id": 499,
             "name": "Atalanta BC",
@@ -309,7 +477,7 @@
             "slug": "pafos",
             "crest": "https://media.api-sports.io/football/teams/3403.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -320,10 +488,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 270,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
           "home": {
             "team_id": 319,
             "name": "Brann",
@@ -336,7 +504,7 @@
             "slug": "lincoln-red-imps-fc",
             "crest": "https://media.api-sports.io/football/teams/667.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -347,10 +515,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 271,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 4,
+          "goals_away": 0,
           "home": {
             "team_id": 51,
             "name": "Brighton & Hove Albion FC",
@@ -363,7 +531,7 @@
             "slug": "kauno-zalgiris",
             "crest": "https://media.api-sports.io/football/teams/3872.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -374,10 +542,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 272,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 0,
           "home": {
             "team_id": 400,
             "name": "FC Copenhagen",
@@ -390,7 +558,7 @@
             "slug": "sc-braga",
             "crest": "https://media.api-sports.io/football/teams/217.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -401,10 +569,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 273,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 2,
           "home": {
             "team_id": 160,
             "name": "SC Freiburg",
@@ -417,8 +585,8 @@
             "slug": "fk-jablonec",
             "crest": "https://media.api-sports.io/football/teams/1122.png"
           },
-          "is_next_round": true,
-          "is_match_that_matters": true
+          "is_next_round": false,
+          "is_match_that_matters": false
         },
         {
           "fixture_id": 1636423,
@@ -428,10 +596,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 274,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
           "home": {
             "team_id": 254,
             "name": "Heart Of Midlothian",
@@ -444,7 +612,7 @@
             "slug": "fc-nordsjaelland",
             "crest": "https://media.api-sports.io/football/teams/398.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -455,10 +623,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 275,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 0,
           "home": {
             "team_id": 735,
             "name": "St. Truiden",
@@ -471,7 +639,7 @@
             "slug": "fc-iberia-1999",
             "crest": "https://media.api-sports.io/football/teams/3502.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -482,10 +650,10 @@
           "round_order": 1,
           "round_sequence": 5,
           "fixture_order": 276,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 0,
           "home": {
             "team_id": 415,
             "name": "FC Twente",
@@ -498,7 +666,7 @@
             "slug": "fc-thun",
             "crest": "https://media.api-sports.io/football/teams/1012.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         }
       ]
@@ -520,10 +688,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 99,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
           "home": {
             "team_id": 201,
             "name": "AZ Alkmaar",
@@ -536,7 +704,7 @@
             "slug": "hapoel-beer-sheva",
             "crest": "https://media.api-sports.io/football/teams/563.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -547,10 +715,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 100,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 3,
           "home": {
             "team_id": 4360,
             "name": "Celje",
@@ -563,7 +731,7 @@
             "slug": "omonia-nicosia",
             "crest": "https://media.api-sports.io/football/teams/3402.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -574,10 +742,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 101,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 4,
           "home": {
             "team_id": 347,
             "name": "Lech Poznan",
@@ -590,7 +758,7 @@
             "slug": "bayer-04-leverkusen",
             "crest": "https://media.api-sports.io/football/teams/168.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -601,10 +769,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 102,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 2,
           "home": {
             "team_id": 80,
             "name": "Olympique Lyonnais",
@@ -617,8 +785,8 @@
             "slug": "crystal-palace-fc",
             "crest": "https://media.api-sports.io/football/teams/52.png"
           },
-          "is_next_round": true,
-          "is_match_that_matters": true
+          "is_next_round": false,
+          "is_match_that_matters": false
         },
         {
           "fixture_id": 1636328,
@@ -628,10 +796,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 103,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
           "home": {
             "team_id": 1393,
             "name": "Union St. Gilloise",
@@ -644,7 +812,7 @@
             "slug": "real-sociedad",
             "crest": "https://media.api-sports.io/football/teams/548.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -655,10 +823,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 104,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 4,
           "home": {
             "team_id": 571,
             "name": "Red Bull Salzburg",
@@ -671,7 +839,7 @@
             "slug": "ac-milan",
             "crest": "https://media.api-sports.io/football/teams/489.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -682,10 +850,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 105,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
           "home": {
             "team_id": 628,
             "name": "Sparta Praha",
@@ -698,7 +866,7 @@
             "slug": "lillestrom",
             "crest": "https://media.api-sports.io/football/teams/321.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -709,10 +877,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 106,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 2,
           "home": {
             "team_id": 4799,
             "name": "Torreense",
@@ -725,7 +893,7 @@
             "slug": "sunderland-afc",
             "crest": "https://media.api-sports.io/football/teams/746.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -736,10 +904,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 107,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 4,
+          "goals_away": 1,
           "home": {
             "team_id": 211,
             "name": "SL Benfica",
@@ -752,7 +920,7 @@
             "slug": "celtic",
             "crest": "https://media.api-sports.io/football/teams/247.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -763,10 +931,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 108,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 0,
           "home": {
             "team_id": 35,
             "name": "AFC Bournemouth",
@@ -779,7 +947,7 @@
             "slug": "sturm-graz",
             "crest": "https://media.api-sports.io/football/teams/637.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -790,10 +958,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 109,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 2,
           "home": {
             "team_id": 538,
             "name": "RC Celta de Vigo",
@@ -806,7 +974,7 @@
             "slug": "juventus-fc",
             "crest": "https://media.api-sports.io/football/teams/496.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -817,10 +985,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 110,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 0,
           "home": {
             "team_id": 620,
             "name": "Dinamo Zagreb",
@@ -833,7 +1001,7 @@
             "slug": "anderlecht",
             "crest": "https://media.api-sports.io/football/teams/554.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -844,10 +1012,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 111,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
           "home": {
             "team_id": 651,
             "name": "Ferencvarosi TC",
@@ -860,7 +1028,7 @@
             "slug": "plzen",
             "crest": "https://media.api-sports.io/football/teams/567.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -871,10 +1039,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 112,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 3,
           "home": {
             "team_id": 167,
             "name": "TSG 1899 Hoffenheim",
@@ -887,7 +1055,7 @@
             "slug": "besiktas",
             "crest": "https://media.api-sports.io/football/teams/549.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -898,10 +1066,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 113,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 3,
+          "goals_away": 1,
           "home": {
             "team_id": 336,
             "name": "Jagiellonia",
@@ -914,7 +1082,7 @@
             "slug": "ararat-armenia",
             "crest": "https://media.api-sports.io/football/teams/3683.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -925,10 +1093,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 114,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 1,
           "home": {
             "team_id": 81,
             "name": "Olympique de Marseille",
@@ -941,7 +1109,7 @@
             "slug": "olympiakos-piraeus",
             "crest": "https://media.api-sports.io/football/teams/553.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -952,10 +1120,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 115,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 1,
+          "goals_away": 1,
           "home": {
             "team_id": 413,
             "name": "NEC Nijmegen",
@@ -968,7 +1136,7 @@
             "slug": "levski-sofia",
             "crest": "https://media.api-sports.io/football/teams/646.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         },
         {
@@ -979,10 +1147,10 @@
           "round_order": 2,
           "round_sequence": 6,
           "fixture_order": 116,
-          "status": "NS",
-          "is_played": false,
-          "goals_home": null,
-          "goals_away": null,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 2,
+          "goals_away": 1,
           "home": {
             "team_id": 94,
             "name": "Stade Rennais FC",
@@ -995,7 +1163,7 @@
             "slug": "ofi",
             "crest": "https://media.api-sports.io/football/teams/1124.png"
           },
-          "is_next_round": true,
+          "is_next_round": false,
           "is_match_that_matters": false
         }
       ]

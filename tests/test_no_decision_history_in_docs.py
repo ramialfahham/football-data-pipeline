@@ -53,7 +53,7 @@ PINNED = {
     "docs/wireframes/03_player_profile.md": 3,
     "docs/wireframes/08_browse.md": 27,
     "docs/wireframes/09_chrome.md": 4,
-    "docs/wireframes/10_home.md": 127,
+    "docs/wireframes/10_home.md": 126,
     "docs/wireframes/11_team_squad.md": 12,
     "docs/wireframes/12_player_stats.md": 14,
     "docs/wireframes/13_player_career.md": 11,
@@ -61,7 +61,7 @@ PINNED = {
     "docs/wireframes/99_gaps_register.md": 30,
     "docs/wireframes/block_standard.md": 51,
     "docs/wireframes/metrics_display.md": 44,
-    "site_v2/src/data/README.md": 16,
+    "site_v2/src/data/README.md": 5,
 }
 
 DATE = "-".join(["20" + "31", "01", "02"])

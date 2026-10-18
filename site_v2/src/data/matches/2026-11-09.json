@@ -1,0 +1,75 @@
+{
+  "type": "match_day",
+  "slug": "2026-11-09",
+  "day": "2026-11-09",
+  "is_opening_day": false,
+  "previous_day": "2026-10-29",
+  "next_day": "2026-11-12",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1644690,
+          "slug": "2026-11-09-curacao-vs-panama",
+          "kickoff": "2026-11-09 21:00:00+00:00",
+          "round": "Quarter-finals",
+          "round_order": null,
+          "round_sequence": 10,
+          "fixture_order": 91,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 5530,
+            "name": "Curaçao",
+            "slug": "curacao",
+            "crest": "https://media.api-sports.io/football/teams/5530.png"
+          },
+          "away": {
+            "team_id": 11,
+            "name": "Panama",
+            "slug": "panama",
+            "crest": "https://media.api-sports.io/football/teams/11.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1644691,
+          "slug": "2026-11-09-jamaica-vs-mexico",
+          "kickoff": "2026-11-09 21:00:00+00:00",
+          "round": "Quarter-finals",
+          "round_order": null,
+          "round_sequence": 10,
+          "fixture_order": 92,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2385,
+            "name": "Jamaica",
+            "slug": "jamaica",
+            "crest": "https://media.api-sports.io/football/teams/2385.png"
+          },
+          "away": {
+            "team_id": 16,
+            "name": "Mexico",
+            "slug": "mexico",
+            "crest": "https://media.api-sports.io/football/teams/16.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}
