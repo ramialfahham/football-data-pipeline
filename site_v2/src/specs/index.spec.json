@@ -20,8 +20,8 @@
   "blocks": [
     {
       "block": "Fixtures hero",
-      "mart": "core:fct_fixture",
-      "i18n_keys": ["homeNext", "homeNoFixtures"]
+      "mart": ["mart_next_matchday", "mart_competition_fixtures", "mart_competition_index"],
+      "i18n_keys": ["homeNext", "homeNoFixtures", "homeShowAll", "compTBC", "compTopMatch"]
     },
     {
       "block": "Top players",

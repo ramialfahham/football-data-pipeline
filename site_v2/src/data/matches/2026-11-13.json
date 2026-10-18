@@ -1,0 +1,113 @@
+{
+  "type": "match_day",
+  "slug": "2026-11-13",
+  "day": "2026-11-13",
+  "is_opening_day": false,
+  "previous_day": "2026-11-12",
+  "next_day": "2026-11-14",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1644692,
+          "slug": "2026-11-13-guatemala-vs-canada",
+          "kickoff": "2026-11-13 21:00:00+00:00",
+          "round": "Quarter-finals",
+          "round_order": null,
+          "round_sequence": 10,
+          "fixture_order": 93,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 5161,
+            "name": "Guatemala",
+            "slug": "guatemala",
+            "crest": "https://media.api-sports.io/football/teams/5161.png"
+          },
+          "away": {
+            "team_id": 5529,
+            "name": "Canada",
+            "slug": "canada",
+            "crest": "https://media.api-sports.io/football/teams/5529.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "UNL",
+      "name": "UEFA Nations League",
+      "slug": "nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/5.png",
+      "entity_type": "national",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1528965,
+          "slug": "2026-11-13-serbia-vs-germany",
+          "kickoff": "2026-11-13 19:45:00+00:00",
+          "round": "League A - 5",
+          "round_order": 5,
+          "round_sequence": 17,
+          "fixture_order": 109,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 14,
+            "name": "Serbia",
+            "slug": "serbia",
+            "crest": "https://media.api-sports.io/football/teams/14.png"
+          },
+          "away": {
+            "team_id": 25,
+            "name": "Germany",
+            "slug": "germany",
+            "crest": "https://media.api-sports.io/football/teams/25.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1528966,
+          "slug": "2026-11-13-netherlands-vs-greece",
+          "kickoff": "2026-11-13 19:45:00+00:00",
+          "round": "League A - 5",
+          "round_order": 5,
+          "round_sequence": 17,
+          "fixture_order": 110,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1118,
+            "name": "Netherlands",
+            "slug": "netherlands",
+            "crest": "https://media.api-sports.io/football/teams/1118.png"
+          },
+          "away": {
+            "team_id": 1117,
+            "name": "Greece",
+            "slug": "greece",
+            "crest": "https://media.api-sports.io/football/teams/1117.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

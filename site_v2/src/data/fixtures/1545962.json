@@ -8,14 +8,16 @@
   "league_name": "AFC Asian Cup",
   "season": 2027,
   "round": "Group Stage - 1",
+  "round_order": 1,
+  "is_next_round": true,
   "venue": "Aramco Stadium",
   "home": {
     "team_id": 20,
     "name": "Australia",
+    "slug": "australia",
     "crest": "https://media.api-sports.io/football/teams/20.png",
     "country": "Australia",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": null,
       "is_knockout": false,
@@ -26,15 +28,16 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "away": {
     "team_id": 1546,
     "name": "Singapore",
+    "slug": "singapore",
     "crest": "https://media.api-sports.io/football/teams/1546.png",
     "country": "Singapore",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": "Groups - Group D",
       "is_knockout": false,
@@ -45,7 +48,8 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "head_to_head": null
 }

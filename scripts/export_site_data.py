@@ -1868,60 +1868,26 @@ def fetch_leaderboard_payloads(client, sample: int = 0, registry_path: str = REG
     return out
 
 
-def group_upcoming_fixtures(fixtures: list[dict], teams: dict, meta: dict) -> list[dict]:
-    """The landing hero: THE NEXT MATCHDAY — every fixture on the earliest upcoming kickoff date —
-    grouped by competition.
+def group_upcoming_fixtures(rows: list[dict], meta: dict) -> list[dict]:
+    """The landing hero: every competition's next matchday, grouped by competition, each fixture
+    in the shape the site's one match row renders (`_competition_fixture`).
 
-    ⚠ THIS FUNCTION NO LONGER SELECTS ANYTHING. It groups every fixture it is handed and truncates
-    nothing — the retired `_HERO_FIXTURE_LIMIT = 12` slice is gone, and the matchday
-    restriction is a WHERE clause in `fetch_landing_payload`'s query, beside the
-    upcoming-window filter that has always lived there. Keeping the day selection out of Python is
-    the same call #846 forced on `_featured_season_row`.
-
-    GROUPING ONLY — no ordering business rule lives here either. `fixtures` arrives kickoff-ordered
-    from the caller, so the payload's group order is first-appearance order, which is a
-    deterministic export diff and NOT the display order: the PAGE applies the site-wide ordering
-    key (`site_v2/src/lib/competitionOrder.mjs`); the mart carries facts and the page spec
-    declares the ORDER BY.
-    """
+    Grouping only: `rows` arrive in the served order (`competition_order`, then `fixture_order`),
+    so the groups and their rows keep it. Nothing is selected, cut or reordered here."""
     groups: dict = {}
-    for f in fixtures:
-        league_code = f.get("league_code")
+    for r in rows:
+        league_code = r.get("league_code")
         comp = meta.get(league_code) or {}
         group = groups.setdefault(league_code, {
             "league_code": league_code,
             "league_name": comp.get("name"),
             "competition_slug": comp.get("slug"),
-            # The page's ordering key needs this; it is SERVED, never derived here. It comes from
-            # mart_competition_index (which publishes it from the confederations seed) — mapping
-            # confederation -> rank in this file would be a taxonomy mapping, which the
-            # consumption-layer contract forbids outright.
-            "region_rank": comp.get("region_rank"),
-            "season": f.get("season_api_year"),
+            "crest": comp.get("crest"),
+            "season": r.get("season_api_year"),
             "fixtures": [],
         })
-        home = teams.get(int(f["home_team_sk"])) if f.get("home_team_sk") is not None else None
-        away = teams.get(int(f["away_team_sk"])) if f.get("away_team_sk") is not None else None
-        fixture_id = int(f["fixture_sk"])
-        group["fixtures"].append({
-            "fixture_id": fixture_id,
-            "slug": f.get("fixture_slug"),
-            "kickoff": f.get("kickoff_datetime"),
-            "round": f.get("round_name"),
-            "home": _landing_side(home),
-            "away": _landing_side(away),
-        })
+        group["fixtures"].append(_competition_fixture(r))
     return list(groups.values())
-
-
-def _landing_side(team: dict | None) -> dict:
-    """One side of a hero fixture row: display identity only, no stats."""
-    return {
-        "team_id": int(team["team_sk"]) if team and team.get("team_sk") is not None else None,
-        "name": (team or {}).get("team_name"),
-        "slug": (team or {}).get("team_slug"),
-        "crest": (team or {}).get("team_logo_url"),
-    }
 
 
 def _per_match(row: dict[str, str]) -> bool:
@@ -2063,6 +2029,8 @@ def shape_home_top_players(rows: list[dict], meta: dict, label_keys: dict[str, s
         boards.append({
             "metric_key": key,
             "label_i18n_key": label_keys[key]["label_i18n_key"],
+            "format": label_keys[key]["format"],
+            "per_match": label_keys[key]["per_match"],
             "rows": entries[:_HOME_BOARD_ROWS],
         })
     return boards
@@ -2122,6 +2090,7 @@ def shape_home_top_teams(rows: list[dict], meta: dict, catalogue: dict[str, dict
             "metric_key": key,
             "label_i18n_key": catalogue[key]["label_i18n_key"],
             "format": catalogue[key]["format"],
+            "per_match": catalogue[key]["per_match"],
             "rows": entries[:_HOME_BOARD_ROWS],
         })
     return boards
@@ -2173,14 +2142,11 @@ def shape_landing_payload(
 
 
 def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
-    """Read the landing module that exists today: upcoming fixtures.
+    """landing.json: Next matches, Top players and Top teams.
 
-    THREE BigQuery reads, unchanged by dropping browse below (it was registry-driven and read
-    nothing either way): `mart_next_matchday` and `core.dim_team` for the hero, plus
-    `mart_competition_index` for `region_rank` (below). The stats teasers
-    (`mart_leaderboards` + `mart_standings`) and trending (`mart_landing_trending`) were removed,
-    and browse (registry-driven, read nothing) was dropped (see `shape_landing_payload`) — their
-    queries and, for browse, its `fetch_nav` call here, went with them.
+    Next matches reads `mart_next_matchday` joined to `mart_competition_fixtures`, with the
+    competitions' names and crests from `mart_competition_index`; the boards read
+    `mart_leaderboards` and `mart_team_leaderboards`.
     """
     meta = {
         c["league_code"]: {
@@ -2199,25 +2165,21 @@ def fetch_landing_payload(client, registry_path: str = REGISTRY_PATH) -> dict:
         if league_code in meta:
             meta[league_code].update(served)
 
-    # THE MATCHDAY IS SERVED, NOT SELECTED. `mart_next_matchday` is every competition's next round
-    # — the warehouse decides which round that is and which fixtures belong to it; this read
-    # takes the table whole. The fixture pages use the same upcoming definition the mart does, so
-    # the hero can never advertise a match that has no page.
+    for league_code, page in _competition_page_meta(client).items():
+        if league_code in meta:
+            meta[league_code]["crest"] = page.get("logo_url")
+
+    # THE MATCHDAY AND ITS ORDER ARE SERVED. `mart_next_matchday` is every competition's next
+    # round, read whole, with the competitions' order; the rows are the match rows every other
+    # page reads from `mart_competition_fixtures`.
     fixtures = _query(client, f"""
-        select n.fixture_sk, n.league_code, n.season_api_year, n.kickoff_datetime, n.round_name,
-               n.home_team_sk, n.away_team_sk, c.fixture_slug
+        select {", ".join("c." + col.strip() for col in _COMPETITION_FIXTURE_COLUMNS.split(","))}
         from `{GCP_PROJECT}.{MARTS_DATASET}.mart_next_matchday` as n
         inner join `{GCP_PROJECT}.{MARTS_DATASET}.mart_competition_fixtures` as c
             on n.fixture_sk = c.fixture_sk
+        order by n.competition_order, c.fixture_order
     """)
-    fixtures.sort(key=lambda r: r.get("kickoff_datetime") or datetime.max)
-
-    teams = {
-        int(r["team_sk"]): r
-        for r in _query(client, f"select team_sk, team_name, team_slug, team_logo_url "
-                                f"from `{GCP_PROJECT}.core.dim_team`")
-    }
-    upcoming = group_upcoming_fixtures(fixtures, teams, meta)
+    upcoming = group_upcoming_fixtures(fixtures, meta)
 
     # Top players (#40). One player per league across the `elite` group, current season only.
     # ⚠ Every part of the selection AND the order is a SERVED column: `competition_group` from the

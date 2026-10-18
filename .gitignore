@@ -275,7 +275,7 @@ design-mocks/__pycache__/
 site_v2/src/data/manifest.json
 site_v2/src/data/slug_map.json
 site_v2/src/data/teams/*.json
-# The 20 teams the Home Top teams boards link to (#41: "Every row links out. That is why the block
+# The teams the Home Top teams boards link to (#41: "Every row links out. That is why the block
 # exists."). Same rule as the fixtures block below and for the same reason: landing.json links to
 # these pages, and those pages exist only if the payload behind each one is committed — audit-seo
 # check 8 fails the build otherwise. 33 (Manchester United) predates the block as the team-page
@@ -287,25 +287,23 @@ site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/33.json
 !site_v2/src/data/teams/49.json
 !site_v2/src/data/teams/50.json
-!site_v2/src/data/teams/65.json
+!site_v2/src/data/teams/51.json
+!site_v2/src/data/teams/55.json
 !site_v2/src/data/teams/85.json
-!site_v2/src/data/teams/95.json
 !site_v2/src/data/teams/106.json
-!site_v2/src/data/teams/116.json
 !site_v2/src/data/teams/157.json
-!site_v2/src/data/teams/182.json
-!site_v2/src/data/teams/197.json
-!site_v2/src/data/teams/207.json
+!site_v2/src/data/teams/194.json
+!site_v2/src/data/teams/209.json
 !site_v2/src/data/teams/211.json
-!site_v2/src/data/teams/217.json
-!site_v2/src/data/teams/497.json
+!site_v2/src/data/teams/224.json
+!site_v2/src/data/teams/420.json
 !site_v2/src/data/teams/505.json
-!site_v2/src/data/teams/512.json
 !site_v2/src/data/teams/529.json
 !site_v2/src/data/teams/536.json
-!site_v2/src/data/teams/4716.json
+!site_v2/src/data/teams/867.json
 # The 18 clubs of the Bundesliga table on the committed competition page sample (GitLab #149):
-# every table row and deserved-points row links to its team page. 157 and 182 were already here.
+# every table row and deserved-points row links to its team page. 157 is listed above.
+!site_v2/src/data/teams/182.json
 # Refresh with the competition sample: the clubs change when the sample season does.
 !site_v2/src/data/teams/160.json
 !site_v2/src/data/teams/162.json
@@ -324,134 +322,109 @@ site_v2/src/data/teams/*.json
 !site_v2/src/data/teams/192.json
 !site_v2/src/data/teams/1660.json
 site_v2/src/data/fixtures/*.json
-# The 2026-09-01 matchday: 4 fixtures across 3 competitions, exactly what `landing.json` links to.
-#
-# ⛔ THIS SET REPLACED THE 2026-08-28 ONE WHOLESALE, and a future refresh must do the same rather
-# than append. The export emits UPCOMING fixtures only — `status_short in ('NS', 'TBD') and
-# fixture_date >= current_date()` in `fetch_fixture_payloads` — and once a fixture kicks off its
-# pre-match form rows leave `mart_team_window_metrics` and `mart_team_season_record` altogether. So a past
-# id can never be re-exported, and a stale entry left here would pin a payload that no rerun can
-# ever update. Replace, never add.
-# ⚠ The 2026-08-28 set proved that from the other side: it was FOUR DAYS past when replaced, and its
-# payloads were still missing four mart columns added after they were written — `shots_inside_box_pct`,
-# `finishing_efficiency_pct`, `passes_accuracy_pct`, `passes_key_per_match` — so the fixture
-# comparison rendered 12 of its 16 locked rows. Not one of the 19 changed on a rerun. Zero of them
-# carried over into this set.
-!site_v2/src/data/fixtures/1550704.json
-!site_v2/src/data/fixtures/1603007.json
-!site_v2/src/data/fixtures/1628894.json
-!site_v2/src/data/fixtures/1629056.json
 # Every fixture an unplayed row of a committed page links to, from one export: every day of the
-# Matches page (matches/*.json, the next matchday of every competition) and every unplayed
-# Bundesliga fixture of competitions/BL1/2026.json's Matchdays tab (#149, #150, #160). 624 ids, one
-# pattern per run of ids. The same replace-never-add rule as the set above: refresh the day files,
-# the Bundesliga payload and this list together, and regenerate the list rather than edit it.
-!site_v2/src/data/fixtures/149049[6-9].json
-!site_v2/src/data/fixtures/149050[0-9].json
-!site_v2/src/data/fixtures/1490510.json
-!site_v2/src/data/fixtures/149239[0-9].json
-!site_v2/src/data/fixtures/149315[2-9].json
-!site_v2/src/data/fixtures/149316[0-6].json
-!site_v2/src/data/fixtures/1507024.json
-!site_v2/src/data/fixtures/152888[14-6].json
-!site_v2/src/data/fixtures/154565[68].json
+# Matches page (matches/*.json, the next matchday of every competition), every unplayed Bundesliga
+# fixture of competitions/BL1/2026.json's Matchdays tab, and so every Home Next matches row.
+# 537 ids, one pattern per run of ids.
+# ⛔ Replace, never add. The export emits UPCOMING fixtures only (`status_short in ('NS', 'TBD')
+# and fixture_date >= current_date()` in `fetch_fixture_payloads`), so a past id can never be
+# re-exported and a stale entry would pin a payload no rerun updates. Refresh the day files, the
+# Bundesliga payload, landing.json and this list together, and regenerate the list.
+!site_v2/src/data/fixtures/1490555.json
+!site_v2/src/data/fixtures/149241[24-68].json
+!site_v2/src/data/fixtures/149318[47-9].json
+!site_v2/src/data/fixtures/149319[245].json
+!site_v2/src/data/fixtures/150708[24-7].json
+!site_v2/src/data/fixtures/1528958.json
+!site_v2/src/data/fixtures/152896[0-256].json
+!site_v2/src/data/fixtures/152897[24].json
 !site_v2/src/data/fixtures/154595[89].json
 !site_v2/src/data/fixtures/154596[0-8].json
 !site_v2/src/data/fixtures/1549407.json
-!site_v2/src/data/fixtures/155013[7-9].json
-!site_v2/src/data/fixtures/155014[0-6].json
-!site_v2/src/data/fixtures/155097[5-9].json
-!site_v2/src/data/fixtures/155098[0-3].json
-!site_v2/src/data/fixtures/155218[0-8].json
-!site_v2/src/data/fixtures/155277[4-9].json
-!site_v2/src/data/fixtures/155278[0-2].json
-!site_v2/src/data/fixtures/155318[2-9].json
-!site_v2/src/data/fixtures/1553190.json
-!site_v2/src/data/fixtures/155608[1-9].json
-!site_v2/src/data/fixtures/1556090.json
-!site_v2/src/data/fixtures/155741[7-9].json
-!site_v2/src/data/fixtures/155742[0-6].json
-!site_v2/src/data/fixtures/155864[4-9].json
-!site_v2/src/data/fixtures/155865[0-2].json
-!site_v2/src/data/fixtures/157040[3-9].json
-!site_v2/src/data/fixtures/157041[0-2].json
-!site_v2/src/data/fixtures/15751[89][0-9].json
-!site_v2/src/data/fixtures/157517[6-9].json
+!site_v2/src/data/fixtures/1550147.json
+!site_v2/src/data/fixtures/155015[02-5].json
+!site_v2/src/data/fixtures/1551001.json
+!site_v2/src/data/fixtures/155219[14-7].json
+!site_v2/src/data/fixtures/155278[347-9].json
+!site_v2/src/data/fixtures/155319[3489].json
+!site_v2/src/data/fixtures/155609[57].json
+!site_v2/src/data/fixtures/155742[79].json
+!site_v2/src/data/fixtures/155743[256].json
+!site_v2/src/data/fixtures/155865[3-9].json
+!site_v2/src/data/fixtures/155866[01].json
+!site_v2/src/data/fixtures/157041[47-9].json
+!site_v2/src/data/fixtures/1570420.json
+!site_v2/src/data/fixtures/157518[69].json
+!site_v2/src/data/fixtures/157519[4-9].json
 !site_v2/src/data/fixtures/15752[0-9][0-9].json
 !site_v2/src/data/fixtures/15753[0-9][0-9].json
 !site_v2/src/data/fixtures/15754[0-3][0-9].json
 !site_v2/src/data/fixtures/157544[0-5].json
-!site_v2/src/data/fixtures/1575509.json
-!site_v2/src/data/fixtures/157551[0-7].json
-!site_v2/src/data/fixtures/157618[89].json
-!site_v2/src/data/fixtures/157619[0-6].json
-!site_v2/src/data/fixtures/158442[1-9].json
-!site_v2/src/data/fixtures/160303[5-9].json
-!site_v2/src/data/fixtures/160304[0-3].json
-!site_v2/src/data/fixtures/1619086.json
-!site_v2/src/data/fixtures/162993[0-9].json
-!site_v2/src/data/fixtures/162992[7-9].json
-!site_v2/src/data/fixtures/162994[0-2].json
-!site_v2/src/data/fixtures/163561[24].json
-!site_v2/src/data/fixtures/163562[03].json
-!site_v2/src/data/fixtures/163563[59].json
-!site_v2/src/data/fixtures/163566[56].json
-!site_v2/src/data/fixtures/163567[149].json
-!site_v2/src/data/fixtures/1635690.json
-!site_v2/src/data/fixtures/1635711.json
-!site_v2/src/data/fixtures/163572[15].json
-!site_v2/src/data/fixtures/1635733.json
-!site_v2/src/data/fixtures/163574[28].json
-!site_v2/src/data/fixtures/163622[28].json
-!site_v2/src/data/fixtures/163623[69].json
-!site_v2/src/data/fixtures/1636243.json
-!site_v2/src/data/fixtures/1636256.json
-!site_v2/src/data/fixtures/163626[08].json
-!site_v2/src/data/fixtures/163627[49].json
-!site_v2/src/data/fixtures/163629[35].json
-!site_v2/src/data/fixtures/1636300.json
-!site_v2/src/data/fixtures/163632[68].json
-!site_v2/src/data/fixtures/163633[28].json
-!site_v2/src/data/fixtures/1636350.json
-!site_v2/src/data/fixtures/1636382.json
-!site_v2/src/data/fixtures/163639[26].json
-!site_v2/src/data/fixtures/163640[146].json
-!site_v2/src/data/fixtures/163641[149].json
-!site_v2/src/data/fixtures/1636423.json
-!site_v2/src/data/fixtures/163644[05].json
-!site_v2/src/data/fixtures/1636453.json
-!site_v2/src/data/fixtures/163646[48].json
-!site_v2/src/data/fixtures/1636471.json
-!site_v2/src/data/fixtures/163648[02].json
+!site_v2/src/data/fixtures/1575458.json
+!site_v2/src/data/fixtures/1576197.json
+!site_v2/src/data/fixtures/157620[34].json
+!site_v2/src/data/fixtures/158443[16-8].json
+!site_v2/src/data/fixtures/160305[3-9].json
+!site_v2/src/data/fixtures/160306[01].json
+!site_v2/src/data/fixtures/162994[3-9].json
+!site_v2/src/data/fixtures/162995[0-8].json
+!site_v2/src/data/fixtures/1635617.json
+!site_v2/src/data/fixtures/1635621.json
+!site_v2/src/data/fixtures/163563[06].json
+!site_v2/src/data/fixtures/163564[57].json
+!site_v2/src/data/fixtures/1635655.json
+!site_v2/src/data/fixtures/1635661.json
+!site_v2/src/data/fixtures/1635672.json
+!site_v2/src/data/fixtures/163568[48].json
+!site_v2/src/data/fixtures/1635693.json
+!site_v2/src/data/fixtures/163570[02].json
+!site_v2/src/data/fixtures/163571[69].json
+!site_v2/src/data/fixtures/163573[78].json
+!site_v2/src/data/fixtures/1636215.json
+!site_v2/src/data/fixtures/163623[45].json
+!site_v2/src/data/fixtures/163624[19].json
+!site_v2/src/data/fixtures/1636258.json
+!site_v2/src/data/fixtures/163626[27].json
+!site_v2/src/data/fixtures/163627[36].json
+!site_v2/src/data/fixtures/163628[08].json
+!site_v2/src/data/fixtures/163630[38].json
+!site_v2/src/data/fixtures/163631[18].json
+!site_v2/src/data/fixtures/1636330.json
+!site_v2/src/data/fixtures/1636340.json
+!site_v2/src/data/fixtures/163637[89].json
+!site_v2/src/data/fixtures/163638[58].json
+!site_v2/src/data/fixtures/1636397.json
+!site_v2/src/data/fixtures/1636415.json
+!site_v2/src/data/fixtures/163642[49].json
+!site_v2/src/data/fixtures/163643[047].json
+!site_v2/src/data/fixtures/163644[29].json
+!site_v2/src/data/fixtures/163645[49].json
+!site_v2/src/data/fixtures/1636462.json
+!site_v2/src/data/fixtures/163647[45].json
 !site_v2/src/data/fixtures/163792[67].json
-!site_v2/src/data/fixtures/163810[1-3].json
+!site_v2/src/data/fixtures/1638109.json
 !site_v2/src/data/fixtures/163813[45].json
 !site_v2/src/data/fixtures/163820[67].json
-!site_v2/src/data/fixtures/163856[0-9].json
 !site_v2/src/data/fixtures/163855[7-9].json
+!site_v2/src/data/fixtures/163856[0-9].json
 !site_v2/src/data/fixtures/163857[0-2].json
-!site_v2/src/data/fixtures/163918[0-9].json
-!site_v2/src/data/fixtures/163917[3-9].json
-!site_v2/src/data/fixtures/163919[0-2].json
+!site_v2/src/data/fixtures/163901[45].json
+!site_v2/src/data/fixtures/1639339.json
+!site_v2/src/data/fixtures/163934[02-8].json
+!site_v2/src/data/fixtures/163953[2457-9].json
+!site_v2/src/data/fixtures/163954[0-5].json
 !site_v2/src/data/fixtures/163988[34].json
-!site_v2/src/data/fixtures/1639938.json
-!site_v2/src/data/fixtures/1639940.json
-!site_v2/src/data/fixtures/1639955.json
-!site_v2/src/data/fixtures/1639960.json
-!site_v2/src/data/fixtures/163997[58].json
-!site_v2/src/data/fixtures/163999[25].json
-!site_v2/src/data/fixtures/164000[46].json
-!site_v2/src/data/fixtures/164001[37].json
-!site_v2/src/data/fixtures/164002[01].json
-!site_v2/src/data/fixtures/164055[56].json
-!site_v2/src/data/fixtures/16411[01][0-9].json
-!site_v2/src/data/fixtures/164112[0-8].json
-!site_v2/src/data/fixtures/164162[4-9].json
-!site_v2/src/data/fixtures/164163[0-3].json
-!site_v2/src/data/fixtures/1641730.json
+!site_v2/src/data/fixtures/1640021.json
+!site_v2/src/data/fixtures/1640556.json
+!site_v2/src/data/fixtures/164417[12].json
+!site_v2/src/data/fixtures/164433[3-9].json
+!site_v2/src/data/fixtures/16443[4-7][0-9].json
+!site_v2/src/data/fixtures/164438[0-6].json
+!site_v2/src/data/fixtures/164469[0-7].json
+!site_v2/src/data/fixtures/164557[89].json
 # The competition page's sample: one competition-season, the Bundesliga 2026/27 after three
 # matchdays. Every competition the index lists gets a page; only this one carries content in the
-# committed build, and the 18 teams and 9 fixtures above are what it links to.
+# committed build, and the teams and fixtures above are what it links to.
 site_v2/src/data/competitions/**/*.json
 !site_v2/src/data/competitions/BL1/2026.json
 

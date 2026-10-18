@@ -371,33 +371,15 @@ export interface Team {
 // Spec: docs/wireframes/10_home.md. Three modules in their locked order.
 // ---------------------------------------------------------------------------
 
-/** One side of a hero fixture row: display identity only, no stats. */
-export interface LandingSide {
-  team_id?: number | null;
-  name?: string | null;
-  slug?: string | null;
-  crest?: string | null;
-}
-
-export interface LandingFixture {
-  fixture_id: number;
-  slug: string;
-  kickoff?: string | null;
-  round?: string | null;
-  home: LandingSide;
-  away: LandingSide;
-}
-
-/** The hero groups its fixtures by competition; group order is earliest kickoff first. */
+/** One competition of Next matches, in the order served (mart_next_matchday.competition_order),
+ *  its fixtures as the site's one match row takes them, in the served row order. */
 export interface LandingUpcomingGroup {
   league_code: string;
   league_name?: string | null;
   competition_slug?: string | null;
-  /** Ordering FACT from mart_competition_index (UEFA 1 … OFC 7), served not derived. The page
-   *  applies the site-wide key with it (lib/competitionOrder.mjs); it is never a display value. */
-  region_rank?: number | null;
+  crest?: string | null;
   season?: number | null;
-  fixtures: LandingFixture[];
+  fixtures: CompetitionFixture[];
 }
 
 /** The landing payload's shapes for the THREE composed modules (docs/wireframes/10_home.md §0):
@@ -433,6 +415,8 @@ export interface LandingBoardRow {
 export interface LandingBoard {
   metric_key: string;
   label_i18n_key: string;
+  format: SingleFormat;
+  per_match: boolean;
   rows: LandingBoardRow[];
 }
 
@@ -462,7 +446,17 @@ export interface LandingTeamBoard {
   metric_key: string;
   label_i18n_key: string;
   format: SingleFormat;
+  per_match: boolean;
   rows: LandingTeamBoardRow[];
+}
+
+/** A Home board as the Home blocks hand it to the shared board: each row with its place on it. */
+export interface LandingRankedBoard {
+  metric_key: string;
+  label_i18n_key: string;
+  format: SingleFormat;
+  per_match: boolean;
+  rows: ((LandingBoardRow | LandingTeamBoardRow) & { rank: number })[];
 }
 
 export interface Landing {

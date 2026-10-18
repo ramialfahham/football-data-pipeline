@@ -36,22 +36,22 @@
       "goals_per_match": 5.0,
       "goals_against_per_match": 2.0,
       "shots_per_match": 26.0,
-      "shots_on_goal_pct": 0.4230769230769231,
+      "shots_on_goal_pct": 0.46153846153846156,
       "shots_inside_box_pct": 0.7307692307692307,
-      "finishing_efficiency_pct": 0.36363636363636365,
-      "passes_accuracy_pct": 0.8564417177914111,
-      "passes_per_match": 815.0,
+      "finishing_efficiency_pct": 0.3333333333333333,
+      "passes_accuracy_pct": 0.8531211750305998,
+      "passes_per_match": 817.0,
       "corners_per_match": 9.0,
       "corners_against_per_match": 3.0,
       "saves_pct": 0.6,
       "player_stat_coverage_season_games": 1,
-      "shots_on_goal_per_match": 11.0,
+      "shots_on_goal_per_match": 12.0,
       "shots_on_goal_against_per_match": 5.0,
-      "shots_on_goal_difference_per_match": 6.0,
+      "shots_on_goal_difference_per_match": 7.0,
       "passes_key_per_match": 15.0,
-      "duels_per_match": 110.0,
-      "duels_won_pct": 0.5454545454545454,
-      "defensive_actions_per_match": null,
+      "duels_per_match": 109.0,
+      "duels_won_pct": 0.5504587155963303,
+      "defensive_actions_per_match": 32.0,
       "shots_share_pct": 0.7222222222222222,
       "points_capture_pct": 1.0,
       "yoy_games_played_cutoff": null,
@@ -120,12 +120,13 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": {
         "opponent_name": "Dynamo Dresden",
         "opponent_logo_url": "https://media.api-sports.io/football/teams/183.png",
         "is_home": false,
-        "kickoff_datetime": "2026-10-27 19:00:00+00:00",
+        "kickoff_datetime": "2026-10-28 17:00:00+00:00",
         "round_name": "Round of 32",
         "goals_for": null,
         "goals_against": null,
@@ -363,6 +364,18 @@
           "assists": 0
         },
         {
+          "player_id": 266192,
+          "name": "A. Gantenbein",
+          "position": "Defender",
+          "nationality": "Switzerland",
+          "birth_date": "2001-04-18",
+          "photo": "https://media.api-sports.io/football/players/266192.png",
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
+        },
+        {
           "player_id": 280090,
           "name": "S. El-Faouzi",
           "position": "Midfielder",
@@ -421,119 +434,153 @@
       "season_api_year": 2026,
       "competition_type": "domestic_league",
       "team_code": "SCH",
-      "played": 3,
+      "played": 6,
       "wins": 1,
-      "draws": 1,
-      "losses": 1,
-      "goals_for": 3,
-      "goals_against": 4,
-      "goal_diff": -1,
-      "points": 4,
-      "clean_sheets": 1,
-      "latest_rank": 11,
-      "latest_form": "WDL",
-      "season_games_played": 3,
-      "stat_coverage_season_games": 3,
-      "goals_per_match": 1.0,
-      "goals_against_per_match": 1.3333333333333333,
-      "shots_per_match": 11.333333333333334,
-      "shots_on_goal_pct": 0.47058823529411764,
-      "shots_inside_box_pct": 0.6176470588235294,
-      "finishing_efficiency_pct": 0.1875,
-      "passes_accuracy_pct": 0.6601307189542484,
-      "passes_per_match": 306.0,
-      "corners_per_match": 2.6666666666666665,
-      "corners_against_per_match": 8.666666666666666,
-      "saves_pct": 0.8461538461538461,
-      "player_stat_coverage_season_games": 3,
-      "shots_on_goal_per_match": 5.333333333333333,
-      "shots_on_goal_against_per_match": 8.666666666666666,
-      "shots_on_goal_difference_per_match": -3.3333333333333335,
-      "passes_key_per_match": 8.333333333333334,
-      "duels_per_match": 113.66666666666667,
-      "duels_won_pct": 0.49266862170087977,
-      "defensive_actions_per_match": 36.0,
-      "shots_share_pct": 0.3655913978494624,
-      "points_capture_pct": 0.4444444444444444,
-      "yoy_games_played_cutoff": 3,
-      "points_this_season": 4,
+      "draws": 2,
+      "losses": 3,
+      "goals_for": 4,
+      "goals_against": 7,
+      "goal_diff": -3,
+      "points": 5,
+      "clean_sheets": 2,
+      "latest_rank": 14,
+      "latest_form": "LLDWD",
+      "season_games_played": 6,
+      "stat_coverage_season_games": 6,
+      "goals_per_match": 0.6666666666666666,
+      "goals_against_per_match": 1.1666666666666667,
+      "shots_per_match": 10.166666666666666,
+      "shots_on_goal_pct": 0.3442622950819672,
+      "shots_inside_box_pct": 0.7213114754098361,
+      "finishing_efficiency_pct": 0.19047619047619047,
+      "passes_accuracy_pct": 0.6952789699570815,
+      "passes_per_match": 349.5,
+      "corners_per_match": 3.0,
+      "corners_against_per_match": 6.333333333333333,
+      "saves_pct": 0.8157894736842105,
+      "player_stat_coverage_season_games": 6,
+      "shots_on_goal_per_match": 3.5,
+      "shots_on_goal_against_per_match": 6.166666666666667,
+      "shots_on_goal_difference_per_match": -2.6666666666666665,
+      "passes_key_per_match": 7.333333333333333,
+      "duels_per_match": 120.83333333333333,
+      "duels_won_pct": 0.5048275862068966,
+      "defensive_actions_per_match": 38.833333333333336,
+      "shots_share_pct": 0.40397350993377484,
+      "points_capture_pct": 0.2777777777777778,
+      "yoy_games_played_cutoff": 6,
+      "points_this_season": 5,
       "points_prev_season": null,
       "points_delta_yoy": null,
-      "goals_for_this_season": 3,
+      "goals_for_this_season": 4,
       "goals_for_prev_season": null,
       "goals_for_delta_yoy": null,
-      "goals_against_this_season": 4,
+      "goals_against_this_season": 7,
       "goals_against_prev_season": null,
       "goals_against_delta_yoy": null,
-      "goals_per_match_this_season": 1.0,
+      "goals_per_match_this_season": 0.6666666666666666,
       "goals_per_match_prev_season": null,
       "goals_per_match_delta_yoy": null,
-      "goals_against_per_match_this_season": 1.3333333333333333,
+      "goals_against_per_match_this_season": 1.1666666666666667,
       "goals_against_per_match_prev_season": null,
       "goals_against_per_match_delta_yoy": null,
       "clean_sheets_pct_this_season": 0.3333333333333333,
       "clean_sheets_pct_prev_season": null,
       "clean_sheets_pct_delta_yoy": null,
-      "shots_per_match_this_season": 11.333333333333334,
+      "shots_per_match_this_season": 10.166666666666666,
       "shots_per_match_prev_season": null,
       "shots_per_match_delta_yoy": null,
-      "shots_inside_box_pct_this_season": 0.6176470588235294,
+      "shots_inside_box_pct_this_season": 0.7213114754098361,
       "shots_inside_box_pct_prev_season": null,
       "shots_inside_box_pct_delta_yoy": null,
-      "shots_on_goal_per_match_this_season": 5.333333333333333,
+      "shots_on_goal_per_match_this_season": 3.5,
       "shots_on_goal_per_match_prev_season": null,
       "shots_on_goal_per_match_delta_yoy": null,
-      "finishing_efficiency_pct_this_season": 0.1875,
+      "finishing_efficiency_pct_this_season": 0.19047619047619047,
       "finishing_efficiency_pct_prev_season": null,
       "finishing_efficiency_pct_delta_yoy": null,
-      "duels_per_match_this_season": 113.66666666666667,
+      "duels_per_match_this_season": 120.83333333333333,
       "duels_per_match_prev_season": null,
       "duels_per_match_delta_yoy": null,
-      "duels_won_pct_this_season": 0.49266862170087977,
+      "duels_won_pct_this_season": 0.5048275862068966,
       "duels_won_pct_prev_season": null,
       "duels_won_pct_delta_yoy": null,
-      "defensive_actions_per_match_this_season": 36.0,
+      "defensive_actions_per_match_this_season": 38.833333333333336,
       "defensive_actions_per_match_prev_season": null,
       "defensive_actions_per_match_delta_yoy": null,
-      "passes_per_match_this_season": 306.0,
+      "passes_per_match_this_season": 349.5,
       "passes_per_match_prev_season": null,
       "passes_per_match_delta_yoy": null,
-      "passes_accuracy_pct_this_season": 0.6601307189542484,
+      "passes_accuracy_pct_this_season": 0.6952789699570815,
       "passes_accuracy_pct_prev_season": null,
       "passes_accuracy_pct_delta_yoy": null,
-      "passes_key_per_match_this_season": 8.333333333333334,
+      "passes_key_per_match_this_season": 7.333333333333333,
       "passes_key_per_match_prev_season": null,
       "passes_key_per_match_delta_yoy": null,
-      "corners_per_match_this_season": 2.6666666666666665,
+      "corners_per_match_this_season": 3.0,
       "corners_per_match_prev_season": null,
       "corners_per_match_delta_yoy": null,
-      "corners_against_per_match_this_season": 8.666666666666666,
+      "corners_against_per_match_this_season": 6.333333333333333,
       "corners_against_per_match_prev_season": null,
       "corners_against_per_match_delta_yoy": null,
-      "saves_pct_this_season": 0.8461538461538461,
+      "saves_pct_this_season": 0.8157894736842105,
       "saves_pct_prev_season": null,
       "saves_pct_delta_yoy": null,
-      "unbeaten_run": 2,
-      "win_run": 1,
-      "winless_run": 0,
+      "unbeaten_run": 0,
+      "win_run": 0,
+      "winless_run": 3,
       "clean_sheet_run": 0,
-      "scoring_run": 1,
-      "deserved_points": 1.9653194611177804,
+      "scoring_run": 0,
+      "deserved_points": 5.32319644588774,
       "deserved_rank": 15,
-      "deserved_points_gap": 2.0346805388822196,
+      "deserved_points_gap": -0.3231964458877403,
+      "deserved_points_gap_rank": 7,
       "is_featured_season": true,
       "next_fixture": {
-        "opponent_name": "SV Elversberg",
-        "opponent_logo_url": "https://media.api-sports.io/football/teams/1660.png",
-        "is_home": true,
-        "kickoff_datetime": "2026-09-20 15:30:00+00:00",
-        "round_name": "Regular Season - 4",
+        "opponent_name": "1. FC Köln",
+        "opponent_logo_url": "https://media.api-sports.io/football/teams/192.png",
+        "is_home": false,
+        "kickoff_datetime": "2026-10-24 13:30:00+00:00",
+        "round_name": "Regular Season - 7",
         "goals_for": null,
         "goals_against": null,
         "result": null,
         "status_short": "NS"
       },
       "recent_results": [
+        {
+          "opponent_name": "1. FSV Mainz 05",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/164.png",
+          "is_home": true,
+          "kickoff_datetime": "2026-10-17 13:30:00+00:00",
+          "round_name": "Regular Season - 6",
+          "goals_for": 0,
+          "goals_against": 1,
+          "result": "L",
+          "status_short": "FT"
+        },
+        {
+          "opponent_name": "SC Freiburg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/160.png",
+          "is_home": false,
+          "kickoff_datetime": "2026-10-11 15:30:00+00:00",
+          "round_name": "Regular Season - 5",
+          "goals_for": 1,
+          "goals_against": 2,
+          "result": "L",
+          "status_short": "FT"
+        },
+        {
+          "opponent_name": "SV Elversberg",
+          "opponent_logo_url": "https://media.api-sports.io/football/teams/1660.png",
+          "is_home": true,
+          "kickoff_datetime": "2026-09-20 15:30:00+00:00",
+          "round_name": "Regular Season - 4",
+          "goals_for": 0,
+          "goals_against": 0,
+          "result": "D",
+          "status_short": "FT"
+        },
         {
           "opponent_name": "1. FC Union Berlin",
           "opponent_logo_url": "https://media.api-sports.io/football/teams/182.png",
@@ -555,17 +602,6 @@
           "goals_against": 0,
           "result": "D",
           "status_short": "FT"
-        },
-        {
-          "opponent_name": "FC Augsburg",
-          "opponent_logo_url": "https://media.api-sports.io/football/teams/170.png",
-          "is_home": false,
-          "kickoff_datetime": "2026-08-30 15:30:00+00:00",
-          "round_name": "Regular Season - 1",
-          "goals_for": 0,
-          "goals_against": 3,
-          "result": "L",
-          "status_short": "FT"
         }
       ],
       "squad": [
@@ -576,8 +612,8 @@
           "nationality": "France",
           "birth_date": "1999-11-25",
           "photo": "https://media.api-sports.io/football/players/115.png",
-          "appearances": 2,
-          "minutes_per_appearance": 90.0,
+          "appearances": 4,
+          "minutes_per_appearance": 71.75,
           "goals": 0,
           "assists": 0
         },
@@ -588,8 +624,8 @@
           "nationality": "Bosnia and Herzegovina",
           "birth_date": "1986-03-17",
           "photo": "https://media.api-sports.io/football/players/790.png",
-          "appearances": 2,
-          "minutes_per_appearance": 12.0,
+          "appearances": 5,
+          "minutes_per_appearance": 33.4,
           "goals": 0,
           "assists": 0
         },
@@ -612,8 +648,8 @@
           "nationality": "Croatia",
           "birth_date": "1996-10-10",
           "photo": "https://media.api-sports.io/football/players/1741.png",
-          "appearances": 3,
-          "minutes_per_appearance": 85.33333333333333,
+          "appearances": 6,
+          "minutes_per_appearance": 84.5,
           "goals": 0,
           "assists": 0
         },
@@ -624,7 +660,7 @@
           "nationality": "Germany",
           "birth_date": "1993-06-22",
           "photo": "https://media.api-sports.io/football/players/1972.png",
-          "appearances": 3,
+          "appearances": 6,
           "minutes_per_appearance": 90.0,
           "goals": 0,
           "assists": 0
@@ -636,8 +672,8 @@
           "nationality": "Austria",
           "birth_date": "1998-02-04",
           "photo": "https://media.api-sports.io/football/players/2048.png",
-          "appearances": 3,
-          "minutes_per_appearance": 18.0,
+          "appearances": 6,
+          "minutes_per_appearance": 30.0,
           "goals": 1,
           "assists": 0
         },
@@ -648,8 +684,8 @@
           "nationality": "Korea Republic",
           "birth_date": "1996-01-26",
           "photo": "https://media.api-sports.io/football/players/24888.png",
-          "appearances": 1,
-          "minutes_per_appearance": 10.0,
+          "appearances": 4,
+          "minutes_per_appearance": 17.75,
           "goals": 0,
           "assists": 1
         },
@@ -672,9 +708,9 @@
           "nationality": "Türkiye",
           "birth_date": "1994-03-05",
           "photo": "https://media.api-sports.io/football/players/25466.png",
-          "appearances": 2,
-          "minutes_per_appearance": 43.0,
-          "goals": 0,
+          "appearances": 5,
+          "minutes_per_appearance": 72.0,
+          "goals": 1,
           "assists": 0
         },
         {
@@ -685,7 +721,7 @@
           "birth_date": "1996-05-06",
           "photo": "https://media.api-sports.io/football/players/26397.png",
           "appearances": 1,
-          "minutes_per_appearance": 1.0,
+          "minutes_per_appearance": 10.0,
           "goals": 0,
           "assists": 0
         },
@@ -696,8 +732,8 @@
           "nationality": "Germany",
           "birth_date": "1994-07-05",
           "photo": "https://media.api-sports.io/football/players/30422.png",
-          "appearances": 3,
-          "minutes_per_appearance": 57.666666666666664,
+          "appearances": 6,
+          "minutes_per_appearance": 68.66666666666667,
           "goals": 1,
           "assists": 0
         },
@@ -708,8 +744,8 @@
           "nationality": "Japan",
           "birth_date": "2002-08-13",
           "photo": "https://media.api-sports.io/football/players/33142.png",
-          "appearances": 2,
-          "minutes_per_appearance": 90.0,
+          "appearances": 5,
+          "minutes_per_appearance": 83.4,
           "goals": 0,
           "assists": 0
         },
@@ -720,8 +756,8 @@
           "nationality": "Türkiye",
           "birth_date": "1997-08-31",
           "photo": "https://media.api-sports.io/football/players/81164.png",
-          "appearances": 3,
-          "minutes_per_appearance": 75.33333333333333,
+          "appearances": 6,
+          "minutes_per_appearance": 82.66666666666667,
           "goals": 0,
           "assists": 0
         },
@@ -732,8 +768,8 @@
           "nationality": "Germany",
           "birth_date": "1998-10-06",
           "photo": "https://media.api-sports.io/football/players/88140.png",
-          "appearances": 1,
-          "minutes_per_appearance": 62.0,
+          "appearances": 3,
+          "minutes_per_appearance": 31.666666666666668,
           "goals": 0,
           "assists": 0
         },
@@ -744,8 +780,8 @@
           "nationality": "France",
           "birth_date": "2000-11-21",
           "photo": "https://media.api-sports.io/football/players/90594.png",
-          "appearances": 3,
-          "minutes_per_appearance": 54.0,
+          "appearances": 5,
+          "minutes_per_appearance": 56.4,
           "goals": 0,
           "assists": 0
         },
@@ -756,8 +792,8 @@
           "nationality": "Germany",
           "birth_date": "1997-03-25",
           "photo": "https://media.api-sports.io/football/players/90977.png",
-          "appearances": 3,
-          "minutes_per_appearance": 90.0,
+          "appearances": 6,
+          "minutes_per_appearance": 72.16666666666667,
           "goals": 0,
           "assists": 0
         },
@@ -768,8 +804,8 @@
           "nationality": "Austria",
           "birth_date": "2001-06-06",
           "photo": "https://media.api-sports.io/football/players/125173.png",
-          "appearances": 2,
-          "minutes_per_appearance": 71.0,
+          "appearances": 4,
+          "minutes_per_appearance": 57.5,
           "goals": 0,
           "assists": 1
         },
@@ -780,10 +816,22 @@
           "nationality": "France",
           "birth_date": "2002-07-15",
           "photo": "https://media.api-sports.io/football/players/137129.png",
-          "appearances": 3,
-          "minutes_per_appearance": 86.33333333333333,
+          "appearances": 6,
+          "minutes_per_appearance": 68.5,
           "goals": 1,
           "assists": 0
+        },
+        {
+          "player_id": 266192,
+          "name": "A. Gantenbein",
+          "position": "Defender",
+          "nationality": "Switzerland",
+          "birth_date": "2001-04-18",
+          "photo": "https://media.api-sports.io/football/players/266192.png",
+          "appearances": 2,
+          "minutes_per_appearance": 69.5,
+          "goals": 0,
+          "assists": 1
         },
         {
           "player_id": 280090,
@@ -792,7 +840,7 @@
           "nationality": "Germany",
           "birth_date": "2002-07-13",
           "photo": "https://media.api-sports.io/football/players/280090.png",
-          "appearances": 3,
+          "appearances": 6,
           "minutes_per_appearance": 90.0,
           "goals": 0,
           "assists": 0
@@ -816,8 +864,8 @@
           "nationality": "Germany",
           "birth_date": "2005-03-03",
           "photo": "https://media.api-sports.io/football/players/361411.png",
-          "appearances": 2,
-          "minutes_per_appearance": 43.5,
+          "appearances": 4,
+          "minutes_per_appearance": 29.5,
           "goals": 0,
           "assists": 0
         },
@@ -837,332 +885,332 @@
       "benchmarks": [
         {
           "metric_key": "blocks_per_match",
-          "metric_value": 2.6666666666666665,
-          "rank": 15,
+          "metric_value": 5.0,
+          "rank": 5,
           "team_count": 18,
-          "league_median": 4.333333333333333,
-          "league_p25": 3.6666666666666665,
-          "league_p75": 5.333333333333333,
-          "vs_median_delta": -1.6666666666666665
+          "league_median": 4.0,
+          "league_p25": 3.1666666666666665,
+          "league_p75": 5.0,
+          "vs_median_delta": 1.0
         },
         {
           "metric_key": "clean_sheets_pct",
           "metric_value": 0.3333333333333333,
-          "rank": 5,
+          "rank": 6,
           "team_count": 18,
-          "league_median": 0.0,
-          "league_p25": 0.0,
-          "league_p75": 0.3333333333333333,
-          "vs_median_delta": 0.3333333333333333
+          "league_median": 0.16666666666666666,
+          "league_p25": 0.16666666666666666,
+          "league_p75": 0.4,
+          "vs_median_delta": 0.16666666666666666
         },
         {
           "metric_key": "corners_against_per_match",
-          "metric_value": 8.666666666666666,
-          "rank": 1,
+          "metric_value": 6.333333333333333,
+          "rank": 4,
           "team_count": 18,
-          "league_median": 5.333333333333333,
-          "league_p25": 4.333333333333333,
-          "league_p75": 7.333333333333333,
-          "vs_median_delta": 3.333333333333333
+          "league_median": 5.833333333333333,
+          "league_p25": 4.0,
+          "league_p75": 6.333333333333333,
+          "vs_median_delta": 0.5
         },
         {
           "metric_key": "corners_per_match",
-          "metric_value": 2.6666666666666665,
+          "metric_value": 3.0,
           "rank": 18,
           "team_count": 18,
           "league_median": 5.333333333333333,
           "league_p25": 4.0,
-          "league_p75": 7.333333333333333,
-          "vs_median_delta": -2.6666666666666665
+          "league_p75": 6.6,
+          "vs_median_delta": -2.333333333333333
         },
         {
           "metric_key": "defensive_actions_per_match",
-          "metric_value": 36.0,
-          "rank": 3,
+          "metric_value": 38.833333333333336,
+          "rank": 2,
           "team_count": 18,
-          "league_median": 29.333333333333332,
-          "league_p25": 25.666666666666668,
-          "league_p75": 33.333333333333336,
-          "vs_median_delta": 6.666666666666668
+          "league_median": 30.833333333333332,
+          "league_p25": 26.666666666666668,
+          "league_p75": 33.833333333333336,
+          "vs_median_delta": 8.000000000000004
         },
         {
           "metric_key": "duels_per_match",
-          "metric_value": 113.66666666666667,
+          "metric_value": 120.83333333333333,
           "rank": 1,
           "team_count": 18,
-          "league_median": 97.0,
-          "league_p25": 90.33333333333333,
-          "league_p75": 105.33333333333333,
-          "vs_median_delta": 16.66666666666667
+          "league_median": 99.66666666666667,
+          "league_p25": 94.6,
+          "league_p75": 105.4,
+          "vs_median_delta": 21.166666666666657
         },
         {
           "metric_key": "duels_won_pct",
-          "metric_value": 0.49266862170087977,
-          "rank": 10,
+          "metric_value": 0.5048275862068966,
+          "rank": 8,
           "team_count": 18,
-          "league_median": 0.49266862170087977,
-          "league_p25": 0.48742138364779874,
-          "league_p75": 0.5108695652173914,
-          "vs_median_delta": 0.0
+          "league_median": 0.4990512333965844,
+          "league_p25": 0.4755905511811024,
+          "league_p75": 0.5152542372881356,
+          "vs_median_delta": 0.005776352810312191
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.1875,
-          "rank": 16,
-          "team_count": 17,
-          "league_median": 0.35,
-          "league_p25": 0.29411764705882354,
-          "league_p75": 0.4090909090909091,
-          "vs_median_delta": -0.16249999999999998
+          "metric_value": 0.19047619047619047,
+          "rank": 18,
+          "team_count": 18,
+          "league_median": 0.2857142857142857,
+          "league_p25": 0.25,
+          "league_p75": 0.3888888888888889,
+          "vs_median_delta": -0.09523809523809523
         },
         {
           "metric_key": "goals_against_per_match",
-          "metric_value": 1.3333333333333333,
-          "rank": 11,
+          "metric_value": 1.1666666666666667,
+          "rank": 15,
           "team_count": 18,
-          "league_median": 1.6666666666666667,
-          "league_p25": 1.0,
-          "league_p75": 2.6666666666666665,
-          "vs_median_delta": -0.3333333333333335
+          "league_median": 1.8333333333333333,
+          "league_p25": 1.5,
+          "league_p75": 2.5,
+          "vs_median_delta": -0.6666666666666665
         },
         {
           "metric_key": "goals_per_match",
-          "metric_value": 1.0,
-          "rank": 15,
+          "metric_value": 0.6666666666666666,
+          "rank": 18,
           "team_count": 18,
-          "league_median": 2.0,
+          "league_median": 1.8,
           "league_p25": 1.3333333333333333,
           "league_p75": 2.6666666666666665,
-          "vs_median_delta": -1.0
+          "vs_median_delta": -1.1333333333333333
         },
         {
           "metric_key": "interceptions_per_match",
-          "metric_value": 9.333333333333334,
-          "rank": 9,
+          "metric_value": 11.5,
+          "rank": 6,
           "team_count": 18,
-          "league_median": 9.333333333333334,
-          "league_p25": 8.333333333333334,
-          "league_p75": 11.333333333333334,
-          "vs_median_delta": 0.0
+          "league_median": 10.333333333333334,
+          "league_p25": 8.8,
+          "league_p75": 11.666666666666666,
+          "vs_median_delta": 1.166666666666666
         },
         {
           "metric_key": "passes_accuracy_pct",
-          "metric_value": 0.6601307189542484,
+          "metric_value": 0.6952789699570815,
           "rank": 18,
           "team_count": 18,
-          "league_median": 0.8168776371308016,
-          "league_p25": 0.8005698005698005,
-          "league_p75": 0.8354735152487961,
-          "vs_median_delta": -0.15674691817655328
+          "league_median": 0.8163869693978283,
+          "league_p25": 0.7929380993897123,
+          "league_p75": 0.8397480755773268,
+          "vs_median_delta": -0.1211079994407468
         },
         {
           "metric_key": "passes_key_per_match",
-          "metric_value": 8.333333333333334,
-          "rank": 14,
+          "metric_value": 7.333333333333333,
+          "rank": 18,
           "team_count": 18,
-          "league_median": 11.0,
-          "league_p25": 8.333333333333334,
-          "league_p75": 13.666666666666666,
-          "vs_median_delta": -2.666666666666666
+          "league_median": 12.0,
+          "league_p25": 10.333333333333334,
+          "league_p75": 13.5,
+          "vs_median_delta": -4.666666666666667
         },
         {
           "metric_key": "passes_per_match",
-          "metric_value": 306.0,
-          "rank": 18,
+          "metric_value": 349.5,
+          "rank": 17,
           "team_count": 18,
-          "league_median": 430.3333333333333,
-          "league_p25": 394.6666666666667,
-          "league_p75": 475.0,
-          "vs_median_delta": -124.33333333333331
+          "league_median": 445.3333333333333,
+          "league_p25": 382.3333333333333,
+          "league_p75": 510.1666666666667,
+          "vs_median_delta": -95.83333333333331
         },
         {
           "metric_key": "saves_pct",
-          "metric_value": 0.8461538461538461,
+          "metric_value": 0.8157894736842105,
           "rank": 1,
           "team_count": 18,
-          "league_median": 0.6,
-          "league_p25": 0.5454545454545454,
-          "league_p75": 0.7777777777777778,
-          "vs_median_delta": 0.24615384615384617
+          "league_median": 0.625,
+          "league_p25": 0.6,
+          "league_p75": 0.7333333333333333,
+          "vs_median_delta": 0.1907894736842105
         },
         {
           "metric_key": "shots_inside_box_pct",
-          "metric_value": 0.6176470588235294,
-          "rank": 14,
+          "metric_value": 0.7213114754098361,
+          "rank": 5,
           "team_count": 18,
-          "league_median": 0.6944444444444444,
-          "league_p25": 0.6176470588235294,
-          "league_p75": 0.7142857142857143,
-          "vs_median_delta": -0.07679738562091498
+          "league_median": 0.7010309278350515,
+          "league_p25": 0.6162790697674418,
+          "league_p75": 0.7213114754098361,
+          "vs_median_delta": 0.02028054757478459
         },
         {
           "metric_key": "shots_on_goal_against_per_match",
-          "metric_value": 8.666666666666666,
-          "rank": 2,
+          "metric_value": 6.166666666666667,
+          "rank": 8,
           "team_count": 18,
-          "league_median": 5.333333333333333,
-          "league_p25": 3.6666666666666665,
-          "league_p75": 7.333333333333333,
-          "vs_median_delta": 3.333333333333333
+          "league_median": 5.5,
+          "league_p25": 3.8333333333333335,
+          "league_p75": 7.0,
+          "vs_median_delta": 0.666666666666667
         },
         {
           "metric_key": "shots_on_goal_difference_per_match",
-          "metric_value": -3.3333333333333335,
+          "metric_value": -2.6666666666666665,
           "rank": 15,
           "team_count": 18,
-          "league_median": 0.0,
+          "league_median": -0.8333333333333334,
           "league_p25": -2.0,
-          "league_p75": 2.6666666666666665,
-          "vs_median_delta": -3.3333333333333335
+          "league_p75": 2.1666666666666665,
+          "vs_median_delta": -1.833333333333333
         },
         {
           "metric_key": "shots_on_goal_pct",
-          "metric_value": 0.47058823529411764,
-          "rank": 3,
+          "metric_value": 0.3442622950819672,
+          "rank": 9,
           "team_count": 18,
-          "league_median": 0.3469387755102041,
-          "league_p25": 0.3125,
-          "league_p75": 0.4186046511627907,
-          "vs_median_delta": 0.12364945978391356
+          "league_median": 0.33980582524271846,
+          "league_p25": 0.3283582089552239,
+          "league_p75": 0.3977272727272727,
+          "vs_median_delta": 0.0044564698392487445
         },
         {
           "metric_key": "shots_on_goal_per_match",
-          "metric_value": 5.333333333333333,
-          "rank": 13,
+          "metric_value": 3.5,
+          "rank": 17,
           "team_count": 18,
-          "league_median": 5.666666666666667,
-          "league_p25": 5.333333333333333,
-          "league_p75": 6.333333333333333,
-          "vs_median_delta": -0.3333333333333339
+          "league_median": 5.333333333333333,
+          "league_p25": 4.666666666666667,
+          "league_p75": 6.4,
+          "vs_median_delta": -1.833333333333333
         },
         {
           "metric_key": "shots_per_match",
-          "metric_value": 11.333333333333334,
-          "rank": 15,
+          "metric_value": 10.166666666666666,
+          "rank": 18,
           "team_count": 18,
-          "league_median": 15.0,
-          "league_p25": 11.666666666666666,
-          "league_p75": 18.0,
-          "vs_median_delta": -3.666666666666666
+          "league_median": 16.166666666666668,
+          "league_p25": 13.666666666666666,
+          "league_p75": 17.666666666666668,
+          "vs_median_delta": -6.000000000000002
         },
         {
           "metric_key": "tackles_per_match",
-          "metric_value": 24.0,
-          "rank": 2,
+          "metric_value": 22.333333333333332,
+          "rank": 1,
           "team_count": 18,
-          "league_median": 15.333333333333334,
-          "league_p25": 12.666666666666666,
-          "league_p75": 16.666666666666668,
-          "vs_median_delta": 8.666666666666666
+          "league_median": 15.666666666666666,
+          "league_p25": 14.166666666666666,
+          "league_p75": 17.166666666666668,
+          "vs_median_delta": 6.666666666666666
         }
       ],
       "deserved_scatter": [
         {
-          "sotd": 4.666666666666667,
-          "points": 7,
-          "deserved": 7.381886087768441,
+          "sotd": 4.0,
+          "points": 13,
+          "deserved": 10.678244969142066,
           "is_self": false
         },
         {
-          "sotd": 4.333333333333333,
-          "points": 9,
-          "deserved": 7.156195811657996,
-          "is_self": false
-        },
-        {
-          "sotd": -0.3333333333333333,
-          "points": 4,
-          "deserved": 3.9965319461117783,
-          "is_self": false
-        },
-        {
-          "sotd": -6.666666666666667,
+          "sotd": -4.2,
           "points": 0,
-          "deserved": 0.0,
-          "is_self": false
-        },
-        {
-          "sotd": 3.6666666666666665,
-          "points": 4,
-          "deserved": 6.704815259437108,
-          "is_self": false
-        },
-        {
-          "sotd": 3.0,
-          "points": 9,
-          "deserved": 6.25343470721622,
-          "is_self": false
-        },
-        {
-          "sotd": 1.0,
-          "points": 3,
-          "deserved": 4.899293050553555,
-          "is_self": false
-        },
-        {
-          "sotd": 2.6666666666666665,
-          "points": 4,
-          "deserved": 6.027744431105776,
-          "is_self": false
-        },
-        {
-          "sotd": -2.0,
-          "points": 4,
-          "deserved": 2.868080565559557,
-          "is_self": false
-        },
-        {
-          "sotd": 2.3333333333333335,
-          "points": 7,
-          "deserved": 5.802054154995332,
-          "is_self": false
-        },
-        {
-          "sotd": -1.6666666666666667,
-          "points": 3,
-          "deserved": 3.0937708416700014,
-          "is_self": false
-        },
-        {
-          "sotd": 2.3333333333333335,
-          "points": 6,
-          "deserved": 5.802054154995332,
-          "is_self": false
-        },
-        {
-          "sotd": -3.3333333333333335,
-          "points": 4,
-          "deserved": 1.9653194611177804,
-          "is_self": true
-        },
-        {
-          "sotd": -4.0,
-          "points": 0,
-          "deserved": 1.513938908896892,
-          "is_self": false
-        },
-        {
-          "sotd": -1.6666666666666667,
-          "points": 1,
-          "deserved": 3.0937708416700014,
-          "is_self": false
-        },
-        {
-          "sotd": -4.666666666666667,
-          "points": 1,
-          "deserved": 1.062558356676003,
+          "deserved": 3.0002800141322576,
           "is_self": false
         },
         {
           "sotd": 0.0,
-          "points": 4,
-          "deserved": 4.222222222222222,
+          "points": 3,
+          "deserved": 6.932896210600696,
+          "is_self": false
+        },
+        {
+          "sotd": 2.6,
+          "points": 10,
+          "deserved": 9.367372903652587,
+          "is_self": false
+        },
+        {
+          "sotd": 7.5,
+          "points": 14,
+          "deserved": 16.746510159438916,
+          "is_self": false
+        },
+        {
+          "sotd": 1.3333333333333333,
+          "points": 9,
+          "deserved": 9.817614956137383,
+          "is_self": false
+        },
+        {
+          "sotd": 2.1666666666666665,
+          "points": 10,
+          "deserved": 10.753952145772725,
+          "is_self": false
+        },
+        {
+          "sotd": 2.1666666666666665,
+          "points": 14,
+          "deserved": 10.753952145772725,
+          "is_self": false
+        },
+        {
+          "sotd": -1.1666666666666667,
+          "points": 8,
+          "deserved": 7.008603387231356,
+          "is_self": false
+        },
+        {
+          "sotd": -0.8333333333333334,
+          "points": 8,
+          "deserved": 7.383138263085494,
           "is_self": false
         },
         {
           "sotd": 0.3333333333333333,
           "points": 6,
-          "deserved": 4.447912498332666,
+          "deserved": 8.694010328574972,
+          "is_self": false
+        },
+        {
+          "sotd": -1.3333333333333333,
+          "points": 9,
+          "deserved": 6.821335949304288,
+          "is_self": false
+        },
+        {
+          "sotd": -2.6666666666666665,
+          "points": 5,
+          "deserved": 5.32319644588774,
+          "is_self": true
+        },
+        {
+          "sotd": -2.0,
+          "points": 9,
+          "deserved": 6.072266197596014,
+          "is_self": false
+        },
+        {
+          "sotd": -2.6666666666666665,
+          "points": 5,
+          "deserved": 5.32319644588774,
+          "is_self": false
+        },
+        {
+          "sotd": -3.3333333333333335,
+          "points": 5,
+          "deserved": 4.574126694179466,
+          "is_self": false
+        },
+        {
+          "sotd": -1.0,
+          "points": 7,
+          "deserved": 7.1958708251584245,
+          "is_self": false
+        },
+        {
+          "sotd": -0.5,
+          "points": 10,
+          "deserved": 7.75767313893963,
           "is_self": false
         }
       ]
@@ -1275,6 +1323,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -1912,7 +1961,7 @@
       "passes_per_match": 358.4117647058824,
       "corners_per_match": 4.823529411764706,
       "corners_against_per_match": 4.470588235294118,
-      "saves_pct": 0.69,
+      "saves_pct": 0.7040816326530612,
       "player_stat_coverage_season_games": 34,
       "shots_on_goal_per_match": 4.970588235294118,
       "shots_on_goal_against_per_match": 3.0,
@@ -1978,9 +2027,9 @@
       "corners_against_per_match_this_season": 4.470588235294118,
       "corners_against_per_match_prev_season": 3.9705882352941178,
       "corners_against_per_match_delta_yoy": 0.5,
-      "saves_pct_this_season": 0.69,
+      "saves_pct_this_season": 0.7040816326530612,
       "saves_pct_prev_season": 0.6684491978609626,
-      "saves_pct_delta_yoy": 0.021550802139037373,
+      "saves_pct_delta_yoy": 0.035632434792098655,
       "unbeaten_run": 1,
       "win_run": 1,
       "winless_run": 0,
@@ -1989,6 +2038,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -2700,10 +2750,10 @@
         {
           "metric_key": "finishing_efficiency_pct",
           "metric_value": 0.25443786982248523,
-          "rank": 17,
+          "rank": 15,
           "team_count": 18,
           "league_median": 0.2810810810810811,
-          "league_p25": 0.26282051282051283,
+          "league_p25": 0.264,
           "league_p75": 0.3150684931506849,
           "vs_median_delta": -0.026643211258595867
         },
@@ -2769,23 +2819,23 @@
         },
         {
           "metric_key": "saves_pct",
-          "metric_value": 0.69,
-          "rank": 8,
+          "metric_value": 0.7040816326530612,
+          "rank": 5,
           "team_count": 16,
-          "league_median": 0.6826347305389222,
-          "league_p25": 0.6257668711656442,
-          "league_p75": 0.6938775510204082,
-          "vs_median_delta": 0.007365269461077739
+          "league_median": 0.6896551724137931,
+          "league_p25": 0.6296296296296297,
+          "league_p75": 0.7040816326530612,
+          "vs_median_delta": 0.01442646023926808
         },
         {
           "metric_key": "shots_inside_box_pct",
           "metric_value": 0.7095435684647303,
           "rank": 2,
-          "team_count": 18,
-          "league_median": 0.6617283950617284,
+          "team_count": 17,
+          "league_median": 0.6666666666666666,
           "league_p25": 0.627151051625239,
           "league_p75": 0.6886792452830188,
-          "vs_median_delta": 0.0478151734030019
+          "vs_median_delta": 0.042876901798063694
         },
         {
           "metric_key": "shots_on_goal_against_per_match",
@@ -2957,6 +3007,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -3827,6 +3878,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -3942,8 +3994,8 @@
           "nationality": "Germany",
           "birth_date": "1999-04-04",
           "photo": "https://media.api-sports.io/football/players/496.png",
-          "appearances": 2,
-          "minutes_per_appearance": 90.0,
+          "appearances": null,
+          "minutes_per_appearance": null,
           "goals": 0,
           "assists": 0
         },
@@ -4696,10 +4748,10 @@
           "metric_value": 0.3448275862068966,
           "rank": 4,
           "team_count": 18,
-          "league_median": 0.28488372093023256,
-          "league_p25": 0.25906735751295334,
-          "league_p75": 0.329608938547486,
-          "vs_median_delta": 0.05994386527666401
+          "league_median": 0.2857142857142857,
+          "league_p25": 0.25625,
+          "league_p75": 0.3407821229050279,
+          "vs_median_delta": 0.059113300492610876
         },
         {
           "metric_key": "goals_against_per_match",
@@ -4764,11 +4816,11 @@
         {
           "metric_key": "saves_pct",
           "metric_value": 0.6684491978609626,
-          "rank": 11,
+          "rank": 12,
           "team_count": 18,
           "league_median": 0.6726190476190477,
-          "league_p25": 0.6481481481481481,
-          "league_p75": 0.6991869918699187,
+          "league_p25": 0.65625,
+          "league_p75": 0.6986301369863014,
           "vs_median_delta": -0.004169849758085098
         },
         {
@@ -4879,10 +4931,10 @@
       "shots_on_goal_per_match": null,
       "shots_on_goal_against_per_match": null,
       "shots_on_goal_difference_per_match": null,
-      "passes_key_per_match": 5.0,
-      "duels_per_match": 111.0,
-      "duels_won_pct": 0.42342342342342343,
-      "defensive_actions_per_match": 40.0,
+      "passes_key_per_match": null,
+      "duels_per_match": null,
+      "duels_won_pct": null,
+      "defensive_actions_per_match": null,
       "shots_share_pct": null,
       "points_capture_pct": 0.5,
       "yoy_games_played_cutoff": null,
@@ -4951,6 +5003,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -4985,10 +5038,10 @@
           "nationality": "Germany",
           "birth_date": "1988-09-27",
           "photo": "https://media.api-sports.io/football/players/396.png",
-          "appearances": 1,
-          "minutes_per_appearance": 120.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 397,
@@ -5005,7 +5058,7 @@
         {
           "player_id": 419,
           "name": "N. Boujellab",
-          "position": null,
+          "position": "Attacker",
           "nationality": "Morocco",
           "birth_date": "1999-06-20",
           "photo": "https://media.api-sports.io/football/players/419.png",
@@ -5105,10 +5158,10 @@
           "nationality": "Poland",
           "birth_date": "1992-01-15",
           "photo": "https://media.api-sports.io/football/players/3003.png",
-          "appearances": 1,
-          "minutes_per_appearance": 120.0,
-          "goals": 1,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 18944,
@@ -5129,10 +5182,10 @@
           "nationality": "Czechia",
           "birth_date": "1993-05-15",
           "photo": "https://media.api-sports.io/football/players/19262.png",
-          "appearances": 1,
-          "minutes_per_appearance": 59.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 21582,
@@ -5165,10 +5218,10 @@
           "nationality": "France",
           "birth_date": "1998-11-14",
           "photo": "https://media.api-sports.io/football/players/24228.png",
-          "appearances": 1,
-          "minutes_per_appearance": 76.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 24797,
@@ -5189,10 +5242,10 @@
           "nationality": "Germany",
           "birth_date": "1988-03-02",
           "photo": "https://media.api-sports.io/football/players/24812.png",
-          "appearances": 1,
-          "minutes_per_appearance": 40.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 24861,
@@ -5201,10 +5254,10 @@
           "nationality": "Germany",
           "birth_date": "1991-04-01",
           "photo": "https://media.api-sports.io/football/players/24861.png",
-          "appearances": 1,
-          "minutes_per_appearance": 80.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 24910,
@@ -5237,10 +5290,10 @@
           "nationality": "Germany",
           "birth_date": "1995-08-24",
           "photo": "https://media.api-sports.io/football/players/25155.png",
-          "appearances": 1,
-          "minutes_per_appearance": 76.0,
-          "goals": 0,
-          "assists": 1
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 25161,
@@ -5273,10 +5326,10 @@
           "nationality": "Türkiye",
           "birth_date": "1994-03-05",
           "photo": "https://media.api-sports.io/football/players/25466.png",
-          "appearances": 1,
-          "minutes_per_appearance": 120.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 25586,
@@ -5297,10 +5350,10 @@
           "nationality": "Germany",
           "birth_date": "1989-12-07",
           "photo": "https://media.api-sports.io/football/players/25920.png",
-          "appearances": 1,
-          "minutes_per_appearance": 61.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 26234,
@@ -5321,10 +5374,10 @@
           "nationality": "Germany",
           "birth_date": "1996-03-04",
           "photo": "https://media.api-sports.io/football/players/26297.png",
-          "appearances": 0,
+          "appearances": null,
           "minutes_per_appearance": null,
-          "goals": 0,
-          "assists": 0
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 26397,
@@ -5345,10 +5398,10 @@
           "nationality": "Japan",
           "birth_date": "2000-12-22",
           "photo": "https://media.api-sports.io/football/players/33578.png",
-          "appearances": 1,
-          "minutes_per_appearance": 44.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 36888,
@@ -5357,10 +5410,10 @@
           "nationality": "Netherlands",
           "birth_date": "1996-09-30",
           "photo": "https://media.api-sports.io/football/players/36888.png",
-          "appearances": 0,
+          "appearances": null,
           "minutes_per_appearance": null,
-          "goals": 0,
-          "assists": 0
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 36922,
@@ -5381,10 +5434,10 @@
           "nationality": "England",
           "birth_date": "1999-07-27",
           "photo": "https://media.api-sports.io/football/players/37760.png",
-          "appearances": 1,
-          "minutes_per_appearance": 120.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 48203,
@@ -5429,10 +5482,10 @@
           "nationality": "Germany",
           "birth_date": "1998-10-06",
           "photo": "https://media.api-sports.io/football/players/88140.png",
-          "appearances": 1,
-          "minutes_per_appearance": 120.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 105789,
@@ -5453,10 +5506,10 @@
           "nationality": "Germany",
           "birth_date": "2000-11-27",
           "photo": "https://media.api-sports.io/football/players/106792.png",
-          "appearances": 0,
+          "appearances": null,
           "minutes_per_appearance": null,
-          "goals": 0,
-          "assists": 0
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 108479,
@@ -5465,10 +5518,10 @@
           "nationality": "Kosovo",
           "birth_date": "1998-05-02",
           "photo": "https://media.api-sports.io/football/players/108479.png",
-          "appearances": 0,
+          "appearances": null,
           "minutes_per_appearance": null,
-          "goals": 0,
-          "assists": 0
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 108563,
@@ -5525,10 +5578,10 @@
           "nationality": "Mali",
           "birth_date": "2001-02-15",
           "photo": "https://media.api-sports.io/football/players/129124.png",
-          "appearances": 1,
-          "minutes_per_appearance": 61.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 161882,
@@ -5597,10 +5650,10 @@
           "nationality": "Germany",
           "birth_date": "2000-03-14",
           "photo": "https://media.api-sports.io/football/players/178375.png",
-          "appearances": 1,
-          "minutes_per_appearance": 120.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 178388,
@@ -5621,10 +5674,10 @@
           "nationality": "Germany",
           "birth_date": "2001-02-17",
           "photo": "https://media.api-sports.io/football/players/202731.png",
-          "appearances": 1,
-          "minutes_per_appearance": 59.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 202909,
@@ -5705,10 +5758,10 @@
           "nationality": "Germany",
           "birth_date": "2004-02-02",
           "photo": "https://media.api-sports.io/football/players/322508.png",
-          "appearances": 1,
-          "minutes_per_appearance": 44.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 323584,
@@ -5881,10 +5934,10 @@
       "shots_on_goal_per_match": null,
       "shots_on_goal_against_per_match": null,
       "shots_on_goal_difference_per_match": null,
-      "passes_key_per_match": 10.0,
-      "duels_per_match": 102.36363636363636,
-      "duels_won_pct": 0.4911190053285968,
-      "defensive_actions_per_match": 26.636363636363637,
+      "passes_key_per_match": null,
+      "duels_per_match": null,
+      "duels_won_pct": null,
+      "defensive_actions_per_match": null,
       "shots_share_pct": null,
       "points_capture_pct": 0.4215686274509804,
       "yoy_games_played_cutoff": null,
@@ -5953,6 +6006,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -6020,10 +6074,10 @@
           "nationality": "Germany",
           "birth_date": "1988-09-27",
           "photo": "https://media.api-sports.io/football/players/396.png",
-          "appearances": 9,
-          "minutes_per_appearance": 90.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 397,
@@ -6032,15 +6086,15 @@
           "nationality": "Austria",
           "birth_date": "1985-01-06",
           "photo": "https://media.api-sports.io/football/players/397.png",
-          "appearances": 3,
-          "minutes_per_appearance": 75.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 419,
           "name": "N. Boujellab",
-          "position": null,
+          "position": "Attacker",
           "nationality": "Morocco",
           "birth_date": "1999-06-20",
           "photo": "https://media.api-sports.io/football/players/419.png",
@@ -6068,10 +6122,10 @@
           "nationality": "Germany",
           "birth_date": "1993-07-12",
           "photo": "https://media.api-sports.io/football/players/1141.png",
-          "appearances": 20,
-          "minutes_per_appearance": 87.75,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 1156,
@@ -6140,10 +6194,10 @@
           "nationality": "Poland",
           "birth_date": "1992-01-15",
           "photo": "https://media.api-sports.io/football/players/3003.png",
-          "appearances": 30,
-          "minutes_per_appearance": 88.16666666666667,
-          "goals": 2,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 18944,
@@ -6164,10 +6218,10 @@
           "nationality": "Czechia",
           "birth_date": "1993-05-15",
           "photo": "https://media.api-sports.io/football/players/19262.png",
-          "appearances": 24,
-          "minutes_per_appearance": 84.25,
-          "goals": 1,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 21582,
@@ -6200,10 +6254,10 @@
           "nationality": "France",
           "birth_date": "1998-11-14",
           "photo": "https://media.api-sports.io/football/players/24228.png",
-          "appearances": 26,
-          "minutes_per_appearance": 45.11538461538461,
-          "goals": 4,
-          "assists": 1
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 24797,
@@ -6212,10 +6266,10 @@
           "nationality": "Germany",
           "birth_date": "1990-05-26",
           "photo": "https://media.api-sports.io/football/players/24797.png",
-          "appearances": 11,
-          "minutes_per_appearance": 48.90909090909091,
-          "goals": 1,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 24812,
@@ -6224,10 +6278,10 @@
           "nationality": "Germany",
           "birth_date": "1988-03-02",
           "photo": "https://media.api-sports.io/football/players/24812.png",
-          "appearances": 27,
-          "minutes_per_appearance": 70.55555555555556,
-          "goals": 5,
-          "assists": 4
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 24861,
@@ -6236,10 +6290,10 @@
           "nationality": "Germany",
           "birth_date": "1991-04-01",
           "photo": "https://media.api-sports.io/football/players/24861.png",
-          "appearances": 11,
-          "minutes_per_appearance": 39.45454545454545,
-          "goals": 3,
-          "assists": 2
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 24910,
@@ -6260,10 +6314,10 @@
           "nationality": "Switzerland",
           "birth_date": "1994-02-17",
           "photo": "https://media.api-sports.io/football/players/25007.png",
-          "appearances": 16,
-          "minutes_per_appearance": 70.9375,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 25155,
@@ -6272,10 +6326,10 @@
           "nationality": "Germany",
           "birth_date": "1995-08-24",
           "photo": "https://media.api-sports.io/football/players/25155.png",
-          "appearances": 19,
-          "minutes_per_appearance": 55.05263157894737,
-          "goals": 1,
-          "assists": 1
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 25161,
@@ -6284,10 +6338,10 @@
           "nationality": "Germany",
           "birth_date": "1995-03-29",
           "photo": "https://media.api-sports.io/football/players/25161.png",
-          "appearances": 29,
-          "minutes_per_appearance": 75.62068965517241,
-          "goals": 3,
-          "assists": 4
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 25242,
@@ -6308,10 +6362,10 @@
           "nationality": "Türkiye",
           "birth_date": "1994-03-05",
           "photo": "https://media.api-sports.io/football/players/25466.png",
-          "appearances": 28,
-          "minutes_per_appearance": 80.71428571428571,
-          "goals": 12,
-          "assists": 7
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 25586,
@@ -6332,10 +6386,10 @@
           "nationality": "Germany",
           "birth_date": "1989-12-07",
           "photo": "https://media.api-sports.io/football/players/25920.png",
-          "appearances": 11,
-          "minutes_per_appearance": 25.636363636363637,
-          "goals": 1,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 26234,
@@ -6356,10 +6410,10 @@
           "nationality": "Germany",
           "birth_date": "1996-03-04",
           "photo": "https://media.api-sports.io/football/players/26297.png",
-          "appearances": 12,
-          "minutes_per_appearance": 78.41666666666667,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 26397,
@@ -6380,10 +6434,10 @@
           "nationality": "Japan",
           "birth_date": "2000-12-22",
           "photo": "https://media.api-sports.io/football/players/33578.png",
-          "appearances": 5,
-          "minutes_per_appearance": 35.8,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 36888,
@@ -6392,10 +6446,10 @@
           "nationality": "Netherlands",
           "birth_date": "1996-09-30",
           "photo": "https://media.api-sports.io/football/players/36888.png",
-          "appearances": 27,
-          "minutes_per_appearance": 72.81481481481481,
-          "goals": 2,
-          "assists": 5
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 36922,
@@ -6416,10 +6470,10 @@
           "nationality": "England",
           "birth_date": "1999-07-27",
           "photo": "https://media.api-sports.io/football/players/37760.png",
-          "appearances": 22,
-          "minutes_per_appearance": 79.5909090909091,
-          "goals": 1,
-          "assists": 6
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 48203,
@@ -6464,10 +6518,10 @@
           "nationality": "Germany",
           "birth_date": "1998-10-06",
           "photo": "https://media.api-sports.io/football/players/88140.png",
-          "appearances": 25,
-          "minutes_per_appearance": 81.04,
-          "goals": 0,
-          "assists": 2
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 105789,
@@ -6476,10 +6530,10 @@
           "nationality": "North Macedonia",
           "birth_date": "2000-07-11",
           "photo": "https://media.api-sports.io/football/players/105789.png",
-          "appearances": 9,
-          "minutes_per_appearance": 35.55555555555556,
-          "goals": 1,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 106792,
@@ -6488,10 +6542,10 @@
           "nationality": "Germany",
           "birth_date": "2000-11-27",
           "photo": "https://media.api-sports.io/football/players/106792.png",
-          "appearances": 2,
-          "minutes_per_appearance": 90.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 108479,
@@ -6500,10 +6554,10 @@
           "nationality": "Kosovo",
           "birth_date": "1998-05-02",
           "photo": "https://media.api-sports.io/football/players/108479.png",
-          "appearances": 16,
-          "minutes_per_appearance": 42.0,
-          "goals": 1,
-          "assists": 2
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 108563,
@@ -6536,10 +6590,10 @@
           "nationality": "Germany",
           "birth_date": "1999-02-02",
           "photo": "https://media.api-sports.io/football/players/127928.png",
-          "appearances": 22,
-          "minutes_per_appearance": 51.40909090909091,
-          "goals": 1,
-          "assists": 1
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 129075,
@@ -6548,10 +6602,10 @@
           "nationality": "Netherlands",
           "birth_date": "2000-10-31",
           "photo": "https://media.api-sports.io/football/players/129075.png",
-          "appearances": 0,
+          "appearances": null,
           "minutes_per_appearance": null,
-          "goals": 0,
-          "assists": 0
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 129124,
@@ -6560,10 +6614,10 @@
           "nationality": "Mali",
           "birth_date": "2001-02-15",
           "photo": "https://media.api-sports.io/football/players/129124.png",
-          "appearances": 4,
-          "minutes_per_appearance": 58.5,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 161882,
@@ -6572,10 +6626,10 @@
           "nationality": "Netherlands",
           "birth_date": "2002-07-06",
           "photo": "https://media.api-sports.io/football/players/161882.png",
-          "appearances": 7,
-          "minutes_per_appearance": 48.142857142857146,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 162117,
@@ -6584,10 +6638,10 @@
           "nationality": "Germany",
           "birth_date": "2001-07-16",
           "photo": "https://media.api-sports.io/football/players/162117.png",
-          "appearances": 0,
+          "appearances": null,
           "minutes_per_appearance": null,
-          "goals": 0,
-          "assists": 0
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 162347,
@@ -6596,10 +6650,10 @@
           "nationality": "France",
           "birth_date": "2002-02-21",
           "photo": "https://media.api-sports.io/football/players/162347.png",
-          "appearances": 4,
-          "minutes_per_appearance": 63.25,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 162901,
@@ -6608,10 +6662,10 @@
           "nationality": "Netherlands",
           "birth_date": "2001-12-25",
           "photo": "https://media.api-sports.io/football/players/162901.png",
-          "appearances": 1,
-          "minutes_per_appearance": 11.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 162913,
@@ -6632,10 +6686,10 @@
           "nationality": "Germany",
           "birth_date": "2000-03-14",
           "photo": "https://media.api-sports.io/football/players/178375.png",
-          "appearances": 25,
-          "minutes_per_appearance": 49.92,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 178388,
@@ -6644,10 +6698,10 @@
           "nationality": "Germany",
           "birth_date": "2000-08-30",
           "photo": "https://media.api-sports.io/football/players/178388.png",
-          "appearances": 1,
-          "minutes_per_appearance": 45.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 202731,
@@ -6656,10 +6710,10 @@
           "nationality": "Germany",
           "birth_date": "2001-02-17",
           "photo": "https://media.api-sports.io/football/players/202731.png",
-          "appearances": 1,
-          "minutes_per_appearance": 45.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 202909,
@@ -6740,10 +6794,10 @@
           "nationality": "Germany",
           "birth_date": "2004-02-02",
           "photo": "https://media.api-sports.io/football/players/322508.png",
-          "appearances": 22,
-          "minutes_per_appearance": 49.22727272727273,
-          "goals": 2,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 323584,
@@ -6764,10 +6818,10 @@
           "nationality": "Germany",
           "birth_date": "2004-03-25",
           "photo": "https://media.api-sports.io/football/players/334334.png",
-          "appearances": 24,
-          "minutes_per_appearance": 43.958333333333336,
-          "goals": 5,
-          "assists": 1
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 334359,
@@ -6776,10 +6830,10 @@
           "nationality": "Germany",
           "birth_date": "2004-07-23",
           "photo": "https://media.api-sports.io/football/players/334359.png",
-          "appearances": 0,
+          "appearances": null,
           "minutes_per_appearance": null,
-          "goals": 0,
-          "assists": 0
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 334361,
@@ -6800,10 +6854,10 @@
           "nationality": "Germany",
           "birth_date": "2002-12-06",
           "photo": "https://media.api-sports.io/football/players/352265.png",
-          "appearances": 1,
-          "minutes_per_appearance": 11.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 356492,
@@ -6848,10 +6902,10 @@
           "nationality": "Germany",
           "birth_date": "2006-05-09",
           "photo": "https://media.api-sports.io/football/players/380978.png",
-          "appearances": 17,
-          "minutes_per_appearance": 49.05882352941177,
-          "goals": 3,
-          "assists": 1
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 394663,
@@ -6860,10 +6914,10 @@
           "nationality": "Germany",
           "birth_date": "2006-01-19",
           "photo": "https://media.api-sports.io/football/players/394663.png",
-          "appearances": 1,
-          "minutes_per_appearance": 1.0,
-          "goals": 0,
-          "assists": 0
+          "appearances": null,
+          "minutes_per_appearance": null,
+          "goals": null,
+          "assists": null
         },
         {
           "player_id": 428398,
@@ -6880,16 +6934,6 @@
       ],
       "benchmarks": [
         {
-          "metric_key": "blocks_per_match",
-          "metric_value": 3.3333333333333335,
-          "rank": 14,
-          "team_count": 18,
-          "league_median": 3.4411764705882355,
-          "league_p25": 3.3333333333333335,
-          "league_p75": 3.9705882352941178,
-          "vs_median_delta": -0.10784313725490202
-        },
-        {
           "metric_key": "clean_sheets_pct",
           "metric_value": 0.23529411764705882,
           "rank": 7,
@@ -6898,36 +6942,6 @@
           "league_p25": 0.17647058823529413,
           "league_p75": 0.29411764705882354,
           "vs_median_delta": 0.02941176470588236
-        },
-        {
-          "metric_key": "defensive_actions_per_match",
-          "metric_value": 26.636363636363637,
-          "rank": 11,
-          "team_count": 18,
-          "league_median": 26.941176470588236,
-          "league_p25": 25.647058823529413,
-          "league_p75": 28.88235294117647,
-          "vs_median_delta": -0.3048128342245988
-        },
-        {
-          "metric_key": "duels_per_match",
-          "metric_value": 102.36363636363636,
-          "rank": 5,
-          "team_count": 18,
-          "league_median": 98.20588235294117,
-          "league_p25": 94.82352941176471,
-          "league_p75": 102.36363636363636,
-          "vs_median_delta": 4.157754010695186
-        },
-        {
-          "metric_key": "duels_won_pct",
-          "metric_value": 0.4911190053285968,
-          "rank": 15,
-          "team_count": 18,
-          "league_median": 0.49653979238754326,
-          "league_p25": 0.4941599281221923,
-          "league_p75": 0.5086848635235732,
-          "vs_median_delta": -0.005420787058946441
         },
         {
           "metric_key": "goals_against_per_match",
@@ -6948,36 +6962,6 @@
           "league_p25": 1.2647058823529411,
           "league_p75": 1.8823529411764706,
           "vs_median_delta": 0.0
-        },
-        {
-          "metric_key": "interceptions_per_match",
-          "metric_value": 8.212121212121213,
-          "rank": 7,
-          "team_count": 18,
-          "league_median": 7.9411764705882355,
-          "league_p25": 7.323529411764706,
-          "league_p75": 8.911764705882353,
-          "vs_median_delta": 0.2709447415329773
-        },
-        {
-          "metric_key": "passes_key_per_match",
-          "metric_value": 10.0,
-          "rank": 11,
-          "team_count": 18,
-          "league_median": 10.294117647058824,
-          "league_p25": 9.176470588235293,
-          "league_p75": 10.588235294117647,
-          "vs_median_delta": -0.29411764705882426
-        },
-        {
-          "metric_key": "tackles_per_match",
-          "metric_value": 15.090909090909092,
-          "rank": 9,
-          "team_count": 18,
-          "league_median": 15.058823529411764,
-          "league_p25": 14.411764705882353,
-          "league_p75": 16.647058823529413,
-          "vs_median_delta": 0.03208556149732722
         }
       ]
     },
@@ -7007,7 +6991,7 @@
       "shots_per_match": 20.0,
       "shots_on_goal_pct": 0.4,
       "shots_inside_box_pct": 0.775,
-      "finishing_efficiency_pct": 0.375,
+      "finishing_efficiency_pct": 0.3125,
       "passes_accuracy_pct": 0.8473372781065088,
       "passes_per_match": 422.5,
       "corners_per_match": 7.0,
@@ -7089,6 +7073,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -7709,12 +7694,12 @@
       "shots_per_match": 12.529411764705882,
       "shots_on_goal_pct": 0.3075117370892019,
       "shots_inside_box_pct": 0.6314553990610329,
-      "finishing_efficiency_pct": 0.22900763358778625,
+      "finishing_efficiency_pct": 0.21374045801526717,
       "passes_accuracy_pct": 0.7179509255273353,
       "passes_per_match": 341.61764705882354,
       "corners_per_match": 4.970588235294118,
       "corners_against_per_match": 6.0588235294117645,
-      "saves_pct": 0.634020618556701,
+      "saves_pct": 0.6373056994818653,
       "player_stat_coverage_season_games": 34,
       "shots_on_goal_per_match": 3.8529411764705883,
       "shots_on_goal_against_per_match": 5.852941176470588,
@@ -7791,6 +7776,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -7909,7 +7895,7 @@
           "appearances": 32,
           "minutes_per_appearance": 79.03125,
           "goals": 2,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 1234,
@@ -7921,7 +7907,7 @@
           "appearances": 29,
           "minutes_per_appearance": 81.27586206896552,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 1372,
@@ -7981,7 +7967,7 @@
           "appearances": 29,
           "minutes_per_appearance": 88.06896551724138,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 21582,
@@ -7993,7 +7979,7 @@
           "appearances": 9,
           "minutes_per_appearance": 45.22222222222222,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 22086,
@@ -8005,7 +7991,7 @@
           "appearances": 1,
           "minutes_per_appearance": 24.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 24797,
@@ -8017,7 +8003,7 @@
           "appearances": 27,
           "minutes_per_appearance": 50.629629629629626,
           "goals": 4,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 24812,
@@ -8029,7 +8015,7 @@
           "appearances": 32,
           "minutes_per_appearance": 57.4375,
           "goals": 5,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 24861,
@@ -8041,7 +8027,7 @@
           "appearances": 19,
           "minutes_per_appearance": 33.526315789473685,
           "goals": 2,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 24910,
@@ -8065,7 +8051,7 @@
           "appearances": 28,
           "minutes_per_appearance": 82.92857142857143,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 25155,
@@ -8077,7 +8063,7 @@
           "appearances": 18,
           "minutes_per_appearance": 46.333333333333336,
           "goals": 0,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 25242,
@@ -8089,7 +8075,7 @@
           "appearances": 33,
           "minutes_per_appearance": 78.9090909090909,
           "goals": 11,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 25466,
@@ -8101,7 +8087,7 @@
           "appearances": 21,
           "minutes_per_appearance": 46.57142857142857,
           "goals": 1,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 25920,
@@ -8113,7 +8099,7 @@
           "appearances": 20,
           "minutes_per_appearance": 43.15,
           "goals": 0,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 26234,
@@ -8125,7 +8111,7 @@
           "appearances": 23,
           "minutes_per_appearance": 88.43478260869566,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 33578,
@@ -8197,7 +8183,7 @@
           "appearances": 11,
           "minutes_per_appearance": 42.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 48371,
@@ -8233,7 +8219,7 @@
           "appearances": 0,
           "minutes_per_appearance": null,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 108479,
@@ -8269,7 +8255,7 @@
           "appearances": 8,
           "minutes_per_appearance": 63.875,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 129124,
@@ -8317,7 +8303,7 @@
           "appearances": 22,
           "minutes_per_appearance": 84.9090909090909,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 178388,
@@ -8365,7 +8351,7 @@
           "appearances": 16,
           "minutes_per_appearance": 35.8125,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 231032,
@@ -8389,7 +8375,7 @@
           "appearances": 1,
           "minutes_per_appearance": 24.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 334334,
@@ -8421,9 +8407,9 @@
           "metric_key": "blocks_per_match",
           "metric_value": 3.235294117647059,
           "rank": 7,
-          "team_count": 18,
+          "team_count": 16,
           "league_median": 3.0294117647058822,
-          "league_p25": 2.8823529411764706,
+          "league_p25": 2.7941176470588234,
           "league_p75": 3.4411764705882355,
           "vs_median_delta": 0.20588235294117663
         },
@@ -8460,12 +8446,12 @@
         {
           "metric_key": "defensive_actions_per_match",
           "metric_value": 28.41176470588235,
-          "rank": 8,
-          "team_count": 18,
-          "league_median": 27.88235294117647,
-          "league_p25": 27.441176470588236,
-          "league_p75": 29.823529411764707,
-          "vs_median_delta": 0.5294117647058805
+          "rank": 6,
+          "team_count": 16,
+          "league_median": 27.5,
+          "league_p25": 27.333333333333332,
+          "league_p75": 28.794117647058822,
+          "vs_median_delta": 0.9117647058823515
         },
         {
           "metric_key": "duels_per_match",
@@ -8489,13 +8475,13 @@
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.22900763358778625,
+          "metric_value": 0.21374045801526717,
           "rank": 18,
           "team_count": 18,
-          "league_median": 0.29015544041450775,
-          "league_p25": 0.26857142857142857,
-          "league_p75": 0.3424657534246575,
-          "vs_median_delta": -0.061147806826721496
+          "league_median": 0.3005181347150259,
+          "league_p25": 0.2709677419354839,
+          "league_p75": 0.3392070484581498,
+          "vs_median_delta": -0.08677767669975875
         },
         {
           "metric_key": "goals_against_per_match",
@@ -8559,13 +8545,13 @@
         },
         {
           "metric_key": "saves_pct",
-          "metric_value": 0.634020618556701,
+          "metric_value": 0.6373056994818653,
           "rank": 12,
           "team_count": 16,
-          "league_median": 0.6470588235294118,
-          "league_p25": 0.6233766233766234,
-          "league_p75": 0.6821192052980133,
-          "vs_median_delta": -0.013038204972710798
+          "league_median": 0.654320987654321,
+          "league_p25": 0.6274509803921569,
+          "league_p75": 0.6959459459459459,
+          "vs_median_delta": -0.017015288172455678
         },
         {
           "metric_key": "shots_inside_box_pct",
@@ -8747,6 +8733,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -8802,7 +8789,7 @@
       "shots_per_match": 16.852941176470587,
       "shots_on_goal_pct": 0.36300174520069806,
       "shots_inside_box_pct": 0.6736474694589878,
-      "finishing_efficiency_pct": 0.33653846153846156,
+      "finishing_efficiency_pct": 0.32211538461538464,
       "passes_accuracy_pct": 0.776974376974377,
       "passes_per_match": 418.97058823529414,
       "corners_per_match": 5.147058823529412,
@@ -8884,6 +8871,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -8954,7 +8942,7 @@
           "appearances": 6,
           "minutes_per_appearance": 90.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 397,
@@ -9031,7 +9019,7 @@
         {
           "player_id": 419,
           "name": "N. Boujellab",
-          "position": null,
+          "position": "Attacker",
           "nationality": "Morocco",
           "birth_date": "1999-06-20",
           "photo": "https://media.api-sports.io/football/players/419.png",
@@ -9074,7 +9062,7 @@
           "appearances": 2,
           "minutes_per_appearance": 58.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 1955,
@@ -9098,7 +9086,7 @@
           "appearances": 28,
           "minutes_per_appearance": 69.57142857142857,
           "goals": 0,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 3003,
@@ -9110,7 +9098,7 @@
           "appearances": 31,
           "minutes_per_appearance": 90.0,
           "goals": 2,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 7528,
@@ -9122,7 +9110,7 @@
           "appearances": 15,
           "minutes_per_appearance": 63.2,
           "goals": 0,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 24797,
@@ -9134,7 +9122,7 @@
           "appearances": 23,
           "minutes_per_appearance": 75.8695652173913,
           "goals": 3,
-          "assists": 5
+          "assists": null
         },
         {
           "player_id": 24812,
@@ -9146,7 +9134,7 @@
           "appearances": 30,
           "minutes_per_appearance": 87.96666666666667,
           "goals": 30,
-          "assists": 4
+          "assists": null
         },
         {
           "player_id": 25242,
@@ -9158,7 +9146,7 @@
           "appearances": 32,
           "minutes_per_appearance": 77.25,
           "goals": 10,
-          "assists": 10
+          "assists": null
         },
         {
           "player_id": 25920,
@@ -9170,7 +9158,7 @@
           "appearances": 15,
           "minutes_per_appearance": 48.8,
           "goals": 2,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 26300,
@@ -9218,7 +9206,7 @@
           "appearances": 28,
           "minutes_per_appearance": 86.0,
           "goals": 3,
-          "assists": 8
+          "assists": null
         },
         {
           "player_id": 38114,
@@ -9230,7 +9218,7 @@
           "appearances": 31,
           "minutes_per_appearance": 86.16129032258064,
           "goals": 4,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 39060,
@@ -9254,7 +9242,7 @@
           "appearances": 26,
           "minutes_per_appearance": 90.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 50965,
@@ -9266,7 +9254,7 @@
           "appearances": 2,
           "minutes_per_appearance": 6.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 90977,
@@ -9302,7 +9290,7 @@
           "appearances": 22,
           "minutes_per_appearance": 37.86363636363637,
           "goals": 1,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 108563,
@@ -9314,7 +9302,7 @@
           "appearances": 30,
           "minutes_per_appearance": 70.3,
           "goals": 6,
-          "assists": 5
+          "assists": null
         },
         {
           "player_id": 119771,
@@ -9326,7 +9314,7 @@
           "appearances": 27,
           "minutes_per_appearance": 51.888888888888886,
           "goals": 0,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 127609,
@@ -9362,7 +9350,7 @@
           "appearances": 31,
           "minutes_per_appearance": 82.16129032258064,
           "goals": 2,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 178106,
@@ -9374,7 +9362,7 @@
           "appearances": 24,
           "minutes_per_appearance": 30.291666666666668,
           "goals": 2,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 178263,
@@ -9398,7 +9386,7 @@
           "appearances": 12,
           "minutes_per_appearance": 29.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 202909,
@@ -9446,7 +9434,7 @@
           "appearances": 18,
           "minutes_per_appearance": 43.333333333333336,
           "goals": 1,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 203037,
@@ -9513,11 +9501,11 @@
         {
           "metric_key": "blocks_per_match",
           "metric_value": 3.176470588235294,
-          "rank": 12,
-          "team_count": 18,
+          "rank": 10,
+          "team_count": 15,
           "league_median": 3.2941176470588234,
           "league_p25": 2.823529411764706,
-          "league_p75": 3.5588235294117645,
+          "league_p75": 3.5,
           "vs_median_delta": -0.11764705882352944
         },
         {
@@ -9553,11 +9541,11 @@
         {
           "metric_key": "defensive_actions_per_match",
           "metric_value": 28.235294117647058,
-          "rank": 10,
-          "team_count": 18,
+          "rank": 8,
+          "team_count": 15,
           "league_median": 28.235294117647058,
-          "league_p25": 27.11764705882353,
-          "league_p75": 29.5,
+          "league_p25": 26.941176470588236,
+          "league_p75": 29.058823529411764,
           "vs_median_delta": 0.0
         },
         {
@@ -9582,13 +9570,13 @@
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.33653846153846156,
-          "rank": 1,
+          "metric_value": 0.32211538461538464,
+          "rank": 4,
           "team_count": 18,
-          "league_median": 0.27058823529411763,
-          "league_p25": 0.2482758620689655,
-          "league_p75": 0.319672131147541,
-          "vs_median_delta": 0.06595022624434393
+          "league_median": 0.272108843537415,
+          "league_p25": 0.2518518518518518,
+          "league_p75": 0.31413612565445026,
+          "vs_median_delta": 0.050006541077969646
         },
         {
           "metric_key": "goals_against_per_match",
@@ -9653,12 +9641,12 @@
         {
           "metric_key": "saves_pct",
           "metric_value": 0.6764705882352942,
-          "rank": 10,
+          "rank": 12,
           "team_count": 18,
-          "league_median": 0.6764705882352942,
-          "league_p25": 0.6645161290322581,
-          "league_p75": 0.7169811320754716,
-          "vs_median_delta": 0.0
+          "league_median": 0.6927710843373494,
+          "league_p25": 0.673202614379085,
+          "league_p75": 0.7261146496815286,
+          "vs_median_delta": -0.016300496102055195
         },
         {
           "metric_key": "shots_inside_box_pct",
@@ -9758,12 +9746,12 @@
       "shots_per_match": 8.911764705882353,
       "shots_on_goal_pct": 0.28052805280528054,
       "shots_inside_box_pct": 0.6072607260726073,
-      "finishing_efficiency_pct": 0.23529411764705882,
+      "finishing_efficiency_pct": 0.2823529411764706,
       "passes_accuracy_pct": 0.7646572459410703,
       "passes_per_match": 391.29411764705884,
       "corners_per_match": 3.6470588235294117,
       "corners_against_per_match": 6.0,
-      "saves_pct": 0.6431535269709544,
+      "saves_pct": 0.6553191489361702,
       "player_stat_coverage_season_games": 34,
       "shots_on_goal_per_match": 2.5,
       "shots_on_goal_against_per_match": 6.9411764705882355,
@@ -9771,7 +9759,7 @@
       "passes_key_per_match": 6.382352941176471,
       "duels_per_match": 109.91176470588235,
       "duels_won_pct": 0.48274016590848273,
-      "defensive_actions_per_match": 30.823529411764707,
+      "defensive_actions_per_match": null,
       "shots_share_pct": 0.3396860986547085,
       "points_capture_pct": 0.1568627450980392,
       "yoy_games_played_cutoff": null,
@@ -9840,6 +9828,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -9910,7 +9899,7 @@
           "appearances": 22,
           "minutes_per_appearance": 85.31818181818181,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 397,
@@ -9946,7 +9935,7 @@
           "appearances": 15,
           "minutes_per_appearance": 82.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 404,
@@ -9958,7 +9947,7 @@
           "appearances": 27,
           "minutes_per_appearance": 71.14814814814815,
           "goals": 0,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 406,
@@ -9970,7 +9959,7 @@
           "appearances": 14,
           "minutes_per_appearance": 76.35714285714286,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 407,
@@ -9982,7 +9971,7 @@
           "appearances": 24,
           "minutes_per_appearance": 81.5,
           "goals": 0,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 409,
@@ -9994,7 +9983,7 @@
           "appearances": 9,
           "minutes_per_appearance": 60.77777777777778,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 412,
@@ -10006,7 +9995,7 @@
           "appearances": 28,
           "minutes_per_appearance": 75.42857142857143,
           "goals": 2,
-          "assists": 5
+          "assists": null
         },
         {
           "player_id": 414,
@@ -10018,7 +10007,7 @@
           "appearances": 24,
           "minutes_per_appearance": 73.625,
           "goals": 1,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 415,
@@ -10054,7 +10043,7 @@
           "appearances": 19,
           "minutes_per_appearance": 49.68421052631579,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 418,
@@ -10066,12 +10055,12 @@
           "appearances": 25,
           "minutes_per_appearance": 78.32,
           "goals": 1,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 419,
           "name": "N. Boujellab",
-          "position": null,
+          "position": "Attacker",
           "nationality": "Morocco",
           "birth_date": "1999-06-20",
           "photo": "https://media.api-sports.io/football/players/419.png",
@@ -10102,7 +10091,7 @@
           "appearances": 3,
           "minutes_per_appearance": 74.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 424,
@@ -10114,7 +10103,7 @@
           "appearances": 13,
           "minutes_per_appearance": 32.15384615384615,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 426,
@@ -10126,7 +10115,7 @@
           "appearances": 20,
           "minutes_per_appearance": 74.9,
           "goals": 3,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 551,
@@ -10138,7 +10127,7 @@
           "appearances": 9,
           "minutes_per_appearance": 65.66666666666667,
           "goals": 2,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 1442,
@@ -10150,7 +10139,7 @@
           "appearances": 17,
           "minutes_per_appearance": 83.88235294117646,
           "goals": 1,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 1448,
@@ -10162,7 +10151,7 @@
           "appearances": 13,
           "minutes_per_appearance": 79.61538461538461,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 1798,
@@ -10174,7 +10163,7 @@
           "appearances": 11,
           "minutes_per_appearance": 85.9090909090909,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 1830,
@@ -10186,7 +10175,7 @@
           "appearances": 15,
           "minutes_per_appearance": 50.2,
           "goals": 1,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 7341,
@@ -10198,7 +10187,7 @@
           "appearances": 6,
           "minutes_per_appearance": 86.83333333333333,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 25114,
@@ -10222,7 +10211,7 @@
           "appearances": 4,
           "minutes_per_appearance": 38.75,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 25398,
@@ -10234,7 +10223,7 @@
           "appearances": 8,
           "minutes_per_appearance": 59.5,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 25467,
@@ -10246,7 +10235,7 @@
           "appearances": 25,
           "minutes_per_appearance": 49.88,
           "goals": 2,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 26300,
@@ -10258,7 +10247,7 @@
           "appearances": 14,
           "minutes_per_appearance": 88.92857142857143,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 90977,
@@ -10270,7 +10259,7 @@
           "appearances": 20,
           "minutes_per_appearance": 82.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 108479,
@@ -10330,7 +10319,7 @@
           "appearances": 19,
           "minutes_per_appearance": 76.26315789473684,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 178353,
@@ -10378,7 +10367,7 @@
           "appearances": 4,
           "minutes_per_appearance": 74.25,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 203014,
@@ -10390,7 +10379,7 @@
           "appearances": 22,
           "minutes_per_appearance": 59.90909090909091,
           "goals": 6,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 203018,
@@ -10402,7 +10391,7 @@
           "appearances": 6,
           "minutes_per_appearance": 83.66666666666667,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 203074,
@@ -10438,7 +10427,7 @@
           "appearances": 14,
           "minutes_per_appearance": 46.57142857142857,
           "goals": 0,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 203385,
@@ -10454,16 +10443,6 @@
         }
       ],
       "benchmarks": [
-        {
-          "metric_key": "blocks_per_match",
-          "metric_value": 2.5,
-          "rank": 1,
-          "team_count": 18,
-          "league_median": 1.2647058823529411,
-          "league_p25": 1.088235294117647,
-          "league_p75": 1.5588235294117647,
-          "vs_median_delta": 1.2352941176470589
-        },
         {
           "metric_key": "clean_sheets_pct",
           "metric_value": 0.11764705882352941,
@@ -10495,16 +10474,6 @@
           "vs_median_delta": -0.8235294117647061
         },
         {
-          "metric_key": "defensive_actions_per_match",
-          "metric_value": 30.823529411764707,
-          "rank": 5,
-          "team_count": 18,
-          "league_median": 28.941176470588236,
-          "league_p25": 27.764705882352942,
-          "league_p75": 30.823529411764707,
-          "vs_median_delta": 1.882352941176471
-        },
-        {
           "metric_key": "duels_per_match",
           "metric_value": 109.91176470588235,
           "rank": 3,
@@ -10526,13 +10495,13 @@
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.23529411764705882,
-          "rank": 16,
+          "metric_value": 0.2823529411764706,
+          "rank": 12,
           "team_count": 18,
-          "league_median": 0.2857142857142857,
-          "league_p25": 0.24161073825503357,
-          "league_p75": 0.30625,
-          "vs_median_delta": -0.05042016806722688
+          "league_median": 0.2929936305732484,
+          "league_p25": 0.2512315270935961,
+          "league_p75": 0.31690140845070425,
+          "vs_median_delta": -0.010640689396777814
         },
         {
           "metric_key": "goals_against_per_match",
@@ -10596,13 +10565,13 @@
         },
         {
           "metric_key": "saves_pct",
-          "metric_value": 0.6431535269709544,
-          "rank": 11,
-          "team_count": 15,
-          "league_median": 0.6589147286821705,
-          "league_p25": 0.6423841059602649,
-          "league_p75": 0.6861313868613139,
-          "vs_median_delta": -0.01576120171121609
+          "metric_value": 0.6553191489361702,
+          "rank": 12,
+          "team_count": 17,
+          "league_median": 0.6691176470588235,
+          "league_p25": 0.6510067114093959,
+          "league_p75": 0.6962962962962963,
+          "vs_median_delta": -0.013798498122653324
         },
         {
           "metric_key": "shots_inside_box_pct",
@@ -10702,12 +10671,12 @@
       "shots_per_match": 11.294117647058824,
       "shots_on_goal_pct": 0.3359375,
       "shots_inside_box_pct": 0.5807291666666666,
-      "finishing_efficiency_pct": 0.26356589147286824,
+      "finishing_efficiency_pct": 0.2558139534883721,
       "passes_accuracy_pct": 0.7763713080168776,
       "passes_per_match": 418.2352941176471,
       "corners_per_match": 4.470588235294118,
       "corners_against_per_match": 5.205882352941177,
-      "saves_pct": 0.6685714285714286,
+      "saves_pct": 0.6763005780346821,
       "player_stat_coverage_season_games": 34,
       "shots_on_goal_per_match": 3.7941176470588234,
       "shots_on_goal_against_per_match": 5.176470588235294,
@@ -10715,7 +10684,7 @@
       "passes_key_per_match": 8.264705882352942,
       "duels_per_match": null,
       "duels_won_pct": null,
-      "defensive_actions_per_match": 31.529411764705884,
+      "defensive_actions_per_match": null,
       "shots_share_pct": 0.45176470588235296,
       "points_capture_pct": 0.38235294117647056,
       "yoy_games_played_cutoff": null,
@@ -10784,6 +10753,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -10854,7 +10824,7 @@
           "appearances": 11,
           "minutes_per_appearance": 71.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 138,
@@ -10950,7 +10920,7 @@
           "appearances": 34,
           "minutes_per_appearance": 89.17647058823529,
           "goals": 0,
-          "assists": 5
+          "assists": null
         },
         {
           "player_id": 406,
@@ -10998,7 +10968,7 @@
           "appearances": 28,
           "minutes_per_appearance": 82.42857142857143,
           "goals": 2,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 412,
@@ -11010,7 +10980,7 @@
           "appearances": 25,
           "minutes_per_appearance": 84.28,
           "goals": 6,
-          "assists": 4
+          "assists": null
         },
         {
           "player_id": 414,
@@ -11022,7 +10992,7 @@
           "appearances": 23,
           "minutes_per_appearance": 88.21739130434783,
           "goals": 0,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 415,
@@ -11070,19 +11040,19 @@
           "appearances": 20,
           "minutes_per_appearance": 80.25,
           "goals": 7,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 419,
           "name": "N. Boujellab",
-          "position": null,
+          "position": "Attacker",
           "nationality": "Morocco",
           "birth_date": "1999-06-20",
           "photo": "https://media.api-sports.io/football/players/419.png",
           "appearances": 11,
           "minutes_per_appearance": 38.36363636363637,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 420,
@@ -11094,7 +11064,7 @@
           "appearances": 21,
           "minutes_per_appearance": 59.42857142857143,
           "goals": 0,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 422,
@@ -11106,7 +11076,7 @@
           "appearances": 25,
           "minutes_per_appearance": 27.08,
           "goals": 3,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 423,
@@ -11118,7 +11088,7 @@
           "appearances": 20,
           "minutes_per_appearance": 58.7,
           "goals": 2,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 424,
@@ -11178,7 +11148,7 @@
           "appearances": 31,
           "minutes_per_appearance": 88.3225806451613,
           "goals": 2,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 24835,
@@ -11202,7 +11172,7 @@
           "appearances": 9,
           "minutes_per_appearance": 83.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 25167,
@@ -11214,7 +11184,7 @@
           "appearances": 2,
           "minutes_per_appearance": 43.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 25297,
@@ -11238,7 +11208,7 @@
           "appearances": 25,
           "minutes_per_appearance": 64.84,
           "goals": 4,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 26300,
@@ -11250,7 +11220,7 @@
           "appearances": 26,
           "minutes_per_appearance": 69.07692307692308,
           "goals": 3,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 26539,
@@ -11286,7 +11256,7 @@
           "appearances": 10,
           "minutes_per_appearance": 33.5,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 127609,
@@ -11339,16 +11309,6 @@
       ],
       "benchmarks": [
         {
-          "metric_key": "blocks_per_match",
-          "metric_value": 3.323529411764706,
-          "rank": 7,
-          "team_count": 18,
-          "league_median": 2.911764705882353,
-          "league_p25": 2.5,
-          "league_p75": 3.4722222222222223,
-          "vs_median_delta": 0.41176470588235325
-        },
-        {
           "metric_key": "clean_sheets_pct",
           "metric_value": 0.20588235294117646,
           "rank": 9,
@@ -11379,24 +11339,14 @@
           "vs_median_delta": -0.5882352941176467
         },
         {
-          "metric_key": "defensive_actions_per_match",
-          "metric_value": 31.529411764705884,
-          "rank": 2,
-          "team_count": 18,
-          "league_median": 29.705882352941178,
-          "league_p25": 27.647058823529413,
-          "league_p75": 30.88235294117647,
-          "vs_median_delta": 1.8235294117647065
-        },
-        {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.26356589147286824,
-          "rank": 15,
+          "metric_value": 0.2558139534883721,
+          "rank": 16,
           "team_count": 18,
-          "league_median": 0.2905405405405405,
-          "league_p25": 0.26666666666666666,
-          "league_p75": 0.3142857142857143,
-          "vs_median_delta": -0.026974649067672274
+          "league_median": 0.2925531914893617,
+          "league_p25": 0.2708333333333333,
+          "league_p75": 0.31788079470198677,
+          "vs_median_delta": -0.036739238000989605
         },
         {
           "metric_key": "goals_against_per_match",
@@ -11444,7 +11394,7 @@
           "rank": 15,
           "team_count": 18,
           "league_median": 9.470588235294118,
-          "league_p25": 8.852941176470589,
+          "league_p25": 8.823529411764707,
           "league_p75": 10.764705882352942,
           "vs_median_delta": -1.2058823529411757
         },
@@ -11460,13 +11410,13 @@
         },
         {
           "metric_key": "saves_pct",
-          "metric_value": 0.6685714285714286,
+          "metric_value": 0.6763005780346821,
           "rank": 8,
           "team_count": 18,
-          "league_median": 0.6647727272727273,
-          "league_p25": 0.6120218579234973,
-          "league_p75": 0.696551724137931,
-          "vs_median_delta": 0.0037987012987013014
+          "league_median": 0.672316384180791,
+          "league_p25": 0.6274509803921569,
+          "league_p75": 0.6946107784431138,
+          "vs_median_delta": 0.003984193853891149
         },
         {
           "metric_key": "shots_inside_box_pct",
@@ -11527,16 +11477,6 @@
           "league_p25": 12.176470588235293,
           "league_p75": 14.117647058823529,
           "vs_median_delta": -1.7941176470588225
-        },
-        {
-          "metric_key": "tackles_per_match",
-          "metric_value": 15.970588235294118,
-          "rank": 5,
-          "team_count": 18,
-          "league_median": 14.941176470588236,
-          "league_p25": 14.264705882352942,
-          "league_p75": 15.970588235294118,
-          "vs_median_delta": 1.0294117647058822
         }
       ]
     },
@@ -11648,6 +11588,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -11718,7 +11659,7 @@
           "appearances": 4,
           "minutes_per_appearance": 90.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 261,
@@ -11742,7 +11683,7 @@
           "appearances": 6,
           "minutes_per_appearance": 90.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 397,
@@ -11814,7 +11755,7 @@
           "appearances": 6,
           "minutes_per_appearance": 61.166666666666664,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 403,
@@ -11826,7 +11767,7 @@
           "appearances": 6,
           "minutes_per_appearance": 90.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 404,
@@ -11874,7 +11815,7 @@
           "appearances": 5,
           "minutes_per_appearance": 86.2,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 408,
@@ -11922,7 +11863,7 @@
           "appearances": 1,
           "minutes_per_appearance": 59.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 412,
@@ -11934,7 +11875,7 @@
           "appearances": 5,
           "minutes_per_appearance": 29.2,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 413,
@@ -11946,7 +11887,7 @@
           "appearances": 6,
           "minutes_per_appearance": 77.0,
           "goals": 0,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 414,
@@ -11958,7 +11899,7 @@
           "appearances": 3,
           "minutes_per_appearance": 75.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 415,
@@ -11994,7 +11935,7 @@
           "appearances": 4,
           "minutes_per_appearance": 74.5,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 418,
@@ -12006,12 +11947,12 @@
           "appearances": 7,
           "minutes_per_appearance": 71.85714285714286,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 419,
           "name": "N. Boujellab",
-          "position": null,
+          "position": "Attacker",
           "nationality": "Morocco",
           "birth_date": "1999-06-20",
           "photo": "https://media.api-sports.io/football/players/419.png",
@@ -12054,7 +11995,7 @@
           "appearances": 1,
           "minutes_per_appearance": 18.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 423,
@@ -12090,7 +12031,7 @@
           "appearances": 2,
           "minutes_per_appearance": 41.5,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 426,
@@ -12126,7 +12067,7 @@
           "appearances": 1,
           "minutes_per_appearance": 74.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 24835,
@@ -12181,11 +12122,11 @@
         {
           "metric_key": "blocks_per_match",
           "metric_value": 3.375,
-          "rank": 13,
-          "team_count": 39,
+          "rank": 10,
+          "team_count": 30,
           "league_median": 3.1,
-          "league_p25": 2.4,
-          "league_p75": 3.625,
+          "league_p25": 2.5,
+          "league_p75": 3.5,
           "vs_median_delta": 0.2749999999999999
         },
         {
@@ -12212,50 +12153,50 @@
           "metric_key": "corners_per_match",
           "metric_value": 4.25,
           "rank": 25,
-          "team_count": 34,
-          "league_median": 5.125,
-          "league_p25": 4.166666666666667,
+          "team_count": 33,
+          "league_median": 5.3,
+          "league_p25": 4.25,
           "league_p75": 5.8,
-          "vs_median_delta": -0.875
+          "vs_median_delta": -1.0499999999999998
         },
         {
           "metric_key": "defensive_actions_per_match",
           "metric_value": 30.25,
-          "rank": 6,
-          "team_count": 39,
-          "league_median": 25.5,
+          "rank": 4,
+          "team_count": 30,
+          "league_median": 25.0,
           "league_p25": 22.923076923076923,
           "league_p75": 27.625,
-          "vs_median_delta": 4.75
+          "vs_median_delta": 5.25
         },
         {
           "metric_key": "duels_per_match",
           "metric_value": 118.375,
-          "rank": 6,
-          "team_count": 39,
-          "league_median": 102.0,
-          "league_p25": 96.125,
-          "league_p75": 112.33333333333333,
-          "vs_median_delta": 16.375
+          "rank": 4,
+          "team_count": 29,
+          "league_median": 100.66666666666667,
+          "league_p25": 95.75,
+          "league_p75": 109.5,
+          "vs_median_delta": 17.70833333333333
         },
         {
           "metric_key": "duels_won_pct",
           "metric_value": 0.4910242872228089,
-          "rank": 20,
-          "team_count": 39,
-          "league_median": 0.4910242872228089,
-          "league_p25": 0.4742647058823529,
-          "league_p75": 0.5122897800776197,
-          "vs_median_delta": 0.0
+          "rank": 18,
+          "team_count": 29,
+          "league_median": 0.4965156794425087,
+          "league_p25": 0.48757763975155277,
+          "league_p75": 0.5134168157423972,
+          "vs_median_delta": -0.005491392219699798
         },
         {
           "metric_key": "finishing_efficiency_pct",
           "metric_value": 0.16129032258064516,
-          "rank": 29,
+          "rank": 30,
           "team_count": 34,
           "league_median": 0.26666666666666666,
           "league_p25": 0.1935483870967742,
-          "league_p75": 0.32,
+          "league_p75": 0.3125,
           "vs_median_delta": -0.1053763440860215
         },
         {
@@ -12281,62 +12222,62 @@
         {
           "metric_key": "interceptions_per_match",
           "metric_value": 13.5,
-          "rank": 10,
-          "team_count": 39,
-          "league_median": 12.2,
-          "league_p25": 10.0,
-          "league_p75": 13.5,
-          "vs_median_delta": 1.3000000000000007
+          "rank": 6,
+          "team_count": 31,
+          "league_median": 11.625,
+          "league_p25": 10.125,
+          "league_p75": 13.25,
+          "vs_median_delta": 1.875
         },
         {
           "metric_key": "passes_accuracy_pct",
           "metric_value": 0.7705982905982905,
           "rank": 29,
-          "team_count": 32,
-          "league_median": 0.8210102489019033,
-          "league_p25": 0.7862720920674064,
-          "league_p75": 0.8456870394451669,
-          "vs_median_delta": -0.05041195830361278
+          "team_count": 31,
+          "league_median": 0.8261405672009864,
+          "league_p25": 0.7938621887666474,
+          "league_p75": 0.8457923964117898,
+          "vs_median_delta": -0.05554227660269584
         },
         {
           "metric_key": "passes_key_per_match",
           "metric_value": 7.0,
-          "rank": 34,
-          "team_count": 39,
-          "league_median": 9.833333333333334,
-          "league_p25": 8.333333333333334,
-          "league_p75": 11.5,
-          "vs_median_delta": -2.833333333333334
+          "rank": 28,
+          "team_count": 29,
+          "league_median": 11.0,
+          "league_p25": 9.125,
+          "league_p75": 11.666666666666666,
+          "vs_median_delta": -4.0
         },
         {
           "metric_key": "passes_per_match",
           "metric_value": 365.625,
           "rank": 29,
-          "team_count": 32,
-          "league_median": 462.3333333333333,
-          "league_p25": 407.5,
-          "league_p75": 509.22222222222223,
-          "vs_median_delta": -96.70833333333331
+          "team_count": 31,
+          "league_median": 462.8333333333333,
+          "league_p25": 411.5,
+          "league_p75": 519.4,
+          "vs_median_delta": -97.20833333333331
         },
         {
           "metric_key": "saves_pct",
           "metric_value": 0.5625,
-          "rank": 30,
-          "team_count": 33,
-          "league_median": 0.72,
+          "rank": 31,
+          "team_count": 34,
+          "league_median": 0.7297297297297297,
           "league_p25": 0.6363636363636364,
-          "league_p75": 0.7619047619047619,
-          "vs_median_delta": -0.15749999999999997
+          "league_p75": 0.7692307692307693,
+          "vs_median_delta": -0.16722972972972971
         },
         {
           "metric_key": "shots_inside_box_pct",
           "metric_value": 0.5662650602409639,
           "rank": 23,
-          "team_count": 32,
-          "league_median": 0.5846153846153846,
-          "league_p25": 0.5531914893617021,
-          "league_p75": 0.6370370370370371,
-          "vs_median_delta": -0.018350324374420746
+          "team_count": 31,
+          "league_median": 0.5984848484848485,
+          "league_p25": 0.5657894736842105,
+          "league_p75": 0.6373626373626373,
+          "vs_median_delta": -0.032219788243884606
         },
         {
           "metric_key": "shots_on_goal_against_per_match",
@@ -12391,12 +12332,12 @@
         {
           "metric_key": "tackles_per_match",
           "metric_value": 13.375,
-          "rank": 3,
-          "team_count": 39,
-          "league_median": 10.666666666666666,
-          "league_p25": 9.5,
-          "league_p75": 11.75,
-          "vs_median_delta": 2.708333333333334
+          "rank": 2,
+          "team_count": 30,
+          "league_median": 10.166666666666666,
+          "league_p25": 8.8,
+          "league_p75": 11.875,
+          "vs_median_delta": 3.208333333333334
         }
       ]
     },
@@ -12426,7 +12367,7 @@
       "shots_per_match": 12.264705882352942,
       "shots_on_goal_pct": 0.31654676258992803,
       "shots_inside_box_pct": 0.6211031175059952,
-      "finishing_efficiency_pct": 0.2196969696969697,
+      "finishing_efficiency_pct": 0.22727272727272727,
       "passes_accuracy_pct": 0.7631194775259316,
       "passes_per_match": 382.79411764705884,
       "corners_per_match": 4.5588235294117645,
@@ -12508,6 +12449,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -12578,7 +12520,7 @@
           "appearances": 7,
           "minutes_per_appearance": 90.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 261,
@@ -12602,7 +12544,7 @@
           "appearances": 17,
           "minutes_per_appearance": 86.41176470588235,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 397,
@@ -12674,7 +12616,7 @@
           "appearances": 9,
           "minutes_per_appearance": 60.44444444444444,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 403,
@@ -12686,7 +12628,7 @@
           "appearances": 28,
           "minutes_per_appearance": 87.5,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 404,
@@ -12698,7 +12640,7 @@
           "appearances": 21,
           "minutes_per_appearance": 89.33333333333333,
           "goals": 1,
-          "assists": 5
+          "assists": null
         },
         {
           "player_id": 405,
@@ -12722,7 +12664,7 @@
           "appearances": 30,
           "minutes_per_appearance": 87.26666666666667,
           "goals": 2,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 407,
@@ -12734,7 +12676,7 @@
           "appearances": 21,
           "minutes_per_appearance": 83.95238095238095,
           "goals": 0,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 408,
@@ -12758,7 +12700,7 @@
           "appearances": 25,
           "minutes_per_appearance": 71.68,
           "goals": 3,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 410,
@@ -12770,7 +12712,7 @@
           "appearances": 31,
           "minutes_per_appearance": 89.03225806451613,
           "goals": 7,
-          "assists": 3
+          "assists": null
         },
         {
           "player_id": 411,
@@ -12794,7 +12736,7 @@
           "appearances": 18,
           "minutes_per_appearance": 60.166666666666664,
           "goals": 1,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 413,
@@ -12806,7 +12748,7 @@
           "appearances": 13,
           "minutes_per_appearance": 50.23076923076923,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 414,
@@ -12818,7 +12760,7 @@
           "appearances": 14,
           "minutes_per_appearance": 70.92857142857143,
           "goals": 0,
-          "assists": 2
+          "assists": null
         },
         {
           "player_id": 415,
@@ -12830,7 +12772,7 @@
           "appearances": 24,
           "minutes_per_appearance": 72.70833333333333,
           "goals": 1,
-          "assists": 4
+          "assists": null
         },
         {
           "player_id": 416,
@@ -12842,7 +12784,7 @@
           "appearances": 21,
           "minutes_per_appearance": 64.71428571428571,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 417,
@@ -12854,7 +12796,7 @@
           "appearances": 15,
           "minutes_per_appearance": 66.86666666666666,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 418,
@@ -12866,12 +12808,12 @@
           "appearances": 26,
           "minutes_per_appearance": 66.76923076923077,
           "goals": 2,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 419,
           "name": "N. Boujellab",
-          "position": null,
+          "position": "Attacker",
           "nationality": "Morocco",
           "birth_date": "1999-06-20",
           "photo": "https://media.api-sports.io/football/players/419.png",
@@ -12890,7 +12832,7 @@
           "appearances": 24,
           "minutes_per_appearance": 63.666666666666664,
           "goals": 4,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 421,
@@ -12914,7 +12856,7 @@
           "appearances": 13,
           "minutes_per_appearance": 32.23076923076923,
           "goals": 2,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 423,
@@ -12938,7 +12880,7 @@
           "appearances": 12,
           "minutes_per_appearance": 55.416666666666664,
           "goals": 3,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 425,
@@ -12950,7 +12892,7 @@
           "appearances": 5,
           "minutes_per_appearance": 32.0,
           "goals": 0,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 426,
@@ -12962,7 +12904,7 @@
           "appearances": 20,
           "minutes_per_appearance": 70.4,
           "goals": 2,
-          "assists": 1
+          "assists": null
         },
         {
           "player_id": 427,
@@ -12974,7 +12916,7 @@
           "appearances": 7,
           "minutes_per_appearance": 28.857142857142858,
           "goals": 1,
-          "assists": 0
+          "assists": null
         },
         {
           "player_id": 21996,
@@ -13041,11 +12983,11 @@
         {
           "metric_key": "blocks_per_match",
           "metric_value": 3.5,
-          "rank": 5,
-          "team_count": 18,
+          "rank": 4,
+          "team_count": 16,
           "league_median": 3.1470588235294117,
           "league_p25": 2.823529411764706,
-          "league_p75": 3.5,
+          "league_p75": 3.4444444444444446,
           "vs_median_delta": 0.3529411764705883
         },
         {
@@ -13081,42 +13023,42 @@
         {
           "metric_key": "defensive_actions_per_match",
           "metric_value": 27.0,
-          "rank": 3,
-          "team_count": 18,
+          "rank": 2,
+          "team_count": 16,
           "league_median": 25.0,
           "league_p25": 24.205882352941178,
-          "league_p75": 25.970588235294116,
+          "league_p75": 25.52777777777778,
           "vs_median_delta": 2.0
         },
         {
           "metric_key": "duels_per_match",
           "metric_value": 115.88235294117646,
-          "rank": 4,
-          "team_count": 18,
+          "rank": 3,
+          "team_count": 16,
           "league_median": 108.70588235294117,
-          "league_p25": 105.8529411764706,
-          "league_p75": 111.1470588235294,
+          "league_p25": 105.61764705882354,
+          "league_p75": 110.91176470588235,
           "vs_median_delta": 7.17647058823529
         },
         {
           "metric_key": "duels_won_pct",
           "metric_value": 0.5038071065989848,
-          "rank": 8,
-          "team_count": 18,
+          "rank": 7,
+          "team_count": 16,
           "league_median": 0.4994547437295529,
-          "league_p25": 0.48707974437343704,
-          "league_p75": 0.5166912125675013,
+          "league_p25": 0.4873294346978557,
+          "league_p75": 0.5057867520315193,
           "vs_median_delta": 0.004352362869431858
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.2196969696969697,
-          "rank": 17,
+          "metric_value": 0.22727272727272727,
+          "rank": 16,
           "team_count": 18,
-          "league_median": 0.2847682119205298,
-          "league_p25": 0.25153374233128833,
-          "league_p75": 0.32075471698113206,
-          "vs_median_delta": -0.06507124222356012
+          "league_median": 0.28,
+          "league_p25": 0.2619047619047619,
+          "league_p75": 0.3229571984435798,
+          "vs_median_delta": -0.05272727272727276
         },
         {
           "metric_key": "goals_against_per_match",
@@ -13141,11 +13083,11 @@
         {
           "metric_key": "interceptions_per_match",
           "metric_value": 12.294117647058824,
-          "rank": 4,
-          "team_count": 18,
+          "rank": 3,
+          "team_count": 16,
           "league_median": 11.666666666666666,
           "league_p25": 10.588235294117647,
-          "league_p75": 12.294117647058824,
+          "league_p75": 12.264705882352942,
           "vs_median_delta": 0.6274509803921582
         },
         {
@@ -13161,11 +13103,11 @@
         {
           "metric_key": "passes_key_per_match",
           "metric_value": 9.088235294117647,
-          "rank": 13,
-          "team_count": 18,
+          "rank": 12,
+          "team_count": 16,
           "league_median": 9.411764705882353,
           "league_p25": 9.058823529411764,
-          "league_p75": 10.794117647058824,
+          "league_p75": 10.411764705882353,
           "vs_median_delta": -0.3235294117647065
         },
         {
@@ -13242,9 +13184,9 @@
           "metric_key": "tackles_per_match",
           "metric_value": 11.205882352941176,
           "rank": 3,
-          "team_count": 18,
+          "team_count": 16,
           "league_median": 10.352941176470589,
-          "league_p25": 10.0,
+          "league_p25": 10.029411764705882,
           "league_p75": 10.970588235294118,
           "vs_median_delta": 0.852941176470587
         }
@@ -13275,21 +13217,21 @@
       "goals_against_per_match": 1.088235294117647,
       "shots_per_match": 11.941176470588236,
       "shots_on_goal_pct": 0.4088669950738916,
-      "shots_inside_box_pct": 0.6428571428571429,
-      "finishing_efficiency_pct": 0.25301204819277107,
+      "shots_inside_box_pct": 0.6354679802955665,
+      "finishing_efficiency_pct": 0.24096385542168675,
       "passes_accuracy_pct": 0.7903770399549803,
       "passes_per_match": 418.11764705882354,
       "corners_per_match": 4.117647058823529,
       "corners_against_per_match": 3.911764705882353,
-      "saves_pct": 0.7153846153846154,
+      "saves_pct": 0.7209302325581395,
       "player_stat_coverage_season_games": 34,
       "shots_on_goal_per_match": 4.882352941176471,
       "shots_on_goal_against_per_match": 3.9411764705882355,
       "shots_on_goal_difference_per_match": 0.9411764705882353,
-      "passes_key_per_match": 9.352941176470589,
+      "passes_key_per_match": 9.323529411764707,
       "duels_per_match": 122.02941176470588,
       "duels_won_pct": 0.5054229934924078,
-      "defensive_actions_per_match": 18.705882352941178,
+      "defensive_actions_per_match": null,
       "shots_share_pct": 0.5185185185185185,
       "points_capture_pct": 0.6176470588235294,
       "yoy_games_played_cutoff": null,
@@ -13358,6 +13300,7 @@
       "deserved_points": 54.62481591974916,
       "deserved_rank": 4,
       "deserved_points_gap": 8.37518408025084,
+      "deserved_points_gap_rank": 17,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -13733,7 +13676,7 @@
         {
           "player_id": 26218,
           "name": "L. Hemmerich",
-          "position": null,
+          "position": "Defender",
           "nationality": "Germany",
           "birth_date": "1998-02-09",
           "photo": "https://media.api-sports.io/football/players/26218.png",
@@ -13829,16 +13772,6 @@
       ],
       "benchmarks": [
         {
-          "metric_key": "blocks_per_match",
-          "metric_value": 0.5294117647058824,
-          "rank": 13,
-          "team_count": 18,
-          "league_median": 0.5882352941176471,
-          "league_p25": 0.5,
-          "league_p75": 0.6470588235294118,
-          "vs_median_delta": -0.05882352941176472
-        },
-        {
           "metric_key": "clean_sheets_pct",
           "metric_value": 0.38235294117647056,
           "rank": 2,
@@ -13869,16 +13802,6 @@
           "vs_median_delta": -0.5294117647058831
         },
         {
-          "metric_key": "defensive_actions_per_match",
-          "metric_value": 18.705882352941178,
-          "rank": 1,
-          "team_count": 18,
-          "league_median": 14.941176470588236,
-          "league_p25": 14.558823529411764,
-          "league_p75": 15.470588235294118,
-          "vs_median_delta": 3.764705882352942
-        },
-        {
           "metric_key": "duels_per_match",
           "metric_value": 122.02941176470588,
           "rank": 5,
@@ -13900,13 +13823,13 @@
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.25301204819277107,
-          "rank": 13,
+          "metric_value": 0.24096385542168675,
+          "rank": 14,
           "team_count": 18,
-          "league_median": 0.27586206896551724,
-          "league_p25": 0.25157232704402516,
-          "league_p75": 0.29120879120879123,
-          "vs_median_delta": -0.02285002077274617
+          "league_median": 0.27419354838709675,
+          "league_p25": 0.24096385542168675,
+          "league_p75": 0.29411764705882354,
+          "vs_median_delta": -0.03322969296541001
         },
         {
           "metric_key": "goals_against_per_match",
@@ -13950,10 +13873,10 @@
         },
         {
           "metric_key": "passes_key_per_match",
-          "metric_value": 9.352941176470589,
-          "rank": 9,
+          "metric_value": 9.323529411764707,
+          "rank": 10,
           "team_count": 18,
-          "league_median": 9.352941176470589,
+          "league_median": 9.323529411764707,
           "league_p25": 8.117647058823529,
           "league_p75": 10.970588235294118,
           "vs_median_delta": 0.0
@@ -13970,23 +13893,23 @@
         },
         {
           "metric_key": "saves_pct",
-          "metric_value": 0.7153846153846154,
+          "metric_value": 0.7209302325581395,
           "rank": 5,
           "team_count": 18,
           "league_median": 0.6907894736842105,
           "league_p25": 0.6585365853658537,
-          "league_p75": 0.7153846153846154,
-          "vs_median_delta": 0.024595141700404888
+          "league_p75": 0.7209302325581395,
+          "vs_median_delta": 0.030140758873928974
         },
         {
           "metric_key": "shots_inside_box_pct",
-          "metric_value": 0.6428571428571429,
+          "metric_value": 0.6354679802955665,
           "rank": 5,
           "team_count": 18,
-          "league_median": 0.6221198156682027,
-          "league_p25": 0.5989583333333334,
-          "league_p75": 0.6428571428571429,
-          "vs_median_delta": 0.02073732718894017
+          "league_median": 0.6175115207373272,
+          "league_p25": 0.5949656750572082,
+          "league_p75": 0.6354679802955665,
+          "vs_median_delta": 0.017956459558239324
         },
         {
           "metric_key": "shots_on_goal_against_per_match",
@@ -14037,16 +13960,6 @@
           "league_p25": 11.411764705882353,
           "league_p75": 14.0,
           "vs_median_delta": -0.26470588235294024
-        },
-        {
-          "metric_key": "tackles_per_match",
-          "metric_value": 3.5294117647058822,
-          "rank": 1,
-          "team_count": 18,
-          "league_median": 2.8529411764705883,
-          "league_p25": 2.676470588235294,
-          "league_p75": 3.235294117647059,
-          "vs_median_delta": 0.6764705882352939
         }
       ],
       "deserved_scatter": [
@@ -14186,7 +14099,7 @@
       "shots_per_match": 13.029411764705882,
       "shots_on_goal_pct": 0.309255079006772,
       "shots_inside_box_pct": 0.6523702031602708,
-      "finishing_efficiency_pct": 0.30656934306569344,
+      "finishing_efficiency_pct": 0.31386861313868614,
       "passes_accuracy_pct": 0.7921230925093395,
       "passes_per_match": 464.5,
       "corners_per_match": 4.705882352941177,
@@ -14268,6 +14181,7 @@
       "deserved_points": null,
       "deserved_rank": null,
       "deserved_points_gap": null,
+      "deserved_points_gap_rank": null,
       "is_featured_season": false,
       "next_fixture": null,
       "recent_results": [
@@ -14381,13 +14295,13 @@
         },
         {
           "metric_key": "finishing_efficiency_pct",
-          "metric_value": 0.30656934306569344,
+          "metric_value": 0.31386861313868614,
           "rank": 7,
           "team_count": 18,
           "league_median": 0.2831858407079646,
-          "league_p25": 0.24603174603174602,
-          "league_p75": 0.3251231527093596,
-          "vs_median_delta": 0.023383502357728847
+          "league_p25": 0.2482758620689655,
+          "league_p75": 0.3259668508287293,
+          "vs_median_delta": 0.03068277243072154
         },
         {
           "metric_key": "goals_against_per_match",
@@ -14454,10 +14368,10 @@
           "metric_value": 0.6523702031602708,
           "rank": 4,
           "team_count": 18,
-          "league_median": 0.6069364161849711,
-          "league_p25": 0.5833333333333334,
+          "league_median": 0.6040462427745664,
+          "league_p25": 0.5787037037037037,
           "league_p75": 0.6445623342175066,
-          "vs_median_delta": 0.04543378697529976
+          "vs_median_delta": 0.04832396038570441
         },
         {
           "metric_key": "shots_on_goal_against_per_match",

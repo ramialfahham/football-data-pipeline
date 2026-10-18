@@ -14,33 +14,20 @@ That trap sprang once inside this branch's own life. The allowlist in `.gitignor
 `site_v2/src/data/**` block — is the authoritative list of what is tracked. (It is cited by block
 rather than by line range: the range written here was `249-270`, and it had already rotted.)
 
-Tracked today (count with `git ls-files site_v2/src/data`; the number written here has been wrong before): the
-five root files below, the Bundesliga competition payload, 58 day payloads of the Matches page,
-628 fixture payloads, 36 team payloads.
+Count what is tracked with `git ls-files site_v2/src/data`. Today: the five root files below, the
+Bundesliga competition payload, 50 Matches page days, 548 fixture payloads and 34 team payloads.
 
 - `competition_index.json` — the competitions index page's payload (#62 step 5), produced
   verbatim by `python scripts/export_site_data.py --entities competition_index`. All **48**
   browsable rows from `mart_competition_index` — small enough to commit whole rather than sample.
   Refreshed the same way as the others below: rerun the export, replace the file, in one commit.
 - `fixtures/*.json` — real exported fixtures, produced verbatim by
-  `python scripts/export_site_data.py --entities fixtures`. Two sets: the **4** matches
-  `landing.json` links to (the **2026-09-01** matchday, 4 fixtures across 3 competitions:
-  `CIT` ×2, `DFBP`, `SPL`), and the **624** every unplayed row of a committed page links to: each
-  day of the Matches page and the Bundesliga sample's Matchdays tab, because the build refuses a
-  link to a page it did not emit. Refresh the second set together with `matches/*.json` and
-  `competitions/BL1/2026.json`, from one export, and regenerate its `.gitignore` patterns.
-  ⭐ **A deliberately thin set**: the sample is a BUILD INPUT, not a display. What matters is
-  whether it still exercises the components, which was MEASURED before committing to it, not hoped:
-    · **both competition shapes** — 3 `domestic_cup` + 1 `domestic_league`, so the standings block
-      renders on the league tie and the no-table path on the cups;
-    · **all three form paths** — fully populated (`1628894`, `1629056`), present-but-NULL where a
-      side has no player-stat coverage (`1603007` away), and an entirely ABSENT window
-      (`1550704` home — HEBC, an amateur cup side with no prior form);
-    · **the row-omission path** — on `1550704` the Defending group has data on neither side, so
-      `Ø Defensive actions` and its single-row group heading are correctly not rendered. That
-      fixture shows **15 rows / 6 groups**; the other three show the full **16 / 7**.
-  ⚠ The outgoing 2026-08-28 set showed why this must be replaced rather than refreshed: it was four
-  days past, and its payloads pre-dated four mart columns, so the comparison rendered 12 of 16 rows.
+  `python scripts/export_site_data.py --entities fixtures`. The **537** every unplayed row of a
+  committed page links to: each day of the Matches page, the Bundesliga sample's Matchdays tab and
+  Home's Next matches, because the build refuses a link to a page it did not emit. Refresh them
+  together with `matches/*.json`, `competitions/BL1/2026.json` and `landing.json`, from one
+  export, and regenerate the `.gitignore` patterns. The **11** played fixtures are the played
+  match page's samples and are not part of that refresh.
   ⛔ **A PAST FIXTURE CAN NEVER BE RE-EXPORTED, so this set is REPLACED and never appended to**.
   `fetch_fixture_payloads` selects `status_short in ('NS', 'TBD') and fixture_date >=
   current_date()`. Once a match kicks off, its pre-match form rows leave
@@ -49,21 +36,17 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
   pins a payload that no rerun can ever update — which is exactly how the previous set came to
   serve column names that had been renamed two merge requests earlier.
 - `matches/*.json` — the Matches page's days (#160), one file per day in reach, produced verbatim
-  by `python scripts/export_site_data.py --entities matches` from `mart_match_days`: 58 days, 32
+  by `python scripts/export_site_data.py --entities matches` from `mart_match_days`: 50 days, 31
   competitions. The file flagged `is_opening_day` is the page at `/{locale}/{matches word}/`; every
   other day has its own dated page. Days drop off as rounds are played, so the whole directory is
   replaced on a refresh, never appended to.
-- `teams/*.json` — **1** real exported team, `33` (Manchester United), the team-page sample. Six
-  more were tracked until 2026-08-08; they existed only because the landing's trending rows linked
-  to them, and that block was cut. No page on the site links to a team page today.
+- `teams/*.json` — **34** real exported teams: `33` (Manchester United), the team-page sample; the
+  teams the Home Top teams boards link to; the clubs of the Bundesliga sample's table.
 - `competitions/BL1/2026.json` — the one competition payload, the Bundesliga 2026/27 season, all
   three tabs of the competition page in one file (`standings`, `deserved`, `summary`, `fixtures`,
   `team_boards`, `player_boards`), produced verbatim by
-  `python scripts/export_site_data.py --entities competitions`. Refreshed 2026-09-22 with four
-  matchdays played; every unplayed row of its Matchdays tab has its match payload in the
-  `fixtures/` allowlist above. ⚠ The marts the two board keys read (`mart_team_leaderboards`,
-  `mart_leaderboards`, and the card totals under them) reach prod with the merge of #151 and its
-  first nightly; until then a plain rerun of the export against prod cannot reproduce the file.
+  `python scripts/export_site_data.py --entities competitions`, with five matchdays played. Every
+  unplayed row of its Matchdays tab has its match payload in the `fixtures/` allowlist above.
 - `competitions.json` — `league_code → { name, slug }` for all **48** registry entries (the
   registry's authored slug; the frontend never generates slugs).
 - `metric_groups.json` — the metric groups (key and order, one row per group) as the catalogue
@@ -80,23 +63,12 @@ five root files below, the Bundesliga competition payload, 58 day payloads of th
   `python scripts/export_site_data.py --entities landing` (#367). ⚠ It is NOT hand-reduced, and this
   line used to say it was — `shape_landing_payload` returns only the keys the built blocks need, so
   there is nothing left to trim, and the instruction three paragraphs down is never hand-edit a
-  payload. Real export output, not a fixture: **4** upcoming matches across **3**
-  competitions, the 2026-09-01 matchday — the same 4 the `fixtures/` allowlist pins, which is what
-  makes the set self-consistent.
-  The `trending` key it carried earlier is gone with the block (2026-08-08), as is the `stats`
-  key removed the same day, and the `browse` key ("the full registry browse axes") removed
-  2026-08-19 with the Browse block. `landing.json` today carries `type`, `upcoming` and
-  `top_players`.
-  ⚠ **IT CARRIES TWO SNAPSHOT DATES, on purpose (#40 MR B, 2026-09-08).** `upcoming` is still the
-  2026-09-01 matchday; `top_players` is the 2026-09-08 export. Both halves are real export output,
-  spliced with the export's own `_payload_bytes` so the bytes are what a single run would have
-  written — nothing is hand-typed. The reason is the set rule above: a wholesale rerun moves
-  `upcoming` to whatever matchday is next, and on 2026-09-08 that was **49 fixtures across 7
-  competitions** against the committed **4 across 3**, so refreshing the whole file to add one key
-  would have grown the tracked sample twelvefold. Rolling the set forward is the maintenance below;
-  it is not something a block should do on its way past. **`top_players` has no such coupling** —
-  the player pages it links to are generated FROM this file (`pages/[lang]/players/[player].astro`),
-  so that half is self-consistent whenever it is regenerated.
+  payload. Real export output of one run: `type`, `upcoming` (**285** matches across **31**
+  competitions, each competition's next matchday), `top_players` and `top_teams`.
+  Every Next matches row is a match of a committed Matches page day, so its payload is in the
+  `fixtures/` allowlist. Every team the Top teams boards link to is in the `teams/` allowlist. The player
+  pages the Top players boards link to are generated FROM this file
+  (`pages/[lang]/players/[player].astro`).
 
 ## Refreshing the sample
 
@@ -116,12 +88,12 @@ sample does not move.
 
 The full recipe, in order:
 
-1. `PYTHONPATH=. python scripts/export_site_data.py --entities teams,fixtures --out site_v2/src/data`
-   from the repo root. Never hand-edit a payload.
-2. `... --entities landing --out site_v2/src/data` to move the set's definition forward.
-3. Rewrite the `.gitignore` fixture allowlist to exactly the ids the new `landing.json` links —
-   **replacing** the old entries, never appending, since a stale id pins a payload no rerun can
-   ever update.
+1. `PYTHONPATH=. python scripts/export_site_data.py --entities landing,teams,fixtures,matches,competitions --out <a scratch folder>`
+   from the repo root, one run. Never hand-edit a payload.
+2. Copy in `landing.json`, every `matches/*.json` day, `competitions/BL1/2026.json`, the fixture
+   payload of every unplayed row of those files, and the tracked teams.
+3. Rewrite the `.gitignore` fixture allowlist to exactly those fixture ids. **Replace** the old
+   entries, never append: a stale id pins a payload no rerun can ever update.
 4. `git rm` the payloads that left the set.
 5. Drop the ignored bulk before building (`git clean -fX site_v2/src/data`): a full export leaves
    thousands of payloads, `astro build` OOMs at that scale, and a local build resolves links that

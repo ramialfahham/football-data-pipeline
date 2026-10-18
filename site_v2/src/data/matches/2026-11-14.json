@@ -1,0 +1,113 @@
+{
+  "type": "match_day",
+  "slug": "2026-11-14",
+  "day": "2026-11-14",
+  "is_opening_day": false,
+  "previous_day": "2026-11-13",
+  "next_day": "2026-11-17",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1644693,
+          "slug": "2026-11-14-haiti-vs-usa",
+          "kickoff": "2026-11-14 21:00:00+00:00",
+          "round": "Quarter-finals",
+          "round_order": null,
+          "round_sequence": 10,
+          "fixture_order": 94,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 2386,
+            "name": "Haiti",
+            "slug": "haiti",
+            "crest": "https://media.api-sports.io/football/teams/2386.png"
+          },
+          "away": {
+            "team_id": 2384,
+            "name": "USA",
+            "slug": "usa",
+            "crest": "https://media.api-sports.io/football/teams/2384.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    },
+    {
+      "league_code": "UNL",
+      "name": "UEFA Nations League",
+      "slug": "nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/5.png",
+      "entity_type": "national",
+      "confederation": "UEFA",
+      "region_rank": 1,
+      "fixtures": [
+        {
+          "fixture_id": 1528972,
+          "slug": "2026-11-14-norway-vs-wales",
+          "kickoff": "2026-11-14 17:00:00+00:00",
+          "round": "League A - 5",
+          "round_order": 5,
+          "round_sequence": 17,
+          "fixture_order": 111,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 1090,
+            "name": "Norway",
+            "slug": "norway",
+            "crest": "https://media.api-sports.io/football/teams/1090.png"
+          },
+          "away": {
+            "team_id": 767,
+            "name": "Wales",
+            "slug": "wales",
+            "crest": "https://media.api-sports.io/football/teams/767.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        },
+        {
+          "fixture_id": 1528974,
+          "slug": "2026-11-14-portugal-vs-denmark",
+          "kickoff": "2026-11-14 19:45:00+00:00",
+          "round": "League A - 5",
+          "round_order": 5,
+          "round_sequence": 17,
+          "fixture_order": 112,
+          "status": "NS",
+          "is_played": false,
+          "goals_home": null,
+          "goals_away": null,
+          "home": {
+            "team_id": 27,
+            "name": "Portugal",
+            "slug": "portugal",
+            "crest": "https://media.api-sports.io/football/teams/27.png"
+          },
+          "away": {
+            "team_id": 21,
+            "name": "Denmark",
+            "slug": "denmark",
+            "crest": "https://media.api-sports.io/football/teams/21.png"
+          },
+          "is_next_round": true,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

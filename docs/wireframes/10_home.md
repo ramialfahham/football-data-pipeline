@@ -761,14 +761,10 @@ person reading them knows they describe 2026-06, not the page.
 ### (1) Fixtures hero — `upcoming[]`
 
 `upcoming[]` is a list of competition groups, each `{league_code, league_name, competition_slug,
-region_rank, season, fixtures[]}`.
+crest, season, fixtures[]}`.
 
-⚠ **The payload's group order is NOT the display order.** It is first-appearance (a deterministic
-export diff); the page applies the site-wide ordering key at render time —
-`site_v2/src/lib/competitionOrder.mjs`, the same function the competitions index uses (CPO
-2026-08-18: one shared rule). The key: has-an-upcoming-fixture → **calendar day** → `region_rank`
-→ kickoff time → `league_code`. `region_rank` is served from `mart_competition_index`, never
-derived in the export or the frontend.
+The payload's group order is the display order, served by `mart_next_matchday.competition_order`:
+calendar day → `region_rank` → kick-off time → `league_code`.
 
 Because **day precedes region**, a competition playing earlier always outranks one playing later;
 region only breaks same-day ties. That is what stops a 10:15 kickoff outranking a 19:00 one, which

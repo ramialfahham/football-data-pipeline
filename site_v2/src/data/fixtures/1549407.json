@@ -8,14 +8,16 @@
   "league_name": "AFC Asian Cup",
   "season": 2027,
   "round": "Group Stage - 1",
+  "round_order": 1,
+  "is_next_round": true,
   "venue": null,
   "home": {
     "team_id": 17,
     "name": "South Korea",
+    "slug": "south-korea",
     "crest": "https://media.api-sports.io/football/teams/17.png",
     "country": "South Korea",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": null,
       "is_knockout": false,
@@ -26,15 +28,16 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "away": {
     "team_id": 1550,
     "name": "Yemen",
+    "slug": "yemen",
     "crest": "https://media.api-sports.io/football/teams/1550.png",
     "country": "Yemen",
-    "w1": null,
-    "w2": null,
+    "form": null,
     "standing": {
       "group_name": "Groups - Group E",
       "is_knockout": false,
@@ -45,7 +48,8 @@
       "standing_form": null
     },
     "form_window": [],
-    "top_players": []
+    "top_players": [],
+    "next_match": null
   },
   "head_to_head": null
 }

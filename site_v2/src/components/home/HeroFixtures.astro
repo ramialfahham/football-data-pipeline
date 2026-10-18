@@ -1,32 +1,20 @@
 ---
-// Landing module 1 — the fixtures hero (10_home.md §5(1)).
+// Next matches, Home's first block: every competition's next matchday, in the order the warehouse
+// serves (mart_next_matchday.competition_order). Each competition sits under its group head
+// (crest · name · chevron, the 2px line), then its matches as THE match row: a date heading
+// wherever the day changes, the kick-off with its zone, the Top match tag on the flagged match.
+// The first three matches show, the rest sit under "Show all {n}" in a native <details>, so every
+// match is in the HTML and none needs a script to reach.
 //
-// THE NEXT MATCHDAY — each competition's next round, every upcoming fixture of it — grouped by
-// competition. The SELECTION and the grouping are the export's (GitLab #127). ⚠ This component
-// DOES sort: the group order is applied here with the site-wide ordering key, not served. See the
-// frontmatter below. It also FOLDS: the first three rows of a group show, the rest sit inside a
-// native <details>, so every fixture is in the HTML and none needs a script to reach.
-//
-// LAYOUT, per the review of the first rendered version: the two teams STACK, each with its
-// crest, and the kickoff sits in its own right-hand column. The first version put "A vs B" on one
-// line with no crest, which read as a spreadsheet and made the team names hard to pick out.
-// Crests are the primary recognition cue in a fixture list, so their absence was the bigger half.
-//
-// NO ROUND. An earlier version of this showed it once per group heading, which removed the
-// repetition but shipped `fixture.round` — the provider's raw English string — to all three
-// locales on the FRONT DOOR. Verified from the built output: de, en and fi all rendered
-// "Regular Season - 18", "3rd Qualifying Round". That is #866, which is open and states the fix
-// cannot live in the frontend: turning "Regular Season - 18" into a phase concept plus a number
-// is taxonomy mapping, which the consumption layer forbids. So this page would have become a
-// fourth surface for that defect, and the most visible one. The round stays on the fixture page
-// (already listed in #866) until the warehouse serves a localisable phase.
-import FixtureRow from "./FixtureRow.astro";
+// No round on the row: the provider's round name is English in every locale.
 import SectionHead from "../ui/SectionHead.astro";
+import MatchRow from "../ui/MatchRow.astro";
+import Crest from "../ui/Crest.astro";
 import type { Lang } from "../../lib/format";
+import { formatDate } from "../../lib/format";
 import { t } from "../../i18n/strings";
 import { localeHref } from "../../lib/href";
-import { orderUpcomingGroups } from "../../lib/competitionOrder";
-import type { LandingUpcomingGroup } from "../../lib/types";
+import type { CompetitionFixture, LandingUpcomingGroup } from "../../lib/types";
 
 interface Props {
   groups: LandingUpcomingGroup[];
@@ -34,60 +22,58 @@ interface Props {
 }
 const { groups, lang } = Astro.props;
 
-// ⚠ ORDER IS APPLIED HERE, not served. The payload's group order is first-appearance (a
-// deterministic export diff); the display order is the site-wide key, shared with the competitions
-// page so the two cannot drift (one shared rule). Day first, then region_rank — which is what stops
-// a 10:15 kickoff outranking a 19:00 one on the same day.
-const ordered = orderUpcomingGroups(groups);
-
-// Rows shown before the fold, per competition (GitLab #127: "3 visible, the rest folded"). The
-// served list is kickoff-ordered, so the first three are the earliest kickoffs.
 const VISIBLE_ROWS = 3;
+
+const dayOf = (fx: CompetitionFixture) => (fx.kickoff ? fx.kickoff.slice(0, 10) : null);
+const opensDay = (fixtures: CompetitionFixture[], i: number) =>
+  i === 0 || dayOf(fixtures[i]) !== dayOf(fixtures[i - 1]);
 ---
 
 <section>
   <SectionHead label={t(lang, "homeNext")} />
 
-  {ordered.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
+  {groups.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
 
-  {ordered.map((group) => (
-    <div class="fxgroup">
-      {/* HEADING LINK — a section heading leads to what the section is about
-          (site_architecture.md §3 "Navigation"; #52). The chevron is present AT REST, because a
-          hover-only affordance does not exist on a phone.
-          ⚠ It was plain text for a reason that no longer holds: the competition
-          hub did not exist, so linking it would have emitted a guaranteed 404 on every home page.
-          The hub now ships as a scaffold, so the link is real.
-          Falls back to plain text when the payload carries no slug — a competition we cannot
-          address is not a competition we may pretend to link. The same guard the rows below use. */}
-      <div class="gh">
-        {group.competition_slug ? (
-          <a class="cnm" href={localeHref(lang, `${group.competition_slug}/`)}>
+  {groups.map((group) => {
+    const rows = (from: number, to?: number) =>
+      group.fixtures.slice(from, to).map((fx, j) => (
+        <>
+          {opensDay(group.fixtures, from + j) && <div class="dh">{formatDate(fx.kickoff, lang)}</div>}
+          <MatchRow fx={fx} competitionSlug={group.competition_slug ?? null} lang={lang} topMatch={fx.is_match_that_matters} />
+        </>
+      ));
+    return (
+      <div class="fxgroup">
+        <div class="gh">
+          {group.competition_slug ? (
+            <a class="cnm" href={localeHref(lang, `${group.competition_slug}/`)}>
+              <span class="clogo"><Crest name={group.league_name ?? group.league_code} crest={group.crest} size="xs" /></span>
+              <span class="nm">{group.league_name ?? group.league_code}</span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </a>
+          ) : (
             <span class="nm">{group.league_name ?? group.league_code}</span>
-            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
-                    stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-          </a>
-        ) : (
-          <span class="nm">{group.league_name ?? group.league_code}</span>
+          )}
+        </div>
+
+        {rows(0, VISIBLE_ROWS)}
+
+        {group.fixtures.length > VISIBLE_ROWS && (
+          <details class="fxmore">
+            <summary>
+              <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+                      stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+            </summary>
+            {rows(VISIBLE_ROWS)}
+          </details>
         )}
       </div>
-
-      {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <FixtureRow fx={fx} competitionSlug={group.competition_slug} lang={lang} />)}
-
-      {group.fixtures.length > VISIBLE_ROWS && (
-        <details class="fxmore">
-          <summary>
-            <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
-            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
-                    stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-          </summary>
-          {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <FixtureRow fx={fx} competitionSlug={group.competition_slug} lang={lang} />)}
-        </details>
-      )}
-    </div>
-  ))}
+    );
+  })}
 </section>

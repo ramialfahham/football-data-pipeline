@@ -1,0 +1,48 @@
+{
+  "type": "match_day",
+  "slug": "2026-09-30",
+  "day": "2026-09-30",
+  "is_opening_day": false,
+  "previous_day": "2026-09-29",
+  "next_day": "2026-10-03",
+  "competitions": [
+    {
+      "league_code": "CNL",
+      "name": "CONCACAF Nations League",
+      "slug": "concacaf-nations-league",
+      "crest": "https://media.api-sports.io/football/leagues/536.png",
+      "entity_type": "national",
+      "confederation": "CONCACAF",
+      "region_rank": 4,
+      "fixtures": [
+        {
+          "fixture_id": 1639966,
+          "slug": "2026-09-30-belize-vs-st-vincent-grenadines",
+          "kickoff": "2026-09-30 02:00:00+00:00",
+          "round": "League B - 4",
+          "round_order": 4,
+          "round_sequence": 9,
+          "fixture_order": 82,
+          "status": "FT",
+          "is_played": true,
+          "goals_home": 0,
+          "goals_away": 1,
+          "home": {
+            "team_id": 5528,
+            "name": "Belize",
+            "slug": "belize",
+            "crest": "https://media.api-sports.io/football/teams/5528.png"
+          },
+          "away": {
+            "team_id": 5541,
+            "name": "St. Vincent / Grenadines",
+            "slug": "st-vincent-grenadines",
+            "crest": "https://media.api-sports.io/football/teams/5541.png"
+          },
+          "is_next_round": false,
+          "is_match_that_matters": false
+        }
+      ]
+    }
+  ]
+}

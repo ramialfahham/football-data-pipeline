@@ -27,109 +27,110 @@ from scripts.export_site_data import (
 )
 
 _META = {
-    "BSA": {"name": "Brasileirão Série A", "slug": "brasileirao-serie-a", "sort_order": 30},
-    "MLS": {"name": "Major League Soccer", "slug": "mls", "sort_order": 20},
-    "BL1": {"name": "Bundesliga", "slug": "bundesliga", "sort_order": 10},
-}
-
-_TEAMS = {
-    1: {"team_sk": 1, "team_name": "Palmeiras", "team_slug": "palmeiras",
-        "team_logo_url": "https://x/1.png"},
-    2: {"team_sk": 2, "team_name": "Flamengo", "team_slug": "flamengo",
-        "team_logo_url": None},
-    3: {"team_sk": 3, "team_name": "Inter Miami", "team_slug": "inter-miami",
-        "team_logo_url": "https://x/3.png"},
+    "BSA": {"name": "Brasileirão Série A", "slug": "brasileirao-serie-a",
+            "crest": "https://x/bsa.png"},
+    "MLS": {"name": "Major League Soccer", "slug": "mls", "crest": None},
+    "BL1": {"name": "Bundesliga", "slug": "bundesliga", "crest": "https://x/bl1.png"},
 }
 
 
-def _fixture(sk, league_code, kickoff, home=1, away=2, season=2026, rnd="Regular Season - 20"):
+def _fixture(sk, league_code, kickoff, season=2026, rnd="Regular Season - 20", order=1,
+             away_crest=None, slug=None, matters=False):
+    """One mart_competition_fixtures row of a next matchday, as the hero's query returns it."""
     return {
         "fixture_sk": sk, "league_code": league_code, "season_api_year": season,
-        "kickoff_datetime": kickoff, "round_name": rnd,
-        "home_team_sk": home, "away_team_sk": away,
+        "round_name": rnd, "round_order": 20, "round_sequence": 20, "fixture_order": order,
+        "kickoff_datetime": kickoff, "status_short": "NS", "is_played": False,
+        "goals_home": None, "goals_away": None,
+        "home_team_sk": 1, "home_team_name": "Palmeiras", "home_team_slug": "palmeiras",
+        "home_team_logo_url": "https://x/1.png",
+        "away_team_sk": 2, "away_team_name": "Flamengo", "away_team_slug": "flamengo",
+        "away_team_logo_url": away_crest,
+        "fixture_slug": slug, "is_next_round": True, "is_match_that_matters": matters,
     }
 
 
 # --------------------------------------------------------------------------- #
 # Fixtures hero
 # --------------------------------------------------------------------------- #
-def test_group_upcoming_fixtures_groups_by_competition_in_kickoff_order():
+def test_group_upcoming_fixtures_keeps_the_served_order():
+    """The rows arrive ordered by competition_order, then fixture_order; the groups and their rows
+    keep that order, whatever the kick-offs say."""
     fixtures = [
-        _fixture(10, "MLS", "2026-08-04T01:00:00Z", home=3, away=1),
         _fixture(11, "BSA", "2026-08-04T23:00:00Z"),
-        _fixture(12, "MLS", "2026-08-05T01:00:00Z", home=1, away=3),
+        _fixture(10, "MLS", "2026-08-04T01:00:00Z", order=1),
+        _fixture(12, "MLS", "2026-08-05T01:00:00Z", order=2),
     ]
-    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META)
+    groups = group_upcoming_fixtures(fixtures, _META)
 
-    # group order follows the EARLIEST kickoff, which is first-appearance order
-    assert [g["league_code"] for g in groups] == ["MLS", "BSA"]
-    assert [f["fixture_id"] for f in groups[0]["fixtures"]] == [10, 12]
-    assert groups[0]["league_name"] == "Major League Soccer"
-    assert groups[0]["competition_slug"] == "mls"
+    assert [g["league_code"] for g in groups] == ["BSA", "MLS"]
+    assert [f["fixture_id"] for f in groups[1]["fixtures"]] == [10, 12]
+    assert groups[1]["league_name"] == "Major League Soccer"
+    assert groups[1]["competition_slug"] == "mls"
+
+
+def test_group_upcoming_fixtures_carries_the_shared_match_row_shape():
+    """Each fixture is the shape the site's one match row renders on every other page."""
+    row = _fixture(10, "BSA", "2026-08-04T23:00:00Z", matters=True)
+    fx = group_upcoming_fixtures([row], _META)[0]["fixtures"][0]
+    assert fx == export_site_data._competition_fixture(row)
+    assert fx["status"] == "NS"
+    assert fx["is_match_that_matters"] is True
+
+
+def test_group_upcoming_fixtures_carries_the_served_competition_crest():
+    groups = group_upcoming_fixtures(
+        [_fixture(10, "BSA", "2026-08-04T23:00:00Z"), _fixture(11, "MLS", "2026-08-05T01:00:00Z")],
+        _META,
+    )
+    assert {g["league_code"]: g["crest"] for g in groups} == {
+        "BSA": "https://x/bsa.png", "MLS": None,
+    }
 
 
 def test_group_upcoming_fixtures_caps_nothing():
-    """⚠ INVERTED. This test asserted the opposite — that the helper capped at a `limit` —
-    and that cap is retired: the page shows what there is, never a fixed count. The `limit`
-    parameter is gone, so the old assertion
-    could not merely be relaxed; keeping the case and flipping its expectation is what pins the
-    new behaviour at the same spot the old one guarded.
-
-    WHICH day is shown is no longer decided here either — it is a WHERE clause in
-    `fetch_landing_payload`'s query (GAP-32 records the layer dispute about that placement).
-    """
-    fixtures = [_fixture(i, "BSA", f"2026-08-0{i}T20:00:00Z") for i in range(1, 6)]
-    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META)
+    """The page shows what there is, never a fixed count."""
+    fixtures = [_fixture(i, "BSA", f"2026-08-0{i}T20:00:00Z", order=i) for i in range(1, 6)]
+    groups = group_upcoming_fixtures(fixtures, _META)
     assert sum(len(g["fixtures"]) for g in groups) == 5, "every fixture handed in is grouped"
 
 
 def test_group_upcoming_fixtures_carries_the_served_fixture_slug():
-    """The slug is mart_competition_fixtures' column, joined into the read; nothing here spells
-    a URL from names, so a row without a served slug links nowhere rather than somewhere wrong."""
-    row = _fixture(10, "BSA", "2026-08-04T23:00:00Z")
-    row["fixture_slug"] = "2026-08-04-palmeiras-vs-flamengo"
-    groups = group_upcoming_fixtures([row], _TEAMS, _META)
+    """The slug is mart_competition_fixtures' column; nothing here spells a URL from names, so a
+    row without a served slug links nowhere rather than somewhere wrong."""
+    row = _fixture(10, "BSA", "2026-08-04T23:00:00Z", slug="2026-08-04-palmeiras-vs-flamengo")
+    groups = group_upcoming_fixtures([row], _META)
     assert groups[0]["fixtures"][0]["slug"] == "2026-08-04-palmeiras-vs-flamengo"
-    bare = group_upcoming_fixtures([_fixture(11, "BSA", "2026-08-04T23:00:00Z")], _TEAMS, _META)
+    bare = group_upcoming_fixtures([_fixture(11, "BSA", "2026-08-04T23:00:00Z")], _META)
     assert bare[0]["fixtures"][0]["slug"] is None
 
 
 def test_group_upcoming_fixtures_keeps_a_null_crest_null():
     """A missing crest is a real absence the page renders as a monogram, never a fake URL."""
-    groups = group_upcoming_fixtures(
-        [_fixture(10, "BSA", "2026-08-04T23:00:00Z")], _TEAMS, _META
-    )
+    groups = group_upcoming_fixtures([_fixture(10, "BSA", "2026-08-04T23:00:00Z")], _META)
     assert groups[0]["fixtures"][0]["away"]["crest"] is None
 
 
 def test_group_upcoming_fixtures_omits_a_competition_with_no_fixture_in_the_window():
-    """Acceptance criterion 1: a competition with nothing coming up does not appear at all.
-
-    ⚠ REWORKED. This used `limit=1` to manufacture the "outside the window" case, and
-    that parameter is gone with the retired cap. The property under test is unchanged and still
-    worth pinning — a competition contributing NO fixture must not produce an empty group — so the
-    window is now expressed by simply not handing the helper any BSA fixture, which is what the
-    query's matchday WHERE clause does upstream.
-    """
+    """A competition with nothing coming up does not appear at all, and no group is empty."""
     fixtures = [_fixture(10, "MLS", "2026-08-04T01:00:00Z")]
-    groups = group_upcoming_fixtures(fixtures, _TEAMS, _META)
+    groups = group_upcoming_fixtures(fixtures, _META)
     assert [g["league_code"] for g in groups] == ["MLS"], "BSA is in _META but has no fixture"
     assert all(g["fixtures"] for g in groups), "no group may be emitted empty"
 
 
 def test_group_upcoming_fixtures_handles_an_empty_calendar():
-    assert group_upcoming_fixtures([], _TEAMS, _META) == []
+    assert group_upcoming_fixtures([], _META) == []
 
 
-def test_the_hero_reads_the_next_matchday_mart_whole(monkeypatch):
-    """The window is EACH COMPETITION'S NEXT MATCHDAY, and the WAREHOUSE decides it:
-    mart_next_matchday holds every upcoming fixture of each competition's next round, and the
-    export reads that table whole - no WHERE, no window, no ranking, no second pass in Python.
+def test_the_hero_reads_the_next_matchday_mart_whole_in_the_served_order(monkeypatch):
+    """The window is EACH COMPETITION'S NEXT MATCHDAY and its order is the warehouse's:
+    mart_next_matchday holds every upcoming fixture of each competition's next round with the
+    competitions' order, and the export reads that table whole, ordered by served columns only.
 
-    Offline, so the SQL text is what can be pinned: the read is FROM the mart, and none of the
-    selection vocabulary that used to live here (min(fixture_date), row_number, qualify,
-    current_date, a where) is in it. The rows the fake returns are then carried through
-    unfiltered and grouped by competition.
+    Offline, so the SQL text is what can be pinned: the read is FROM the mart, ordered by
+    competition_order then fixture_order, and none of the selection vocabulary (min(fixture_date),
+    row_number, qualify, current_date, a where) is in it.
     """
     captured: list[str] = []
 
@@ -137,17 +138,16 @@ def test_the_hero_reads_the_next_matchday_mart_whole(monkeypatch):
         captured.append(sql)
         if "mart_next_matchday" in sql:
             return [
-                _fixture(11, "BL1", "2026-09-18T18:30:00Z", rnd="Regular Season - 4"),
-                _fixture(12, "BL1", "2026-09-20T15:30:00Z", rnd="Regular Season - 4"),
-                _fixture(13, "MLS", "2026-09-19T23:00:00Z", home=3, away=1,
-                         rnd="Regular Season - 26"),
+                _fixture(11, "BL1", "2026-09-18T18:30:00Z", rnd="Regular Season - 4", order=1),
+                _fixture(12, "BL1", "2026-09-20T15:30:00Z", rnd="Regular Season - 4", order=2),
+                _fixture(13, "MLS", "2026-09-19T23:00:00Z", rnd="Regular Season - 26"),
             ]
-        if "core.dim_team" in sql:
-            return list(_TEAMS.values())
         return []
 
     monkeypatch.setattr(export_site_data, "_query", fake_query)
     monkeypatch.setattr(export_site_data, "_warehouse_competition_meta", lambda client: {})
+    monkeypatch.setattr(export_site_data, "_competition_page_meta",
+                        lambda client: {"BL1": {"logo_url": "https://x/bl1.png"}})
 
     payload = export_site_data.fetch_landing_payload(object())
 
@@ -156,8 +156,13 @@ def test_the_hero_reads_the_next_matchday_mart_whole(monkeypatch):
     lowered = " ".join(hero_sql.lower().split())
     for token in ("where", "min(fixture_date)", "row_number", "qualify", "current_date"):
         assert token not in lowered, f"selection vocabulary in the export: {token!r}"
+    assert "order by n.competition_order, c.fixture_order" in lowered
+    assert not any("core.dim_team" in s for s in captured), "the match rows carry the teams"
 
+    assert [g["league_code"] for g in payload["upcoming"]] == ["BL1", "MLS"]
     groups = {g["league_code"]: g for g in payload["upcoming"]}
+    assert groups["BL1"]["crest"] == "https://x/bl1.png", "the crest is mart_competition_index's"
+    assert groups["MLS"]["crest"] is None, "a competition the mart gives no crest has none"
     assert [f["fixture_id"] for f in groups["BL1"]["fixtures"]] == [11, 12], (
         "every served fixture of the round is carried; the page folds, the export does not cut"
     )
@@ -462,6 +467,23 @@ def test_top_teams_carries_the_catalogue_format_per_board():
     assert by_key["passes_per_match"] == "decimal_0"
     assert by_key["duels_per_match"] == "decimal_0"
     assert len(set(by_key.values())) == 2, "the boards must not collapse to one shared format"
+
+
+def test_home_boards_carry_the_catalogue_format_and_per_match():
+    """The shared board formats the value and titles a per-match rate from these two catalogue
+    facts, so every Home board carries both, read from the seed rather than written here."""
+    players = shape_home_top_players(
+        [_lb(key, "PL", f"P-{key}", 3.0) for key in _LABEL_KEYS], _LEAGUE_META, _LABEL_KEYS,
+    )
+    teams = shape_home_top_teams(
+        [_tlb(key, "PL", f"T-{key}", 1.5) for key in _HOME_TEAM_BOARDS], _LEAGUE_META,
+        _TEAM_CATALOGUE,
+    )
+    for board in players:
+        assert board["format"] == _LABEL_KEYS[board["metric_key"]]["format"]
+        assert board["per_match"] is False
+    for board in teams:
+        assert board["per_match"] is True, f"{board['metric_key']} is a per-match rate"
 
 
 def test_top_teams_rows_carry_the_served_slug():
