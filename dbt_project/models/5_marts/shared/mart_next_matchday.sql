@@ -14,9 +14,12 @@
   definition; the straggler counts and the alternative are on GitLab #143.
 
   Every competition with an upcoming fixture is present, cups and tournaments alike; nothing is
-  capped and nothing is ordered here — the page applies the site-wide competition ordering key
-  and folds rows past the third. league_code discriminates the competition and is not a
-  BigQuery partition or cluster key.
+  capped here, and the page folds rows past the third. league_code discriminates the competition
+  and is not a BigQuery partition or cluster key.
+
+  competition_order is the order the competitions are shown in: the day the competition's
+  matchday starts, then its region rank (Europe first), then its earliest kick-off, then
+  league_code. Soonest first, so a cup playing Tuesday sits above the weekend leagues.
 
   is_match_that_matters flags, per competition, the fixture of the matchday whose two teams
   have the lowest sum of table positions (1st v 9th beats 5th v 7th); ties go to the earlier
@@ -79,6 +82,33 @@ next_matchday as (
             and u.round_name = n.round_name
 ),
 
+competition_keys as (
+    select
+        m.league_code,
+        min(m.fixture_date) as first_date,
+        min(c.region_rank) as region_rank,
+        min(m.kickoff_datetime) as first_kickoff
+    from next_matchday as m
+    left join {{ ref('competition_registry') }} as r
+        on m.league_code = r.league_code
+    left join {{ ref('confederations') }} as c
+        on r.confederation = c.confederation
+    group by m.league_code
+),
+
+competition_order as (
+    select
+        league_code,
+        dense_rank() over (
+            order by
+                first_date asc,
+                region_rank asc nulls last,
+                first_kickoff asc nulls last,
+                league_code asc
+        ) as competition_order
+    from competition_keys
+),
+
 -- A team's table position, only where it sits in exactly one standings section that season.
 positions as (
     select
@@ -101,8 +131,11 @@ ranked as (
         m.status_short,
         m.home_team_sk,
         m.away_team_sk,
+        o.competition_order,
         h.standing_rank + a.standing_rank as position_sum
     from next_matchday as m
+    inner join competition_order as o
+        on m.league_code = o.league_code
     left join positions as h
         on
             m.league_code = h.league_code
@@ -125,6 +158,7 @@ select
     status_short,
     home_team_sk,
     away_team_sk,
+    competition_order,
     coalesce(
         position_sum is not null
         and row_number() over (

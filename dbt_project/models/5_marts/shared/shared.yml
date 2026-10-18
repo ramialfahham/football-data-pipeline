@@ -2585,13 +2585,13 @@ models:
 
       Upcoming means a scheduled status (NS or TBD) and a date on or after the build day, so a
       fixture left at NS in the past is excluded. Every competition with an upcoming fixture is
-      present, cups and tournaments included; nothing is capped or ordered here. A postponed
-      match keeps its original round name, so a rescheduled straggler can be a one-match matchday
-      until it is played.
+      present, cups and tournaments included; nothing is capped here. A postponed match keeps its
+      original round name, so a rescheduled straggler can be a one-match matchday until it is
+      played.
 
-      The Home page's Next matches block reads this table whole; the page orders the competitions
-      and folds rows past the third. Rebuilt nightly, so it is correct as of the morning it was
-      built.
+      The Home page's Next matches block reads this table whole, shows the competitions in
+      competition_order and folds rows past the third. Rebuilt nightly, so it is correct as of the
+      morning it was built.
     meta:
       owner: "data-platform"
       domain: "football"
@@ -2649,6 +2649,9 @@ models:
           - accepted_values:
               values: [true, false]
               quote: false
+      - name: competition_order
+        description: "The place of this fixture's competition in the order the competitions are shown, 1 first; the same on every row of a competition. Ordered by the day the competition's matchday starts, then its region rank (Europe first), then its earliest kick-off, then league_code."
+        tests: [not_null]
 
   - name: mart_competition_fixtures
     description: >

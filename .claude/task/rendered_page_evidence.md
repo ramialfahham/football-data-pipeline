@@ -1,4 +1,4 @@
-# Rendered page evidence — Home enters the approved-designs list
+# Rendered page evidence — Next matches: the warehouse serves the competition order
 
-No page, component, style or data file changes: the diff is one line in the approved-designs list
-and a test. No page renders differently.
+No page, component, style or data file changes: the diff is one mart column, its description and
+its test. No page renders differently.
