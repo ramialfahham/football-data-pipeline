@@ -1,119 +1,107 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index 1958cfee..6f3db3e8 100644
+index 6f3db3e8..da2e40db 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,17 +1,17 @@
--# Task contract — metrics_display.md: one window per team on the match page
-+# Task contract — competition page tab titles within the title limit
+@@ -1,56 +1,32 @@
+-# Task contract — competition page tab titles within the title limit
++# Task contract — Home enters the approved-designs list
  
  objective: >
--  Rule 3 of the "Window & scope display contract" in docs/wireframes/metrics_display.md still
--  describes a W1/W2 window switch the approved match page no longer has. Replace it with the
--  CPO-approved text: one window per team, no switch, as metrics_context_model.md §3–4 gives it.
-+  Eight competition-page tab titles run past the SEO audit's 660px title limit on long competition
-+  names, so the site deploy fails audit-seo. Shorten the Rankings title in EN/DE/FI and the
-+  Matchdays title in DE/FI to the wording the CPO approved; competition names stay.
+-  Eight competition-page tab titles run past the SEO audit's 660px title limit on long competition
+-  names, so the site deploy fails audit-seo. Shorten the Rankings title in EN/DE/FI and the
+-  Matchdays title in DE/FI to the wording the CPO approved; competition names stay.
++  The Home recheck on #127 closed with the design approved. Home enters
++  docs/wireframes/approved_designs.yml so the design gate lets its build (#219) change the page
++  once this merges.
  
  refs: >
--  #166, the next match page build
--  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/166), its "Written rules"
--  criterion; the design on #132. The text: approved in chat, 2026-10-17.
-+  #129, the competition page's design
-+  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/129); the wording is
-+  recorded there. Approved in chat, 2026-10-17.
+-  #129, the competition page's design
+-  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/129); the wording is
+-  recorded there. Approved in chat, 2026-10-17.
++  #127, Home's design (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/127);
++  the build is #219. Approved in chat, 2026-10-18.
  
  scope_paths:
--  - docs/wireframes/metrics_display.md
-+  - site_v2/src/i18n/strings.ts
-   - tests/test_sentence_length_in_docs.py
-   - tests/test_no_decision_history_in_docs.py
+-  - site_v2/src/i18n/strings.ts
+-  - tests/test_sentence_length_in_docs.py
+-  - tests/test_no_decision_history_in_docs.py
++  - docs/wireframes/approved_designs.yml
++  - tests/test_governance_hooks.py
    - .claude/task/contract.md
-@@ -20,17 +20,38 @@ scope_paths:
+   - .claude/task/review.md
+   - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
    - .claude/task/rendered_page_evidence.md
  
-+impact_map: >
-+  writers: none; five copy strings in site_v2/src/i18n/strings.ts change.
-+  downstream: seoCompetitionFixturesTitle is read only by
-+  site_v2/src/pages/[lang]/[competition]/[matches]/index.astro and seoCompetitionStatsTitle only by
-+  site_v2/src/pages/[lang]/[competition]/[stats]/index.astro (git grep); each sets that page's
-+  title, og:title and twitter:title through Layout.astro. No dbt model, export key or other page
-+  reads them.
-+  layer_rules: copy lives in strings.ts only (layering.md Consumption layer); check_copy_gate.py
-+  covers EN/DE/FI parity.
-+  deploy_order: none; the titles change on the next site build.
-+  blast_radius: the title of each competition's Matchdays page in DE and FI and of each Rankings
-+  page in EN, DE and FI; 48 competitions.
-+
-+approved_design:
-+  - competition: #129
-+
-+acceptance_criteria:
-+  - On every built competition Rankings page the title reads "{competition}: Stats {season}" (EN), "{competition}: Statistiken {season}" (DE), "{competition}: tilastot {season}" (FI).
-+  - On every built competition Matchdays page the title reads "{competition}: Fixtures and results {season}" (EN, unchanged), "{competition}: Spielplan {season}" (DE), "{competition}: otteluohjelma {season}" (FI).
-+  - The Overview titles are unchanged.
-+  - Measured with audit-seo.mjs's titleWidthPx over all 48 competitions in competition_index.json, no competition tab title is over 660px.
-+
+-impact_map: >
+-  writers: none; five copy strings in site_v2/src/i18n/strings.ts change.
+-  downstream: seoCompetitionFixturesTitle is read only by
+-  site_v2/src/pages/[lang]/[competition]/[matches]/index.astro and seoCompetitionStatsTitle only by
+-  site_v2/src/pages/[lang]/[competition]/[stats]/index.astro (git grep); each sets that page's
+-  title, og:title and twitter:title through Layout.astro. No dbt model, export key or other page
+-  reads them.
+-  layer_rules: copy lives in strings.ts only (layering.md Consumption layer); check_copy_gate.py
+-  covers EN/DE/FI parity.
+-  deploy_order: none; the titles change on the next site build.
+-  blast_radius: the title of each competition's Matchdays page in DE and FI and of each Rankings
+-  page in EN, DE and FI; 48 competitions.
+-
+-approved_design:
+-  - competition: #129
+-
+-acceptance_criteria:
+-  - On every built competition Rankings page the title reads "{competition}: Stats {season}" (EN), "{competition}: Statistiken {season}" (DE), "{competition}: tilastot {season}" (FI).
+-  - On every built competition Matchdays page the title reads "{competition}: Fixtures and results {season}" (EN, unchanged), "{competition}: Spielplan {season}" (DE), "{competition}: otteluohjelma {season}" (FI).
+-  - The Overview titles are unchanged.
+-  - Measured with audit-seo.mjs's titleWidthPx over all 48 competitions in competition_index.json, no competition tab title is over 660px.
+-
  decisions_taken: >
--  Approved in chat, 2026-10-17: rule 3 is replaced by exactly "3. **One window per team, no
--  switch.** The match page shows each team the window that `docs/metrics_context_model.md` §3–4
--  gives it, flagged by the warehouse." Nothing else in the file changes.
-+  Approved in chat, 2026-10-17: the wording in the acceptance criteria, recorded on #129. Nothing
-+  else on the page changes.
+-  Approved in chat, 2026-10-17: the wording in the acceptance criteria, recorded on #129. Nothing
+-  else on the page changes.
++  Approved in chat, 2026-10-18: the Home recheck is closed and Home enters the list as
++  "home: 127". The shipped-list test stops pinning the exact entries, which would need a test edit
++  for every approval, and instead checks that every entry line of the shipped file parses.
  
  decisions_reserved:
--  - none: the CPO approved the exact replacement text, and this task writes it unchanged.
-+  - none: the CPO approved the exact wording, and this task writes it unchanged.
+-  - none: the CPO approved the exact wording, and this task writes it unchanged.
++  - none: the CPO approved the Home design on #127, and this task only records it in the list.
  
  done_when:
-+  - npm run build in site_v2 passes (its prebuild runs the site's tests, then audit-seo and the built-pages check).
+-  - npm run build in site_v2 passes (its prebuild runs the site's tests, then audit-seo and the built-pages check).
    - The full pytest suite passes.
--  - git diff shows only rule 3 replaced in metrics_display.md.
    - Reviewers per review_routing.json pass.
  
- amendments: (none)
-diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
-index 74655971..fd4be547 100644
---- a/site_v2/src/i18n/strings.ts
-+++ b/site_v2/src/i18n/strings.ts
-@@ -278,7 +278,7 @@ const EN: Dict = {
-   seoMatchDayTitle: "Football on {date}: all matches",
-   seoMatchesDesc: "Every football match on {date} from {n} competitions: the kick-off time before the match, the result after it.",
-   dayPickerAria: "Pick a day",
--  seoCompetitionStatsTitle: "{competition}: Team and player stats {season}",
-+  seoCompetitionStatsTitle: "{competition}: Stats {season}",
-   seoCompetitionStatsDesc: "The top teams and players of {competition} {season} on every stat: goals, shots on target, passing, duels, defending, discipline and goalkeeping.",
-   // The player page (#40 MR B). Same modest wording and the same reason as the competition hub
-   // above: this is a scaffold with no content blocks, so the title promises nothing.
-@@ -567,13 +567,13 @@ const DE: Dict = {
-   seoCompetitionsDesc: "Jede Liga, jeder Pokal und jeder internationale Wettbewerb, den wir abdecken, gruppiert nach Art und Region.",
-   seoCompetitionTitle: "{competition}: Überblick",
-   seoCompetitionDesc: "Überblicksseite für {competition}.",
--  seoCompetitionFixturesTitle: "{competition}: Spielplan und Ergebnisse {season}",
-+  seoCompetitionFixturesTitle: "{competition}: Spielplan {season}",
-   seoCompetitionFixturesDesc: "Alle Spieltage von {competition} {season}: die bisherigen Ergebnisse und die kommenden Spiele, ein Spieltag nach dem anderen.",
-   seoMatchesTitle: "Fußball heute: alle Spiele, {date}",
-   seoMatchDayTitle: "Fußball am {date}: alle Spiele",
-   seoMatchesDesc: "Alle Fußballspiele am {date} aus {n} Wettbewerben: vor dem Spiel die Anstoßzeit, danach das Ergebnis.",
-   dayPickerAria: "Tag wählen",
--  seoCompetitionStatsTitle: "{competition}: Mannschafts- und Spielerstatistiken {season}",
-+  seoCompetitionStatsTitle: "{competition}: Statistiken {season}",
-   seoCompetitionStatsDesc: "Die besten Mannschaften und Spieler von {competition} {season} in jeder Statistik: Tore, Schüsse aufs Tor, Passspiel, Zweikämpfe, Defensive, Disziplin und Torwartspiel.",
-   seoPlayerTitle: "{player} ({club}): Überblick",
-   seoPlayerDesc: "Überblicksseite für {player} von {club}.",
-@@ -864,13 +864,13 @@ const FI: Dict = {
-   seoCompetitionsDesc: "Jokainen sarja, cup ja kansainvälinen kilpailu, jota seuraamme, ryhmiteltynä tyypin ja alueen mukaan.",
-   seoCompetitionTitle: "{competition}: yleiskatsaus",
-   seoCompetitionDesc: "Yleiskatsaussivu kilpailulle {competition}.",
--  seoCompetitionFixturesTitle: "{competition}: otteluohjelma ja tulokset {season}",
-+  seoCompetitionFixturesTitle: "{competition}: otteluohjelma {season}",
-   seoCompetitionFixturesDesc: "Kilpailun {competition} {season} kaikki kierrokset: tähänastiset tulokset ja tulevat ottelut, kierros kerrallaan.",
-   seoMatchesTitle: "Jalkapallo tänään: kaikki ottelut, {date}",
-   seoMatchDayTitle: "Jalkapallo {date}: kaikki ottelut",
-   seoMatchesDesc: "Kaikki jalkapallo-ottelut {date}, {n} kilpailusta: ennen ottelua alkamisaika, sen jälkeen tulos.",
-   dayPickerAria: "Valitse päivä",
--  seoCompetitionStatsTitle: "{competition}: joukkue- ja pelaajatilastot {season}",
-+  seoCompetitionStatsTitle: "{competition}: tilastot {season}",
-   seoCompetitionStatsDesc: "Kilpailun {competition} {season} parhaat joukkueet ja pelaajat jokaisessa tilastossa: maalit, laukaukset maalia kohti, syötöt, kaksinkamppailut, puolustus, kurinpito ja maalivahtipeli.",
-   seoPlayerTitle: "{player} ({club}): yleiskatsaus",
-   seoPlayerDesc: "Yleiskatsaussivu pelaajalle {player}, joukkue {club}.",
+diff --git a/docs/wireframes/approved_designs.yml b/docs/wireframes/approved_designs.yml
+index 82e792f2..a4329b8f 100644
+--- a/docs/wireframes/approved_designs.yml
++++ b/docs/wireframes/approved_designs.yml
+@@ -1,6 +1,7 @@
+ # The pages whose design the CPO approved, each with the GitLab issue that holds the design.
+ # The contract gate and CI read this file from main only. A page enters it in the MR that closes
+ # its design review, and the CPO's merge is the approval.
++home: 127
+ competitions: 128
+ competition: 129
+ matches: 130
+diff --git a/tests/test_governance_hooks.py b/tests/test_governance_hooks.py
+index 89efa93d..45146621 100644
+--- a/tests/test_governance_hooks.py
++++ b/tests/test_governance_hooks.py
+@@ -3955,13 +3955,14 @@ def test_the_approved_list_parser(text, expected):
+     assert tcg.parse_approved(text) == expected
+ 
+ 
+-def test_the_shipped_approved_list_parses_to_its_seed():
++def test_every_entry_of_the_shipped_approved_list_parses():
+     sys.path.insert(0, HOOKS)
+     import task_contract_gate as tcg
+     shipped = os.path.join(os.path.dirname(__file__), "..", tcg.APPROVED_DESIGNS)
+     with open(shipped, encoding="utf-8") as f:
+-        assert tcg.parse_approved(f.read()) == {
+-            ("competitions", 128), ("competition", 129), ("matches", 130), ("match", 132)}
++        text = f.read()
++    entries = [line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
++    assert entries and len(tcg.parse_approved(text)) == len(entries)
+ 
+ 
+ @pytest.mark.parametrize("block", ["  - none", "  - none:", "  - <page>: #<issue>", "  >", "", "  # later"])
