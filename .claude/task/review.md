@@ -1,26 +1,30 @@
-# Review — fix/129-competition-tab-titles — 2026-10-17
+# Review — docs/127-home-design-approved — 2026-10-18
 
-diff_sha256: b1e4a4bc473bd179c1f5330b645723faf1f8b2da272dd46c2af7aca11b043184
+diff_sha256: 10ff8e45275853887a1e873fa6776b5c73d627f3eac9986a37d513c6df56b6a6
 
 rounds: 1
 
-## bi-analyst-reviewer
+## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Exactly five title strings change, each matching the acceptance criteria character for character; the EN Matchdays and all Overview titles are untouched.
-- EN, DE and FI still define both keys with the same placeholders, so copy parity holds.
-- The only readers are the competition Matchdays and Rankings pages; the specs name the keys only, and no test, doc or wireframe quotes the old wording.
-- No metric, field, window label or export binding is touched; the meta descriptions are unchanged.
-- The built titles in site_v2/dist match the criteria.
+- The new test fails on a line the parser drops, an identical duplicate line, and an empty or comment-only file.
+- CRLF, indentation and comment handling match the parser's own.
+- The gate tests write their own base list and never read the shipped file, so the added entry breaks none of them.
+- No hook, script, CI file, dependency or permission changes.
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Only strings.ts and the contract change, both in scope_paths.
-- The five strings match the approved wording; nothing else in the file changes.
-- approved_design names competition #129, which stands in approved_designs.yml on main.
-- acceptance_criteria are present and measurable; the impact_map names each reader and the blast radius.
-- No decision history in code; no new mechanism, cost, metric, URL or slug.
+- Every changed path is in scope_paths; amendments are none.
+- The only product change is the line home: 127, named with its approval in decisions_taken.
+- The test change is declared in decisions_taken with its reason.
+- No new mechanism, cost or decision history in files.
+
+## bi-analyst-reviewer
+VERDICT: PASS
+risks_checked:
+- The entry home: 127 parses and matches the screen inventory's row for Home, approved on #127.
+- No display contract, field binding, metric or wording changes.
 
 ## escalations
 - none

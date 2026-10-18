@@ -3955,13 +3955,14 @@ def test_the_approved_list_parser(text, expected):
     assert tcg.parse_approved(text) == expected
 
 
-def test_the_shipped_approved_list_parses_to_its_seed():
+def test_every_entry_of_the_shipped_approved_list_parses():
     sys.path.insert(0, HOOKS)
     import task_contract_gate as tcg
     shipped = os.path.join(os.path.dirname(__file__), "..", tcg.APPROVED_DESIGNS)
     with open(shipped, encoding="utf-8") as f:
-        assert tcg.parse_approved(f.read()) == {
-            ("competitions", 128), ("competition", 129), ("matches", 130), ("match", 132)}
+        text = f.read()
+    entries = [line for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#")]
+    assert entries and len(tcg.parse_approved(text)) == len(entries)
 
 
 @pytest.mark.parametrize("block", ["  - none", "  - none:", "  - <page>: #<issue>", "  >", "", "  # later"])

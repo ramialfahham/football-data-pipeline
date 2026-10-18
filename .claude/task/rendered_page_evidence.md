@@ -1,5 +1,4 @@
-# Rendered page evidence — competition page tab titles within the title limit
+# Rendered page evidence — Home enters the approved-designs list
 
-Only the page title changes (the browser tab and search result title, with og:title and
-twitter:title); nothing in the page body renders differently. The built titles are listed in
-`acceptance_evidence.md`.
+No page, component, style or data file changes: the diff is one line in the approved-designs list
+and a test. No page renders differently.
