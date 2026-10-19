@@ -39,19 +39,20 @@ check("next matches uses .fxgroup/.gh/.fxrow", all(
 check("19 fixtures: the fixed list plus the Bundesliga's whole nine-match round",
       body.count('class="fxrow"') == 19, str(body.count('class="fxrow"')))
 
-print("\nthe fold: 3 visible per competition, the rest inside <details> (#127)")
+print("\nthe fold: 3 visible per competition, the rest in the fold, its control under them")
 groups = body.split('<div class="fxgroup">')[1:]
-outside = [g.split("<details", 1)[0].count('class="fxrow"') for g in groups]
+outside = [g.split('<div class="fold-rest">', 1)[0].count('class="fxrow"') for g in groups]
 check("no competition shows more than 3 rows outside the fold", max(outside) <= 3, str(outside))
-folds = re.findall(r'<details class="fxmore"><summary><span class="lbl">Show all (\d+)</span>', body)
+folds = re.findall(r'<span class="closed">Show all (\d+)</span><span class="opened">Show less</span>', body)
 check("exactly one competition folds, and it is the nine-match round", folds == ["9"], str(folds))
-bl1 = next(g for g in groups if "<details" in g)
+bl1 = next(g for g in groups if 'class="fold-rest"' in g)
+rest = bl1.split('<div class="fold-rest">', 1)[1]
 check("the Bundesliga shows 3 rows, folds 6",
-      bl1.split("<details", 1)[0].count('class="fxrow"') == 3
-      and bl1.split("<details", 1)[1].count('class="fxrow"') == 6)
-check("the fold needs no script: a native <details>/<summary>, chevron in the summary",
-      '<details class="fxmore"><summary>' in body and body.count('</details>') == 1
-      and 'class="chev"' in bl1.split("</summary>", 1)[0])
+      bl1.split('<div class="fold-rest">', 1)[0].count('class="fxrow"') == 3
+      and rest.split('<label class="fold-ctl"', 1)[0].count('class="fxrow"') == 6)
+check("the fold needs no script: a checkbox and its label, the label after the folded rows",
+      '<input type="checkbox" class="fold-in"' in body and body.count('class="fold-ctl"') == 1
+      and 'class="chev"' in rest.split('<label class="fold-ctl"', 1)[1])
 
 print("\nno regression on the block rules")
 check("no column-header row anywhere", '<span class="bh v">' not in body)

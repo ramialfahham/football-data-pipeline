@@ -8,8 +8,8 @@ Saturday 26 September is an international weekend, 33 matches, 19 of them nation
 as the page read that morning, so every row shows its kick-off and none its score. Times in UTC
 with the label, as the built site shows them until the venue's clock lands (#146).
 
-Each competition shows its first three matches and folds the rest under Home's "Show all"
-(`.fxmore`), as ruled on #130.
+Each competition shows its first three matches and folds the rest in the site's fold
+(`.fold-ctl`).
 
 Composed only of what the site already has: the Competitions page's breadcrumb, heading and two
 filter rows (their radios and CSS unchanged, so the filters work here too); the Matchdays tab's
@@ -60,6 +60,7 @@ COPY.update({
     "day":            ("%s %d %s" % (EN_DAYS[DAY.weekday()], DAY.day, EN_MONTHS[DAY.month - 1]),
                        "%s %d. %s" % (FI_DAYS[DAY.weekday()], DAY.day, FI_MONTHS[DAY.month - 1]), False),
     "homeShowAll":    ("Show all {n}", "Näytä kaikki {n}", False),
+    "homeShowLess":   ("Show less", "Näytä vähemmän", False),
     "jumpLabel":      ("Schedule", "Otteluohjelma", False),
 })
 
@@ -121,7 +122,7 @@ def day_html(groups):
             '<a class="step next" href="#" aria-label="The day after">%s</a>'
             '</span></nav>' % (CHEV_L, loc("day"), CHEV_R))
     body = []
-    for g in groups:
+    for i, g in enumerate(groups):
         first = g[0]
         kind = "nation" if first["entity_type"] == "national" else "club"
         rows = [upcoming_row(kind, r["home_team_name"], r["away_team_name"],
@@ -130,8 +131,12 @@ def day_html(groups):
                 for r in g]
         if len(rows) > FOLD:
             rows = rows[:FOLD] + [
-                '<details class="fxmore"><summary><span class="lbl">%s</span>%s</summary>\n%s\n</details>'
-                % (loc_n("homeShowAll", len(rows)), SUMMARY_CHEV, "\n".join(rows[FOLD:]))]
+                '<input type="checkbox" class="fold-in" id="fold-%d">'
+                '<div class="fold-rest">\n%s\n</div>'
+                '<label class="fold-ctl" for="fold-%d"><span class="lbl"><span class="closed">%s</span>'
+                '<span class="opened">%s</span></span>%s</label>'
+                % (i, "\n".join(rows[FOLD:]), i, loc_n("homeShowAll", len(rows)), loc("homeShowLess"),
+                   SUMMARY_CHEV)]
         body.append('<div class="fxgroup" data-entity-type="%s" data-confederation="%s">\n%s\n%s\n</div>'
                     % (E(first["entity_type"]), E(first["confederation"]),
                        group_head(first["competition_slug"], first["competition_name"]), "\n".join(rows)))

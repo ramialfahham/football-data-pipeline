@@ -3,13 +3,14 @@
 // serves (mart_next_matchday.competition_order). Each competition sits under its group head
 // (crest · name · chevron, the 2px line), then its matches as THE match row: a date heading
 // wherever the day changes, the kick-off with its zone, the Top match tag on the flagged match.
-// The first three matches show, the rest sit under "Show all {n}" in a native <details>, so every
-// match is in the HTML and none needs a script to reach.
+// The first three matches show, the rest sit in the site's fold, so every match is in the HTML and
+// none needs a script to reach.
 //
 // No round on the row: the provider's round name is English in every locale.
 import SectionHead from "../ui/SectionHead.astro";
 import MatchRow from "../ui/MatchRow.astro";
 import Crest from "../ui/Crest.astro";
+import Fold from "../ui/Fold.astro";
 import type { Lang } from "../../lib/format";
 import { formatDate } from "../../lib/format";
 import { t } from "../../i18n/strings";
@@ -34,7 +35,7 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
 
   {groups.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
 
-  {groups.map((group) => {
+  {groups.map((group, i) => {
     const rows = (from: number, to?: number) =>
       group.fixtures.slice(from, to).map((fx, j) => (
         <>
@@ -62,16 +63,9 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
         {rows(0, VISIBLE_ROWS)}
 
         {group.fixtures.length > VISIBLE_ROWS && (
-          <details class="fxmore">
-            <summary>
-              <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
-              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
-                      stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
-            </summary>
+          <Fold id={`fold-${i}`} n={group.fixtures.length} lang={lang}>
             {rows(VISIBLE_ROWS)}
-          </details>
+          </Fold>
         )}
       </div>
     );

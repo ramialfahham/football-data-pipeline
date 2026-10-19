@@ -595,20 +595,23 @@ a.cnm .nm { text-decoration: none; }
 .nexttag { margin-left: 8px; }
 .fxrow .topmatch { align-self: center; margin-right: 10px; }
 .fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
-/* THE FOLD — a competition's rows past the third sit in a native <details>; the summary is the
-   "show all" control and reads as one more row (same divider, same height rhythm), with the
-   heading's chevron turned down once open. No script: the element does the toggling. */
-.fxmore > summary {
+/* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
+   (`display: contents`, so they also fill a grid's columns), and the control reads as one more row
+   under whatever is shown: "Show all {n}" with the chevron down, "Show less" with it up. */
+.fold-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.fold-rest { display: contents; }
+.fold-in:not(:checked) ~ .fold-rest { display: none; }
+.fold-ctl {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px 0; cursor: pointer; list-style: none;
+  padding: 12px 0; cursor: pointer; grid-column: 1 / -1;
   font-size: 13px; font-weight: 600; color: var(--ink-2);
 }
-.fxmore > summary::-webkit-details-marker { display: none; }
-.fxmore > summary .chev { transform: rotate(90deg); }
-.fxmore[open] > summary .chev { transform: rotate(-90deg); }
-.fxmore > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
-.fxmore > summary + .fxrow, .fxmore > summary + .dh { border-top: 1px solid var(--line); }
-.fxmore > .fxrow:last-child { border-bottom: 0; }
+.fold-ctl .chev { transform: rotate(90deg); }
+.fold-in:checked ~ .fold-ctl .chev { transform: rotate(-90deg); }
+.fold-ctl .opened, .fold-in:checked ~ .fold-ctl .closed { display: none; }
+.fold-in:checked ~ .fold-ctl .opened { display: inline; }
+.fold-in:focus-visible ~ .fold-ctl { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+.fold-rest > .fxrow:last-child { border-bottom: 1px solid var(--line); }
 /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
 .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
 
