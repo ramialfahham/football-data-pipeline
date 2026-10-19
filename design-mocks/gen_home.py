@@ -7,8 +7,8 @@ Three blocks, the composition approved on GitLab #127 (the authority for Home).
     cannot drift from the mocks that were approved.
   * Next matches is MOCKED here, but its markup mirrors the shipped component
     (`HeroFixtures.astro`) class for class -- `.fxgroup > .gh`, `.fxrow` with
-    `.sides`/`.side`/`.when`, and the `<details class="fxmore">` fold that holds every row
-    past the third ("3 visible, the rest folded"). The Bundesliga group below carries a whole
+    `.sides`/`.side`/`.when`, and the site's fold that holds every row past the third
+    ("3 visible, the rest folded"). The Bundesliga group below carries a whole
     nine-match round so the fold renders; the others fit above it.
   * Every number is placeholder.
 
@@ -66,8 +66,8 @@ FIXTURES = [
     ("ED", [("Sun 15 Feb", [("PSV", "Feyenoord", "14:30")])]),
 ]
 
-# Rows a competition shows before the fold; the rest sit inside `<details class="fxmore">`,
-# mirroring `HeroFixtures.astro`.
+# Rows a competition shows before the fold; the rest sit in the site's fold, mirroring
+# `components/ui/Fold.astro`.
 VISIBLE_ROWS = 3
 
 CHEV = ('<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
@@ -99,13 +99,15 @@ def next_matches():
                 out.append(date_head(date))
             out.append(row)
         if folded:
-            out.append('<details class="fxmore"><summary><span class="lbl">Show all %d</span>%s'
-                       '</summary>' % (len(rows), CHEV))
+            fid = "fold-%s" % code
+            out.append('<input type="checkbox" class="fold-in" id="%s"><div class="fold-rest">' % fid)
             for date, row in folded:
                 if date:
                     out.append(date_head(date))
                 out.append(row)
-            out.append("</details>")
+            out.append('</div><label class="fold-ctl" for="%s"><span class="lbl">'
+                       '<span class="closed">Show all %d</span><span class="opened">Show less</span>'
+                       '</span>%s</label>' % (fid, len(rows), CHEV))
         out.append("</div>")
     out.append("</section>")
     return "\n".join(out)

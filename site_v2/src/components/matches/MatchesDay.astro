@@ -2,8 +2,8 @@
 // One day of the Matches page (#130, #131): the breadcrumb and the heading as on the Competitions
 // page, its two filter rows, the Matchdays tab's picker with the day as its title and the
 // neighbouring days as links, and one Schedule block: each competition playing that day under its
-// crest and name (Home's group heading), its first three matches and the rest under Home's
-// "Show all {n}", every row THE match row.
+// crest and name (Home's group heading), its first three matches and the rest in the site's fold,
+// every row THE match row.
 //
 // The day, its matches, its neighbours and whether the page opens on it are the warehouse's
 // (mart_match_days, one payload per day); the competitions of the day take the site's shared
@@ -12,6 +12,7 @@
 import SectionHead from "../ui/SectionHead.astro";
 import MatchRow from "../ui/MatchRow.astro";
 import Crest from "../ui/Crest.astro";
+import Fold from "../ui/Fold.astro";
 import FilterRows from "../competitions/FilterRows.astro";
 import { t } from "../../i18n/strings";
 import { localeHref, word } from "../../lib/href";
@@ -78,7 +79,7 @@ const groups = orderUpcomingGroups(day.competitions);
         </nav>
         <section>
           <SectionHead label={t(lang, "compSecSchedule")} />
-          {groups.map((group) => (
+          {groups.map((group, i) => (
             <div class="fxgroup" data-entity-type={group.entity_type} data-confederation={group.confederation}>
               <div class="gh">
                 {group.slug ? (
@@ -98,16 +99,9 @@ const groups = orderUpcomingGroups(day.competitions);
               {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
 
               {group.fixtures.length > VISIBLE_ROWS && (
-                <details class="fxmore">
-                  <summary>
-                    <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
-                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
-                            stroke-linecap="round" stroke-linejoin="round"></path>
-                    </svg>
-                  </summary>
+                <Fold id={`fold-${i}`} n={group.fixtures.length} lang={lang}>
                   {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
-                </details>
+                </Fold>
               )}
             </div>
           ))}

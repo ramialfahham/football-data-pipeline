@@ -1,0 +1,25 @@
+---
+// The site's fold: the rows in the slot follow the shown rows in the same list, and the control
+// stays under whatever is shown, so a long list closes where the reader stops. A checkbox and its
+// label do the toggling, the site's scriptless pattern; every row is in the HTML.
+import Chevron from "../fixture/Chevron.astro";
+import type { Lang } from "../../lib/format";
+import { t } from "../../i18n/strings";
+
+interface Props {
+  id: string;
+  n: number;
+  lang: Lang;
+}
+const { id, n, lang } = Astro.props;
+---
+
+<input type="checkbox" class="fold-in" id={id} />
+<div class="fold-rest"><slot /></div>
+<label class="fold-ctl" for={id}>
+  <span class="lbl">
+    <span class="closed">{t(lang, "homeShowAll", { n })}</span>
+    <span class="opened">{t(lang, "homeShowLess")}</span>
+  </span>
+  <Chevron />
+</label>

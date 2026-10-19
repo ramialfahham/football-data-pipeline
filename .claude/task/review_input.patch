@@ -1,132 +1,523 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index d080f325..4a845d82 100644
+index 4a845d82..8e34e50a 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,103 +1,31 @@
--# Task contract — Home rebuilt to its approved design
-+# Task contract — the Teams page enters the approved-designs list
+@@ -1,31 +1,76 @@
+-# Task contract — the Teams page enters the approved-designs list
++# Task contract — the shared fold
  
  objective: >
--  The built Home has its own match row and its own board, where every other page shares one, and
--  it orders its competitions in the page code. Rebuild it to its approved design: Next matches on
--  the site's shared match row in the order mart_next_matchday.competition_order serves, Top
--  players and Top teams on the Rankings tab's board, the two intros as the block explainer.
-+  The Teams page review on #133 closed with the design approved. The Teams page enters
-+  docs/wireframes/approved_designs.yml so the design gate lets its build (#222) change the page
-+  surface once this merges.
+-  The Teams page review on #133 closed with the design approved. The Teams page enters
+-  docs/wireframes/approved_designs.yml so the design gate lets its build (#222) change the page
+-  surface once this merges.
++  The site's fold keeps its control between the shown and the revealed rows and reads "Show all
++  {n}" when open. Make it one shared, scriptless fold whose control stays under the shown rows and
++  reads "Show less" once open, on every page that renders it: Home, the Matches page and the
++  Matches day page.
  
  refs: >
--  #219, the Home build (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/219);
--  #127, Home's approved design; the reference render is
--  design-mocks/renders/home_2026-09-17_02.html. The warehouse half merged with !330. Plan approved
--  in chat, 2026-10-18.
-+  #133, the Teams page's design (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/133);
-+  the build is #222. Approved in chat, 2026-10-19.
+-  #133, the Teams page's design (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/133);
+-  the build is #222. Approved in chat, 2026-10-19.
++  #221, the shared fold (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/221);
++  #127, Home's approved design; #130, the Matches page's approved design; #133, the Teams page's
++  approved design, which names this fold. Mock and plan approved in chat, 2026-10-19.
  
  scope_paths:
--  - scripts/export_site_data.py
--  - tests/test_export_landing.py
--  - tests/test_export_site_data.py
--  - tests/test_no_decision_history_in_code.py
--  - tests/test_no_decision_history_in_docs.py
--  - tests/test_sentence_length_in_docs.py
--  - site_v2/src/components/home/HeroFixtures.astro
--  - site_v2/src/components/home/TopPlayers.astro
--  - site_v2/src/components/home/TopTeams.astro
--  - site_v2/src/components/home/FixtureRow.astro
--  - site_v2/src/components/competition/RankingBoard.astro
--  - site_v2/src/lib/types.ts
--  - site_v2/src/specs/index.spec.json
--  - site_v2/src/data/landing.json
--  - site_v2/src/data/fixtures/*.json
--  - site_v2/src/data/teams/*.json
--  - site_v2/src/data/matches/*.json
--  - site_v2/src/data/competitions/BL1/*.json
--  - site_v2/src/data/README.md
--  - .gitignore
--  - docs/wireframes/10_home.md
--  - docs/wireframes/block_standard.md
--  - docs/site_architecture.md
--  - site_v2/src/styles/system.css
--  - .pre-commit-config.yaml
-+  - docs/wireframes/approved_designs.yml
+-  - docs/wireframes/approved_designs.yml
++  - site_v2/src/components/ui/Fold.astro
++  - site_v2/src/components/home/HeroFixtures.astro
++  - site_v2/src/components/matches/MatchesDay.astro
++  - site_v2/src/styles/system.css
++  - site_v2/src/i18n/strings.ts
++  - site_v2/src/specs/index.spec.json
++  - site_v2/src/specs/matches/index.spec.json
++  - site_v2/src/specs/matches/day.spec.json
++  - docs/wireframes/block_standard.md
++  - docs/wireframes/10_home.md
++  - design-mocks/gen_home.py
++  - design-mocks/gen_matches_hub.py
++  - design-mocks/check_home.py
++  - tests/test_no_decision_history_in_code.py
++  - tests/test_no_decision_history_in_docs.py
++  - tests/test_sentence_length_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
    - .claude/task/acceptance_evidence.md
    - .claude/task/rendered_page_evidence.md
  
--impact_map: >
--  writers: scripts/export_site_data.py fetch_landing_payload is the only writer of landing.json;
--  group_upcoming_fixtures and the two Home board shapers are its helpers and have no other caller
--  (git grep). No dbt model changes.
--  downstream: landing.json is read only by site_v2/src/pages/[lang]/index.astro, which passes it to
--  HeroFixtures, TopPlayers and TopTeams. FixtureRow.astro has one importer, HeroFixtures.
--  RankingBoard.astro is also rendered by RankingsBlock.astro (the Rankings tab) and
--  MatchLeaders.astro (the match page); only its Props type widens, its markup is unchanged.
--  MatchRow.astro is read unchanged. competitionOrder.mjs keeps its other two callers, MatchesDay
--  and CompetitionIndexGrid.
--  layer_rules: the page renders the order it is served (layering.md, Consumption layer); the export
--  selects, groups and shapes served columns: competition_order and fixture_order from the marts,
--  the format and per-match flag from the metric catalogue.
--  deploy_order: the export reads mart_next_matchday.competition_order, which !330 added and the
--  nightly builds; it is in prod before this merges. deploy:site-v2 is manual and runs the export
--  fresh.
--  blast_radius: the three locale Home pages and landing.json; the committed sample set (landing.json,
--  the fixture and team payloads it links, their .gitignore allowlist) rolls forward to the current
--  next matchdays and boards.
--
--approved_design:
--  - home: #127
--
--acceptance_criteria:
--  - "Next matches uses the site's shared match row, the one on the Matches page, the competition's Matchdays tab and the match page: a date heading per day, the kick-off with its zone, the Top match tag on each competition's flagged match, and the whole row one link with the shared hover."
--  - "Next matches keeps the competition head (name, chevron, the 2px line), three matches per competition and the rest under \"Show all {n}\"."
--  - "The order of the competitions in Next matches is served by the warehouse; the page applies no order of its own."
--  - "Top players and Top teams use the competition Rankings tab's board unchanged: a single-value table, the board name in the head row, seven rows on Home."
--  - "The intros of Top players and Top teams are the block explainer, 13px grey, like every block intro."
--  - "Nothing else on Home changes: the same blocks, boards, leagues and intro wording, in EN, DE and FI."
--
++impact_map: >
++  writers: no data writer changes; the export and every payload are untouched.
++  downstream: the fold markup is rendered by HeroFixtures.astro (Home) and MatchesDay.astro (the
++  Matches page and the Matches day page), its only two renderers (git grep fxmore). The new
++  Fold.astro has these two importers. The .fxmore rules in system.css have no other reader; the
++  mocks gen_home.py and gen_matches_hub.py inline system.css and emit the fold, so they move with
++  it.
++  layer_rules: presentation only; the rows, their count and their order are what the page is served.
++  deploy_order: none; deploy:site-v2 is manual and builds from the export.
++  blast_radius: the three locale Home pages, Matches pages and Matches day pages; the fold's markup
++  and its CSS; one new copy key in EN, DE and FI.
++
++approved_design:
++  - home: #127
++  - matches: #130
++
++acceptance_criteria:
++  - "On Home, the Matches page and the Matches day page, a competition with more than three matches shows its first three, then 'Show all {n}' with the chevron pointing down; n is the competition's match count."
++  - "Opened, the remaining matches follow the third directly in the same list, with the same divider between every two rows and no extra line or gap."
++  - "Opened, the control sits under the last match and reads 'Show less' (DE 'Weniger anzeigen', FI 'Näytä vähemmän') with the chevron pointing up; clicking it closes the list."
++  - "The fold needs no JavaScript, and every match row is in the page's HTML."
++  - "The design check measures the Fold on Home, the Matches page and the Matches day page at 375, 700 and 1010 px."
++
  decisions_taken: >
--  Plan approved in chat, 2026-10-18, with these readings of approved rules: the competition head
--  carries the competition crest, as the reference render and the block standard's competition group
--  head show; board rows show what the Rankings board shows (a player's club under the name, no
--  sub-line on a team row), the 2026-10-17 recheck ruling the board unchanged; the rank column is the
--  row's place 1-7 in the served board order, as Home shows it today; board names stay plain text
--  (#139, #140) and the kick-off stays UTC with its zone label (#146). The doc texts for 10_home.md
--  §5 (1) and block_standard.md (the Home Pages row, the Legacy board value rule) are the ones in the
--  approved plan. No new mechanism, no recurring cost: the export's landing read gains one read of
--  mart_competition_index and drops one of core.dim_team.
-+  Approved in chat, 2026-10-19: the Teams page review is closed and the page enters the list as
-+  "teams: 133".
+-  Approved in chat, 2026-10-19: the Teams page review is closed and the page enters the list as
+-  "teams: 133".
++  Plan approved in chat, 2026-10-19: the copy EN "Show less", DE "Weniger anzeigen", FI "Näytä
++  vähemmän" under the key homeShowLess; the fold is the site's existing scriptless checkbox toggle
++  (the filters' and tabs' pattern), so a closed fold is not opened by the browser's find-in-page;
++  the texts of the block standard's Fold row and of 10_home.md §5 are the ones in the approved plan.
++  No new mechanism, no recurring cost.
  
  decisions_reserved:
--  - none: the sample set's size and its refresh were put to the CPO and decided in chat, 2026-10-18 (see amendments).
-+  - none: the CPO approved the Teams page design on #133, and this task only records it in the list.
+-  - none: the CPO approved the Teams page design on #133, and this task only records it in the list.
++  - none: the Teams page renders this fold in its own build (#222).
  
  done_when:
--  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
--  - python scripts/check_design_inventory.py --dist site_v2/dist --pages Home passes at 375, 700 and 1010px in EN, DE and FI.
--  - The full pytest suite and the offline gates pass.
-+  - The full pytest suite passes.
+-  - The full pytest suite passes.
++  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
++  - python scripts/check_design_inventory.py --dist site_v2/dist passes for Home, the Matches page and the Matches day page at 375, 700 and 1010px.
++  - The full pytest suite and the offline gates pass.
    - Reviewers per review_routing.json pass.
  
--amendments:
--  - 2026-10-18: + site_v2/src/data/matches/*.json, site_v2/src/data/competitions/BL1/*.json — authority: CPO, approved in chat, 2026-10-18; content: the new landing.json links 285 matches, of which ten moved date since the committed sample was exported, so their committed pages sit at the old address. The whole committed sample (the Matches page days, the Bundesliga payload, the fixture payloads their rows link to, the teams) is refreshed from one export, the README's set procedure; Home commits no fixture payload of its own and links a row where the shared sample has its page (the thin set, also approved in chat, 2026-10-18).
--  - 2026-10-18: + tests/test_no_decision_history_in_code.py — authority: the test's own rule that its pin moves down when the tree holds fewer flagged lines; content: the pin is lowered to the count the rewritten Home components and tests leave.
--  - 2026-10-18: + tests/test_no_decision_history_in_docs.py, tests/test_sentence_length_in_docs.py — authority: the same pins-move-down rule; content: the pinned counts of 10_home.md and site_v2/src/data/README.md are lowered to what the rewritten passages leave.
--  - 2026-10-18: + docs/site_architecture.md, site_v2/src/styles/system.css — authority: review round 1 (scope-auditor, bi-analyst-reviewer) and the standing rule that a document is edited in the same MR as what it describes; content: the Landing row of the payload table names the reads the export now makes; the fold's divider sits on whatever first follows its summary, a row or a date heading, so no line falls between a date heading and its first match.
--  - 2026-10-18: + .pre-commit-config.yaml — authority: CPO, approved in chat, 2026-10-18; content: the added-large-files check's limit rises from its 500 KB default to 1024 KB, the size the committed team payloads already reach, so the board-linked team payload of 716 KB can be committed.
-+amendments: (none)
-diff --git a/docs/wireframes/approved_designs.yml b/docs/wireframes/approved_designs.yml
-index a4329b8f..3f5a478f 100644
---- a/docs/wireframes/approved_designs.yml
-+++ b/docs/wireframes/approved_designs.yml
-@@ -6,3 +6,4 @@ competitions: 128
- competition: 129
- matches: 130
- match: 132
-+teams: 133
+ amendments: (none)
+diff --git a/design-mocks/check_home.py b/design-mocks/check_home.py
+index fbc23a2d..e72a58ce 100644
+--- a/design-mocks/check_home.py
++++ b/design-mocks/check_home.py
+@@ -39,19 +39,20 @@ check("next matches uses .fxgroup/.gh/.fxrow", all(
+ check("19 fixtures: the fixed list plus the Bundesliga's whole nine-match round",
+       body.count('class="fxrow"') == 19, str(body.count('class="fxrow"')))
+ 
+-print("\nthe fold: 3 visible per competition, the rest inside <details> (#127)")
++print("\nthe fold: 3 visible per competition, the rest in the fold, its control under them")
+ groups = body.split('<div class="fxgroup">')[1:]
+-outside = [g.split("<details", 1)[0].count('class="fxrow"') for g in groups]
++outside = [g.split('<div class="fold-rest">', 1)[0].count('class="fxrow"') for g in groups]
+ check("no competition shows more than 3 rows outside the fold", max(outside) <= 3, str(outside))
+-folds = re.findall(r'<details class="fxmore"><summary><span class="lbl">Show all (\d+)</span>', body)
++folds = re.findall(r'<span class="closed">Show all (\d+)</span><span class="opened">Show less</span>', body)
+ check("exactly one competition folds, and it is the nine-match round", folds == ["9"], str(folds))
+-bl1 = next(g for g in groups if "<details" in g)
++bl1 = next(g for g in groups if 'class="fold-rest"' in g)
++rest = bl1.split('<div class="fold-rest">', 1)[1]
+ check("the Bundesliga shows 3 rows, folds 6",
+-      bl1.split("<details", 1)[0].count('class="fxrow"') == 3
+-      and bl1.split("<details", 1)[1].count('class="fxrow"') == 6)
+-check("the fold needs no script: a native <details>/<summary>, chevron in the summary",
+-      '<details class="fxmore"><summary>' in body and body.count('</details>') == 1
+-      and 'class="chev"' in bl1.split("</summary>", 1)[0])
++      bl1.split('<div class="fold-rest">', 1)[0].count('class="fxrow"') == 3
++      and rest.split('<label class="fold-ctl"', 1)[0].count('class="fxrow"') == 6)
++check("the fold needs no script: a checkbox and its label, the label after the folded rows",
++      '<input type="checkbox" class="fold-in"' in body and body.count('class="fold-ctl"') == 1
++      and 'class="chev"' in rest.split('<label class="fold-ctl"', 1)[1])
+ 
+ print("\nno regression on the block rules")
+ check("no column-header row anywhere", '<span class="bh v">' not in body)
+diff --git a/design-mocks/gen_home.py b/design-mocks/gen_home.py
+index 2790c06c..08db0dd5 100644
+--- a/design-mocks/gen_home.py
++++ b/design-mocks/gen_home.py
+@@ -7,8 +7,8 @@ Three blocks, the composition approved on GitLab #127 (the authority for Home).
+     cannot drift from the mocks that were approved.
+   * Next matches is MOCKED here, but its markup mirrors the shipped component
+     (`HeroFixtures.astro`) class for class -- `.fxgroup > .gh`, `.fxrow` with
+-    `.sides`/`.side`/`.when`, and the `<details class="fxmore">` fold that holds every row
+-    past the third ("3 visible, the rest folded"). The Bundesliga group below carries a whole
++    `.sides`/`.side`/`.when`, and the site's fold that holds every row past the third
++    ("3 visible, the rest folded"). The Bundesliga group below carries a whole
+     nine-match round so the fold renders; the others fit above it.
+   * Every number is placeholder.
+ 
+@@ -66,8 +66,8 @@ FIXTURES = [
+     ("ED", [("Sun 15 Feb", [("PSV", "Feyenoord", "14:30")])]),
+ ]
+ 
+-# Rows a competition shows before the fold; the rest sit inside `<details class="fxmore">`,
+-# mirroring `HeroFixtures.astro`.
++# Rows a competition shows before the fold; the rest sit in the site's fold, mirroring
++# `components/ui/Fold.astro`.
+ VISIBLE_ROWS = 3
+ 
+ CHEV = ('<svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+@@ -99,13 +99,15 @@ def next_matches():
+                 out.append(date_head(date))
+             out.append(row)
+         if folded:
+-            out.append('<details class="fxmore"><summary><span class="lbl">Show all %d</span>%s'
+-                       '</summary>' % (len(rows), CHEV))
++            fid = "fold-%s" % code
++            out.append('<input type="checkbox" class="fold-in" id="%s"><div class="fold-rest">' % fid)
+             for date, row in folded:
+                 if date:
+                     out.append(date_head(date))
+                 out.append(row)
+-            out.append("</details>")
++            out.append('</div><label class="fold-ctl" for="%s"><span class="lbl">'
++                       '<span class="closed">Show all %d</span><span class="opened">Show less</span>'
++                       '</span>%s</label>' % (fid, len(rows), CHEV))
+         out.append("</div>")
+     out.append("</section>")
+     return "\n".join(out)
+diff --git a/design-mocks/gen_matches_hub.py b/design-mocks/gen_matches_hub.py
+index 3f97a272..24ce46e8 100644
+--- a/design-mocks/gen_matches_hub.py
++++ b/design-mocks/gen_matches_hub.py
+@@ -8,8 +8,8 @@ Saturday 26 September is an international weekend, 33 matches, 19 of them nation
+ as the page read that morning, so every row shows its kick-off and none its score. Times in UTC
+ with the label, as the built site shows them until the venue's clock lands (#146).
+ 
+-Each competition shows its first three matches and folds the rest under Home's "Show all"
+-(`.fxmore`), as ruled on #130.
++Each competition shows its first three matches and folds the rest in the site's fold
++(`.fold-ctl`).
+ 
+ Composed only of what the site already has: the Competitions page's breadcrumb, heading and two
+ filter rows (their radios and CSS unchanged, so the filters work here too); the Matchdays tab's
+@@ -60,6 +60,7 @@ COPY.update({
+     "day":            ("%s %d %s" % (EN_DAYS[DAY.weekday()], DAY.day, EN_MONTHS[DAY.month - 1]),
+                        "%s %d. %s" % (FI_DAYS[DAY.weekday()], DAY.day, FI_MONTHS[DAY.month - 1]), False),
+     "homeShowAll":    ("Show all {n}", "Näytä kaikki {n}", False),
++    "homeShowLess":   ("Show less", "Näytä vähemmän", False),
+     "jumpLabel":      ("Schedule", "Otteluohjelma", False),
+ })
+ 
+@@ -121,7 +122,7 @@ def day_html(groups):
+             '<a class="step next" href="#" aria-label="The day after">%s</a>'
+             '</span></nav>' % (CHEV_L, loc("day"), CHEV_R))
+     body = []
+-    for g in groups:
++    for i, g in enumerate(groups):
+         first = g[0]
+         kind = "nation" if first["entity_type"] == "national" else "club"
+         rows = [upcoming_row(kind, r["home_team_name"], r["away_team_name"],
+@@ -130,8 +131,12 @@ def day_html(groups):
+                 for r in g]
+         if len(rows) > FOLD:
+             rows = rows[:FOLD] + [
+-                '<details class="fxmore"><summary><span class="lbl">%s</span>%s</summary>\n%s\n</details>'
+-                % (loc_n("homeShowAll", len(rows)), SUMMARY_CHEV, "\n".join(rows[FOLD:]))]
++                '<input type="checkbox" class="fold-in" id="fold-%d">'
++                '<div class="fold-rest">\n%s\n</div>'
++                '<label class="fold-ctl" for="fold-%d"><span class="lbl"><span class="closed">%s</span>'
++                '<span class="opened">%s</span></span>%s</label>'
++                % (i, "\n".join(rows[FOLD:]), i, loc_n("homeShowAll", len(rows)), loc("homeShowLess"),
++                   SUMMARY_CHEV)]
+         body.append('<div class="fxgroup" data-entity-type="%s" data-confederation="%s">\n%s\n%s\n</div>'
+                     % (E(first["entity_type"]), E(first["confederation"]),
+                        group_head(first["competition_slug"], first["competition_name"]), "\n".join(rows)))
+diff --git a/docs/wireframes/10_home.md b/docs/wireframes/10_home.md
+index ac5291d5..4556387c 100644
+--- a/docs/wireframes/10_home.md
++++ b/docs/wireframes/10_home.md
+@@ -991,9 +991,9 @@ Static site, no islands on this screen. Every element is a link. The kickoff tim
+ same progressive-enhancement timezone script the other screens use. Search lives in the header
+ (09_chrome), not in this page's markup.
+ 
+-**#127 (2026-09-13) adds two interactions, neither scripted:** the Next matches fold — a native
+-`<details>` per competition holding every row past the third, its summary reading "Show all {n}"
+-— and, once the Leaderboards page exists (#139), the board title of every Top players and Top
++**#127 (2026-09-13) adds two interactions, neither scripted:** the Next matches fold — a scriptless
++fold per competition holding every row past the third; its control sits under the shown rows and
++reads "Show all {n}", or "Show less" once open — and, once the Leaderboards page exists (#139), the board title of every Top players and Top
+ teams board links to it. Until then the titles are plain text; a row links to the player or team
+ page as built.
+ 
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 9a3f83e2..a3c87504 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -105,7 +105,7 @@
+ | Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
+ | Filter row | `.seg` | the Competitions page's two filter rows, by type and by region, a sunk ground holding one button per choice; the Matches page carries the same two | `background-color=sunk` | ruled | #130 (the Competitions page's filters, as they ship) |
+ | Filter button | `.seg .seg-btn` | 13px, each on one line | `font-size=13px; one-line` | ruled | #130 (the Competitions page's filters, as they ship) |
+-| Fold | `.fxmore > summary` | Home's "Show all {n}" under a competition's first three matches, n the competition's count: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | #130 ruling B (Home's fold) |
++| Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
+ | Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
+ | Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
+ | Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
+@@ -142,7 +142,7 @@ and `gen_taxonomy.py` are diagrams.
+ 
+ | Page | Kind | Source | URL | FI | Expect |
+ |---|---|---|---|---|---|
+-| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Block explainer, Competition group head, Date heading, Match row kick-off, Match row zone, Board name, Search field [>=1010px], Search button [<1010px] |
++| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Block explainer, Competition group head, Date heading, Fold, Match row kick-off, Match row zone, Board name, Search field [>=1010px], Search button [<1010px] |
+ | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link, Search field [>=1010px], Search button [<1010px] |
+ | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
+ | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
+diff --git a/site_v2/src/components/home/HeroFixtures.astro b/site_v2/src/components/home/HeroFixtures.astro
+index 1075d470..dff624c3 100644
+--- a/site_v2/src/components/home/HeroFixtures.astro
++++ b/site_v2/src/components/home/HeroFixtures.astro
+@@ -3,13 +3,14 @@
+ // serves (mart_next_matchday.competition_order). Each competition sits under its group head
+ // (crest · name · chevron, the 2px line), then its matches as THE match row: a date heading
+ // wherever the day changes, the kick-off with its zone, the Top match tag on the flagged match.
+-// The first three matches show, the rest sit under "Show all {n}" in a native <details>, so every
+-// match is in the HTML and none needs a script to reach.
++// The first three matches show, the rest sit in the site's fold, so every match is in the HTML and
++// none needs a script to reach.
+ //
+ // No round on the row: the provider's round name is English in every locale.
+ import SectionHead from "../ui/SectionHead.astro";
+ import MatchRow from "../ui/MatchRow.astro";
+ import Crest from "../ui/Crest.astro";
++import Fold from "../ui/Fold.astro";
+ import type { Lang } from "../../lib/format";
+ import { formatDate } from "../../lib/format";
+ import { t } from "../../i18n/strings";
+@@ -34,7 +35,7 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
+ 
+   {groups.length === 0 && <p class="caption">{t(lang, "homeNoFixtures")}</p>}
+ 
+-  {groups.map((group) => {
++  {groups.map((group, i) => {
+     const rows = (from: number, to?: number) =>
+       group.fixtures.slice(from, to).map((fx, j) => (
+         <>
+@@ -62,16 +63,9 @@ const opensDay = (fixtures: CompetitionFixture[], i: number) =>
+         {rows(0, VISIBLE_ROWS)}
+ 
+         {group.fixtures.length > VISIBLE_ROWS && (
+-          <details class="fxmore">
+-            <summary>
+-              <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
+-              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+-                <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+-                      stroke-linecap="round" stroke-linejoin="round"></path>
+-              </svg>
+-            </summary>
++          <Fold id={`fold-${i}`} n={group.fixtures.length} lang={lang}>
+             {rows(VISIBLE_ROWS)}
+-          </details>
++          </Fold>
+         )}
+       </div>
+     );
+diff --git a/site_v2/src/components/matches/MatchesDay.astro b/site_v2/src/components/matches/MatchesDay.astro
+index dbcbd6b4..94fa92c7 100644
+--- a/site_v2/src/components/matches/MatchesDay.astro
++++ b/site_v2/src/components/matches/MatchesDay.astro
+@@ -2,8 +2,8 @@
+ // One day of the Matches page (#130, #131): the breadcrumb and the heading as on the Competitions
+ // page, its two filter rows, the Matchdays tab's picker with the day as its title and the
+ // neighbouring days as links, and one Schedule block: each competition playing that day under its
+-// crest and name (Home's group heading), its first three matches and the rest under Home's
+-// "Show all {n}", every row THE match row.
++// crest and name (Home's group heading), its first three matches and the rest in the site's fold,
++// every row THE match row.
+ //
+ // The day, its matches, its neighbours and whether the page opens on it are the warehouse's
+ // (mart_match_days, one payload per day); the competitions of the day take the site's shared
+@@ -12,6 +12,7 @@
+ import SectionHead from "../ui/SectionHead.astro";
+ import MatchRow from "../ui/MatchRow.astro";
+ import Crest from "../ui/Crest.astro";
++import Fold from "../ui/Fold.astro";
+ import FilterRows from "../competitions/FilterRows.astro";
+ import { t } from "../../i18n/strings";
+ import { localeHref, word } from "../../lib/href";
+@@ -78,7 +79,7 @@ const groups = orderUpcomingGroups(day.competitions);
+         </nav>
+         <section>
+           <SectionHead label={t(lang, "compSecSchedule")} />
+-          {groups.map((group) => (
++          {groups.map((group, i) => (
+             <div class="fxgroup" data-entity-type={group.entity_type} data-confederation={group.confederation}>
+               <div class="gh">
+                 {group.slug ? (
+@@ -98,16 +99,9 @@ const groups = orderUpcomingGroups(day.competitions);
+               {group.fixtures.slice(0, VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+ 
+               {group.fixtures.length > VISIBLE_ROWS && (
+-                <details class="fxmore">
+-                  <summary>
+-                    <span class="lbl">{t(lang, "homeShowAll", { n: group.fixtures.length })}</span>
+-                    <svg class="chev" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+-                      <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2"
+-                            stroke-linecap="round" stroke-linejoin="round"></path>
+-                    </svg>
+-                  </summary>
++                <Fold id={`fold-${i}`} n={group.fixtures.length} lang={lang}>
+                   {group.fixtures.slice(VISIBLE_ROWS).map((fx) => <MatchRow fx={fx} competitionSlug={group.slug} lang={lang} />)}
+-                </details>
++                </Fold>
+               )}
+             </div>
+           ))}
+diff --git a/site_v2/src/components/ui/Fold.astro b/site_v2/src/components/ui/Fold.astro
+new file mode 100644
+index 00000000..b35061fb
+--- /dev/null
++++ b/site_v2/src/components/ui/Fold.astro
+@@ -0,0 +1,25 @@
++---
++// The site's fold: the rows in the slot follow the shown rows in the same list, and the control
++// stays under whatever is shown, so a long list closes where the reader stops. A checkbox and its
++// label do the toggling, the site's scriptless pattern; every row is in the HTML.
++import Chevron from "../fixture/Chevron.astro";
++import type { Lang } from "../../lib/format";
++import { t } from "../../i18n/strings";
++
++interface Props {
++  id: string;
++  n: number;
++  lang: Lang;
++}
++const { id, n, lang } = Astro.props;
++---
++
++<input type="checkbox" class="fold-in" id={id} />
++<div class="fold-rest"><slot /></div>
++<label class="fold-ctl" for={id}>
++  <span class="lbl">
++    <span class="closed">{t(lang, "homeShowAll", { n })}</span>
++    <span class="opened">{t(lang, "homeShowLess")}</span>
++  </span>
++  <Chevron />
++</label>
+diff --git a/site_v2/src/i18n/strings.ts b/site_v2/src/i18n/strings.ts
+index fd4be547..ccf84433 100644
+--- a/site_v2/src/i18n/strings.ts
++++ b/site_v2/src/i18n/strings.ts
+@@ -240,6 +240,7 @@ const EN: Dict = {
+   percentage: "percentage",
+   homeNoFixtures: "No matches scheduled right now.",
+   homeShowAll: "Show all {n}",
++  homeShowLess: "Show less",
+   // Competitions index page (#62 step 5) — category labels (competition_types.csv
+   // label_i18n_key) and region labels (confederations.csv label_i18n_key). Only the keys the
+   // live export actually uses (docs/wireframes/00_overview.md's binding rule): a
+@@ -542,6 +543,7 @@ const DE: Dict = {
+   percentage: "in Prozent",
+   homeNoFixtures: "Derzeit sind keine Spiele angesetzt.",
+   homeShowAll: "Alle {n} anzeigen",
++  homeShowLess: "Weniger anzeigen",
+   compTypeDomesticLeague: "Nationale Ligen",
+   compTypeDomesticCup: "Nationale Pokale",
+   compTypeContinentalCup: "Kontinentale Vereinspokale",
+@@ -839,6 +841,7 @@ const FI: Dict = {
+   percentage: "prosentteina",
+   homeNoFixtures: "Ei otteluita tällä hetkellä.",
+   homeShowAll: "Näytä kaikki {n}",
++  homeShowLess: "Näytä vähemmän",
+   compTypeDomesticLeague: "Kansalliset sarjat",
+   compTypeDomesticCup: "Kansalliset cupit",
+   compTypeContinentalCup: "Mantereiden seuracupit",
+diff --git a/site_v2/src/specs/index.spec.json b/site_v2/src/specs/index.spec.json
+index 93c33264..fa078a7d 100644
+--- a/site_v2/src/specs/index.spec.json
++++ b/site_v2/src/specs/index.spec.json
+@@ -21,7 +21,7 @@
+     {
+       "block": "Fixtures hero",
+       "mart": ["mart_next_matchday", "mart_competition_fixtures", "mart_competition_index"],
+-      "i18n_keys": ["homeNext", "homeNoFixtures", "homeShowAll", "compTBC", "compTopMatch"]
++      "i18n_keys": ["homeNext", "homeNoFixtures", "homeShowAll", "homeShowLess", "compTBC", "compTopMatch"]
+     },
+     {
+       "block": "Top players",
+diff --git a/site_v2/src/specs/matches/day.spec.json b/site_v2/src/specs/matches/day.spec.json
+index 06c421ed..2b06c36f 100644
+--- a/site_v2/src/specs/matches/day.spec.json
++++ b/site_v2/src/specs/matches/day.spec.json
+@@ -31,7 +31,7 @@
+     {
+       "block": "Schedule",
+       "mart": ["mart_match_days", "mart_competition_fixtures", "mart_competition_index"],
+-      "i18n_keys": ["compSecSchedule", "homeShowAll", "compTBC"]
++      "i18n_keys": ["compSecSchedule", "homeShowAll", "homeShowLess", "compTBC"]
+     }
+   ]
+ }
+diff --git a/site_v2/src/specs/matches/index.spec.json b/site_v2/src/specs/matches/index.spec.json
+index 0625199f..1a4f1668 100644
+--- a/site_v2/src/specs/matches/index.spec.json
++++ b/site_v2/src/specs/matches/index.spec.json
+@@ -31,7 +31,7 @@
+     {
+       "block": "Schedule",
+       "mart": ["mart_match_days", "mart_competition_fixtures", "mart_competition_index"],
+-      "i18n_keys": ["compSecSchedule", "homeShowAll", "compTBC"]
++      "i18n_keys": ["compSecSchedule", "homeShowAll", "homeShowLess", "compTBC"]
+     }
+   ]
+ }
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 55529022..fbca9693 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -595,20 +595,23 @@ a.cnm .nm { text-decoration: none; }
+ .nexttag { margin-left: 8px; }
+ .fxrow .topmatch { align-self: center; margin-right: 10px; }
+ .fxrow:has(.topmatch) { grid-template-columns: minmax(0, 1fr) max-content 41px; }
+-/* THE FOLD — a competition's rows past the third sit in a native <details>; the summary is the
+-   "show all" control and reads as one more row (same divider, same height rhythm), with the
+-   heading's chevron turned down once open. No script: the element does the toggling. */
+-.fxmore > summary {
++/* THE FOLD (components/ui/Fold.astro) — the revealed rows join the list they continue
++   (`display: contents`, so they also fill a grid's columns), and the control reads as one more row
++   under whatever is shown: "Show all {n}" with the chevron down, "Show less" with it up. */
++.fold-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
++.fold-rest { display: contents; }
++.fold-in:not(:checked) ~ .fold-rest { display: none; }
++.fold-ctl {
+   display: flex; align-items: center; justify-content: space-between; gap: 12px;
+-  padding: 12px 0; cursor: pointer; list-style: none;
++  padding: 12px 0; cursor: pointer; grid-column: 1 / -1;
+   font-size: 13px; font-weight: 600; color: var(--ink-2);
+ }
+-.fxmore > summary::-webkit-details-marker { display: none; }
+-.fxmore > summary .chev { transform: rotate(90deg); }
+-.fxmore[open] > summary .chev { transform: rotate(-90deg); }
+-.fxmore > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+-.fxmore > summary + .fxrow, .fxmore > summary + .dh { border-top: 1px solid var(--line); }
+-.fxmore > .fxrow:last-child { border-bottom: 0; }
++.fold-ctl .chev { transform: rotate(90deg); }
++.fold-in:checked ~ .fold-ctl .chev { transform: rotate(-90deg); }
++.fold-ctl .opened, .fold-in:checked ~ .fold-ctl .closed { display: none; }
++.fold-in:checked ~ .fold-ctl .opened { display: inline; }
++.fold-in:focus-visible ~ .fold-ctl { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
++.fold-rest > .fxrow:last-child { border-bottom: 1px solid var(--line); }
+ /* Small crest for list rows. The base .crest is a 52px block built for the fixture masthead. */
+ .crest.xs { width: 24px; height: 24px; border-radius: 4px; font-size: 9px; flex: 0 0 auto; }
+ 
+diff --git a/tests/test_no_decision_history_in_code.py b/tests/test_no_decision_history_in_code.py
+index 602679c3..4a240ae6 100644
+--- a/tests/test_no_decision_history_in_code.py
++++ b/tests/test_no_decision_history_in_code.py
+@@ -30,7 +30,7 @@ sys.path.insert(0, HOOKS)
+ import comment_history_gate as gate  # noqa: E402
+ 
+ # The pin. A sweep MR lowers these two numbers and nothing else may move them.
+-PINNED_LINES = 727
++PINNED_LINES = 726
+ PINNED_FILES = 181
+ 
+ HASH = chr(35)
+diff --git a/tests/test_no_decision_history_in_docs.py b/tests/test_no_decision_history_in_docs.py
+index 28b7c6f6..a2710f82 100644
+--- a/tests/test_no_decision_history_in_docs.py
++++ b/tests/test_no_decision_history_in_docs.py
+@@ -59,7 +59,7 @@ PINNED = {
+     "docs/wireframes/13_player_career.md": 11,
+     "docs/wireframes/14_team_stats.md": 9,
+     "docs/wireframes/99_gaps_register.md": 30,
+-    "docs/wireframes/block_standard.md": 51,
++    "docs/wireframes/block_standard.md": 50,
+     "docs/wireframes/metrics_display.md": 44,
+     "site_v2/src/data/README.md": 5,
+ }
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -140,7 +531,7 @@ index a4329b8f..3f5a478f 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 17 +++++------------
-#    .claude/task/rendered_page_evidence.md | 23 +++--------------------
-#    2 files changed, 8 insertions(+), 32 deletions(-)
+#   .claude/task/acceptance_evidence.md    | 16 +++++++++++-----
+#    .claude/task/rendered_page_evidence.md | 20 +++++++++++++++++---
+#    2 files changed, 28 insertions(+), 8 deletions(-)
 # ============================================================================

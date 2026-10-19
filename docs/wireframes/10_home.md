@@ -991,9 +991,9 @@ Static site, no islands on this screen. Every element is a link. The kickoff tim
 same progressive-enhancement timezone script the other screens use. Search lives in the header
 (09_chrome), not in this page's markup.
 
-**#127 (2026-09-13) adds two interactions, neither scripted:** the Next matches fold — a native
-`<details>` per competition holding every row past the third, its summary reading "Show all {n}"
-— and, once the Leaderboards page exists (#139), the board title of every Top players and Top
+**#127 (2026-09-13) adds two interactions, neither scripted:** the Next matches fold — a scriptless
+fold per competition holding every row past the third; its control sits under the shown rows and
+reads "Show all {n}", or "Show less" once open — and, once the Leaderboards page exists (#139), the board title of every Top players and Top
 teams board links to it. Until then the titles are plain text; a row links to the player or team
 page as built.
 

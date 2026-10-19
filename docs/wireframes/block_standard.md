@@ -105,7 +105,7 @@
 | Page heading | `.crumb + h1` | a menu page's heading under its breadcrumb, the menu item's word: the Competitions page's and the Matches page's, 30px bold ink | `font-size=30px; font-weight=700; color=ink` | ruled | #130 (the Competitions page's heading, as it ships) |
 | Filter row | `.seg` | the Competitions page's two filter rows, by type and by region, a sunk ground holding one button per choice; the Matches page carries the same two | `background-color=sunk` | ruled | #130 (the Competitions page's filters, as they ship) |
 | Filter button | `.seg .seg-btn` | 13px, each on one line | `font-size=13px; one-line` | ruled | #130 (the Competitions page's filters, as they ship) |
-| Fold | `.fxmore > summary` | Home's "Show all {n}" under a competition's first three matches, n the competition's count: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | #130 ruling B (Home's fold) |
+| Fold | `.fold-ctl` | Under a list's shown rows: "Show all {n}" closed, "Show less" open, with the chevron down or up: 13px semi-bold ink-2 | `font-size=13px; font-weight=600; color=ink-2` | ruled | the shared fold review |
 | Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
 | Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
 | Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
@@ -142,7 +142,7 @@ and `gen_taxonomy.py` are diagrams.
 
 | Page | Kind | Source | URL | FI | Expect |
 |---|---|---|---|---|---|
-| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Block explainer, Competition group head, Date heading, Match row kick-off, Match row zone, Board name, Search field [>=1010px], Search button [<1010px] |
+| Home | built | `site_v2/dist` | `en/index.html` | path | Block heading, Block explainer, Competition group head, Date heading, Fold, Match row kick-off, Match row zone, Board name, Search field [>=1010px], Search button [<1010px] |
 | Competitions index | built | `site_v2/dist` | `en/competitions/index.html` | path | Row link, Search field [>=1010px], Search button [<1010px] |
 | Competition overview | built | `site_v2/dist` | `en/bundesliga/index.html` | path | Block heading, Table head, Table row, Ordered-by number, Tab bar, Search field [>=1010px], Search button [<1010px] |
 | Competition matchdays | built | `site_v2/dist` | `en/bundesliga/matches/index.html` | path | Block heading, Schedule block, Matchday picker, Tag, Date heading, Match row kick-off, Tab bar, Search field [>=1010px], Search button [<1010px] |
