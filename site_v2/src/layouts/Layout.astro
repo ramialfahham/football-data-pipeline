@@ -26,8 +26,10 @@ interface Props {
   image?: string;
   /** The menu section the page sits in, marked in the menu; none on Home. */
   section?: Section;
+  /** Keeps the earlier widths on a page whose new design is not yet approved. */
+  legacyWidth?: boolean;
 }
-const { lang, title, description, entity, crumbs, image, section } = Astro.props;
+const { lang, title, description, entity, crumbs, image, section, legacyWidth = false } = Astro.props;
 
 // Canonical from Astro.site + the PATHNAME. Never Astro.url.href: in a static build that carries
 // the dev/preview origin (localhost:4321), so every canonical would point at a machine that is not
@@ -98,7 +100,7 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
 
     {jsonLd && <script type="application/ld+json" set:html={jsonLd} />}
   </head>
-  <body class="fx" data-theme="dark">
+  <body class={legacyWidth ? "fx legacy-width" : "fx"} data-theme="dark">
     <script is:inline>
       // No-flash theme init: read the saved choice (if any) BEFORE the header/
       // footer render, as the very first thing in <body>, so a returning

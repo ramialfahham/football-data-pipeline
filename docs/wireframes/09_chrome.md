@@ -49,12 +49,12 @@ lives in the drawer (`#menuBtn` toggles `.drawer.open`), closed by default.
 hidden — there is no drawer state to open on a laptop-width screen.
 
 **≥ 900px**: a generic two-column page grid (`.shell > .page-grid { main | aside.rail }`, max
-content width ~1100px, rail border-left) becomes available for any page that needs a context rail
+width 960px, rail border-left) becomes available for any page that needs a context rail
 alongside its main content. **Not wired into any page this task** — home, competition hub, and
 leaderboards are the candidates (per the home-content mock `1c35e7aa`'s rail: standings/
 trending/top-scorers), but per-page rail contents is a reserved CPO call (`.claude/task/contract.md`).
-The team and fixture pages keep their existing locked single column (`.inner`, 680px, unchanged) —
-see §10 for the open gap this leaves.
+Every page renders one column, `.inner`, 960px wide like the header and the footer. A page whose
+new design is not yet approved keeps the earlier widths, 680px and 1100px (`legacyWidth`).
 
 **≥ 1010px**: the search box becomes a full field with placeholder text (`.searchbox`); the
 icon-only mobile search button (`.search-m`) hides.
@@ -132,14 +132,9 @@ New this task, added to the aggregate census in `00_overview.md`:
 
 ## 10. Gaps
 
-Not a data gap (chrome has no export dependency, §3) — two open, non-data items, recorded here
+Not a data gap (chrome has no export dependency, §3) — one open, non-data item, recorded here
 rather than silently resolved:
 
-- **Team/fixture desktop width.** The original wireframes (`01_fixture_page.md` §4,
-  `02_team_profile.md` §4) call for those two pages themselves to widen to ~1100px on desktop with
-  an internal two-column reflow. Today they still render at the locked 680px `.inner` single
-  column (unchanged by this task — see §4 above). Closing this means changing an already-shipped,
-  CPO-approved page's width, which is a design decision outside this task's contract.
 - **Rail contents.** The `.page-grid`/`.rail` primitive exists but is wired into zero pages. The
   home-content mock (`1c35e7aa`, reference only) shows one candidate rail (standings/trending/
   top-scorers) for the eventual home page — CPO decides per page type when that page is built.

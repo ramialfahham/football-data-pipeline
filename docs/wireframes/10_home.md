@@ -745,7 +745,7 @@ into the single column in the order drawn above.~~
 
 ⛔ **SUPERSEDED and never built.** Browse is not in a rail; it was the last block in the single
 column at every width, and neither of the blocks that were to sit beside it still exists. The page
-does not use `.page-grid` at all — it uses `.inner`, the 680px single column. Whether the home page
+does not use `.page-grid` at all — it uses `.inner`, the 960px single column. Whether the home page
 ever adopts the two-column shell is part of the undecided layout question above. ⛔ **Browse itself
 is dropped 2026-08-19** — this whole rail question is now moot for it specifically, though it
 remains open for whatever Top players/Top teams end up needing.
