@@ -54,6 +54,7 @@ FI_MODES = ("path", "toggle", "none")
 PROPS = (
     "font-size", "font-weight", "text-transform", "letter-spacing", "line-height", "white-space",
     "text-decoration-line", "color", "background-color", "border-bottom-width", "margin-top",
+    "max-width",
 )
 TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
           "win", "draw", "loss", "pill-ink", "track")
@@ -147,7 +148,7 @@ def _check_value(kind: str, prop: str, value: str, where: str) -> None:
         m = _COLOUR.match(value)
         if not m or (m.group("tok") and m.group("tok") not in TOKENS):
             raise InventoryError("%s: %s expects a colour (transparent, a token, token@pct), got %r" % (where, kind, value))
-    elif prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top"):
+    elif prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top", "max-width"):
         if not _PX.match(value):
             raise InventoryError("%s: %s expects a px value, got %r" % (where, kind, value))
     elif prop == "font-weight":
@@ -354,7 +355,7 @@ def compare(a: Assertion, measured, tokens: dict[str, str]) -> str | None:
             except ValueError as exc:
                 return "expected %s · measured %s (%s)" % (a.raw, measured, exc)
             return None if ok else "expected %s · measured %s" % (a.raw, measured)
-        if prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top", "line-height"):
+        if prop in ("font-size", "letter-spacing", "border-bottom-width", "margin-top", "line-height", "max-width"):
             if a.expected == "normal" or not _PX.match(str(measured)):
                 return None if str(measured) == a.expected else "expected %s · measured %s" % (a.raw, measured)
             return None if abs(float(str(measured)[:-2]) - float(a.expected[:-2])) <= 0.5 else "expected %s · measured %s" % (a.raw, measured)

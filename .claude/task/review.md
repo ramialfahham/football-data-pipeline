@@ -1,34 +1,29 @@
-# Review — feat/221-shared-fold — 2026-10-19
+# Review — feat/224-page-width — 2026-10-20
 
-diff_sha256: 61aa66a131307a5b41821048cd25b4974dd9c5840521ffc25fcdfb039c9fb5e2
+diff_sha256: 7529cc30c8a61f19dc01a0d0923312677fb674e195c9fb939e0e692dbef0e6d1
 
-rounds: 1
+rounds: 2
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Checked every file in the diff against scope_paths; the contract has no amendments and needs none.
-- Checked the five acceptance criteria against #221's What exactly: control under the shown rows, the two labels and chevron states, no script, the rows joining a two-column grid.
-- Checked the doc edits stay inside the approved plan: the Fold row, Fold in Home's Pages row, the 10_home.md fold sentence; no fxmore, details or summary wording left in docs/.
-- Checked §10: the copy, the checkbox toggle as the site's existing scriptless pattern and its find-in-page effect are in decisions_taken; no new mechanism, no recurring cost, the Teams page untouched.
-- Checked approved_design home: #127 and matches: #130 cover the three pages that render the fold, and no other page renders Fold.astro.
+- Every staged path is in scope_paths; the pages whose width changes are covered by the approved designs named in approved_design; the Team and Player pages keep their widths through legacyWidth, so the reserved decisions stay undecided.
+- The one new mechanism, a Layout prop that sets a body class, is named in decisions_taken; no metric, label, URL, copy, order, dependency or cost change.
+- Docs state the current state only; the pinned counts move down only; the round-2 test adds no decision.
 
 ## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- Checked the built EN/DE/FI labels: "Show all 5 / Show less", "Alle 5 anzeigen / Weniger anzeigen", "Näytä kaikki 5 / Näytä vähemmän"; homeShowLess in all three locales and in the three specs.
-- Checked the dividers against the built DOM: the last shown row keeps its line above the control, the last folded row keeps it when open, a date heading opening the fold carries the line above it and none below.
-- Checked accessibility: the hidden checkbox stays in the tab order, the label's accessible name is the one visible text, the focus ring draws on the label.
-- Checked the Matches page filters hide whole groups by attribute and are unaffected; fold ids are unique per page and collide with no filter or day id.
-- Checked the frontend computes nothing new: n is the served row count and the three shown rows are the existing presentation constant.
+- The evidence files cover every acceptance criterion with readings from the branch build and main's build at 375–1440px in EN, DE and FI.
+- The width rule is pinned: the Page width row measures the header and footer on every built page without legacy-width, and the round-2 test pins the content column, the shell and the earlier widths, and that only the Team and Player pages opt out.
+- No data field, rendered number, label or metric is added; no stale 680px or 1100px remains outside the legacy override.
 
 ## platform-reviewer
 VERDICT: PASS
 risks_checked:
-- Checked the code pin 727 to 726 against the one removed comment line carrying an issue number in gen_matches_hub.py; PINNED_FILES stays correct.
-- Checked the docs pin for block_standard.md 51 to 50 against the one removed Ruled-on cell; no other pin moved and no ceiling was loosened.
-- Checked the mock generators' format strings and check_home.py's splits match the markup they emit, and no mock carries fold CSS of its own.
-- Checked no dependency, lockfile, workflow, hook or credential change.
+- max-width flows from PROPS into the browser measurement with no second list; a computed none fails the px comparison; the bad-row and compare tests fail on revert.
+- The round-2 test's regexes match exactly one rule each in system.css and turn red if the content column, the header, the footer or the shell leaves the Page width, or if a third page opts out.
+- No dependency, credential, workflow, deploy or cache change.
 
 ## escalations
 (none)

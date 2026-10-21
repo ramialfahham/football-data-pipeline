@@ -1,14 +1,17 @@
-# Verification — the shared fold
+# Verification — one page width
 
 Built locally with `npm run build` in `site_v2` on the committed sample: exit 0, the site's tests
 pass, audit-seo checks 2,269 pages OK, check-built-pages checks 1,644 match pages and 15,606 match
-rows OK. `python scripts/check_design_inventory.py --dist site_v2/dist`: 24 pages × 375/700/1010 px
-× EN/DE/FI, 174 renders, 0 failures; the 30 warnings are all the proposed Header row. Counts below
-are read from `site_v2/dist`, the same in all three locales.
+rows OK. Main's build (`gitlab/main` at de1d5445) was kept beside it for comparison. Both builds
+were served over HTTP and measured in the browser with each page in an iframe of the given width;
+the readings are the bounding boxes of `.inner`, `.header-in` and `.footer-in`, the page height,
+sideways scroll, header overflow and any element past the screen edge. The sample is 249 pages in
+EN, DE and FI: every top-level page, every competition page and tab page, and samples of team,
+player, match day and match pages.
 
 criteria_demonstrated:
-  - Shown rows and the closed control: Home has 23 folds per locale, the Matches page 10, the 49 Matches day pages 46; in every one the fold sits after exactly 3 `.fxrow` rows and its closed label's n equals the group's row count (3 shown plus the folded ones). Labels read "Show all 5" (EN), "Alle 5 anzeigen" (DE), "Näytä kaikki 5" (FI); the chevron computes to rotate(90deg), pointing down, in the browser.
-  - Opened, one list: with every fold opened in the browser (Home at 375 px, the DE Matches page at 1010 px), the gap between every two consecutive rows is 0 px and every row keeps its 1px divider, the last folded row included; the 3 Home folds that open on a new day carry the divider on the row above the date heading and none between the date heading and its first match.
-  - Opened, the control: the control's top equals the last row's bottom (0 px) on all 23 Home and 10 Matches folds; it reads "Show less" (EN), "Weniger anzeigen" (DE), "Näytä vähemmän" (FI), the chevron computes to rotate(-90deg), pointing up, and a second click returns the group to 3 rows. By keyboard, Tab reaches the fold, the 2px accent focus ring draws on its control, and Space opens it.
-  - No script: no page holds a `details.fxmore` or any `<details>`; no inline script on Home, the Matches page or a Matches day page names the fold; every row is in the HTML (the shown plus folded `.fxrow` counts equal n for every fold), toggled by `input.fold-in` and its `label.fold-ctl`; every fold id is unique on its page.
-  - The design check measures the Fold: the block standard's Fold row now selects `.fold-ctl` and Home's Pages row lists Fold beside the Matches page and Matches day page rows; the check passes it on all three at 375, 700 and 1010 px in EN, DE and FI.
+  - At 1440px, all 213 approved-page loads (every sampled page except the Team and Player pages, in EN, DE and FI) measure `.inner`, `.header-in` and `.footer-in` at 960px each, with the same left edge (Home EN: 231px for all three). On main's build the same Home measures content 680px at 371px under a 1100px header and footer at 161px.
+  - The Team and Player pages carry `legacy-width` on the body and no other page does (checked on all 249 pages). Their readings at 375, 700, 800, 1010 and 1440px are identical to main's build: content 680px, header and footer 1100px. The test `test_the_content_column_header_and_footer_share_the_page_width` pins the two earlier widths and that only `[team].astro` and `[player].astro` pass `legacyWidth`.
+  - At 375px all 249 pages read the same as on main: the three boxes, the page height and sideways scroll. The 393 readings (every page at 375px, plus the Team and Player pages at every width) give the same SHA-256 on both builds, f398a798cff6dbaa…
+  - At 700, 800, 1010 and 1440px (iframe widths, scrollbar included), none of the 249 pages in EN, DE or FI scrolls sideways, overflows its header row or has an element past the screen edge. `scripts/check_design_inventory.py` at exactly 375, 700 and 1010px gives the same 30 warnings as on main, all the proposed Header row at 700px, and no new one.
+  - `python scripts/check_design_inventory.py --dist site_v2/dist`: 24 pages × 3 viewports × 3 languages, 174 renders, 0 failures. On main's build the same check fails the Page width row 90 times (header and footer at 1100px), so the row measures what it claims. It is measured on every built page without `legacy-width`. The content column, which mock harnesses restyle and the row therefore cannot name, is pinned to the same width by the test above, which reads the row's value.

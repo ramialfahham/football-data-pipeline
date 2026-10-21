@@ -105,6 +105,28 @@ def test_the_check_renders_the_width_the_search_field_appears_at():
                for a in field.assertions), "the Search field row must assert it is shown from %dpx" % width
 
 
+def test_the_content_column_header_and_footer_share_the_page_width():
+    """The Page width row measures the header and the footer on the built pages; the content
+    column cannot be named there because mock harnesses restyle `.inner`. This pins the column to
+    the same width in the stylesheet, and the earlier widths to the pages that keep them."""
+    (expected,) = [a.expected for a in di.load().element("Page width").assertions if a.kind == "max-width"]
+    css = SYSTEM_CSS.read_text(encoding="utf-8")
+
+    def max_width(selector: str) -> str:
+        m = re.search(r"(?m)^%s \{[^}]*?max-width: (\d+px);" % re.escape(selector), css)
+        assert m, "system.css has no max-width rule starting with %r" % selector
+        return m.group(1)
+
+    for sel in (".inner", ".header-in", ".footer-in", ".shell"):
+        assert max_width(sel) == expected, "%s is %s, the Page width is %s" % (sel, max_width(sel), expected)
+    assert max_width(".fx.legacy-width .inner") == "680px"
+    assert max_width(".fx.legacy-width .header-in, .fx.legacy-width .footer-in") == "1100px"
+    pages = SYSTEM_CSS.parent.parent / "pages"
+    keep = sorted(p.relative_to(pages).as_posix() for p in pages.rglob("*.astro")
+                  if re.search(r"\blegacyWidth\b", p.read_text(encoding="utf-8")))
+    assert keep == ["[lang]/[players]/[player].astro", "[lang]/[teams]/[team].astro"], keep
+
+
 def test_a_width_condition_limits_an_assertion_to_its_viewports(tmp_path):
     row = "| X | `.x` | r | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line` | ruled | #1 |\n"
     wide, narrow, always = di.load(_doc(tmp_path, GOOD_ROW + row)).element("X").assertions
@@ -150,6 +172,7 @@ def test_the_committed_inventory_names_every_generator_of_record():
 
 @pytest.mark.parametrize("row, fragment", [
     ("| X | `.x` | r | `font-size=13` | ruled | #1 |\n", "px value"),
+    ("| X | `.x` | r | `max-width=960` | ruled | #1 |\n", "px value"),
     ("| X | `.x` | r | `gap(nxt)=14px` | ruled | #1 |\n", "unknown key"),
     ("| X | `.x` | r | `colour=ink` | ruled | #1 |\n", "unknown key"),
     ("| X | `.x` | r | `color=pink` | ruled | #1 |\n", "colour"),
@@ -167,6 +190,13 @@ def test_the_committed_inventory_names_every_generator_of_record():
 def test_the_parser_fails_closed_on_a_bad_element_row(tmp_path, row, fragment):
     with pytest.raises(di.InventoryError, match=fragment):
         di.load(_doc(tmp_path, row))
+
+
+def test_a_max_width_assertion_compares_the_computed_px_value():
+    (a,) = di.parse_measured("max-width=960px")
+    assert di.compare(a, "960px", {}) is None
+    assert "measured 680px" in di.compare(a, "680px", {})
+    assert "measured none" in di.compare(a, "none", {})
 
 
 def test_the_parser_fails_closed_on_a_renamed_column(tmp_path):

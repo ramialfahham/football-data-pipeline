@@ -116,17 +116,14 @@ not any one screen:
 | Breakpoint | What changes |
 |---|---|
 | **≥ 700px** | `.mainnav` goes inline in the header; the hamburger (`.hamburger`) and mobile drawer (`.drawer`) hide. |
-| **≥ 900px** | The generic page grid (`.shell > .page-grid { main + aside.rail }`) goes two columns (`minmax(0,1.9fr) minmax(0,1fr)`), rail gets a left border. Max content width **~1100px** (`.shell`/`.header-in`/`.footer-in`). |
+| **≥ 900px** | The generic page grid (`.shell > .page-grid { main + aside.rail }`) goes two columns (`minmax(0,1.9fr) minmax(0,1fr)`), rail gets a left border. Max width **960px**, the site's one width (`.shell`/`.header-in`/`.footer-in`/`.inner`). |
 | **≥ 1010px** | The header search box (`.searchbox`) becomes a full field; the icon-only mobile search button (`.search-m`) hides. |
 
 `.shell`/`.page-grid`/`.rail` is a **generic primitive**, not wired into any page yet — which
 pages get a rail and what fills it is reserved (per-page rail contents, `.claude/task/contract.md`).
-It is distinct from the team/fixture pages' own `.inner` (680px, single column, locked from the
-CPO-approved mocks `d70aae67`/`f6348775`) — those two pages are unchanged by the foundation shell
-and do not use `.page-grid`. **Open gap**: the original wireframes (01, 02) call for those two
-pages themselves to widen to ~1100px on desktop with an internal two-column reflow; that has not
-been built, and closing it means changing an already-shipped page's width — a separate decision,
-not made here. See 09_chrome.md §10 for the full note.
+It is distinct from `.inner`, the single column every page renders. The site has one width,
+960px, for `.inner`, `.header-in` and `.footer-in`. A page whose new design is not yet approved
+keeps the earlier widths, 680px and 1100px, through the `legacyWidth` prop of `Layout.astro`.
 
 ## Screen inventory
 

@@ -54,12 +54,8 @@ csv`, `confederations.csv`, `dim_league`) — `docs/content_architecture.md` §1
 └────────────────────────────────────────────┘
 ```
 
-Single column at the standard 680px `.inner` measure — the mock's 1080px override was flagged in
-#54 as "a system-level decision, not a page one... flagged for a ruling" and never actually ruled
-on, so this ships at the width every other page uses rather than carrying an unresolved system
-change. Row grid is `repeat(auto-fill, minmax(280px, 1fr))` — "as many as fit" per #54's spec,
-which naturally yields 2 columns at 680px rather than the mock's 3-at-1100px, since the container
-itself is narrower here.
+Single column at the site's one width, the 960px `.inner`. Row grid is
+`repeat(auto-fill, minmax(280px, 1fr))`, as many as fit: three columns at 960px.
 
 ## 5. Module bindings
 
