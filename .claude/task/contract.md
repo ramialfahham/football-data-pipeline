@@ -1,30 +1,18 @@
-# Task contract — one page width
+# Task contract — the goals of CAF match 1639347
 
 objective: >
-  The header, the content and the footer share one maximum width of 960px on every page whose
-  design is approved; the pages keep their one column. The Team page and the Player page keep
-  today's widths (content 680px, header and footer 1100px) until their own designs are approved.
-  The design check measures the width.
+  CAF Champions League match 1639347, Young Africans 4–1 CFFA (second preliminary round, second
+  leg), serves its five goals from fixture_goal_corrections, each sourced, so its goals add up to
+  its score; assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied
+  pass and mart_match_days builds again in the nightly.
 
 refs: >
-  #224, one page width (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/224),
-  design and build scope approved in chat, 2026-10-20; #127, #128, #129, #130 and #132, the
-  approved designs of the pages that change. Plan approved in chat, 2026-10-20.
+  #232, the match's goals
+  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/232), fix and plan
+  approved in chat, 2026-10-23.
 
 scope_paths:
-  - site_v2/src/styles/system.css
-  - site_v2/src/layouts/Layout.astro
-  - site_v2/src/pages/[[]lang]/[[]teams]/[[]team].astro
-  - site_v2/src/pages/[[]lang]/[[]players]/[[]player].astro
-  - scripts/design_inventory.py
-  - tests/test_design_inventory.py
-  - docs/wireframes/block_standard.md
-  - docs/wireframes/00_overview.md
-  - docs/wireframes/08_browse.md
-  - docs/wireframes/09_chrome.md
-  - docs/wireframes/10_home.md
-  - tests/test_no_decision_history_in_docs.py
-  - tests/test_sentence_length_in_docs.py
+  - dbt_project/seeds/fixture_goal_corrections.csv
   - .claude/task/contract.md
   - .claude/task/review.md
   - .claude/task/review_input.patch
@@ -32,46 +20,37 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: no data writer changes; the export and every payload are untouched.
-  downstream: .inner is the content column of every page (git grep 'class="inner'): Home,
-  Competitions, a competition's overview, matchdays and rankings, the Matches page and the Matches
-  day page (MatchesDay.astro), the match page, the Team page and the Player page. .header-in and
-  .footer-in are rendered once each by SiteHeader.astro and SiteFooter.astro inside Layout.astro,
-  which every page except the root redirect stub uses. .shell has no reader. The design check reads
-  block_standard.md through design_inventory.py.
-  layer_rules: presentation only; what each page is served and its order are unchanged.
-  deploy_order: none; deploy:site-v2 is manual and builds from the export.
-  blast_radius: the width of the content column, the header row and the footer on every approved
-  page in EN, DE and FI; the Team and Player pages unchanged; one new Layout prop; one new measured
-  property in the design check.
+  writers: the seed fixture_goal_corrections, read by base_apif__fixture_events.
+  downstream: base_apif__fixture_events and every model built from it (dbt ls --select
+  fixture_goal_corrections+), among them fct_fixture_event, mart_competition_fixtures and
+  mart_match_days; only the rows of fixture 1639347 change.
+  layer_rules: a seed row per goal, applied in base as the seed's description states; no model
+  changes.
+  deploy_order: none; the nightly rebuilds prod from main.
+  blast_radius: one match's goals in every mart that serves goals; mart_match_days, skipped by the
+  nightly while the goals test failed, builds again.
 
 approved_design:
-  - home: #127
-  - competitions: #128
-  - competition: #129
-  - matches: #130
-  - match: #132
+  - none: no page output changes
 
 acceptance_criteria:
-  - "At 1440px, on every approved page in EN, DE and FI, the header, the content and the footer are 960px wide and share both edges."
-  - "The Team page and the Player page measure as on main: content 680px, header and footer 1100px."
-  - "At 375px every page measures as on main."
-  - "No page scrolls sideways and the header fits, at 700, 800, 1010 and 1440px, in EN, DE and FI."
-  - "The design check's Page width row passes on every built page it lists."
+  - "fixture_goal_corrections holds five rows for fixture 1639347 in match order, each with its team, scorer, minute, event detail, source kind, source URLs and note."
+  - "In the MR's data build, assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied pass."
+  - "In the MR's data build, mart_match_days builds and assert_mart_match_days_is_the_matches_page_reach passes."
 
 decisions_taken: >
-  Approved in chat, 2026-10-20: one width of 960px for the header, the content and the footer; the
-  Team and Player pages keep today's widths until their designs are approved. The unused .shell
-  follows the one width. The two pages opt out through a Layout prop that sets a body class; no new
-  dependency, no recurring cost.
+  Approved in chat, 2026-10-23: the five goals as CAF's match report and two Malagasy match reports
+  give them. Reading of the seed's rule: the four Young Africans goals are official, from CAF's
+  match report; CFFA's goal is match_reports, because CAF's report names no scorer and Newsmada and
+  Midi Madagasikara both name Fitahantsoa Albertini. Its minute is CAF's. No new dependency, no
+  recurring cost.
 
-decisions_reserved:
-  - The Team page's width (#134) and the Player page's width (#136), each in its own design review.
+decisions_reserved: (none)
 
 done_when:
-  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
-  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
+  - dbt parse passes.
   - The full pytest suite and the offline gates pass.
   - Reviewers per review_routing.json pass.
+  - data:build:mr passes and the prod comparison of the match's served goals goes to the CPO.
 
 amendments: (none)
