@@ -1,35 +1,47 @@
-# Task contract — the shared Filter bar
+# Task contract — key metrics in the catalogue, cards as totals
 
 objective: >
-  The Competitions, Matches and Matches day pages show the approved Filter bar: each filter offers
-  only the types and regions the page's rows carry and is absent with fewer than two real choices;
-  a choice that would leave no row beside the other filter's choice is removed and comes back when
-  it fits; the buttons show while each row of buttons fits on one line, otherwise a dropdown per
-  filter in the Filter row's sunk box, side by side while each holds its longest choice and stacked
-  full width below that, decided per block and language by the shared fit script; buttons and
-  dropdowns hold the same choice; the open list is drawn in the site's design where the browser
-  supports it. The block standard states the rules and the design check measures them.
+  The metric catalogue replaces importance_tier with is_key_metric (the 14 key team metrics true,
+  the other team rows false, player rows blank); Shots off target, Blocked shots and the per-match
+  card rows leave every page (blank metric_order); the form window serves the card totals, so the
+  match page's comparison shows Yellow cards and Red cards as totals over its window; the served
+  list metric_rows.json carries the key flag and only rows with a place; the documents state key
+  metrics instead of tiers, with the CPO's approved text.
 
 refs: >
-  #223, the shared Filter bar
-  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/223), design approved in
-  chat, 2026-10-20; #128 and #130, the approved designs of the pages that change; the fit rule
-  approved in chat, 2026-10-22 and 2026-10-23. Plan approved in chat, 2026-10-23.
+  #134 (key-metric flag and its metrics_display.md text, the dropped shot rows, cards as season
+  totals; approved in chat, 2026-10-22) and #132 (cards as totals over the window on the match
+  page, approved in chat, 2026-10-23); the metric_layer.md line approved in chat, 2026-10-23 with
+  the plan.
 
 scope_paths:
-  - site_v2/src/components/competitions/FilterRows.astro
-  - site_v2/src/components/competitions/CompetitionIndexGrid.astro
-  - site_v2/src/components/matches/MatchesDay.astro
-  - site_v2/src/styles/system.css
+  - dbt_project/seeds/metric_catalogue.csv
+  - dbt_project/seeds/schema.yml
+  - dbt_project/seeds/metric_map.csv
+  - scripts/generate_metric_sql.py
+  - dbt_project/models/4_intermediate/shared/int_team_momentum__metrics.sql
+  - dbt_project/models/4_intermediate/shared/int_momentum.yml
+  - dbt_project/models/5_marts/shared/mart_team_window_metrics.sql
+  - dbt_project/models/5_marts/shared/shared.yml
+  - dbt_project/models/5_marts/shared/mart_player_career.sql
+  - dbt_project/models/docs/metric_rules.md
+  - dbt_project/models/docs/metric_columns.md
+  - scripts/export_site_data.py
+  - site_v2/src/data/metric_rows.json
+  - site_v2/src/lib/types.ts
+  - site_v2/src/lib/metricRows.ts
   - site_v2/src/i18n/strings.ts
-  - site_v2/src/lib/filterBar.mjs
-  - site_v2/src/lib/filterBar.test.mjs
-  - site_v2/src/lib/fitBlocks.mjs
-  - docs/wireframes/block_standard.md
-  - scripts/design_inventory.py
-  - scripts/check_design_inventory.py
-  - tests/test_design_inventory.py
-  - tests/fixtures/design_inventory/green.html
+  - site_v2/scripts/check-metric-labels.test.mjs
+  - docs/wireframes/metrics_display.md
+  - docs/wireframes/99_gaps_register.md
+  - docs/wireframes/10_home.md
+  - docs/metric_layer.md
+  - docs/wireframes/02_team_profile.md
+  - docs/roles/bi_analyst.md
+  - tests/test_metric_rows.py
+  - tests/test_catalogue_order.py
+  - tests/test_metric_map.py
+  - tests/test_export_site_data.py
   - tests/test_no_decision_history_in_docs.py
   - tests/test_no_decision_history_in_code.py
   - tests/test_sentence_length_in_docs.py
@@ -40,46 +52,57 @@ scope_paths:
   - .claude/task/rendered_page_evidence.md
 
 impact_map: >
-  writers: no data writer changes; the export and every payload are untouched.
-  downstream: FilterRows.astro is rendered by CompetitionIndexGrid.astro (the Competitions page)
-  and MatchesDay.astro (the Matches page and every Matches day page). The row-hiding rules in
-  system.css (`#filter-…:checked ~ .categories …`) and the Competitions page's empty-category script
-  read the same radios. fitBlocks.mjs is loaded on every page by Layout.astro; its new kinds act only
-  where a Filter bar renders. The design check reads block_standard.md through design_inventory.py.
-  layer_rules: presentation only; which rows a page is served and their order are unchanged; the
-  bar selects among the page's own rows.
-  deploy_order: none; deploy:site-v2 is manual and builds from the export.
-  blast_radius: the filter rows of the Competitions, Matches and Matches day pages in EN, DE and FI;
-  two new copy keys; one new shared script; two new fit kinds.
+  writers: the seed metric_catalogue (is_key_metric, metric_order); int_team_momentum__metrics,
+  generated by scripts/generate_metric_sql.py, and mart_team_window_metrics gain cards_yellow and
+  cards_red; metric_map.csv, generated by scripts/sync_metric_docs_blocks.py, gains their rows.
+  downstream: mart_team_window_metrics is read by export_site_data.py (fixture payloads' form and
+  match_stats, select *) and fetch_metric_rows (metric_rows.json); metric_rows.json is read by
+  MetricComparison.astro, MatchStats.astro and FormSegment.astro on the match page; the catalogue is
+  read by every metric surface through its formula columns, which do not change; fetch_glossary
+  serves every catalogue column in metrics.json, which no page reads. Lineage (`dbt ls --select
+  int_team_momentum__metrics+ --resource-type model`, 4 models): int_team_momentum__metrics,
+  mart_team_window_metrics, mart_team_momentum_window, mart_matchday_insights; only
+  mart_team_window_metrics selects the new columns, the other two read columns by name.
+  `metric_catalogue+`: mart_team_leaderboards (1 model), which reads formula and order columns.
+  layer_rules: the card totals are computed in intermediate from the catalogue formula, served by
+  the mart, selected by the export; the frontend renders the served list.
+  deploy_order: none; the nightly rebuilds prod from main and the site deploy is manual.
+  blast_radius: two new columns in one intermediate model and one mart; the match page's
+  comparison rows in EN, DE and FI; one catalogue column renamed; the display documents.
 
 approved_design:
-  - competitions: #128
-  - matches: #130
+  - match: #132
 
 acceptance_criteria:
-  - "On the Competitions, Matches and Matches day pages in EN, DE and FI, each filter offers only the choices its rows carry, and a filter with fewer than two real choices is absent."
-  - "Every combination the bar offers shows at least one row; a removed choice comes back once the other filter allows it."
-  - "At 280, 320, 375, 430, 700, 768, 1010 and 1440px the bar shows buttons when they fit on one line and dropdowns otherwise, and no page scrolls sideways."
-  - "Buttons and dropdowns always hold the same choice."
-  - "The dropdowns' first choices read All types / Alle Arten / Kaikki tyypit and All regions / Alle Regionen / Kaikki alueet."
-  - "The design check passes on every built page it lists."
+  - "metric_catalogue.csv carries is_key_metric, true on exactly the 14 key team rows, false on every other team row and blank on player rows; importance_tier is gone."
+  - "metric_rows.json no longer serves shots_off_target_per_match, shots_blocked_per_match, cards_yellow_per_match or cards_red_per_match, serves cards_yellow and cards_red with per_match false, and carries is_key_metric on every row."
+  - "mart_team_window_metrics serves cards_yellow and cards_red per window, and the MR's data build passes its formula and coverage tests."
+  - "The built match pages show no Shots off target or Blocked shots row."
+  - "metrics_display.md holds the approved Key metrics section and no tier mention; metric_layer.md line 21 reads as approved."
 
 decisions_taken: >
-  Approved in chat, 2026-10-20: the Filter bar design and its copy (#223). Approved in chat,
-  2026-10-22 and 2026-10-23: a block switches form only when its content no longer fits, decided
-  per block and language by the shared fit script. Readings of the approved design: the dropdowns
-  reuse the existing filterByType and filterByRegion names; without the script the buttons show and
-  wrap, which still filters. No new dependency, no recurring cost.
+  Approved in chat, 2026-10-22: is_key_metric replaces importance_tier with the 14 key team
+  metrics and the metrics_display.md text; Shots off target and Blocked shots leave the pages; cards
+  as totals. Approved in chat, 2026-10-23: cards as totals over the window on the match page, from
+  one served list; the metric_layer.md line. Readings: Possession is passes_share_pct, its
+  catalogue label; player rows stay blank until the Player page sets them; the four rows with a
+  blank metric_order stay computed in the warehouse. Approved in chat, 2026-10-23: the
+  interpretation texts of cards_yellow and cards_red, which now serve windows as well as seasons.
+  No new dependency; the two columns add no measurable recurring cost.
 
 decisions_reserved:
-  - The Team page's competition filter and the Teams page's filter, built with #134 and #222.
+  - The "Show all metrics" switch that reads the flag (#132, #134).
+  - The key player metrics (#136).
+  - The card columns of the season window W2.
 
 done_when:
-  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
-  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
+  - dbt parse passes; generate_metric_sql.py --check and sync_metric_docs_blocks.py --check pass.
+  - npm run build in site_v2 passes and the design check passes.
   - The full pytest suite and the offline gates pass.
   - Reviewers per review_routing.json pass.
+  - data:build:mr passes and the prod comparison of mart_team_window_metrics goes to the CPO.
 
 amendments:
-  - The code-history pin moves down one line, because the Filter bar retires the `.seg.wrap` comment
-    that carried history; the pin only moves down, so this records the cleanup.
+  - Two documents that still describe tiers follow the same strip (02_team_profile.md and the
+    BI analyst's role brief), and the impact map carries the measured lineage, after the scope
+    review.

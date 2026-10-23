@@ -92,6 +92,8 @@ select
     b.offsides_per_match,
     b.cards_yellow_per_match,
     b.cards_red_per_match,
+    b.cards_yellow,
+    b.cards_red,
     b.team_sk = f.home_team_sk as is_home,
     b.window_type != 'match'
     and (

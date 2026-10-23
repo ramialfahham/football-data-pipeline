@@ -71,9 +71,9 @@ PINNED = {
     "docs/wireframes/12_player_stats.md": 16,
     "docs/wireframes/13_player_career.md": 7,
     "docs/wireframes/14_team_stats.md": 19,
-    "docs/wireframes/99_gaps_register.md": 66,
+    "docs/wireframes/99_gaps_register.md": 65,
     "docs/wireframes/block_standard.md": 11,
-    "docs/wireframes/metrics_display.md": 30,
+    "docs/wireframes/metrics_display.md": 27,
     "site_v2/src/data/README.md": 10,
 }
 

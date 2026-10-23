@@ -132,7 +132,7 @@ select
     -- `minutes` and `appearances` are playing-time DIMENSIONS and are deliberately absent from the
     -- catalogue. An earlier version of this comment lumped goals and assists in with them and called
     -- all three "not a catalogue metric" — false: `goals_player` and `assists_player` are both catalogue rows
-    -- (entity=player, group=goals, tier 1). Only the playing-time pair is uncatalogued, and the one
+    -- (entity=player, group=goals). Only the playing-time pair is uncatalogued, and the one
     -- catalogued member of that family is the RATE below, minutes_per_appearance (group
     -- playing_time).
     wc.minutes,

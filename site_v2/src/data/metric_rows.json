@@ -8,7 +8,8 @@
       "metric_order": 1,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "goals_against_per_match",
@@ -17,7 +18,8 @@
       "metric_order": 2,
       "direction": "lower_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "clean_sheets",
@@ -26,7 +28,8 @@
       "metric_order": 3,
       "direction": "higher_better",
       "format": "integer",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": false
     },
     {
       "metric_id": "shots_per_match",
@@ -35,7 +38,8 @@
       "metric_order": 1,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "shots_on_goal_per_match",
@@ -44,7 +48,8 @@
       "metric_order": 2,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "shots_on_goal_against_per_match",
@@ -53,25 +58,8 @@
       "metric_order": 3,
       "direction": "lower_better",
       "format": "decimal_1",
-      "per_match": true
-    },
-    {
-      "metric_id": "shots_off_target_per_match",
-      "label_i18n_key": "metrics.shots_off_target_per_match.label",
-      "metric_group": "shooting",
-      "metric_order": 5,
-      "direction": "higher_better",
-      "format": "decimal_1",
-      "per_match": true
-    },
-    {
-      "metric_id": "shots_blocked_per_match",
-      "label_i18n_key": "metrics.shots_blocked_per_match.label",
-      "metric_group": "shooting",
-      "metric_order": 6,
-      "direction": "higher_better",
-      "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "shots_inside_box_per_match",
@@ -80,7 +68,8 @@
       "metric_order": 7,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "shots_inside_box_pct",
@@ -89,7 +78,8 @@
       "metric_order": 8,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": false
     },
     {
       "metric_id": "shots_on_goal_pct",
@@ -98,7 +88,8 @@
       "metric_order": 9,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": false
     },
     {
       "metric_id": "finishing_efficiency_pct",
@@ -107,7 +98,8 @@
       "metric_order": 10,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": false
     },
     {
       "metric_id": "passes_per_match",
@@ -116,7 +108,8 @@
       "metric_order": 1,
       "direction": "higher_better",
       "format": "decimal_0",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "passes_accurate_per_match",
@@ -125,7 +118,8 @@
       "metric_order": 2,
       "direction": "higher_better",
       "format": "decimal_0",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "passes_accuracy_pct",
@@ -134,7 +128,8 @@
       "metric_order": 3,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": true
     },
     {
       "metric_id": "passes_share_pct",
@@ -143,7 +138,8 @@
       "metric_order": 4,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": true
     },
     {
       "metric_id": "passes_key_per_match",
@@ -152,7 +148,8 @@
       "metric_order": 5,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "dribbles_attempts_per_match",
@@ -161,7 +158,8 @@
       "metric_order": 1,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "dribbles_success_per_match",
@@ -170,7 +168,8 @@
       "metric_order": 2,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "dribbles_success_pct",
@@ -179,7 +178,8 @@
       "metric_order": 3,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": false
     },
     {
       "metric_id": "duels_per_match",
@@ -188,7 +188,8 @@
       "metric_order": 4,
       "direction": "higher_better",
       "format": "decimal_0",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "duels_won_per_match",
@@ -197,7 +198,8 @@
       "metric_order": 5,
       "direction": "higher_better",
       "format": "decimal_0",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "duels_won_pct",
@@ -206,7 +208,8 @@
       "metric_order": 6,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": true
     },
     {
       "metric_id": "defensive_actions_per_match",
@@ -215,7 +218,8 @@
       "metric_order": 1,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "tackles_per_match",
@@ -224,7 +228,8 @@
       "metric_order": 2,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "interceptions_per_match",
@@ -233,7 +238,8 @@
       "metric_order": 3,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "blocks_per_match",
@@ -242,7 +248,8 @@
       "metric_order": 4,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "saves_per_match",
@@ -251,7 +258,8 @@
       "metric_order": 1,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "saves_pct",
@@ -260,7 +268,8 @@
       "metric_order": 2,
       "direction": "higher_better",
       "format": "percent",
-      "per_match": false
+      "per_match": false,
+      "is_key_metric": false
     },
     {
       "metric_id": "corners_per_match",
@@ -269,7 +278,8 @@
       "metric_order": 1,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "corners_against_per_match",
@@ -278,7 +288,8 @@
       "metric_order": 2,
       "direction": "lower_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "free_kicks_per_match",
@@ -287,7 +298,8 @@
       "metric_order": 3,
       "direction": "higher_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
       "metric_id": "fouls_per_match",
@@ -296,7 +308,8 @@
       "metric_order": 1,
       "direction": "lower_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": true
     },
     {
       "metric_id": "offsides_per_match",
@@ -305,25 +318,28 @@
       "metric_order": 2,
       "direction": "lower_better",
       "format": "decimal_1",
-      "per_match": true
+      "per_match": true,
+      "is_key_metric": false
     },
     {
-      "metric_id": "cards_yellow_per_match",
-      "label_i18n_key": "metrics.cards_yellow_per_match.label",
+      "metric_id": "cards_yellow",
+      "label_i18n_key": "metrics.cards_yellow.label",
       "metric_group": "discipline",
-      "metric_order": 3,
+      "metric_order": 4,
       "direction": "lower_better",
-      "format": "decimal_1",
-      "per_match": true
+      "format": "integer",
+      "per_match": false,
+      "is_key_metric": true
     },
     {
-      "metric_id": "cards_red_per_match",
-      "label_i18n_key": "metrics.cards_red_per_match.label",
+      "metric_id": "cards_red",
+      "label_i18n_key": "metrics.cards_red.label",
       "metric_group": "discipline",
-      "metric_order": 5,
+      "metric_order": 6,
       "direction": "lower_better",
-      "format": "decimal_1",
-      "per_match": true
+      "format": "integer",
+      "per_match": false,
+      "is_key_metric": true
     }
   ]
 }
