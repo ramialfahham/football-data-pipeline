@@ -116,6 +116,14 @@ MEASURE_JS = r"""
     }
     return tops.length;
   };
+  // The widest word of the element's text, in its own font.
+  const ctx = document.createElement('canvas').getContext('2d');
+  const longestWord = (el) => {
+    const s = getComputedStyle(el);
+    ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+    const words = el.textContent.trim().split(/\s+/).filter(Boolean);
+    return words.length ? Math.max(...words.map((w) => ctx.measureText(w).width)) : 0;
+  };
   const out = {};
   for (const el of spec.elements) {
     let nodes;
@@ -133,6 +141,8 @@ MEASURE_JS = r"""
       if (el.kinds.includes('left-edge')) { m.leftEdge = r.left - container(n).getBoundingClientRect().left; }
       if (el.kinds.includes('fits')) { m.fits = [n.scrollWidth, n.clientWidth]; }
       if (el.kinds.includes('one-line')) { m.lines = lines(n); }
+      if (el.kinds.includes('whole-words')) { m.words = [longestWord(n), n.clientWidth]; }
+      if (el.kinds.includes('fit-marked')) { m.marked = n.classList.contains('fit-one') || n.classList.contains('fit-two'); }
       if (el.kinds.includes('tracks')) {
         const head = n.parentElement ? n.parentElement.querySelector(':scope > .ctab-head') : null;
         m.tracks = [head ? getComputedStyle(head).gridTemplateColumns : null, s.gridTemplateColumns];
@@ -272,6 +282,9 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
         for a in el.assertions:
             if a.kind in ("hover", "press") or not di.applies(a, viewport):
                 continue
+            # The mark is set by the site's script, which only a built page loads.
+            if a.kind == "fit-marked" and page.kind != "built":
+                continue
             if a.kind == "visible":
                 if res.get("inDom", 0):
                     msg = di.compare(a, len(matches), tokens)
@@ -297,6 +310,10 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
                     measured = m.get("fits")
                 elif a.kind == "one-line":
                     measured = m.get("lines")
+                elif a.kind == "whole-words":
+                    measured = m.get("words")
+                elif a.kind == "fit-marked":
+                    measured = m.get("marked")
                 elif a.kind == "tracks":
                     measured = m.get("tracks")
                 elif a.kind == "min-box":

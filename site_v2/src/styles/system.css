@@ -412,7 +412,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 }
 .header-in {
   max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
-  height: 58px; display: flex; align-items: center; gap: 18px;
+  height: 58px; display: flex; align-items: center; gap: clamp(12px, 4.5vw, 18px);
 }
 .brand { font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); flex: none; }
 .brand .iq { color: var(--ink-2); font-weight: 700; }
@@ -472,10 +472,15 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
 .fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
 
 /* nav inline + hamburger/drawer hidden once there's room for the full nav */
-@media (min-width: 700px) {
-  .mainnav { display: flex; }
-  .hamburger { display: none; }
-  .drawer { display: none !important; }
+/* The menu stands in the header row when the row holds it in the page's language, otherwise the
+   menu button: fitBlocks.mjs marks .header-in. Without the script the menu shows from 800px. */
+.header-in.fit-one .mainnav { display: flex; }
+.header-in.fit-one .hamburger { display: none; }
+.site-header:has(.header-in.fit-one) .drawer { display: none !important; }
+@media (min-width: 800px) {
+  .header-in:not(.fit-two) .mainnav { display: flex; }
+  .header-in:not(.fit-two) .hamburger { display: none; }
+  .site-header:has(.header-in:not(.fit-two)) .drawer { display: none !important; }
 }
 /* the two-column page grid needs a bit more room than the nav */
 @media (min-width: 900px) {
@@ -569,13 +574,13 @@ a.cnm .nm { text-decoration: none; }
   padding: 12px 0; border-bottom: 1px solid var(--line);
 }
 .fxrow:last-child { border-bottom: 0; }
-.fxrow .sides { display: grid; gap: 8px; min-width: 0; }
-.fxrow .side { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fxrow .sides { display: grid; gap: 8px; }
+.fxrow .side { display: flex; align-items: center; gap: 10px; }
 /* The name never truncates: the row exists to send people to a match, and a clipped name defeats
    it. `overflow-wrap: normal` keeps the minimum width at the longest word, so a name wraps at a
    space and can never collapse into a column of letters when the score competes for the space. */
 .fxrow .side .nm {
-  font-size: 15px; color: var(--ink); min-width: 0;
+  font-size: 15px; color: var(--ink);
   white-space: normal; overflow: visible; text-overflow: clip;
   overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.25;
 }
@@ -735,7 +740,7 @@ a.brow:focus-visible { outline-offset: -2px; }
 .comp-category { margin-bottom: 4px; }
 .comp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 8px;
   margin-top: 6px;
 }
@@ -850,7 +855,18 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .ctab .n.gd { color: var(--ink-2); }
 .ctab .tm { display: flex; align-items: center; gap: 9px; min-width: 0; }
 /* the name never truncates: system.css ellipsises .nm elsewhere, a table row wraps instead */
-.ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; line-height: 1.25; }
+.ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: normal; line-height: 1.25; }
+/* A row whose names do not keep their longest word on one line takes two lines: rank, crest and
+   name, then every number under its own head. fitBlocks.mjs marks each table fit-one or fit-two
+   per language; without the script a narrow table takes two lines. */
+.ctab.fit-two .ctab-row > .rk { grid-row: 1; }
+.ctab.fit-two .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
+.ctab.fit-two .ctab-row > .n { grid-row: 2; padding-top: 4px; }
+@container (max-width: 599.98px) {
+  .ctab:not(.fit-one) .ctab-row > .rk { grid-row: 1; }
+  .ctab:not(.fit-one) .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
+  .ctab:not(.fit-one) .ctab-row > .n { grid-row: 2; padding-top: 4px; }
+}
 
 /* The block explainer: one sentence under a block name. */
 .bsub { margin: 2px 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
@@ -886,9 +902,13 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .frow .fvv b { font-weight: 700; font-size: 15px; color: var(--accent); }
 .frow .sub { font-size: 12px; color: var(--muted); }
 .nb { white-space: nowrap; }
-@container (max-width: 420px) {
-  .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .frow .fv { text-align: left; }
+/* A block of fact rows stacks only when its longest row does not fit on one line: fitBlocks.mjs
+   marks the block fit-one or fit-two per language. Without the script a narrow block stacks. */
+.fit-two > .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+.fit-two > .frow .fv { text-align: left; }
+@container (max-width: 599.98px) {
+  :not(.fit-one) > .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  :not(.fit-one) > .frow .fv { text-align: left; }
 }
 
 /* ---- the next match page (.mp) ---- */
@@ -1004,7 +1024,6 @@ a.comp-row:focus-visible { outline-offset: -2px; }
 .mp .sechead + .rlist > .lrow:first-child .resrow { padding-top: 0; }
 /* A club in a match row carries its crest before its name, 10px apart. */
 .club { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; max-width: 100%; }
-.club .cn { min-width: 0; }
 .ropp > .club:only-child { vertical-align: top; }
 
 /* Player row: photo · name over position · numbers on the right at every width; the name wraps. */

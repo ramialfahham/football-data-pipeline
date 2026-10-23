@@ -119,5 +119,8 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
     <SiteHeader lang={lang} section={section} />
     <slot />
     <SiteFooter lang={lang} />
+    <script>
+      import "../lib/fitBlocks.mjs";
+    </script>
   </body>
 </html>

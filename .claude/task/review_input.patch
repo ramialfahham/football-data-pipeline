@@ -1,128 +1,523 @@
 diff --git a/.claude/task/contract.md b/.claude/task/contract.md
-index b7f53325..dbf4425c 100644
+index dbf4425c..321e6154 100644
 --- a/.claude/task/contract.md
 +++ b/.claude/task/contract.md
-@@ -1,30 +1,18 @@
--# Task contract — one page width
-+# Task contract — the goals of CAF match 1639347
+@@ -1,18 +1,32 @@
+-# Task contract — the goals of CAF match 1639347
++# Task contract — pages hold on narrow screens
  
  objective: >
--  The header, the content and the footer share one maximum width of 960px on every page whose
--  design is approved; the pages keep their one column. The Team page and the Player page keep
--  today's widths (content 680px, header and footer 1100px) until their own designs are approved.
--  The design check measures the width.
-+  CAF Champions League match 1639347, Young Africans 4–1 CFFA (second preliminary round, second
-+  leg), serves its five goals from fixture_goal_corrections, each sourced, so its goals add up to
-+  its score; assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied
-+  pass and mart_match_days builds again in the nightly.
+-  CAF Champions League match 1639347, Young Africans 4–1 CFFA (second preliminary round, second
+-  leg), serves its five goals from fixture_goal_corrections, each sourced, so its goals add up to
+-  its score; assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied
+-  pass and mart_match_days builds again in the nightly.
++  On every approved page, at every width from 280px, in EN, DE and FI, a team name never splits
++  inside a word and never runs outside its space; a table row that no longer fits on one line
++  takes two lines (rank, crest and name, then the numbers under their heads); a block of fact rows
++  stacks only when its longest row no longer fits on one line; the site header fits. One shared
++  script measures each block per language; without it a narrow block shows the two-line form.
++  Wider screens are unchanged. The block standard states the rules; the design check measures
++  whole words and that every built page's blocks carry the script's mark.
  
  refs: >
--  #224, one page width (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/224),
--  design and build scope approved in chat, 2026-10-20; #127, #128, #129, #130 and #132, the
--  approved designs of the pages that change. Plan approved in chat, 2026-10-20.
-+  #232, the match's goals
-+  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/232), fix and plan
-+  approved in chat, 2026-10-23.
+-  #232, the match's goals
+-  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/232), fix and plan
+-  approved in chat, 2026-10-23.
++  #231, pages break on narrow screens
++  (https://gitlab.com/rami.al-fahham/football-data-pipeline/-/work_items/231), fix approved in
++  chat, 2026-10-23; the fact-row rule approved in chat, 2026-10-22; #127, #128, #129, #130 and
++  #132, the approved designs of the pages that change. Plan approved in chat, 2026-10-23.
  
  scope_paths:
--  - site_v2/src/styles/system.css
--  - site_v2/src/layouts/Layout.astro
--  - site_v2/src/pages/[[]lang]/[[]teams]/[[]team].astro
--  - site_v2/src/pages/[[]lang]/[[]players]/[[]player].astro
--  - scripts/design_inventory.py
--  - tests/test_design_inventory.py
--  - docs/wireframes/block_standard.md
--  - docs/wireframes/00_overview.md
--  - docs/wireframes/08_browse.md
--  - docs/wireframes/09_chrome.md
--  - docs/wireframes/10_home.md
--  - tests/test_no_decision_history_in_docs.py
--  - tests/test_sentence_length_in_docs.py
-+  - dbt_project/seeds/fixture_goal_corrections.csv
+-  - dbt_project/seeds/fixture_goal_corrections.csv
++  - site_v2/src/styles/system.css
++  - site_v2/src/layouts/Layout.astro
++  - site_v2/src/lib/fitBlocks.mjs
++  - site_v2/src/lib/fitBlocks.test.mjs
++  - docs/wireframes/block_standard.md
++  - scripts/design_inventory.py
++  - scripts/check_design_inventory.py
++  - tests/test_design_inventory.py
++  - tests/fixtures/design_inventory/green.html
++  - tests/test_no_decision_history_in_docs.py
++  - tests/test_sentence_length_in_docs.py
    - .claude/task/contract.md
    - .claude/task/review.md
    - .claude/task/review_input.patch
-@@ -32,46 +20,37 @@ scope_paths:
+@@ -20,37 +34,58 @@ scope_paths:
    - .claude/task/rendered_page_evidence.md
  
  impact_map: >
--  writers: no data writer changes; the export and every payload are untouched.
--  downstream: .inner is the content column of every page (git grep 'class="inner'): Home,
--  Competitions, a competition's overview, matchdays and rankings, the Matches page and the Matches
--  day page (MatchesDay.astro), the match page, the Team page and the Player page. .header-in and
--  .footer-in are rendered once each by SiteHeader.astro and SiteFooter.astro inside Layout.astro,
--  which every page except the root redirect stub uses. .shell has no reader. The design check reads
--  block_standard.md through design_inventory.py.
--  layer_rules: presentation only; what each page is served and its order are unchanged.
--  deploy_order: none; deploy:site-v2 is manual and builds from the export.
--  blast_radius: the width of the content column, the header row and the footer on every approved
--  page in EN, DE and FI; the Team and Player pages unchanged; one new Layout prop; one new measured
--  property in the design check.
-+  writers: the seed fixture_goal_corrections, read by base_apif__fixture_events.
-+  downstream: base_apif__fixture_events and every model built from it (dbt ls --select
-+  fixture_goal_corrections+), among them fct_fixture_event, mart_competition_fixtures and
-+  mart_match_days; only the rows of fixture 1639347 change.
-+  layer_rules: a seed row per goal, applied in base as the seed's description states; no model
-+  changes.
-+  deploy_order: none; the nightly rebuilds prod from main.
-+  blast_radius: one match's goals in every mart that serves goals; mart_match_days, skipped by the
-+  nightly while the goals test failed, builds again.
+-  writers: the seed fixture_goal_corrections, read by base_apif__fixture_events.
+-  downstream: base_apif__fixture_events and every model built from it (dbt ls --select
+-  fixture_goal_corrections+), among them fct_fixture_event, mart_competition_fixtures and
+-  mart_match_days; only the rows of fixture 1639347 change.
+-  layer_rules: a seed row per goal, applied in base as the seed's description states; no model
+-  changes.
+-  deploy_order: none; the nightly rebuilds prod from main.
+-  blast_radius: one match's goals in every mart that serves goals; mart_match_days, skipped by the
+-  nightly while the goals test failed, builds again.
++  writers: no data writer changes; the export and every payload are untouched.
++  downstream: `.ctab` is every table built on the standings grid: the competition page's league
++  table and Deserved points table (DeservedTable.astro) and the Rankings boards (`.ctab.rkt`).
++  `.frow` is the fact row (the competition page's Season pulse, the Team page). `.fxrow .side .nm`
++  is the match row's team name (Home, Matches, the competition page). `.club .cn` is the club name
++  in the match page's result rows. `.header-in` is the site header on every page (SiteHeader.astro
++  inside Layout.astro). The script is loaded once by Layout.astro on every page. The design check
++  reads block_standard.md through design_inventory.py.
++  layer_rules: presentation only; what each page is served and its order are unchanged.
++  deploy_order: none; deploy:site-v2 is manual and builds from the export.
++  blast_radius: narrow screens on every approved page in EN, DE and FI; the header gap on every
++  page at its narrowest; the Team and Player pages get the header and name rules only; one new
++  shared script; one new measured property in the design check.
  
  approved_design:
--  - home: #127
--  - competitions: #128
--  - competition: #129
--  - matches: #130
--  - match: #132
-+  - none: no page output changes
+-  - none: no page output changes
++  - home: #127
++  - competitions: #128
++  - competition: #129
++  - matches: #130
++  - match: #132
  
  acceptance_criteria:
--  - "At 1440px, on every approved page in EN, DE and FI, the header, the content and the footer are 960px wide and share both edges."
--  - "The Team page and the Player page measure as on main: content 680px, header and footer 1100px."
--  - "At 375px every page measures as on main."
--  - "No page scrolls sideways and the header fits, at 700, 800, 1010 and 1440px, in EN, DE and FI."
--  - "The design check's Page width row passes on every built page it lists."
-+  - "fixture_goal_corrections holds five rows for fixture 1639347 in match order, each with its team, scorer, minute, event detail, source kind, source URLs and note."
-+  - "In the MR's data build, assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied pass."
-+  - "In the MR's data build, mart_match_days builds and assert_mart_match_days_is_the_matches_page_reach passes."
+-  - "fixture_goal_corrections holds five rows for fixture 1639347 in match order, each with its team, scorer, minute, event detail, source kind, source URLs and note."
+-  - "In the MR's data build, assert_mart_competition_fixtures_goals_add_up and assert_result_corrections_applied pass."
+-  - "In the MR's data build, mart_match_days builds and assert_mart_match_days_is_the_matches_page_reach passes."
++  - "At 280, 320, 375, 430, 768 and 1010px, on every approved page in EN, DE and FI, no team name splits inside a word or runs outside its space."
++  - "At the same widths, no approved page scrolls sideways, except the filter rows of the Competitions and Matches pages, which the Filter bar (#223) replaces."
++  - "A table row shows rank, crest, name and every number; where they do not fit on one line, the numbers stand on a second line under their column heads."
++  - "A block of fact rows is side by side when its longest row fits on one line, and stacked otherwise."
++  - "At 1010px and 1440px every approved page measures as on main."
++  - "The design check's whole-words property passes on every built page it lists."
  
  decisions_taken: >
--  Approved in chat, 2026-10-20: one width of 960px for the header, the content and the footer; the
--  Team and Player pages keep today's widths until their designs are approved. The unused .shell
--  follows the one width. The two pages opt out through a Layout prop that sets a body class; no new
--  dependency, no recurring cost.
-+  Approved in chat, 2026-10-23: the five goals as CAF's match report and two Malagasy match reports
-+  give them. Reading of the seed's rule: the four Young Africans goals are official, from CAF's
-+  match report; CFFA's goal is match_reports, because CAF's report names no scorer and Newsmada and
-+  Midi Madagasikara both name Fitahantsoa Albertini. Its minute is CAF's. No new dependency, no
-+  recurring cost.
+-  Approved in chat, 2026-10-23: the five goals as CAF's match report and two Malagasy match reports
+-  give them. Reading of the seed's rule: the four Young Africans goals are official, from CAF's
+-  match report; CFFA's goal is match_reports, because CAF's report names no scorer and Newsmada and
+-  Midi Madagasikara both name Fitahantsoa Albertini. Its minute is CAF's. No new dependency, no
++  Approved in chat, 2026-10-23: a name wraps only between words; a table row that does not fit
++  takes two lines and drops nothing; one shared script decides each block's form per language;
++  without the script a block narrower than 600px shows the two-line form. Approved in chat,
++  2026-10-22: fact rows stack only when the block's longest row no longer fits. Approved in chat,
++  2026-10-23, with the plan: the Team and Player pages, whose new designs are built in their own
++  MRs, take only the header change. The built pages render no table, fact row, match row or club
++  name in a match row; the header is shared by every page through Layout.astro. The Teams menu
++  page has no built page yet. Approved in chat, 2026-10-23: the design check fails a built page
++  whose table, fact-row block or header carries no fit-one or fit-two mark (the Fitted block row,
++  measured as fit-marked); the check's test page carries the marks. No new dependency, no
+   recurring cost.
  
--decisions_reserved:
--  - The Team page's width (#134) and the Player page's width (#136), each in its own design review.
-+decisions_reserved: (none)
+-decisions_reserved: (none)
++decisions_reserved:
++  - The filter rows' narrow form, built with the Filter bar (#223).
++  - The Team page's and the Player page's narrow forms, each in its own build (#134, #136).
  
  done_when:
--  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
--  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
-+  - dbt parse passes.
+-  - dbt parse passes.
++  - npm run build in site_v2 passes (prebuild tests, astro build, audit-seo, check-built-pages).
++  - python scripts/check_design_inventory.py --dist site_v2/dist passes.
    - The full pytest suite and the offline gates pass.
    - Reviewers per review_routing.json pass.
-+  - data:build:mr passes and the prod comparison of the match's served goals goes to the CPO.
+-  - data:build:mr passes and the prod comparison of the match's served goals goes to the CPO.
  
- amendments: (none)
-diff --git a/dbt_project/seeds/fixture_goal_corrections.csv b/dbt_project/seeds/fixture_goal_corrections.csv
-index 5e379b48..68cf1d73 100644
---- a/dbt_project/seeds/fixture_goal_corrections.csv
-+++ b/dbt_project/seeds/fixture_goal_corrections.csv
-@@ -107,3 +107,8 @@ fixture_id,goal_order,team_id,player_id,player_name,minute_elapsed,minute_extra,
- 1125960,1,1531,,Relebohile Mofokeng,60,,Normal Goal,,Elias Mokwana,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en https://api.fifa.com/api/v3/timelines/520/288282/288289/400019682?language=en,"1-0; FIFA match data 60', goal type 2, assist Elias MOKWANA; FIFA timeline event 'Goal!' at 60' (SuperSport's report says 61')"
- 1125960,2,1531,,Jayden Adams,64,,Normal Goal,,,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400019682?language=en https://api.fifa.com/api/v3/timelines/520/288282/288289/400019682?language=en,"2-0; FIFA match data 64', goal type 2, no assist recorded; FIFA timeline event 'Goal!' at 64'; scored from the rebound of his own shot (SuperSport)"
- 1125867,1,1521,,Emilio Nsue,67,,Normal Goal,,Iban Salvador,official,https://api.fifa.com/api/v3/live/football/520/288282/288289/400017619?language=en https://www.namibian.com.na/warriors-rue-missed-chance/,"1-0; FIFA match data: Emilio NSUE 67', goal type 2, assist IBAN (Iban Salvador); The Namibian: Bikoro crossed from the left and Iban Salvador found Nsue unmarked in the box"
-+1639347,1,5370,,Ibrahim Kazimoto,27,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
-+1639347,2,5370,541525,Selemani Mwalimu,49,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
-+1639347,3,5370,541525,Selemani Mwalimu,53,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
-+1639347,4,17447,,Fitahantsoa Albertini,75,,Normal Goal,,,match_reports,https://newsmada.com/2026/10/22/ligue-des-champions-de-la-caf-fin-de-parcours-pour-le-cffa/ https://fr.allafrica.com/stories/202610220391.html https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
-+1639347,5,5370,,Juma Issa Abushiri,82,,Normal Goal,,,official,https://www.cafonline.com/caf-champions-league/news/young-africans-sweep-past-cffa-to-become-the-first-to-reach-totalenergies-caf-champions-league-group-stage/,"Young Africans-CFFA, CAF Champions League 2nd preliminary round 2nd leg 21 Oct 2026: 4-1; CAF's match report gives Kazimoto 27' (three minutes before the half hour), Mwalimu 49' and 53', a CFFA goal after 75 minutes with no scorer, and Abushiri 82'; Newsmada and Midi Madagasikara both name CFFA's scorer Fitahantsoa Albertini and put the first four goals one minute earlier (26', 48', 52', 74'); Sofascore names Oumar M'Bareck"
+-amendments: (none)
++amendments:
++  - Approved in chat, 2026-10-23: the design check's fixture of a correct built page carries the
++    fit marks a built page now carries, so the check's own tests keep a passing page.
+diff --git a/docs/wireframes/block_standard.md b/docs/wireframes/block_standard.md
+index 2a1b93c7..07a0cfcd 100644
+--- a/docs/wireframes/block_standard.md
++++ b/docs/wireframes/block_standard.md
+@@ -54,6 +54,8 @@
+ | Table head label | `.ctab-head .h:not(.rk)` | 11px bold muted | `font-size=11px; font-weight=700; color=muted` | ruled | #129 Table |
+ | Table row | `.ctab-row` | striped rows counted from the head, the first plain, the stripe ink at 5%; no line under a row; the row's tracks are the head's (one fixed track list per table kind) | `border-bottom-width=0px; stripe=ink@5% from 2; tracks=head` | ruled | #129 Table; 2026-09-17 ("head only") |
+ | Table name cell | `.ctab .tm .nm` | 14px semi-bold ink, wraps and never truncates | `font-size=14px; font-weight=600; color=ink; white-space=normal` | ruled | #129 Table |
++| Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
++| Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn` | a team name wraps only between words; no word splits or runs past the name's space | `whole-words` | ruled | the narrow-screen fix |
+ | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, 14px bold ink, not capitals, at the block's left edge | `font-size=14px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1 |
+ | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
+ | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 12px muted | `font-size=12px; color=muted` | ruled | #129 Rankings |
+@@ -68,6 +70,8 @@
+ | Fact row label | `.frow .fl` | label, 14px ink regular | `font-size=14px; color=ink; font-weight=400` | ruled | #129 the fact row |
+ | Fact row value | `.frow .fvv b` | the value, bold 15px accent — the number the row is about | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules, Block 3 |
+ | Fact row context | `.frow .sub` | the context under the value, 12px muted | `font-size=12px; color=muted` | ruled | #129 the fact row |
++| Fact row block | `.frow` | label and value side by side while the block's longest row fits on one line; otherwise every row stacks its value under its label | `fits` | ruled | the narrow-screen fix |
++| Fitted block | `.header-in, .ctab, :has(> .frow)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
+ | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
+ | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
+ | Chevron heading link | `a.cnm` | a heading that leads somewhere carries a chevron at rest and is never underlined | `text-decoration-line=none` | ruled | #52; #129 binding rules |
+@@ -109,7 +113,7 @@
+ | Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
+ | Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
+ | Page width | `body:not(.legacy-width) :is(.header-in, .footer-in)` | the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths | `max-width=960px` | ruled | the page width review |
+-| Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
++| Header row | `.header-in` | the header's brand, menu and controls fit its row; the menu stands in the row when it fits there, otherwise the menu button | `fits` | ruled | the narrow-screen fix |
+ 
+ Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
+ there is no page title under the tab bar (#129); a board shows five rows on a competition page and
+diff --git a/scripts/check_design_inventory.py b/scripts/check_design_inventory.py
+index d586cbc8..e7a06808 100644
+--- a/scripts/check_design_inventory.py
++++ b/scripts/check_design_inventory.py
+@@ -116,6 +116,14 @@ MEASURE_JS = r"""
+     }
+     return tops.length;
+   };
++  // The widest word of the element's text, in its own font.
++  const ctx = document.createElement('canvas').getContext('2d');
++  const longestWord = (el) => {
++    const s = getComputedStyle(el);
++    ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
++    const words = el.textContent.trim().split(/\s+/).filter(Boolean);
++    return words.length ? Math.max(...words.map((w) => ctx.measureText(w).width)) : 0;
++  };
+   const out = {};
+   for (const el of spec.elements) {
+     let nodes;
+@@ -133,6 +141,8 @@ MEASURE_JS = r"""
+       if (el.kinds.includes('left-edge')) { m.leftEdge = r.left - container(n).getBoundingClientRect().left; }
+       if (el.kinds.includes('fits')) { m.fits = [n.scrollWidth, n.clientWidth]; }
+       if (el.kinds.includes('one-line')) { m.lines = lines(n); }
++      if (el.kinds.includes('whole-words')) { m.words = [longestWord(n), n.clientWidth]; }
++      if (el.kinds.includes('fit-marked')) { m.marked = n.classList.contains('fit-one') || n.classList.contains('fit-two'); }
+       if (el.kinds.includes('tracks')) {
+         const head = n.parentElement ? n.parentElement.querySelector(':scope > .ctab-head') : null;
+         m.tracks = [head ? getComputedStyle(head).gridTemplateColumns : null, s.gridTemplateColumns];
+@@ -272,6 +282,9 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+         for a in el.assertions:
+             if a.kind in ("hover", "press") or not di.applies(a, viewport):
+                 continue
++            # The mark is set by the site's script, which only a built page loads.
++            if a.kind == "fit-marked" and page.kind != "built":
++                continue
+             if a.kind == "visible":
+                 if res.get("inDom", 0):
+                     msg = di.compare(a, len(matches), tokens)
+@@ -297,6 +310,10 @@ def measure_page(pw_page, inv: di.Inventory, spec: dict, page: di.Page, viewport
+                     measured = m.get("fits")
+                 elif a.kind == "one-line":
+                     measured = m.get("lines")
++                elif a.kind == "whole-words":
++                    measured = m.get("words")
++                elif a.kind == "fit-marked":
++                    measured = m.get("marked")
+                 elif a.kind == "tracks":
+                     measured = m.get("tracks")
+                 elif a.kind == "min-box":
+diff --git a/scripts/design_inventory.py b/scripts/design_inventory.py
+index d5baef35..0e39abff 100644
+--- a/scripts/design_inventory.py
++++ b/scripts/design_inventory.py
+@@ -19,6 +19,8 @@ The "Measured as" column is a small notation, `;`-separated, one assertion each:
+     press(<prop>)=<value>    the computed prop while the mouse button is down on it
+     fits                     scrollWidth <= clientWidth
+     one-line                 the element's text lays out on one line
++    whole-words              the element's box holds its longest word: no word splits or overruns
++    fit-marked               the page's script marked the block fit-one or fit-two (built pages)
+     visible=<n>              exactly n matches are laid out
+     min-box=<px>             width and height at least px
+ 
+@@ -59,7 +61,7 @@ PROPS = (
+ TOKENS = ("page", "surface", "sunk", "line", "div", "ink", "ink-2", "muted", "accent",
+           "win", "draw", "loss", "pill-ink", "track")
+ PX_KINDS = ("gap(next)", "gap(prev)", "min-box")
+-FLAG_KINDS = ("fits", "one-line", "left-edge", "tracks")
++FLAG_KINDS = ("fits", "one-line", "whole-words", "fit-marked", "left-edge", "tracks")
+ 
+ 
+ class InventoryError(ValueError):
+@@ -391,6 +393,11 @@ def compare(a: Assertion, measured, tokens: dict[str, str]) -> str | None:
+         return None if sw <= cw else "expected fits · measured scrollWidth %d > clientWidth %d" % (sw, cw)
+     if kind == "one-line":
+         return None if measured == 1 else "expected one-line · measured %d lines" % measured
++    if kind == "whole-words":
++        word, box = measured
++        return None if word <= box + 1 else "expected whole-words · longest word %.0fpx in a %.0fpx box" % (word, box)
++    if kind == "fit-marked":
++        return None if measured else "expected fit-marked · the block carries neither fit-one nor fit-two"
+     if kind == "visible":
+         return None if int(measured) == int(a.expected) else "expected %s · measured %d" % (a.raw, measured)
+     if kind == "min-box":
+diff --git a/site_v2/src/layouts/Layout.astro b/site_v2/src/layouts/Layout.astro
+index 64fc7d0c..ccdfb881 100644
+--- a/site_v2/src/layouts/Layout.astro
++++ b/site_v2/src/layouts/Layout.astro
+@@ -119,5 +119,8 @@ const jsonLd = graph.length ? JSON.stringify({ "@context": "https://schema.org",
+     <SiteHeader lang={lang} section={section} />
+     <slot />
+     <SiteFooter lang={lang} />
++    <script>
++      import "../lib/fitBlocks.mjs";
++    </script>
+   </body>
+ </html>
+diff --git a/site_v2/src/lib/fitBlocks.mjs b/site_v2/src/lib/fitBlocks.mjs
+new file mode 100644
+index 00000000..a294c62b
+--- /dev/null
++++ b/site_v2/src/lib/fitBlocks.mjs
+@@ -0,0 +1,70 @@
++// One rule for every block with a narrow form: a block keeps its wide form while its content fits on
++// one line, and takes its narrow form otherwise, measured per block in the page's own language.
++// The script marks each block `fit-one` or `fit-two`; system.css draws the two forms. A table fits
++// when every name keeps its longest word inside its own space; a block of fact rows fits when its
++// longest row (label, gap, value) fits its width; the header row fits when it holds the menu.
++
++/** The width of a text's longest word, given a function that measures one word. */
++export function longestWord(text, measure) {
++  const words = String(text).trim().split(/\s+/).filter(Boolean);
++  return words.length ? Math.max(...words.map(measure)) : 0;
++}
++
++/** A block keeps one line when every row needs no more than its room (half a pixel of rounding). */
++export function fitsOneLine(rows) {
++  return rows.every(({ need, room }) => need <= room + 0.5);
++}
++
++function start() {
++  const ctx = document.createElement("canvas").getContext("2d");
++  const wordWidth = (el) => {
++    const s = getComputedStyle(el);
++    ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
++    return (word) => ctx.measureText(word).width;
++  };
++  const shown = (el) => el.getClientRects().length > 0;
++  // The width a fact row needs on one line: a hidden copy laid out without wrapping, with the
++  // row's own gap.
++  const oneLine = (row) => {
++    const copy = row.cloneNode(true);
++    const gap = getComputedStyle(row).columnGap;
++    copy.style.cssText = `display:flex;gap:${gap};width:max-content;position:absolute;visibility:hidden;left:0;top:0`;
++    copy.querySelectorAll("*").forEach((x) => { x.style.whiteSpace = "nowrap"; });
++    row.parentNode.appendChild(copy);
++    const w = copy.getBoundingClientRect().width;
++    copy.remove();
++    return w;
++  };
++  const measures = {
++    table: (block) => [...block.querySelectorAll(".ctab-row .tm .nm")].filter(shown)
++      .map((nm) => ({ need: longestWord(nm.textContent, wordWidth(nm)), room: nm.clientWidth })),
++    facts: (block) => [...block.children].filter((r) => r.classList.contains("frow") && shown(r))
++      .map((row) => ({ need: oneLine(row), room: row.clientWidth })),
++    header: (block) => [{ need: block.scrollWidth, room: block.clientWidth }],
++  };
++  const fit = (block, kind) => {
++    if (!shown(block)) return;
++    block.classList.remove("fit-two");
++    block.classList.add("fit-one");
++    const rows = measures[kind](block);
++    if (!rows.length) return;
++    const one = fitsOneLine(rows);
++    block.classList.toggle("fit-one", one);
++    block.classList.toggle("fit-two", !one);
++  };
++  const blocks = [
++    ...[...document.querySelectorAll(".header-in")].map((b) => [b, "header"]),
++    ...[...document.querySelectorAll(".ctab")].map((b) => [b, "table"]),
++    ...[...new Set([...document.querySelectorAll(".frow")].map((r) => r.parentElement))].map((b) => [b, "facts"]),
++  ];
++  const all = () => blocks.forEach(([b, kind]) => fit(b, kind));
++  const kindOf = new Map(blocks);
++  const observer = new ResizeObserver((entries) => entries.forEach((e) => fit(e.target, kindOf.get(e.target))));
++  blocks.forEach(([b]) => observer.observe(b));
++  // A tab or a fold shows a block that was hidden when the page loaded.
++  document.addEventListener("change", all);
++  document.fonts.ready.then(all);
++  all();
++}
++
++if (typeof document !== "undefined") start();
+diff --git a/site_v2/src/lib/fitBlocks.test.mjs b/site_v2/src/lib/fitBlocks.test.mjs
+new file mode 100644
+index 00000000..b36f5a4b
+--- /dev/null
++++ b/site_v2/src/lib/fitBlocks.test.mjs
+@@ -0,0 +1,26 @@
++// Pins the two decisions `fitBlocks.mjs` makes: a name's need is its longest word, never the
++// whole name, and a block keeps one line only when every row fits.
++
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { fitsOneLine, longestWord } from "./fitBlocks.mjs";
++
++const perLetter = (word) => word.length * 10;
++
++test("a name needs the width of its longest word", () => {
++  assert.equal(longestWord("Borussia Mönchengladbach", perLetter), 150);
++  assert.equal(longestWord("  1. FC Union Berlin ", perLetter), 60);
++});
++
++test("an empty name needs nothing", () => {
++  assert.equal(longestWord("", perLetter), 0);
++});
++
++test("a block keeps one line only when every row fits", () => {
++  assert.equal(fitsOneLine([{ need: 100, room: 120 }, { need: 120, room: 120 }]), true);
++  assert.equal(fitsOneLine([{ need: 100, room: 120 }, { need: 121, room: 120 }]), false);
++});
++
++test("half a pixel of rounding still fits", () => {
++  assert.equal(fitsOneLine([{ need: 120.4, room: 120 }]), true);
++});
+diff --git a/site_v2/src/styles/system.css b/site_v2/src/styles/system.css
+index 9905b6b1..79921b73 100644
+--- a/site_v2/src/styles/system.css
++++ b/site_v2/src/styles/system.css
+@@ -412,7 +412,7 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
+ }
+ .header-in {
+   max-width: 960px; margin: 0 auto; padding: 0 clamp(16px, 3.5vw, 28px);
+-  height: 58px; display: flex; align-items: center; gap: 18px;
++  height: 58px; display: flex; align-items: center; gap: clamp(12px, 4.5vw, 18px);
+ }
+ .brand { font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); flex: none; }
+ .brand .iq { color: var(--ink-2); font-weight: 700; }
+@@ -472,10 +472,15 @@ a.linkchip:hover { border-color: var(--ink-2); color: var(--ink); }
+ .fmeta { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+ 
+ /* nav inline + hamburger/drawer hidden once there's room for the full nav */
+-@media (min-width: 700px) {
+-  .mainnav { display: flex; }
+-  .hamburger { display: none; }
+-  .drawer { display: none !important; }
++/* The menu stands in the header row when the row holds it in the page's language, otherwise the
++   menu button: fitBlocks.mjs marks .header-in. Without the script the menu shows from 800px. */
++.header-in.fit-one .mainnav { display: flex; }
++.header-in.fit-one .hamburger { display: none; }
++.site-header:has(.header-in.fit-one) .drawer { display: none !important; }
++@media (min-width: 800px) {
++  .header-in:not(.fit-two) .mainnav { display: flex; }
++  .header-in:not(.fit-two) .hamburger { display: none; }
++  .site-header:has(.header-in:not(.fit-two)) .drawer { display: none !important; }
+ }
+ /* the two-column page grid needs a bit more room than the nav */
+ @media (min-width: 900px) {
+@@ -569,13 +574,13 @@ a.cnm .nm { text-decoration: none; }
+   padding: 12px 0; border-bottom: 1px solid var(--line);
+ }
+ .fxrow:last-child { border-bottom: 0; }
+-.fxrow .sides { display: grid; gap: 8px; min-width: 0; }
+-.fxrow .side { display: flex; align-items: center; gap: 10px; min-width: 0; }
++.fxrow .sides { display: grid; gap: 8px; }
++.fxrow .side { display: flex; align-items: center; gap: 10px; }
+ /* The name never truncates: the row exists to send people to a match, and a clipped name defeats
+    it. `overflow-wrap: normal` keeps the minimum width at the longest word, so a name wraps at a
+    space and can never collapse into a column of letters when the score competes for the space. */
+ .fxrow .side .nm {
+-  font-size: 15px; color: var(--ink); min-width: 0;
++  font-size: 15px; color: var(--ink);
+   white-space: normal; overflow: visible; text-overflow: clip;
+   overflow-wrap: normal; word-break: normal; hyphens: none; line-height: 1.25;
+ }
+@@ -735,7 +740,7 @@ a.brow:focus-visible { outline-offset: -2px; }
+ .comp-category { margin-bottom: 4px; }
+ .comp-grid {
+   display: grid;
+-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
++  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+   gap: 8px;
+   margin-top: 6px;
+ }
+@@ -850,7 +855,18 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .ctab .n.gd { color: var(--ink-2); }
+ .ctab .tm { display: flex; align-items: center; gap: 9px; min-width: 0; }
+ /* the name never truncates: system.css ellipsises .nm elsewhere, a table row wraps instead */
+-.ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: break-word; line-height: 1.25; }
++.ctab .tm .nm { min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink); white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: normal; line-height: 1.25; }
++/* A row whose names do not keep their longest word on one line takes two lines: rank, crest and
++   name, then every number under its own head. fitBlocks.mjs marks each table fit-one or fit-two
++   per language; without the script a narrow table takes two lines. */
++.ctab.fit-two .ctab-row > .rk { grid-row: 1; }
++.ctab.fit-two .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
++.ctab.fit-two .ctab-row > .n { grid-row: 2; padding-top: 4px; }
++@container (max-width: 599.98px) {
++  .ctab:not(.fit-one) .ctab-row > .rk { grid-row: 1; }
++  .ctab:not(.fit-one) .ctab-row > .tm { grid-column: 2 / -1; grid-row: 1; }
++  .ctab:not(.fit-one) .ctab-row > .n { grid-row: 2; padding-top: 4px; }
++}
+ 
+ /* The block explainer: one sentence under a block name. */
+ .bsub { margin: 2px 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+@@ -886,9 +902,13 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .frow .fvv b { font-weight: 700; font-size: 15px; color: var(--accent); }
+ .frow .sub { font-size: 12px; color: var(--muted); }
+ .nb { white-space: nowrap; }
+-@container (max-width: 420px) {
+-  .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+-  .frow .fv { text-align: left; }
++/* A block of fact rows stacks only when its longest row does not fit on one line: fitBlocks.mjs
++   marks the block fit-one or fit-two per language. Without the script a narrow block stacks. */
++.fit-two > .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
++.fit-two > .frow .fv { text-align: left; }
++@container (max-width: 599.98px) {
++  :not(.fit-one) > .frow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
++  :not(.fit-one) > .frow .fv { text-align: left; }
+ }
+ 
+ /* ---- the next match page (.mp) ---- */
+@@ -1004,7 +1024,6 @@ a.comp-row:focus-visible { outline-offset: -2px; }
+ .mp .sechead + .rlist > .lrow:first-child .resrow { padding-top: 0; }
+ /* A club in a match row carries its crest before its name, 10px apart. */
+ .club { display: inline-flex; align-items: center; gap: 10px; vertical-align: middle; max-width: 100%; }
+-.club .cn { min-width: 0; }
+ .ropp > .club:only-child { vertical-align: top; }
+ 
+ /* Player row: photo · name over position · numbers on the right at every width; the name wraps. */
+diff --git a/tests/fixtures/design_inventory/green.html b/tests/fixtures/design_inventory/green.html
+index b5724626..cd98c0cc 100644
+--- a/tests/fixtures/design_inventory/green.html
++++ b/tests/fixtures/design_inventory/green.html
+@@ -5,7 +5,7 @@
+ <link rel="stylesheet" href="system.css">
+ <body class="fx">
+ <header class="site-header">
+-  <div class="header-in">
++  <div class="header-in fit-two">
+     <a class="brand" href="#">Matchday<span class="iq">Pilot</span></a>
+     <nav class="mainnav" aria-label="Main"><a href="#">Competitions</a><span>Matches</span><span>Teams</span><span>Players</span><span>Standings</span><span>Statistics</span></nav>
+     <div class="header-actions">
+@@ -38,7 +38,7 @@
+ 
+   <section>
+     <div class="sechead"><span class="eyebrow">Table</span></div>
+-    <div class="ctab">
++    <div class="ctab fit-one">
+       <div class="ctab-head"><span class="h rk">#</span><span class="h nmh"></span><span class="h">P</span><span class="h wdl">W</span><span class="h wdl">D</span><span class="h wdl">L</span><span class="h wdl">Goals</span><span class="h">GD</span><span class="h">Pts</span></div>
+       <a class="ctab-row" href="#a"><span class="rk num">1</span><span class="tm"><span class="crest xs"></span><span class="nm">SC Freiburg</span></span><span class="n num">3</span><span class="n num wdl">3</span><span class="n num wdl">0</span><span class="n num wdl">0</span><span class="n num wdl">10:1</span><span class="n num gd">+9</span><span class="n num pts">9</span></a>
+       <a class="ctab-row" href="#b"><span class="rk num">2</span><span class="tm"><span class="crest xs"></span><span class="nm">Borussia Dortmund</span></span><span class="n num">3</span><span class="n num wdl">3</span><span class="n num wdl">0</span><span class="n num wdl">0</span><span class="n num wdl">8:2</span><span class="n num gd">+6</span><span class="n num pts">9</span></a>
+@@ -64,7 +64,7 @@
+ 
+   <section>
+     <div class="sechead"><span class="eyebrow">The season in numbers</span></div>
+-    <div class="facts">
++    <div class="facts fit-one">
+       <a class="frow" href="#f1"><span class="fl">Goals per match</span><span class="fv"><span class="fvv"><b>3.9</b></span><span class="sub">104 goals in 27 matches</span></span></a>
+       <a class="frow" href="#f2"><span class="fl">Home wins</span><span class="fv"><span class="fvv"><b>14 of 27</b></span><span class="sub">5 draws, 8 away wins</span></span></a>
+     </div>
+diff --git a/tests/test_design_inventory.py b/tests/test_design_inventory.py
+index 6679195c..53615eef 100644
+--- a/tests/test_design_inventory.py
++++ b/tests/test_design_inventory.py
+@@ -156,7 +156,7 @@ def test_the_committed_inventory_parses_and_is_not_empty():
+     assert len(inv.pages) >= 10
+     assert {p.kind for p in inv.pages} == {"built", "mock"}
+     proposed = [e.name for e in inv.elements if e.status == "proposed"]
+-    assert proposed == ["Breadcrumb current page", "Header row"], (
++    assert proposed == ["Breadcrumb current page"], (
+         "a proposed row is measured but never fails: %s" % proposed)
+     names = {e.name for e in inv.elements}
+     for p in inv.pages:
+@@ -257,6 +257,10 @@ def test_comparisons_name_the_expected_and_the_measured():
+     assert di.compare(di.Assertion("gap(next)", None, "14px", "gap(next)=14px"), 14.8, TOKENS) is None
+     assert di.compare(di.Assertion("fits", None, "", "fits"), (348, 343), TOKENS) == "expected fits · measured scrollWidth 348 > clientWidth 343"
+     assert di.compare(di.Assertion("one-line", None, "", "one-line"), 2, TOKENS) == "expected one-line · measured 2 lines"
++    assert di.compare(di.Assertion("whole-words", None, "", "whole-words"), (74.0, 66), TOKENS) == "expected whole-words · longest word 74px in a 66px box"
++    assert di.compare(di.Assertion("whole-words", None, "", "whole-words"), (66.6, 66), TOKENS) is None
++    assert di.compare(di.Assertion("fit-marked", None, "", "fit-marked"), False, TOKENS) == "expected fit-marked · the block carries neither fit-one nor fit-two"
++    assert di.compare(di.Assertion("fit-marked", None, "", "fit-marked"), True, TOKENS) is None
+     assert di.compare(di.Assertion("left-edge", None, "section", "left-edge=section"), 8.0, TOKENS).endswith("off the section's left")
+     assert di.compare(di.Assertion("tracks", None, "head", "tracks=head"), ("32px 200px", "32px 180px"), TOKENS).startswith("expected tracks=head")
+     assert di.compare(di.Assertion("visible", None, "1", "visible=1"), 3, TOKENS) == "expected visible=1 · measured 3"
 
 # ============================================================================
 # NOT SHOWN (review_exclude_paths) — BUT THESE FILES *ARE* EDITED
@@ -136,7 +531,9 @@ index 5e379b48..68cf1d73 100644
 # a scope defect. Read them directly with Read/Grep if a claim in contract.md
 # depends on one.
 #
-#   .claude/task/acceptance_evidence.md    | 24 ++++++++++--------------
-#    .claude/task/rendered_page_evidence.md | 19 +++----------------
-#    2 files changed, 13 insertions(+), 30 deletions(-)
+#   .claude/task/acceptance_evidence.md    |  24 +-
+#    .claude/task/rendered_page_evidence.md |  17 +-
+#    .claude/task/review.md                 |  31 +-
+#    .claude/task/review_input.patch        | 536 ++++++++++++++++++++++++++++-----
+#    4 files changed, 514 insertions(+), 94 deletions(-)
 # ============================================================================

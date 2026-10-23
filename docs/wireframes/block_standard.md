@@ -54,6 +54,8 @@
 | Table head label | `.ctab-head .h:not(.rk)` | 11px bold muted | `font-size=11px; font-weight=700; color=muted` | ruled | #129 Table |
 | Table row | `.ctab-row` | striped rows counted from the head, the first plain, the stripe ink at 5%; no line under a row; the row's tracks are the head's (one fixed track list per table kind) | `border-bottom-width=0px; stripe=ink@5% from 2; tracks=head` | ruled | #129 Table; 2026-09-17 ("head only") |
 | Table name cell | `.ctab .tm .nm` | 14px semi-bold ink, wraps and never truncates | `font-size=14px; font-weight=600; color=ink; white-space=normal` | ruled | #129 Table |
+| Table narrow row | `.ctab.fit-two .ctab-row` | a row that does not fit on one line takes two: rank, crest and name, then each number under its head | `tracks=head` | ruled | the narrow-screen fix |
+| Name in whole words | `.ctab .tm .nm, .fxrow .side .nm, .club .cn` | a team name wraps only between words; no word splits or runs past the name's space | `whole-words` | ruled | the narrow-screen fix |
 | Board name | `.ctab.rkt .ctab-head .nmh .bt .nm` | a board is a single-value table; its name sits in the head row with the chevron, 14px bold ink, not capitals, at the block's left edge | `font-size=14px; font-weight=700; color=ink; text-transform=none` | ruled | #129 board rules; #127 correction 1 |
 | Board name cell | `.ctab.rkt .ctab-head .nmh` | at the block's left edge | `left-edge=section` | ruled | #127 correction 3 |
 | Board sub-line | `.ctab.rkt .tm .ent .sub` | a player's club under the name, 12px muted | `font-size=12px; color=muted` | ruled | #129 Rankings |
@@ -68,6 +70,8 @@
 | Fact row label | `.frow .fl` | label, 14px ink regular | `font-size=14px; color=ink; font-weight=400` | ruled | #129 the fact row |
 | Fact row value | `.frow .fvv b` | the value, bold 15px accent — the number the row is about | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules, Block 3 |
 | Fact row context | `.frow .sub` | the context under the value, 12px muted | `font-size=12px; color=muted` | ruled | #129 the fact row |
+| Fact row block | `.frow` | label and value side by side while the block's longest row fits on one line; otherwise every row stacks its value under its label | `fits` | ruled | the narrow-screen fix |
+| Fitted block | `.header-in, .ctab, :has(> .frow)` | a block with a narrow form carries its measured form, fit-one or fit-two, once the page has loaded | `fit-marked` | ruled | the narrow-screen fix |
 | Ordered-by number | `.ctab .n.pts` | the number a table is ordered by: bold 15px accent, everywhere, no per-block colour | `font-size=15px; font-weight=700; color=accent` | ruled | #129 binding rules |
 | Row link | `a.ctab-row, a.fxrow, a.frow, a.brow, a.comp-row` | a row that leads somewhere is one link, the whole row; one hover tint for every row link, ink at 11% (twice the stripe); the press tint `sunk`; no underline inside a row | `hover(background-color)=ink@11%; press(background-color)=sunk; text-decoration-line=none` | ruled | #129 binding rules; #52; #127 (2026-09-14) |
 | Chevron heading link | `a.cnm` | a heading that leads somewhere carries a chevron at rest and is never underlined | `text-decoration-line=none` | ruled | #52; #129 binding rules |
@@ -109,7 +113,7 @@
 | Search field | `.header-actions .searchbox` | the header's search field with its placeholder, one on every page from 1010px, where it replaces the search button; on one line in every language, nothing spilling out of it | `visible=1 [>=1010px]; visible=0 [<1010px]; one-line; fits` | ruled | `09_chrome.md` (≥ 1010px: the full field) |
 | Search button | `.iconbtn.search-m` | the header's icon-only search button below 1010px, a 34px target; gone from 1010px | `visible=1 [<1010px]; visible=0 [>=1010px]; min-box=34px` | ruled | `09_chrome.md` (phone: the search icon) |
 | Page width | `body:not(.legacy-width) :is(.header-in, .footer-in)` | the header row and the footer share the content column's one width, 960px; a page awaiting its new design keeps the earlier widths | `max-width=960px` | ruled | the page width review |
-| Header row | `.header-in` | the header's brand, menu and controls fit its row, nothing pushed off the side | `fits` | proposed | measured, never fails: every page scrolls sideways at 700px today because of the header's controls, and fixing that is the CPO's call |
+| Header row | `.header-in` | the header's brand, menu and controls fit its row; the menu stands in the row when it fits there, otherwise the menu button | `fits` | ruled | the narrow-screen fix |
 
 Not measured, still the rule: the header is identical on every tab (crest · name · meta line) and
 there is no page title under the tab bar (#129); a board shows five rows on a competition page and

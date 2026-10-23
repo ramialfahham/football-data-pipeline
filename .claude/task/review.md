@@ -1,23 +1,32 @@
-# Review — fix/232-caf-1639347-goals — 2026-10-23
+# Review — fix/231-narrow-screens-replay — 2026-10-23
 
-diff_sha256: ef8195e435a8eda56768b9202544b5f2eff90ba0ce52c4ccf8ca762c4b2a580b
+diff_sha256: 2a47555e8a45ba34f751077b83f57724e8b5baef64b3d2ad61896a5e85c325a3
 
-rounds: 1
+rounds: 4
+rounds_cap_override: approved in chat, 2026-10-23; the fourth round only recorded approvals in the contract, every finding closed
 
 ## scope-auditor
 VERDICT: PASS
 risks_checked:
-- Every staged path is in scope_paths; approved_design none is right for a seed-only diff that reaches pages only through the existing data path.
-- The reading of the seed's source rule for the CFFA goal and its minute are recorded in decisions_taken with their approval; row 4 cites two reports on different sites.
-- No new mechanism, dependency, recurring cost or credential; no docs or decision history added.
+- Every staged path is in scope_paths, including the design check's fixture added by a dated amendment.
+- The five approved pages are named; the Team and Player pages take only the shared header change, recorded with its approval; the built pages render none of the other changed elements.
+- The shared script, the fit-marked check and the Fitted block row are named in decisions_taken with their approvals; no metric, label, URL, copy, order, dependency or cost change.
+- Docs state the current state only; the decisions reserved (filter rows, Team and Player narrow forms) are not built.
 
-## analytics-engineer-reviewer
+## bi-analyst-reviewer
 VERDICT: PASS
 risks_checked:
-- The five rows follow the seed contract: unique key, goal_order 1–5 in match order, team ids set, the not-null and accepted-value fields filled.
-- The source rules hold: four official rows with a CAF URL, one match_reports row with URLs on three sites.
-- The rows add up to 4–1 and step up one goal at a time; base_apif__fixture_events replaces the provider's three events for the match, so nothing is counted twice.
-- Pure append with the file's own line endings; no model, test or schema change; the correction is a seed applied in base.
+- No field, number, label, metric or order is added, removed or changed; the narrow table row moves the numbers under their heads and hides none.
+- Names never truncate: they wrap only between words; the 216-render sweep finds no split or overrun and no sideways scroll beyond the excluded filter rows.
+- The new block-standard rows match the CSS; the script decides layout only; the evidence covers every criterion with DOM and layout readings.
+
+## platform-reviewer
+VERDICT: PASS
+risks_checked:
+- The script cannot oscillate: each measure resets to fit-one first; hidden blocks are skipped and re-measured on reveal, tab change and resize.
+- A missing or broken script fails CI: the ruled Fitted block row fails on every unmarked built page (90 failures on main's build, 0 on this build); mocks are skipped because they load no script.
+- whole-words and fit-marked parse, measure, dispatch and compare end to end, and their tests fail on revert; the fact-row gap is read from the stylesheet.
+- No dependency, credential, workflow, deploy or cache change.
 
 ## escalations
 (none)
